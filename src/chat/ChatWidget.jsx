@@ -302,7 +302,7 @@ export default function ChatWidget() {
                     borderRadius: "50%",
                     background:   G.green,
                     border:       `2px solid ${G.bgHead}`,
-                    animation:    "lwd-status-pulse 2.4s ease-in-out infinite",
+                    /* solid dot — no pulse */
                   }}
                 />
               </div>
@@ -440,7 +440,7 @@ export default function ChatWidget() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKey}
-              placeholder="Ask about venues or planning..."
+              placeholder="Guest count, style, budget…"
               aria-label="Type your message to Aura"
               style={{
                 flex:        1,

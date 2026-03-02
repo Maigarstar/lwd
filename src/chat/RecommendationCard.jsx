@@ -117,7 +117,7 @@ export default function RecommendationCard({ item, darkMode = true, onQuickView,
               height:       5,
               borderRadius: "50%",
               background:   item.online ? "#22c55e" : "#6b7280",
-              animation:    item.online ? "lwd-status-pulse 2s ease-in-out infinite" : "none",
+              /* solid dot — no pulse */
               flexShrink:   0,
             }}
           />
