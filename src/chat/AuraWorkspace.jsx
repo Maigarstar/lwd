@@ -220,7 +220,7 @@ export default function AuraWorkspace({ onBack, onHome, onVenues, onLogin }) {
                 Chat with Aura
               </div>
               <div className="aws-topbar-subtitle" style={{ fontSize: 9, color: "rgba(255,255,255,0.38)", letterSpacing: "1.2px", textTransform: "uppercase" }}>
-                Wedding Planning Assistant
+                Wedding Concierge
               </div>
             </div>
           </div>
