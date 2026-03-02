@@ -217,7 +217,7 @@ export default function AuraWorkspace({ onBack, onHome, onVenues, onLogin }) {
             ><Icon name="sparkleMini" size={16} color={GOLD} /></div>
             <div>
               <div className="aws-topbar-title" style={{ fontFamily: "var(--font-heading-primary)", fontSize: 18, fontWeight: 500, color: "#fff", letterSpacing: "0.4px", lineHeight: 1, marginBottom: 2 }}>
-                Aura
+                Chat with Aura
               </div>
               <div className="aws-topbar-subtitle" style={{ fontSize: 9, color: "rgba(255,255,255,0.38)", letterSpacing: "1.2px", textTransform: "uppercase" }}>
                 Wedding Planning Assistant
@@ -473,7 +473,7 @@ export default function AuraWorkspace({ onBack, onHome, onVenues, onLogin }) {
                 <Icon name="sparkleMini" size={14} color={GOLD} />
               </div>
               <span style={{ fontFamily: "var(--font-heading-primary)", fontSize: 15, fontWeight: 500, color: T.sidebarText }}>
-                Aura
+                Chat with Aura
               </span>
             </div>
             <button

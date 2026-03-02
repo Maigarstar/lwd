@@ -122,7 +122,7 @@ export default function AuraMiniBar() {
                 marginBottom:  3,
               }}
             >
-              Aura
+              Chat with Aura
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
               <span
