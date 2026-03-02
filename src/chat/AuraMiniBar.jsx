@@ -132,7 +132,7 @@ export default function AuraMiniBar() {
                   borderRadius: "50%",
                   background:   "#22c55e",
                   display:      "inline-block",
-                  animation:    "lwd-status-pulse 2s ease infinite",
+                  /* no pulse — luxury stays still */
                 }}
               />
               <span
@@ -306,7 +306,7 @@ export default function AuraMiniBar() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKey}
-            placeholder="Ask about venues, vendors, regions…"
+            placeholder="Guest count, style, budget…"
             style={{
               flex:         1,
               background:   "none",

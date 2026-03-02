@@ -5,6 +5,12 @@ import Icon from "./Icons";
 
 const GOLD = "#C9A84C";
 
+const SMART_CHIPS = [
+  "80 guests in Tuscany this autumn",
+  "Historic black-tie venues under £30k",
+  "Intimate elopement on the Amalfi Coast",
+];
+
 // ── Theme token factory ────────────────────────────────────────────────────────
 function getT(dark) {
   if (dark) return {
@@ -210,6 +216,33 @@ export default function WorkspaceCenter({ darkMode }) {
             </div>
           ))}
 
+          {/* Smart suggestion chips — only on initial greeting state */}
+          {messages.length === 1 && messages[0].id === 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingLeft: 38, marginTop: -4 }}>
+              {SMART_CHIPS.map((chip) => (
+                <button
+                  key={chip}
+                  onClick={() => sendMessage(chip)}
+                  style={{
+                    background:    darkMode ? "rgba(201,168,76,0.08)" : "rgba(201,168,76,0.07)",
+                    border:        `1px solid ${darkMode ? "rgba(201,168,76,0.18)" : "rgba(201,168,76,0.15)"}`,
+                    borderRadius:  20,
+                    padding:       "8px 16px",
+                    fontFamily:    "var(--font-body)",
+                    fontSize:      12.5,
+                    color:         darkMode ? "rgba(255,255,255,0.65)" : "rgba(26,23,20,0.55)",
+                    cursor:        "pointer",
+                    lineHeight:    1.3,
+                    transition:    "all 0.2s",
+                    whiteSpace:    "nowrap",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = darkMode ? "rgba(201,168,76,0.18)" : "rgba(201,168,76,0.15)"; e.currentTarget.style.color = darkMode ? "rgba(255,255,255,0.65)" : "rgba(26,23,20,0.55)"; }}
+                >{chip}</button>
+              ))}
+            </div>
+          )}
+
           {/* Typing indicator */}
           {isTyping && (
             <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
@@ -349,7 +382,7 @@ export default function WorkspaceCenter({ darkMode }) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKey}
-              placeholder="Ask Aura about venues, vendors, regions, budgets…"
+              placeholder="Guest count, style, budget, destination…"
               rows={1}
               style={{
                 flex:       1,
