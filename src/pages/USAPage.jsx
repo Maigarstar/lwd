@@ -350,8 +350,6 @@ export default function USAPage({
   return (
     <ThemeCtx.Provider value={C}>
       <div style={{ background: C.black, minHeight: "100vh", color: C.white }}>
-        {/* TEST — remove after confirming render */}
-        <div style={{ background: "red", color: "white", fontSize: 32, padding: 40, textAlign: "center", fontWeight: 700 }}>TEST: IF YOU CAN SEE THIS, THE PAGE IS UPDATING</div>
         {/* ── Nav ──────────────────────────────────────────────────────── */}
         <HomeNav darkMode={darkMode} onToggleDark={() => setDarkMode((d) => !d)} onNavigateStandard={onViewStandard} onNavigateAbout={onViewAbout} />
 
@@ -621,7 +619,7 @@ export default function USAPage({
             </div>
           </div>
 
-          {/* ═══ 9-NEW. EDITORIAL BANNER — clean warm stone ═══════════════ */}
+          {/* ═══ 9. EDITORIAL BANNER — warm stone ═══════════════ */}
           <section style={{ display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", marginTop: 80, padding: "80px 40px", background: "#f3ede6", borderTop: "1px solid #ddd4c8", borderBottom: "1px solid #ddd4c8" }}>
             <div style={{ maxWidth: 760 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 24 }}>
@@ -639,28 +637,6 @@ export default function USAPage({
               <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
                 <button style={{ background: "linear-gradient(135deg, #7a5f10 0%, #9a7a0a 100%)", border: "none", borderRadius: 3, color: "#ffffff", padding: "13px 36px", fontSize: 10, fontWeight: 700, letterSpacing: "2.5px", textTransform: "uppercase", cursor: "pointer", fontFamily: "inherit" }}>Start Planning</button>
                 <button style={{ background: "none", border: "1px solid #ddd4c8", borderRadius: 3, color: "#2a2a2a", padding: "13px 36px", fontSize: 10, fontWeight: 600, letterSpacing: "2.5px", textTransform: "uppercase", cursor: "pointer", fontFamily: "inherit" }}>Talk to a Consultant</button>
-              </div>
-            </div>
-          </section>
-
-          {/* ═══ 9-OLD. EDITORIAL BANNER — TO BE REMOVED ═══════════════ */}
-          <section style={{ display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", marginTop: 80, padding: "80px 40px", background: C.dark }}>
-            <div style={{ maxWidth: 760 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 24 }}>
-                <div style={{ width: 60, height: 1, background: C.border }} />
-                <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "5px", textTransform: "uppercase", color: C.grey, fontWeight: 600 }}>Exclusively Curated</span>
-                <div style={{ width: 60, height: 1, background: C.border }} />
-              </div>
-              <h2 style={{ fontFamily: GD, fontSize: "clamp(26px,3vw,40px)", fontWeight: 400, color: C.off, lineHeight: 1.15, margin: "0 0 18px" }}>
-                America — where grand estates meet <span style={{ fontStyle: "italic", color: C.gold }}>endless possibility.</span>
-              </h2>
-              <p style={{ fontFamily: NU, fontSize: 14, color: C.grey, lineHeight: 1.7, maxWidth: 520, margin: "0 auto 32px" }}>
-                Every venue and vendor in our American collection has been personally visited and
-                approved by our editorial team. Only the exceptional makes the list.
-              </p>
-              <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
-                <button style={{ background: `linear-gradient(135deg, ${C.gold} 0%, ${C.gold2} 100%)`, border: "none", borderRadius: "var(--lwd-radius-input)", color: "#0f0d0a", padding: "13px 36px", fontSize: 10, fontWeight: 700, letterSpacing: "2.5px", textTransform: "uppercase", cursor: "pointer", fontFamily: "inherit" }}>Start Planning</button>
-                <button onMouseEnter={() => setHovConsult(true)} onMouseLeave={() => setHovConsult(false)} style={{ background: "none", border: `1px solid ${hovConsult ? C.gold : C.border}`, borderRadius: "var(--lwd-radius-input)", color: hovConsult ? C.gold : C.grey, padding: "13px 36px", fontSize: 10, fontWeight: 600, letterSpacing: "2.5px", textTransform: "uppercase", cursor: "pointer", fontFamily: "inherit", transition: "all 0.25s" }}>Talk to a Consultant</button>
               </div>
             </div>
           </section>
