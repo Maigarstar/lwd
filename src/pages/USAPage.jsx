@@ -622,7 +622,7 @@ export default function USAPage({
           {/* ═══ 9. EDITORIAL BANNER — always-dark section ═══════════════ */}
           <section style={{ position: "relative", height: 480, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", marginTop: 80, overflow: "hidden", background: "#020201" }}>
             <img src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1920&q=80" alt="" loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.3, transform: "scale(1.03)" }} />
-            <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(2,2,1,0.88) 0%, rgba(2,2,1,0.65) 50%, rgba(2,2,1,0.82) 100%)" }} />
+            <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, #020201 0%, #020201 50%, #020201 100%)" }} />
 
             <div style={{ position: "relative", zIndex: 1, maxWidth: 760, padding: "0 40px" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 24 }}>
