@@ -38,7 +38,7 @@ const nextStub = () => STUBS[stubIdx++ % STUBS.length];
 const INIT_MESSAGE = {
   id: 0,
   from: "aura",
-  text: "Hello. I am Aura, your personal wedding planning assistant. I can help you find the right venue, explore vendors, or connect you with one of our consultants. How can I help?",
+  text: "Hello. I am Aura, your personal wedding concierge. I can help you find the right venue, explore vendors, or connect you with one of our consultants. How can I help?",
 };
 
 // ── Context ───────────────────────────────────────────────────────────────────

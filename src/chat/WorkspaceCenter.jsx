@@ -30,7 +30,7 @@ function getT(dark) {
     imgPreviewBorder:"rgba(201,168,76,0.15)",
   };
   return {
-    centerBg:       "#FFFFFF",
+    centerBg:       "#FDFBF8",
     auraBubbleBg:   "#F5F0E8",
     auraBubbleBorder:"rgba(201,168,76,0.08)",
     auraBubbleText: "#1A1714",
@@ -126,6 +126,9 @@ export default function WorkspaceCenter({ darkMode }) {
         .ws-thread::-webkit-scrollbar       { width: 4px; }
         .ws-thread::-webkit-scrollbar-track { background: ${T.scrollTrack}; }
         .ws-thread::-webkit-scrollbar-thumb { background: ${GOLD}; border-radius: 2px; }
+        .ws-msg-row .ws-thumbs { opacity: 0; transition: opacity 0.2s ease; }
+        .ws-msg-row:hover .ws-thumbs { opacity: 1; }
+        .ws-thumbs.ws-thumbs--active { opacity: 1; }
       `}</style>
 
       <div style={{ height: "100%", display: "flex", flexDirection: "column", background: T.centerBg, transition: "background 0.3s ease" }}>
@@ -139,6 +142,7 @@ export default function WorkspaceCenter({ darkMode }) {
           {messages.map((m) => (
             <div
               key={m.id}
+              className="ws-msg-row"
               style={{ display: "flex", flexDirection: m.from === "user" ? "row-reverse" : "row", alignItems: "flex-end", gap: 8 }}
             >
               {/* Aura avatar */}
@@ -156,18 +160,34 @@ export default function WorkspaceCenter({ darkMode }) {
               )}
 
               {/* Bubble + feedback */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: m.from === "user" ? "flex-end" : "flex-start", maxWidth: "72%", gap: 4 }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: m.from === "user" ? "flex-end" : "flex-start", maxWidth: "78%", gap: 4 }}>
+                {/* Concierge intro header on first Aura message */}
+                {m.from === "aura" && m.id === 0 && (
+                  <div style={{
+                    fontFamily:    "var(--font-heading-primary)",
+                    fontSize:      11,
+                    fontWeight:    500,
+                    letterSpacing: "1.8px",
+                    textTransform: "uppercase",
+                    color:         GOLD,
+                    opacity:       0.7,
+                    marginBottom:  2,
+                    paddingLeft:   2,
+                  }}>
+                    Your Private Wedding Concierge
+                  </div>
+                )}
                 <div
                   style={{
-                    padding: "11px 16px",
+                    padding: "13px 18px",
                     borderRadius:  m.from === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
                     background:    m.from === "user" ? T.userBubbleBg  : T.auraBubbleBg,
                     border:        `1px solid ${m.from === "user" ? T.userBubbleBorder : T.auraBubbleBorder}`,
                     color:         m.from === "user" ? T.userBubbleText : T.auraBubbleText,
                     fontFamily:   "var(--font-body)",
-                    fontSize:      14,
-                    lineHeight:    1.6,
-                    boxShadow:     m.from === "user" ? "0 1px 4px rgba(0,0,0,0.12)" : "0 1px 4px rgba(0,0,0,0.06)",
+                    fontSize:      14.5,
+                    lineHeight:    1.65,
+                    boxShadow:     m.from === "user" ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
                     transition:   "background 0.3s ease, color 0.3s ease, border-color 0.3s ease",
                   }}
                 >
@@ -176,7 +196,7 @@ export default function WorkspaceCenter({ darkMode }) {
 
                 {/* Thumbs — Aura only */}
                 {m.from === "aura" && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 4, paddingLeft: 4 }}>
+                  <div className={`ws-thumbs${feedback[m.id] ? " ws-thumbs--active" : ""}`} style={{ display: "flex", alignItems: "center", gap: 4, paddingLeft: 4 }}>
                     <ThumbBtn icon={<Icon name="thumbUp" size={12} />} active={feedback[m.id] === "up"}   label="Helpful"     onClick={() => toggleFeedback(m.id, "up")}   T={T} />
                     <ThumbBtn icon={<Icon name="thumbDown" size={12} />} active={feedback[m.id] === "down"} label="Not helpful"  onClick={() => toggleFeedback(m.id, "down")} T={T} />
                     {feedback[m.id] && (

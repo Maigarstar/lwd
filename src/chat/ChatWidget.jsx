@@ -246,7 +246,7 @@ export default function ChatWidget() {
           ref={panelRef}
           role="dialog"
           aria-modal="true"
-          aria-label="Aura wedding planning assistant"
+          aria-label="Aura wedding concierge"
           style={{
             ...panelStyle,
             zIndex:         1200,
