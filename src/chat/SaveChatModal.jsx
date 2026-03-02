@@ -8,18 +8,26 @@ export default function SaveChatModal({ onClose }) {
   const [email,   setEmail]   = useState("");
   const [saved,   setSaved]   = useState(false);
   const [visible, setVisible] = useState(false);
+  const [closing, setClosing] = useState(false);
 
   // Entrance animation
   useEffect(() => {
     requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
   }, []);
 
+  // Graceful close — glide out then unmount
+  const handleClose = () => {
+    setClosing(true);
+    setVisible(false);
+    setTimeout(onClose, 600);
+  };
+
   // ESC close
   useEffect(() => {
-    const fn = (e) => { if (e.key === "Escape") onClose(); };
+    const fn = (e) => { if (e.key === "Escape") handleClose(); };
     document.addEventListener("keydown", fn);
     return () => document.removeEventListener("keydown", fn);
-  }, [onClose]);
+  }, []);
 
   const handleSubmit = (e) => {
     e?.preventDefault();
@@ -31,7 +39,7 @@ export default function SaveChatModal({ onClose }) {
     <>
       {/* Backdrop */}
       <div
-        onClick={onClose}
+        onClick={handleClose}
         style={{
           position:             "fixed",
           inset:                0,
@@ -40,7 +48,9 @@ export default function SaveChatModal({ onClose }) {
           backdropFilter:       "blur(6px)",
           WebkitBackdropFilter: "blur(6px)",
           opacity:              visible ? 1 : 0,
-          transition:           "opacity 0.2s ease",
+          transition:           closing
+            ? "opacity 0.55s cubic-bezier(0.4, 0, 0.2, 1)"
+            : "opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       />
 
@@ -55,10 +65,14 @@ export default function SaveChatModal({ onClose }) {
           top:           "50%",
           left:          "50%",
           transform:     visible
-            ? "translate(-50%,-50%) scale(1)"
-            : "translate(-50%,-50%) scale(0.94)",
+            ? "translate(-50%,-50%) translateY(0) scale(1)"
+            : closing
+              ? "translate(-50%,-50%) translateY(40px) scale(0.96)"
+              : "translate(-50%,-50%) translateY(-20px) scale(0.97)",
           opacity:       visible ? 1 : 0,
-          transition:    "transform 0.25s ease, opacity 0.25s ease",
+          transition:    closing
+            ? "transform 0.55s cubic-bezier(0.4, 0, 1, 1), opacity 0.5s cubic-bezier(0.4, 0, 1, 1)"
+            : "transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
           zIndex:        1301,
           width:         "min(92vw, 400px)",
           background:    "#13110e",
@@ -169,7 +183,7 @@ export default function SaveChatModal({ onClose }) {
             </form>
 
             <button
-              onClick={onClose}
+              onClick={handleClose}
               style={{
                 width:         "100%",
                 padding:       "10px 0",
@@ -213,7 +227,7 @@ export default function SaveChatModal({ onClose }) {
               email shortly.
             </p>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               style={{
                 width:         "100%",
                 padding:       "12px 0",
