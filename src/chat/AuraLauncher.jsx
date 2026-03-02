@@ -60,7 +60,7 @@ export default function AuraLauncher() {
           whiteSpace:    "nowrap",
         }}
       >
-        Ask Aura
+        Chat with Aura?
       </span>
 
       {/* Notification dot (visible once there is an Aura message) */}
