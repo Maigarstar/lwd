@@ -46,7 +46,7 @@ export default function SEOBlock() {
       <div
         style={{ maxWidth: 1280, margin: "0 auto", padding: "80px 48px" }}
       >
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80 }}>
+        <div className="lwd-seoblock-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80 }}>
 
           {/* ── Left: editorial ── */}
           <div>

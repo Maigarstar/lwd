@@ -13,7 +13,7 @@ applyThemeToDocument();
 
 import HomePage from "./pages/HomePage.jsx";
 import VenueProfile           from "./VenueProfile.jsx";
-import CountryTemplate        from "./pages/CountryTemplate.jsx";
+// CountryTemplate removed — /category now renders ItalyPage with noIndex
 import RegionPage             from "./pages/RegionPage.jsx";
 import RegionCategoryPage     from "./pages/RegionCategoryPage.jsx";
 import LWDStandard            from "./pages/LWDStandard.jsx";
@@ -192,7 +192,7 @@ function App() {
           />
         )}
         {page === "category" && (
-          <CountryTemplate onBack={goHome} onViewVenue={goVenue} onViewRegion={goRegion} onViewCategory={goCategory} initialRegion={categoryRegion} initialSearchQuery={categorySearchQuery} footerNav={footerNav} />
+          <ItalyPage noIndex onBack={goHome} onViewVenue={goVenue} onViewRegion={goRegion} onViewCategory={goCategory} initialRegion={categoryRegion} initialSearchQuery={categorySearchQuery} footerNav={footerNav} />
         )}
         {page === "standard" && (
           <LWDStandard onBack={goHome} onViewCategory={goCategory} onViewAbout={goAbout} onViewContact={goContact} onViewPartnership={goPartnership} footerNav={footerNav} />

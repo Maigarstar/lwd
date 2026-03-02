@@ -12,7 +12,9 @@ import SiteFooter from "../components/sections/SiteFooter";
 import CountrySearchBar from "../components/filters/CountrySearchBar";
 import MapSection from "../components/sections/MapSection";
 import GCard from "../components/cards/GCard";
+import GCardMobile from "../components/cards/GCardMobile";
 import QuickViewModal from "../components/modals/QuickViewModal";
+import SliderNav from "../components/ui/SliderNav";
 import "../category.css";
 
 // ── Font tokens ──────────────────────────────────────────────────────────────
@@ -246,6 +248,18 @@ function matchesCapacity(v, cap) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// ── Mobile detection hook ─────────────────────────────────────────────────
+function useIsMobile(bp = 768) {
+  const [mobile, setMobile] = useState(() => window.innerWidth <= bp);
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${bp}px)`);
+    const fn = (e) => setMobile(e.matches);
+    mql.addEventListener("change", fn);
+    return () => mql.removeEventListener("change", fn);
+  }, [bp]);
+  return mobile;
+}
+
 export default function USAPage({
   onBack = () => {},
   onViewVenue = () => {},
@@ -256,6 +270,7 @@ export default function USAPage({
   footerNav = {},
 }) {
   const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
+  const isMobile = useIsMobile();
   const C = darkMode ? getDarkPalette() : getLightPalette();
   const { setChatContext } = useChat();
 
@@ -384,7 +399,7 @@ export default function USAPage({
             <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(10,8,6,0.55) 0%, transparent 60%)" }} />
 
             {/* Text content — always-dark section, hardcoded colours */}
-            <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: "0 80px 80px", zIndex: 2, opacity: loaded ? 1 : 0, transform: loaded ? "translateY(0)" : "translateY(20px)", transition: "all 0.9s ease" }}>
+            <div className="usa-hero-content" style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: "0 80px 80px", zIndex: 2, opacity: loaded ? 1 : 0, transform: loaded ? "translateY(0)" : "translateY(20px)", transition: "all 0.9s ease" }}>
               {/* Category label with gold ornament line */}
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }} aria-hidden="true">
                 <div style={{ width: 32, height: 1, background: "rgba(201,168,76,0.6)" }} />
@@ -410,7 +425,7 @@ export default function USAPage({
               </p>
 
               {/* Stats row */}
-              <div style={{ display: "flex", gap: 32, alignItems: "center" }} aria-label="Key statistics">
+              <div className="lwd-hero-stats" style={{ display: "flex", gap: 32, alignItems: "center" }} aria-label="Key statistics">
                 {[
                   { val: String(USA_VENUES.length), label: "Curated Venues" },
                   { val: "50", label: "States Covered" },
@@ -440,7 +455,7 @@ export default function USAPage({
           </section>
 
           {/* ═══ 2. INFO STRIP ════════════════════════════════════════════ */}
-          <section style={{ background: C.dark, borderTop: `1px solid ${C.border}`, padding: "40px 48px" }}>
+          <section className="usa-section" style={{ background: C.dark, borderTop: `1px solid ${C.border}`, padding: "40px 48px" }}>
             <div className="usa-info-strip" style={{ maxWidth: 1280, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0 }}>
               {INFO_COLS.map((col, ci) => (
                 <div key={col.label} style={{ padding: "0 28px", borderLeft: ci > 0 ? `1px solid ${C.border}` : "none" }}>
@@ -482,15 +497,15 @@ export default function USAPage({
           />
 
           {/* ═══ 3. BRIDGE ════════════════════════════════════════════════ */}
-          <div style={{ maxWidth: 1280, margin: "0 auto", padding: "56px 48px 0", textAlign: "center" }}>
+          <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "56px 48px 0", textAlign: "center" }}>
             <p style={{ fontFamily: GD, fontSize: "clamp(22px,2.5vw,32px)", fontWeight: 300, fontStyle: "italic", color: C.grey, letterSpacing: "0.5px" }}>Choose your backdrop.</p>
           </div>
 
           {/* ═══ 4. EDITORIAL SPLIT ═══════════════════════════════════════ */}
-          <section style={{ maxWidth: 1280, margin: "0 auto", padding: "56px 48px 80px" }}>
+          <section className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "56px 48px 80px" }}>
             <div className="usa-split-grid" style={{ display: "grid", gridTemplateColumns: "55% 45%", gap: 40 }}>
               {/* Left — image mosaic */}
-              <div style={{ display: "grid", gap: 6, gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr 1fr", gridTemplateAreas: '"one two" "one three" "four five"', minHeight: 500 }}>
+              <div className="usa-mosaic-grid" style={{ display: "grid", gap: 6, gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr 1fr", gridTemplateAreas: '"one two" "one three" "four five"', minHeight: 500 }}>
                 {LATEST_5.map((v, i) => {
                   const areas = ["one","two","three","four","five"];
                   return (
@@ -545,18 +560,24 @@ export default function USAPage({
           </div>
 
           {/* ═══ 6. LATEST VENUES (6 cards using GCard) ═══════════════════ */}
-          <div style={{ maxWidth: 1280, margin: "0 auto", padding: "52px 48px 8px" }}>
+          <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "52px 48px 8px" }}>
             <p style={{ fontFamily: GD, fontSize: "clamp(22px,2.5vw,32px)", fontWeight: 300, fontStyle: "italic", color: C.grey, letterSpacing: "0.5px", margin: "0 0 6px" }}>Latest Venues.</p>
             <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, opacity: 0.6, lineHeight: 1.6, maxWidth: 520, margin: 0 }}>
               Newly added estates, resorts, and private properties — each personally vetted by our editorial team.
             </p>
           </div>
-          <div style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 0" }}>
-            <div className="usa-venue-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
-              {filteredVenues.slice(0, 6).map((v) => (
-                <GCard key={v.id} v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} onQuickView={setQvItem} />
+          <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 0" }}>
+            <SliderNav className="usa-venue-grid" cardWidth={isMobile ? 300 : 340} gap={isMobile ? 12 : 16}>
+              {filteredVenues.slice(0, isMobile ? 8 : 12).map((v) => (
+                <div key={v.id} className="usa-venue-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 340px", scrollSnapAlign: "start" }}>
+                  {isMobile ? (
+                    <GCardMobile v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} />
+                  ) : (
+                    <GCard v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} onQuickView={setQvItem} />
+                  )}
+                </div>
               ))}
-            </div>
+            </SliderNav>
           </div>
 
           {/* ═══ 7. SIGNATURE COLLECTION (slider) — always-dark section ════ */}
@@ -570,7 +591,7 @@ export default function USAPage({
               <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(4,3,2,0.88) 0%, rgba(4,3,2,0.55) 50%, rgba(4,3,2,0.2) 100%)" }} />
               <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 40%, rgba(4,3,2,0.65) 100%)" }} />
 
-              <div style={{ position: "relative", zIndex: 2, height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 80px", maxWidth: 650, opacity: slideFade ? 1 : 0, transform: slideFade ? "translateY(0)" : "translateY(12px)", transition: "opacity 0.4s, transform 0.8s ease" }}>
+              <div className="usa-hero-content" style={{ position: "relative", zIndex: 2, height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 80px", maxWidth: 650, opacity: slideFade ? 1 : 0, transform: slideFade ? "translateY(0)" : "translateY(12px)", transition: "opacity 0.4s, transform 0.8s ease" }}>
                 <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.35em", textTransform: "uppercase", color: "rgba(255,255,255,0.45)", fontWeight: 600, marginBottom: 8 }}>✦ LWD Signature Collection</div>
                 <div style={{ fontFamily: NU, fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 20, lineHeight: 1.5 }}>
                   Reserved for venues that define the LWD standard.<br />
@@ -605,18 +626,24 @@ export default function USAPage({
           </div>
 
           {/* ═══ 8. LATEST VENDORS ═══════════════════════════════════════ */}
-          <div style={{ maxWidth: 1280, margin: "0 auto", padding: "48px 48px 8px", marginTop: 40 }}>
+          <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "48px 48px 8px", marginTop: 40 }}>
             <p style={{ fontFamily: GD, fontSize: "clamp(22px,2.5vw,32px)", fontWeight: 300, fontStyle: "italic", color: C.grey, letterSpacing: "0.5px", margin: "0 0 6px" }}>Latest Vendors.</p>
             <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, opacity: 0.6, lineHeight: 1.6, maxWidth: 520, margin: 0 }}>
               Planners, photographers, florists, and culinary artists — the professionals behind America's finest celebrations.
             </p>
           </div>
-          <div style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 0" }}>
-            <div className="usa-venue-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
-              {USA_VENDORS.slice(0, 6).map((v) => (
-                <GCard key={v.id} v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} onQuickView={setQvItem} />
+          <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 0" }}>
+            <SliderNav className="usa-vendor-slider" cardWidth={isMobile ? 300 : 340} gap={isMobile ? 12 : 16}>
+              {(isMobile ? USA_VENDORS.slice(0, 8) : USA_VENDORS.slice(0, 12)).map((v) => (
+                <div key={v.id} className="usa-vendor-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 340px", scrollSnapAlign: "start" }}>
+                  {isMobile ? (
+                    <GCardMobile v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} />
+                  ) : (
+                    <GCard v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} onQuickView={setQvItem} />
+                  )}
+                </div>
               ))}
-            </div>
+            </SliderNav>
           </div>
 
           {/* ═══ 9. EDITORIAL BANNER — cinematic with image ═══════════════ */}
@@ -643,7 +670,7 @@ export default function USAPage({
           </section>
 
           {/* ═══ 10. SEO / FAQ ════════════════════════════════════════════ */}
-          <section style={{ background: C.dark, borderTop: `1px solid ${C.border}`, padding: "80px 48px" }}>
+          <section className="usa-section" style={{ background: C.dark, borderTop: `1px solid ${C.border}`, padding: "80px 48px" }}>
             <div className="usa-seo-grid" style={{ maxWidth: 1280, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80 }}>
               <div>
                 <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: C.gold, fontWeight: 600, marginBottom: 12 }}>Planning Guide</div>

@@ -6,6 +6,7 @@ export default function EditorialBanner() {
 
   return (
     <section
+      className="lwd-editorial-banner"
       aria-label="Editorial banner"
       style={{
         position: "relative",
@@ -38,6 +39,7 @@ export default function EditorialBanner() {
 
       {/* Content */}
       <div
+        className="lwd-editorial-banner-content"
         style={{
           position: "absolute",
           inset: 0,
@@ -109,7 +111,7 @@ export default function EditorialBanner() {
           our editorial team. Only the exceptional makes the list.
         </p>
 
-        <div style={{ display: "flex", gap: 12 }}>
+        <div className="lwd-editorial-banner-cta" style={{ display: "flex", gap: 12 }}>
           <button
             style={{
               background: "linear-gradient(135deg,#C9A84C,#e8c97a)",

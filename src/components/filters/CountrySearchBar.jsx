@@ -387,9 +387,10 @@ export default function CountrySearchBar({
       }}
     >
       {/* ── Trigger row ── */}
-      <div style={{
+      <div className="lwd-country-search-row" style={{
         maxWidth: 1280, margin: "0 auto", padding: "0 48px",
         display: "flex", alignItems: "center", gap: 12, height: 60,
+        overflowX: "auto", WebkitOverflowScrolling: "touch",
       }}>
         {/* Mode toggle */}
         <div role="tablist" aria-label="Search mode" style={{
@@ -506,7 +507,7 @@ export default function CountrySearchBar({
 
       {/* ═══ MEGA MENU PANEL — warm stone refinement ══════════════════════ */}
       {openMenu && (
-        <div style={{
+        <div className="lwd-country-mega-panel" style={{
           borderTop: `1px solid ${CL.divider}`,
           borderBottom: `1px solid ${CL.divider}`,
           background: STONE_DEEP,

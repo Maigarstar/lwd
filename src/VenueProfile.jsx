@@ -1,5 +1,18 @@
 import { useState, useEffect, useRef, createContext, useContext } from "react";
 import { getDefaultMode } from "./theme/tokens";
+import GCardMobile from "./components/cards/GCardMobile";
+import SliderNav from "./components/ui/SliderNav";
+
+function useIsMobile(bp = 768) {
+  const [mobile, setMobile] = useState(() => window.innerWidth <= bp);
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${bp}px)`);
+    const fn = (e) => setMobile(e.matches);
+    mql.addEventListener("change", fn);
+    return () => mql.removeEventListener("change", fn);
+  }, [bp]);
+  return mobile;
+}
 
 // ─── DESIGN SYSTEM ────────────────────────────────────────────────────────────
 const LIGHT = {
@@ -67,7 +80,7 @@ const VENUE = {
   press: ["Vogue", "HELLO!", "Tatler", "Harper's Bazaar"],
   imgs: [
     "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=1920&q=80",
-    "https://images.unsplash.com/photo-1525596662741-e994a3f4c8c7?w=1920&q=80",
+    "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?w=1920&q=80",
     "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=1920&q=80",
     "https://images.unsplash.com/photo-1464808322410-1a934aab61e5?w=1920&q=80",
     "https://images.unsplash.com/photo-1533104816931-20fa691ff6ca?w=1920&q=80",
@@ -75,8 +88,8 @@ const VENUE = {
   gallery: [
     { id: 1,  src: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=800&q=80", alt: "Grand ballroom ceremony setup with chandeliers and floral arch", tags: ["ceremony", "ballroom", "indoor", "chandelier", "floral"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
     { id: 2,  src: "https://images.unsplash.com/photo-1537633552985-df8429e8048b?w=800&q=80", alt: "Bride and groom first dance under string lights", tags: ["first-dance", "reception", "evening", "string-lights", "couple"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
-    { id: 3,  src: "https://images.unsplash.com/photo-1548604011-07d5c5baa31a?w=800&q=80", alt: "Outdoor garden ceremony with cypress tree backdrop", tags: ["ceremony", "garden", "outdoor", "cypress", "tuscan"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
-    { id: 4,  src: "https://images.unsplash.com/photo-1525596662741-e994a3f4c8c7?w=800&q=80", alt: "Villa grounds at golden hour with rolling hills", tags: ["venue", "exterior", "golden-hour", "landscape", "tuscan-hills"], photographer: { name: "Lucia Conti", area: "Siena & Chianti", website: "luciaconti.com", instagram: "@luciaconti_weddings", camera: "Sony A7IV" } },
+    { id: 3,  src: "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&q=80", alt: "Outdoor garden ceremony with cypress tree backdrop", tags: ["ceremony", "garden", "outdoor", "cypress", "tuscan"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
+    { id: 4,  src: "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?w=800&q=80", alt: "Villa grounds at golden hour with rolling hills", tags: ["venue", "exterior", "golden-hour", "landscape", "tuscan-hills"], photographer: { name: "Lucia Conti", area: "Siena & Chianti", website: "luciaconti.com", instagram: "@luciaconti_weddings", camera: "Sony A7IV" } },
     { id: 5,  src: "https://images.unsplash.com/photo-1514222134-b57cbb8ce073?w=800&q=80", alt: "Elegant table setting with gold details and candles", tags: ["table-setting", "reception", "details", "gold", "candlelight"], photographer: { name: "Lucia Conti", area: "Siena & Chianti", website: "luciaconti.com", instagram: "@luciaconti_weddings", camera: "Sony A7IV" } },
     { id: 6,  src: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80", alt: "Aerial view of villa estate and surrounding vineyards", tags: ["aerial", "drone", "estate", "vineyards", "landscape"], photographer: { name: "Drone Italia", area: "All Italy", website: "droneitalia.it", instagram: "@droneitalia", camera: "DJI Mavic 3" } },
     { id: 7,  src: "https://images.unsplash.com/photo-1583418855232-f0d0b13b77c9?w=800&q=80", alt: "Bridal bouquet with white roses and olive branch details", tags: ["bouquet", "flowers", "details", "bridal", "roses"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
@@ -138,7 +151,7 @@ const VENUE = {
       badge: "Open Day",
       title: "Spring Open Day",
       detail: "Saturday 22 March 2025 · 11am–4pm · Guided tours of all spaces, seasonal tastings and a chance to meet our full team.",
-      img: "https://images.unsplash.com/photo-1525596662741-e994a3f4c8c7?w=600&q=80",
+      img: "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?w=600&q=80",
       imgCaption: "The Cypress Garden · Villa Rosanova",
       cta: "Reserve your place",
     },
@@ -185,7 +198,7 @@ const VENUE = {
   },
   spaces: [
     { name: "The Grand Salon", desc: "Frescoed 18th-century ballroom with original parquet floors and three Venetian chandeliers.", capacity: 160, img: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=600&q=80" },
-    { name: "The Cypress Garden", desc: "Formal Italian garden framed by century-old cypress trees. Ideal for outdoor ceremonies at sunset.", capacity: 200, img: "https://images.unsplash.com/photo-1525596662741-e994a3f4c8c7?w=600&q=80" },
+    { name: "The Cypress Garden", desc: "Formal Italian garden framed by century-old cypress trees. Ideal for outdoor ceremonies at sunset.", capacity: 200, img: "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?w=600&q=80" },
     { name: "The Loggia", desc: "A covered stone terrace overlooking the vineyard — perfect for cocktail receptions as the vines glow at dusk.", capacity: 80, img: "https://images.unsplash.com/photo-1464808322410-1a934aab61e5?w=600&q=80" },
     { name: "The Wine Cellar", desc: "Intimate vaulted 14th-century cellar for private dinners, tastings and late-night celebrations.", capacity: 40, img: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&q=80" },
   ],
@@ -433,7 +446,7 @@ function Nav({ darkMode, setDarkMode, saved, setSaved, compareList, onAddCompare
   const btnBg     = (active) => active ? C.goldLight : "transparent";
 
   return (
-    <nav style={{
+    <nav className="vp-nav" style={{
       position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000,
       background: navBg,
       backdropFilter: scrolled ? "blur(20px) saturate(180%)" : "none",
@@ -444,7 +457,7 @@ function Nav({ darkMode, setDarkMode, saved, setSaved, compareList, onAddCompare
     }}>
 
       {/* ── Logo + breadcrumb ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+      <div className="vp-nav-left" style={{ display: "flex", alignItems: "center", gap: 24 }}>
         {/* Wordmark */}
         <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
           <div style={{
@@ -467,7 +480,7 @@ function Nav({ darkMode, setDarkMode, saved, setSaved, compareList, onAddCompare
         <div style={{ width: 1, height: 28, background: scrolled ? C.border : "rgba(255,255,255,0.2)" }} />
 
         {/* Breadcrumb */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: FB, fontSize: 12, letterSpacing: "0.2px" }}>
+        <div className="vp-breadcrumb" style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: FB, fontSize: 12, letterSpacing: "0.2px" }}>
           {["Venues", "Italy", "Tuscany"].map((crumb) => (
             <span key={crumb} style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span
@@ -484,7 +497,7 @@ function Nav({ darkMode, setDarkMode, saved, setSaved, compareList, onAddCompare
       </div>
 
       {/* ── Actions ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <div className="vp-nav-actions" style={{ display: "flex", alignItems: "center", gap: 6 }}>
         {[
           { label: saved ? "♥  Saved" : "♡  Save",  action: () => setSaved(s => !s), active: saved },
           { label: "⊕  Compare", action: onAddCompare,   active: compareList.length > 0 },
@@ -585,7 +598,7 @@ function HeroCinematic({ venue, onEnquire }) {
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "0 40px 52px", animation: "fadeUp 0.8s ease both" }}>
           {venue.featured && (
             <div style={{ display: "inline-flex", marginBottom: 12, padding: "4px 12px", border: `1px solid ${C.gold}`, background: "rgba(157,135,62,0.18)" }}>
-              <span style={{ fontFamily: FB, fontSize: 10, color: C.gold, letterSpacing: "1.5px", fontWeight: 700, textTransform: "uppercase" }}>✦ Editor's Pick</span>
+              <span style={{ fontFamily: FB, fontSize: 10, color: "#fff", letterSpacing: "1.5px", fontWeight: 700, textTransform: "uppercase" }}>✦ Editor's Pick</span>
             </div>
           )}
           <h1 style={{ fontFamily: FD, fontSize: "clamp(38px, 5.3vw, 68px)", fontWeight: 400, color: "#fff", letterSpacing: "-0.5px", lineHeight: 1.05, marginBottom: 12 }}>{venue.name}</h1>
@@ -621,38 +634,50 @@ function HeroCinematic({ venue, onEnquire }) {
 // ─── HERO STYLE 2: EDITORIAL SPLIT ───────────────────────────────────────────
 function HeroSplit({ venue, onEnquire }) {
   const C = useT();
+  const isMobile = useIsMobile();
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "58% 42%", height: "62vh", marginTop: 64 }}>
-      {/* Image left */}
-      <HeroSlider imgs={venue.imgs} height="100%">
+    <div className="vp-hero-grid" style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "58% 42%",
+      height: isMobile ? "auto" : "62vh",
+      marginTop: 64,
+    }}>
+      {/* Image — top on mobile, left on desktop */}
+      <HeroSlider imgs={venue.imgs} height={isMobile ? "44vh" : "100%"}>
         {venue.featured && (
           <div style={{ position: "absolute", top: 20, left: 20, display: "inline-flex", padding: "4px 12px", border: `1px solid ${C.gold}`, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(8px)" }}>
-            <span style={{ fontFamily: FB, fontSize: 10, color: C.gold, letterSpacing: "1.5px", fontWeight: 700, textTransform: "uppercase" }}>✦ Editor's Pick</span>
+            <span style={{ fontFamily: FB, fontSize: 10, color: "#fff", letterSpacing: "1.5px", fontWeight: 700, textTransform: "uppercase" }}>✦ Editor's Pick</span>
           </div>
         )}
       </HeroSlider>
-      {/* Info right */}
-      <div style={{ background: C.surface, borderLeft: `1px solid ${C.border}`, padding: "40px 44px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
+      {/* Info — below on mobile, right on desktop */}
+      <div style={{
+        background: C.surface,
+        borderLeft: isMobile ? "none" : `1px solid ${C.border}`,
+        borderTop: isMobile ? `1px solid ${C.border}` : "none",
+        padding: isMobile ? "24px 20px 28px" : "40px 44px",
+        display: "flex", flexDirection: "column", justifyContent: "center",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: isMobile ? 14 : 20, flexWrap: "wrap" }}>
           {venue.categories.map(cat => <Pill key={cat} color="gold">{cat}</Pill>)}
         </div>
-        <h1 style={{ fontFamily: FD, fontSize: "clamp(30px, 3.5vw, 52px)", fontWeight: 400, color: C.text, lineHeight: 1.05, marginBottom: 8 }}>{venue.name}</h1>
-        <p style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginBottom: 20, lineHeight: 1.6 }}>{venue.flag} {venue.location}</p>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24 }}>
+        <h1 style={{ fontFamily: FD, fontSize: isMobile ? 32 : "clamp(30px, 3.5vw, 52px)", fontWeight: 400, color: C.text, lineHeight: 1.05, marginBottom: 8 }}>{venue.name}</h1>
+        <p style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginBottom: isMobile ? 14 : 20, lineHeight: 1.6 }}>{venue.flag} {venue.location}</p>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: isMobile ? 16 : 24, flexWrap: "wrap" }}>
           <Stars rating={venue.rating} size={14} />
           <span style={{ fontFamily: FB, fontSize: 14, fontWeight: 700, color: C.text }}>{venue.rating}</span>
           <span style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>· {venue.reviews} reviews</span>
           {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: C.green, fontWeight: 700 }}>✓ Verified</span>}
         </div>
-        <div style={{ height: 1, background: C.border, marginBottom: 24 }} />
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <div style={{ height: 1, background: C.border, marginBottom: isMobile ? 16 : 24 }} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isMobile ? 16 : 24, gap: 12, flexWrap: isMobile ? "wrap" : "nowrap" }}>
           <div>
-            <div style={{ fontFamily: FD, fontSize: 28, color: C.gold }}>From {venue.priceFrom}</div>
+            <div style={{ fontFamily: FD, fontSize: isMobile ? 24 : 28, color: C.gold }}>From {venue.priceFrom}</div>
             <div style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, marginTop: 2 }}>per event · up to {venue.capacity.ceremony} guests</div>
           </div>
           <div style={{ fontFamily: FB, fontSize: 12, color: C.green, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}><Icon name="zap" size={13} color={C.green} /> Replies in {venue.responseTime}</div>
         </div>
-        <button onClick={onEnquire} style={{ width: "100%", padding: "14px", background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)", color: "#0f0d0a", fontFamily: FB, fontSize: 13, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", cursor: "pointer", transition: "opacity 0.2s" }}
+        <button onClick={onEnquire} style={{ width: "100%", padding: isMobile ? "13px" : "14px", background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)", color: "#0f0d0a", fontFamily: FB, fontSize: 13, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", cursor: "pointer", transition: "opacity 0.2s" }}
           onMouseEnter={e => e.currentTarget.style.opacity = "0.88"}
           onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
           Begin Your Enquiry →
@@ -672,7 +697,7 @@ function HeroMagazine({ venue, onEnquire }) {
         {venue.featured && (
           <div style={{ position: "absolute", top: 80, left: 40 }}>
             <div style={{ display: "inline-flex", padding: "4px 12px", border: `1px solid ${C.gold}`, background: "rgba(0,0,0,0.45)" }}>
-              <span style={{ fontFamily: FB, fontSize: 10, color: C.gold, letterSpacing: "1.5px", fontWeight: 700, textTransform: "uppercase" }}>✦ Editor's Pick</span>
+              <span style={{ fontFamily: FB, fontSize: 10, color: "#fff", letterSpacing: "1.5px", fontWeight: 700, textTransform: "uppercase" }}>✦ Editor's Pick</span>
             </div>
           </div>
         )}
@@ -755,7 +780,7 @@ function HeroVideo({ venue, onEnquire }) {
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "0 40px 52px", animation: "fadeUp 0.8s ease both" }}>
         {venue.featured && (
           <div style={{ display: "inline-flex", marginBottom: 12, padding: "4px 12px", border: `1px solid ${C.gold}`, background: "rgba(157,135,62,0.18)" }}>
-            <span style={{ fontFamily: FB, fontSize: 10, color: C.gold, letterSpacing: "1.5px", fontWeight: 700, textTransform: "uppercase" }}>✦ Editor's Pick</span>
+            <span style={{ fontFamily: FB, fontSize: 10, color: "#fff", letterSpacing: "1.5px", fontWeight: 700, textTransform: "uppercase" }}>✦ Editor's Pick</span>
           </div>
         )}
         <h1 style={{ fontFamily: FD, fontSize: "clamp(38px, 5.3vw, 68px)", fontWeight: 400, color: "#fff", letterSpacing: "-0.5px", lineHeight: 1.05, marginBottom: 14 }}>{venue.name}</h1>
@@ -869,12 +894,12 @@ function Hero({ venue, heroStyle, setHeroStyle, onEnquire }) {
 function StatsStrip({ venue }) {
   const C = useT();
   const stats = [
-    { label: "Rating", value: `${venue.rating} ★`, sub: `${venue.reviews} reviews` },
+    { label: "From", value: venue.priceFrom, sub: "per event" },
     { label: "Ceremony", value: `Up to ${venue.capacity.ceremony}`, sub: "guests" },
     { label: "Dinner", value: `Up to ${venue.capacity.dinner}`, sub: "guests" },
     { label: "Sleeps", value: venue.accommodation.maxGuests, sub: `${venue.accommodation.rooms} rooms` },
-    { label: "From", value: venue.priceFrom, sub: "per event" },
     { label: "Responds", value: venue.responseTime, sub: `${venue.responseRate}% response rate` },
+    { label: "Rating", value: `${venue.rating} ★`, sub: `${venue.reviews} reviews` },
   ];
   return (
     <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "0 40px" }}>
@@ -950,7 +975,7 @@ function OwnerCard({ owner, venue }) {
         </div>
 
         {/* Stats grid */}
-        <div style={{
+        <div className="vp-stats-strip" style={{
           display: "grid", gridTemplateColumns: "1fr 1fr",
           gap: 0, borderTop: `1px solid ${C.border}`,
           paddingTop: 14,
@@ -1446,7 +1471,7 @@ function SidebarInstagram({ venue }) {
   const posts = [
     { id: 0, src: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=240&q=75" },
     { id: 1, src: "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=240&q=75" },
-    { id: 2, src: "https://images.unsplash.com/photo-1525596662741-e994a3f4c8c7?w=240&q=75" },
+    { id: 2, src: "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?w=240&q=75" },
     { id: 3, src: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=240&q=75" },
     { id: 4, src: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=240&q=75" },
     { id: 5, src: "https://images.unsplash.com/photo-1464808322410-1a934aab61e5?w=240&q=75" },
@@ -1638,55 +1663,90 @@ function LeadForm({ venue }) {
 // ─── IMAGE GALLERY — Coco-style 3-photo preview ──────────────────────────────
 function ImageGallery({ gallery, onOpenLight }) {
   const C = useT();
+  const isMobile = useIsMobile();
   const [allOpen, setAllOpen] = useState(false);
-  const preview = gallery.slice(0, 3);
-  const remaining = gallery.length - 3;
+  const scrollRef = useRef(null);
+  const preview = gallery.slice(0, 6);
+  const remaining = gallery.length - 5;
 
   return (
     <section style={{ marginBottom: 56 }}>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 16 }}>
         <SectionHeading title="Gallery" />
-        <span style={{ fontFamily: FB, fontSize: 12, color: C.textMuted }}>{gallery.length} photographs</span>
+        <span style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.3px" }}>{gallery.length} photographs</span>
       </div>
 
-      {/* 3-photo preview: 1 large left + 2 stacked right */}
-      {!allOpen && (
+      {/* ── Mobile: horizontal photo slider ── */}
+      {isMobile && !allOpen && (
+        <div>
+          <div ref={scrollRef} className="vp-gallery-slider" style={{
+            display: "flex", gap: 8, overflowX: "auto", scrollSnapType: "x mandatory",
+            WebkitOverflowScrolling: "touch", scrollbarWidth: "none", msOverflowStyle: "none",
+            marginLeft: -16, marginRight: -16, paddingLeft: 16, paddingRight: 16,
+          }}>
+            {preview.map((img, i) => (
+              <div key={img.id} onClick={() => onOpenLight(i)} style={{
+                flex: "0 0 280px", scrollSnapAlign: "start",
+                overflow: "hidden", cursor: "pointer", position: "relative",
+                borderRadius: 3, height: 340,
+              }}>
+                <img src={img.src} alt={img.alt || ""} loading="lazy" style={{
+                  width: "100%", height: "100%", objectFit: "cover", display: "block",
+                }} />
+                {/* Photo number badge */}
+                <div style={{
+                  position: "absolute", bottom: 10, left: 10,
+                  background: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)",
+                  borderRadius: 20, padding: "3px 10px",
+                  fontFamily: FB, fontSize: 10, color: "rgba(255,255,255,0.8)",
+                  letterSpacing: "0.5px",
+                }}>{i + 1} / {gallery.length}</div>
+              </div>
+            ))}
+            {/* "View all" final card */}
+            <div onClick={() => setAllOpen(true)} style={{
+              flex: "0 0 180px", scrollSnapAlign: "start",
+              borderRadius: 3, height: 340, cursor: "pointer",
+              background: C.surface, border: `1px solid ${C.border}`,
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8,
+            }}>
+              <div style={{ fontFamily: FD, fontSize: 36, color: C.gold, fontWeight: 400, lineHeight: 1 }}>+{remaining}</div>
+              <div style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, letterSpacing: "1px", textTransform: "uppercase" }}>View all</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Desktop: grid preview ── */}
+      {!isMobile && !allOpen && (
         <div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "auto auto", gap: 6 }}>
-            {/* Large left — spans 2 rows */}
             <div onClick={() => onOpenLight(0)} style={{
               gridRow: "1 / 3", overflow: "hidden", cursor: "pointer",
               position: "relative", minHeight: 360,
             }}
               onMouseEnter={e => e.currentTarget.querySelector("img").style.transform = "scale(1.04)"}
               onMouseLeave={e => e.currentTarget.querySelector("img").style.transform = "scale(1)"}>
-              <img src={preview[0]?.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.7s ease" }} />
-              <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0)", transition: "background 0.3s" }}
-                onMouseEnter={e => e.currentTarget.style.background = "rgba(0,0,0,0.2)"}
-                onMouseLeave={e => e.currentTarget.style.background = "rgba(0,0,0,0)"} />
+              <img src={gallery[0]?.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.7s ease" }} />
             </div>
-            {/* Top right */}
             <div onClick={() => onOpenLight(1)} style={{ overflow: "hidden", cursor: "pointer", position: "relative", aspectRatio: "4/3" }}
               onMouseEnter={e => e.currentTarget.querySelector("img").style.transform = "scale(1.04)"}
               onMouseLeave={e => e.currentTarget.querySelector("img").style.transform = "scale(1)"}>
-              <img src={preview[1]?.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.7s ease" }} />
+              <img src={gallery[1]?.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.7s ease" }} />
             </div>
-            {/* Bottom right — with "View all" overlay */}
             <div onClick={() => setAllOpen(true)} style={{ overflow: "hidden", cursor: "pointer", position: "relative", aspectRatio: "4/3" }}
-              onMouseEnter={e => { e.currentTarget.querySelector("img").style.transform = "scale(1.04)"; }}
-              onMouseLeave={e => { e.currentTarget.querySelector("img").style.transform = "scale(1)"; }}>
-              <img src={preview[2]?.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.7s ease" }} />
+              onMouseEnter={e => e.currentTarget.querySelector("img").style.transform = "scale(1.04)"}
+              onMouseLeave={e => e.currentTarget.querySelector("img").style.transform = "scale(1)"}>
+              <img src={gallery[2]?.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.7s ease" }} />
               <div style={{
-                position: "absolute", inset: 0,
-                background: "rgba(0,0,0,0.52)",
+                position: "absolute", inset: 0, background: "rgba(0,0,0,0.52)",
                 display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 6,
               }}>
-                <span style={{ fontFamily: FD, fontSize: 32, color: "#fff", fontWeight: 400 }}>+{remaining}</span>
+                <span style={{ fontFamily: FD, fontSize: 32, color: "#fff", fontWeight: 400 }}>+{gallery.length - 3}</span>
                 <span style={{ fontFamily: FB, fontSize: 12, color: "rgba(255,255,255,0.85)", letterSpacing: "1px", textTransform: "uppercase" }}>View all photos</span>
               </div>
             </div>
           </div>
-          {/* View all CTA below */}
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
             <button onClick={() => setAllOpen(true)} style={{
               background: "none", border: `1px solid ${C.border2}`, borderRadius: "var(--lwd-radius-input)",
@@ -1702,17 +1762,18 @@ function ImageGallery({ gallery, onOpenLight }) {
         </div>
       )}
 
-      {/* Full gallery — all photos in editorial masonry */}
+      {/* ── Full gallery — masonry ── */}
       {allOpen && (
         <div style={{ animation: "fadeUp 0.4s ease" }}>
-          <div style={{ columns: 3, columnGap: 8, marginBottom: 16 }}>
+          <div style={{ columns: isMobile ? 2 : 3, columnGap: 6, marginBottom: 16 }}>
             {gallery.map((img, i) => (
               <div key={img.id} onClick={() => onOpenLight(i)} style={{
-                breakInside: "avoid", marginBottom: 8, overflow: "hidden", cursor: "pointer", position: "relative",
+                breakInside: "avoid", marginBottom: 6, overflow: "hidden", cursor: "pointer",
+                borderRadius: 2,
               }}
                 onMouseEnter={e => e.currentTarget.querySelector("img").style.transform = "scale(1.04)"}
                 onMouseLeave={e => e.currentTarget.querySelector("img").style.transform = "scale(1)"}>
-                <img src={img.src} alt="" style={{ width: "100%", display: "block", transition: "transform 0.7s ease" }} />
+                <img src={img.src} alt="" loading="lazy" style={{ width: "100%", display: "block", transition: "transform 0.7s ease" }} />
               </div>
             ))}
           </div>
@@ -1729,6 +1790,7 @@ function ImageGallery({ gallery, onOpenLight }) {
 
 // ─── LIGHTBOX ────────────────────────────────────────────────────────────────
 function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engagement }) {
+  const isMobile = useIsMobile();
   const [autoPlay, setAutoPlay] = useState(false);
   const [hovPrev, setHovPrev]   = useState(false);
   const [hovNext, setHovNext]   = useState(false);
@@ -1933,32 +1995,36 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
           {pg && <span style={{ fontFamily: FB, fontSize: 11, color: "rgba(255,255,255,0.35)" }}>📷 {pg.name}</span>}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {/* Auto-play toggle */}
-          <button onClick={() => setAutoPlay((a) => !a)}
-            style={{
-              background: autoPlay ? "rgba(201,168,76,0.12)" : "none",
-              border: `1px solid ${autoPlay ? "rgba(201,168,76,0.4)" : "rgba(255,255,255,0.15)"}`,
-              borderRadius: "var(--lwd-radius-input)", color: autoPlay ? "#C9A84C" : "rgba(255,255,255,0.5)",
-              padding: "6px 14px", cursor: "pointer", fontFamily: FB, fontSize: 11,
-              fontWeight: 600, letterSpacing: "0.5px", display: "flex", alignItems: "center", gap: 6,
-              transition: "all 0.2s",
-            }}
-          >
-            {autoPlay ? "❚❚" : "▶"} {autoPlay ? "Pause" : "Slideshow"}
-          </button>
-          {/* View All */}
-          <button onClick={() => setViewAll(true)}
-            style={{
-              background: "none", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "var(--lwd-radius-input)",
-              color: "rgba(255,255,255,0.5)", padding: "6px 14px", cursor: "pointer",
-              fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: "0.5px",
-              transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.35)"; e.currentTarget.style.color = "#fff"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; e.currentTarget.style.color = "rgba(255,255,255,0.5)"; }}
-          >
-            ⊞ View All
-          </button>
+          {/* Auto-play toggle — hidden on mobile */}
+          {!isMobile && (
+            <button onClick={() => setAutoPlay((a) => !a)}
+              style={{
+                background: autoPlay ? "rgba(201,168,76,0.12)" : "none",
+                border: `1px solid ${autoPlay ? "rgba(201,168,76,0.4)" : "rgba(255,255,255,0.15)"}`,
+                borderRadius: "var(--lwd-radius-input)", color: autoPlay ? "#C9A84C" : "rgba(255,255,255,0.5)",
+                padding: "6px 14px", cursor: "pointer", fontFamily: FB, fontSize: 11,
+                fontWeight: 600, letterSpacing: "0.5px", display: "flex", alignItems: "center", gap: 6,
+                transition: "all 0.2s",
+              }}
+            >
+              {autoPlay ? "❚❚" : "▶"} {autoPlay ? "Pause" : "Slideshow"}
+            </button>
+          )}
+          {/* View All — hidden on mobile */}
+          {!isMobile && (
+            <button onClick={() => setViewAll(true)}
+              style={{
+                background: "none", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "var(--lwd-radius-input)",
+                color: "rgba(255,255,255,0.5)", padding: "6px 14px", cursor: "pointer",
+                fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: "0.5px",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.35)"; e.currentTarget.style.color = "#fff"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; e.currentTarget.style.color = "rgba(255,255,255,0.5)"; }}
+            >
+              ⊞ View All
+            </button>
+          )}
           {/* Close */}
           <button onClick={onClose} aria-label="Close gallery"
             style={{
@@ -1975,12 +2041,14 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
 
       {/* Main content: image + info panel */}
       <div onClick={(e) => e.stopPropagation()} style={{
-        flex: 1, display: "flex", minHeight: 0, overflow: "hidden",
+        flex: 1, display: "flex", flexDirection: isMobile ? "column" : "row",
+        minHeight: 0, overflow: isMobile ? "auto" : "hidden",
       }}>
         {/* Image area */}
         <div onClick={onClose} style={{
-          flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+          flex: isMobile ? "none" : 1, display: "flex", alignItems: "center", justifyContent: "center",
           position: "relative", overflow: "hidden", minWidth: 0,
+          minHeight: isMobile ? "50vh" : undefined,
         }}>
           <img
             key={idx}
@@ -1992,9 +2060,28 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
               animation: "fadeIn 0.3s ease",
             }}
           />
-          {/* Nav arrows */}
-          {navBtn("prev", hovPrev, setHovPrev)}
-          {navBtn("next", hovNext, setHovNext)}
+          {/* Nav arrows — on mobile show smaller inline arrows */}
+          {isMobile ? (
+            <>
+              <button onClick={(e) => { e.stopPropagation(); onPrev(); }} style={{
+                position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)",
+                width: 36, height: 36, borderRadius: "50%", background: "rgba(0,0,0,0.5)",
+                border: "none", color: "#fff", fontSize: 16, cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>‹</button>
+              <button onClick={(e) => { e.stopPropagation(); onNext(); }} style={{
+                position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+                width: 36, height: 36, borderRadius: "50%", background: "rgba(0,0,0,0.5)",
+                border: "none", color: "#fff", fontSize: 16, cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>›</button>
+            </>
+          ) : (
+            <>
+              {navBtn("prev", hovPrev, setHovPrev)}
+              {navBtn("next", hovNext, setHovNext)}
+            </>
+          )}
 
           {/* Auto-play progress bar */}
           {autoPlay && (
@@ -2010,13 +2097,14 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
           )}
         </div>
 
-        {/* ── Right info panel ── */}
+        {/* ── Info panel (right on desktop, below on mobile) ── */}
         <div style={{
-          width: 280, flexShrink: 0,
-          borderLeft: "1px solid rgba(255,255,255,0.06)",
+          width: isMobile ? "100%" : 280, flexShrink: 0,
+          borderLeft: isMobile ? "none" : "1px solid rgba(255,255,255,0.06)",
+          borderTop: isMobile ? "1px solid rgba(255,255,255,0.06)" : "none",
           background: "rgba(10,8,6,0.6)", backdropFilter: "blur(8px)",
           display: "flex", flexDirection: "column",
-          overflowY: "auto", padding: "20px 18px",
+          overflowY: "auto", padding: isMobile ? "16px 16px 40px" : "20px 18px",
         }}>
           {/* Image description */}
           {photo.alt && (
@@ -2235,68 +2323,111 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
 function AboutSection({ venue }) {
   const C = useT();
   const [expanded, setExpanded] = useState(false);
+  const isMobile = useIsMobile();
+
+  const highlights = [
+    { num: "120", label: "Acres" },
+    { num: "1847", label: "Est." },
+    { num: "24", label: "Rooms" },
+    { num: "300+", label: "Weddings" },
+  ];
 
   return (
     <section style={{ marginBottom: 56 }}>
       <SectionHeading title={`About ${venue.name}`} />
 
-      {/* Rich editorial text — 2 paragraphs always visible */}
-      <div style={{ maxWidth: 720, marginBottom: 28 }}>
-        <p style={{ fontFamily: FB, fontSize: 16, color: C.textMid, lineHeight: 1.85, marginBottom: 20 }}>
-          Set within 120 acres of rolling Tuscan countryside, Villa Rosanova is one of the finest privately-owned estates in Italy. Built in 1847 for the Marchese di Rosanova, the property has been meticulously restored to its original grandeur while offering every modern comfort a discerning couple could wish for.
-        </p>
-        <p style={{ fontFamily: FB, fontSize: 15, color: C.textLight, lineHeight: 1.85, marginBottom: 20 }}>
-          From the frescoed Grand Salon — with its original parquet floors and three Venetian chandeliers — to the centuries-old cypress garden, every space has been designed to create moments of extraordinary beauty. With accommodation for 58 guests across 24 rooms and 6 suites, Villa Rosanova is the perfect setting for multi-day wedding celebrations.
-        </p>
+      {/* Paragraph 1 */}
+      <p style={{ fontFamily: FB, fontSize: isMobile ? 15 : 16, color: C.textMid, lineHeight: 1.9, marginBottom: 24, maxWidth: 720 }}>
+        Set within 120 acres of rolling Tuscan countryside, Villa Rosanova is one of the finest privately-owned estates in Italy. Built in 1847 for the Marchese di Rosanova, the property has been meticulously restored to its original grandeur while offering every modern comfort a discerning couple could wish for.
+      </p>
 
-        {/* Expandable: 2 more paragraphs */}
-        <div style={{ overflow: "hidden", maxHeight: expanded ? 400 : 0, transition: "max-height 0.5s ease" }}>
-          <p style={{ fontFamily: FB, fontSize: 15, color: C.textLight, lineHeight: 1.85, marginBottom: 20 }}>
-            The estate produces its own Chianti Classico wine, cold-pressed extra virgin olive oil, and seasonal truffles — all of which feature on our exclusively crafted wedding menus. Every detail of your celebration is managed by our dedicated events team, who have hosted over 300 weddings across four decades.
-          </p>
-          <p style={{ fontFamily: FB, fontSize: 15, color: C.textLight, lineHeight: 1.85 }}>
-            Villa Rosanova has been featured in Vogue, Tatler and Harper's Bazaar, and has received the Luxury Wedding Directory's Best Villa award three years in succession. For couples seeking a truly once-in-a-lifetime setting — where privacy, beauty and impeccable service converge — there is simply nowhere quite like it.
-          </p>
-        </div>
-
-        {/* Read more / less toggle */}
-        <button
-          onClick={() => setExpanded(e => !e)}
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 8,
-            marginTop: 4,
-            background: "none", border: "none",
-            fontFamily: FB, fontSize: 13, fontWeight: 700,
-            color: C.gold, cursor: "pointer", letterSpacing: "0.3px",
-            padding: 0,
-            transition: "opacity 0.2s",
-          }}
-          onMouseEnter={e => e.currentTarget.style.opacity = "0.75"}
-          onMouseLeave={e => e.currentTarget.style.opacity = "1"}
-        >
-          {expanded ? "Show less ↑" : "Read the full story →"}
-        </button>
+      {/* Key stats strip */}
+      <div style={{
+        display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: isMobile ? 0 : 8,
+        marginBottom: 24, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`,
+      }}>
+        {highlights.map((h, i) => (
+          <div key={h.label} style={{
+            padding: isMobile ? "14px 0" : "18px 0",
+            textAlign: "center",
+            borderRight: i < 3 ? `1px solid ${C.border}` : "none",
+          }}>
+            <div style={{ fontFamily: FD, fontSize: isMobile ? 20 : 26, fontWeight: 400, color: C.gold, lineHeight: 1 }}>{h.num}</div>
+            <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "1.2px", textTransform: "uppercase", marginTop: 4 }}>{h.label}</div>
+          </div>
+        ))}
       </div>
 
-      {/* Inline images */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 32 }}>
-        <img src="https://images.unsplash.com/photo-1617806118233-18e1de247200?w=700&q=80" alt="Villa Rosanova interior detail" style={{ width: "100%", display: "block" }} />
-        <img src="https://images.unsplash.com/photo-1548604011-07d5c5baa31a?w=700&q=80" alt="Cypress garden at dusk" style={{ width: "100%", display: "block" }} />
+      {/* Full-width image pair */}
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 6, marginBottom: 24 }}>
+        <img src="https://images.unsplash.com/photo-1617806118233-18e1de247200?w=700&q=80" alt="Villa Rosanova interior detail" loading="lazy" style={{ width: "100%", height: isMobile ? 200 : 240, objectFit: "cover", display: "block", borderRadius: 3 }} />
+        <img src="https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=700&q=80" alt="Cypress garden at dusk" loading="lazy" style={{ width: "100%", height: isMobile ? 200 : 240, objectFit: "cover", display: "block", borderRadius: 3 }} />
       </div>
 
-      {/* Awards + Press */}
-      <div style={{ display: "flex", gap: 40, flexWrap: "wrap", alignItems: "flex-start", paddingTop: 24, borderTop: `1px solid ${C.border}` }}>
-        <div>
-          <div style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 10 }}>Awards & Recognition</div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {venue.awards.map(a => <Pill key={a} color="gold">✦ {a}</Pill>)}
-          </div>
+      {/* Paragraph 2 + expandable */}
+      <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9, marginBottom: 16, maxWidth: 720 }}>
+        From the frescoed Grand Salon — with its original parquet floors and three Venetian chandeliers — to the centuries-old cypress garden, every space has been designed to create moments of extraordinary beauty. With accommodation for 58 guests across 24 rooms and 6 suites, Villa Rosanova is the perfect setting for multi-day wedding celebrations.
+      </p>
+
+      {/* Expandable paragraphs */}
+      <div style={{ overflow: "hidden", maxHeight: expanded ? 500 : 0, transition: "max-height 0.5s ease", maxWidth: 720 }}>
+        <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9, marginBottom: 16 }}>
+          The estate produces its own Chianti Classico wine, cold-pressed extra virgin olive oil, and seasonal truffles — all of which feature on our exclusively crafted wedding menus. Every detail of your celebration is managed by our dedicated events team, who have hosted over 300 weddings across four decades.
+        </p>
+        <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9 }}>
+          Villa Rosanova has been featured in Vogue, Tatler and Harper's Bazaar, and has received the Luxury Wedding Directory's Best Villa award three years in succession. For couples seeking a truly once-in-a-lifetime setting — where privacy, beauty and impeccable service converge — there is simply nowhere quite like it.
+        </p>
+      </div>
+
+      <button
+        onClick={() => setExpanded(e => !e)}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          marginTop: 4, marginBottom: 28,
+          background: "none", border: "none",
+          fontFamily: FB, fontSize: 13, fontWeight: 700,
+          color: C.gold, cursor: "pointer", letterSpacing: "0.3px",
+          padding: 0,
+        }}
+      >
+        {expanded ? "Show less ↑" : "Read the full story →"}
+      </button>
+
+      {/* Awards — horizontal scroll on mobile */}
+      <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20, marginBottom: 16 }}>
+        <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 12 }}>Awards & Recognition</div>
+        <div className="vp-awards-scroll" style={{
+          display: "flex", gap: 8, overflowX: isMobile ? "auto" : "visible",
+          flexWrap: isMobile ? "nowrap" : "wrap",
+          scrollbarWidth: "none", msOverflowStyle: "none",
+          paddingBottom: isMobile ? 4 : 0,
+        }}>
+          {venue.awards.map(a => (
+            <div key={a} style={{
+              flex: "0 0 auto",
+              padding: "8px 14px",
+              border: `1px solid ${C.gold}30`,
+              background: `${C.gold}08`,
+              borderRadius: 3,
+              fontFamily: FB, fontSize: 11, fontWeight: 600,
+              color: C.gold, letterSpacing: "0.3px", whiteSpace: "nowrap",
+            }}>
+              ✦ {a}
+            </div>
+          ))}
         </div>
-        <div>
-          <div style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 10 }}>As seen in</div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {venue.press.map(p => <Pill key={p} color="green">{p}</Pill>)}
-          </div>
+      </div>
+
+      {/* Press */}
+      <div>
+        <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 12 }}>As Seen In</div>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+          {venue.press.map(p => (
+            <span key={p} style={{
+              fontFamily: FD, fontSize: isMobile ? 15 : 17, fontWeight: 400,
+              color: C.textLight, letterSpacing: "0.5px",
+            }}>{p}</span>
+          ))}
         </div>
       </div>
     </section>
@@ -2337,7 +2468,7 @@ function ContactSection({ venue }) {
   return (
     <section style={{ marginBottom: 56 }}>
       <SectionHeading title="Contact & Location" />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
+      <div className="vp-contact-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
 
         {/* Contact details */}
         <div>
@@ -2395,6 +2526,7 @@ function ContactSection({ venue }) {
 
 // ─── VIDEO PLAY MODAL ─────────────────────────────────────────────────────────
 function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
+  const isMobile = useIsMobile();
   const [hovPrev, setHovPrev] = useState(false);
   const [hovNext, setHovNext] = useState(false);
   const [copied, setCopied]   = useState(false);
@@ -2579,17 +2711,23 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
 
       {/* Main content: video + info panel */}
       <div onClick={(e) => e.stopPropagation()} style={{
-        flex: 1, display: "flex", minHeight: 0, overflow: "hidden",
+        flex: 1, display: "flex", flexDirection: isMobile ? "column" : "row",
+        minHeight: 0, overflow: isMobile ? "auto" : "hidden",
       }}>
         {/* Video area */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, position: "relative" }}>
-          {/* Prev / Next arrows */}
-          {videos.length > 1 && navBtn("prev", hasPrev, hovPrev, setHovPrev)}
-          {videos.length > 1 && navBtn("next", hasNext, hovNext, setHovNext)}
+        <div style={{ flex: isMobile ? "none" : 1, display: "flex", flexDirection: "column", minWidth: 0, position: "relative" }}>
+          {/* Prev / Next arrows — hidden on mobile */}
+          {!isMobile && videos.length > 1 && navBtn("prev", hasPrev, hovPrev, setHovPrev)}
+          {!isMobile && videos.length > 1 && navBtn("next", hasNext, hovNext, setHovNext)}
 
           {/* Video player */}
           {embedUrl ? (
-            <div style={{ flex: 1, position: "relative", background: "#000" }}>
+            <div style={{
+              flex: isMobile ? "none" : 1,
+              position: "relative",
+              background: "#000",
+              ...(isMobile ? { width: "100%", aspectRatio: "16/9" } : {}),
+            }}>
               <iframe
                 ref={iframeRef}
                 key={video.youtubeId + video.id}
@@ -2632,7 +2770,11 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
               )}
             </div>
           ) : (
-            <div style={{ flex: 1, position: "relative", background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{
+              flex: isMobile ? "none" : 1,
+              position: "relative", background: "#000", display: "flex", alignItems: "center", justifyContent: "center",
+              ...(isMobile ? { width: "100%", aspectRatio: "16/9" } : {}),
+            }}>
               <img src={video.thumb} alt={video.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.2 }} />
               <div style={{ position: "relative", textAlign: "center", padding: 32 }}>
                 <div style={{
@@ -2652,17 +2794,18 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
           )}
         </div>
 
-        {/* ── Right info panel ── */}
+        {/* ── Info panel (right on desktop, below on mobile) ── */}
         <div style={{
-          width: 280, flexShrink: 0,
-          borderLeft: "1px solid rgba(255,255,255,0.06)",
+          width: isMobile ? "100%" : 280, flexShrink: 0,
+          borderLeft: isMobile ? "none" : "1px solid rgba(255,255,255,0.06)",
+          borderTop: isMobile ? "1px solid rgba(255,255,255,0.06)" : "none",
           background: "rgba(10,8,6,0.6)", backdropFilter: "blur(8px)",
           display: "flex", flexDirection: "column",
-          overflowY: "auto", padding: "20px 18px",
+          overflowY: "auto", padding: isMobile ? "16px 16px 40px" : "20px 18px",
         }}>
           {/* Title + type */}
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontFamily: FD, fontSize: 17, color: "#f5f2ec", lineHeight: 1.3, marginBottom: 4 }}>{video.title}</div>
+            <div style={{ fontFamily: FD, fontSize: isMobile ? 19 : 17, color: "#f5f2ec", lineHeight: 1.3, marginBottom: 4 }}>{video.title}</div>
             <div style={{ fontFamily: FB, fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
               {video.duration} · {video.type === "wedding" ? "Wedding Film" : video.type === "tour" ? "Estate Tour" : "Highlights"}
             </div>
@@ -2851,18 +2994,20 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
       {/* Thumbnail strip */}
       <div onClick={(e) => e.stopPropagation()} style={{
         flexShrink: 0, borderTop: "1px solid rgba(255,255,255,0.06)",
-        padding: "8px 12px", overflow: "hidden",
+        padding: isMobile ? "8px 8px" : "8px 12px", overflow: "hidden",
       }}>
-        <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+        <div style={{ display: "flex", gap: 6, justifyContent: isMobile ? "flex-start" : "center", overflowX: isMobile ? "auto" : "visible", scrollbarWidth: "none" }}>
           {videos.map((v, i) => (
             <div
               key={v.id}
               onClick={() => onSelect?.(v)}
               style={{
-                width: 120, height: 68, flexShrink: 0, cursor: "pointer",
+                width: isMobile ? 90 : 120, height: isMobile ? 52 : 68,
+                flexShrink: 0, cursor: "pointer",
                 border: v.id === video.id ? "2px solid #C9A84C" : "2px solid transparent",
                 opacity: v.id === video.id ? 1 : 0.4,
                 transition: "all 0.2s", overflow: "hidden", position: "relative",
+                borderRadius: isMobile ? 2 : 0,
               }}
               onMouseEnter={(e) => { if (v.id !== video.id) e.currentTarget.style.opacity = "0.7"; }}
               onMouseLeave={(e) => { if (v.id !== video.id) e.currentTarget.style.opacity = "0.4"; }}
@@ -2871,11 +3016,11 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
                 style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               {v.id === video.id && (
                 <div style={{
-                  position: "absolute", bottom: 4, left: 0, right: 0, textAlign: "center",
-                  fontFamily: FB, fontSize: 8, fontWeight: 700, letterSpacing: "0.8px",
+                  position: "absolute", bottom: 3, left: 0, right: 0, textAlign: "center",
+                  fontFamily: FB, fontSize: 7, fontWeight: 700, letterSpacing: "0.8px",
                   textTransform: "uppercase", color: "#C9A84C",
                   textShadow: "0 1px 4px rgba(0,0,0,0.8)",
-                }}>Now Playing</div>
+                }}>Playing</div>
               )}
             </div>
           ))}
@@ -2888,6 +3033,7 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
 // ─── VIDEO GALLERY ────────────────────────────────────────────────────────────
 function VideoGallery({ videos }) {
   const C = useT();
+  const isMobile = useIsMobile();
   const [active, setActive] = useState(0);
   const [playing, setPlaying] = useState(null);
   const vg = videos[active].videographer;
@@ -2898,7 +3044,7 @@ function VideoGallery({ videos }) {
 
       {/* Main featured video */}
       <div
-        style={{ marginBottom: 0, position: "relative", background: "#000", cursor: "pointer", aspectRatio: "16/9", overflow: "hidden" }}
+        style={{ marginBottom: 0, position: "relative", background: "#000", cursor: "pointer", aspectRatio: "16/9", overflow: "hidden", borderRadius: isMobile ? 3 : 0 }}
         onClick={() => setPlaying(videos[active])}
         role="button"
         aria-label={`Play ${videos[active].title}`}
@@ -2909,32 +3055,31 @@ function VideoGallery({ videos }) {
           position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           <div style={{
-            width: 64, height: 64, borderRadius: "50%",
+            width: isMobile ? 52 : 64, height: isMobile ? 52 : 64, borderRadius: "50%",
             border: "1px solid rgba(255,255,255,0.35)",
             display: "flex", alignItems: "center", justifyContent: "center",
             background: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)",
-            transition: "all 0.3s",
           }}>
-            <span style={{ fontSize: 20, color: "#fff", marginLeft: 3 }}>▶</span>
+            <span style={{ fontSize: isMobile ? 16 : 20, color: "#fff", marginLeft: 3 }}>▶</span>
           </div>
         </div>
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "40px 20px 16px", background: "linear-gradient(to top, rgba(0,0,0,0.7), transparent)" }}>
-          <div style={{ fontFamily: FD, fontSize: 20, color: "#fff" }}>{videos[active].title}</div>
-          <div style={{ fontFamily: FB, fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>{videos[active].duration} · {videos[active].type === "wedding" ? "Wedding Film" : "Estate Tour"}</div>
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: isMobile ? "32px 16px 14px" : "40px 20px 16px", background: "linear-gradient(to top, rgba(0,0,0,0.7), transparent)" }}>
+          <div style={{ fontFamily: FD, fontSize: isMobile ? 17 : 20, color: "#fff" }}>{videos[active].title}</div>
+          <div style={{ fontFamily: FB, fontSize: isMobile ? 11 : 12, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>{videos[active].duration} · {videos[active].type === "wedding" ? "Wedding Film" : "Estate Tour"}</div>
         </div>
       </div>
 
-      {/* Video info bar — description + videographer credit */}
-      <div style={{
-        padding: "16px 20px", background: C.surface,
-        border: `1px solid ${C.border}`, borderTop: "none",
-        display: "flex", gap: 24, alignItems: "flex-start",
+      {/* Video info bar — stacked on mobile */}
+      <div className="vp-video-info" style={{
+        padding: isMobile ? "14px 0" : "16px 20px", background: isMobile ? "transparent" : C.surface,
+        border: isMobile ? "none" : `1px solid ${C.border}`, borderTop: "none",
+        display: "flex", flexDirection: isMobile ? "column" : "row",
+        gap: isMobile ? 12 : 24, alignItems: isMobile ? "stretch" : "flex-start",
         marginBottom: 0,
       }}>
-        {/* Description */}
         <div style={{ flex: 1, minWidth: 0 }}>
           {videos[active].desc && (
-            <p style={{ fontFamily: FB, fontSize: 13, color: C.textLight, lineHeight: 1.65, marginBottom: 8 }}>{videos[active].desc}</p>
+            <p style={{ fontFamily: FB, fontSize: isMobile ? 13 : 13, color: C.textLight, lineHeight: 1.7, marginBottom: 10 }}>{videos[active].desc}</p>
           )}
           {videos[active].tags && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
@@ -2948,16 +3093,20 @@ function VideoGallery({ videos }) {
             </div>
           )}
         </div>
-        {/* Videographer credit */}
         {vg && (
           <div style={{
-            flexShrink: 0, width: 200,
+            flexShrink: 0, width: isMobile ? "100%" : 200,
             padding: "10px 14px", background: C.bgAlt,
             border: `1px solid ${C.border}`, borderRadius: "var(--lwd-radius-card)",
+            display: "flex", flexDirection: isMobile ? "row" : "column",
+            alignItems: isMobile ? "center" : "stretch",
+            gap: isMobile ? 12 : 0,
           }}>
-            <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 6 }}>Videographer</div>
-            <div style={{ fontFamily: FD, fontSize: 15, color: C.text, marginBottom: 2 }}>{vg.name}</div>
-            <div style={{ fontFamily: FB, fontSize: 11, color: C.textLight, marginBottom: 6, display: "flex", alignItems: "center", gap: 4 }}><Icon name="pin" size={11} color={C.textLight} /> {vg.area}</div>
+            <div style={{ flex: isMobile ? 1 : undefined }}>
+              <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 4 }}>Videographer</div>
+              <div style={{ fontFamily: FD, fontSize: 15, color: C.text }}>{vg.name}</div>
+              <div style={{ fontFamily: FB, fontSize: 11, color: C.textLight, display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}><Icon name="pin" size={11} color={C.textLight} /> {vg.area}</div>
+            </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
               {vg.instagram && (
                 <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -2976,61 +3125,100 @@ function VideoGallery({ videos }) {
         )}
       </div>
 
-      {/* Thumbnail strip — fixed aspect, no stretch */}
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${videos.length}, 1fr)`, gap: 10, marginTop: 20 }}>
-        {videos.map((v, i) => (
-          <div key={v.id} style={{ cursor: "pointer", transition: "opacity 0.2s" }}
-            onClick={() => setActive(i)}
-          >
-            <div style={{
-              position: "relative", aspectRatio: "16/9", overflow: "hidden",
-              border: i === active ? `2px solid ${C.gold}` : `2px solid transparent`,
-              transition: "border-color 0.2s",
-            }}>
-              <img src={v.thumb} alt={v.title} style={{
-                width: "100%", height: "100%", objectFit: "cover", display: "block",
-                opacity: i === active ? 1 : 0.5,
-                transition: "opacity 0.2s",
-              }}
-                onMouseEnter={(e) => { if (i !== active) e.currentTarget.style.opacity = "0.75"; }}
-                onMouseLeave={(e) => { if (i !== active) e.currentTarget.style.opacity = "0.5"; }}
-              />
-              {/* Play icon overlay on hover */}
-              <div
-                onClick={(e) => { e.stopPropagation(); setPlaying(v); }}
-                style={{
-                  position: "absolute", inset: 0,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  opacity: 0, transition: "opacity 0.2s",
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.opacity = "1"}
-                onMouseLeave={(e) => e.currentTarget.style.opacity = "0"}
-              >
-                <div style={{
-                  width: 32, height: 32, borderRadius: "50%",
-                  background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.5)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
+      {/* Thumbnail strip — slider on mobile, grid on desktop */}
+      {isMobile ? (
+        <div className="vp-films-slider" style={{
+          display: "flex", gap: 10, overflowX: "auto", scrollSnapType: "x mandatory",
+          WebkitOverflowScrolling: "touch", scrollbarWidth: "none", msOverflowStyle: "none",
+          marginTop: 16, marginLeft: -16, marginRight: -16, paddingLeft: 16, paddingRight: 16,
+        }}>
+          {videos.map((v, i) => (
+            <div key={v.id} style={{ flex: "0 0 200px", scrollSnapAlign: "start", cursor: "pointer" }}
+              onClick={() => setActive(i)}>
+              <div style={{
+                position: "relative", aspectRatio: "16/9", overflow: "hidden", borderRadius: 3,
+                border: i === active ? `2px solid ${C.gold}` : "2px solid transparent",
+              }}>
+                <img src={v.thumb} alt={v.title} style={{
+                  width: "100%", height: "100%", objectFit: "cover", display: "block",
+                  opacity: i === active ? 1 : 0.6,
+                }} />
+                {i === active && (
+                  <div style={{
+                    position: "absolute", bottom: 0, left: 0, right: 0,
+                    background: "linear-gradient(to top, rgba(0,0,0,0.7), transparent)",
+                    padding: "12px 8px 6px", textAlign: "center",
+                    fontFamily: FB, fontSize: 8, fontWeight: 700, letterSpacing: "0.8px",
+                    textTransform: "uppercase", color: C.gold,
+                  }}>Now Playing</div>
+                )}
+                <div onClick={(e) => { e.stopPropagation(); setPlaying(v); }} style={{
+                  position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
-                  <span style={{ fontSize: 11, color: "#fff", marginLeft: 2 }}>▶</span>
+                  <div style={{
+                    width: 28, height: 28, borderRadius: "50%",
+                    background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.4)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    <span style={{ fontSize: 10, color: "#fff", marginLeft: 2 }}>▶</span>
+                  </div>
                 </div>
               </div>
-              {/* Now Playing indicator */}
-              {i === active && (
-                <div style={{
-                  position: "absolute", bottom: 4, left: 0, right: 0, textAlign: "center",
-                  fontFamily: FB, fontSize: 8, fontWeight: 700, letterSpacing: "0.8px",
-                  textTransform: "uppercase", color: C.gold,
-                  textShadow: "0 1px 4px rgba(0,0,0,0.8)",
-                }}>Now Playing</div>
-              )}
+              <div style={{ padding: "6px 0 0" }}>
+                <div style={{ fontFamily: FB, fontSize: 11, fontWeight: 600, color: C.text, lineHeight: 1.3 }}>{v.title}</div>
+                <div style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, marginTop: 2 }}>{v.duration}</div>
+              </div>
             </div>
-            <div style={{ padding: "8px 0 0" }}>
-              <div style={{ fontFamily: FB, fontSize: 11, fontWeight: 600, color: C.text, lineHeight: 1.3 }}>{v.title}</div>
-              <div style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, marginTop: 2 }}>{v.duration} · {v.videographer?.name || ""}</div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${videos.length}, 1fr)`, gap: 10, marginTop: 20 }}>
+          {videos.map((v, i) => (
+            <div key={v.id} style={{ cursor: "pointer" }} onClick={() => setActive(i)}>
+              <div style={{
+                position: "relative", aspectRatio: "16/9", overflow: "hidden",
+                border: i === active ? `2px solid ${C.gold}` : "2px solid transparent",
+              }}>
+                <img src={v.thumb} alt={v.title} style={{
+                  width: "100%", height: "100%", objectFit: "cover", display: "block",
+                  opacity: i === active ? 1 : 0.5, transition: "opacity 0.2s",
+                }}
+                  onMouseEnter={(e) => { if (i !== active) e.currentTarget.style.opacity = "0.75"; }}
+                  onMouseLeave={(e) => { if (i !== active) e.currentTarget.style.opacity = "0.5"; }}
+                />
+                <div
+                  onClick={(e) => { e.stopPropagation(); setPlaying(v); }}
+                  style={{
+                    position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                    opacity: 0, transition: "opacity 0.2s",
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = "1"}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = "0"}
+                >
+                  <div style={{
+                    width: 32, height: 32, borderRadius: "50%",
+                    background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.5)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    <span style={{ fontSize: 11, color: "#fff", marginLeft: 2 }}>▶</span>
+                  </div>
+                </div>
+                {i === active && (
+                  <div style={{
+                    position: "absolute", bottom: 4, left: 0, right: 0, textAlign: "center",
+                    fontFamily: FB, fontSize: 8, fontWeight: 700, letterSpacing: "0.8px",
+                    textTransform: "uppercase", color: C.gold, textShadow: "0 1px 4px rgba(0,0,0,0.8)",
+                  }}>Now Playing</div>
+                )}
+              </div>
+              <div style={{ padding: "8px 0 0" }}>
+                <div style={{ fontFamily: FB, fontSize: 11, fontWeight: 600, color: C.text, lineHeight: 1.3 }}>{v.title}</div>
+                <div style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, marginTop: 2 }}>{v.duration} · {v.videographer?.name || ""}</div>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Video play modal */}
       {playing && (
@@ -3054,7 +3242,7 @@ function ExclusiveUse({ venue }) {
     <section style={{ marginBottom: 56 }}>
       <SectionHeading title="Exclusive Use" subtitle="Hire the entire estate — just your guests, your celebration, your way" />
       <div style={{ border: `1px solid ${C.goldBorder}`, background: C.goldLight, padding: 32 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40 }}>
+        <div className="vp-exclusive-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40 }}>
           <div>
             <div style={{ fontFamily: FD, fontSize: 38, color: C.gold, marginBottom: 4 }}>From {eu.from}</div>
             <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginBottom: 24 }}>Minimum {eu.minNights} nights · Sleeps {venue.accommodation.maxGuests} guests</div>
@@ -3115,7 +3303,7 @@ function CateringSection({ venue }) {
   return (
     <section style={{ marginBottom: 56 }}>
       <SectionHeading title="Catering & Dining" />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20, marginBottom: 28 }}>
+      <div className="vp-catering-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20, marginBottom: 28 }}>
         {cards.map(c => (
           <div key={c.title} style={{ padding: 24, border: `1px solid ${C.border}`, background: C.surface }}>
             <div style={{ marginBottom: 12 }}>
@@ -3152,7 +3340,7 @@ function SpacesSection({ spaces }) {
       <SectionHeading title="Spaces & Rooms" subtitle="Four distinct event spaces — each with its own character and atmosphere" />
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {spaces.map((s, i) => (
-          <div key={s.name} style={{
+          <div key={s.name} className="vp-space-card" style={{
             display: "grid", gridTemplateColumns: i % 2 === 0 ? "40% 60%" : "60% 40%",
             border: `1px solid ${C.border}`, overflow: "hidden",
             animation: `fadeUp 0.5s ease ${i * 0.1}s both`,
@@ -3178,6 +3366,7 @@ function SpacesSection({ spaces }) {
 // ─── WEDDING WEEKEND ─────────────────────────────────────────────────────────
 function WeddingWeekend({ experiences }) {
   const C = useT();
+  const isMobile = useIsMobile();
   const estate  = experiences.filter(e => e.category === "estate").slice(0, 6);
   const nearby  = experiences.filter(e => e.category === "nearby").slice(0, 6);
   const formatDistance = (mins) => {
@@ -3190,17 +3379,17 @@ function WeddingWeekend({ experiences }) {
 
   const experienceRow = (exp) => (
     <div key={exp.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: C.bgAlt || C.bg, border: `1px solid ${C.border}` }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
         <Icon name={EXPERIENCE_KIND_SET.has(exp.kind) ? exp.kind : "nature"} size={18} color={C.textMid} />
-        <span style={{ fontFamily: FB, fontSize: 13, color: C.textMid }}>{exp.label}</span>
+        <span style={{ fontFamily: FB, fontSize: 13, color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{exp.label}</span>
         {exp.isIncluded && (
-          <span style={{ fontFamily: FB, fontSize: 9, color: C.gold, letterSpacing: "0.5px", textTransform: "uppercase", fontWeight: 700, padding: "2px 6px", border: `1px solid ${C.goldBorder || C.gold}`, background: C.goldLight || "transparent" }}>Included</span>
+          <span style={{ fontFamily: FB, fontSize: 9, color: C.gold, letterSpacing: "0.5px", textTransform: "uppercase", fontWeight: 700, padding: "2px 6px", border: `1px solid ${C.goldBorder || C.gold}`, background: C.goldLight || "transparent", flexShrink: 0 }}>Included</span>
         )}
         {exp.isPrivate && (
-          <span style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "0.5px", textTransform: "uppercase", fontWeight: 700, padding: "2px 6px", border: `1px solid ${C.border}` }}>Private</span>
+          <span style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "0.5px", textTransform: "uppercase", fontWeight: 700, padding: "2px 6px", border: `1px solid ${C.border}`, flexShrink: 0 }}>Private</span>
         )}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
         {exp.season && exp.season !== "all-year" && (
           <span style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, fontStyle: "italic" }}>{exp.season}</span>
         )}
@@ -3211,26 +3400,36 @@ function WeddingWeekend({ experiences }) {
     </div>
   );
 
+  const days = [
+    { day: "Thursday", title: "Arrival Day", desc: "Guests settle in. Welcome drinks on the loggia. Private vineyard tour at golden hour." },
+    { day: "Friday", title: "Welcome Evening", desc: "Rehearsal dinner in the wine cellar. Intimate, candlelit, unforgettable." },
+    { day: "Saturday", title: "The Wedding", desc: "Ceremony in the Cypress Garden. Reception in the Grand Salon. Celebrate until dawn." },
+    { day: "Sunday", title: "Farewell Brunch", desc: "Late breakfast on the terrace. Final toasts. Memories that last a lifetime." },
+  ];
+
+  const dayCard = (d) => (
+    <div key={d.day} style={{ padding: 20, border: `1px solid ${C.border}`, background: C.surface, flex: isMobile ? "0 0 220px" : undefined, scrollSnapAlign: isMobile ? "start" : undefined }}>
+      <div style={{ fontFamily: FB, fontSize: 10, color: C.gold, letterSpacing: "1px", textTransform: "uppercase", fontWeight: 700, marginBottom: 6 }}>{d.day}</div>
+      <div style={{ fontFamily: FD, fontSize: 18, color: C.text, marginBottom: 8 }}>{d.title}</div>
+      <p style={{ fontFamily: FB, fontSize: 12, color: C.textLight, lineHeight: 1.65 }}>{d.desc}</p>
+    </div>
+  );
+
   return (
     <section style={{ marginBottom: 56 }}>
       <SectionHeading title="Your Wedding Weekend" subtitle="Villa Rosanova is designed for multi-day celebrations — a full wedding weekend experience" />
       {/* Days */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 36 }}>
-        {[
-          { day: "Thursday", title: "Arrival Day", desc: "Guests settle in. Welcome drinks on the loggia. Private vineyard tour at golden hour." },
-          { day: "Friday", title: "Welcome Evening", desc: "Rehearsal dinner in the wine cellar. Intimate, candlelit, unforgettable." },
-          { day: "Saturday", title: "The Wedding", desc: "Ceremony in the Cypress Garden. Reception in the Grand Salon. Celebrate until dawn." },
-          { day: "Sunday", title: "Farewell Brunch", desc: "Late breakfast on the terrace. Final toasts. Memories that last a lifetime." },
-        ].map(d => (
-          <div key={d.day} style={{ padding: 20, border: `1px solid ${C.border}`, background: C.surface }}>
-            <div style={{ fontFamily: FB, fontSize: 10, color: C.gold, letterSpacing: "1px", textTransform: "uppercase", fontWeight: 700, marginBottom: 6 }}>{d.day}</div>
-            <div style={{ fontFamily: FD, fontSize: 18, color: C.text, marginBottom: 8 }}>{d.title}</div>
-            <p style={{ fontFamily: FB, fontSize: 12, color: C.textLight, lineHeight: 1.65 }}>{d.desc}</p>
-          </div>
-        ))}
-      </div>
+      {isMobile ? (
+        <div style={{ display: "flex", gap: 12, overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", marginBottom: 36, scrollbarWidth: "none", msOverflowStyle: "none" }} className="vp-weekend-slider">
+          {days.map(dayCard)}
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 36 }}>
+          {days.map(dayCard)}
+        </div>
+      )}
       {/* Experiences */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
+      <div className="vp-experiences-grid" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 24 : 32 }}>
         {[
           { title: "On the Estate", items: estate },
           { title: "Nearby Experiences", items: nearby },
@@ -3324,6 +3523,7 @@ function GettingHere({ access }) {
 // ─── REVIEWS ─────────────────────────────────────────────────────────────────
 function Reviews({ testimonials, venue }) {
   const C = useT();
+  const isMobile = useIsMobile();
   const PER_PAGE = 3;
   const pages = Math.ceil(testimonials.length / PER_PAGE);
   const [page, setPage] = useState(0);
@@ -3336,14 +3536,31 @@ function Reviews({ testimonials, venue }) {
     transition: "all 0.2s", flexShrink: 0,
   });
 
+  const reviewCard = (r) => (
+    <div key={r.id} style={{ padding: isMobile ? 20 : 24, border: `1px solid ${C.border}`, background: C.surface, borderTop: `3px solid ${C.gold}`, animation: "fadeUp 0.35s ease both", flex: isMobile ? "0 0 280px" : undefined, scrollSnapAlign: isMobile ? "start" : undefined }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+        <div style={{ width: 44, height: 44, background: C.goldLight, border: `1px solid ${C.goldBorder}`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FD, fontSize: 16, color: C.gold, flexShrink: 0 }}>{r.avatar}</div>
+        <div>
+          <div style={{ fontFamily: FD, fontSize: 16, color: C.text }}>{r.names}</div>
+          <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted }}>{r.date} · {r.location}</div>
+        </div>
+      </div>
+      <Stars rating={r.rating} size={12} />
+      <p style={{ fontFamily: FB, fontSize: 13, color: C.textMid, lineHeight: 1.75, marginTop: 12, ...(isMobile ? { display: "-webkit-box", WebkitLineClamp: 6, WebkitBoxOrient: "vertical", overflow: "hidden" } : {}) }}>{r.text}</p>
+      <div style={{ marginTop: 14 }}>
+        <span style={{ fontFamily: FB, fontSize: 11, color: C.green, fontWeight: 700 }}>✓ Verified Review</span>
+      </div>
+    </div>
+  );
+
   return (
     <section style={{ marginBottom: 56 }}>
       <SectionHeading title="Reviews" />
 
       {/* Summary bar */}
-      <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 40, marginBottom: 28, padding: 32, border: `1px solid ${C.border}`, background: C.surface }}>
-        <div style={{ textAlign: "center", borderRight: `1px solid ${C.border}`, paddingRight: 40 }}>
-          <div style={{ fontFamily: FD, fontSize: 78, fontWeight: 400, color: C.gold, lineHeight: 1 }}>{venue.rating}</div>
+      <div className="vp-reviews-summary" style={{ display: isMobile ? "flex" : "grid", flexDirection: isMobile ? "column" : undefined, gridTemplateColumns: isMobile ? undefined : "200px 1fr", gap: isMobile ? 20 : 40, marginBottom: 28, padding: isMobile ? 20 : 32, border: `1px solid ${C.border}`, background: C.surface }}>
+        <div style={{ textAlign: "center", borderRight: isMobile ? "none" : `1px solid ${C.border}`, borderBottom: isMobile ? `1px solid ${C.border}` : "none", paddingRight: isMobile ? 0 : 40, paddingBottom: isMobile ? 16 : 0 }}>
+          <div style={{ fontFamily: FD, fontSize: isMobile ? 56 : 78, fontWeight: 400, color: C.gold, lineHeight: 1 }}>{venue.rating}</div>
           <Stars rating={venue.rating} size={18} />
           <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginTop: 8 }}>{venue.reviews} verified reviews</div>
         </div>
@@ -3361,61 +3578,54 @@ function Reviews({ testimonials, venue }) {
         </div>
       </div>
 
-      {/* Carousel: 3 cards + nav */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 20 }}>
-        {visible.map(r => (
-          <div key={r.id} style={{ padding: 24, border: `1px solid ${C.border}`, background: C.surface, borderTop: `3px solid ${C.gold}`, animation: "fadeUp 0.35s ease both" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-              <div style={{ width: 44, height: 44, background: C.goldLight, border: `1px solid ${C.goldBorder}`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FD, fontSize: 16, color: C.gold, flexShrink: 0 }}>{r.avatar}</div>
-              <div>
-                <div style={{ fontFamily: FD, fontSize: 16, color: C.text }}>{r.names}</div>
-                <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted }}>{r.date} · {r.location}</div>
-              </div>
+      {/* Review cards — slider on mobile, paginated grid on desktop */}
+      {isMobile ? (
+        <div style={{ display: "flex", gap: 12, overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", marginBottom: 20, scrollbarWidth: "none", msOverflowStyle: "none" }} className="vp-reviews-slider">
+          {testimonials.map(reviewCard)}
+        </div>
+      ) : (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 20 }}>
+            {visible.map(reviewCard)}
+          </div>
+
+          {/* Navigation row */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            {/* Dot indicators */}
+            <div style={{ display: "flex", gap: 6 }}>
+              {Array.from({ length: pages }).map((_, i) => (
+                <button key={i} onClick={() => setPage(i)} style={{
+                  width: i === page ? 20 : 8, height: 8, borderRadius: 4,
+                  background: i === page ? C.gold : C.border2,
+                  border: "none", cursor: "pointer", padding: 0,
+                  transition: "all 0.3s ease",
+                }} />
+              ))}
             </div>
-            <Stars rating={r.rating} size={12} />
-            <p style={{ fontFamily: FB, fontSize: 13, color: C.textMid, lineHeight: 1.75, marginTop: 12 }}>{r.text}</p>
-            <div style={{ marginTop: 14 }}>
-              <span style={{ fontFamily: FB, fontSize: 11, color: C.green, fontWeight: 700 }}>✓ Verified Review</span>
+
+            {/* Prev / count / Next */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontFamily: FB, fontSize: 11, color: C.textMuted }}>
+                {page * PER_PAGE + 1}–{Math.min(page * PER_PAGE + PER_PAGE, testimonials.length)} of {testimonials.length}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={page === 0}
+                style={{ ...navBtn(), opacity: page === 0 ? 0.35 : 1 }}
+                onMouseEnter={e => { if (page > 0) { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.textMuted; }}
+              >←</button>
+              <button
+                onClick={() => setPage(p => Math.min(pages - 1, p + 1))}
+                disabled={page === pages - 1}
+                style={{ ...navBtn(), opacity: page === pages - 1 ? 0.35 : 1 }}
+                onMouseEnter={e => { if (page < pages - 1) { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.textMuted; }}
+              >→</button>
             </div>
           </div>
-        ))}
-      </div>
-
-      {/* Navigation row */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        {/* Dot indicators */}
-        <div style={{ display: "flex", gap: 6 }}>
-          {Array.from({ length: pages }).map((_, i) => (
-            <button key={i} onClick={() => setPage(i)} style={{
-              width: i === page ? 20 : 8, height: 8, borderRadius: 4,
-              background: i === page ? C.gold : C.border2,
-              border: "none", cursor: "pointer", padding: 0,
-              transition: "all 0.3s ease",
-            }} />
-          ))}
-        </div>
-
-        {/* Prev / count / Next */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontFamily: FB, fontSize: 11, color: C.textMuted }}>
-            {page * PER_PAGE + 1}–{Math.min(page * PER_PAGE + PER_PAGE, testimonials.length)} of {testimonials.length}
-          </span>
-          <button
-            onClick={() => setPage(p => Math.max(0, p - 1))}
-            disabled={page === 0}
-            style={{ ...navBtn(), opacity: page === 0 ? 0.35 : 1 }}
-            onMouseEnter={e => { if (page > 0) { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.textMuted; }}
-          >←</button>
-          <button
-            onClick={() => setPage(p => Math.min(pages - 1, p + 1))}
-            disabled={page === pages - 1}
-            style={{ ...navBtn(), opacity: page === pages - 1 ? 0.35 : 1 }}
-            onMouseEnter={e => { if (page < pages - 1) { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.textMuted; }}
-          >→</button>
-        </div>
-      </div>
+        </>
+      )}
     </section>
   );
 }
@@ -3822,34 +4032,50 @@ function FAQSection({ onAsk }) {
 // ─── SIMILAR VENUES ───────────────────────────────────────────────────────────
 function SimilarVenues({ venues }) {
   const C = useT();
+  const isMobile = useIsMobile();
   return (
     <section style={{ marginBottom: 56 }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
         <SectionHeading title="You Might Also Love" />
       </div>
       <div style={{ fontFamily: FB, fontSize: 12, color: C.gold, marginBottom: 24, marginTop: -20 }}>✦ Curated by Aura based on your browsing</div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
-        {venues.map(v => (
-          <div key={v.id} style={{ border: `1px solid ${C.border}`, background: C.surface, overflow: "hidden", cursor: "pointer" }}
-            onMouseEnter={e => e.currentTarget.style.boxShadow = C.shadowMd}
-            onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
-            <div style={{ overflow: "hidden", aspectRatio: "1/1" }}>
-              <img src={v.img} alt={v.name} className="lwd-img-zoom" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+      {isMobile ? (
+        <SliderNav className="venue-similar-slider" cardWidth={300} gap={12}>
+          {venues.map(({ location: loc, ...rest }) => (
+            <div key={rest.id} style={{ flex: "0 0 300px", scrollSnapAlign: "start" }}>
+              <GCardMobile
+                v={{ ...rest, region: loc, image: rest.img, priceFrom: rest.price }}
+                saved={false}
+                onSave={() => {}}
+                onView={() => {}}
+              />
             </div>
-            <div style={{ padding: 18 }}>
-              <div style={{ fontFamily: FD, fontSize: 18, color: C.text, marginBottom: 4 }}>{v.name}</div>
-              <div style={{ fontFamily: FB, fontSize: 12, color: C.textLight, marginBottom: 10, display: "flex", alignItems: "center", gap: 5 }}><Icon name="pin" size={12} color={C.textLight} /> {v.location}</div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <Stars rating={v.rating} size={11} />
-                  <span style={{ fontFamily: FB, fontSize: 12, color: C.textLight }}>{v.rating}</span>
+          ))}
+        </SliderNav>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+          {venues.map(v => (
+            <div key={v.id} style={{ border: `1px solid ${C.border}`, background: C.surface, overflow: "hidden", cursor: "pointer" }}
+              onMouseEnter={e => e.currentTarget.style.boxShadow = C.shadowMd}
+              onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
+              <div style={{ overflow: "hidden", aspectRatio: "1/1" }}>
+                <img src={v.img} alt={v.name} className="lwd-img-zoom" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              </div>
+              <div style={{ padding: 18 }}>
+                <div style={{ fontFamily: FD, fontSize: 18, color: C.text, marginBottom: 4 }}>{v.name}</div>
+                <div style={{ fontFamily: FB, fontSize: 12, color: C.textLight, marginBottom: 10, display: "flex", alignItems: "center", gap: 5 }}><Icon name="pin" size={12} color={C.textLight} /> {v.location}</div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <Stars rating={v.rating} size={11} />
+                    <span style={{ fontFamily: FB, fontSize: 12, color: C.textLight }}>{v.rating}</span>
+                  </div>
+                  <span style={{ fontFamily: FD, fontSize: 16, color: C.gold }}>From {v.price}</span>
                 </div>
-                <span style={{ fontFamily: FD, fontSize: 16, color: C.gold }}>From {v.price}</span>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -3857,10 +4083,11 @@ function SimilarVenues({ venues }) {
 // ─── RECENTLY VIEWED ──────────────────────────────────────────────────────────
 function RecentlyViewed() {
   const C = useT();
+  const isMobile = useIsMobile();
   const items = [
-    { name: "Villa d'Este", location: "Lake Como", rating: 5.0, price: "£35,000", img: "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=600&q=80" },
-    { name: "Claridge's London", location: "London, UK", rating: 4.9, price: "£28,000", img: "https://images.unsplash.com/photo-1544078751-58fee2d8a03b?w=600&q=80" },
-    { name: "Aman Venice", location: "Venice, Italy", rating: 5.0, price: "£35,000", img: "https://images.unsplash.com/photo-1520854221256-17451cc331bf?w=600&q=80" },
+    { id: "rv1", name: "Villa d'Este", location: "Lake Como", rating: 5.0, price: "£35,000", img: "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=600&q=80" },
+    { id: "rv2", name: "Claridge's London", location: "London, UK", rating: 4.9, price: "£28,000", img: "https://images.unsplash.com/photo-1544078751-58fee2d8a03b?w=600&q=80" },
+    { id: "rv3", name: "Aman Venice", location: "Venice, Italy", rating: 5.0, price: "£35,000", img: "https://images.unsplash.com/photo-1520854221256-17451cc331bf?w=600&q=80" },
   ];
   return (
     <section style={{ marginBottom: 56 }}>
@@ -3868,28 +4095,43 @@ function RecentlyViewed() {
         <SectionHeading title="Recently Viewed" />
       </div>
       <div style={{ fontFamily: FB, fontSize: 12, color: C.gold, marginBottom: 24, marginTop: -20 }}>✦ Based on your browsing history</div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
-        {items.map(v => (
-          <div key={v.name} style={{ border: `1px solid ${C.border}`, background: C.surface, overflow: "hidden", cursor: "pointer" }}
-            onMouseEnter={e => e.currentTarget.style.boxShadow = C.shadowMd}
-            onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
-            <div style={{ overflow: "hidden", aspectRatio: "1/1" }}>
-              <img src={v.img} alt={v.name} className="lwd-img-zoom" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+      {isMobile ? (
+        <SliderNav className="venue-recent-slider" cardWidth={300} gap={12}>
+          {items.map(({ location: loc, ...rest }) => (
+            <div key={rest.id} style={{ flex: "0 0 300px", scrollSnapAlign: "start" }}>
+              <GCardMobile
+                v={{ ...rest, region: loc, image: rest.img, priceFrom: rest.price }}
+                saved={false}
+                onSave={() => {}}
+                onView={() => {}}
+              />
             </div>
-            <div style={{ padding: 18 }}>
-              <div style={{ fontFamily: FD, fontSize: 18, color: C.text, marginBottom: 4 }}>{v.name}</div>
-              <div style={{ fontFamily: FB, fontSize: 12, color: C.textLight, marginBottom: 10, display: "flex", alignItems: "center", gap: 5 }}><Icon name="pin" size={12} color={C.textLight} /> {v.location}</div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <Stars rating={v.rating} size={11} />
-                  <span style={{ fontFamily: FB, fontSize: 12, color: C.textLight }}>{v.rating}</span>
+          ))}
+        </SliderNav>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+          {items.map(v => (
+            <div key={v.name} style={{ border: `1px solid ${C.border}`, background: C.surface, overflow: "hidden", cursor: "pointer" }}
+              onMouseEnter={e => e.currentTarget.style.boxShadow = C.shadowMd}
+              onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
+              <div style={{ overflow: "hidden", aspectRatio: "1/1" }}>
+                <img src={v.img} alt={v.name} className="lwd-img-zoom" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              </div>
+              <div style={{ padding: 18 }}>
+                <div style={{ fontFamily: FD, fontSize: 18, color: C.text, marginBottom: 4 }}>{v.name}</div>
+                <div style={{ fontFamily: FB, fontSize: 12, color: C.textLight, marginBottom: 10, display: "flex", alignItems: "center", gap: 5 }}><Icon name="pin" size={12} color={C.textLight} /> {v.location}</div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <Stars rating={v.rating} size={11} />
+                    <span style={{ fontFamily: FB, fontSize: 12, color: C.textLight }}>{v.rating}</span>
+                  </div>
+                  <span style={{ fontFamily: FD, fontSize: 16, color: C.gold }}>From {v.price}</span>
                 </div>
-                <span style={{ fontFamily: FD, fontSize: 16, color: C.gold }}>From {v.price}</span>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -4015,7 +4257,7 @@ function Footer() {
       <div style={{ height: 1, background: `linear-gradient(90deg, transparent, ${gold}, ${green}, transparent)` }} />
 
       {/* Main grid */}
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "72px 40px 56px", display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 48 }}>
+      <div className="vp-footer-grid" style={{ maxWidth: 1280, margin: "0 auto", padding: "72px 40px 56px", display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 48 }}>
 
         {/* Brand column */}
         <div>
@@ -4700,14 +4942,14 @@ export default function VenueProfile({ onBack = null }) {
   return (
     <Theme.Provider value={C}>
       <GlobalStyles />
-      <div style={{ background: C.bg, minHeight: "100vh", color: C.text }}>
+      <div className="vp-root" style={{ background: C.bg, minHeight: "100vh", color: C.text }}>
         <Nav darkMode={darkMode} setDarkMode={setDarkMode} saved={saved} setSaved={setSaved} compareList={compareList} onAddCompare={addCompare} onBack={onBack} />
         <Hero venue={VENUE} heroStyle={heroStyle} setHeroStyle={setHeroStyle} onEnquire={() => setEnquiryOpen(true)} />
         <StatsStrip venue={VENUE} />
 
         {/* Main layout */}
-        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "48px 40px 120px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 56, alignItems: "start" }}>
+        <div className="vp-main-wrapper" style={{ maxWidth: 1280, margin: "0 auto", padding: "48px 40px 120px" }}>
+          <div className="vp-main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 56, alignItems: "start" }}>
             {/* Content */}
             <div>
               <AboutSection venue={VENUE} />

@@ -112,6 +112,7 @@ export function ChatProvider({ children }) {
     clearTimeout(replyTimer.current);
     setMessages([INIT_MESSAGE]);
     setIsTyping(false);
+    setRecommendations({ items: [], summary: "Curated for you" });
   }, []);
 
   return (
