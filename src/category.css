@@ -1,0 +1,421 @@
+/* ── Static global styles for the Category page ─────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Gilda+Display&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,600&family=Outfit:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --font-heading-primary: 'Gilda Display', 'Playfair Display', Georgia, serif;
+  --font-heading-secondary: 'Playfair Display', Georgia, serif;
+  --font-body: 'Nunito', sans-serif;
+  --font-ui: 'Nunito', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-body); font-size: var(--lwd-body-size, 15px); font-weight: var(--lwd-body-weight, 400); }
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 4px; }
+::-webkit-scrollbar-track { background: var(--lwd-dark); }
+::-webkit-scrollbar-thumb { background: var(--lwd-gold); }
+
+/* ── Keyframes ───────────────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1;   }
+  50%       { opacity: 0.4; }
+}
+@keyframes dotPulse {
+  0%, 80%, 100% { transform: scale(0); opacity: 0.4; }
+  40%           { transform: scale(1); opacity: 1;   }
+}
+@keyframes chatModalIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.93); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1);    }
+}
+@keyframes barGlow {
+  0%, 100% { box-shadow: 0 4px 32px rgba(0,0,0,0.3),  0 0 0 1px   rgba(201,168,76,0.2); }
+  50%       { box-shadow: 0 4px 40px rgba(201,168,76,0.15), 0 0 0 1.5px rgba(201,168,76,0.4); }
+}
+@keyframes iconicScroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* ── Iconic Venues scroll band ───────────────────────────────────────────── */
+.site-footer-scroll-track {
+  animation: iconicScroll 50s linear infinite;
+}
+.site-footer-scroll-band:hover .site-footer-scroll-track {
+  animation-play-state: paused;
+}
+
+/* ── Select option theme override (injected via CSS var) ─────────────────── */
+select option { background: var(--lwd-dark); color: var(--lwd-white); }
+
+/* ── Custom dropdown & mega-menu scrollbar ───────────────────────────────── */
+.lwd-region-mega::-webkit-scrollbar       { width: 3px; }
+.lwd-region-mega::-webkit-scrollbar-track { background: transparent; }
+.lwd-region-mega::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3); border-radius: 2px; }
+div[role="listbox"]::-webkit-scrollbar       { width: 3px; }
+div[role="listbox"]::-webkit-scrollbar-track { background: transparent; }
+div[role="listbox"]::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3); border-radius: 2px; }
+
+/* ── lwd-status-pulse keyframe ───────────────────────────────────────────── */
+@keyframes lwd-status-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.85); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE  ≤ 768 px
+   Uses !important to override inline styles from React components
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* ── CatNav ── */
+  .lwd-catnav { padding: 10px 16px !important; }
+  .lwd-catnav-breadcrumb { display: none !important; }
+  .lwd-btn-list-venue    { display: none !important; }
+  .lwd-catnav-logo       { font-size: 14px !important; }
+
+  /* ── Hero ── */
+  .lwd-hero-content { padding: 0 20px 56px !important; }
+  .lwd-hero-stats   { flex-wrap: wrap !important; gap: 16px !important; }
+  .lwd-hero-scroll  { display: none !important; }
+
+  /* ── InfoStrip ── */
+  .lwd-infostrip-outer {
+    padding: 0 16px !important;
+    grid-template-columns: 1fr !important;
+  }
+  .lwd-infostrip-col   {
+    border-right: none !important;
+    border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+    padding-left:  0 !important;
+    padding-right: 0 !important;
+  }
+  .lwd-infostrip-col:last-child { border-bottom: none !important; }
+
+  /* ── LatestSplit ── */
+  .lwd-latestsplit        {
+    grid-template-columns: 1fr !important;
+    padding: 40px 20px !important;
+    gap: 36px !important;
+  }
+  .lwd-latestsplit-imgrid { height: 300px !important; }
+
+  /* ── FilterBar ── */
+  .lwd-filterbar-wrap   {
+    padding:    0 16px !important;
+    height:     auto !important;
+    flex-wrap:  wrap !important;
+    gap:        8px !important;
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+  }
+  .lwd-filterbar-inner  {
+    height:     auto !important;
+    flex-wrap:  wrap !important;
+    gap:        8px !important;
+    width:      100% !important;
+    flex:       unset !important;
+  }
+  .lwd-filter-select    { min-width: calc(50% - 4px) !important; font-size: 11px !important; flex: 1 1 calc(50% - 4px) !important; }
+  .lwd-filter-region    { min-width: 100% !important; flex: 1 1 100% !important; }
+  .lwd-region-mega      { width: calc(100vw - 32px) !important; left: -16px !important; max-height: 60vh !important; overflow-y: auto !important; }
+  .lwd-region-mega div[style*="grid-template-columns: 1fr 1fr 1fr"] { grid-template-columns: 1fr 1fr !important; }
+  .lwd-filterbar-right  { width: 100% !important; justify-content: space-between !important; }
+
+  /* ── FeaturedSlider ── */
+  .lwd-slider-label   { left: 20px !important; }
+  .lwd-slider-content { left: 20px !important; right: 12px !important; bottom: 64px !important; }
+  .lwd-slider-dots    { left: 20px !important; }
+
+  /* ── Venue list / grid wrappers ── */
+  .lwd-venue-list-wrap  { padding: 24px 16px 0 !important; }
+  .lwd-venue-grid-wrap  { padding: 24px 16px 0 !important; }
+  .lwd-venue-grid       { grid-template-columns: 1fr !important; }
+
+  /* ── HCard — stack vertically on mobile ── */
+  .lwd-hcard            { flex-direction: column !important; }
+  .lwd-hcard-image      {
+    flex: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 220px !important;
+  }
+  .lwd-hcard-content    { padding: 16px 16px 20px !important; }
+  .lwd-hcard-stats      { gap: 12px !important; }
+  .lwd-hcard-btns       { flex-wrap: wrap !important; }
+  .lwd-hcard-btns > button {
+    flex: 1 1 auto !important;
+    min-width: 80px !important;
+    font-size: 9px !important;
+    padding: 8px 6px !important;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     REGIONPAGE SECTIONS — mobile responsive
+     ══════════════════════════════════════════════════════════════════════ */
+
+  /* ── RegionPage hero ── */
+  .lwd-hero-content { padding: 0 20px 40px !important; }
+  .lwd-hero-stats {
+    flex-wrap: wrap !important;
+    gap: 20px !important;
+  }
+  .lwd-hero-stats > div { padding-left: 0 !important; border-left: none !important; }
+
+  /* ── Trust signal strip ── */
+  .lwd-region-trust-strip { padding: 14px 16px !important; gap: 8px !important; }
+  .lwd-region-trust-strip > span { font-size: 8px !important; padding: 5px 10px !important; letter-spacing: 1px !important; }
+
+  /* ── Intro editorial ── */
+  .lwd-region-intro { padding: 48px 20px !important; }
+
+  /* ── Category shortcuts ── */
+  .lwd-region-categories { padding: 48px 20px !important; }
+
+  /* ── Venue count strip ── */
+  .lwd-region-count-strip { padding: 16px 20px !important; }
+
+  /* ── Map section ── */
+  .lwd-region-map-section { padding: 0 16px 32px !important; }
+  .lwd-region-map-toggle { padding: 16px 16px !important; gap: 12px !important; }
+  .lwd-region-map-toggle > span:first-child { width: 32px !important; height: 32px !important; }
+  .lwd-region-map-grid {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+  }
+  .lwd-region-map-iframe { min-height: 320px !important; }
+  .lwd-region-map-panel {
+    border-left: none !important;
+    border-top: 1px solid rgba(255,255,255,0.1) !important;
+    max-height: 300px !important;
+  }
+
+  /* ── Cities block ── */
+  .lwd-region-cities { padding: 48px 20px !important; }
+
+  /* ── Related regions ── */
+  .lwd-region-related { padding: 48px 20px !important; }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     HOMEPAGE SECTIONS — mobile responsive
+     ══════════════════════════════════════════════════════════════════════ */
+
+  /* ── HomeNav ── */
+  .home-nav { padding: 10px 16px !important; }
+  .home-nav-brand { font-size: 15px !important; white-space: nowrap !important; }
+  .home-nav-right-desktop { display: none !important; }
+  .home-nav-hamburger { display: flex !important; }
+
+  /* ── SlimHero ── */
+  .home-hero { min-height: 520px !important; height: calc(75vh + 80px) !important; }
+  .home-hero-content { padding: 0 16px !important; padding-top: 24px !important; }
+  .home-hero-badge { margin-top: 16px !important; }
+  .home-hero-subline { color: rgba(255,255,255,0.8) !important; font-size: 14px !important; }
+  .home-hero-search { max-width: 100% !important; flex-wrap: wrap !important; }
+  .home-hero-search input { font-size: 13px !important; padding: 14px 0 !important; }
+  .home-hero-search button { padding: 14px 18px !important; font-size: 10px !important; }
+  .home-hero-tabs { max-width: 200px !important; }
+  /* Browse mode: stack fields vertically on mobile */
+  .home-hero-browse-fields { flex-direction: column !important; }
+  .home-hero-browse-divider { display: none !important; }
+  .home-hero-browse-field-wrap { width: 100% !important; }
+  .home-hero-browse-dropdown {
+    left: 0 !important;
+    width: 100% !important;
+    max-height: 30vh !important;
+    overflow-y: auto !important;
+    border-radius: 0 0 8px 8px !important;
+    z-index: 9999 !important;
+  }
+  /* Location mega menu: single column, no inner scroll on mobile */
+  .home-hero-browse-dropdown > div {
+    columns: 1 !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+  }
+  /* Category mega menu: single column on mobile */
+  .home-hero-browse-cat-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .home-hero-trust { font-size: 9px !important; letter-spacing: 0.08em !important; }
+
+  /* ── VenueFinder ── */
+  .home-venue-finder { padding: 24px 20px !important; }
+  .home-venue-finder-row {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  .home-venue-finder-label { width: 100% !important; margin-bottom: 4px !important; }
+  .home-venue-finder-row select {
+    flex: 1 1 calc(50% - 4px) !important;
+    min-width: calc(50% - 4px) !important;
+    font-size: 12px !important;
+    padding: 10px 30px 10px 12px !important;
+  }
+  .home-venue-finder-row button {
+    width: 100% !important;
+    padding: 12px !important;
+  }
+
+  /* ── VendorFinder ── */
+  .home-vendor-finder { padding: 16px 20px !important; }
+  .home-vendor-finder-row {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  .home-vendor-finder-label { width: 100% !important; margin-bottom: 4px !important; }
+  .home-vendor-finder-row select {
+    flex: 1 1 calc(50% - 4px) !important;
+    min-width: calc(50% - 4px) !important;
+    font-size: 12px !important;
+    padding: 10px 30px 10px 12px !important;
+  }
+  .home-vendor-finder-row button {
+    width: 100% !important;
+    padding: 12px !important;
+  }
+
+  /* ── DestinationGrid ── */
+  .home-dest-section { padding: 60px 0 60px 20px !important; }
+  .home-dest-header { padding-right: 20px !important; margin-bottom: 32px !important; flex-direction: column !important; align-items: flex-start !important; gap: 20px !important; }
+  .home-dest-scroll { padding-right: 20px !important; gap: 14px !important; }
+  .home-dest-card { width: 160px !important; }
+  .home-dest-card-img { height: 220px !important; }
+
+  /* ── VenueGrid ── */
+  .home-venue-grid-section { padding: 0 20px 60px !important; }
+  .home-venue-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
+
+  /* ── FeaturedSlider homepage ── */
+  .home-featured-slider { /* handled by existing .lwd-slider-* rules */ }
+
+  /* ── VendorPreview ── */
+  .home-vendor-preview { padding: 60px 20px !important; }
+  .home-vendor-grid {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+
+  /* ── CategorySlider ── */
+  .home-cat-section { padding: 60px 0 60px 20px !important; }
+  .home-cat-header { padding-right: 20px !important; margin-bottom: 32px !important; flex-direction: column !important; align-items: flex-start !important; gap: 20px !important; }
+  .home-cat-scroll { padding-right: 20px !important; gap: 14px !important; }
+  .home-cat-card { width: 160px !important; }
+  .home-cat-card-img { height: 220px !important; }
+
+  /* ── NewsletterBand ── */
+  .home-newsletter { padding: 60px 20px !important; }
+  .home-newsletter-headline { font-size: clamp(24px, 6vw, 36px) !important; }
+  .home-newsletter-form { flex-direction: column !important; }
+  .home-newsletter-form input { border-radius: var(--lwd-radius-input) !important; border-right: 1px solid #3a3a3a !important; }
+  .home-newsletter-form button { border-radius: var(--lwd-radius-input) !important; }
+
+  /* ── DirectoryBrands ── */
+  .home-directory-section { padding: 48px 20px !important; }
+  .home-directory-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 24px !important; }
+  .home-intl-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 24px !important; }
+
+  /* ── PartnerMarquee ── */
+  .home-marquee-label { font-size: 8px !important; }
+
+  /* ── HomeFooter ── */
+  .home-footer { padding: 48px 20px 28px !important; }
+  .home-footer-grid {
+    grid-template-columns: 1fr !important;
+    gap: 36px !important;
+  }
+  .home-footer-legal {
+    flex-direction: column !important;
+    text-align: center !important;
+    gap: 8px !important;
+  }
+  .home-footer-legal-links { justify-content: center !important; }
+
+  /* ── SiteFooter (universal) ── */
+  .site-footer { padding: 48px 20px 28px !important; }
+  .site-footer-grid {
+    grid-template-columns: 1fr !important;
+    gap: 36px !important;
+  }
+  .site-footer-legal {
+    flex-direction: column !important;
+    text-align: center !important;
+    gap: 8px !important;
+  }
+  .site-footer-legal-links {
+    justify-content: center !important;
+    flex-wrap: wrap !important;
+  }
+  .site-footer-engineered {
+    text-align: center !important;
+    margin-top: 6px !important;
+  }
+
+  /* ── USA Page ── */
+  .usa-curated-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
+  .usa-states-grid  { grid-template-columns: repeat(2, 1fr) !important; gap: 0 16px !important; }
+  .usa-info-strip   { grid-template-columns: 1fr !important; gap: 24px !important; }
+  .usa-info-strip > div { border-left: none !important; padding: 0 !important; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 20px !important; }
+  .usa-info-strip > div:first-child { border-top: none; padding-top: 0 !important; }
+  .usa-split-grid   { grid-template-columns: 1fr !important; gap: 32px !important; }
+  .usa-venue-grid   { grid-template-columns: 1fr !important; }
+  .usa-seo-grid     { grid-template-columns: 1fr !important; gap: 48px !important; }
+
+  /* ── LWD Standard Page ── */
+  .lwd-standard-section { padding: 60px 20px !important; }
+  .lwd-standard-hero { padding: 120px 20px 60px !important; }
+  .lwd-standard-steps { grid-template-columns: 1fr !important; }
+  .lwd-standard-pillars { grid-template-columns: 1fr !important; }
+  .lwd-standard-vendors { grid-template-columns: 1fr !important; gap: 40px !important; }
+  .lwd-standard-ctas { flex-direction: column !important; }
+  .lwd-standard-ctas button { width: 100% !important; }
+
+  /* ── About LWD Page ── */
+  .about-two-col { grid-template-columns: 1fr !important; gap: 32px !important; }
+
+  /* ── Contact LWD Page ── */
+  .contact-two-col { grid-template-columns: 1fr !important; gap: 0 !important; }
+  .contact-two-col > div:first-child { padding: 0 0 40px 0 !important; }
+  .contact-two-col > div:nth-child(2) { display: none !important; }
+  .contact-two-col > div:last-child { padding: 40px 0 0 0 !important; border-top: 1px solid rgba(201,168,76,0.15); }
+
+  /* ── Partnership Page ── */
+  .lwd-partnership-tiers { grid-template-columns: 1fr !important; gap: 24px !important; }
+  .lwd-partnership-steps { grid-template-columns: 1fr !important; gap: 32px !important; }
+
+  /* ── Admin Dashboard ── */
+  .admin-sidebar { display: none !important; }
+  .admin-stats-grid { grid-template-columns: 1fr 1fr !important; }
+  .admin-overview-cols { grid-template-columns: 1fr !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   LWD STANDARD — TABLET ≤ 1024 px
+   ══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .lwd-standard-pillars { grid-template-columns: repeat(2, 1fr) !important; }
+  .lwd-standard-vendors { grid-template-columns: 1fr !important; gap: 48px !important; }
+  .about-two-col { grid-template-columns: 1fr !important; gap: 40px !important; }
+  .contact-two-col { grid-template-columns: 1fr !important; gap: 0 !important; }
+  .contact-two-col > div:first-child { padding: 0 0 40px 0 !important; }
+  .contact-two-col > div:nth-child(2) { display: none !important; }
+  .contact-two-col > div:last-child { padding: 40px 0 0 0 !important; border-top: 1px solid rgba(201,168,76,0.15); }
+  .lwd-partnership-tiers { grid-template-columns: 1fr 1fr !important; }
+  .lwd-partnership-steps { grid-template-columns: 1fr !important; gap: 36px !important; }
+  .admin-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .admin-overview-cols { grid-template-columns: 1fr !important; }
+}
+
+/* ── Extra-small breakpoint ────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  /* Iconic scroll band remains single horizontal row — no stacking */
+}

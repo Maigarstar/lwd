@@ -1,0 +1,182 @@
+// ─── src/components/sections/VendorPreview.jsx ──────────────────────────────
+import { useState } from "react";
+import { useTheme } from "../../theme/ThemeContext";
+import { useShortlist } from "../../shortlist/ShortlistContext";
+import { GLOBAL_VENDORS } from "../../data/globalVendors";
+import { track } from "../../utils/track";
+import GCard from "../cards/GCard";
+import QuickViewModal from "../modals/QuickViewModal";
+
+const GD = "var(--font-heading-primary)";
+const NU = "var(--font-body)";
+
+/* Map global vendor schema → GCard expected props */
+function normalise(v) {
+  return {
+    ...v,
+    region: v.country,
+    priceFrom: v.price,
+    online: v.featured, // featured vendors shown as online
+    type: "vendor",
+    specialties: v.includes,
+  };
+}
+
+export default function VendorPreview({ onViewVendor }) {
+  const C = useTheme();
+  const { isShortlisted, toggleItem } = useShortlist();
+  const [quickViewItem, setQuickViewItem] = useState(null);
+  const featured = GLOBAL_VENDORS.filter((v) => v.featured).slice(0, 6);
+
+  return (
+    <section
+      aria-label="Handpicked vendors"
+      className="home-vendor-preview"
+      style={{
+        position: "relative",
+        background: C.black,
+        padding: "110px 60px",
+        overflow: "hidden",
+        borderTop: `1px solid ${C.border}`,
+      }}
+    >
+      <div style={{ maxWidth: 1320, margin: "0 auto", position: "relative" }}>
+        {/* Heading */}
+        <div style={{ marginBottom: 56 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              marginBottom: 16,
+            }}
+          >
+            <div
+              style={{ width: 28, height: 1, background: "rgba(201,168,76,0.5)" }}
+            />
+            <span
+              style={{
+                fontFamily: NU,
+                fontSize: 10,
+                letterSpacing: "0.28em",
+                textTransform: "uppercase",
+                color: C.gold,
+                fontWeight: 600,
+              }}
+            >
+              Handpicked for You
+            </span>
+          </div>
+          <h2
+            style={{
+              fontFamily: GD,
+              fontSize: "clamp(32px, 3.5vw, 52px)",
+              color: C.off,
+              fontWeight: 400,
+              lineHeight: 1.1,
+            }}
+          >
+            The Finest{" "}
+            <span style={{ fontStyle: "italic", color: C.gold }}>
+              Wedding Vendors
+            </span>
+          </h2>
+          <p
+            style={{
+              fontFamily: NU,
+              fontSize: 14,
+              color: C.grey,
+              lineHeight: 1.7,
+              maxWidth: 560,
+              marginTop: 14,
+              fontWeight: 300,
+            }}
+          >
+            126 venues and vendors currently available. Refine by style,
+            guest count, and region. Trusted by couples planning weddings
+            across Europe and beyond.
+          </p>
+        </div>
+
+        {/* Card grid */}
+        <div
+          className="home-vendor-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))",
+            gap: 28,
+            marginBottom: 48,
+          }}
+        >
+          {featured.map((v) => {
+            const nv = normalise(v);
+            return (
+              <GCard
+                key={v.id}
+                v={nv}
+                saved={isShortlisted(v.id)}
+                onSave={() => {
+                  toggleItem({ id: v.id, name: v.name, type: v.cat });
+                  track("shortlist_add", { id: v.id });
+                }}
+                onView={() => {
+                  track("card_click", { id: v.id });
+                  onViewVendor?.(v);
+                }}
+                onQuickView={() => {
+                  track("card_quick_view", { id: v.id });
+                  setQuickViewItem(nv);
+                }}
+              />
+            );
+          })}
+        </div>
+
+        {/* CTA */}
+        <div style={{ textAlign: "center" }}>
+          <button
+            style={{
+              background: "transparent",
+              color: C.gold,
+              border: `1px solid rgba(201,168,76,0.4)`,
+              borderRadius: "var(--lwd-radius-card)",
+              padding: "14px 40px",
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.2em",
+              textTransform: "uppercase",
+              cursor: "pointer",
+              fontFamily: NU,
+              transition: "all 0.25s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = C.gold;
+              e.currentTarget.style.color = "#0a0906";
+              e.currentTarget.style.borderColor = C.gold;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = C.gold;
+              e.currentTarget.style.borderColor = "rgba(201,168,76,0.4)";
+            }}
+          >
+            View All Vendors →
+          </button>
+        </div>
+      </div>
+
+      {/* Quick View modal */}
+      {quickViewItem && (
+        <QuickViewModal
+          item={quickViewItem}
+          onClose={() => setQuickViewItem(null)}
+          onViewFull={() => {
+            const raw = featured.find((f) => f.id === quickViewItem.id);
+            setQuickViewItem(null);
+            onViewVendor?.(raw ?? quickViewItem);
+          }}
+        />
+      )}
+    </section>
+  );
+}

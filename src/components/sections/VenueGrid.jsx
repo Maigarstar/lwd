@@ -1,0 +1,163 @@
+// ─── src/components/sections/VenueGrid.jsx ──────────────────────────────────
+import { useState } from "react";
+import { useTheme } from "../../theme/ThemeContext";
+import { useShortlist } from "../../shortlist/ShortlistContext";
+import { track } from "../../utils/track";
+import GCard from "../cards/GCard";
+import QuickViewModal from "../modals/QuickViewModal";
+
+const GD = "var(--font-heading-primary)";
+const NU = "var(--font-body)";
+
+export default function VenueGrid({ venues = [], onViewVenue }) {
+  const C = useTheme();
+  const { isShortlisted, toggleItem } = useShortlist();
+  const [quickViewItem, setQuickViewItem] = useState(null);
+  const display = venues.slice(0, 6);
+
+  return (
+    <section
+      aria-label="Featured wedding venues"
+      className="home-venue-grid-section"
+      style={{
+        position: "relative",
+        background: C.black,
+        padding: "80px 60px 100px",
+        overflow: "hidden",
+      }}
+    >
+      <div style={{ maxWidth: 1320, margin: "0 auto" }}>
+        {/* Heading — mirrors VendorPreview style */}
+        <div style={{ marginBottom: 48 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              marginBottom: 16,
+            }}
+          >
+            <div
+              style={{ width: 28, height: 1, background: "rgba(201,168,76,0.5)" }}
+            />
+            <span
+              style={{
+                fontFamily: NU,
+                fontSize: 10,
+                letterSpacing: "0.28em",
+                textTransform: "uppercase",
+                color: C.gold,
+                fontWeight: 600,
+              }}
+            >
+              The Edit
+            </span>
+          </div>
+          <h2
+            style={{
+              fontFamily: GD,
+              fontSize: "clamp(32px, 3.5vw, 52px)",
+              color: C.off,
+              fontWeight: 400,
+              lineHeight: 1.1,
+            }}
+          >
+            Venues Beyond{" "}
+            <span style={{ fontStyle: "italic", color: C.gold }}>
+              Compare
+            </span>
+          </h2>
+          <p
+            style={{
+              fontFamily: NU,
+              fontSize: 14,
+              color: C.grey,
+              lineHeight: 1.7,
+              maxWidth: 560,
+              marginTop: 14,
+              fontWeight: 300,
+            }}
+          >
+            Explore our hand-picked selection of the world's most extraordinary
+            wedding venues — filtered by location, capacity, style, and features.
+          </p>
+        </div>
+
+        {/* Card grid */}
+        <div
+          className="home-venue-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))",
+            gap: 28,
+            marginBottom: 48,
+          }}
+        >
+          {display.map((v) => (
+            <GCard
+              key={v.id}
+              v={v}
+              saved={isShortlisted(v.id)}
+              onSave={() => {
+                toggleItem({ id: v.id, name: v.name, type: "venues" });
+                track("shortlist_add", { id: v.id, name: v.name });
+              }}
+              onView={() => {
+                track("venue_card_click", { id: v.id, name: v.name });
+                onViewVenue?.(v);
+              }}
+              onQuickView={() => {
+                track("venue_quick_view", { id: v.id, name: v.name });
+                setQuickViewItem(v);
+              }}
+            />
+          ))}
+        </div>
+
+        {/* View all CTA */}
+        <div style={{ textAlign: "center" }}>
+          <button
+            style={{
+              background: "transparent",
+              color: C.gold,
+              border: "1px solid rgba(201,168,76,0.4)",
+              borderRadius: "var(--lwd-radius-input)",
+              padding: "14px 40px",
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.2em",
+              textTransform: "uppercase",
+              cursor: "pointer",
+              fontFamily: NU,
+              transition: "all 0.25s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = C.gold;
+              e.currentTarget.style.color = "#0a0906";
+              e.currentTarget.style.borderColor = C.gold;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = C.gold;
+              e.currentTarget.style.borderColor = "rgba(201,168,76,0.4)";
+            }}
+          >
+            View All Venues →
+          </button>
+        </div>
+      </div>
+
+      {/* Quick View modal */}
+      {quickViewItem && (
+        <QuickViewModal
+          item={quickViewItem}
+          onClose={() => setQuickViewItem(null)}
+          onViewFull={() => {
+            setQuickViewItem(null);
+            onViewVenue?.(quickViewItem);
+          }}
+        />
+      )}
+    </section>
+  );
+}

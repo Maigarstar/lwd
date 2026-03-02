@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(pkill -f \"vite\")",
+      "WebFetch(domain:fonts.google.com)",
+      "Bash(npx vite build --logLevel error)",
+      "Bash(npm run build)",
+      "Bash(python3 -c \":*)",
+      "Bash(npx vite build)",
+      "Bash(python3:*)",
+      "Bash(ls /Users/taiwoadedayo/LDW-01/package.json /Users/taiwoadedayo/LDW-01/vite.config.*)",
+      "WebFetch(domain:unsplash.com)",
+      "Bash(bash -c ':*)"
+    ]
+  }
+}
