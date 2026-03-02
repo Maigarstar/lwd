@@ -619,7 +619,29 @@ export default function USAPage({
             </div>
           </div>
 
-          {/* ═══ 9. EDITORIAL BANNER — warm stone section ═══════════════ */}
+          {/* ═══ 9-NEW. EDITORIAL BANNER — clean warm stone ═══════════════ */}
+          <section style={{ display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", marginTop: 80, padding: "80px 40px", background: "#f3ede6", borderTop: "1px solid #ddd4c8", borderBottom: "1px solid #ddd4c8" }}>
+            <div style={{ maxWidth: 760 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 24 }}>
+                <div style={{ width: 60, height: 1, background: "#ddd4c8" }} />
+                <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "5px", textTransform: "uppercase", color: "#2a2a2a", fontWeight: 600 }}>Exclusively Curated</span>
+                <div style={{ width: 60, height: 1, background: "#ddd4c8" }} />
+              </div>
+              <h2 style={{ fontFamily: GD, fontSize: "clamp(26px,3vw,40px)", fontWeight: 400, color: "#111111", lineHeight: 1.15, margin: "0 0 18px" }}>
+                America — where grand estates meet <span style={{ fontStyle: "italic", color: "#7a5f10" }}>endless possibility.</span>
+              </h2>
+              <p style={{ fontFamily: NU, fontSize: 14, color: "#2a2a2a", lineHeight: 1.7, maxWidth: 520, margin: "0 auto 32px" }}>
+                Every venue and vendor in our American collection has been personally visited and
+                approved by our editorial team. Only the exceptional makes the list.
+              </p>
+              <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
+                <button style={{ background: "linear-gradient(135deg, #7a5f10 0%, #9a7a0a 100%)", border: "none", borderRadius: 3, color: "#ffffff", padding: "13px 36px", fontSize: 10, fontWeight: 700, letterSpacing: "2.5px", textTransform: "uppercase", cursor: "pointer", fontFamily: "inherit" }}>Start Planning</button>
+                <button style={{ background: "none", border: "1px solid #ddd4c8", borderRadius: 3, color: "#2a2a2a", padding: "13px 36px", fontSize: 10, fontWeight: 600, letterSpacing: "2.5px", textTransform: "uppercase", cursor: "pointer", fontFamily: "inherit" }}>Talk to a Consultant</button>
+              </div>
+            </div>
+          </section>
+
+          {/* ═══ 9-OLD. EDITORIAL BANNER — TO BE REMOVED ═══════════════ */}
           <section style={{ display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", marginTop: 80, padding: "80px 40px", background: C.dark }}>
             <div style={{ maxWidth: 760 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 24 }}>
