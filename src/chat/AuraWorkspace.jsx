@@ -65,8 +65,8 @@ export default function AuraWorkspace({ onBack, onHome, onVenues, onLogin }) {
 
   // mobileDrawer: null | "left" | "right"
   const [mobileDrawer,   setMobileDrawer]   = useState(null);
-  const [leftCollapsed,  setLeftCollapsed]  = useState(false);
-  const [rightCollapsed, setRightCollapsed] = useState(false);
+  const [leftCollapsed,  setLeftCollapsed]  = useState(true);
+  const [rightCollapsed, setRightCollapsed] = useState(true);
   const [visible,        setVisible]        = useState(false);
   const [darkMode,       setDarkMode]       = useState(false);
   const [shareToast,     setShareToast]     = useState(false);
@@ -541,19 +541,19 @@ export default function AuraWorkspace({ onBack, onHome, onVenues, onLogin }) {
         </div>
 
         {/* ══ FOOTER ═════════════════════════════════════════════════════════ */}
-        <div className="aws-footer" style={{ flexShrink: 0, background: DEEP, borderTop: "1px solid rgba(201,168,76,0.1)", padding: "7px 24px 8px" }}>
+        <div className="aws-footer" style={{ flexShrink: 0, background: darkMode ? "rgba(255,255,255,0.03)" : "#F5F2ED", borderTop: `1px solid ${darkMode ? "rgba(255,255,255,0.06)" : "rgba(26,23,20,0.08)"}`, padding: "7px 24px 8px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 4 }}>
-            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.28)", fontFamily: "var(--font-body)" }}>
+            <span style={{ fontSize: 10, color: darkMode ? "rgba(255,255,255,0.28)" : "rgba(26,23,20,0.55)", fontFamily: "var(--font-body)" }}>
               <Icon name="alertTriangle" size={10} style={{ marginRight: 3, opacity: 0.6 }} /> Aura can make mistakes — always verify details directly with venues &amp; vendors.
             </span>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10, color: "rgba(255,255,255,0.22)", fontFamily: "var(--font-body)" }}>
-              <span>Powered by <span style={{ color: GOLD, opacity: 0.75 }}>Taigenic.ai</span></span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10, color: darkMode ? "rgba(255,255,255,0.22)" : "rgba(26,23,20,0.45)", fontFamily: "var(--font-body)" }}>
+              <span>Powered by <span style={{ color: GOLD, opacity: 0.8 }}>Taigenic.ai</span></span>
               <FooterLink label="Privacy" />
               <FooterLink label="Terms" />
               <FooterLink label="Cookies" />
             </div>
           </div>
-          <div className="aws-footer-copyright" style={{ marginTop: 3, fontSize: 9, color: "rgba(255,255,255,0.15)", fontFamily: "var(--font-body)" }}>
+          <div className="aws-footer-copyright" style={{ marginTop: 3, fontSize: 9, color: darkMode ? "rgba(255,255,255,0.15)" : "rgba(26,23,20,0.35)", fontFamily: "var(--font-body)" }}>
             © Luxury Wedding Directory — Part of 5 Star Weddings Ltd. 2006–2026. All rights reserved.
           </div>
         </div>
@@ -621,10 +621,15 @@ function CollapseBtn({ side, collapsed, onClick, posStyle }) {
 }
 
 function FooterLink({ label }) {
+  const handleClick = () => {
+    if (label === "Cookies") window.dispatchEvent(new Event("lwd:show-cookies"));
+  };
   return (
     <>
       <span style={{ opacity: 0.3 }}>·</span>
-      <button style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", fontSize: "inherit", fontFamily: "inherit", padding: 0, opacity: 0.65, transition: "opacity 0.15s" }}
+      <button
+        onClick={handleClick}
+        style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", fontSize: "inherit", fontFamily: "inherit", padding: 0, opacity: 0.65, transition: "opacity 0.15s" }}
         onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
         onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.65")}
       >{label}</button>
