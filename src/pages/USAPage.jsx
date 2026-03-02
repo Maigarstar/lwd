@@ -350,6 +350,8 @@ export default function USAPage({
   return (
     <ThemeCtx.Provider value={C}>
       <div style={{ background: C.black, minHeight: "100vh", color: C.white }}>
+        {/* TEST — remove after confirming render */}
+        <div style={{ background: "red", color: "white", fontSize: 32, padding: 40, textAlign: "center", fontWeight: 700 }}>TEST: IF YOU CAN SEE THIS, THE PAGE IS UPDATING</div>
         {/* ── Nav ──────────────────────────────────────────────────────── */}
         <HomeNav darkMode={darkMode} onToggleDark={() => setDarkMode((d) => !d)} onNavigateStandard={onViewStandard} onNavigateAbout={onViewAbout} />
 
