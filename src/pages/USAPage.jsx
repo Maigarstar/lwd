@@ -619,27 +619,24 @@ export default function USAPage({
             </div>
           </div>
 
-          {/* ═══ 9. EDITORIAL BANNER — always-dark section ═══════════════ */}
-          <section style={{ position: "relative", height: 480, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", marginTop: 80, overflow: "hidden", background: "#020201" }}>
-            <img src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1920&q=80" alt="" loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.3, transform: "scale(1.03)" }} />
-            <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, #020201 0%, #020201 50%, #020201 100%)" }} />
-
-            <div style={{ position: "relative", zIndex: 1, maxWidth: 760, padding: "0 40px" }}>
+          {/* ═══ 9. EDITORIAL BANNER — warm stone section ═══════════════ */}
+          <section style={{ display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", marginTop: 80, padding: "80px 40px", background: C.dark }}>
+            <div style={{ maxWidth: 760 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 24 }}>
-                <div style={{ width: 60, height: 1, background: "rgba(255,255,255,0.18)" }} />
-                <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "5px", textTransform: "uppercase", color: "rgba(255,255,255,0.45)", fontWeight: 600 }}>Exclusively Curated</span>
-                <div style={{ width: 60, height: 1, background: "rgba(255,255,255,0.18)" }} />
+                <div style={{ width: 60, height: 1, background: C.border }} />
+                <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "5px", textTransform: "uppercase", color: C.grey, fontWeight: 600 }}>Exclusively Curated</span>
+                <div style={{ width: 60, height: 1, background: C.border }} />
               </div>
-              <h2 style={{ fontFamily: GD, fontSize: "clamp(26px,3vw,40px)", fontWeight: 400, color: "#ffffff", lineHeight: 1.15, margin: "0 0 18px" }}>
-                America — where grand estates meet <span style={{ fontStyle: "italic", color: "#C9A84C" }}>endless possibility.</span>
+              <h2 style={{ fontFamily: GD, fontSize: "clamp(26px,3vw,40px)", fontWeight: 400, color: C.off, lineHeight: 1.15, margin: "0 0 18px" }}>
+                America — where grand estates meet <span style={{ fontStyle: "italic", color: C.gold }}>endless possibility.</span>
               </h2>
-              <p style={{ fontFamily: NU, fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.7, maxWidth: 520, margin: "0 auto 32px" }}>
+              <p style={{ fontFamily: NU, fontSize: 14, color: C.grey, lineHeight: 1.7, maxWidth: 520, margin: "0 auto 32px" }}>
                 Every venue and vendor in our American collection has been personally visited and
                 approved by our editorial team. Only the exceptional makes the list.
               </p>
               <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
-                <button style={{ background: "linear-gradient(135deg, #C9A84C 0%, #e8c97a 100%)", border: "none", borderRadius: "var(--lwd-radius-input)", color: "#0f0d0a", padding: "13px 36px", fontSize: 10, fontWeight: 700, letterSpacing: "2.5px", textTransform: "uppercase", cursor: "pointer", fontFamily: "inherit" }}>Start Planning</button>
-                <button onMouseEnter={() => setHovConsult(true)} onMouseLeave={() => setHovConsult(false)} style={{ background: "none", border: `1px solid ${hovConsult ? "#C9A84C" : "rgba(255,255,255,0.25)"}`, borderRadius: "var(--lwd-radius-input)", color: hovConsult ? "#C9A84C" : "rgba(255,255,255,0.7)", padding: "13px 36px", fontSize: 10, fontWeight: 600, letterSpacing: "2.5px", textTransform: "uppercase", cursor: "pointer", fontFamily: "inherit", transition: "all 0.25s" }}>Talk to a Consultant</button>
+                <button style={{ background: `linear-gradient(135deg, ${C.gold} 0%, ${C.gold2} 100%)`, border: "none", borderRadius: "var(--lwd-radius-input)", color: "#0f0d0a", padding: "13px 36px", fontSize: 10, fontWeight: 700, letterSpacing: "2.5px", textTransform: "uppercase", cursor: "pointer", fontFamily: "inherit" }}>Start Planning</button>
+                <button onMouseEnter={() => setHovConsult(true)} onMouseLeave={() => setHovConsult(false)} style={{ background: "none", border: `1px solid ${hovConsult ? C.gold : C.border}`, borderRadius: "var(--lwd-radius-input)", color: hovConsult ? C.gold : C.grey, padding: "13px 36px", fontSize: 10, fontWeight: 600, letterSpacing: "2.5px", textTransform: "uppercase", cursor: "pointer", fontFamily: "inherit", transition: "all 0.25s" }}>Talk to a Consultant</button>
               </div>
             </div>
           </section>
