@@ -65,6 +65,7 @@ export default function PlannerMapPanel({
   onPinHover,
   onPinLeave,
   onPinClick,
+  onToggleView,
   C,
   bleed = false,
 }) {
@@ -200,23 +201,54 @@ export default function PlannerMapPanel({
         </div>
       )}
 
-      {/* Header label */}
+      {/* Header row: label + list view toggle */}
       <div
         style={{
           position:      "absolute",
           top:           14,
           left:          14,
-          fontFamily:    NU,
-          fontSize:      9,
-          letterSpacing: "0.35em",
-          textTransform: "uppercase",
-          color:         "rgba(255,255,255,0.35)",
+          right:         14,
+          display:       "flex",
+          alignItems:    "center",
+          justifyContent: "space-between",
           zIndex:        500,
           userSelect:    "none",
-          pointerEvents: "none",
         }}
       >
-        Planner Map · Italy
+        <span
+          style={{
+            fontFamily:    NU,
+            fontSize:      9,
+            letterSpacing: "0.35em",
+            textTransform: "uppercase",
+            color:         "rgba(255,255,255,0.35)",
+            pointerEvents: "none",
+          }}
+        >
+          Planner Map · Italy
+        </span>
+        {onToggleView && (
+          <button
+            onClick={onToggleView}
+            style={{
+              fontFamily:    NU,
+              fontSize:      9,
+              fontWeight:    600,
+              letterSpacing: "0.15em",
+              textTransform: "uppercase",
+              color:         GOLD,
+              background:    "rgba(8,6,4,0.75)",
+              backdropFilter: "blur(8px)",
+              border:        `1px solid rgba(201,168,76,0.25)`,
+              borderRadius:  6,
+              padding:       "5px 10px",
+              cursor:        "pointer",
+              transition:    "all 0.25s",
+            }}
+          >
+            ≡ List View
+          </button>
+        )}
       </div>
 
       {/* Legend */}
