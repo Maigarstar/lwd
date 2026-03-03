@@ -1250,8 +1250,8 @@ function ListCard({ v, onView, listMode, isHighlighted }) {
       <div
         onClick={(e) => { e.stopPropagation(); setShowGallery(true); }}
         style={{
-          flex:       listMode ? "0 0 38%" : "0 0 220px",
-          maxWidth:   listMode ? 440 : 220,
+          flex:       listMode ? "0 0 42%" : "0 0 220px",
+          maxWidth:   listMode ? 520 : 220,
           minHeight:  200,
           position:   "relative",
           overflow:   "hidden",
