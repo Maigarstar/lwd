@@ -491,10 +491,10 @@ export default function WeddingPlannersPage({
                 ...(isMobile
                   ? { flex: 1 }
                   : {
-                      width:        "55%",
-                      maxWidth:     720,
+                      width:        "65%",
+                      maxWidth:     860,
                       paddingLeft:  "max(32px, calc((100vw - 1200px) / 2))",
-                      paddingRight: 24,
+                      paddingRight: 32,
                     }
                 ),
                 minWidth:      0,
