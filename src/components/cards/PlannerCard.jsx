@@ -706,8 +706,9 @@ function GridCard({ v, onView, isMobile }) {
         boxShadow:       hov ? "0 16px 48px rgba(0,0,0,0.25), 0 4px 12px rgba(201,168,76,0.08)" : "0 2px 12px rgba(0,0,0,0.1)",
         scrollSnapAlign: isMobile ? "start" : undefined,
         scrollMarginTop: isMobile ? 12 : undefined,
-        height:          isMobile ? "85vh" : 520,
-        minHeight:       isMobile ? 560 : 520,
+        height:          isMobile ? "75vh" : 460,
+        minHeight:       isMobile ? 440 : 400,
+        maxHeight:       480,
       }}
     >
       {/* ── Full-bleed swipeable media background ── */}
@@ -1233,7 +1234,7 @@ function ListCard({ v, onView, listMode, isHighlighted }) {
           borderTop:    "none",
           borderRight:  "none",
           borderBottom: `1px solid ${C.border}`,
-          borderLeft:   `3px solid ${isHighlighted ? GOLD : "transparent"}`,
+          borderLeft:   `3px solid ${isHighlighted || hov ? GOLD : "transparent"}`,
           borderRadius: 0,
         } : {
           border:       `1px solid ${hov ? C.goldDim : C.border}`,
@@ -1249,9 +1250,9 @@ function ListCard({ v, onView, listMode, isHighlighted }) {
       <div
         onClick={(e) => { e.stopPropagation(); setShowGallery(true); }}
         style={{
-          width:      listMode ? 300 : 220,
+          flex:       listMode ? "0 0 38%" : "0 0 220px",
+          maxWidth:   listMode ? 440 : 220,
           minHeight:  200,
-          flexShrink: 0,
           position:   "relative",
           overflow:   "hidden",
           background: "#0a0806",
@@ -1342,15 +1343,6 @@ function ListCard({ v, onView, listMode, isHighlighted }) {
                 </span>
               </div>
             )}
-            {v.priceFrom && (
-              <>
-                <span style={{ color: C.border, fontSize: 10 }}>·</span>
-                <span style={{ fontFamily: "var(--font-heading-primary)", fontSize: 15, fontWeight: 600, color: GOLD, lineHeight: 1 }}>
-                  <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 400, color: C.grey, marginRight: 3 }}>From</span>
-                  {v.priceFrom}
-                </span>
-              </>
-            )}
           </div>
         ) : (
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
@@ -1384,12 +1376,10 @@ function ListCard({ v, onView, listMode, isHighlighted }) {
           </div>
         )}
 
-        {/* Social media + phone + WhatsApp icons — hidden in listMode */}
-        {!listMode && (
-          <SocialRow socials={v.socials} color={C.grey} phone={v.phone} whatsapp={v.whatsapp} email={v.email} />
-        )}
+        {/* Social media + phone + WhatsApp icons */}
+        <SocialRow socials={v.socials} color={C.grey} phone={v.phone} whatsapp={v.whatsapp} email={v.email} darkMode />
 
-        {/* Description — 1-line in listMode, 2-line otherwise */}
+        {/* Description */}
         <p
           style={{
             fontFamily:      NU,
@@ -1398,7 +1388,7 @@ function ListCard({ v, onView, listMode, isHighlighted }) {
             lineHeight:      1.55,
             margin:          "0 0 12px",
             display:         "-webkit-box",
-            WebkitLineClamp: listMode ? 1 : 2,
+            WebkitLineClamp: listMode ? 3 : 2,
             WebkitBoxOrient: "vertical",
             overflow:        "hidden",
           }}
@@ -1406,10 +1396,10 @@ function ListCard({ v, onView, listMode, isHighlighted }) {
           {v.desc}
         </p>
 
-        {/* Specialty pills — hidden in listMode */}
-        {!listMode && v.specialties?.length > 0 && (
+        {/* Specialty pills */}
+        {v.specialties?.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 14 }}>
-            {v.specialties.slice(0, 3).map((s) => (
+            {v.specialties.slice(0, listMode ? 4 : 3).map((s) => (
               <Pill key={s} text={s} />
             ))}
           </div>
@@ -1417,9 +1407,14 @@ function ListCard({ v, onView, listMode, isHighlighted }) {
 
         {/* Footer: price + CTAs */}
         {listMode ? (
-          /* listMode: Enquire button + Profile text link, no separate price (already in compact row) */
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: "auto" }}>
-            <div style={{ flex: 1 }} />
+          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px 12px", marginTop: "auto", borderTop: `1px solid ${C.border}`, paddingTop: 14 }}>
+            {v.priceFrom && (
+              <div style={{ fontFamily: GD, fontSize: 18, fontWeight: 600, color: C.gold }}>
+                <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 400, color: C.grey, marginRight: 4, letterSpacing: "0.3px" }}>From</span>
+                {v.priceFrom}
+              </div>
+            )}
+            <div style={{ flex: 1, minWidth: 8 }} />
             <button
               onClick={(e) => { e.stopPropagation(); setShowEnquiry(true); }}
               style={{
@@ -1432,7 +1427,7 @@ function ListCard({ v, onView, listMode, isHighlighted }) {
                 background:    `linear-gradient(135deg, ${GOLD}, #e8c97a)`,
                 border:        "none",
                 borderRadius:  "var(--lwd-radius-input)",
-                padding:       "7px 14px",
+                padding:       "8px 16px",
                 cursor:        "pointer",
                 transition:    "opacity 0.25s",
                 whiteSpace:    "nowrap",
@@ -1445,20 +1440,19 @@ function ListCard({ v, onView, listMode, isHighlighted }) {
             <button
               onClick={(e) => { e.stopPropagation(); onView?.(v); }}
               style={{
-                background:         "transparent",
-                border:             "none",
-                fontFamily:         NU,
-                fontSize:           11,
-                fontWeight:         600,
-                color:              GOLD,
-                cursor:             "pointer",
-                textDecoration:     "underline",
-                textUnderlineOffset:"3px",
-                textDecorationColor:"rgba(201,168,76,0.4)",
-                padding:            "0 2px",
-                letterSpacing:      "0.3px",
-                transition:         "color 0.2s",
-                whiteSpace:         "nowrap",
+                fontFamily:    NU,
+                fontSize:      10,
+                fontWeight:    700,
+                letterSpacing: "1.2px",
+                textTransform: "uppercase",
+                color:         GOLD,
+                background:    "rgba(201,168,76,0.08)",
+                border:        "1px solid rgba(201,168,76,0.22)",
+                borderRadius:  "var(--lwd-radius-input)",
+                padding:       "8px 16px",
+                cursor:        "pointer",
+                transition:    "all 0.25s",
+                whiteSpace:    "nowrap",
               }}
             >
               Profile ›

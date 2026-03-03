@@ -408,31 +408,33 @@ export default function WeddingPlannersPage({
       />
 
       {/* ── 5. Planner Grid / List ──────────────────────────────────────────────── */}
-      <section style={{ background: C.black, padding: isMobile ? "32px 16px 48px" : "40px 32px 64px" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          {/* Section title */}
-          <div style={{ marginBottom: 32 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-              <div style={{ width: 28, height: 1, background: C.gold }} />
-              <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: C.gold, fontWeight: 600 }}>
-                All Planners
-              </span>
-            </div>
-            <h2 style={{ fontFamily: GD, fontSize: 28, fontWeight: 400, color: C.white, lineHeight: 1.2, margin: "0 0 8px" }}>
-              Browse Our{" "}
-              <span style={{ fontStyle: "italic", color: GOLD }}>Curated Directory</span>
-            </h2>
-            <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, lineHeight: 1.6, maxWidth: 600, margin: 0 }}>
-              Every planner below has been personally reviewed by our editorial team. Filter by service tier,
-              region, or sort by rating to find your perfect match.
-            </p>
+      <section style={{ background: C.black, padding: isMobile ? "32px 16px 48px" : "40px 0 64px" }}>
+        {/* Section title — stays constrained */}
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: isMobile ? 0 : "0 32px", marginBottom: 32 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+            <div style={{ width: 28, height: 1, background: C.gold }} />
+            <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: C.gold, fontWeight: 600 }}>
+              All Planners
+            </span>
           </div>
+          <h2 style={{ fontFamily: GD, fontSize: 28, fontWeight: 400, color: C.white, lineHeight: 1.2, margin: "0 0 8px" }}>
+            Browse Our{" "}
+            <span style={{ fontStyle: "italic", color: GOLD }}>Curated Directory</span>
+          </h2>
+          <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, lineHeight: 1.6, maxWidth: 600, margin: 0 }}>
+            Every planner below has been personally reviewed by our editorial team. Filter by service tier,
+            region, or sort by rating to find your perfect match.
+          </p>
+        </div>
 
-          {filtered.length === 0 ? (
+        {filtered.length === 0 ? (
+          <div style={{ maxWidth: 1200, margin: "0 auto", padding: isMobile ? 0 : "0 32px" }}>
             <div style={{ fontFamily: NU, fontSize: 14, color: C.grey, textAlign: "center", padding: "48px 0" }}>
               No planners match your current filters. Try adjusting your selection.
             </div>
-          ) : viewMode === "grid" ? (
+          </div>
+        ) : viewMode === "grid" ? (
+          <div style={{ maxWidth: 1200, margin: "0 auto", padding: isMobile ? 0 : "0 32px" }}>
             <div
               style={{
                 display:             "grid",
@@ -444,10 +446,12 @@ export default function WeddingPlannersPage({
                 <PlannerCard key={p.id} v={p} mode="grid" onView={() => {}} isMobile={isMobile} />
               ))}
             </div>
-          ) : (
-            <>
-              {/* Mobile: Show Map button */}
-              {isMobile && (
+          </div>
+        ) : (
+          <>
+            {/* Mobile: Show Map button */}
+            {isMobile && (
+              <div style={{ padding: "0 16px", marginBottom: 20 }}>
                 <button
                   onClick={() => setShowMap(true)}
                   style={{
@@ -464,7 +468,6 @@ export default function WeddingPlannersPage({
                     letterSpacing: "0.5px",
                     color:         GOLD,
                     cursor:        "pointer",
-                    marginBottom:  20,
                   }}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -474,63 +477,78 @@ export default function WeddingPlannersPage({
                   </svg>
                   Show Map
                 </button>
-              )}
+              </div>
+            )}
 
-              {/* List + sticky map layout */}
-              <div style={{ display: "flex", gap: 28, alignItems: "flex-start" }}>
-                {/* Left 60%: planner list */}
-                <div style={{
-                  flex:          isMobile ? "1" : "0 0 60%",
-                  minWidth:      0,
-                  display:       "flex",
-                  flexDirection: "column",
-                }}>
-                  {filtered.map((p) => (
-                    <div
-                      key={p.id}
-                      data-planner-id={p.id}
-                      onMouseEnter={() => setHoveredId(p.id)}
-                      onMouseLeave={() => setHoveredId(null)}
-                    >
-                      <PlannerCard
-                        v={p}
-                        mode="list"
-                        listMode
-                        isHighlighted={hoveredId === p.id || activePinnedId === p.id}
-                        onView={() => {}}
-                        isMobile={isMobile}
-                      />
-                    </div>
-                  ))}
-                </div>
-
-                {/* Right 40%: sticky map panel (desktop only) */}
-                {!isMobile && (
-                  <div style={{
-                    flex:     "0 0 40%",
-                    position: "sticky",
-                    top:      80,
-                    height:   "calc(100vh - 160px)",
-                  }}>
-                    <PlannerMapPanel
-                      planners={filtered}
-                      hoveredId={hoveredId}
-                      activePinnedId={activePinnedId}
-                      onPinHover={setHoveredId}
-                      onPinLeave={() => setHoveredId(null)}
-                      onPinClick={(id) => {
-                        setActivePinnedId(id);
-                        const el = document.querySelector(`[data-planner-id="${id}"]`);
-                        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-                      }}
-                      C={C}
+            {/* List + sticky map — map bleeds to right viewport edge (desktop) */}
+            <div style={{
+              display:       "flex",
+              alignItems:    "flex-start",
+              ...(isMobile ? { padding: "0 16px" } : {}),
+            }}>
+              {/* Left: planner list within content area */}
+              <div style={{
+                ...(isMobile
+                  ? { flex: 1 }
+                  : {
+                      width:        "55%",
+                      maxWidth:     720,
+                      paddingLeft:  "max(32px, calc((100vw - 1200px) / 2))",
+                      paddingRight: 24,
+                    }
+                ),
+                minWidth:      0,
+                display:       "flex",
+                flexDirection: "column",
+                gap:           16,
+              }}>
+                {filtered.map((p) => (
+                  <div
+                    key={p.id}
+                    data-planner-id={p.id}
+                    onMouseEnter={() => setHoveredId(p.id)}
+                    onMouseLeave={() => setHoveredId(null)}
+                  >
+                    <PlannerCard
+                      v={p}
+                      mode="list"
+                      listMode
+                      isHighlighted={hoveredId === p.id || activePinnedId === p.id}
+                      onView={() => {}}
+                      isMobile={isMobile}
                     />
                   </div>
-                )}
+                ))}
               </div>
-            </>
-          )}
-        </div>
+
+              {/* Right: map bleeds to viewport edge (desktop only) */}
+              {!isMobile && (
+                <div style={{
+                  flex:      1,
+                  position:  "sticky",
+                  top:       NAV_H + 52,
+                  height:    `calc(100vh - ${NAV_H + 72}px)`,
+                  minWidth:  0,
+                }}>
+                  <PlannerMapPanel
+                    planners={filtered}
+                    hoveredId={hoveredId}
+                    activePinnedId={activePinnedId}
+                    onPinHover={setHoveredId}
+                    onPinLeave={() => setHoveredId(null)}
+                    onPinClick={(id) => {
+                      setActivePinnedId(id);
+                      const el = document.querySelector(`[data-planner-id="${id}"]`);
+                      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }}
+                    C={C}
+                    bleed
+                  />
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </section>
 
       {/* ── 6. More in {Region} — sibling category cards ────────────────────── */}

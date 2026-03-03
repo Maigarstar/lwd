@@ -1,26 +1,63 @@
 // src/components/maps/PlannerMapPanel.jsx
-// Mocked planning map panel — no tile library required.
-// Renders planner pins at deterministic positions (hashed from ID).
-// Gold pins for verified planners, neutral for others.
-// Hover sync: hoveredId highlights pin ↔ list item.
+// Real Leaflet map for planner directory. Gold markers for verified, grey for others.
+// CDN loader pattern reused from MapSection.jsx. No npm dependency.
+
+import { useEffect, useRef, useState } from "react";
 
 const NU   = "var(--font-body)";
 const GOLD = "#C9A84C";
 
-// ── Deterministic hash → position ─────────────────────────────────────────────
-function hashStr(str, salt = 0) {
-  let h = (salt * 2654435761) >>> 0;
-  for (let i = 0; i < str.length; i++) {
-    h = (Math.imul(31, h) + str.charCodeAt(i)) >>> 0;
-  }
-  return h;
+// ── Leaflet CDN URLs (same as MapSection.jsx) ────────────────────────────────
+const LEAFLET_CSS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+const LEAFLET_JS  = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+
+// ── Load Leaflet dynamically (singleton) ─────────────────────────────────────
+let leafletPromise = null;
+function loadLeaflet() {
+  if (leafletPromise) return leafletPromise;
+  leafletPromise = new Promise((resolve) => {
+    if (window.L) { resolve(window.L); return; }
+    if (!document.querySelector(`link[href="${LEAFLET_CSS}"]`)) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet"; link.href = LEAFLET_CSS;
+      document.head.appendChild(link);
+    }
+    const script = document.createElement("script");
+    script.src = LEAFLET_JS;
+    script.onload = () => resolve(window.L);
+    document.head.appendChild(script);
+  });
+  return leafletPromise;
 }
 
-// Map planner id to left/top percentage (bounded to keep pins visible)
-function pinX(id) { return (hashStr(String(id), 0)  % 70) + 12; } // 12–82%
-function pinY(id) { return (hashStr(String(id), 17) % 60) + 18; } // 18–78%
+// ── Gold / grey SVG marker factory ───────────────────────────────────────────
+function makeIcon(L, color = GOLD, size = 24) {
+  return L.divIcon({
+    className: "",
+    iconSize: [size, size + 8],
+    iconAnchor: [size / 2, size + 8],
+    popupAnchor: [0, -(size + 4)],
+    html: `<svg viewBox="0 0 28 36" width="${size}" height="${size + 8}" xmlns="http://www.w3.org/2000/svg">
+      <path d="M14 0C6.3 0 0 6.3 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.3 21.7 0 14 0z" fill="${color}" opacity="0.9"/>
+      <circle cx="14" cy="13" r="5" fill="rgba(255,255,255,0.9)"/>
+    </svg>`,
+  });
+}
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ── Popup HTML ───────────────────────────────────────────────────────────────
+function popupHtml(p) {
+  const stars = "★".repeat(Math.round(p.rating || 0)) + "☆".repeat(5 - Math.round(p.rating || 0));
+  return `
+    <div style="font-family:var(--font-body);min-width:160px;">
+      <div style="font-weight:700;font-size:13px;margin-bottom:3px;color:#fff;">${p.name}</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:5px;">${p.city}${p.region ? ", " + p.region : ""}</div>
+      <div style="font-size:11px;color:${GOLD};letter-spacing:1px;">${stars} <span style="color:rgba(255,255,255,0.4);font-size:9px;">(${p.reviews || 0})</span></div>
+      ${p.priceFrom ? `<div style="font-size:12px;color:${GOLD};font-weight:600;margin-top:4px;">From ${p.priceFrom}</div>` : ""}
+    </div>
+  `;
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 export default function PlannerMapPanel({
   planners      = [],
   hoveredId,
@@ -29,23 +66,141 @@ export default function PlannerMapPanel({
   onPinLeave,
   onPinClick,
   C,
+  bleed = false,
 }) {
+  const mapElRef   = useRef(null);
+  const mapRef     = useRef(null);
+  const markersRef = useRef([]);   // { id, marker }
+  const [ready, setReady] = useState(false);
+
+  // ── Initialise map once ──────────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+
+    loadLeaflet().then((L) => {
+      if (cancelled || !mapElRef.current || mapRef.current) return;
+
+      const map = L.map(mapElRef.current, {
+        zoomControl: false,
+        scrollWheelZoom: true,
+        attributionControl: false,
+      }).setView([42.5, 12.5], 6);
+
+      L.control.zoom({ position: "topleft" }).addTo(map);
+
+      // Dark CARTO tiles
+      L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+        { maxZoom: 18, subdomains: "abcd" },
+      ).addTo(map);
+
+      mapRef.current = map;
+      setReady(true);
+    });
+
+    return () => {
+      cancelled = true;
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, []);
+
+  // ── Update markers when planners change ──────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const L = window.L;
+    if (!L) return;
+
+    // Clear old markers
+    markersRef.current.forEach(({ marker }) => marker.remove());
+    markersRef.current = [];
+
+    const bounds = [];
+
+    planners.forEach((p) => {
+      if (!p.lat || !p.lng) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn(`[PlannerMapPanel] Planner "${p.name}" (${p.id}) missing lat/lng — skipped.`);
+        }
+        return;
+      }
+
+      const icon   = makeIcon(L, p.verified ? GOLD : "#888888", 24);
+      const marker = L.marker([p.lat, p.lng], { icon }).addTo(map);
+
+      marker.bindPopup(popupHtml(p), {
+        className: "lwd-planner-popup",
+        maxWidth: 220,
+        closeButton: false,
+      });
+
+      marker.on("mouseover", () => { marker.openPopup(); onPinHover?.(p.id); });
+      marker.on("mouseout",  () => { marker.closePopup(); onPinLeave?.(); });
+      marker.on("click",     () => { onPinClick?.(p.id); });
+
+      markersRef.current.push({ id: p.id, marker });
+      bounds.push([p.lat, p.lng]);
+    });
+
+    if (bounds.length > 0) {
+      map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 });
+    }
+  }, [planners, ready, onPinHover, onPinLeave, onPinClick]);
+
+  // ── Hover sync: highlight marker from list hover ─────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+
+    const targetId = hoveredId || activePinnedId;
+    markersRef.current.forEach(({ id, marker }) => {
+      if (id === targetId) {
+        marker.openPopup();
+      } else {
+        marker.closePopup();
+      }
+    });
+  }, [hoveredId, activePinnedId, ready]);
+
   return (
     <div
       style={{
-        position:        "relative",
-        width:           "100%",
-        height:          "100%",
-        minHeight:       480,
-        background:      "#131a14",
-        backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px)",
-        backgroundSize:  "22px 22px",
-        borderRadius:    "var(--lwd-radius-card)",
-        overflow:        "hidden",
-        border:          `1px solid ${C.border}`,
+        position:     "relative",
+        width:        "100%",
+        height:       "100%",
+        minHeight:    480,
+        borderRadius: bleed ? 0 : "var(--lwd-radius-card)",
+        overflow:     "hidden",
+        border:       bleed ? "none" : `1px solid ${C.border}`,
+        background:   "#131a14",
       }}
     >
-      {/* Region watermark */}
+      {/* Map container */}
+      <div ref={mapElRef} style={{ width: "100%", height: "100%" }} />
+
+      {/* Loading overlay */}
+      {!ready && (
+        <div
+          style={{
+            position:      "absolute",
+            inset:          0,
+            display:       "flex",
+            alignItems:    "center",
+            justifyContent: "center",
+            background:    "rgba(10,8,6,0.9)",
+            zIndex:        10,
+          }}
+        >
+          <div style={{ fontFamily: NU, fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: "0.2em", textTransform: "uppercase" }}>
+            Loading map…
+          </div>
+        </div>
+      )}
+
+      {/* Header label */}
       <div
         style={{
           position:      "absolute",
@@ -55,127 +210,14 @@ export default function PlannerMapPanel({
           fontSize:      9,
           letterSpacing: "0.35em",
           textTransform: "uppercase",
-          color:         "rgba(255,255,255,0.22)",
-          zIndex:        2,
+          color:         "rgba(255,255,255,0.35)",
+          zIndex:        500,
           userSelect:    "none",
           pointerEvents: "none",
         }}
       >
-        Tuscany · Italy
+        Planner Map · Italy
       </div>
-
-      {/* Decorative terrain blobs (rolling hills effect) */}
-      <div
-        aria-hidden="true"
-        style={{
-          position:      "absolute",
-          left:          "18%",
-          top:           "28%",
-          width:         "58%",
-          height:        "44%",
-          background:    "rgba(32,58,32,0.4)",
-          borderRadius:  "62% 38% 52% 48% / 46% 54% 46% 54%",
-          filter:        "blur(2.5px)",
-          pointerEvents: "none",
-        }}
-      />
-      <div
-        aria-hidden="true"
-        style={{
-          position:      "absolute",
-          left:          "30%",
-          top:           "38%",
-          width:         "38%",
-          height:        "30%",
-          background:    "rgba(22,44,24,0.35)",
-          borderRadius:  "52% 48% 58% 42% / 55% 45% 55% 45%",
-          filter:        "blur(3px)",
-          pointerEvents: "none",
-        }}
-      />
-
-      {/* Planner pins */}
-      {planners.map((p) => {
-        const x         = pinX(p.id);
-        const y         = pinY(p.id);
-        const isHov     = hoveredId === p.id;
-        const isActive  = activePinnedId === p.id;
-        const isGold    = !!p.verified;
-        const pinColor  = isGold ? GOLD : "rgba(200,200,200,0.65)";
-        const highlight = isHov || isActive;
-
-        return (
-          <div
-            key={p.id}
-            title={p.name}
-            onMouseEnter={() => onPinHover?.(p.id)}
-            onMouseLeave={() => onPinLeave?.()}
-            onClick={() => onPinClick?.(p.id)}
-            style={{
-              position:  "absolute",
-              left:      `${x}%`,
-              top:       `${y}%`,
-              transform: "translate(-50%, -50%)",
-              zIndex:    highlight ? 10 : 5,
-              cursor:    "pointer",
-            }}
-          >
-            {/* Pulse ring on hover / active */}
-            {highlight && (
-              <div
-                aria-hidden="true"
-                style={{
-                  position:      "absolute",
-                  inset:         -7,
-                  borderRadius:  "50%",
-                  border:        `1.5px solid ${pinColor}`,
-                  animation:     "pinPulse 1.1s ease-out infinite",
-                  pointerEvents: "none",
-                }}
-              />
-            )}
-
-            {/* Pin dot */}
-            <div
-              style={{
-                width:        highlight ? 13 : 9,
-                height:       highlight ? 13 : 9,
-                borderRadius: "50%",
-                background:   pinColor,
-                border:       `1.5px solid ${isGold ? "#e8c97a" : "rgba(255,255,255,0.8)"}`,
-                boxShadow:    highlight ? `0 0 10px 2px ${pinColor}` : "none",
-                transition:   "all 0.2s ease",
-              }}
-            />
-
-            {/* Name tooltip on hover */}
-            {isHov && (
-              <div
-                style={{
-                  position:       "absolute",
-                  bottom:         "calc(100% + 8px)",
-                  left:           "50%",
-                  transform:      "translateX(-50%)",
-                  background:     "rgba(8,6,4,0.93)",
-                  backdropFilter: "blur(10px)",
-                  border:         `1px solid ${C.border}`,
-                  borderRadius:   6,
-                  padding:        "6px 11px",
-                  whiteSpace:     "nowrap",
-                  fontFamily:     NU,
-                  fontSize:       10,
-                  color:          "#fff",
-                  pointerEvents:  "none",
-                  zIndex:         20,
-                }}
-              >
-                <div style={{ fontWeight: 600, lineHeight: 1.3 }}>{p.name}</div>
-                <div style={{ color: GOLD, marginTop: 2, fontSize: 9 }}>{p.city}</div>
-              </div>
-            )}
-          </div>
-        );
-      })}
 
       {/* Legend */}
       <div
@@ -183,7 +225,7 @@ export default function PlannerMapPanel({
           position:       "absolute",
           bottom:         14,
           right:          14,
-          background:     "rgba(8,6,4,0.78)",
+          background:     "rgba(8,6,4,0.82)",
           backdropFilter: "blur(10px)",
           border:         `1px solid ${C.border}`,
           borderRadius:   8,
@@ -191,41 +233,36 @@ export default function PlannerMapPanel({
           display:        "flex",
           flexDirection:  "column",
           gap:            5,
-          zIndex:         3,
+          zIndex:         500,
           userSelect:     "none",
         }}
       >
         {[
-          { color: GOLD,                     label: "Verified" },
-          { color: "rgba(200,200,200,0.65)", label: "Listed"   },
+          { color: GOLD,    label: "Verified" },
+          { color: "#888",  label: "Listed" },
         ].map(({ color, label }) => (
           <div key={label} style={{ display: "flex", alignItems: "center", gap: 7 }}>
-            <div style={{
-              width:        7,
-              height:       7,
-              borderRadius: "50%",
-              background:   color,
-              flexShrink:   0,
-            }} />
-            <span style={{
-              fontFamily:    NU,
-              fontSize:      9,
-              color:         "rgba(255,255,255,0.38)",
-              letterSpacing: "0.3px",
-            }}>
+            <div style={{ width: 7, height: 7, borderRadius: "50%", background: color, flexShrink: 0 }} />
+            <span style={{ fontFamily: NU, fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: "0.3px" }}>
               {label}
             </span>
           </div>
         ))}
       </div>
 
-      {/* Pin pulse keyframe */}
+      {/* Popup dark theme override */}
       <style>{`
-        @keyframes pinPulse {
-          0%   { transform: scale(0.7);  opacity: 0.9; }
-          60%  { transform: scale(1.8);  opacity: 0.15; }
-          100% { transform: scale(0.7);  opacity: 0; }
+        .lwd-planner-popup .leaflet-popup-content-wrapper {
+          background: rgba(10,8,6,0.95) !important;
+          border: 1px solid rgba(201,168,76,0.2) !important;
+          border-radius: 8px !important;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
         }
+        .lwd-planner-popup .leaflet-popup-tip {
+          background: rgba(10,8,6,0.95) !important;
+          border: 1px solid rgba(201,168,76,0.2) !important;
+        }
+        .lwd-planner-popup .leaflet-popup-content { margin: 10px 14px !important; }
       `}</style>
     </div>
   );
