@@ -24,6 +24,7 @@ import USAPage                from "./pages/USAPage.jsx";
 import ItalyPage              from "./pages/ItalyPage.jsx";
 import AdminDashboard         from "./pages/AdminDashboard.jsx";
 import VendorDashboard        from "./pages/VendorDashboard.jsx";
+import WeddingPlannersPage    from "./pages/WeddingPlannersPage.jsx";
 
 // ── URL ↔ state helpers ──────────────────────────────────────────────────────
 function stateToPath(pg, opts = {}) {
@@ -54,7 +55,9 @@ function pathToState(pathname) {
     usa: "usa", italy: "italy", admin: "admin", vendor: "vendor",
   };
   const parts = clean.split("/");
-  if (statics[parts[0]]) return { page: statics[parts[0]] };
+  // Static routes only match single-segment paths; multi-segment paths
+  // like /italy/tuscany or /italy/tuscany/wedding-planners are dynamic.
+  if (parts.length === 1 && statics[parts[0]]) return { page: statics[parts[0]] };
   if (parts.length === 2) return { page: "region", countrySlug: parts[0], regionSlug: parts[1] };
   if (parts.length >= 3)  return { page: "region-category", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2] };
   return { page: "home" };
@@ -177,7 +180,20 @@ function App() {
         {page === "region" && (
           <RegionPage onBack={goHome} onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} countrySlug={activeCountrySlug} regionSlug={activeRegionSlug} footerNav={footerNav} />
         )}
-        {page === "region-category" && (
+        {page === "region-category" && activeCategorySlug === "wedding-planners" && (
+          <WeddingPlannersPage
+            onBack={() => goRegion(activeCountrySlug, activeRegionSlug)}
+            onBackHome={goHome}
+            onViewCategory={goCategory}
+            onViewRegion={goRegion}
+            onViewRegionCategory={goRegionCategory}
+            countrySlug={activeCountrySlug}
+            regionSlug={activeRegionSlug}
+            categorySlug={activeCategorySlug}
+            footerNav={footerNav}
+          />
+        )}
+        {page === "region-category" && activeCategorySlug !== "wedding-planners" && (
           <RegionCategoryPage
             onBack={() => goRegion(activeCountrySlug, activeRegionSlug)}
             onBackHome={goHome}

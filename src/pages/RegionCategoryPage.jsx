@@ -706,9 +706,14 @@ export default function RegionCategoryPage({
             </div>
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-                gap: 16,
+                display:                 "flex",
+                overflowX:               "auto",
+                flexWrap:                "nowrap",
+                gap:                     12,
+                paddingBottom:           8,
+                scrollbarWidth:          "none",
+                msOverflowStyle:         "none",
+                WebkitOverflowScrolling: "touch",
               }}
             >
               {siblingCategories.map((vc) => (
@@ -1406,6 +1411,8 @@ function SiblingCategoryCard({ vc, C, onClick }) {
         flexDirection: "column",
         alignItems: "center",
         gap: 14,
+        flexShrink: 0,
+        minWidth: 160,
       }}
     >
       <span
