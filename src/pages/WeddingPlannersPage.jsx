@@ -482,19 +482,24 @@ export default function WeddingPlannersPage({
 
             {/* List + sticky map — map bleeds to right viewport edge (desktop) */}
             <div style={{
-              display:       "flex",
-              alignItems:    "flex-start",
-              ...(isMobile ? { padding: "0 16px" } : {}),
+              ...(isMobile
+                ? { display: "flex", padding: "0 16px" }
+                : {
+                    display:             "grid",
+                    gridTemplateColumns: "minmax(0, 1fr) clamp(360px, 32vw, 480px)",
+                    columnGap:           32,
+                    alignItems:          "start",
+                    minWidth:            0,
+                  }
+              ),
             }}>
               {/* Left: planner list within content area */}
               <div style={{
                 ...(isMobile
                   ? { flex: 1 }
                   : {
-                      width:        "65%",
-                      maxWidth:     860,
                       paddingLeft:  "max(32px, calc((100vw - 1200px) / 2))",
-                      paddingRight: 32,
+                      paddingRight: 0,
                     }
                 ),
                 minWidth:      0,
@@ -524,11 +529,13 @@ export default function WeddingPlannersPage({
               {/* Right: map bleeds to viewport edge (desktop only) */}
               {!isMobile && (
                 <div style={{
-                  flex:      1,
+                  width:     "100%",
+                  minWidth:  0,
+                  maxWidth:  "clamp(360px, 32vw, 480px)",
+                  overflow:  "hidden",
                   position:  "sticky",
                   top:       NAV_H + 52,
                   height:    `calc(100vh - ${NAV_H + 72}px)`,
-                  minWidth:  0,
                 }}>
                   <PlannerMapPanel
                     planners={filtered}
@@ -541,6 +548,7 @@ export default function WeddingPlannersPage({
                       const el = document.querySelector(`[data-planner-id="${id}"]`);
                       if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
                     }}
+                    onToggleView={() => setViewMode("grid")}
                     C={C}
                     bleed
                   />

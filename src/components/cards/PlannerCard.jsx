@@ -1226,7 +1226,13 @@ function ListCard({ v, onView, listMode, isHighlighted }) {
       onMouseLeave={() => setHov(false)}
       onClick={() => onView?.(v)}
       style={{
-        display:      "flex",
+        display:      listMode ? "grid" : "flex",
+        ...(listMode ? {
+          gridTemplateColumns: "clamp(320px, 42%, 520px) 1fr",
+          gridTemplateRows:    "minmax(0, 1fr)",
+          columnGap:           24,
+          maxHeight:           420,
+        } : {}),
         background:   listMode
           ? (isHighlighted ? "rgba(201,168,76,0.04)" : C.card)
           : C.card,
@@ -1246,12 +1252,14 @@ function ListCard({ v, onView, listMode, isHighlighted }) {
         transition:   "all 0.3s ease",
       }}
     >
-      {/* Image / Video — fixed width */}
+      {/* Image / Video */}
       <div
         onClick={(e) => { e.stopPropagation(); setShowGallery(true); }}
         style={{
-          flex:       listMode ? "0 0 42%" : "0 0 220px",
-          maxWidth:   listMode ? 520 : 220,
+          ...(listMode
+            ? { width: "100%", height: "100%", minWidth: 0 }
+            : { flex: "0 0 220px", maxWidth: 220 }
+          ),
           minHeight:  200,
           position:   "relative",
           overflow:   "hidden",
@@ -1291,7 +1299,7 @@ function ListCard({ v, onView, listMode, isHighlighted }) {
       )}
 
       {/* Content */}
-      <div style={{ flex: 1, padding: "18px 22px", display: "flex", flexDirection: "column", justifyContent: "center", minWidth: 0 }}>
+      <div style={{ flex: 1, padding: "18px 22px", display: "flex", flexDirection: "column", justifyContent: "center", minWidth: 0, overflowY: listMode ? "auto" : undefined }}>
         {/* Top row: name + verified */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
           <div
