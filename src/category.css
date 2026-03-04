@@ -826,3 +826,24 @@ body.lwd-scroll-locked {
   overflow: hidden !important;
   touch-action: none;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Vendor Profile Template — responsive rules
+   ══════════════════════════════════════════════════════════════════════════════ */
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@media (max-width: 900px) {
+  .vpt-sidebar       { display: none !important; }
+  .vpt-mobile-bar    { display: flex !important; }
+  .vpt-mobile-contact { display: block !important; }
+  .vpt-mobile-enquiry { display: block !important; }
+  .vpt-main-grid     { grid-template-columns: 1fr !important; }
+}
+@media (min-width: 901px) {
+  .vpt-mobile-bar     { display: none !important; }
+  .vpt-mobile-contact { display: none !important; }
+  .vpt-mobile-enquiry { display: none !important; }
+}
