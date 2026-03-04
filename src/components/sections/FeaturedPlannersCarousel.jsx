@@ -389,7 +389,7 @@ function FeaturedReelCard({ v, isMobile, onView }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // Main component: randomly pick 3 from 7 featured on each page load
 // ══════════════════════════════════════════════════════════════════════════════
-export default function FeaturedPlannersCarousel({ featured, isMobile }) {
+export default function FeaturedPlannersCarousel({ featured, isMobile, onView }) {
   // Shuffle once on mount, pick first 3
   const displayPlanners = useMemo(
     () => shuffleArray(featured).slice(0, 3),
@@ -423,7 +423,7 @@ export default function FeaturedPlannersCarousel({ featured, isMobile }) {
           }}
         >
           {displayPlanners.map((p) => (
-            <FeaturedReelCard key={p.id} v={p} isMobile={isMobile} onView={() => {}} />
+            <FeaturedReelCard key={p.id} v={p} isMobile={isMobile} onView={onView} />
           ))}
         </div>
       </div>
