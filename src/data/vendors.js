@@ -37,6 +37,37 @@ export const VENDORS = [
       { title: "Chianti Hills Sunset Celebration", imageUrl: "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&w=900&q=80", blogUrl: "/blog/chianti-hills-sunset", location: "Chianti, Tuscany" },
       { title: "An Intimate Garden Wedding in Fiesole", imageUrl: "https://images.unsplash.com/photo-1507504031003-b417219a0fde?auto=format&fit=crop&w=900&q=80", blogUrl: "/blog/intimate-garden-fiesole", location: "Fiesole, Tuscany" },
     ],
+    // ── Enriched fields for vendor profile demo ──
+    owner: {
+      name: "Giulia Marchetti",
+      title: "Lead Planner & Founder",
+      photo: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80",
+      bio: "Every wedding I plan starts with listening, to the couple, to the setting, to the story that wants to unfold.",
+      memberSince: 2019,
+    },
+    responseTime: "Under 24h",
+    responseRate: 98,
+    weddingsPlanned: 120,
+    languages: ["English", "Italian", "French"],
+    planningStyle: "Modern, editorial, detail-obsessed",
+    travelPolicy: "Italy-wide, international by arrangement",
+    coverage: ["Tuscany", "Umbria", "Lazio", "Liguria"],
+    editorial: "Fiore Events is a Florence-based luxury planning studio led by Giulia Marchetti. Since 2019, the team has orchestrated over 120 celebrations across Tuscany and beyond,each one shaped by the couple's story, not a formula. Expect strong creative direction, a curated vendor network built over a decade, and a calm, authoritative presence on the day that lets you be fully present. From navigating Italian legal paperwork to sourcing the perfect linen for a vineyard dinner under the stars, Fiore handles every layer so the celebration reads beautifully in memory and in photography.",
+    testimonials: [
+      { quote: "Giulia understood our vision before we could even articulate it. Every single detail was considered, and our guests still talk about that evening under the Tuscan sky.", couple: "Sarah & James", location: "Villa Medicea, Tuscany", date: "June 2024" },
+      { quote: "We were planning from London with no idea how Italian weddings work. Fiore made the entire process feel effortless,legal paperwork, vendors, timeline, everything.", couple: "Emma & Luca", location: "Chianti Hills", date: "September 2023" },
+      { quote: "The level of taste and restraint was extraordinary. Nothing was overdone, nothing was missed. It was exactly us, but elevated beyond what we imagined.", couple: "Priya & Marco", location: "Fiesole", date: "May 2024" },
+    ],
+    packages: [
+      { name: "Full Planning", price: 12000, features: ["Complete creative direction", "Vendor sourcing & management", "Budget tracking & negotiation", "Timeline & logistics", "On-the-day coordination", "Post-wedding wrap-up"], highlighted: true },
+      { name: "Partial Planning", price: 8000, features: ["Design consultation", "Vendor recommendations", "Timeline creation", "Month-of check-ins", "On-the-day coordination"] },
+      { name: "Day Coordination", price: 4500, features: ["Detailed timeline build", "Vendor confirmation", "Rehearsal management", "Full day-of coordination", "Emergency kit"] },
+    ],
+    approachSteps: [
+      { title: "Discovery Call", description: "A calm, focused conversation to understand the feeling you want, the guest journey, and the non-negotiables. We listen before we plan." },
+      { title: "Design & Curation", description: "Creative direction, mood boarding, venue scouting, and hand-picking every vendor. Your celebration takes shape around a cohesive vision." },
+      { title: "Flawless Execution", description: "On the day, we run point,managing every vendor, protecting your timeline, and making sure you never see the machinery behind the magic." },
+    ],
   },
   {
     id: "vdr-2",
