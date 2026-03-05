@@ -25,24 +25,38 @@ import ItalyPage              from "./pages/ItalyPage.jsx";
 import AdminDashboard         from "./pages/AdminDashboard.jsx";
 import VendorDashboard        from "./pages/VendorDashboard.jsx";
 import WeddingPlannersPage    from "./pages/WeddingPlannersPage.jsx";
+import PlannerProfilePage     from "./pages/PlannerProfilePage.jsx";
+import { VENDORS }            from "./data/vendors.js";
+
+// ── Planner slug helpers ─────────────────────────────────────────────────────
+function toSlug(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+function getPlannerByIdOrSlug(idOrSlug) {
+  if (!idOrSlug) return null;
+  return VENDORS.find(
+    (v) => v.category === "planner" && (v.id === idOrSlug || toSlug(v.name) === idOrSlug)
+  ) || null;
+}
 
 // ── URL ↔ state helpers ──────────────────────────────────────────────────────
 function stateToPath(pg, opts = {}) {
-  const { countrySlug, regionSlug, categorySlug } = opts;
+  const { countrySlug, regionSlug, categorySlug, plannerSlug } = opts;
   switch (pg) {
-    case "region":          return `/${countrySlug}/${regionSlug}`;
-    case "region-category": return `/${countrySlug}/${regionSlug}/${categorySlug}`;
-    case "category":        return "/category";
-    case "venue":           return "/venue";
-    case "standard":        return "/the-lwd-standard";
-    case "about":           return "/about";
-    case "contact":         return "/contact";
-    case "partnership":     return "/partnership";
-    case "usa":             return "/usa";
-    case "italy":           return "/italy";
-    case "admin":           return "/admin";
-    case "vendor":          return "/vendor";
-    default:                return "/";
+    case "region":           return `/${countrySlug}/${regionSlug}`;
+    case "region-category":  return `/${countrySlug}/${regionSlug}/${categorySlug}`;
+    case "planner-profile":  return `/${countrySlug}/${regionSlug}/wedding-planners/${plannerSlug}`;
+    case "category":         return "/category";
+    case "venue":            return "/venue";
+    case "standard":         return "/the-lwd-standard";
+    case "about":            return "/about";
+    case "contact":          return "/contact";
+    case "partnership":      return "/partnership";
+    case "usa":              return "/usa";
+    case "italy":            return "/italy";
+    case "admin":            return "/admin";
+    case "vendor":           return "/vendor";
+    default:                 return "/";
   }
 }
 
@@ -59,7 +73,8 @@ function pathToState(pathname) {
   // like /italy/tuscany or /italy/tuscany/wedding-planners are dynamic.
   if (parts.length === 1 && statics[parts[0]]) return { page: statics[parts[0]] };
   if (parts.length === 2) return { page: "region", countrySlug: parts[0], regionSlug: parts[1] };
-  if (parts.length >= 3)  return { page: "region-category", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2] };
+  if (parts.length === 3) return { page: "region-category", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2] };
+  if (parts.length === 4) return { page: "planner-profile", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2], plannerSlug: parts[3] };
   return { page: "home" };
 }
 
@@ -73,6 +88,7 @@ function App() {
   const [activeCountrySlug, setActiveCountrySlug] = useState(initial.countrySlug || null);
   const [activeRegionSlug, setActiveRegionSlug] = useState(initial.regionSlug || null);
   const [activeCategorySlug, setActiveCategorySlug] = useState(initial.categorySlug || null);
+  const [activePlannerSlug, setActivePlannerSlug] = useState(initial.plannerSlug || null);
   const [categorySearchQuery, setCategorySearchQuery] = useState(null);
 
   // Ref: skip pushState when change came from popstate (back/forward)
@@ -88,6 +104,7 @@ function App() {
       countrySlug: activeCountrySlug,
       regionSlug: activeRegionSlug,
       categorySlug: activeCategorySlug,
+      plannerSlug: activePlannerSlug,
     });
     if (window.location.pathname !== path) {
       window.history.pushState(null, "", path);
@@ -102,6 +119,7 @@ function App() {
       setActiveCountrySlug(s.countrySlug || null);
       setActiveRegionSlug(s.regionSlug || null);
       setActiveCategorySlug(s.categorySlug || null);
+      setActivePlannerSlug(s.plannerSlug || null);
       setCategoryRegion(null);
       setCategorySearchQuery(null);
       setPage(s.page);
@@ -149,6 +167,13 @@ function App() {
     }
     setPage("category");
   };
+  const goPlannerProfile = (countrySlug, regionSlug, planner) => {
+    setActiveCountrySlug(countrySlug || null);
+    setActiveRegionSlug(regionSlug || null);
+    setActiveCategorySlug("wedding-planners");
+    setActivePlannerSlug(toSlug(planner.name));
+    setPage("planner-profile");
+  };
   const goStandard = () => setPage("standard");
   const goAbout    = () => setPage("about");
   const goContact     = () => setPage("contact");
@@ -187,12 +212,35 @@ function App() {
             onViewCategory={goCategory}
             onViewRegion={goRegion}
             onViewRegionCategory={goRegionCategory}
+            onViewPlanner={(planner) => goPlannerProfile(activeCountrySlug, activeRegionSlug, planner)}
             countrySlug={activeCountrySlug}
             regionSlug={activeRegionSlug}
             categorySlug={activeCategorySlug}
             footerNav={footerNav}
           />
         )}
+        {page === "planner-profile" && (() => {
+          const currentPlanner = getPlannerByIdOrSlug(activePlannerSlug);
+          const similarPlanners = VENDORS.filter(
+            (v) => v.category === "planner" && v.id !== currentPlanner?.id && v.countrySlug === activeCountrySlug
+          ).slice(0, 6);
+          return (
+            <PlannerProfilePage
+              plannerSlug={activePlannerSlug}
+              getPlannerByIdOrSlug={getPlannerByIdOrSlug}
+              onBack={() => goRegionCategory(activeCountrySlug, activeRegionSlug, "wedding-planners")}
+              onOpenChat={() => {}}
+              onSave={() => {}}
+              onViewPlanner={(planner) => goPlannerProfile(activeCountrySlug, activeRegionSlug, planner)}
+              similarPlanners={similarPlanners}
+              countrySlug={activeCountrySlug}
+              regionSlug={activeRegionSlug}
+              onViewRegion={goRegion}
+              onViewRegionCategory={goRegionCategory}
+              footerNav={footerNav}
+            />
+          );
+        })()}
         {page === "region-category" && activeCategorySlug !== "wedding-planners" && (
           <RegionCategoryPage
             onBack={() => goRegion(activeCountrySlug, activeRegionSlug)}

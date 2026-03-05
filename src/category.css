@@ -770,3 +770,80 @@ div[role="listbox"]::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3);
     min-width: 280px !important;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Layout utility classes — reusable across planner / venue / vendor profiles
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Collapse 2-col grids to 1-col under 900px ──────────────────────────── */
+@media (max-width: 900px) {
+  .lwd-stack900 {
+    grid-template-columns: 1fr !important;
+  }
+  .lwd-stack900-pad {
+    padding: 48px 20px !important;
+  }
+  .lwd-grid3 {
+    grid-template-columns: 1fr !important;
+  }
+  .lwd-sticky-cta {
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    border-radius: 0 !important;
+    transform: none !important;
+    padding: 12px 16px !important;
+    padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
+  }
+  .lwd-sticky-cta button {
+    flex: 1 !important;
+  }
+}
+
+/* ── Extra small: under 480px ────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .lwd-hero480 {
+    padding: 0 20px 40px !important;
+    min-height: 400px !important;
+  }
+  .lwd-hero480 h1 {
+    font-size: clamp(28px, 8vw, 42px) !important;
+  }
+  .lwd-stack480-pad {
+    padding: 40px 16px !important;
+  }
+}
+
+/* ── 3-col grid that stacks at 900px ─────────────────────────────────────── */
+@media (min-width: 901px) {
+  .lwd-grid3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+/* ── Lightbox body scroll lock ───────────────────────────────────────────── */
+body.lwd-scroll-locked {
+  overflow: hidden !important;
+  touch-action: none;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Vendor Profile Template — responsive rules
+   ══════════════════════════════════════════════════════════════════════════════ */
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@media (max-width: 900px) {
+  .vpt-sidebar       { display: none !important; }
+  .vpt-mobile-bar    { display: flex !important; }
+  .vpt-mobile-contact { display: block !important; }
+  .vpt-mobile-enquiry { display: block !important; }
+  .vpt-main-grid     { grid-template-columns: 1fr !important; }
+}
+@media (min-width: 901px) {
+  .vpt-mobile-bar     { display: none !important; }
+  .vpt-mobile-contact { display: none !important; }
+  .vpt-mobile-enquiry { display: none !important; }
+}

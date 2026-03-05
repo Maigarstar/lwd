@@ -72,6 +72,7 @@ export default function WeddingPlannersPage({
   countrySlug = null,
   regionSlug = null,
   categorySlug = null,
+  onViewPlanner = () => {},
   footerNav = {},
 }) {
   const C = useTheme();
@@ -385,7 +386,7 @@ export default function WeddingPlannersPage({
 
       {/* ── 3. Featured Planners ─────────────────────────────────────────────── */}
       {featuredPlanners.length > 0 && (
-        <FeaturedPlannersCarousel featured={featuredPlanners} isMobile={isMobile} />
+        <FeaturedPlannersCarousel featured={featuredPlanners} isMobile={isMobile} onView={onViewPlanner} />
       )}
 
       {/* ── 3b. Real Weddings Slider ────────────────────────────────────────── */}
@@ -443,7 +444,7 @@ export default function WeddingPlannersPage({
               }}
             >
               {filtered.map((p) => (
-                <PlannerCard key={p.id} v={p} mode="grid" onView={() => {}} isMobile={isMobile} />
+                <PlannerCard key={p.id} v={p} mode="grid" onView={onViewPlanner} isMobile={isMobile} />
               ))}
             </div>
           </div>
@@ -519,7 +520,7 @@ export default function WeddingPlannersPage({
                       mode="list"
                       listMode
                       isHighlighted={hoveredId === p.id || activePinnedId === p.id}
-                      onView={() => {}}
+                      onView={onViewPlanner}
                       isMobile={isMobile}
                     />
                   </div>
