@@ -141,6 +141,23 @@ export function GlobalStyles() {
       .lwd-fade-up { animation: fadeUp 0.6s ease both; }
       @media (max-width: 900px) { .lwd-sidebar { display: none !important; } .lwd-mobile-bar { display: flex !important; } }
       @media (min-width: 901px) { .lwd-mobile-bar { display: none !important; } }
+      @media (max-width: 768px) {
+        body { overflow-x: hidden; }
+        .lwd-hero-content { padding-left: 16px !important; padding-right: 16px !important; padding-bottom: 40px !important; }
+        .lwd-stats-outer { padding-left: 0 !important; padding-right: 0 !important; }
+        .lwd-stats-card { min-width: 100px !important; padding: 14px 12px !important; }
+        .lwd-awards-band { padding: 20px 16px !important; }
+        .lwd-main-content { padding: 24px 16px 100px !important; }
+        .vp-reviews-grid { grid-template-columns: 1fr !important; }
+        .vp-films-grid { display: flex !important; overflow-x: auto !important; gap: 10px !important; scroll-snap-type: x mandatory !important; -webkit-overflow-scrolling: touch !important; scrollbar-width: none !important; margin-top: 16px !important; margin-left: -16px !important; margin-right: -16px !important; padding-left: 16px !important; padding-right: 16px !important; }
+        .vp-films-grid > div { flex: 0 0 200px !important; scroll-snap-align: start !important; width: auto !important; }
+        .lwd-discovery-grid { display: flex !important; overflow-x: auto !important; gap: 12px !important; scroll-snap-type: x mandatory !important; -webkit-overflow-scrolling: touch !important; scrollbar-width: none !important; margin-left: -16px !important; margin-right: -16px !important; padding-left: 16px !important; padding-right: 16px !important; }
+        .lwd-discovery-grid > div { flex: 0 0 260px !important; scroll-snap-align: start !important; width: auto !important; }
+        .lwd-main-content > div[style] { grid-template-columns: 1fr !important; }
+        .lwd-main-content > div[style] > div:first-child { min-width: 0; overflow-x: hidden; }
+        .lwd-sidebar { display: none !important; }
+        .lwd-mobile-bar { display: flex !important; }
+      }
     `}</style>
   );
 }

@@ -59,7 +59,7 @@ export default function HeroCinematic({ entity, onEnquire, featured = true }) {
     <div style={{ position: "relative" }}>
       <HeroSlider imgs={imgs} height="62vh">
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.05) 35%, rgba(0,0,0,0.75) 100%)" }} />
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "0 40px 52px", animation: "fadeUp 0.8s ease both" }}>
+        <div className="lwd-hero-content" style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "0 40px 52px", animation: "fadeUp 0.8s ease both" }}>
           {featured && (
             <div style={{ display: "inline-flex", marginBottom: 12, padding: "4px 12px", border: `1px solid ${C.gold}`, background: "rgba(157,135,62,0.18)" }}>
               <span style={{ fontFamily: FB, fontSize: 10, color: "#fff", letterSpacing: "1.5px", fontWeight: 700, textTransform: "uppercase" }}>✦ Editor's Pick</span>

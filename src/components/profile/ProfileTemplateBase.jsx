@@ -89,7 +89,7 @@ function DiscoveryCards({ title, subtitle, items, C, isMobile }) {
           ))}
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+        <div className="lwd-discovery-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
           {items.map(v => (
             <div key={v.id}
               style={{ border: `1px solid ${C.border}`, background: C.surface, overflow: "hidden", cursor: "pointer", transition: "box-shadow 0.2s" }}
@@ -180,7 +180,7 @@ export default function ProfileTemplateBase({
 
         {/* Awards & As Seen In */}
         {entity.awards && entity.awards.length > 0 && (
-          <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "28px 40px" }}>
+          <div className="lwd-awards-band" style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "28px 40px" }}>
             <div style={{ maxWidth: 1280, margin: "0 auto" }}>
               <div style={{ marginBottom: 24 }}>
                 <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 12 }}>Awards & Recognition</div>
@@ -217,7 +217,7 @@ export default function ProfileTemplateBase({
         )}
 
         {/* Main Content Grid */}
-        <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "32px 16px 120px" : "48px 40px 120px" }}>
+        <div className="lwd-main-content" style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "32px 16px 120px" : "48px 40px 120px" }}>
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 360px", gap: isMobile ? 0 : 56, alignItems: "start" }}>
             {/* Left Column - Main Content */}
             <div>
