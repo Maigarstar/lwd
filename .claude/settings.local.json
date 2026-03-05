@@ -12,7 +12,9 @@
       "Bash(python3:*)",
       "Bash(ls /Users/taiwoadedayo/LDW-01/package.json /Users/taiwoadedayo/LDW-01/vite.config.*)",
       "WebFetch(domain:unsplash.com)",
-      "Bash(bash -c ':*)"
+      "Bash(bash -c ':*)",
+      "Bash(kill 13228)",
+      "Bash(lsof -i :5173)"
     ]
   }
 }

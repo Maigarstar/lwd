@@ -58,8 +58,9 @@ export default function RecommendationCard({ item, darkMode = true, onQuickView,
         overflow:     "hidden",
         background:   hov ? T.cardHovBg : T.cardBg,
         border:       `1px solid ${hov ? T.borderHov : T.border}`,
+        boxShadow:    hov ? "0 4px 20px rgba(0,0,0,0.08)" : "0 1px 6px rgba(0,0,0,0.04)",
         transition:   "all 0.25s",
-        marginBottom: 10,
+        marginBottom: 14,
       }}
     >
       {/* ── Image — clicking opens Quick View ── */}
@@ -116,7 +117,7 @@ export default function RecommendationCard({ item, darkMode = true, onQuickView,
               height:       5,
               borderRadius: "50%",
               background:   item.online ? "#22c55e" : "#6b7280",
-              animation:    item.online ? "lwd-status-pulse 2s ease-in-out infinite" : "none",
+              /* solid dot — no pulse */
               flexShrink:   0,
             }}
           />
@@ -294,10 +295,12 @@ export default function RecommendationCard({ item, darkMode = true, onQuickView,
           <div>
             <div
               style={{
-                fontFamily: "var(--font-heading-primary)",
-                fontSize:   16,
-                color:      GOLD,
-                fontWeight: 600,
+                fontFamily:    "var(--font-heading-primary)",
+                fontSize:      18,
+                color:         GOLD,
+                fontWeight:    600,
+                letterSpacing: "0.3px",
+                lineHeight:    1,
               }}
             >
               {item.priceFrom}
@@ -308,8 +311,9 @@ export default function RecommendationCard({ item, darkMode = true, onQuickView,
                   fontFamily:    "var(--font-body)",
                   fontSize:      9,
                   color:         T.capColor,
-                  marginTop:     1,
+                  marginTop:     3,
                   letterSpacing: "0.3px",
+                  opacity:       0.7,
                 }}
               >
                 Up to {item.capacity} guests

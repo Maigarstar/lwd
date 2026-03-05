@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useChat }      from "./ChatContext";
 import { useShortlist } from "../shortlist/ShortlistContext";
 import Icon             from "./Icons";
+import SaveChatModal    from "./SaveChatModal";
 
 const GOLD    = "#C9A84C";
 
@@ -95,7 +96,8 @@ export default function WorkspaceLeft({ collapsed, onBack, darkMode }) {
   const { items: shortlist }                    = useShortlist();
   const T = getT(darkMode);
 
-  const [confirmNew, setConfirmNew] = useState(false);
+  const [confirmNew,    setConfirmNew]    = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
 
   const handleNewChat = () => {
     if (messages.length > 1) setConfirmNew(true);
@@ -111,7 +113,7 @@ export default function WorkspaceLeft({ collapsed, onBack, darkMode }) {
     <div
       style={{
         height: "100%", overflowY: "auto", display: "flex",
-        flexDirection: "column", gap: 18, padding: "18px 16px 24px", boxSizing: "border-box",
+        flexDirection: "column", gap: 22, padding: "20px 18px 28px", boxSizing: "border-box",
       }}
     >
       {/* ── New Chat button ───────────────────────────────────────────────── */}
@@ -119,10 +121,10 @@ export default function WorkspaceLeft({ collapsed, onBack, darkMode }) {
         <button
           onClick={handleNewChat}
           style={{
-            background:    T.btnBg,
-            border:       `1px solid rgba(201,168,76,0.28)`,
-            color:          GOLD,
-            padding:       "9px 0",
+            background:     GOLD,
+            border:        "none",
+            color:         "#0D0B09",
+            padding:       "11px 0",
             borderRadius:   6,
             fontFamily:    "var(--font-body)",
             fontSize:       11,
@@ -137,11 +139,12 @@ export default function WorkspaceLeft({ collapsed, onBack, darkMode }) {
             gap:            6,
             transition:    "all 0.2s",
             flexShrink:     0,
+            boxShadow:     "0 2px 8px rgba(201,168,76,0.25)",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = T.btnHov; e.currentTarget.style.borderColor = GOLD; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = T.btnBg;  e.currentTarget.style.borderColor = "rgba(201,168,76,0.28)"; }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "#D4B35A"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(201,168,76,0.35)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = GOLD;      e.currentTarget.style.boxShadow = "0 2px 8px rgba(201,168,76,0.25)"; }}
         >
-          + New Chat
+          <Icon name="edit" size={13} /> New Chat
         </button>
       ) : (
         <div style={{ background: "rgba(201,168,76,0.07)", border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 6, padding: "12px 14px", flexShrink: 0 }}>
@@ -161,30 +164,58 @@ export default function WorkspaceLeft({ collapsed, onBack, darkMode }) {
         </div>
       )}
 
-      {/* ── Back to directory ─────────────────────────────────────────────── */}
-      {onBack && (
-        <button
-          onClick={onBack}
-          style={{
-            background:   "none",
-            border:      `1px solid ${T.divider}`,
-            color:          T.grey,
-            padding:      "7px 12px",
-            borderRadius:   5,
-            fontFamily:   "var(--font-body)",
-            fontSize:       11,
-            cursor:        "pointer",
-            textAlign:     "left",
-            width:         "100%",
-            flexShrink:     0,
-            transition:    "all 0.2s",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = darkMode ? "rgba(255,255,255,0.25)" : "rgba(26,23,20,0.3)"; e.currentTarget.style.color = T.text; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = T.divider; e.currentTarget.style.color = T.grey; }}
-        >
-          <Icon name="arrowLeft" size={12} style={{ marginRight: 4 }} /> Directory
-        </button>
-      )}
+      {/* ── Secondary actions (lighter, borderless) ─────────────────────── */}
+      <div style={{ display: "flex", gap: 8 }}>
+        {messages.length > 1 && (
+          <button
+            onClick={() => setShowSaveModal(true)}
+            style={{
+              background:   "none",
+              border:        "none",
+              color:          T.grey,
+              padding:       "6px 0",
+              fontFamily:   "var(--font-body)",
+              fontSize:       11,
+              cursor:        "pointer",
+              textAlign:     "left",
+              flexShrink:     0,
+              transition:    "all 0.2s",
+              display:       "flex",
+              alignItems:    "center",
+              gap:            5,
+              letterSpacing: "0.2px",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = GOLD; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = T.grey; }}
+          >
+            <Icon name="bookmark" size={11} /> Save
+          </button>
+        )}
+        {onBack && (
+          <button
+            onClick={onBack}
+            style={{
+              background:   "none",
+              border:        "none",
+              color:          T.grey,
+              padding:       "6px 0",
+              fontFamily:   "var(--font-body)",
+              fontSize:       11,
+              cursor:        "pointer",
+              textAlign:     "left",
+              flexShrink:     0,
+              transition:    "all 0.2s",
+              display:       "flex",
+              alignItems:    "center",
+              gap:            5,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = T.text; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = T.grey; }}
+          >
+            <Icon name="close" size={10} /> Close
+          </button>
+        )}
+      </div>
 
       {/* ── Active Context ────────────────────────────────────────────────── */}
       <Section label="Active Context" T={T}>
@@ -194,30 +225,32 @@ export default function WorkspaceLeft({ collapsed, onBack, darkMode }) {
         </div>
       </Section>
 
-      {/* ── Quick Asks ────────────────────────────────────────────────────── */}
-      <Section label="Quick Asks" T={T}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      {/* ── Quick Asks — elegant suggestion chips ─────────────────────────── */}
+      <Section label="Suggested" T={T}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           {QUICK_ASKS.map((q) => (
             <button
               key={q}
               onClick={() => sendMessage(q)}
               style={{
-                background:   "none",
-                border:      `1px solid ${T.divider}`,
-                borderRadius:  5,
-                padding:      "7px 10px",
+                background:   T.btnBg,
+                border:        "none",
+                borderRadius:  20,
+                padding:      "7px 13px",
                 fontFamily:   "var(--font-body)",
                 fontSize:      11,
-                color:          T.text,
+                color:          T.grey,
                 cursor:        "pointer",
                 textAlign:     "left",
-                lineHeight:    1.38,
-                opacity:        0.7,
-                transition:   "all 0.15s",
-                width:         "100%",
+                lineHeight:    1.35,
+                transition:   "all 0.2s",
+                whiteSpace:   "nowrap",
+                overflow:     "hidden",
+                textOverflow: "ellipsis",
+                maxWidth:     "100%",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.borderColor = GOLD; }}
-              onMouseLeave={(e) => { e.currentTarget.style.opacity = "0.7"; e.currentTarget.style.borderColor = T.divider; }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = T.btnHov; e.currentTarget.style.color = GOLD; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = T.btnBg; e.currentTarget.style.color = T.grey; }}
             >{q}</button>
           ))}
         </div>
@@ -248,6 +281,11 @@ export default function WorkspaceLeft({ collapsed, onBack, darkMode }) {
             )}
           </div>
         </Section>
+      )}
+
+      {/* ── Save Chat Modal ─────────────────────────────────────────────────── */}
+      {showSaveModal && (
+        <SaveChatModal onClose={() => setShowSaveModal(false)} />
       )}
     </div>
   );

@@ -5,33 +5,43 @@ import Icon from "./Icons";
 
 const GOLD = "#C9A84C";
 
+const SMART_CHIPS = [
+  "80 guests in Tuscany this autumn",
+  "Historic black-tie venues under £30k",
+  "Intimate elopement on the Amalfi Coast",
+];
+
 // ── Theme token factory ────────────────────────────────────────────────────────
 function getT(dark) {
   if (dark) return {
-    centerBg:       "#212121",
-    auraBubbleBg:   "rgba(255,255,255,0.07)",
-    auraBubbleText: "rgba(255,255,255,0.88)",
+    centerBg:       "#1A1816",
+    auraBubbleBg:   "#262220",
+    auraBubbleBorder:"rgba(201,168,76,0.12)",
+    auraBubbleText: "rgba(255,255,255,0.92)",
     userBubbleBg:   "#C9A84C",
+    userBubbleBorder:"transparent",
     userBubbleText: "#0D0B09",
-    inputBg:        "rgba(255,255,255,0.06)",
-    inputBorder:    "rgba(255,255,255,0.12)",
-    inputText:      "rgba(255,255,255,0.9)",
-    inputPlaceholder:"rgba(255,255,255,0.3)",
-    hintText:       "rgba(255,255,255,0.28)",
+    inputBg:        "rgba(255,248,230,0.05)",
+    inputBorder:    "rgba(201,168,76,0.18)",
+    inputText:      "rgba(255,255,255,0.92)",
+    inputPlaceholder:"rgba(255,255,255,0.35)",
+    hintText:       "rgba(255,255,255,0.3)",
     thumbActiveBg:  "rgba(201,168,76,0.15)",
     thumbActiveBorder:"rgba(201,168,76,0.4)",
     thumbHovBg:     "rgba(255,255,255,0.07)",
     thumbHovBorder: "rgba(255,255,255,0.2)",
-    dividerLine:    "rgba(255,255,255,0.07)",
-    scrollTrack:    "#2A2A2A",
-    imgPreviewBg:   "rgba(255,255,255,0.06)",
-    imgPreviewBorder:"rgba(255,255,255,0.12)",
+    dividerLine:    "rgba(201,168,76,0.08)",
+    scrollTrack:    "#1E1C1A",
+    imgPreviewBg:   "rgba(255,248,230,0.05)",
+    imgPreviewBorder:"rgba(201,168,76,0.15)",
   };
   return {
-    centerBg:       "#FFFFFF",
+    centerBg:       "#FDFBF8",
     auraBubbleBg:   "#F5F0E8",
+    auraBubbleBorder:"rgba(201,168,76,0.08)",
     auraBubbleText: "#1A1714",
     userBubbleBg:   "#1A1714",
+    userBubbleBorder:"transparent",
     userBubbleText: "#FFFFFF",
     inputBg:        "#F8F6F2",
     inputBorder:    "#E5E0D8",
@@ -122,6 +132,9 @@ export default function WorkspaceCenter({ darkMode }) {
         .ws-thread::-webkit-scrollbar       { width: 4px; }
         .ws-thread::-webkit-scrollbar-track { background: ${T.scrollTrack}; }
         .ws-thread::-webkit-scrollbar-thumb { background: ${GOLD}; border-radius: 2px; }
+        .ws-msg-row .ws-thumbs { opacity: 0; transition: opacity 0.2s ease; }
+        .ws-msg-row:hover .ws-thumbs { opacity: 1; }
+        .ws-thumbs.ws-thumbs--active { opacity: 1; }
       `}</style>
 
       <div style={{ height: "100%", display: "flex", flexDirection: "column", background: T.centerBg, transition: "background 0.3s ease" }}>
@@ -135,6 +148,7 @@ export default function WorkspaceCenter({ darkMode }) {
           {messages.map((m) => (
             <div
               key={m.id}
+              className="ws-msg-row"
               style={{ display: "flex", flexDirection: m.from === "user" ? "row-reverse" : "row", alignItems: "flex-end", gap: 8 }}
             >
               {/* Aura avatar */}
@@ -152,18 +166,35 @@ export default function WorkspaceCenter({ darkMode }) {
               )}
 
               {/* Bubble + feedback */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: m.from === "user" ? "flex-end" : "flex-start", maxWidth: "72%", gap: 4 }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: m.from === "user" ? "flex-end" : "flex-start", maxWidth: "78%", gap: 4 }}>
+                {/* Concierge intro header on first Aura message */}
+                {m.from === "aura" && m.id === 0 && (
+                  <div style={{
+                    fontFamily:    "var(--font-heading-primary)",
+                    fontSize:      11,
+                    fontWeight:    500,
+                    letterSpacing: "1.8px",
+                    textTransform: "uppercase",
+                    color:         GOLD,
+                    opacity:       0.7,
+                    marginBottom:  2,
+                    paddingLeft:   2,
+                  }}>
+                    Your Private Wedding Concierge
+                  </div>
+                )}
                 <div
                   style={{
-                    padding: "11px 16px",
+                    padding: "13px 18px",
                     borderRadius:  m.from === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
                     background:    m.from === "user" ? T.userBubbleBg  : T.auraBubbleBg,
+                    border:        `1px solid ${m.from === "user" ? T.userBubbleBorder : T.auraBubbleBorder}`,
                     color:         m.from === "user" ? T.userBubbleText : T.auraBubbleText,
                     fontFamily:   "var(--font-body)",
-                    fontSize:      14,
-                    lineHeight:    1.6,
-                    boxShadow:     m.from === "user" ? "0 1px 4px rgba(0,0,0,0.12)" : "0 1px 4px rgba(0,0,0,0.06)",
-                    transition:   "background 0.3s ease, color 0.3s ease",
+                    fontSize:      14.5,
+                    lineHeight:    1.65,
+                    boxShadow:     m.from === "user" ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
+                    transition:   "background 0.3s ease, color 0.3s ease, border-color 0.3s ease",
                   }}
                 >
                   {m.text}
@@ -171,7 +202,7 @@ export default function WorkspaceCenter({ darkMode }) {
 
                 {/* Thumbs — Aura only */}
                 {m.from === "aura" && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 4, paddingLeft: 4 }}>
+                  <div className={`ws-thumbs${feedback[m.id] ? " ws-thumbs--active" : ""}`} style={{ display: "flex", alignItems: "center", gap: 4, paddingLeft: 4 }}>
                     <ThumbBtn icon={<Icon name="thumbUp" size={12} />} active={feedback[m.id] === "up"}   label="Helpful"     onClick={() => toggleFeedback(m.id, "up")}   T={T} />
                     <ThumbBtn icon={<Icon name="thumbDown" size={12} />} active={feedback[m.id] === "down"} label="Not helpful"  onClick={() => toggleFeedback(m.id, "down")} T={T} />
                     {feedback[m.id] && (
@@ -184,6 +215,33 @@ export default function WorkspaceCenter({ darkMode }) {
               </div>
             </div>
           ))}
+
+          {/* Smart suggestion chips — only on initial greeting state */}
+          {messages.length === 1 && messages[0].id === 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingLeft: 38, marginTop: -4 }}>
+              {SMART_CHIPS.map((chip) => (
+                <button
+                  key={chip}
+                  onClick={() => sendMessage(chip)}
+                  style={{
+                    background:    darkMode ? "rgba(201,168,76,0.08)" : "rgba(201,168,76,0.07)",
+                    border:        `1px solid ${darkMode ? "rgba(201,168,76,0.18)" : "rgba(201,168,76,0.15)"}`,
+                    borderRadius:  20,
+                    padding:       "8px 16px",
+                    fontFamily:    "var(--font-body)",
+                    fontSize:      12.5,
+                    color:         darkMode ? "rgba(255,255,255,0.65)" : "rgba(26,23,20,0.55)",
+                    cursor:        "pointer",
+                    lineHeight:    1.3,
+                    transition:    "all 0.2s",
+                    whiteSpace:    "nowrap",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = darkMode ? "rgba(201,168,76,0.18)" : "rgba(201,168,76,0.15)"; e.currentTarget.style.color = darkMode ? "rgba(255,255,255,0.65)" : "rgba(26,23,20,0.55)"; }}
+                >{chip}</button>
+              ))}
+            </div>
+          )}
 
           {/* Typing indicator */}
           {isTyping && (
@@ -324,7 +382,7 @@ export default function WorkspaceCenter({ darkMode }) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKey}
-              placeholder="Ask Aura about venues, vendors, regions, budgets…"
+              placeholder="Guest count, style, budget, destination…"
               rows={1}
               style={{
                 flex:       1,

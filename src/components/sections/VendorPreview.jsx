@@ -1,14 +1,27 @@
 // ─── src/components/sections/VendorPreview.jsx ──────────────────────────────
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTheme } from "../../theme/ThemeContext";
 import { useShortlist } from "../../shortlist/ShortlistContext";
 import { GLOBAL_VENDORS } from "../../data/globalVendors";
 import { track } from "../../utils/track";
 import GCard from "../cards/GCard";
+import GCardMobile from "../cards/GCardMobile";
 import QuickViewModal from "../modals/QuickViewModal";
+import SliderNav from "../ui/SliderNav";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
+
+function useIsMobile(bp = 768) {
+  const [mobile, setMobile] = useState(() => window.innerWidth <= bp);
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${bp}px)`);
+    const fn = (e) => setMobile(e.matches);
+    mql.addEventListener("change", fn);
+    return () => mql.removeEventListener("change", fn);
+  }, [bp]);
+  return mobile;
+}
 
 /* Map global vendor schema → GCard expected props */
 function normalise(v) {
@@ -26,7 +39,8 @@ export default function VendorPreview({ onViewVendor }) {
   const C = useTheme();
   const { isShortlisted, toggleItem } = useShortlist();
   const [quickViewItem, setQuickViewItem] = useState(null);
-  const featured = GLOBAL_VENDORS.filter((v) => v.featured).slice(0, 6);
+  const isMobile = useIsMobile();
+  const featured = GLOBAL_VENDORS.filter((v) => v.featured).slice(0, 12);
 
   return (
     <section
@@ -98,38 +112,48 @@ export default function VendorPreview({ onViewVendor }) {
           </p>
         </div>
 
-        {/* Card grid */}
-        <div
-          className="home-vendor-grid"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))",
-            gap: 28,
-            marginBottom: 48,
-          }}
-        >
-          {featured.map((v) => {
-            const nv = normalise(v);
-            return (
-              <GCard
-                key={v.id}
-                v={nv}
-                saved={isShortlisted(v.id)}
-                onSave={() => {
-                  toggleItem({ id: v.id, name: v.name, type: v.cat });
-                  track("shortlist_add", { id: v.id });
-                }}
-                onView={() => {
-                  track("card_click", { id: v.id });
-                  onViewVendor?.(v);
-                }}
-                onQuickView={() => {
-                  track("card_quick_view", { id: v.id });
-                  setQuickViewItem(nv);
-                }}
-              />
-            );
-          })}
+        {/* Card slider */}
+        <div style={{ marginBottom: 48 }}>
+          <SliderNav className="home-vendor-grid" cardWidth={isMobile ? 300 : 360} gap={isMobile ? 12 : 24}>
+            {featured.map((v) => {
+              const nv = normalise(v);
+              return (
+                <div key={v.id} className="home-vendor-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 360px", scrollSnapAlign: "start" }}>
+                  {isMobile ? (
+                    <GCardMobile
+                      v={nv}
+                      saved={isShortlisted(v.id)}
+                      onSave={() => {
+                        toggleItem({ id: v.id, name: v.name, type: v.cat });
+                        track("shortlist_add", { id: v.id });
+                      }}
+                      onView={() => {
+                        track("card_click", { id: v.id });
+                        onViewVendor?.(v);
+                      }}
+                    />
+                  ) : (
+                    <GCard
+                      v={nv}
+                      saved={isShortlisted(v.id)}
+                      onSave={() => {
+                        toggleItem({ id: v.id, name: v.name, type: v.cat });
+                        track("shortlist_add", { id: v.id });
+                      }}
+                      onView={() => {
+                        track("card_click", { id: v.id });
+                        onViewVendor?.(v);
+                      }}
+                      onQuickView={() => {
+                        track("card_quick_view", { id: v.id });
+                        setQuickViewItem(nv);
+                      }}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </SliderNav>
         </div>
 
         {/* CTA */}

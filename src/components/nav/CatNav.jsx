@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useTheme } from "../../theme/ThemeContext";
 
-export default function CatNav({ onBack, scrolled, darkMode, onToggleDark }) {
+export default function CatNav({ onBack, scrolled, darkMode, onToggleDark, crumbs }) {
   const C = useTheme();
 
   // State-driven hover — no direct DOM style mutations
@@ -94,20 +94,25 @@ export default function CatNav({ onBack, scrolled, darkMode, onToggleDark }) {
                 Home
               </button>
             </li>
-            <li aria-hidden="true" style={{ opacity: 0.4 }}>›</li>
-            <li>Venues</li>
-            <li aria-hidden="true" style={{ opacity: 0.4 }}>›</li>
-            <li>
-              <span
-                style={{
-                  color: scrolled ? C.gold : "rgba(201,168,76,0.9)",
-                  fontWeight: 600,
-                }}
-                aria-current="page"
-              >
-                Italy
-              </span>
-            </li>
+            {crumbs
+              ? crumbs.map((c, i) => (
+                  <li key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span aria-hidden="true" style={{ opacity: 0.4 }}>›</span>
+                    {c.onClick
+                      ? <button onClick={c.onClick} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 11, color: scrolled ? C.grey : "rgba(255,255,255,0.5)", letterSpacing: "0.5px", padding: 0 }}>{c.label}</button>
+                      : <span style={{ color: scrolled ? C.gold : "rgba(201,168,76,0.9)", fontWeight: 600 }} aria-current="page">{c.label}</span>
+                    }
+                  </li>
+                ))
+              : <>
+                  <li aria-hidden="true" style={{ opacity: 0.4 }}>›</li>
+                  <li>Venues</li>
+                  <li aria-hidden="true" style={{ opacity: 0.4 }}>›</li>
+                  <li>
+                    <span style={{ color: scrolled ? C.gold : "rgba(201,168,76,0.9)", fontWeight: 600 }} aria-current="page">Italy</span>
+                  </li>
+                </>
+            }
           </ol>
         </nav>
       </div>

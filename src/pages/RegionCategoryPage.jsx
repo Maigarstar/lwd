@@ -242,6 +242,7 @@ export default function RegionCategoryPage({
 
           {/* Hero content */}
           <div
+            className="lwd-rc-hero-content"
             style={{
               position: "absolute",
               inset: 0,
@@ -329,6 +330,7 @@ export default function RegionCategoryPage({
 
             {/* Stats row */}
             <div
+              className="lwd-rc-hero-stats"
               style={{ display: "flex", gap: 32, alignItems: "center" }}
               aria-label="Key statistics"
             >
@@ -383,6 +385,7 @@ export default function RegionCategoryPage({
             3. SCOPED SEARCH
         ════════════════════════════════════════════════════════════════════ */}
         <section
+          className="lwd-rc-section"
           aria-label={`Search ${categoryLabel.toLowerCase()} in ${regionName}`}
           style={{
             background: C.dark,
@@ -439,6 +442,7 @@ export default function RegionCategoryPage({
             4. EDITORIAL INTRO
         ════════════════════════════════════════════════════════════════════ */}
         <section
+          className="lwd-rc-section"
           aria-label="Editorial introduction"
           style={{
             background: C.dark,
@@ -496,6 +500,7 @@ export default function RegionCategoryPage({
         ════════════════════════════════════════════════════════════════════ */}
         {listingCount > 0 ? (
           <section
+            className="lwd-rc-section"
             aria-label={`${categoryLabel} listings`}
             style={{
               background: C.dark,
@@ -563,6 +568,7 @@ export default function RegionCategoryPage({
         ) : (
           /* ── Premium "Coming Soon" editorial state ── */
           <section
+            className="lwd-rc-section"
             aria-label="Coming soon"
             style={{
               background: C.dark,
@@ -641,6 +647,7 @@ export default function RegionCategoryPage({
         ════════════════════════════════════════════════════════════════════ */}
         {listingCount > 0 && (
           <section
+            className="lwd-rc-section"
             aria-label="Browse all"
             style={{
               background: C.black,
@@ -673,6 +680,7 @@ export default function RegionCategoryPage({
             7. RELATED CATEGORIES (same region, different category)
         ════════════════════════════════════════════════════════════════════ */}
         <section
+          className="lwd-rc-section"
           aria-label="Related categories"
           style={{
             background: C.dark,
@@ -698,9 +706,14 @@ export default function RegionCategoryPage({
             </div>
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-                gap: 16,
+                display:                 "flex",
+                overflowX:               "auto",
+                flexWrap:                "nowrap",
+                gap:                     12,
+                paddingBottom:           8,
+                scrollbarWidth:          "none",
+                msOverflowStyle:         "none",
+                WebkitOverflowScrolling: "touch",
               }}
             >
               {siblingCategories.map((vc) => (
@@ -721,6 +734,7 @@ export default function RegionCategoryPage({
         ════════════════════════════════════════════════════════════════════ */}
         {relatedRegions.length > 0 && (
           <section
+            className="lwd-rc-section"
             aria-label="Related regions"
             style={{
               background: C.black,
@@ -770,6 +784,7 @@ export default function RegionCategoryPage({
             9. SEO PANEL — collapsible
         ════════════════════════════════════════════════════════════════════ */}
         <section
+          className="lwd-rc-section"
           aria-label="SEO data"
           style={{
             background: C.black,
@@ -958,6 +973,7 @@ function RegionCategoryNav({ onBack, onBackHome, scrolled, darkMode, onToggleDar
 
   return (
     <nav
+      className="lwd-rc-nav"
       aria-label="Page navigation"
       style={{
         position: "fixed",
@@ -1001,7 +1017,7 @@ function RegionCategoryNav({ onBack, onBackHome, scrolled, darkMode, onToggleDar
           ← Back
         </button>
 
-        <nav aria-label="Breadcrumb">
+        <nav className="lwd-rc-breadcrumb" aria-label="Breadcrumb">
           <ol
             style={{
               display: "flex",
@@ -1076,6 +1092,7 @@ function RegionCategoryNav({ onBack, onBackHome, scrolled, darkMode, onToggleDar
 
       {/* Centre: logo */}
       <button
+        className="lwd-rc-logo"
         onClick={onBackHome}
         aria-label="Luxury Wedding Directory home"
         style={{
@@ -1394,6 +1411,8 @@ function SiblingCategoryCard({ vc, C, onClick }) {
         flexDirection: "column",
         alignItems: "center",
         gap: 14,
+        flexShrink: 0,
+        minWidth: 160,
       }}
     >
       <span

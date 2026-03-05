@@ -2,7 +2,7 @@
 // Dedicated Italy country hub at /italy — the canonical, indexable Italy page.
 // Full luxury editorial page with venue browsing, vendor discovery, and filters.
 import "../category.css";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 
 import { ThemeCtx }        from "../theme/ThemeContext";
 import { getDarkPalette, getLightPalette, getDefaultMode } from "../theme/tokens";
@@ -32,7 +32,9 @@ import DirectoryBrands from "../components/sections/DirectoryBrands";
 import CountrySearchBar from "../components/filters/CountrySearchBar";
 import HCard           from "../components/cards/HCard";
 import GCard           from "../components/cards/GCard";
+import GCardMobile     from "../components/cards/GCardMobile";
 import QuickViewModal  from "../components/modals/QuickViewModal";
+import SliderNav       from "../components/ui/SliderNav";
 import { VENDORS as ALL_VENDORS } from "../data/vendors";
 
 // ── Italy-only data subsets ─────────────────────────────────────────────────
@@ -43,7 +45,7 @@ const ITALY_REGIONS = [
   { slug: "all", name: "All Regions" },
   ...getRegionsByCountry("italy"),
 ];
-const ITALY_VENDORS = (ALL_VENDORS || []).filter((v) => v.countrySlug === "italy").slice(0, 6);
+const ITALY_VENDORS = (ALL_VENDORS || []).filter((v) => v.countrySlug === "italy").slice(0, 12);
 
 // ── Filter helpers ──────────────────────────────────────────────────────────
 function matchesCapacity(v, cap) {
@@ -55,6 +57,18 @@ function matchesCapacity(v, cap) {
   return true;
 }
 
+// ── Mobile detection hook ─────────────────────────────────────────────────
+function useIsMobile(bp = 768) {
+  const [mobile, setMobile] = useState(() => window.innerWidth <= bp);
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${bp}px)`);
+    const fn = (e) => setMobile(e.matches);
+    mql.addEventListener("change", fn);
+    return () => mql.removeEventListener("change", fn);
+  }, [bp]);
+  return mobile;
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 export default function ItalyPage({
   onBack         = () => {},
@@ -63,6 +77,7 @@ export default function ItalyPage({
   onViewCategory = () => {},
   initialRegion       = null,
   initialSearchQuery  = null,
+  noIndex        = false,
   footerNav = {},
 }) {
   // ── State ──────────────────────────────────────────────────────────────────
@@ -79,6 +94,7 @@ export default function ItalyPage({
   const [scrolled,     setScrolled]     = useState(false);
   const [qvItem,       setQvItem]       = useState(null);
 
+  const isMobile = useIsMobile();
   const C = darkMode ? getDarkPalette() : getLightPalette();
 
   // ── Register active context with global chat ────────────────────────────
@@ -87,13 +103,22 @@ export default function ItalyPage({
     setChatContext({ country: "Italy", region: null, page: "italy" });
   }, [setChatContext]);
 
-  // ── SEO: /italy is an indexable country entity ────────────────────────────
+  // ── SEO: indexable entity or noindex template ────────────────────────────
   useEffect(() => {
-    // Ensure no stale noindex from template pages
-    const staleRobots = document.querySelector('meta[name="robots"]');
-    if (staleRobots) staleRobots.remove();
+    // Robots — noindex only when used as /category template
+    let robots = document.querySelector('meta[name="robots"]');
+    if (noIndex) {
+      if (!robots) {
+        robots = document.createElement("meta");
+        robots.setAttribute("name", "robots");
+        document.head.appendChild(robots);
+      }
+      robots.setAttribute("content", "noindex, follow");
+    } else if (robots) {
+      robots.remove();
+    }
 
-    // Canonical — this IS the canonical URL
+    // Canonical — always point to /italy
     let canon = document.querySelector('link[rel="canonical"]');
     if (!canon) {
       canon = document.createElement("link");
@@ -102,8 +127,11 @@ export default function ItalyPage({
     }
     canon.setAttribute("href", "https://luxuryweddingdirectory.com/italy");
 
-    return () => { canon.remove(); };
-  }, []);
+    return () => {
+      if (noIndex && robots?.parentNode) robots.remove();
+      canon.remove();
+    };
+  }, [noIndex]);
 
   // ── Update region filter when navigated from another page ──────────────
   useEffect(() => {
@@ -173,9 +201,9 @@ export default function ItalyPage({
   const handleLoadMore      = useCallback(() => setVisibleCount((c) => c + 12), []);
   const handleToggleDark    = useCallback(() => setDarkMode((d) => !d), []);
 
-  // ── Batched venue slices ───────────────────────────────────────────────
-  const batch1 = filtered.slice(0, 6);
-  const batch2 = filtered.slice(6, Math.min(visibleCount, filtered.length));
+  // ── Batched venue slices (8 on mobile, 12 on desktop) ─────────────────
+  const batch1 = filtered.slice(0, isMobile ? 8 : 12);
+  const batch2 = filtered.slice(isMobile ? 8 : 12, Math.min(visibleCount, filtered.length));
   const showSlider = FEATURED.length > 0 && filtered.length >= 5;
 
   // ── Render ─────────────────────────────────────────────────────────────
@@ -338,26 +366,17 @@ export default function ItalyPage({
                   </button>
                 </div>
               ) : viewMode === "grid" ? (
-                <div
-                  className="lwd-venue-grid"
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(3,1fr)",
-                    gap: 16,
-                  }}
-                  aria-label="Venue grid"
-                >
+                <SliderNav className="lwd-venue-grid" cardWidth={isMobile ? 300 : 340} gap={isMobile ? 12 : 16}>
                   {batch1.map((v) => (
-                    <GCard
-                      key={v.id}
-                      v={v}
-                      saved={savedIds.includes(v.id)}
-                      onSave={toggleSave}
-                      onView={onViewVenue}
-                      onQuickView={setQvItem}
-                    />
+                    <div key={v.id} className="lwd-venue-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 340px", scrollSnapAlign: "start" }}>
+                      {isMobile ? (
+                        <GCardMobile v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} />
+                      ) : (
+                        <GCard v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} onQuickView={setQvItem} />
+                      )}
+                    </div>
                   ))}
-                </div>
+                </SliderNav>
               ) : (
                 <div aria-label="Venue list">
                   {batch1.map((v) => (
@@ -389,25 +408,17 @@ export default function ItalyPage({
             {batch2.length > 0 && (
               <div className="lwd-venue-grid-wrap" style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 0" }}>
                 {viewMode === "grid" ? (
-                  <div
-                    className="lwd-venue-grid"
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(3,1fr)",
-                      gap: 16,
-                    }}
-                  >
+                  <SliderNav className="lwd-venue-grid" cardWidth={isMobile ? 300 : 340} gap={isMobile ? 12 : 16}>
                     {batch2.map((v) => (
-                      <GCard
-                        key={v.id}
-                        v={v}
-                        saved={savedIds.includes(v.id)}
-                        onSave={toggleSave}
-                        onView={onViewVenue}
-                        onQuickView={setQvItem}
-                      />
+                      <div key={v.id} className="lwd-venue-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 340px", scrollSnapAlign: "start" }}>
+                        {isMobile ? (
+                          <GCardMobile v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} />
+                        ) : (
+                          <GCard v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} onQuickView={setQvItem} />
+                        )}
+                      </div>
                     ))}
-                  </div>
+                  </SliderNav>
                 ) : (
                   batch2.map((v) => (
                     <HCard
@@ -456,18 +467,17 @@ export default function ItalyPage({
                   </p>
                 </div>
                 <div style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 0" }}>
-                  <div className="lwd-venue-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
-                    {ITALY_VENDORS.map((v) => (
-                      <GCard
-                        key={v.id}
-                        v={v}
-                        saved={savedIds.includes(v.id)}
-                        onSave={toggleSave}
-                        onView={onViewVenue}
-                        onQuickView={setQvItem}
-                      />
+                  <SliderNav className="lwd-vendor-slider" cardWidth={isMobile ? 300 : 320} gap={isMobile ? 12 : 16}>
+                    {(isMobile ? ITALY_VENDORS.slice(0, 8) : ITALY_VENDORS.slice(0, 12)).map((v) => (
+                      <div key={v.id} className="lwd-vendor-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 320px", scrollSnapAlign: "start" }}>
+                        {isMobile ? (
+                          <GCardMobile v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} />
+                        ) : (
+                          <GCard v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} onQuickView={setQvItem} />
+                        )}
+                      </div>
                     ))}
-                  </div>
+                  </SliderNav>
                 </div>
               </>
             )}

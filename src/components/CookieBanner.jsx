@@ -265,8 +265,18 @@ export default function CookieBanner() {
     setTimeout(() => setVisible(false), 350);
   };
 
-  // Don't show over the full workspace — it has its own footer disclaimer
-  if (!visible || chatUiState === "fullchat") return null;
+  // Don't render anything if not visible at all
+  if (!visible) return null;
+
+  // In fullchat mode, only show the preferences modal (not the banner strip)
+  if (chatUiState === "fullchat") {
+    return showPrefs ? (
+      <PrefsModal
+        onClose={() => { setShowPrefs(false); dismiss(); }}
+        onSave={savePrefs}
+      />
+    ) : null;
+  }
 
   return (
     <>
