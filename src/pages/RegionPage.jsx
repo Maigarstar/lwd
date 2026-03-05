@@ -16,16 +16,30 @@ import {
 import { VENUES } from "../data/italyVenues";
 
 import GCard from "../components/cards/GCard";
+import GCardMobile from "../components/cards/GCardMobile";
 import QuickViewModal from "../components/modals/QuickViewModal";
 import SiteFooter from "../components/sections/SiteFooter";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import FeaturedSlider from "../components/sections/FeaturedSlider";
+import SliderNav from "../components/ui/SliderNav";
 import { useInView, CountUp, SplitText, revealStyle } from "../components/ui/Animations";
 import "../category.css";
 
 // ── Font tokens ──────────────────────────────────────────────────────────────
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
+
+// ── Mobile detection hook ────────────────────────────────────────────────────
+function useIsMobile(bp = 768) {
+  const [mobile, setMobile] = useState(() => window.innerWidth <= bp);
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${bp}px)`);
+    const fn = (e) => setMobile(e.matches);
+    mql.addEventListener("change", fn);
+    return () => mql.removeEventListener("change", fn);
+  }, [bp]);
+  return mobile;
+}
 
 // ── Initial visible count for paginated sections (backend can override later) ─
 const INITIAL_VISIBLE = 4;
@@ -53,6 +67,7 @@ export default function RegionPage({
   const [visibleCities, setVisibleCities] = useState(4);
   const [visibleRelated, setVisibleRelated] = useState(4);
   const [mapOpen, setMapOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   const C = darkMode ? getDarkPalette() : getLightPalette();
 
@@ -543,39 +558,6 @@ export default function RegionPage({
               <FeaturedSlider venues={featuredVenues} />
             )}
 
-            {/* Venue grid — first 6 GCards */}
-            <section
-              aria-label={`Venues in ${region.name}`}
-              style={{
-                maxWidth: 1280,
-                margin: "0 auto",
-                padding: "48px 48px 32px",
-              }}
-            >
-              <div
-                ref={grid1Ref}
-                className="lwd-venue-grid"
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(3, 1fr)",
-                  gap: 16,
-                }}
-                aria-label="Venue grid"
-              >
-                {regionVenues.slice(0, 6).map((v, i) => (
-                  <div key={v.id} style={revealStyle(grid1In, i)}>
-                    <GCard
-                      v={v}
-                      saved={savedIds.includes(v.id)}
-                      onSave={toggleSave}
-                      onView={onViewVenue}
-                      onQuickView={setQvItem}
-                    />
-                  </div>
-                ))}
-              </div>
-            </section>
-
             {/* ═══ SMART MAP — collapsible, blends into page ═══════════════════ */}
             <section
               aria-label="Venue map"
@@ -583,7 +565,7 @@ export default function RegionPage({
               style={{
                 maxWidth: 1280,
                 margin: "0 auto",
-                padding: "0 48px 48px",
+                padding: "40px 48px 20px",
               }}
             >
               {/* Map toggle bar */}
@@ -812,41 +794,105 @@ export default function RegionPage({
               </div>
             </section>
 
+            {/* Venue grid — first 6 GCards (horizontal slider) */}
+            <section
+              aria-label={`Venues in ${region.name}`}
+              className="lwd-region-section"
+              style={{
+                maxWidth: 1280,
+                margin: "0 auto",
+                padding: "24px 48px 32px",
+              }}
+            >
+              <div ref={grid1Ref}>
+                <SliderNav
+                  className="lwd-region-venue-grid"
+                  cardWidth={isMobile ? 300 : 340}
+                  gap={isMobile ? 12 : 16}
+                >
+                  {regionVenues.slice(0, 6).map((v, i) => (
+                    <div
+                      key={v.id}
+                      className="lwd-region-venue-card"
+                      style={{
+                        flex: isMobile ? "0 0 300px" : "0 0 340px",
+                        scrollSnapAlign: "start",
+                        ...revealStyle(grid1In, i),
+                      }}
+                    >
+                      {isMobile ? (
+                        <GCardMobile
+                          v={v}
+                          saved={savedIds.includes(v.id)}
+                          onSave={toggleSave}
+                          onView={onViewVenue}
+                        />
+                      ) : (
+                        <GCard
+                          v={v}
+                          saved={savedIds.includes(v.id)}
+                          onSave={toggleSave}
+                          onView={onViewVenue}
+                          onQuickView={setQvItem}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </SliderNav>
+              </div>
+            </section>
+
             {/* ═══ E-E-A-T EDITORIAL — between map & second grid ═════════════ */}
             {region.editorial && (
               <EditorialSection editorial={region.editorial} region={region} C={C} />
             )}
 
-            {/* Venue grid — remaining cards (7+) */}
+            {/* Venue grid — remaining cards (7+, horizontal slider) */}
             {regionVenues.length > 6 && (
               <section
                 aria-label={`More venues in ${region.name}`}
+                className="lwd-region-section"
                 style={{
                   maxWidth: 1280,
                   margin: "0 auto",
                   padding: "64px 48px 48px",
                 }}
               >
-                <div
-                  ref={grid2Ref}
-                  className="lwd-venue-grid"
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(3, 1fr)",
-                    gap: 16,
-                  }}
-                >
-                  {regionVenues.slice(6).map((v, i) => (
-                    <div key={v.id} style={revealStyle(grid2In, i)}>
-                      <GCard
-                        v={v}
-                        saved={savedIds.includes(v.id)}
-                        onSave={toggleSave}
-                        onView={onViewVenue}
-                        onQuickView={setQvItem}
-                      />
-                    </div>
-                  ))}
+                <div ref={grid2Ref}>
+                  <SliderNav
+                    className="lwd-region-venue-grid"
+                    cardWidth={isMobile ? 300 : 340}
+                    gap={isMobile ? 12 : 16}
+                  >
+                    {regionVenues.slice(6).map((v, i) => (
+                      <div
+                        key={v.id}
+                        className="lwd-region-venue-card"
+                        style={{
+                          flex: isMobile ? "0 0 300px" : "0 0 340px",
+                          scrollSnapAlign: "start",
+                          ...revealStyle(grid2In, i),
+                        }}
+                      >
+                        {isMobile ? (
+                          <GCardMobile
+                            v={v}
+                            saved={savedIds.includes(v.id)}
+                            onSave={toggleSave}
+                            onView={onViewVenue}
+                          />
+                        ) : (
+                          <GCard
+                            v={v}
+                            saved={savedIds.includes(v.id)}
+                            onSave={toggleSave}
+                            onView={onViewVenue}
+                            onQuickView={setQvItem}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </SliderNav>
                 </div>
               </section>
             )}
@@ -855,6 +901,7 @@ export default function RegionPage({
           /* ── Premium "Coming Soon" editorial state ── */
           <section
             aria-label="Coming soon"
+            className="lwd-region-section"
             style={{
               background: C.dark,
               padding: "96px 48px",
@@ -1510,6 +1557,7 @@ function CategoryCarousel({ categories, C, onSelect }) {
     <div>
       {/* Grid of cards */}
       <div
+        className="lwd-region-cat-grid"
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(7, 1fr)",
@@ -1885,6 +1933,7 @@ function EditorialSection({ editorial, region, C }) {
   return (
     <section
       aria-label={`Editorial guide to weddings in ${region.name}`}
+      className="lwd-region-section"
       style={{
         background: C.dark,
         borderTop: `1px solid ${C.border}`,
@@ -2217,6 +2266,7 @@ function SEOPanel({ region, C }) {
   return (
     <section
       aria-label="SEO and AI insights"
+      className="lwd-region-section"
       style={{
         background: C.black,
         padding: "48px 48px",

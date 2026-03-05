@@ -118,6 +118,7 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
 
       {/* ── Modal ── */}
       <div
+        className="lwd-quickview"
         role="dialog"
         aria-modal="true"
         aria-label={`Quick view: ${item.name}`}
@@ -144,10 +145,11 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
         }}
       >
         {/* ── Two-panel body ── */}
-        <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
+        <div className="lwd-quickview-body" style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
 
           {/* ── Left: Gallery 55% ── */}
           <div
+            className="lwd-quickview-gallery"
             style={{
               flex:       "0 0 55%",
               position:   "relative",
@@ -293,6 +295,7 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
 
           {/* ── Right: Details + Map 45% ── */}
           <div
+            className="lwd-quickview-details"
             style={{
               flex:          "0 0 45%",
               display:       "flex",
@@ -538,6 +541,7 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
 
         {/* ── Sticky footer ── */}
         <div
+          className="lwd-quickview-footer"
           style={{
             flexShrink:     0,
             display:        "flex",

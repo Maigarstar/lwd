@@ -1,10 +1,12 @@
 // ─── src/chat/AuraMiniBar.jsx ─────────────────────────────────────────────────
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useChat } from "./ChatContext";
+import Icon from "./Icons";
 
 export default function AuraMiniBar() {
   const { messages, isTyping, sendMessage, openWorkspace, closeChat } = useChat();
-  const [input, setInput] = useState("");
+  const [input, setInput]       = useState("");
+  const [listening, setListening] = useState(false);
   const threadRef         = useRef(null);
   const inputRef          = useRef(null);
 
@@ -41,6 +43,25 @@ export default function AuraMiniBar() {
     }
   }, [handleSend]);
 
+  const handleVoice = useCallback(() => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR || listening) return;
+    const rec = new SR();
+    rec.lang = "en-GB";
+    rec.interimResults = false;
+    rec.onstart  = () => setListening(true);
+    rec.onresult = (e) => {
+      const t = e.results[0][0].transcript;
+      setInput((prev) => (prev ? prev + " " + t : t));
+    };
+    rec.onend   = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    rec.start();
+  }, [listening]);
+
+  const hasSR = typeof window !== "undefined" &&
+    !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+
   return (
     <div
       role="dialog"
@@ -55,11 +76,9 @@ export default function AuraMiniBar() {
         maxWidth:            "calc(100vw - 32px)",
         borderRadius:        16,
         overflow:            "hidden",
-        background:          "rgba(14,12,9,0.97)",
-        border:              "1px solid rgba(201,168,76,0.22)",
-        boxShadow:           "0 20px 60px rgba(0,0,0,0.6)",
-        backdropFilter:      "blur(24px)",
-        WebkitBackdropFilter:"blur(24px)",
+        background:          "#1E1C19",
+        border:              "1px solid rgba(201,168,76,0.25)",
+        boxShadow:           "0 20px 60px rgba(0,0,0,0.55), 0 0 24px rgba(201,168,76,0.06)",
       }}
     >
       {/* ── Header ── */}
@@ -69,7 +88,7 @@ export default function AuraMiniBar() {
           alignItems:     "center",
           justifyContent: "space-between",
           padding:        "12px 16px 11px",
-          borderBottom:   "1px solid rgba(201,168,76,0.1)",
+          borderBottom:   "1px solid rgba(201,168,76,0.12)",
         }}
       >
         {/* Left: avatar + name + status */}
@@ -103,7 +122,7 @@ export default function AuraMiniBar() {
                 marginBottom:  3,
               }}
             >
-              Aura
+              Chat with Aura
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
               <span
@@ -113,14 +132,14 @@ export default function AuraMiniBar() {
                   borderRadius: "50%",
                   background:   "#22c55e",
                   display:      "inline-block",
-                  animation:    "lwd-status-pulse 2s ease infinite",
+                  /* no pulse — luxury stays still */
                 }}
               />
               <span
                 style={{
                   fontFamily:    "var(--font-body)",
                   fontSize:      10,
-                  color:         "rgba(245,240,232,0.35)",
+                  color:         "rgba(245,240,232,0.4)",
                   letterSpacing: "0.5px",
                 }}
               >
@@ -183,6 +202,7 @@ export default function AuraMiniBar() {
           display:       "flex",
           flexDirection: "column",
           gap:           6,
+          background:    "#FFFDF9",
         }}
       >
         {thread.map((m) => (
@@ -199,12 +219,12 @@ export default function AuraMiniBar() {
                 padding:      "6px 11px",
                 borderRadius: m.from === "user" ? "10px 10px 2px 10px" : "10px 10px 10px 2px",
                 background:   m.from === "user"
-                  ? "rgba(201,168,76,0.16)"
-                  : "rgba(255,255,255,0.06)",
+                  ? "#C9A84C"
+                  : "#F0ECE4",
                 fontFamily:   "var(--font-body)",
                 fontSize:     12,
                 lineHeight:   1.45,
-                color:        m.from === "user" ? "#e8c97a" : "rgba(245,240,232,0.8)",
+                color:        m.from === "user" ? "#0f0d0a" : "#3a3530",
               }}
             >
               {m.text}
@@ -222,7 +242,7 @@ export default function AuraMiniBar() {
                   width:     6,
                   height:    6,
                   borderRadius: "50%",
-                  background: "rgba(201,168,76,0.65)",
+                  background: "rgba(201,168,76,0.5)",
                   display:   "inline-block",
                   animation: `lwd-dot-pulse 1.4s ease ${i * 0.2}s infinite`,
                 }}
@@ -235,53 +255,95 @@ export default function AuraMiniBar() {
       {/* ── Input row ── */}
       <div
         style={{
-          display:    "flex",
-          gap:        8,
           padding:    "10px 14px 14px",
-          borderTop:  "1px solid rgba(201,168,76,0.09)",
-          alignItems: "center",
+          borderTop:  "1px solid rgba(0,0,0,0.06)",
+          background: "#FFFDF9",
         }}
       >
-        <input
-          ref={inputRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKey}
-          placeholder="Ask about venues, vendors, regions…"
+        {/* Unified input container */}
+        <div
           style={{
-            flex:         1,
-            background:   "rgba(255,255,255,0.05)",
-            border:       "1px solid rgba(201,168,76,0.18)",
-            borderRadius: 8,
-            padding:      "9px 13px",
-            fontFamily:   "var(--font-body)",
-            fontSize:     13,
-            color:        "#f5f0e8",
-            outline:      "none",
-          }}
-        />
-        <button
-          onClick={handleSend}
-          disabled={!input.trim()}
-          aria-label="Send message"
-          style={{
-            width:          36,
-            height:         36,
-            flexShrink:     0,
-            borderRadius:   8,
-            background:     input.trim() ? "#C9A84C" : "rgba(201,168,76,0.15)",
-            border:         "none",
-            color:          input.trim() ? "#0f0d0a" : "rgba(201,168,76,0.35)",
-            cursor:         input.trim() ? "pointer" : "default",
-            fontSize:       15,
-            display:        "flex",
-            alignItems:     "center",
-            justifyContent: "center",
-            transition:     "all 0.2s",
+            display:      "flex",
+            gap:          6,
+            alignItems:   "center",
+            background:   "#F5F2ED",
+            border:       "1px solid rgba(201,168,76,0.15)",
+            borderRadius: 12,
+            padding:      "6px 8px",
           }}
         >
-          ↑
-        </button>
+          {/* Mic button */}
+          {hasSR && (
+            <button
+              onClick={handleVoice}
+              aria-label={listening ? "Listening…" : "Voice input"}
+              title={listening ? "Listening…" : "Voice input"}
+              style={{
+                width:          32,
+                height:         32,
+                flexShrink:     0,
+                borderRadius:   8,
+                background:     listening ? "rgba(201,168,76,0.15)" : "rgba(0,0,0,0.04)",
+                border:         "none",
+                color:          listening ? "#C9A84C" : "#8a857e",
+                cursor:         "pointer",
+                display:        "flex",
+                alignItems:     "center",
+                justifyContent: "center",
+                transition:     "all 0.2s",
+                animation:      listening ? "lwd-dot-pulse 1.4s ease infinite" : "none",
+              }}
+              onMouseEnter={(e) => { if (!listening) e.currentTarget.style.color = "#C9A84C"; }}
+              onMouseLeave={(e) => { if (!listening) e.currentTarget.style.color = "#8a857e"; }}
+            >
+              <Icon name="mic" size={15} />
+            </button>
+          )}
+
+          {/* Text input */}
+          <input
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKey}
+            placeholder="Guest count, style, budget…"
+            style={{
+              flex:         1,
+              background:   "none",
+              border:       "none",
+              padding:      "6px 4px",
+              fontFamily:   "var(--font-body)",
+              fontSize:     13,
+              color:        "#1a1816",
+              outline:      "none",
+              caretColor:   "#C9A84C",
+            }}
+          />
+
+          {/* Send button */}
+          <button
+            onClick={handleSend}
+            disabled={!input.trim()}
+            aria-label="Send message"
+            style={{
+              width:          32,
+              height:         32,
+              flexShrink:     0,
+              borderRadius:   8,
+              background:     input.trim() ? "#C9A84C" : "rgba(201,168,76,0.12)",
+              border:         "none",
+              color:          input.trim() ? "#0f0d0a" : "rgba(201,168,76,0.35)",
+              cursor:         input.trim() ? "pointer" : "default",
+              fontSize:       14,
+              display:        "flex",
+              alignItems:     "center",
+              justifyContent: "center",
+              transition:     "all 0.2s",
+            }}
+          >
+            ↑
+          </button>
+        </div>
       </div>
     </div>
   );

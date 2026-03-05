@@ -46,6 +46,19 @@ body { font-family: var(--font-body); font-size: var(--lwd-body-size, 15px); fon
   100% { transform: translateX(-50%); }
 }
 
+/* ── Venue + Vendor slider scrollbar hide ────────────────────────────────── */
+.lwd-venue-grid::-webkit-scrollbar    { display: none; }
+.lwd-vendor-slider::-webkit-scrollbar { display: none; }
+.usa-venue-grid::-webkit-scrollbar    { display: none; }
+.usa-vendor-slider::-webkit-scrollbar { display: none; }
+.home-venue-grid::-webkit-scrollbar         { display: none; }
+.home-vendor-grid::-webkit-scrollbar        { display: none; }
+.lwd-region-venue-grid::-webkit-scrollbar   { display: none; }
+
+/* ── Slider arrow buttons — fade in on parent hover ─────────────────────── */
+.lwd-slider-arrow { opacity: 0; transition: opacity 0.25s, border-color 0.25s, color 0.25s, background 0.25s !important; }
+div:hover > .lwd-slider-arrow { opacity: 1; }
+
 /* ── Iconic Venues scroll band ───────────────────────────────────────────── */
 .site-footer-scroll-track {
   animation: iconicScroll 50s linear infinite;
@@ -139,7 +152,7 @@ div[role="listbox"]::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3);
   /* ── Venue list / grid wrappers ── */
   .lwd-venue-list-wrap  { padding: 24px 16px 0 !important; }
   .lwd-venue-grid-wrap  { padding: 24px 16px 0 !important; }
-  .lwd-venue-grid       { grid-template-columns: 1fr !important; }
+  .lwd-venue-grid       { /* slider — card sizing handled below */ }
 
   /* ── HCard — stack vertically on mobile ── */
   .lwd-hcard            { flex-direction: column !important; }
@@ -185,7 +198,7 @@ div[role="listbox"]::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3);
   .lwd-region-count-strip { padding: 16px 20px !important; }
 
   /* ── Map section ── */
-  .lwd-region-map-section { padding: 0 16px 32px !important; }
+  .lwd-region-map-section { padding: 28px 16px 12px !important; }
   .lwd-region-map-toggle { padding: 16px 16px !important; gap: 12px !important; }
   .lwd-region-map-toggle > span:first-child { width: 32px !important; height: 32px !important; }
   .lwd-region-map-grid {
@@ -199,11 +212,125 @@ div[role="listbox"]::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3);
     max-height: 300px !important;
   }
 
+  /* ── Category carousel (vendors slider → horizontal scroll) ── */
+  .lwd-region-cat-grid {
+    display: flex !important;
+    overflow-x: auto !important;
+    scroll-snap-type: x mandatory !important;
+    gap: 10px !important;
+    padding-bottom: 8px !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+  }
+  .lwd-region-cat-grid::-webkit-scrollbar { display: none !important; }
+  .lwd-region-cat-grid > button {
+    flex: 0 0 140px !important;
+    scroll-snap-align: start !important;
+    padding: 20px 12px !important;
+  }
+
   /* ── Cities block ── */
   .lwd-region-cities { padding: 48px 20px !important; }
 
   /* ── Related regions ── */
   .lwd-region-related { padding: 48px 20px !important; }
+
+  /* ── Generic region sections (venue grids, editorial, SEO) ── */
+  .lwd-region-section { padding-left: 16px !important; padding-right: 16px !important; }
+
+  /* ── Region venue slider — image-dominant cards on mobile ── */
+  .lwd-region-venue-grid > .lwd-region-venue-card {
+    flex: 0 0 300px !important;
+    min-width: 300px !important;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     REGION CATEGORY PAGE — mobile responsive
+     ══════════════════════════════════════════════════════════════════════ */
+
+  /* ── Nav ── */
+  .lwd-rc-nav { padding: 10px 16px !important; }
+  .lwd-rc-breadcrumb { display: none !important; }
+  .lwd-rc-logo { font-size: 14px !important; }
+
+  /* ── Hero ── */
+  .lwd-rc-hero-content { padding: 0 20px 40px !important; }
+  .lwd-rc-hero-stats {
+    flex-wrap: wrap !important;
+    gap: 16px !important;
+  }
+  .lwd-rc-hero-stats > div {
+    padding-left: 0 !important;
+    border-left: none !important;
+  }
+
+  /* ── All content sections ── */
+  .lwd-rc-section { padding-left: 16px !important; padding-right: 16px !important; }
+
+  /* ── Slider arrows — hide on mobile (swipe is natural) ── */
+  .lwd-slider-arrow { display: none !important; }
+
+  /* ── Venue/Vendor sliders — image-dominant cards on mobile ── */
+  .lwd-venue-grid > div,
+  .lwd-vendor-slider > div,
+  .usa-venue-grid > div,
+  .usa-vendor-slider > div,
+  .home-venue-grid > div,
+  .home-vendor-grid > div {
+    flex: 0 0 300px !important;
+    min-width: 300px !important;
+  }
+
+  /* ── Vendor slider — horizontal scroll ── */
+  .lwd-vendor-slider::-webkit-scrollbar { display: none !important; }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     QUICKVIEW MODAL — mobile responsive (stacked layout)
+     ══════════════════════════════════════════════════════════════════════ */
+  .lwd-quickview {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    top: 0 !important;
+    left: 0 !important;
+    transform: none !important;
+    border-radius: 0 !important;
+    border: none !important;
+  }
+  .lwd-quickview-body {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+  .lwd-quickview-gallery {
+    flex: none !important;
+    height: 260px !important;
+    min-height: 260px !important;
+  }
+  .lwd-quickview-details {
+    flex: 1 1 auto !important;
+    border-left: none !important;
+    border-top: 1px solid rgba(201,168,76,0.1) !important;
+    overflow-y: auto !important;
+  }
+  .lwd-quickview-details > div { padding: 20px 16px 24px !important; }
+  .lwd-quickview-footer {
+    padding: 12px 16px !important;
+  }
+  .lwd-quickview-footer button {
+    flex: 1 !important;
+    text-align: center !important;
+  }
+
+  /* ── Editorial Banner — compact mobile ── */
+  .lwd-editorial-banner { height: 480px !important; }
+  .lwd-editorial-banner-content {
+    padding: 0 20px 32px !important;
+    justify-content: flex-end !important;
+  }
+  .lwd-editorial-banner-content h2 { font-size: 22px !important; margin-bottom: 10px !important; line-height: 1.3 !important; }
+  .lwd-editorial-banner-content p { font-size: 13px !important; margin-bottom: 20px !important; }
+  .lwd-editorial-banner-cta { flex-direction: column !important; width: 100% !important; align-items: center !important; gap: 10px !important; }
+  .lwd-editorial-banner-cta button { width: 100% !important; max-width: 280px !important; padding: 14px 24px !important; }
 
   /* ══════════════════════════════════════════════════════════════════════
      HOMEPAGE SECTIONS — mobile responsive
@@ -293,17 +420,12 @@ div[role="listbox"]::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3);
 
   /* ── VenueGrid ── */
   .home-venue-grid-section { padding: 0 20px 60px !important; }
-  .home-venue-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
 
   /* ── FeaturedSlider homepage ── */
   .home-featured-slider { /* handled by existing .lwd-slider-* rules */ }
 
   /* ── VendorPreview ── */
   .home-vendor-preview { padding: 60px 20px !important; }
-  .home-vendor-grid {
-    grid-template-columns: 1fr !important;
-    gap: 20px !important;
-  }
 
   /* ── CategorySlider ── */
   .home-cat-section { padding: 60px 0 60px 20px !important; }
@@ -366,9 +488,13 @@ div[role="listbox"]::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3);
   .usa-info-strip   { grid-template-columns: 1fr !important; gap: 24px !important; }
   .usa-info-strip > div { border-left: none !important; padding: 0 !important; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 20px !important; }
   .usa-info-strip > div:first-child { border-top: none; padding-top: 0 !important; }
-  .usa-split-grid   { grid-template-columns: 1fr !important; gap: 32px !important; }
-  .usa-venue-grid   { grid-template-columns: 1fr !important; }
-  .usa-seo-grid     { grid-template-columns: 1fr !important; gap: 48px !important; }
+  .usa-hero-content  { padding: 0 20px 40px !important; }
+  .usa-section       { padding-left: 16px !important; padding-right: 16px !important; }
+  .usa-split-grid    { grid-template-columns: 1fr !important; gap: 32px !important; }
+  .usa-split-grid > div:last-child { padding-left: 0 !important; }
+  .usa-mosaic-grid   { grid-template-columns: 1fr 1fr !important; grid-template-rows: auto auto auto !important; grid-template-areas: "one two" "three four" "five five" !important; min-height: 300px !important; }
+  /* usa card sizes now handled by unified rule above */
+  .usa-seo-grid      { grid-template-columns: 1fr !important; gap: 48px !important; }
 
   /* ── LWD Standard Page ── */
   .lwd-standard-section { padding: 60px 20px !important; }
@@ -396,6 +522,219 @@ div[role="listbox"]::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3);
   .admin-sidebar { display: none !important; }
   .admin-stats-grid { grid-template-columns: 1fr 1fr !important; }
   .admin-overview-cols { grid-template-columns: 1fr !important; }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     COUNTRY SEARCH BAR — mobile responsive
+     ══════════════════════════════════════════════════════════════════════ */
+  .lwd-country-search-row {
+    padding: 0 16px !important;
+    gap: 8px !important;
+    height: auto !important;
+    min-height: 48px !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    flex-wrap: wrap !important;
+    overflow-x: visible !important;
+  }
+  .lwd-country-search-row button[role="tab"] {
+    font-size: 8px !important;
+    padding: 5px 10px !important;
+  }
+  .lwd-country-search-row > div[role="group"] { display: none !important; }
+  .lwd-country-mega-panel { max-height: 60vh !important; overflow-y: auto !important; }
+  .lwd-country-mega-panel div[style*="grid-template-columns: repeat(4"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .lwd-country-mega-panel div[style*="grid-template-columns: repeat(3"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* ── Hero stats (shared Italy + USA) ── */
+  .lwd-hero-stats > div {
+    padding-left: 0 !important;
+    border-left: none !important;
+  }
+  .lwd-hero-stats > div > div:first-child {
+    font-size: 20px !important;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     SEO BLOCK — mobile responsive
+     ══════════════════════════════════════════════════════════════════════ */
+  .lwd-seoblock-grid {
+    grid-template-columns: 1fr !important;
+    gap: 48px !important;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     VENUE PROFILE — mobile responsive
+     ══════════════════════════════════════════════════════════════════════ */
+
+  /* ── VP Root — prevent horizontal overflow ── */
+  .vp-root {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+  }
+  .vp-root * {
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
+  }
+  .vp-root section,
+  .vp-root section > div {
+    max-width: 100% !important;
+    overflow-wrap: break-word !important;
+    word-wrap: break-word !important;
+  }
+
+  /* ── Nav ── */
+  .vp-nav {
+    padding: 0 12px !important;
+    height: 52px !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
+  }
+  .vp-nav-left {
+    gap: 0 !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
+  .vp-nav-left > div:first-child > div:first-child {
+    font-size: 9px !important;
+    letter-spacing: 1px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 120px !important;
+  }
+  .vp-nav-left > div:first-child > div:nth-child(2) { display: none !important; }
+  .vp-nav-left > div:nth-child(2) { display: none !important; }
+  .vp-breadcrumb { display: none !important; }
+  .vp-nav-actions {
+    gap: 4px !important;
+    flex-shrink: 0 !important;
+  }
+  .vp-nav-actions > button:nth-child(2) {
+    display: none !important;
+  }
+  .vp-nav-actions > button {
+    font-size: 9px !important;
+    padding: 5px 8px !important;
+  }
+
+  /* ── Hero grid ── */
+  .vp-hero-grid {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+    min-height: 50vh !important;
+  }
+
+  /* ── Main wrapper & grid — stack sidebar below content ── */
+  .vp-main-wrapper {
+    padding: 24px 16px 60px !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+  }
+  .vp-main-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 32px !important;
+  }
+  .vp-main-grid > div:first-child {
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* ── All section containers with 40px padding ── */
+  .vp-root > div > div[style*="padding"][style*="40px"] {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  /* ── Stats strip (horizontal scroll bar under hero) ── */
+  .vp-root > div > div[style*="padding: "][style*="0 40px"] {
+    padding: 0 16px !important;
+  }
+  .vp-stats-strip {
+    grid-template-columns: 1fr 1fr !important;
+    padding: 16px !important;
+  }
+
+  /* ── Awards & Press ── */
+  .vp-awards-press { gap: 20px !important; flex-direction: column !important; }
+
+  /* ── Contact & Location ── */
+  .vp-contact-grid {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+
+  /* ── Exclusive Use ── */
+  .vp-exclusive-grid {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+  }
+
+  /* ── Catering cards ── */
+  .vp-catering-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* ── Spaces & Rooms ── */
+  .vp-space-card {
+    grid-template-columns: 1fr !important;
+    gap: 0 !important;
+  }
+  .vp-space-card > div { order: unset !important; }
+
+  /* ── Experiences ── */
+  .vp-experiences-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  /* ── Reviews summary ── */
+  .vp-reviews-summary {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+    padding: 20px !important;
+  }
+  .vp-reviews-summary > div:first-child {
+    border-right: none !important;
+    border-bottom: 1px solid rgba(0,0,0,0.08) !important;
+    padding-bottom: 16px !important;
+  }
+
+  /* ── Video info bar ── */
+  .vp-video-info {
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+  .vp-video-info > div:last-child {
+    width: 100% !important;
+    flex-shrink: unset !important;
+  }
+
+  /* ── Sidebar ── */
+  .lwd-sidebar {
+    position: static !important;
+  }
+
+  /* ── Venue Profile sliders ── */
+  .vp-weekend-slider::-webkit-scrollbar,
+  .vp-reviews-slider::-webkit-scrollbar,
+  .vp-gallery-slider::-webkit-scrollbar,
+  .vp-awards-scroll::-webkit-scrollbar,
+  .vp-films-slider::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* ── Footer ── */
+  .vp-footer-grid {
+    grid-template-columns: 1fr !important;
+    gap: 32px !important;
+    padding: 40px 20px 32px !important;
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -418,4 +757,93 @@ div[role="listbox"]::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3);
 /* ── Extra-small breakpoint ────────────────────────────────────────────────── */
 @media (max-width: 480px) {
   /* Iconic scroll band remains single horizontal row — no stacking */
+
+  /* All sliders — slightly narrower on very small screens */
+  .lwd-venue-grid > div,
+  .lwd-vendor-slider > div,
+  .usa-venue-grid > div,
+  .usa-vendor-slider > div,
+  .home-venue-grid > div,
+  .home-vendor-grid > div,
+  .lwd-region-venue-grid > .lwd-region-venue-card {
+    flex: 0 0 280px !important;
+    min-width: 280px !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Layout utility classes — reusable across planner / venue / vendor profiles
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Collapse 2-col grids to 1-col under 900px ──────────────────────────── */
+@media (max-width: 900px) {
+  .lwd-stack900 {
+    grid-template-columns: 1fr !important;
+  }
+  .lwd-stack900-pad {
+    padding: 48px 20px !important;
+  }
+  .lwd-grid3 {
+    grid-template-columns: 1fr !important;
+  }
+  .lwd-sticky-cta {
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    border-radius: 0 !important;
+    transform: none !important;
+    padding: 12px 16px !important;
+    padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
+  }
+  .lwd-sticky-cta button {
+    flex: 1 !important;
+  }
+}
+
+/* ── Extra small: under 480px ────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .lwd-hero480 {
+    padding: 0 20px 40px !important;
+    min-height: 400px !important;
+  }
+  .lwd-hero480 h1 {
+    font-size: clamp(28px, 8vw, 42px) !important;
+  }
+  .lwd-stack480-pad {
+    padding: 40px 16px !important;
+  }
+}
+
+/* ── 3-col grid that stacks at 900px ─────────────────────────────────────── */
+@media (min-width: 901px) {
+  .lwd-grid3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+/* ── Lightbox body scroll lock ───────────────────────────────────────────── */
+body.lwd-scroll-locked {
+  overflow: hidden !important;
+  touch-action: none;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Vendor Profile Template — responsive rules
+   ══════════════════════════════════════════════════════════════════════════════ */
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@media (max-width: 900px) {
+  .vpt-sidebar       { display: none !important; }
+  .vpt-mobile-bar    { display: flex !important; }
+  .vpt-mobile-contact { display: block !important; }
+  .vpt-mobile-enquiry { display: block !important; }
+  .vpt-main-grid     { grid-template-columns: 1fr !important; }
+}
+@media (min-width: 901px) {
+  .vpt-mobile-bar     { display: none !important; }
+  .vpt-mobile-contact { display: none !important; }
+  .vpt-mobile-enquiry { display: none !important; }
 }
