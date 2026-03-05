@@ -498,7 +498,7 @@ export default function VideoGallery({ videos }) {
           ))}
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(videos.length, 4)}, 1fr)`, gap: 10, marginTop: 20 }}>
+        <div className="vp-films-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(videos.length, 4)}, 1fr)`, gap: 10, marginTop: 20 }}>
           {videos.map((v, i) => (
             <div key={v.id} style={{ cursor: "pointer" }} onClick={() => setActive(i)}>
               <div style={{
