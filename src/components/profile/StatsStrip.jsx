@@ -19,10 +19,10 @@ export default function StatsStrip({ entity }) {
   ];
 
   return (
-    <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "0 40px" }}>
-      <div style={{ display: "flex", overflowX: "auto", gap: 0 }}>
+    <div className="lwd-stats-outer" style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "0 40px" }}>
+      <div style={{ display: "flex", overflowX: "auto", gap: 0, scrollbarWidth: "none", msOverflowStyle: "none" }}>
         {stats.map((s, i) => (
-          <div key={i} style={{
+          <div key={i} className="lwd-stats-card" style={{
             flex: "0 0 auto", padding: "20px 28px",
             borderRight: i < stats.length - 1 ? `1px solid ${C.border}` : "none",
             minWidth: 130,

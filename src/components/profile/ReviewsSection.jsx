@@ -17,7 +17,7 @@ export default function ReviewsSection({ testimonials, entity }) {
   });
 
   const reviewCard = (r) => (
-    <div key={r.id} style={{ padding: isMobile ? 20 : 24, border: `1px solid ${C.border}`, background: C.surface, borderTop: `3px solid ${C.gold}`, animation: "fadeUp 0.35s ease both", flex: isMobile ? "0 0 280px" : undefined, scrollSnapAlign: isMobile ? "start" : undefined }}>
+    <div key={r.id} style={{ padding: isMobile ? 20 : 24, border: `1px solid ${C.border}`, background: C.surface, borderTop: `3px solid ${C.gold}`, animation: "fadeUp 0.35s ease both", flex: isMobile ? "0 0 min(280px, calc(100vw - 48px))" : undefined, scrollSnapAlign: isMobile ? "start" : undefined }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
         <div style={{ width: 44, height: 44, background: C.goldLight, border: `1px solid ${C.goldBorder}`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FD, fontSize: 16, color: C.gold, flexShrink: 0 }}>{r.avatar}</div>
         <div>
@@ -65,7 +65,7 @@ export default function ReviewsSection({ testimonials, entity }) {
         </div>
       ) : (
         <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 20 }}>
+          <div className="vp-reviews-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 20 }}>
             {visible.map(reviewCard)}
           </div>
 
