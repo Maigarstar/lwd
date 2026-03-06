@@ -20,6 +20,12 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
 
   return (
     <>
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+      `}</style>
       <article
         aria-label={v.name}
         onMouseEnter={() => setHov(true)}
@@ -68,6 +74,7 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
             </video>
           ) : (
             <img
+              key={`img-${imgIndex}`}
               src={v.imgs[imgIndex]}
               alt={`${v.name} in ${v.region} - image ${imgIndex + 1} of ${imgCount}`}
               loading="lazy"
@@ -76,7 +83,9 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
                 height:     "100%",
                 objectFit:  "cover",
                 transform:  hov ? "scale(1.03)" : "scale(1)",
-                transition: "transform 0.8s ease",
+                transition: "opacity 0.5s ease-in-out, transform 0.8s ease",
+                opacity:    1,
+                animation:  "fadeIn 0.5s ease-in-out",
               }}
             />
           )}
