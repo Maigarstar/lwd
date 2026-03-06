@@ -38,7 +38,7 @@ export default function DestinationGrid({ onDestinationClick }) {
           paddingRight: 60,
         }}
       >
-        <div style={{ paddingLeft: 24 }}>
+        <div style={{ paddingLeft: 40 }}>
           <div
             style={{
               display: "flex",
