@@ -55,7 +55,7 @@ export default function VendorPreview({ onViewVendor }) {
     >
       <div style={{ maxWidth: 1320, margin: "0 auto", position: "relative" }}>
         {/* Heading */}
-        <div style={{ marginBottom: 56 }}>
+        <div style={{ marginBottom: 56, paddingLeft: 24 }}>
           <div
             style={{
               display: "flex",
