@@ -385,20 +385,6 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
 
           <div style={{ display: "flex", gap: 6 }}>
             <button
-              onClick={(e) => { e.stopPropagation(); setShowEnquiry(true); }}
-              style={{
-                fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
-                textTransform: "uppercase", color: "#0f0d0a",
-                background: `linear-gradient(135deg, ${GOLD}, #e8c97a)`,
-                border: "none", borderRadius: "4px",
-                padding: "8px 12px", cursor: "pointer", transition: "opacity 0.25s", whiteSpace: "nowrap", flex: 1,
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-            >
-              Enquire
-            </button>
-            <button
               onClick={(e) => { e.stopPropagation(); onView?.(v); }}
               style={{
                 fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
@@ -411,6 +397,20 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
               onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.12)"; }}
             >
               QV
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowEnquiry(true); }}
+              style={{
+                fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
+                textTransform: "uppercase", color: "#0f0d0a",
+                background: `linear-gradient(135deg, ${GOLD}, #e8c97a)`,
+                border: "none", borderRadius: "4px",
+                padding: "8px 12px", cursor: "pointer", transition: "opacity 0.25s", whiteSpace: "nowrap", flex: 1,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+            >
+              Enquire
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); onView?.(v); }}
