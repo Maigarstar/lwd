@@ -22,7 +22,7 @@ export default function DestinationGrid({ onDestinationClick }) {
       style={{
         position: "relative",
         background: C.card,
-        padding: "100px 0 100px 60px",
+        padding: "100px 60px 100px",
         overflow: "hidden",
         borderTop: `1px solid ${C.border}`,
       }}
@@ -31,12 +31,10 @@ export default function DestinationGrid({ onDestinationClick }) {
       <div
         className="home-dest-header"
         style={{
-          maxWidth: 1320,
           marginBottom: 48,
           display: "flex",
           alignItems: "flex-end",
           justifyContent: "space-between",
-          paddingRight: 60,
         }}
       >
         <div>
@@ -163,7 +161,6 @@ export default function DestinationGrid({ onDestinationClick }) {
           gap: 20,
           overflowX: "auto",
           scrollSnapType: "x mandatory",
-          paddingRight: 60,
           paddingBottom: 8,
           scrollbarWidth: "none",
           msOverflowStyle: "none",
