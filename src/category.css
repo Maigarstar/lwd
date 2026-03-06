@@ -792,7 +792,7 @@ div[role="listbox"]::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3);
   .home-dest-card-img { height: 220px !important; }
 
   /* ── VenueGrid ── */
-  .home-venue-grid-section { padding: 0 20px 60px !important; }
+  .home-venue-grid-section { padding: 80px 0 100px !important; }
 
   /* ── FeaturedSlider homepage ── */
   .home-featured-slider { /* handled by existing .lwd-slider-* rules */ }
