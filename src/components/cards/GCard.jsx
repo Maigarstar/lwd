@@ -15,6 +15,8 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
   const [hovChat,   setHovChat]   = useState(false);
   const [loginGate, setLoginGate] = useState(false);
   const [muted,     setMuted]     = useState(true);
+  const [imgIndex,  setImgIndex]  = useState(0);
+  const imgCount = v.imgs?.length || 1;
 
   return (
     <>
@@ -66,8 +68,8 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
             </video>
           ) : (
             <img
-              src={v.imgs[0]}
-              alt={`${v.name} in ${v.region}`}
+              src={v.imgs[imgIndex]}
+              alt={`${v.name} in ${v.region} - image ${imgIndex + 1} of ${imgCount}`}
               loading="lazy"
               style={{
                 width:      "100%",
@@ -86,6 +88,99 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
               background: "linear-gradient(180deg,rgba(0,0,0,0.1) 0%,rgba(0,0,0,0.55) 100%)",
             }}
           />
+
+          {/* Image navigation arrows */}
+          {imgCount > 1 && (
+            <>
+              {/* Left arrow */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setImgIndex((i) => (i - 1 + imgCount) % imgCount); }}
+                aria-label="Previous image"
+                style={{
+                  position:   "absolute",
+                  left:       8,
+                  top:        "50%",
+                  transform:  "translateY(-50%)",
+                  width:      28,
+                  height:     28,
+                  borderRadius: "50%",
+                  background: "rgba(0,0,0,0.5)",
+                  border:     "1px solid rgba(255,255,255,0.3)",
+                  color:      "rgba(255,255,255,0.8)",
+                  cursor:     "pointer",
+                  fontSize:   14,
+                  display:    "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.2s",
+                  zIndex:     2,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(0,0,0,0.7)";
+                  e.currentTarget.style.color = "rgba(255,255,255,1)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgba(0,0,0,0.5)";
+                  e.currentTarget.style.color = "rgba(255,255,255,0.8)";
+                }}
+              >
+                ‹
+              </button>
+
+              {/* Right arrow */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setImgIndex((i) => (i + 1) % imgCount); }}
+                aria-label="Next image"
+                style={{
+                  position:   "absolute",
+                  right:      8,
+                  top:        "50%",
+                  transform:  "translateY(-50%)",
+                  width:      28,
+                  height:     28,
+                  borderRadius: "50%",
+                  background: "rgba(0,0,0,0.5)",
+                  border:     "1px solid rgba(255,255,255,0.3)",
+                  color:      "rgba(255,255,255,0.8)",
+                  cursor:     "pointer",
+                  fontSize:   14,
+                  display:    "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.2s",
+                  zIndex:     2,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(0,0,0,0.7)";
+                  e.currentTarget.style.color = "rgba(255,255,255,1)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgba(0,0,0,0.5)";
+                  e.currentTarget.style.color = "rgba(255,255,255,0.8)";
+                }}
+              >
+                ›
+              </button>
+
+              {/* Image counter */}
+              <div
+                style={{
+                  position:   "absolute",
+                  bottom:     8,
+                  right:      8,
+                  background: "rgba(0,0,0,0.5)",
+                  color:      "rgba(255,255,255,0.8)",
+                  padding:    "3px 8px",
+                  borderRadius: 12,
+                  fontSize:   10,
+                  fontFamily: "var(--font-body)",
+                  fontWeight: 500,
+                }}
+              >
+                {imgIndex + 1} / {imgCount}
+              </div>
+            </>
+          )}
 
           {v.tag && (
             <div style={{ position: "absolute", bottom: 12, left: 12 }}>
