@@ -48,14 +48,14 @@ export default function VendorPreview({ onViewVendor }) {
       style={{
         position: "relative",
         background: C.black,
-        padding: isMobile ? "80px 0 100px" : "110px 60px",
+        paddingTop: isMobile ? "80px" : "110px",
+        paddingBottom: isMobile ? "100px" : "100px",
         overflow: "hidden",
         borderTop: `1px solid ${C.border}`,
       }}
     >
-      <div style={{ maxWidth: 1320, margin: "0 auto", position: "relative" }}>
-        {/* Heading */}
-        <div style={{ marginBottom: 56, paddingLeft: isMobile ? "16px" : "0", paddingRight: isMobile ? "16px" : "0" }}>
+      {/* Heading */}
+      <div style={{ maxWidth: 1320, margin: "0 auto", position: "relative", paddingLeft: isMobile ? "16px" : "60px", paddingRight: isMobile ? "16px" : "60px", marginBottom: 56 }}>
           <div
             style={{
               display: "flex",
@@ -109,10 +109,10 @@ export default function VendorPreview({ onViewVendor }) {
             guest count, and region. Trusted by couples planning weddings
             across Europe and beyond.
           </p>
-        </div>
+      </div>
 
-        {/* Card slider */}
-        <div style={{ marginBottom: 48 }}>
+      {/* Card slider — full bleed */}
+      <div style={{ marginBottom: 48, paddingLeft: isMobile ? "0" : "60px", paddingRight: isMobile ? "0" : "60px" }}>
           {isMobile ? (
             /* Mobile: full width vertical scroll */
             <div
@@ -185,8 +185,8 @@ export default function VendorPreview({ onViewVendor }) {
           )}
         </div>
 
-        {/* CTA */}
-        <div style={{ textAlign: "center" }}>
+      {/* CTA */}
+      <div style={{ textAlign: "center", paddingLeft: isMobile ? "0" : "60px", paddingRight: isMobile ? "0" : "60px" }}>
           <button
             style={{
               background: "transparent",
@@ -215,7 +215,6 @@ export default function VendorPreview({ onViewVendor }) {
           >
             View All Vendors →
           </button>
-        </div>
       </div>
 
       {/* Quick View modal */}
