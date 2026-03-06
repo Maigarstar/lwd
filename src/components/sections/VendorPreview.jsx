@@ -112,7 +112,7 @@ export default function VendorPreview({ onViewVendor }) {
         </div>
 
         {/* Card slider */}
-        <div style={{ marginBottom: 48 }}>
+        <div style={{ marginBottom: 48, position: isMobile ? "static" : "relative" }}>
           {isMobile ? (
             /* Mobile: full width vertical scroll */
             <div
@@ -156,32 +156,64 @@ export default function VendorPreview({ onViewVendor }) {
               })}
             </div>
           ) : (
-            /* Desktop: horizontal carousel */
-            <SliderNav className="home-vendor-grid" cardWidth={360} gap={24}>
-              {featured.map((v) => {
-                const nv = normalise(v);
-                return (
-                  <div key={v.id} className="home-vendor-card" style={{ flex: "0 0 360px", scrollSnapAlign: "start" }}>
-                    <GCard
-                      v={nv}
-                      saved={isShortlisted(v.id)}
-                      onSave={() => {
-                        toggleItem({ id: v.id, name: v.name, type: v.cat });
-                        track("shortlist_add", { id: v.id });
-                      }}
-                      onView={() => {
-                        track("card_click", { id: v.id });
-                        onViewVendor?.(v);
-                      }}
-                      onQuickView={() => {
-                        track("card_quick_view", { id: v.id });
-                        setQuickViewItem(nv);
-                      }}
-                    />
-                  </div>
-                );
-              })}
-            </SliderNav>
+            <>
+              {/* Left gradient guide */}
+              <div
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: 120,
+                  background: `linear-gradient(to right, ${C.black} 0%, transparent 100%)`,
+                  pointerEvents: "none",
+                  zIndex: 2,
+                  opacity: 0.6,
+                }}
+              />
+
+              {/* Desktop: horizontal carousel */}
+              <SliderNav className="home-vendor-grid" cardWidth={360} gap={24}>
+                {featured.map((v) => {
+                  const nv = normalise(v);
+                  return (
+                    <div key={v.id} className="home-vendor-card" style={{ flex: "0 0 360px", scrollSnapAlign: "start" }}>
+                      <GCard
+                        v={nv}
+                        saved={isShortlisted(v.id)}
+                        onSave={() => {
+                          toggleItem({ id: v.id, name: v.name, type: v.cat });
+                          track("shortlist_add", { id: v.id });
+                        }}
+                        onView={() => {
+                          track("card_click", { id: v.id });
+                          onViewVendor?.(v);
+                        }}
+                        onQuickView={() => {
+                          track("card_quick_view", { id: v.id });
+                          setQuickViewItem(nv);
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+              </SliderNav>
+
+              {/* Right gradient guide */}
+              <div
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: 120,
+                  background: `linear-gradient(to left, ${C.black} 0%, transparent 100%)`,
+                  pointerEvents: "none",
+                  zIndex: 2,
+                  opacity: 0.6,
+                }}
+              />
+            </>
           )}
         </div>
 
