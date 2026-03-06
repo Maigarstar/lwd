@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import { ThemeCtx } from "../theme/ThemeContext";
 import { getDarkPalette, getLightPalette, getDefaultMode } from "../theme/tokens";
 import { useChat } from "../chat/ChatContext";
-import { usePublishedHomepageContent } from "../hooks/useHomepageContent";
+// TODO: Enable when Supabase is configured
+// import { usePublishedHomepageContent } from "../hooks/useHomepageContent";
 import { FEATURED_VENUES } from "../data/featuredVenues";
 
 import HomeNav from "../components/nav/HomeNav";
@@ -25,7 +26,8 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
 
   const C = darkMode ? getDarkPalette() : getLightPalette();
   const { setChatContext } = useChat();
-  const { content: homepageContent, loading: contentLoading } = usePublishedHomepageContent();
+  // TODO: Enable when Supabase is configured
+  // const { content: homepageContent, loading: contentLoading } = usePublishedHomepageContent();
 
   // Set chat context on mount
   useEffect(() => {
