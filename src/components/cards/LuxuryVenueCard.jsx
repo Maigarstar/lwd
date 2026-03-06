@@ -7,6 +7,7 @@ import { useTheme } from "../../theme/ThemeContext";
 import Stars from "../ui/Stars";
 import { GoldBadge, VerifiedBadge } from "../ui/Badges";
 import EnquiryFormModal from "../ui/EnquiryFormModal";
+import QuickViewModal from "../modals/QuickViewModal";
 
 const GOLD = "#C9A84C";
 const GD   = "var(--font-heading-primary)";
@@ -16,6 +17,7 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
   const C = useTheme();
   const [hov, setHov]               = useState(false);
   const [showEnquiry, setShowEnquiry] = useState(false);
+  const [quickViewItem, setQuickViewItem] = useState(null);
   const [slideIdx, setSlideIdx]      = useState(0);
   const [muted, setMuted]            = useState(true);
   const cardRef  = useRef(null);
@@ -385,7 +387,7 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
 
           <div style={{ display: "flex", gap: 6 }}>
             <button
-              onClick={(e) => { e.stopPropagation(); onView?.(v); }}
+              onClick={(e) => { e.stopPropagation(); setQuickViewItem(v); }}
               style={{
                 fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
                 textTransform: "uppercase", color: GOLD,
@@ -433,6 +435,18 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
       {/* ── Enquiry modal ── */}
       {showEnquiry && (
         <EnquiryFormModal planner={v} onClose={() => setShowEnquiry(false)} />
+      )}
+
+      {/* ── Quick View modal ── */}
+      {quickViewItem && (
+        <QuickViewModal
+          item={quickViewItem}
+          onClose={() => setQuickViewItem(null)}
+          onViewFull={() => {
+            setQuickViewItem(null);
+            onView?.(quickViewItem);
+          }}
+        />
       )}
     </article>
   );
