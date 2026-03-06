@@ -48,14 +48,14 @@ export default function VendorPreview({ onViewVendor }) {
       style={{
         position: "relative",
         background: C.black,
-        padding: isMobile ? "80px 16px 100px" : "110px 60px",
+        padding: isMobile ? "80px 16px 100px" : "100px 60px 100px",
         overflow: "hidden",
         borderTop: `1px solid ${C.border}`,
       }}
     >
       <div style={{ maxWidth: 1320, margin: "0 auto", position: "relative" }}>
         {/* Heading */}
-        <div style={{ marginBottom: 56, paddingLeft: 40 }}>
+        <div style={{ marginBottom: 56 }}>
           <div
             style={{
               display: "flex",
