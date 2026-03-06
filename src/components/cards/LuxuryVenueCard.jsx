@@ -402,13 +402,13 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
               onClick={(e) => { e.stopPropagation(); onView?.(v); }}
               style={{
                 fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
-                textTransform: "uppercase", color: "rgba(245,240,232,0.7)",
-                background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+                textTransform: "uppercase", color: GOLD,
+                background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.3)",
                 borderRadius: "4px", padding: "8px 10px",
                 cursor: "pointer", transition: "all 0.25s", whiteSpace: "nowrap", flex: 1, textAlign: "center",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.1)"; e.currentTarget.style.color = "rgba(245,240,232,0.9)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "rgba(245,240,232,0.7)"; }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.2)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.12)"; }}
             >
               QV
             </button>
