@@ -117,7 +117,7 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
       onClick={() => onView?.(v)}
       style={{
         position:        "relative",
-        borderRadius:    "var(--lwd-radius-card)",
+        borderRadius:    "8px",
         overflow:        "hidden",
         cursor:          "pointer",
         transition:      "all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
@@ -125,9 +125,9 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
         boxShadow:       hov ? "0 16px 48px rgba(0,0,0,0.25), 0 4px 12px rgba(201,168,76,0.08)" : "0 2px 12px rgba(0,0,0,0.1)",
         scrollSnapAlign: isMobile ? "start" : undefined,
         scrollMarginTop: isMobile ? 12 : undefined,
-        height:          isMobile ? "75vh" : 560,
-        minHeight:       isMobile ? 440 : 520,
-        maxHeight:       580,
+        height:          520,
+        minHeight:       520,
+        maxHeight:       520,
       }}
     >
       {/* ── Full-bleed swipeable media ── */}
@@ -390,8 +390,8 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
                 fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
                 textTransform: "uppercase", color: "#0f0d0a",
                 background: `linear-gradient(135deg, ${GOLD}, #e8c97a)`,
-                border: "none", borderRadius: "var(--lwd-radius-input)",
-                padding: "8px 14px", cursor: "pointer", transition: "opacity 0.25s", whiteSpace: "nowrap",
+                border: "none", borderRadius: "4px",
+                padding: "8px 12px", cursor: "pointer", transition: "opacity 0.25s", whiteSpace: "nowrap", flex: 1,
               }}
               onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
               onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
@@ -402,13 +402,29 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
               onClick={(e) => { e.stopPropagation(); onView?.(v); }}
               style={{
                 fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
+                textTransform: "uppercase", color: "rgba(245,240,232,0.7)",
+                background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+                borderRadius: "4px", padding: "8px 10px",
+                cursor: "pointer", transition: "all 0.25s", whiteSpace: "nowrap", flex: 1, textAlign: "center",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.1)"; e.currentTarget.style.color = "rgba(245,240,232,0.9)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "rgba(245,240,232,0.7)"; }}
+            >
+              QV
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onView?.(v); }}
+              style={{
+                fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
                 textTransform: "uppercase", color: GOLD,
                 background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.3)",
-                borderRadius: "var(--lwd-radius-input)", padding: "8px 14px",
-                cursor: "pointer", transition: "all 0.25s", whiteSpace: "nowrap",
+                borderRadius: "4px", padding: "8px 12px",
+                cursor: "pointer", transition: "all 0.25s", whiteSpace: "nowrap", flex: 1,
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.2)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.12)"; }}
             >
-              Profile ›
+              Profile
             </button>
           </div>
         </div>
