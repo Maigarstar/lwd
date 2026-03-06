@@ -295,7 +295,7 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
         onClick={(e) => e.stopPropagation()}
         style={{
           position: "absolute", bottom: 0, left: 0, right: 0,
-          zIndex: 2, padding: isMobile ? "20px 16px 16px" : "20px 18px 18px",
+          zIndex: 2, padding: isMobile ? "0 16px 16px" : "0 18px 18px",
         }}
       >
         {/* Name */}
