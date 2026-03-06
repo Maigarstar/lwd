@@ -92,22 +92,65 @@ export default function VenueGrid({ venues = [], onViewVenue }) {
           </p>
         </div>
 
-        {/* Card slider */}
+        {/* Card slider — horizontal on desktop, vertical on mobile */}
         <div style={{ marginBottom: 48 }}>
-          <SliderNav className="home-venue-grid" cardWidth={isMobile ? 300 : 400} gap={isMobile ? 12 : 24}>
-            {display.map((v) => (
-              <div key={v.id} className="home-venue-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 400px", scrollSnapAlign: "start" }}>
-                <LuxuryVenueCard
-                  v={v}
-                  isMobile={isMobile}
-                  onView={() => {
-                    track("venue_card_click", { id: v.id, name: v.name });
-                    onViewVenue?.(v);
+          {isMobile ? (
+            /* Mobile: vertical scroll, full width cards */
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+                overflowY: "auto",
+                maxHeight: "800px",
+              }}
+            >
+              {display.map((v) => (
+                <div
+                  key={v.id}
+                  className="home-venue-card-mobile"
+                  style={{
+                    flex: "0 0 520px",
+                    width: "100%",
+                    paddingLeft: "0",
+                    paddingRight: "0",
                   }}
-                />
-              </div>
-            ))}
-          </SliderNav>
+                >
+                  <LuxuryVenueCard
+                    v={v}
+                    isMobile={isMobile}
+                    onView={() => {
+                      track("venue_card_click", { id: v.id, name: v.name });
+                      onViewVenue?.(v);
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* Desktop: horizontal carousel */
+            <SliderNav className="home-venue-grid" cardWidth={360} gap={24}>
+              {display.map((v) => (
+                <div
+                  key={v.id}
+                  className="home-venue-card"
+                  style={{
+                    flex: "0 0 360px",
+                    scrollSnapAlign: "start",
+                  }}
+                >
+                  <LuxuryVenueCard
+                    v={v}
+                    isMobile={isMobile}
+                    onView={() => {
+                      track("venue_card_click", { id: v.id, name: v.name });
+                      onViewVenue?.(v);
+                    }}
+                  />
+                </div>
+              ))}
+            </SliderNav>
+          )}
         </div>
 
         {/* View all CTA */}
