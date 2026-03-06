@@ -1,10 +1,21 @@
 // ─── src/components/sections/CategorySlider.jsx ───────────────────────────────
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useTheme } from "../../theme/ThemeContext";
 import { track } from "../../utils/track";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
+
+function useIsMobile(bp = 768) {
+  const [mobile, setMobile] = useState(() => window.innerWidth <= bp);
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${bp}px)`);
+    const fn = (e) => setMobile(e.matches);
+    mql.addEventListener("change", fn);
+    return () => mql.removeEventListener("change", fn);
+  }, [bp]);
+  return mobile;
+}
 
 const CATEGORIES = [
   {
@@ -120,6 +131,7 @@ const CATEGORIES = [
 export default function CategorySlider() {
   const C = useTheme();
   const scrollRef = useRef(null);
+  const isMobile = useIsMobile();
 
   const scroll = (dir) => {
     scrollRef.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
@@ -132,7 +144,7 @@ export default function CategorySlider() {
       style={{
         position: "relative",
         background: C.card,
-        padding: "100px 60px 100px",
+        padding: isMobile ? "80px 16px 100px" : "100px 60px 100px",
         overflow: "hidden",
       }}
     >
@@ -208,8 +220,8 @@ export default function CategorySlider() {
           </p>
         </div>
 
-        {/* Scroll arrows */}
-        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+        {/* Scroll arrows — hidden on mobile */}
+        <div style={{ display: isMobile ? "none" : "flex", gap: 8, flexShrink: 0 }}>
           <button
             onClick={() => scroll(-1)}
             aria-label="Scroll left"
@@ -261,53 +273,145 @@ export default function CategorySlider() {
         </div>
       </div>
 
-        {/* Horizontal scroll track */}
-        <div
-          ref={scrollRef}
-          className="cat-scroll home-cat-scroll"
-          style={{
-            display: "flex",
-            gap: 20,
-            overflowX: "auto",
-            scrollSnapType: "x mandatory",
-            paddingBottom: 8,
-            scrollbarWidth: "none",
-            msOverflowStyle: "none",
-          }}
-        >
-        <style>{`
-          .cat-scroll::-webkit-scrollbar { display: none; }
-        `}</style>
-        {CATEGORIES.map((cat) => (
+        {/* Card grid — responsive layout */}
+        {isMobile ? (
+          /* Mobile: full-width grid */
           <div
-            key={cat.id}
-            role="button"
-            tabIndex={0}
-            aria-label={`Browse ${cat.label} — ${cat.count} listings`}
-            onClick={() => track("category_click", { category: cat.id })}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") track("category_click", { category: cat.id });
-            }}
-            className="home-cat-card"
             style={{
-              flexShrink: 0,
-              width: 220,
-              scrollSnapAlign: "start",
-              cursor: "pointer",
-            }}
-            onMouseEnter={(e) => {
-              const im = e.currentTarget.querySelector("img");
-              if (im) im.style.transform = "scale(1.05)";
-              const overlay = e.currentTarget.querySelector("[data-overlay]");
-              if (overlay) overlay.style.opacity = "1";
-            }}
-            onMouseLeave={(e) => {
-              const im = e.currentTarget.querySelector("img");
-              if (im) im.style.transform = "scale(1)";
-              const overlay = e.currentTarget.querySelector("[data-overlay]");
-              if (overlay) overlay.style.opacity = "0";
+              display: "grid",
+              gridTemplateColumns: "1fr",
+              gap: 20,
             }}
           >
+            <style>{`.cat-scroll::-webkit-scrollbar { display: none; }`}</style>
+            {CATEGORIES.map((cat) => (
+              <div
+                key={cat.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`Browse ${cat.label} — ${cat.count} listings`}
+                onClick={() => track("category_click", { category: cat.id })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") track("category_click", { category: cat.id });
+                }}
+                className="home-cat-card"
+                style={{
+                  cursor: "pointer",
+                }}
+                onMouseEnter={(e) => {
+                  const im = e.currentTarget.querySelector("img");
+                  if (im) im.style.transform = "scale(1.05)";
+                  const overlay = e.currentTarget.querySelector("[data-overlay]");
+                  if (overlay) overlay.style.opacity = "1";
+                }}
+                onMouseLeave={(e) => {
+                  const im = e.currentTarget.querySelector("img");
+                  if (im) im.style.transform = "scale(1)";
+                  const overlay = e.currentTarget.querySelector("[data-overlay]");
+                  if (overlay) overlay.style.opacity = "0";
+                }}
+              >
+                {/* Portrait image */}
+                <div
+                  className="home-cat-card-img"
+                  style={{
+                    width: "100%",
+                    height: 300,
+                    borderRadius: 8,
+                    overflow: "hidden",
+                    marginBottom: 14,
+                    position: "relative",
+                  }}
+                >
+                  <img
+                    src={cat.img}
+                    alt={cat.label}
+                    loading="lazy"
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      transition: "transform 0.6s ease",
+                    }}
+                  />
+                  {/* Hover gold border overlay */}
+                  <div
+                    data-overlay=""
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      borderRadius: 8,
+                      border: "2px solid rgba(201,168,76,0.6)",
+                      opacity: 0,
+                      transition: "opacity 0.3s ease",
+                      pointerEvents: "none",
+                    }}
+                  />
+                </div>
+
+                {/* Label */}
+                <div
+                  style={{
+                    fontFamily: NU,
+                    fontSize: 15,
+                    color: C.off,
+                    fontWeight: 600,
+                    marginBottom: 4,
+                  }}
+                >
+                  {cat.label}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* Desktop: horizontal scroll */
+          <div
+            ref={scrollRef}
+            className="cat-scroll home-cat-scroll"
+            style={{
+              display: "flex",
+              gap: 20,
+              overflowX: "auto",
+              scrollSnapType: "x mandatory",
+              paddingBottom: 8,
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
+            }}
+          >
+            <style>{`
+              .cat-scroll::-webkit-scrollbar { display: none; }
+            `}</style>
+            {CATEGORIES.map((cat) => (
+              <div
+                key={cat.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`Browse ${cat.label} — ${cat.count} listings`}
+                onClick={() => track("category_click", { category: cat.id })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") track("category_click", { category: cat.id });
+                }}
+                className="home-cat-card"
+                style={{
+                  flexShrink: 0,
+                  width: 220,
+                  scrollSnapAlign: "start",
+                  cursor: "pointer",
+                }}
+                onMouseEnter={(e) => {
+                  const im = e.currentTarget.querySelector("img");
+                  if (im) im.style.transform = "scale(1.05)";
+                  const overlay = e.currentTarget.querySelector("[data-overlay]");
+                  if (overlay) overlay.style.opacity = "1";
+                }}
+                onMouseLeave={(e) => {
+                  const im = e.currentTarget.querySelector("img");
+                  if (im) im.style.transform = "scale(1)";
+                  const overlay = e.currentTarget.querySelector("[data-overlay]");
+                  if (overlay) overlay.style.opacity = "0";
+                }}
+              >
             {/* Portrait image */}
             <div
               className="home-cat-card-img"
@@ -360,7 +464,8 @@ export default function CategorySlider() {
             </div>
           </div>
         ))}
-        </div>
+            </div>
+          )}
       </div>
     </section>
   );
