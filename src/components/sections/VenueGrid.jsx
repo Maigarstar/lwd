@@ -35,9 +35,9 @@ export default function VenueGrid({ venues = [], onViewVenue }) {
         overflow: "hidden",
       }}
     >
-      <div style={{ maxWidth: 1320, margin: "0 auto", padding: isMobile ? "0 16px" : "0" }}>
+      <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0" }}>
         {/* Heading — mirrors VendorPreview style */}
-        <div style={{ marginBottom: 48 }}>
+        <div style={{ marginBottom: 48, paddingLeft: isMobile ? "16px" : "0", paddingRight: isMobile ? "16px" : "0" }}>
           <div
             style={{
               display: "flex",
