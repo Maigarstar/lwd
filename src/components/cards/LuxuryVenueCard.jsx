@@ -111,6 +111,7 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
   }, [goNext]);
 
   return (
+    <>
     <article
       ref={cardRef}
       aria-label={v.name}
@@ -432,22 +433,24 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
         </div>
       </div>
 
-      {/* ── Enquiry modal ── */}
-      {showEnquiry && (
-        <EnquiryFormModal planner={v} onClose={() => setShowEnquiry(false)} />
-      )}
-
-      {/* ── Quick View modal ── */}
-      {quickViewItem && (
-        <QuickViewModal
-          item={quickViewItem}
-          onClose={() => setQuickViewItem(null)}
-          onViewFull={() => {
-            setQuickViewItem(null);
-            onView?.(quickViewItem);
-          }}
-        />
-      )}
     </article>
+
+    {/* ── Enquiry modal ── */}
+    {showEnquiry && (
+      <EnquiryFormModal planner={v} onClose={() => setShowEnquiry(false)} />
+    )}
+
+    {/* ── Quick View modal ── */}
+    {quickViewItem && (
+      <QuickViewModal
+        item={quickViewItem}
+        onClose={() => setQuickViewItem(null)}
+        onViewFull={() => {
+          setQuickViewItem(null);
+          onView?.(quickViewItem);
+        }}
+      />
+    )}
+    </>
   );
 }
