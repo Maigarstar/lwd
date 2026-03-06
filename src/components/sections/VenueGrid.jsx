@@ -1,11 +1,8 @@
 // ─── src/components/sections/VenueGrid.jsx ──────────────────────────────────
 import { useState, useEffect } from "react";
 import { useTheme } from "../../theme/ThemeContext";
-import { useShortlist } from "../../shortlist/ShortlistContext";
 import { track } from "../../utils/track";
-import GCard from "../cards/GCard";
-import GCardMobile from "../cards/GCardMobile";
-import QuickViewModal from "../modals/QuickViewModal";
+import LuxuryVenueCard from "../cards/LuxuryVenueCard";
 import SliderNav from "../ui/SliderNav";
 
 const GD = "var(--font-heading-primary)";
@@ -24,8 +21,6 @@ function useIsMobile(bp = 768) {
 
 export default function VenueGrid({ venues = [], onViewVenue }) {
   const C = useTheme();
-  const { isShortlisted, toggleItem } = useShortlist();
-  const [quickViewItem, setQuickViewItem] = useState(null);
   const isMobile = useIsMobile();
   const display = venues.slice(0, 12);
 
@@ -99,40 +94,17 @@ export default function VenueGrid({ venues = [], onViewVenue }) {
 
         {/* Card slider */}
         <div style={{ marginBottom: 48 }}>
-          <SliderNav className="home-venue-grid" cardWidth={isMobile ? 300 : 360} gap={isMobile ? 12 : 24}>
+          <SliderNav className="home-venue-grid" cardWidth={isMobile ? 300 : 400} gap={isMobile ? 12 : 24}>
             {display.map((v) => (
-              <div key={v.id} className="home-venue-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 360px", scrollSnapAlign: "start" }}>
-                {isMobile ? (
-                  <GCardMobile
-                    v={v}
-                    saved={isShortlisted(v.id)}
-                    onSave={() => {
-                      toggleItem({ id: v.id, name: v.name, type: "venues" });
-                      track("shortlist_add", { id: v.id, name: v.name });
-                    }}
-                    onView={() => {
-                      track("venue_card_click", { id: v.id, name: v.name });
-                      onViewVenue?.(v);
-                    }}
-                  />
-                ) : (
-                  <GCard
-                    v={v}
-                    saved={isShortlisted(v.id)}
-                    onSave={() => {
-                      toggleItem({ id: v.id, name: v.name, type: "venues" });
-                      track("shortlist_add", { id: v.id, name: v.name });
-                    }}
-                    onView={() => {
-                      track("venue_card_click", { id: v.id, name: v.name });
-                      onViewVenue?.(v);
-                    }}
-                    onQuickView={() => {
-                      track("venue_quick_view", { id: v.id, name: v.name });
-                      setQuickViewItem(v);
-                    }}
-                  />
-                )}
+              <div key={v.id} className="home-venue-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 400px", scrollSnapAlign: "start" }}>
+                <LuxuryVenueCard
+                  v={v}
+                  isMobile={isMobile}
+                  onView={() => {
+                    track("venue_card_click", { id: v.id, name: v.name });
+                    onViewVenue?.(v);
+                  }}
+                />
               </div>
             ))}
           </SliderNav>
@@ -171,17 +143,6 @@ export default function VenueGrid({ venues = [], onViewVenue }) {
         </div>
       </div>
 
-      {/* Quick View modal */}
-      {quickViewItem && (
-        <QuickViewModal
-          item={quickViewItem}
-          onClose={() => setQuickViewItem(null)}
-          onViewFull={() => {
-            setQuickViewItem(null);
-            onViewVenue?.(quickViewItem);
-          }}
-        />
-      )}
     </section>
   );
 }
