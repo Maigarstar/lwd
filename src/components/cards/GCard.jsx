@@ -123,6 +123,8 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
                   justifyContent: "center",
                   transition: "all 0.2s",
                   zIndex:     2,
+                  opacity:    hov ? 1 : 0,
+                  pointerEvents: hov ? "auto" : "none",
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = "rgba(0,0,0,0.7)";
@@ -158,6 +160,8 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
                   justifyContent: "center",
                   transition: "all 0.2s",
                   zIndex:     2,
+                  opacity:    hov ? 1 : 0,
+                  pointerEvents: hov ? "auto" : "none",
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = "rgba(0,0,0,0.7)";
@@ -184,6 +188,9 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
                   fontSize:   10,
                   fontFamily: "var(--font-body)",
                   fontWeight: 500,
+                  opacity:    hov ? 1 : 0,
+                  transition: "all 0.2s",
+                  pointerEvents: "none",
                 }}
               >
                 {imgIndex + 1} / {imgCount}
