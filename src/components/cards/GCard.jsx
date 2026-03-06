@@ -14,6 +14,7 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
   const [hovQV,     setHovQV]     = useState(false);
   const [hovChat,   setHovChat]   = useState(false);
   const [loginGate, setLoginGate] = useState(false);
+  const [muted,     setMuted]     = useState(true);
 
   return (
     <>
@@ -35,7 +36,7 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
             : "none",
         }}
       >
-        {/* ── Image ── */}
+        {/* ── Media (Video or Image) ── */}
         <div
           style={{
             height:     295,
@@ -44,18 +45,39 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
             background: "#0a0806",
           }}
         >
-          <img
-            src={v.imgs[0]}
-            alt={`${v.name} in ${v.region}`}
-            loading="lazy"
-            style={{
-              width:      "100%",
-              height:     "100%",
-              objectFit:  "cover",
-              transform:  hov ? "scale(1.03)" : "scale(1)",
-              transition: "transform 0.8s ease",
-            }}
-          />
+          {v.video ? (
+            <video
+              autoPlay
+              loop
+              muted={muted}
+              playsInline
+              style={{
+                width:      "100%",
+                height:     "100%",
+                objectFit:  "cover",
+                transform:  hov ? "scale(1.03)" : "scale(1)",
+                transition: "transform 0.8s ease",
+              }}
+            >
+              <source
+                src={`https://media.istockphoto.com/id/1173205143/video/cinematic-wedding-footage-of-couple-on-the-beach-and-in-a-luxury-hotel.mp4`}
+                type="video/mp4"
+              />
+            </video>
+          ) : (
+            <img
+              src={v.imgs[0]}
+              alt={`${v.name} in ${v.region}`}
+              loading="lazy"
+              style={{
+                width:      "100%",
+                height:     "100%",
+                objectFit:  "cover",
+                transform:  hov ? "scale(1.03)" : "scale(1)",
+                transition: "transform 0.8s ease",
+              }}
+            />
+          )}
           <div
             aria-hidden="true"
             style={{
@@ -107,6 +129,39 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
               {v.online ? "Online" : "Offline"}
             </span>
           </div>
+
+          {/* Mute button — show only if video */}
+          {v.video && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setMuted(!muted); }}
+              aria-label={muted ? "Unmute video" : "Mute video"}
+              style={{
+                position:   "absolute",
+                bottom:     10,
+                left:       10,
+                width:      30,
+                height:     30,
+                borderRadius: "50%",
+                background: "rgba(0,0,0,0.4)",
+                border:     "none",
+                color:      "rgba(255,255,255,0.8)",
+                cursor:     "pointer",
+                fontSize:   11,
+                display:    "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(0,0,0,0.6)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(0,0,0,0.4)";
+              }}
+            >
+              {muted ? "🔇" : "🔊"}
+            </button>
+          )}
 
           {/* Save button */}
           <button
