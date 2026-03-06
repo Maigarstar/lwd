@@ -31,11 +31,11 @@ export default function VenueGrid({ venues = [], onViewVenue }) {
       style={{
         position: "relative",
         background: C.black,
-        padding: "80px 60px 100px",
+        padding: isMobile ? "80px 0 100px" : "80px 60px 100px",
         overflow: "hidden",
       }}
     >
-      <div style={{ maxWidth: 1320, margin: "0 auto" }}>
+      <div style={{ maxWidth: 1320, margin: "0 auto", padding: isMobile ? "0 16px" : "0" }}>
         {/* Heading — mirrors VendorPreview style */}
         <div style={{ marginBottom: 48 }}>
           <div
