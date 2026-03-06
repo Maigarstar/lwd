@@ -12,6 +12,7 @@ import { ITALY_REGIONS } from "../data/italy/regions.js";
 import { ITALY_CITIES } from "../data/italy/cities.js";
 import { REGION_AUTO_THRESHOLD, evaluateRegionActivation } from "../engine/activation.js";
 import categoryCssRaw from "../category.css?raw";
+import HomepageEditor from "../components/admin/HomepageEditor";
 
 // ── Page Studio imports ──
 import AllPagesModule from "./PageStudio/AllPagesModule";
@@ -205,6 +206,7 @@ const NAV_SECTIONS = [
     group: "Platform",
     items: [
       { key: "overview",     label: "Overview",          icon: "◈" },
+      { key: "homepage",     label: "Homepage Editor",   icon: "◐" },
       { key: "listings",     label: "Listings",          icon: "⊞" },
       { key: "categories",   label: "Categories",        icon: "▦" },
       { key: "enquiries",    label: "Enquiries",         icon: "◇" },
@@ -6638,6 +6640,7 @@ export default function AdminDashboard({ onBack }) {
       case "blog-manager":        return <BlogManagerModule C={C} NU={NU} GD={GD} />;
       case "reusable-blocks":     return <ReusableBlocksModule C={C} NU={NU} GD={GD} />;
       case "overview":      return <OverviewModule C={C} />;
+      case "homepage":      return <HomepageEditor />;
       case "partnerships":  return <PartnershipsModule C={C} />;
       case "index":         return <IndexHealthModule C={C} />;
       case "livechat":      return <LiveChatModule C={C} />;
