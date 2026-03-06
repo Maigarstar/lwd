@@ -234,36 +234,38 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
             </span>
           </div>
 
-          {/* Mute button — show only if video */}
+          {/* Mute button — show only if video, top right */}
           {v.video && (
             <button
               onClick={(e) => { e.stopPropagation(); setMuted(!muted); }}
               aria-label={muted ? "Unmute video" : "Mute video"}
               style={{
                 position:   "absolute",
-                bottom:     10,
-                left:       10,
+                top:        10,
+                right:      45,
                 width:      30,
                 height:     30,
                 borderRadius: "50%",
-                background: "rgba(0,0,0,0.4)",
-                border:     "none",
-                color:      "rgba(255,255,255,0.8)",
+                background: "rgba(0,0,0,0.5)",
+                border:     "1px solid rgba(255,255,255,0.3)",
+                color:      "rgba(255,255,255,0.9)",
                 cursor:     "pointer",
-                fontSize:   11,
+                fontSize:   12,
+                fontWeight: 600,
                 display:    "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 transition: "all 0.2s",
+                fontFamily: "var(--font-body)",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(0,0,0,0.6)";
+                e.currentTarget.style.background = "rgba(0,0,0,0.7)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(0,0,0,0.4)";
+                e.currentTarget.style.background = "rgba(0,0,0,0.5)";
               }}
             >
-              {muted ? "🔇" : "🔊"}
+              {muted ? "♪" : "♫"}
             </button>
           )}
 
