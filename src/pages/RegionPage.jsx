@@ -14,6 +14,7 @@ import {
   VENDOR_CATEGORIES,
 } from "../data/geo.js";
 import { VENUES } from "../data/italyVenues";
+import { getRegionPageConfig } from "../services/regionPageConfig";
 
 import GCard from "../components/cards/GCard";
 import GCardMobile from "../components/cards/GCardMobile";
@@ -21,6 +22,8 @@ import QuickViewModal from "../components/modals/QuickViewModal";
 import SiteFooter from "../components/sections/SiteFooter";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import FeaturedSlider from "../components/sections/FeaturedSlider";
+import RegionHero from "../components/sections/RegionHero";
+import RegionFeatured from "../components/sections/RegionFeatured";
 import SliderNav from "../components/ui/SliderNav";
 import { useInView, CountUp, SplitText, revealStyle } from "../components/ui/Animations";
 import "../category.css";
@@ -67,6 +70,8 @@ export default function RegionPage({
   const [visibleCities, setVisibleCities] = useState(4);
   const [visibleRelated, setVisibleRelated] = useState(4);
   const [mapOpen, setMapOpen] = useState(false);
+  const [venueViewMode, setVenueViewMode] = useState("slider"); // slider, grid, list, map
+  const [currentPage, setCurrentPage] = useState(0);
   const isMobile = useIsMobile();
 
   const C = darkMode ? getDarkPalette() : getLightPalette();
@@ -74,6 +79,19 @@ export default function RegionPage({
   // ── Entity lookup ────────────────────────────────────────────────────────
   const region = useMemo(() => getRegionBySlug(regionSlug), [regionSlug]);
   const country = useMemo(() => getCountryBySlug(countrySlug), [countrySlug]);
+
+  // ── Premium Page Configuration (Phase 2.1) ──────────────────────────────────────
+  // Merge base region data with editable premium page config
+  const pageConfig = useMemo(
+    () => (region && regionSlug ? getRegionPageConfig(regionSlug) : null),
+    [regionSlug, region]
+  );
+
+  // Merged region data: base data + premium page config
+  const regionWithConfig = useMemo(
+    () => (region && pageConfig ? { ...region, pageConfig } : region),
+    [region, pageConfig]
+  );
 
   // Cities resolved from slug list
   const cities = useMemo(
@@ -134,6 +152,13 @@ export default function RegionPage({
     return () => clearTimeout(t);
   }, []);
 
+  // ── Initialize venue view mode from pageConfig ────────────────────────────
+  useEffect(() => {
+    if (pageConfig?.layout?.defaultViewMode) {
+      setVenueViewMode(pageConfig.layout.defaultViewMode || "slider");
+    }
+  }, [pageConfig?.layout?.defaultViewMode]);
+
   // ── Inject CSS vars for theme ────────────────────────────────────────────
   useEffect(() => {
     const root = document.documentElement;
@@ -161,7 +186,10 @@ export default function RegionPage({
           C={C}
         />
 
-        {/* ═══ HERO — 72vh ══════════════════════════════════════════════════ */}
+        {/* ═══ HERO SECTION ═════════════════════════════════════════════════ */}
+        {/* Use premium RegionHero if configured, otherwise default hero */}
+        {/* Use standard inline hero design for all regions */}
+        {(
         <section
           aria-label={`Weddings in ${region.name}`}
           style={{
@@ -277,14 +305,16 @@ export default function RegionPage({
                 </SplitText>
               ) : (
                 <>
-                  <SplitText trigger={loaded} delay={200} stagger={90}>
-                    Weddings in
-                  </SplitText>{" "}
-                  <em style={{ fontStyle: "italic", color: "rgba(201,168,76,0.95)" }}>
+                  <div>
+                    <SplitText trigger={loaded} delay={200} stagger={90}>
+                      Weddings in
+                    </SplitText>
+                  </div>
+                  <div style={{ fontStyle: "italic", color: "#C9A84C" }}>
                     <SplitText trigger={loaded} delay={400} stagger={90}>
                       {region.name}
                     </SplitText>
-                  </em>
+                  </div>
                 </>
               )}
             </h1>
@@ -383,6 +413,7 @@ export default function RegionPage({
             <div style={{ width: 1, height: 24, background: "rgba(255,255,255,0.4)" }} />
           </div>
         </section>
+        )}
 
         {/* ═══ TRUST SIGNAL STRIP — region-specific authority tags ═══════════ */}
         {region.trustSignals && region.trustSignals.length > 0 && (
@@ -422,8 +453,8 @@ export default function RegionPage({
           </div>
         )}
 
-        {/* ═══ INTRO EDITORIAL ═══════════════════════════════════════════════ */}
-        {region.introEditorial && (
+        {/* ═══ ABOUT SECTION (Configurable) ═══════════════════════════════════ */}
+        {(pageConfig?.about?.content || region.introEditorial) && (
           <section
             aria-label={`About weddings in ${region.name}`}
             className="lwd-region-intro"
@@ -454,7 +485,7 @@ export default function RegionPage({
                     fontWeight: 600,
                   }}
                 >
-                  About {region.name}
+                  {pageConfig?.about?.title || `About ${region.name}`}
                 </span>
                 <div style={{ width: 28, height: 1, background: C.gold }} />
               </div>
@@ -467,7 +498,7 @@ export default function RegionPage({
                   fontWeight: 300,
                 }}
               >
-                {region.introEditorial}
+                {pageConfig?.about?.content || region.introEditorial}
               </p>
             </div>
           </section>
@@ -537,26 +568,21 @@ export default function RegionPage({
         {/* ═══ FEATURED LISTINGS / COMING SOON ═══════════════════════════════ */}
         {regionVenues.length > 0 ? (
           <>
-            {/* Venue count strip */}
-            <div
-              className="lwd-region-count-strip"
-              style={{
-                background: C.dark,
-                padding: "20px 48px",
-                borderBottom: `1px solid ${C.border}`,
-                textAlign: "center",
-              }}
-            >
-              <span style={{ fontSize: 12, color: C.grey, fontFamily: NU }}>
-                <span style={{ color: C.gold, fontWeight: 700 }}>{regionVenues.length}</span>{" "}
-                curated venues in {region.name}
-              </span>
-            </div>
-
-            {/* Featured slider if we have featured venues */}
-            {featuredVenues.length > 0 && (
+            {/* Premium Featured Section (configurable) or default featured slider */}
+            {pageConfig?.featured?.enabled ? (
+              <RegionFeatured
+                config={pageConfig.featured}
+                region={region}
+                venues={regionVenues}
+                C={C}
+                isMobile={isMobile}
+                onViewVenue={onViewVenue}
+                savedIds={savedIds}
+                onToggleSave={toggleSave}
+              />
+            ) : featuredVenues.length > 0 ? (
               <FeaturedSlider venues={featuredVenues} />
-            )}
+            ) : null}
 
             {/* ═══ SMART MAP — collapsible, blends into page ═══════════════════ */}
             <section
