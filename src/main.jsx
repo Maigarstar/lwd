@@ -27,6 +27,9 @@ import VendorDashboard        from "./pages/VendorDashboard.jsx";
 import WeddingPlannersPage    from "./pages/WeddingPlannersPage.jsx";
 import PlannerProfilePage     from "./pages/PlannerProfilePage.jsx";
 import PugliaPage             from "./pages/PugliaPage.jsx";
+import ShortlistPage          from "./pages/ShortlistPage.jsx";
+import RealWeddingsPage       from "./pages/RealWeddingsPage.jsx";
+import RealWeddingDetailPage  from "./pages/RealWeddingDetailPage.jsx";
 import { VENDORS }            from "./data/vendors.js";
 
 // ── Design system colors and fonts ───────────────────────────────────────────
@@ -87,7 +90,7 @@ function pathToState(pathname) {
   const statics = {
     venue: "venue", category: "category", "the-lwd-standard": "standard",
     about: "about", contact: "contact", partnership: "partnership",
-    usa: "usa", italy: "italy", admin: "admin", vendor: "vendor", "real-weddings": "real-weddings",
+    usa: "usa", italy: "italy", admin: "admin", vendor: "vendor", "real-weddings": "real-weddings", shortlist: "shortlist",
   };
   const parts = clean.split("/");
   // Handle real-weddings special routes
@@ -214,6 +217,7 @@ function App() {
   const goPuglia      = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("puglia"); };
   const goRealWeddings = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("real-weddings"); };
   const goRealWeddingDetail = (weddingSlug) => { setActiveWeddingSlug(weddingSlug); setPage("real-wedding-detail"); };
+  const goShortlist = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("shortlist"); };
 
   // ── Centralized footer navigation (passed to every page for SiteFooter) ───
   const footerNav = {
@@ -322,6 +326,9 @@ function App() {
         )}
         {page === "real-wedding-detail" && (
           <RealWeddingDetailPage C={COLORS} NU={FONTS.normal} GD={FONTS.display} realWeddingSlug={activeWeddingSlug} onNavigate={(type, data) => { if (type === "venue-directory") goVenue(); }} />
+        )}
+        {page === "shortlist" && (
+          <ShortlistPage onBack={goHome} />
         )}
         {page === "home" && (
           <HomePage onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} onViewStandard={goStandard} onViewAbout={goAbout} onViewContact={goContact} onViewPartnership={goPartnership} onViewVendor={goVendor} onViewAdmin={goAdmin} onViewUSA={goUSA} onViewItaly={goItaly} footerNav={footerNav} />

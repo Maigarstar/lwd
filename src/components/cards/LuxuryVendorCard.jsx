@@ -4,9 +4,12 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useTheme } from "../../theme/ThemeContext";
+import { useShortlist } from "../../shortlist/ShortlistContext";
 import Stars from "../ui/Stars";
 import { GoldBadge, VerifiedBadge } from "../ui/Badges";
 import EnquiryFormModal from "../ui/EnquiryFormModal";
+import ShortlistButton from "../buttons/ShortlistButton";
+import { track } from "../../utils/track";
 
 const GOLD = "#C9A84C";
 const GD   = "var(--font-heading-primary)";
@@ -14,6 +17,7 @@ const NU   = "var(--font-body)";
 
 export default function LuxuryVendorCard({ v, onView, isMobile, onSave, saved, onQuickView, quickViewItem, setQuickViewItem }) {
   const C = useTheme();
+  const { isShortlisted, toggleItem } = useShortlist();
   const [hov, setHov] = useState(false);
   const [slideIdx, setSlideIdx] = useState(0);
   const [muted, setMuted] = useState(true);
@@ -463,7 +467,17 @@ export default function LuxuryVendorCard({ v, onView, isMobile, onSave, saved, o
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
+          <div style={{ display: "flex", gap: 6, marginLeft: "auto", alignItems: "center" }}>
+            <ShortlistButton
+              item={{ id: v.id, name: v.name, image: v.imgs?.[0], category: v.cat, price: v.priceFrom, type: "vendor" }}
+              isShortlisted={isShortlisted(v.id)}
+              onToggle={(itemId, newState) => {
+                track(newState ? "shortlist_add" : "shortlist_remove", { itemId, itemName: v.name });
+                toggleItem({ id: itemId, name: v.name, image: v.imgs?.[0], category: v.cat, price: v.priceFrom, type: "vendor" });
+              }}
+              variant="icon"
+              size="medium"
+            />
             <button
               onClick={(e) => { e.stopPropagation(); setQuickViewItem(v); onQuickView?.(); }}
               style={{
