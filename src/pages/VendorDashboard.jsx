@@ -1287,6 +1287,11 @@ export default function VendorDashboard({ onBack }) {
             </div>
           )}
 
+          {/* INQUIRIES */}
+          {dashTab === "inquiries" && (
+            <VendorInquiryManager vendorId={vendor.id} />
+          )}
+
           {/* LIVE CONVERSATIONS — Client Intelligence System */}
           {dashTab === "livechat" && (
             <div>
