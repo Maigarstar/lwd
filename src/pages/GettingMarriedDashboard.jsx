@@ -6,12 +6,13 @@ import { useTheme } from "../theme/ThemeContext";
 import { useShortlist } from "../shortlist/ShortlistContext";
 import { GLOBAL_VENDORS } from "../data/globalVendors";
 import ShortlistButton from "../components/buttons/ShortlistButton";
+import SiteFooter from "../components/sections/SiteFooter";
 import { track } from "../utils/track";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
 
-export default function GettingMarriedDashboard({ onBack }) {
+export default function GettingMarriedDashboard({ onBack, footerNav }) {
   const C = useTheme();
   const { items: shortlistItems, toggleItem, isShortlisted } = useShortlist();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -590,6 +591,9 @@ export default function GettingMarriedDashboard({ onBack }) {
           </button>
         </div>
       </main>
+
+      {/* Footer */}
+      {footerNav && <SiteFooter {...footerNav} />}
     </div>
   );
 }

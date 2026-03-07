@@ -335,7 +335,7 @@ function App() {
           <ShortlistPage onBack={goHome} />
         )}
         {page === "getting-married" && (
-          <GettingMarriedDashboard onBack={goHome} />
+          <GettingMarriedDashboard onBack={goHome} footerNav={footerNav} />
         )}
         {page === "home" && (
           <HomePage onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} onViewStandard={goStandard} onViewAbout={goAbout} onViewContact={goContact} onViewPartnership={goPartnership} onViewVendor={goVendor} onViewAdmin={goAdmin} onViewUSA={goUSA} onViewItaly={goItaly} footerNav={footerNav} />
