@@ -13,6 +13,7 @@ import { ITALY_CITIES } from "../data/italy/cities.js";
 import { REGION_AUTO_THRESHOLD, evaluateRegionActivation } from "../engine/activation.js";
 import { fetchListings, isSupabaseAvailable } from "../services/listings";
 import categoryCssRaw from "../category.css?raw";
+import { RegionsModule } from "./admin/RegionsModule";
 
 // Font tokens — resolved via CSS custom properties set on admin root
 const GD = "var(--font-heading-primary)";
@@ -194,6 +195,7 @@ const NAV_SECTIONS = [
       { key: "enquiries",    label: "Enquiries",         icon: "◇" },
       { key: "partnerships", label: "Partnerships",      icon: "✦" },
       { key: "countries",    label: "Countries",         icon: "◎" },
+      { key: "regions",      label: "Regions",           icon: "◇" },
       { key: "index",        label: "Index Health",      icon: "▧" },
     ],
   },
@@ -6770,6 +6772,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "categories":    return <CategoriesModule C={C} />;
       case "enquiries":     return <PlaceholderModule title="Enquiry Pipeline" C={C} />;
       case "countries":     return <CountriesModule C={C} />;
+      case "regions":       return <RegionsModule C={C} />;
       case "marketing":     return <PlaceholderModule title="Marketing Intelligence" C={C} />;
       case "seo":           return <PlaceholderModule title="SEO Command Centre" C={C} />;
       case "crm":           return <PlaceholderModule title="CRM & Lead Management" C={C} />;
