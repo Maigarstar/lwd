@@ -231,6 +231,7 @@ function App() {
     onNavigateAbout: goAbout,
     onNavigateStandard: goStandard,
     onViewCategory: goCategory,
+    onNavigateGettingMarried: goGettingMarried,
   };
 
   return (
