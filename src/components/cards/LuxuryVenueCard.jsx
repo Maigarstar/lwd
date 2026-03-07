@@ -387,6 +387,18 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
 
           <div style={{ display: "flex", gap: 6 }}>
             <button
+              onClick={(e) => { e.stopPropagation(); setQuickViewItem(v); }}
+              style={{
+                fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
+                textTransform: "uppercase", color: GOLD,
+                background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.3)",
+                borderRadius: "var(--lwd-radius-input)", padding: "8px 12px",
+                cursor: "pointer", transition: "all 0.25s", whiteSpace: "nowrap",
+              }}
+            >
+              QV
+            </button>
+            <button
               onClick={(e) => { e.stopPropagation(); setShowEnquiry(true); }}
               style={{
                 fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
@@ -399,20 +411,6 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
               onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
             >
               Enquire
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); setQuickViewItem(v); }}
-              style={{
-                fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
-                textTransform: "uppercase", color: "#0f0d0a",
-                background: GOLD,
-                border: "none", borderRadius: "var(--lwd-radius-input)",
-                padding: "8px 12px", cursor: "pointer", transition: "opacity 0.25s", whiteSpace: "nowrap",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-            >
-              QV
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); onView?.(v); }}
