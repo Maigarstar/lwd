@@ -39,6 +39,9 @@ export default function VenueGrid({ venues = [], onViewVenue }) {
           scrollSnapType: "y mandatory",
           display: "flex",
           flexDirection: "column",
+          margin: 0,
+          padding: 0,
+          gap: 0,
         }}
       >
         {display.map((v) => (
@@ -47,10 +50,12 @@ export default function VenueGrid({ venues = [], onViewVenue }) {
             className="home-venue-card"
             style={{
               width: "100vw",
-              flex: "0 0 100vh",
+              flex: "0 0 calc(100dvh - 10px)",
               scrollSnapAlign: "start",
               scrollMarginTop: 0,
               borderRadius: 0,
+              margin: 0,
+              padding: 0,
             }}
           >
             <LuxuryVenueCard

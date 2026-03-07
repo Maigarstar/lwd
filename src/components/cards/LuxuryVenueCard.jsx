@@ -127,9 +127,10 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
         boxShadow:       hov && !isMobile ? "0 16px 48px rgba(0,0,0,0.25), 0 4px 12px rgba(201,168,76,0.08)" : "0 2px 12px rgba(0,0,0,0.1)",
         scrollSnapAlign: "start",
         scrollMarginTop: 0,
-        height:          isMobile ? "100vh" : 560,
-        minHeight:       isMobile ? "100vh" : 520,
-        maxHeight:       isMobile ? "100vh" : 580,
+        margin:          isMobile ? 0 : undefined,
+        height:          isMobile ? "calc(100dvh - 10px)" : 560,
+        minHeight:       isMobile ? "calc(100dvh - 10px)" : 520,
+        maxHeight:       isMobile ? "calc(100dvh - 10px)" : 580,
       }}
     >
       {/* ── Full-bleed swipeable media ── */}
