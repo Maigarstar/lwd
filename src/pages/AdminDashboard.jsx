@@ -6618,6 +6618,33 @@ export default function AdminDashboard({ onBack }) {
     if (data.pageId) setSelectedPageId(data.pageId);
   };
 
+  // Handle Edit Page from Listings - maps listing to page or creates one
+  const handleListingEditPage = (listingData) => {
+    const { id, name, slug, category } = listingData;
+
+    // Map listing category to page type
+    const categoryMap = {
+      "wedding-venues": "venue_profile",
+      "wedding-planners": "planner_profile",
+      "photographers": "photographer_profile",
+      "videographers": "videographer_profile",
+      "florists": "florist_profile",
+      "bridal": "bridal_profile",
+      "rentals": "rentals_profile"
+    };
+
+    const pageType = categoryMap[category] || "vendor_profile";
+
+    // Look up existing page or use listing slug
+    const pageSlug = `page_${id}_${slug}`;
+
+    // For now, create a synthetic pageId based on listing
+    const syntheticPageId = `listing_${id}`;
+
+    setSelectedPageId(syntheticPageId);
+    setPageStudioScreen("page-editor");
+  };
+
   const renderPageStudioModule = () => {
     switch (pageStudioScreen) {
       case "all-pages":
@@ -6644,7 +6671,8 @@ export default function AdminDashboard({ onBack }) {
       case "listings":      return <ListingsModule C={C} NU={NU} GD={GD} onNavigate={(action, data) => {
         if (action === "edit-page") {
           // Navigate to Page Studio editor for the listing's page
-          handlePageStudioNavigate(action, data);
+          setActiveTab("page-studio");
+          handleListingEditPage(data);
         }
       }} />;
       case "categories":    return <CategoriesModule C={C} />;
