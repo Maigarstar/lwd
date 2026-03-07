@@ -142,8 +142,8 @@ const ITALY_REGIONS_MAPPED = ITALY_REGIONS.filter(r => !r.isLegacy).map(r => ({
   group: "Italy",
   priorityLevel: r.priorityLevel,
   listingCount: r.listingCount,
-  heroTitle: `Weddings in ${r.name}`,
-  heroSubtitle: null,
+  heroTitle: r.heroSubtitle ? null : `Weddings in ${r.name}`,
+  heroSubtitle: r.heroSubtitle || null,
   heroImg: null,
   introEditorial: r.description,
   categoryShortcuts: VENDOR_CATEGORIES.map(vc => ({
