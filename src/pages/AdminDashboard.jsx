@@ -12,6 +12,7 @@ import { ITALY_REGIONS } from "../data/italy/regions.js";
 import { ITALY_CITIES } from "../data/italy/cities.js";
 import { REGION_AUTO_THRESHOLD, evaluateRegionActivation } from "../engine/activation.js";
 import categoryCssRaw from "../category.css?raw";
+import HomepageEditor from "../components/admin/HomepageEditor";
 
 // ── Page Studio imports ──
 import AllPagesModule from "./PageStudio/AllPagesModule";
@@ -20,6 +21,9 @@ import PageEditorModule from "./PageStudio/PageEditorModule";
 import HomepageManagerModule from "./PageStudio/HomepageManagerModule";
 import BlogManagerModule from "./PageStudio/BlogManagerModule";
 import ReusableBlocksModule from "./PageStudio/ReusableBlocksModule";
+
+// ── Admin modules ──
+import VendorManagementModule from "./admin/VendorManagementModule";
 
 // Font tokens — resolved via CSS custom properties set on admin root
 const GD = "var(--font-heading-primary)";
@@ -205,7 +209,9 @@ const NAV_SECTIONS = [
     group: "Platform",
     items: [
       { key: "overview",     label: "Overview",          icon: "◈" },
+      { key: "homepage",     label: "Homepage Editor",   icon: "◐" },
       { key: "listings",     label: "Listings",          icon: "⊞" },
+      { key: "vendors",      label: "Vendors",           icon: "⊙" },
       { key: "categories",   label: "Categories",        icon: "▦" },
       { key: "enquiries",    label: "Enquiries",         icon: "◇" },
       { key: "partnerships", label: "Partnerships",      icon: "✦" },
@@ -6665,6 +6671,7 @@ export default function AdminDashboard({ onBack }) {
       case "blog-manager":        return <BlogManagerModule C={C} NU={NU} GD={GD} />;
       case "reusable-blocks":     return <ReusableBlocksModule C={C} NU={NU} GD={GD} />;
       case "overview":      return <OverviewModule C={C} />;
+      case "homepage":      return <HomepageEditor />;
       case "partnerships":  return <PartnershipsModule C={C} />;
       case "index":         return <IndexHealthModule C={C} />;
       case "livechat":      return <LiveChatModule C={C} />;
@@ -6675,6 +6682,7 @@ export default function AdminDashboard({ onBack }) {
           handleListingEditPage(data);
         }
       }} />;
+      case "vendors":       return <VendorManagementModule C={C} fonts={{ heading: GD, body: NU }} />;
       case "categories":    return <CategoriesModule C={C} />;
       case "enquiries":     return <PlaceholderModule title="Enquiry Pipeline" C={C} />;
       case "countries":     return <CountriesModule C={C} />;
