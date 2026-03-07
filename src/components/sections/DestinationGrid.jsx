@@ -100,19 +100,79 @@ export default function DestinationGrid({ onDestinationClick }) {
             the modern couple with an eye for elegance.
           </p>
         </div>
+
+        {/* Scroll arrows */}
+        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+          <button
+            onClick={() => scroll(-1)}
+            aria-label="Scroll left"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: "var(--lwd-radius-image)",
+              border: `1px solid ${C.border}`,
+              background: "transparent",
+              color: C.off,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 18,
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = C.gold;
+              e.currentTarget.style.color = C.gold;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = C.border;
+              e.currentTarget.style.color = C.off;
+            }}
+          >
+            ‹
+          </button>
+          <button
+            onClick={() => scroll(1)}
+            aria-label="Scroll right"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: "var(--lwd-radius-image)",
+              border: `1px solid ${C.gold}`,
+              background: C.gold,
+              color: C.black,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 18,
+              transition: "all 0.2s",
+            }}
+          >
+            ›
+          </button>
+        </div>
       </div>
 
-      {/* Grid layout for destinations */}
+      {/* Horizontal scroll track */}
       <div
+        ref={scrollRef}
         className="home-dest-scroll"
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(5, 1fr)",
-          gap: 32,
+          display: "flex",
+          gap: 20,
+          overflowX: "auto",
+          scrollSnapType: "x mandatory",
           paddingRight: 60,
+          paddingBottom: 8,
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
         }}
       >
-        {DESTINATIONS.slice(0, 5).map((d) => (
+        <style>{`
+          .dest-scroll::-webkit-scrollbar { display: none; }
+        `}</style>
+        {DESTINATIONS.map((d) => (
           <div
             key={d.name}
             role="button"
@@ -130,6 +190,9 @@ export default function DestinationGrid({ onDestinationClick }) {
             }}
             className="home-dest-card"
             style={{
+              flexShrink: 0,
+              width: 232,
+              scrollSnapAlign: "start",
               cursor: "pointer",
             }}
             onMouseEnter={(e) => {
