@@ -24,6 +24,7 @@ import ReusableBlocksModule from "./PageStudio/ReusableBlocksModule";
 
 // ── Admin modules ──
 import VendorManagementModule from "./admin/VendorManagementModule";
+import { RegionsModule } from "./admin/RegionsModule";
 
 // Font tokens — resolved via CSS custom properties set on admin root
 const GD = "var(--font-heading-primary)";
@@ -212,6 +213,7 @@ const NAV_SECTIONS = [
       { key: "homepage",     label: "Homepage Editor",   icon: "◐" },
       { key: "listings",     label: "Listings",          icon: "⊞" },
       { key: "vendors",      label: "Vendors",           icon: "⊙" },
+      { key: "regions",      label: "Regions",           icon: "◉" },
       { key: "categories",   label: "Categories",        icon: "▦" },
       { key: "enquiries",    label: "Enquiries",         icon: "◇" },
       { key: "partnerships", label: "Partnerships",      icon: "✦" },
@@ -6699,6 +6701,7 @@ export default function AdminDashboard({ onBack }) {
         }
       }} />;
       case "vendors":       return <VendorManagementModule C={C} fonts={{ heading: GD, body: NU }} />;
+      case "regions":       return <RegionsModule C={C} />;
       case "categories":    return <CategoriesModule C={C} />;
       case "enquiries":     return <PlaceholderModule title="Enquiry Pipeline" C={C} />;
       case "countries":     return <CountriesModule C={C} />;

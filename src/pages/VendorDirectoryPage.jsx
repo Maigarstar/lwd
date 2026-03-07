@@ -1,6 +1,7 @@
 /**
- * Public Vendor Directory - Main discovery page for couples
- * Features: Search, filters, vendor cards, map view, shortlist, quick view
+ * Vendor Directory Page - Premium Marketplace
+ * Combines editorial storytelling with marketplace functionality
+ * Features: Featured showcase, real weddings, map view, advanced filters, vendor tabs
  */
 
 import { useState, useEffect } from "react";
@@ -14,7 +15,11 @@ const VendorDirectoryPage = ({
   onViewRegion,
   onViewCategory,
   categorySlug = null,
-  footerNav = {}
+  footerNav = {},
+  C, // Design system colors
+  NU, // Body font
+  GD, // Heading font
+  onNavigate // Navigation callback
 }) => {
   // ─────────────────────────────────────────────────────────────────────
   // STATE
@@ -24,6 +29,7 @@ const VendorDirectoryPage = ({
   const [filteredVendors, setFilteredVendors] = useState([]);
   const [viewMode, setViewMode] = useState("grid"); // grid, map, list
   const [sortBy, setSortBy] = useState("curated"); // curated, popular, rated, price-low, price-high
+  const [vendorType, setVendorType] = useState("venues"); // venues, vendors
 
   // Filters
   const [filters, setFilters] = useState({
@@ -40,6 +46,7 @@ const VendorDirectoryPage = ({
   const [showQuickView, setShowQuickView] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [isSticky, setIsSticky] = useState(false);
 
   // ─────────────────────────────────────────────────────────────────────
   // LOAD VENDORS
