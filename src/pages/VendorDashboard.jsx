@@ -8,6 +8,7 @@ import { MField, Btn } from "../components/ui/FormHelpers";
 import { GLOBAL_VENDORS } from "../data/globalVendors";
 import CuratedIndexBadge from "../components/ui/CuratedIndexBadge";
 import { computeCuratedIndex, FACTOR_LABELS } from "../engine/index.js";
+import VendorInquiryManager from "../components/VendorInquiryManager.jsx";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -1028,6 +1029,7 @@ export default function VendorDashboard({ onBack }) {
           <div style={{ paddingTop: 8 }}>
             <DTab id="overview" icon="◈" label="Overview" />
             <DTab id="leads" icon="◇" label="Lead Inbox" />
+            <DTab id="inquiries" icon="✉" label="Inquiries" />
             <DTab id="livechat" icon="◉" label="Live Conversations" />
             <DTab id="analytics" icon="◎" label="Analytics" />
             <DTab id="ai" icon="✧" label="AI Insights" />
@@ -1285,6 +1287,11 @@ export default function VendorDashboard({ onBack }) {
                 <LeadRow key={l.id} lead={l} expanded />
               ))}
             </div>
+          )}
+
+          {/* INQUIRIES */}
+          {dashTab === "inquiries" && (
+            <VendorInquiryManager />
           )}
 
           {/* LIVE CONVERSATIONS — Client Intelligence System */}

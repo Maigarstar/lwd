@@ -132,22 +132,22 @@ export default function CategorySlider() {
       style={{
         position: "relative",
         background: C.card,
-        padding: "100px 0 100px 60px",
+        padding: "100px 60px 100px",
         overflow: "hidden",
       }}
     >
-      {/* Header row */}
-      <div
-        className="home-cat-header"
-        style={{
-          maxWidth: 1320,
-          marginBottom: 48,
-          display: "flex",
-          alignItems: "flex-end",
-          justifyContent: "space-between",
-          paddingRight: 60,
-        }}
-      >
+      {/* Container wrapper */}
+      <div style={{ maxWidth: 1320, margin: "0 auto", position: "relative" }}>
+        {/* Header row */}
+        <div
+          className="home-cat-header"
+          style={{
+            marginBottom: 48,
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+          }}
+        >
         <div>
           <div
             style={{
@@ -261,21 +261,20 @@ export default function CategorySlider() {
         </div>
       </div>
 
-      {/* Horizontal scroll track */}
-      <div
-        ref={scrollRef}
-        className="cat-scroll home-cat-scroll"
-        style={{
-          display: "flex",
-          gap: 20,
-          overflowX: "auto",
-          scrollSnapType: "x mandatory",
-          paddingRight: 60,
-          paddingBottom: 8,
-          scrollbarWidth: "none",
-          msOverflowStyle: "none",
-        }}
-      >
+        {/* Horizontal scroll track */}
+        <div
+          ref={scrollRef}
+          className="cat-scroll home-cat-scroll"
+          style={{
+            display: "flex",
+            gap: 20,
+            overflowX: "auto",
+            scrollSnapType: "x mandatory",
+            paddingBottom: 8,
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+          }}
+        >
         <style>{`
           .cat-scroll::-webkit-scrollbar { display: none; }
         `}</style>
@@ -361,6 +360,7 @@ export default function CategorySlider() {
             </div>
           </div>
         ))}
+        </div>
       </div>
     </section>
   );

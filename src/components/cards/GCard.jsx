@@ -14,9 +14,18 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
   const [hovQV,     setHovQV]     = useState(false);
   const [hovChat,   setHovChat]   = useState(false);
   const [loginGate, setLoginGate] = useState(false);
+  const [muted,     setMuted]     = useState(true);
+  const [imgIndex,  setImgIndex]  = useState(0);
+  const imgCount = v.imgs?.length || 1;
 
   return (
     <>
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+      `}</style>
       <article
         aria-label={v.name}
         onMouseEnter={() => setHov(true)}
@@ -35,7 +44,7 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
             : "none",
         }}
       >
-        {/* ── Image ── */}
+        {/* ── Media (Video or Image) ── */}
         <div
           style={{
             height:     295,
@@ -44,18 +53,42 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
             background: "#0a0806",
           }}
         >
-          <img
-            src={v.imgs[0]}
-            alt={`${v.name} in ${v.region}`}
-            loading="lazy"
-            style={{
-              width:      "100%",
-              height:     "100%",
-              objectFit:  "cover",
-              transform:  hov ? "scale(1.03)" : "scale(1)",
-              transition: "transform 0.8s ease",
-            }}
-          />
+          {v.video ? (
+            <video
+              autoPlay
+              loop
+              muted={muted}
+              playsInline
+              style={{
+                width:      "100%",
+                height:     "100%",
+                objectFit:  "cover",
+                transform:  hov ? "scale(1.03)" : "scale(1)",
+                transition: "transform 0.8s ease",
+              }}
+            >
+              <source
+                src={`https://media.istockphoto.com/id/1173205143/video/cinematic-wedding-footage-of-couple-on-the-beach-and-in-a-luxury-hotel.mp4`}
+                type="video/mp4"
+              />
+            </video>
+          ) : (
+            <img
+              key={`img-${imgIndex}`}
+              src={v.imgs[imgIndex]}
+              alt={`${v.name} in ${v.region} - image ${imgIndex + 1} of ${imgCount}`}
+              loading="lazy"
+              style={{
+                width:      "100%",
+                height:     "100%",
+                objectFit:  "cover",
+                transform:  hov ? "scale(1.03)" : "scale(1)",
+                transition: "opacity 0.5s ease-in-out, transform 0.8s ease",
+                opacity:    1,
+                animation:  "fadeIn 0.5s ease-in-out",
+              }}
+            />
+          )}
           <div
             aria-hidden="true"
             style={{
@@ -64,6 +97,106 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
               background: "linear-gradient(180deg,rgba(0,0,0,0.1) 0%,rgba(0,0,0,0.55) 100%)",
             }}
           />
+
+          {/* Image navigation arrows */}
+          {imgCount > 1 && (
+            <>
+              {/* Left arrow */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setImgIndex((i) => (i - 1 + imgCount) % imgCount); }}
+                aria-label="Previous image"
+                style={{
+                  position:   "absolute",
+                  left:       8,
+                  top:        "50%",
+                  transform:  "translateY(-50%)",
+                  width:      28,
+                  height:     28,
+                  borderRadius: "50%",
+                  background: "rgba(0,0,0,0.5)",
+                  border:     "1px solid rgba(255,255,255,0.3)",
+                  color:      "rgba(255,255,255,0.8)",
+                  cursor:     "pointer",
+                  fontSize:   14,
+                  display:    "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.2s",
+                  zIndex:     2,
+                  opacity:    hov ? 1 : 0,
+                  pointerEvents: hov ? "auto" : "none",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(0,0,0,0.7)";
+                  e.currentTarget.style.color = "rgba(255,255,255,1)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgba(0,0,0,0.5)";
+                  e.currentTarget.style.color = "rgba(255,255,255,0.8)";
+                }}
+              >
+                ‹
+              </button>
+
+              {/* Right arrow */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setImgIndex((i) => (i + 1) % imgCount); }}
+                aria-label="Next image"
+                style={{
+                  position:   "absolute",
+                  right:      8,
+                  top:        "50%",
+                  transform:  "translateY(-50%)",
+                  width:      28,
+                  height:     28,
+                  borderRadius: "50%",
+                  background: "rgba(0,0,0,0.5)",
+                  border:     "1px solid rgba(255,255,255,0.3)",
+                  color:      "rgba(255,255,255,0.8)",
+                  cursor:     "pointer",
+                  fontSize:   14,
+                  display:    "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.2s",
+                  zIndex:     2,
+                  opacity:    hov ? 1 : 0,
+                  pointerEvents: hov ? "auto" : "none",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(0,0,0,0.7)";
+                  e.currentTarget.style.color = "rgba(255,255,255,1)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgba(0,0,0,0.5)";
+                  e.currentTarget.style.color = "rgba(255,255,255,0.8)";
+                }}
+              >
+                ›
+              </button>
+
+              {/* Image counter */}
+              <div
+                style={{
+                  position:   "absolute",
+                  bottom:     8,
+                  right:      8,
+                  background: "rgba(0,0,0,0.5)",
+                  color:      "rgba(255,255,255,0.8)",
+                  padding:    "3px 8px",
+                  borderRadius: 12,
+                  fontSize:   10,
+                  fontFamily: "var(--font-body)",
+                  fontWeight: 500,
+                  opacity:    hov ? 1 : 0,
+                  transition: "all 0.2s",
+                  pointerEvents: "none",
+                }}
+              >
+                {imgIndex + 1} / {imgCount}
+              </div>
+            </>
+          )}
 
           {v.tag && (
             <div style={{ position: "absolute", bottom: 12, left: 12 }}>
@@ -107,6 +240,41 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
               {v.online ? "Online" : "Offline"}
             </span>
           </div>
+
+          {/* Mute button — show only if video, top right */}
+          {v.video && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setMuted(!muted); }}
+              aria-label={muted ? "Unmute video" : "Mute video"}
+              style={{
+                position:   "absolute",
+                top:        10,
+                right:      45,
+                width:      30,
+                height:     30,
+                borderRadius: "50%",
+                background: "rgba(0,0,0,0.5)",
+                border:     "1px solid rgba(255,255,255,0.3)",
+                color:      "rgba(255,255,255,0.9)",
+                cursor:     "pointer",
+                fontSize:   12,
+                fontWeight: 600,
+                display:    "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s",
+                fontFamily: "var(--font-body)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(0,0,0,0.7)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(0,0,0,0.5)";
+              }}
+            >
+              {muted ? "♪" : "♫"}
+            </button>
+          )}
 
           {/* Save button */}
           <button
