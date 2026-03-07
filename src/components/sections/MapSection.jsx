@@ -208,7 +208,6 @@ export default function MapSection({
             aria-hidden="true"
             style={{
               position: "absolute", top: 0, left: 0, right: 0, zIndex: 400,
-              background: `linear-gradient(180deg, rgba(10,8,6,0.7) 0%, transparent 100%)`,
               padding: "14px 20px", pointerEvents: "none",
             }}
           >
