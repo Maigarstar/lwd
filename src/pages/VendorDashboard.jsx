@@ -1067,6 +1067,83 @@ export default function VendorDashboard({ onBack }) {
                 <StatCard label="Avg Response" val={vendor.response} icon="⟡" color="#a78bfa" />
               </div>
 
+              {/* ── Shortlist/Favorites (B2B) ──────────────────────────────────── */}
+              <div
+                style={{
+                  background: C.card,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: "var(--lwd-radius-card)",
+                  padding: 20,
+                  marginBottom: 28,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+                  <div
+                    style={{
+                      width: 60,
+                      height: 60,
+                      background: `linear-gradient(135deg, ${C.gold}20, ${C.gold}10)`,
+                      borderRadius: "var(--lwd-radius-card)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 32,
+                    }}
+                  >
+                    ♥
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p
+                      style={{
+                        fontFamily: NU,
+                        fontSize: 11,
+                        color: C.grey,
+                        margin: 0,
+                        textTransform: "uppercase",
+                        letterSpacing: "1px",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Saved by Couples
+                    </p>
+                    <p
+                      style={{
+                        fontFamily: GD,
+                        fontSize: 24,
+                        color: C.gold,
+                        margin: "4px 0 0 0",
+                        fontWeight: 400,
+                      }}
+                    >
+                      {Math.floor(Math.random() * 50) + 5}
+                    </p>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <p
+                      style={{
+                        fontFamily: NU,
+                        fontSize: 12,
+                        color: C.green,
+                        margin: 0,
+                        fontWeight: 600,
+                      }}
+                    >
+                      ↑ +12%
+                    </p>
+                    <p
+                      style={{
+                        fontFamily: NU,
+                        fontSize: 10,
+                        color: C.grey,
+                        margin: "2px 0 0 0",
+                      }}
+                    >
+                      This month
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* ── LWD Curated Index ──────────────────────────────────── */}
               <div
                 style={{
