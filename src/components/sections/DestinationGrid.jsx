@@ -31,7 +31,6 @@ export default function DestinationGrid({ onDestinationClick }) {
       <div
         className="home-dest-header"
         style={{
-          maxWidth: 1320,
           marginBottom: 48,
           display: "flex",
           alignItems: "flex-end",
