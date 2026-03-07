@@ -6418,6 +6418,7 @@ export default function AdminDashboard({ onBack }) {
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMobileBreakpoint, setIsMobileBreakpoint] = useState(window.innerWidth <= 1023);
 
   // ── Theme customisation state (persisted to localStorage) ──
   const [customDark, setCustomDark] = useState(() => {
@@ -6582,6 +6583,21 @@ export default function AdminDashboard({ onBack }) {
     });
   }, []);
 
+  // Handle window resize for responsive sidebar
+  useEffect(() => {
+    const handleResize = () => {
+      const isMobile = window.innerWidth <= 1023;
+      setIsMobileBreakpoint(isMobile);
+
+      // Close sidebar when transitioning from mobile to desktop
+      if (!isMobile && sidebarOpen) {
+        setSidebarOpen(false);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [sidebarOpen]);
+
   const C = darkMode ? customDark : customLight;
 
   const renderModule = () => {
@@ -6608,22 +6624,104 @@ export default function AdminDashboard({ onBack }) {
     <ThemeCtx.Provider value={C}>
       {/* Responsive styles */}
       <style>{`
-        @media (max-width: 768px) {
-          .admin-sidebar { position: fixed !important; z-index: 999; left: 0; top: 0; width: 220px !important; transform: translateX(${sidebarOpen ? "0" : "-100%"}); transition: transform 0.3s ease !important; box-shadow: ${sidebarOpen ? "6px 0 32px rgba(0,0,0,0.7)" : "none"}; border-right: ${sidebarOpen ? "1px solid rgba(201,168,76,0.25)" : "none"} !important; }
-          .admin-sidebar-overlay { display: ${sidebarOpen ? "block" : "none"}; position: fixed; inset: 0; z-index: 998; background: rgba(0,0,0,0.5); }
-          .admin-main { padding: 56px 16px 20px !important; }
+        /* ─── Mobile-First Responsive (375px–1023px) ─── */
+        @media (max-width: 1023px) {
+          .admin-sidebar { display: flex !important; position: fixed !important; z-index: 999; left: 0; top: 0; width: 280px !important; height: 100vh; transform: translateX(${sidebarOpen ? "0" : "-100%"}); transition: transform 0.3s ease !important; box-shadow: ${sidebarOpen ? "6px 0 32px rgba(0,0,0,0.7)" : "none"}; border-right: ${sidebarOpen ? "1px solid rgba(201,168,76,0.25)" : "none"} !important; overflow-y: auto; }
+          .admin-sidebar-overlay { display: ${sidebarOpen ? "block" : "none"}; position: fixed; inset: 0; z-index: 998; background: rgba(0,0,0,0.6); }
+          .admin-topbar { display: flex !important; }
           .admin-hamburger { display: flex !important; }
           .admin-collapse-btn { display: none !important; }
-          .admin-grid-2col { grid-template-columns: 1fr !important; }
-          .admin-grid-4col { grid-template-columns: repeat(2, 1fr) !important; }
-          .admin-listing-row { grid-template-columns: 2fr 1fr 1fr !important; }
+          .admin-topbar-title { font-size: 14px !important; }
+          .admin-main { padding: 12px !important; overflow: auto; margin-top: 56px; }
+
+          /* Form responsive */
+          .admin-form-group input, .admin-form-group textarea, .admin-form-group select { width: 100% !important; }
+          .admin-form-row { flex-direction: column !important; }
+          .admin-form-row > * { width: 100% !important; margin-bottom: 12px; }
+
+          /* Tables with horizontal scroll */
+          .admin-table-container { overflow-x: auto !important; -webkit-overflow-scrolling: touch; max-width: 100%; }
+          .admin-table { min-width: 600px; width: 100%; }
+          .admin-table-row { min-width: 600px; }
+
+          /* Hide non-essential columns on mobile */
+          .admin-listing-row { grid-template-columns: 2fr 1fr 1fr !important; min-width: 500px; }
           .admin-listing-row > *:nth-child(n+4) { display: none !important; }
-          .admin-listing-header { grid-template-columns: 2fr 1fr 1fr !important; }
+          .admin-listing-header { grid-template-columns: 2fr 1fr 1fr !important; min-width: 500px; }
           .admin-listing-header > *:nth-child(n+4) { display: none !important; }
+
+          /* Scroll hints */
+          .admin-table-container::after { content: ''; display: block; height: 1px; }
+          .admin-table-hint { display: block !important; font-size: 10px; color: ${C.grey2}; margin-top: 8px; text-align: center; }
+
+          /* Generic table scroll support */
+          table.admin-table { width: 100%; table-layout: fixed; }
+          table.admin-table th { white-space: nowrap; padding: 8px 12px; }
+          table.admin-table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 8px 12px; }
+
+          /* Grids collapse to single column */
+          .admin-grid-2col { grid-template-columns: 1fr !important; }
+          .admin-grid-3col { grid-template-columns: 1fr !important; }
+          .admin-grid-4col { grid-template-columns: 1fr !important; }
+
+          /* Modal/drawer adjustments */
+          .admin-modal, .admin-drawer { width: 100% !important; max-width: 100%; max-height: 90vh !important; }
+          .admin-modal-content { padding: 12px !important; }
+
+          /* Buttons and controls */
+          .admin-btn { padding: 12px 16px !important; font-size: 14px; min-height: 44px; }
+          .admin-btn-group { flex-direction: column !important; gap: 8px; }
+          .admin-btn-group button { width: 100% !important; }
+          button, input[type="button"], input[type="submit"] { min-height: 44px; }
+
+          /* Spacing & padding adjustments */
+          .admin-panel { padding: 12px !important; }
+          .admin-card { margin-bottom: 12px !important; }
+          .admin-section { margin-bottom: 16px !important; }
+
+          /* Input focus visibility */
+          input, textarea, select { box-shadow: 0 0 0 2px ${C.goldDim} !important; }
+          input:focus, textarea:focus, select:focus { box-shadow: 0 0 0 3px ${C.gold} !important; outline: none; }
         }
-        @media (min-width: 769px) {
+
+        /* ─── Responsive Sidebar Width (Desktop) ─── */
+        @media (min-width: 1024px) and (max-width: 1200px) {
+          .admin-sidebar { width: 200px !important; }
+          .admin-sidebar.collapsed { width: 56px !important; }
+        }
+
+        @media (min-width: 1200px) and (max-width: 1440px) {
+          .admin-sidebar { width: 220px !important; }
+          .admin-sidebar.collapsed { width: 56px !important; }
+        }
+
+        @media (min-width: 1440px) {
+          .admin-sidebar { width: 240px !important; }
+          .admin-sidebar.collapsed { width: 56px !important; }
+        }
+
+        /* ─── Tablet & Desktop (1024px–1280px) ─── */
+        @media (min-width: 1024px) and (max-width: 1280px) {
           .admin-sidebar-overlay { display: none; }
           .admin-hamburger { display: none !important; }
+          .admin-topbar { position: static !important; }
+          .admin-main { padding: 32px 32px !important; }
+        }
+
+        /* ─── Desktop (1280px–1440px) ─── */
+        @media (min-width: 1280px) and (max-width: 1440px) {
+          .admin-sidebar-overlay { display: none; }
+          .admin-hamburger { display: none !important; }
+          .admin-topbar { position: static !important; }
+          .admin-main { padding: 36px 40px !important; }
+        }
+
+        /* ─── Large Desktop (1440px+) ─── */
+        @media (min-width: 1440px) {
+          .admin-sidebar-overlay { display: none; }
+          .admin-hamburger { display: none !important; }
+          .admin-topbar { position: static !important; }
+          .admin-main { padding: 40px 48px !important; max-width: 1400px; margin: 0 auto; }
         }
       `}</style>
 
@@ -6654,17 +6752,56 @@ export default function AdminDashboard({ onBack }) {
         {/* ── Sidebar overlay (mobile) ── */}
         <div className="admin-sidebar-overlay" onClick={() => setSidebarOpen(false)} />
 
-        {/* ── Mobile hamburger button ── */}
-        <button
-          className="admin-hamburger"
-          onClick={() => setSidebarOpen(!sidebarOpen)}
+        {/* ── Mobile hamburger button & sticky topbar ── */}
+        <div
+          className="admin-topbar"
           style={{
-            display: "none", position: "fixed", top: 12, left: 12, zIndex: 1000,
-            background: C.card, border: `1px solid ${C.border}`, borderRadius: 4,
-            padding: "8px 10px", cursor: "pointer", alignItems: "center", justifyContent: "center",
-            color: C.gold, fontSize: 18, lineHeight: 1,
+            display: "none", position: "fixed", top: 0, left: 0, right: 0, zIndex: 500,
+            background: C.black, borderBottom: `1px solid ${C.border}`,
+            padding: "12px 16px", flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+            gap: 12, backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", height: 56,
           }}
-        >{sidebarOpen ? "✕" : "☰"}</button>
+        >
+          <button
+            className="admin-hamburger"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            style={{
+              background: C.card, border: `1px solid ${C.border}`, borderRadius: 4,
+              padding: "8px 10px", cursor: "pointer", alignItems: "center", justifyContent: "center",
+              color: C.gold, fontSize: 18, lineHeight: 1, minWidth: 36, minHeight: 36,
+              flexShrink: 0, transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.background = C.dark; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.background = C.card; }}
+          >
+            {sidebarOpen ? "✕" : "☰"}
+          </button>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 className="admin-topbar-title" style={{
+              fontFamily: GD, fontSize: 14, fontWeight: 400, color: C.off,
+              margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+              transition: "color 0.3s",
+            }}>
+              {ALL_NAV_ITEMS.find((n) => n.key === activeTab)?.label || "Admin"}
+            </h2>
+          </div>
+
+          <button
+            onClick={() => setDarkMode(!darkMode)}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              color: C.grey, fontSize: 16, padding: 8,
+              transition: "color 0.2s", minWidth: 36, minHeight: 36,
+              flexShrink: 0,
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = C.gold)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = C.grey)}
+            title={darkMode ? "Light Mode" : "Dark Mode"}
+          >
+            {darkMode ? "☀" : "☽"}
+          </button>
+        </div>
 
         {/* ── Sidebar ── */}
         <aside
@@ -6675,14 +6812,17 @@ export default function AdminDashboard({ onBack }) {
             borderRight: `1px solid ${DARK_C.border}`,
             padding: "28px 0",
             flexShrink: 0,
-            position: "sticky",
+            position: isMobileBreakpoint ? "fixed" : "sticky",
+            left: 0,
             top: 0,
             height: "100vh",
             display: "flex",
             flexDirection: "column",
-            transition: "width 0.25s ease, background 0.3s, border-color 0.3s",
+            transition: "width 0.25s ease, background 0.3s, border-color 0.3s, transform 0.3s ease, position 0.3s ease",
             overflowY: "auto",
             overflowX: "hidden",
+            transform: isMobileBreakpoint ? `translateX(${sidebarOpen ? "0" : "-100%"})` : "translateX(0)",
+            zIndex: 999,
           }}
         >
           {/* Brand */}
@@ -6788,7 +6928,7 @@ export default function AdminDashboard({ onBack }) {
 
         {/* ── Main content ── */}
         <main className="admin-main" style={{ flex: 1, padding: "40px 48px", overflow: "auto", transition: "background 0.3s" }}>
-          <div style={{ marginBottom: 36 }}>
+          <div style={{ marginBottom: 36, display: "none" }}>
             <h1 style={{
               fontFamily: GD, fontSize: 24, fontWeight: 400,
               color: C.off, margin: "0 0 6px", transition: "color 0.3s",
