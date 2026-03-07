@@ -39,6 +39,36 @@ const PageEditorModule = ({ pageId, C, NU, GD, onNavigate }) => {
     const foundPage = loaded.find((p) => p.id === pageId);
     if (foundPage) {
       setPage({ ...foundPage });
+    } else if (pageId && pageId.startsWith("listing_")) {
+      // Handle synthetic listing pageId - create a temporary page
+      const listingId = pageId.replace("listing_", "");
+      const tempPage = {
+        id: pageId,
+        title: `Listing ${listingId} Page`,
+        slug: `listing-${listingId}`,
+        pageType: "vendor_profile",
+        templateKey: "hero_image",
+        status: "draft",
+        excerpt: "Vendor profile page created from listing",
+        featuredImage: "",
+        heroVideoUrl: null,
+        seo: {
+          title: "",
+          metaDescription: "",
+          canonicalUrl: "",
+          ogTitle: "",
+          ogDescription: "",
+          ogImage: "",
+          noindex: false,
+          structuredDataType: "WebPage"
+        },
+        sections: [],
+        author: "Admin",
+        updatedAt: new Date().toISOString(),
+        publishedAt: null,
+        scheduledAt: null
+      };
+      setPage(tempPage);
     }
   }, [pageId]);
 
