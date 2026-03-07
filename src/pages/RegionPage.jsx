@@ -13,7 +13,7 @@ import {
   getRegionsByCountry,
   VENDOR_CATEGORIES,
 } from "../data/geo.js";
-import { VENUES } from "../data/italyVenues";
+import { VENUES, DEFAULT_FILTERS } from "../data/italyVenues";
 import { getRegionPageConfig } from "../services/regionPageConfig";
 
 import GCard from "../components/cards/GCard";
@@ -73,11 +73,14 @@ export default function RegionPage({
   const [mapOpen, setMapOpen] = useState(false);
   const [venueViewMode, setVenueViewMode] = useState("slider"); // slider, grid, list, map
   const [currentPage, setCurrentPage] = useState(0);
-  const [filters, setFilters] = useState({ region: regionSlug, style: [], capacity: [], price: [] });
-  const [sortMode, setSortMode] = useState("relevance");
+  const [filters, setFilters] = useState(() => ({ ...DEFAULT_FILTERS, region: regionSlug }));
+  const [sortMode, setSortMode] = useState("recommended");
   const isMobile = useIsMobile();
 
   const C = darkMode ? getDarkPalette() : getLightPalette();
+
+  // ── Filter handler ──────────────────────────────────────────────────────
+  const handleFiltersChange = useCallback((f) => setFilters(f), []);
 
   // ── Entity lookup ────────────────────────────────────────────────────────
   const region = useMemo(() => getRegionBySlug(regionSlug), [regionSlug]);
@@ -421,7 +424,7 @@ export default function RegionPage({
         {/* ═══ FILTER BAR — Search, filter, view mode, and sort ═══════════════════ */}
         <CountrySearchBar
           filters={filters}
-          onFiltersChange={setFilters}
+          onFiltersChange={handleFiltersChange}
           viewMode={venueViewMode}
           onViewMode={setVenueViewMode}
           sortMode={sortMode}
