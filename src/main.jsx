@@ -26,6 +26,7 @@ import AdminDashboard         from "./pages/AdminDashboard.jsx";
 import VendorDashboard        from "./pages/VendorDashboard.jsx";
 import WeddingPlannersPage    from "./pages/WeddingPlannersPage.jsx";
 import PlannerProfilePage     from "./pages/PlannerProfilePage.jsx";
+import PugliaPage             from "./pages/PugliaPage.jsx";
 import { VENDORS }            from "./data/vendors.js";
 
 // ── Design system colors and fonts ───────────────────────────────────────────
@@ -60,6 +61,7 @@ function getPlannerByIdOrSlug(idOrSlug) {
 function stateToPath(pg, opts = {}) {
   const { countrySlug, regionSlug, categorySlug, plannerSlug, weddingSlug } = opts;
   switch (pg) {
+    case "puglia":           return "/italy/puglia";
     case "region":           return `/${countrySlug}/${regionSlug}`;
     case "region-category":  return `/${countrySlug}/${regionSlug}/${categorySlug}`;
     case "planner-profile":  return `/${countrySlug}/${regionSlug}/wedding-planners/${plannerSlug}`;
@@ -91,6 +93,8 @@ function pathToState(pathname) {
   // Handle real-weddings special routes
   if (parts[0] === "real-weddings" && parts.length === 1) return { page: "real-weddings" };
   if (parts[0] === "real-weddings" && parts.length === 2) return { page: "real-wedding-detail", weddingSlug: parts[1] };
+  // Handle Puglia premium page (Phase 3.1 demo)
+  if (parts[0] === "italy" && parts[1] === "puglia" && parts.length === 2) return { page: "puglia" };
   // Static routes only match single-segment paths; multi-segment paths
   // like /italy/tuscany or /italy/tuscany/wedding-planners are dynamic.
   if (parts.length === 1 && statics[parts[0]]) return { page: statics[parts[0]] };
@@ -207,6 +211,7 @@ function App() {
   const goItaly       = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("italy"); };
   const goAdmin       = () => setPage("admin");
   const goVendor      = () => setPage("vendor");
+  const goPuglia      = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("puglia"); };
   const goRealWeddings = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("real-weddings"); };
   const goRealWeddingDetail = (weddingSlug) => { setActiveWeddingSlug(weddingSlug); setPage("real-wedding-detail"); };
 
@@ -268,6 +273,9 @@ function App() {
             />
           );
         })()}
+        {page === "puglia" && (
+          <PugliaPage onBack={goHome} onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewStandard={goStandard} onViewAbout={goAbout} footerNav={footerNav} />
+        )}
         {page === "region-category" && activeCategorySlug !== "wedding-planners" && (
           <RegionCategoryPage
             onBack={() => goRegion(activeCountrySlug, activeRegionSlug)}
