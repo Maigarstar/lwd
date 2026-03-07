@@ -2279,7 +2279,7 @@ function ImageSearchPanel({ C, onSelect, onClose, defaultQuery }) {
 let _sharedImages = [];
 
 function LwdEditor({ C, value, onChange, placeholder, label }) {
-  const [mode, setMode] = useState("visual"); // "visual" | "source"
+  const [mode, setMode] = useState("source"); // Always use source mode (no TipTap dependency)
   const [showImageLib, setShowImageLib] = useState(false);
   const [showStockSearch, setShowStockSearch] = useState(false);
   const [images, setImages] = useState(() => _sharedImages);
@@ -2287,43 +2287,14 @@ function LwdEditor({ C, value, onChange, placeholder, label }) {
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef(null);
 
-  // Initialize TipTap editor
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [2, 3, 4] },
-        codeBlock: false,
-      }),
-      Image.configure({
-        allowBase64: true,
-        HTMLAttributes: { style: "max-width:100%;height:auto;border-radius:4px;margin:8px 0;" },
-      }),
-    ],
-    content: value || "",
-    onUpdate: ({ editor: ed }) => {
-      onChange(ed.getHTML());
-    },
-    editorProps: {
-      attributes: {
-        class: "tiptap-editor",
-        style: "direction: ltr; unicode-bidi: bidi-override; text-align: left;",
-      },
-    },
-  });
+  // Simple editor state - no TipTap dependency
+  const editor = null; // Placeholder for compatibility
 
   // Sync shared images
   const updateImages = (newImages) => { _sharedImages = newImages; setImages(newImages); };
 
   // Switch modes — sync content
   const switchMode = (m) => {
-    if (m === "source" && mode === "visual") {
-      if (editor) onChange(editor.getHTML());
-    } else if (m === "visual" && mode === "source") {
-      // When switching back to visual, update editor with current value
-      if (editor && value !== editor.getHTML()) {
-        editor.commands.setContent(value);
-      }
-    }
     setMode(m);
   };
 
@@ -2349,14 +2320,7 @@ function LwdEditor({ C, value, onChange, placeholder, label }) {
         img.height = tempImg.naturalHeight;
         updateImages([img, ...images]);
         // Insert into editor
-        if (mode === "visual") {
-          if (editor) {
-            editor.chain().focus().setImage({ src: url, alt: file.name }).run();
-            onChange(editor.getHTML());
-          }
-        } else {
-          onChange((value || "") + `\n<img src="${url}" alt="${file.name}" style="max-width:100%;height:auto;" />\n`);
-        }
+        onChange((value || "") + `\n<img src="${url}" alt="${file.name}" style="max-width:100%;height:auto;" />\n`);
         setUploading(false);
       };
       tempImg.onerror = () => { updateImages([img, ...images]); setUploading(false); };
@@ -2367,14 +2331,7 @@ function LwdEditor({ C, value, onChange, placeholder, label }) {
 
   // Insert image from library
   const insertFromLib = (img) => {
-    if (mode === "visual") {
-      if (editor) {
-        editor.chain().focus().setImage({ src: img.url, alt: img.name }).run();
-        onChange(editor.getHTML());
-      }
-    } else {
-      onChange((value || "") + `\n<img src="${img.url}" alt="${img.name}" style="max-width:100%;height:auto;" />\n`);
-    }
+    onChange((value || "") + `\n<img src="${img.url}" alt="${img.name}" style="max-width:100%;height:auto;" />\n`);
     setShowImageLib(false);
   };
 
@@ -2410,34 +2367,6 @@ function LwdEditor({ C, value, onChange, placeholder, label }) {
         display: "flex", flexWrap: "wrap", gap: 4, padding: "8px 10px", alignItems: "center",
         background: `${C.gold}06`, border: `1px solid ${C.border}`, borderRadius: "4px 4px 0 0", borderBottom: "none",
       }}>
-        <select onChange={e => {
-          if (!e.target.value || !editor || mode !== "visual") return;
-          if (e.target.value === "p") editor.chain().focus().setParagraph().run();
-          else if (e.target.value === "h2") editor.chain().focus().toggleHeading({ level: 2 }).run();
-          else if (e.target.value === "h3") editor.chain().focus().toggleHeading({ level: 3 }).run();
-          else if (e.target.value === "h4") editor.chain().focus().toggleHeading({ level: 4 }).run();
-          else if (e.target.value === "blockquote") editor.chain().focus().toggleBlockquote().run();
-          e.target.value = "";
-        }} style={ddStyle} defaultValue="">
-          <option value="" disabled>Format</option>
-          <option value="p">Paragraph</option>
-          <option value="h2">Heading 2</option>
-          <option value="h3">Heading 3</option>
-          <option value="h4">Heading 4</option>
-          <option value="blockquote">Blockquote</option>
-        </select>
-        {sep(0)}
-        {tb("B", "Bold", () => editor?.chain().focus().toggleBold().run())}
-        {tb("I", "Italic", () => editor?.chain().focus().toggleItalic().run())}
-        {tb("U", "Underline", () => editor?.chain().focus().toggleUnderline?.().run())}
-        {tb("S", "Strikethrough", () => editor?.chain().focus().toggleStrike().run())}
-        {sep(1)}
-        {tb("↩", "Undo", () => editor?.chain().focus().undo().run())}
-        {tb("↪", "Redo", () => editor?.chain().focus().redo().run())}
-        {sep(2)}
-        {tb("🔗", "Insert Link", () => { /* Links not supported in basic setup */ })}
-        {tb("⊘", "Remove Link", () => { /* Links not supported in basic setup */ })}
-        {sep(3)}
         {/* Image upload button */}
         {tb("📷", "Upload Image", () => fileRef.current?.click())}
         {tb("🖼", "Image Library (" + images.length + ")", () => { setShowImageLib(!showImageLib); setShowStockSearch(false); })}
@@ -2450,29 +2379,13 @@ function LwdEditor({ C, value, onChange, placeholder, label }) {
         onMouseLeave={e => { if (!showStockSearch) { e.currentTarget.style.background = "#05A08112"; } }}
         title="Browse Unsplash, Pexels & Pixabay"
         >📸 Stock</button>
-        {tb("▦", "Table", () => { /* Table not supported in TipTap basic setup */ })}
-        {tb("―", "Horizontal Rule", () => editor?.chain().focus().setHorizontalRule().run())}
-        {sep(4)}
-        {tb("•", "Bullet List", () => editor?.chain().focus().toggleBulletList().run())}
-        {tb("1.", "Numbered List", () => editor?.chain().focus().toggleOrderedList().run())}
-        {sep(5)}
-        {tb("◧", "Left", () => { /* Text align not supported in basic setup */ })}
-        {tb("◫", "Centre", () => { /* Text align not supported in basic setup */ })}
-        {tb("◨", "Right", () => { /* Text align not supported in basic setup */ })}
-        {tb("☰", "Justify", () => { /* Text align not supported in basic setup */ })}
-        {sep(6)}
-        {tb("⌧", "Remove Format", () => editor?.chain().focus().clearNodes().run())}
-        {sep(7)}
+        {sep(3)}
         {/* AI Auto-suggest + AI Assistant */}
         <button onMouseDown={e => {
           e.preventDefault();
           const heading = label || "this section";
-          const tpl = `<h2>About ${heading}</h2><p>Write compelling content here that speaks to discerning couples seeking luxury wedding services. Include location-specific details, unique selling points, and relevant keywords naturally.</p><p><strong>Editorial tips:</strong> Use H2/H3 headings for structure, include internal links to related categories, and aim for 300+ words for maximum SEO impact.</p>`;
-          if (mode === "visual" && editor) {
-            editor.chain().focus().insertContent(tpl).run();
-          } else {
-            onChange(value + "\n" + tpl);
-          }
+          const tpl = `<h2>About ${heading}</h2>\n<p>Write compelling content here that speaks to discerning couples seeking luxury wedding services. Include location-specific details, unique selling points, and relevant keywords naturally.</p>\n<p><strong>Editorial tips:</strong> Use H2/H3 headings for structure, include internal links to related categories, and aim for 300+ words for maximum SEO impact.</p>`;
+          onChange((value || "") + "\n" + tpl);
         }} style={{
           fontFamily: NU, fontSize: 10, fontWeight: 700, color: "#a78bfa", background: "#a78bfa10",
           border: "1px solid #a78bfa30", borderRadius: 3, padding: "6px 10px", cursor: "pointer",
@@ -2484,12 +2397,8 @@ function LwdEditor({ C, value, onChange, placeholder, label }) {
         <button onMouseDown={e => {
           e.preventDefault();
           const heading = label || "this section";
-          const tpl = `<h2>${heading}</h2><p>Introduce this category with a warm, editorial tone. Describe what makes these services exceptional and why discerning couples choose them for their luxury weddings.</p><h3>What to Expect</h3><p>Detail the types of services available, typical experiences, and what sets the luxury tier apart from standard options.</p><h3>Popular Destinations</h3><p>Highlight key locations where these services are most sought-after — Lake Como, Tuscany, the Cotswolds, French Riviera, and beyond.</p><h3>How to Choose</h3><p>Offer expert guidance on selecting the right provider, key questions to ask, and what to look for in a luxury ${heading.toLowerCase()} professional.</p>`;
-          if (mode === "visual" && editor) {
-            editor.chain().focus().insertContent(tpl).run();
-          } else {
-            onChange(value + "\n" + tpl);
-          }
+          const tpl = `<h2>${heading}</h2>\n<p>Introduce this category with a warm, editorial tone. Describe what makes these services exceptional and why discerning couples choose them for their luxury weddings.</p>\n<h3>What to Expect</h3>\n<p>Detail the types of services available, typical experiences, and what sets the luxury tier apart from standard options.</p>\n<h3>Popular Destinations</h3>\n<p>Highlight key locations where these services are most sought-after — Lake Como, Tuscany, the Cotswolds, French Riviera, and beyond.</p>\n<h3>How to Choose</h3>\n<p>Offer expert guidance on selecting the right provider, key questions to ask, and what to look for in a luxury ${heading.toLowerCase()} professional.</p>`;
+          onChange((value || "") + "\n" + tpl);
         }} style={{
           fontFamily: NU, fontSize: 10, fontWeight: 700, color: "#a78bfa", background: "#a78bfa10",
           border: "1px solid #a78bfa30", borderRadius: 3, padding: "6px 10px", cursor: "pointer",
@@ -2498,13 +2407,10 @@ function LwdEditor({ C, value, onChange, placeholder, label }) {
         onMouseEnter={e => { e.currentTarget.style.background = "#a78bfa22"; e.currentTarget.style.borderColor = "#a78bfa60"; }}
         onMouseLeave={e => { e.currentTarget.style.background = "#a78bfa10"; e.currentTarget.style.borderColor = "#a78bfa30"; }}
         ><span style={{ fontSize: 11 }}>✧</span> AI Assistant</button>
-        {/* Source / Visual toggle */}
-        <button onMouseDown={e => { e.preventDefault(); switchMode(mode === "visual" ? "source" : "visual"); }}
-          style={{
-            fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase",
-            color: mode === "source" ? "#000" : C.gold, background: mode === "source" ? C.gold : "transparent",
-            border: `1px solid ${C.gold}60`, borderRadius: 3, padding: "6px 14px", cursor: "pointer", marginLeft: "auto",
-          }}>{mode === "source" ? "◈ Visual" : "⟐ Source"}</button>
+        {/* Note: Visual mode disabled (requires TipTap) - using source mode only */}
+        <div style={{ marginLeft: "auto", fontFamily: NU, fontSize: 10, color: C.grey, fontWeight: 600 }}>
+          Source Mode
+        </div>
       </div>
 
       {/* Hidden file input */}
@@ -2562,12 +2468,7 @@ function LwdEditor({ C, value, onChange, placeholder, label }) {
         <ImageSearchPanel C={C} defaultQuery={label || "luxury wedding"}
           onClose={() => setShowStockSearch(false)}
           onSelect={(img) => {
-            if (mode === "visual" && editor) {
-              editor.chain().focus().setImage({ src: img.url, alt: `${img.photographer} via ${img.source}` }).run();
-              onChange(editor.getHTML());
-            } else {
-              onChange((value || "") + `\n<img src="${img.url}" alt="${img.photographer} via ${img.source}" style="max-width:100%;height:auto;" />\n`);
-            }
+            onChange((value || "") + `\n<img src="${img.url}" alt="${img.photographer} via ${img.source}" style="max-width:100%;height:auto;" />\n`);
             setShowStockSearch(false);
           }}
         />
@@ -2584,33 +2485,8 @@ function LwdEditor({ C, value, onChange, placeholder, label }) {
         </div>
       )}
 
-      {/* Editor area */}
-      {mode === "visual" ? (
-        <div
-          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={handleDrop}
-          style={{
-            width: "100%", minHeight: 360, boxSizing: "border-box",
-            background: dragOver ? "#fffff0" : "#fefefe",
-            border: `1px solid ${dragOver ? C.gold : C.border}`, borderTop: "none",
-            borderRadius: "0 0 4px 4px",
-            transition: "background 0.2s, border-color 0.2s",
-          }}
-        >
-          {editor && (
-            <EditorContent
-              editor={editor}
-              style={{
-                width: "100%", minHeight: 360, boxSizing: "border-box",
-                fontFamily: NU, fontSize: 13, color: "#1a1a1a", lineHeight: 1.8,
-                padding: "20px 24px", outline: "none", overflowY: "auto",
-              }}
-            />
-          )}
-        </div>
-      ) : (
-        <textarea
+      {/* Editor area - Source mode only */}
+      <textarea
           value={value || ""}
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder || ""}
@@ -2633,7 +2509,6 @@ function LwdEditor({ C, value, onChange, placeholder, label }) {
           }}
           spellCheck={false}
         />
-      )}
 
       {/* Status bar */}
       <div style={{

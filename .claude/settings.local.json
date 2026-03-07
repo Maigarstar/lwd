@@ -15,7 +15,9 @@
       "Bash(bash -c ':*)",
       "Bash(kill 13228)",
       "Bash(lsof -i :5173)",
-      "Bash(git cherry-pick 2acab39)"
+      "Bash(git cherry-pick 2acab39)",
+      "Bash(git add -A)",
+      "Bash(git commit -m \"feat: Restore full extended AdminDashboard \\(7,130 lines\\) with all 14 modules:*)"
     ]
   }
 }
