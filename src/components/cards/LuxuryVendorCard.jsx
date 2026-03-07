@@ -6,17 +6,15 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useTheme } from "../../theme/ThemeContext";
 import Stars from "../ui/Stars";
 import { GoldBadge, VerifiedBadge } from "../ui/Badges";
-import QuickViewModal from "../modals/QuickViewModal";
 import EnquiryFormModal from "../ui/EnquiryFormModal";
 
 const GOLD = "#C9A84C";
 const GD   = "var(--font-heading-primary)";
 const NU   = "var(--font-body)";
 
-export default function LuxuryVendorCard({ v, onView, isMobile, onSave, saved, onQuickView }) {
+export default function LuxuryVendorCard({ v, onView, isMobile, onSave, saved, onQuickView, quickViewItem, setQuickViewItem }) {
   const C = useTheme();
   const [hov, setHov] = useState(false);
-  const [quickViewItem, setQuickViewItem] = useState(null);
   const [slideIdx, setSlideIdx] = useState(0);
   const [muted, setMuted] = useState(true);
   const [showEnquiry, setShowEnquiry] = useState(false);
@@ -531,18 +529,6 @@ export default function LuxuryVendorCard({ v, onView, isMobile, onSave, saved, o
           </div>
         </div>
       </div>
-
-      {/* ── Quick View modal ── */}
-      {quickViewItem && (
-        <QuickViewModal
-          item={quickViewItem}
-          onClose={() => setQuickViewItem(null)}
-          onViewFull={() => {
-            setQuickViewItem(null);
-            onView?.(quickViewItem);
-          }}
-        />
-      )}
 
       {/* ── Enquiry modal ── */}
       {showEnquiry && (
