@@ -1,6 +1,7 @@
 // ─── src/pages/GettingMarriedDashboard.jsx ─────────────────────────────────
 // Couples dashboard for wedding planning with shortlist preview, enquiries, and account
 
+import { useState } from "react";
 import { useTheme } from "../theme/ThemeContext";
 import { useShortlist } from "../shortlist/ShortlistContext";
 import { GLOBAL_VENDORS } from "../data/globalVendors";
@@ -13,6 +14,7 @@ const NU = "var(--font-body)";
 export default function GettingMarriedDashboard({ onBack }) {
   const C = useTheme();
   const { items: shortlistItems, toggleItem, isShortlisted } = useShortlist();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Get shortlist items with vendor data
   const shortlistWithData = shortlistItems.slice(0, 3).map((item) => {
@@ -21,7 +23,32 @@ export default function GettingMarriedDashboard({ onBack }) {
   });
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: C.black }}>
+    <div style={{ display: "flex", minHeight: "100vh", background: C.black, position: "relative" }}>
+      {/* ─── MOBILE SIDEBAR TOGGLE ─── */}
+      <button
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        style={{
+          position: "fixed",
+          top: 16,
+          left: 16,
+          zIndex: 1000,
+          background: C.gold,
+          border: "none",
+          borderRadius: "var(--lwd-radius-input)",
+          width: 40,
+          height: 40,
+          cursor: "pointer",
+          fontSize: 18,
+          fontWeight: 600,
+          display: window.innerWidth < 768 ? "flex" : "none",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#0a0906",
+        }}
+      >
+        {sidebarOpen ? "✕" : "☰"}
+      </button>
+
       {/* ─── SIDEBAR ─── */}
       <aside
         style={{
@@ -29,13 +56,16 @@ export default function GettingMarriedDashboard({ onBack }) {
           background: C.card,
           borderRight: `1px solid ${C.border}`,
           padding: "40px 24px",
-          display: "flex",
+          display: window.innerWidth < 768 ? (sidebarOpen ? "flex" : "none") : "flex",
           flexDirection: "column",
           gap: 32,
-          position: "sticky",
+          position: window.innerWidth < 768 ? "fixed" : "sticky",
           top: 0,
+          left: 0,
           height: "100vh",
           overflowY: "auto",
+          zIndex: window.innerWidth < 768 ? 999 : "auto",
+          transition: "all 0.3s ease",
         }}
       >
         {/* Header */}
@@ -186,33 +216,79 @@ export default function GettingMarriedDashboard({ onBack }) {
           padding: "40px 60px",
           overflowY: "auto",
           maxHeight: "100vh",
+          paddingLeft: window.innerWidth < 768 && sidebarOpen ? "calc(280px + 60px)" : "60px",
         }}
       >
-        {/* Page Header */}
-        <div style={{ marginBottom: 48 }}>
-          <h2
-            style={{
-              fontFamily: GD,
-              fontSize: "clamp(28px, 4vw, 48px)",
-              color: C.off,
-              fontWeight: 400,
-              margin: 0,
-              marginBottom: 8,
+        {/* Page Header with Theme Toggle */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            marginBottom: 48,
+          }}
+        >
+          <div>
+            <h2
+              style={{
+                fontFamily: GD,
+                fontSize: "clamp(28px, 4vw, 48px)",
+                color: C.off,
+                fontWeight: 400,
+                margin: 0,
+                marginBottom: 8,
+              }}
+            >
+              Your Wedding Planning
+            </h2>
+            <p
+              style={{
+                fontFamily: NU,
+                fontSize: 14,
+                color: C.grey,
+                margin: 0,
+                fontWeight: 300,
+              }}
+            >
+              Everything you need to plan your luxury celebration
+            </p>
+          </div>
+
+          {/* Theme Toggle Button */}
+          <button
+            onClick={() => {
+              track("theme_toggle");
+              const root = document.documentElement;
+              const isDark = root.style.colorScheme === "dark";
+              root.style.colorScheme = isDark ? "light" : "dark";
+              localStorage.setItem("lwd_theme", isDark ? "light" : "dark");
             }}
-          >
-            Your Wedding Planning
-          </h2>
-          <p
             style={{
+              background: "transparent",
+              border: `1px solid ${C.border}`,
+              color: C.grey,
+              borderRadius: "var(--lwd-radius-input)",
+              padding: "10px 16px",
+              cursor: "pointer",
               fontFamily: NU,
               fontSize: 14,
-              color: C.grey,
-              margin: 0,
-              fontWeight: 300,
+              fontWeight: 600,
+              transition: "all 0.2s",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = C.gold;
+              e.currentTarget.style.borderColor = C.gold;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = C.grey;
+              e.currentTarget.style.borderColor = C.border;
             }}
           >
-            Everything you need to plan your luxury celebration
-          </p>
+            ☀️
+          </button>
         </div>
 
         {/* Shortlist Preview Section */}
