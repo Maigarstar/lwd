@@ -62,7 +62,7 @@ export const PUGLIA_PAGE_CONFIG = {
     ],
   },
   vibes: {
-    enabled: true,
+    enabled: false,
     vibes: [
       {
         id: "masseria-elegance",
@@ -116,7 +116,7 @@ export const PUGLIA_PAGE_CONFIG = {
     title: "Signature Puglia Wedding Venues",
   },
   realWeddings: {
-    enabled: true,
+    enabled: false,
     title: "Real Puglia Weddings",
     source: "auto",
     selectedIds: [],

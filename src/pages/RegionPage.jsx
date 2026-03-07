@@ -25,6 +25,7 @@ import FeaturedSlider from "../components/sections/FeaturedSlider";
 import RegionHero from "../components/sections/RegionHero";
 import RegionFeatured from "../components/sections/RegionFeatured";
 import SliderNav from "../components/ui/SliderNav";
+import FilterBar from "../components/filters/FilterBar";
 import { useInView, CountUp, SplitText, revealStyle } from "../components/ui/Animations";
 import "../category.css";
 
@@ -72,6 +73,8 @@ export default function RegionPage({
   const [mapOpen, setMapOpen] = useState(false);
   const [venueViewMode, setVenueViewMode] = useState("slider"); // slider, grid, list, map
   const [currentPage, setCurrentPage] = useState(0);
+  const [filters, setFilters] = useState({ region: regionSlug, style: [], capacity: [], price: [] });
+  const [sortMode, setSortMode] = useState("relevance");
   const isMobile = useIsMobile();
 
   const C = darkMode ? getDarkPalette() : getLightPalette();
@@ -414,6 +417,18 @@ export default function RegionPage({
           </div>
         </section>
         )}
+
+        {/* ═══ FILTER BAR — Search, filter, view mode, and sort ═══════════════════ */}
+        <FilterBar
+          filters={filters}
+          onChange={setFilters}
+          viewMode={venueViewMode}
+          onViewMode={setVenueViewMode}
+          sortMode={sortMode}
+          onSortChange={setSortMode}
+          total={regionVenues.length}
+          regions={[region.name]}
+        />
 
         {/* ═══ TRUST SIGNAL STRIP — region-specific authority tags ═══════════ */}
         {region.trustSignals && region.trustSignals.length > 0 && (
