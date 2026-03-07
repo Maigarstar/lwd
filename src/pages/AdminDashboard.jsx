@@ -13,6 +13,14 @@ import { ITALY_CITIES } from "../data/italy/cities.js";
 import { REGION_AUTO_THRESHOLD, evaluateRegionActivation } from "../engine/activation.js";
 import categoryCssRaw from "../category.css?raw";
 
+// ── Page Studio imports ──
+import AllPagesModule from "./PageStudio/AllPagesModule";
+import CreatePageModule from "./PageStudio/CreatePageModule";
+import PageEditorModule from "./PageStudio/PageEditorModule";
+import HomepageManagerModule from "./PageStudio/HomepageManagerModule";
+import BlogManagerModule from "./PageStudio/BlogManagerModule";
+import ReusableBlocksModule from "./PageStudio/ReusableBlocksModule";
+
 // Font tokens — resolved via CSS custom properties set on admin root
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -184,6 +192,15 @@ const THEME_PRESETS = {
 
 // ── Sidebar navigation with grouped sections ───────────────────────────────
 const NAV_SECTIONS = [
+  {
+    group: "Content",
+    items: [
+      { key: "page-studio",      label: "Page Studio",        icon: "⟡" },
+      { key: "homepage-manager", label: "Homepage Manager",    icon: "⊙" },
+      { key: "blog-manager",     label: "Blog Manager",        icon: "✎" },
+      { key: "reusable-blocks",  label: "Reusable Blocks",     icon: "▣" },
+    ],
+  },
   {
     group: "Platform",
     items: [
@@ -3862,7 +3879,7 @@ ${seoForm.headHtml ? `\n${seoForm.headHtml}` : ""}`
 // ═════════════════════════════════════════════════════════════════════════════
 // Listings Module — Directory Listing Management
 // ═════════════════════════════════════════════════════════════════════════════
-function ListingsModule({ C }) {
+function ListingsModule({ C, NU, GD, onNavigate }) {
   const [catFilter, setCatFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [tierFilter, setTierFilter] = useState("all");
@@ -3959,10 +3976,10 @@ function ListingsModule({ C }) {
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, overflow: "hidden" }}>
         {/* Table header */}
         <div className="admin-listing-header" style={{
-          display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 0.8fr 0.7fr 0.7fr 0.6fr 0.5fr 0.6fr",
+          display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 0.8fr 0.7fr 0.7fr 0.6fr 0.5fr 0.6fr 0.7fr",
           padding: "10px 20px", borderBottom: `1px solid ${C.border}`, background: `${C.gold}06`,
         }}>
-          {["Name", "Category", "Sub-Category", "Destination", "Status", "Tier", "Score", "Enq.", "Updated"].map(h => (
+          {["Name", "Category", "Sub-Category", "Destination", "Status", "Tier", "Score", "Enq.", "Updated", "Actions"].map(h => (
             <span key={h} style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: C.grey2, fontWeight: 700 }}>{h}</span>
           ))}
         </div>
@@ -3972,7 +3989,7 @@ function ListingsModule({ C }) {
           const catObj = DIRECTORY_CATEGORIES.find(c => c.slug === l.category);
           return (
             <div key={l.id} className="admin-listing-row" style={{
-              display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 0.8fr 0.7fr 0.7fr 0.6fr 0.5fr 0.6fr",
+              display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 0.8fr 0.7fr 0.7fr 0.6fr 0.5fr 0.6fr 0.7fr",
               padding: "12px 20px", borderBottom: i < filtered.length - 1 ? `1px solid ${C.border}` : "none",
               alignItems: "center",
               transition: "background 0.15s",
@@ -3995,6 +4012,15 @@ function ListingsModule({ C }) {
               <span style={{ fontFamily: GD, fontSize: 14, color: l.lwdScore >= 9.0 ? C.gold : C.grey, fontWeight: 400 }}>{l.lwdScore}</span>
               <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>{l.enquiries}</span>
               <span style={{ fontFamily: NU, fontSize: 11, color: C.grey2 }}>{l.lastUpdated}</span>
+              <button
+                onClick={() => onNavigate && onNavigate("edit-page", { listingId: l.id, listingName: l.name, listingType: l.category })}
+                style={{
+                  fontFamily: NU, fontSize: 8, padding: "4px 8px", backgroundColor: C.gold, color: "#000",
+                  border: "none", borderRadius: 2, cursor: "pointer", fontWeight: 600, textTransform: "uppercase"
+                }}
+              >
+                Edit Page
+              </button>
             </div>
           );
         })}
@@ -6410,7 +6436,9 @@ function SidebarGroup({ section, activeTab, setActiveTab, darkMode, C, expandedG
 // Main Component
 // ═════════════════════════════════════════════════════════════════════════════
 export default function AdminDashboard({ onBack }) {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("page-studio");
+  const [pageStudioScreen, setPageStudioScreen] = useState("all-pages"); // all-pages, create-page, page-editor, etc.
+  const [selectedPageId, setSelectedPageId] = useState(null);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = _loadTheme();
     const adminDefault = saved?.site?.adminDefaultMode || DEFAULT_SITE_SETTINGS.adminDefaultMode;
@@ -6584,13 +6612,41 @@ export default function AdminDashboard({ onBack }) {
 
   const C = darkMode ? customDark : customLight;
 
+  // Page Studio navigation handler
+  const handlePageStudioNavigate = (screen, data = {}) => {
+    setPageStudioScreen(screen);
+    if (data.pageId) setSelectedPageId(data.pageId);
+  };
+
+  const renderPageStudioModule = () => {
+    switch (pageStudioScreen) {
+      case "all-pages":
+        return <AllPagesModule C={C} NU={NU} GD={GD} onNavigate={handlePageStudioNavigate} />;
+      case "create-page":
+        return <CreatePageModule C={C} NU={NU} GD={GD} onNavigate={handlePageStudioNavigate} />;
+      case "page-editor":
+        return <PageEditorModule pageId={selectedPageId} C={C} NU={NU} GD={GD} onNavigate={handlePageStudioNavigate} />;
+      default:
+        return <AllPagesModule C={C} NU={NU} GD={GD} onNavigate={handlePageStudioNavigate} />;
+    }
+  };
+
   const renderModule = () => {
     switch (activeTab) {
+      case "page-studio":         return renderPageStudioModule();
+      case "homepage-manager":    return <HomepageManagerModule C={C} NU={NU} GD={GD} />;
+      case "blog-manager":        return <BlogManagerModule C={C} NU={NU} GD={GD} />;
+      case "reusable-blocks":     return <ReusableBlocksModule C={C} NU={NU} GD={GD} />;
       case "overview":      return <OverviewModule C={C} />;
       case "partnerships":  return <PartnershipsModule C={C} />;
       case "index":         return <IndexHealthModule C={C} />;
       case "livechat":      return <LiveChatModule C={C} />;
-      case "listings":      return <ListingsModule C={C} />;
+      case "listings":      return <ListingsModule C={C} NU={NU} GD={GD} onNavigate={(action, data) => {
+        if (action === "edit-page") {
+          // Navigate to Page Studio editor for the listing's page
+          handlePageStudioNavigate(action, data);
+        }
+      }} />;
       case "categories":    return <CategoriesModule C={C} />;
       case "enquiries":     return <PlaceholderModule title="Enquiry Pipeline" C={C} />;
       case "countries":     return <CountriesModule C={C} />;
@@ -6600,7 +6656,7 @@ export default function AdminDashboard({ onBack }) {
       case "aura":          return <AuraAnalyticsModule C={C} />;
       case "api":           return <APIManagementModule C={C} />;
       case "styles":        return <StyleEditorModule C={C} darkPalette={customDark} lightPalette={customLight} fonts={customFonts} customCss={customCss} siteSettings={siteSettings} auditLog={auditLog} onUpdatePalette={handleUpdatePalette} onUpdateFonts={handleUpdateFonts} onUpdateCss={handleUpdateCss} onUpdateSiteSettings={handleUpdateSiteSettings} onSave={handleSaveThemeLogged} onRevert={handleRevertTheme} onExport={handleExportTheme} onImport={handleImportTheme} onApplyPreset={handleApplyPreset} saveStatus={saveStatus} />;
-      default:              return <OverviewModule C={C} />;
+      default:              return renderPageStudioModule();
     }
   };
 
