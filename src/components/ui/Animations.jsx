@@ -58,6 +58,7 @@ export function CountUp({ end, duration = 1600, suffix = "", prefix = "", style 
 // `trigger` prop: pass true to start animation (e.g. from parent's loaded state).
 export function SplitText({ children, trigger = true, delay = 0, stagger = 70, style = {} }) {
   const words = String(children).split(/\s+/);
+
   return (
     <span style={{ display: "inline", ...style }}>
       {words.map((word, i) => (
@@ -69,6 +70,11 @@ export function SplitText({ children, trigger = true, delay = 0, stagger = 70, s
             transform: trigger ? "translateY(0)" : "translateY(24px)",
             transition: `opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1) ${delay + i * stagger}ms, transform 0.65s cubic-bezier(0.22, 1, 0.36, 1) ${delay + i * stagger}ms`,
             willChange: "transform, opacity",
+            // Inherit text styles from parent
+            color: "inherit",
+            fontStyle: "inherit",
+            fontWeight: "inherit",
+            letterSpacing: "inherit",
           }}
         >
           {word}{i < words.length - 1 ? "\u00A0" : ""}
