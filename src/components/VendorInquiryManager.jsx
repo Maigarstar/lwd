@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from "react";
 import { getVendorInquiries, updateInquiryStatus, addVendorReply } from "../services/inquiryService";
+import { sendVendorReplyToCouple } from "../utils/emailService";
 
 const VendorInquiryManager = ({ vendorId }) => {
   const [inquiries, setInquiries] = useState([]);
@@ -102,7 +103,13 @@ const VendorInquiryManager = ({ vendorId }) => {
         localStorage.setItem("vendor_inquiries", JSON.stringify(updated));
       }
 
-      // TODO: In Phase 2.2, this will send an email to the couple via SendGrid
+      // Send email to couple (non-blocking - don't wait for SendGrid response)
+      sendVendorReplyToCouple(
+        selectedInquiry.couple_email,
+        selectedInquiry.couple_name,
+        selectedInquiry.vendor_name,
+        replyMessage
+      ).catch((err) => console.error("Failed to send reply email:", err));
     } catch (err) {
       console.error("Error adding reply:", err);
       alert("Failed to send reply");
