@@ -1,29 +1,32 @@
 /**
- * Inquiry Service
- * Handles CRUD operations for vendor inquiries in Supabase
+ * Enquiry Service
+ * Handles CRUD operations for vendor enquiries in Supabase
+ * Schema: vendor_enquiries(id, vendor_id, couple_id, listing_id, message, guest_count, budget_range, event_date, status, created_at, updated_at)
  */
 
 import { supabase } from "../lib/supabaseClient";
 
 /**
- * Save a new inquiry to Supabase
+ * Save a new enquiry to Supabase
+ * @param {Object} enquiryData - Enquiry details
+ * @returns {Promise<{data: Object|null, error: Error|null}>}
  */
-export const saveInquiry = async (inquiryData) => {
+export const saveInquiry = async (enquiryData) => {
   try {
     const { data, error } = await supabase
-      .from("vendor_inquiries")
+      .from("vendor_enquiries")
       .insert([
         {
-          vendor_id: inquiryData.vendorId,
-          vendor_name: inquiryData.vendorName,
-          vendor_email: inquiryData.vendorEmail,
-          couple_name: inquiryData.coupleName,
-          couple_email: inquiryData.coupleEmail,
-          couple_phone: inquiryData.couplePhone || null,
-          wedding_date: inquiryData.weddingDate,
-          guest_count: inquiryData.guestCount || null,
-          budget: inquiryData.budget || null,
-          message: inquiryData.message || null,
+          vendor_id: enquiryData.vendorId,
+          couple_id: enquiryData.couple_id || enquiryData.coupleEmail, // Use email as couple identifier for now
+          listing_id: enquiryData.vendorId, // Listing ID = vendor ID for now
+          message: enquiryData.message || null,
+          guest_count: enquiryData.guestCount || null,
+          budget_range: enquiryData.budget || null,
+          event_date: enquiryData.weddingDate || null,
+          couple_name: enquiryData.coupleName || null,
+          couple_email: enquiryData.coupleEmail || null,
+          couple_phone: enquiryData.couplePhone || null,
           status: "new",
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -34,18 +37,20 @@ export const saveInquiry = async (inquiryData) => {
     if (error) throw error;
     return { data: data?.[0], error: null };
   } catch (error) {
-    console.error("Error saving inquiry:", error);
+    console.error("Error saving enquiry:", error);
     return { data: null, error };
   }
 };
 
 /**
- * Get all inquiries for a specific vendor
+ * Get all enquiries for a specific vendor
+ * @param {number} vendorId - Vendor ID
+ * @returns {Promise<{data: Array, error: Error|null}>}
  */
 export const getVendorInquiries = async (vendorId) => {
   try {
     const { data, error } = await supabase
-      .from("vendor_inquiries")
+      .from("vendor_enquiries")
       .select("*")
       .eq("vendor_id", vendorId)
       .order("created_at", { ascending: false });
@@ -53,47 +58,53 @@ export const getVendorInquiries = async (vendorId) => {
     if (error) throw error;
     return { data: data || [], error: null };
   } catch (error) {
-    console.error("Error fetching inquiries:", error);
+    console.error("Error fetching enquiries:", error);
     return { data: [], error };
   }
 };
 
 /**
- * Update inquiry status
+ * Update enquiry status
+ * @param {number} enquiryId - Enquiry ID
+ * @param {string} newStatus - New status (new, replied, booked, archived)
+ * @returns {Promise<{data: Object|null, error: Error|null}>}
  */
-export const updateInquiryStatus = async (inquiryId, newStatus) => {
+export const updateInquiryStatus = async (enquiryId, newStatus) => {
   try {
     const { data, error } = await supabase
-      .from("vendor_inquiries")
+      .from("vendor_enquiries")
       .update({
         status: newStatus,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", inquiryId)
+      .eq("id", enquiryId)
       .select();
 
     if (error) throw error;
     return { data: data?.[0], error: null };
   } catch (error) {
-    console.error("Error updating inquiry status:", error);
+    console.error("Error updating enquiry status:", error);
     return { data: null, error };
   }
 };
 
 /**
- * Add vendor reply to inquiry
+ * Add vendor reply to enquiry
+ * @param {number} enquiryId - Enquiry ID
+ * @param {string} replyMessage - Reply message from vendor
+ * @returns {Promise<{data: Object|null, error: Error|null}>}
  */
-export const addVendorReply = async (inquiryId, replyMessage) => {
+export const addVendorReply = async (enquiryId, replyMessage) => {
   try {
     const { data, error } = await supabase
-      .from("vendor_inquiries")
+      .from("vendor_enquiries")
       .update({
         vendor_reply: replyMessage,
         status: "replied",
         replied_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq("id", inquiryId)
+      .eq("id", enquiryId)
       .select();
 
     if (error) throw error;
@@ -105,11 +116,14 @@ export const addVendorReply = async (inquiryId, replyMessage) => {
 };
 
 /**
- * Subscribe to real-time inquiry updates for a vendor
+ * Subscribe to real-time enquiry updates for a vendor
+ * @param {number} vendorId - Vendor ID
+ * @param {Function} callback - Called with updated enquiry
+ * @returns {Function} Unsubscribe function
  */
 export const subscribeToVendorInquiries = (vendorId, callback) => {
   const subscription = supabase
-    .from(`vendor_inquiries:vendor_id=eq.${vendorId}`)
+    .from(`vendor_enquiries:vendor_id=eq.${vendorId}`)
     .on("*", (payload) => {
       callback(payload);
     })
@@ -119,42 +133,46 @@ export const subscribeToVendorInquiries = (vendorId, callback) => {
 };
 
 /**
- * Get single inquiry by ID
+ * Get single enquiry by ID
+ * @param {number} enquiryId - Enquiry ID
+ * @returns {Promise<{data: Object|null, error: Error|null}>}
  */
-export const getInquiry = async (inquiryId) => {
+export const getInquiry = async (enquiryId) => {
   try {
     const { data, error } = await supabase
-      .from("vendor_inquiries")
+      .from("vendor_enquiries")
       .select("*")
-      .eq("id", inquiryId)
+      .eq("id", enquiryId)
       .single();
 
     if (error) throw error;
     return { data, error: null };
   } catch (error) {
-    console.error("Error fetching inquiry:", error);
+    console.error("Error fetching enquiry:", error);
     return { data: null, error };
   }
 };
 
 /**
- * Delete inquiry (soft delete via status)
+ * Archive enquiry (soft delete via status)
+ * @param {number} enquiryId - Enquiry ID
+ * @returns {Promise<{data: Object|null, error: Error|null}>}
  */
-export const closeInquiry = async (inquiryId) => {
+export const closeInquiry = async (enquiryId) => {
   try {
     const { data, error } = await supabase
-      .from("vendor_inquiries")
+      .from("vendor_enquiries")
       .update({
-        status: "closed",
+        status: "archived",
         updated_at: new Date().toISOString(),
       })
-      .eq("id", inquiryId)
+      .eq("id", enquiryId)
       .select();
 
     if (error) throw error;
     return { data: data?.[0], error: null };
   } catch (error) {
-    console.error("Error closing inquiry:", error);
+    console.error("Error archiving enquiry:", error);
     return { data: null, error };
   }
 };

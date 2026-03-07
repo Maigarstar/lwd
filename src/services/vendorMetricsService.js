@@ -91,9 +91,9 @@ export const getAverageResponseTime = async (vendorId) => {
   try {
     const { data, error } = await supabase
       .from("vendor_enquiries")
-      .select("created_at, reply_at")
+      .select("created_at, replied_at")
       .eq("vendor_id", vendorId)
-      .not("reply_at", "is", null);
+      .not("replied_at", "is", null);
 
     if (error) throw error;
 
@@ -103,8 +103,8 @@ export const getAverageResponseTime = async (vendorId) => {
 
     const responseTimes = data.map((enquiry) => {
       const createdAt = new Date(enquiry.created_at);
-      const replyAt = new Date(enquiry.reply_at);
-      const hours = (replyAt - createdAt) / (1000 * 60 * 60);
+      const repliedAt = new Date(enquiry.replied_at);
+      const hours = (repliedAt - createdAt) / (1000 * 60 * 60);
       return hours;
     });
 
