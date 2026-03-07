@@ -116,7 +116,7 @@ function App() {
     if (window.location.pathname !== path) {
       window.history.pushState(null, "", path);
     }
-  }, [page, activeCountrySlug, activeRegionSlug, activeCategorySlug, activeVendorSlug];
+  }, [page, activeCountrySlug, activeRegionSlug, activeCategorySlug, activeVendorSlug]);
 
   // ── Popstate: back / forward browser buttons ─────────────────────────────
   useEffect(() => {

@@ -1,10 +1,11 @@
 /**
  * Inquiry Form Component
  * Couples use this to send inquiries to vendors
- * Phase 1: localStorage persistence; Phase 2: Supabase integration
+ * Phase 2: Supabase persistence
  */
 
 import { useState } from "react";
+import { saveInquiry } from "../services/inquiryService";
 
 const InquiryForm = ({ vendorName, vendorId, onSuccess, onClose }) => {
   const [formData, setFormData] = useState({
@@ -42,31 +43,31 @@ const InquiryForm = ({ vendorName, vendorId, onSuccess, onClose }) => {
     }
 
     try {
-      // Phase 1: Save to localStorage
-      const inquiries = JSON.parse(
-        localStorage.getItem("vendor_inquiries") || "[]"
+      // Get vendor email from localStorage (temporary until vendor data is in Supabase)
+      const vendors = JSON.parse(
+        localStorage.getItem("venues") || "[]"
       );
+      const vendor = vendors.find((v) => v.id === vendorId);
+      const vendorEmail = vendor?.email || "contact@vendor.com";
 
-      const newInquiry = {
-        id: `inquiry_${Date.now()}`,
+      // Save to Supabase
+      const { data, error } = await saveInquiry({
         vendorId,
         vendorName,
+        vendorEmail,
         coupleName: formData.coupleName,
         coupleEmail: formData.coupleEmail,
         couplePhone: formData.couplePhone || "",
         weddingDate: formData.weddingDate,
-        guestCount: formData.guestCount || "",
+        guestCount: formData.guestCount ? parseInt(formData.guestCount) : null,
         budget: formData.budget || "",
         message: formData.message || "",
-        status: "new",
-        createdAt: new Date().toISOString(),
-      };
+      });
 
-      inquiries.push(newInquiry);
-      localStorage.setItem("vendor_inquiries", JSON.stringify(inquiries));
+      if (error) throw error;
 
       setStatus("success");
-      if (onSuccess) onSuccess(newInquiry);
+      if (onSuccess) onSuccess(data);
 
       // Reset form
       setFormData({

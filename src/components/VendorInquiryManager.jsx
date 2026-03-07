@@ -2,54 +2,111 @@
  * Vendor Inquiry Manager Component
  * Vendors use this to view and manage inquiries they receive
  * Shows in vendor dashboard
+ * Phase 2: Supabase integration
  */
 
 import { useState, useEffect } from "react";
+import { getVendorInquiries, updateInquiryStatus, addVendorReply } from "../services/inquiryService";
 
-const VendorInquiryManager = () => {
+const VendorInquiryManager = ({ vendorId }) => {
   const [inquiries, setInquiries] = useState([]);
   const [filter, setFilter] = useState("new"); // new, replied, closed, all
   const [selectedInquiry, setSelectedInquiry] = useState(null);
   const [replyMessage, setReplyMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Load inquiries from localStorage
-    const saved = JSON.parse(localStorage.getItem("vendor_inquiries") || "[]");
-    setInquiries(saved);
-  }, []);
+    if (!vendorId) {
+      // Fallback to localStorage if no vendorId provided
+      const saved = JSON.parse(localStorage.getItem("vendor_inquiries") || "[]");
+      setInquiries(saved);
+      setLoading(false);
+      return;
+    }
+
+    // Load inquiries from Supabase
+    const loadInquiries = async () => {
+      try {
+        const { data, error: err } = await getVendorInquiries(String(vendorId));
+        if (err) throw err;
+        setInquiries(data);
+      } catch (err) {
+        console.error("Error loading inquiries:", err);
+        setError("Failed to load inquiries");
+        // Fallback to localStorage
+        const saved = JSON.parse(localStorage.getItem("vendor_inquiries") || "[]");
+        setInquiries(saved);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInquiries();
+  }, [vendorId]);
 
   const filteredInquiries = inquiries.filter((inq) => {
     if (filter === "all") return true;
     return inq.status === filter;
   });
 
-  const updateInquiryStatus = (inquiryId, newStatus) => {
-    const updated = inquiries.map((inq) =>
-      inq.id === inquiryId ? { ...inq, status: newStatus } : inq
-    );
-    setInquiries(updated);
-    localStorage.setItem("vendor_inquiries", JSON.stringify(updated));
+  const handleUpdateStatus = async (inquiryId, newStatus) => {
+    try {
+      const { data, error: err } = await updateInquiryStatus(inquiryId, newStatus);
+      if (err) throw err;
+
+      // Update local state
+      const updated = inquiries.map((inq) =>
+        inq.id === inquiryId ? { ...inq, status: newStatus } : inq
+      );
+      setInquiries(updated);
+      setSelectedInquiry(updated.find((inq) => inq.id === inquiryId) || null);
+
+      // Fallback to localStorage
+      if (!vendorId) {
+        localStorage.setItem("vendor_inquiries", JSON.stringify(updated));
+      }
+    } catch (err) {
+      console.error("Error updating inquiry status:", err);
+      alert("Failed to update inquiry status");
+    }
   };
 
-  const handleReply = () => {
+  const handleReply = async () => {
     if (!replyMessage.trim() || !selectedInquiry) return;
 
-    const updated = inquiries.map((inq) =>
-      inq.id === selectedInquiry.id
-        ? {
-            ...inq,
-            status: "replied",
-            repliedAt: new Date().toISOString(),
-          }
-        : inq
-    );
+    try {
+      const { data, error: err } = await addVendorReply(
+        selectedInquiry.id,
+        replyMessage
+      );
+      if (err) throw err;
 
-    setInquiries(updated);
-    localStorage.setItem("vendor_inquiries", JSON.stringify(updated));
-    setReplyMessage("");
-    setSelectedInquiry(null);
+      // Update local state
+      const updated = inquiries.map((inq) =>
+        inq.id === selectedInquiry.id
+          ? {
+              ...inq,
+              status: "replied",
+              vendor_reply: replyMessage,
+              replied_at: new Date().toISOString(),
+            }
+          : inq
+      );
+      setInquiries(updated);
+      setReplyMessage("");
+      setSelectedInquiry(null);
 
-    // In Phase 2, this would send an email to the couple
+      // Fallback to localStorage
+      if (!vendorId) {
+        localStorage.setItem("vendor_inquiries", JSON.stringify(updated));
+      }
+
+      // TODO: In Phase 2.2, this will send an email to the couple via SendGrid
+    } catch (err) {
+      console.error("Error adding reply:", err);
+      alert("Failed to send reply");
+    }
   };
 
   const colors = {
@@ -140,14 +197,13 @@ const VendorInquiryManager = () => {
                 key={inquiry.id}
                 onClick={() => setSelectedInquiry(inquiry)}
                 style={{
-                  backgroundColor: colors.card,
+                  backgroundColor:
+                    selectedInquiry?.id === inquiry.id ? colors.dark : colors.card,
                   border: `1px solid ${colors.border}`,
                   borderRadius: "4px",
                   padding: "20px",
                   cursor: "pointer",
                   transition: "all 0.2s",
-                  backgroundColor:
-                    selectedInquiry?.id === inquiry.id ? colors.dark : colors.card,
                 }}
               >
                 <div
@@ -431,7 +487,7 @@ const VendorInquiryManager = () => {
                     {["new", "replied", "closed"].map((status) => (
                       <button
                         key={status}
-                        onClick={() => updateInquiryStatus(selectedInquiry.id, status)}
+                        onClick={() => handleUpdateStatus(selectedInquiry.id, status)}
                         style={{
                           padding: "6px 12px",
                           fontFamily: fonts.body,

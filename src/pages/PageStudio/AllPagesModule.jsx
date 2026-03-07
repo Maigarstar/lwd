@@ -93,11 +93,73 @@ const AllPagesModule = ({ C, NU, GD, onNavigate }) => {
     borderRadius: 3,
     padding: "6px 12px",
     outline: "none",
-    width: 200
+    minWidth: 200,
+    width: "100%",
+    maxWidth: 200,
+    boxSizing: "border-box"
   };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: 16 }}>
+      {/* Mobile responsive styles */}
+      <style>{`
+        @media (max-width: 1023px) {
+          .pages-table-header { grid-template-columns: 2fr 1.5fr 1fr 1.2fr !important; }
+          .pages-table-header > div:nth-child(4),
+          .pages-table-header > div:nth-child(5),
+          .pages-table-header > div:nth-child(6),
+          .pages-table-header > div:nth-child(7),
+          .pages-table-header > div:nth-child(8) { display: none !important; }
+          .pages-table-row { grid-template-columns: 2fr 1.5fr 1fr 1.2fr !important; }
+          .pages-table-row > div:nth-child(4),
+          .pages-table-row > div:nth-child(5),
+          .pages-table-row > div:nth-child(6),
+          .pages-table-row > div:nth-child(7),
+          .pages-table-row > div:nth-child(8) { display: none !important; }
+          .pages-table-row > div:nth-child(9) {
+            display: flex !important;
+            gap: 3px !important;
+            min-width: 0;
+          }
+          .pages-table-row button {
+            font-size: 7px !important;
+            padding: 3px 6px !important;
+            flex: 1;
+            min-width: 30px;
+          }
+        }
+        @media (max-width: 768px) {
+          .pages-filter { flex-direction: column !important; }
+          .pages-filter > div { width: 100% !important; }
+          .pages-filter select,
+          .pages-filter input { width: 100% !important; }
+          .pages-table-header { grid-template-columns: 1.5fr 1fr 0.8fr 1.2fr !important; }
+          .pages-table-header > div:nth-child(4),
+          .pages-table-header > div:nth-child(5),
+          .pages-table-header > div:nth-child(6),
+          .pages-table-header > div:nth-child(7),
+          .pages-table-header > div:nth-child(8) { display: none !important; }
+          .pages-table-row { grid-template-columns: 1.5fr 1fr 0.8fr 1.2fr !important; }
+          .pages-table-row > div:nth-child(4),
+          .pages-table-row > div:nth-child(5),
+          .pages-table-row > div:nth-child(6),
+          .pages-table-row > div:nth-child(7),
+          .pages-table-row > div:nth-child(8) { display: none !important; }
+          .pages-table-row > div:nth-child(9) {
+            display: flex !important;
+            gap: 2px !important;
+            min-width: 0;
+          }
+          .pages-table-row button {
+            font-size: 6px !important;
+            padding: 2px 4px !important;
+            flex: 1;
+            min-width: 24px;
+            white-space: nowrap;
+          }
+        }
+      `}</style>
+
       {/* Header */}
       <div style={{ padding: "0 20px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
@@ -111,13 +173,24 @@ const AllPagesModule = ({ C, NU, GD, onNavigate }) => {
               fontSize: 9,
               fontWeight: 700,
               color: "#000",
-              background: C.gold,
+              background: `linear-gradient(135deg, ${C.gold} 0%, #9a7a1f 100%)`,
               border: "none",
-              borderRadius: 3,
-              padding: "8px 16px",
+              borderRadius: 6,
+              padding: "10px 24px",
               cursor: "pointer",
               textTransform: "uppercase",
-              letterSpacing: "0.08em"
+              letterSpacing: "0.08em",
+              boxShadow: `0 4px 12px rgba(138, 109, 27, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)`,
+              transition: "all 0.3s ease",
+              position: "relative"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow = `0 6px 16px rgba(138, 109, 27, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)`;
+              e.currentTarget.style.transform = "translateY(-2px)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = `0 4px 12px rgba(138, 109, 27, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)`;
+              e.currentTarget.style.transform = "translateY(0)";
             }}
           >
             + Create Page
@@ -125,7 +198,7 @@ const AllPagesModule = ({ C, NU, GD, onNavigate }) => {
         </div>
 
         {/* Filters */}
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <div className="pages-filter" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <div>
             <label style={labelStyle}>Type</label>
             <select
@@ -176,10 +249,12 @@ const AllPagesModule = ({ C, NU, GD, onNavigate }) => {
       <div
         style={{
           flex: 1,
-          padding: "0 20px",
+          paddingLeft: 20,
+          paddingRight: 20,
+          paddingTop: 16,
+          paddingBottom: 0,
           overflow: "auto",
-          borderTop: `1px solid ${C.border}`,
-          paddingTop: 16
+          borderTop: `1px solid ${C.border}`
         }}
       >
         {filteredPages.length === 0 ? (
@@ -198,6 +273,7 @@ const AllPagesModule = ({ C, NU, GD, onNavigate }) => {
           <div>
             {/* Table Header */}
             <div
+              className="pages-table-header"
               style={{
                 display: "grid",
                 gridTemplateColumns: "2fr 1.5fr 1fr 0.8fr 1fr 1fr 1fr 0.7fr 0.8fr",
@@ -248,22 +324,28 @@ const AllPagesModule = ({ C, NU, GD, onNavigate }) => {
               return (
                 <div
                   key={page.id}
+                  className="pages-table-row"
                   style={{
                     display: "grid",
                     gridTemplateColumns: "2fr 1.5fr 1fr 0.8fr 1fr 1fr 1fr 0.7fr 0.8fr",
                     gap: 12,
-                    padding: "12px",
+                    padding: "12px 16px",
                     borderBottom: `1px solid ${C.border}`,
                     alignItems: "center",
                     backgroundColor: C.dark,
-                    marginBottom: 4,
-                    borderRadius: 3
+                    marginBottom: 8,
+                    marginLeft: 0,
+                    marginRight: 0,
+                    borderRadius: 6,
+                    transition: "all 0.2s ease"
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = C.card;
+                    e.currentTarget.style.boxShadow = `0 2px 8px rgba(0, 0, 0, 0.08)`;
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = C.dark;
+                    e.currentTarget.style.boxShadow = "none";
                   }}
                 >
                   <div>
@@ -304,19 +386,33 @@ const AllPagesModule = ({ C, NU, GD, onNavigate }) => {
                       {page.author}
                     </p>
                   </div>
-                  <div style={{ display: "flex", gap: 4 }}>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     <button
                       onClick={() => handleEditPage(page.id)}
                       style={{
                         fontFamily: NU,
                         fontSize: 8,
-                        padding: "4px 8px",
+                        padding: "6px 12px",
                         backgroundColor: C.gold,
                         color: "#000",
                         border: "none",
-                        borderRadius: 2,
+                        borderRadius: 4,
                         cursor: "pointer",
-                        fontWeight: 600
+                        fontWeight: 600,
+                        boxShadow: `0 2px 6px rgba(138, 109, 27, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15)`,
+                        transition: "all 0.25s ease",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        flex: 1,
+                        minWidth: "28px"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.boxShadow = `0 3px 10px rgba(138, 109, 27, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2)`;
+                        e.currentTarget.style.transform = "translateY(-1px)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.boxShadow = `0 2px 6px rgba(138, 109, 27, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15)`;
+                        e.currentTarget.style.transform = "translateY(0)";
                       }}
                     >
                       Edit
@@ -326,13 +422,29 @@ const AllPagesModule = ({ C, NU, GD, onNavigate }) => {
                       style={{
                         fontFamily: NU,
                         fontSize: 8,
-                        padding: "4px 8px",
+                        padding: "6px 12px",
                         backgroundColor: "transparent",
                         color: C.gold,
                         border: `1px solid ${C.gold}`,
-                        borderRadius: 2,
+                        borderRadius: 4,
                         cursor: "pointer",
-                        fontWeight: 600
+                        fontWeight: 600,
+                        boxShadow: `0 1px 3px rgba(138, 109, 27, 0.1)`,
+                        transition: "all 0.25s ease",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        flex: 1,
+                        minWidth: "28px"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = `rgba(138, 109, 27, 0.08)`;
+                        e.currentTarget.style.boxShadow = `0 2px 6px rgba(138, 109, 27, 0.2)`;
+                        e.currentTarget.style.transform = "translateY(-1px)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                        e.currentTarget.style.boxShadow = `0 1px 3px rgba(138, 109, 27, 0.1)`;
+                        e.currentTarget.style.transform = "translateY(0)";
                       }}
                     >
                       Dup
@@ -342,13 +454,27 @@ const AllPagesModule = ({ C, NU, GD, onNavigate }) => {
                       style={{
                         fontFamily: NU,
                         fontSize: 8,
-                        padding: "4px 8px",
+                        padding: "6px 12px",
                         backgroundColor: C.rose,
                         color: "#fff",
                         border: "none",
-                        borderRadius: 2,
+                        borderRadius: 4,
                         cursor: "pointer",
-                        fontWeight: 600
+                        fontWeight: 600,
+                        boxShadow: `0 2px 6px rgba(190, 18, 60, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15)`,
+                        transition: "all 0.25s ease",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        flex: 1,
+                        minWidth: "28px"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.boxShadow = `0 3px 10px rgba(190, 18, 60, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2)`;
+                        e.currentTarget.style.transform = "translateY(-1px)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.boxShadow = `0 2px 6px rgba(190, 18, 60, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15)`;
+                        e.currentTarget.style.transform = "translateY(0)";
                       }}
                     >
                       Del

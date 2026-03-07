@@ -1,33 +1,14 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// Supabase Client Stub
+// Supabase Client Configuration
 // ═══════════════════════════════════════════════════════════════════════════
-// TODO: Configure with real Supabase credentials from environment variables
-// For now, exports a stub to prevent build errors
 
-export const supabase = {
-  from: () => ({
-    select: () => ({
-      eq: () => ({
-        single: async () => ({ data: null, error: { code: "PGRST116" } }),
-      }),
-      on: () => ({
-        subscribe: () => ({
-          unsubscribe: () => {},
-        }),
-      }),
-    }),
-    update: () => ({
-      eq: () => ({
-        select: async () => ({ data: null, error: null }),
-      }),
-    }),
-    insert: () => ({
-      select: async () => ({ data: null, error: null }),
-    }),
-  }),
-  on: () => ({
-    subscribe: () => ({
-      unsubscribe: () => {},
-    }),
-  }),
-};
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error("Missing Supabase environment variables");
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);

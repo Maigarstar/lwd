@@ -28,6 +28,7 @@ const PageEditorModule = ({ pageId, C, NU, GD, onNavigate }) => {
   const [page, setPage] = useState(null);
   const [selectedSectionId, setSelectedSectionId] = useState(null);
   const [activeTab, setActiveTab] = useState("canvas"); // canvas or seo
+  const [mobileEditorTab, setMobileEditorTab] = useState("library"); // library, canvas, or settings (mobile only)
   const [showPreview, setShowPreview] = useState(false);
   const [showBlocksBrowser, setShowBlocksBrowser] = useState(false);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
@@ -187,6 +188,21 @@ const PageEditorModule = ({ pageId, C, NU, GD, onNavigate }) => {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      {/* Responsive styles for mobile editor tabs */}
+      <style>{`
+        @media (max-width: 1023px) {
+          .page-editor-mobile-tabs { display: flex !important; }
+          .page-editor-library, .page-editor-canvas, .page-editor-settings { width: 100% !important; }
+          .page-editor-canvas { min-height: calc(100vh - 300px); }
+        }
+        @media (min-width: 1024px) {
+          .page-editor-mobile-tabs { display: none !important; }
+          .page-editor-library { display: flex !important; width: 280px; flex-shrink: 0; }
+          .page-editor-canvas { display: flex !important; flex: 1; }
+          .page-editor-settings { display: flex !important; }
+        }
+      `}</style>
+
       {/* Top Bar */}
       <div
         style={{
@@ -309,65 +325,144 @@ const PageEditorModule = ({ pageId, C, NU, GD, onNavigate }) => {
         </button>
       </div>
 
+      {/* Mobile Tab Navigation (hidden on desktop) */}
+      <div style={{ display: "none" }} className="page-editor-mobile-tabs">
+        <div
+          style={{
+            display: "flex",
+            gap: 0,
+            borderBottom: `1px solid ${C.border}`,
+            backgroundColor: C.dark,
+            paddingLeft: 0,
+            overflowX: "auto",
+            WebkitOverflowScrolling: "touch"
+          }}
+        >
+          <button
+            onClick={() => setMobileEditorTab("library")}
+            style={{
+              fontFamily: NU,
+              fontSize: 9,
+              padding: "10px 12px",
+              backgroundColor: mobileEditorTab === "library" ? C.card : "transparent",
+              border: "none",
+              borderBottom: mobileEditorTab === "library" ? `3px solid ${C.gold}` : "none",
+              color: mobileEditorTab === "library" ? C.white : C.grey2,
+              cursor: "pointer",
+              textTransform: "uppercase",
+              fontWeight: 600,
+              flex: "0 0 auto",
+              whiteSpace: "nowrap"
+            }}
+          >
+            Sections
+          </button>
+          <button
+            onClick={() => setMobileEditorTab("canvas")}
+            style={{
+              fontFamily: NU,
+              fontSize: 9,
+              padding: "10px 12px",
+              backgroundColor: mobileEditorTab === "canvas" ? C.card : "transparent",
+              border: "none",
+              borderBottom: mobileEditorTab === "canvas" ? `3px solid ${C.gold}` : "none",
+              color: mobileEditorTab === "canvas" ? C.white : C.grey2,
+              cursor: "pointer",
+              textTransform: "uppercase",
+              fontWeight: 600,
+              flex: "0 0 auto",
+              whiteSpace: "nowrap"
+            }}
+          >
+            Canvas
+          </button>
+          <button
+            onClick={() => setMobileEditorTab("settings")}
+            style={{
+              fontFamily: NU,
+              fontSize: 9,
+              padding: "10px 12px",
+              backgroundColor: mobileEditorTab === "settings" ? C.card : "transparent",
+              border: "none",
+              borderBottom: mobileEditorTab === "settings" ? `3px solid ${C.gold}` : "none",
+              color: mobileEditorTab === "settings" ? C.white : C.grey2,
+              cursor: "pointer",
+              textTransform: "uppercase",
+              fontWeight: 600,
+              flex: "0 0 auto",
+              whiteSpace: "nowrap"
+            }}
+          >
+            Settings
+          </button>
+        </div>
+      </div>
+
       {/* Main Content Area */}
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         {activeTab === "canvas" && (
           <>
             {/* Left Sidebar - Section Library */}
-            <SectionLibrary
-              onAddSection={handleAddSection}
-              onBrowseBlocks={() => setShowBlocksBrowser(true)}
-              C={C}
-              NU={NU}
-              GD={GD}
-            />
-
-            {/* Center Canvas */}
-            <SectionCanvas
-              sections={page.sections || []}
-              onSelectSection={setSelectedSectionId}
-              onDeleteSection={handleDeleteSection}
-              onDuplicateSection={handleDuplicateSection}
-              onMoveUp={handleMoveSectionUp}
-              onMoveDown={handleMoveSectionDown}
-              onToggleVisibility={handleToggleVisibility}
-              selectedSectionId={selectedSectionId}
-              C={C}
-              NU={NU}
-              GD={GD}
-            />
-
-            {/* Right Settings Panel */}
-            {selectedSection ? (
-              <RightSettingsPanel
-                section={selectedSection}
-                onUpdate={(updated) => {
-                  handleUpdateSection(updated.id, updated);
-                  setSelectedSectionId(updated.id);
-                }}
+            <div className="page-editor-library" style={{ display: mobileEditorTab === "library" ? "block" : "none" }}>
+              <SectionLibrary
+                onAddSection={handleAddSection}
+                onBrowseBlocks={() => setShowBlocksBrowser(true)}
                 C={C}
                 NU={NU}
                 GD={GD}
               />
-            ) : (
-              <div
-                style={{
-                  width: 320,
-                  backgroundColor: C.dark,
-                  borderLeft: `1px solid ${C.border}`,
-                  padding: "16px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: C.grey2,
-                  fontFamily: NU,
-                  fontSize: 12,
-                  textAlign: "center"
-                }}
-              >
-                Select a section to edit
-              </div>
-            )}
+            </div>
+
+            {/* Center Canvas */}
+            <div className="page-editor-canvas" style={{ display: mobileEditorTab === "canvas" ? "block" : "none", flex: 1, overflow: "auto" }}>
+              <SectionCanvas
+                sections={page.sections || []}
+                onSelectSection={setSelectedSectionId}
+                onDeleteSection={handleDeleteSection}
+                onDuplicateSection={handleDuplicateSection}
+                onMoveUp={handleMoveSectionUp}
+                onMoveDown={handleMoveSectionDown}
+                onToggleVisibility={handleToggleVisibility}
+                selectedSectionId={selectedSectionId}
+                C={C}
+                NU={NU}
+                GD={GD}
+              />
+            </div>
+
+            {/* Right Settings Panel */}
+            <div className="page-editor-settings" style={{ display: mobileEditorTab === "settings" ? "block" : "none" }}>
+              {selectedSection ? (
+                <RightSettingsPanel
+                  section={selectedSection}
+                  onUpdate={(updated) => {
+                    handleUpdateSection(updated.id, updated);
+                    setSelectedSectionId(updated.id);
+                  }}
+                  C={C}
+                  NU={NU}
+                  GD={GD}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 320,
+                    backgroundColor: C.dark,
+                    borderLeft: `1px solid ${C.border}`,
+                    padding: "16px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: C.grey2,
+                    fontFamily: NU,
+                    fontSize: 12,
+                    textAlign: "center"
+                  }}
+                >
+                  Select a section to edit
+                </div>
+              )}
+            </div>
           </>
         )}
 
