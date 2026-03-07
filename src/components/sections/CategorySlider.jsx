@@ -132,7 +132,7 @@ export default function CategorySlider() {
       style={{
         position: "relative",
         background: C.card,
-        padding: "100px 0 100px 60px",
+        padding: "100px 60px",
         overflow: "hidden",
       }}
     >
@@ -145,7 +145,6 @@ export default function CategorySlider() {
           display: "flex",
           alignItems: "flex-end",
           justifyContent: "space-between",
-          paddingRight: 60,
         }}
       >
         <div>

@@ -22,7 +22,7 @@ export default function DestinationGrid({ onDestinationClick }) {
       style={{
         position: "relative",
         background: C.card,
-        padding: "100px 0 100px 60px",
+        padding: "100px 60px",
         overflow: "hidden",
         borderTop: `1px solid ${C.border}`,
       }}
@@ -35,7 +35,6 @@ export default function DestinationGrid({ onDestinationClick }) {
           display: "flex",
           alignItems: "flex-end",
           justifyContent: "space-between",
-          paddingRight: 60,
         }}
       >
         <div>
