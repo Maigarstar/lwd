@@ -24,6 +24,50 @@ export default function VenueGrid({ venues = [], onViewVenue }) {
   const isMobile = useIsMobile();
   const display = venues.slice(0, 12);
 
+  // Mobile: vertical feed. Desktop: horizontal carousel via SliderNav
+  if (isMobile) {
+    return (
+      <div
+        aria-label="Featured wedding venues – Mobile feed"
+        className="home-venue-grid-mobile"
+        style={{
+          position: "relative",
+          background: C.black,
+          width: "100vw",
+          overflowX: "hidden",
+          overflowY: "auto",
+          scrollSnapType: "y mandatory",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {display.map((v) => (
+          <div
+            key={v.id}
+            className="home-venue-card"
+            style={{
+              width: "100vw",
+              flex: "0 0 100vh",
+              scrollSnapAlign: "start",
+              scrollMarginTop: 0,
+              borderRadius: 0,
+            }}
+          >
+            <LuxuryVenueCard
+              v={v}
+              isMobile={true}
+              onView={() => {
+                track("venue_card_click", { id: v.id, name: v.name });
+                onViewVenue?.(v);
+              }}
+            />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Desktop: Section with heading + carousel + CTA
   return (
     <section
       aria-label="Featured wedding venues"
@@ -94,12 +138,12 @@ export default function VenueGrid({ venues = [], onViewVenue }) {
 
         {/* Card slider */}
         <div style={{ marginBottom: 48 }}>
-          <SliderNav className="home-venue-grid" cardWidth={isMobile ? 300 : 400} gap={isMobile ? 12 : 24}>
+          <SliderNav className="home-venue-grid" cardWidth={400} gap={24}>
             {display.map((v) => (
-              <div key={v.id} className="home-venue-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 400px", scrollSnapAlign: "start" }}>
+              <div key={v.id} className="home-venue-card" style={{ flex: "0 0 400px", scrollSnapAlign: "start" }}>
                 <LuxuryVenueCard
                   v={v}
-                  isMobile={isMobile}
+                  isMobile={false}
                   onView={() => {
                     track("venue_card_click", { id: v.id, name: v.name });
                     onViewVenue?.(v);

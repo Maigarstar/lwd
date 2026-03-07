@@ -119,17 +119,17 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
       onClick={() => onView?.(v)}
       style={{
         position:        "relative",
-        borderRadius:    "var(--lwd-radius-card)",
+        borderRadius:    isMobile ? 0 : "var(--lwd-radius-card)",
         overflow:        "hidden",
         cursor:          "pointer",
         transition:      "all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
-        transform:       hov ? "translateY(-4px)" : "translateY(0)",
-        boxShadow:       hov ? "0 16px 48px rgba(0,0,0,0.25), 0 4px 12px rgba(201,168,76,0.08)" : "0 2px 12px rgba(0,0,0,0.1)",
-        scrollSnapAlign: isMobile ? "start" : undefined,
-        scrollMarginTop: isMobile ? 12 : undefined,
-        height:          isMobile ? "75vh" : 560,
-        minHeight:       isMobile ? 440 : 520,
-        maxHeight:       580,
+        transform:       hov && !isMobile ? "translateY(-4px)" : "translateY(0)",
+        boxShadow:       hov && !isMobile ? "0 16px 48px rgba(0,0,0,0.25), 0 4px 12px rgba(201,168,76,0.08)" : "0 2px 12px rgba(0,0,0,0.1)",
+        scrollSnapAlign: "start",
+        scrollMarginTop: 0,
+        height:          isMobile ? "100vh" : 560,
+        minHeight:       isMobile ? "100vh" : 520,
+        maxHeight:       isMobile ? "100vh" : 580,
       }}
     >
       {/* ── Full-bleed swipeable media ── */}
