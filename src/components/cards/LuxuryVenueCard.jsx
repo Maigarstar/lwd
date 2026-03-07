@@ -36,13 +36,21 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
   const hasMultiple = mediaCount > 1;
   const hasVideo    = allMedia.some((m) => m.type === "video");
 
-  // ── Track visibility to pause video ──
+  // ── Track visibility to pause video and close Quick View ──
   const [isVisible, setIsVisible] = useState(false);
   useEffect(() => {
     const el = cardRef.current;
     if (!el) return;
     const obs = new IntersectionObserver(
-      ([entry]) => setIsVisible(entry.isIntersecting),
+      ([entry]) => {
+        const visible = entry.isIntersecting && entry.intersectionRatio >= 0.3;
+        setIsVisible(visible);
+        // Close Quick View and reset sound when card leaves viewport
+        if (!visible) {
+          setQuickViewItem(null);
+          setMuted(true);
+        }
+      },
       { threshold: 0.3 }
     );
     obs.observe(el);
