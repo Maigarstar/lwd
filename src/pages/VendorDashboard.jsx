@@ -1182,7 +1182,41 @@ export default function VendorDashboard({ onBack }) {
             <div>
               <div style={{ marginBottom: 28 }}>
                 <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: "3px", textTransform: "uppercase", color: C.gold, marginBottom: 8 }}>Dashboard Overview</div>
-                <h2 style={{ fontFamily: GD, fontSize: isMobile ? 24 : 32, color: C.white, fontWeight: 600 }}>Good morning, Grand Pavilion {"\u2726"}</h2>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 20 }}>
+                  <h2 style={{ fontFamily: GD, fontSize: isMobile ? 24 : 32, color: C.white, fontWeight: 600, margin: 0 }}>Good morning, Grand Pavilion {"\u2726"}</h2>
+                  <button
+                    onClick={() => {
+                      const slug = vendor.name.toLowerCase().replace(/\s+/g, "-");
+                      window.open(`/listing/${slug}`, "_blank");
+                    }}
+                    style={{
+                      background: "none",
+                      border: `1px solid ${C.gold}`,
+                      color: C.gold,
+                      fontFamily: NU,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      letterSpacing: "1px",
+                      textTransform: "uppercase",
+                      padding: "10px 24px",
+                      borderRadius: "var(--lwd-radius-input)",
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = C.gold;
+                      e.currentTarget.style.color = "#0a0906";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "none";
+                      e.currentTarget.style.color = C.gold;
+                    }}
+                  >
+                    ◆ View Public Listing
+                  </button>
+                </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: isMobile ? 10 : 16, marginBottom: 32 }}>
                 <StatCard label="New Enquiries" val={metricsLoading ? "—" : metrics?.newEnquiries || 0} change="Real-time" icon="◇" />
