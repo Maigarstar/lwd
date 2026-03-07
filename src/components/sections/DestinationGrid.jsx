@@ -191,7 +191,7 @@ export default function DestinationGrid({ onDestinationClick }) {
             className="home-dest-card"
             style={{
               flexShrink: 0,
-              width: 220,
+              width: 232,
               scrollSnapAlign: "start",
               cursor: "pointer",
             }}

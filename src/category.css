@@ -415,7 +415,7 @@ div[role="listbox"]::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3);
   .home-dest-section { padding: 60px 0 60px 20px !important; }
   .home-dest-header { margin-bottom: 32px !important; flex-direction: column !important; align-items: flex-start !important; gap: 20px !important; }
   .home-dest-scroll { padding-right: 20px !important; gap: 14px !important; }
-  .home-dest-card { width: 160px !important; }
+  .home-dest-card { width: 168px !important; }
   .home-dest-card-img { height: 220px !important; }
 
   /* ── VenueGrid ── */
