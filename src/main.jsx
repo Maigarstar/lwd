@@ -26,6 +26,8 @@ import AdminDashboard         from "./pages/AdminDashboard.jsx";
 import VendorDashboard        from "./pages/VendorDashboard.jsx";
 import WeddingPlannersPage    from "./pages/WeddingPlannersPage.jsx";
 import PlannerProfilePage     from "./pages/PlannerProfilePage.jsx";
+import VendorDirectoryPage    from "./pages/VendorDirectoryPage.jsx";
+import PublicVendorProfilePage from "./pages/PublicVendorProfilePage.jsx";
 import { VENDORS }            from "./data/vendors.js";
 
 // ── Planner slug helpers ─────────────────────────────────────────────────────
@@ -41,13 +43,15 @@ function getPlannerByIdOrSlug(idOrSlug) {
 
 // ── URL ↔ state helpers ──────────────────────────────────────────────────────
 function stateToPath(pg, opts = {}) {
-  const { countrySlug, regionSlug, categorySlug, plannerSlug } = opts;
+  const { countrySlug, regionSlug, categorySlug, plannerSlug, vendorSlug } = opts;
   switch (pg) {
     case "region":           return `/${countrySlug}/${regionSlug}`;
     case "region-category":  return `/${countrySlug}/${regionSlug}/${categorySlug}`;
     case "planner-profile":  return `/${countrySlug}/${regionSlug}/wedding-planners/${plannerSlug}`;
+    case "vendor-profile":   return `/vendor/${vendorSlug}`;
     case "category":         return "/category";
     case "venue":            return "/venue";
+    case "directory":        return "/wed-venues";
     case "standard":         return "/the-lwd-standard";
     case "about":            return "/about";
     case "contact":          return "/contact";
@@ -64,7 +68,7 @@ function pathToState(pathname) {
   const clean = pathname.replace(/^\/+|\/+$/g, "");
   if (!clean) return { page: "home" };
   const statics = {
-    venue: "venue", category: "category", "the-lwd-standard": "standard",
+    venue: "venue", "wed-venues": "directory", category: "category", "the-lwd-standard": "standard",
     about: "about", contact: "contact", partnership: "partnership",
     usa: "usa", italy: "italy", admin: "admin", vendor: "vendor",
   };
@@ -72,6 +76,7 @@ function pathToState(pathname) {
   // Static routes only match single-segment paths; multi-segment paths
   // like /italy/tuscany or /italy/tuscany/wedding-planners are dynamic.
   if (parts.length === 1 && statics[parts[0]]) return { page: statics[parts[0]] };
+  if (parts.length === 2 && parts[0] === "vendor") return { page: "vendor-profile", vendorSlug: parts[1] };
   if (parts.length === 2) return { page: "region", countrySlug: parts[0], regionSlug: parts[1] };
   if (parts.length === 3) return { page: "region-category", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2] };
   if (parts.length === 4) return { page: "planner-profile", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2], plannerSlug: parts[3] };
@@ -89,6 +94,7 @@ function App() {
   const [activeRegionSlug, setActiveRegionSlug] = useState(initial.regionSlug || null);
   const [activeCategorySlug, setActiveCategorySlug] = useState(initial.categorySlug || null);
   const [activePlannerSlug, setActivePlannerSlug] = useState(initial.plannerSlug || null);
+  const [activeVendorSlug, setActiveVendorSlug] = useState(initial.vendorSlug || null);
   const [categorySearchQuery, setCategorySearchQuery] = useState(null);
 
   // Ref: skip pushState when change came from popstate (back/forward)
@@ -105,11 +111,12 @@ function App() {
       regionSlug: activeRegionSlug,
       categorySlug: activeCategorySlug,
       plannerSlug: activePlannerSlug,
+      vendorSlug: activeVendorSlug,
     });
     if (window.location.pathname !== path) {
       window.history.pushState(null, "", path);
     }
-  }, [page, activeCountrySlug, activeRegionSlug, activeCategorySlug]);
+  }, [page, activeCountrySlug, activeRegionSlug, activeCategorySlug, activeVendorSlug];
 
   // ── Popstate: back / forward browser buttons ─────────────────────────────
   useEffect(() => {
@@ -120,6 +127,7 @@ function App() {
       setActiveRegionSlug(s.regionSlug || null);
       setActiveCategorySlug(s.categorySlug || null);
       setActivePlannerSlug(s.plannerSlug || null);
+      setActiveVendorSlug(s.vendorSlug || null);
       setCategoryRegion(null);
       setCategorySearchQuery(null);
       setPage(s.page);
@@ -137,6 +145,15 @@ function App() {
     setCategoryRegion(null); setActiveCountrySlug(null); setActiveRegionSlug(null);
     setActiveCategorySlug(null); setCategorySearchQuery(null);
     setPage("venue");
+  };
+  const goDirectory = () => {
+    setCategoryRegion(null); setActiveCountrySlug(null); setActiveRegionSlug(null);
+    setActiveCategorySlug(null); setCategorySearchQuery(null);
+    setPage("directory");
+  };
+  const goVendorProfile = (vendorSlug) => {
+    setActiveVendorSlug(vendorSlug);
+    setPage("vendor-profile");
   };
   const goRegion = (countrySlug, regionSlug) => {
     setActiveCountrySlug(countrySlug || null);
@@ -201,6 +218,12 @@ function App() {
         {/* ── Pages ── */}
         {page === "venue" && (
           <VenueProfile onBack={goHome} />
+        )}
+        {page === "directory" && (
+          <VendorDirectoryPage onBack={goHome} onViewVendor={goVendorProfile} onViewRegion={goRegion} onViewCategory={goCategory} footerNav={footerNav} />
+        )}
+        {page === "vendor-profile" && (
+          <PublicVendorProfilePage vendorSlug={activeVendorSlug} onBack={goHome} footerNav={footerNav} />
         )}
         {page === "region" && (
           <RegionPage onBack={goHome} onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} countrySlug={activeCountrySlug} regionSlug={activeRegionSlug} footerNav={footerNav} />
