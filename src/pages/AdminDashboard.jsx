@@ -15,6 +15,14 @@ import { fetchListings, isSupabaseAvailable } from "../services/listings";
 import categoryCssRaw from "../category.css?raw";
 import { RegionsModule } from "./admin/RegionsModule";
 
+// ── Page Studio imports ──
+import AllPagesModule from "./PageStudio/AllPagesModule";
+import CreatePageModule from "./PageStudio/CreatePageModule";
+import PageEditorModule from "./PageStudio/PageEditorModule";
+import HomepageManagerModule from "./PageStudio/HomepageManagerModule";
+import BlogManagerModule from "./PageStudio/BlogManagerModule";
+import ReusableBlocksModule from "./PageStudio/ReusableBlocksModule";
+
 // Font tokens — resolved via CSS custom properties set on admin root
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -224,6 +232,17 @@ const NAV_SECTIONS = [
     group: "Design",
     items: [
       { key: "styles",       label: "Style Editor",      icon: "◑" },
+    ],
+  },
+  {
+    group: "Content",
+    items: [
+      { key: "all-pages",    label: "All Pages",         icon: "⊞" },
+      { key: "page-studio",  label: "Page Studio",       icon: "⟡" },
+      { key: "create-page",  label: "Create Page",       icon: "⊕" },
+      { key: "homepage-manager", label: "Homepage Manager", icon: "⌂" },
+      { key: "blog-manager", label: "Blog Manager",      icon: "☰" },
+      { key: "reusable-blocks", label: "Reusable Blocks", icon: "⊞" },
     ],
   },
 ];
@@ -6779,6 +6798,12 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "aura":          return <AuraAnalyticsModule C={C} />;
       case "api":           return <APIManagementModule C={C} />;
       case "styles":        return <StyleEditorModule C={C} darkPalette={customDark} lightPalette={customLight} fonts={customFonts} customCss={customCss} siteSettings={siteSettings} auditLog={auditLog} onUpdatePalette={handleUpdatePalette} onUpdateFonts={handleUpdateFonts} onUpdateCss={handleUpdateCss} onUpdateSiteSettings={handleUpdateSiteSettings} onSave={handleSaveThemeLogged} onRevert={handleRevertTheme} onExport={handleExportTheme} onImport={handleImportTheme} onApplyPreset={handleApplyPreset} saveStatus={saveStatus} />;
+      case "all-pages":     return <AllPagesModule C={C} NU={NU} GD={GD} />;
+      case "page-studio":   return <PageEditorModule C={C} NU={NU} GD={GD} />;
+      case "create-page":   return <CreatePageModule C={C} NU={NU} GD={GD} />;
+      case "homepage-manager": return <HomepageManagerModule C={C} NU={NU} GD={GD} />;
+      case "blog-manager":  return <BlogManagerModule C={C} NU={NU} GD={GD} />;
+      case "reusable-blocks": return <ReusableBlocksModule C={C} NU={NU} GD={GD} />;
       default:              return <OverviewModule C={C} />;
     }
   };
