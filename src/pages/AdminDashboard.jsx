@@ -6813,7 +6813,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       {/* Responsive styles */}
       <style>{`
         @media (max-width: 768px) {
-          .admin-sidebar { position: fixed !important; z-index: 999; left: 0; top: 0; width: 220px !important; transform: translateX(${sidebarOpen ? "0" : "-100%"}); transition: transform 0.3s ease !important; box-shadow: ${sidebarOpen ? "6px 0 32px rgba(0,0,0,0.7)" : "none"}; border-right: ${sidebarOpen ? "1px solid rgba(201,168,76,0.25)" : "none"} !important; }
+          .admin-sidebar { display: flex !important; position: fixed !important; z-index: 999; left: 0; top: 0; width: 220px !important; height: 100vh !important; transform: translateX(${sidebarOpen ? "0" : "-100%"}); transition: transform 0.3s ease !important; box-shadow: ${sidebarOpen ? "6px 0 32px rgba(0,0,0,0.7)" : "none"}; border-right: ${sidebarOpen ? "1px solid rgba(201,168,76,0.25)" : "none"} !important; }
           .admin-sidebar-overlay { display: ${sidebarOpen ? "block" : "none"}; position: fixed; inset: 0; z-index: 998; background: rgba(0,0,0,0.5); }
           .admin-main { padding: 56px 16px 20px !important; }
           .admin-hamburger { display: flex !important; }
