@@ -21,23 +21,29 @@ export default function GettingMarriedDashboard({ onBack }) {
   });
 
   return (
-    <div style={{ background: C.black, minHeight: "100vh" }}>
-      {/* Header */}
-      <header
+    <div style={{ display: "flex", minHeight: "100vh", background: C.black }}>
+      {/* ─── SIDEBAR ─── */}
+      <aside
         style={{
+          width: 280,
           background: C.card,
-          borderBottom: `1px solid ${C.border}`,
-          padding: "32px 60px",
+          borderRight: `1px solid ${C.border}`,
+          padding: "40px 24px",
           display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
+          flexDirection: "column",
+          gap: 32,
+          position: "sticky",
+          top: 0,
+          height: "100vh",
+          overflowY: "auto",
         }}
       >
+        {/* Header */}
         <div>
           <h1
             style={{
               fontFamily: GD,
-              fontSize: 32,
+              fontSize: 24,
               color: C.off,
               margin: 0,
               marginBottom: 8,
@@ -49,64 +55,86 @@ export default function GettingMarriedDashboard({ onBack }) {
           <p
             style={{
               fontFamily: NU,
-              fontSize: 14,
+              fontSize: 12,
               color: C.grey,
               margin: 0,
               fontWeight: 300,
             }}
           >
-            Plan your luxury wedding celebration
+            Plan your luxury wedding
           </p>
         </div>
 
-        {/* Quick Stats */}
-        <div style={{ display: "flex", gap: 32 }}>
-          <div style={{ textAlign: "right" }}>
+        {/* Quick Navigation Links */}
+        <nav
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+          }}
+        >
+          <NavLink label="My Shortlist" icon="♥" count={shortlistItems.length} color={C} />
+          <NavLink label="Enquiries" icon="✉" count={3} color={C} />
+          <NavLink label="Account" icon="⚙" color={C} />
+        </nav>
+
+        {/* Stats */}
+        <div
+          style={{
+            borderTop: `1px solid ${C.border}`,
+            paddingTop: 24,
+            display: "flex",
+            flexDirection: "column",
+            gap: 16,
+          }}
+        >
+          <div>
             <p
               style={{
                 fontFamily: NU,
                 fontSize: 11,
                 color: C.grey,
-                margin: 0,
+                margin: "0 0 8px 0",
                 textTransform: "uppercase",
                 letterSpacing: "0.1em",
                 fontWeight: 600,
               }}
             >
-              Saved
+              Saved Items
             </p>
             <p
               style={{
                 fontFamily: GD,
-                fontSize: 28,
+                fontSize: 32,
                 color: C.gold,
-                margin: "4px 0 0 0",
+                margin: 0,
                 fontWeight: 400,
               }}
             >
               {shortlistItems.length}
             </p>
           </div>
-          <div style={{ textAlign: "right" }}>
+
+          <div>
             <p
               style={{
                 fontFamily: NU,
                 fontSize: 11,
                 color: C.grey,
-                margin: 0,
+                margin: "0 0 8px 0",
                 textTransform: "uppercase",
                 letterSpacing: "0.1em",
                 fontWeight: 600,
               }}
             >
-              Enquiries
+              Active Enquiries
             </p>
             <p
               style={{
                 fontFamily: GD,
-                fontSize: 28,
+                fontSize: 32,
                 color: C.gold,
-                margin: "4px 0 0 0",
+                margin: 0,
                 fontWeight: 400,
               }}
             >
@@ -114,10 +142,79 @@ export default function GettingMarriedDashboard({ onBack }) {
             </p>
           </div>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main style={{ padding: "60px", maxWidth: 1400, margin: "0 auto" }}>
+        {/* Logout */}
+        <div style={{ marginTop: "auto" }}>
+          <button
+            onClick={() => {
+              track("dashboard_logout");
+              onBack?.();
+            }}
+            style={{
+              width: "100%",
+              background: "transparent",
+              color: C.grey,
+              border: `1px solid ${C.border}`,
+              borderRadius: "var(--lwd-radius-input)",
+              padding: "10px 16px",
+              fontFamily: NU,
+              fontSize: 11,
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
+              cursor: "pointer",
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = C.rose;
+              e.currentTarget.style.color = C.rose;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = C.border;
+              e.currentTarget.style.color = C.grey;
+            }}
+          >
+            Log Out
+          </button>
+        </div>
+      </aside>
+
+      {/* ─── MAIN CONTENT ─── */}
+      <main
+        style={{
+          flex: 1,
+          padding: "40px 60px",
+          overflowY: "auto",
+          maxHeight: "100vh",
+        }}
+      >
+        {/* Page Header */}
+        <div style={{ marginBottom: 48 }}>
+          <h2
+            style={{
+              fontFamily: GD,
+              fontSize: "clamp(28px, 4vw, 48px)",
+              color: C.off,
+              fontWeight: 400,
+              margin: 0,
+              marginBottom: 8,
+            }}
+          >
+            Your Wedding Planning
+          </h2>
+          <p
+            style={{
+              fontFamily: NU,
+              fontSize: 14,
+              color: C.grey,
+              margin: 0,
+              fontWeight: 300,
+            }}
+          >
+            Everything you need to plan your luxury celebration
+          </p>
+        </div>
+
         {/* Shortlist Preview Section */}
         <section style={{ marginBottom: 80 }}>
           <div style={{ marginBottom: 32 }}>
@@ -418,6 +515,57 @@ export default function GettingMarriedDashboard({ onBack }) {
         </div>
       </main>
     </div>
+  );
+}
+
+// Navigation link component
+function NavLink({ label, icon, count, color: C }) {
+  return (
+    <button
+      style={{
+        background: "transparent",
+        color: C.off,
+        border: "none",
+        borderRadius: "var(--lwd-radius-input)",
+        padding: "12px 16px",
+        fontFamily: NU,
+        fontSize: 14,
+        fontWeight: 600,
+        textAlign: "left",
+        cursor: "pointer",
+        transition: "all 0.2s",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = `rgba(201,168,76,0.1)`;
+        e.currentTarget.style.color = C.gold;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = "transparent";
+        e.currentTarget.style.color = C.off;
+      }}
+    >
+      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span>{icon}</span>
+        {label}
+      </span>
+      {count !== undefined && count > 0 && (
+        <span
+          style={{
+            background: C.gold,
+            color: "#0a0906",
+            padding: "2px 8px",
+            borderRadius: 12,
+            fontSize: 11,
+            fontWeight: 700,
+          }}
+        >
+          {count}
+        </span>
+      )}
+    </button>
   );
 }
 
