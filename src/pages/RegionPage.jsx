@@ -24,6 +24,7 @@ import DirectoryBrands from "../components/sections/DirectoryBrands";
 import FeaturedSlider from "../components/sections/FeaturedSlider";
 import RegionHero from "../components/sections/RegionHero";
 import RegionFeatured from "../components/sections/RegionFeatured";
+import RegionRealWeddings from "../components/sections/RegionRealWeddings";
 import MapSection from "../components/sections/MapSection";
 import SliderNav from "../components/ui/SliderNav";
 import CountrySearchBar from "../components/filters/CountrySearchBar";
@@ -809,6 +810,16 @@ export default function RegionPage({
               </button>
             </div>
           </section>
+        )}
+
+        {/* ═══ REAL WEDDINGS GALLERY ════════════════════════════════════════ */}
+        {pageConfig?.realWeddings?.enabled && (
+          <RegionRealWeddings
+            config={pageConfig.realWeddings}
+            region={region}
+            C={C}
+            isMobile={isMobile}
+          />
         )}
 
         {/* ═══ CITIES BLOCK ═════════════════════════════════════════════════ */}
