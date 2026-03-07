@@ -41,7 +41,7 @@ export default function VenueGrid({ venues = [], onViewVenue }) {
           flexDirection: "column",
           margin: 0,
           padding: 0,
-          gap: 0,
+          gap: "3px",
         }}
       >
         {display.map((v) => (
