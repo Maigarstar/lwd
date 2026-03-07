@@ -16,7 +16,8 @@
       "Bash(kill 13228)",
       "Bash(lsof -i :5173)",
       "Bash(git add src/components/sections/VenueGrid.jsx src/components/cards/LuxuryVenueCard.jsx)",
-      "Bash(git commit -m \"refactor: stabilize card layout per specs — mobile vertical scroll, desktop horizontal carousel:*)"
+      "Bash(git commit -m \"refactor: stabilize card layout per specs — mobile vertical scroll, desktop horizontal carousel:*)",
+      "Bash(curl -s http://localhost:5174)"
     ]
   }
 }
