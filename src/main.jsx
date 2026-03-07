@@ -28,6 +28,23 @@ import WeddingPlannersPage    from "./pages/WeddingPlannersPage.jsx";
 import PlannerProfilePage     from "./pages/PlannerProfilePage.jsx";
 import { VENDORS }            from "./data/vendors.js";
 
+// ── Design system colors and fonts ───────────────────────────────────────────
+const COLORS = {
+  bg: "#0a0a0a",
+  dark: "#1a1a1a",
+  card: "#2a2a2a",
+  white: "#ffffff",
+  grey: "#a0a0a0",
+  grey2: "#808080",
+  border: "#404040",
+  gold: "#d4af37",
+  rose: "#f43f5e",
+};
+const FONTS = {
+  normal: "'Nunito', sans-serif",
+  display: "'Georgia', serif",
+};
+
 // ── Planner slug helpers ─────────────────────────────────────────────────────
 function toSlug(name) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -41,11 +58,13 @@ function getPlannerByIdOrSlug(idOrSlug) {
 
 // ── URL ↔ state helpers ──────────────────────────────────────────────────────
 function stateToPath(pg, opts = {}) {
-  const { countrySlug, regionSlug, categorySlug, plannerSlug } = opts;
+  const { countrySlug, regionSlug, categorySlug, plannerSlug, weddingSlug } = opts;
   switch (pg) {
     case "region":           return `/${countrySlug}/${regionSlug}`;
     case "region-category":  return `/${countrySlug}/${regionSlug}/${categorySlug}`;
     case "planner-profile":  return `/${countrySlug}/${regionSlug}/wedding-planners/${plannerSlug}`;
+    case "real-wedding-detail": return `/real-weddings/${weddingSlug}`;
+    case "real-weddings":    return "/real-weddings";
     case "category":         return "/category";
     case "venue":            return "/venue";
     case "standard":         return "/the-lwd-standard";
@@ -66,9 +85,12 @@ function pathToState(pathname) {
   const statics = {
     venue: "venue", category: "category", "the-lwd-standard": "standard",
     about: "about", contact: "contact", partnership: "partnership",
-    usa: "usa", italy: "italy", admin: "admin", vendor: "vendor",
+    usa: "usa", italy: "italy", admin: "admin", vendor: "vendor", "real-weddings": "real-weddings",
   };
   const parts = clean.split("/");
+  // Handle real-weddings special routes
+  if (parts[0] === "real-weddings" && parts.length === 1) return { page: "real-weddings" };
+  if (parts[0] === "real-weddings" && parts.length === 2) return { page: "real-wedding-detail", weddingSlug: parts[1] };
   // Static routes only match single-segment paths; multi-segment paths
   // like /italy/tuscany or /italy/tuscany/wedding-planners are dynamic.
   if (parts.length === 1 && statics[parts[0]]) return { page: statics[parts[0]] };
@@ -89,6 +111,7 @@ function App() {
   const [activeRegionSlug, setActiveRegionSlug] = useState(initial.regionSlug || null);
   const [activeCategorySlug, setActiveCategorySlug] = useState(initial.categorySlug || null);
   const [activePlannerSlug, setActivePlannerSlug] = useState(initial.plannerSlug || null);
+  const [activeWeddingSlug, setActiveWeddingSlug] = useState(initial.weddingSlug || null);
   const [categorySearchQuery, setCategorySearchQuery] = useState(null);
 
   // Ref: skip pushState when change came from popstate (back/forward)
@@ -105,11 +128,12 @@ function App() {
       regionSlug: activeRegionSlug,
       categorySlug: activeCategorySlug,
       plannerSlug: activePlannerSlug,
+      weddingSlug: activeWeddingSlug,
     });
     if (window.location.pathname !== path) {
       window.history.pushState(null, "", path);
     }
-  }, [page, activeCountrySlug, activeRegionSlug, activeCategorySlug, activePlannerSlug]);
+  }, [page, activeCountrySlug, activeRegionSlug, activeCategorySlug, activePlannerSlug, activeWeddingSlug]);
 
   // ── Popstate: back / forward browser buttons ─────────────────────────────
   useEffect(() => {
@@ -120,6 +144,7 @@ function App() {
       setActiveRegionSlug(s.regionSlug || null);
       setActiveCategorySlug(s.categorySlug || null);
       setActivePlannerSlug(s.plannerSlug || null);
+      setActiveWeddingSlug(s.weddingSlug || null);
       setCategoryRegion(null);
       setCategorySearchQuery(null);
       setPage(s.page);
@@ -182,6 +207,8 @@ function App() {
   const goItaly       = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("italy"); };
   const goAdmin       = () => setPage("admin");
   const goVendor      = () => setPage("vendor");
+  const goRealWeddings = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("real-weddings"); };
+  const goRealWeddingDetail = (weddingSlug) => { setActiveWeddingSlug(weddingSlug); setPage("real-wedding-detail"); };
 
   // ── Centralized footer navigation (passed to every page for SiteFooter) ───
   const footerNav = {
@@ -281,6 +308,12 @@ function App() {
         )}
         {page === "vendor" && (
           <VendorDashboard onBack={goHome} />
+        )}
+        {page === "real-weddings" && (
+          <RealWeddingsPage C={COLORS} NU={FONTS.normal} GD={FONTS.display} onNavigate={(type, data) => { if (type === "real-wedding-detail") goRealWeddingDetail(data.realWeddingSlug); }} />
+        )}
+        {page === "real-wedding-detail" && (
+          <RealWeddingDetailPage C={COLORS} NU={FONTS.normal} GD={FONTS.display} realWeddingSlug={activeWeddingSlug} onNavigate={(type, data) => { if (type === "venue-directory") goVenue(); }} />
         )}
         {page === "home" && (
           <HomePage onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} onViewStandard={goStandard} onViewAbout={goAbout} onViewContact={goContact} onViewPartnership={goPartnership} onViewVendor={goVendor} onViewAdmin={goAdmin} onViewUSA={goUSA} onViewItaly={goItaly} footerNav={footerNav} />
