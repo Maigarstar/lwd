@@ -172,7 +172,7 @@ export default function DestinationGrid({ onDestinationClick }) {
         <style>{`
           .dest-scroll::-webkit-scrollbar { display: none; }
         `}</style>
-        {DESTINATIONS.map((d) => (
+        {DESTINATIONS.slice(0, 5).map((d) => (
           <div
             key={d.name}
             role="button"
