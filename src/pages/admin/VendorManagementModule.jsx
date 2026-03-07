@@ -75,7 +75,7 @@ const VendorManagementModule = ({ C, fonts }) => {
             <p style={{ fontFamily: fonts.body, fontSize: 13, color: C.grey, margin: "0 0 12px 0" }}>
               {vendor.location}
             </p>
-            <p style={{ fontFamily: fonts.body, fontSize: 12, color: C.grey2, margin: "0 0 16px 0" }}>
+            <p style={{ fontFamily: fonts.body, fontSize: 12, color: C.grey, margin: "0 0 16px 0" }}>
               {vendor.email}
             </p>
             <div

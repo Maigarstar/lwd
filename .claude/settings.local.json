@@ -14,7 +14,8 @@
       "WebFetch(domain:unsplash.com)",
       "Bash(bash -c ':*)",
       "Bash(kill 13228)",
-      "Bash(lsof -i :5173)"
+      "Bash(lsof -i :5173)",
+      "Bash(git cherry-pick 2acab39)"
     ]
   }
 }
