@@ -17,7 +17,9 @@
       "Bash(lsof -i :5173)",
       "Bash(git add src/components/sections/VenueGrid.jsx src/components/cards/LuxuryVenueCard.jsx)",
       "Bash(git commit -m \"refactor: stabilize card layout per specs — mobile vertical scroll, desktop horizontal carousel:*)",
-      "Bash(curl -s http://localhost:5174)"
+      "Bash(curl -s http://localhost:5174)",
+      "Bash(git add -A)",
+      "Bash(git commit -m \"docs: Update Phase 2 status - Phase 2.3 infrastructure complete:*)"
     ]
   }
 }
