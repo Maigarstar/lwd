@@ -25,7 +25,7 @@ import FeaturedSlider from "../components/sections/FeaturedSlider";
 import RegionHero from "../components/sections/RegionHero";
 import RegionFeatured from "../components/sections/RegionFeatured";
 import SliderNav from "../components/ui/SliderNav";
-import FilterBar from "../components/filters/FilterBar";
+import CountrySearchBar from "../components/filters/CountrySearchBar";
 import { useInView, CountUp, SplitText, revealStyle } from "../components/ui/Animations";
 import "../category.css";
 
@@ -419,15 +419,16 @@ export default function RegionPage({
         )}
 
         {/* ═══ FILTER BAR — Search, filter, view mode, and sort ═══════════════════ */}
-        <FilterBar
+        <CountrySearchBar
           filters={filters}
-          onChange={setFilters}
+          onFiltersChange={setFilters}
           viewMode={venueViewMode}
           onViewMode={setVenueViewMode}
           sortMode={sortMode}
           onSortChange={setSortMode}
           total={regionVenues.length}
-          regions={[region.name]}
+          regions={[{ name: region.name, slug: region.slug }]}
+          countryFilter={country?.name}
         />
 
         {/* ═══ TRUST SIGNAL STRIP — region-specific authority tags ═══════════ */}
