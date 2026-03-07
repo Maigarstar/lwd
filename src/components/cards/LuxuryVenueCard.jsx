@@ -245,6 +245,7 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
         </div>
       )}
 
+
       {/* ── Dot indicators ── */}
       {hasMultiple && (
         <div

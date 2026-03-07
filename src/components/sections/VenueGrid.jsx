@@ -80,11 +80,11 @@ export default function VenueGrid({ venues = [], onViewVenue }) {
       style={{
         position: "relative",
         background: C.black,
-        padding: "80px 0 100px",
+        padding: "80px 60px 100px",
         overflow: "hidden",
       }}
     >
-      <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 60px" }}>
+      <div style={{ maxWidth: 1320, margin: "0 auto", position: "relative" }}>
         {/* Heading — mirrors VendorPreview style */}
         <div style={{ marginBottom: 48 }}>
           <div
@@ -143,9 +143,9 @@ export default function VenueGrid({ venues = [], onViewVenue }) {
 
         {/* Card slider */}
         <div style={{ marginBottom: 48 }}>
-          <SliderNav className="home-venue-grid" cardWidth={400} gap={24}>
+          <SliderNav className="home-venue-grid" cardWidth={360} gap={24}>
             {display.map((v) => (
-              <div key={v.id} className="home-venue-card" style={{ flex: "0 0 400px", scrollSnapAlign: "start" }}>
+              <div key={v.id} className="home-venue-card" style={{ flex: "0 0 360px", scrollSnapAlign: "start" }}>
                 <LuxuryVenueCard
                   v={v}
                   isMobile={false}

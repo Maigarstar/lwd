@@ -4,9 +4,7 @@ import { useTheme } from "../../theme/ThemeContext";
 import { useShortlist } from "../../shortlist/ShortlistContext";
 import { GLOBAL_VENDORS } from "../../data/globalVendors";
 import { track } from "../../utils/track";
-import GCard from "../cards/GCard";
-import GCardMobile from "../cards/GCardMobile";
-import QuickViewModal from "../modals/QuickViewModal";
+import LuxuryVendorCard from "../cards/LuxuryVendorCard";
 import SliderNav from "../ui/SliderNav";
 
 const GD = "var(--font-heading-primary)";
@@ -23,13 +21,13 @@ function useIsMobile(bp = 768) {
   return mobile;
 }
 
-/* Map global vendor schema → GCard expected props */
+/* Map global vendor schema → Card expected props */
 function normalise(v) {
   return {
     ...v,
     region: v.country,
     priceFrom: v.price,
-    online: v.featured, // featured vendors shown as online
+    online: v.featured,
     type: "vendor",
     specialties: v.includes,
   };
@@ -42,6 +40,61 @@ export default function VendorPreview({ onViewVendor }) {
   const isMobile = useIsMobile();
   const featured = GLOBAL_VENDORS.filter((v) => v.featured).slice(0, 12);
 
+  // Mobile: vertical feed. Desktop: horizontal carousel
+  if (isMobile) {
+    return (
+      <div
+        aria-label="Handpicked vendors – Mobile feed"
+        className="home-vendor-preview-mobile"
+        style={{
+          position: "relative",
+          background: C.black,
+          width: "100vw",
+          overflowX: "hidden",
+          overflowY: "auto",
+          scrollSnapType: "y mandatory",
+          display: "flex",
+          flexDirection: "column",
+          margin: 0,
+          padding: 0,
+          gap: "3px",
+        }}
+      >
+        {featured.map((v) => {
+          const nv = normalise(v);
+          return (
+            <div
+              key={v.id}
+              className="home-vendor-card"
+              style={{
+                width: "100vw",
+                flex: "0 0 calc(100dvh - 10px)",
+                scrollSnapAlign: "start",
+                scrollMarginTop: 0,
+                borderRadius: 0,
+                margin: 0,
+                padding: 0,
+              }}
+            >
+              <LuxuryVendorCard
+                v={nv}
+                isMobile={true}
+                onView={() => {
+                  track("card_click", { id: v.id });
+                  onViewVendor?.(v);
+                }}
+                onQuickView={() => {
+                  track("card_quick_view", { id: v.id });
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Desktop: Section with heading + carousel + CTA
   return (
     <section
       aria-label="Handpicked vendors"
@@ -114,42 +167,22 @@ export default function VendorPreview({ onViewVendor }) {
 
         {/* Card slider */}
         <div style={{ marginBottom: 48 }}>
-          <SliderNav className="home-vendor-grid" cardWidth={isMobile ? 300 : 360} gap={isMobile ? 12 : 24}>
+          <SliderNav className="home-vendor-grid" cardWidth={360} gap={24}>
             {featured.map((v) => {
               const nv = normalise(v);
               return (
-                <div key={v.id} className="home-vendor-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 360px", scrollSnapAlign: "start" }}>
-                  {isMobile ? (
-                    <GCardMobile
-                      v={nv}
-                      saved={isShortlisted(v.id)}
-                      onSave={() => {
-                        toggleItem({ id: v.id, name: v.name, type: v.cat });
-                        track("shortlist_add", { id: v.id });
-                      }}
-                      onView={() => {
-                        track("card_click", { id: v.id });
-                        onViewVendor?.(v);
-                      }}
-                    />
-                  ) : (
-                    <GCard
-                      v={nv}
-                      saved={isShortlisted(v.id)}
-                      onSave={() => {
-                        toggleItem({ id: v.id, name: v.name, type: v.cat });
-                        track("shortlist_add", { id: v.id });
-                      }}
-                      onView={() => {
-                        track("card_click", { id: v.id });
-                        onViewVendor?.(v);
-                      }}
-                      onQuickView={() => {
-                        track("card_quick_view", { id: v.id });
-                        setQuickViewItem(nv);
-                      }}
-                    />
-                  )}
+                <div key={v.id} className="home-vendor-card" style={{ flex: "0 0 360px", scrollSnapAlign: "start" }}>
+                  <LuxuryVendorCard
+                    v={nv}
+                    isMobile={false}
+                    onView={() => {
+                      track("card_click", { id: v.id });
+                      onViewVendor?.(v);
+                    }}
+                    onQuickView={() => {
+                      track("card_quick_view", { id: v.id });
+                    }}
+                  />
                 </div>
               );
             })}
