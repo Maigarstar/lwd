@@ -8,6 +8,9 @@ import { MField, Btn } from "../components/ui/FormHelpers";
 import { GLOBAL_VENDORS } from "../data/globalVendors";
 import CuratedIndexBadge from "../components/ui/CuratedIndexBadge";
 import { computeCuratedIndex, FACTOR_LABELS } from "../engine/index.js";
+import FooterForVendors from "../components/sections/FooterForVendors";
+import { getVendorMetrics, subscribeToVendorMetrics, getVendorEnquiries } from "../services/vendorMetricsService";
+import VendorLeadInbox from "../components/VendorLeadInbox";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -371,14 +374,34 @@ function ChatNotification({ notification, C, onAccept, onDismiss, isMobile }) {
 
 // ── Main dashboard ───────────────────────────────────────────────────────────
 export default function VendorDashboard({ onBack }) {
-  const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
-  const C = darkMode ? getDarkPalette() : getLightPalette();
+  const [currentTheme, setCurrentTheme] = useState(
+    document.documentElement.getAttribute("data-lwd-mode") || "light"
+  );
+  const C = currentTheme === "dark" ? getDarkPalette() : getLightPalette();
   const vendor = GLOBAL_VENDORS[0];
   const [dashTab, setDashTab] = useState("overview");
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isTablet, setIsTablet] = useState(window.innerWidth < 1024);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // Real-time metrics from Supabase
+  const [metrics, setMetrics] = useState(null);
+  const [metricsLoading, setMetricsLoading] = useState(true);
+  const [enquiries, setEnquiries] = useState([]);
+  const unsubscribeRef = useRef(null);
+
+  // Track theme changes
+  useEffect(() => {
+    const handleThemeChange = () => {
+      const mode = document.documentElement.getAttribute("data-lwd-mode") || "light";
+      setCurrentTheme(mode);
+    };
+    const observer = new MutationObserver(handleThemeChange);
+    observer.observe(document.documentElement, { attributes: true });
+    return () => observer.disconnect();
+  }, []);
+
+  // Track window resize
   useEffect(() => {
     const onResize = () => {
       setIsMobile(window.innerWidth < 768);
@@ -387,6 +410,45 @@ export default function VendorDashboard({ onBack }) {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  // Load real metrics from Supabase and subscribe to changes
+  useEffect(() => {
+    const loadData = async () => {
+      setMetricsLoading(true);
+
+      // Load metrics
+      const metricsResult = await getVendorMetrics(vendor.id);
+      if (metricsResult.error) {
+        console.error("Error loading vendor metrics:", metricsResult.error);
+        setMetrics(null);
+      } else {
+        setMetrics(metricsResult.data);
+      }
+
+      // Load enquiries
+      const enquiriesResult = await getVendorEnquiries(vendor.id, 5);
+      if (!enquiriesResult.error) {
+        setEnquiries(enquiriesResult.data);
+      }
+
+      setMetricsLoading(false);
+    };
+
+    loadData();
+
+    // Subscribe to real-time updates
+    const unsubscribe = subscribeToVendorMetrics(vendor.id, (updatedMetrics) => {
+      setMetrics(updatedMetrics);
+    });
+
+    unsubscribeRef.current = unsubscribe;
+
+    return () => {
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+      }
+    };
+  }, [vendor.id]);
 
   const [aiBio, setAiBio] = useState("");
   const [genBio, setGenBio] = useState(false);
@@ -662,7 +724,18 @@ export default function VendorDashboard({ onBack }) {
     transition: "border-color 0.2s",
   };
 
-  const leads = [
+  // Use real enquiries from Supabase if available, otherwise use mock data
+  const leads = enquiries.length > 0 ? enquiries.map(e => ({
+    id: e.id,
+    name: e.couple_name || "Unknown Couple",
+    email: e.couple_email || "no-email@example.com",
+    date: e.event_date || "TBA",
+    guests: e.guest_count || "TBA",
+    budget: e.budget || "TBA",
+    msg: e.message || "No message provided",
+    status: e.status || "new",
+    time: e.created_at ? new Date(e.created_at).toLocaleDateString() : "Recently",
+  })) : [
     { id: 1, name: "Sophie & James", email: "sophie@email.com", date: "12 Jun 2025", guests: "80–150", budget: "£25–50k", msg: "We love your venue and would love to discuss availability for June 2025...", status: "new", time: "2 hrs ago" },
     { id: 2, name: "Priya & Daniel", email: "priya@email.com", date: "18 Sep 2025", guests: "150–300", budget: "£50–100k", msg: "We're planning a large Asian fusion celebration and your ballroom looks perfect...", status: "replied", time: "1 day ago" },
     { id: 3, name: "Elena & Marco", email: "elena@email.com", date: "3 Mar 2026", guests: "30–80", budget: "£10–25k", msg: "Looking for an intimate winter wedding venue in London...", status: "new", time: "3 hrs ago" },
@@ -700,16 +773,17 @@ export default function VendorDashboard({ onBack }) {
         borderBottom: 0,
         borderLeft: dashTab === id ? `2px solid ${C.gold}` : "2px solid transparent",
         color: dashTab === id ? C.gold : C.grey,
-        padding: "12px 20px",
+        padding: sidebarOpen ? "12px 20px" : "12px 14px",
         fontSize: 13,
         fontWeight: dashTab === id ? 700 : 400,
         cursor: "pointer",
         fontFamily: NU,
         textAlign: "left",
         transition: "all 0.2s",
+        justifyContent: sidebarOpen ? "flex-start" : "center",
       }}
     >
-      {icon} {label}
+      {icon} {sidebarOpen && label}
     </button>
   );
 
@@ -905,7 +979,7 @@ export default function VendorDashboard({ onBack }) {
       </div>
     )}
 
-    <div style={{ minHeight: "100vh", background: C.black, display: "flex", flexDirection: "column" }}>
+    <div style={{ height: "100vh", background: C.black, display: "flex", flexDirection: "column" }}>
       {/* Dashboard nav */}
       <div
         style={{
@@ -950,9 +1024,16 @@ export default function VendorDashboard({ onBack }) {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12 }}>
           <button
-            onClick={() => setDarkMode((d) => !d)}
+            onClick={() => {
+              const root = document.documentElement;
+              const currentMode = root.getAttribute("data-lwd-mode") || "light";
+              const newMode = currentMode === "dark" ? "light" : "dark";
+              root.setAttribute("data-lwd-mode", newMode);
+              localStorage.setItem("lwd_user_theme", newMode);
+              setTimeout(() => { window.location.reload(); }, 50);
+            }}
             style={{
-              background: darkMode ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+              background: currentTheme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
               border: `1px solid ${C.border2}`,
               borderRadius: "var(--lwd-radius-input)",
               color: C.gold,
@@ -965,9 +1046,9 @@ export default function VendorDashboard({ onBack }) {
               fontSize: 14,
               transition: "all 0.25s ease",
             }}
-            title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+            title={currentTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
           >
-            {darkMode ? "\u2600" : "\u263E"}
+            {currentTheme === "dark" ? "\u2600" : "\u263E"}
           </button>
           <div
             style={{
@@ -999,31 +1080,65 @@ export default function VendorDashboard({ onBack }) {
         </div>
       </div>
 
-      <div style={{ display: "flex", flex: 1 }}>
+      <div style={{ display: "flex", flex: 1, alignItems: "stretch", overflow: "auto" }}>
         {/* Mobile overlay */}
         {isMobile && sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 7999 }} />}
         {/* Sidebar */}
         <div style={{
           ...(isMobile ? {
-            position: "fixed", top: 0, left: 0, bottom: 0, width: 260, zIndex: 8000,
+            position: "fixed", top: 0, left: 0, bottom: 0, width: 280, zIndex: 8000,
             transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
             transition: "transform 0.3s cubic-bezier(0.16,1,0.3,1)",
           } : {
-            width: isTablet ? 180 : 220,
+            width: sidebarOpen ? 280 : 70,
             flexShrink: 0,
+            transition: "width 0.3s cubic-bezier(0.16,1,0.3,1)",
+            display: "flex",
+            flexDirection: "column",
           }),
           background: C.dark, borderRight: `1px solid ${C.border}`, paddingTop: 24,
+          boxShadow: "2px 0 8px rgba(0,0,0,0.3)",
+          overflow: "hidden",
         }}>
-          {isMobile && <button onClick={() => setSidebarOpen(false)} style={{ position: "absolute", top: 12, right: 12, background: "none", border: "none", color: C.grey, fontSize: 18, cursor: "pointer" }}>✕</button>}
-          <div style={{ padding: "0 20px 20px", borderBottom: `1px solid ${C.border}` }}>
-            <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 4 }}>
-              Your Listing
-            </div>
-            <div style={{ fontFamily: NU, fontSize: 14, color: C.white, fontWeight: 600 }}>{vendor.name}</div>
-            <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-              <Badge text="Featured" />
-              <Badge text="Verified" color={C.green} bg="rgba(34,197,94,0.08)" border="rgba(34,197,94,0.2)" />
-            </div>
+          {/* Close button on mobile only */}
+          {isMobile && <button onClick={() => setSidebarOpen(false)} style={{ position: "absolute", top: 12, right: 12, background: "none", border: "none", color: C.grey, fontSize: 18, cursor: "pointer", zIndex: 10 }}>✕</button>}
+
+          {/* Collapse button on desktop */}
+          {!isMobile && (
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              style={{
+                position: "absolute",
+                top: 24,
+                right: 8,
+                background: "none",
+                border: "none",
+                color: C.grey,
+                fontSize: 18,
+                cursor: "pointer",
+                padding: "4px 8px",
+                transition: "color 0.2s",
+              }}
+              onMouseEnter={e => e.target.style.color = C.gold}
+              onMouseLeave={e => e.target.style.color = C.grey}
+            >
+              ›
+            </button>
+          )}
+
+          <div style={{ padding: sidebarOpen ? "0 20px 20px" : "0 12px 20px", borderBottom: `1px solid ${C.border}`, minWidth: 0 }}>
+            {sidebarOpen && (
+              <>
+                <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 4 }}>
+                  Your Listing
+                </div>
+                <div style={{ fontFamily: NU, fontSize: 14, color: C.white, fontWeight: 600 }}>{vendor.name}</div>
+                <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                  <Badge text="Featured" />
+                  <Badge text="Verified" color={C.green} bg="rgba(34,197,94,0.08)" border="rgba(34,197,94,0.2)" />
+                </div>
+              </>
+            )}
           </div>
           <div style={{ paddingTop: 8 }}>
             <DTab id="overview" icon="◈" label="Overview" />
@@ -1036,23 +1151,32 @@ export default function VendorDashboard({ onBack }) {
             <DTab id="billing" icon="◆" label="Billing" />
             <DTab id="calendar" icon="▦" label="Calendar" />
           </div>
-          <div
-            style={{
-              margin: "24px 16px 0",
-              padding: 16,
-              background: "rgba(201,168,76,0.06)",
-              border: "1px solid rgba(201,168,76,0.15)",
-              borderRadius: "var(--lwd-radius-card)",
-            }}
-          >
-            <div style={{ fontFamily: NU, fontSize: 11, color: C.gold, fontWeight: 700, marginBottom: 4 }}>{"\u2726"} FEATURED PLAN</div>
-            <div style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.6 }}>Unlimited leads {"\u00b7"} Top placement {"\u00b7"} Analytics</div>
-            <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, marginTop: 8 }}>Renews 1 Mar 2026</div>
-          </div>
+          {sidebarOpen && (
+            <div
+              style={{
+                margin: "24px 16px 0",
+                padding: 16,
+                background: "rgba(201,168,76,0.06)",
+                border: "1px solid rgba(201,168,76,0.15)",
+                borderRadius: "var(--lwd-radius-card)",
+              }}
+            >
+              <div style={{ fontFamily: NU, fontSize: 11, color: C.gold, fontWeight: 700, marginBottom: 4 }}>{"\u2726"} FEATURED PLAN</div>
+              <div style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.6 }}>Unlimited leads {"\u00b7"} Top placement {"\u00b7"} Analytics</div>
+              <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, marginTop: 8 }}>Renews 1 Mar 2026</div>
+            </div>
+          )}
         </div>
 
         {/* Main content */}
-        <div style={{ flex: 1, padding: isMobile ? 16 : isTablet ? 20 : 32, overflowY: "auto" }}>
+        <div style={{
+          flex: 1,
+          padding: isMobile ? 16 : isTablet ? 20 : 32,
+          overflowY: "auto",
+          marginLeft: !isMobile && !sidebarOpen ? "auto" : 0,
+          marginRight: !isMobile && !sidebarOpen ? "auto" : 0,
+          maxWidth: !isMobile && !sidebarOpen ? "900px" : "100%",
+        }}>
           {/* OVERVIEW */}
           {dashTab === "overview" && (
             <div>
@@ -1061,10 +1185,10 @@ export default function VendorDashboard({ onBack }) {
                 <h2 style={{ fontFamily: GD, fontSize: isMobile ? 24 : 32, color: C.white, fontWeight: 600 }}>Good morning, Grand Pavilion {"\u2726"}</h2>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: isMobile ? 10 : 16, marginBottom: 32 }}>
-                <StatCard label="Leads This Month" val={vendor.leads} change="31%" icon="◇" />
-                <StatCard label="Profile Views" val={vendor.views.toLocaleString()} change="18%" icon="⊙" color={C.blue} />
-                <StatCard label="Conversion Rate" val={`${vendor.conv}%`} change="2.4%" icon="△" color={C.green} />
-                <StatCard label="Avg Response" val={vendor.response} icon="⟡" color="#a78bfa" />
+                <StatCard label="New Enquiries" val={metricsLoading ? "—" : metrics?.newEnquiries || 0} change="Real-time" icon="◇" />
+                <StatCard label="Profile Views" val={metricsLoading ? "—" : (metrics?.profileViews || 0).toLocaleString()} change="Real-time" icon="⊙" color={C.blue} />
+                <StatCard label="Conversion Rate" val={metricsLoading ? "—" : `${metrics?.conversionRate || 0}%`} icon="△" color={C.green} />
+                <StatCard label="Avg Response Time" val={metricsLoading ? "—" : `${metrics?.responseTimeHours || 0}h`} icon="⟡" color="#a78bfa" />
               </div>
 
               {/* ── Shortlist/Favorites (B2B) ──────────────────────────────────── */}
@@ -1115,7 +1239,7 @@ export default function VendorDashboard({ onBack }) {
                         fontWeight: 400,
                       }}
                     >
-                      {Math.floor(Math.random() * 50) + 5}
+                      {metricsLoading ? "—" : metrics?.savedByCouples || 0}
                     </p>
                   </div>
                   <div style={{ textAlign: "right" }}>
@@ -1362,6 +1486,11 @@ export default function VendorDashboard({ onBack }) {
                 <LeadRow key={l.id} lead={l} expanded />
               ))}
             </div>
+          )}
+
+          {/* LEAD INBOX — Mini CRM Pipeline */}
+          {dashTab === "leads" && (
+            <VendorLeadInbox vendorId={vendor.id} C={C} isMobile={isMobile} />
           )}
 
           {/* INQUIRIES */}
@@ -2553,6 +2682,10 @@ export default function VendorDashboard({ onBack }) {
         </div>
       </div>
     </div>
+
+    {/* Footer */}
+    <FooterForVendors />
+
     </ThemeCtx.Provider>
   );
 }

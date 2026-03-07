@@ -179,7 +179,9 @@ export function applyThemeToDocument() {
 
   // ── Default mode + light-only lock ─────────────────────────────────────────
   const lightOnly = site.lightOnly || false;
-  const mode = lightOnly ? "light" : (site.defaultMode || DEFAULT_SITE_SETTINGS.defaultMode);
+  // Check for user theme preference first, then fall back to admin setting
+  const userTheme = typeof localStorage !== "undefined" ? localStorage.getItem("lwd_user_theme") : null;
+  const mode = lightOnly ? "light" : (userTheme || site.defaultMode || DEFAULT_SITE_SETTINGS.defaultMode);
   root.setAttribute("data-lwd-mode", mode);
   if (lightOnly) root.setAttribute("data-lwd-light-only", "true");
   else root.removeAttribute("data-lwd-light-only");
