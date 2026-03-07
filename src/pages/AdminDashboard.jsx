@@ -11,8 +11,11 @@ import { ITALY_COUNTRY } from "../data/italy/country.js";
 import { ITALY_REGIONS } from "../data/italy/regions.js";
 import { ITALY_CITIES } from "../data/italy/cities.js";
 import { REGION_AUTO_THRESHOLD, evaluateRegionActivation } from "../engine/activation.js";
+import { fetchListings, isSupabaseAvailable } from "../services/listings";
 import categoryCssRaw from "../category.css?raw";
-import VendorManagementModule from "./admin/VendorManagementModule";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Image from "@tiptap/extension-image";
 
 // Font tokens — resolved via CSS custom properties set on admin root
 const GD = "var(--font-heading-primary)";
@@ -190,7 +193,6 @@ const NAV_SECTIONS = [
     items: [
       { key: "overview",     label: "Overview",          icon: "◈" },
       { key: "listings",     label: "Listings",          icon: "⊞" },
-      { key: "vendors",      label: "Vendors",           icon: "⊙" },
       { key: "categories",   label: "Categories",        icon: "▦" },
       { key: "enquiries",    label: "Enquiries",         icon: "◇" },
       { key: "partnerships", label: "Partnerships",      icon: "✦" },
@@ -1559,16 +1561,50 @@ const DIRECTORY_CITIES = [
 ];
 
 const MOCK_LISTINGS = [
-  { id: 1, name: "Villa Balbiano", slug: "villa-balbiano-lake-como", category: "wedding-venues", subCategory: "Country Houses", destination: "Italy", countrySlug: "italy", regionSlug: "lake-como", status: "Active", tier: "signature", lwdScore: 9.6, enquiries: 34, lastUpdated: "27 Feb" },
-  { id: 2, name: "Château de Vaux", slug: "chateau-de-vaux-ile-de-france", category: "wedding-venues", subCategory: "Castles & Estates", destination: "France", countrySlug: "france", regionSlug: "paris-ile-de-france", status: "Active", tier: "signature", lwdScore: 9.4, enquiries: 28, lastUpdated: "26 Feb" },
-  { id: 3, name: "Fiore Events", slug: "fiore-events-tuscany", category: "wedding-planners", subCategory: "Full Planning", destination: "Italy", countrySlug: "italy", regionSlug: "tuscany", status: "Active", tier: "curated", lwdScore: 9.2, enquiries: 19, lastUpdated: "25 Feb" },
-  { id: 4, name: "Coworth Park", slug: "coworth-park-berkshire", category: "wedding-venues", subCategory: "Hotel Venues", destination: "UK", countrySlug: "uk", regionSlug: "berkshire", status: "Active", tier: "signature", lwdScore: 9.5, enquiries: 41, lastUpdated: "27 Feb" },
-  { id: 5, name: "Lena Karelova", slug: "lena-karelova-barcelona", category: "photographers", subCategory: "Fine Art", destination: "Spain", countrySlug: "spain", regionSlug: "barcelona", status: "Active", tier: "curated", lwdScore: 9.1, enquiries: 16, lastUpdated: "24 Feb" },
-  { id: 6, name: "The Grand Pavilion", slug: "the-grand-pavilion-surrey", category: "wedding-venues", subCategory: "Country Houses", destination: "UK", countrySlug: "uk", regionSlug: "surrey", status: "Active", tier: "signature", lwdScore: 9.2, enquiries: 23, lastUpdated: "27 Feb" },
-  { id: 7, name: "Putnam & Putnam", slug: "putnam-putnam-new-york", category: "florists", subCategory: "Luxury Floral Design", destination: "USA", countrySlug: "usa", regionSlug: "new-york", status: "Pending", tier: "curated", lwdScore: 8.8, enquiries: 8, lastUpdated: "23 Feb" },
-  { id: 8, name: "Aynhoe Park", slug: "aynhoe-park-oxfordshire", category: "wedding-venues", subCategory: "Country Houses", destination: "UK", countrySlug: "uk", regionSlug: "cotswolds", status: "Review", tier: "signature", lwdScore: 9.3, enquiries: 31, lastUpdated: "26 Feb" },
-  { id: 9, name: "Soirée Events", slug: "soiree-events-provence", category: "wedding-planners", subCategory: "Destination Specialists", destination: "France", countrySlug: "france", regionSlug: "provence", status: "Active", tier: "curated", lwdScore: 8.9, enquiries: 12, lastUpdated: "22 Feb" },
-  { id: 10, name: "Borgo Santo Pietro", slug: "borgo-santo-pietro-tuscany", category: "wedding-venues", subCategory: "Country Houses", destination: "Italy", countrySlug: "italy", regionSlug: "tuscany", status: "Paused", tier: "standard", lwdScore: 8.4, enquiries: 5, lastUpdated: "18 Feb" },
+  { id: 1, name: "Villa Balbiano", slug: "villa-balbiano-lake-como", category: "wedding-venues", subCategory: "Country Houses", destination: "Italy", countrySlug: "italy", regionSlug: "lake-como", status: "Active", tier: "signature", lwdScore: 9.6, enquiries: 34, listed: "15 Jan 2025", lastUpdated: "27 Feb", expires: "15 Jan 2026" },
+  { id: 2, name: "Château de Vaux", slug: "chateau-de-vaux-ile-de-france", category: "wedding-venues", subCategory: "Castles & Estates", destination: "France", countrySlug: "france", regionSlug: "paris-ile-de-france", status: "Active", tier: "signature", lwdScore: 9.4, enquiries: 28, listed: "10 Jan 2025", lastUpdated: "26 Feb", expires: "10 Jan 2026" },
+  { id: 3, name: "Fiore Events", slug: "fiore-events-tuscany", category: "wedding-planners", subCategory: "Full Planning", destination: "Italy", countrySlug: "italy", regionSlug: "tuscany", status: "Active", tier: "curated", lwdScore: 9.2, enquiries: 19, listed: "20 Jan 2025", lastUpdated: "25 Feb", expires: "20 Jan 2026" },
+  { id: 4, name: "Coworth Park", slug: "coworth-park-berkshire", category: "wedding-venues", subCategory: "Hotel Venues", destination: "UK", countrySlug: "uk", regionSlug: "berkshire", status: "Active", tier: "signature", lwdScore: 9.5, enquiries: 41, listed: "05 Jan 2025", lastUpdated: "27 Feb", expires: "05 Jan 2026" },
+  { id: 5, name: "Lena Karelova", slug: "lena-karelova-barcelona", category: "photographers", subCategory: "Fine Art", destination: "Spain", countrySlug: "spain", regionSlug: "barcelona", status: "Active", tier: "curated", lwdScore: 9.1, enquiries: 16, listed: "25 Jan 2025", lastUpdated: "24 Feb", expires: "25 Jan 2026" },
+  { id: 6, name: "The Grand Pavilion", slug: "the-grand-pavilion-surrey", category: "wedding-venues", subCategory: "Country Houses", destination: "UK", countrySlug: "uk", regionSlug: "surrey", status: "Active", tier: "signature", lwdScore: 9.2, enquiries: 23, listed: "08 Jan 2025", lastUpdated: "27 Feb", expires: "08 Jan 2026" },
+  { id: 7, name: "Putnam & Putnam", slug: "putnam-putnam-new-york", category: "florists", subCategory: "Luxury Floral Design", destination: "USA", countrySlug: "usa", regionSlug: "new-york", status: "Pending", tier: "curated", lwdScore: 8.8, enquiries: 8, listed: "18 Feb 2025", lastUpdated: "23 Feb", expires: "18 Feb 2026" },
+  { id: 8, name: "Aynhoe Park", slug: "aynhoe-park-oxfordshire", category: "wedding-venues", subCategory: "Country Houses", destination: "UK", countrySlug: "uk", regionSlug: "cotswolds", status: "Review", tier: "signature", lwdScore: 9.3, enquiries: 31, listed: "12 Jan 2025", lastUpdated: "26 Feb", expires: "12 Jan 2026" },
+  { id: 9, name: "Soirée Events", slug: "soiree-events-provence", category: "wedding-planners", subCategory: "Destination Specialists", destination: "France", countrySlug: "france", regionSlug: "provence", status: "Active", tier: "curated", lwdScore: 8.9, enquiries: 12, listed: "22 Jan 2025", lastUpdated: "22 Feb", expires: "22 Jan 2026" },
+  { id: 10, name: "Borgo Santo Pietro", slug: "borgo-santo-pietro-tuscany", category: "wedding-venues", subCategory: "Country Houses", destination: "Italy", countrySlug: "italy", regionSlug: "tuscany", status: "Paused", tier: "standard", lwdScore: 8.4, enquiries: 5, listed: "28 Dec 2024", lastUpdated: "18 Feb", expires: "28 Dec 2025" },
+  { id: 11, name: "New Luxury Villa", slug: "new-luxury-villa-amalfi", category: "wedding-venues", subCategory: "Country Houses", destination: "Italy", countrySlug: "italy", regionSlug: "amalfi-coast", status: "Draft", tier: "platinum", lwdScore: 0, enquiries: 0, listed: "06 Mar 2025", lastUpdated: "06 Mar", expires: "06 Mar 2026" },
+  {
+    id: 12,
+    name: "Villa Taiger",
+    slug: "villa-taiger-tuscany",
+    category: "wedding-venues",
+    subCategory: "Country Houses",
+    destination: "Italy",
+    countrySlug: "italy",
+    regionSlug: "tuscany",
+    status: "Active",
+    tier: "signature",
+    lwdScore: 9.6,
+    enquiries: 12,
+    listed: "06 Mar 2026",
+    lastUpdated: "06 Mar",
+    expires: "06 Mar 2027",
+    // Full Platinum listing data
+    cardStyle: "full-bleed",
+    cardImage: "/media/villa-taiger-card-hero.jpg",
+    cardBadge: "Estate of the Month",
+    heroType: "cinematic",
+    heroImage: "/media/villa-taiger-hero-main.jpg",
+    heroVimeoUrl: "https://vimeo.com/villa-taiger-tour",
+    capacityMin: 50,
+    capacityMax: 150,
+    rating: 4.9,
+    reviewCount: 48,
+    priceLabel: "£££",
+    priceFrom: "£45,000",
+    imageCount: 15,
+    videoCount: 6,
+    amenities: 20,
+  },
 ];
 
 // ── Theme-aware Status badge ───────────────────────────────────────────────
@@ -1580,6 +1616,9 @@ function StatusBadge({ status, C }) {
     Active:       { bg: "rgba(34,197,94,0.12)",   text: C.green },
     Founding:     { bg: "rgba(201,168,76,0.15)", text: C.gold },
     Pending:      { bg: "rgba(136,136,136,0.12)", text: C.grey },
+    Review:       { bg: "rgba(201,168,76,0.15)", text: C.gold },
+    Draft:        { bg: "rgba(59,130,246,0.12)",  text: C.blue },
+    Paused:       { bg: "rgba(190,18,60,0.12)",   text: C.rose },
     "AI Handling": { bg: "rgba(96,165,250,0.12)",  text: C.blue },
     Waiting:      { bg: "rgba(201,168,76,0.15)", text: C.gold },
     Closed:       { bg: "rgba(136,136,136,0.08)", text: C.grey2 },
@@ -2249,23 +2288,47 @@ function LwdEditor({ C, value, onChange, placeholder, label }) {
   const [images, setImages] = useState(() => _sharedImages);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-  const editorId = useRef("lwd-wysiwyg-" + Math.random().toString(36).slice(2, 8)).current;
   const fileRef = useRef(null);
+
+  // Initialize TipTap editor
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: { levels: [2, 3, 4] },
+        codeBlock: false,
+      }),
+      Image.configure({
+        allowBase64: true,
+        HTMLAttributes: { style: "max-width:100%;height:auto;border-radius:4px;margin:8px 0;" },
+      }),
+    ],
+    content: value || "",
+    onUpdate: ({ editor: ed }) => {
+      onChange(ed.getHTML());
+    },
+    editorProps: {
+      attributes: {
+        class: "tiptap-editor",
+        style: "direction: ltr; unicode-bidi: bidi-override; text-align: left;",
+      },
+    },
+  });
 
   // Sync shared images
   const updateImages = (newImages) => { _sharedImages = newImages; setImages(newImages); };
 
-  // Switch modes — sync content between contentEditable and state
+  // Switch modes — sync content
   const switchMode = (m) => {
     if (m === "source" && mode === "visual") {
-      const el = document.getElementById(editorId);
-      if (el) onChange(el.innerHTML);
+      if (editor) onChange(editor.getHTML());
+    } else if (m === "visual" && mode === "source") {
+      // When switching back to visual, update editor with current value
+      if (editor && value !== editor.getHTML()) {
+        editor.commands.setContent(value);
+      }
     }
     setMode(m);
   };
-
-  // execCommand helper
-  const exec = (cmd, val) => { document.execCommand(cmd, false, val || null); document.getElementById(editorId)?.focus(); };
 
   // Process uploaded file
   const processFile = (file) => {
@@ -2290,8 +2353,10 @@ function LwdEditor({ C, value, onChange, placeholder, label }) {
         updateImages([img, ...images]);
         // Insert into editor
         if (mode === "visual") {
-          const el = document.getElementById(editorId);
-          if (el) { el.focus(); document.execCommand("insertHTML", false, `<img src="${url}" alt="${file.name}" style="max-width:100%;height:auto;border-radius:4px;margin:8px 0;" />`); onChange(el.innerHTML); }
+          if (editor) {
+            editor.chain().focus().setImage({ src: url, alt: file.name }).run();
+            onChange(editor.getHTML());
+          }
         } else {
           onChange((value || "") + `\n<img src="${url}" alt="${file.name}" style="max-width:100%;height:auto;" />\n`);
         }
@@ -2306,8 +2371,10 @@ function LwdEditor({ C, value, onChange, placeholder, label }) {
   // Insert image from library
   const insertFromLib = (img) => {
     if (mode === "visual") {
-      const el = document.getElementById(editorId);
-      if (el) { el.focus(); document.execCommand("insertHTML", false, `<img src="${img.url}" alt="${img.name}" style="max-width:100%;height:auto;border-radius:4px;margin:8px 0;" />`); onChange(el.innerHTML); }
+      if (editor) {
+        editor.chain().focus().setImage({ src: img.url, alt: img.name }).run();
+        onChange(editor.getHTML());
+      }
     } else {
       onChange((value || "") + `\n<img src="${img.url}" alt="${img.name}" style="max-width:100%;height:auto;" />\n`);
     }
@@ -2346,34 +2413,33 @@ function LwdEditor({ C, value, onChange, placeholder, label }) {
         display: "flex", flexWrap: "wrap", gap: 4, padding: "8px 10px", alignItems: "center",
         background: `${C.gold}06`, border: `1px solid ${C.border}`, borderRadius: "4px 4px 0 0", borderBottom: "none",
       }}>
-        <select onChange={e => { if (e.target.value && mode === "visual") exec("formatBlock", e.target.value); e.target.value = ""; }} style={ddStyle} defaultValue="">
+        <select onChange={e => {
+          if (!e.target.value || !editor || mode !== "visual") return;
+          if (e.target.value === "p") editor.chain().focus().setParagraph().run();
+          else if (e.target.value === "h2") editor.chain().focus().toggleHeading({ level: 2 }).run();
+          else if (e.target.value === "h3") editor.chain().focus().toggleHeading({ level: 3 }).run();
+          else if (e.target.value === "h4") editor.chain().focus().toggleHeading({ level: 4 }).run();
+          else if (e.target.value === "blockquote") editor.chain().focus().toggleBlockquote().run();
+          e.target.value = "";
+        }} style={ddStyle} defaultValue="">
           <option value="" disabled>Format</option>
           <option value="p">Paragraph</option>
           <option value="h2">Heading 2</option>
           <option value="h3">Heading 3</option>
           <option value="h4">Heading 4</option>
-          <option value="pre">Preformatted</option>
           <option value="blockquote">Blockquote</option>
         </select>
-        <select onChange={e => { if (e.target.value && mode === "visual") exec("fontSize", e.target.value); e.target.value = ""; }} style={ddStyle} defaultValue="">
-          <option value="" disabled>Size</option>
-          <option value="1">Small</option>
-          <option value="3">Normal</option>
-          <option value="4">Medium</option>
-          <option value="5">Large</option>
-          <option value="6">X-Large</option>
-        </select>
         {sep(0)}
-        {tb("B", "Bold", () => exec("bold"))}
-        {tb("I", "Italic", () => exec("italic"))}
-        {tb("U", "Underline", () => exec("underline"))}
-        {tb("S", "Strikethrough", () => exec("strikeThrough"))}
+        {tb("B", "Bold", () => editor?.chain().focus().toggleBold().run())}
+        {tb("I", "Italic", () => editor?.chain().focus().toggleItalic().run())}
+        {tb("U", "Underline", () => editor?.chain().focus().toggleUnderline?.().run())}
+        {tb("S", "Strikethrough", () => editor?.chain().focus().toggleStrike().run())}
         {sep(1)}
-        {tb("↩", "Undo", () => exec("undo"))}
-        {tb("↪", "Redo", () => exec("redo"))}
+        {tb("↩", "Undo", () => editor?.chain().focus().undo().run())}
+        {tb("↪", "Redo", () => editor?.chain().focus().redo().run())}
         {sep(2)}
-        {tb("🔗", "Insert Link", () => { const u = prompt("Enter URL:"); if (u) exec("createLink", u); })}
-        {tb("⊘", "Remove Link", () => exec("unlink"))}
+        {tb("🔗", "Insert Link", () => { /* Links not supported in basic setup */ })}
+        {tb("⊘", "Remove Link", () => { /* Links not supported in basic setup */ })}
         {sep(3)}
         {/* Image upload button */}
         {tb("📷", "Upload Image", () => fileRef.current?.click())}
@@ -2387,26 +2453,29 @@ function LwdEditor({ C, value, onChange, placeholder, label }) {
         onMouseLeave={e => { if (!showStockSearch) { e.currentTarget.style.background = "#05A08112"; } }}
         title="Browse Unsplash, Pexels & Pixabay"
         >📸 Stock</button>
-        {tb("▦", "Table", () => { if (mode === "visual") exec("insertHTML", '<table style="width:100%;border-collapse:collapse;border:1px solid #ddd"><tr><td style="border:1px solid #ddd;padding:8px">&nbsp;</td><td style="border:1px solid #ddd;padding:8px">&nbsp;</td></tr><tr><td style="border:1px solid #ddd;padding:8px">&nbsp;</td><td style="border:1px solid #ddd;padding:8px">&nbsp;</td></tr></table><p></p>'); })}
-        {tb("―", "Horizontal Rule", () => exec("insertHorizontalRule"))}
+        {tb("▦", "Table", () => { /* Table not supported in TipTap basic setup */ })}
+        {tb("―", "Horizontal Rule", () => editor?.chain().focus().setHorizontalRule().run())}
         {sep(4)}
-        {tb("•", "Bullet List", () => exec("insertUnorderedList"))}
-        {tb("1.", "Numbered List", () => exec("insertOrderedList"))}
+        {tb("•", "Bullet List", () => editor?.chain().focus().toggleBulletList().run())}
+        {tb("1.", "Numbered List", () => editor?.chain().focus().toggleOrderedList().run())}
         {sep(5)}
-        {tb("◧", "Left", () => exec("justifyLeft"))}
-        {tb("◫", "Centre", () => exec("justifyCenter"))}
-        {tb("◨", "Right", () => exec("justifyRight"))}
-        {tb("☰", "Justify", () => exec("justifyFull"))}
+        {tb("◧", "Left", () => { /* Text align not supported in basic setup */ })}
+        {tb("◫", "Centre", () => { /* Text align not supported in basic setup */ })}
+        {tb("◨", "Right", () => { /* Text align not supported in basic setup */ })}
+        {tb("☰", "Justify", () => { /* Text align not supported in basic setup */ })}
         {sep(6)}
-        {tb("⌧", "Remove Format", () => exec("removeFormat"))}
+        {tb("⌧", "Remove Format", () => editor?.chain().focus().clearNodes().run())}
         {sep(7)}
         {/* AI Auto-suggest + AI Assistant */}
         <button onMouseDown={e => {
           e.preventDefault();
           const heading = label || "this section";
-          const tpl = `<h2>About ${heading}</h2>\n<p>Write compelling content here that speaks to discerning couples seeking luxury wedding services. Include location-specific details, unique selling points, and relevant keywords naturally.</p>\n<p><strong>Editorial tips:</strong> Use H2/H3 headings for structure, include internal links to related categories, and aim for 300+ words for maximum SEO impact.</p>`;
-          if (mode === "visual") exec("insertHTML", tpl);
-          else onChange(value + "\n" + tpl);
+          const tpl = `<h2>About ${heading}</h2><p>Write compelling content here that speaks to discerning couples seeking luxury wedding services. Include location-specific details, unique selling points, and relevant keywords naturally.</p><p><strong>Editorial tips:</strong> Use H2/H3 headings for structure, include internal links to related categories, and aim for 300+ words for maximum SEO impact.</p>`;
+          if (mode === "visual" && editor) {
+            editor.chain().focus().insertContent(tpl).run();
+          } else {
+            onChange(value + "\n" + tpl);
+          }
         }} style={{
           fontFamily: NU, fontSize: 10, fontWeight: 700, color: "#a78bfa", background: "#a78bfa10",
           border: "1px solid #a78bfa30", borderRadius: 3, padding: "6px 10px", cursor: "pointer",
@@ -2418,9 +2487,12 @@ function LwdEditor({ C, value, onChange, placeholder, label }) {
         <button onMouseDown={e => {
           e.preventDefault();
           const heading = label || "this section";
-          const tpl = `<h2>${heading}</h2>\n<p>Introduce this category with a warm, editorial tone. Describe what makes these services exceptional and why discerning couples choose them for their luxury weddings.</p>\n\n<h3>What to Expect</h3>\n<p>Detail the types of services available, typical experiences, and what sets the luxury tier apart from standard options.</p>\n\n<h3>Popular Destinations</h3>\n<p>Highlight key locations where these services are most sought-after — Lake Como, Tuscany, the Cotswolds, French Riviera, and beyond.</p>\n\n<h3>How to Choose</h3>\n<p>Offer expert guidance on selecting the right provider, key questions to ask, and what to look for in a luxury ${heading.toLowerCase()} professional.</p>`;
-          if (mode === "visual") exec("insertHTML", tpl);
-          else onChange(value + "\n" + tpl);
+          const tpl = `<h2>${heading}</h2><p>Introduce this category with a warm, editorial tone. Describe what makes these services exceptional and why discerning couples choose them for their luxury weddings.</p><h3>What to Expect</h3><p>Detail the types of services available, typical experiences, and what sets the luxury tier apart from standard options.</p><h3>Popular Destinations</h3><p>Highlight key locations where these services are most sought-after — Lake Como, Tuscany, the Cotswolds, French Riviera, and beyond.</p><h3>How to Choose</h3><p>Offer expert guidance on selecting the right provider, key questions to ask, and what to look for in a luxury ${heading.toLowerCase()} professional.</p>`;
+          if (mode === "visual" && editor) {
+            editor.chain().focus().insertContent(tpl).run();
+          } else {
+            onChange(value + "\n" + tpl);
+          }
         }} style={{
           fontFamily: NU, fontSize: 10, fontWeight: 700, color: "#a78bfa", background: "#a78bfa10",
           border: "1px solid #a78bfa30", borderRadius: 3, padding: "6px 10px", cursor: "pointer",
@@ -2493,9 +2565,9 @@ function LwdEditor({ C, value, onChange, placeholder, label }) {
         <ImageSearchPanel C={C} defaultQuery={label || "luxury wedding"}
           onClose={() => setShowStockSearch(false)}
           onSelect={(img) => {
-            if (mode === "visual") {
-              const el = document.getElementById(editorId);
-              if (el) { el.focus(); document.execCommand("insertHTML", false, `<img src="${img.url}" alt="${img.photographer} via ${img.source}" style="max-width:100%;height:auto;border-radius:4px;margin:8px 0;" />`); onChange(el.innerHTML); }
+            if (mode === "visual" && editor) {
+              editor.chain().focus().setImage({ src: img.url, alt: `${img.photographer} via ${img.source}` }).run();
+              onChange(editor.getHTML());
             } else {
               onChange((value || "") + `\n<img src="${img.url}" alt="${img.photographer} via ${img.source}" style="max-width:100%;height:auto;" />\n`);
             }
@@ -2518,41 +2590,28 @@ function LwdEditor({ C, value, onChange, placeholder, label }) {
       {/* Editor area */}
       {mode === "visual" ? (
         <div
-          id={editorId}
-          contentEditable
-          suppressContentEditableWarning
-          onInput={e => onChange(e.currentTarget.innerHTML)}
-          onPaste={e => {
-            // Handle pasted images
-            const items = e.clipboardData?.items;
-            if (items) {
-              for (let i = 0; i < items.length; i++) {
-                if (items[i].type.startsWith("image/")) {
-                  e.preventDefault();
-                  processFile(items[i].getAsFile());
-                  return;
-                }
-              }
-            }
-            // Allow normal HTML paste
-            e.preventDefault();
-            const html = e.clipboardData.getData("text/html") || e.clipboardData.getData("text/plain");
-            document.execCommand("insertHTML", false, html);
-          }}
           onDragOver={e => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
-          dangerouslySetInnerHTML={{ __html: value || "" }}
           style={{
             width: "100%", minHeight: 360, boxSizing: "border-box",
-            fontFamily: NU, fontSize: 13, color: "#1a1a1a", lineHeight: 1.8,
             background: dragOver ? "#fffff0" : "#fefefe",
             border: `1px solid ${dragOver ? C.gold : C.border}`, borderTop: "none",
             borderRadius: "0 0 4px 4px",
-            padding: "20px 24px", outline: "none", overflowY: "auto",
             transition: "background 0.2s, border-color 0.2s",
           }}
-        />
+        >
+          {editor && (
+            <EditorContent
+              editor={editor}
+              style={{
+                width: "100%", minHeight: 360, boxSizing: "border-box",
+                fontFamily: NU, fontSize: 13, color: "#1a1a1a", lineHeight: 1.8,
+                padding: "20px 24px", outline: "none", overflowY: "auto",
+              }}
+            />
+          )}
+        </div>
       ) : (
         <textarea
           value={value || ""}
@@ -3864,19 +3923,79 @@ ${seoForm.headHtml ? `\n${seoForm.headHtml}` : ""}`
 // ═════════════════════════════════════════════════════════════════════════════
 // Listings Module — Directory Listing Management
 // ═════════════════════════════════════════════════════════════════════════════
-function ListingsModule({ C }) {
+function ListingsModule({ C, onNavigate }) {
   const [catFilter, setCatFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [tierFilter, setTierFilter] = useState("all");
   const [countryFltr, setCountryFltr] = useState("all");
   const [regionFltr, setRegionFltr] = useState("all");
   const [search, setSearch] = useState("");
+  const [listings, setListings] = useState(MOCK_LISTINGS);
+  const [deleteModal, setDeleteModal] = useState(null); // { id, name }
+  const [actionFeedback, setActionFeedback] = useState(null); // { action, listing }
+  const [loading, setLoading] = useState(false);
+
+  // Load listings from Supabase on component mount
+  useEffect(() => {
+    const loadListings = async () => {
+      if (!isSupabaseAvailable()) {
+        console.log("Using MOCK_LISTINGS (Supabase not configured)");
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const data = await fetchListings();
+        if (data && data.length > 0) {
+          console.log("Loaded listings from Supabase:", data);
+          setListings(data);
+        } else {
+          console.log("No listings found in Supabase, using MOCK_LISTINGS fallback");
+        }
+      } catch (error) {
+        console.error("Error loading listings from Supabase:", error);
+        console.log("Falling back to MOCK_LISTINGS");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadListings();
+  }, []);
 
   const filteredRegions = countryFltr === "all"
     ? DIRECTORY_REGIONS
     : DIRECTORY_REGIONS.filter(r => r.countrySlug === countryFltr);
 
-  const filtered = MOCK_LISTINGS.filter(l => {
+  // Action handlers
+  const handlePause = (id) => {
+    const listing = listings.find(l => l.id === id);
+    if (listing) {
+      const updated = listings.map(l =>
+        l.id === id ? { ...l, status: l.status === "Paused" ? "Active" : "Paused" } : l
+      );
+      setListings(updated);
+      setActionFeedback({ action: listing.status === "Paused" ? "resumed" : "paused", listing });
+      setTimeout(() => setActionFeedback(null), 3000);
+    }
+  };
+
+  const handleDelete = (id) => {
+    const listing = listings.find(l => l.id === id);
+    if (listing) {
+      setDeleteModal(listing);
+    }
+  };
+
+  const confirmDelete = () => {
+    const updated = listings.filter(l => l.id !== deleteModal.id);
+    setListings(updated);
+    setDeleteModal(null);
+    setActionFeedback({ action: "deleted", listing: deleteModal });
+    setTimeout(() => setActionFeedback(null), 3000);
+  };
+
+  const filtered = listings.filter(l => {
     if (catFilter === "uncategorised" && l.category) return false;
     if (catFilter !== "all" && catFilter !== "uncategorised" && l.category !== catFilter) return false;
     if (statusFilter !== "all" && l.status.toLowerCase() !== statusFilter) return false;
@@ -3898,6 +4017,44 @@ function ListingsModule({ C }) {
 
   return (
     <div>
+      {/* Header + Add Button */}
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 20,
+      }}>
+        <h2 style={{
+          fontFamily: GD,
+          fontSize: 18,
+          color: C.off,
+          margin: 0,
+          fontWeight: 400,
+        }}>
+          Venue Listings
+        </h2>
+        <button
+          onClick={() => onNavigate?.("admin-listings-new")}
+          style={{
+            fontFamily: NU,
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.1em",
+            padding: "10px 16px",
+            background: C.gold,
+            color: C.black,
+            border: "none",
+            borderRadius: 3,
+            cursor: "pointer",
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = C.gold2; }}
+          onMouseLeave={e => { e.currentTarget.style.background = C.gold; }}
+        >
+          + Add New Listing
+        </button>
+      </div>
+
       {/* Stats bar */}
       <div className="admin-stats-grid admin-grid-4col" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20, marginBottom: 28 }}>
         {[
@@ -3939,10 +4096,11 @@ function ListingsModule({ C }) {
         </select>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={selectStyle}>
           <option value="all">All Status</option>
-          <option value="active">Active</option>
-          <option value="pending">Pending</option>
-          <option value="review">Review</option>
-          <option value="paused">Paused</option>
+          <option value="draft">📝 Draft</option>
+          <option value="active">✓ Active</option>
+          <option value="pending">⏳ Pending</option>
+          <option value="review">👁 Review</option>
+          <option value="paused">⏸ Paused</option>
         </select>
         <select value={tierFilter} onChange={e => setTierFilter(e.target.value)} style={selectStyle}>
           <option value="all">All Tiers</option>
@@ -3961,10 +4119,10 @@ function ListingsModule({ C }) {
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, overflow: "hidden" }}>
         {/* Table header */}
         <div className="admin-listing-header" style={{
-          display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 0.8fr 0.7fr 0.7fr 0.6fr 0.5fr 0.6fr",
+          display: "grid", gridTemplateColumns: "2fr 1fr 0.8fr 0.8fr 0.7fr 0.7fr 0.6fr 0.6fr 0.6fr 0.6fr 0.8fr",
           padding: "10px 20px", borderBottom: `1px solid ${C.border}`, background: `${C.gold}06`,
         }}>
-          {["Name", "Category", "Sub-Category", "Destination", "Status", "Tier", "Score", "Enq.", "Updated"].map(h => (
+          {["Name", "Category", "Destination", "Status", "Tier", "Score", "Listed", "Updated", "Expires", "Enq.", "Actions"].map(h => (
             <span key={h} style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: C.grey2, fontWeight: 700 }}>{h}</span>
           ))}
         </div>
@@ -3974,20 +4132,20 @@ function ListingsModule({ C }) {
           const catObj = DIRECTORY_CATEGORIES.find(c => c.slug === l.category);
           return (
             <div key={l.id} className="admin-listing-row" style={{
-              display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 0.8fr 0.7fr 0.7fr 0.6fr 0.5fr 0.6fr",
+              display: "grid", gridTemplateColumns: "2fr 1fr 0.8fr 0.8fr 0.7fr 0.7fr 0.6fr 0.6fr 0.6fr 0.6fr 0.8fr",
               padding: "12px 20px", borderBottom: i < filtered.length - 1 ? `1px solid ${C.border}` : "none",
               alignItems: "center",
               transition: "background 0.15s",
+              cursor: "pointer",
             }}
             onMouseEnter={e => e.currentTarget.style.background = `${C.gold}06`}
             onMouseLeave={e => e.currentTarget.style.background = "transparent"}
             >
-              <div>
+              <div onClick={() => onNavigate?.("admin-listings-new", l)}>
                 <div style={{ fontFamily: NU, fontSize: 12, color: C.off, fontWeight: 600 }}>{l.name}</div>
                 <div style={{ fontFamily: NU, fontSize: 9, color: C.grey2 }}>/{l.slug}</div>
               </div>
               <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>{catObj?.name || l.category}</span>
-              <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>{l.subCategory}</span>
               <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>{l.destination}</span>
               <StatusBadge status={l.status} C={C} />
               <span style={{
@@ -3995,17 +4153,157 @@ function ListingsModule({ C }) {
                 color: tierColors[l.tier], background: tierBg[l.tier], padding: "3px 8px", borderRadius: 2, width: "fit-content",
               }}>{l.tier}</span>
               <span style={{ fontFamily: GD, fontSize: 14, color: l.lwdScore >= 9.0 ? C.gold : C.grey, fontWeight: 400 }}>{l.lwdScore}</span>
+              <span style={{ fontFamily: NU, fontSize: 9, color: C.grey2 }}>{l.listed}</span>
+              <span style={{ fontFamily: NU, fontSize: 9, color: C.grey2 }}>{l.lastUpdated}</span>
+              <span style={{ fontFamily: NU, fontSize: 9, color: l.expires.includes("2025") ? C.rose : C.green }}>{l.expires}</span>
               <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>{l.enquiries}</span>
-              <span style={{ fontFamily: NU, fontSize: 11, color: C.grey2 }}>{l.lastUpdated}</span>
+              <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onNavigate?.("admin-listings-new", l); }}
+                  title="Edit listing"
+                  style={{
+                    padding: "3px 6px",
+                    background: `${C.gold}20`,
+                    border: `1px solid ${C.gold}40`,
+                    borderRadius: 2,
+                    color: C.gold,
+                    cursor: "pointer",
+                    fontFamily: NU,
+                    fontSize: 9,
+                    fontWeight: 600,
+                    transition: "all 0.15s",
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = `${C.gold}40`;
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = `${C.gold}20`;
+                  }}
+                >
+                  ✏️
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handlePause(l.id); }}
+                  title={l.status === "Paused" ? "Resume listing" : "Pause listing"}
+                  style={{
+                    padding: "3px 6px",
+                    background: l.status === "Paused" ? `${C.green}20` : `${C.grey}20`,
+                    border: `1px solid ${l.status === "Paused" ? `${C.green}40` : `${C.grey}40`}`,
+                    borderRadius: 2,
+                    color: l.status === "Paused" ? C.green : C.grey,
+                    cursor: "pointer",
+                    fontFamily: NU,
+                    fontSize: 9,
+                    fontWeight: 600,
+                    transition: "all 0.15s",
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.opacity = "0.8";
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.opacity = "1";
+                  }}
+                >
+                  {l.status === "Paused" ? "▶️" : "⏸"}
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDelete(l.id); }}
+                  title="Delete listing"
+                  style={{
+                    padding: "3px 6px",
+                    background: `${C.rose}20`,
+                    border: `1px solid ${C.rose}40`,
+                    borderRadius: 2,
+                    color: C.rose,
+                    cursor: "pointer",
+                    fontFamily: NU,
+                    fontSize: 9,
+                    fontWeight: 600,
+                    transition: "all 0.15s",
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = `${C.rose}40`;
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = `${C.rose}20`;
+                  }}
+                >
+                  🗑️
+                </button>
+              </div>
             </div>
           );
         })}
       </div>
 
+      {/* Delete Confirmation Modal */}
+      {deleteModal && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 9999,
+        }} onClick={() => setDeleteModal(null)}>
+          <div style={{
+            background: C.card, border: `1px solid ${C.border}`, borderRadius: 4,
+            padding: 28, maxWidth: 400, boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{
+              fontFamily: GD, fontSize: 18, color: C.rose, marginBottom: 12, fontWeight: 400,
+            }}>
+              ⚠️ Delete Listing
+            </div>
+            <div style={{
+              fontFamily: NU, fontSize: 12, color: C.off, marginBottom: 20, lineHeight: 1.6,
+            }}>
+              Are you sure you want to delete <strong>{deleteModal.name}</strong>? This action cannot be undone.
+            </div>
+            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setDeleteModal(null)}
+                style={{
+                  padding: "8px 16px", background: C.border, border: "none", borderRadius: 3,
+                  color: C.off, cursor: "pointer", fontFamily: NU, fontSize: 11, fontWeight: 700,
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = C.border2; }}
+                onMouseLeave={e => { e.currentTarget.style.background = C.border; }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                style={{
+                  padding: "8px 16px", background: C.rose, border: "none", borderRadius: 3,
+                  color: C.black, cursor: "pointer", fontFamily: NU, fontSize: 11, fontWeight: 700,
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.opacity = "0.8"; }}
+                onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
+              >
+                Delete Permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Action Feedback */}
+      {actionFeedback && (
+        <div style={{
+          position: "fixed", bottom: 20, right: 20,
+          background: C.green, color: C.black, padding: "12px 16px",
+          borderRadius: 4, fontFamily: NU, fontSize: 12, fontWeight: 700,
+          animation: "slideIn 0.3s ease",
+          zIndex: 9998,
+        }}>
+          ✓ {actionFeedback.listing.name} {actionFeedback.action}
+        </div>
+      )}
+
       {/* Footer */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16, padding: "0 4px" }}>
         <span style={{ fontFamily: NU, fontSize: 11, color: C.grey2 }}>
-          Showing {filtered.length} of {MOCK_LISTINGS.length} listings · 3,280 total in directory
+          Showing {filtered.length} of {listings.length} listings · 3,280 total in directory
         </span>
         <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2, letterSpacing: "0.1em" }}>
           Route: /{"{country}"}/{"{category}"}/{"{slug}"}
@@ -6411,7 +6709,11 @@ function SidebarGroup({ section, activeTab, setActiveTab, darkMode, C, expandedG
 // ═════════════════════════════════════════════════════════════════════════════
 // Main Component
 // ═════════════════════════════════════════════════════════════════════════════
-export default function AdminDashboard({ onBack }) {
+
+// Export constants for use in components
+export { DIRECTORY_CATEGORIES, DIRECTORY_COUNTRIES, DIRECTORY_REGIONS };
+
+export default function AdminDashboard({ onBack, onNavigate }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [darkMode, setDarkMode] = useState(() => {
     const saved = _loadTheme();
@@ -6420,7 +6722,6 @@ export default function AdminDashboard({ onBack }) {
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [isMobileBreakpoint, setIsMobileBreakpoint] = useState(window.innerWidth <= 1023);
 
   // ── Theme customisation state (persisted to localStorage) ──
   const [customDark, setCustomDark] = useState(() => {
@@ -6585,21 +6886,6 @@ export default function AdminDashboard({ onBack }) {
     });
   }, []);
 
-  // Handle window resize for responsive sidebar
-  useEffect(() => {
-    const handleResize = () => {
-      const isMobile = window.innerWidth <= 1023;
-      setIsMobileBreakpoint(isMobile);
-
-      // Close sidebar when transitioning from mobile to desktop
-      if (!isMobile && sidebarOpen) {
-        setSidebarOpen(false);
-      }
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [sidebarOpen]);
-
   const C = darkMode ? customDark : customLight;
 
   const renderModule = () => {
@@ -6608,8 +6894,7 @@ export default function AdminDashboard({ onBack }) {
       case "partnerships":  return <PartnershipsModule C={C} />;
       case "index":         return <IndexHealthModule C={C} />;
       case "livechat":      return <LiveChatModule C={C} />;
-      case "listings":      return <ListingsModule C={C} />;
-      case "vendors":       return <VendorManagementModule C={C} fonts={{ heading: GD, body: NU }} />;
+      case "listings":      return <ListingsModule C={C} onNavigate={onNavigate} />;
       case "categories":    return <CategoriesModule C={C} />;
       case "enquiries":     return <PlaceholderModule title="Enquiry Pipeline" C={C} />;
       case "countries":     return <CountriesModule C={C} />;
@@ -6627,104 +6912,22 @@ export default function AdminDashboard({ onBack }) {
     <ThemeCtx.Provider value={C}>
       {/* Responsive styles */}
       <style>{`
-        /* ─── Mobile-First Responsive (375px–1023px) ─── */
-        @media (max-width: 1023px) {
-          .admin-sidebar { display: flex !important; position: fixed !important; z-index: 999; left: 0; top: 0; width: 280px !important; height: 100vh; transform: translateX(${sidebarOpen ? "0" : "-100%"}); transition: transform 0.3s ease !important; box-shadow: ${sidebarOpen ? "6px 0 32px rgba(0,0,0,0.7)" : "none"}; border-right: ${sidebarOpen ? "1px solid rgba(201,168,76,0.25)" : "none"} !important; overflow-y: auto; }
-          .admin-sidebar-overlay { display: ${sidebarOpen ? "block" : "none"}; position: fixed; inset: 0; z-index: 998; background: rgba(0,0,0,0.6); }
-          .admin-topbar { display: flex !important; }
+        @media (max-width: 768px) {
+          .admin-sidebar { position: fixed !important; z-index: 999; left: 0; top: 0; width: 220px !important; transform: translateX(${sidebarOpen ? "0" : "-100%"}); transition: transform 0.3s ease !important; box-shadow: ${sidebarOpen ? "6px 0 32px rgba(0,0,0,0.7)" : "none"}; border-right: ${sidebarOpen ? "1px solid rgba(201,168,76,0.25)" : "none"} !important; }
+          .admin-sidebar-overlay { display: ${sidebarOpen ? "block" : "none"}; position: fixed; inset: 0; z-index: 998; background: rgba(0,0,0,0.5); }
+          .admin-main { padding: 56px 16px 20px !important; }
           .admin-hamburger { display: flex !important; }
           .admin-collapse-btn { display: none !important; }
-          .admin-topbar-title { font-size: 14px !important; }
-          .admin-main { padding: 12px !important; overflow: auto; margin-top: 56px; }
-
-          /* Form responsive */
-          .admin-form-group input, .admin-form-group textarea, .admin-form-group select { width: 100% !important; }
-          .admin-form-row { flex-direction: column !important; }
-          .admin-form-row > * { width: 100% !important; margin-bottom: 12px; }
-
-          /* Tables with horizontal scroll */
-          .admin-table-container { overflow-x: auto !important; -webkit-overflow-scrolling: touch; max-width: 100%; }
-          .admin-table { min-width: 600px; width: 100%; }
-          .admin-table-row { min-width: 600px; }
-
-          /* Hide non-essential columns on mobile */
-          .admin-listing-row { grid-template-columns: 2fr 1fr 1fr !important; min-width: 500px; }
-          .admin-listing-row > *:nth-child(n+4) { display: none !important; }
-          .admin-listing-header { grid-template-columns: 2fr 1fr 1fr !important; min-width: 500px; }
-          .admin-listing-header > *:nth-child(n+4) { display: none !important; }
-
-          /* Scroll hints */
-          .admin-table-container::after { content: ''; display: block; height: 1px; }
-          .admin-table-hint { display: block !important; font-size: 10px; color: ${C.grey2}; margin-top: 8px; text-align: center; }
-
-          /* Generic table scroll support */
-          table.admin-table { width: 100%; table-layout: fixed; }
-          table.admin-table th { white-space: nowrap; padding: 8px 12px; }
-          table.admin-table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 8px 12px; }
-
-          /* Grids collapse to single column */
           .admin-grid-2col { grid-template-columns: 1fr !important; }
-          .admin-grid-3col { grid-template-columns: 1fr !important; }
-          .admin-grid-4col { grid-template-columns: 1fr !important; }
-
-          /* Modal/drawer adjustments */
-          .admin-modal, .admin-drawer { width: 100% !important; max-width: 100%; max-height: 90vh !important; }
-          .admin-modal-content { padding: 12px !important; }
-
-          /* Buttons and controls */
-          .admin-btn { padding: 12px 16px !important; font-size: 14px; min-height: 44px; }
-          .admin-btn-group { flex-direction: column !important; gap: 8px; }
-          .admin-btn-group button { width: 100% !important; }
-          button, input[type="button"], input[type="submit"] { min-height: 44px; }
-
-          /* Spacing & padding adjustments */
-          .admin-panel { padding: 12px !important; }
-          .admin-card { margin-bottom: 12px !important; }
-          .admin-section { margin-bottom: 16px !important; }
-
-          /* Input focus visibility */
-          input, textarea, select { box-shadow: 0 0 0 2px ${C.goldDim} !important; }
-          input:focus, textarea:focus, select:focus { box-shadow: 0 0 0 3px ${C.gold} !important; outline: none; }
+          .admin-grid-4col { grid-template-columns: repeat(2, 1fr) !important; }
+          .admin-listing-row { grid-template-columns: 2fr 1fr 1fr !important; }
+          .admin-listing-row > *:nth-child(n+4) { display: none !important; }
+          .admin-listing-header { grid-template-columns: 2fr 1fr 1fr !important; }
+          .admin-listing-header > *:nth-child(n+4) { display: none !important; }
         }
-
-        /* ─── Responsive Sidebar Width (Desktop) ─── */
-        @media (min-width: 1024px) and (max-width: 1200px) {
-          .admin-sidebar { width: 200px !important; }
-          .admin-sidebar.collapsed { width: 56px !important; }
-        }
-
-        @media (min-width: 1200px) and (max-width: 1440px) {
-          .admin-sidebar { width: 220px !important; }
-          .admin-sidebar.collapsed { width: 56px !important; }
-        }
-
-        @media (min-width: 1440px) {
-          .admin-sidebar { width: 240px !important; }
-          .admin-sidebar.collapsed { width: 56px !important; }
-        }
-
-        /* ─── Tablet & Desktop (1024px–1280px) ─── */
-        @media (min-width: 1024px) and (max-width: 1280px) {
+        @media (min-width: 769px) {
           .admin-sidebar-overlay { display: none; }
           .admin-hamburger { display: none !important; }
-          .admin-topbar { position: static !important; }
-          .admin-main { padding: 32px 32px !important; }
-        }
-
-        /* ─── Desktop (1280px–1440px) ─── */
-        @media (min-width: 1280px) and (max-width: 1440px) {
-          .admin-sidebar-overlay { display: none; }
-          .admin-hamburger { display: none !important; }
-          .admin-topbar { position: static !important; }
-          .admin-main { padding: 36px 40px !important; }
-        }
-
-        /* ─── Large Desktop (1440px+) ─── */
-        @media (min-width: 1440px) {
-          .admin-sidebar-overlay { display: none; }
-          .admin-hamburger { display: none !important; }
-          .admin-topbar { position: static !important; }
-          .admin-main { padding: 40px 48px !important; max-width: 1400px; margin: 0 auto; }
         }
       `}</style>
 
@@ -6755,56 +6958,17 @@ export default function AdminDashboard({ onBack }) {
         {/* ── Sidebar overlay (mobile) ── */}
         <div className="admin-sidebar-overlay" onClick={() => setSidebarOpen(false)} />
 
-        {/* ── Mobile hamburger button & sticky topbar ── */}
-        <div
-          className="admin-topbar"
+        {/* ── Mobile hamburger button ── */}
+        <button
+          className="admin-hamburger"
+          onClick={() => setSidebarOpen(!sidebarOpen)}
           style={{
-            display: "none", position: "fixed", top: 0, left: 0, right: 0, zIndex: 500,
-            background: C.black, borderBottom: `1px solid ${C.border}`,
-            padding: "12px 16px", flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-            gap: 12, backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", height: 56,
+            display: "none", position: "fixed", top: 12, left: 12, zIndex: 1000,
+            background: C.card, border: `1px solid ${C.border}`, borderRadius: 4,
+            padding: "8px 10px", cursor: "pointer", alignItems: "center", justifyContent: "center",
+            color: C.gold, fontSize: 18, lineHeight: 1,
           }}
-        >
-          <button
-            className="admin-hamburger"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            style={{
-              background: C.card, border: `1px solid ${C.border}`, borderRadius: 4,
-              padding: "8px 10px", cursor: "pointer", alignItems: "center", justifyContent: "center",
-              color: C.gold, fontSize: 18, lineHeight: 1, minWidth: 36, minHeight: 36,
-              flexShrink: 0, transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.background = C.dark; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.background = C.card; }}
-          >
-            {sidebarOpen ? "✕" : "☰"}
-          </button>
-
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 className="admin-topbar-title" style={{
-              fontFamily: GD, fontSize: 14, fontWeight: 400, color: C.off,
-              margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-              transition: "color 0.3s",
-            }}>
-              {ALL_NAV_ITEMS.find((n) => n.key === activeTab)?.label || "Admin"}
-            </h2>
-          </div>
-
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            style={{
-              background: "none", border: "none", cursor: "pointer",
-              color: C.grey, fontSize: 16, padding: 8,
-              transition: "color 0.2s", minWidth: 36, minHeight: 36,
-              flexShrink: 0,
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = C.gold)}
-            onMouseLeave={(e) => (e.currentTarget.style.color = C.grey)}
-            title={darkMode ? "Light Mode" : "Dark Mode"}
-          >
-            {darkMode ? "☀" : "☽"}
-          </button>
-        </div>
+        >{sidebarOpen ? "✕" : "☰"}</button>
 
         {/* ── Sidebar ── */}
         <aside
@@ -6815,17 +6979,14 @@ export default function AdminDashboard({ onBack }) {
             borderRight: `1px solid ${DARK_C.border}`,
             padding: "28px 0",
             flexShrink: 0,
-            position: isMobileBreakpoint ? "fixed" : "sticky",
-            left: 0,
+            position: "sticky",
             top: 0,
             height: "100vh",
             display: "flex",
             flexDirection: "column",
-            transition: "width 0.25s ease, background 0.3s, border-color 0.3s, transform 0.3s ease, position 0.3s ease",
+            transition: "width 0.25s ease, background 0.3s, border-color 0.3s",
             overflowY: "auto",
             overflowX: "hidden",
-            transform: isMobileBreakpoint ? `translateX(${sidebarOpen ? "0" : "-100%"})` : "translateX(0)",
-            zIndex: 999,
           }}
         >
           {/* Brand */}
@@ -6931,7 +7092,7 @@ export default function AdminDashboard({ onBack }) {
 
         {/* ── Main content ── */}
         <main className="admin-main" style={{ flex: 1, padding: "40px 48px", overflow: "auto", transition: "background 0.3s" }}>
-          <div style={{ marginBottom: 36, display: "none" }}>
+          <div style={{ marginBottom: 36 }}>
             <h1 style={{
               fontFamily: GD, fontSize: 24, fontWeight: 400,
               color: C.off, margin: "0 0 6px", transition: "color 0.3s",
