@@ -22,6 +22,9 @@ import HomepageManagerModule from "./PageStudio/HomepageManagerModule";
 import BlogManagerModule from "./PageStudio/BlogManagerModule";
 import ReusableBlocksModule from "./PageStudio/ReusableBlocksModule";
 
+// ── Admin modules ──
+import VendorManagementModule from "./admin/VendorManagementModule";
+
 // Font tokens — resolved via CSS custom properties set on admin root
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -208,6 +211,7 @@ const NAV_SECTIONS = [
       { key: "overview",     label: "Overview",          icon: "◈" },
       { key: "homepage",     label: "Homepage Editor",   icon: "◐" },
       { key: "listings",     label: "Listings",          icon: "⊞" },
+      { key: "vendors",      label: "Vendors",           icon: "⊙" },
       { key: "categories",   label: "Categories",        icon: "▦" },
       { key: "enquiries",    label: "Enquiries",         icon: "◇" },
       { key: "partnerships", label: "Partnerships",      icon: "✦" },
@@ -6650,6 +6654,7 @@ export default function AdminDashboard({ onBack }) {
           handlePageStudioNavigate(action, data);
         }
       }} />;
+      case "vendors":       return <VendorManagementModule C={C} fonts={{ heading: GD, body: NU }} />;
       case "categories":    return <CategoriesModule C={C} />;
       case "enquiries":     return <PlaceholderModule title="Enquiry Pipeline" C={C} />;
       case "countries":     return <CountriesModule C={C} />;
