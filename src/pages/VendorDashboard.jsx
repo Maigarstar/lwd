@@ -1291,7 +1291,7 @@ export default function VendorDashboard({ onBack }) {
 
           {/* INQUIRIES */}
           {dashTab === "inquiries" && (
-            <VendorInquiryManager />
+            <VendorInquiryManager vendorId={vendor.id} />
           )}
 
           {/* LIVE CONVERSATIONS — Client Intelligence System */}
