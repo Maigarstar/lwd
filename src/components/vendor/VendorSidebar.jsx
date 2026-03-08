@@ -287,7 +287,7 @@ export default function VendorSidebar({ vendor, vendorType, C, onChat, onSave, i
           <div style={{ fontFamily: FB, fontSize: 10, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: C.gold, marginBottom: 16 }}>
             Send an enquiry
           </div>
-          <VendorContactForm vendor={vendor} C={C} />
+          <VendorContactForm vendor={vendor} C={C} leadSource="Venue Profile" />
         </div>
       </div>
     </>
