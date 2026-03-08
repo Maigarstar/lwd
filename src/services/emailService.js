@@ -3,11 +3,7 @@
 // Sends confirmation emails to couples and lead notifications to vendors
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+import { supabase } from "../lib/supabaseClient";
 
 /**
  * Send enquiry confirmation email to couple

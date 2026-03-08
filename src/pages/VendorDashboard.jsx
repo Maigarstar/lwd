@@ -11,6 +11,7 @@ import { computeCuratedIndex, FACTOR_LABELS } from "../engine/index.js";
 import FooterForVendors from "../components/sections/FooterForVendors";
 import { getVendorMetrics, subscribeToVendorMetrics, getVendorEnquiries } from "../services/vendorMetricsService";
 import VendorLeadInbox from "../components/VendorLeadInbox";
+import { useVendorAuth } from "../context/VendorAuthContext";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -373,12 +374,28 @@ function ChatNotification({ notification, C, onAccept, onDismiss, isMobile }) {
 }
 
 // ── Main dashboard ───────────────────────────────────────────────────────────
-export default function VendorDashboard({ onBack }) {
+export default function VendorDashboard({ onBack, onVendorLogin }) {
+  const { vendor, isAuthenticated, loading, logout } = useVendorAuth();
   const [currentTheme, setCurrentTheme] = useState(
     document.documentElement.getAttribute("data-lwd-mode") || "light"
   );
   const C = currentTheme === "dark" ? getDarkPalette() : getLightPalette();
-  const vendor = GLOBAL_VENDORS[0];
+
+  // ── Authentication Guard ──────────────────────────────────────────────────
+  // Show loading while auth state is initializing
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.bg }}>
+        <p style={{ fontFamily: "var(--font-body)", fontSize: 14, color: C.grey }}>Loading...</p>
+      </div>
+    );
+  }
+
+  // Redirect to login if not authenticated or vendor not found
+  if (!isAuthenticated || !vendor) {
+    window.location.href = "/vendor/login";
+    return null;
+  }
   const [dashTab, setDashTab] = useState("overview");
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isTablet, setIsTablet] = useState(window.innerWidth < 1024);
@@ -414,6 +431,13 @@ export default function VendorDashboard({ onBack }) {
   // Load real metrics from Supabase and subscribe to changes
   useEffect(() => {
     const loadData = async () => {
+      // Safety check: ensure vendor exists
+      if (!vendor?.id) {
+        console.error("Vendor ID not found");
+        setMetricsLoading(false);
+        return;
+      }
+
       setMetricsLoading(true);
 
       // Load metrics
@@ -797,6 +821,18 @@ export default function VendorDashboard({ onBack }) {
     </div>
   );
 
+  // Check authentication status
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5f5f5" }}>
+        <p style={{ fontFamily: NU, fontSize: 13, color: "#666" }}>Loading...</p>
+      </div>
+    );
+  }
+
+  // Dev mode: Allow access without authentication
+  // TODO: Re-enable authentication check in production
+
   return (
     <ThemeCtx.Provider value={C}>
     {/* Notification slide-in animation */}
@@ -979,7 +1015,7 @@ export default function VendorDashboard({ onBack }) {
       </div>
     )}
 
-    <div style={{ height: "100vh", background: C.black, display: "flex", flexDirection: "column" }}>
+    <div style={{ height: "100vh", background: C.dark, display: "flex", flexDirection: "column" }}>
       {/* Dashboard nav */}
       <div
         style={{
@@ -1077,6 +1113,35 @@ export default function VendorDashboard({ onBack }) {
           >
             GP
           </div>
+          {/* Logout Button */}
+          <button
+            onClick={async () => {
+              await logout();
+              // Redirect to login using custom router history
+              if (onVendorLogin) {
+                onVendorLogin();
+              } else {
+                window.history.pushState(null, "", "/vendor/login");
+                window.location.href = "/vendor/login";
+              }
+            }}
+            style={{
+              background: "rgba(220,38,38,0.1)",
+              border: `1px solid ${C.border2}`,
+              borderRadius: "var(--lwd-radius-input)",
+              color: "#dc2626",
+              padding: "6px 12px",
+              fontFamily: NU,
+              fontSize: 11,
+              fontWeight: 600,
+              textTransform: "uppercase",
+              cursor: "pointer",
+              transition: "all 0.25s ease",
+            }}
+            title="Logout"
+          >
+            Logout
+          </button>
         </div>
       </div>
 

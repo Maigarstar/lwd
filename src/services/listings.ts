@@ -1,4 +1,4 @@
-import { supabase, isSupabaseAvailable } from '../lib/supabase'
+import { supabase, isSupabaseAvailable } from '../lib/supabaseClient'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS

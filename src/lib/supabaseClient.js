@@ -48,4 +48,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   supabase = createClient(supabaseUrl, supabaseAnonKey);
 }
 
-export { supabase };
+// Helper to check if Supabase is available
+const isSupabaseAvailable = () => !!supabase && supabase !== null && typeof supabase.from === 'function';
+
+export { supabase, isSupabaseAvailable };

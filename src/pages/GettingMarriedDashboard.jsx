@@ -4,22 +4,31 @@
 import { useState, useEffect } from "react";
 import { useTheme, ThemeCtx } from "../theme/ThemeContext";
 import { useShortlist } from "../shortlist/ShortlistContext";
+import { useCoupleAuth } from "../context/CoupleAuthContext";
 import { getDarkPalette, getLightPalette } from "../theme/tokens";
 import { GLOBAL_VENDORS } from "../data/globalVendors";
 import ShortlistButton from "../components/buttons/ShortlistButton";
 import FooterForCouples from "../components/sections/FooterForCouples";
+import { getCoupleProfile, getCoupleShortlist, getCoupleEnquiries } from "../services/coupleService";
 import { track } from "../utils/track";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
 
 export default function GettingMarriedDashboard({ onBack }) {
+  const { couple, logout, loading: authLoading } = useCoupleAuth();
   const { items: shortlistItems, toggleItem, isShortlisted } = useShortlist();
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [currentTheme, setCurrentTheme] = useState(
     document.documentElement.getAttribute("data-lwd-mode") || "light"
   );
+  const [activeTab, setActiveTab] = useState("shortlist");
+  const [coupleProfile, setCoupleProfile] = useState(null);
+  const [coupleShortlist, setCoupleShortlist] = useState([]);
+  const [coupleEnquiries, setCoupleEnquiries] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Track theme changes
   useEffect(() => {
@@ -44,6 +53,31 @@ export default function GettingMarriedDashboard({ onBack }) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Load couple profile, shortlist, and enquiries
+  useEffect(() => {
+    if (!couple) return;
+
+    const loadCoupleData = async () => {
+      setLoading(true);
+
+      // Load couple profile
+      const { data: profileData } = await getCoupleProfile(couple.id);
+      if (profileData) setCoupleProfile(profileData);
+
+      // Load couple shortlist
+      const { data: shortlistData } = await getCoupleShortlist(couple.id);
+      if (shortlistData) setCoupleShortlist(shortlistData);
+
+      // Load couple enquiries
+      const { data: enquiriesData } = await getCoupleEnquiries(couple.id);
+      if (enquiriesData) setCoupleEnquiries(enquiriesData);
+
+      setLoading(false);
+    };
+
+    loadCoupleData();
+  }, [couple]);
+
   // Select the appropriate color palette based on current theme
   const C = currentTheme === "dark" ? getDarkPalette() : getLightPalette();
 
@@ -54,32 +88,36 @@ export default function GettingMarriedDashboard({ onBack }) {
   });
 
   // Navigation tabs component
-  const DTab = ({ id, label, icon }) => (
-    <button
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        width: "100%",
-        background: "none",
-        borderTop: 0,
-        borderRight: 0,
-        borderBottom: 0,
-        borderLeft: `2px solid transparent`,
-        color: C.grey,
-        padding: sidebarOpen ? "12px 20px" : "12px 14px",
-        fontSize: 13,
-        fontWeight: 400,
-        cursor: "pointer",
-        fontFamily: NU,
-        textAlign: "left",
-        transition: "all 0.2s",
-        justifyContent: sidebarOpen ? "flex-start" : "center",
-      }}
-    >
-      {icon} {sidebarOpen && label}
-    </button>
-  );
+  const DTab = ({ id, label, icon }) => {
+    const isActive = activeTab === id;
+    return (
+      <button
+        onClick={() => setActiveTab(id)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          width: "100%",
+          background: isActive ? "rgba(201,168,76,0.1)" : "none",
+          borderTop: 0,
+          borderRight: 0,
+          borderBottom: 0,
+          borderLeft: `2px solid ${isActive ? C.gold : "transparent"}`,
+          color: isActive ? C.gold : C.grey,
+          padding: sidebarOpen ? "12px 20px" : "12px 14px",
+          fontSize: 13,
+          fontWeight: isActive ? 600 : 400,
+          cursor: "pointer",
+          fontFamily: NU,
+          textAlign: "left",
+          transition: "all 0.2s",
+          justifyContent: sidebarOpen ? "flex-start" : "center",
+        }}
+      >
+        {icon} {sidebarOpen && label}
+      </button>
+    );
+  };
 
   return (
     <ThemeCtx.Provider value={C}>
@@ -154,7 +192,43 @@ export default function GettingMarriedDashboard({ onBack }) {
             >
               {currentTheme === "dark" ? "\u2600" : "\u263E"}
             </button>
-            {!isMobile && <span style={{ fontFamily: NU, fontSize: 12, color: C.grey }}>Planning your wedding</span>}
+            {!isMobile && <span style={{ fontFamily: NU, fontSize: 12, color: C.grey }}>
+              {couple ? `${couple.first_name}'s wedding` : "Planning your wedding"}
+            </span>}
+            <button
+              onClick={async () => {
+                await logout();
+                if (window.coupleGoLogin) {
+                  window.coupleGoLogin();
+                } else {
+                  window.history.pushState(null, "", "/couple/login");
+                  window.location.href = "/couple/login";
+                }
+              }}
+              style={{
+                background: "rgba(211, 47, 47, 0.1)",
+                border: "1px solid rgba(211, 47, 47, 0.3)",
+                borderRadius: "var(--lwd-radius-input)",
+                color: "#d32f2f",
+                padding: isMobile ? "6px 10px" : "8px 14px",
+                fontSize: 12,
+                fontFamily: NU,
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = "rgba(211, 47, 47, 0.2)";
+                e.target.style.borderColor = "#d32f2f";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "rgba(211, 47, 47, 0.1)";
+                e.target.style.borderColor = "rgba(211, 47, 47, 0.3)";
+              }}
+              title="Sign out"
+            >
+              {isMobile ? "↪" : "Sign Out"}
+            </button>
             <div
               style={{
                 width: 32,
@@ -234,8 +308,8 @@ export default function GettingMarriedDashboard({ onBack }) {
           </div>
 
           <div style={{ paddingTop: 8 }}>
-            <DTab id="shortlist" icon="♥" label={`My Shortlist (${shortlistItems.length})`} />
-            <DTab id="enquiries" icon="✉" label="Enquiries" />
+            <DTab id="shortlist" icon="♥" label={`My Shortlist (${coupleShortlist.length})`} />
+            <DTab id="enquiries" icon="✉" label={`Enquiries (${coupleEnquiries.length})`} />
             <DTab id="account" icon="⚙" label="Account" />
           </div>
 
@@ -267,7 +341,7 @@ export default function GettingMarriedDashboard({ onBack }) {
             maxWidth: !isMobile && !sidebarOpen ? "900px" : "100%",
           }}
         >
-        {/* Page Header with Theme Toggle */}
+        {/* Page Header with Tab Title */}
         <div
           style={{
             display: "flex",
@@ -287,7 +361,9 @@ export default function GettingMarriedDashboard({ onBack }) {
                 marginBottom: 8,
               }}
             >
-              Your Wedding Planning
+              {activeTab === "shortlist" && "♥ My Shortlist"}
+              {activeTab === "enquiries" && "✉ Your Enquiries"}
+              {activeTab === "account" && "⚙ Account & Profile"}
             </h2>
             <p
               style={{
@@ -298,7 +374,9 @@ export default function GettingMarriedDashboard({ onBack }) {
                 fontWeight: 300,
               }}
             >
-              Everything you need to plan your luxury celebration
+              {activeTab === "shortlist" && `${coupleShortlist.length} saved ${coupleShortlist.length === 1 ? "vendor" : "vendors"}`}
+              {activeTab === "enquiries" && `${coupleEnquiries.length} ${coupleEnquiries.length === 1 ? "enquiry" : "enquiries"}`}
+              {activeTab === "account" && couple && `${couple.first_name} ${couple.last_name || ""}`}
             </p>
           </div>
 
@@ -349,36 +427,14 @@ export default function GettingMarriedDashboard({ onBack }) {
           </button>
         </div>
 
-        {/* Shortlist Preview Section */}
+        {/* TAB CONTENT: Shortlist */}
+        {activeTab === "shortlist" && (
         <section style={{ marginBottom: 80 }}>
-          <div style={{ marginBottom: 32 }}>
-            <h2
-              style={{
-                fontFamily: GD,
-                fontSize: 28,
-                color: C.off,
-                margin: 0,
-                marginBottom: 8,
-                fontWeight: 400,
-              }}
-            >
-              ♥ My Shortlist
-            </h2>
-            <p
-              style={{
-                fontFamily: NU,
-                fontSize: 14,
-                color: C.grey,
-                margin: 0,
-              }}
-            >
-              {shortlistItems.length === 0
-                ? "Start saving your favorite venues and vendors to build your perfect wedding story."
-                : `${shortlistItems.length} saved ${shortlistItems.length === 1 ? "item" : "items"} — view all in your full shortlist`}
-            </p>
-          </div>
-
-          {shortlistItems.length === 0 ? (
+          {loading ? (
+            <div style={{ textAlign: "center", padding: "40px 20px" }}>
+              <p style={{ fontFamily: NU, fontSize: 14, color: C.grey }}>Loading your shortlist...</p>
+            </div>
+          ) : coupleShortlist.length === 0 ? (
             <div
               style={{
                 background: C.card,
@@ -408,245 +464,492 @@ export default function GettingMarriedDashboard({ onBack }) {
                   margin: 0,
                 }}
               >
-                Browse our curated collection of luxury venues and vendors
+                Browse vendors and save your favorites to build your perfect wedding story
               </p>
             </div>
           ) : (
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
                 gap: 24,
               }}
             >
-              {shortlistWithData.map((item) =>
-                item.vendorData ? (
-                  <ShortlistPreviewCard
-                    key={item.id}
-                    vendor={item.vendorData}
-                    theme={C}
-                    isShortlisted={isShortlisted(item.item_id)}
-                    onToggle={(id) => {
-                      track("shortlist_remove_from_dashboard", { itemId: id });
-                      toggleItem({ id });
+              {coupleShortlist.map((saved) => {
+                const vendor = GLOBAL_VENDORS.find((v) => v.id === saved.vendor_id);
+                return (
+                  <div
+                    key={saved.id}
+                    style={{
+                      background: C.card,
+                      borderRadius: 8,
+                      border: `1px solid ${C.border}`,
+                      overflow: "hidden",
+                      transition: "all 0.2s",
                     }}
-                  />
-                ) : null
-              )}
+                  >
+                    {vendor?.image && (
+                      <img
+                        src={vendor.image}
+                        alt={vendor.name}
+                        style={{
+                          width: "100%",
+                          height: 180,
+                          objectFit: "cover",
+                        }}
+                      />
+                    )}
+                    <div style={{ padding: 16 }}>
+                      <h4
+                        style={{
+                          fontFamily: GD,
+                          fontSize: 14,
+                          color: C.off,
+                          margin: "0 0 4px 0",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {vendor?.name || saved.vendor_name}
+                      </h4>
+                      <p
+                        style={{
+                          fontFamily: NU,
+                          fontSize: 12,
+                          color: C.grey,
+                          margin: "0 0 12px 0",
+                        }}
+                      >
+                        {vendor?.category || saved.vendor_category}
+                      </p>
+                      <button
+                        onClick={() => {
+                          toggleItem({ id: saved.vendor_id, item_id: saved.vendor_id });
+                        }}
+                        style={{
+                          width: "100%",
+                          padding: "8px 12px",
+                          background: "rgba(211,47,47,0.1)",
+                          color: "#d32f2f",
+                          border: "1px solid rgba(211,47,47,0.3)",
+                          borderRadius: 4,
+                          fontSize: 11,
+                          fontFamily: NU,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          transition: "all 0.2s",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.background = "rgba(211,47,47,0.2)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.background = "rgba(211,47,47,0.1)";
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
+        </section>
+        )}
 
-          {shortlistItems.length > 0 && (
-            <div style={{ marginTop: 24, textAlign: "center" }}>
-              <button
-                onClick={() => (window.location.href = "/shortlist")}
+        {/* Enquiries Tab */}
+        {activeTab === "enquiries" && (
+          <section style={{ marginBottom: 80 }}>
+            <h2
+              style={{
+                fontFamily: GD,
+                fontSize: 28,
+                color: C.off,
+                margin: 0,
+                marginBottom: 32,
+                fontWeight: 400,
+              }}
+            >
+              ✉ Recent Enquiries
+            </h2>
+
+            {loading ? (
+              <div
                 style={{
-                  background: "transparent",
-                  color: C.gold,
-                  border: `1px solid ${C.gold}`,
-                  borderRadius: "var(--lwd-radius-input)",
-                  padding: "12px 32px",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  cursor: "pointer",
-                  fontFamily: NU,
-                  transition: "all 0.2s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = C.gold;
-                  e.currentTarget.style.color = "#0a0906";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.color = C.gold;
+                  background: C.card,
+                  borderRadius: 12,
+                  border: `1px solid ${C.border}`,
+                  padding: 40,
+                  textAlign: "center",
                 }}
               >
-                View All {shortlistItems.length} Saved Items
-              </button>
+                <p style={{ fontFamily: NU, fontSize: 14, color: C.grey, margin: 0 }}>
+                  Loading enquiries...
+                </p>
+              </div>
+            ) : coupleEnquiries.length === 0 ? (
+              <div
+                style={{
+                  background: C.card,
+                  borderRadius: 12,
+                  border: `1px solid ${C.border}`,
+                  padding: 40,
+                  textAlign: "center",
+                }}
+              >
+                <h3
+                  style={{
+                    fontFamily: GD,
+                    fontSize: 20,
+                    color: C.off,
+                    margin: "0 0 8px 0",
+                    fontWeight: 400,
+                  }}
+                >
+                  No Enquiries Yet
+                </h3>
+                <p
+                  style={{
+                    fontFamily: NU,
+                    fontSize: 14,
+                    color: C.grey,
+                    margin: 0,
+                  }}
+                >
+                  Track all your vendor enquiries and responses in one place.
+                </p>
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))",
+                  gap: 24,
+                }}
+              >
+                {coupleEnquiries.map((enquiry) => {
+                  const statusColors = {
+                    new: "#c9a84c",
+                    replied: "#4a9eff",
+                    booked: "#2ecc71",
+                    archived: "#888888",
+                  };
+
+                  return (
+                    <div
+                      key={enquiry.id}
+                      style={{
+                        background: C.card,
+                        borderRadius: 12,
+                        border: `1px solid ${C.border}`,
+                        padding: 24,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "start",
+                          marginBottom: 12,
+                        }}
+                      >
+                        <div>
+                          <h3
+                            style={{
+                              fontFamily: GD,
+                              fontSize: 18,
+                              color: C.off,
+                              margin: 0,
+                              marginBottom: 4,
+                              fontWeight: 400,
+                            }}
+                          >
+                            {GLOBAL_VENDORS.find((v) => v.id === enquiry.vendor_id)?.name ||
+                              enquiry.vendor_id}
+                          </h3>
+                          <p
+                            style={{
+                              fontFamily: NU,
+                              fontSize: 12,
+                              color: C.grey,
+                              margin: 0,
+                            }}
+                          >
+                            {new Date(enquiry.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <span
+                          style={{
+                            background: statusColors[enquiry.status] || C.gold,
+                            color: "#ffffff",
+                            padding: "4px 12px",
+                            borderRadius: 4,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            textTransform: "uppercase",
+                            fontFamily: NU,
+                          }}
+                        >
+                          {enquiry.status}
+                        </span>
+                      </div>
+
+                      <p
+                        style={{
+                          fontFamily: NU,
+                          fontSize: 13,
+                          color: C.grey,
+                          lineHeight: 1.5,
+                          margin: "12px 0",
+                        }}
+                      >
+                        {enquiry.message}
+                      </p>
+
+                      <div
+                        style={{
+                          borderTop: `1px solid ${C.border}`,
+                          paddingTop: 12,
+                          marginTop: 12,
+                          fontSize: 12,
+                          color: C.grey,
+                          fontFamily: NU,
+                        }}
+                      >
+                        <p style={{ margin: "4px 0" }}>
+                          <strong>Guests:</strong> {enquiry.guest_count}
+                        </p>
+                        <p style={{ margin: "4px 0" }}>
+                          <strong>Event Date:</strong>{" "}
+                          {new Date(enquiry.event_date).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Account Tab */}
+        {activeTab === "account" && (
+          <section style={{ marginBottom: 80 }}>
+            <h2
+              style={{
+                fontFamily: GD,
+                fontSize: 28,
+                color: C.off,
+                margin: 0,
+                marginBottom: 32,
+                fontWeight: 400,
+              }}
+            >
+              ⚙ Account & Preferences
+            </h2>
+
+            {loading ? (
+              <div
+                style={{
+                  background: C.card,
+                  borderRadius: 12,
+                  border: `1px solid ${C.border}`,
+                  padding: 40,
+                  textAlign: "center",
+                }}
+              >
+                <p style={{ fontFamily: NU, fontSize: 14, color: C.grey, margin: 0 }}>
+                  Loading profile...
+                </p>
+              </div>
+            ) : coupleProfile ? (
+              <div
+                style={{
+                  background: C.card,
+                  borderRadius: 12,
+                  border: `1px solid ${C.border}`,
+                  padding: 40,
+                }}
+              >
+                <div style={{ marginBottom: 32 }}>
+                  <h3
+                    style={{
+                      fontFamily: GD,
+                      fontSize: 18,
+                      color: C.off,
+                      margin: "0 0 16px 0",
+                      fontWeight: 400,
+                    }}
+                  >
+                    Profile Information
+                  </h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                    <div>
+                      <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, margin: "0 0 4px 0" }}>
+                        First Name
+                      </p>
+                      <p
+                        style={{
+                          fontFamily: GD,
+                          fontSize: 16,
+                          color: C.off,
+                          margin: 0,
+                          fontWeight: 400,
+                        }}
+                      >
+                        {coupleProfile.first_name || "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, margin: "0 0 4px 0" }}>
+                        Last Name
+                      </p>
+                      <p
+                        style={{
+                          fontFamily: GD,
+                          fontSize: 16,
+                          color: C.off,
+                          margin: 0,
+                          fontWeight: 400,
+                        }}
+                      >
+                        {coupleProfile.last_name || "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, margin: "0 0 4px 0" }}>
+                        Email
+                      </p>
+                      <p
+                        style={{
+                          fontFamily: GD,
+                          fontSize: 16,
+                          color: C.off,
+                          margin: 0,
+                          fontWeight: 400,
+                        }}
+                      >
+                        {coupleProfile.email}
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, margin: "0 0 4px 0" }}>
+                        Guest Count
+                      </p>
+                      <p
+                        style={{
+                          fontFamily: GD,
+                          fontSize: 16,
+                          color: C.off,
+                          margin: 0,
+                          fontWeight: 400,
+                        }}
+                      >
+                        {coupleProfile.guest_count || "—"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ paddingTop: 24, borderTop: `1px solid ${C.border}` }}>
+                  <button
+                    onClick={() => {
+                      logout();
+                      onBack?.();
+                      track("couple_account_logout");
+                    }}
+                    style={{
+                      background: C.rose,
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "var(--lwd-radius-input)",
+                      padding: "12px 32px",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      cursor: "pointer",
+                      fontFamily: NU,
+                      transition: "all 0.2s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.opacity = "0.8";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.opacity = "1";
+                    }}
+                  >
+                    Log Out
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                style={{
+                  background: C.card,
+                  borderRadius: 12,
+                  border: `1px solid ${C.border}`,
+                  padding: 40,
+                  textAlign: "center",
+                }}
+              >
+                <p style={{ fontFamily: NU, fontSize: 14, color: C.grey, margin: 0 }}>
+                  Unable to load profile information
+                </p>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Wedding Planning Tools Section - Only show on shortlist tab */}
+        {activeTab === "shortlist" && (
+          <section style={{ marginBottom: 40 }}>
+            <h2
+              style={{
+                fontFamily: GD,
+                fontSize: 28,
+                color: C.off,
+                margin: 0,
+                marginBottom: 32,
+                fontWeight: 400,
+              }}
+            >
+              📋 Wedding Planning Tools
+            </h2>
+
+            <div
+              style={{
+                background: `linear-gradient(135deg, ${C.card} 0%, rgba(201,168,76,0.05) 100%)`,
+                borderRadius: 12,
+                border: `1px solid ${C.border}`,
+                padding: 60,
+                textAlign: "center",
+              }}
+            >
+              <p style={{ fontSize: 48, margin: 0 }}>🎊</p>
+              <h3
+                style={{
+                  fontFamily: GD,
+                  fontSize: 20,
+                  color: C.off,
+                  margin: "16px 0 8px 0",
+                  fontWeight: 400,
+                }}
+              >
+                Comprehensive Planning Tools Coming Soon
+              </h3>
+              <p
+                style={{
+                  fontFamily: NU,
+                  fontSize: 14,
+                  color: C.grey,
+                  margin: 0,
+                }}
+              >
+                Timeline, budgets, guest lists, and more — arriving soon to make wedding planning effortless
+              </p>
             </div>
-          )}
-        </section>
-
-        {/* Enquiries Section */}
-        <section style={{ marginBottom: 80 }}>
-          <h2
-            style={{
-              fontFamily: GD,
-              fontSize: 28,
-              color: C.off,
-              margin: 0,
-              marginBottom: 32,
-              fontWeight: 400,
-            }}
-          >
-            ✉ Recent Enquiries
-          </h2>
-
-          <div
-            style={{
-              background: C.card,
-              borderRadius: 12,
-              border: `1px solid ${C.border}`,
-              padding: 40,
-              textAlign: "center",
-            }}
-          >
-            <h3
-              style={{
-                fontFamily: GD,
-                fontSize: 20,
-                color: C.off,
-                margin: "0 0 8px 0",
-                fontWeight: 400,
-              }}
-            >
-              Enquiries Coming Soon
-            </h3>
-            <p
-              style={{
-                fontFamily: NU,
-                fontSize: 14,
-                color: C.grey,
-                margin: 0,
-              }}
-            >
-              Track all your vendor enquiries and responses in one place. Messages from venues and vendors will appear here.
-            </p>
-          </div>
-        </section>
-
-        {/* Account & Preferences Section */}
-        <section style={{ marginBottom: 80 }}>
-          <h2
-            style={{
-              fontFamily: GD,
-              fontSize: 28,
-              color: C.off,
-              margin: 0,
-              marginBottom: 32,
-              fontWeight: 400,
-            }}
-          >
-            ⚙ Account & Preferences
-          </h2>
-
-          <div
-            style={{
-              background: C.card,
-              borderRadius: 12,
-              border: `1px solid ${C.border}`,
-              padding: 40,
-              textAlign: "center",
-            }}
-          >
-            <h3
-              style={{
-                fontFamily: GD,
-                fontSize: 20,
-                color: C.off,
-                margin: "0 0 8px 0",
-                fontWeight: 400,
-              }}
-            >
-              Settings Coming Soon
-            </h3>
-            <p
-              style={{
-                fontFamily: NU,
-                fontSize: 14,
-                color: C.grey,
-                margin: 0,
-              }}
-            >
-              Manage your profile, notification preferences, and privacy settings
-            </p>
-          </div>
-        </section>
-
-        {/* Wedding Planning Tools Section */}
-        <section style={{ marginBottom: 40 }}>
-          <h2
-            style={{
-              fontFamily: GD,
-              fontSize: 28,
-              color: C.off,
-              margin: 0,
-              marginBottom: 32,
-              fontWeight: 400,
-            }}
-          >
-            📋 Wedding Planning Tools
-          </h2>
-
-          <div
-            style={{
-              background: `linear-gradient(135deg, ${C.card} 0%, rgba(201,168,76,0.05) 100%)`,
-              borderRadius: 12,
-              border: `1px solid ${C.border}`,
-              padding: 60,
-              textAlign: "center",
-            }}
-          >
-            <p style={{ fontSize: 48, margin: 0 }}>🎊</p>
-            <h3
-              style={{
-                fontFamily: GD,
-                fontSize: 20,
-                color: C.off,
-                margin: "16px 0 8px 0",
-                fontWeight: 400,
-              }}
-            >
-              Comprehensive Planning Tools Coming Soon
-            </h3>
-            <p
-              style={{
-                fontFamily: NU,
-                fontSize: 14,
-                color: C.grey,
-                margin: 0,
-              }}
-            >
-              Timeline, budgets, guest lists, and more — arriving soon to make wedding planning effortless
-            </p>
-          </div>
-        </section>
-
-        {/* Logout Button */}
-        <div style={{ textAlign: "center", paddingTop: 40, borderTop: `1px solid ${C.border}` }}>
-          <button
-            onClick={() => {
-              track("dashboard_logout");
-              onBack?.();
-            }}
-            style={{
-              background: "transparent",
-              color: C.grey,
-              border: `1px solid ${C.border}`,
-              borderRadius: "var(--lwd-radius-input)",
-              padding: "12px 32px",
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              cursor: "pointer",
-              fontFamily: NU,
-              transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = C.rose;
-              e.currentTarget.style.color = C.rose;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = C.border;
-              e.currentTarget.style.color = C.grey;
-            }}
-          >
-            Log Out
-          </button>
-        </div>
+          </section>
+        )}
 
       </div>
       </div>
