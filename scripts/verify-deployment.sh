@@ -49,7 +49,7 @@ fi
 
 # Method 2: Try supabase projects list (doesn't require Docker)
 if [ -z "$PROJECT_REF" ]; then
-    PROJECT_REF=$(supabase projects list 2>/dev/null | head -1 | awk '{print $1}')
+    PROJECT_REF=$(supabase projects list 2>/dev/null | grep -E '^[[:space:]]*\|' | grep -v 'LINKED\|-----' | awk -F'|' '{print $3}' | sed 's/^[[:space:]]*//g' | sed 's/[[:space:]]*$//g' | head -1)
 fi
 
 # Method 3: Check for ~/.supabase/projects.json
