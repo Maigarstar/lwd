@@ -11,6 +11,13 @@ const NU = "'Nunito Sans', -apple-system, BlinkMacSystemFont, sans-serif";
 export default function ProtectedCoupleRoute({ children }) {
   const { isAuthenticated, loading } = useCoupleAuth();
 
+  // ── Admin Preview Mode bypass ──────────────────────────────────────────────
+  // Synchronous check — admin set "lwd_admin_preview" before navigating here.
+  // To remove: delete this block.
+  const _p = (() => { try { return JSON.parse(sessionStorage.getItem("lwd_admin_preview") || "null"); } catch { return null; } })();
+  if (_p?.type === "couple") return children;
+  // ──────────────────────────────────────────────────────────────────────────
+
   // Show loading state while checking authentication
   if (loading) {
     return (

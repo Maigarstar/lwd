@@ -4124,6 +4124,30 @@ function ListingsModule({ C, onNavigate }) {
                 >
                   🗑️
                 </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    sessionStorage.setItem("lwd_admin_preview", JSON.stringify({ type: "vendor", id: String(l.id), name: l.name }));
+                    window.location.href = "/vendor";
+                  }}
+                  title={`Open as vendor: ${l.name}`}
+                  style={{
+                    padding: "3px 6px",
+                    background: `${C.gold}20`,
+                    border: `1px solid ${C.gold}40`,
+                    borderRadius: 2,
+                    color: C.gold,
+                    cursor: "pointer",
+                    fontFamily: NU,
+                    fontSize: 9,
+                    fontWeight: 700,
+                    transition: "all 0.15s",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = `${C.gold}40`; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = `${C.gold}20`; }}
+                >
+                  ⟶
+                </button>
               </div>
             </div>
           );
@@ -6973,6 +6997,96 @@ export default function AdminDashboard({ onBack, onNavigate }) {
               <span style={{ fontSize: 14 }}>{darkMode ? "☀" : "☽"}</span>
               {!sidebarCollapsed && (darkMode ? "Light Mode" : "Dark Mode")}
             </button>
+
+            {/* ── Admin Preview Portals ─────────────────────────────── */}
+            {/* Open vendor/couple dashboards without separate login    */}
+            <div style={{
+              borderTop: `1px solid ${DARK_C.border}`,
+              paddingTop: 10,
+              marginTop: 2,
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+            }}>
+              {!sidebarCollapsed && (
+                <div style={{
+                  fontSize: 8,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: DARK_C.grey2,
+                  fontFamily: NU,
+                  fontWeight: 600,
+                  marginBottom: 2,
+                }}>
+                  Preview Portals
+                </div>
+              )}
+
+              {/* Open Vendor Portal */}
+              <button
+                title="Open Vendor Portal (Admin Preview)"
+                onClick={() => {
+                  sessionStorage.setItem("lwd_admin_preview", JSON.stringify({ type: "vendor", id: "vdr-13" }));
+                  window.location.href = "/vendor";
+                }}
+                style={{
+                  background: "none",
+                  border: `1px solid ${DARK_C.border}`,
+                  borderRadius: 3,
+                  cursor: "pointer",
+                  padding: sidebarCollapsed ? "8px 0" : "8px 12px",
+                  fontFamily: NU,
+                  fontSize: 10,
+                  color: DARK_C.grey,
+                  fontWeight: 400,
+                  letterSpacing: "0.08em",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: sidebarCollapsed ? "center" : "flex-start",
+                  gap: 8,
+                  width: "100%",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#c9a84c"; e.currentTarget.style.color = "#c9a84c"; e.currentTarget.style.background = "rgba(201,168,76,0.07)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = DARK_C.border; e.currentTarget.style.color = DARK_C.grey; e.currentTarget.style.background = "none"; }}
+              >
+                <span style={{ fontSize: 12, flexShrink: 0 }}>⊞</span>
+                {!sidebarCollapsed && "Vendor Portal"}
+              </button>
+
+              {/* Open Getting Married Portal */}
+              <button
+                title="Open Getting Married Portal (Admin Preview)"
+                onClick={() => {
+                  sessionStorage.setItem("lwd_admin_preview", JSON.stringify({ type: "couple", id: "couple-1" }));
+                  window.location.href = "/getting-married";
+                }}
+                style={{
+                  background: "none",
+                  border: `1px solid ${DARK_C.border}`,
+                  borderRadius: 3,
+                  cursor: "pointer",
+                  padding: sidebarCollapsed ? "8px 0" : "8px 12px",
+                  fontFamily: NU,
+                  fontSize: 10,
+                  color: DARK_C.grey,
+                  fontWeight: 400,
+                  letterSpacing: "0.08em",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: sidebarCollapsed ? "center" : "flex-start",
+                  gap: 8,
+                  width: "100%",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#c9a84c"; e.currentTarget.style.color = "#c9a84c"; e.currentTarget.style.background = "rgba(201,168,76,0.07)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = DARK_C.border; e.currentTarget.style.color = DARK_C.grey; e.currentTarget.style.background = "none"; }}
+              >
+                <span style={{ fontSize: 12, flexShrink: 0 }}>♡</span>
+                {!sidebarCollapsed && "Getting Married"}
+              </button>
+            </div>
+            {/* ── End Preview Portals ───────────────────────────────── */}
 
             {/* Exit */}
             <button

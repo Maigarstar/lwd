@@ -390,22 +390,51 @@ export default function AdminAllLeads({ C }) {
                     </span>
                   </td>
                   <td style={{ padding: 12, textAlign: "center" }}>
-                    <button
-                      onClick={() => setSelectedLead(enq)}
-                      style={{
-                        padding: "4px 8px",
-                        background: C.gold,
-                        border: "none",
-                        borderRadius: "var(--lwd-radius-input)",
-                        color: "#fff",
-                        fontFamily: FB,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      View →
-                    </button>
+                    <div style={{ display: "flex", gap: 6, justifyContent: "center", alignItems: "center" }}>
+                      <button
+                        onClick={() => setSelectedLead(enq)}
+                        style={{
+                          padding: "4px 8px",
+                          background: C.gold,
+                          border: "none",
+                          borderRadius: "var(--lwd-radius-input)",
+                          color: "#fff",
+                          fontFamily: FB,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        View →
+                      </button>
+                      <button
+                        onClick={() => {
+                          const parts = (enq.couple_name || "").trim().split(" ");
+                          sessionStorage.setItem("lwd_admin_preview", JSON.stringify({
+                            type: "couple",
+                            id: enq.couple_id,
+                            firstName: parts[0] || "Couple",
+                            lastName: parts.slice(1).join(" ") || "",
+                            email: enq.couple_email,
+                          }));
+                          window.location.href = "/getting-married";
+                        }}
+                        title={`Open as couple: ${enq.couple_name || enq.couple_email}`}
+                        style={{
+                          padding: "4px 8px",
+                          background: "rgba(201,168,76,0.15)",
+                          border: "1px solid rgba(201,168,76,0.4)",
+                          borderRadius: "var(--lwd-radius-input)",
+                          color: "#c9a84c",
+                          fontFamily: FB,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                        }}
+                      >
+                        ⟶
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

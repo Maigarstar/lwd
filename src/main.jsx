@@ -7,6 +7,7 @@ import { ShortlistProvider } from "./shortlist/ShortlistContext";
 import { ChatProvider }      from "./chat/ChatContext";
 import { VendorAuthProvider } from "./context/VendorAuthContext";
 import { CoupleAuthProvider } from "./context/CoupleAuthContext";
+import { AdminAuthProvider, useAdminAuth } from "./context/AdminAuthContext";
 import ProtectedCoupleRoute  from "./components/ProtectedCoupleRoute";
 import AuraChat              from "./chat/AuraChat";
 import CookieBanner          from "./components/CookieBanner";
@@ -26,6 +27,7 @@ import LWDPartnership         from "./pages/LWDPartnership.jsx";
 import USAPage                from "./pages/USAPage.jsx";
 import ItalyPage              from "./pages/ItalyPage.jsx";
 import AdminDashboard         from "./pages/AdminDashboard.jsx";
+import AdminLogin             from "./pages/AdminLogin.jsx";
 import VendorDashboard        from "./pages/VendorDashboard.jsx";
 import VendorLogin            from "./pages/VendorLogin.jsx";
 import VendorSignup           from "./pages/VendorSignup.jsx";
@@ -95,6 +97,7 @@ function stateToPath(pg, opts = {}) {
     case "usa":              return "/usa";
     case "italy":            return "/italy";
     case "admin":            return "/admin";
+    case "admin-login":      return "/admin/login";
     case "vendor":           return "/vendor";
     case "vendor-login":           return "/vendor/login";
     case "vendor-signup":          return "/vendor/signup";
@@ -133,6 +136,8 @@ function pathToState(pathname) {
   if (parts[0] === "vendor" && parts[1] === "confirm-email" && parts.length === 2) return { page: "vendor-confirm-email" };
   if (parts[0] === "vendor" && parts[1] === "forgot-password" && parts.length === 2) return { page: "vendor-forgot-password" };
   if (parts[0] === "vendor" && parts[1] === "reset-password" && parts.length === 2) return { page: "vendor-reset-password" };
+  // Handle admin auth subroutes
+  if (parts[0] === "admin" && parts[1] === "login" && parts.length === 2) return { page: "admin-login" };
   // Handle couple auth subroutes
   if (parts[0] === "couple" && parts[1] === "signup" && parts.length === 2) return { page: "couple-signup" };
   if (parts[0] === "couple" && parts[1] === "login" && parts.length === 2) return { page: "couple-login" };
@@ -152,6 +157,22 @@ function pathToState(pathname) {
   if (parts.length === 3) return { page: "region-category", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2] };
   if (parts.length === 4) return { page: "planner-profile", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2], plannerSlug: parts[3] };
   return { page: "home" };
+}
+
+// ── Admin Route Wrapper (properly calls hooks at top level) ──────────────────
+function AdminRoute({ onBack }) {
+  const { isAuthenticated, loading } = useAdminAuth();
+
+  if (loading) {
+    return <div style={{ padding: 40, textAlign: "center", fontFamily: "inherit" }}>Loading...</div>;
+  }
+
+  if (!isAuthenticated) {
+    window.location.href = "/admin/login";
+    return null;
+  }
+
+  return <AdminDashboard onBack={onBack} />;
 }
 
 // ── App (router + providers in one place) ────────────────────────────────────
@@ -275,6 +296,7 @@ function App() {
   const goCoupleConfirmEmail  = () => setPage("couple-confirm-email");
   const goCoupleForgotPassword = () => setPage("couple-forgot-password");
   const goCoupleResetPassword  = () => setPage("couple-reset-password");
+  const goAdminLogin  = () => setPage("admin-login");
   const goPuglia      = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("puglia"); };
 
   // Store couple/vendor nav functions on window for use in auth components
@@ -304,10 +326,11 @@ function App() {
   };
 
   return (
-    <VendorAuthProvider>
-      <CoupleAuthProvider>
-        <ShortlistProvider>
-          <ChatProvider>
+    <AdminAuthProvider>
+      <VendorAuthProvider>
+        <CoupleAuthProvider>
+          <ShortlistProvider>
+            <ChatProvider>
 
         {/* ── Pages ── */}
         {page === "venue" && (
@@ -390,8 +413,11 @@ function App() {
         {page === "usa" && (
           <USAPage onBack={goHome} onViewRegion={goRegion} onViewCategory={goCategory} onViewStandard={goStandard} onViewAbout={goAbout} footerNav={footerNav} />
         )}
+        {page === "admin-login" && (
+          <AdminLogin onBack={goHome} />
+        )}
         {page === "admin" && (
-          <AdminDashboard onBack={goHome} />
+          <AdminRoute onBack={goHome} />
         )}
         {page === "vendor-login" && (
           <VendorLogin onLoginSuccess={goVendor} />
@@ -458,10 +484,11 @@ function App() {
         {/* ── GDPR cookie banner ── */}
         <CookieBanner />
 
-          </ChatProvider>
-        </ShortlistProvider>
-      </CoupleAuthProvider>
-    </VendorAuthProvider>
+            </ChatProvider>
+          </ShortlistProvider>
+        </CoupleAuthProvider>
+      </VendorAuthProvider>
+    </AdminAuthProvider>
   );
 }
 

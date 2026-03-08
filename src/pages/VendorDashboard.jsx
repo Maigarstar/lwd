@@ -12,6 +12,7 @@ import FooterForVendors from "../components/sections/FooterForVendors";
 import { getVendorMetrics, subscribeToVendorMetrics, getVendorEnquiries } from "../services/vendorMetricsService";
 import VendorLeadInbox from "../components/VendorLeadInbox";
 import { useVendorAuth } from "../context/VendorAuthContext";
+import { exitAdminPreview } from "../context/AdminPreviewContext";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -375,27 +376,27 @@ function ChatNotification({ notification, C, onAccept, onDismiss, isMobile }) {
 
 // ── Main dashboard ───────────────────────────────────────────────────────────
 export default function VendorDashboard({ onBack, onVendorLogin }) {
-  const { vendor, isAuthenticated, loading, logout } = useVendorAuth();
+  const { vendor: _contextVendor, isAuthenticated, loading, logout } = useVendorAuth();
+
+  // ── Admin Preview Mode ─────────────────────────────────────────────────────
+  // Synchronous sessionStorage read — no async, no Supabase race conditions.
+  // The admin sidebar sets "lwd_admin_preview" before navigating here.
+  // To remove later: delete this block + the exitAdminPreview import above.
+  const _adminPreviewData = (() => {
+    try { return JSON.parse(sessionStorage.getItem("lwd_admin_preview") || "null"); } catch { return null; }
+  })();
+  const isAdminPreview = _adminPreviewData?.type === "vendor";
+  // If in preview mode, use a mock vendor object; otherwise use the real context vendor.
+  const vendor = isAdminPreview
+    ? { id: _adminPreviewData.id || "vdr-13", name: _adminPreviewData.name || "The Grand Pavilion", email: _adminPreviewData.email || "contact@grandpavilion.com", isAdminPreview: true }
+    : _contextVendor;
+  // ─────────────────────────────────────────────────────────────────────────
   const [currentTheme, setCurrentTheme] = useState(
     document.documentElement.getAttribute("data-lwd-mode") || "light"
   );
   const C = currentTheme === "dark" ? getDarkPalette() : getLightPalette();
 
-  // ── Authentication Guard ──────────────────────────────────────────────────
-  // Show loading while auth state is initializing
-  if (loading) {
-    return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.bg }}>
-        <p style={{ fontFamily: "var(--font-body)", fontSize: 14, color: C.grey }}>Loading...</p>
-      </div>
-    );
-  }
-
-  // Redirect to login if not authenticated or vendor not found
-  if (!isAuthenticated || !vendor) {
-    window.location.href = "/vendor/login";
-    return null;
-  }
+  // ── All useState/useRef calls MUST be before any conditional returns ──────
   const [dashTab, setDashTab] = useState("overview");
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isTablet, setIsTablet] = useState(window.innerWidth < 1024);
@@ -406,6 +407,22 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [enquiries, setEnquiries] = useState([]);
   const unsubscribeRef = useRef(null);
+
+  // ── Authentication Guard ──────────────────────────────────────────────────
+  // Admin preview bypasses all auth checks (vendor comes from sessionStorage above).
+  if (!isAdminPreview) {
+    if (loading) {
+      return (
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.bg }}>
+          <p style={{ fontFamily: "var(--font-body)", fontSize: 14, color: C.grey }}>Loading...</p>
+        </div>
+      );
+    }
+    if (!isAuthenticated || !vendor) {
+      window.location.href = "/vendor/login";
+      return null;
+    }
+  }
 
   // Track theme changes
   useEffect(() => {
@@ -835,6 +852,74 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
 
   return (
     <ThemeCtx.Provider value={C}>
+
+    {/* ── Admin Access Mode Banner ──────────────────────────────────────────── */}
+    {/* Shown only when admin is accessing this vendor dashboard directly.       */}
+    {/* Click "Return to Admin" to exit and go back to /admin.                  */}
+    {vendor?.isAdminPreview && (
+      <div style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 99999,
+        background: "linear-gradient(90deg, #1a0a00, #2a1200)",
+        borderBottom: "2px solid #c9a84c",
+        padding: "8px 20px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+        fontFamily: "var(--font-body)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{
+            fontSize: 8,
+            fontWeight: 700,
+            letterSpacing: "2px",
+            textTransform: "uppercase",
+            background: "#c9a84c",
+            color: "#0f0d0a",
+            padding: "3px 8px",
+            borderRadius: 2,
+          }}>
+            Admin Access Mode
+          </span>
+          <span style={{ fontSize: 12, color: "#c9a84c", fontWeight: 500 }}>
+            Viewing as vendor: <strong>{vendor?.name || vendor?.id}</strong>
+          </span>
+          <span style={{ fontSize: 11, color: "rgba(201,168,76,0.5)" }}>
+            — changes here are real
+          </span>
+        </div>
+        <button
+          onClick={exitAdminPreview}
+          style={{
+            background: "none",
+            border: "1px solid rgba(201,168,76,0.5)",
+            borderRadius: 3,
+            color: "#c9a84c",
+            fontSize: 10,
+            fontFamily: "var(--font-body)",
+            fontWeight: 600,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            padding: "5px 14px",
+            cursor: "pointer",
+            transition: "all 0.2s",
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.15)"; e.currentTarget.style.borderColor = "#c9a84c"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.borderColor = "rgba(201,168,76,0.5)"; }}
+        >
+          ← Return to Admin
+        </button>
+      </div>
+    )}
+    {/* Spacer so content doesn't sit under the fixed banner */}
+    {vendor?.isAdminPreview && <div style={{ height: 42 }} />}
+    {/* ── End Admin Access Mode Banner ─────────────────────────────────────── */}
+
     {/* Notification slide-in animation */}
     <style>{`
       @keyframes chatNotifSlideIn {

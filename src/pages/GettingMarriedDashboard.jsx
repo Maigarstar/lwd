@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useTheme, ThemeCtx } from "../theme/ThemeContext";
 import { useShortlist } from "../shortlist/ShortlistContext";
 import { useCoupleAuth } from "../context/CoupleAuthContext";
+import { exitAdminPreview } from "../context/AdminPreviewContext";
 import { getDarkPalette, getLightPalette } from "../theme/tokens";
 import { GLOBAL_VENDORS } from "../data/globalVendors";
 import ShortlistButton from "../components/buttons/ShortlistButton";
@@ -16,7 +17,19 @@ const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
 
 export default function GettingMarriedDashboard({ onBack }) {
-  const { couple, logout, loading: authLoading } = useCoupleAuth();
+  const { couple: _contextCouple, logout, loading: authLoading } = useCoupleAuth();
+
+  // ── Admin Preview Mode ─────────────────────────────────────────────────────
+  // Synchronous sessionStorage read — no async, no Supabase race conditions.
+  // To remove: delete this block + the exitAdminPreview import above.
+  const _adminPreviewData = (() => {
+    try { return JSON.parse(sessionStorage.getItem("lwd_admin_preview") || "null"); } catch { return null; }
+  })();
+  const isAdminPreview = _adminPreviewData?.type === "couple";
+  const couple = isAdminPreview
+    ? { id: _adminPreviewData.id || "couple-1", email: _adminPreviewData.email || "preview@couple.com", firstName: _adminPreviewData.firstName || "Couple", lastName: _adminPreviewData.lastName || "", first_name: _adminPreviewData.firstName || "Couple", last_name: _adminPreviewData.lastName || "", isAdminPreview: true }
+    : _contextCouple;
+  // ─────────────────────────────────────────────────────────────────────────
   const { items: shortlistItems, toggleItem, isShortlisted } = useShortlist();
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -121,6 +134,72 @@ export default function GettingMarriedDashboard({ onBack }) {
 
   return (
     <ThemeCtx.Provider value={C}>
+      {/* ── Admin Access Mode Banner ──────────────────────────────────────────── */}
+      {/* Shown only when admin is accessing this couple dashboard directly.      */}
+      {couple?.isAdminPreview && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 99999,
+          background: "linear-gradient(90deg, #1a0a00, #2a1200)",
+          borderBottom: "2px solid #c9a84c",
+          padding: "8px 20px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          fontFamily: "var(--font-body)",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{
+              fontSize: 8,
+              fontWeight: 700,
+              letterSpacing: "2px",
+              textTransform: "uppercase",
+              background: "#c9a84c",
+              color: "#0f0d0a",
+              padding: "3px 8px",
+              borderRadius: 2,
+            }}>
+              Admin Access Mode
+            </span>
+            <span style={{ fontSize: 12, color: "#c9a84c", fontWeight: 500 }}>
+              Viewing as couple: <strong>{couple?.firstName} {couple?.lastName || couple?.first_name}</strong>
+            </span>
+            <span style={{ fontSize: 11, color: "rgba(201,168,76,0.5)" }}>
+              — changes here are real
+            </span>
+          </div>
+          <button
+            onClick={exitAdminPreview}
+            style={{
+              background: "none",
+              border: "1px solid rgba(201,168,76,0.5)",
+              borderRadius: 3,
+              color: "#c9a84c",
+              fontSize: 10,
+              fontFamily: "var(--font-body)",
+              fontWeight: 600,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              padding: "5px 14px",
+              cursor: "pointer",
+              transition: "all 0.2s",
+              flexShrink: 0,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.15)"; e.currentTarget.style.borderColor = "#c9a84c"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.borderColor = "rgba(201,168,76,0.5)"; }}
+          >
+            ← Return to Admin
+          </button>
+        </div>
+      )}
+      {/* Spacer so header doesn't sit under the fixed banner */}
+      {couple?.isAdminPreview && <div style={{ height: 42 }} />}
+      {/* ── End Admin Access Mode Banner ─────────────────────────────────────── */}
+
       <div style={{ height: "100vh", background: C.black, display: "flex", flexDirection: "column" }}>
         {/* ─── HEADER ─── */}
         <div
