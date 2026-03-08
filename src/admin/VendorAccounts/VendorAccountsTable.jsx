@@ -51,8 +51,8 @@ export default function VendorAccountsTable({ vendors, C, onAction, loading, cur
         style={{
           width: "100%",
           borderCollapse: "collapse",
-          backgroundColor: C.white,
-          color: C.text,
+          backgroundColor: C.card,
+          color: C.white,
         }}
       >
         <thead>
@@ -76,12 +76,12 @@ export default function VendorAccountsTable({ vendors, C, onAction, loading, cur
               key={vendor.id}
               style={{
                 borderBottom: `1px solid ${C.grey}20`,
-                backgroundColor: idx % 2 === 0 ? C.white : `${C.grey}05`,
+                backgroundColor: idx % 2 === 0 ? C.card : `${C.dark}`,
               }}
             >
               {/* Vendor Name */}
               <td style={tableCellStyle(NU)}>
-                <div style={{ fontWeight: 600, color: C.text }}>{vendor.name || "Unnamed"}</div>
+                <div style={{ fontWeight: 600, color: C.white }}>{vendor.name || "Unnamed"}</div>
                 {vendor.contact_name && (
                   <div style={{ fontSize: 11, color: C.grey, marginTop: 2 }}>Contact: {vendor.contact_name}</div>
                 )}
@@ -89,7 +89,7 @@ export default function VendorAccountsTable({ vendors, C, onAction, loading, cur
 
               {/* Email */}
               <td style={tableCellStyle(NU)}>
-                <div style={{ fontSize: 12, color: C.text }}>{vendor.email}</div>
+                <div style={{ fontSize: 12, color: C.white }}>{vendor.email}</div>
               </td>
 
               {/* Status Badge */}
@@ -152,8 +152,8 @@ export default function VendorAccountsTable({ vendors, C, onAction, loading, cur
                         top: "100%",
                         right: 0,
                         marginTop: 4,
-                        backgroundColor: C.white,
-                        border: `1px solid ${C.grey}30`,
+                        backgroundColor: C.card,
+                        border: `1px solid ${C.border}`,
                         borderRadius: 4,
                         boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
                         zIndex: 100,
@@ -270,8 +270,8 @@ export default function VendorAccountsTable({ vendors, C, onAction, loading, cur
             alignItems: "center",
             gap: 8,
             padding: "20px",
-            backgroundColor: C.white,
-            borderTop: `1px solid ${C.grey}20`,
+            backgroundColor: C.card,
+            borderTop: `1px solid ${C.border}`,
           }}
         >
           <button
@@ -422,7 +422,7 @@ function dropdownItemStyle(fontFamily, C, isDanger = false) {
     background: "none",
     fontFamily,
     fontSize: 12,
-    color: isDanger ? C.rose : C.text,
+    color: isDanger ? C.rose : C.white,
     cursor: "pointer",
     transition: "all 0.15s",
     borderBottom: `1px solid ${C.border}`,
