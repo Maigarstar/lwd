@@ -4,6 +4,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useCallback } from "react";
 import { saveInquiry } from "../../services/inquiryService";
+import { sendEnquiryNotifications } from "../../services/emailService";
 
 const FD = "var(--font-heading-primary)";
 const FB = "var(--font-body)";
@@ -37,6 +38,7 @@ export default function VendorContactForm({ vendor, C, leadSource = "Venue Profi
         vendorName: vendor.name,
         coupleName: form.name,
         coupleEmail: form.email,
+        couplePhone: form.phone || null,
         weddingDate: form.date,
         guestCount: form.guests,
         budgetRange: form.budget || null,
@@ -47,6 +49,9 @@ export default function VendorContactForm({ vendor, C, leadSource = "Venue Profi
       const { data, error: submitError } = await saveInquiry(enquiryData);
 
       if (submitError) throw submitError;
+
+      // Send notification emails (couple confirmation + vendor lead notification)
+      await sendEnquiryNotifications(enquiryData, vendor.email);
 
       // Success - move to success screen
       setStep(4);

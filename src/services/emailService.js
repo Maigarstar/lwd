@@ -16,11 +16,6 @@ const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabase
  */
 export const sendCoupleConfirmationEmail = async (enquiry) => {
   try {
-    if (!supabase) {
-      console.warn("Supabase not configured for email service");
-      return { success: false, error: new Error("Supabase not configured") };
-    }
-
     const emailData = {
       to: enquiry.coupleEmail,
       subject: `Your enquiry has been sent to ${enquiry.vendorName}`,
@@ -44,7 +39,18 @@ export const sendCoupleConfirmationEmail = async (enquiry) => {
       `,
     };
 
-    // Call Supabase Edge Function to send email
+    // Dev mode: log to console instead of sending
+    if (import.meta.env.DEV) {
+      console.log("📧 DEV MODE - Couple Confirmation Email:", emailData);
+      return { success: true, error: null };
+    }
+
+    // Production: Call Supabase Edge Function to send email
+    if (!supabase) {
+      console.warn("Supabase not configured for email service");
+      return { success: false, error: new Error("Supabase not configured") };
+    }
+
     const { data, error } = await supabase.functions.invoke("send-email", {
       body: emailData,
     });
@@ -66,11 +72,6 @@ export const sendCoupleConfirmationEmail = async (enquiry) => {
  */
 export const sendVendorLeadNotification = async (enquiry, vendorEmail) => {
   try {
-    if (!supabase) {
-      console.warn("Supabase not configured for email service");
-      return { success: false, error: new Error("Supabase not configured") };
-    }
-
     const emailData = {
       to: vendorEmail,
       subject: `New Wedding Enquiry from ${enquiry.coupleName}`,
@@ -113,7 +114,18 @@ export const sendVendorLeadNotification = async (enquiry, vendorEmail) => {
       `,
     };
 
-    // Call Supabase Edge Function to send email
+    // Dev mode: log to console instead of sending
+    if (import.meta.env.DEV) {
+      console.log("📧 DEV MODE - Vendor Lead Notification:", emailData);
+      return { success: true, error: null };
+    }
+
+    // Production: Call Supabase Edge Function to send email
+    if (!supabase) {
+      console.warn("Supabase not configured for email service");
+      return { success: false, error: new Error("Supabase not configured") };
+    }
+
     const { data, error } = await supabase.functions.invoke("send-email", {
       body: emailData,
     });
