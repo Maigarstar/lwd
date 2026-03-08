@@ -146,7 +146,7 @@ export default function AdminAllLeads({ C }) {
           marginBottom: 20,
         }}
       >
-        <h3 style={{ fontFamily: FB, fontSize: 11, fontWeight: 600, textTransform: "uppercase", color: C.grey, marginBottom: 12, letterSpacing: 1 }}>
+        <h3 style={{ fontFamily: FB, fontSize: 11, fontWeight: 600, textTransform: "uppercase", color: C.white, marginBottom: 12, letterSpacing: 1 }}>
           Filters
         </h3>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, marginBottom: 12 }}>
@@ -157,7 +157,7 @@ export default function AdminAllLeads({ C }) {
             style={{
               padding: "8px 12px",
               background: C.dark,
-              color: C.text,
+              color: C.white,
               border: `1px solid ${C.border2}`,
               borderRadius: "var(--lwd-radius-input)",
               fontFamily: FB,
@@ -178,7 +178,7 @@ export default function AdminAllLeads({ C }) {
             style={{
               padding: "8px 12px",
               background: C.dark,
-              color: C.text,
+              color: C.white,
               border: `1px solid ${C.border2}`,
               borderRadius: "var(--lwd-radius-input)",
               fontFamily: FB,
@@ -200,7 +200,7 @@ export default function AdminAllLeads({ C }) {
             style={{
               padding: "8px 12px",
               background: C.dark,
-              color: C.text,
+              color: C.white,
               border: `1px solid ${C.border2}`,
               borderRadius: "var(--lwd-radius-input)",
               fontFamily: FB,
@@ -222,7 +222,7 @@ export default function AdminAllLeads({ C }) {
             style={{
               padding: "8px 12px",
               background: C.dark,
-              color: C.text,
+              color: C.white,
               border: `1px solid ${C.border2}`,
               borderRadius: "var(--lwd-radius-input)",
               fontFamily: FB,
@@ -246,7 +246,7 @@ export default function AdminAllLeads({ C }) {
             style={{
               padding: "8px 12px",
               background: C.dark,
-              color: C.text,
+              color: C.white,
               border: `1px solid ${C.border2}`,
               borderRadius: "var(--lwd-radius-input)",
               fontFamily: FB,
@@ -263,7 +263,7 @@ export default function AdminAllLeads({ C }) {
             style={{
               padding: "8px 12px",
               background: C.dark,
-              color: C.text,
+              color: C.white,
               border: `1px solid ${C.border2}`,
               borderRadius: "var(--lwd-radius-input)",
               fontFamily: FB,
@@ -310,34 +310,34 @@ export default function AdminAllLeads({ C }) {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                <th style={{ textAlign: "left", padding: 12, fontFamily: FB, fontSize: 10, color: C.grey, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                <th style={{ textAlign: "left", padding: 12, fontFamily: FB, fontSize: 10, color: C.white, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
                   Couple
                 </th>
-                <th style={{ textAlign: "left", padding: 12, fontFamily: FB, fontSize: 10, color: C.grey, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                <th style={{ textAlign: "left", padding: 12, fontFamily: FB, fontSize: 10, color: C.white, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
                   Email / Phone
                 </th>
-                <th style={{ textAlign: "left", padding: 12, fontFamily: FB, fontSize: 10, color: C.grey, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                <th style={{ textAlign: "left", padding: 12, fontFamily: FB, fontSize: 10, color: C.white, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
                   Vendor
                 </th>
-                <th style={{ textAlign: "center", padding: 12, fontFamily: FB, fontSize: 10, color: C.grey, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                <th style={{ textAlign: "center", padding: 12, fontFamily: FB, fontSize: 10, color: C.white, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
                   Guests / Budget
                 </th>
-                <th style={{ textAlign: "left", padding: 12, fontFamily: FB, fontSize: 10, color: C.grey, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                <th style={{ textAlign: "left", padding: 12, fontFamily: FB, fontSize: 10, color: C.white, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
                   Wedding Date
                 </th>
-                <th style={{ textAlign: "left", padding: 12, fontFamily: FB, fontSize: 10, color: C.grey, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                <th style={{ textAlign: "left", padding: 12, fontFamily: FB, fontSize: 10, color: C.white, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
                   Source
                 </th>
-                <th style={{ textAlign: "left", padding: 12, fontFamily: FB, fontSize: 10, color: C.grey, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                <th style={{ textAlign: "left", padding: 12, fontFamily: FB, fontSize: 10, color: C.white, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
                   Submitted
                 </th>
-                <th style={{ textAlign: "center", padding: 12, fontFamily: FB, fontSize: 10, color: C.grey, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                <th style={{ textAlign: "center", padding: 12, fontFamily: FB, fontSize: 10, color: C.white, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
                   Response Time
                 </th>
-                <th style={{ textAlign: "center", padding: 12, fontFamily: FB, fontSize: 10, color: C.grey, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                <th style={{ textAlign: "center", padding: 12, fontFamily: FB, fontSize: 10, color: C.white, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
                   Status
                 </th>
-                <th style={{ textAlign: "center", padding: 12, fontFamily: FB, fontSize: 10, color: C.grey, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                <th style={{ textAlign: "center", padding: 12, fontFamily: FB, fontSize: 10, color: C.white, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
                   Action
                 </th>
               </tr>
@@ -345,27 +345,27 @@ export default function AdminAllLeads({ C }) {
             <tbody>
               {enquiries.map((enq) => (
                 <tr key={enq.id} style={{ borderBottom: `1px solid ${C.border}` }}>
-                  <td style={{ padding: 12, fontFamily: FB, fontSize: 12, color: C.text, fontWeight: 600 }}>
+                  <td style={{ padding: 12, fontFamily: FB, fontSize: 12, color: C.white, fontWeight: 600 }}>
                     {enq.couple_name}
                   </td>
-                  <td style={{ padding: 12, fontFamily: FB, fontSize: 12, color: C.text }}>
+                  <td style={{ padding: 12, fontFamily: FB, fontSize: 12, color: C.white }}>
                     <div>{enq.couple_email}</div>
                     {enq.couple_phone && <div style={{ fontSize: 11, color: C.grey }}>{enq.couple_phone}</div>}
                   </td>
-                  <td style={{ padding: 12, fontFamily: FB, fontSize: 12, color: C.text }}>
+                  <td style={{ padding: 12, fontFamily: FB, fontSize: 12, color: C.white }}>
                     {enq.vendor_name}
                   </td>
-                  <td style={{ padding: 12, fontFamily: FB, fontSize: 12, color: C.text, textAlign: "center" }}>
+                  <td style={{ padding: 12, fontFamily: FB, fontSize: 12, color: C.white, textAlign: "center" }}>
                     <div>{enq.guest_count || "—"}</div>
                     {enq.budget_range && <div style={{ fontSize: 11, color: C.gold, fontWeight: 600 }}>{enq.budget_range}</div>}
                   </td>
-                  <td style={{ padding: 12, fontFamily: FB, fontSize: 12, color: C.text }}>
+                  <td style={{ padding: 12, fontFamily: FB, fontSize: 12, color: C.white }}>
                     {enq.event_date ? new Date(enq.event_date).toLocaleDateString("en-GB") : "—"}
                   </td>
                   <td style={{ padding: 12, fontFamily: FB, fontSize: 11, color: C.grey }}>
                     {enq.lead_source || "Venue Profile"}
                   </td>
-                  <td style={{ padding: 12, fontFamily: FB, fontSize: 12, color: C.text }}>
+                  <td style={{ padding: 12, fontFamily: FB, fontSize: 12, color: C.white }}>
                     {new Date(enq.created_at).toLocaleDateString()}
                     <br />
                     <span style={{ fontSize: 11, color: C.grey }}>{new Date(enq.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
