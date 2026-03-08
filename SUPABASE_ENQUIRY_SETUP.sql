@@ -21,8 +21,8 @@ CREATE TABLE IF NOT EXISTS vendor_enquiries (
   id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 
   -- Vendor & Listing References
-  vendor_id INT NOT NULL,                    -- Vendor/Venue ID from GLOBAL_VENDORS
-  listing_id INT,                            -- Future: Separate listing ID (now = vendor_id)
+  vendor_id TEXT NOT NULL,                   -- Vendor/Venue ID (string-based: "vdr-13", "vnu-5", etc)
+  listing_id TEXT,                           -- Future: Separate listing ID (now = vendor_id)
 
   -- Couple Identification (email-based for anonymous couples, user_id when auth exists)
   couple_id TEXT NOT NULL,                   -- Email or user UUID when authenticated

@@ -32,7 +32,7 @@ export default function VendorContactForm({ vendor, C }) {
     setError("");
 
     try {
-      const { data, error: submitError } = await saveInquiry({
+      const enquiryData = {
         vendorId: vendor.id,
         vendorName: vendor.name,
         coupleName: form.name,
@@ -40,7 +40,9 @@ export default function VendorContactForm({ vendor, C }) {
         weddingDate: form.date,
         guestCount: form.guests,
         message: form.message,
-      });
+      };
+
+      const { data, error: submitError } = await saveInquiry(enquiryData);
 
       if (submitError) throw submitError;
 

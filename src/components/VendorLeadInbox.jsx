@@ -18,8 +18,11 @@ export default function VendorLeadInbox({ vendorId, C, isMobile }) {
     const loadEnquiries = async () => {
       setLoading(true);
       const result = await getVendorEnquiries(vendorId, 50);
+      console.log("VendorLeadInbox: getVendorEnquiries result:", { vendorId, result });
       if (!result.error) {
         setEnquiries(result.data);
+      } else {
+        console.error("VendorLeadInbox: Error fetching enquiries:", result.error);
       }
       setLoading(false);
     };

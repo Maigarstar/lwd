@@ -171,61 +171,7 @@ export const getVendorMetrics = async (vendorId) => {
 
 // Subscribe to real-time metrics updates
 export const subscribeToVendorMetrics = (vendorId, callback) => {
-  const subscriptions = [];
-
-  // Subscribe to profile views changes
-  subscriptions.push(
-    supabase
-      .from("profile_views")
-      .on("*", (payload) => {
-        if (payload.new?.vendor_id === vendorId || payload.old?.vendor_id === vendorId) {
-          // Refetch all metrics when profile views change
-          getVendorMetrics(vendorId).then((result) => {
-            if (!result.error) {
-              callback(result.data);
-            }
-          });
-        }
-      })
-      .subscribe()
-  );
-
-  // Subscribe to shortlist changes
-  subscriptions.push(
-    supabase
-      .from("vendor_shortlists")
-      .on("*", (payload) => {
-        if (payload.new?.item_id === vendorId || payload.old?.item_id === vendorId) {
-          getVendorMetrics(vendorId).then((result) => {
-            if (!result.error) {
-              callback(result.data);
-            }
-          });
-        }
-      })
-      .subscribe()
-  );
-
-  // Subscribe to enquiry changes
-  subscriptions.push(
-    supabase
-      .from("vendor_enquiries")
-      .on("*", (payload) => {
-        if (payload.new?.vendor_id === vendorId || payload.old?.vendor_id === vendorId) {
-          getVendorMetrics(vendorId).then((result) => {
-            if (!result.error) {
-              callback(result.data);
-            }
-          });
-        }
-      })
-      .subscribe()
-  );
-
-  // Return unsubscribe function
-  return () => {
-    subscriptions.forEach((sub) => {
-      supabase.removeSubscription(sub);
-    });
-  };
+  // Real-time subscriptions are disabled (Supabase API v2 uses different syntax)
+  // Return a no-op unsubscribe function for now
+  return () => {};
 };

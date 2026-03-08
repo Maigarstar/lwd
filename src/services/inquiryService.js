@@ -13,26 +13,30 @@ import { supabase } from "../lib/supabaseClient";
  */
 export const saveInquiry = async (enquiryData) => {
   try {
+    console.log("saveInquiry: Received enquiryData:", enquiryData);
+    console.log("saveInquiry: vendorId value:", enquiryData.vendorId, "type:", typeof enquiryData.vendorId);
+
+    const insertData = {
+      vendor_id: enquiryData.vendorId,
+      couple_id: enquiryData.couple_id || enquiryData.coupleEmail,
+      listing_id: enquiryData.vendorId,
+      message: enquiryData.message || null,
+      guest_count: enquiryData.guestCount || null,
+      budget_range: enquiryData.budget || null,
+      event_date: enquiryData.weddingDate || null,
+      couple_name: enquiryData.coupleName || null,
+      couple_email: enquiryData.coupleEmail || null,
+      couple_phone: enquiryData.couplePhone || null,
+      status: "new",
+    };
+    console.log("saveInquiry: Inserting data to vendor_enquiries:", insertData);
+
     const { data, error } = await supabase
       .from("vendor_enquiries")
-      .insert([
-        {
-          vendor_id: enquiryData.vendorId,
-          couple_id: enquiryData.couple_id || enquiryData.coupleEmail, // Use email as couple identifier for now
-          listing_id: enquiryData.vendorId, // Listing ID = vendor ID for now
-          message: enquiryData.message || null,
-          guest_count: enquiryData.guestCount || null,
-          budget_range: enquiryData.budget || null,
-          event_date: enquiryData.weddingDate || null,
-          couple_name: enquiryData.coupleName || null,
-          couple_email: enquiryData.coupleEmail || null,
-          couple_phone: enquiryData.couplePhone || null,
-          status: "new",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ])
+      .insert([insertData])
       .select();
+
+    console.log("saveInquiry: Insert result:", { data, error });
 
     if (error) throw error;
     return { data: data?.[0], error: null };
