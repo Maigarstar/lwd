@@ -9,10 +9,30 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 /**
- * Get all enquiries across all vendors
+ * Format response time as human-readable string
+ * @param {string} createdAt - ISO timestamp
+ * @param {string} repliedAt - ISO timestamp
+ * @returns {string} Formatted response time or "Pending"
+ */
+function formatResponseTime(createdAt, repliedAt) {
+  if (!repliedAt) return "Pending";
+  const created = new Date(createdAt);
+  const replied = new Date(repliedAt);
+  const diffMs = replied - created;
+  const diffMins = Math.floor(diffMs / 60000);
+  const hours = Math.floor(diffMins / 60);
+  const mins = diffMins % 60;
+  if (hours === 0) return `${mins}m`;
+  return `${hours}h ${mins}m`;
+}
+
+/**
+ * Get all enquiries across all vendors with enhanced data
  * @param {Object} filters - Optional filters
  * @param {string} filters.status - Filter by status (new, replied, booked, archived)
  * @param {string} filters.vendorId - Filter by specific vendor
+ * @param {string} filters.budget - Filter by budget range
+ * @param {string} filters.leadSource - Filter by lead source
  * @param {string} filters.searchEmail - Search by couple email
  * @param {string} filters.searchName - Search by couple name
  * @param {number} filters.limit - Results per page (default: 50)
@@ -26,13 +46,15 @@ export const getAllEnquiries = async (filters = {}) => {
       return { data: [], total: 0, error: null };
     }
 
-    const { status, vendorId, searchEmail, searchName, limit = 50, offset = 0 } = filters;
+    const { status, vendorId, budget, leadSource, searchEmail, searchName, limit = 50, offset = 0 } = filters;
 
     let query = supabase.from("vendor_enquiries").select("*", { count: "exact" });
 
     // Apply filters
     if (status) query = query.eq("status", status);
     if (vendorId) query = query.eq("vendor_id", vendorId);
+    if (budget) query = query.eq("budget_range", budget);
+    if (leadSource) query = query.eq("lead_source", leadSource);
     if (searchEmail) query = query.ilike("couple_email", `%${searchEmail}%`);
     if (searchName) query = query.ilike("couple_name", `%${searchName}%`);
 
@@ -43,7 +65,13 @@ export const getAllEnquiries = async (filters = {}) => {
 
     if (error) throw error;
 
-    return { data: data || [], total: count || 0, error: null };
+    // Enhance data with formatted response times
+    const enrichedData = (data || []).map((enquiry) => ({
+      ...enquiry,
+      response_time: formatResponseTime(enquiry.created_at, enquiry.replied_at),
+    }));
+
+    return { data: enrichedData, total: count || 0, error: null };
   } catch (error) {
     console.error("Error fetching all enquiries:", error);
     return { data: [], total: 0, error };

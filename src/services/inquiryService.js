@@ -22,11 +22,12 @@ export const saveInquiry = async (enquiryData) => {
       listing_id: enquiryData.vendorId,
       message: enquiryData.message || null,
       guest_count: enquiryData.guestCount || null,
-      budget_range: enquiryData.budget || null,
+      budget_range: enquiryData.budgetRange || null,
       event_date: enquiryData.weddingDate || null,
       couple_name: enquiryData.coupleName || null,
       couple_email: enquiryData.coupleEmail || null,
       couple_phone: enquiryData.couplePhone || null,
+      lead_source: enquiryData.leadSource || "Venue Profile",
       status: "new",
     };
     console.log("saveInquiry: Inserting data to vendor_enquiries:", insertData);

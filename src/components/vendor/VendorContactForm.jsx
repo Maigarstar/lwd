@@ -13,9 +13,9 @@ function stars(r = 0) {
   return "★".repeat(x) + "☆".repeat(5 - x);
 }
 
-export default function VendorContactForm({ vendor, C }) {
+export default function VendorContactForm({ vendor, C, leadSource = "Venue Profile" }) {
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState({ date: "", guests: 80, name: "", email: "", message: "" });
+  const [form, setForm] = useState({ date: "", guests: 80, budget: "", name: "", email: "", message: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const set = useCallback((k, v) => setForm(f => ({ ...f, [k]: v })), []);
@@ -39,7 +39,9 @@ export default function VendorContactForm({ vendor, C }) {
         coupleEmail: form.email,
         weddingDate: form.date,
         guestCount: form.guests,
+        budgetRange: form.budget || null,
         message: form.message,
+        leadSource: leadSource,
       };
 
       const { data, error: submitError } = await saveInquiry(enquiryData);
@@ -196,15 +198,28 @@ export default function VendorContactForm({ vendor, C }) {
       )}
 
       {step === 2 && (
-        <div>
-          <label style={labelStyle}>Estimated guests</label>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <input type="range" min={20} max={200} step={10} value={form.guests}
-              onChange={e => set("guests", +e.target.value)}
-              style={{ flex: 1, accentColor: C.gold }} />
-            <span style={{ fontFamily: FD, fontSize: 20, color: C.text, minWidth: 36, textAlign: "right" }}>
-              {form.guests}
-            </span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div>
+            <label style={labelStyle}>Estimated guests</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <input type="range" min={20} max={200} step={10} value={form.guests}
+                onChange={e => set("guests", +e.target.value)}
+                style={{ flex: 1, accentColor: C.gold }} />
+              <span style={{ fontFamily: FD, fontSize: 20, color: C.text, minWidth: 36, textAlign: "right" }}>
+                {form.guests}
+              </span>
+            </div>
+          </div>
+          <div>
+            <label style={labelStyle}>Budget (optional)</label>
+            <select value={form.budget} onChange={e => set("budget", e.target.value)}
+              style={inputStyle}>
+              <option value="">Select budget range...</option>
+              <option value="£10k–£20k">£10k–£20k</option>
+              <option value="£20k–£50k">£20k–£50k</option>
+              <option value="£50k+">£50k+</option>
+              <option value="£100k+">£100k+</option>
+            </select>
           </div>
         </div>
       )}

@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS vendor_enquiries (
   guest_count INT,                           -- Estimated guest count
   budget_range TEXT,                         -- Budget bracket (e.g., "10k-25k", "25k-50k")
   event_date DATE,                           -- Requested/planned wedding date
+  lead_source TEXT DEFAULT 'Venue Profile',  -- Where enquiry came from (Venue Profile, Vendor Page, Homepage, etc)
 
   -- Enquiry Status & Timeline
   status TEXT NOT NULL DEFAULT 'new',        -- Status: new, replied, booked, archived
