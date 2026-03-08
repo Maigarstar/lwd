@@ -110,7 +110,7 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
     >
       <div
         style={{
-          backgroundColor: C.white,
+          backgroundColor: "#faf6f1",
           borderRadius: "var(--lwd-radius-container)",
           boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
           maxWidth: 500,
@@ -124,13 +124,13 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
         <div
           style={{
             padding: "20px",
-            borderBottom: `1px solid ${C.grey}20`,
+            borderBottom: "1px solid #ddd",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
           }}
         >
-          <h2 style={{ fontFamily: GD, fontSize: 18, color: C.text, margin: 0 }}>Create Vendor Account</h2>
+          <h2 style={{ fontFamily: GD, fontSize: 18, color: "#1a1a1a", margin: 0 }}>Create Vendor Account</h2>
           <button
             onClick={onCancel}
             style={{
@@ -138,7 +138,7 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
               border: "none",
               fontSize: 20,
               cursor: "pointer",
-              color: C.grey,
+              color: "#666",
             }}
           >
             ✕
@@ -149,7 +149,7 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
         <form onSubmit={handleSubmit} style={{ padding: "20px" }}>
           {/* Vendor Name */}
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontFamily: NU, fontSize: 12, fontWeight: 600, marginBottom: 6, color: C.text }}>
+            <label style={{ display: "block", fontFamily: NU, fontSize: 12, fontWeight: 600, marginBottom: 6, color: "#1a1a1a" }}>
               Vendor Name *
             </label>
             <input
@@ -165,7 +165,7 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
 
           {/* Email */}
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontFamily: NU, fontSize: 12, fontWeight: 600, marginBottom: 6, color: C.text }}>
+            <label style={{ display: "block", fontFamily: NU, fontSize: 12, fontWeight: 600, marginBottom: 6, color: "#1a1a1a" }}>
               Email *
             </label>
             <input
@@ -181,7 +181,7 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
 
           {/* Listing Link */}
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontFamily: NU, fontSize: 12, fontWeight: 600, marginBottom: 6, color: C.text }}>
+            <label style={{ display: "block", fontFamily: NU, fontSize: 12, fontWeight: 600, marginBottom: 6, color: "#1a1a1a" }}>
               Link to Listing
             </label>
             <select
@@ -198,13 +198,13 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
                 </option>
               ))}
             </select>
-            <p style={{ fontFamily: NU, fontSize: 11, color: C.grey, marginTop: 4 }}>Admin can link vendor to an existing listing</p>
+            <p style={{ fontFamily: NU, fontSize: 11, color: "#666", marginTop: 4 }}>Admin can link vendor to an existing listing</p>
           </div>
 
           {/* Category (Auto-filled from Listing) */}
           {formData.category && (
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: "block", fontFamily: NU, fontSize: 12, fontWeight: 600, marginBottom: 6, color: C.text }}>
+              <label style={{ display: "block", fontFamily: NU, fontSize: 12, fontWeight: 600, marginBottom: 6, color: "#1a1a1a" }}>
                 Category
               </label>
               <input
@@ -213,13 +213,13 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
                 disabled
                 style={inputStyle(C, false, true)}
               />
-              <p style={{ fontFamily: NU, fontSize: 11, color: C.grey, marginTop: 4 }}>Auto-filled from listing selection</p>
+              <p style={{ fontFamily: NU, fontSize: 11, color: "#666", marginTop: 4 }}>Auto-filled from listing selection</p>
             </div>
           )}
 
           {/* Contact Name */}
           <div style={{ marginBottom: 20 }}>
-            <label style={{ display: "block", fontFamily: NU, fontSize: 12, fontWeight: 600, marginBottom: 6, color: C.text }}>
+            <label style={{ display: "block", fontFamily: NU, fontSize: 12, fontWeight: 600, marginBottom: 6, color: "#1a1a1a" }}>
               Contact Name (Optional)
             </label>
             <input
@@ -230,7 +230,7 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
               placeholder="e.g., John Smith"
               style={inputStyle(C)}
             />
-            <p style={{ fontFamily: NU, fontSize: 11, color: C.grey, marginTop: 4 }}>Primary contact person for this vendor</p>
+            <p style={{ fontFamily: NU, fontSize: 11, color: "#666", marginTop: 4 }}>Primary contact person for this vendor</p>
           </div>
 
           {/* Actions */}
@@ -242,13 +242,13 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
               style={{
                 flex: 1,
                 padding: "10px 16px",
-                background: `${C.grey}20`,
-                border: `1px solid ${C.grey}30`,
+                background: "#e8ddd5",
+                border: "1px solid #d1c4b8",
                 borderRadius: "var(--lwd-radius-input)",
                 fontFamily: NU,
                 fontSize: 13,
                 fontWeight: 600,
-                color: C.text,
+                color: "#1a1a1a",
                 cursor: submitting ? "not-allowed" : "pointer",
                 opacity: submitting ? 0.6 : 1,
               }}
@@ -287,10 +287,10 @@ function inputStyle(C, hasError = false, disabled = false) {
     padding: "10px 12px",
     fontFamily: "var(--font-body)",
     fontSize: 13,
-    border: `1px solid ${hasError ? "#ef4444" : `${C.grey}30`}`,
+    border: `1px solid ${hasError ? "#ef4444" : "#d1c4b8"}`,
     borderRadius: "var(--lwd-radius-input)",
-    backgroundColor: disabled ? `${C.grey}10` : C.white,
-    color: C.text,
+    backgroundColor: disabled ? "#f0ebe5" : "#ffffff",
+    color: "#1a1a1a",
     boxSizing: "border-box",
     transition: "all 0.15s",
   };

@@ -45,16 +45,33 @@ PROJECT_REF=""
 # Method 1: Check .supabase/config.toml
 if [ -f "$PROJECT_ROOT/.supabase/config.toml" ]; then
     PROJECT_REF=$(grep -oP 'project_id = "\K[^"]+' "$PROJECT_ROOT/.supabase/config.toml" 2>/dev/null)
+    if [ -n "$PROJECT_REF" ]; then
+        echo -e "${BLUE}✓ Found project in .supabase/config.toml${NC}"
+    fi
 fi
 
-# Method 2: Try supabase projects list (doesn't require Docker)
+# Method 2: Try supabase projects list - look for LINKED project (marked with *)
 if [ -z "$PROJECT_REF" ]; then
-    PROJECT_REF=$(supabase projects list 2>/dev/null | grep -E '^[[:space:]]*\|' | grep -v 'LINKED\|-----' | awk -F'|' '{print $3}' | sed 's/^[[:space:]]*//g' | sed 's/[[:space:]]*$//g' | head -1)
+    PROJECT_REF=$(supabase projects list 2>/dev/null | awk -F'|' '$1 ~ /\*/ {print $3}' | sed 's/^[[:space:]]*//g' | sed 's/[[:space:]]*$//g' | head -1)
+    if [ -n "$PROJECT_REF" ]; then
+        echo -e "${BLUE}✓ Found linked project via 'supabase projects list'${NC}"
+    fi
 fi
 
 # Method 3: Check for ~/.supabase/projects.json
 if [ -z "$PROJECT_REF" ]; then
     PROJECT_REF=$(grep -oP '"project_ref":\s*"\K[^"]+' ~/.supabase/projects.json 2>/dev/null | head -1)
+    if [ -n "$PROJECT_REF" ]; then
+        echo -e "${BLUE}✓ Found project in ~/.supabase/projects.json${NC}"
+    fi
+fi
+
+# Validate project ref format (should be 20+ chars, alphanumeric + underscore)
+if [ -n "$PROJECT_REF" ]; then
+    if [[ ! "$PROJECT_REF" =~ ^[a-z0-9_]{20,}$ ]]; then
+        echo -e "${RED}❌ Invalid project reference format: $PROJECT_REF${NC}"
+        exit 1
+    fi
 fi
 
 # If still not found, we're not linked
@@ -64,7 +81,7 @@ if [ -z "$PROJECT_REF" ] || [ "$PROJECT_REF" = "unknown" ]; then
     exit 1
 fi
 
-echo -e "${BLUE}Project: $PROJECT_REF${NC}"
+echo -e "${GREEN}Selected project: $PROJECT_REF${NC}"
 echo ""
 
 ##############################################################################

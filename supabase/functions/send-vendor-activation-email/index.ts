@@ -22,30 +22,37 @@ const SENDGRID_FROM_EMAIL =
   Deno.env.get("SENDGRID_FROM_EMAIL") || "noreply@luxuryweddingdirectory.com";
 const SITE_URL = Deno.env.get("SITE_URL") || "https://luxuryweddingdirectory.com";
 
+// CORS headers for all responses
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Content-Type": "application/json",
+};
+
 interface ActivationEmailRequest {
   email: string;
   vendorName: string;
   activationToken: string;
 }
 
+// Helper function to create JSON responses with CORS headers
+function corsResponse(body: unknown, status: number = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: CORS_HEADERS,
+  });
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response("ok", {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST",
-        "Access-Control-Allow-Headers": "Content-Type",
-      },
-    });
+    return new Response("ok", { headers: CORS_HEADERS });
   }
 
   // Only allow POST
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { "Content-Type": "application/json" },
-    });
+    return corsResponse({ error: "Method not allowed" }, 405);
   }
 
   try {
@@ -55,27 +62,16 @@ serve(async (req) => {
 
     // Validate required fields
     if (!email || !vendorName || !activationToken) {
-      return new Response(
-        JSON.stringify({
-          error: "Missing required fields: email, vendorName, activationToken",
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
+      return corsResponse(
+        { error: "Missing required fields: email, vendorName, activationToken" },
+        400
       );
     }
 
     // Validate SendGrid configuration
     if (!SENDGRID_API_KEY) {
       console.error("SENDGRID_API_KEY not configured");
-      return new Response(
-        JSON.stringify({ error: "Email service not configured" }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return corsResponse({ error: "Email service not configured" }, 500);
     }
 
     // Build activation link
@@ -128,26 +124,17 @@ serve(async (req) => {
     }
 
     // Success response
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: "Activation email sent successfully",
-      }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    return corsResponse({
+      success: true,
+      message: "Activation email sent successfully",
+    });
   } catch (error) {
     console.error("Error sending vendor activation email:", error);
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
-      }),
+    return corsResponse(
       {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      500
     );
   }
 });

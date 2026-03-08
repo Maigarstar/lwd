@@ -4,7 +4,7 @@
 // managing account status, resending invites, disabling accounts
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { supabase } from "../../lib/supabaseClient";
+import { supabase } from "../../lib/supabase";
 
 /**
  * Get all vendor accounts with status and login info
@@ -82,6 +82,8 @@ export const createVendorAccount = async (vendorData) => {
       return { data: null, error: new Error("Supabase not configured") };
     }
 
+    console.log("Invoking create-vendor-account function with:", vendorData);
+
     // Invoke Edge Function to create account (server-side)
     const { data, error } = await supabase.functions.invoke("create-vendor-account", {
       body: {
@@ -93,12 +95,18 @@ export const createVendorAccount = async (vendorData) => {
       },
     });
 
-    if (error) throw error;
+    console.log("Function response:", { data, error });
+
+    if (error) {
+      console.error("Function error:", error);
+      throw error;
+    }
 
     return { data, error: null };
   } catch (error) {
     console.error("Error creating vendor account:", error);
-    return { data: null, error };
+    const errorMessage = error?.message || JSON.stringify(error) || "Unknown error";
+    return { data: null, error: new Error(`Failed to send a request to the Edge Function: ${errorMessage}`) };
   }
 };
 
@@ -275,7 +283,7 @@ export const getListingsForDropdown = async () => {
     // If column doesn't exist, return empty gracefully
     const { data, error } = await supabase
       .from("listings")
-      .select("id, name, category");
+      .select("id, name");
 
     if (error) {
       // Column might not exist yet, return empty gracefully
