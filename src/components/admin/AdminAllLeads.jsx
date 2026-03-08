@@ -608,27 +608,29 @@ export default function AdminAllLeads({ C }) {
               {/* Admin Actions */}
               <div style={{ marginBottom: 20, paddingTop: 20, borderTop: `1px solid ${C.border}` }}>
                 <h3 style={{ fontFamily: FB, fontSize: 11, fontWeight: 600, textTransform: "uppercase", color: C.grey, marginBottom: 12, letterSpacing: 1 }}>
-                  Actions
+                  Admin Actions
                 </h3>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                  {selectedLead.status !== "booked" && (
-                    <button
-                      onClick={() => handleStatusUpdate(selectedLead.id, "booked")}
-                      style={{
-                        padding: "10px 16px",
-                        background: "#22c55e",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: "var(--lwd-radius-input)",
-                        fontFamily: FB,
-                        fontSize: 12,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Mark Booked
-                    </button>
-                  )}
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <button
+                    onClick={() => {
+                      const subject = `Follow-up: ${selectedLead.couple_name}'s Enquiry`;
+                      const body = `Hi ${selectedLead.vendor_name},\n\nThis is a reminder about the enquiry from ${selectedLead.couple_name} submitted on ${new Date(selectedLead.created_at).toLocaleDateString()}.\n\nLead Details:\n- Couple: ${selectedLead.couple_name}\n- Email: ${selectedLead.couple_email}\n- Wedding Date: ${selectedLead.event_date ? new Date(selectedLead.event_date).toLocaleDateString() : 'Not specified'}\n- Guests: ${selectedLead.guest_count || 'Not specified'}\n- Budget: ${selectedLead.budget_range || 'Not specified'}\n\nPlease respond promptly to increase booking chances.\n\nBest regards,\nLuxury Wedding Directory`;
+                      window.location.href = `mailto:${selectedLead.vendor_email || 'vendor@example.com'}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                    }}
+                    style={{
+                      padding: "10px 16px",
+                      background: C.gold,
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "var(--lwd-radius-input)",
+                      fontFamily: FB,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Email Vendor
+                  </button>
                   {selectedLead.status !== "archived" && (
                     <button
                       onClick={() => handleStatusUpdate(selectedLead.id, "archived")}
@@ -644,7 +646,7 @@ export default function AdminAllLeads({ C }) {
                         cursor: "pointer",
                       }}
                     >
-                      Archive
+                      Archive Lead
                     </button>
                   )}
                 </div>
