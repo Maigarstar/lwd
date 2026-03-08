@@ -15,6 +15,7 @@ import { fetchListings, isSupabaseAvailable } from "../services/listings";
 import categoryCssRaw from "../category.css?raw";
 import { RegionsModule } from "./admin/RegionsModule";
 import AdminAllLeads from "../components/admin/AdminAllLeads";
+import VendorAccountsPage from "../admin/VendorAccounts/VendorAccountsPage";
 
 // ── Page Studio imports ──
 import AllPagesModule from "./PageStudio/AllPagesModule";
@@ -200,6 +201,7 @@ const NAV_SECTIONS = [
     items: [
       { key: "overview",     label: "Overview",          icon: "◈" },
       { key: "listings",     label: "Listings",          icon: "⊞" },
+      { key: "vendor-accounts", label: "Vendor Accounts", icon: "👤" },
       { key: "categories",   label: "Categories",        icon: "▦" },
       { key: "enquiries",    label: "Enquiries",         icon: "◇" },
       { key: "partnerships", label: "Partnerships",      icon: "✦" },
@@ -6813,6 +6815,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "index":         return <IndexHealthModule C={C} />;
       case "livechat":      return <LiveChatModule C={C} />;
       case "listings":      return <ListingsModule C={C} onNavigate={onNavigate} />;
+      case "vendor-accounts": return <VendorAccountsPage C={C} />;
       case "categories":    return <CategoriesModule C={C} />;
       case "enquiries":     return <AdminAllLeads C={C} />;
       case "countries":     return <CountriesModule C={C} />;
