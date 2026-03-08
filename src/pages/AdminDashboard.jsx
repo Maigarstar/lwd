@@ -14,6 +14,7 @@ import { REGION_AUTO_THRESHOLD, evaluateRegionActivation } from "../engine/activ
 import { fetchListings, isSupabaseAvailable } from "../services/listings";
 import categoryCssRaw from "../category.css?raw";
 import { RegionsModule } from "./admin/RegionsModule";
+import AdminAllLeads from "../components/admin/AdminAllLeads";
 
 // ── Page Studio imports ──
 import AllPagesModule from "./PageStudio/AllPagesModule";
@@ -6789,7 +6790,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "livechat":      return <LiveChatModule C={C} />;
       case "listings":      return <ListingsModule C={C} onNavigate={onNavigate} />;
       case "categories":    return <CategoriesModule C={C} />;
-      case "enquiries":     return <PlaceholderModule title="Enquiry Pipeline" C={C} />;
+      case "enquiries":     return <AdminAllLeads C={C} />;
       case "countries":     return <CountriesModule C={C} />;
       case "regions":       return <RegionsModule C={C} />;
       case "marketing":     return <PlaceholderModule title="Marketing Intelligence" C={C} />;
