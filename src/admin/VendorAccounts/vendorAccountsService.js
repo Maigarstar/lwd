@@ -27,16 +27,20 @@ export const getAllVendorAccounts = async (filters = {}) => {
       .from("vendors")
       .select("*", { count: "exact" });
 
-    // Filter by status
+    // Filter by status (5-state model)
     if (status) {
-      if (status === "not-invited") {
-        query = query.is("activation_token", null).eq("is_activated", false);
+      if (status === "pending-approval") {
+        query = query.eq("approval_status", "pending");
+      } else if (status === "approved") {
+        query = query.eq("approval_status", "approved").eq("is_activated", false).is("activation_token", null);
       } else if (status === "invited") {
-        query = query.not("activation_token", "is", null).eq("is_activated", false);
+        query = query.eq("approval_status", "approved").eq("is_activated", false).not("activation_token", "is", null);
       } else if (status === "activated") {
         query = query.eq("is_activated", true);
       } else if (status === "suspended") {
-        query = query.eq("is_activated", false).not("activation_token", "is", null);
+        query = query.eq("approval_status", "approved").eq("is_activated", false).is("activation_token", null);
+      } else if (status === "rejected") {
+        query = query.eq("approval_status", "rejected");
       }
     }
 
@@ -111,6 +115,67 @@ export const createVendorAccount = async (vendorData) => {
 };
 
 /**
+ * Approve a vendor account (allow them to receive activation email)
+ * @param {string} vendorId - Vendor UUID
+ * @param {string} adminId - Admin user ID who is approving
+ * @returns {Promise<{data: Object, error: null|Object}>}
+ */
+export const approveVendorAccount = async (vendorId, adminId) => {
+  try {
+    if (!supabase) {
+      return { data: null, error: new Error("Supabase not configured") };
+    }
+
+    const { data, error } = await supabase
+      .from("vendors")
+      .update({
+        approval_status: "approved",
+        approved_at: new Date().toISOString(),
+        approved_by_admin_id: adminId,
+      })
+      .eq("id", vendorId)
+      .select();
+
+    if (error) throw error;
+
+    return { data, error: null };
+  } catch (error) {
+    console.error("Error approving vendor account:", error);
+    return { data: null, error };
+  }
+};
+
+/**
+ * Reject a vendor account (prevent activation)
+ * @param {string} vendorId - Vendor UUID
+ * @param {string} adminId - Admin user ID who is rejecting
+ * @returns {Promise<{data: Object, error: null|Object}>}
+ */
+export const rejectVendorAccount = async (vendorId, adminId) => {
+  try {
+    if (!supabase) {
+      return { data: null, error: new Error("Supabase not configured") };
+    }
+
+    const { data, error } = await supabase
+      .from("vendors")
+      .update({
+        approval_status: "rejected",
+        approved_by_admin_id: adminId,
+      })
+      .eq("id", vendorId)
+      .select();
+
+    if (error) throw error;
+
+    return { data, error: null };
+  } catch (error) {
+    console.error("Error rejecting vendor account:", error);
+    return { data: null, error };
+  }
+};
+
+/**
  * Send activation email for a vendor account
  * @param {string} vendorId - Vendor UUID
  * @param {string} email - Vendor email
@@ -123,14 +188,20 @@ export const sendActivationEmail = async (vendorId, email, vendorName) => {
       return { data: null, error: new Error("Supabase not configured") };
     }
 
-    // Get activation token from vendors table
+    // Fetch vendor and check approval status
     const { data: vendorData, error: fetchError } = await supabase
       .from("vendors")
-      .select("activation_token")
+      .select("activation_token, approval_status")
       .eq("id", vendorId)
       .single();
 
     if (fetchError) throw fetchError;
+
+    // Only send email if approved
+    if (vendorData?.approval_status !== "approved") {
+      throw new Error("Vendor account must be approved before sending activation email");
+    }
+
     if (!vendorData?.activation_token) {
       throw new Error("No activation token found for this vendor");
     }
@@ -299,18 +370,39 @@ export const getListingsForDropdown = async () => {
 };
 
 /**
- * Derive vendor account status from fields
+ * Derive vendor account status from fields (5-state model)
  * @param {Object} vendor - Vendor record
- * @returns {string} Status: "not-invited", "invited", "activated", or "suspended"
+ * @returns {string} Status: "pending-approval", "approved", "invited", "activated", "suspended", or "rejected"
  */
 function deriveVendorStatus(vendor) {
+  // Check approval status first (new workflow)
+  if (vendor.approval_status === "rejected") {
+    return "rejected";
+  }
+
+  if (vendor.approval_status === "pending") {
+    return "pending-approval";
+  }
+
+  // After approval, check activation status
   if (vendor.is_activated) {
     return "activated";
   }
-  if (vendor.activation_token) {
-    return "invited";
+
+  // If approved but not activated yet
+  if (vendor.approval_status === "approved") {
+    if (vendor.activation_token) {
+      return "invited";
+    }
+    return "approved";
   }
-  return "not-invited";
+
+  // Suspended state (was activated but disabled)
+  if (vendor.is_activated === false && vendor.activation_token === null && vendor.approval_status === "approved") {
+    return "suspended";
+  }
+
+  return "pending-approval";
 }
 
 /**

@@ -8,12 +8,17 @@ import React, { useState } from "react";
 const NU = "var(--font-body)";
 const GD = "var(--font-heading-primary)";
 
-const statusStyles = {
-  "not-invited": { bg: "rgba(107,114,128,0.1)", color: "#6b7280", label: "Not Invited" },
-  invited: { bg: "rgba(59,130,246,0.1)", color: "#3b82f6", label: "Invited" },
-  activated: { bg: "rgba(34,197,94,0.1)", color: "#22c55e", label: "Activated" },
-  suspended: { bg: "rgba(239,68,68,0.1)", color: "#ef4444", label: "Suspended" },
-};
+// Status styles for 5-state model
+function getStatusStyles(C) {
+  return {
+    "pending-approval": { bg: `${C.gold}15`, color: C.gold, label: "Pending Approval" },
+    "approved": { bg: `${C.blue}15`, color: C.blue, label: "Approved" },
+    "invited": { bg: `${C.blue}15`, color: C.blue, label: "Invited" },
+    "activated": { bg: `${C.green}15`, color: C.green, label: "Activated" },
+    "suspended": { bg: `${C.rose}15`, color: C.rose, label: "Suspended" },
+    "rejected": { bg: `${C.grey}15`, color: C.grey, label: "Rejected" },
+  };
+}
 
 export default function VendorAccountsTable({ vendors, C, onAction, loading, currentPage, totalPages, onPageChange }) {
   const [expandedId, setExpandedId] = useState(null);
@@ -57,12 +62,12 @@ export default function VendorAccountsTable({ vendors, C, onAction, loading, cur
               borderBottom: `1px solid ${C.gold}30`,
             }}
           >
-            <th style={tableHeaderStyle(NU)}>Vendor Name</th>
-            <th style={tableHeaderStyle(NU)}>Email</th>
-            <th style={tableHeaderStyle(NU)}>Status</th>
-            <th style={tableHeaderStyle(NU)}>Activation Status</th>
-            <th style={tableHeaderStyle(NU)}>Last Login</th>
-            <th style={tableHeaderStyle(NU)}>Actions</th>
+            <th style={tableHeaderStyle(NU, C)}>Vendor Name</th>
+            <th style={tableHeaderStyle(NU, C)}>Email</th>
+            <th style={tableHeaderStyle(NU, C)}>Status</th>
+            <th style={tableHeaderStyle(NU, C)}>Activation Status</th>
+            <th style={tableHeaderStyle(NU, C)}>Last Login</th>
+            <th style={tableHeaderStyle(NU, C)}>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -89,19 +94,24 @@ export default function VendorAccountsTable({ vendors, C, onAction, loading, cur
 
               {/* Status Badge */}
               <td style={tableCellStyle(NU)}>
-                <span
-                  style={{
-                    display: "inline-block",
-                    padding: "4px 12px",
-                    backgroundColor: statusStyles[vendor.status]?.bg || statusStyles["not-invited"].bg,
-                    color: statusStyles[vendor.status]?.color || statusStyles["not-invited"].color,
-                    borderRadius: 4,
-                    fontSize: 11,
-                    fontWeight: 600,
-                  }}
-                >
-                  {statusStyles[vendor.status]?.label || vendor.status}
-                </span>
+                {(() => {
+                  const statusStyles = getStatusStyles(C);
+                  return (
+                    <span
+                      style={{
+                        display: "inline-block",
+                        padding: "4px 12px",
+                        backgroundColor: statusStyles[vendor.status]?.bg || statusStyles["pending-approval"].bg,
+                        color: statusStyles[vendor.status]?.color || statusStyles["pending-approval"].color,
+                        borderRadius: 4,
+                        fontSize: 11,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {statusStyles[vendor.status]?.label || vendor.status}
+                    </span>
+                  );
+                })()}
               </td>
 
               {/* Activation Status with Countdown */}
@@ -150,18 +160,59 @@ export default function VendorAccountsTable({ vendors, C, onAction, loading, cur
                         minWidth: 180,
                       }}
                     >
-                      {/* Send/Resend Activation */}
-                      {vendor.status === "not-invited" || vendor.status === "invited" ? (
+                      {/* Approve Account (Pending Approval) */}
+                      {vendor.status === "pending-approval" && (
                         <button
                           onClick={() => {
-                            handleActionClick(vendor.status === "invited" ? "resend" : "send", vendor);
+                            handleActionClick("approve", vendor);
                             setExpandedId(null);
                           }}
                           style={dropdownItemStyle(NU, C)}
                         >
-                          {vendor.status === "invited" ? "📧 Resend Invite" : "📧 Send Invite"}
+                          ✓ Approve Account
                         </button>
-                      ) : null}
+                      )}
+
+                      {/* Reject Account (Pending Approval) */}
+                      {vendor.status === "pending-approval" && (
+                        <button
+                          onClick={() => {
+                            if (confirm(`Reject account for ${vendor.name}? They will not be able to create an account.`)) {
+                              handleActionClick("reject", vendor);
+                              setExpandedId(null);
+                            }
+                          }}
+                          style={dropdownItemStyle(NU, C, true)}
+                        >
+                          ✕ Reject Account
+                        </button>
+                      )}
+
+                      {/* Send Activation Invite (Approved or invited) */}
+                      {vendor.status === "approved" && (
+                        <button
+                          onClick={() => {
+                            handleActionClick("send", vendor);
+                            setExpandedId(null);
+                          }}
+                          style={dropdownItemStyle(NU, C)}
+                        >
+                          📧 Send Activation Email
+                        </button>
+                      )}
+
+                      {/* Resend Activation (Already invited) */}
+                      {vendor.status === "invited" && (
+                        <button
+                          onClick={() => {
+                            handleActionClick("resend", vendor);
+                            setExpandedId(null);
+                          }}
+                          style={dropdownItemStyle(NU, C)}
+                        >
+                          📧 Resend Activation Email
+                        </button>
+                      )}
 
                       {/* Open as Vendor */}
                       {vendor.status === "activated" && (
@@ -176,20 +227,20 @@ export default function VendorAccountsTable({ vendors, C, onAction, loading, cur
                         </button>
                       )}
 
-                      {/* Disable Account */}
-                      {vendor.status === "activated" || vendor.status === "invited" ? (
+                      {/* Suspend/Disable Account */}
+                      {(vendor.status === "activated" || vendor.status === "invited" || vendor.status === "approved") && (
                         <button
                           onClick={() => {
-                            if (confirm(`Disable account for ${vendor.name}?`)) {
+                            if (confirm(`Disable account for ${vendor.name}? They will not be able to login.`)) {
                               handleActionClick("disable", vendor);
                               setExpandedId(null);
                             }
                           }}
                           style={dropdownItemStyle(NU, C, true)}
                         >
-                          🔒 Disable Account
+                          🔒 Suspend Account
                         </button>
-                      ) : null}
+                      )}
 
                       {/* View Details */}
                       <button
@@ -270,15 +321,20 @@ export default function VendorAccountsTable({ vendors, C, onAction, loading, cur
  * Get activation status display with countdown for invited vendors
  */
 function getActivationStatusDisplay(vendor, C) {
-  // Not invited - no display
-  if (vendor.status === "not-invited") {
-    return <div style={{ fontSize: 12, color: C.grey }}>—</div>;
+  // Pending approval - no activation yet
+  if (vendor.status === "pending-approval") {
+    return <div style={{ fontSize: 12, color: C.grey }}>Awaiting approval</div>;
+  }
+
+  // Approved - no activation yet
+  if (vendor.status === "approved") {
+    return <div style={{ fontSize: 12, color: C.grey }}>Ready to invite</div>;
   }
 
   // Activated - show green checkmark
   if (vendor.status === "activated") {
     return (
-      <div style={{ fontSize: 12, color: "#22c55e", fontWeight: 600 }}>
+      <div style={{ fontSize: 12, color: C.green, fontWeight: 600 }}>
         ✓ Activated
       </div>
     );
@@ -287,8 +343,17 @@ function getActivationStatusDisplay(vendor, C) {
   // Suspended - show suspended label
   if (vendor.status === "suspended") {
     return (
-      <div style={{ fontSize: 12, color: "#ef4444", fontWeight: 600 }}>
+      <div style={{ fontSize: 12, color: C.rose, fontWeight: 600 }}>
         🔒 Suspended
+      </div>
+    );
+  }
+
+  // Rejected - show rejected label
+  if (vendor.status === "rejected") {
+    return (
+      <div style={{ fontSize: 12, color: C.grey, fontWeight: 600 }}>
+        ✕ Rejected
       </div>
     );
   }
@@ -299,18 +364,18 @@ function getActivationStatusDisplay(vendor, C) {
     const now = new Date();
     const daysRemaining = Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24));
 
-    let color = "#3b82f6"; // blue
+    let color = C.blue;
     let label = `${daysRemaining} days`;
 
     // Change color to warning if less than 1 day remaining
     if (daysRemaining <= 0) {
-      color = "#ef4444"; // red - expired
+      color = C.rose; // red - expired
       label = "Expired";
     } else if (daysRemaining === 1) {
-      color = "#f97316"; // orange - expires today
+      color = C.gold; // orange - expires today
       label = "Expires today";
     } else if (daysRemaining < 3) {
-      color = "#f97316"; // orange - warning
+      color = C.gold; // orange - warning
       label = `${daysRemaining} days left`;
     }
 
@@ -325,7 +390,7 @@ function getActivationStatusDisplay(vendor, C) {
   return <div style={{ fontSize: 12, color: C.grey }}>—</div>;
 }
 
-function tableHeaderStyle(fontFamily) {
+function tableHeaderStyle(fontFamily, C) {
   return {
     padding: "12px 16px",
     textAlign: "left",
@@ -334,7 +399,7 @@ function tableHeaderStyle(fontFamily) {
     fontWeight: 700,
     letterSpacing: "0.05em",
     textTransform: "uppercase",
-    color: "#6b7280",
+    color: C?.grey || "#6b7280",
   };
 }
 
@@ -357,9 +422,9 @@ function dropdownItemStyle(fontFamily, C, isDanger = false) {
     background: "none",
     fontFamily,
     fontSize: 12,
-    color: isDanger ? "#ef4444" : C.text,
+    color: isDanger ? C.rose : C.text,
     cursor: "pointer",
     transition: "all 0.15s",
-    borderBottom: "1px solid rgba(0,0,0,0.05)",
+    borderBottom: `1px solid ${C.border}`,
   };
 }

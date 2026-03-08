@@ -13,6 +13,8 @@ import {
   resendActivationEmail,
   disableVendorAccount,
   getVendorDetails,
+  approveVendorAccount,
+  rejectVendorAccount,
 } from "./vendorAccountsService";
 
 const NU = "var(--font-body)";
@@ -109,6 +111,34 @@ export default function VendorAccountsPage({ C }) {
     }
   };
 
+  // Handle Approve Account
+  const handleApproveAccount = async (vendor) => {
+    // Get current user ID (from auth context or session)
+    const adminId = null; // TODO: Get from auth context
+    const { error } = await approveVendorAccount(vendor.id, adminId);
+
+    if (error) {
+      showMessage(`Error approving account: ${error.message || "Unknown error"}`, "error");
+    } else {
+      showMessage(`Account for ${vendor.name} has been approved`, "success");
+      await loadVendors();
+    }
+  };
+
+  // Handle Reject Account
+  const handleRejectAccount = async (vendor) => {
+    // Get current user ID (from auth context or session)
+    const adminId = null; // TODO: Get from auth context
+    const { error } = await rejectVendorAccount(vendor.id, adminId);
+
+    if (error) {
+      showMessage(`Error rejecting account: ${error.message || "Unknown error"}`, "error");
+    } else {
+      showMessage(`Account for ${vendor.name} has been rejected`, "success");
+      await loadVendors();
+    }
+  };
+
   // Handle Disable Account
   const handleDisableAccount = async (vendor) => {
     const { error } = await disableVendorAccount(vendor.id);
@@ -149,6 +179,12 @@ export default function VendorAccountsPage({ C }) {
   // Main action dispatcher
   const handleTableAction = (action, vendor) => {
     switch (action) {
+      case "approve":
+        handleApproveAccount(vendor);
+        break;
+      case "reject":
+        handleRejectAccount(vendor);
+        break;
       case "send":
         handleSendActivation(vendor, false);
         break;
@@ -187,10 +223,10 @@ export default function VendorAccountsPage({ C }) {
           style={{
             marginBottom: 20,
             padding: "12px 16px",
-            backgroundColor: messageType === "success" ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
-            border: `1px solid ${messageType === "success" ? "#22c55e" : "#ef4444"}`,
+            backgroundColor: messageType === "success" ? `${C.green}15` : `${C.rose}15`,
+            border: `1px solid ${messageType === "success" ? C.green : C.rose}`,
             borderRadius: "var(--lwd-radius-input)",
-            color: messageType === "success" ? "#15803d" : "#991b1b",
+            color: messageType === "success" ? C.green : C.rose,
             fontFamily: NU,
             fontSize: 12,
           }}
@@ -227,13 +263,15 @@ export default function VendorAccountsPage({ C }) {
         </button>
 
         {/* Status Filters */}
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {[
             { key: "all", label: "All" },
-            { key: "not-invited", label: "Not Invited" },
+            { key: "pending-approval", label: "Pending Approval" },
+            { key: "approved", label: "Approved" },
             { key: "invited", label: "Invited" },
             { key: "activated", label: "Activated" },
             { key: "suspended", label: "Suspended" },
+            { key: "rejected", label: "Rejected" },
           ].map((filter) => (
             <button
               key={filter.key}
@@ -335,7 +373,7 @@ function VendorDetailsModal({ vendor, C, onClose }) {
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(0,0,0,0.5)",
+        backgroundColor: "rgba(0,0,0,0.25)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
