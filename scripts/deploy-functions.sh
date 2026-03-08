@@ -33,7 +33,26 @@ if ! command -v supabase &> /dev/null; then
 fi
 
 # Check if we're in a linked Supabase project
-if [ ! -f "$PROJECT_ROOT/.supabase/config.toml" ]; then
+# Try multiple detection methods for compatibility with different CLI versions
+PROJECT_REF=""
+
+# Method 1: Check .supabase/config.toml
+if [ -f "$PROJECT_ROOT/.supabase/config.toml" ]; then
+    PROJECT_REF=$(grep -oP 'project_id = "\K[^"]+' "$PROJECT_ROOT/.supabase/config.toml" 2>/dev/null)
+fi
+
+# Method 2: Try supabase projects list (doesn't require Docker)
+if [ -z "$PROJECT_REF" ]; then
+    PROJECT_REF=$(supabase projects list 2>/dev/null | head -1 | awk '{print $1}')
+fi
+
+# Method 3: Check for ~/.supabase/projects.json
+if [ -z "$PROJECT_REF" ]; then
+    PROJECT_REF=$(grep -oP '"project_ref":\s*"\K[^"]+' ~/.supabase/projects.json 2>/dev/null | head -1)
+fi
+
+# If still not found, we're not linked
+if [ -z "$PROJECT_REF" ] || [ "$PROJECT_REF" = "unknown" ]; then
     echo -e "${YELLOW}⚠️  Not linked to a Supabase project${NC}"
     echo ""
     echo "Run this first:"
@@ -41,9 +60,6 @@ if [ ! -f "$PROJECT_ROOT/.supabase/config.toml" ]; then
     echo ""
     exit 1
 fi
-
-# Extract project ref from config
-PROJECT_REF=$(grep -oP 'project_id = "\K[^"]+' "$PROJECT_ROOT/.supabase/config.toml" 2>/dev/null || echo "unknown")
 
 echo -e "${BLUE}Project: $PROJECT_REF${NC}"
 echo ""
