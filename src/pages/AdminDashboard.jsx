@@ -4,7 +4,7 @@
 // Light/dark mode toggle. Institutional. Operational.
 // For Yasmine and Taiwo. Not for venues.
 
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, Suspense } from "react";
 import { ThemeCtx } from "../theme/ThemeContext";
 import { DARK_C } from "../theme/tokens";
 import { ITALY_COUNTRY } from "../data/italy/country.js";
