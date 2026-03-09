@@ -7,10 +7,10 @@ import FeaturesSection from './sections/FeaturesSection';
 import CommercialDetailsSection from './sections/CommercialDetailsSection';
 import MediaSection from './sections/MediaSection';
 import SEOSection from './sections/SEOSection';
-import { getDarkPalette } from '../../theme/tokens';
+import { getLightPalette } from '../../theme/tokens';
 
-// Use dark palette for admin components
-const C = getDarkPalette();
+// Use light palette for listing studio
+const C = getLightPalette();
 const NU = "'Nunito', sans-serif";
 const GD = "'Playfair Display', Georgia, serif";
 

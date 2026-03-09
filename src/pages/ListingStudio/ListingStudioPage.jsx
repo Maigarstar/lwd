@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react';
 import ListingEditor from './ListingEditor';
-import { getDarkPalette } from '../../theme/tokens';
+import { getLightPalette } from '../../theme/tokens';
 
-// Use dark palette for admin components
-const C = getDarkPalette();
+// Use light palette for listing studio
+const C = getLightPalette();
 
 /**
  * ListingStudio router page
