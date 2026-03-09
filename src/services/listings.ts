@@ -241,6 +241,24 @@ function mapFormToDatabaseFields(data: any): any {
     // Catering cards (max 3 — stored as JSONB array)
     'cateringEnabled':         'catering_enabled',
     'cateringCards':           'catering_cards',
+    // Wedding Weekend day cards (max 4)
+    'weddingWeekendEnabled':   'wedding_weekend_enabled',
+    'weddingWeekendSubtitle':  'wedding_weekend_subtitle',
+    'weddingWeekendDays':      'wedding_weekend_days',
+    // On the Estate + Nearby Experiences
+    'estateEnabled':           'estate_enabled',
+    'estateItems':             'estate_items',
+    'nearbyEnabled':           'nearby_enabled',
+    'nearbyItems':             'nearby_items',
+    // FAQ section
+    'faqEnabled':              'faq_enabled',
+    'faqTitle':                'faq_title',
+    'faqSubtitle':             'faq_subtitle',
+    'faqCtaEnabled':           'faq_cta_enabled',
+    'faqCtaHeadline':          'faq_cta_headline',
+    'faqCtaSubtext':           'faq_cta_subtext',
+    'faqCtaButtonText':        'faq_cta_button_text',
+    'faqCategories':           'faq_categories',
     // Venue spaces (max 5 — stored as JSONB array)
     'spaces': 'spaces',
     // Rooms & accommodation

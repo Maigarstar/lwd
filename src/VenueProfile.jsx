@@ -373,6 +373,61 @@ const VENUE = {
     bio: "We have hosted over 300 weddings at Villa Rosanova across four decades. I personally oversee every celebration to ensure it exceeds every expectation.",
     memberSince: 2019,
   },
+  weddingWeekend: {
+    enabled: true,
+    subtitle: "Villa Rosanova is designed for multi-day celebrations — a full wedding weekend experience",
+    days: [
+      { id: 'd1', day: "Thursday",  title: "Arrival Day",       desc: "Guests settle in. Welcome drinks on the loggia. Private vineyard tour at golden hour.", sortOrder: 0 },
+      { id: 'd2', day: "Friday",    title: "Welcome Evening",   desc: "Rehearsal dinner in the wine cellar. Intimate, candlelit, unforgettable.", sortOrder: 1 },
+      { id: 'd3', day: "Saturday",  title: "The Wedding",       desc: "Ceremony in the Cypress Garden. Reception in the Grand Salon. Celebrate until dawn.", sortOrder: 2 },
+      { id: 'd4', day: "Sunday",    title: "Farewell Brunch",   desc: "Late breakfast on the terrace. Final toasts. Memories that last a lifetime.", sortOrder: 3 },
+    ],
+  },
+  estateEnabled: true,
+  nearbyEnabled: true,
+  faq: {
+    enabled: true,
+    title: "Your Guide to Villa Rosanova",
+    subtitle: "Curated answers to every question — from your first enquiry to your final farewell toast.",
+    ctaEnabled: true,
+    ctaHeadline: "Still have a question?",
+    ctaSubtext: "Our team responds within 2 hours — we'd love to help.",
+    ctaButtonText: "Ask a question",
+    categories: [
+      {
+        category: "The Venue", icon: "I",
+        questions: [
+          { q: "Is Villa Rosanova available for exclusive use?", a: "Yes — Villa Rosanova is available for exclusive hire from Thursday to Sunday. Exclusive use includes all 24 bedrooms and 6 suites, full use of the grounds, gardens, pool pavilion and all venue spaces. Pricing from £28,000 for the full weekend." },
+          { q: "What is the maximum guest capacity?", a: "The estate accommodates up to 200 guests for a ceremony, 160 for a seated dinner and 180 for a standing reception. For intimate celebrations, we welcome parties from 20 guests." },
+          { q: "Can we hold both the ceremony and reception here?", a: "Absolutely. The Cypress Garden seats 200 for outdoor ceremonies, while the Grand Salon accommodates 160 for indoor ceremonies. All reception spaces are on the same estate." },
+        ],
+      },
+      {
+        category: "Catering & Drink", icon: "II",
+        questions: [
+          { q: "Do you work with an in-house caterer or can we bring our own?", a: "We have an award-winning in-house culinary team led by Chef Marco Bellini. External caterers are permitted with prior approval and a corkage arrangement. Our sommelier curates a bespoke wine list featuring our own estate Chianti Classico." },
+          { q: "Can you accommodate dietary requirements?", a: "Yes — our kitchen is fully equipped to cater for vegan, vegetarian, halal, kosher and gluten-free guests. Please advise your dedicated event planner of any requirements when confirming your booking." },
+          { q: "Is there a corkage fee if we bring our own wine?", a: "External wine and spirits are welcome at £18 per bottle. We recommend our estate wine list as a first choice — our Chianti Classico is particularly popular with guests." },
+        ],
+      },
+      {
+        category: "Accommodation", icon: "III",
+        questions: [
+          { q: "How many guests can stay on the estate overnight?", a: "Villa Rosanova sleeps 58 guests across 24 bedrooms and 6 suites. All rooms are uniquely decorated and include en-suite bathrooms. Bridal and groom suites are available with dedicated dressing areas." },
+          { q: "What are the check-in and check-out times?", a: "Check-in is from 3pm on your arrival day. Check-out is by 11am on your departure day. For exclusive use bookings, we are flexible around your schedule — please discuss timing with your event planner." },
+        ],
+      },
+      {
+        category: "Getting Here", icon: "IV",
+        questions: [
+          { q: "What is the closest airport?", a: "Florence Airport (FLR) is 45 minutes by car (42km). We can arrange private transfers and helicopter arrivals from FLR — 20 minutes by helicopter. Pisa (PSA) is 70 minutes and Bologna (BLQ) is 90 minutes." },
+          { q: "Is there parking on the estate?", a: "Yes — complimentary secure parking for up to 60 vehicles within the estate grounds. For larger parties, additional overflow parking is available 200m from the entrance with a complimentary shuttle." },
+        ],
+      },
+    ],
+  },
+  similarVenuesEnabled: true,
+  recentlyViewedEnabled: true,
 };
 
 // ─── COMPUTED BACKWARD-COMPAT FIELDS ─────────────────────────────────────────
@@ -3799,13 +3854,12 @@ function RoomsSection({ venue }) {
   const isMobile = useIsMobile();
   const acc = venue.accommodation;
   if (!acc || (!acc.totalRooms && !acc.description)) return null;
-
-  const sideImg = acc.images?.[0] || venue.imgs?.[2] || venue.imgs?.[0];
+  const [roomsLightboxIdx, setRoomsLightboxIdx] = useState(null);
 
   return (
     <section id="rooms" style={{ marginBottom: 56 }}>
       <SectionHeading title="Rooms & Accommodation" />
-      <SectionLayout sideImg={sideImg} isMobile={isMobile}>
+      <>
         {/* Stats bar */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
           {acc.type && (
@@ -3860,12 +3914,25 @@ function RoomsSection({ venue }) {
               <img
                 key={i} src={src} alt={`Room ${i + 1}`}
                 loading="lazy"
-                style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', borderRadius: 2 }}
+                onClick={() => setRoomsLightboxIdx(i)}
+                style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', borderRadius: 2, cursor: 'pointer' }}
               />
             ))}
           </div>
         )}
-      </SectionLayout>
+        {roomsLightboxIdx !== null && (() => {
+          const lightboxImages = (acc.images || []).slice(0, 6).map(src => ({ src, title: '' }));
+          return (
+            <MenuImageModal
+              images={lightboxImages}
+              idx={roomsLightboxIdx}
+              onClose={() => setRoomsLightboxIdx(null)}
+              onPrev={() => setRoomsLightboxIdx(i => Math.max(0, i - 1))}
+              onNext={() => setRoomsLightboxIdx(i => Math.min(lightboxImages.length - 1, i + 1))}
+            />
+          );
+        })()}
+      </>
     </section>
   );
 }
@@ -4132,11 +4199,14 @@ function VenueTypeSection({ venue }) {
 }
 
 // ─── WEDDING WEEKEND ─────────────────────────────────────────────────────────
-function WeddingWeekend({ experiences }) {
+function WeddingWeekend({ venue }) {
   const C = useT();
   const isMobile = useIsMobile();
-  const estate  = experiences.filter(e => e.category === "estate").slice(0, 6);
-  const nearby  = experiences.filter(e => e.category === "nearby").slice(0, 6);
+  const ww = venue.weddingWeekend;
+  if (!ww || ww.enabled === false) return null;
+  const experiences = venue.experiences || [];
+  const estate  = venue.estateEnabled !== false ? experiences.filter(e => e.category === "estate").slice(0, 6) : [];
+  const nearby  = venue.nearbyEnabled !== false ? experiences.filter(e => e.category === "nearby").slice(0, 6) : [];
   const formatDistance = (mins) => {
     if (!mins) return null;
     if (mins < 60) return `${mins} min`;
@@ -4168,15 +4238,18 @@ function WeddingWeekend({ experiences }) {
     </div>
   );
 
-  const days = [
-    { day: "Thursday", title: "Arrival Day", desc: "Guests settle in. Welcome drinks on the loggia. Private vineyard tour at golden hour." },
-    { day: "Friday", title: "Welcome Evening", desc: "Rehearsal dinner in the wine cellar. Intimate, candlelit, unforgettable." },
-    { day: "Saturday", title: "The Wedding", desc: "Ceremony in the Cypress Garden. Reception in the Grand Salon. Celebrate until dawn." },
-    { day: "Sunday", title: "Farewell Brunch", desc: "Late breakfast on the terrace. Final toasts. Memories that last a lifetime." },
-  ];
+  const days = (ww.days || [])
+    .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999))
+    .slice(0, 4)
+    .map(d => ({
+      ...d,
+      day:   String(d.day   || '').slice(0, 12),
+      title: String(d.title || '').slice(0, 28),
+      desc:  String(d.desc  || '').slice(0, 110),
+    }));
 
   const dayCard = (d) => (
-    <div key={d.day} style={{ padding: 20, border: `1px solid ${C.border}`, background: C.surface, flex: isMobile ? "0 0 220px" : undefined, scrollSnapAlign: isMobile ? "start" : undefined }}>
+    <div key={d.day} style={{ padding: 20, border: `1px solid ${C.border}`, background: C.surface, flex: isMobile ? "0 0 220px" : undefined, scrollSnapAlign: isMobile ? "start" : undefined, minHeight: isMobile ? undefined : 130, overflow: 'hidden' }}>
       <div style={{ fontFamily: FB, fontSize: 10, color: C.gold, letterSpacing: "1px", textTransform: "uppercase", fontWeight: 700, marginBottom: 6 }}>{d.day}</div>
       <div style={{ fontFamily: FD, fontSize: 18, color: C.text, marginBottom: 8 }}>{d.title}</div>
       <p style={{ fontFamily: FB, fontSize: 12, color: C.textLight, lineHeight: 1.65 }}>{d.desc}</p>
@@ -4185,31 +4258,33 @@ function WeddingWeekend({ experiences }) {
 
   return (
     <section id="things-to-do" style={{ marginBottom: 56 }}>
-      <SectionHeading title="Your Wedding Weekend" subtitle="Villa Rosanova is designed for multi-day celebrations — a full wedding weekend experience" />
+      <SectionHeading title="Your Wedding Weekend" subtitle={ww.subtitle || ''} />
       {/* Days */}
       {isMobile ? (
         <div style={{ display: "flex", gap: 12, overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", marginBottom: 36, scrollbarWidth: "none", msOverflowStyle: "none" }} className="vp-weekend-slider">
           {days.map(dayCard)}
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 36 }}>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(days.length, 4)}, 1fr)`, gap: 12, marginBottom: 36 }}>
           {days.map(dayCard)}
         </div>
       )}
       {/* Experiences */}
-      <div className="vp-experiences-grid" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 24 : 32 }}>
-        {[
-          { title: "On the Estate", items: estate },
-          { title: "Nearby Experiences", items: nearby },
-        ].map(g => (
-          <div key={g.title}>
-            <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 14 }}>{g.title}</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {g.items.map(experienceRow)}
+      {(estate.length > 0 || nearby.length > 0) && (
+        <div className="vp-experiences-grid" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : (estate.length > 0 && nearby.length > 0 ? "1fr 1fr" : "1fr"), gap: isMobile ? 24 : 32 }}>
+          {[
+            estate.length > 0 && { title: "On the Estate", items: estate },
+            nearby.length > 0 && { title: "Nearby Experiences", items: nearby },
+          ].filter(Boolean).map(g => (
+            <div key={g.title}>
+              <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 14 }}>{g.title}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {g.items.map(experienceRow)}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -4324,7 +4399,7 @@ function Reviews({ testimonials, venue }) {
   return (
     <section id="reviews" style={{ marginBottom: 56 }}>
       <SectionHeading title="Reviews" />
-      <SectionLayout sideImg={venue.imgs?.[1]} isMobile={isMobile}>
+      <>
 
         {/* Summary bar */}
         <div className="vp-reviews-summary" style={{ display: isMobile ? "flex" : "grid", flexDirection: isMobile ? "column" : undefined, gridTemplateColumns: isMobile ? undefined : "200px 1fr", gap: isMobile ? 20 : 40, marginBottom: 28, padding: isMobile ? 20 : 32, border: `1px solid ${C.border}`, background: C.surface }}>
@@ -4395,7 +4470,7 @@ function Reviews({ testimonials, venue }) {
             </div>
           </>
         )}
-      </SectionLayout>
+      </>
     </section>
   );
 }
@@ -4680,9 +4755,13 @@ const FAQ_DATA = [
   },
 ];
 
-function FAQSection({ onAsk }) {
+function FAQSection({ venue, onAsk }) {
   const C = useT();
   const [openItems, setOpenItems] = useState({});
+  const faqData = venue?.faq;
+  if (!faqData || faqData.enabled === false) return null;
+  const categories = (faqData.categories || []).filter(c => c.questions?.length > 0).slice(0, 4);
+  if (categories.length === 0) return null;
 
   const toggle = (catIdx, qIdx) => {
     const key = `${catIdx}-${qIdx}`;
@@ -4692,12 +4771,12 @@ function FAQSection({ onAsk }) {
   return (
     <section id="faqs" style={{ marginBottom: 56 }}>
       <SectionHeading
-        title="Your Guide to Villa Rosanova"
-        subtitle="Curated answers to every question — from your first enquiry to your final farewell toast."
+        title={faqData.title || "FAQs"}
+        subtitle={faqData.subtitle || ""}
       />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
-        {FAQ_DATA.slice(0, 4).map((cat, catIdx) => (
+        {categories.map((cat, catIdx) => (
           <div key={cat.category} style={{
             background: C.bgAlt,
             border: `1px solid ${C.border}`,
@@ -4775,26 +4854,27 @@ function FAQSection({ onAsk }) {
         ))}
       </div>
 
-      {/* CTA at bottom */}
-      <div style={{
-        marginTop: 32, padding: "20px 24px",
-        background: C.goldLight, border: `1px solid ${C.goldBorder}`,
-        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
-      }}>
-        <div>
-          <div style={{ fontFamily: FD, fontSize: 17, color: C.text, marginBottom: 4 }}>Still have a question?</div>
-          <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>Our team responds within {FAQ_DATA.length > 0 ? "2 hours" : "24 hours"} — we'd love to help.</div>
+      {faqData.ctaEnabled !== false && (
+        <div style={{
+          marginTop: 32, padding: "20px 24px",
+          background: C.goldLight, border: `1px solid ${C.goldBorder}`,
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+        }}>
+          <div>
+            <div style={{ fontFamily: FD, fontSize: 17, color: C.text, marginBottom: 4 }}>{faqData.ctaHeadline || "Still have a question?"}</div>
+            <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>{faqData.ctaSubtext || "Our team is here to help."}</div>
+          </div>
+          <button style={{
+            padding: "11px 24px", background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)",
+            color: "#fff", fontFamily: FB, fontSize: 12, fontWeight: 700,
+            letterSpacing: "0.8px", textTransform: "uppercase", cursor: "pointer",
+            flexShrink: 0, transition: "opacity 0.2s",
+          }}
+            onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
+            onMouseLeave={e => e.currentTarget.style.opacity = "1"}
+          onClick={onAsk}>{faqData.ctaButtonText || "Ask a question"} →</button>
         </div>
-        <button style={{
-          padding: "11px 24px", background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)",
-          color: "#fff", fontFamily: FB, fontSize: 12, fontWeight: 700,
-          letterSpacing: "0.8px", textTransform: "uppercase", cursor: "pointer",
-          flexShrink: 0, transition: "opacity 0.2s",
-        }}
-          onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
-          onMouseLeave={e => e.currentTarget.style.opacity = "1"}
-        onClick={onAsk}>Ask a question →</button>
-      </div>
+      )}
     </section>
   );
 }
@@ -5759,11 +5839,11 @@ export default function VenueProfile({ onBack = null }) {
               <RoomsSection venue={VENUE} />
               <DiningSection venue={VENUE} />
               <VenueTypeSection venue={VENUE} />
-              <WeddingWeekend experiences={VENUE.experiences} />
+              <WeddingWeekend venue={VENUE} />
               <ContactSection venue={VENUE} />
               <GettingHere access={VENUE.access} />
               <Reviews testimonials={VENUE.testimonials} venue={VENUE} />
-              <FAQSection onAsk={() => setEnquiryOpen(true)} />
+              <FAQSection venue={VENUE} onAsk={() => setEnquiryOpen(true)} />
               <SimilarVenues venues={VENUE.similar} />
               <RecentlyViewed />
             </div>

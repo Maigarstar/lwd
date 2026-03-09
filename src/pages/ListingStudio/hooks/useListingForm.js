@@ -66,6 +66,24 @@ export const useListingForm = (listingId = null) => {
     // ── Catering cards (max 3 — icon + title + description + subtext) ────────
     catering_enabled: false,
     catering_cards: [],  // [{ id, icon, title, description, subtext, sortOrder }]
+    // ── Wedding Weekend day cards (max 4) ─────────────────────────────────────
+    wedding_weekend_enabled: false,
+    wedding_weekend_subtitle: '',
+    wedding_weekend_days: [],  // [{ id, day, title, desc, sortOrder }]
+    // ── On the Estate + Nearby Experiences ───────────────────────────────────
+    estate_enabled: false,
+    estate_items: [],  // [{ id, icon, title, status, note, sortOrder }]
+    nearby_enabled: false,
+    nearby_items: [],  // [{ id, icon, title, status, note, sortOrder }]
+    // ── FAQ section ──────────────────────────────────────────────────────────
+    faq_enabled: false,
+    faq_title: '',
+    faq_subtitle: '',
+    faq_cta_enabled: true,
+    faq_cta_headline: '',
+    faq_cta_subtext: '',
+    faq_cta_button_text: '',
+    faq_categories: [],  // [{ id, icon, category, questions: [{id, q, a, sortOrder}], sortOrder }]
     // Hero layout style: cinematic | split | magazine | video
     // cinematic = default (5-image luxury fade transition)
     hero_layout: 'cinematic',
@@ -183,6 +201,21 @@ export const useListingForm = (listingId = null) => {
             exclusive_use_includes: Array.isArray(listing.exclusiveUseIncludes) ? listing.exclusiveUseIncludes : [],
             catering_enabled: listing.cateringEnabled ?? false,
             catering_cards: Array.isArray(listing.cateringCards) ? listing.cateringCards : [],
+            wedding_weekend_enabled: listing.weddingWeekendEnabled ?? false,
+            wedding_weekend_subtitle: listing.weddingWeekendSubtitle || '',
+            wedding_weekend_days: Array.isArray(listing.weddingWeekendDays) ? listing.weddingWeekendDays : [],
+            estate_enabled: listing.estateEnabled ?? false,
+            estate_items: Array.isArray(listing.estateItems) ? listing.estateItems : [],
+            nearby_enabled: listing.nearbyEnabled ?? false,
+            nearby_items: Array.isArray(listing.nearbyItems) ? listing.nearbyItems : [],
+            faq_enabled: listing.faqEnabled ?? false,
+            faq_title: listing.faqTitle || '',
+            faq_subtitle: listing.faqSubtitle || '',
+            faq_cta_enabled: listing.faqCtaEnabled ?? true,
+            faq_cta_headline: listing.faqCtaHeadline || '',
+            faq_cta_subtext: listing.faqCtaSubtext || '',
+            faq_cta_button_text: listing.faqCtaButtonText || '',
+            faq_categories: Array.isArray(listing.faqCategories) ? listing.faqCategories : [],
             status: listing.status || 'draft',
             published_at: listing.publishedAt || null,
             visibility: listing.isHidden ? 'private' : 'public',
@@ -305,13 +338,36 @@ export const useListingForm = (listingId = null) => {
         // Catering cards
         cateringEnabled: formData.catering_enabled ?? false,
         cateringCards: (formData.catering_cards || []).map((c, idx) => ({
-          id: c.id,
-          icon: c.icon || 'dining',
-          title: c.title || '',
-          description: c.description || '',
-          subtext: c.subtext || '',
-          sortOrder: c.sortOrder ?? idx,
+          id: c.id, icon: c.icon || 'dining', title: c.title || '',
+          description: c.description || '', subtext: c.subtext || '', sortOrder: c.sortOrder ?? idx,
         })),
+        // Wedding Weekend
+        weddingWeekendEnabled: formData.wedding_weekend_enabled ?? false,
+        weddingWeekendSubtitle: formData.wedding_weekend_subtitle || '',
+        weddingWeekendDays: (formData.wedding_weekend_days || []).map((d, idx) => ({
+          id: d.id, day: (d.day || '').slice(0, 12), title: (d.title || '').slice(0, 28),
+          desc: (d.desc || '').slice(0, 110), sortOrder: d.sortOrder ?? idx,
+        })),
+        // On the Estate + Nearby Experiences
+        estateEnabled: formData.estate_enabled ?? false,
+        estateItems: (formData.estate_items || []).map((it, idx) => ({
+          id: it.id, icon: it.icon || 'nature', title: it.title || '',
+          status: it.status || '', note: it.note || '', sortOrder: it.sortOrder ?? idx,
+        })),
+        nearbyEnabled: formData.nearby_enabled ?? false,
+        nearbyItems: (formData.nearby_items || []).map((it, idx) => ({
+          id: it.id, icon: it.icon || 'nature', title: it.title || '',
+          status: it.status || '', note: it.note || '', sortOrder: it.sortOrder ?? idx,
+        })),
+        // FAQ
+        faqEnabled: formData.faq_enabled ?? false,
+        faqTitle: formData.faq_title || '',
+        faqSubtitle: formData.faq_subtitle || '',
+        faqCtaEnabled: formData.faq_cta_enabled ?? true,
+        faqCtaHeadline: formData.faq_cta_headline || '',
+        faqCtaSubtext: formData.faq_cta_subtext || '',
+        faqCtaButtonText: formData.faq_cta_button_text || '',
+        faqCategories: formData.faq_categories || [],
         // Venue spaces — strip File objects, keep structured data
         spaces: (formData.spaces || []).map((s, idx) => ({
           id: s.id,

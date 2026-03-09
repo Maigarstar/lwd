@@ -13,6 +13,9 @@ import ExclusiveUseSection from './sections/ExclusiveUseSection';
 import CateringCardsSection from './sections/CateringCardsSection';
 import RoomsSection from './sections/RoomsSection';
 import DiningSection from './sections/DiningSection';
+import WeddingWeekendSection from './sections/WeddingWeekendSection';
+import ExperiencesSection from './sections/ExperiencesSection';
+import FAQSectionEditor from './sections/FAQSectionEditor';
 import SEOSection from './sections/SEOSection';
 import ListingInfoSection from './sections/ListingInfoSection';
 import { getLightPalette } from '../../theme/tokens';
@@ -254,6 +257,15 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
           {showFeatures && (
             <ExclusiveUseSection formData={formData} onChange={handleChange} />
           )}
+
+          {/* Venue-only: Wedding Weekend + Experiences + FAQ */}
+          {showFeatures && (
+            <WeddingWeekendSection formData={formData} onChange={handleChange} />
+          )}
+          {showFeatures && (
+            <ExperiencesSection formData={formData} onChange={handleChange} />
+          )}
+          <FAQSectionEditor formData={formData} onChange={handleChange} />
 
           <SEOSection formData={formData} onChange={handleChange} />
           <ListingInfoSection formData={formData} onChange={handleChange} />
