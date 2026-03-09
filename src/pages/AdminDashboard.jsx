@@ -24,6 +24,7 @@ import PageEditorModule from "./PageStudio/PageEditorModule";
 import HomepageManagerModule from "./PageStudio/HomepageManagerModule";
 import BlogManagerModule from "./PageStudio/BlogManagerModule";
 import ReusableBlocksModule from "./PageStudio/ReusableBlocksModule";
+import ListingStudioPage from "./ListingStudio/ListingStudioPage";
 
 // Font tokens — resolved via CSS custom properties set on admin root
 const GD = "var(--font-heading-primary)";
@@ -6251,16 +6252,8 @@ export default function AdminDashboard({ onBack, onNavigate }) {
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [createListingModal, setCreateListingModal] = useState(false);
-  const [editingListing, setEditingListing] = useState(null);
-  const [listingFormData, setListingFormData] = useState({
-    name: "",
-    category: "wedding-venues",
-    destination: "italy",
-    regionSlug: "",
-  });
-  const [listingFormError, setListingFormError] = useState(null);
-  const [listingFormLoading, setListingFormLoading] = useState(false);
+  const [listingStudioMode, setListingStudioMode] = useState(null); // 'new' or 'edit'
+  const [listingStudioListingId, setListingStudioListingId] = useState(null);
 
   // ── Hash-based routing: listen for hash changes and update activeTab ──
   useEffect(() => {
@@ -6402,90 +6395,6 @@ export default function AdminDashboard({ onBack, onNavigate }) {
     logThemeChange(`Applied preset: ${p.name}`);
   }, [logThemeChange]);
 
-  // ── Save listing to Supabase ──
-  const handleSaveListing = useCallback(async () => {
-    try {
-      setListingFormError(null);
-      setListingFormLoading(true);
-
-      // Get form element and read values using FormData
-      const formEl = window._listingFormRef;
-      if (!formEl) {
-        console.error("❌ Form element not found");
-        setListingFormError("Form element not found");
-        setListingFormLoading(false);
-        return;
-      }
-
-      const formData = new FormData(formEl);
-      const venueName = formData.get("venue_name")?.trim() || "";
-      const category = formData.get("category") || "wedding-venues";
-      const destination = formData.get("destination") || "italy";
-
-      console.log("🟢 handleSaveListing called");
-      console.log("📋 Venue Name (from FormData):", venueName);
-      console.log("📋 Category (from FormData):", category);
-      console.log("📋 Destination (from FormData):", destination);
-
-      if (!venueName) {
-        console.log("❌ Validation failed: venue name is empty");
-        setListingFormError("Venue name is required");
-        setListingFormLoading(false);
-        return;
-      }
-      console.log("✅ Validation passed");
-
-      // Generate slug from name
-      const slug = venueName
-        .toLowerCase()
-        .trim()
-        .replace(/[^\w\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-');
-
-      // Map category to listingType
-      let listingType = 'wedding-venue';
-      if (category === 'wedding-planners') listingType = 'wedding-planner';
-      if (category === 'photographers') listingType = 'photographer';
-      if (category === 'florists') listingType = 'florist';
-
-      // Build listing payload for Supabase
-      const newListing = {
-        name: venueName,
-        slug: slug,
-        listingType: listingType,
-        category: category,
-        categorySlug: category,
-        countrySlug: destination,
-        regionSlug: destination,
-        tier: 'standard',
-        status: 'draft',
-        description: `${venueName} - New listing`,
-        cardTitle: venueName,
-        cardSubtitle: category,
-      };
-
-      console.log("✓ Creating new listing in Supabase:", newListing);
-
-      // Call Supabase insert function
-      const createdListing = await createListing(newListing);
-      console.log("✓ Listing created successfully:", createdListing);
-      console.log("✓ New listing ID:", createdListing.id);
-
-      // Reset form
-      formEl.reset();
-      setCreateListingModal(false);
-      setListingFormError(null);
-
-      // Show success feedback
-      alert("✓ Listing created successfully!\n\nVenue: " + venueName + "\n\nRefresh the page to see it appear in the listings table.");
-    } catch (error) {
-      console.error("✗ Error saving listing:", error);
-      setListingFormError("Failed to save listing: " + (error.message || "Unknown error"));
-    } finally {
-      setListingFormLoading(false);
-    }
-  }, []);
 
   // Collapsible sidebar — track which groups are expanded
   // Default: expand the group that contains the active tab
@@ -6525,8 +6434,8 @@ export default function AdminDashboard({ onBack, onNavigate }) {
 
   const C = darkMode ? customDark : customLight;
 
-  // Nested ListingsModule component (for proper closure binding with onNavigate)
-  const ListingsModule = ({ C, onNavigate }) => {
+  // Nested ListingsModule component - simplified without modal handling
+  const ListingsModule = ({ C }) => {
     const [catFilter, setCatFilter] = useState("all");
     const [statusFilter, setStatusFilter] = useState("all");
     const [tierFilter, setTierFilter] = useState("all");
@@ -6600,11 +6509,11 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <h2 style={{ fontFamily: GD, fontSize: 18, color: C.off, margin: 0, fontWeight: 400 }}>Venue Listings</h2>
-          <button onClick={() => { console.log("Button clicked! onNavigate is:", typeof onNavigate); if (onNavigate) { console.log("Calling onNavigate with admin-listings-new"); onNavigate("admin-listings-new"); } }} style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", padding: "10px 16px", background: C.gold, color: C.black, border: "none", borderRadius: 3, cursor: "pointer", transition: "all 0.15s" }} onMouseEnter={e => { e.currentTarget.style.background = C.gold2; }} onMouseLeave={e => { e.currentTarget.style.background = C.gold; }}>+ Add New Listing</button>
+          <button onClick={() => { setListingStudioMode('new'); }} style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", padding: "10px 16px", background: C.gold, color: C.black, border: "none", borderRadius: 3, cursor: "pointer", transition: "all 0.15s" }} onMouseEnter={e => { e.currentTarget.style.background = C.gold2; }} onMouseLeave={e => { e.currentTarget.style.background = C.gold; }}>+ Add New Listing</button>
         </div>
         {loading && <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: "32px", textAlign: "center", marginBottom: 20 }}><div style={{ fontFamily: NU, fontSize: 13, color: C.grey }}>Loading listings from Supabase...</div></div>}
         {error && <div style={{ background: C.rose + "20", border: `1px solid ${C.rose}`, borderRadius: 4, padding: "16px", marginBottom: 20 }}><div style={{ fontFamily: NU, fontSize: 12, color: C.rose, fontWeight: 600 }}>⚠ {error}</div></div>}
-        {!loading && listings.length === 0 && !error && <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: "48px", textAlign: "center", marginBottom: 20 }}><div style={{ fontFamily: GD, fontSize: 16, color: C.off, marginBottom: 8 }}>No Listings Yet</div><button onClick={() => { if (onNavigate) onNavigate("admin-listings-new"); }} style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, padding: "10px 20px", background: C.gold, color: C.black, border: "none", borderRadius: 3, cursor: "pointer" }}>+ Create First Listing</button></div>}
+        {!loading && listings.length === 0 && !error && <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: "48px", textAlign: "center", marginBottom: 20 }}><div style={{ fontFamily: GD, fontSize: 16, color: C.off, marginBottom: 8 }}>No Listings Yet</div><button onClick={() => { setListingStudioMode('new'); }} style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, padding: "10px 20px", background: C.gold, color: C.black, border: "none", borderRadius: 3, cursor: "pointer" }}>+ Create First Listing</button></div>}
       </div>
     );
   };
@@ -6615,12 +6524,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "partnerships":  return <PartnershipsModule C={C} />;
       case "index":         return <IndexHealthModule C={C} />;
       case "livechat":      return <LiveChatModule C={C} />;
-      case "listings":      return <ListingsModule C={C} onNavigate={(action, data) => {
-        if (action === "admin-listings-new") {
-          setCreateListingModal(true);
-          setEditingListing(data || null);
-        }
-      }} />;
+      case "listings":      return <ListingsModule C={C} />;
       case "vendor-accounts": return <VendorAccountsPage C={C} />;
       case "categories":    return <CategoriesModule C={C} />;
       case "enquiries":     return <AdminAllLeads C={C} />;
@@ -6919,152 +6823,56 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         </aside>
 
         {/* ── Main content ── */}
-        <main className="admin-main" style={{ flex: 1, padding: "40px 48px", overflow: "auto", transition: "background 0.3s" }}>
-          <div style={{ marginBottom: 36 }}>
-            <h1 style={{
-              fontFamily: GD, fontSize: 24, fontWeight: 400,
-              color: C.off, margin: "0 0 6px", transition: "color 0.3s",
-            }}>
-              {ALL_NAV_ITEMS.find((n) => n.key === activeTab)?.label}
-            </h1>
-            <div style={{ width: 24, height: 1, background: C.gold, opacity: 0.4, marginTop: 12 }} />
-          </div>
+        <main className="admin-main" style={{ flex: 1, padding: listingStudioMode ? 0 : "40px 48px", overflow: "auto", transition: "background 0.3s" }}>
+          {/* Show ListingStudio page when in listing studio mode */}
+          {listingStudioMode ? (
+            <ListingStudioPage
+              navigationState={{ mode: listingStudioMode, listingId: listingStudioListingId }}
+              onNavigate={() => {
+                setListingStudioMode(null);
+                setListingStudioListingId(null);
+              }}
+            />
+          ) : (
+            <>
+              <div style={{ marginBottom: 36 }}>
+                <h1 style={{
+                  fontFamily: GD, fontSize: 24, fontWeight: 400,
+                  color: C.off, margin: "0 0 6px", transition: "color 0.3s",
+                }}>
+                  {ALL_NAV_ITEMS.find((n) => n.key === activeTab)?.label}
+                </h1>
+                <div style={{ width: 24, height: 1, background: C.gold, opacity: 0.4, marginTop: 12 }} />
+              </div>
 
-          {/* ── Theme status indicator ── */}
-          <div style={{
-            display: "flex", alignItems: "center", gap: 16, marginBottom: 24,
-            padding: "8px 14px", background: C.dark, borderRadius: 4,
-            border: `1px solid ${C.border}`, fontSize: 10, fontFamily: NU,
-          }}>
-            <span style={{ color: C.grey2, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700 }}>Theme</span>
-            <span style={{ color: darkMode ? C.gold : C.off, fontWeight: 600 }}>{darkMode ? "Dark" : "Light"}</span>
-            <span style={{ width: 1, height: 12, background: C.border }} />
-            <span style={{ color: C.grey2 }}>Admin default:</span>
-            <span style={{ color: C.off, fontWeight: 600 }}>{siteSettings.adminDefaultMode === "dark" ? "Dark" : "Light"}</span>
-            <span style={{ width: 1, height: 12, background: C.border }} />
-            <span style={{ color: C.grey2 }}>Public default:</span>
-            <span style={{ color: C.off, fontWeight: 600 }}>{siteSettings.defaultMode === "dark" ? "Dark" : "Light"}</span>
-            <span style={{ width: 1, height: 12, background: C.border }} />
-            <span style={{
-              color: saveStatus === "saved" ? C.green : saveStatus === "unsaved" ? C.gold : C.grey2,
-              fontWeight: 500,
-            }}>
-              {saveStatus === "saved" ? "● Saved" : saveStatus === "unsaved" ? "● Unsaved" : "● Defaults"}
-            </span>
-          </div>
+              {/* ── Theme status indicator ── */}
+              <div style={{
+                display: "flex", alignItems: "center", gap: 16, marginBottom: 24,
+                padding: "8px 14px", background: C.dark, borderRadius: 4,
+                border: `1px solid ${C.border}`, fontSize: 10, fontFamily: NU,
+              }}>
+                <span style={{ color: C.grey2, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700 }}>Theme</span>
+                <span style={{ color: darkMode ? C.gold : C.off, fontWeight: 600 }}>{darkMode ? "Dark" : "Light"}</span>
+                <span style={{ width: 1, height: 12, background: C.border }} />
+                <span style={{ color: C.grey2 }}>Admin default:</span>
+                <span style={{ color: C.off, fontWeight: 600 }}>{siteSettings.adminDefaultMode === "dark" ? "Dark" : "Light"}</span>
+                <span style={{ width: 1, height: 12, background: C.border }} />
+                <span style={{ color: C.grey2 }}>Public default:</span>
+                <span style={{ color: C.off, fontWeight: 600 }}>{siteSettings.defaultMode === "dark" ? "Dark" : "Light"}</span>
+                <span style={{ width: 1, height: 12, background: C.border }} />
+                <span style={{
+                  color: saveStatus === "saved" ? C.green : saveStatus === "unsaved" ? C.gold : C.grey2,
+                  fontWeight: 500,
+                }}>
+                  {saveStatus === "saved" ? "● Saved" : saveStatus === "unsaved" ? "● Unsaved" : "● Defaults"}
+                </span>
+              </div>
 
-          {renderModule()}
+              {renderModule()}
+            </>
+          )}
         </main>
 
-        {/* ── Listing Creation Modal ── */}
-        {createListingModal && (
-          <div style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex",
-            alignItems: "center", justifyContent: "center", zIndex: 2000,
-          }} onClick={() => setCreateListingModal(false)}>
-            <form ref={(el) => window._listingFormRef = el} style={{
-              background: C.card, borderRadius: 6, padding: "32px", maxWidth: "600px",
-              width: "90%", maxHeight: "80vh", overflowY: "auto", border: `1px solid ${C.border}`,
-              boxShadow: "0 16px 64px rgba(0,0,0,0.4)",
-            }} onClick={e => e.stopPropagation()} onSubmit={e => e.preventDefault()}>
-              <h2 style={{ fontFamily: GD, fontSize: 20, color: C.off, margin: "0 0 24px", fontWeight: 400 }}>
-                {editingListing ? "Edit Listing" : "Create New Listing"}
-              </h2>
-
-              {listingFormError && (
-                <div style={{
-                  background: C.rose + "20", border: `1px solid ${C.rose}`, borderRadius: 4,
-                  padding: "12px", marginBottom: 16,
-                }}>
-                  <div style={{ fontFamily: NU, fontSize: 11, color: C.rose, fontWeight: 600 }}>⚠ {listingFormError}</div>
-                </div>
-              )}
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                <div>
-                  <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, fontWeight: 600, display: "block", marginBottom: 6, letterSpacing: "0.05em", textTransform: "uppercase" }}>Venue Name</label>
-                  <input
-                    name="venue_name"
-                    type="text"
-                    placeholder="e.g., Villa Balbiano"
-                    defaultValue=""
-                    required
-                    style={{
-                      fontFamily: NU, width: "100%", padding: "10px 12px", fontSize: 13,
-                      background: C.black, color: C.white, border: `1px solid ${C.border}`, borderRadius: 3,
-                      outline: "none",
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, fontWeight: 600, display: "block", marginBottom: 6, letterSpacing: "0.05em", textTransform: "uppercase" }}>Category</label>
-                  <select
-                    name="category"
-                    defaultValue="wedding-venues"
-                    style={{
-                      fontFamily: NU, width: "100%", padding: "10px 12px", fontSize: 13,
-                      background: C.black, color: C.white, border: `1px solid ${C.border}`, borderRadius: 3,
-                      outline: "none",
-                    }}>
-                    <option value="wedding-venues">Wedding Venues</option>
-                    <option value="wedding-planners">Wedding Planners</option>
-                    <option value="photographers">Photographers</option>
-                    <option value="florists">Florists</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, fontWeight: 600, display: "block", marginBottom: 6, letterSpacing: "0.05em", textTransform: "uppercase" }}>Destination</label>
-                  <select
-                    name="destination"
-                    defaultValue="italy"
-                    style={{
-                      fontFamily: NU, width: "100%", padding: "10px 12px", fontSize: 13,
-                      background: C.black, color: C.white, border: `1px solid ${C.border}`, borderRadius: 3,
-                      outline: "none",
-                    }}>
-                    <option value="italy">Italy</option>
-                    <option value="france">France</option>
-                    <option value="uk">United Kingdom</option>
-                    <option value="spain">Spain</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", gap: 12, marginTop: 28, justifyContent: "flex-end" }}>
-                <button
-                  type="button"
-                  onClick={() => setCreateListingModal(false)}
-                  disabled={listingFormLoading}
-                  style={{
-                    fontFamily: NU, fontSize: 11, padding: "10px 16px", background: C.dark,
-                    color: C.white, border: `1px solid ${C.border}`, borderRadius: 3, cursor: "pointer",
-                    fontWeight: 600, letterSpacing: "0.05em", transition: "all 0.15s",
-                    opacity: listingFormLoading ? 0.5 : 1,
-                  }}
-                  onMouseEnter={e => !listingFormLoading && (e.currentTarget.style.borderColor = C.gold)}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveListing}
-                  disabled={listingFormLoading}
-                  style={{
-                    fontFamily: NU, fontSize: 11, padding: "10px 16px", background: C.gold,
-                    color: C.black, border: "none", borderRadius: 3, cursor: listingFormLoading ? "not-allowed" : "pointer",
-                    fontWeight: 600, letterSpacing: "0.05em", transition: "all 0.15s",
-                    opacity: listingFormLoading ? 0.7 : 1,
-                  }}
-                  onMouseEnter={e => !listingFormLoading && (e.currentTarget.style.background = C.gold2)}
-                  onMouseLeave={e => e.currentTarget.style.background = C.gold}>
-                  {listingFormLoading ? "Saving..." : (editingListing ? "Save Changes" : "Create Listing")}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
       </div>
     </ThemeCtx.Provider>
   );

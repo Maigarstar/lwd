@@ -1,5 +1,5 @@
 // ─── src/main.jsx ─────────────────────────────────────────────────────────────
-import { useState, useEffect, useRef, StrictMode } from "react";
+import { useState, useEffect, useRef, StrictMode, lazy, Suspense } from "react";
 import { createRoot }           from "react-dom/client";
 
 import { applyThemeToDocument } from "./theme/ThemeLoader";
@@ -49,6 +49,9 @@ import RealWeddingDetailPage  from "./pages/RealWeddingDetailPage.jsx";
 import GettingMarriedDashboard from "./pages/GettingMarriedDashboard.jsx";
 import JoinPage from "./pages/JoinPage.jsx";
 import { VENDORS }            from "./data/vendors.js";
+
+// ── Lazy-loaded admin modules for bundle optimization ──────────────────────────
+const ListingStudioPage = lazy(() => import("./pages/ListingStudio/ListingStudioPage.jsx"));
 
 // ── Design system colors and fonts ───────────────────────────────────────────
 const COLORS = {
@@ -160,7 +163,7 @@ function pathToState(pathname) {
 }
 
 // ── Admin Route Wrapper (properly calls hooks at top level) ──────────────────
-function AdminRoute({ onBack }) {
+function AdminRoute({ onBack, onNavigate }) {
   const { isAuthenticated, loading } = useAdminAuth();
 
   if (loading) {
@@ -172,7 +175,7 @@ function AdminRoute({ onBack }) {
     return null;
   }
 
-  return <AdminDashboard onBack={onBack} />;
+  return <AdminDashboard onBack={onBack} onNavigate={onNavigate} />;
 }
 
 // ── App (router + providers in one place) ────────────────────────────────────
@@ -417,7 +420,11 @@ function App() {
           <AdminLogin onBack={goHome} />
         )}
         {page === "admin" && (
-          <AdminRoute onBack={goHome} />
+          <AdminRoute onBack={goHome} onNavigate={(action, data) => {
+            // Handle admin sub-actions like creating listings
+            // Pass through to AdminDashboard for state management
+            console.log("Admin navigation:", action, data);
+          }} />
         )}
         {page === "vendor-login" && (
           <VendorLogin onLoginSuccess={goVendor} />
