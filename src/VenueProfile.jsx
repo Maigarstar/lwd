@@ -74,7 +74,45 @@ const VENUE = {
   priceFrom: "£12,500",
   capacity: { min: 20, max: 180, ceremony: 200, dinner: 160 },
   verified: true, featured: true,
-  accommodation: { rooms: 24, suites: 6, maxGuests: 58 },
+  accommodation: {
+    type: 'Historic Tuscan Villa',
+    totalRooms: 18,
+    totalSuites: 6,
+    maxOvernightGuests: 40,
+    exclusiveUse: true,
+    minNightStay: 2,
+    description: '<p>Villa Rosanova offers 18 beautifully appointed bedrooms and suites across the main villa and three historic cottages. Couples and their guests can enjoy a full wedding weekend experience in exclusive surroundings, with the entire property available for private hire.</p><p>Each room is individually decorated with antique furnishings, Frette linens, and original artworks sourced from local artists.</p>',
+    images: [
+      'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&q=80',
+      'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&q=80',
+      'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&q=80',
+      'https://images.unsplash.com/photo-1564078516393-cf04bd966897?w=800&q=80',
+    ],
+  },
+  dining: {
+    style: 'Michelin-inspired Tuscan farm-to-table cuisine',
+    chefName: 'Marco Ricci',
+    inHouseCatering: true,
+    externalCateringAllowed: true,
+    menuStyles: ['Plated Dinner', 'Tasting Menu', 'Family Style', 'Buffet'],
+    dietaryOptions: ['Vegetarian', 'Vegan', 'Gluten Free', 'Halal', 'Kosher'],
+    drinksOptions: ['Wine Pairing', 'Open Bar', 'Signature Cocktails', 'Non-Alcoholic'],
+    description: '<p>Seasonal Italian cuisine, prepared using produce grown in Villa Rosanova\'s kitchen garden and sourced from neighbouring farms, forms the heart of every celebration. Head Chef Marco Ricci crafts bespoke menus that reflect the rhythms of the Tuscan seasons — from truffle risotto in autumn to grilled sea bass with summer herbs.</p><p>Couples choose from elegant plated dinners, relaxed family-style dining, or curated tasting menus paired with regional wines selected by our in-house sommelier.</p>',
+    menuImages: [
+      { src: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80', title: 'Antipasto Board — Local cheeses, truffle honey, cured meats' },
+      { src: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=80', title: 'Primo — Handmade pappardelle with wild boar ragù' },
+      { src: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80', title: 'Secondo — Wood-roasted lamb with rosemary and juniper' },
+      { src: 'https://images.unsplash.com/photo-1551024601-bec78aea704b?w=800&q=80', title: 'Dolce — Lemon tart with Amalfi cream and basil sorbet' },
+    ],
+  },
+  venueType: {
+    primaryType: 'Historic Villa',
+    styles: ['Tuscan', 'Countryside', 'Vineyard', 'Exclusive Use', 'Garden Ceremony'],
+    architecture: 'Renaissance',
+    built: '1742',
+    description: 'Villa Rosanova is a meticulously restored 18th-century Tuscan villa set within 12 hectares of manicured gardens, vineyards, and olive groves in the heart of Chianti.',
+    features: ['Outdoor Ceremony', 'Indoor Ceremony', 'Vineyard', 'Chapel', 'Gardens', 'Swimming Pool', 'Helicopter Pad'],
+  },
   categories: ["Luxury Villa", "Exclusive Use", "Destination Wedding"],
   awards: ["LWD Best Villa 2025", "Couples' Choice 2024", "Editor's Pick 2025"],
   press: ["Vogue", "HELLO!", "Tatler", "Harper's Bazaar"],
@@ -847,6 +885,144 @@ function HeroVideo({ venue, onEnquire }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── STICKY TAB NAV ───────────────────────────────────────────────────────────
+const TABS = [
+  { key: 'overview',     label: 'Overview',     show: (v) => true },
+  { key: 'gallery',      label: 'Gallery',      show: (v) => (v.gallery?.length || 0) > 0 },
+  { key: 'reviews',      label: 'Reviews',      show: (v) => (v.testimonials?.length || 0) > 0 },
+  { key: 'capacity',     label: 'Capacity',     show: (v) => (v.spaces?.length || 0) > 0 },
+  { key: 'rooms',        label: 'Rooms',        show: (v) => v.accommodation?.totalRooms > 0 || v.accommodation?.description },
+  { key: 'dining',       label: 'Dining',       show: (v) => v.dining?.description || v.dining?.style },
+  { key: 'pricing',      label: 'Pricing',      show: (v) => v.exclusiveUse || v.priceFrom },
+  { key: 'availability', label: 'Availability', show: (v) => (v.notices?.length || 0) > 0 },
+  { key: 'faqs',         label: 'FAQs',         show: (v) => true },
+  { key: 'venue-type',   label: 'Venue Type',   show: (v) => v.venueType?.primaryType || (v.categories?.length || 0) > 0 },
+  { key: 'things-to-do', label: 'Things to Do', show: (v) => (v.experiences?.length || 0) > 0 },
+];
+
+function StickyTabNav({ venue, activeTab, onTabClick }) {
+  const C = useT();
+  const isMobile = useIsMobile();
+  const visibleTabs = TABS.filter(t => t.show(venue));
+
+  if (isMobile) {
+    return (
+      <div style={{
+        position: 'sticky', top: 56, zIndex: 50,
+        backgroundColor: C.navBg || C.bg, borderBottom: `1px solid ${C.border}`,
+        padding: '10px 20px',
+        backdropFilter: 'blur(12px)',
+      }}>
+        <select
+          value={activeTab}
+          onChange={e => onTabClick(e.target.value)}
+          style={{
+            width: '100%', padding: '10px 14px',
+            fontSize: 14, fontFamily: 'inherit',
+            border: `1px solid ${C.border}`,
+            borderRadius: 'var(--lwd-radius-input, 3px)',
+            backgroundColor: C.surface,
+            color: C.text,
+            appearance: 'none',
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none'/%3E%3C/svg%3E")`,
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'right 14px center',
+            paddingRight: 40,
+            cursor: 'pointer',
+          }}
+        >
+          {visibleTabs.map(t => (
+            <option key={t.key} value={t.key}>{t.label}</option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      position: 'sticky', top: 56, zIndex: 50,
+      backgroundColor: C.navBg || C.bg,
+      backdropFilter: 'blur(12px)',
+      borderBottom: `1px solid ${C.border}`,
+    }}>
+      <div style={{
+        maxWidth: 1280, margin: '0 auto', padding: '0 40px',
+        display: 'flex', alignItems: 'stretch',
+        overflowX: 'auto',
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
+      }}>
+        {visibleTabs.map(t => {
+          const active = activeTab === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => onTabClick(t.key)}
+              style={{
+                flexShrink: 0,
+                padding: '0 18px',
+                height: 48,
+                border: 'none',
+                borderBottom: `2px solid ${active ? C.gold : 'transparent'}`,
+                backgroundColor: 'transparent',
+                color: active ? C.gold : C.textLight,
+                fontFamily: 'inherit',
+                fontSize: 13,
+                fontWeight: active ? 700 : 500,
+                letterSpacing: '0.01em',
+                cursor: 'pointer',
+                transition: 'color 0.15s, border-bottom-color 0.15s',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={e => { if (!active) e.currentTarget.style.color = C.text; }}
+              onMouseLeave={e => { if (!active) e.currentTarget.style.color = C.textLight; }}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── SECTION SIDE IMAGE ──────────────────────────────────────────────────────
+// Consistent 3:4 portrait block — same size for ALL sections. No layout shift.
+function SectionSideImage({ src, alt = '' }) {
+  if (!src) return null;
+  return (
+    <div style={{ width: 240, flexShrink: 0 }}>
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        style={{
+          display: 'block',
+          width: 240,
+          aspectRatio: '3/4',
+          objectFit: 'cover',
+          borderRadius: 2,
+        }}
+      />
+    </div>
+  );
+}
+
+// Wrapper that puts content + side image side by side on desktop
+function SectionLayout({ children, sideImg, isMobile }) {
+  return (
+    <div style={{
+      display: 'flex',
+      gap: 48,
+      alignItems: 'flex-start',
+    }}>
+      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
+      {!isMobile && <SectionSideImage src={sideImg} />}
     </div>
   );
 }
@@ -1670,7 +1846,7 @@ function ImageGallery({ gallery, onOpenLight }) {
   const remaining = gallery.length - 5;
 
   return (
-    <section style={{ marginBottom: 56 }}>
+    <section id="gallery" style={{ marginBottom: 56 }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 16 }}>
         <SectionHeading title="Gallery" />
         <span style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.3px" }}>{gallery.length} photographs</span>
@@ -2333,103 +2509,105 @@ function AboutSection({ venue }) {
   ];
 
   return (
-    <section style={{ marginBottom: 56 }}>
+    <section id="overview" style={{ marginBottom: 56 }}>
       <SectionHeading title={`About ${venue.name}`} />
+      <SectionLayout sideImg={venue.imgs?.[0]} isMobile={isMobile}>
 
-      {/* Paragraph 1 */}
-      <p style={{ fontFamily: FB, fontSize: isMobile ? 15 : 16, color: C.textMid, lineHeight: 1.9, marginBottom: 24, maxWidth: 720 }}>
-        Set within 120 acres of rolling Tuscan countryside, Villa Rosanova is one of the finest privately-owned estates in Italy. Built in 1847 for the Marchese di Rosanova, the property has been meticulously restored to its original grandeur while offering every modern comfort a discerning couple could wish for.
-      </p>
-
-      {/* Key stats strip */}
-      <div style={{
-        display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: isMobile ? 0 : 8,
-        marginBottom: 24, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`,
-      }}>
-        {highlights.map((h, i) => (
-          <div key={h.label} style={{
-            padding: isMobile ? "14px 0" : "18px 0",
-            textAlign: "center",
-            borderRight: i < 3 ? `1px solid ${C.border}` : "none",
-          }}>
-            <div style={{ fontFamily: FD, fontSize: isMobile ? 20 : 26, fontWeight: 400, color: C.gold, lineHeight: 1 }}>{h.num}</div>
-            <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "1.2px", textTransform: "uppercase", marginTop: 4 }}>{h.label}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Full-width image pair */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 6, marginBottom: 24 }}>
-        <img src="https://images.unsplash.com/photo-1617806118233-18e1de247200?w=700&q=80" alt="Villa Rosanova interior detail" loading="lazy" style={{ width: "100%", height: isMobile ? 200 : 240, objectFit: "cover", display: "block", borderRadius: 3 }} />
-        <img src="https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=700&q=80" alt="Cypress garden at dusk" loading="lazy" style={{ width: "100%", height: isMobile ? 200 : 240, objectFit: "cover", display: "block", borderRadius: 3 }} />
-      </div>
-
-      {/* Paragraph 2 + expandable */}
-      <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9, marginBottom: 16, maxWidth: 720 }}>
-        From the frescoed Grand Salon — with its original parquet floors and three Venetian chandeliers — to the centuries-old cypress garden, every space has been designed to create moments of extraordinary beauty. With accommodation for 58 guests across 24 rooms and 6 suites, Villa Rosanova is the perfect setting for multi-day wedding celebrations.
-      </p>
-
-      {/* Expandable paragraphs */}
-      <div style={{ overflow: "hidden", maxHeight: expanded ? 500 : 0, transition: "max-height 0.5s ease", maxWidth: 720 }}>
-        <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9, marginBottom: 16 }}>
-          The estate produces its own Chianti Classico wine, cold-pressed extra virgin olive oil, and seasonal truffles — all of which feature on our exclusively crafted wedding menus. Every detail of your celebration is managed by our dedicated events team, who have hosted over 300 weddings across four decades.
+        {/* Paragraph 1 */}
+        <p style={{ fontFamily: FB, fontSize: isMobile ? 15 : 16, color: C.textMid, lineHeight: 1.9, marginBottom: 24, maxWidth: 720 }}>
+          Set within 120 acres of rolling Tuscan countryside, Villa Rosanova is one of the finest privately-owned estates in Italy. Built in 1847 for the Marchese di Rosanova, the property has been meticulously restored to its original grandeur while offering every modern comfort a discerning couple could wish for.
         </p>
-        <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9 }}>
-          Villa Rosanova has been featured in Vogue, Tatler and Harper's Bazaar, and has received the Luxury Wedding Directory's Best Villa award three years in succession. For couples seeking a truly once-in-a-lifetime setting — where privacy, beauty and impeccable service converge — there is simply nowhere quite like it.
-        </p>
-      </div>
 
-      <button
-        onClick={() => setExpanded(e => !e)}
-        style={{
-          display: "inline-flex", alignItems: "center", gap: 6,
-          marginTop: 4, marginBottom: 28,
-          background: "none", border: "none",
-          fontFamily: FB, fontSize: 13, fontWeight: 700,
-          color: C.gold, cursor: "pointer", letterSpacing: "0.3px",
-          padding: 0,
-        }}
-      >
-        {expanded ? "Show less ↑" : "Read the full story →"}
-      </button>
-
-      {/* Awards — horizontal scroll on mobile */}
-      <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20, marginBottom: 16 }}>
-        <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 12 }}>Awards & Recognition</div>
-        <div className="vp-awards-scroll" style={{
-          display: "flex", gap: 8, overflowX: isMobile ? "auto" : "visible",
-          flexWrap: isMobile ? "nowrap" : "wrap",
-          scrollbarWidth: "none", msOverflowStyle: "none",
-          paddingBottom: isMobile ? 4 : 0,
+        {/* Key stats strip */}
+        <div style={{
+          display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: isMobile ? 0 : 8,
+          marginBottom: 24, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`,
         }}>
-          {venue.awards.map(a => (
-            <div key={a} style={{
-              flex: "0 0 auto",
-              padding: "8px 14px",
-              border: `1px solid ${C.gold}30`,
-              background: `${C.gold}08`,
-              borderRadius: 3,
-              fontFamily: FB, fontSize: 11, fontWeight: 600,
-              color: C.gold, letterSpacing: "0.3px", whiteSpace: "nowrap",
+          {highlights.map((h, i) => (
+            <div key={h.label} style={{
+              padding: isMobile ? "14px 0" : "18px 0",
+              textAlign: "center",
+              borderRight: i < 3 ? `1px solid ${C.border}` : "none",
             }}>
-              ✦ {a}
+              <div style={{ fontFamily: FD, fontSize: isMobile ? 20 : 26, fontWeight: 400, color: C.gold, lineHeight: 1 }}>{h.num}</div>
+              <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "1.2px", textTransform: "uppercase", marginTop: 4 }}>{h.label}</div>
             </div>
           ))}
         </div>
-      </div>
 
-      {/* Press */}
-      <div>
-        <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 12 }}>As Seen In</div>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-          {venue.press.map(p => (
-            <span key={p} style={{
-              fontFamily: FD, fontSize: isMobile ? 15 : 17, fontWeight: 400,
-              color: C.textLight, letterSpacing: "0.5px",
-            }}>{p}</span>
-          ))}
+        {/* Full-width image pair */}
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 6, marginBottom: 24 }}>
+          <img src="https://images.unsplash.com/photo-1617806118233-18e1de247200?w=700&q=80" alt="Villa Rosanova interior detail" loading="lazy" style={{ width: "100%", height: isMobile ? 200 : 240, objectFit: "cover", display: "block", borderRadius: 3 }} />
+          <img src="https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=700&q=80" alt="Cypress garden at dusk" loading="lazy" style={{ width: "100%", height: isMobile ? 200 : 240, objectFit: "cover", display: "block", borderRadius: 3 }} />
         </div>
-      </div>
+
+        {/* Paragraph 2 + expandable */}
+        <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9, marginBottom: 16, maxWidth: 720 }}>
+          From the frescoed Grand Salon — with its original parquet floors and three Venetian chandeliers — to the centuries-old cypress garden, every space has been designed to create moments of extraordinary beauty. With accommodation for 58 guests across 24 rooms and 6 suites, Villa Rosanova is the perfect setting for multi-day wedding celebrations.
+        </p>
+
+        {/* Expandable paragraphs */}
+        <div style={{ overflow: "hidden", maxHeight: expanded ? 500 : 0, transition: "max-height 0.5s ease", maxWidth: 720 }}>
+          <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9, marginBottom: 16 }}>
+            The estate produces its own Chianti Classico wine, cold-pressed extra virgin olive oil, and seasonal truffles — all of which feature on our exclusively crafted wedding menus. Every detail of your celebration is managed by our dedicated events team, who have hosted over 300 weddings across four decades.
+          </p>
+          <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9 }}>
+            Villa Rosanova has been featured in Vogue, Tatler and Harper's Bazaar, and has received the Luxury Wedding Directory's Best Villa award three years in succession. For couples seeking a truly once-in-a-lifetime setting — where privacy, beauty and impeccable service converge — there is simply nowhere quite like it.
+          </p>
+        </div>
+
+        <button
+          onClick={() => setExpanded(e => !e)}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            marginTop: 4, marginBottom: 28,
+            background: "none", border: "none",
+            fontFamily: FB, fontSize: 13, fontWeight: 700,
+            color: C.gold, cursor: "pointer", letterSpacing: "0.3px",
+            padding: 0,
+          }}
+        >
+          {expanded ? "Show less ↑" : "Read the full story →"}
+        </button>
+
+        {/* Awards — horizontal scroll on mobile */}
+        <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20, marginBottom: 16 }}>
+          <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 12 }}>Awards & Recognition</div>
+          <div className="vp-awards-scroll" style={{
+            display: "flex", gap: 8, overflowX: isMobile ? "auto" : "visible",
+            flexWrap: isMobile ? "nowrap" : "wrap",
+            scrollbarWidth: "none", msOverflowStyle: "none",
+            paddingBottom: isMobile ? 4 : 0,
+          }}>
+            {venue.awards.map(a => (
+              <div key={a} style={{
+                flex: "0 0 auto",
+                padding: "8px 14px",
+                border: `1px solid ${C.gold}30`,
+                background: `${C.gold}08`,
+                borderRadius: 3,
+                fontFamily: FB, fontSize: 11, fontWeight: 600,
+                color: C.gold, letterSpacing: "0.3px", whiteSpace: "nowrap",
+              }}>
+                ✦ {a}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Press */}
+        <div>
+          <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 12 }}>As Seen In</div>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+            {venue.press.map(p => (
+              <span key={p} style={{
+                fontFamily: FD, fontSize: isMobile ? 15 : 17, fontWeight: 400,
+                color: C.textLight, letterSpacing: "0.5px",
+              }}>{p}</span>
+            ))}
+          </div>
+        </div>
+      </SectionLayout>
     </section>
   );
 }
@@ -3239,7 +3417,7 @@ function ExclusiveUse({ venue }) {
   const C = useT();
   const eu = venue.exclusiveUse;
   return (
-    <section style={{ marginBottom: 56 }}>
+    <section id="pricing" style={{ marginBottom: 56 }}>
       <SectionHeading title="Exclusive Use" subtitle="Hire the entire estate — just your guests, your celebration, your way" />
       <div style={{ border: `1px solid ${C.goldBorder}`, background: C.goldLight, padding: 32 }}>
         <div className="vp-exclusive-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40 }}>
@@ -3336,7 +3514,7 @@ function CateringSection({ venue }) {
 function SpacesSection({ spaces }) {
   const C = useT();
   return (
-    <section style={{ marginBottom: 56 }}>
+    <section id="capacity" style={{ marginBottom: 56 }}>
       <SectionHeading title="Spaces & Rooms" subtitle="Four distinct event spaces — each with its own character and atmosphere" />
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {spaces.map((s, i) => (
@@ -3359,6 +3537,344 @@ function SpacesSection({ spaces }) {
           </div>
         ))}
       </div>
+    </section>
+  );
+}
+
+// ─── ROOMS & ACCOMMODATION ────────────────────────────────────────────────────
+function RoomsSection({ venue }) {
+  const C = useT();
+  const isMobile = useIsMobile();
+  const acc = venue.accommodation;
+  if (!acc || (!acc.totalRooms && !acc.description)) return null;
+
+  const sideImg = acc.images?.[0] || venue.imgs?.[2] || venue.imgs?.[0];
+
+  return (
+    <section id="rooms" style={{ marginBottom: 56 }}>
+      <SectionHeading title="Rooms & Accommodation" />
+      <SectionLayout sideImg={sideImg} isMobile={isMobile}>
+        {/* Stats bar */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
+          {acc.type && (
+            <span style={{ padding: '5px 14px', border: `1px solid ${C.gold}`, borderRadius: 20, fontSize: 12, fontWeight: 600, color: C.gold, fontFamily: 'var(--font-body, inherit)' }}>
+              {acc.type}
+            </span>
+          )}
+          {acc.totalRooms > 0 && (
+            <span style={{ padding: '5px 14px', backgroundColor: C.bgAlt || C.surface, border: `1px solid ${C.border}`, borderRadius: 20, fontSize: 12, color: C.textMid, fontFamily: 'var(--font-body, inherit)' }}>
+              {acc.totalRooms} Rooms
+            </span>
+          )}
+          {acc.totalSuites > 0 && (
+            <span style={{ padding: '5px 14px', backgroundColor: C.bgAlt || C.surface, border: `1px solid ${C.border}`, borderRadius: 20, fontSize: 12, color: C.textMid, fontFamily: 'var(--font-body, inherit)' }}>
+              {acc.totalSuites} Suites
+            </span>
+          )}
+          {acc.maxOvernightGuests > 0 && (
+            <span style={{ padding: '5px 14px', backgroundColor: C.bgAlt || C.surface, border: `1px solid ${C.border}`, borderRadius: 20, fontSize: 12, color: C.textMid, fontFamily: 'var(--font-body, inherit)' }}>
+              Up to {acc.maxOvernightGuests} guests
+            </span>
+          )}
+          {acc.minNightStay > 0 && (
+            <span style={{ padding: '5px 14px', backgroundColor: C.bgAlt || C.surface, border: `1px solid ${C.border}`, borderRadius: 20, fontSize: 12, color: C.textMid, fontFamily: 'var(--font-body, inherit)' }}>
+              Min {acc.minNightStay} nights
+            </span>
+          )}
+          {acc.exclusiveUse && (
+            <span style={{ padding: '5px 14px', backgroundColor: 'rgba(201,168,76,0.1)', border: `1px solid ${C.gold}`, borderRadius: 20, fontSize: 12, fontWeight: 700, color: C.gold, fontFamily: 'var(--font-body, inherit)' }}>
+              ✦ Exclusive Use Available
+            </span>
+          )}
+        </div>
+
+        {/* Description */}
+        {acc.description && (
+          <div
+            className="ldw-prose-body"
+            style={{ marginBottom: 28 }}
+            dangerouslySetInnerHTML={{ __html: acc.description }}
+          />
+        )}
+
+        {/* Room images grid (max 6) */}
+        {acc.images?.length > 0 && (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
+            gap: 8,
+          }}>
+            {acc.images.slice(0, 6).map((src, i) => (
+              <img
+                key={i} src={src} alt={`Room ${i + 1}`}
+                loading="lazy"
+                style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', borderRadius: 2 }}
+              />
+            ))}
+          </div>
+        )}
+      </SectionLayout>
+    </section>
+  );
+}
+
+// ─── MENU IMAGE MODAL ─────────────────────────────────────────────────────────
+function MenuImageModal({ images, idx, onClose, onPrev, onNext }) {
+  const C = useT();
+  if (idx === null || idx === undefined || !images?.[idx]) return null;
+  const img = images[idx];
+
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowLeft') onPrev();
+      if (e.key === 'ArrowRight') onNext();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [onClose, onPrev, onNext]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1000,
+        backgroundColor: 'rgba(0,0,0,0.88)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 20,
+      }}
+    >
+      <div onClick={e => e.stopPropagation()} style={{ maxWidth: 760, width: '100%', position: 'relative' }}>
+        <img
+          src={img.src} alt={img.title}
+          style={{ width: '100%', maxHeight: '75vh', objectFit: 'contain', borderRadius: 2 }}
+        />
+        {img.title && (
+          <p style={{
+            textAlign: 'center', marginTop: 14,
+            fontFamily: 'var(--font-body, inherit)', fontSize: 14,
+            color: 'rgba(255,255,255,0.85)', letterSpacing: '0.02em',
+          }}>
+            {img.title}
+          </p>
+        )}
+        {/* Close */}
+        <button onClick={onClose} style={{ position: 'absolute', top: -40, right: 0, background: 'none', border: 'none', color: '#fff', fontSize: 24, cursor: 'pointer', lineHeight: 1 }}>×</button>
+        {/* Prev */}
+        {idx > 0 && (
+          <button onClick={onPrev} style={{ position: 'absolute', top: '50%', left: -52, transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: '50%', width: 40, height: 40, color: '#fff', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
+        )}
+        {/* Next */}
+        {idx < images.length - 1 && (
+          <button onClick={onNext} style={{ position: 'absolute', top: '50%', right: -52, transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: '50%', width: 40, height: 40, color: '#fff', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
+        )}
+        {/* Thumbnail strip (max 4) */}
+        {images.length > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
+            {images.map((img, i) => (
+              <img key={i} src={img.src} alt="" onClick={() => { /* handled via onPrev/onNext */ }}
+                style={{
+                  width: 52, height: 36, objectFit: 'cover', borderRadius: 2,
+                  cursor: 'pointer', opacity: i === idx ? 1 : 0.45,
+                  border: i === idx ? '1px solid #C9A84C' : '1px solid transparent',
+                  transition: 'opacity 0.15s',
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── DINING SECTION ───────────────────────────────────────────────────────────
+function DiningSection({ venue }) {
+  const C = useT();
+  const isMobile = useIsMobile();
+  const dining = venue.dining;
+  const [menuImgIdx, setMenuImgIdx] = useState(null);
+
+  if (!dining || (!dining.description && !dining.style)) return null;
+
+  const sideImg = dining.menuImages?.[0]?.src || venue.imgs?.[1] || venue.imgs?.[0];
+
+  const PillGroup = ({ items, color }) => (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+      {items.map(item => (
+        <span key={item} style={{
+          padding: '4px 12px', borderRadius: 20, fontSize: 12,
+          border: color === 'gold' ? `1px solid ${C.gold}` : `1px solid ${C.border}`,
+          color: color === 'gold' ? C.gold : C.textMid,
+          backgroundColor: color === 'gold' ? 'rgba(201,168,76,0.08)' : (C.bgAlt || C.surface),
+          fontFamily: 'var(--font-body, inherit)',
+          fontWeight: color === 'gold' ? 600 : 400,
+        }}>
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+
+  return (
+    <section id="dining" style={{ marginBottom: 56 }}>
+      <SectionHeading title="Dining" />
+      <SectionLayout sideImg={sideImg} isMobile={isMobile}>
+
+        {/* Style + chef */}
+        {dining.style && (
+          <p style={{ fontFamily: 'var(--font-display, Georgia, serif)', fontSize: isMobile ? 17 : 20, fontWeight: 400, color: C.text, lineHeight: 1.35, marginBottom: 20, letterSpacing: '-0.01em' }}>
+            {dining.style}
+            {dining.chefName && <span style={{ display: 'block', fontFamily: 'var(--font-body, inherit)', fontSize: 13, color: C.textLight, marginTop: 6, fontStyle: 'italic' }}>Chef {dining.chefName}</span>}
+          </p>
+        )}
+
+        {/* Catering badges */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+          {dining.inHouseCatering && (
+            <span style={{ padding: '5px 14px', backgroundColor: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 20, fontSize: 12, fontWeight: 600, color: C.green }}>✓ In-house Catering</span>
+          )}
+          {dining.externalCateringAllowed && (
+            <span style={{ padding: '5px 14px', backgroundColor: C.bgAlt || C.surface, border: `1px solid ${C.border}`, borderRadius: 20, fontSize: 12, color: C.textMid }}>External Caterers Welcome</span>
+          )}
+        </div>
+
+        {/* Menu styles */}
+        {dining.menuStyles?.length > 0 && (
+          <div style={{ marginBottom: 4 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textLight, marginBottom: 8 }}>Menu Style</p>
+            <PillGroup items={dining.menuStyles} color="gold" />
+          </div>
+        )}
+
+        {/* Dietary */}
+        {dining.dietaryOptions?.length > 0 && (
+          <div style={{ marginBottom: 4 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textLight, marginBottom: 8 }}>Dietary</p>
+            <PillGroup items={dining.dietaryOptions} color="neutral" />
+          </div>
+        )}
+
+        {/* Drinks */}
+        {dining.drinksOptions?.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textLight, marginBottom: 8 }}>Drinks</p>
+            <PillGroup items={dining.drinksOptions} color="neutral" />
+          </div>
+        )}
+
+        {/* Description */}
+        {dining.description && (
+          <div
+            className="ldw-prose-body"
+            style={{ marginBottom: 32 }}
+            dangerouslySetInnerHTML={{ __html: dining.description }}
+          />
+        )}
+
+        {/* Menu Highlights */}
+        {dining.menuImages?.length > 0 && (
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textLight, marginBottom: 12 }}>Menu Highlights</p>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(dining.menuImages.length, 4)}, 1fr)`, gap: 8 }}>
+              {dining.menuImages.slice(0, 4).map((img, i) => (
+                <div key={i} style={{ cursor: 'pointer' }} onClick={() => setMenuImgIdx(i)}>
+                  <img
+                    src={img.src} alt={img.title}
+                    loading="lazy"
+                    style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', borderRadius: 2, transition: 'opacity 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+                    onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                  />
+                  {img.title && (
+                    <p style={{ fontSize: 11, color: C.textLight, margin: '5px 0 0', lineHeight: 1.3, fontFamily: 'var(--font-body, inherit)' }}>{img.title}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </SectionLayout>
+
+      {/* Menu image lightbox */}
+      <MenuImageModal
+        images={dining.menuImages || []}
+        idx={menuImgIdx}
+        onClose={() => setMenuImgIdx(null)}
+        onPrev={() => setMenuImgIdx(i => Math.max(0, i - 1))}
+        onNext={() => setMenuImgIdx(i => Math.min((dining.menuImages?.length || 1) - 1, i + 1))}
+      />
+    </section>
+  );
+}
+
+// ─── VENUE TYPE SECTION ───────────────────────────────────────────────────────
+function VenueTypeSection({ venue }) {
+  const C = useT();
+  const isMobile = useIsMobile();
+  const vt = venue.venueType;
+  if (!vt?.primaryType && !(venue.categories?.length > 0)) return null;
+
+  const sideImg = venue.imgs?.[3] || venue.imgs?.[0];
+
+  return (
+    <section id="venue-type" style={{ marginBottom: 56 }}>
+      <SectionHeading title="Venue Type" />
+      <SectionLayout sideImg={sideImg} isMobile={isMobile}>
+        {/* Primary type + architecture */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
+          {vt?.primaryType && (
+            <span style={{ padding: '5px 16px', border: `1px solid ${C.gold}`, borderRadius: 20, fontSize: 13, fontWeight: 700, color: C.gold }}>
+              {vt.primaryType}
+            </span>
+          )}
+          {vt?.architecture && (
+            <span style={{ padding: '5px 14px', backgroundColor: C.bgAlt || C.surface, border: `1px solid ${C.border}`, borderRadius: 20, fontSize: 12, color: C.textMid }}>
+              {vt.architecture} Architecture
+            </span>
+          )}
+          {vt?.built && (
+            <span style={{ padding: '5px 14px', backgroundColor: C.bgAlt || C.surface, border: `1px solid ${C.border}`, borderRadius: 20, fontSize: 12, color: C.textMid }}>
+              Built {vt.built}
+            </span>
+          )}
+        </div>
+
+        {vt?.description && (
+          <p style={{ fontFamily: 'var(--font-body, inherit)', fontSize: 14, color: C.textMid, lineHeight: 1.75, marginBottom: 24 }}>
+            {vt.description}
+          </p>
+        )}
+
+        {/* Style tags */}
+        {vt?.styles?.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textLight, marginBottom: 10 }}>Style</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {vt.styles.map(s => (
+                <span key={s} style={{ padding: '4px 12px', border: `1px solid ${C.border}`, borderRadius: 20, fontSize: 12, color: C.textMid, backgroundColor: C.bgAlt || C.surface }}>
+                  {s}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Features checklist */}
+        {vt?.features?.length > 0 && (
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textLight, marginBottom: 10 }}>Features</p>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: 8 }}>
+              {vt.features.map(f => (
+                <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: C.textMid }}>
+                  <span style={{ color: C.gold, fontSize: 11 }}>✦</span>
+                  {f}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </SectionLayout>
     </section>
   );
 }
@@ -3416,7 +3932,7 @@ function WeddingWeekend({ experiences }) {
   );
 
   return (
-    <section style={{ marginBottom: 56 }}>
+    <section id="things-to-do" style={{ marginBottom: 56 }}>
       <SectionHeading title="Your Wedding Weekend" subtitle="Villa Rosanova is designed for multi-day celebrations — a full wedding weekend experience" />
       {/* Days */}
       {isMobile ? (
@@ -3462,7 +3978,7 @@ function GettingHere({ access }) {
   };
 
   return (
-    <section style={{ marginBottom: 56 }}>
+    <section id="availability" style={{ marginBottom: 56 }}>
       <SectionHeading title="Getting Here" subtitle="International airports serving Villa Rosanova, with transfer options for your guests" />
 
       {/* Helicopter callout */}
@@ -3554,78 +4070,80 @@ function Reviews({ testimonials, venue }) {
   );
 
   return (
-    <section style={{ marginBottom: 56 }}>
+    <section id="reviews" style={{ marginBottom: 56 }}>
       <SectionHeading title="Reviews" />
+      <SectionLayout sideImg={venue.imgs?.[1]} isMobile={isMobile}>
 
-      {/* Summary bar */}
-      <div className="vp-reviews-summary" style={{ display: isMobile ? "flex" : "grid", flexDirection: isMobile ? "column" : undefined, gridTemplateColumns: isMobile ? undefined : "200px 1fr", gap: isMobile ? 20 : 40, marginBottom: 28, padding: isMobile ? 20 : 32, border: `1px solid ${C.border}`, background: C.surface }}>
-        <div style={{ textAlign: "center", borderRight: isMobile ? "none" : `1px solid ${C.border}`, borderBottom: isMobile ? `1px solid ${C.border}` : "none", paddingRight: isMobile ? 0 : 40, paddingBottom: isMobile ? 16 : 0 }}>
-          <div style={{ fontFamily: FD, fontSize: isMobile ? 56 : 78, fontWeight: 400, color: C.gold, lineHeight: 1 }}>{venue.rating}</div>
-          <Stars rating={venue.rating} size={18} />
-          <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginTop: 8 }}>{venue.reviews} verified reviews</div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 8 }}>
-          {[5,4,3,2,1].map(star => (
-            <div key={star} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, width: 16 }}>{star}</span>
-              <span style={{ fontSize: 11, color: C.gold }}>★</span>
-              <div style={{ flex: 1, height: 6, background: C.border, overflow: "hidden" }}>
-                <div style={{ width: star === 5 ? "89%" : star === 4 ? "8%" : "3%", height: "100%", background: C.gold, transition: "width 0.8s ease" }} />
+        {/* Summary bar */}
+        <div className="vp-reviews-summary" style={{ display: isMobile ? "flex" : "grid", flexDirection: isMobile ? "column" : undefined, gridTemplateColumns: isMobile ? undefined : "200px 1fr", gap: isMobile ? 20 : 40, marginBottom: 28, padding: isMobile ? 20 : 32, border: `1px solid ${C.border}`, background: C.surface }}>
+          <div style={{ textAlign: "center", borderRight: isMobile ? "none" : `1px solid ${C.border}`, borderBottom: isMobile ? `1px solid ${C.border}` : "none", paddingRight: isMobile ? 0 : 40, paddingBottom: isMobile ? 16 : 0 }}>
+            <div style={{ fontFamily: FD, fontSize: isMobile ? 56 : 78, fontWeight: 400, color: C.gold, lineHeight: 1 }}>{venue.rating}</div>
+            <Stars rating={venue.rating} size={18} />
+            <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginTop: 8 }}>{venue.reviews} verified reviews</div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 8 }}>
+            {[5,4,3,2,1].map(star => (
+              <div key={star} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, width: 16 }}>{star}</span>
+                <span style={{ fontSize: 11, color: C.gold }}>★</span>
+                <div style={{ flex: 1, height: 6, background: C.border, overflow: "hidden" }}>
+                  <div style={{ width: star === 5 ? "89%" : star === 4 ? "8%" : "3%", height: "100%", background: C.gold, transition: "width 0.8s ease" }} />
+                </div>
+                <span style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, width: 28 }}>{star === 5 ? "113" : star === 4 ? "10" : "4"}</span>
               </div>
-              <span style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, width: 28 }}>{star === 5 ? "113" : star === 4 ? "10" : "4"}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Review cards — slider on mobile, paginated grid on desktop */}
-      {isMobile ? (
-        <div style={{ display: "flex", gap: 12, overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", marginBottom: 20, scrollbarWidth: "none", msOverflowStyle: "none" }} className="vp-reviews-slider">
-          {testimonials.map(reviewCard)}
-        </div>
-      ) : (
-        <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 20 }}>
-            {visible.map(reviewCard)}
+            ))}
           </div>
+        </div>
 
-          {/* Navigation row */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            {/* Dot indicators */}
-            <div style={{ display: "flex", gap: 6 }}>
-              {Array.from({ length: pages }).map((_, i) => (
-                <button key={i} onClick={() => setPage(i)} style={{
-                  width: i === page ? 20 : 8, height: 8, borderRadius: 4,
-                  background: i === page ? C.gold : C.border2,
-                  border: "none", cursor: "pointer", padding: 0,
-                  transition: "all 0.3s ease",
-                }} />
-              ))}
-            </div>
-
-            {/* Prev / count / Next */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontFamily: FB, fontSize: 11, color: C.textMuted }}>
-                {page * PER_PAGE + 1}–{Math.min(page * PER_PAGE + PER_PAGE, testimonials.length)} of {testimonials.length}
-              </span>
-              <button
-                onClick={() => setPage(p => Math.max(0, p - 1))}
-                disabled={page === 0}
-                style={{ ...navBtn(), opacity: page === 0 ? 0.35 : 1 }}
-                onMouseEnter={e => { if (page > 0) { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.textMuted; }}
-              >←</button>
-              <button
-                onClick={() => setPage(p => Math.min(pages - 1, p + 1))}
-                disabled={page === pages - 1}
-                style={{ ...navBtn(), opacity: page === pages - 1 ? 0.35 : 1 }}
-                onMouseEnter={e => { if (page < pages - 1) { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.textMuted; }}
-              >→</button>
-            </div>
+        {/* Review cards — slider on mobile, paginated grid on desktop */}
+        {isMobile ? (
+          <div style={{ display: "flex", gap: 12, overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", marginBottom: 20, scrollbarWidth: "none", msOverflowStyle: "none" }} className="vp-reviews-slider">
+            {testimonials.map(reviewCard)}
           </div>
-        </>
-      )}
+        ) : (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 20 }}>
+              {visible.map(reviewCard)}
+            </div>
+
+            {/* Navigation row */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              {/* Dot indicators */}
+              <div style={{ display: "flex", gap: 6 }}>
+                {Array.from({ length: pages }).map((_, i) => (
+                  <button key={i} onClick={() => setPage(i)} style={{
+                    width: i === page ? 20 : 8, height: 8, borderRadius: 4,
+                    background: i === page ? C.gold : C.border2,
+                    border: "none", cursor: "pointer", padding: 0,
+                    transition: "all 0.3s ease",
+                  }} />
+                ))}
+              </div>
+
+              {/* Prev / count / Next */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontFamily: FB, fontSize: 11, color: C.textMuted }}>
+                  {page * PER_PAGE + 1}–{Math.min(page * PER_PAGE + PER_PAGE, testimonials.length)} of {testimonials.length}
+                </span>
+                <button
+                  onClick={() => setPage(p => Math.max(0, p - 1))}
+                  disabled={page === 0}
+                  style={{ ...navBtn(), opacity: page === 0 ? 0.35 : 1 }}
+                  onMouseEnter={e => { if (page > 0) { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.textMuted; }}
+                >←</button>
+                <button
+                  onClick={() => setPage(p => Math.min(pages - 1, p + 1))}
+                  disabled={page === pages - 1}
+                  style={{ ...navBtn(), opacity: page === pages - 1 ? 0.35 : 1 }}
+                  onMouseEnter={e => { if (page < pages - 1) { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.textMuted; }}
+                >→</button>
+              </div>
+            </div>
+          </>
+        )}
+      </SectionLayout>
     </section>
   );
 }
@@ -3920,14 +4438,14 @@ function FAQSection({ onAsk }) {
   };
 
   return (
-    <section style={{ marginBottom: 56 }}>
+    <section id="faqs" style={{ marginBottom: 56 }}>
       <SectionHeading
         title="Your Guide to Villa Rosanova"
         subtitle="Curated answers to every question — from your first enquiry to your final farewell toast."
       />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
-        {FAQ_DATA.map((cat, catIdx) => (
+        {FAQ_DATA.slice(0, 4).map((cat, catIdx) => (
           <div key={cat.category} style={{
             background: C.bgAlt,
             border: `1px solid ${C.border}`,
@@ -4930,8 +5448,35 @@ export default function VenueProfile({ onBack = null }) {
   const [compareList, setCompareList] = useState([]);
   const [heroStyle, setHeroStyle] = useState("cinematic");
   const [enquiryOpen, setEnquiryOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
 
   const C = darkMode ? DARK : LIGHT;
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        entries.forEach(e => {
+          if (e.isIntersecting) setActiveTab(e.target.id);
+        });
+      },
+      { rootMargin: '-10% 0px -75% 0px', threshold: 0 }
+    );
+    TABS.forEach(t => {
+      const el = document.getElementById(t.key);
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  const scrollToSection = (key) => {
+    setActiveTab(key);
+    const el = document.getElementById(key);
+    if (el) {
+      const offset = 110; // nav height + tab bar height
+      const top = el.getBoundingClientRect().top + window.scrollY - offset;
+      window.scrollTo({ top, behavior: 'smooth' });
+    }
+  };
 
   const addCompare = () => {
     if (!compareList.find(v => v.id === VENUE.id)) {
@@ -4946,6 +5491,7 @@ export default function VenueProfile({ onBack = null }) {
         <Nav darkMode={darkMode} setDarkMode={setDarkMode} saved={saved} setSaved={setSaved} compareList={compareList} onAddCompare={addCompare} onBack={onBack} />
         <Hero venue={VENUE} heroStyle={heroStyle} setHeroStyle={setHeroStyle} onEnquire={() => setEnquiryOpen(true)} />
         <StatsStrip venue={VENUE} />
+        <StickyTabNav venue={VENUE} activeTab={activeTab} onTabClick={scrollToSection} />
 
         {/* Main layout */}
         <div className="vp-main-wrapper" style={{ maxWidth: 1280, margin: "0 auto", padding: "48px 40px 120px" }}>
@@ -4958,6 +5504,9 @@ export default function VenueProfile({ onBack = null }) {
               <ExclusiveUse venue={VENUE} />
               <CateringSection venue={VENUE} />
               <SpacesSection spaces={VENUE.spaces} />
+              <RoomsSection venue={VENUE} />
+              <DiningSection venue={VENUE} />
+              <VenueTypeSection venue={VENUE} />
               <WeddingWeekend experiences={VENUE.experiences} />
               <ContactSection venue={VENUE} />
               <GettingHere access={VENUE.access} />

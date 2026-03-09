@@ -31,6 +31,25 @@ export const useListingForm = (listingId = null) => {
     // Unified media pool: gallery images + videos + virtual tours
     // Replaces legacy gallery_images[] + videos[]
     media_items: [], // Array of { type: 'image'|'video'|'virtual_tour', source_type, file, url, thumbnail, title, caption, credit_name, ... }
+    // ── Rooms & accommodation ─────────────────────────────────────────────────
+    rooms_accommodation_type: '',
+    rooms_total: '',
+    rooms_suites: '',
+    rooms_max_guests: '',
+    rooms_exclusive_use: false,
+    rooms_min_stay: '',
+    rooms_description: '',
+    rooms_images: [],
+    // ── Dining ───────────────────────────────────────────────────────────────
+    dining_style: '',
+    dining_chef_name: '',
+    dining_in_house: false,
+    dining_external: false,
+    dining_menu_styles: [],
+    dining_dietary: [],
+    dining_drinks: [],
+    dining_description: '',
+    dining_menu_images: [],
     // Hero layout style: cinematic | split | magazine | video
     // cinematic = default (5-image luxury fade transition)
     hero_layout: 'cinematic',
