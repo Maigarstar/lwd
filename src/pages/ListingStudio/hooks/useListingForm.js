@@ -7,6 +7,7 @@ import { createListing, updateListing, fetchListingById } from '../../../service
  */
 export const useListingForm = (listingId = null) => {
   const [formData, setFormData] = useState({
+    listing_type: 'venue', // venue | planner | photographer | videographer | general
     venue_name: '',
     slug: '',
     category: 'wedding-venues',
