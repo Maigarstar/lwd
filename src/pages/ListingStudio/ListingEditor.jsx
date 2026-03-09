@@ -7,10 +7,8 @@ import FeaturesSection from './sections/FeaturesSection';
 import CommercialDetailsSection from './sections/CommercialDetailsSection';
 import MediaSection from './sections/MediaSection';
 import SEOSection from './sections/SEOSection';
-import { getLightPalette } from '../../theme/tokens';
+import { getLightPalette, getDarkPalette } from '../../theme/tokens';
 
-// Use light palette for listing studio
-const C = getLightPalette();
 const NU = "'Nunito', sans-serif";
 const GD = "'Playfair Display', Georgia, serif";
 
@@ -21,6 +19,10 @@ const GD = "'Playfair Display', Georgia, serif";
 const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = null }) => {
   const { formData, handleChange, handleSaveDraft, handlePublish, loading, error, hasChanges } = useListingForm(listingId);
   const [saveStatus, setSaveStatus] = useState(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  // Get theme based on mode
+  const C = isDarkMode ? getDarkPalette() : getLightPalette();
 
   // Handle save as draft
   const handleSaveDraftClick = useCallback(async () => {
@@ -63,14 +65,44 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
   return (
     <div style={{ backgroundColor: C.black, minHeight: '100vh', padding: '40px 20px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-        {/* Header */}
+        {/* Header with theme toggle */}
         <div style={{ marginBottom: 40 }}>
-          <h1 style={{ fontSize: 32, fontWeight: 600, color: C.white, marginBottom: 8 }}>
-            {pageTitle}
-          </h1>
-          <p style={{ fontSize: 14, color: '#999' }}>
-            {isEditing ? 'Update your venue listing details' : 'Create a new venue listing'}
-          </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div>
+              <h1 style={{ fontSize: 32, fontWeight: 600, color: C.white, marginBottom: 8 }}>
+                {pageTitle}
+              </h1>
+              <p style={{ fontSize: 14, color: C.off }}>
+                {isEditing ? 'Update your venue listing details' : 'Create a new venue listing'}
+              </p>
+            </div>
+
+            {/* Theme Toggle Button */}
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: isDarkMode ? '#333' : '#f5f5f5',
+                color: isDarkMode ? '#fff' : '#333',
+                border: `1px solid ${C.border}`,
+                borderRadius: 4,
+                cursor: 'pointer',
+                fontSize: 13,
+                fontWeight: 500,
+                whiteSpace: 'nowrap',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.opacity = '0.8';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.opacity = '1';
+              }}
+              title="Toggle light/dark mode"
+            >
+              {isDarkMode ? '☀️ Light' : '🌙 Dark'}
+            </button>
+          </div>
         </div>
 
         {/* Error message */}
