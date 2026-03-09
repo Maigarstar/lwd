@@ -8,6 +8,8 @@ import DescriptionSection from './sections/DescriptionSection';
 import FeaturesSection from './sections/FeaturesSection';
 import CommercialDetailsSection from './sections/CommercialDetailsSection';
 import MediaSection from './sections/MediaSection';
+import RoomsSection from './sections/RoomsSection';
+import DiningSection from './sections/DiningSection';
 import SEOSection from './sections/SEOSection';
 import ListingInfoSection from './sections/ListingInfoSection';
 import { getLightPalette } from '../../theme/tokens';
@@ -232,6 +234,15 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
 
           {/* Always visible sections */}
           <MediaSection formData={formData} onChange={handleChange} />
+
+          {/* Venue-only: Rooms & Dining */}
+          {showFeatures && (
+            <RoomsSection formData={formData} onChange={handleChange} />
+          )}
+          {showFeatures && (
+            <DiningSection formData={formData} onChange={handleChange} />
+          )}
+
           <SEOSection formData={formData} onChange={handleChange} />
           <ListingInfoSection formData={formData} onChange={handleChange} />
 
