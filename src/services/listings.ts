@@ -238,6 +238,9 @@ function mapFormToDatabaseFields(data: any): any {
     'exclusiveUseDescription': 'exclusive_use_description',
     'exclusiveUseCtaText':     'exclusive_use_cta_text',
     'exclusiveUseIncludes':    'exclusive_use_includes',
+    // Catering cards (max 3 — stored as JSONB array)
+    'cateringEnabled':         'catering_enabled',
+    'cateringCards':           'catering_cards',
     // Venue spaces (max 5 — stored as JSONB array)
     'spaces': 'spaces',
     // Rooms & accommodation

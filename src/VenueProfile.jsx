@@ -234,17 +234,33 @@ const VENUE = {
     minNights: 2,
   },
   catering: {
-    inHouse: {
-      available: true,
-      description: "Our culinary team sources produce from the estate and surrounding farms. Seasonal menus designed around your wedding day.",
-    },
-    externalCaterersAllowed: true,
-    corkageFeePerBottle: 18,
-    sommelierService: {
-      available: true,
-      wineCellarLabelsCount: 800,
-      description: "Our sommelier will curate a bespoke wine journey from our private cellar.",
-    },
+    enabled: true,
+    cards: [
+      {
+        id: 'c1',
+        icon: 'dining',
+        title: 'In-house catering',
+        description: 'Our culinary team sources produce from the estate and surrounding farms. Seasonal menus designed around your wedding day.',
+        subtext: '',
+        sortOrder: 0,
+      },
+      {
+        id: 'c2',
+        icon: 'cooking',
+        title: 'External caterers',
+        description: 'External caterers welcome. Corkage fee £18 per bottle.',
+        subtext: '',
+        sortOrder: 1,
+      },
+      {
+        id: 'c3',
+        icon: 'wine',
+        title: 'Sommelier service',
+        description: 'Our sommelier will curate a bespoke wine journey from our private cellar. Private cellar with over 800 labels.',
+        subtext: '',
+        sortOrder: 2,
+      },
+    ],
     styles: ["Fine dining", "Banquet", "Family style", "Food stations", "Late-night snacks"],
     dietary: ["Vegan", "Vegetarian", "Halal", "Kosher", "Gluten-free"],
   },
@@ -3539,60 +3555,76 @@ function ExclusiveUse({ venue, onEnquire }) {
 // ─── CATERING ────────────────────────────────────────────────────────────────
 function CateringSection({ venue }) {
   const C = useT();
+  const isMobile = useIsMobile();
   const cat = venue.catering;
 
-  const cards = [
-    {
-      icon: "dining",
-      title: "In-house catering",
-      body: cat.inHouse.available ? cat.inHouse.description : "In-house catering is not available at this venue.",
-      available: cat.inHouse.available,
-    },
-    {
-      icon: "cooking",
-      title: "External caterers",
-      body: cat.externalCaterersAllowed
-        ? `External caterers welcome.${cat.corkageFeePerBottle ? ` Corkage fee ${cat.corkageFeePerBottle} per bottle.` : ""}`
-        : "In-house catering only.",
-      available: cat.externalCaterersAllowed,
-    },
-    {
-      icon: "wine",
-      title: "Sommelier service",
-      body: cat.sommelierService.available
-        ? `${cat.sommelierService.description}${cat.sommelierService.wineCellarLabelsCount ? ` Private cellar with over ${cat.sommelierService.wineCellarLabelsCount} labels.` : ""}`
-        : "Sommelier service is not available.",
-      available: cat.sommelierService.available,
-    },
-  ];
+  // Hide if disabled or missing
+  if (!cat || cat.enabled === false) return null;
+
+  // Only show cards with content, sorted by sortOrder
+  const cards = (cat.cards || [])
+    .filter(c => c.title || c.description)
+    .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999))
+    .slice(0, 3);
+
+  if (cards.length === 0) return null;
+
+  // Grid cols: 3-up on desktop, adapt to card count on mobile
+  const colCount = isMobile ? 1 : Math.min(cards.length, 3);
 
   return (
     <section style={{ marginBottom: 56 }}>
       <SectionHeading title="Catering & Dining" />
-      <div className="vp-catering-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20, marginBottom: 28 }}>
+      <div
+        className="vp-catering-grid"
+        style={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${colCount}, 1fr)`,
+          gap: 20,
+          marginBottom: 28,
+        }}
+      >
         {cards.map(c => (
-          <div key={c.title} style={{ padding: 24, border: `1px solid ${C.border}`, background: C.surface }}>
+          <div
+            key={c.id || c.title}
+            style={{ padding: 24, border: `1px solid ${C.border}`, background: C.surface }}
+          >
             <div style={{ marginBottom: 12 }}>
-              <Icon name={c.icon} size={28} color={c.available ? C.gold : C.textMuted} />
+              <Icon name={c.icon || 'dining'} size={28} color={C.gold} />
             </div>
             <div style={{ fontFamily: FD, fontSize: 18, color: C.text, marginBottom: 8 }}>{c.title}</div>
-            <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight, lineHeight: 1.7 }}>{c.body}</div>
+            <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight, lineHeight: 1.7 }}>{c.description}</div>
+            {c.subtext && (
+              <div style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, marginTop: 8 }}>{c.subtext}</div>
+            )}
           </div>
         ))}
       </div>
+
+      {/* Dining styles + dietary pills */}
       <div style={{ display: "flex", gap: 32, flexWrap: "wrap" }}>
-        <div>
-          <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 10 }}>Dining styles</div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {cat.styles.map(s => <Pill key={s} color="gold">{s}</Pill>)}
+        {cat.styles?.length > 0 && (
+          <div>
+            <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 10 }}>
+              Dining styles
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {cat.styles.map(s => <Pill key={s} color="gold">{s}</Pill>)}
+            </div>
           </div>
-        </div>
-        <div>
-          <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 10 }}>Dietary options</div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {cat.dietary.map(d => <Pill key={d} color="green"><Icon name="check" size={10} color={C.green} /> {d}</Pill>)}
+        )}
+        {cat.dietary?.length > 0 && (
+          <div>
+            <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 10 }}>
+              Dietary options
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {cat.dietary.map(d => (
+                <Pill key={d} color="green"><Icon name="check" size={10} color={C.green} /> {d}</Pill>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </section>
   );

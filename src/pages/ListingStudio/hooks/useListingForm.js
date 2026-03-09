@@ -63,6 +63,9 @@ export const useListingForm = (listingId = null) => {
     dining_drinks: [],
     dining_description: '',
     dining_menu_images: [],
+    // ── Catering cards (max 3 — icon + title + description + subtext) ────────
+    catering_enabled: false,
+    catering_cards: [],  // [{ id, icon, title, description, subtext, sortOrder }]
     // Hero layout style: cinematic | split | magazine | video
     // cinematic = default (5-image luxury fade transition)
     hero_layout: 'cinematic',
@@ -178,6 +181,8 @@ export const useListingForm = (listingId = null) => {
             exclusive_use_description: listing.exclusiveUseDescription || '',
             exclusive_use_cta_text: listing.exclusiveUseCtaText || '',
             exclusive_use_includes: Array.isArray(listing.exclusiveUseIncludes) ? listing.exclusiveUseIncludes : [],
+            catering_enabled: listing.cateringEnabled ?? false,
+            catering_cards: Array.isArray(listing.cateringCards) ? listing.cateringCards : [],
             status: listing.status || 'draft',
             published_at: listing.publishedAt || null,
             visibility: listing.isHidden ? 'private' : 'public',
@@ -297,6 +302,16 @@ export const useListingForm = (listingId = null) => {
         exclusiveUseDescription: formData.exclusive_use_description || '',
         exclusiveUseCtaText: formData.exclusive_use_cta_text || '',
         exclusiveUseIncludes: formData.exclusive_use_includes || [],
+        // Catering cards
+        cateringEnabled: formData.catering_enabled ?? false,
+        cateringCards: (formData.catering_cards || []).map((c, idx) => ({
+          id: c.id,
+          icon: c.icon || 'dining',
+          title: c.title || '',
+          description: c.description || '',
+          subtext: c.subtext || '',
+          sortOrder: c.sortOrder ?? idx,
+        })),
         // Venue spaces — strip File objects, keep structured data
         spaces: (formData.spaces || []).map((s, idx) => ({
           id: s.id,

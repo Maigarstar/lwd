@@ -10,6 +10,7 @@ import CommercialDetailsSection from './sections/CommercialDetailsSection';
 import MediaSection from './sections/MediaSection';
 import SpacesSection from './sections/SpacesSection';
 import ExclusiveUseSection from './sections/ExclusiveUseSection';
+import CateringCardsSection from './sections/CateringCardsSection';
 import RoomsSection from './sections/RoomsSection';
 import DiningSection from './sections/DiningSection';
 import SEOSection from './sections/SEOSection';
@@ -246,6 +247,9 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
           )}
           {showFeatures && (
             <DiningSection formData={formData} onChange={handleChange} />
+          )}
+          {showFeatures && (
+            <CateringCardsSection formData={formData} onChange={handleChange} />
           )}
           {showFeatures && (
             <ExclusiveUseSection formData={formData} onChange={handleChange} />
