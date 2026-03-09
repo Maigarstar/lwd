@@ -69,16 +69,11 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: '45% 55%',
+      gridTemplateColumns: '50% 50%',
       gap: 0,
       minHeight: '100vh',
       backgroundColor: '#fff',
-      width: '100vw',
-      position: 'fixed',
-      left: 0,
-      top: 0,
-      right: 0,
-      bottom: 0,
+      width: '100%',
     }}>
       {/* LEFT PANEL: Editor */}
       <div style={{
