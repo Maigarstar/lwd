@@ -11,7 +11,7 @@ import { ITALY_COUNTRY } from "../data/italy/country.js";
 import { ITALY_REGIONS } from "../data/italy/regions.js";
 import { ITALY_CITIES } from "../data/italy/cities.js";
 import { REGION_AUTO_THRESHOLD, evaluateRegionActivation } from "../engine/activation.js";
-import { fetchListings, isSupabaseAvailable } from "../services/listings";
+import { fetchListings, isSupabaseAvailable, createListing } from "../services/listings";
 import categoryCssRaw from "../category.css?raw";
 import { RegionsModule } from "./admin/RegionsModule";
 import AdminAllLeads from "../components/admin/AdminAllLeads";
@@ -3817,423 +3817,6 @@ ${seoForm.headHtml ? `\n${seoForm.headHtml}` : ""}`
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// Listings Module — Directory Listing Management
-// ═════════════════════════════════════════════════════════════════════════════
-function ListingsModule({ C, onNavigate }) {
-  const [catFilter, setCatFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [tierFilter, setTierFilter] = useState("all");
-  const [countryFltr, setCountryFltr] = useState("all");
-  const [regionFltr, setRegionFltr] = useState("all");
-  const [search, setSearch] = useState("");
-  const [listings, setListings] = useState(MOCK_LISTINGS);
-  const [deleteModal, setDeleteModal] = useState(null); // { id, name }
-  const [actionFeedback, setActionFeedback] = useState(null); // { action, listing }
-  const [loading, setLoading] = useState(false);
-
-  // Load listings from Supabase on component mount
-  useEffect(() => {
-    const loadListings = async () => {
-      if (!isSupabaseAvailable()) {
-        console.log("Using MOCK_LISTINGS (Supabase not configured)");
-        return;
-      }
-
-      try {
-        setLoading(true);
-        const data = await fetchListings();
-        if (data && data.length > 0) {
-          console.log("Loaded listings from Supabase:", data);
-          setListings(data);
-        } else {
-          console.log("No listings found in Supabase, using MOCK_LISTINGS fallback");
-        }
-      } catch (error) {
-        console.error("Error loading listings from Supabase:", error);
-        console.log("Falling back to MOCK_LISTINGS");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadListings();
-  }, []);
-
-  const filteredRegions = countryFltr === "all"
-    ? DIRECTORY_REGIONS
-    : DIRECTORY_REGIONS.filter(r => r.countrySlug === countryFltr);
-
-  // Action handlers
-  const handlePause = (id) => {
-    const listing = listings.find(l => l.id === id);
-    if (listing) {
-      const updated = listings.map(l =>
-        l.id === id ? { ...l, status: l.status === "Paused" ? "Active" : "Paused" } : l
-      );
-      setListings(updated);
-      setActionFeedback({ action: listing.status === "Paused" ? "resumed" : "paused", listing });
-      setTimeout(() => setActionFeedback(null), 3000);
-    }
-  };
-
-  const handleDelete = (id) => {
-    const listing = listings.find(l => l.id === id);
-    if (listing) {
-      setDeleteModal(listing);
-    }
-  };
-
-  const confirmDelete = () => {
-    const updated = listings.filter(l => l.id !== deleteModal.id);
-    setListings(updated);
-    setDeleteModal(null);
-    setActionFeedback({ action: "deleted", listing: deleteModal });
-    setTimeout(() => setActionFeedback(null), 3000);
-  };
-
-  const filtered = listings.filter(l => {
-    if (catFilter === "uncategorised" && l.category) return false;
-    if (catFilter !== "all" && catFilter !== "uncategorised" && l.category !== catFilter) return false;
-    if (statusFilter !== "all" && l.status.toLowerCase() !== statusFilter) return false;
-    if (tierFilter !== "all" && l.tier !== tierFilter) return false;
-    if (countryFltr !== "all" && l.countrySlug !== countryFltr) return false;
-    if (regionFltr !== "all" && l.regionSlug !== regionFltr) return false;
-    if (search && !l.name.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
-
-  const tierColors = { signature: C.gold, curated: C.blue, standard: C.grey };
-  const tierBg = { signature: `${C.gold}15`, curated: `${C.blue}12`, standard: `${C.grey}10` };
-
-  const selectStyle = {
-    fontFamily: NU, fontSize: 11, color: C.off, background: C.card,
-    border: `1px solid ${C.border}`, borderRadius: 3, padding: "6px 10px",
-    cursor: "pointer", outline: "none",
-  };
-
-  return (
-    <div>
-      {/* Header + Add Button */}
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 20,
-      }}>
-        <h2 style={{
-          fontFamily: GD,
-          fontSize: 18,
-          color: C.off,
-          margin: 0,
-          fontWeight: 400,
-        }}>
-          Venue Listings
-        </h2>
-        <button
-          onClick={() => onNavigate?.("admin-listings-new")}
-          style={{
-            fontFamily: NU,
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: "0.1em",
-            padding: "10px 16px",
-            background: C.gold,
-            color: C.black,
-            border: "none",
-            borderRadius: 3,
-            cursor: "pointer",
-            transition: "all 0.15s",
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = C.gold2; }}
-          onMouseLeave={e => { e.currentTarget.style.background = C.gold; }}
-        >
-          + Add New Listing
-        </button>
-      </div>
-
-      {/* Stats bar */}
-      <div className="admin-stats-grid admin-grid-4col" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20, marginBottom: 28 }}>
-        {[
-          { label: "Total Listings", value: "3,280", sub: "+47 this month" },
-          { label: "Active", value: "2,914", sub: "88.9% of total" },
-          { label: "Pending Review", value: "248", sub: "12 high priority" },
-          { label: "Paused", value: "118", sub: "3.6% of total" },
-        ].map((s, i) => (
-          <div key={i} style={{
-            background: C.card, border: `1px solid ${C.border}`, borderRadius: 4,
-            padding: "20px 18px",
-          }}>
-            <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", color: C.grey2, marginBottom: 6, fontWeight: 600 }}>{s.label}</div>
-            <div style={{ fontFamily: GD, fontSize: 28, color: C.gold, fontWeight: 400, marginBottom: 2 }}>{s.value}</div>
-            <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, fontWeight: 300 }}>{s.sub}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Filter bar */}
-      <div style={{
-        display: "flex", alignItems: "center", gap: 12, marginBottom: 20,
-        padding: "12px 16px", background: C.card, border: `1px solid ${C.border}`, borderRadius: 4,
-      }}>
-        <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: C.gold, fontWeight: 700, flexShrink: 0 }}>◈ Filter</span>
-        <div style={{ height: 16, width: 1, background: C.border }} />
-        <select value={countryFltr} onChange={e => { setCountryFltr(e.target.value); setRegionFltr("all"); }} style={selectStyle}>
-          <option value="all">All Countries</option>
-          {DIRECTORY_COUNTRIES.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
-        </select>
-        <select value={regionFltr} onChange={e => setRegionFltr(e.target.value)} style={selectStyle}>
-          <option value="all">All Regions</option>
-          {filteredRegions.map(r => <option key={r.slug} value={r.slug}>{r.name}</option>)}
-        </select>
-        <select value={catFilter} onChange={e => setCatFilter(e.target.value)} style={selectStyle}>
-          <option value="all">All Categories</option>
-          <option value="uncategorised">⚠ Uncategorised</option>
-          {DIRECTORY_CATEGORIES.map(c => <option key={c.id} value={c.slug}>{c.name}</option>)}
-        </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={selectStyle}>
-          <option value="all">All Status</option>
-          <option value="draft">📝 Draft</option>
-          <option value="active">✓ Active</option>
-          <option value="pending">⏳ Pending</option>
-          <option value="review">👁 Review</option>
-          <option value="paused">⏸ Paused</option>
-        </select>
-        <select value={tierFilter} onChange={e => setTierFilter(e.target.value)} style={selectStyle}>
-          <option value="all">All Tiers</option>
-          <option value="signature">Signature</option>
-          <option value="curated">Curated</option>
-          <option value="standard">Standard</option>
-        </select>
-        <input
-          type="text" placeholder="Search listings..."
-          value={search} onChange={e => setSearch(e.target.value)}
-          style={{ ...selectStyle, flex: 1, minWidth: 120 }}
-        />
-      </div>
-
-      {/* Data table */}
-      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, overflow: "hidden" }}>
-        {/* Table header */}
-        <div className="admin-listing-header" style={{
-          display: "grid", gridTemplateColumns: "2fr 1fr 0.8fr 0.8fr 0.7fr 0.7fr 0.6fr 0.6fr 0.6fr 0.6fr 0.8fr",
-          padding: "10px 20px", borderBottom: `1px solid ${C.border}`, background: `${C.gold}06`,
-        }}>
-          {["Name", "Category", "Destination", "Status", "Tier", "Score", "Listed", "Updated", "Expires", "Enq.", "Actions"].map(h => (
-            <span key={h} style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: C.grey2, fontWeight: 700 }}>{h}</span>
-          ))}
-        </div>
-
-        {/* Table rows */}
-        {filtered.map((l, i) => {
-          const catObj = DIRECTORY_CATEGORIES.find(c => c.slug === l.category);
-          return (
-            <div key={l.id} className="admin-listing-row" style={{
-              display: "grid", gridTemplateColumns: "2fr 1fr 0.8fr 0.8fr 0.7fr 0.7fr 0.6fr 0.6fr 0.6fr 0.6fr 0.8fr",
-              padding: "12px 20px", borderBottom: i < filtered.length - 1 ? `1px solid ${C.border}` : "none",
-              alignItems: "center",
-              transition: "background 0.15s",
-              cursor: "pointer",
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = `${C.gold}06`}
-            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-            >
-              <div onClick={() => onNavigate?.("admin-listings-new", l)}>
-                <div style={{ fontFamily: NU, fontSize: 12, color: C.off, fontWeight: 600 }}>{l.name}</div>
-                <div style={{ fontFamily: NU, fontSize: 9, color: C.grey2 }}>/{l.slug}</div>
-              </div>
-              <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>{catObj?.name || l.category}</span>
-              <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>{l.destination}</span>
-              <StatusBadge status={l.status} C={C} />
-              <span style={{
-                fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase",
-                color: tierColors[l.tier], background: tierBg[l.tier], padding: "3px 8px", borderRadius: 2, width: "fit-content",
-              }}>{l.tier}</span>
-              <span style={{ fontFamily: GD, fontSize: 14, color: l.lwdScore >= 9.0 ? C.gold : C.grey, fontWeight: 400 }}>{l.lwdScore}</span>
-              <span style={{ fontFamily: NU, fontSize: 9, color: C.grey2 }}>{l.listed}</span>
-              <span style={{ fontFamily: NU, fontSize: 9, color: C.grey2 }}>{l.lastUpdated}</span>
-              <span style={{ fontFamily: NU, fontSize: 9, color: l.expires.includes("2025") ? C.rose : C.green }}>{l.expires}</span>
-              <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>{l.enquiries}</span>
-              <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onNavigate?.("admin-listings-new", l); }}
-                  title="Edit listing"
-                  style={{
-                    padding: "3px 6px",
-                    background: `${C.gold}20`,
-                    border: `1px solid ${C.gold}40`,
-                    borderRadius: 2,
-                    color: C.gold,
-                    cursor: "pointer",
-                    fontFamily: NU,
-                    fontSize: 9,
-                    fontWeight: 600,
-                    transition: "all 0.15s",
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = `${C.gold}40`;
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = `${C.gold}20`;
-                  }}
-                >
-                  ✏️
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handlePause(l.id); }}
-                  title={l.status === "Paused" ? "Resume listing" : "Pause listing"}
-                  style={{
-                    padding: "3px 6px",
-                    background: l.status === "Paused" ? `${C.green}20` : `${C.grey}20`,
-                    border: `1px solid ${l.status === "Paused" ? `${C.green}40` : `${C.grey}40`}`,
-                    borderRadius: 2,
-                    color: l.status === "Paused" ? C.green : C.grey,
-                    cursor: "pointer",
-                    fontFamily: NU,
-                    fontSize: 9,
-                    fontWeight: 600,
-                    transition: "all 0.15s",
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.opacity = "0.8";
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.opacity = "1";
-                  }}
-                >
-                  {l.status === "Paused" ? "▶️" : "⏸"}
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleDelete(l.id); }}
-                  title="Delete listing"
-                  style={{
-                    padding: "3px 6px",
-                    background: `${C.rose}20`,
-                    border: `1px solid ${C.rose}40`,
-                    borderRadius: 2,
-                    color: C.rose,
-                    cursor: "pointer",
-                    fontFamily: NU,
-                    fontSize: 9,
-                    fontWeight: 600,
-                    transition: "all 0.15s",
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = `${C.rose}40`;
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = `${C.rose}20`;
-                  }}
-                >
-                  🗑️
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    sessionStorage.setItem("lwd_admin_preview", JSON.stringify({ type: "vendor", id: String(l.id), name: l.name }));
-                    window.location.href = "/vendor";
-                  }}
-                  title={`Open as vendor: ${l.name}`}
-                  style={{
-                    padding: "3px 6px",
-                    background: `${C.gold}20`,
-                    border: `1px solid ${C.gold}40`,
-                    borderRadius: 2,
-                    color: C.gold,
-                    cursor: "pointer",
-                    fontFamily: NU,
-                    fontSize: 9,
-                    fontWeight: 700,
-                    transition: "all 0.15s",
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = `${C.gold}40`; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = `${C.gold}20`; }}
-                >
-                  ⟶
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Delete Confirmation Modal */}
-      {deleteModal && (
-        <div style={{
-          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center",
-          zIndex: 9999,
-        }} onClick={() => setDeleteModal(null)}>
-          <div style={{
-            background: C.card, border: `1px solid ${C.border}`, borderRadius: 4,
-            padding: 28, maxWidth: 400, boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
-          }} onClick={(e) => e.stopPropagation()}>
-            <div style={{
-              fontFamily: GD, fontSize: 18, color: C.rose, marginBottom: 12, fontWeight: 400,
-            }}>
-              ⚠️ Delete Listing
-            </div>
-            <div style={{
-              fontFamily: NU, fontSize: 12, color: C.off, marginBottom: 20, lineHeight: 1.6,
-            }}>
-              Are you sure you want to delete <strong>{deleteModal.name}</strong>? This action cannot be undone.
-            </div>
-            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
-              <button
-                onClick={() => setDeleteModal(null)}
-                style={{
-                  padding: "8px 16px", background: C.border, border: "none", borderRadius: 3,
-                  color: C.off, cursor: "pointer", fontFamily: NU, fontSize: 11, fontWeight: 700,
-                  transition: "all 0.15s",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = C.border2; }}
-                onMouseLeave={e => { e.currentTarget.style.background = C.border; }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDelete}
-                style={{
-                  padding: "8px 16px", background: C.rose, border: "none", borderRadius: 3,
-                  color: C.black, cursor: "pointer", fontFamily: NU, fontSize: 11, fontWeight: 700,
-                  transition: "all 0.15s",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.opacity = "0.8"; }}
-                onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
-              >
-                Delete Permanently
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Action Feedback */}
-      {actionFeedback && (
-        <div style={{
-          position: "fixed", bottom: 20, right: 20,
-          background: C.green, color: C.black, padding: "12px 16px",
-          borderRadius: 4, fontFamily: NU, fontSize: 12, fontWeight: 700,
-          animation: "slideIn 0.3s ease",
-          zIndex: 9998,
-        }}>
-          ✓ {actionFeedback.listing.name} {actionFeedback.action}
-        </div>
-      )}
-
-      {/* Footer */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16, padding: "0 4px" }}>
-        <span style={{ fontFamily: NU, fontSize: 11, color: C.grey2 }}>
-          Showing {filtered.length} of {listings.length} listings · 3,280 total in directory
-        </span>
-        <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2, letterSpacing: "0.1em" }}>
-          Route: /{"{country}"}/{"{category}"}/{"{slug}"}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
 // Countries & Regions Module
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -4282,7 +3865,8 @@ function CountriesModule({ C }) {
   const totalRegions = DIRECTORY_REGIONS.length;
   const activeUrls = DIRECTORY_REGIONS.filter(r => isRegionActive(r)).length;
   const seoProtected = DIRECTORY_REGIONS.filter(r => r.urlEverActivated && isRegionActive(r)).length;
-  const unassigned = MOCK_LISTINGS.filter(l => !l.regionSlug).length;
+  // NOTE: Not using mock data in admin. This value would come from real Supabase listings if needed.
+  const unassigned = 0;
 
   const getCountryRegions = (slug) => DIRECTORY_REGIONS.filter(r => r.countrySlug === slug);
   const getRegionCities = (regionSlug) => DIRECTORY_CITIES.filter(c => c.regionSlug === regionSlug);
@@ -6480,6 +6064,12 @@ function SidebarGroup({ section, activeTab, setActiveTab, darkMode, C, expandedG
             <button
               key={item.key}
               onClick={() => setActiveTab(item.key)}
+              onMouseDown={(e) => {
+                if (e.button === 0) {
+                  e.preventDefault();
+                  setActiveTab(item.key);
+                }
+              }}
               title={item.label}
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
@@ -6582,6 +6172,12 @@ function SidebarGroup({ section, activeTab, setActiveTab, darkMode, C, expandedG
               <button
                 key={item.key}
                 onClick={() => setActiveTab(item.key)}
+                onMouseDown={(e) => {
+                  if (e.button === 0) {
+                    e.preventDefault();
+                    setActiveTab(item.key);
+                  }
+                }}
                 style={{
                   display: "flex", alignItems: "center", gap: 10,
                   width: "100%", padding: "9px 20px 9px 34px",
@@ -6634,7 +6230,20 @@ function SidebarGroup({ section, activeTab, setActiveTab, darkMode, C, expandedG
 export { DIRECTORY_CATEGORIES, DIRECTORY_COUNTRIES, DIRECTORY_REGIONS };
 
 export default function AdminDashboard({ onBack, onNavigate }) {
-  const [activeTab, setActiveTab] = useState("overview");
+  // Initialize activeTab from hash, defaulting to "overview"
+  const getInitialTab = () => {
+    const hash = window.location.hash.slice(1); // Remove # prefix
+    return hash || "overview";
+  };
+
+  const [activeTab, setActiveTabState] = useState(getInitialTab);
+
+  // Wrapper to also update hash when tab changes
+  const setActiveTab = (tab) => {
+    setActiveTabState(tab);
+    window.location.hash = tab || "overview";
+  };
+
   const [darkMode, setDarkMode] = useState(() => {
     const saved = _loadTheme();
     const adminDefault = saved?.site?.adminDefaultMode || DEFAULT_SITE_SETTINGS.adminDefaultMode;
@@ -6642,6 +6251,29 @@ export default function AdminDashboard({ onBack, onNavigate }) {
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [createListingModal, setCreateListingModal] = useState(false);
+  const [editingListing, setEditingListing] = useState(null);
+  const [listingFormData, setListingFormData] = useState({
+    name: "",
+    category: "wedding-venues",
+    destination: "italy",
+    regionSlug: "",
+  });
+  const [listingFormError, setListingFormError] = useState(null);
+  const [listingFormLoading, setListingFormLoading] = useState(false);
+
+  // ── Hash-based routing: listen for hash changes and update activeTab ──
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1); // Remove # prefix
+      const tab = hash || "overview";
+      setActiveTabState(tab);
+    };
+
+    // Listen for hash changes (back/forward button and direct hash navigation)
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
 
   // ── Theme customisation state (persisted to localStorage) ──
   const [customDark, setCustomDark] = useState(() => {
@@ -6770,6 +6402,91 @@ export default function AdminDashboard({ onBack, onNavigate }) {
     logThemeChange(`Applied preset: ${p.name}`);
   }, [logThemeChange]);
 
+  // ── Save listing to Supabase ──
+  const handleSaveListing = useCallback(async () => {
+    try {
+      setListingFormError(null);
+      setListingFormLoading(true);
+
+      // Get form element and read values using FormData
+      const formEl = window._listingFormRef;
+      if (!formEl) {
+        console.error("❌ Form element not found");
+        setListingFormError("Form element not found");
+        setListingFormLoading(false);
+        return;
+      }
+
+      const formData = new FormData(formEl);
+      const venueName = formData.get("venue_name")?.trim() || "";
+      const category = formData.get("category") || "wedding-venues";
+      const destination = formData.get("destination") || "italy";
+
+      console.log("🟢 handleSaveListing called");
+      console.log("📋 Venue Name (from FormData):", venueName);
+      console.log("📋 Category (from FormData):", category);
+      console.log("📋 Destination (from FormData):", destination);
+
+      if (!venueName) {
+        console.log("❌ Validation failed: venue name is empty");
+        setListingFormError("Venue name is required");
+        setListingFormLoading(false);
+        return;
+      }
+      console.log("✅ Validation passed");
+
+      // Generate slug from name
+      const slug = venueName
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+
+      // Map category to listingType
+      let listingType = 'wedding-venue';
+      if (category === 'wedding-planners') listingType = 'wedding-planner';
+      if (category === 'photographers') listingType = 'photographer';
+      if (category === 'florists') listingType = 'florist';
+
+      // Build listing payload for Supabase
+      const newListing = {
+        name: venueName,
+        slug: slug,
+        listingType: listingType,
+        category: category,
+        categorySlug: category,
+        countrySlug: destination,
+        regionSlug: destination,
+        tier: 'standard',
+        status: 'draft',
+        description: `${venueName} - New listing`,
+        cardTitle: venueName,
+        cardSubtitle: category,
+      };
+
+      console.log("✓ Creating new listing in Supabase:", newListing);
+
+      // Call Supabase insert function
+      const createdListing = await createListing(newListing);
+      console.log("✓ Listing created successfully:", createdListing);
+      console.log("✓ New listing ID:", createdListing.id);
+
+      // Reset form
+      formEl.reset();
+      setCreateListingModal(false);
+      setListingFormError(null);
+
+      // Show success feedback
+      alert("✓ Listing created successfully!\n\nVenue: " + venueName + "\n\nRefresh the page to see it appear in the listings table.");
+    } catch (error) {
+      console.error("✗ Error saving listing:", error);
+      setListingFormError("Failed to save listing: " + (error.message || "Unknown error"));
+    } finally {
+      setListingFormLoading(false);
+    }
+  }, []);
+
   // Collapsible sidebar — track which groups are expanded
   // Default: expand the group that contains the active tab
   const [expandedGroups, setExpandedGroups] = useState(() => {
@@ -6808,13 +6525,102 @@ export default function AdminDashboard({ onBack, onNavigate }) {
 
   const C = darkMode ? customDark : customLight;
 
+  // Nested ListingsModule component (for proper closure binding with onNavigate)
+  const ListingsModule = ({ C, onNavigate }) => {
+    const [catFilter, setCatFilter] = useState("all");
+    const [statusFilter, setStatusFilter] = useState("all");
+    const [tierFilter, setTierFilter] = useState("all");
+    const [countryFltr, setCountryFltr] = useState("all");
+    const [regionFltr, setRegionFltr] = useState("all");
+    const [search, setSearch] = useState("");
+    const [listings, setListings] = useState([]);
+    const [deleteModal, setDeleteModal] = useState(null);
+    const [actionFeedback, setActionFeedback] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+      const loadListings = async () => {
+        try {
+          setLoading(true);
+          setError(null);
+          if (!isSupabaseAvailable()) {
+            setError("Supabase is not configured. Listings cannot be loaded.");
+            setListings([]);
+            return;
+          }
+          const data = await fetchListings();
+          setListings(data && data.length > 0 ? data : []);
+        } catch (error) {
+          setError("Failed to load listings: " + error.message);
+          setListings([]);
+        } finally {
+          setLoading(false);
+        }
+      };
+      loadListings();
+    }, []);
+
+    const filteredRegions = countryFltr === "all" ? DIRECTORY_REGIONS : DIRECTORY_REGIONS.filter(r => r.countrySlug === countryFltr);
+    const handlePause = (id) => {
+      const listing = listings.find(l => l.id === id);
+      if (listing) {
+        const updated = listings.map(l => l.id === id ? { ...l, status: l.status === "Paused" ? "Active" : "Paused" } : l);
+        setListings(updated);
+        setActionFeedback({ action: listing.status === "Paused" ? "resumed" : "paused", listing });
+        setTimeout(() => setActionFeedback(null), 3000);
+      }
+    };
+    const handleDelete = (id) => {
+      const listing = listings.find(l => l.id === id);
+      if (listing) setDeleteModal(listing);
+    };
+    const confirmDelete = () => {
+      const updated = listings.filter(l => l.id !== deleteModal.id);
+      setListings(updated);
+      setDeleteModal(null);
+      setActionFeedback({ action: "deleted", listing: deleteModal });
+      setTimeout(() => setActionFeedback(null), 3000);
+    };
+    const filtered = listings.filter(l => {
+      if (catFilter === "uncategorised" && l.category) return false;
+      if (catFilter !== "all" && catFilter !== "uncategorised" && l.category !== catFilter) return false;
+      if (statusFilter !== "all" && l.status.toLowerCase() !== statusFilter) return false;
+      if (tierFilter !== "all" && l.tier !== tierFilter) return false;
+      if (countryFltr !== "all" && l.countrySlug !== countryFltr) return false;
+      if (regionFltr !== "all" && l.regionSlug !== regionFltr) return false;
+      if (search && !l.name.toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
+    });
+    const tierColors = { signature: C.gold, curated: C.blue, standard: C.grey };
+    const tierBg = { signature: `${C.gold}15`, curated: `${C.blue}12`, standard: `${C.grey}10` };
+    const selectStyle = { fontFamily: NU, fontSize: 11, color: C.off, background: C.card, border: `1px solid ${C.border}`, borderRadius: 3, padding: "6px 10px", cursor: "pointer", outline: "none" };
+
+    return (
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <h2 style={{ fontFamily: GD, fontSize: 18, color: C.off, margin: 0, fontWeight: 400 }}>Venue Listings</h2>
+          <button onClick={() => { console.log("Button clicked! onNavigate is:", typeof onNavigate); if (onNavigate) { console.log("Calling onNavigate with admin-listings-new"); onNavigate("admin-listings-new"); } }} style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", padding: "10px 16px", background: C.gold, color: C.black, border: "none", borderRadius: 3, cursor: "pointer", transition: "all 0.15s" }} onMouseEnter={e => { e.currentTarget.style.background = C.gold2; }} onMouseLeave={e => { e.currentTarget.style.background = C.gold; }}>+ Add New Listing</button>
+        </div>
+        {loading && <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: "32px", textAlign: "center", marginBottom: 20 }}><div style={{ fontFamily: NU, fontSize: 13, color: C.grey }}>Loading listings from Supabase...</div></div>}
+        {error && <div style={{ background: C.rose + "20", border: `1px solid ${C.rose}`, borderRadius: 4, padding: "16px", marginBottom: 20 }}><div style={{ fontFamily: NU, fontSize: 12, color: C.rose, fontWeight: 600 }}>⚠ {error}</div></div>}
+        {!loading && listings.length === 0 && !error && <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: "48px", textAlign: "center", marginBottom: 20 }}><div style={{ fontFamily: GD, fontSize: 16, color: C.off, marginBottom: 8 }}>No Listings Yet</div><button onClick={() => { if (onNavigate) onNavigate("admin-listings-new"); }} style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, padding: "10px 20px", background: C.gold, color: C.black, border: "none", borderRadius: 3, cursor: "pointer" }}>+ Create First Listing</button></div>}
+      </div>
+    );
+  };
+
   const renderModule = () => {
     switch (activeTab) {
       case "overview":      return <OverviewModule C={C} />;
       case "partnerships":  return <PartnershipsModule C={C} />;
       case "index":         return <IndexHealthModule C={C} />;
       case "livechat":      return <LiveChatModule C={C} />;
-      case "listings":      return <ListingsModule C={C} onNavigate={onNavigate} />;
+      case "listings":      return <ListingsModule C={C} onNavigate={(action, data) => {
+        if (action === "admin-listings-new") {
+          setCreateListingModal(true);
+          setEditingListing(data || null);
+        }
+      }} />;
       case "vendor-accounts": return <VendorAccountsPage C={C} />;
       case "categories":    return <CategoriesModule C={C} />;
       case "enquiries":     return <AdminAllLeads C={C} />;
@@ -6943,10 +6749,14 @@ export default function AdminDashboard({ onBack, onNavigate }) {
           </div>
 
           {/* Nav groups — collapsible */}
-          <nav style={{ flex: 1 }} onClick={(e) => {
-            // Close sidebar on mobile when a nav item is clicked
-            if (window.innerWidth <= 768 && e.target.closest("button")) setSidebarOpen(false);
-          }}>
+          <nav style={{ flex: 1 }}
+            onClick={(e) => {
+              // Close sidebar on mobile when a nav item is clicked
+              if (window.innerWidth <= 768 && e.target.closest("button")) setSidebarOpen(false);
+            }}
+            role="navigation"
+            aria-label="Admin navigation"
+          >
             {NAV_SECTIONS.map((section) => (
               <SidebarGroup
                 key={section.group}
@@ -7145,6 +6955,116 @@ export default function AdminDashboard({ onBack, onNavigate }) {
 
           {renderModule()}
         </main>
+
+        {/* ── Listing Creation Modal ── */}
+        {createListingModal && (
+          <div style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex",
+            alignItems: "center", justifyContent: "center", zIndex: 2000,
+          }} onClick={() => setCreateListingModal(false)}>
+            <form ref={(el) => window._listingFormRef = el} style={{
+              background: C.card, borderRadius: 6, padding: "32px", maxWidth: "600px",
+              width: "90%", maxHeight: "80vh", overflowY: "auto", border: `1px solid ${C.border}`,
+              boxShadow: "0 16px 64px rgba(0,0,0,0.4)",
+            }} onClick={e => e.stopPropagation()} onSubmit={e => e.preventDefault()}>
+              <h2 style={{ fontFamily: GD, fontSize: 20, color: C.off, margin: "0 0 24px", fontWeight: 400 }}>
+                {editingListing ? "Edit Listing" : "Create New Listing"}
+              </h2>
+
+              {listingFormError && (
+                <div style={{
+                  background: C.rose + "20", border: `1px solid ${C.rose}`, borderRadius: 4,
+                  padding: "12px", marginBottom: 16,
+                }}>
+                  <div style={{ fontFamily: NU, fontSize: 11, color: C.rose, fontWeight: 600 }}>⚠ {listingFormError}</div>
+                </div>
+              )}
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div>
+                  <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, fontWeight: 600, display: "block", marginBottom: 6, letterSpacing: "0.05em", textTransform: "uppercase" }}>Venue Name</label>
+                  <input
+                    name="venue_name"
+                    type="text"
+                    placeholder="e.g., Villa Balbiano"
+                    defaultValue=""
+                    required
+                    style={{
+                      fontFamily: NU, width: "100%", padding: "10px 12px", fontSize: 13,
+                      background: C.black, color: C.white, border: `1px solid ${C.border}`, borderRadius: 3,
+                      outline: "none",
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, fontWeight: 600, display: "block", marginBottom: 6, letterSpacing: "0.05em", textTransform: "uppercase" }}>Category</label>
+                  <select
+                    name="category"
+                    defaultValue="wedding-venues"
+                    style={{
+                      fontFamily: NU, width: "100%", padding: "10px 12px", fontSize: 13,
+                      background: C.black, color: C.white, border: `1px solid ${C.border}`, borderRadius: 3,
+                      outline: "none",
+                    }}>
+                    <option value="wedding-venues">Wedding Venues</option>
+                    <option value="wedding-planners">Wedding Planners</option>
+                    <option value="photographers">Photographers</option>
+                    <option value="florists">Florists</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, fontWeight: 600, display: "block", marginBottom: 6, letterSpacing: "0.05em", textTransform: "uppercase" }}>Destination</label>
+                  <select
+                    name="destination"
+                    defaultValue="italy"
+                    style={{
+                      fontFamily: NU, width: "100%", padding: "10px 12px", fontSize: 13,
+                      background: C.black, color: C.white, border: `1px solid ${C.border}`, borderRadius: 3,
+                      outline: "none",
+                    }}>
+                    <option value="italy">Italy</option>
+                    <option value="france">France</option>
+                    <option value="uk">United Kingdom</option>
+                    <option value="spain">Spain</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 12, marginTop: 28, justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={() => setCreateListingModal(false)}
+                  disabled={listingFormLoading}
+                  style={{
+                    fontFamily: NU, fontSize: 11, padding: "10px 16px", background: C.dark,
+                    color: C.white, border: `1px solid ${C.border}`, borderRadius: 3, cursor: "pointer",
+                    fontWeight: 600, letterSpacing: "0.05em", transition: "all 0.15s",
+                    opacity: listingFormLoading ? 0.5 : 1,
+                  }}
+                  onMouseEnter={e => !listingFormLoading && (e.currentTarget.style.borderColor = C.gold)}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveListing}
+                  disabled={listingFormLoading}
+                  style={{
+                    fontFamily: NU, fontSize: 11, padding: "10px 16px", background: C.gold,
+                    color: C.black, border: "none", borderRadius: 3, cursor: listingFormLoading ? "not-allowed" : "pointer",
+                    fontWeight: 600, letterSpacing: "0.05em", transition: "all 0.15s",
+                    opacity: listingFormLoading ? 0.7 : 1,
+                  }}
+                  onMouseEnter={e => !listingFormLoading && (e.currentTarget.style.background = C.gold2)}
+                  onMouseLeave={e => e.currentTarget.style.background = C.gold}>
+                  {listingFormLoading ? "Saving..." : (editingListing ? "Save Changes" : "Create Listing")}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
     </ThemeCtx.Provider>
   );
