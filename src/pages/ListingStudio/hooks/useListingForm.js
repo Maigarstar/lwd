@@ -31,6 +31,10 @@ export const useListingForm = (listingId = null) => {
     // Unified media pool: gallery images + videos + virtual tours
     // Replaces legacy gallery_images[] + videos[]
     media_items: [], // Array of { type: 'image'|'video'|'virtual_tour', source_type, file, url, thumbnail, title, caption, credit_name, ... }
+    // Hero layout style: cinematic | split | magazine | video
+    // cinematic = default (5-image luxury fade transition)
+    hero_layout: 'cinematic',
+    hero_video_url: '',   // YouTube or Vimeo URL — required when hero_layout === 'video'
     seo_title: '',
     seo_description: '',
     seo_keywords: [],   // max 8 — used for meta keywords + AI search indexing
@@ -128,6 +132,8 @@ export const useListingForm = (listingId = null) => {
                 is_featured: false,
               })),
             ],
+            hero_layout: listing.heroLayout || 'cinematic',
+            hero_video_url: listing.heroVideoUrl || '',
             seo_title: listing.seoTitle || '',
             seo_description: listing.seoDescription || '',
             seo_keywords: Array.isArray(listing.seoKeywords) ? listing.seoKeywords : [],
@@ -236,6 +242,8 @@ export const useListingForm = (listingId = null) => {
           title: '',
           caption: '',
         })),
+        heroLayout: formData.hero_layout || 'cinematic',
+        heroVideoUrl: formData.hero_video_url || '',
         seoTitle: formData.seo_title,
         seoDescription: formData.seo_description,
         seoKeywords: formData.seo_keywords || [],

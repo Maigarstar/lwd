@@ -416,6 +416,180 @@ const MediaItemCard = ({ item, objectUrls, onUpdate, onRemove, inCard, cardPosit
 };
 
 
+// ─── HERO LAYOUT PICKER ──────────────────────────────────────────────────────
+// 4 hero layout styles matching the public VenueProfile.jsx styles:
+//   cinematic  — full-width fade slider, name overlaid at bottom (DEFAULT)
+//   split      — image left, info panel right
+//   magazine   — image top, title bar below
+//   video      — autoplay YouTube / Vimeo background loop
+
+const HERO_LAYOUTS = [
+  {
+    key: 'cinematic',
+    label: 'Cinematic',
+    desc: '5-image luxury fade · name over gradient',
+    // ASCII-art thumbnail
+    thumb: (active) => (
+      <svg viewBox="0 0 80 46" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
+        <rect width="80" height="46" rx="2" fill={active ? 'rgba(201,168,76,0.1)' : '#f5f3ef'} />
+        <rect width="80" height="46" rx="2" fill="url(#cin)" />
+        <defs>
+          <linearGradient id="cin" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#b0a090" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="#3a2a1a" stopOpacity="0.85" />
+          </linearGradient>
+        </defs>
+        {/* Image fill */}
+        <rect width="80" height="46" rx="2" fill="#c8b89a" opacity="0.55" />
+        {/* Gradient overlay */}
+        <rect y="20" width="80" height="26" fill="url(#cin)" />
+        {/* Title line */}
+        <rect x="8" y="30" width="36" height="4" rx="1" fill="white" opacity="0.85" />
+        <rect x="8" y="37" width="20" height="2.5" rx="1" fill="white" opacity="0.5" />
+        {/* CTA */}
+        <rect x="8" y="40.5" width="18" height="3" rx="1" fill="#C9A84C" opacity="0.9" />
+      </svg>
+    ),
+  },
+  {
+    key: 'split',
+    label: 'Editorial Split',
+    desc: 'Image left · info panel right',
+    thumb: (active) => (
+      <svg viewBox="0 0 80 46" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
+        <rect width="80" height="46" rx="2" fill={active ? 'rgba(201,168,76,0.1)' : '#f5f3ef'} />
+        {/* Image half */}
+        <rect width="46" height="46" rx="2" fill="#c8b89a" opacity="0.7" />
+        {/* Info half */}
+        <rect x="46" width="34" height="46" fill="#faf9f7" />
+        <rect x="46" width="1" height="46" fill="#e5ddd0" />
+        {/* Info lines */}
+        <rect x="51" y="14" width="20" height="3" rx="1" fill="#C9A84C" opacity="0.7" />
+        <rect x="51" y="20" width="24" height="2.5" rx="1" fill="#555" opacity="0.5" />
+        <rect x="51" y="24.5" width="18" height="2" rx="1" fill="#888" opacity="0.35" />
+        <rect x="51" y="32" width="22" height="4" rx="1" fill="#C9A84C" opacity="0.9" />
+      </svg>
+    ),
+  },
+  {
+    key: 'magazine',
+    label: 'Magazine',
+    desc: 'Image top · title bar below',
+    thumb: (active) => (
+      <svg viewBox="0 0 80 46" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
+        <rect width="80" height="46" rx="2" fill={active ? 'rgba(201,168,76,0.1)' : '#f5f3ef'} />
+        {/* Image top */}
+        <rect width="80" height="28" rx="2" fill="#c8b89a" opacity="0.7" />
+        {/* Overlay */}
+        <rect width="80" height="28" fill="rgba(0,0,0,0.2)" />
+        {/* Title bar */}
+        <rect y="28" width="80" height="18" fill="#faf9f7" />
+        <rect y="28" width="80" height="1" fill="#e5ddd0" />
+        {/* Title + CTA */}
+        <rect x="8" y="33" width="30" height="3" rx="1" fill="#333" opacity="0.55" />
+        <rect x="52" y="31.5" width="20" height="5" rx="1" fill="#C9A84C" opacity="0.85" />
+      </svg>
+    ),
+  },
+  {
+    key: 'video',
+    label: 'Video Hero',
+    desc: 'YouTube / Vimeo loop · requires video URL',
+    thumb: (active) => (
+      <svg viewBox="0 0 80 46" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
+        <rect width="80" height="46" rx="2" fill={active ? 'rgba(201,168,76,0.1)' : '#f5f3ef'} />
+        <rect width="80" height="46" rx="2" fill="#2a2018" opacity="0.75" />
+        {/* Play icon */}
+        <circle cx="40" cy="19" r="9" fill="rgba(201,168,76,0.25)" stroke="#C9A84C" strokeWidth="1" />
+        <polygon points="37,15 37,23 46,19" fill="#C9A84C" opacity="0.9" />
+        {/* Title line */}
+        <rect x="14" y="33" width="32" height="3.5" rx="1" fill="white" opacity="0.75" />
+        <rect x="14" y="39" width="18" height="3" rx="1" fill="#C9A84C" opacity="0.85" />
+      </svg>
+    ),
+  },
+];
+
+const HeroLayoutPicker = ({ value, onChange, videoUrl, onVideoUrlChange }) => (
+  <div style={{ marginBottom: 32 }}>
+    <label style={{
+      display: 'block', fontSize: 12, fontWeight: 600,
+      textTransform: 'uppercase', letterSpacing: '0.04em',
+      color: '#1a1a1a', marginBottom: 10,
+    }}>
+      Hero Layout Style
+    </label>
+
+    {/* 4-column grid of style cards */}
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+      {HERO_LAYOUTS.map(({ key, label, desc, thumb }) => {
+        const active = value === key;
+        return (
+          <button
+            key={key}
+            type="button"
+            onClick={() => onChange(key)}
+            style={{
+              padding: 0, border: `2px solid ${active ? '#C9A84C' : '#e5ddd0'}`,
+              borderRadius: 4, backgroundColor: active ? 'rgba(201,168,76,0.06)' : '#fafaf8',
+              cursor: 'pointer', textAlign: 'left', overflow: 'hidden',
+              transition: 'border-color 0.15s, background-color 0.15s',
+              boxShadow: active ? '0 0 0 1px rgba(201,168,76,0.35)' : 'none',
+            }}
+          >
+            {/* Thumbnail */}
+            <div style={{ aspectRatio: '80/46', width: '100%', display: 'block' }}>
+              {thumb(active)}
+            </div>
+            {/* Label */}
+            <div style={{ padding: '7px 8px 8px' }}>
+              <div style={{
+                fontSize: 11, fontWeight: 700,
+                color: active ? '#9a6f0a' : '#333',
+                marginBottom: 2,
+              }}>
+                {label}
+                {key === 'cinematic' && (
+                  <span style={{
+                    marginLeft: 5, fontSize: 9, fontWeight: 600,
+                    color: '#C9A84C', textTransform: 'uppercase', letterSpacing: '0.05em',
+                  }}>Default</span>
+                )}
+              </div>
+              <div style={{ fontSize: 10, color: '#999', lineHeight: 1.35 }}>{desc}</div>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+
+    {/* Video URL input — shown only when video layout is selected */}
+    {value === 'video' && (
+      <div style={{ marginTop: 12 }}>
+        <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#555', marginBottom: 5 }}>
+          Hero Video URL{' '}
+          <span style={{ fontWeight: 400, color: '#aaa' }}>(YouTube or Vimeo — autoplays muted &amp; looped)</span>
+        </label>
+        <input
+          type="url"
+          value={videoUrl}
+          onChange={e => onVideoUrlChange(e.target.value)}
+          placeholder="https://www.youtube.com/watch?v=… or https://vimeo.com/…"
+          style={{
+            width: '100%', padding: '9px 12px', fontSize: 12,
+            border: '1px solid #ddd4c8', borderRadius: 3,
+            fontFamily: 'inherit', color: '#333', boxSizing: 'border-box',
+          }}
+        />
+        <p style={{ fontSize: 10, color: '#aaa', margin: '4px 0 0' }}>
+          The video plays silently in the background. Hero images are still required as poster fallback.
+        </p>
+      </div>
+    )}
+  </div>
+);
+
+
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 const MediaSection = ({ formData, onChange }) => {
 
@@ -565,6 +739,14 @@ const MediaSection = ({ formData, onChange }) => {
         Hero images appear prominently at the top of the listing. Gallery, videos and virtual tours appear in the body.
         The first <strong>{CARD_LIMIT}</strong> media items (by featured status + sort order) are shown in listing cards.
       </p>
+
+      {/* ── HERO LAYOUT STYLE ──────────────────────────────────────────────── */}
+      <HeroLayoutPicker
+        value={formData?.hero_layout || 'cinematic'}
+        onChange={style => onChange('hero_layout', style)}
+        videoUrl={formData?.hero_video_url || ''}
+        onVideoUrlChange={url => onChange('hero_video_url', url)}
+      />
 
       {/* ── HERO IMAGES ─────────────────────────────────────────────────────── */}
       <div style={{ marginBottom: 36 }}>

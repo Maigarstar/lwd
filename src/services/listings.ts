@@ -206,6 +206,7 @@ function mapFormToDatabaseFields(data: any): any {
     'cardFeatured': 'card_featured',
     'cardPromoted': 'card_promoted',
     'heroType': 'hero_type',
+    'heroLayout': 'hero_layout',
     'heroEyebrow': 'hero_eyebrow',
     'heroTitle': 'hero_title',
     'heroSubtitle': 'hero_subtitle',
