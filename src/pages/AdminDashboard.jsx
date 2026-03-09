@@ -202,6 +202,7 @@ const NAV_SECTIONS = [
     items: [
       { key: "overview",     label: "Overview",          icon: "◈" },
       { key: "listings",     label: "Listings",          icon: "⊞" },
+      { key: "listing-studio", label: "Listing Studio",  icon: "✎" },
       { key: "vendor-accounts", label: "Vendor Accounts", icon: "👤" },
       { key: "categories",   label: "Categories",        icon: "▦" },
       { key: "enquiries",    label: "Enquiries",         icon: "◇" },
@@ -6525,6 +6526,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "index":         return <IndexHealthModule C={C} />;
       case "livechat":      return <LiveChatModule C={C} />;
       case "listings":      return <ListingsModule C={C} />;
+      case "listing-studio": return null; // Handled in main render logic
       case "vendor-accounts": return <VendorAccountsPage C={C} />;
       case "categories":    return <CategoriesModule C={C} />;
       case "enquiries":     return <AdminAllLeads C={C} />;
@@ -6823,14 +6825,15 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         </aside>
 
         {/* ── Main content ── */}
-        <main className="admin-main" style={{ flex: 1, padding: listingStudioMode ? 0 : "40px 48px", overflow: "auto", transition: "background 0.3s" }}>
-          {/* Show ListingStudio page when in listing studio mode */}
-          {listingStudioMode ? (
+        <main className="admin-main" style={{ flex: 1, padding: listingStudioMode || activeTab === 'listing-studio' ? 0 : "40px 48px", overflow: "auto", transition: "background 0.3s" }}>
+          {/* Show ListingStudio page when in listing studio mode or tab */}
+          {listingStudioMode || activeTab === 'listing-studio' ? (
             <ListingStudioPage
-              navigationState={{ mode: listingStudioMode, listingId: listingStudioListingId }}
+              navigationState={{ mode: listingStudioMode || 'new', listingId: listingStudioListingId }}
               onNavigate={() => {
                 setListingStudioMode(null);
                 setListingStudioListingId(null);
+                setActiveTab('listings');
               }}
             />
           ) : (
