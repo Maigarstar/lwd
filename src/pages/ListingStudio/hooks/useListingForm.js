@@ -17,16 +17,16 @@ export const useListingForm = (listingId = null) => {
     amenities: '',
     country: '',
     region: '',
+    city: '',
+    postcode: '',
     address: '',
+    address_line2: '',
+    lat: '',
+    lng: '',
     price_range: '',
     capacity: '',
-    // New premium media structure
-    hero_image: {
-      file: null,
-      title: '',
-      caption: '',
-      credit_name: '',
-    },
+    // Hero images — up to 5, first = primary
+    hero_images: [],
     gallery_images: [], // Array of media records
     videos: [], // Array of video records
     seo_title: '',
@@ -34,6 +34,14 @@ export const useListingForm = (listingId = null) => {
     status: 'draft',
     published_at: null,
     visibility: 'private',
+    // Multi-location support (max 4 total: 1 primary + 3 additional)
+    additional_locations: [],
+    // Listing info / sidebar card fields
+    contact_profile: { photo_file: null, photo_url: '', name: '', title: '', bio: '', email: '', phone: '', whatsapp: '', response_time: '', response_rate: '', instagram: '', website: '' },
+    opening_hours_enabled: false,
+    opening_hours: {},
+    press_features: [],
+    awards: [],
   });
 
   const [loading, setLoading] = useState(false);
@@ -58,16 +66,25 @@ export const useListingForm = (listingId = null) => {
             amenities: listing.amenities || '',
             country: listing.country || '',
             region: listing.region || '',
+            city: listing.city || '',
+            postcode: listing.postcode || '',
             address: listing.address || '',
+            address_line2: '',
+            lat: listing.lat != null ? String(listing.lat) : '',
+            lng: listing.lng != null ? String(listing.lng) : '',
             price_range: listing.priceLabel || '',
             capacity: listing.capacityMin || '',
-            // Convert old format to new media structure
-            hero_image: {
+            // Convert existing single heroImage to hero_images array
+            hero_images: listing.heroImage ? [{
+              id: 'hero-0',
               file: null,
+              url: listing.heroImage,
               title: listing.heroTitle || '',
               caption: listing.heroCaption || '',
               credit_name: listing.heroCredit || '',
-            },
+              sort_order: 0,
+              is_primary: true,
+            }] : [],
             gallery_images: (listing.heroImageSet || []).map((url, idx) => ({
               id: `img-${idx}`,
               type: 'image',
@@ -156,10 +173,11 @@ export const useListingForm = (listingId = null) => {
       const slug = formData.slug || generateSlug(formData.venue_name);
 
       // Map form data to listing payload
-      // Extract image URLs from new media structure
-      const heroImageUrl = formData.hero_image?.file instanceof File
-        ? null // TODO: File upload handling - for now set to null
-        : formData.hero_image?.file || '';
+      // Extract primary hero image URL from hero_images array
+      const primaryHero  = (formData.hero_images || [])[0] || {};
+      const heroImageUrl = primaryHero.file instanceof File
+        ? null // TODO: handle file upload to storage
+        : primaryHero.url || primaryHero.file || '';
 
       const galleryImageUrls = (formData.gallery_images || [])
         .filter(img => !img.file || !(img.file instanceof File))
@@ -179,13 +197,17 @@ export const useListingForm = (listingId = null) => {
         amenities: formData.amenities,
         country: formData.country,
         region: formData.region,
-        address: formData.address,
+        city: formData.city,
+        postcode: formData.postcode,
+        address: [formData.address, formData.address_line2].filter(Boolean).join('\n'),
+        lat: formData.lat,
+        lng: formData.lng,
         priceLabel: formData.price_range,
         capacityMin: formData.capacity ? parseInt(formData.capacity, 10) : null,
         heroImage: heroImageUrl,
-        heroTitle: formData.hero_image?.title || '',
-        heroCaption: formData.hero_image?.caption || '',
-        heroCredit: formData.hero_image?.credit_name || '',
+        heroTitle: primaryHero.title || '',
+        heroCaption: primaryHero.caption || '',
+        heroCredit: primaryHero.credit_name || '',
         heroImageSet: galleryImageUrls,
         videos: videoUrls.map(url => ({
           url,
