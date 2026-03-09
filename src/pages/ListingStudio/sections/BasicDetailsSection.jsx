@@ -1,64 +1,423 @@
+import { useState, useEffect, useRef } from 'react';
+import { supabase } from '../../../lib/supabaseClient';
+
+/**
+ * AccountHolderDropdown
+ *
+ * Searchable combobox that fetches all vendor accounts from the system
+ * and lets the admin link a listing to an account holder.
+ * Mirrors how directory platforms handle listing ownership.
+ */
+function AccountHolderDropdown({ value, onChange }) {
+  const [accounts, setAccounts] = useState([]);
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const containerRef = useRef(null);
+
+  // Fetch all vendor accounts on mount
+  useEffect(() => {
+    const fetchAccounts = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('vendors')
+          .select('id, email, business_name, name, is_activated')
+          .order('business_name', { ascending: true });
+
+        if (!error && data) {
+          setAccounts(data);
+          // Pre-select if a value is already stored in formData
+          if (value) {
+            const match = data.find(a => a.id === value);
+            if (match) setSelected(match);
+          }
+        }
+      } catch (_) {
+        // Silently fail — account linking is non-critical on load error
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAccounts();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handle = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, []);
+
+  // Filter accounts by search term (name or email)
+  const filtered = accounts.filter(a => {
+    const term = search.toLowerCase();
+    const name = (a.business_name || a.name || '').toLowerCase();
+    const email = (a.email || '').toLowerCase();
+    return name.includes(term) || email.includes(term);
+  });
+
+  const handleSelect = (account) => {
+    setSelected(account);
+    onChange('vendor_account_id', account.id);
+    setSearch('');
+    setOpen(false);
+  };
+
+  const handleClear = () => {
+    setSelected(null);
+    onChange('vendor_account_id', null);
+    setSearch('');
+  };
+
+  // What to show in the text input
+  const displayLabel = selected
+    ? `${selected.business_name || selected.name || 'Unnamed'} · ${selected.email}`
+    : '';
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative' }}>
+      {/* Text input / display */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        border: '1px solid #ddd4c8',
+        borderRadius: 3,
+        backgroundColor: '#fff',
+        overflow: 'hidden',
+      }}>
+        <input
+          type="text"
+          placeholder={selected ? '' : 'Search by name or email…'}
+          value={open ? search : displayLabel}
+          onChange={e => { setSearch(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          style={{
+            flex: 1,
+            padding: '10px 12px',
+            fontSize: 13,
+            border: 'none',
+            outline: 'none',
+            color: selected && !open ? '#0a0a0a' : '#666',
+            backgroundColor: 'transparent',
+            cursor: 'text',
+          }}
+        />
+
+        {loading && (
+          <span style={{ padding: '0 10px', fontSize: 11, color: '#999' }}>Loading…</span>
+        )}
+        {selected && !loading && (
+          <button
+            type="button"
+            onClick={handleClear}
+            title="Clear selection"
+            style={{
+              padding: '0 12px',
+              border: 'none',
+              background: 'transparent',
+              color: '#999',
+              cursor: 'pointer',
+              fontSize: 14,
+              lineHeight: '40px',
+            }}
+          >
+            ✕
+          </button>
+        )}
+        {!selected && !loading && (
+          <span style={{ padding: '0 12px', color: '#bbb', fontSize: 12, pointerEvents: 'none' }}>
+            ▾
+          </span>
+        )}
+      </div>
+
+      {/* Selected account status badge */}
+      {selected && (
+        <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+            padding: '3px 10px',
+            backgroundColor: selected.is_activated ? 'rgba(34,197,94,0.08)' : 'rgba(201,168,76,0.08)',
+            border: `1px solid ${selected.is_activated ? 'rgba(34,197,94,0.2)' : 'rgba(201,168,76,0.2)'}`,
+            borderRadius: 20,
+            fontSize: 11,
+            color: selected.is_activated ? '#15803d' : '#7a5f10',
+            fontWeight: 600,
+          }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: '50%',
+              backgroundColor: selected.is_activated ? '#22c55e' : '#C9A84C',
+              display: 'inline-block',
+            }} />
+            {selected.is_activated ? 'Active account' : 'Pending activation'}
+          </span>
+          <span style={{ fontSize: 11, color: '#aaa' }}>
+            ID: {String(selected.id).slice(0, 8)}…
+          </span>
+        </div>
+      )}
+
+      {/* Dropdown list */}
+      {open && (
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          left: 0,
+          right: 0,
+          marginTop: 4,
+          backgroundColor: '#fff',
+          border: '1px solid #ddd4c8',
+          borderRadius: 3,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+          zIndex: 200,
+          maxHeight: 240,
+          overflowY: 'auto',
+        }}>
+          {filtered.length === 0 ? (
+            <div style={{
+              padding: '14px 16px',
+              fontSize: 12,
+              color: '#999',
+              textAlign: 'center',
+            }}>
+              {loading
+                ? 'Loading accounts…'
+                : search
+                ? 'No accounts match your search'
+                : 'No vendor accounts found in the system'}
+            </div>
+          ) : (
+            filtered.map((account, i) => (
+              <button
+                key={account.id}
+                type="button"
+                onClick={() => handleSelect(account)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  width: '100%',
+                  padding: '10px 14px',
+                  border: 'none',
+                  borderTop: i > 0 ? '1px solid #f0ece6' : 'none',
+                  backgroundColor: selected?.id === account.id ? '#fffbf0' : '#fff',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#fffbf0'; }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.backgroundColor = selected?.id === account.id ? '#fffbf0' : '#fff';
+                }}
+              >
+                {/* Active status dot */}
+                <span style={{
+                  width: 8, height: 8, borderRadius: '50%',
+                  backgroundColor: account.is_activated ? '#22c55e' : '#C9A84C',
+                  flexShrink: 0,
+                }} />
+
+                {/* Name + email */}
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: '#0a0a0a',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {account.business_name || account.name || 'Unnamed Account'}
+                  </div>
+                  <div style={{
+                    fontSize: 11,
+                    color: '#888',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {account.email}
+                  </div>
+                </div>
+
+                {/* Checkmark if this is the currently selected account */}
+                {selected?.id === account.id && (
+                  <span style={{ marginLeft: 'auto', color: '#7a5f10', fontSize: 14, flexShrink: 0 }}>
+                    ✓
+                  </span>
+                )}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+/**
+ * BasicDetailsSection
+ *
+ * Core listing identity fields:
+ * - Account holder (searchable dropdown → vendor_account_id)
+ * - Listing name and slug
+ * - Category and destination
+ */
 const BasicDetailsSection = ({ formData, onChange }) => {
   return (
-    <section style={{ marginBottom: 40, paddingBottom: 40, borderBottom: "1px solid #e5ddd0" }}>
+    <section style={{ marginBottom: 40, paddingBottom: 40, borderBottom: '1px solid #e5ddd0' }}>
       <h3 style={{ marginBottom: 20 }}>Basic Details</h3>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      {/* ── ACCOUNT HOLDER ───────────────────────────────── */}
+      <div style={{ marginBottom: 20 }}>
+        <label style={{
+          display: 'block',
+          marginBottom: 6,
+          fontSize: 12,
+          fontWeight: 600,
+          textTransform: 'uppercase',
+        }}>
+          Account Holder
+        </label>
+        <AccountHolderDropdown
+          value={formData?.vendor_account_id || null}
+          onChange={onChange}
+        />
+        <p style={{ fontSize: 11, color: '#999', marginTop: 6 }}>
+          Link this listing to a vendor account — type to search all accounts in the system
+        </p>
+      </div>
+
+      {/* ── LISTING NAME + SLUG ───────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div>
-          <label style={{ display: "block", marginBottom: 6, fontSize: 12, fontWeight: 600, textTransform: "uppercase" }}>Venue Name</label>
+          <label style={{
+            display: 'block',
+            marginBottom: 6,
+            fontSize: 12,
+            fontWeight: 600,
+            textTransform: 'uppercase',
+          }}>
+            Listing Name
+          </label>
           <input
             type="text"
             name="venue_name"
-            value={formData?.venue_name || ""}
-            onChange={(e) => onChange("venue_name", e.target.value)}
+            value={formData?.venue_name || ''}
+            onChange={(e) => onChange('venue_name', e.target.value)}
             placeholder="e.g., Villa Balbiano"
-            style={{ width: "100%", padding: "10px 12px", fontSize: 13, border: "1px solid #ddd4c8", borderRadius: 3 }}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              fontSize: 13,
+              border: '1px solid #ddd4c8',
+              borderRadius: 3,
+            }}
           />
         </div>
 
         <div>
-          <label style={{ display: "block", marginBottom: 6, fontSize: 12, fontWeight: 600, textTransform: "uppercase" }}>Slug</label>
+          <label style={{
+            display: 'block',
+            marginBottom: 6,
+            fontSize: 12,
+            fontWeight: 600,
+            textTransform: 'uppercase',
+          }}>
+            Slug
+          </label>
           <input
             type="text"
             name="slug"
-            value={formData?.slug || ""}
-            onChange={(e) => onChange("slug", e.target.value)}
+            value={formData?.slug || ''}
+            onChange={(e) => onChange('slug', e.target.value)}
             placeholder="villa-balbiano"
-            style={{ width: "100%", padding: "10px 12px", fontSize: 13, border: "1px solid #ddd4c8", borderRadius: 3 }}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              fontSize: 13,
+              border: '1px solid #ddd4c8',
+              borderRadius: 3,
+            }}
           />
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
+      {/* ── CATEGORY + DESTINATION ────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
         <div>
-          <label style={{ display: "block", marginBottom: 6, fontSize: 12, fontWeight: 600, textTransform: "uppercase" }}>Category</label>
+          <label style={{
+            display: 'block',
+            marginBottom: 6,
+            fontSize: 12,
+            fontWeight: 600,
+            textTransform: 'uppercase',
+          }}>
+            Category
+          </label>
           <select
             name="category"
-            value={formData?.category || "wedding-venues"}
-            onChange={(e) => onChange("category", e.target.value)}
-            style={{ width: "100%", padding: "10px 12px", fontSize: 13, border: "1px solid #ddd4c8", borderRadius: 3 }}
+            value={formData?.category || 'wedding-venues'}
+            onChange={(e) => onChange('category', e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              fontSize: 13,
+              border: '1px solid #ddd4c8',
+              borderRadius: 3,
+              backgroundColor: '#fff',
+            }}
           >
             <option value="wedding-venues">Wedding Venues</option>
             <option value="wedding-planners">Wedding Planners</option>
             <option value="photographers">Photographers</option>
+            <option value="videographers">Videographers</option>
             <option value="florists">Florists</option>
+            <option value="catering">Catering</option>
+            <option value="entertainment">Entertainment</option>
           </select>
         </div>
 
         <div>
-          <label style={{ display: "block", marginBottom: 6, fontSize: 12, fontWeight: 600, textTransform: "uppercase" }}>Destination</label>
+          <label style={{
+            display: 'block',
+            marginBottom: 6,
+            fontSize: 12,
+            fontWeight: 600,
+            textTransform: 'uppercase',
+          }}>
+            Destination
+          </label>
           <select
             name="destination"
-            value={formData?.destination || "italy"}
-            onChange={(e) => onChange("destination", e.target.value)}
-            style={{ width: "100%", padding: "10px 12px", fontSize: 13, border: "1px solid #ddd4c8", borderRadius: 3 }}
+            value={formData?.destination || 'italy'}
+            onChange={(e) => onChange('destination', e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              fontSize: 13,
+              border: '1px solid #ddd4c8',
+              borderRadius: 3,
+              backgroundColor: '#fff',
+            }}
           >
             <option value="italy">Italy</option>
             <option value="france">France</option>
             <option value="spain">Spain</option>
             <option value="greece">Greece</option>
+            <option value="portugal">Portugal</option>
             <option value="uk">United Kingdom</option>
             <option value="us">United States</option>
+            <option value="caribbean">Caribbean</option>
           </select>
         </div>
       </div>
