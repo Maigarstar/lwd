@@ -3761,55 +3761,90 @@ function SpacesSection({ spaces }) {
         subtitle={`${spaces.length} distinct event space${spaces.length !== 1 ? 's' : ''} — each with its own character and atmosphere`}
       />
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 48 : 64 }}>
         {spaces.map((s, i) => {
           const isEven = i % 2 === 0;
           return (
             <div key={s.id || s.name} className="vp-space-card" style={{
               display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : (isEven ? '45% 55%' : '55% 45%'),
-              border: `1px solid ${C.border}`,
-              overflow: 'hidden',
+              gridTemplateColumns: isMobile ? '1fr' : (isEven ? '1fr 1fr' : '1fr 1fr'),
+              gap: isMobile ? 0 : 48,
               animation: `fadeUp 0.5s ease ${i * 0.08}s both`,
-              marginBottom: 16,
+              alignItems: 'center',
             }}>
-              {/* Image column */}
+              {/* Image column — full landscape, max 750px height */}
               {s.img && (
-                <div style={{ order: isMobile ? 0 : (isEven ? 0 : 1), overflow: 'hidden', minHeight: isMobile ? 220 : 280 }}>
+                <div style={{
+                  order: isMobile ? 0 : (isEven ? 0 : 1),
+                  overflow: 'hidden',
+                  borderRadius: 2,
+                  aspectRatio: '16 / 10',
+                }}>
                   <img
                     src={s.img} alt={s.name}
                     className="lwd-img-zoom"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block',
+                      maxHeight: isMobile ? '380px' : '500px',
+                    }}
                   />
                 </div>
               )}
 
-              {/* Content column */}
+              {/* Content column — editorial layout, more open spacing */}
               <div style={{
-                padding: isMobile ? '24px 20px' : 36,
-                display: 'flex', flexDirection: 'column', justifyContent: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 16,
                 order: isMobile ? 1 : (isEven ? 1 : 0),
-                backgroundColor: C.bg,
               }}>
-                {/* Type pill + name */}
+                {/* Type pill */}
                 {s.type && (
-                  <div style={{ marginBottom: 8 }}>
+                  <div>
                     <span style={{
-                      padding: '3px 12px', fontSize: 10, fontFamily: FB,
-                      textTransform: 'uppercase', letterSpacing: '0.08em',
-                      border: `1px solid ${C.gold}`, borderRadius: 20,
-                      color: C.gold, fontWeight: 700,
+                      display: 'inline-block',
+                      padding: '5px 14px',
+                      fontSize: 10,
+                      fontFamily: FB,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em',
+                      border: `1px solid ${C.gold}`,
+                      borderRadius: 20,
+                      color: C.gold,
+                      fontWeight: 700,
                     }}>{s.type}</span>
                   </div>
                 )}
-                <div style={{ fontFamily: FD, fontSize: isMobile ? 22 : 26, fontWeight: 400, color: C.text, marginBottom: 10 }}>{s.name}</div>
 
-                {/* Capacity numbers */}
+                {/* Space name — serif headline */}
+                <div style={{
+                  fontFamily: FD,
+                  fontSize: isMobile ? 24 : 32,
+                  fontWeight: 400,
+                  color: C.text,
+                  lineHeight: 1.2,
+                }}>
+                  {s.name}
+                </div>
+
+                {/* Capacity numbers — clean row */}
                 <SpaceCapacityRow space={s} C={C} />
 
-                {/* Description */}
+                {/* Description — readable paragraph width */}
                 {s.description && (
-                  <p style={{ fontFamily: FB, fontSize: 13, color: C.textLight, lineHeight: 1.8, marginBottom: 0 }}>{s.description}</p>
+                  <p style={{
+                    fontFamily: FB,
+                    fontSize: 13,
+                    color: C.textLight,
+                    lineHeight: 1.8,
+                    margin: 0,
+                    maxWidth: '600px',
+                  }}>
+                    {s.description}
+                  </p>
                 )}
 
                 {/* Attribute badges */}
@@ -3821,12 +3856,30 @@ function SpacesSection({ spaces }) {
                     type="button"
                     onClick={() => setFloorPlanModal({ url: s.floorPlanUrl, name: s.name })}
                     style={{
-                      marginTop: 14, alignSelf: 'flex-start',
-                      display: 'inline-flex', alignItems: 'center', gap: 6,
-                      padding: '7px 16px', fontSize: 11, fontFamily: FB,
-                      fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em',
-                      border: `1px solid ${C.border}`, borderRadius: 2,
-                      backgroundColor: 'transparent', color: C.textMid, cursor: 'pointer',
+                      alignSelf: 'flex-start',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '9px 18px',
+                      fontSize: 11,
+                      fontFamily: FB,
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      border: `1px solid ${C.textMuted}`,
+                      borderRadius: 2,
+                      backgroundColor: 'transparent',
+                      color: C.textMid,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.backgroundColor = C.bgAlt;
+                      e.currentTarget.style.borderColor = C.textMid;
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.borderColor = C.textMuted;
                     }}
                   >
                     📐 View Floor Plan
