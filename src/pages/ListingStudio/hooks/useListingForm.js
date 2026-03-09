@@ -33,6 +33,7 @@ export const useListingForm = (listingId = null) => {
     media_items: [], // Array of { type: 'image'|'video'|'virtual_tour', source_type, file, url, thumbnail, title, caption, credit_name, ... }
     seo_title: '',
     seo_description: '',
+    seo_keywords: [],   // max 8 — used for meta keywords + AI search indexing
     status: 'draft',
     published_at: null,
     visibility: 'private',
@@ -129,6 +130,7 @@ export const useListingForm = (listingId = null) => {
             ],
             seo_title: listing.seoTitle || '',
             seo_description: listing.seoDescription || '',
+            seo_keywords: Array.isArray(listing.seoKeywords) ? listing.seoKeywords : [],
             status: listing.status || 'draft',
             published_at: listing.publishedAt || null,
             visibility: listing.isHidden ? 'private' : 'public',
@@ -236,6 +238,7 @@ export const useListingForm = (listingId = null) => {
         })),
         seoTitle: formData.seo_title,
         seoDescription: formData.seo_description,
+        seoKeywords: formData.seo_keywords || [],
         status: publishStatus,
         listingType: 'wedding-venue',
         tier: 'standard',
