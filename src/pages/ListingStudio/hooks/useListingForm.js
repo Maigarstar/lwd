@@ -18,8 +18,15 @@ export const useListingForm = (listingId = null) => {
     address: '',
     price_range: '',
     capacity: '',
-    hero_image: '',
-    gallery_images: '',
+    // New premium media structure
+    hero_image: {
+      file: null,
+      title: '',
+      caption: '',
+      credit_name: '',
+    },
+    gallery_images: [], // Array of media records
+    videos: [], // Array of video records
     seo_title: '',
     seo_description: '',
     status: 'draft',
@@ -52,8 +59,45 @@ export const useListingForm = (listingId = null) => {
             address: listing.address || '',
             price_range: listing.priceLabel || '',
             capacity: listing.capacityMin || '',
-            hero_image: listing.heroImage || '',
-            gallery_images: listing.heroImageSet?.join('\n') || '',
+            // Convert old format to new media structure
+            hero_image: {
+              file: null,
+              title: listing.heroTitle || '',
+              caption: listing.heroCaption || '',
+              credit_name: listing.heroCredit || '',
+            },
+            gallery_images: (listing.heroImageSet || []).map((url, idx) => ({
+              id: `img-${idx}`,
+              type: 'image',
+              file: null,
+              url,
+              thumbnail: null,
+              title: '',
+              caption: '',
+              description: '',
+              credit_name: '',
+              credit_instagram: '',
+              credit_website: '',
+              location: '',
+              tags: [],
+              sort_order: idx,
+              is_featured: false,
+            })),
+            videos: (listing.videos || []).map((video, idx) => ({
+              id: `video-${idx}`,
+              type: 'video',
+              url: typeof video === 'string' ? video : video.url,
+              title: typeof video === 'object' ? video.title : '',
+              caption: typeof video === 'object' ? video.caption : '',
+              description: '',
+              credit_name: typeof video === 'object' ? video.credit_name : '',
+              credit_instagram: '',
+              credit_website: '',
+              location: '',
+              tags: [],
+              sort_order: idx,
+              is_featured: false,
+            })),
             seo_title: listing.seoTitle || '',
             seo_description: listing.seoDescription || '',
             status: listing.status || 'draft',
@@ -110,6 +154,20 @@ export const useListingForm = (listingId = null) => {
       const slug = formData.slug || generateSlug(formData.venue_name);
 
       // Map form data to listing payload
+      // Extract image URLs from new media structure
+      const heroImageUrl = formData.hero_image?.file instanceof File
+        ? null // TODO: File upload handling - for now set to null
+        : formData.hero_image?.file || '';
+
+      const galleryImageUrls = (formData.gallery_images || [])
+        .filter(img => !img.file || !(img.file instanceof File))
+        .map(img => img.url || img.file)
+        .filter(Boolean);
+
+      const videoUrls = (formData.videos || [])
+        .map(video => video.url || (typeof video === 'string' ? video : ''))
+        .filter(Boolean);
+
       const listingPayload = {
         name: formData.venue_name,
         slug: slug,
@@ -122,10 +180,16 @@ export const useListingForm = (listingId = null) => {
         address: formData.address,
         priceLabel: formData.price_range,
         capacityMin: formData.capacity ? parseInt(formData.capacity, 10) : null,
-        heroImage: formData.hero_image,
-        heroImageSet: formData.gallery_images
-          ? formData.gallery_images.split('\n').filter(url => url.trim())
-          : [],
+        heroImage: heroImageUrl,
+        heroTitle: formData.hero_image?.title || '',
+        heroCaption: formData.hero_image?.caption || '',
+        heroCredit: formData.hero_image?.credit_name || '',
+        heroImageSet: galleryImageUrls,
+        videos: videoUrls.map(url => ({
+          url,
+          title: '',
+          caption: '',
+        })),
         seoTitle: formData.seo_title,
         seoDescription: formData.seo_description,
         status: publishStatus,

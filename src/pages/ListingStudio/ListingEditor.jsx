@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useListingForm } from './hooks/useListingForm';
+import useListingPreview from './hooks/useListingPreview';
+import ListingLivePreview from './preview/ListingLivePreview';
 import BasicDetailsSection from './sections/BasicDetailsSection';
 import LocationSection from './sections/LocationSection';
 import DescriptionSection from './sections/DescriptionSection';
@@ -7,22 +9,24 @@ import FeaturesSection from './sections/FeaturesSection';
 import CommercialDetailsSection from './sections/CommercialDetailsSection';
 import MediaSection from './sections/MediaSection';
 import SEOSection from './sections/SEOSection';
-import { getLightPalette, getDarkPalette } from '../../theme/tokens';
+import { getLightPalette } from '../../theme/tokens';
 
 const NU = "'Nunito', sans-serif";
 const GD = "'Playfair Display', Georgia, serif";
 
 /**
- * Full-page listing editor with vertically stacked sections
+ * Full-page split-panel listing editor
+ * Left: Editor sections (45%)
+ * Right: Live preview (55%)
  * Handles creating and editing venue listings
  */
 const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = null }) => {
   const { formData, handleChange, handleSaveDraft, handlePublish, loading, error, hasChanges } = useListingForm(listingId);
+  const previewData = useListingPreview(formData);
   const [saveStatus, setSaveStatus] = useState(null);
-  const [isDarkMode, setIsDarkMode] = useState(false);
 
-  // Get theme based on mode
-  const C = isDarkMode ? getDarkPalette() : getLightPalette();
+  // Always use light palette
+  const C = getLightPalette();
 
   // Handle save as draft
   const handleSaveDraftClick = useCallback(async () => {
@@ -63,46 +67,35 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
   const pageTitle = isEditing ? 'Edit Listing' : 'Create New Listing';
 
   return (
-    <div style={{ backgroundColor: C.black, minHeight: '100vh', padding: '40px 20px' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-        {/* Header with theme toggle */}
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: '45% 55%',
+      gap: 0,
+      minHeight: '100vh',
+      backgroundColor: '#fff',
+      width: '100vw',
+      position: 'fixed',
+      left: 0,
+      top: 0,
+      right: 0,
+      bottom: 0,
+    }}>
+      {/* LEFT PANEL: Editor */}
+      <div style={{
+        overflow: 'auto',
+        maxHeight: '100vh',
+        padding: '40px 20px',
+        backgroundColor: C.black,
+        borderRight: `1px solid ${C.border}`,
+      }}>
+        {/* Header */}
         <div style={{ marginBottom: 40 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <div>
-              <h1 style={{ fontSize: 32, fontWeight: 600, color: C.white, marginBottom: 8 }}>
-                {pageTitle}
-              </h1>
-              <p style={{ fontSize: 14, color: C.off }}>
-                {isEditing ? 'Update your venue listing details' : 'Create a new venue listing'}
-              </p>
-            </div>
-
-            {/* Theme Toggle Button */}
-            <button
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: isDarkMode ? '#333' : '#f5f5f5',
-                color: isDarkMode ? '#fff' : '#333',
-                border: `1px solid ${C.border}`,
-                borderRadius: 4,
-                cursor: 'pointer',
-                fontSize: 13,
-                fontWeight: 500,
-                whiteSpace: 'nowrap',
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.opacity = '0.8';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.opacity = '1';
-              }}
-              title="Toggle light/dark mode"
-            >
-              {isDarkMode ? '☀️ Light' : '🌙 Dark'}
-            </button>
-          </div>
+          <h1 style={{ fontSize: 32, fontWeight: 600, color: C.white, marginBottom: 8 }}>
+            {pageTitle}
+          </h1>
+          <p style={{ fontSize: 14, color: C.off }}>
+            {isEditing ? 'Update your venue listing details' : 'Create a new venue listing'}
+          </p>
         </div>
 
         {/* Error message */}
@@ -169,7 +162,7 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
             style={{
               marginTop: 40,
               paddingTop: 20,
-              borderTop: `1px solid ${GD.divider}`,
+              borderTop: `1px solid ${C.border}`,
               display: 'flex',
               gap: 12,
               alignItems: 'center',
@@ -185,7 +178,7 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
                 fontSize: 14,
                 backgroundColor: 'transparent',
                 color: C.textSecondary,
-                border: `1px solid ${GD.divider}`,
+                border: `1px solid ${C.border}`,
                 borderRadius: 3,
                 cursor: loading ? 'not-allowed' : 'pointer',
                 opacity: loading ? 0.6 : 1,
@@ -212,7 +205,7 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
               style={{
                 padding: '10px 20px',
                 fontSize: 14,
-                backgroundColor: GD.buttonSecondary,
+                backgroundColor: '#555',
                 color: C.white,
                 border: 'none',
                 borderRadius: 3,
@@ -223,11 +216,11 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
               }}
               onMouseEnter={(e) => {
                 if (!loading && hasChanges) {
-                  e.target.style.backgroundColor = '#555';
+                  e.target.style.backgroundColor = '#777';
                 }
               }}
               onMouseLeave={(e) => {
-                e.target.style.backgroundColor = GD.buttonSecondary;
+                e.target.style.backgroundColor = '#555';
               }}
             >
               {saveStatus === 'saving' ? 'Saving...' : 'Save as Draft'}
@@ -263,6 +256,17 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
             </button>
           </div>
         </form>
+      </div>
+
+      {/* RIGHT PANEL: Live Preview */}
+      <div style={{
+        position: 'sticky',
+        top: 0,
+        height: '100vh',
+        overflow: 'auto',
+        backgroundColor: '#f9f7f3',
+      }}>
+        <ListingLivePreview formData={previewData} C={C} />
       </div>
     </div>
   );

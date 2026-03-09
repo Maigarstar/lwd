@@ -102,12 +102,12 @@ serve(async (req) => {
       },
     });
 
-    // Check if email already exists in vendors table
+    // Check if email already exists in vendors table (duplicate prevention)
     const { data: existingVendor, error: checkError } = await supabase
       .from("vendors")
-      .select("id, email")
+      .select("id, email, is_activated")
       .eq("email", email)
-      .single();
+      .maybeSingle();
 
     if (checkError && checkError.code !== "PGRST116") {
       // PGRST116 = no rows returned (expected)
@@ -115,12 +115,41 @@ serve(async (req) => {
     }
 
     if (existingVendor) {
+      const status = existingVendor.is_activated ? "activated" : "invited";
       return new Response(
         JSON.stringify({
-          error: `Vendor account already exists for ${email}`,
+          error: `Vendor account already exists for ${email} (status: ${status}). To create a new account, use a different email address.`,
         }),
         {
           status: 409,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Rate limiting check: Prevent rapid account creation from same source
+    // Get the client IP (for rate limiting)
+    const clientIp =
+      req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
+
+    // Check recent vendor creations from this IP in last 60 seconds
+    // This is a simple check - in production, you might use a dedicated rate limiting service
+    const recentVendors = await supabase
+      .from("vendor_invite_log")
+      .select("id")
+      .eq("client_ip", clientIp)
+      .gte(
+        "created_at",
+        new Date(Date.now() - 60 * 1000).toISOString() // Last 60 seconds
+      );
+
+    if (recentVendors.data && recentVendors.data.length >= 10) {
+      return new Response(
+        JSON.stringify({
+          error: "Too many account creation requests. Please wait a moment before trying again.",
+        }),
+        {
+          status: 429, // Too Many Requests
           headers: { "Content-Type": "application/json" },
         }
       );
@@ -201,6 +230,22 @@ serve(async (req) => {
       console.error("Email sending error:", emailError);
       // Log error but don't fail - vendor account is created, just email failed
       // In production, you might want to retry or alert admin
+    }
+
+    // Log invite for audit trail
+    const { error: auditError } = await supabase
+      .from("vendor_invite_log")
+      .insert({
+        vendor_id: vendorData.id,
+        email,
+        vendor_name: vendorName,
+        client_ip: clientIp,
+        // Note: admin_id would be set via RLS or JWT claims in production
+      });
+
+    if (auditError) {
+      console.error("Audit log error:", auditError);
+      // Log but don't fail - main account is created
     }
 
     // Success response

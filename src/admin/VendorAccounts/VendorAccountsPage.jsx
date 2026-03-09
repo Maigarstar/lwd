@@ -173,7 +173,7 @@ export default function VendorAccountsPage({ C }) {
     <div style={{ padding: "20px" }}>
       {/* Header */}
       <div style={{ marginBottom: 30 }}>
-        <h1 style={{ fontFamily: GD, fontSize: 24, fontWeight: 600, color: C.text, margin: "0 0 8px 0" }}>
+        <h1 style={{ fontFamily: GD, fontSize: 24, fontWeight: 600, color: C.white, margin: "0 0 8px 0" }}>
           Vendor Accounts
         </h1>
         <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, margin: 0 }}>
@@ -274,8 +274,8 @@ export default function VendorAccountsPage({ C }) {
             borderRadius: "var(--lwd-radius-input)",
             fontFamily: NU,
             fontSize: 12,
-            color: C.text,
-            background: C.white,
+            color: C.white,
+            background: C.card,
             flex: "0 1 250px",
           }}
         />
@@ -284,7 +284,7 @@ export default function VendorAccountsPage({ C }) {
       {/* Table */}
       <div
         style={{
-          backgroundColor: C.white,
+          backgroundColor: C.card,
           borderRadius: "var(--lwd-radius-container)",
           border: `1px solid ${C.grey}20`,
           overflow: "hidden",
@@ -345,7 +345,7 @@ function VendorDetailsModal({ vendor, C, onClose }) {
     >
       <div
         style={{
-          backgroundColor: C.white,
+          backgroundColor: C.card,
           borderRadius: "var(--lwd-radius-container)",
           boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
           maxWidth: 500,
@@ -365,7 +365,7 @@ function VendorDetailsModal({ vendor, C, onClose }) {
             alignItems: "center",
           }}
         >
-          <h2 style={{ fontFamily: "var(--font-heading-primary)", fontSize: 18, color: C.text, margin: 0 }}>
+          <h2 style={{ fontFamily: "var(--font-heading-primary)", fontSize: 18, color: C.white, margin: 0 }}>
             Vendor Details
           </h2>
           <button
@@ -388,28 +388,28 @@ function VendorDetailsModal({ vendor, C, onClose }) {
             <p style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, color: C.grey, margin: "0 0 4px 0", textTransform: "uppercase" }}>
               Vendor Name
             </p>
-            <p style={{ fontFamily: NU, fontSize: 14, color: C.text, margin: 0 }}>{vendor.name || "N/A"}</p>
+            <p style={{ fontFamily: NU, fontSize: 14, color: C.white, margin: 0 }}>{vendor.name || "N/A"}</p>
           </div>
 
           <div style={{ marginBottom: 16 }}>
             <p style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, color: C.grey, margin: "0 0 4px 0", textTransform: "uppercase" }}>
               Email
             </p>
-            <p style={{ fontFamily: NU, fontSize: 14, color: C.text, margin: 0 }}>{vendor.email}</p>
+            <p style={{ fontFamily: NU, fontSize: 14, color: C.white, margin: 0 }}>{vendor.email}</p>
           </div>
 
           <div style={{ marginBottom: 16 }}>
             <p style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, color: C.grey, margin: "0 0 4px 0", textTransform: "uppercase" }}>
               Status
             </p>
-            <p style={{ fontFamily: NU, fontSize: 14, color: C.text, margin: 0 }}>{vendor.status || "N/A"}</p>
+            <p style={{ fontFamily: NU, fontSize: 14, color: C.white, margin: 0 }}>{vendor.status || "N/A"}</p>
           </div>
 
           <div style={{ marginBottom: 16 }}>
             <p style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, color: C.grey, margin: "0 0 4px 0", textTransform: "uppercase" }}>
               Created
             </p>
-            <p style={{ fontFamily: NU, fontSize: 14, color: C.text, margin: 0 }}>
+            <p style={{ fontFamily: NU, fontSize: 14, color: C.white, margin: 0 }}>
               {vendor.created_at ? new Date(vendor.created_at).toLocaleDateString() : "N/A"}
             </p>
           </div>
@@ -418,7 +418,7 @@ function VendorDetailsModal({ vendor, C, onClose }) {
             <p style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, color: C.grey, margin: "0 0 4px 0", textTransform: "uppercase" }}>
               Last Updated
             </p>
-            <p style={{ fontFamily: NU, fontSize: 14, color: C.text, margin: 0 }}>
+            <p style={{ fontFamily: NU, fontSize: 14, color: C.white, margin: 0 }}>
               {vendor.updated_at ? new Date(vendor.updated_at).toLocaleDateString() : "N/A"}
             </p>
           </div>
@@ -428,7 +428,7 @@ function VendorDetailsModal({ vendor, C, onClose }) {
               <p style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, color: C.grey, margin: "0 0 4px 0", textTransform: "uppercase" }}>
                 Contact Name
               </p>
-              <p style={{ fontFamily: NU, fontSize: 14, color: C.text, margin: 0 }}>{vendor.contact_name}</p>
+              <p style={{ fontFamily: NU, fontSize: 14, color: C.white, margin: 0 }}>{vendor.contact_name}</p>
             </div>
           )}
 

@@ -110,7 +110,7 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
     >
       <div
         style={{
-          backgroundColor: C.white,
+          backgroundColor: C.card,
           borderRadius: "var(--lwd-radius-container)",
           boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
           maxWidth: 500,
@@ -130,7 +130,7 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
             alignItems: "center",
           }}
         >
-          <h2 style={{ fontFamily: GD, fontSize: 18, color: C.text, margin: 0 }}>Create Vendor Account</h2>
+          <h2 style={{ fontFamily: GD, fontSize: 18, color: C.white, margin: 0 }}>Create Vendor Account</h2>
           <button
             onClick={onCancel}
             style={{
@@ -149,7 +149,7 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
         <form onSubmit={handleSubmit} style={{ padding: "20px" }}>
           {/* Vendor Name */}
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontFamily: NU, fontSize: 12, fontWeight: 600, marginBottom: 6, color: C.text }}>
+            <label style={{ display: "block", fontFamily: NU, fontSize: 12, fontWeight: 600, marginBottom: 6, color: C.white }}>
               Vendor Name *
             </label>
             <input
@@ -165,7 +165,7 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
 
           {/* Email */}
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontFamily: NU, fontSize: 12, fontWeight: 600, marginBottom: 6, color: C.text }}>
+            <label style={{ display: "block", fontFamily: NU, fontSize: 12, fontWeight: 600, marginBottom: 6, color: C.white }}>
               Email *
             </label>
             <input
@@ -181,7 +181,7 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
 
           {/* Listing Link */}
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontFamily: NU, fontSize: 12, fontWeight: 600, marginBottom: 6, color: C.text }}>
+            <label style={{ display: "block", fontFamily: NU, fontSize: 12, fontWeight: 600, marginBottom: 6, color: C.white }}>
               Link to Listing
             </label>
             <select
@@ -204,7 +204,7 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
           {/* Category (Auto-filled from Listing) */}
           {formData.category && (
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: "block", fontFamily: NU, fontSize: 12, fontWeight: 600, marginBottom: 6, color: C.text }}>
+              <label style={{ display: "block", fontFamily: NU, fontSize: 12, fontWeight: 600, marginBottom: 6, color: C.white }}>
                 Category
               </label>
               <input
@@ -219,7 +219,7 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
 
           {/* Contact Name */}
           <div style={{ marginBottom: 20 }}>
-            <label style={{ display: "block", fontFamily: NU, fontSize: 12, fontWeight: 600, marginBottom: 6, color: C.text }}>
+            <label style={{ display: "block", fontFamily: NU, fontSize: 12, fontWeight: 600, marginBottom: 6, color: C.white }}>
               Contact Name (Optional)
             </label>
             <input
@@ -248,7 +248,7 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
                 fontFamily: NU,
                 fontSize: 13,
                 fontWeight: 600,
-                color: C.text,
+                color: C.white,
                 cursor: submitting ? "not-allowed" : "pointer",
                 opacity: submitting ? 0.6 : 1,
               }}
@@ -289,8 +289,8 @@ function inputStyle(C, hasError = false, disabled = false) {
     fontSize: 13,
     border: `1px solid ${hasError ? "#ef4444" : `${C.grey}30`}`,
     borderRadius: "var(--lwd-radius-input)",
-    backgroundColor: disabled ? `${C.grey}10` : C.white,
-    color: C.text,
+    backgroundColor: disabled ? `${C.grey}10` : C.card,
+    color: C.white,
     boxSizing: "border-box",
     transition: "all 0.15s",
   };
