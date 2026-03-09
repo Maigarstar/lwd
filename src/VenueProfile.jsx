@@ -1073,7 +1073,7 @@ function StatsStrip({ venue }) {
     { label: "From", value: venue.priceFrom, sub: "per event" },
     { label: "Ceremony", value: `Up to ${venue.capacity.ceremony}`, sub: "guests" },
     { label: "Dinner", value: `Up to ${venue.capacity.dinner}`, sub: "guests" },
-    { label: "Sleeps", value: venue.accommodation.maxGuests, sub: `${venue.accommodation.rooms} rooms` },
+    { label: "Sleeps", value: venue.accommodation?.maxOvernightGuests ?? venue.accommodation?.maxGuests, sub: `${venue.accommodation?.totalRooms ?? venue.accommodation?.rooms ?? ''} rooms` },
     { label: "Responds", value: venue.responseTime, sub: `${venue.responseRate}% response rate` },
     { label: "Rating", value: `${venue.rating} ★`, sub: `${venue.reviews} reviews` },
   ];
@@ -3423,7 +3423,7 @@ function ExclusiveUse({ venue }) {
         <div className="vp-exclusive-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40 }}>
           <div>
             <div style={{ fontFamily: FD, fontSize: 38, color: C.gold, marginBottom: 4 }}>From {eu.from}</div>
-            <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginBottom: 24 }}>Minimum {eu.minNights} nights · Sleeps {venue.accommodation.maxGuests} guests</div>
+            <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginBottom: 24 }}>Minimum {eu.minNights} nights · Sleeps {venue.accommodation?.maxOvernightGuests ?? venue.accommodation?.maxGuests} guests</div>
             <div style={{ fontFamily: FB, fontSize: 14, color: C.textMid, lineHeight: 1.7, marginBottom: 24 }}>
               When you book exclusive use of Villa Rosanova, the estate is entirely yours. No other guests. No other events. Just your family and friends in one of Italy's most extraordinary properties.
             </div>
