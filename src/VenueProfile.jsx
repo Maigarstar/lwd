@@ -235,10 +235,46 @@ const VENUE = {
     dietary: ["Vegan", "Vegetarian", "Halal", "Kosher", "Gluten-free"],
   },
   spaces: [
-    { name: "The Grand Salon", desc: "Frescoed 18th-century ballroom with original parquet floors and three Venetian chandeliers.", capacity: 160, img: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=600&q=80" },
-    { name: "The Cypress Garden", desc: "Formal Italian garden framed by century-old cypress trees. Ideal for outdoor ceremonies at sunset.", capacity: 200, img: "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?w=600&q=80" },
-    { name: "The Loggia", desc: "A covered stone terrace overlooking the vineyard — perfect for cocktail receptions as the vines glow at dusk.", capacity: 80, img: "https://images.unsplash.com/photo-1464808322410-1a934aab61e5?w=600&q=80" },
-    { name: "The Wine Cellar", desc: "Intimate vaulted 14th-century cellar for private dinners, tastings and late-night celebrations.", capacity: 40, img: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&q=80" },
+    {
+      id: 's1', name: 'The Grand Salon', type: 'Ballroom', sortOrder: 1,
+      description: 'Frescoed 18th-century ballroom with original parquet floors and three Venetian chandeliers. The crown jewel of Villa Rosanova, bathed in golden candlelight.',
+      capacityCeremony: 160, capacityReception: 200, capacityDining: 160, capacityStanding: 220,
+      indoor: true, covered: true, accessible: true,
+      img: 'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=800&q=80',
+      floorPlanUrl: null,
+    },
+    {
+      id: 's2', name: 'The Cypress Garden', type: 'Garden', sortOrder: 2,
+      description: 'Formal Italian garden framed by century-old cypress trees. The natural amphitheatre and south-facing orientation make it the ideal setting for outdoor ceremonies at sunset.',
+      capacityCeremony: 200, capacityReception: 180, capacityDining: null, capacityStanding: 250,
+      indoor: false, covered: false, accessible: true,
+      img: 'https://images.unsplash.com/photo-1523438885200-e635ba2c371e?w=800&q=80',
+      floorPlanUrl: null,
+    },
+    {
+      id: 's3', name: 'The Loggia', type: 'Terrace', sortOrder: 3,
+      description: 'A covered stone terrace overlooking the vineyard — perfect for cocktail receptions and aperitivo as the vines glow gold at dusk. Heated in cooler months.',
+      capacityCeremony: null, capacityReception: 80, capacityDining: 50, capacityStanding: 100,
+      indoor: false, covered: true, accessible: true,
+      img: 'https://images.unsplash.com/photo-1464808322410-1a934aab61e5?w=800&q=80',
+      floorPlanUrl: null,
+    },
+    {
+      id: 's4', name: 'The Wine Cellar', type: 'Private Dining Room', sortOrder: 4,
+      description: 'Intimate vaulted 14th-century cellar for private dinners, barrel tastings and late-night celebrations. Surrounded by the estate\'s finest bottles.',
+      capacityCeremony: null, capacityReception: null, capacityDining: 30, capacityStanding: 40,
+      indoor: true, covered: true, accessible: false,
+      img: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=800&q=80',
+      floorPlanUrl: null,
+    },
+    {
+      id: 's5', name: 'The Poolside Terrace', type: 'Poolside Area', sortOrder: 5,
+      description: 'A sleek infinity terrace beside the heated pool, overlooking the valley. The setting for legendary Sunday brunches and evening cocktail parties under the stars.',
+      capacityCeremony: null, capacityReception: 60, capacityDining: null, capacityStanding: 80,
+      indoor: false, covered: false, accessible: true,
+      img: 'https://images.unsplash.com/photo-1540541338537-9c86a1dd9f23?w=800&q=80',
+      floorPlanUrl: null,
+    },
   ],
   experiences: [
     { id: "e1", label: "Private wine cellar tasting",       category: "estate", kind: "wine",    isIncluded: true, season: "all-year" },
@@ -894,7 +930,7 @@ const TABS = [
   { key: 'overview',     label: 'Overview',     show: (v) => true },
   { key: 'gallery',      label: 'Gallery',      show: (v) => (v.gallery?.length || 0) > 0 },
   { key: 'reviews',      label: 'Reviews',      show: (v) => (v.testimonials?.length || 0) > 0 },
-  { key: 'capacity',     label: 'Capacity',     show: (v) => (v.spaces?.length || 0) > 0 },
+  { key: 'capacity',     label: 'Spaces',       show: (v) => (v.spaces?.length || 0) > 0 },
   { key: 'rooms',        label: 'Rooms',        show: (v) => v.accommodation?.totalRooms > 0 || v.accommodation?.description },
   { key: 'dining',       label: 'Dining',       show: (v) => v.dining?.description || v.dining?.style },
   { key: 'pricing',      label: 'Pricing',      show: (v) => v.exclusiveUse || v.priceFrom },
@@ -3511,32 +3547,164 @@ function CateringSection({ venue }) {
 }
 
 // ─── SPACES ───────────────────────────────────────────────────────────────────
+// ─── VENUE SPACES SECTION ─────────────────────────────────────────────────────
+function SpaceCapacityRow({ space, C }) {
+  const caps = [
+    space.capacityCeremony != null && { label: 'Ceremony', value: space.capacityCeremony },
+    space.capacityReception != null && { label: 'Reception', value: space.capacityReception },
+    space.capacityDining != null && { label: 'Dining', value: space.capacityDining },
+    space.capacityStanding != null && { label: 'Standing', value: space.capacityStanding },
+  ].filter(Boolean);
+
+  if (!caps.length) return null;
+
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 16 }}>
+      {caps.map(({ label, value }) => (
+        <div key={label} style={{ textAlign: 'center', minWidth: 56 }}>
+          <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 400, color: C.text, lineHeight: 1 }}>{value}</div>
+          <div style={{ fontFamily: FB, fontSize: 10, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 3 }}>{label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SpaceAttributeBadges({ space, C }) {
+  const attrs = [];
+  if (space.indoor != null) attrs.push(space.indoor ? '🏛 Indoor' : '🌿 Outdoor');
+  if (space.covered != null && !space.indoor) attrs.push(space.covered ? '⛱ Covered' : '☀️ Open Air');
+  if (space.accessible) attrs.push('♿ Accessible');
+  if (!attrs.length) return null;
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
+      {attrs.map(a => (
+        <span key={a} style={{
+          padding: '3px 10px', fontSize: 11, fontFamily: FB,
+          border: `1px solid ${C.border}`, borderRadius: 20,
+          color: C.textMid, backgroundColor: C.bgAlt || C.surface,
+        }}>{a}</span>
+      ))}
+    </div>
+  );
+}
+
 function SpacesSection({ spaces }) {
   const C = useT();
+  const isMobile = useIsMobile();
+  const [floorPlanModal, setFloorPlanModal] = useState(null); // { url, name }
+
   return (
     <section id="capacity" style={{ marginBottom: 56 }}>
-      <SectionHeading title="Spaces & Rooms" subtitle="Four distinct event spaces — each with its own character and atmosphere" />
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {spaces.map((s, i) => (
-          <div key={s.name} className="vp-space-card" style={{
-            display: "grid", gridTemplateColumns: i % 2 === 0 ? "40% 60%" : "60% 40%",
-            border: `1px solid ${C.border}`, overflow: "hidden",
-            animation: `fadeUp 0.5s ease ${i * 0.1}s both`,
-          }}>
-            <div style={{ order: i % 2 === 0 ? 0 : 1, overflow: "hidden" }}>
-              <img src={s.img} alt={s.name} className="lwd-img-zoom"
-                style={{ width: "100%", height: "100%", minHeight: 200, objectFit: "cover", display: "block" }} />
-            </div>
-            <div style={{ padding: 32, display: "flex", flexDirection: "column", justifyContent: "center", order: i % 2 === 0 ? 1 : 0 }}>
-              <div style={{ display: "inline-flex", marginBottom: 14 }}>
-                <Pill color="gold">Up to {s.capacity} guests</Pill>
+      <SectionHeading
+        title="Venue Spaces"
+        subtitle={`${spaces.length} distinct event space${spaces.length !== 1 ? 's' : ''} — each with its own character and atmosphere`}
+      />
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {spaces.map((s, i) => {
+          const isEven = i % 2 === 0;
+          return (
+            <div key={s.id || s.name} className="vp-space-card" style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : (isEven ? '45% 55%' : '55% 45%'),
+              border: `1px solid ${C.border}`,
+              overflow: 'hidden',
+              animation: `fadeUp 0.5s ease ${i * 0.08}s both`,
+              marginBottom: 16,
+            }}>
+              {/* Image column */}
+              {s.img && (
+                <div style={{ order: isMobile ? 0 : (isEven ? 0 : 1), overflow: 'hidden', minHeight: isMobile ? 220 : 280 }}>
+                  <img
+                    src={s.img} alt={s.name}
+                    className="lwd-img-zoom"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  />
+                </div>
+              )}
+
+              {/* Content column */}
+              <div style={{
+                padding: isMobile ? '24px 20px' : 36,
+                display: 'flex', flexDirection: 'column', justifyContent: 'center',
+                order: isMobile ? 1 : (isEven ? 1 : 0),
+                backgroundColor: C.bg,
+              }}>
+                {/* Type pill + name */}
+                {s.type && (
+                  <div style={{ marginBottom: 8 }}>
+                    <span style={{
+                      padding: '3px 12px', fontSize: 10, fontFamily: FB,
+                      textTransform: 'uppercase', letterSpacing: '0.08em',
+                      border: `1px solid ${C.gold}`, borderRadius: 20,
+                      color: C.gold, fontWeight: 700,
+                    }}>{s.type}</span>
+                  </div>
+                )}
+                <div style={{ fontFamily: FD, fontSize: isMobile ? 22 : 26, fontWeight: 400, color: C.text, marginBottom: 10 }}>{s.name}</div>
+
+                {/* Capacity numbers */}
+                <SpaceCapacityRow space={s} C={C} />
+
+                {/* Description */}
+                {s.description && (
+                  <p style={{ fontFamily: FB, fontSize: 13, color: C.textLight, lineHeight: 1.8, marginBottom: 0 }}>{s.description}</p>
+                )}
+
+                {/* Attribute badges */}
+                <SpaceAttributeBadges space={s} C={C} />
+
+                {/* Floor plan link */}
+                {s.floorPlanUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setFloorPlanModal({ url: s.floorPlanUrl, name: s.name })}
+                    style={{
+                      marginTop: 14, alignSelf: 'flex-start',
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      padding: '7px 16px', fontSize: 11, fontFamily: FB,
+                      fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em',
+                      border: `1px solid ${C.border}`, borderRadius: 2,
+                      backgroundColor: 'transparent', color: C.textMid, cursor: 'pointer',
+                    }}
+                  >
+                    📐 View Floor Plan
+                  </button>
+                )}
               </div>
-              <div style={{ fontFamily: FD, fontSize: 26, fontWeight: 400, color: C.text, marginBottom: 12 }}>{s.name}</div>
-              <p style={{ fontFamily: FB, fontSize: 14, color: C.textLight, lineHeight: 1.75 }}>{s.desc}</p>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
+
+      {/* Floor Plan Modal */}
+      {floorPlanModal && (
+        <div
+          onClick={() => setFloorPlanModal(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9000,
+            backgroundColor: 'rgba(0,0,0,0.85)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ position: 'relative', maxWidth: 900, width: '100%', backgroundColor: '#fff', borderRadius: 2 }}
+          >
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #e5ddd0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontFamily: FB, fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>Floor Plan — {floorPlanModal.name}</span>
+              <button
+                type="button"
+                onClick={() => setFloorPlanModal(null)}
+                style={{ border: 'none', background: 'none', fontSize: 22, color: '#888', cursor: 'pointer', lineHeight: 1 }}
+              >×</button>
+            </div>
+            <img src={floorPlanModal.url} alt={`Floor plan — ${floorPlanModal.name}`} style={{ width: '100%', display: 'block', borderRadius: '0 0 2px 2px' }} />
+          </div>
+        </div>
+      )}
     </section>
   );
 }

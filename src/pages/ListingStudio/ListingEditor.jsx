@@ -8,6 +8,7 @@ import DescriptionSection from './sections/DescriptionSection';
 import FeaturesSection from './sections/FeaturesSection';
 import CommercialDetailsSection from './sections/CommercialDetailsSection';
 import MediaSection from './sections/MediaSection';
+import SpacesSection from './sections/SpacesSection';
 import RoomsSection from './sections/RoomsSection';
 import DiningSection from './sections/DiningSection';
 import SEOSection from './sections/SEOSection';
@@ -235,7 +236,10 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
           {/* Always visible sections */}
           <MediaSection formData={formData} onChange={handleChange} />
 
-          {/* Venue-only: Rooms & Dining */}
+          {/* Venue-only: Spaces, Rooms & Dining */}
+          {showFeatures && (
+            <SpacesSection formData={formData} onChange={handleChange} />
+          )}
           {showFeatures && (
             <RoomsSection formData={formData} onChange={handleChange} />
           )}

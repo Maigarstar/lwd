@@ -31,6 +31,10 @@ export const useListingForm = (listingId = null) => {
     // Unified media pool: gallery images + videos + virtual tours
     // Replaces legacy gallery_images[] + videos[]
     media_items: [], // Array of { type: 'image'|'video'|'virtual_tour', source_type, file, url, thumbnail, title, caption, credit_name, ... }
+    // ── Venue Spaces (max 5) ──────────────────────────────────────────────────
+    // Each space: id, name, type, description, capacityCeremony/Reception/Dining/Standing,
+    //             indoor, covered, accessible, imgFile, img, floorPlanFile, floorPlanUrl, sortOrder
+    spaces: [],
     // ── Rooms & accommodation ─────────────────────────────────────────────────
     rooms_accommodation_type: '',
     rooms_total: '',
@@ -156,6 +160,7 @@ export const useListingForm = (listingId = null) => {
             seo_title: listing.seoTitle || '',
             seo_description: listing.seoDescription || '',
             seo_keywords: Array.isArray(listing.seoKeywords) ? listing.seoKeywords : [],
+            spaces: Array.isArray(listing.spaces) ? listing.spaces : [],
             status: listing.status || 'draft',
             published_at: listing.publishedAt || null,
             visibility: listing.isHidden ? 'private' : 'public',
@@ -266,6 +271,23 @@ export const useListingForm = (listingId = null) => {
         seoTitle: formData.seo_title,
         seoDescription: formData.seo_description,
         seoKeywords: formData.seo_keywords || [],
+        // Venue spaces — strip File objects, keep structured data
+        spaces: (formData.spaces || []).map((s, idx) => ({
+          id: s.id,
+          name: s.name,
+          type: s.type,
+          description: s.description,
+          capacityCeremony: s.capacityCeremony,
+          capacityReception: s.capacityReception,
+          capacityDining: s.capacityDining,
+          capacityStanding: s.capacityStanding,
+          indoor: s.indoor,
+          covered: s.covered,
+          accessible: s.accessible,
+          img: s.imgFile instanceof File ? null : (s.img || ''),
+          floorPlanUrl: s.floorPlanFile instanceof File ? null : (s.floorPlanUrl || ''),
+          sortOrder: s.sortOrder ?? idx,
+        })),
         status: publishStatus,
         listingType: 'wedding-venue',
         tier: 'standard',

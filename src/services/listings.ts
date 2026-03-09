@@ -229,6 +229,8 @@ function mapFormToDatabaseFields(data: any): any {
     'priceFrom': 'price_from',
     'priceCurrency': 'price_currency',
     'venueType': 'venue_type',
+    // Venue spaces (max 5 — stored as JSONB array)
+    'spaces': 'spaces',
     // Rooms & accommodation
     'roomsAccommodationType': 'rooms_accommodation_type',
     'roomsTotal': 'rooms_total',
