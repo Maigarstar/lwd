@@ -31,6 +31,15 @@ export const useListingForm = (listingId = null) => {
     // Unified media pool: gallery images + videos + virtual tours
     // Replaces legacy gallery_images[] + videos[]
     media_items: [], // Array of { type: 'image'|'video'|'virtual_tour', source_type, file, url, thumbnail, title, caption, credit_name, ... }
+    // ── Exclusive Use block ───────────────────────────────────────────────────
+    exclusive_use_enabled: false,      // section toggle
+    exclusive_use_title: '',           // heading (default "Exclusive Use")
+    exclusive_use_subtitle: '',        // intro line
+    exclusive_use_price: '',           // e.g. "From £28,000"
+    exclusive_use_subline: '',         // e.g. "Minimum 2 nights · Sleeps 40 guests"
+    exclusive_use_description: '',     // body paragraph
+    exclusive_use_cta_text: '',        // CTA button label
+    exclusive_use_includes: [],        // string[] max 7
     // ── Venue Spaces (max 5) ──────────────────────────────────────────────────
     // Each space: id, name, type, description, capacityCeremony/Reception/Dining/Standing,
     //             indoor, covered, accessible, imgFile, img, floorPlanFile, floorPlanUrl, sortOrder
@@ -161,6 +170,14 @@ export const useListingForm = (listingId = null) => {
             seo_description: listing.seoDescription || '',
             seo_keywords: Array.isArray(listing.seoKeywords) ? listing.seoKeywords : [],
             spaces: Array.isArray(listing.spaces) ? listing.spaces : [],
+            exclusive_use_enabled: listing.exclusiveUseEnabled ?? false,
+            exclusive_use_title: listing.exclusiveUseTitle || '',
+            exclusive_use_subtitle: listing.exclusiveUseSubtitle || '',
+            exclusive_use_price: listing.exclusiveUsePrice || '',
+            exclusive_use_subline: listing.exclusiveUseSubline || '',
+            exclusive_use_description: listing.exclusiveUseDescription || '',
+            exclusive_use_cta_text: listing.exclusiveUseCtaText || '',
+            exclusive_use_includes: Array.isArray(listing.exclusiveUseIncludes) ? listing.exclusiveUseIncludes : [],
             status: listing.status || 'draft',
             published_at: listing.publishedAt || null,
             visibility: listing.isHidden ? 'private' : 'public',
@@ -271,6 +288,15 @@ export const useListingForm = (listingId = null) => {
         seoTitle: formData.seo_title,
         seoDescription: formData.seo_description,
         seoKeywords: formData.seo_keywords || [],
+        // Exclusive Use block
+        exclusiveUseEnabled: formData.exclusive_use_enabled ?? false,
+        exclusiveUseTitle: formData.exclusive_use_title || '',
+        exclusiveUseSubtitle: formData.exclusive_use_subtitle || '',
+        exclusiveUsePrice: formData.exclusive_use_price || '',
+        exclusiveUseSubline: formData.exclusive_use_subline || '',
+        exclusiveUseDescription: formData.exclusive_use_description || '',
+        exclusiveUseCtaText: formData.exclusive_use_cta_text || '',
+        exclusiveUseIncludes: formData.exclusive_use_includes || [],
         // Venue spaces — strip File objects, keep structured data
         spaces: (formData.spaces || []).map((s, idx) => ({
           id: s.id,

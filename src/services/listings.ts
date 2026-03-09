@@ -229,6 +229,15 @@ function mapFormToDatabaseFields(data: any): any {
     'priceFrom': 'price_from',
     'priceCurrency': 'price_currency',
     'venueType': 'venue_type',
+    // Exclusive Use block
+    'exclusiveUseEnabled':     'exclusive_use_enabled',
+    'exclusiveUseTitle':       'exclusive_use_title',
+    'exclusiveUseSubtitle':    'exclusive_use_subtitle',
+    'exclusiveUsePrice':       'exclusive_use_price',
+    'exclusiveUseSubline':     'exclusive_use_subline',
+    'exclusiveUseDescription': 'exclusive_use_description',
+    'exclusiveUseCtaText':     'exclusive_use_cta_text',
+    'exclusiveUseIncludes':    'exclusive_use_includes',
     // Venue spaces (max 5 — stored as JSONB array)
     'spaces': 'spaces',
     // Rooms & accommodation

@@ -216,8 +216,22 @@ const VENUE = {
     },
   ],
   exclusiveUse: {
-    from: "£28,000", minNights: 2,
-    includes: ["All 24 rooms & 6 suites", "Private grounds & gardens", "Full catering team", "Event & hospitality staff", "Bar facilities & cellar", "Bridal suite & prep rooms"],
+    enabled: true,
+    title: "Exclusive Use",
+    subtitle: "Hire the entire estate — just your guests, your celebration, your way",
+    from: "£28,000",
+    subline: "Minimum 2 nights · Sleeps 40 guests",
+    description: "When you book exclusive use of Villa Rosanova, the estate is entirely yours. No other guests. No other events. Just your family and friends in one of Italy's most extraordinary properties.",
+    ctaText: "Enquire About Exclusive Use",
+    includes: [
+      "All 24 rooms & 6 suites",
+      "Private grounds & gardens",
+      "Full catering team",
+      "Event & hospitality staff",
+      "Bar facilities & cellar",
+      "Bridal suite & prep rooms",
+    ],
+    minNights: 2,
   },
   catering: {
     inHouse: {
@@ -933,7 +947,7 @@ const TABS = [
   { key: 'capacity',     label: 'Spaces',       show: (v) => (v.spaces?.length || 0) > 0 },
   { key: 'rooms',        label: 'Rooms',        show: (v) => v.accommodation?.totalRooms > 0 || v.accommodation?.description },
   { key: 'dining',       label: 'Dining',       show: (v) => v.dining?.description || v.dining?.style },
-  { key: 'pricing',      label: 'Pricing',      show: (v) => v.exclusiveUse || v.priceFrom },
+  { key: 'pricing',      label: 'Pricing',      show: (v) => (v.exclusiveUse?.enabled !== false && v.exclusiveUse) || v.priceFrom },
   { key: 'availability', label: 'Availability', show: (v) => (v.notices?.length || 0) > 0 },
   { key: 'faqs',         label: 'FAQs',         show: (v) => true },
   { key: 'venue-type',   label: 'Venue Type',   show: (v) => v.venueType?.primaryType || (v.categories?.length || 0) > 0 },
@@ -3440,35 +3454,82 @@ function VideoGallery({ videos }) {
 }
 
 // ─── EXCLUSIVE USE ────────────────────────────────────────────────────────────
-function ExclusiveUse({ venue }) {
+function ExclusiveUse({ venue, onEnquire }) {
   const C = useT();
+  const isMobile = useIsMobile();
   const eu = venue.exclusiveUse;
+
+  // Section hidden if disabled or no data
+  if (!eu || eu.enabled === false) return null;
+  // Don't render empty shell
+  if (!eu.from && !eu.description && !(eu.includes?.length)) return null;
+
+  const title    = eu.title    || "Exclusive Use";
+  const subtitle = eu.subtitle || "";
+  const ctaText  = eu.ctaText  || "Enquire About Exclusive Use";
+  const subline  = eu.subline  || (eu.minNights ? `Minimum ${eu.minNights} nights` : "");
+
   return (
     <section id="pricing" style={{ marginBottom: 56 }}>
-      <SectionHeading title="Exclusive Use" subtitle="Hire the entire estate — just your guests, your celebration, your way" />
-      <div style={{ border: `1px solid ${C.goldBorder}`, background: C.goldLight, padding: 32 }}>
-        <div className="vp-exclusive-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40 }}>
+      <SectionHeading title={title} subtitle={subtitle} />
+      <div style={{ border: `1px solid ${C.goldBorder}`, background: C.goldLight, padding: isMobile ? 24 : 40 }}>
+        <div className="vp-exclusive-grid" style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+          gap: isMobile ? 32 : 48,
+        }}>
+          {/* Left: price + description + CTA */}
           <div>
-            <div style={{ fontFamily: FD, fontSize: 38, color: C.gold, marginBottom: 4 }}>From {eu.from}</div>
-            <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginBottom: 24 }}>Minimum {eu.minNights} nights · Sleeps {venue.accommodation?.maxOvernightGuests ?? venue.accommodation?.maxGuests} guests</div>
-            <div style={{ fontFamily: FB, fontSize: 14, color: C.textMid, lineHeight: 1.7, marginBottom: 24 }}>
-              When you book exclusive use of Villa Rosanova, the estate is entirely yours. No other guests. No other events. Just your family and friends in one of Italy's most extraordinary properties.
-            </div>
-            <button style={{
-              padding: "13px 28px", background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)",
-              color: "#fff", fontFamily: FB, fontSize: 13, fontWeight: 700,
-              letterSpacing: "0.8px", textTransform: "uppercase", cursor: "pointer",
-            }}>Enquire About Exclusive Use →</button>
-          </div>
-          <div>
-            <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 14 }}>Exclusive use includes</div>
-            {eu.includes.map(item => (
-              <div key={item} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <span style={{ color: C.gold, fontSize: 13 }}>✓</span>
-                <span style={{ fontFamily: FB, fontSize: 14, color: C.textMid }}>{item}</span>
+            {eu.from && (
+              <div style={{ fontFamily: FD, fontSize: isMobile ? 32 : 40, color: C.gold, marginBottom: 6, lineHeight: 1 }}>
+                From {eu.from}
               </div>
-            ))}
+            )}
+            {subline && (
+              <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginBottom: 24 }}>
+                {subline}
+              </div>
+            )}
+            {eu.description && (
+              <div style={{ fontFamily: FB, fontSize: 14, color: C.textMid, lineHeight: 1.8, marginBottom: 28 }}>
+                {eu.description}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={onEnquire}
+              style={{
+                padding: "13px 28px", background: C.gold, border: "none",
+                borderRadius: "var(--lwd-radius-input)",
+                color: "#fff", fontFamily: FB, fontSize: 12, fontWeight: 800,
+                letterSpacing: "0.9px", textTransform: "uppercase", cursor: "pointer",
+                display: "inline-flex", alignItems: "center", gap: 8,
+                transition: "opacity 0.2s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.opacity = "0.88"}
+              onMouseLeave={e => e.currentTarget.style.opacity = "1"}
+            >
+              {ctaText} →
+            </button>
           </div>
+
+          {/* Right: includes list */}
+          {eu.includes?.length > 0 && (
+            <div>
+              <div style={{
+                fontFamily: FB, fontSize: 9, color: C.textMuted,
+                letterSpacing: "1.4px", textTransform: "uppercase", marginBottom: 16,
+              }}>
+                Exclusive use includes
+              </div>
+              {eu.includes.slice(0, 7).map((item, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                  <span style={{ color: C.gold, fontSize: 14, lineHeight: 1, flexShrink: 0 }}>✓</span>
+                  <span style={{ fontFamily: FB, fontSize: 14, color: C.textMid }}>{item}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </section>
@@ -5660,7 +5721,7 @@ export default function VenueProfile({ onBack = null }) {
               <AboutSection venue={VENUE} />
               <ImageGallery gallery={VENUE.gallery} onOpenLight={i => setLightIdx(i)} />
               <VideoGallery videos={VENUE.videos} />
-              <ExclusiveUse venue={VENUE} />
+              <ExclusiveUse venue={VENUE} onEnquire={() => setEnquiryOpen(true)} />
               <CateringSection venue={VENUE} />
               <SpacesSection spaces={VENUE.spaces} />
               <RoomsSection venue={VENUE} />
