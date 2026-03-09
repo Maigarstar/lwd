@@ -1,235 +1,601 @@
 import { useState, useEffect } from 'react';
 
-const generateUUID = () => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+// ─── CONSTANTS ───────────────────────────────────────────────────────────────
+const MAX_HERO          = 5;
+const HERO_SPEC         = 'Recommended: 1920 × 1080 px (16:9) · Max 5 MB per image · JPG / PNG / WebP';
+const CARD_LIMIT        = 12;   // max items shown in listing card display
+const IMAGE_STORAGE_MAX = 100;  // total images stored
+const VIDEO_STORAGE_MAX = 20;   // total videos stored
+const VIRTUAL_TOUR_MAX  = 3;    // max virtual tour embeds
+
+const GALLERY_SPEC = 'Recommended: 2000 × 1500 px min · Max 10 MB · JPG / PNG / WebP';
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+const genId = () =>
+  'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
     const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
   });
+
+const extractYouTubeId = url => {
+  const m = url?.match(
+    /(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/
+  );
+  return m?.[1] || null;
 };
 
-const MAX_HERO   = 5;
-const HERO_SPEC  = 'Recommended: 1920 × 1080 px (16:9) · Max 5 MB per image · JPG / PNG / WebP';
+const detectVideoSource = url => {
+  if (!url) return 'external';
+  if (/youtube\.com|youtu\.be/i.test(url)) return 'youtube';
+  if (/instagram\.com/i.test(url)) return 'instagram';
+  if (/facebook\.com|fb\.watch/i.test(url)) return 'facebook';
+  if (/tiktok\.com/i.test(url)) return 'tiktok';
+  if (/vimeo\.com/i.test(url)) return 'vimeo';
+  return 'external';
+};
 
+const detectTourProvider = url => {
+  if (!url) return 'external';
+  if (/matterport\.com/i.test(url)) return 'matterport';
+  if (/youtube\.com|youtu\.be/i.test(url)) return 'youtube360';
+  if (/kuula\.co|roundme\.com|pannellum/i.test(url)) return '360tour';
+  return 'external';
+};
+
+const ytThumb = url => {
+  const id = extractYouTubeId(url);
+  return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null;
+};
+
+/** Return the IDs that fall within the CARD_LIMIT: featured first, then by sort_order */
+const getCardItemIds = (items, limit) => {
+  const sorted = [...items].sort((a, b) => {
+    if (a.is_featured && !b.is_featured) return -1;
+    if (!a.is_featured && b.is_featured) return 1;
+    return (a.sort_order ?? 999) - (b.sort_order ?? 999);
+  });
+  return new Set(sorted.slice(0, limit).map(i => i.id));
+};
+
+/** Migrate old gallery_images + videos into unified media_items */
+const initMediaItems = formData => {
+  if (Array.isArray(formData?.media_items)) return formData.media_items;
+  const items = [];
+  (formData?.gallery_images || []).forEach((img, idx) =>
+    items.push({
+      id: img.id || genId(), type: 'image', source_type: 'upload',
+      file: img.file || null, url: img.url || '', thumbnail: null,
+      title: img.title || '', caption: img.caption || '', description: img.description || '',
+      credit_name: img.credit_name || '', credit_instagram: img.credit_instagram || '', credit_website: img.credit_website || '',
+      location: img.location || '', tags: img.tags || [],
+      sort_order: img.sort_order ?? idx, is_featured: img.is_featured || false,
+    })
+  );
+  (formData?.videos || []).forEach((v, idx) =>
+    items.push({
+      id: v.id || genId(), type: 'video', source_type: detectVideoSource(v.url),
+      file: null, url: v.url || '', thumbnail: ytThumb(v.url) || null,
+      title: v.title || '', caption: v.caption || '', description: '',
+      credit_name: v.credit_name || '', credit_instagram: v.credit_instagram || '', credit_website: '',
+      location: '', tags: v.tags || [],
+      sort_order: (formData?.gallery_images?.length || 0) + idx, is_featured: v.is_featured || false,
+    })
+  );
+  return items;
+};
+
+// ─── SHARED STYLES ─────────────────────────────────────────────────────────
+const F = {
+  width: '100%', padding: '7px 10px', fontSize: 12,
+  border: '1px solid #ddd4c8', borderRadius: 3,
+  boxSizing: 'border-box', fontFamily: 'inherit',
+  backgroundColor: '#fff', color: '#333',
+};
+
+// ─── SUB-COMPONENTS ──────────────────────────────────────────────────────────
+const SOURCE_META = {
+  upload:     { label: 'Upload',     color: '#6B7280', bg: '#F3F4F6' },
+  youtube:    { label: 'YouTube',    color: '#DC2626', bg: '#FEF2F2' },
+  instagram:  { label: 'Instagram',  color: '#7C3AED', bg: '#F5F3FF' },
+  facebook:   { label: 'Facebook',   color: '#2563EB', bg: '#EFF6FF' },
+  tiktok:     { label: 'TikTok',     color: '#111827', bg: '#F9FAFB' },
+  vimeo:      { label: 'Vimeo',      color: '#1AB7EA', bg: '#F0F9FF' },
+  matterport: { label: 'Matterport', color: '#0EA5E9', bg: '#F0F9FF' },
+  '360tour':  { label: '360°',       color: '#059669', bg: '#ECFDF5' },
+  youtube360: { label: 'YT 360°',    color: '#DC2626', bg: '#FEF2F2' },
+  external:   { label: 'External',   color: '#6B7280', bg: '#F9FAFB' },
+};
+const TYPE_ICONS  = { image: '🖼', video: '▶', virtual_tour: '🌐' };
+const TYPE_LABELS = { image: 'Image', video: 'Video', virtual_tour: 'Virtual Tour' };
+
+const SourceBadge = ({ sourceType }) => {
+  const m = SOURCE_META[sourceType] || SOURCE_META.external;
+  return (
+    <span style={{
+      fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+      padding: '2px 6px', borderRadius: 3, backgroundColor: m.bg, color: m.color,
+    }}>
+      {m.label}
+    </span>
+  );
+};
+
+const CardDisplayMeter = ({ mediaItems }) => {
+  const count = getCardItemIds(mediaItems, CARD_LIMIT).size;
+  const pct   = Math.min((count / CARD_LIMIT) * 100, 100);
+  const barClr = count >= CARD_LIMIT ? '#ef4444' : count >= CARD_LIMIT * 0.8 ? '#f59e0b' : '#C9A84C';
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: '#666' }}>Card Display Slots</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: count >= CARD_LIMIT ? '#ef4444' : '#333' }}>
+          {count} / {CARD_LIMIT}
+        </span>
+      </div>
+      <div style={{ height: 5, backgroundColor: '#ede9e3', borderRadius: 3, overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, backgroundColor: barClr, borderRadius: 3, transition: 'width 0.3s ease' }} />
+      </div>
+      <p style={{ fontSize: 10, color: '#aaa', margin: '3px 0 0', textAlign: 'right' }}>
+        {count < CARD_LIMIT
+          ? `${CARD_LIMIT - count} slot${CARD_LIMIT - count === 1 ? '' : 's'} available — featured items shown first`
+          : 'All card slots filled — increase sort order or remove featured to shift items out'}
+      </p>
+    </div>
+  );
+};
+
+const VideoAddPanel = ({ onAdd }) => {
+  const [url, setUrl] = useState('');
+  const [err, setErr] = useState('');
+  const handle = () => {
+    const v = url.trim();
+    if (!v) { setErr('Please enter a video URL.'); return; }
+    if (!v.startsWith('http')) { setErr('URL must start with http(s)://'); return; }
+    onAdd(v); setUrl(''); setErr('');
+  };
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input type="url" value={url}
+          onChange={e => { setUrl(e.target.value); setErr(''); }}
+          onKeyDown={e => e.key === 'Enter' && handle()}
+          placeholder="Paste YouTube, Instagram Reel, TikTok, Facebook, or Vimeo URL…"
+          style={{ ...F, flex: 1 }}
+        />
+        <button type="button" onClick={handle} style={{
+          padding: '7px 14px', backgroundColor: '#C9A84C', color: '#fff',
+          border: 'none', borderRadius: 3, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+        }}>
+          + Add Video
+        </button>
+      </div>
+      {err && <p style={{ fontSize: 11, color: '#dc2626', margin: '3px 0 0' }}>{err}</p>}
+      <p style={{ fontSize: 10, color: '#aaa', margin: '3px 0 0' }}>
+        YouTube · Instagram Reels · TikTok · Facebook Video · Vimeo
+      </p>
+    </div>
+  );
+};
+
+const VirtualTourAddPanel = ({ onAdd }) => {
+  const [url, setUrl] = useState('');
+  const [provider, setProvider] = useState('');
+  const [err, setErr] = useState('');
+  const handle = () => {
+    const v = url.trim();
+    if (!v) { setErr('Please enter a tour URL.'); return; }
+    if (!v.startsWith('http')) { setErr('URL must start with http(s)://'); return; }
+    onAdd(v, provider || detectTourProvider(v)); setUrl(''); setProvider(''); setErr('');
+  };
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input type="url" value={url}
+          onChange={e => { setUrl(e.target.value); setErr(''); }}
+          onKeyDown={e => e.key === 'Enter' && handle()}
+          placeholder="Paste Matterport, 360° tour, or virtual tour embed URL…"
+          style={{ ...F, flex: 1 }}
+        />
+        <select value={provider} onChange={e => setProvider(e.target.value)}
+          style={{ ...F, width: 'auto', flexShrink: 0, cursor: 'pointer' }}
+        >
+          <option value="">Auto-detect</option>
+          <option value="matterport">Matterport</option>
+          <option value="360tour">360° Tour</option>
+          <option value="youtube360">YouTube 360°</option>
+          <option value="external">Other</option>
+        </select>
+        <button type="button" onClick={handle} style={{
+          padding: '7px 14px', backgroundColor: '#059669', color: '#fff',
+          border: 'none', borderRadius: 3, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+        }}>
+          + Add Tour
+        </button>
+      </div>
+      {err && <p style={{ fontSize: 11, color: '#dc2626', margin: '3px 0 0' }}>{err}</p>}
+      <p style={{ fontSize: 10, color: '#aaa', margin: '3px 0 0' }}>
+        Matterport · 360° Tours · YouTube 360° · Interactive Tour embeds
+      </p>
+    </div>
+  );
+};
+
+const MediaItemCard = ({ item, objectUrls, onUpdate, onRemove, inCard, cardPosition }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  let thumbSrc = null;
+  if (item.type === 'image') {
+    thumbSrc = item.file instanceof File ? objectUrls[item.id] : (item.url || item.thumbnail || null);
+  } else if (item.type === 'video') {
+    thumbSrc = item.thumbnail || ytThumb(item.url) || null;
+  }
+
+  const isVideo = item.type === 'video';
+  const isTour  = item.type === 'virtual_tour';
+
+  return (
+    <div style={{
+      border: `1px solid ${inCard ? 'rgba(201,168,76,0.35)' : '#e5ddd0'}`,
+      borderRadius: 4, marginBottom: 8, overflow: 'hidden',
+      backgroundColor: inCard ? '#fffdf7' : '#fdfcfb',
+    }}>
+      {/* ── Header row (always visible) */}
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', cursor: 'pointer' }}
+        onClick={() => setExpanded(p => !p)}
+      >
+        {/* Thumbnail */}
+        <div style={{
+          width: 50, height: 50, borderRadius: 3, overflow: 'hidden',
+          backgroundColor: '#f0ebe3', flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {thumbSrc
+            ? <img src={thumbSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : <span style={{ fontSize: 22 }}>{TYPE_ICONS[item.type]}</span>
+          }
+        </div>
+
+        {/* Info */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4, flexWrap: 'wrap' }}>
+            <SourceBadge sourceType={item.source_type} />
+            {inCard ? (
+              <span style={{
+                fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+                padding: '2px 6px', borderRadius: 3, backgroundColor: '#fffbf0', color: '#b8860b',
+                border: '1px solid rgba(201,168,76,0.3)',
+              }}>
+                #{cardPosition} Card
+              </span>
+            ) : (
+              <span style={{
+                fontSize: 9, fontWeight: 600, textTransform: 'uppercase',
+                padding: '2px 5px', borderRadius: 3, backgroundColor: '#f3f4f6', color: '#9ca3af',
+              }}>
+                Stored
+              </span>
+            )}
+            {item.is_featured && (
+              <span style={{
+                fontSize: 9, fontWeight: 700, padding: '2px 5px', borderRadius: 3,
+                backgroundColor: '#fef3c7', color: '#d97706',
+              }}>
+                ★ Featured
+              </span>
+            )}
+          </div>
+          <p style={{
+            fontSize: 12, color: '#444', margin: 0,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {item.title || (item.url || item.file?.name || `${TYPE_LABELS[item.type]}`)}
+          </p>
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+          <button type="button" onClick={() => setExpanded(p => !p)} style={{
+            fontSize: 10, padding: '4px 8px', backgroundColor: '#f0ebe3', color: '#555',
+            border: 'none', borderRadius: 3, cursor: 'pointer',
+          }}>
+            {expanded ? '▲' : '▼ Edit'}
+          </button>
+          <button type="button" onClick={() => onRemove(item.id)} style={{
+            fontSize: 10, padding: '4px 8px', backgroundColor: '#ffebee', color: '#c62828',
+            border: 'none', borderRadius: 3, cursor: 'pointer',
+          }}>
+            Remove
+          </button>
+        </div>
+      </div>
+
+      {/* ── Expanded metadata form */}
+      {expanded && (
+        <div style={{ padding: '12px 14px', borderTop: '1px solid #f0ebe3' }}>
+
+          {/* URL display for videos/tours */}
+          {(isVideo || isTour) && item.url && (
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 10, fontWeight: 600, color: '#999', display: 'block', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {isTour ? 'Tour URL' : 'Video URL'}
+              </label>
+              <div style={{
+                padding: '6px 10px', backgroundColor: '#f9f7f3',
+                borderRadius: 3, fontSize: 11, color: '#666',
+                wordBreak: 'break-all', border: '1px solid #e5ddd0',
+              }}>
+                {item.url}
+              </div>
+            </div>
+          )}
+
+          {/* Virtual tour embed preview */}
+          {isTour && item.url && (
+            <div style={{ marginBottom: 12, position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: 3, border: '1px solid #e5ddd0' }}>
+              <iframe
+                src={item.url}
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+                allowFullScreen
+                title="Virtual tour preview"
+                loading="lazy"
+              />
+            </div>
+          )}
+
+          {/* Title */}
+          <input type="text"
+            placeholder={isTour ? 'Tour title (e.g. Full Venue Walkthrough)' : `${TYPE_LABELS[item.type]} title`}
+            value={item.title || ''}
+            onChange={e => onUpdate(item.id, 'title', e.target.value)}
+            style={{ ...F, marginBottom: 8 }}
+          />
+
+          {/* Caption */}
+          <textarea
+            placeholder="Caption (optional)"
+            value={item.caption || ''}
+            onChange={e => onUpdate(item.id, 'caption', e.target.value)}
+            style={{ ...F, marginBottom: 8, minHeight: 52, resize: 'vertical' }}
+          />
+
+          {/* Credit row */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+            <input type="text"
+              placeholder={isVideo ? 'Videographer name' : isTour ? 'Company / provider' : 'Photographer name'}
+              value={item.credit_name || ''}
+              onChange={e => onUpdate(item.id, 'credit_name', e.target.value)}
+              style={F}
+            />
+            <input type="text"
+              placeholder="@instagram handle"
+              value={item.credit_instagram || ''}
+              onChange={e => onUpdate(item.id, 'credit_instagram', e.target.value)}
+              style={F}
+            />
+          </div>
+
+          {/* Location */}
+          <input type="text"
+            placeholder={isTour ? 'Area / floor (e.g. Garden Level)' : 'Location / area (e.g. Grand Ballroom)'}
+            value={item.location || ''}
+            onChange={e => onUpdate(item.id, 'location', e.target.value)}
+            style={{ ...F, marginBottom: 8 }}
+          />
+
+          {/* Tags */}
+          <input type="text"
+            placeholder="Tags (comma-separated, e.g. sunset, ceremony, garden)"
+            value={(item.tags || []).join(', ')}
+            onChange={e => onUpdate(item.id, 'tags', e.target.value.split(',').map(t => t.trim()).filter(Boolean))}
+            style={{ ...F, marginBottom: 10 }}
+          />
+
+          {/* Sort order + Featured */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label style={{ fontSize: 11, color: '#888', whiteSpace: 'nowrap' }}>Sort order</label>
+              <input type="number" min={0}
+                value={item.sort_order ?? 0}
+                onChange={e => onUpdate(item.id, 'sort_order', parseInt(e.target.value, 10) || 0)}
+                style={{ ...F, width: 64, padding: '5px 8px' }}
+              />
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 11, color: '#555' }}>
+              <input type="checkbox"
+                checked={!!item.is_featured}
+                onChange={e => onUpdate(item.id, 'is_featured', e.target.checked)}
+              />
+              ★ Featured — prioritise in card display slots
+            </label>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+// ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 const MediaSection = ({ formData, onChange }) => {
-  const MAX_IMAGES = 50;
 
-  // Hero images — array of up to 5 (replaces single hero_image)
+  // ── Hero images (separate from media pool) ─────────────────────────────────
   const [heroImages, setHeroImages] = useState(() =>
     Array.isArray(formData?.hero_images) ? formData.hero_images :
     formData?.hero_image?.file ? [formData.hero_image] : []
   );
+  const [heroObjUrls, setHeroObjUrls] = useState({});
 
-  // Gallery images state (array of media records)
-  const [galleryImages, setGalleryImages] = useState([]);
-
-  // Videos state (array of video records)
-  const [videos, setVideos] = useState([]);
-
-  // Object URLs keyed by image id
-  const [objectUrls, setObjectUrls] = useState({});
-
-  // Initialize from formData if available
-  useEffect(() => {
-    if (formData?.gallery_images && Array.isArray(formData.gallery_images)) {
-      setGalleryImages(formData.gallery_images);
-    }
-    if (formData?.videos && Array.isArray(formData.videos)) {
-      setVideos(formData.videos);
-    }
-  }, []);
-
-  // Create / revoke object URLs for hero File objects
   useEffect(() => {
     const urls = {};
-    heroImages.forEach(img => {
-      if (img?.file instanceof File) {
-        urls[img.id] = URL.createObjectURL(img.file);
-      }
-    });
-    setObjectUrls(prev => {
-      // Revoke old blob URLs that are no longer needed
-      Object.entries(prev).forEach(([k, u]) => {
-        if (!urls[k] && u?.startsWith('blob:')) URL.revokeObjectURL(u);
-      });
+    heroImages.forEach(img => { if (img?.file instanceof File) urls[img.id] = URL.createObjectURL(img.file); });
+    setHeroObjUrls(prev => {
+      Object.entries(prev).forEach(([k, u]) => { if (!urls[k] && u?.startsWith('blob:')) URL.revokeObjectURL(u); });
       return urls;
     });
     return () => Object.values(urls).forEach(u => u?.startsWith('blob:') && URL.revokeObjectURL(u));
   }, [heroImages]);
 
-  // Hero images upload (multiple, max 5 total)
-  const handleHeroImageUpload = (e) => {
+  const handleHeroUpload = e => {
     const files = Array.from(e.target.files || []);
-    const remaining = MAX_HERO - heroImages.length;
-    if (remaining <= 0) return;
-    const toAdd = files.slice(0, remaining).map((file, i) => ({
-      id: generateUUID(),
-      file,
-      title: '',
-      caption: '',
-      credit_name: '',
+    const rem = MAX_HERO - heroImages.length;
+    if (rem <= 0) return;
+    const toAdd = files.slice(0, rem).map((file, i) => ({
+      id: genId(), file,
+      title: '', caption: '', credit_name: '',
       sort_order: heroImages.length + i,
       is_primary: heroImages.length === 0 && i === 0,
     }));
     const updated = [...heroImages, ...toAdd];
-    setHeroImages(updated);
-    onChange('hero_images', updated);
+    setHeroImages(updated); onChange('hero_images', updated);
     e.target.value = '';
   };
-
-  const updateHeroImage = (id, field, value) => {
-    const updated = heroImages.map(img => img.id === id ? { ...img, [field]: value } : img);
-    setHeroImages(updated);
-    onChange('hero_images', updated);
+  const updateHero = (id, field, val) => {
+    const u = heroImages.map(img => img.id === id ? { ...img, [field]: val } : img);
+    setHeroImages(u); onChange('hero_images', u);
+  };
+  const removeHero = id => {
+    const u = heroImages.filter(img => img.id !== id).map((img, i) => ({ ...img, sort_order: i, is_primary: i === 0 }));
+    setHeroImages(u); onChange('hero_images', u);
   };
 
-  const removeHeroImage = (id) => {
-    const updated = heroImages.filter(img => img.id !== id).map((img, i) => ({
-      ...img,
-      sort_order: i,
-      is_primary: i === 0,
+  // ── Unified media_items pool ────────────────────────────────────────────────
+  const [mediaItems, setMediaItems] = useState(() => initMediaItems(formData));
+  const [activeTab, setActiveTab] = useState('all');
+
+  // Object URLs for uploaded image File objects
+  const mediaFileKey = mediaItems
+    .filter(i => i.file instanceof File)
+    .map(i => `${i.id}:${i.file.name}:${i.file.size}`)
+    .join('|');
+  const [mediaObjUrls, setMediaObjUrls] = useState({});
+
+  useEffect(() => {
+    const urls = {};
+    mediaItems.forEach(item => {
+      if (item.type === 'image' && item.file instanceof File)
+        urls[item.id] = URL.createObjectURL(item.file);
+    });
+    setMediaObjUrls(prev => {
+      Object.entries(prev).forEach(([k, u]) => { if (!urls[k] && u?.startsWith('blob:')) URL.revokeObjectURL(u); });
+      return urls;
+    });
+    return () => Object.values(urls).forEach(u => u?.startsWith('blob:') && URL.revokeObjectURL(u));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mediaFileKey]);
+
+  const notifyMedia = updated => { setMediaItems(updated); onChange('media_items', updated); };
+
+  const addImages = files => {
+    const imgCnt  = mediaItems.filter(i => i.type === 'image').length;
+    const rem     = IMAGE_STORAGE_MAX - imgCnt;
+    if (rem <= 0) { alert(`Maximum ${IMAGE_STORAGE_MAX} images reached.`); return; }
+    const toAdd = Array.from(files).slice(0, rem).map((file, idx) => ({
+      id: genId(), type: 'image', source_type: 'upload',
+      file, url: '', thumbnail: null,
+      title: '', caption: '', description: '',
+      credit_name: '', credit_instagram: '', credit_website: '',
+      location: '', tags: [], sort_order: mediaItems.length + idx, is_featured: false,
     }));
-    setHeroImages(updated);
-    onChange('hero_images', updated);
+    notifyMedia([...mediaItems, ...toAdd]);
   };
 
-  // Gallery images upload
-  const handleGalleryImageUpload = (e) => {
-    const files = Array.from(e.target.files || []);
-    const newImages = [...galleryImages, ...files.map((file, idx) => ({
-      id: generateUUID(),
-      type: 'image',
-      file,
-      thumbnail: null,
-      title: '',
-      caption: '',
-      description: '',
-      credit_name: '',
-      credit_instagram: '',
-      credit_website: '',
-      location: '',
-      tags: [],
-      sort_order: galleryImages.length + idx,
-      is_featured: false,
-    }))];
-
-    if (newImages.length > MAX_IMAGES) {
-      alert(`Maximum ${MAX_IMAGES} images allowed. You selected ${newImages.length}.`);
-      return;
+  const addVideo = url => {
+    if (mediaItems.filter(i => i.type === 'video').length >= VIDEO_STORAGE_MAX) {
+      alert(`Maximum ${VIDEO_STORAGE_MAX} videos reached.`); return;
     }
-
-    setGalleryImages(newImages);
-    onChange('gallery_images', newImages);
+    const src = detectVideoSource(url);
+    notifyMedia([...mediaItems, {
+      id: genId(), type: 'video', source_type: src,
+      file: null, url, thumbnail: ytThumb(url) || null,
+      title: '', caption: '', description: '',
+      credit_name: '', credit_instagram: '', credit_website: '',
+      location: '', tags: [], sort_order: mediaItems.length, is_featured: false,
+    }]);
   };
 
-  // Video URL input
-  const handleVideoUrlsChange = (e) => {
-    const text = e.target.value;
-    const urls = text.split('\n').filter(url => url.trim());
-
-    const videoRecords = urls.map((url, idx) => ({
-      id: generateUUID(),
-      type: 'video',
-      url: url.trim(),
-      title: '',
-      caption: '',
-      description: '',
-      credit_name: '',
-      credit_instagram: '',
-      credit_website: '',
-      location: '',
-      tags: [],
-      sort_order: idx,
-      is_featured: false,
-    }));
-
-    setVideos(videoRecords);
-    onChange('videos', videoRecords);
+  const addTour = (url, provider) => {
+    if (mediaItems.filter(i => i.type === 'virtual_tour').length >= VIRTUAL_TOUR_MAX) {
+      alert(`Maximum ${VIRTUAL_TOUR_MAX} virtual tours allowed.`); return;
+    }
+    notifyMedia([...mediaItems, {
+      id: genId(), type: 'virtual_tour', source_type: provider || detectTourProvider(url),
+      file: null, url, thumbnail: null,
+      title: '', caption: '', description: '',
+      credit_name: '', credit_instagram: '', credit_website: '',
+      location: '', tags: [], sort_order: mediaItems.length, is_featured: false,
+      provider: provider || detectTourProvider(url),
+    }]);
   };
 
-  // Update gallery image metadata
-  const updateGalleryImage = (id, field, value) => {
-    const updated = galleryImages.map(img =>
-      img.id === id ? { ...img, [field]: value } : img
-    );
-    setGalleryImages(updated);
-    onChange('gallery_images', updated);
-  };
+  const updateItem = (id, field, val) =>
+    notifyMedia(mediaItems.map(item => item.id === id ? { ...item, [field]: val } : item));
 
-  // Update video metadata
-  const updateVideo = (id, field, value) => {
-    const updated = videos.map(video =>
-      video.id === id ? { ...video, [field]: value } : video
-    );
-    setVideos(updated);
-    onChange('videos', updated);
-  };
+  const removeItem = id => notifyMedia(mediaItems.filter(item => item.id !== id));
 
-  // Remove gallery image
-  const removeGalleryImage = (id) => {
-    const updated = galleryImages.filter(img => img.id !== id);
-    setGalleryImages(updated);
-    onChange('gallery_images', updated);
-  };
+  // Tab counts + filtered view
+  const imgCnt  = mediaItems.filter(i => i.type === 'image').length;
+  const vidCnt  = mediaItems.filter(i => i.type === 'video').length;
+  const tourCnt = mediaItems.filter(i => i.type === 'virtual_tour').length;
 
-  // Remove video
-  const removeVideo = (id) => {
-    const updated = videos.filter(video => video.id !== id);
-    setVideos(updated);
-    onChange('videos', updated);
-  };
+  const filtered = activeTab === 'all'    ? mediaItems
+    : activeTab === 'images' ? mediaItems.filter(i => i.type === 'image')
+    : activeTab === 'videos' ? mediaItems.filter(i => i.type === 'video')
+    : mediaItems.filter(i => i.type === 'virtual_tour');
 
+  const cardIds       = getCardItemIds(mediaItems, CARD_LIMIT);
+  const cardFiltered  = filtered.filter(i => cardIds.has(i.id));
+  const storedFiltered = filtered.filter(i => !cardIds.has(i.id));
+
+  // Build ordered card array for position labelling
+  const cardOrdered = [...mediaItems]
+    .filter(i => cardIds.has(i.id))
+    .sort((a, b) => {
+      if (a.is_featured && !b.is_featured) return -1;
+      if (!a.is_featured && b.is_featured) return 1;
+      return (a.sort_order ?? 999) - (b.sort_order ?? 999);
+    });
+  const cardPositionOf = id => cardOrdered.findIndex(i => i.id === id) + 1;
+
+  // ── RENDER ─────────────────────────────────────────────────────────────────
   return (
     <section style={{ marginBottom: 40, paddingBottom: 40, borderBottom: '1px solid #e5ddd0' }}>
-      <h3 style={{ marginBottom: 20 }}>Media</h3>
+      <h3 style={{ marginBottom: 6, fontSize: 16, fontWeight: 600, color: '#1a1a1a' }}>Media</h3>
+      <p style={{ fontSize: 12, color: '#888', marginTop: 0, marginBottom: 28, lineHeight: 1.5 }}>
+        Hero images appear prominently at the top of the listing. Gallery, videos and virtual tours appear in the body.
+        The first <strong>{CARD_LIMIT}</strong> media items (by featured status + sort order) are shown in listing cards.
+      </p>
 
-      {/* HERO IMAGES SECTION (max 5) */}
-      <div style={{ marginBottom: 32 }}>
-        {/* Header row */}
+      {/* ── HERO IMAGES ─────────────────────────────────────────────────────── */}
+      <div style={{ marginBottom: 36 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
-          <label style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          <label style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#333' }}>
             Hero Images{' '}
             <span style={{ fontWeight: 400, textTransform: 'none', color: '#aaa' }}>
               ({heroImages.length} / {MAX_HERO})
             </span>
           </label>
           {heroImages.length > 0 && (
-            <span style={{ fontSize: 10, color: '#7a5f10', fontWeight: 600 }}>
-              First image = primary hero
-            </span>
+            <span style={{ fontSize: 10, color: '#b8860b', fontWeight: 600 }}>First image = primary hero</span>
           )}
         </div>
 
-        {/* Spec guidance */}
+        {/* Spec banner */}
         <div style={{
-          padding: '8px 12px',
-          backgroundColor: '#fffbf0',
-          border: '1px solid rgba(201,168,76,0.25)',
-          borderRadius: 3,
-          marginBottom: 12,
-          fontSize: 11,
-          color: '#7a5f10',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
+          padding: '8px 12px', backgroundColor: '#fffbf0',
+          border: '1px solid rgba(201,168,76,0.25)', borderRadius: 3,
+          marginBottom: 12, fontSize: 11, color: '#7a5f10',
+          display: 'flex', alignItems: 'center', gap: 8,
         }}>
-          <span>📐</span>
-          <span>{HERO_SPEC}</span>
+          <span>📐</span><span>{HERO_SPEC}</span>
         </div>
 
-        {/* Upload button */}
+        {/* Upload zone */}
         {heroImages.length < MAX_HERO && (
           <label style={{
-            display: 'block',
-            padding: '12px 16px',
-            border: '1px dashed #ddd4c8',
-            borderRadius: 3,
-            cursor: 'pointer',
-            textAlign: 'center',
-            fontSize: 13,
-            color: '#888',
-            backgroundColor: '#fdfcfb',
-            transition: 'border-color 0.15s, background 0.15s',
+            display: 'block', padding: '12px 16px',
+            border: '1px dashed #ddd4c8', borderRadius: 3, cursor: 'pointer',
+            textAlign: 'center', fontSize: 13, color: '#888', backgroundColor: '#fdfcfb',
             marginBottom: heroImages.length > 0 ? 16 : 0,
           }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = '#C9A84C'; e.currentTarget.style.backgroundColor = '#fffbf0'; }}
@@ -239,105 +605,60 @@ const MediaSection = ({ formData, onChange }) => {
             <span style={{ fontWeight: 600 }}>
               {heroImages.length === 0 ? 'Upload Hero Image(s)' : `+ Add More (${MAX_HERO - heroImages.length} remaining)`}
             </span>
-            <span style={{ display: 'block', fontSize: 11, color: '#bbb', marginTop: 3 }}>
-              Click to browse or drag and drop
-            </span>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              multiple
-              onChange={handleHeroImageUpload}
-              style={{ display: 'none' }}
-            />
+            <span style={{ display: 'block', fontSize: 11, color: '#bbb', marginTop: 3 }}>Click to browse</span>
+            <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={handleHeroUpload} style={{ display: 'none' }} />
           </label>
         )}
-
         {heroImages.length >= MAX_HERO && (
           <div style={{ padding: '8px 12px', backgroundColor: '#f9f7f3', borderRadius: 3, fontSize: 11, color: '#aaa', textAlign: 'center' }}>
-            Maximum of {MAX_HERO} hero images reached
+            Maximum {MAX_HERO} hero images reached
           </div>
         )}
 
-        {/* Hero images list */}
+        {/* Hero image cards */}
         {heroImages.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {heroImages.map((img, idx) => {
-              const previewSrc = img.file instanceof File ? objectUrls[img.id] : (img.url || null);
+              const src = img.file instanceof File ? heroObjUrls[img.id] : (img.url || null);
               return (
                 <div key={img.id} style={{
                   border: `1px solid ${idx === 0 ? 'rgba(201,168,76,0.4)' : '#e5ddd0'}`,
-                  borderRadius: 4,
-                  overflow: 'hidden',
-                  backgroundColor: '#fdfcfb',
+                  borderRadius: 4, overflow: 'hidden', backgroundColor: '#fdfcfb',
                 }}>
-                  {/* Image preview strip */}
-                  <div style={{ position: 'relative', height: 120, backgroundColor: '#f5f0e8' }}>
-                    {previewSrc ? (
-                      <img
-                        src={previewSrc}
-                        alt={img.title || `Hero ${idx + 1}`}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    ) : (
-                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc', fontSize: 28 }}>
-                        🖼
-                      </div>
-                    )}
-
-                    {/* Primary badge */}
+                  <div style={{ position: 'relative', height: 110, backgroundColor: '#f5f0e8' }}>
+                    {src
+                      ? <img src={src} alt={img.title || `Hero ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc', fontSize: 28 }}>🖼</div>
+                    }
                     {idx === 0 && (
                       <span style={{
                         position: 'absolute', top: 8, left: 8,
-                        backgroundColor: 'rgba(201,168,76,0.9)',
-                        color: '#fff',
-                        fontSize: 10, fontWeight: 700,
-                        padding: '3px 8px', borderRadius: 10,
-                      }}>
-                        PRIMARY HERO
-                      </span>
+                        backgroundColor: 'rgba(201,168,76,0.9)', color: '#fff',
+                        fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 10,
+                      }}>PRIMARY HERO</span>
                     )}
-
-                    {/* Remove button */}
-                    <button
-                      type="button"
-                      onClick={() => removeHeroImage(img.id)}
-                      style={{
-                        position: 'absolute', top: 8, right: 8,
-                        width: 26, height: 26, borderRadius: '50%',
-                        backgroundColor: 'rgba(0,0,0,0.5)',
-                        color: '#fff', border: 'none',
-                        cursor: 'pointer', fontSize: 12,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}
-                    >
-                      ✕
-                    </button>
+                    <button type="button" onClick={() => removeHero(img.id)} style={{
+                      position: 'absolute', top: 8, right: 8,
+                      width: 26, height: 26, borderRadius: '50%',
+                      backgroundColor: 'rgba(0,0,0,0.5)', color: '#fff',
+                      border: 'none', cursor: 'pointer', fontSize: 12,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>✕</button>
                   </div>
-
-                  {/* Metadata fields */}
-                  <div style={{ padding: '12px 14px' }}>
+                  <div style={{ padding: '10px 14px' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 8 }}>
-                      <input
-                        type="text"
-                        placeholder="Image title"
-                        value={img.title}
-                        onChange={e => updateHeroImage(img.id, 'title', e.target.value)}
-                        style={{ width: '100%', padding: '7px 10px', fontSize: 12, border: '1px solid #ddd4c8', borderRadius: 3, boxSizing: 'border-box' }}
+                      <input type="text" placeholder="Image title"
+                        value={img.title} onChange={e => updateHero(img.id, 'title', e.target.value)}
+                        style={F}
                       />
-                      <input
-                        type="text"
-                        placeholder="Photographer / Credit"
-                        value={img.credit_name}
-                        onChange={e => updateHeroImage(img.id, 'credit_name', e.target.value)}
-                        style={{ width: '100%', padding: '7px 10px', fontSize: 12, border: '1px solid #ddd4c8', borderRadius: 3, boxSizing: 'border-box' }}
+                      <input type="text" placeholder="Photographer / Credit"
+                        value={img.credit_name} onChange={e => updateHero(img.id, 'credit_name', e.target.value)}
+                        style={F}
                       />
                     </div>
-                    <input
-                      type="text"
-                      placeholder="Caption (optional)"
-                      value={img.caption}
-                      onChange={e => updateHeroImage(img.id, 'caption', e.target.value)}
-                      style={{ width: '100%', padding: '7px 10px', fontSize: 12, border: '1px solid #ddd4c8', borderRadius: 3, boxSizing: 'border-box' }}
+                    <input type="text" placeholder="Caption (optional)"
+                      value={img.caption} onChange={e => updateHero(img.id, 'caption', e.target.value)}
+                      style={F}
                     />
                     {img.file && (
                       <p style={{ fontSize: 10, color: '#bbb', marginTop: 5, marginBottom: 0 }}>
@@ -352,276 +673,110 @@ const MediaSection = ({ formData, onChange }) => {
         )}
       </div>
 
-      {/* GALLERY IMAGES SECTION */}
-      <div style={{ marginBottom: 32 }}>
-        <label style={{ display: 'block', marginBottom: 6, fontSize: 12, fontWeight: 600, textTransform: 'uppercase' }}>
-          Gallery Images ({galleryImages.length} / {MAX_IMAGES})
-        </label>
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleGalleryImageUpload}
-          style={{
-            width: '100%',
-            padding: '10px 12px',
-            fontSize: 13,
-            border: '1px solid #ddd4c8',
-            borderRadius: 3,
-            cursor: 'pointer',
-          }}
-        />
-        <p style={{ fontSize: 12, color: '#999', marginTop: 6 }}>Upload up to {MAX_IMAGES} gallery images</p>
+      {/* ── GALLERY, VIDEOS & VIRTUAL TOURS ─────────────────────────────────── */}
+      <div style={{ borderTop: '2px solid #e5ddd0', paddingTop: 28 }}>
+        <h4 style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#999', margin: '0 0 16px' }}>
+          Gallery · Videos · Virtual Tours
+        </h4>
 
-        {/* Gallery images list */}
-        {galleryImages.length > 0 && (
-          <div style={{ marginTop: 16 }}>
-            <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 12, color: '#333' }}>
-              Uploaded Images ({galleryImages.length}):
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {galleryImages.map((img, idx) => (
-                <div
-                  key={img.id}
-                  style={{
-                    padding: 12,
-                    backgroundColor: '#f9f7f3',
-                    borderRadius: 3,
-                    border: '1px solid #e5ddd0',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 8 }}>
-                    <p style={{ fontSize: 11, fontWeight: 600, color: '#333', margin: 0 }}>
-                      {idx + 1}. {img.file?.name || 'Image'}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => removeGalleryImage(img.id)}
-                      style={{
-                        fontSize: 10,
-                        backgroundColor: '#ffebee',
-                        color: '#c62828',
-                        border: 'none',
-                        padding: '4px 8px',
-                        borderRadius: 2,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Remove
-                    </button>
-                  </div>
+        {/* Card display meter */}
+        {mediaItems.length > 0 && <CardDisplayMeter mediaItems={mediaItems} />}
 
-                  <input
-                    type="text"
-                    placeholder="Title"
-                    value={img.title}
-                    onChange={(e) => updateGalleryImage(img.id, 'title', e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '6px 8px',
-                      fontSize: 11,
-                      border: '1px solid #ddd4c8',
-                      borderRadius: 2,
-                      marginBottom: 6,
-                    }}
-                  />
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: '1px solid #e5ddd0' }}>
+          {[
+            { key: 'all',    label: `All (${mediaItems.length})` },
+            { key: 'images', label: `Images (${imgCnt})` },
+            { key: 'videos', label: `Videos (${vidCnt})` },
+            { key: 'tours',  label: `Virtual Tours (${tourCnt})` },
+          ].map(tab => (
+            <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)} style={{
+              padding: '8px 14px', fontSize: 12,
+              fontWeight: activeTab === tab.key ? 600 : 400,
+              backgroundColor: 'transparent', border: 'none',
+              borderBottom: activeTab === tab.key ? '2px solid #C9A84C' : '2px solid transparent',
+              color: activeTab === tab.key ? '#C9A84C' : '#888',
+              cursor: 'pointer', marginBottom: -1,
+            }}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-                  <textarea
-                    placeholder="Caption"
-                    value={img.caption}
-                    onChange={(e) => updateGalleryImage(img.id, 'caption', e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '6px 8px',
-                      fontSize: 11,
-                      border: '1px solid #ddd4c8',
-                      borderRadius: 2,
-                      minHeight: 50,
-                      marginBottom: 6,
-                      fontFamily: 'inherit',
-                    }}
-                  />
-
-                  <input
-                    type="text"
-                    placeholder="Credit Name"
-                    value={img.credit_name}
-                    onChange={(e) => updateGalleryImage(img.id, 'credit_name', e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '6px 8px',
-                      fontSize: 11,
-                      border: '1px solid #ddd4c8',
-                      borderRadius: 2,
-                      marginBottom: 6,
-                    }}
-                  />
-
-                  <input
-                    type="text"
-                    placeholder="Tags (comma-separated)"
-                    value={img.tags.join(', ')}
-                    onChange={(e) => updateGalleryImage(img.id, 'tags', e.target.value.split(',').map(t => t.trim()))}
-                    style={{
-                      width: '100%',
-                      padding: '6px 8px',
-                      fontSize: 11,
-                      border: '1px solid #ddd4c8',
-                      borderRadius: 2,
-                      marginBottom: 6,
-                    }}
-                  />
-
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 11 }}>
-                    <input
-                      type="checkbox"
-                      checked={img.is_featured}
-                      onChange={(e) => updateGalleryImage(img.id, 'is_featured', e.target.checked)}
-                    />
-                    <span>Featured Image</span>
-                  </label>
-                </div>
-              ))}
+        {/* Add panels */}
+        <div style={{ marginBottom: 16 }}>
+          {(activeTab === 'all' || activeTab === 'images') && (
+            <div style={{ marginBottom: 10 }}>
+              <label style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '8px 16px', backgroundColor: '#f9f7f3',
+                border: '1px solid #ddd4c8', borderRadius: 3,
+                fontSize: 12, fontWeight: 600, color: '#555',
+                cursor: 'pointer',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#fffbf0'; e.currentTarget.style.borderColor = '#C9A84C'; e.currentTarget.style.color = '#C9A84C'; }}
+                onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#f9f7f3'; e.currentTarget.style.borderColor = '#ddd4c8'; e.currentTarget.style.color = '#555'; }}
+              >
+                <span>🖼</span>
+                <span>+ Add Gallery Images ({imgCnt} / {IMAGE_STORAGE_MAX})</span>
+                <input type="file" accept="image/jpeg,image/png,image/webp" multiple
+                  onChange={e => { addImages(e.target.files); e.target.value = ''; }}
+                  style={{ display: 'none' }}
+                />
+              </label>
+              <p style={{ fontSize: 10, color: '#aaa', margin: '3px 0 0' }}>{GALLERY_SPEC}</p>
             </div>
+          )}
+          {(activeTab === 'all' || activeTab === 'videos') && <VideoAddPanel onAdd={addVideo} />}
+          {(activeTab === 'all' || activeTab === 'tours') && <VirtualTourAddPanel onAdd={addTour} />}
+        </div>
+
+        {/* Items list */}
+        {filtered.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '28px 0', color: '#ccc', fontSize: 13 }}>
+            No {activeTab === 'all' ? 'media' : activeTab === 'tours' ? 'virtual tours' : activeTab} added yet
           </div>
-        )}
-      </div>
+        ) : (
+          <>
+            {/* In-card items */}
+            {cardFiltered.length > 0 && (
+              <div style={{ marginBottom: 8 }}>
+                <p style={{ fontSize: 10, fontWeight: 700, color: '#b8860b', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 8px' }}>
+                  ★ In Card Display
+                </p>
+                {cardFiltered
+                  .sort((a, b) => {
+                    if (a.is_featured && !b.is_featured) return -1;
+                    if (!a.is_featured && b.is_featured) return 1;
+                    return (a.sort_order ?? 999) - (b.sort_order ?? 999);
+                  })
+                  .map(item => (
+                    <MediaItemCard key={item.id} item={item} objectUrls={mediaObjUrls}
+                      onUpdate={updateItem} onRemove={removeItem}
+                      inCard={true} cardPosition={cardPositionOf(item.id)} />
+                  ))
+                }
+              </div>
+            )}
 
-      {/* VIDEOS SECTION */}
-      <div>
-        <label style={{ display: 'block', marginBottom: 6, fontSize: 12, fontWeight: 600, textTransform: 'uppercase' }}>
-          Videos (Links Only - YouTube & Vimeo)
-        </label>
-        <textarea
-          placeholder="Paste video URLs here, one per line. Example: https://youtube.com/watch?v=..."
-          value={videos.map(v => v.url).join('\n')}
-          onChange={handleVideoUrlsChange}
-          style={{
-            width: '100%',
-            padding: '10px 12px',
-            fontSize: 13,
-            border: '1px solid #ddd4c8',
-            borderRadius: 3,
-            minHeight: 80,
-            fontFamily: 'inherit',
-          }}
-        />
-        <p style={{ fontSize: 12, color: '#999', marginTop: 6 }}>
-          Paste YouTube, Vimeo, or other video URLs. One URL per line.
-        </p>
-
-        {/* Videos list */}
-        {videos.length > 0 && (
-          <div style={{ marginTop: 16 }}>
-            <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 12, color: '#333' }}>
-              Added Videos ({videos.length}):
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {videos.map((video, idx) => (
-                <div
-                  key={video.id}
-                  style={{
-                    padding: 12,
-                    backgroundColor: '#f9f7f3',
-                    borderRadius: 3,
-                    border: '1px solid #e5ddd0',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 8 }}>
-                    <p style={{ fontSize: 11, fontWeight: 600, color: '#333', margin: 0, wordBreak: 'break-all' }}>
-                      {idx + 1}. {video.url}
+            {/* Stored items */}
+            {storedFiltered.length > 0 && (
+              <div>
+                {cardFiltered.length > 0 && (
+                  <div style={{ borderTop: '1px dashed #ddd4c8', paddingTop: 12, marginBottom: 8 }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+                      Stored — outside card display
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => removeVideo(video.id)}
-                      style={{
-                        fontSize: 10,
-                        backgroundColor: '#ffebee',
-                        color: '#c62828',
-                        border: 'none',
-                        padding: '4px 8px',
-                        borderRadius: 2,
-                        cursor: 'pointer',
-                        flexShrink: 0,
-                      }}
-                    >
-                      Remove
-                    </button>
                   </div>
-
-                  <input
-                    type="text"
-                    placeholder="Video Title"
-                    value={video.title}
-                    onChange={(e) => updateVideo(video.id, 'title', e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '6px 8px',
-                      fontSize: 11,
-                      border: '1px solid #ddd4c8',
-                      borderRadius: 2,
-                      marginBottom: 6,
-                    }}
-                  />
-
-                  <textarea
-                    placeholder="Caption/Description"
-                    value={video.caption}
-                    onChange={(e) => updateVideo(video.id, 'caption', e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '6px 8px',
-                      fontSize: 11,
-                      border: '1px solid #ddd4c8',
-                      borderRadius: 2,
-                      minHeight: 50,
-                      marginBottom: 6,
-                      fontFamily: 'inherit',
-                    }}
-                  />
-
-                  <input
-                    type="text"
-                    placeholder="Videographer/Credit Name"
-                    value={video.credit_name}
-                    onChange={(e) => updateVideo(video.id, 'credit_name', e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '6px 8px',
-                      fontSize: 11,
-                      border: '1px solid #ddd4c8',
-                      borderRadius: 2,
-                      marginBottom: 6,
-                    }}
-                  />
-
-                  <input
-                    type="text"
-                    placeholder="Tags (comma-separated)"
-                    value={video.tags.join(', ')}
-                    onChange={(e) => updateVideo(video.id, 'tags', e.target.value.split(',').map(t => t.trim()))}
-                    style={{
-                      width: '100%',
-                      padding: '6px 8px',
-                      fontSize: 11,
-                      border: '1px solid #ddd4c8',
-                      borderRadius: 2,
-                      marginBottom: 6,
-                    }}
-                  />
-
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 11 }}>
-                    <input
-                      type="checkbox"
-                      checked={video.is_featured}
-                      onChange={(e) => updateVideo(video.id, 'is_featured', e.target.checked)}
-                    />
-                    <span>Featured Video</span>
-                  </label>
-                </div>
-              ))}
-            </div>
-          </div>
+                )}
+                {storedFiltered.map(item => (
+                  <MediaItemCard key={item.id} item={item} objectUrls={mediaObjUrls}
+                    onUpdate={updateItem} onRemove={removeItem}
+                    inCard={false} cardPosition={null} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </section>

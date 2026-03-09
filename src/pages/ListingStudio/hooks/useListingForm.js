@@ -27,8 +27,9 @@ export const useListingForm = (listingId = null) => {
     capacity: '',
     // Hero images — up to 5, first = primary
     hero_images: [],
-    gallery_images: [], // Array of media records
-    videos: [], // Array of video records
+    // Unified media pool: gallery images + videos + virtual tours
+    // Replaces legacy gallery_images[] + videos[]
+    media_items: [], // Array of { type: 'image'|'video'|'virtual_tour', source_type, file, url, thumbnail, title, caption, credit_name, ... }
     seo_title: '',
     seo_description: '',
     status: 'draft',
@@ -85,38 +86,45 @@ export const useListingForm = (listingId = null) => {
               sort_order: 0,
               is_primary: true,
             }] : [],
-            gallery_images: (listing.heroImageSet || []).map((url, idx) => ({
-              id: `img-${idx}`,
-              type: 'image',
-              file: null,
-              url,
-              thumbnail: null,
-              title: '',
-              caption: '',
-              description: '',
-              credit_name: '',
-              credit_instagram: '',
-              credit_website: '',
-              location: '',
-              tags: [],
-              sort_order: idx,
-              is_featured: false,
-            })),
-            videos: (listing.videos || []).map((video, idx) => ({
-              id: `video-${idx}`,
-              type: 'video',
-              url: typeof video === 'string' ? video : video.url,
-              title: typeof video === 'object' ? video.title : '',
-              caption: typeof video === 'object' ? video.caption : '',
-              description: '',
-              credit_name: typeof video === 'object' ? video.credit_name : '',
-              credit_instagram: '',
-              credit_website: '',
-              location: '',
-              tags: [],
-              sort_order: idx,
-              is_featured: false,
-            })),
+            // Build unified media_items from legacy heroImageSet + videos
+            media_items: [
+              ...(listing.heroImageSet || []).map((url, idx) => ({
+                id: `img-${idx}`,
+                type: 'image',
+                source_type: 'upload',
+                file: null,
+                url,
+                thumbnail: null,
+                title: '',
+                caption: '',
+                description: '',
+                credit_name: '',
+                credit_instagram: '',
+                credit_website: '',
+                location: '',
+                tags: [],
+                sort_order: idx,
+                is_featured: false,
+              })),
+              ...(listing.videos || []).map((video, idx) => ({
+                id: `video-${idx}`,
+                type: 'video',
+                source_type: 'external',
+                file: null,
+                url: typeof video === 'string' ? video : (video.url || ''),
+                thumbnail: null,
+                title: typeof video === 'object' ? (video.title || '') : '',
+                caption: typeof video === 'object' ? (video.caption || '') : '',
+                description: '',
+                credit_name: typeof video === 'object' ? (video.credit_name || '') : '',
+                credit_instagram: '',
+                credit_website: '',
+                location: '',
+                tags: [],
+                sort_order: (listing.heroImageSet?.length || 0) + idx,
+                is_featured: false,
+              })),
+            ],
             seo_title: listing.seoTitle || '',
             seo_description: listing.seoDescription || '',
             status: listing.status || 'draft',
@@ -179,13 +187,22 @@ export const useListingForm = (listingId = null) => {
         ? null // TODO: handle file upload to storage
         : primaryHero.url || primaryHero.file || '';
 
-      const galleryImageUrls = (formData.gallery_images || [])
-        .filter(img => !img.file || !(img.file instanceof File))
-        .map(img => img.url || img.file)
+      // Split unified media_items into gallery images and videos for the DB payload
+      const mediaItems = formData.media_items || [];
+
+      const galleryImageUrls = mediaItems
+        .filter(item => item.type === 'image' && !(item.file instanceof File) && item.url)
+        .sort((a, b) => {
+          if (a.is_featured && !b.is_featured) return -1;
+          if (!a.is_featured && b.is_featured) return 1;
+          return (a.sort_order ?? 999) - (b.sort_order ?? 999);
+        })
+        .map(item => item.url)
         .filter(Boolean);
 
-      const videoUrls = (formData.videos || [])
-        .map(video => video.url || (typeof video === 'string' ? video : ''))
+      const videoUrls = mediaItems
+        .filter(item => item.type === 'video' && item.url)
+        .map(item => item.url)
         .filter(Boolean);
 
       const listingPayload = {
