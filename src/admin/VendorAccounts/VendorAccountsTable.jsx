@@ -51,15 +51,15 @@ export default function VendorAccountsTable({ vendors, C, onAction, loading, cur
         style={{
           width: "100%",
           borderCollapse: "collapse",
-          backgroundColor: C.card,
-          color: C.white,
+          backgroundColor: C?.card || "#ffffff",
+          color: C?.white || "#1a1a1a",
         }}
       >
         <thead>
           <tr
             style={{
-              backgroundColor: `${C.gold}10`,
-              borderBottom: `1px solid ${C.gold}30`,
+              backgroundColor: `${C?.gold || "#8a6d1b"}10`,
+              borderBottom: `1px solid ${C?.gold || "#8a6d1b"}30`,
             }}
           >
             <th style={tableHeaderStyle(NU, C)}>Vendor Name</th>
@@ -75,8 +75,8 @@ export default function VendorAccountsTable({ vendors, C, onAction, loading, cur
             <tr
               key={vendor.id}
               style={{
-                borderBottom: `1px solid ${C.grey}20`,
-                backgroundColor: idx % 2 === 0 ? C.card : `${C.dark}`,
+                borderBottom: `1px solid ${C?.grey || "#5a5147"}20`,
+                backgroundColor: idx % 2 === 0 ? (C?.card || "#ffffff") : (C?.dark || "#ede5db"),
               }}
             >
               {/* Vendor Name */}
