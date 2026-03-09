@@ -581,8 +581,8 @@ function Stars({ rating, size = 13 }) {
 function SectionHeading({ title, subtitle }) {
   const C = useT();
   return (
-    <div style={{ marginBottom: 36 }}>
-      <h2 style={{ fontFamily: FD, fontSize: 32, fontWeight: 400, color: C.text, letterSpacing: "-0.3px", lineHeight: 1.15, marginBottom: 10, textAlign: 'left' }}>{title}</h2>
+    <div style={{ marginBottom: 36, textAlign: 'left' }}>
+      <h2 style={{ fontFamily: FD, fontSize: 32, fontWeight: 400, color: C.text, letterSpacing: "-0.3px", lineHeight: 1.15, marginBottom: 10 }}>{title}</h2>
       <div style={{ width: 48, height: 2, backgroundImage: `linear-gradient(90deg, ${C.gold}, ${C.green})` }} />
       {subtitle && <p style={{ fontFamily: FB, fontSize: 15, color: C.textLight, marginTop: 12, lineHeight: 1.6 }}>{subtitle}</p>}
     </div>
