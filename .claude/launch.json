@@ -5,7 +5,9 @@
       "name": "Luxury Wedding Directory",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 5174
+      "port": 5176,
+      "autoPort": false,
+      "cwd": "/Users/taiwoadedayo/LDW-01"
     }
   ]
 }

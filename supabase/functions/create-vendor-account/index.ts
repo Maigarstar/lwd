@@ -173,6 +173,7 @@ serve(async (req) => {
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
 
     // Create vendor record
+    // approval_status = 'approved' because an admin is directly creating this account
     const { data: vendorData, error: vendorError } = await supabase
       .from("vendors")
       .insert({
@@ -180,6 +181,7 @@ serve(async (req) => {
         email,
         name: vendorName,
         is_activated: false,
+        approval_status: "approved",
         activation_token: activationToken,
         activation_token_expires_at: expiresAt.toISOString(),
         linked_listing_id: linkedListingId || null,

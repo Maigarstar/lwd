@@ -78,7 +78,7 @@ serve(async (req) => {
     const activationLink = `${SITE_URL}/vendor/activate?token=${encodeURIComponent(activationToken)}`;
 
     // Build professional HTML email template
-    const htmlContent = buildActivationEmailHTML(vendorName, activationLink);
+    const htmlContent = buildActivationEmailHTML(vendorName, activationLink, email);
 
     // Send via SendGrid
     const sendgridResponse = await fetch(
@@ -144,7 +144,8 @@ serve(async (req) => {
  */
 function buildActivationEmailHTML(
   vendorName: string,
-  activationLink: string
+  activationLink: string,
+  email: string
 ): string {
   return `
 <!DOCTYPE html>

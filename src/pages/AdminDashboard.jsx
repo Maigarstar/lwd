@@ -12,6 +12,7 @@ import { ITALY_REGIONS } from "../data/italy/regions.js";
 import { ITALY_CITIES } from "../data/italy/cities.js";
 import { REGION_AUTO_THRESHOLD, evaluateRegionActivation } from "../engine/activation.js";
 import categoryCssRaw from "../category.css?raw";
+import VendorAccountsPage from "../admin/VendorAccounts/VendorAccountsPage";
 
 // Font tokens — resolved via CSS custom properties set on admin root
 const GD = "var(--font-heading-primary)";
@@ -189,6 +190,7 @@ const NAV_SECTIONS = [
     items: [
       { key: "overview",     label: "Overview",          icon: "◈" },
       { key: "listings",     label: "Listings",          icon: "⊞" },
+      { key: "vendor-accounts", label: "Vendor Accounts", icon: "👤" },
       { key: "categories",   label: "Categories",        icon: "▦" },
       { key: "enquiries",    label: "Enquiries",         icon: "◇" },
       { key: "partnerships", label: "Partnerships",      icon: "✦" },
@@ -6591,6 +6593,7 @@ export default function AdminDashboard({ onBack }) {
       case "index":         return <IndexHealthModule C={C} />;
       case "livechat":      return <LiveChatModule C={C} />;
       case "listings":      return <ListingsModule C={C} />;
+      case "vendor-accounts": return <VendorAccountsPage C={C} />;
       case "categories":    return <CategoriesModule C={C} />;
       case "enquiries":     return <PlaceholderModule title="Enquiry Pipeline" C={C} />;
       case "countries":     return <CountriesModule C={C} />;

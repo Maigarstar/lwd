@@ -202,8 +202,16 @@ export const sendActivationEmail = async (vendorId, email, vendorName) => {
       throw new Error("Vendor account must be approved before sending activation email");
     }
 
-    if (!vendorData?.activation_token) {
-      throw new Error("No activation token found for this vendor");
+    // Generate token if one doesn't exist yet
+    let activationToken = vendorData?.activation_token;
+    if (!activationToken) {
+      activationToken = crypto.randomUUID ? crypto.randomUUID() : generateUUID();
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { error: tokenError } = await supabase
+        .from("vendors")
+        .update({ activation_token: activationToken, activation_token_expires_at: expiresAt })
+        .eq("id", vendorId);
+      if (tokenError) throw tokenError;
     }
 
     // Invoke Edge Function to send email
@@ -211,7 +219,7 @@ export const sendActivationEmail = async (vendorId, email, vendorName) => {
       body: {
         email,
         vendorName,
-        activationToken: vendorData.activation_token,
+        activationToken,
       },
     });
 
@@ -288,12 +296,13 @@ export const disableVendorAccount = async (vendorId) => {
       return { data: null, error: new Error("Supabase not configured") };
     }
 
-    // Set is_activated = false and clear token
+    // Set is_activated = false, clear token, mark as suspended
     const { data, error } = await supabase
       .from("vendors")
       .update({
         is_activated: false,
         activation_token: null,
+        approval_status: "suspended",
       })
       .eq("id", vendorId)
       .select();
@@ -375,34 +384,34 @@ export const getListingsForDropdown = async () => {
  * @returns {string} Status: "pending-approval", "approved", "invited", "activated", "suspended", or "rejected"
  */
 function deriveVendorStatus(vendor) {
-  // Check approval status first (new workflow)
-  if (vendor.approval_status === "rejected") {
-    return "rejected";
-  }
-
-  if (vendor.approval_status === "pending") {
-    return "pending-approval";
-  }
-
-  // After approval, check activation status
+  // Check activation first — overrides everything else
   if (vendor.is_activated) {
     return "activated";
   }
 
-  // If approved but not activated yet
+  // Explicit rejected or suspended states
+  if (vendor.approval_status === "rejected") {
+    return "rejected";
+  }
+
+  if (vendor.approval_status === "suspended") {
+    return "suspended";
+  }
+
+  // Pending approval (not yet reviewed by admin)
+  if (vendor.approval_status === "pending" || !vendor.approval_status) {
+    return "pending-approval";
+  }
+
+  // Approved — check if invitation has been sent
   if (vendor.approval_status === "approved") {
     if (vendor.activation_token) {
       return "invited";
     }
-    return "approved";
+    return "approved"; // approved but email not sent yet
   }
 
-  // Suspended state (was activated but disabled)
-  if (vendor.is_activated === false && vendor.activation_token === null && vendor.approval_status === "approved") {
-    return "suspended";
-  }
-
-  return "pending-approval";
+  return "pending-approval"; // safe default
 }
 
 /**
