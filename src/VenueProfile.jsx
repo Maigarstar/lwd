@@ -1099,33 +1099,37 @@ function StickyTabNav({ venue, activeTab, onTabClick }) {
         scrollbarWidth: 'none',
         msOverflowStyle: 'none',
       }}>
-        {visibleTabs.map(t => {
+        {visibleTabs.map((t, i) => {
           const active = activeTab === t.key;
           return (
-            <button
-              key={t.key}
-              onClick={() => onTabClick(t.key)}
-              style={{
-                flexShrink: 0,
-                padding: '0 18px',
-                height: 48,
-                border: 'none',
-                borderBottom: `2px solid ${active ? C.gold : 'transparent'}`,
-                backgroundColor: 'transparent',
-                color: active ? C.gold : C.textLight,
-                fontFamily: 'inherit',
-                fontSize: 13,
-                fontWeight: active ? 700 : 500,
-                letterSpacing: '0.01em',
-                cursor: 'pointer',
-                transition: 'color 0.15s, border-bottom-color 0.15s',
-                whiteSpace: 'nowrap',
-              }}
-              onMouseEnter={e => { if (!active) e.currentTarget.style.color = C.text; }}
-              onMouseLeave={e => { if (!active) e.currentTarget.style.color = C.textLight; }}
-            >
-              {t.label}
-            </button>
+            <div key={t.key} style={{ display: 'flex', alignItems: 'stretch' }}>
+              <button
+                onClick={() => onTabClick(t.key)}
+                style={{
+                  flexShrink: 0,
+                  padding: '0 18px',
+                  height: 48,
+                  border: 'none',
+                  borderBottom: `2px solid ${active ? C.gold : 'transparent'}`,
+                  backgroundColor: 'transparent',
+                  color: active ? C.gold : C.textLight,
+                  fontFamily: 'inherit',
+                  fontSize: 13,
+                  fontWeight: active ? 700 : 500,
+                  letterSpacing: '0.01em',
+                  cursor: 'pointer',
+                  transition: 'color 0.15s, border-bottom-color 0.15s',
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.color = C.text; }}
+                onMouseLeave={e => { if (!active) e.currentTarget.style.color = C.textLight; }}
+              >
+                {t.label}
+              </button>
+              {i < visibleTabs.length - 1 && (
+                <div style={{ width: '1px', backgroundColor: `${C.border}`, opacity: 0.5, alignSelf: 'center', height: '20px' }} />
+              )}
+            </div>
           );
         })}
       </div>
