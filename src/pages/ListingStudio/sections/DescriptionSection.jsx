@@ -1,3 +1,5 @@
+import RichTextEditor from '../components/RichTextEditor';
+
 const SUMMARY_MAX = 240;
 
 const DescriptionSection = ({ formData, onChange }) => {
@@ -9,7 +11,7 @@ const DescriptionSection = ({ formData, onChange }) => {
   return (
     <section style={{ marginBottom: 40, paddingBottom: 40, borderBottom: '1px solid #e5ddd0' }}>
 
-      {/* ── SUMMARY ────────────────────────────────────────────────── */}
+      {/* ── SUMMARY (plain text, max 240 chars) ──────────────────── */}
       <div style={{ marginBottom: 28 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
           <label style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#1a1a1a' }}>
@@ -31,7 +33,7 @@ const DescriptionSection = ({ formData, onChange }) => {
           onChange={e => {
             if (e.target.value.length <= SUMMARY_MAX) onChange('summary', e.target.value);
           }}
-          placeholder="A short editorial introduction — shown on listing cards and under the venue name on the listing page. Keep it punchy and evocative. (max 240 characters)"
+          placeholder="A short editorial introduction — shown on listing cards and under the venue name on the listing page. Keep it punchy and evocative."
           style={{
             width: '100%',
             padding: '10px 12px',
@@ -48,7 +50,7 @@ const DescriptionSection = ({ formData, onChange }) => {
           maxLength={SUMMARY_MAX}
         />
 
-        {/* Inline char counter bar */}
+        {/* Fill bar */}
         <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ flex: 1, height: 3, backgroundColor: '#f0ebe3', borderRadius: 2, overflow: 'hidden' }}>
             <div style={{
@@ -60,37 +62,29 @@ const DescriptionSection = ({ formData, onChange }) => {
             }} />
           </div>
           <span style={{ fontSize: 10, color: '#bbb', whiteSpace: 'nowrap' }}>
-            Appears on listing cards &amp; page header
+            Card &amp; page header
           </span>
         </div>
       </div>
 
-      {/* ── DESCRIPTION ─────────────────────────────────────────────── */}
+      {/* ── DESCRIPTION (rich text via TipTap) ───────────────────── */}
       <div>
         <label style={{
           display: 'block', fontSize: 12, fontWeight: 600,
-          textTransform: 'uppercase', letterSpacing: '0.04em', color: '#1a1a1a', marginBottom: 6,
+          textTransform: 'uppercase', letterSpacing: '0.04em',
+          color: '#1a1a1a', marginBottom: 8,
         }}>
           Description
         </label>
-        <textarea
-          name="description"
+        <RichTextEditor
           value={formData?.description || ''}
-          onChange={e => onChange('description', e.target.value)}
-          placeholder="Full description of the venue — its history, style, setting, atmosphere, and what makes it unique for a wedding…"
-          style={{
-            width: '100%',
-            padding: '10px 12px',
-            fontSize: 13,
-            lineHeight: 1.65,
-            border: '1px solid #ddd4c8',
-            borderRadius: 3,
-            minHeight: 180,
-            fontFamily: 'inherit',
-            resize: 'vertical',
-            boxSizing: 'border-box',
-          }}
+          onChange={html => onChange('description', html)}
+          placeholder="Full description of the venue — its history, setting, atmosphere, and what makes it unique for a wedding…"
+          minHeight={200}
         />
+        <p style={{ fontSize: 10, color: '#aaa', margin: '4px 0 0' }}>
+          Supports bold, italic, headings, lists, links and blockquotes. Paste from Word — formatting is auto-cleaned.
+        </p>
       </div>
 
     </section>

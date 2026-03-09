@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import RichTextEditor from '../components/RichTextEditor';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants & helpers
@@ -458,7 +459,7 @@ function OpeningHoursEditor({ hours = DEFAULT_HOURS, onChange }) {
 function PressEditor({ items = [], onChange }) {
   const addItem = () => {
     if (items.length >= 6) return;
-    onChange([...items, { id: genId(), outlet: '', year: '', title: '', url: '', logo_url: '' }]);
+    onChange([...items, { id: genId(), outlet: '', year: '', title: '', url: '', logo_url: '', body: '' }]);
   };
 
   const updateItem = (id, key, val) => {
@@ -543,7 +544,7 @@ function PressEditor({ items = [], onChange }) {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div>
               <label style={LABEL}>
                 Article URL{' '}
@@ -570,6 +571,21 @@ function PressEditor({ items = [], onChange }) {
                 style={FIELD}
               />
             </div>
+          </div>
+
+          {/* Editorial excerpt — rich text */}
+          <div>
+            <label style={LABEL}>
+              Editorial Excerpt{' '}
+              <span style={{ fontWeight: 400, textTransform: 'none', fontSize: 11, color: '#bbb' }}>optional — shown on listing</span>
+            </label>
+            <RichTextEditor
+              value={item.body || ''}
+              onChange={html => updateItem(item.id, 'body', html)}
+              placeholder="Brief editorial excerpt or quote from the article…"
+              minHeight={80}
+              minimal
+            />
           </div>
         </div>
       ))}
@@ -610,7 +626,7 @@ function PressEditor({ items = [], onChange }) {
 function AwardsEditor({ items = [], onChange }) {
   const addItem = () => {
     if (items.length >= 8) return;
-    onChange([...items, { id: genId(), award: '', year: '', issuer: '', icon: '🏆' }]);
+    onChange([...items, { id: genId(), award: '', year: '', issuer: '', icon: '🏆', description: '' }]);
   };
 
   const updateItem = (id, key, val) => onChange(items.map(it => it.id === id ? { ...it, [key]: val } : it));
@@ -626,25 +642,18 @@ function AwardsEditor({ items = [], onChange }) {
         </p>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {items.map((item, idx) => (
           <div
             key={item.id}
-            style={{ padding: '12px', border: '1px solid #e5ddd0', borderRadius: 4, backgroundColor: '#fdfcfb', position: 'relative' }}
+            style={{ padding: '14px', border: '1px solid #e5ddd0', borderRadius: 4, backgroundColor: '#fdfcfb' }}
           >
-            <button
-              type="button"
-              onClick={() => removeItem(item.id)}
-              style={{ position: 'absolute', top: 8, right: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#bbb' }}
-            >
-              ✕
-            </button>
-
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+            {/* Header row: icon + year + name + issuer + remove */}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 12 }}>
               <select
                 value={item.icon || '🏆'}
                 onChange={e => updateItem(item.id, 'icon', e.target.value)}
-                style={{ ...FIELD, width: 50, padding: '4px 6px', fontSize: 16 }}
+                style={{ ...FIELD, width: 50, padding: '6px', fontSize: 16, flexShrink: 0 }}
               >
                 {ICONS.map(ic => <option key={ic} value={ic}>{ic}</option>)}
               </select>
@@ -653,25 +662,46 @@ function AwardsEditor({ items = [], onChange }) {
                 value={item.year || ''}
                 onChange={e => updateItem(item.id, 'year', e.target.value)}
                 placeholder="Year"
-                style={{ ...FIELD, width: 70, padding: '4px 8px', fontSize: 12 }}
+                style={{ ...FIELD, width: 70, flexShrink: 0 }}
                 maxLength={4}
               />
+              <input
+                type="text"
+                value={item.award || ''}
+                onChange={e => updateItem(item.id, 'award', e.target.value)}
+                placeholder="Award name"
+                style={{ ...FIELD, flex: 1 }}
+              />
+              <input
+                type="text"
+                value={item.issuer || ''}
+                onChange={e => updateItem(item.id, 'issuer', e.target.value)}
+                placeholder="Issuing organisation"
+                style={{ ...FIELD, flex: 1 }}
+              />
+              <button
+                type="button"
+                onClick={() => removeItem(item.id)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#bbb', padding: '4px', flexShrink: 0 }}
+              >
+                ✕
+              </button>
             </div>
 
-            <input
-              type="text"
-              value={item.award || ''}
-              onChange={e => updateItem(item.id, 'award', e.target.value)}
-              placeholder="Award name"
-              style={{ ...FIELD, fontSize: 12, marginBottom: 6 }}
-            />
-            <input
-              type="text"
-              value={item.issuer || ''}
-              onChange={e => updateItem(item.id, 'issuer', e.target.value)}
-              placeholder="Issuing organisation"
-              style={{ ...FIELD, fontSize: 12 }}
-            />
+            {/* Description — rich text */}
+            <div>
+              <label style={{ ...LABEL, marginBottom: 4 }}>
+                Description{' '}
+                <span style={{ fontWeight: 400, textTransform: 'none', fontSize: 11, color: '#bbb' }}>optional</span>
+              </label>
+              <RichTextEditor
+                value={item.description || ''}
+                onChange={html => updateItem(item.id, 'description', html)}
+                placeholder="Citation, description or context for this award…"
+                minHeight={72}
+                minimal
+              />
+            </div>
           </div>
         ))}
       </div>

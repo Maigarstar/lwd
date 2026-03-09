@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { injectProseStyles } from '../utils/proseStyles';
 import ImageGallery from '../../../components/profile/ImageGallery';
 import VideoGallery from '../../../components/profile/VideoGallery';
 import Lightbox from '../../../components/profile/Lightbox';
@@ -23,6 +24,9 @@ const extractVimeoId = url => url?.match(/vimeo\.com\/(?:video\/)?(\d+)/)?.[1] |
 const ListingLivePreview = ({ formData }) => {
   const [objectUrls, setObjectUrls] = useState({});
   const [lightboxIdx, setLightboxIdx] = useState(null);
+
+  // Inject shared prose styles for HTML content rendering
+  useEffect(() => { injectProseStyles(); }, []);
 
   // ── Derive the items to display ─────────────────────────────────────────
   const mediaItems  = formData?.media_items ?? null;
@@ -254,15 +258,21 @@ const ListingLivePreview = ({ formData }) => {
             </div>
           )}
 
-          {/* Description */}
+          {/* Description — renders rich HTML from TipTap editor */}
           {formData.description && (
             <div style={{ marginBottom: 28 }}>
               <h3 style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.2px', margin: '0 0 10px 0', color: '#333' }}>
                 About This Venue
               </h3>
-              <p style={{ fontSize: 13, lineHeight: 1.75, color: '#555', margin: 0, whiteSpace: 'pre-wrap' }}>
-                {formData.description}
-              </p>
+              <div
+                className="ldw-prose-body"
+                style={{ padding: 0 }}
+                dangerouslySetInnerHTML={{
+                  __html: formData.description.startsWith('<')
+                    ? formData.description
+                    : `<p>${formData.description.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`,
+                }}
+              />
             </div>
           )}
 
