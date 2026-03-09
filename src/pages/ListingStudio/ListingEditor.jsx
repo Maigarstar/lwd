@@ -7,13 +7,21 @@ import FeaturesSection from './sections/FeaturesSection';
 import CommercialDetailsSection from './sections/CommercialDetailsSection';
 import MediaSection from './sections/MediaSection';
 import SEOSection from './sections/SEOSection';
-import { C, NU, GD } from '../../theme/tokens';
+import { getDarkPalette } from '../../theme/tokens';
+
+// Use dark palette for admin components
+const C = getDarkPalette();
+const NU = "'Nunito', sans-serif";
+const GD = "'Playfair Display', Georgia, serif";
 
 /**
  * Full-page listing editor with vertically stacked sections
  * Handles creating and editing venue listings
  */
 const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = null }) => {
+  console.log('ListingEditor rendered with listingId:', listingId);
+  console.log('Theme tokens C:', C);
+
   const { formData, handleChange, handleSaveDraft, handlePublish, loading, error, hasChanges } = useListingForm(listingId);
   const [saveStatus, setSaveStatus] = useState(null);
 

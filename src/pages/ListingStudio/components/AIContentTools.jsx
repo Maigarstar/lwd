@@ -1,4 +1,6 @@
-import { C } from '../../../theme/tokens';
+import { getDarkPalette } from '../../../theme/tokens';
+
+const C = getDarkPalette();
 
 /**
  * AI Content Tools component - placeholder for future implementation

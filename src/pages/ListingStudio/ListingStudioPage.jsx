@@ -1,6 +1,9 @@
 import { useState, useCallback } from 'react';
 import ListingEditor from './ListingEditor';
-import { C } from '../../theme/tokens';
+import { getDarkPalette } from '../../theme/tokens';
+
+// Use dark palette for admin components
+const C = getDarkPalette();
 
 /**
  * ListingStudio router page
@@ -8,6 +11,8 @@ import { C } from '../../theme/tokens';
  * Can be expanded with additional views as features are added
  */
 const ListingStudioPage = ({ navigationState = {}, onNavigate = () => {} }) => {
+  console.log('ListingStudioPage rendered with navigationState:', navigationState);
+
   const { mode = 'new', listingId = null, returnTo = 'listings' } = navigationState;
   const [currentMode, setCurrentMode] = useState(mode);
 
@@ -20,8 +25,9 @@ const ListingStudioPage = ({ navigationState = {}, onNavigate = () => {} }) => {
 
   // Handle cancel/discard
   const handleCancel = useCallback(() => {
+    console.log('Cancel clicked, calling onNavigate');
     // Navigate back to listings module
-    onNavigate('page', 'admin', 'listings');
+    onNavigate();
   }, [onNavigate]);
 
   // Current mode determines which view to render
