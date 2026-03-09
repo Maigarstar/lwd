@@ -1033,18 +1033,17 @@ function HeroVideo({ venue, onEnquire }) {
 
 // ─── STICKY TAB NAV ───────────────────────────────────────────────────────────
 const TABS = [
-  // Narrative flow: intro → venue details → visuals → social proof → support
   { key: 'overview',     label: 'Overview',     show: (v) => true },
+  { key: 'gallery',      label: 'Gallery',      show: (v) => (v.gallery?.length || 0) > 0 },
+  { key: 'reviews',      label: 'Reviews',      show: (v) => (v.testimonials?.length || 0) > 0 },
   { key: 'capacity',     label: 'Spaces',       show: (v) => (v.spaces?.length || 0) > 0 },
   { key: 'rooms',        label: 'Rooms',        show: (v) => v.accommodation?.totalRooms > 0 || v.accommodation?.description },
   { key: 'dining',       label: 'Dining',       show: (v) => v.dining?.description || v.dining?.style },
   { key: 'pricing',      label: 'Pricing',      show: (v) => (v.exclusiveUse?.enabled !== false && v.exclusiveUse) || v.priceFrom },
-  { key: 'availability', label: 'Availability', show: (v) => (v.access?.arrival?.airports?.length || 0) > 0 || (v.notices?.length || 0) > 0 },
+  { key: 'availability', label: 'Availability', show: (v) => (v.notices?.length || 0) > 0 },
+  { key: 'faqs',         label: 'FAQs',         show: (v) => true },
   { key: 'venue-type',   label: 'Venue Type',   show: (v) => v.venueType?.primaryType || (v.categories?.length || 0) > 0 },
-  { key: 'things-to-do', label: 'Things to Do', show: (v) => (v.estateEnabled || v.nearbyEnabled) && (v.estate_items?.length > 0 || v.nearby_items?.length > 0) },
-  { key: 'gallery',      label: 'Gallery',      show: (v) => (v.gallery?.length || 0) > 0 },
-  { key: 'reviews',      label: 'Reviews',      show: (v) => (v.testimonials?.length || 0) > 0 },
-  { key: 'faqs',         label: 'FAQs',         show: (v) => v.faq?.enabled !== false },
+  { key: 'things-to-do', label: 'Things to Do', show: (v) => (v.experiences?.length || 0) > 0 },
 ];
 
 function StickyTabNav({ venue, activeTab, onTabClick }) {
@@ -5941,35 +5940,22 @@ export default function VenueProfile({ onBack = null }) {
         {/* Main layout */}
         <div className="vp-main-wrapper" style={{ maxWidth: 1280, margin: "0 auto", padding: "48px 40px 120px" }}>
           <div className="vp-main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 56, alignItems: "start" }}>
-            {/* Content — Ordered by narrative flow for optimal reading journey */}
+            {/* Content */}
             <div>
-              {/* 1. Context & introduction */}
               <AboutSection venue={VENUE} />
-
-              {/* 2. Venue details — where & how to celebrate */}
+              <ImageGallery gallery={VENUE.gallery} onOpenLight={i => setLightIdx(i)} />
+              <VideoGallery videos={VENUE.videos} />
+              <ExclusiveUse venue={VENUE} onEnquire={() => setEnquiryOpen(true)} />
+              <CateringSection venue={VENUE} />
               <SpacesSection spaces={VENUE.spaces} />
               <RoomsSection venue={VENUE} />
               <DiningSection venue={VENUE} />
-
-              {/* 3. Practical details */}
-              <ExclusiveUse venue={VENUE} onEnquire={() => setEnquiryOpen(true)} />
-              <CateringSection venue={VENUE} />
-              <ContactSection venue={VENUE} />
-              <GettingHere access={VENUE.access} />
-
-              {/* 4. Venue profile & experiences */}
               <VenueTypeSection venue={VENUE} />
               <WeddingWeekend venue={VENUE} />
-
-              {/* 5. Visual reinforcement — after narrative is established */}
-              <ImageGallery gallery={VENUE.gallery} onOpenLight={i => setLightIdx(i)} />
-              <VideoGallery videos={VENUE.videos} />
-
-              {/* 6. Social proof & support */}
+              <ContactSection venue={VENUE} />
+              <GettingHere access={VENUE.access} />
               <Reviews testimonials={VENUE.testimonials} venue={VENUE} />
               <FAQSection venue={VENUE} onAsk={() => setEnquiryOpen(true)} />
-
-              {/* 7. Recommendations & session tracking */}
               <SimilarVenues venue={VENUE} />
               <RecentlyViewed venue={VENUE} />
             </div>
