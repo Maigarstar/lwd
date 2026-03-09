@@ -11,8 +11,8 @@ export default function ImageGallery({ gallery, onOpenLight }) {
 
   return (
     <section style={{ marginBottom: 56 }}>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 16 }}>
-        <SectionHeading title="Gallery" />
+      <SectionHeading title="Gallery" />
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24, marginTop: -24 }}>
         <span style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.3px" }}>{gallery.length} photographs</span>
       </div>
 

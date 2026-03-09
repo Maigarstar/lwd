@@ -581,7 +581,7 @@ function Stars({ rating, size = 13 }) {
 function SectionHeading({ title, subtitle }) {
   const C = useT();
   return (
-    <div style={{ marginBottom: 36, textAlign: 'left' }}>
+    <div style={{ marginBottom: 36, textAlign: 'left', width: '100%' }}>
       <h2 style={{ fontFamily: FD, fontSize: 32, fontWeight: 400, color: C.text, letterSpacing: "-0.3px", lineHeight: 1.15, marginBottom: 10 }}>{title}</h2>
       <div style={{ width: 48, height: 2, backgroundImage: `linear-gradient(90deg, ${C.gold}, ${C.green})` }} />
       {subtitle && <p style={{ fontFamily: FB, fontSize: 15, color: C.textLight, marginTop: 12, lineHeight: 1.6 }}>{subtitle}</p>}
@@ -1993,7 +1993,7 @@ function ImageGallery({ gallery, onOpenLight }) {
 
   return (
     <section id="gallery" style={{ marginBottom: 56 }}>
-      <SectionHeading title="Gallery" />
+      <SectionHeading title="Gallery" subtitle="16 curated photographs showcasing the venue" />
 
       {/* ── Mobile: horizontal photo slider ── */}
       {isMobile && !allOpen && (
@@ -3654,7 +3654,7 @@ function CateringSection({ venue }) {
 
   return (
     <section style={{ marginBottom: 56 }}>
-      <SectionHeading title="Catering & Dining" />
+      <SectionHeading title="Catering & Dining" subtitle="Professional catering services and dining options" />
       <div
         className="vp-catering-grid"
         style={{
@@ -3936,7 +3936,7 @@ function RoomsSection({ venue }) {
 
   return (
     <section id="rooms" style={{ marginBottom: 56 }}>
-      <SectionHeading title="Rooms & Accommodation" />
+      <SectionHeading title="Rooms & Accommodation" subtitle="18 luxurious bedrooms and suites for your guests" />
       <>
         {/* Stats bar */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
@@ -4115,7 +4115,7 @@ function DiningSection({ venue }) {
 
   return (
     <section id="dining" style={{ marginBottom: 56 }}>
-      <SectionHeading title="Dining" />
+      <SectionHeading title="Dining" subtitle="World-class culinary experiences and menu options" />
       <SectionLayout sideImg={sideImg} isMobile={isMobile}>
 
         {/* Style + chef */}
@@ -4216,7 +4216,7 @@ function VenueTypeSection({ venue }) {
 
   return (
     <section id="venue-type" style={{ marginBottom: 56 }}>
-      <SectionHeading title="Venue Type" />
+      <SectionHeading title="Venue Type" subtitle="Historic villa set within a private Tuscan estate" />
       <SectionLayout sideImg={sideImg} isMobile={isMobile}>
         {/* Primary type + architecture */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
@@ -4476,7 +4476,7 @@ function Reviews({ testimonials, venue }) {
 
   return (
     <section id="reviews" style={{ marginBottom: 56 }}>
-      <SectionHeading title="Reviews" />
+      <SectionHeading title="Reviews" subtitle="Trusted by 127 couples who have celebrated at Villa Rosanova" />
       <>
 
         {/* Summary bar */}
