@@ -270,7 +270,7 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
                 fontFamily: NU,
                 fontSize: 13,
                 fontWeight: 700,
-                color: C.white,
+                color: "#ffffff",
                 cursor: submitting || loading ? "not-allowed" : "pointer",
                 opacity: submitting || loading ? 0.6 : 1,
                 transition: "all 0.15s",

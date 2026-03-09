@@ -206,7 +206,7 @@ export default function VendorAccountsPage({ C }) {
   };
 
   return (
-    <div style={{ padding: "20px" }}>
+    <div style={{ padding: "20px", backgroundColor: C.black }}>
       {/* Header */}
       <div style={{ marginBottom: 30 }}>
         <h1 style={{ fontFamily: GD, fontSize: 24, fontWeight: 600, color: C.white, margin: "0 0 8px 0" }}>
@@ -248,7 +248,7 @@ export default function VendorAccountsPage({ C }) {
             fontFamily: FB || NU,
             fontSize: 13,
             fontWeight: 700,
-            color: C.white,
+            color: "#ffffff",
             cursor: "pointer",
             transition: "all 0.15s",
           }}
