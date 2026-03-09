@@ -13,6 +13,7 @@ export const useListingForm = (listingId = null) => {
     slug: '',
     category: 'wedding-venues',
     destination: 'italy',
+    summary: '',      // short editorial intro max 240 chars — card + page header
     description: '',
     amenities: '',
     country: '',
@@ -63,6 +64,7 @@ export const useListingForm = (listingId = null) => {
             slug: listing.slug || '',
             category: listing.categorySlug || 'wedding-venues',
             destination: listing.countrySlug || 'italy',
+            summary: listing.shortDescription || '',
             description: listing.description || '',
             amenities: listing.amenities || '',
             country: listing.country || '',
@@ -210,6 +212,7 @@ export const useListingForm = (listingId = null) => {
         slug: slug,
         categorySlug: formData.category,
         countrySlug: formData.destination,
+        shortDescription: formData.summary || '',
         description: formData.description,
         amenities: formData.amenities,
         country: formData.country,

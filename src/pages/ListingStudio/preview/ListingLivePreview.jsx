@@ -178,8 +178,17 @@ const ListingLivePreview = ({ formData }) => {
               }}>
                 {formData.venue_name}
               </h1>
+              {formData.summary && (
+                <p style={{
+                  fontSize: 13, color: 'rgba(255,255,255,0.92)', margin: '7px 0 0 0',
+                  lineHeight: 1.5, fontStyle: 'italic',
+                  textShadow: '0 1px 4px rgba(0,0,0,0.5)',
+                }}>
+                  {formData.summary}
+                </p>
+              )}
               {(formData.region || formData.country) && (
-                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', margin: '5px 0 0 0', textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
+                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', margin: '5px 0 0 0', textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
                   📍 {[formData.city, formData.region, formData.country].filter(Boolean).join(', ')}
                 </p>
               )}
@@ -194,16 +203,38 @@ const ListingLivePreview = ({ formData }) => {
           {!heroImageUrl && (
             <div style={{ marginBottom: 24 }}>
               <h1 style={{
-                fontSize: 28, fontWeight: 600, margin: '0 0 6px 0', color: '#0a0a0a', lineHeight: 1.2,
+                fontSize: 28, fontWeight: 600, margin: '0 0 8px 0', color: '#0a0a0a', lineHeight: 1.2,
                 fontFamily: "'Playfair Display', Georgia, serif",
               }}>
                 {formData.venue_name}
               </h1>
+              {formData.summary && (
+                <p style={{
+                  fontSize: 14, color: '#444', margin: '0 0 8px 0',
+                  lineHeight: 1.6, fontStyle: 'italic',
+                  fontFamily: "'Playfair Display', Georgia, serif",
+                }}>
+                  {formData.summary}
+                </p>
+              )}
               {(formData.region || formData.country) && (
-                <p style={{ fontSize: 14, margin: 0, color: '#666' }}>
+                <p style={{ fontSize: 13, margin: 0, color: '#888' }}>
                   📍 {[formData.city, formData.region, formData.country].filter(Boolean).join(', ')}
                 </p>
               )}
+            </div>
+          )}
+
+          {/* Summary — shown in body when there IS a hero image (editorial intro before description) */}
+          {heroImageUrl && formData.summary && (
+            <div style={{ marginBottom: 20 }}>
+              <p style={{
+                fontSize: 14, color: '#444', margin: 0,
+                lineHeight: 1.65, fontStyle: 'italic',
+                fontFamily: "'Playfair Display', Georgia, serif",
+              }}>
+                {formData.summary}
+              </p>
             </div>
           )}
 
