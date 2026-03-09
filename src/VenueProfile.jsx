@@ -468,7 +468,7 @@ function GlobalStyles() {
   return (
     <style>{`
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-      html { scroll-behavior: smooth; }
+      html { scroll-behavior: smooth; scrollbar-gutter: stable; }
       body { font-family: ${FB}; -webkit-font-smoothing: antialiased; }
       ::-webkit-scrollbar { width: 6px; }
       ::-webkit-scrollbar-track { background: transparent; }
