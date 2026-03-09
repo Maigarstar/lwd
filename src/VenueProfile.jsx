@@ -1033,18 +1033,17 @@ function HeroVideo({ venue, onEnquire }) {
 
 // ─── STICKY TAB NAV ───────────────────────────────────────────────────────────
 const TABS = [
-  // Narrative flow: intro → venue details → visuals → social proof → support
-  { key: 'overview',     label: 'Overview',     show: (v) => true },
-  { key: 'capacity',     label: 'Spaces',       show: (v) => (v.spaces?.length || 0) > 0 },
-  { key: 'rooms',        label: 'Rooms',        show: (v) => v.accommodation?.totalRooms > 0 || v.accommodation?.description },
-  { key: 'dining',       label: 'Dining',       show: (v) => v.dining?.description || v.dining?.style },
-  { key: 'pricing',      label: 'Pricing',      show: (v) => (v.exclusiveUse?.enabled !== false && v.exclusiveUse) || v.priceFrom },
-  { key: 'availability', label: 'Availability', show: (v) => (v.access?.arrival?.airports?.length || 0) > 0 || (v.notices?.length || 0) > 0 },
-  { key: 'venue-type',   label: 'Venue Type',   show: (v) => v.venueType?.primaryType || (v.categories?.length || 0) > 0 },
-  { key: 'things-to-do', label: 'Things to Do', show: (v) => (v.estateEnabled || v.nearbyEnabled) && (v.estate_items?.length > 0 || v.nearby_items?.length > 0) },
-  { key: 'gallery',      label: 'Gallery',      show: (v) => (v.gallery?.length || 0) > 0 },
-  { key: 'reviews',      label: 'Reviews',      show: (v) => (v.testimonials?.length || 0) > 0 },
-  { key: 'faqs',         label: 'FAQs',         show: (v) => v.faq?.enabled !== false },
+  // Luxury venue reading journey: narrative → experience → logistics → validation
+  { key: 'overview',     label: 'Overview',       show: (v) => true },
+  { key: 'rooms',        label: 'Rooms',          show: (v) => v.accommodation?.totalRooms > 0 || v.accommodation?.description },
+  { key: 'weekend',      label: 'Wedding Weekend', show: (v) => v.weddingWeekend?.enabled !== false && (v.weddingWeekend?.days?.length || 0) > 0 },
+  { key: 'dining',       label: 'Dining',         show: (v) => v.dining?.description || v.dining?.style },
+  { key: 'experiences',  label: 'Experiences',    show: (v) => (v.estateEnabled || v.nearbyEnabled) && ((v.estate_items?.length || 0) + (v.nearby_items?.length || 0) > 0) },
+  { key: 'travel',       label: 'Travel & Access', show: (v) => (v.access?.arrival?.airports?.length || 0) > 0 },
+  { key: 'contact',      label: 'Contact',        show: (v) => !!v.contact?.email },
+  { key: 'gallery',      label: 'Gallery',        show: (v) => (v.gallery?.length || 0) > 0 },
+  { key: 'reviews',      label: 'Reviews',        show: (v) => (v.testimonials?.length || 0) > 0 },
+  { key: 'faqs',         label: 'FAQs',           show: (v) => v.faq?.enabled !== false },
 ];
 
 function StickyTabNav({ venue, activeTab, onTabClick }) {
@@ -4291,22 +4290,68 @@ function WeddingWeekend({ venue }) {
           {days.map(dayCard)}
         </div>
       )}
-      {/* Experiences */}
-      {(estate.length > 0 || nearby.length > 0) && (
-        <div className="vp-experiences-grid" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : (estate.length > 0 && nearby.length > 0 ? "1fr 1fr" : "1fr"), gap: isMobile ? 24 : 32 }}>
-          {[
-            estate.length > 0 && { title: "On the Estate", items: estate },
-            nearby.length > 0 && { title: "Nearby Experiences", items: nearby },
-          ].filter(Boolean).map(g => (
-            <div key={g.title}>
-              <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 14 }}>{g.title}</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {g.items.map(experienceRow)}
-              </div>
+    </section>
+  );
+}
+
+// ─── EXPERIENCES ──────────────────────────────────────────────────────────────
+// On the Estate + Nearby Experiences section for the reading journey
+function ExperiencesDisplay({ venue }) {
+  const C = useT();
+  const isMobile = useIsMobile();
+  const experiences = venue.experiences || [];
+  const estate  = venue.estateEnabled !== false ? experiences.filter(e => e.category === "estate").slice(0, 6) : [];
+  const nearby  = venue.nearbyEnabled !== false ? experiences.filter(e => e.category === "nearby").slice(0, 6) : [];
+
+  if (estate.length === 0 && nearby.length === 0) return null;
+
+  const formatDistance = (mins) => {
+    if (!mins) return null;
+    if (mins < 60) return `${mins} min`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m > 0 ? `${h} hr ${m} min` : `${h} hr`;
+  };
+
+  const experienceRow = (exp) => (
+    <div key={exp.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: C.bgAlt || C.bg, border: `1px solid ${C.border}`, borderRadius: 2 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+        <Icon name={EXPERIENCE_KIND_SET.has(exp.kind) ? exp.kind : "nature"} size={18} color={C.textMid} />
+        <span style={{ fontFamily: FB, fontSize: 13, color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{exp.label}</span>
+        {exp.isIncluded && (
+          <span style={{ fontFamily: FB, fontSize: 9, color: C.gold, letterSpacing: "0.5px", textTransform: "uppercase", fontWeight: 700, padding: "2px 6px", border: `1px solid ${C.goldBorder || C.gold}`, background: C.goldLight || "transparent", flexShrink: 0 }}>Included</span>
+        )}
+        {exp.isPrivate && (
+          <span style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "0.5px", textTransform: "uppercase", fontWeight: 700, padding: "2px 6px", border: `1px solid ${C.border}`, flexShrink: 0 }}>Private</span>
+        )}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+        {exp.season && exp.season !== "all-year" && (
+          <span style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, fontStyle: "italic" }}>{exp.season}</span>
+        )}
+        {exp.distanceMinutes && (
+          <span style={{ fontFamily: FB, fontSize: 11, color: C.gold, fontWeight: 600 }}>{formatDistance(exp.distanceMinutes)}</span>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <section id="experiences" style={{ marginBottom: 56 }}>
+      <SectionHeading title="On the Estate & Nearby Experiences" />
+      <div className="vp-experiences-grid" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : (estate.length > 0 && nearby.length > 0 ? "1fr 1fr" : "1fr"), gap: isMobile ? 24 : 32 }}>
+        {[
+          estate.length > 0 && { title: "On the Estate", items: estate },
+          nearby.length > 0 && { title: "Nearby Experiences", items: nearby },
+        ].filter(Boolean).map(g => (
+          <div key={g.title}>
+            <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 14 }}>{g.title}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {g.items.map(experienceRow)}
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
@@ -5888,35 +5933,37 @@ export default function VenueProfile({ onBack = null }) {
         {/* Main layout */}
         <div className="vp-main-wrapper" style={{ maxWidth: 1280, margin: "0 auto", padding: "48px 40px 120px" }}>
           <div className="vp-main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 56, alignItems: "start" }}>
-            {/* Content — Ordered by narrative flow for optimal reading journey */}
+            {/* Content — Luxury venue reading journey: story → experience → logistics → validation */}
             <div>
-              {/* 1. Context & introduction */}
+              {/* 1. Introduction & context */}
               <AboutSection venue={VENUE} />
 
-              {/* 2. Venue details — where & how to celebrate */}
-              <SpacesSection spaces={VENUE.spaces} />
+              {/* 2. The celebration — where guests stay & what they do */}
               <RoomsSection venue={VENUE} />
-              <DiningSection venue={VENUE} />
-
-              {/* 3. Practical details */}
-              <ExclusiveUse venue={VENUE} onEnquire={() => setEnquiryOpen(true)} />
-              <CateringSection venue={VENUE} />
-              <ContactSection venue={VENUE} />
-              <GettingHere access={VENUE.access} />
-
-              {/* 4. Venue profile & experiences */}
-              <VenueTypeSection venue={VENUE} />
               <WeddingWeekend venue={VENUE} />
 
-              {/* 5. Visual reinforcement — after narrative is established */}
+              {/* 3. The experience — dining & activities */}
+              <DiningSection venue={VENUE} />
+              <CateringSection venue={VENUE} />
+              <ExperiencesDisplay venue={VENUE} />
+
+              {/* 4. Logistics — how to get there & stay in touch */}
+              <GettingHere access={VENUE.access} />
+              <ContactSection venue={VENUE} />
+
+              {/* 5. Visual & contextual */}
+              <ExclusiveUse venue={VENUE} onEnquire={() => setEnquiryOpen(true)} />
+              <VenueTypeSection venue={VENUE} />
+
+              {/* 6. Visual proof — gallery after the narrative is complete */}
               <ImageGallery gallery={VENUE.gallery} onOpenLight={i => setLightIdx(i)} />
               <VideoGallery videos={VENUE.videos} />
 
-              {/* 6. Social proof & support */}
+              {/* 7. Social proof & support */}
               <Reviews testimonials={VENUE.testimonials} venue={VENUE} />
               <FAQSection venue={VENUE} onAsk={() => setEnquiryOpen(true)} />
 
-              {/* 7. Recommendations & session tracking */}
+              {/* 8. Further recommendations */}
               <SimilarVenues venue={VENUE} />
               <RecentlyViewed venue={VENUE} />
             </div>
