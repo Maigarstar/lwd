@@ -442,6 +442,27 @@ VENUE.contact.addressFormatted = [
   VENUE.contact.address.country,
 ].join(", ");
 
+// ─── RECENTLY VIEWED — localStorage helpers ────────────────────────────────────
+const RV_KEY = 'ldw_recently_viewed';
+const MAX_RV_STORED = 6;
+
+function getRVList() {
+  try { return JSON.parse(localStorage.getItem(RV_KEY) || '[]'); } catch { return []; }
+}
+
+function recordVenueView(v) {
+  try {
+    const entry = {
+      id: v.id, name: v.name, location: v.location,
+      rating: v.rating, price: v.priceFrom,
+      img: v.imgs?.[0] || v.gallery?.[0] || '',
+      viewedAt: Date.now(),
+    };
+    const updated = [entry, ...getRVList().filter(x => x.id !== entry.id)].slice(0, MAX_RV_STORED);
+    localStorage.setItem(RV_KEY, JSON.stringify(updated));
+  } catch { /* localStorage unavailable */ }
+}
+
 // ─── GLOBAL STYLES ────────────────────────────────────────────────────────────
 function GlobalStyles() {
   return (
@@ -4880,15 +4901,34 @@ function FAQSection({ venue, onAsk }) {
 }
 
 // ─── SIMILAR VENUES ───────────────────────────────────────────────────────────
-function SimilarVenues({ venues }) {
+// Recommendation logic (production): query venues WHERE country = venue.country
+// AND region = venue.region AND venueType = venue.venueType, ordered by
+// price proximity and capacity overlap. Max 3 results.
+// Admin can override via venue.similarVenuesManualOverride (array of venue objects).
+function SimilarVenues({ venue }) {
   const C = useT();
   const isMobile = useIsMobile();
+
+  // Admin toggle guard
+  if (venue.similarVenuesEnabled === false) return null;
+
+  // Manual admin override takes priority; fallback to pre-computed similar list
+  const venues = (
+    venue.similarVenuesManualOverride?.length
+      ? venue.similarVenuesManualOverride
+      : venue.similar || []
+  ).slice(0, 3);
+
+  if (venues.length === 0) return null;
+
   return (
-    <section style={{ marginBottom: 56 }}>
+    <section id="you-might-also-love" style={{ marginBottom: 56 }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
         <SectionHeading title="You Might Also Love" />
       </div>
-      <div style={{ fontFamily: FB, fontSize: 12, color: C.gold, marginBottom: 24, marginTop: -20 }}>✦ Curated by Aura based on your browsing</div>
+      <div style={{ fontFamily: FB, fontSize: 12, color: C.gold, marginBottom: 24, marginTop: -20 }}>
+        ✦ Curated based on location, venue type &amp; capacity
+      </div>
       {isMobile ? (
         <SliderNav className="venue-similar-slider" cardWidth={300} gap={12}>
           {venues.map(({ location: loc, ...rest }) => (
@@ -4903,9 +4943,9 @@ function SimilarVenues({ venues }) {
           ))}
         </SliderNav>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${venues.length}, 1fr)`, gap: 16 }}>
           {venues.map(v => (
-            <div key={v.id} style={{ border: `1px solid ${C.border}`, background: C.surface, overflow: "hidden", cursor: "pointer" }}
+            <div key={v.id} style={{ border: `1px solid ${C.border}`, background: C.surface, overflow: "hidden", cursor: "pointer", borderRadius: 2 }}
               onMouseEnter={e => e.currentTarget.style.boxShadow = C.shadowMd}
               onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
               <div style={{ overflow: "hidden", aspectRatio: "1/1" }}>
@@ -4913,7 +4953,9 @@ function SimilarVenues({ venues }) {
               </div>
               <div style={{ padding: 18 }}>
                 <div style={{ fontFamily: FD, fontSize: 18, color: C.text, marginBottom: 4 }}>{v.name}</div>
-                <div style={{ fontFamily: FB, fontSize: 12, color: C.textLight, marginBottom: 10, display: "flex", alignItems: "center", gap: 5 }}><Icon name="pin" size={12} color={C.textLight} /> {v.location}</div>
+                <div style={{ fontFamily: FB, fontSize: 12, color: C.textLight, marginBottom: 10, display: "flex", alignItems: "center", gap: 5 }}>
+                  <Icon name="pin" size={12} color={C.textLight} /> {v.location}
+                </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                     <Stars rating={v.rating} size={11} />
@@ -4931,26 +4973,38 @@ function SimilarVenues({ venues }) {
 }
 
 // ─── RECENTLY VIEWED ──────────────────────────────────────────────────────────
-function RecentlyViewed() {
+// Reads from localStorage (ldw_recently_viewed). Excludes current venue.
+// Max 3 cards shown. Section hidden if empty or admin-disabled.
+function RecentlyViewed({ venue }) {
   const C = useT();
   const isMobile = useIsMobile();
-  const items = [
-    { id: "rv1", name: "Villa d'Este", location: "Lake Como", rating: 5.0, price: "£35,000", img: "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=600&q=80" },
-    { id: "rv2", name: "Claridge's London", location: "London, UK", rating: 4.9, price: "£28,000", img: "https://images.unsplash.com/photo-1544078751-58fee2d8a03b?w=600&q=80" },
-    { id: "rv3", name: "Aman Venice", location: "Venice, Italy", rating: 5.0, price: "£35,000", img: "https://images.unsplash.com/photo-1520854221256-17451cc331bf?w=600&q=80" },
-  ];
+  const [items, setItems] = useState([]);
+
+  useEffect(() => {
+    // Read stored visits, exclude current venue, cap at 3
+    const stored = getRVList()
+      .filter(v => v.id !== venue.id)
+      .slice(0, 3);
+    setItems(stored);
+  }, [venue.id]);
+
+  // Admin toggle guard + empty guard
+  if (venue.recentlyViewedEnabled === false || items.length === 0) return null;
+
   return (
-    <section style={{ marginBottom: 56 }}>
+    <section id="recently-viewed" style={{ marginBottom: 56 }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
         <SectionHeading title="Recently Viewed" />
       </div>
-      <div style={{ fontFamily: FB, fontSize: 12, color: C.gold, marginBottom: 24, marginTop: -20 }}>✦ Based on your browsing history</div>
+      <div style={{ fontFamily: FB, fontSize: 12, color: C.gold, marginBottom: 24, marginTop: -20 }}>
+        ✦ Based on your browsing session
+      </div>
       {isMobile ? (
         <SliderNav className="venue-recent-slider" cardWidth={300} gap={12}>
-          {items.map(({ location: loc, ...rest }) => (
+          {items.map(({ location: loc, img, price, ...rest }) => (
             <div key={rest.id} style={{ flex: "0 0 300px", scrollSnapAlign: "start" }}>
               <GCardMobile
-                v={{ ...rest, region: loc, image: rest.img, priceFrom: rest.price }}
+                v={{ ...rest, region: loc, image: img, priceFrom: price }}
                 saved={false}
                 onSave={() => {}}
                 onView={() => {}}
@@ -4959,9 +5013,9 @@ function RecentlyViewed() {
           ))}
         </SliderNav>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${items.length}, 1fr)`, gap: 16 }}>
           {items.map(v => (
-            <div key={v.name} style={{ border: `1px solid ${C.border}`, background: C.surface, overflow: "hidden", cursor: "pointer" }}
+            <div key={v.id} style={{ border: `1px solid ${C.border}`, background: C.surface, overflow: "hidden", cursor: "pointer", borderRadius: 2 }}
               onMouseEnter={e => e.currentTarget.style.boxShadow = C.shadowMd}
               onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
               <div style={{ overflow: "hidden", aspectRatio: "1/1" }}>
@@ -4969,7 +5023,9 @@ function RecentlyViewed() {
               </div>
               <div style={{ padding: 18 }}>
                 <div style={{ fontFamily: FD, fontSize: 18, color: C.text, marginBottom: 4 }}>{v.name}</div>
-                <div style={{ fontFamily: FB, fontSize: 12, color: C.textLight, marginBottom: 10, display: "flex", alignItems: "center", gap: 5 }}><Icon name="pin" size={12} color={C.textLight} /> {v.location}</div>
+                <div style={{ fontFamily: FB, fontSize: 12, color: C.textLight, marginBottom: 10, display: "flex", alignItems: "center", gap: 5 }}>
+                  <Icon name="pin" size={12} color={C.textLight} /> {v.location}
+                </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                     <Stars rating={v.rating} size={11} />
@@ -5784,6 +5840,9 @@ export default function VenueProfile({ onBack = null }) {
 
   const C = darkMode ? DARK : LIGHT;
 
+  // Record this venue visit for Recently Viewed tracking
+  useEffect(() => { recordVenueView(VENUE); }, []);
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       entries => {
@@ -5844,8 +5903,8 @@ export default function VenueProfile({ onBack = null }) {
               <GettingHere access={VENUE.access} />
               <Reviews testimonials={VENUE.testimonials} venue={VENUE} />
               <FAQSection venue={VENUE} onAsk={() => setEnquiryOpen(true)} />
-              <SimilarVenues venues={VENUE.similar} />
-              <RecentlyViewed />
+              <SimilarVenues venue={VENUE} />
+              <RecentlyViewed venue={VENUE} />
             </div>
             {/* Sidebar — 4 zones, sticky on desktop */}
             <div className="lwd-sidebar" style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 56, alignSelf: "start" }}>
