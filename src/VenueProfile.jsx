@@ -2782,7 +2782,7 @@ function ContactSection({ venue }) {
 
   return (
     <section style={{ marginBottom: 56 }}>
-      <SectionHeading title="Contact & Location" />
+      <SectionHeading title="Contact & Location" subtitle="Located in the heart of Tuscany, easily accessible from Florence" />
       <div className="vp-contact-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
 
         {/* Contact details */}
