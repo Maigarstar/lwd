@@ -223,7 +223,20 @@ export const sendActivationEmail = async (vendorId, email, vendorName) => {
       },
     });
 
-    if (error) throw error;
+    if (error) {
+      // Extract the actual error message from the edge function response body
+      let errorMessage = error.message;
+      if (error.context) {
+        try {
+          const body = await error.context.json();
+          errorMessage = body.error || errorMessage;
+          console.error("SendGrid error details:", body);
+        } catch (e) {
+          // Could not parse response body, use original message
+        }
+      }
+      throw new Error(errorMessage);
+    }
 
     return { data, error: null };
   } catch (error) {
@@ -276,7 +289,20 @@ export const resendActivationEmail = async (vendorId) => {
       },
     });
 
-    if (emailError) throw emailError;
+    if (emailError) {
+      // Extract the actual error message from the edge function response body
+      let errorMessage = emailError.message;
+      if (emailError.context) {
+        try {
+          const body = await emailError.context.json();
+          errorMessage = body.error || errorMessage;
+          console.error("SendGrid error details:", body);
+        } catch (e) {
+          // Could not parse response body, use original message
+        }
+      }
+      throw new Error(errorMessage);
+    }
 
     return { data: { success: true }, error: null };
   } catch (error) {
