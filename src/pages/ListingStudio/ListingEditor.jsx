@@ -19,9 +19,6 @@ const GD = "'Playfair Display', Georgia, serif";
  * Handles creating and editing venue listings
  */
 const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = null }) => {
-  console.log('ListingEditor rendered with listingId:', listingId);
-  console.log('Theme tokens C:', C);
-
   const { formData, handleChange, handleSaveDraft, handlePublish, loading, error, hasChanges } = useListingForm(listingId);
   const [saveStatus, setSaveStatus] = useState(null);
 

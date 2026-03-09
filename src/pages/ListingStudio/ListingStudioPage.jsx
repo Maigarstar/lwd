@@ -11,26 +11,32 @@ const C = getDarkPalette();
  * Can be expanded with additional views as features are added
  */
 const ListingStudioPage = ({ navigationState = {}, onNavigate = () => {} }) => {
-  console.log('ListingStudioPage rendered with navigationState:', navigationState);
-
   const { mode = 'new', listingId = null, returnTo = 'listings' } = navigationState;
   const [currentMode, setCurrentMode] = useState(mode);
 
   // Handle successful save
   const handleSaveComplete = useCallback((savedListingId) => {
-    console.log('Listing saved:', savedListingId);
     // Could add more complex logic here for post-save actions
-    // For now, just show success and optionally navigate back
   }, []);
 
   // Handle cancel/discard
   const handleCancel = useCallback(() => {
-    console.log('Cancel clicked, calling onNavigate');
     // Navigate back to listings module
     onNavigate();
   }, [onNavigate]);
 
   // Current mode determines which view to render
+  if (!currentMode) {
+    return (
+      <div style={{ backgroundColor: C.black, minHeight: '100vh', padding: '40px 20px', color: C.white }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <h1>Error: No mode set</h1>
+          <p>currentMode is: {currentMode}, mode from navigationState is: {mode}</p>
+        </div>
+      </div>
+    );
+  }
+
   switch (currentMode) {
     case 'new':
       return (

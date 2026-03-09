@@ -6828,7 +6828,14 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         <main className="admin-main" style={{ flex: 1, padding: listingStudioMode || activeTab === 'listing-studio' ? 0 : "40px 48px", overflow: "auto", transition: "background 0.3s" }}>
           {/* Show ListingStudio page when in listing studio mode or tab */}
           {listingStudioMode || activeTab === 'listing-studio' ? (
-            <Suspense fallback={<div style={{ backgroundColor: C.black, color: C.white, padding: '40px', textAlign: 'center' }}>Loading Listing Studio...</div>}>
+            <Suspense fallback={
+              <div style={{ backgroundColor: C.black, color: C.white, padding: '40px', textAlign: 'center', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div>
+                  <h2>Loading Listing Studio...</h2>
+                  <p style={{ marginTop: '20px', color: '#999' }}>If this takes too long, check console (F12) for errors</p>
+                </div>
+              </div>
+            }>
               <ListingStudioPage
                 navigationState={{ mode: listingStudioMode || 'new', listingId: listingStudioListingId }}
                 onNavigate={() => {
