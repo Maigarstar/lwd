@@ -1883,10 +1883,7 @@ function ImageGallery({ gallery, onOpenLight }) {
 
   return (
     <section id="gallery" style={{ marginBottom: 56 }}>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 16 }}>
-        <SectionHeading title="Gallery" />
-        <span style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.3px" }}>{gallery.length} photographs</span>
-      </div>
+      <SectionHeading title="Gallery" />
 
       {/* ── Mobile: horizontal photo slider ── */}
       {isMobile && !allOpen && (
@@ -2537,53 +2534,46 @@ function AboutSection({ venue }) {
   const [expanded, setExpanded] = useState(false);
   const isMobile = useIsMobile();
 
-  const highlights = [
-    { num: "120", label: "Acres" },
-    { num: "1847", label: "Est." },
-    { num: "24", label: "Rooms" },
-    { num: "300+", label: "Weddings" },
-  ];
-
   return (
     <section id="overview" style={{ marginBottom: 56 }}>
       <SectionHeading title={`About ${venue.name}`} />
-      <SectionLayout sideImg={venue.imgs?.[0]} isMobile={isMobile}>
 
-        {/* Paragraph 1 */}
-        <p style={{ fontFamily: FB, fontSize: isMobile ? 15 : 16, color: C.textMid, lineHeight: 1.9, marginBottom: 24, maxWidth: 720 }}>
+      {/* Single-column editorial layout — no side image, no stats block */}
+      <div>
+
+        {/* Intro paragraph */}
+        <p style={{ fontFamily: FB, fontSize: isMobile ? 15 : 16, color: C.textMid, lineHeight: 1.9, marginBottom: 28, maxWidth: 780 }}>
           Set within 120 acres of rolling Tuscan countryside, Villa Rosanova is one of the finest privately-owned estates in Italy. Built in 1847 for the Marchese di Rosanova, the property has been meticulously restored to its original grandeur while offering every modern comfort a discerning couple could wish for.
         </p>
 
-        {/* Key stats strip */}
+        {/* Two landscape images — equal height, side by side */}
         <div style={{
-          display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: isMobile ? 0 : 8,
-          marginBottom: 24, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`,
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+          gap: 6,
+          marginBottom: 28,
         }}>
-          {highlights.map((h, i) => (
-            <div key={h.label} style={{
-              padding: isMobile ? "14px 0" : "18px 0",
-              textAlign: "center",
-              borderRight: i < 3 ? `1px solid ${C.border}` : "none",
-            }}>
-              <div style={{ fontFamily: FD, fontSize: isMobile ? 20 : 26, fontWeight: 400, color: C.gold, lineHeight: 1 }}>{h.num}</div>
-              <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "1.2px", textTransform: "uppercase", marginTop: 4 }}>{h.label}</div>
-            </div>
-          ))}
+          <img
+            src="https://images.unsplash.com/photo-1617806118233-18e1de247200?w=800&q=80"
+            alt="Villa Rosanova interior detail"
+            loading="lazy"
+            style={{ width: "100%", height: isMobile ? 220 : 300, objectFit: "cover", display: "block", borderRadius: 3 }}
+          />
+          <img
+            src="https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&q=80"
+            alt="Cypress garden at dusk"
+            loading="lazy"
+            style={{ width: "100%", height: isMobile ? 220 : 300, objectFit: "cover", display: "block", borderRadius: 3 }}
+          />
         </div>
 
-        {/* Full-width image pair */}
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 6, marginBottom: 24 }}>
-          <img src="https://images.unsplash.com/photo-1617806118233-18e1de247200?w=700&q=80" alt="Villa Rosanova interior detail" loading="lazy" style={{ width: "100%", height: isMobile ? 200 : 240, objectFit: "cover", display: "block", borderRadius: 3 }} />
-          <img src="https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=700&q=80" alt="Cypress garden at dusk" loading="lazy" style={{ width: "100%", height: isMobile ? 200 : 240, objectFit: "cover", display: "block", borderRadius: 3 }} />
-        </div>
-
-        {/* Paragraph 2 + expandable */}
-        <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9, marginBottom: 16, maxWidth: 720 }}>
+        {/* Second paragraph */}
+        <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9, marginBottom: 16, maxWidth: 780 }}>
           From the frescoed Grand Salon — with its original parquet floors and three Venetian chandeliers — to the centuries-old cypress garden, every space has been designed to create moments of extraordinary beauty. With accommodation for 58 guests across 24 rooms and 6 suites, Villa Rosanova is the perfect setting for multi-day wedding celebrations.
         </p>
 
         {/* Expandable paragraphs */}
-        <div style={{ overflow: "hidden", maxHeight: expanded ? 500 : 0, transition: "max-height 0.5s ease", maxWidth: 720 }}>
+        <div style={{ overflow: "hidden", maxHeight: expanded ? 500 : 0, transition: "max-height 0.5s ease", maxWidth: 780 }}>
           <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9, marginBottom: 16 }}>
             The estate produces its own Chianti Classico wine, cold-pressed extra virgin olive oil, and seasonal truffles — all of which feature on our exclusively crafted wedding menus. Every detail of your celebration is managed by our dedicated events team, who have hosted over 300 weddings across four decades.
           </p>
@@ -2596,7 +2586,7 @@ function AboutSection({ venue }) {
           onClick={() => setExpanded(e => !e)}
           style={{
             display: "inline-flex", alignItems: "center", gap: 6,
-            marginTop: 4, marginBottom: 28,
+            marginTop: 4, marginBottom: 32,
             background: "none", border: "none",
             fontFamily: FB, fontSize: 13, fontWeight: 700,
             color: C.gold, cursor: "pointer", letterSpacing: "0.3px",
@@ -2643,7 +2633,8 @@ function AboutSection({ venue }) {
             ))}
           </div>
         </div>
-      </SectionLayout>
+
+      </div>
     </section>
   );
 }
