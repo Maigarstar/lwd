@@ -10,6 +10,7 @@ import SEOPanel from "./components/SEOPanel";
 import PreviewModal from "./components/PreviewModal";
 import ReusableBlocksBrowser from "./components/ReusableBlocksBrowser";
 import PageStatusBadge from "./components/PageStatusBadge";
+import AIPageImportPanel from "./components/AIPageImportPanel";
 import { MOCK_PAGES, getPageById } from "./data/mockPages";
 import { savePages, loadPages } from "./utils/pageStorage";
 import {
@@ -31,6 +32,7 @@ const PageEditorModule = ({ pageId, C, NU, GD, onNavigate }) => {
   const [mobileEditorTab, setMobileEditorTab] = useState("library"); // library, canvas, or settings (mobile only)
   const [showPreview, setShowPreview] = useState(false);
   const [showBlocksBrowser, setShowBlocksBrowser] = useState(false);
+  const [showAIImport, setShowAIImport] = useState(false);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
 
   // Load page on mount
@@ -242,6 +244,22 @@ const PageEditorModule = ({ pageId, C, NU, GD, onNavigate }) => {
               UNSAVED
             </span>
           )}
+          <button
+            onClick={() => setShowAIImport(true)}
+            style={{
+              fontFamily: NU,
+              fontSize: 9,
+              padding: "6px 12px",
+              backgroundColor: "transparent",
+              border: `1px solid ${C.gold}`,
+              borderRadius: 3,
+              color: C.gold,
+              cursor: "pointer",
+              textTransform: "uppercase"
+            }}
+          >
+            ✦ Populate with AI
+          </button>
           <button
             onClick={() => setShowPreview(true)}
             style={{
@@ -498,6 +516,18 @@ const PageEditorModule = ({ pageId, C, NU, GD, onNavigate }) => {
           C={C}
           NU={NU}
           GD={GD}
+        />
+      )}
+
+      {/* AI Page Import Panel */}
+      {showAIImport && (
+        <AIPageImportPanel
+          page={page}
+          onSavePage={(updatedPage) => {
+            handleSavePage(updatedPage);
+            setUnsavedChanges(false);
+          }}
+          onClose={() => setShowAIImport(false)}
         />
       )}
     </div>
