@@ -57,6 +57,7 @@ interface ExtractRequest {
   venueName?: string;
   listingType?: string;
   pastedText?: string;
+  websiteUrl?: string;
   videoLinks?: string[];
   files?: FileInput[];
   venue_id?: string;
@@ -65,6 +66,9 @@ interface ExtractRequest {
 // ── JSON Schema the AI must return ──────────────────────────────────────────
 const JSON_SCHEMA = `{
   "venue_name": "",
+  "address": "",
+  "address_line2": "",
+  "postcode": "",
   "city": "",
   "region": "",
   "country": "",
@@ -118,6 +122,7 @@ const JSON_SCHEMA = `{
     "bio": "",
     "email": "",
     "phone": "",
+    "whatsapp": "",
     "website": "",
     "instagram": ""
   },
@@ -136,72 +141,115 @@ const JSON_SCHEMA = `{
 // ── System prompt ────────────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `You are an expert content strategist for Luxury Wedding Directory — a premium venue and vendor discovery platform for high-net-worth couples planning destination weddings.
 
-Your role is to extract real facts from uploaded source materials (PDFs, brochures, images, web copy, text files) and then write polished luxury editorial content for the platform.
+Your role is to:
+1. EXTRACT real facts from source materials (PDFs, brochures, website content, images, text) — transcribing them exactly as found
+2. WRITE polished luxury editorial copy for specific fields — using ONLY facts you extracted, never inventing
 
 CRITICAL RULES:
-1. NEVER hallucinate or invent facts. Only use information explicitly found in the source materials.
-2. If a fact is not present in the source materials, leave that field as "" or null or [].
-3. For writing fields (summary, description, rooms_description, etc.), write in an elegant, aspirational tone.
-4. HTML fields (description, rooms_description, dining_description, exclusive_use_description) use only <p> tags — no other HTML.
+1. NEVER hallucinate or invent facts. If not found in source materials, leave field as "" or null or [].
+2. Factual fields (venue_name, address, postcode, phone, email, website, capacity, prices, room counts, chef name, dining_in_house, video_urls, etc.) — copy EXACTLY as found. Do not rephrase or embellish.
+3. Editorial fields (summary, description, rooms_description, dining_description, seo_*, etc.) — write in elegant, aspirational tone.
+4. HTML fields (description, rooms_description, dining_description, exclusive_use_description) use ONLY <p> tags — no other HTML elements.
 5. Keep lengths within limits: summary ≤240 chars, seo_title ≤60 chars, seo_description 150–160 chars.
 6. Return ONLY valid JSON. No markdown fences, no prose outside the JSON object.
 7. For spaces[], only include spaces explicitly mentioned in the source materials.
 8. For faq_categories[], only create categories if FAQ-style content exists in the source.
 9. For nearby_items[], icon must be one of: "nature", "dining", "wine", "spa", "tour", "cooking", "check", "truffle".
-10. Spaces.type must be one of: "ballroom", "chapel", "garden", "terrace", "pool", "drawing_room", "library", "cellar", "barn", "marquee", "beach", "rooftop", "other".`;
+10. spaces[].type must be one of: "ballroom", "chapel", "garden", "terrace", "pool", "drawing_room", "library", "cellar", "barn", "marquee", "beach", "rooftop", "other".`;
 
 // ── Build user prompt ────────────────────────────────────────────────────────
-function buildUserPrompt(body: ExtractRequest): string {
-  const { venueName, listingType, pastedText, videoLinks, files } = body;
+function buildUserPrompt(body: ExtractRequest, fetchedWebContent?: string): string {
+  const { venueName, listingType, pastedText, websiteUrl, videoLinks, files } = body;
 
   const sourcesList: string[] = [];
-  if (files?.some(f => f.type === "pdf")) sourcesList.push("PDF brochures/documents (attached above)");
-  if (files?.some(f => f.type === "image")) sourcesList.push("images (attached above)");
+  if (files?.some(f => f.type === "pdf"))                    sourcesList.push("PDF documents (attached)");
+  if (files?.some(f => f.type === "image"))                  sourcesList.push("images (attached)");
   if (files?.some(f => f.type === "text" && f.extractedText)) sourcesList.push("text documents");
-  if (pastedText) sourcesList.push("pasted web copy/text");
-  if (videoLinks?.length) sourcesList.push(`${videoLinks.length} video link(s)`);
+  if (pastedText)                                             sourcesList.push("pasted text");
+  if (fetchedWebContent)                                      sourcesList.push(`website: ${websiteUrl}`);
+  else if (websiteUrl)                                        sourcesList.push(`website URL: ${websiteUrl}`);
+  if (videoLinks?.length)                                     sourcesList.push(`${videoLinks.length} video link(s)`);
 
+  // Source priority: PDF/paste (highest) → website → images/video
   const textBlocks: string[] = [];
 
-  // Add pasted text
   if (pastedText?.trim()) {
-    textBlocks.push(`--- PASTED TEXT ---\n${pastedText.slice(0, 8000)}`);
+    textBlocks.push(`--- PASTED TEXT (priority source) ---\n${pastedText.slice(0, 8000)}`);
   }
 
-  // Add extracted text from text files
   for (const f of (files || [])) {
     if (f.type === "text" && f.extractedText) {
       textBlocks.push(`--- DOCUMENT: ${f.name} ---\n${f.extractedText.slice(0, 6000)}`);
     }
   }
 
-  // Add video links
+  if (fetchedWebContent) {
+    textBlocks.push(`--- WEBSITE CONTENT: ${websiteUrl} ---\n${fetchedWebContent.slice(0, 10000)}`);
+  } else if (websiteUrl) {
+    // Can't fetch content, but store the URL
+    textBlocks.push(`--- VENUE WEBSITE URL ---\n${websiteUrl}\n(Store this as contact_profile.website)`);
+  }
+
   if (videoLinks?.length) {
     textBlocks.push(`--- VIDEO / MEDIA LINKS ---\n${videoLinks.join("\n")}`);
   }
 
   const contextBlock = textBlocks.length > 0
-    ? `\n\nSOURCE MATERIALS (text):\n\n${textBlocks.join("\n\n")}`
+    ? `\n\nSOURCE MATERIALS (text content):\n\n${textBlocks.join("\n\n")}`
     : "";
 
   const venueContext = [
-    venueName ? `Name: ${venueName}` : "",
-    listingType ? `Type: ${listingType}` : "",
+    venueName   ? `Name: ${venueName}`     : "",
+    listingType ? `Type: ${listingType}`   : "",
   ].filter(Boolean).join("\n");
 
-  return `STEP 1 — EXTRACT FACTS
-Read all source materials (attached PDFs, images, and text below) carefully.
-Note every factual detail: venue name, location, capacity, room count, suite count, space names and capacities, dining style, chef name, exclusive use pricing, nearby experiences, FAQ items, contact details, pricing, video links.
+  return `PHASE 1 — EXTRACT FACTS (transcribe exactly from source materials, do not rephrase)
 
-STEP 2 — WRITE EDITORIAL COPY
-Using ONLY the facts you extracted (no invention), write polished luxury editorial copy for the Luxury Wedding Directory platform.
-Tone: sophisticated, elegant, aspirational. Audience: high-net-worth couples.
+Extract these values precisely as found:
+
+LOCATION & CONTACT:
+- Full street address, address line 2, city, region/county, country, postcode
+- Phone number, email address, website URL, WhatsApp number, Instagram handle
+- Contact person: full name and job title
+
+CAPACITY & PRICING:
+- Total guest capacity, ceremony capacity, dining/seated capacity
+- Total accommodation rooms, suites, max guests accommodated
+- Price range or starting price; exclusive use price
+
+VENUE SPECIFICS:
+- Event spaces: name, type (ballroom/garden/chapel/etc), indoor/outdoor, individual capacity figures
+- Dining: style, whether catering is in-house (yes/no), chef name
+- Amenities and features listed in source
+- FAQ questions and answers if explicitly present
+- Nearby activities or experiences mentioned
+- Video or media URLs found in source
+
+PHASE 2 — WRITE EDITORIAL COPY (using ONLY facts from Phase 1, no invention)
+
+Write polished luxury editorial content in an elegant, aspirational tone for high-net-worth couples planning destination weddings.
+
+Compose these editorial fields ONLY (all other fields should be the exact values from Phase 1):
+- summary: 1–2 elegant sentences, max 240 chars, no quotation marks
+- description: 3–4 paragraphs in <p> tags, evocative and aspirational
+- rooms_description: elegant accommodation narrative (only if rooms found)
+- dining_description: aspirational dining narrative (only if dining found)
+- exclusive_use_title, exclusive_use_subline, exclusive_use_description (only if exclusive use pricing/info found)
+- spaces[].description: one short evocative sentence per space (only if space is mentioned)
+- faq_categories[].questions[].a — helpful, editorial-quality answers (only if Q&A content found in source)
+- contact_profile.bio: one elegant sentence (only if contact person details found)
+- amenities: comma-separated list of features found in source
+- seo_title: max 60 chars, natural language, includes venue name and location
+- seo_description: 150–160 chars, compelling with soft call to action
+- seo_keywords: JSON array of 6–8 keyword phrases
+- nearby_items[]: experiences found in source, with appropriate icon
+- exclusive_use_includes[]: specific inclusions mentioned in source
 
 ${venueContext ? `KNOWN VENUE CONTEXT:\n${venueContext}\n` : ""}
 Sources being analysed: ${sourcesList.join(", ") || "none specified"}
 ${contextBlock}
 
-Return the populated version of this exact JSON structure (fill in every field you can from the source materials, leave empty string or null/false/[] for anything not found):
+Return the populated version of this exact JSON structure. Fill every field you can from the source materials. Leave empty string, null, false, or [] for anything not found — never invent:
 
 ${JSON_SCHEMA}`;
 }
@@ -274,14 +322,15 @@ serve(async (req) => {
     const body: ExtractRequest = await req.json();
 
     // Validate — at least some source material required
-    const hasFiles    = (body.files?.length ?? 0) > 0;
-    const hasPaste    = !!body.pastedText?.trim();
-    const hasVideos   = (body.videoLinks?.length ?? 0) > 0;
+    const hasFiles     = (body.files?.length ?? 0) > 0;
+    const hasPaste     = !!body.pastedText?.trim();
+    const hasVideos    = (body.videoLinks?.length ?? 0) > 0;
     const hasVenueName = !!body.venueName?.trim();
+    const hasWebsite   = !!body.websiteUrl?.trim();
 
-    if (!hasFiles && !hasPaste && !hasVideos && !hasVenueName) {
+    if (!hasFiles && !hasPaste && !hasVideos && !hasVenueName && !hasWebsite) {
       return new Response(
-        JSON.stringify({ error: "Provide at least one source: files, pasted text, video links, or venue name" }),
+        JSON.stringify({ error: "Provide at least one source: files, pasted text, website URL, video links, or venue name" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -312,8 +361,34 @@ serve(async (req) => {
       );
     }
 
+    // Fetch website content if URL provided (server-side, no CORS restrictions)
+    let fetchedWebContent = "";
+    if (body.websiteUrl) {
+      try {
+        const webResp = await fetch(body.websiteUrl, {
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; LuxuryWeddingDirectory/1.0)" },
+          signal: AbortSignal.timeout(10000),
+        });
+        if (webResp.ok) {
+          const html = await webResp.text();
+          // Strip scripts, styles, and HTML tags; collapse whitespace
+          fetchedWebContent = html
+            .replace(/<script[\s\S]*?<\/script>/gi, " ")
+            .replace(/<style[\s\S]*?<\/style>/gi, " ")
+            .replace(/<[^>]+>/g, " ")
+            .replace(/&[a-zA-Z#0-9]+;/g, " ")
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 12000);
+        }
+      } catch (e) {
+        console.warn("Website fetch failed:", (e as Error).message);
+        // Continue without website content — URL still logged
+      }
+    }
+
     // Build prompt
-    const userPrompt = buildUserPrompt(body);
+    const userPrompt = buildUserPrompt(body, fetchedWebContent);
     let rawText = "";
     let tokensUsed = 0;
     let estimatedCost = 0;

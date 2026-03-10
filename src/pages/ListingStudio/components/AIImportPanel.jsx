@@ -110,11 +110,15 @@ const REVIEW_SECTIONS = [
     preview: (r) => r.seo_title || '',
   },
   {
-    id: 'contact',
-    label: 'Contact',
-    icon: '👤',
-    fields: ['contact_profile'],
-    preview: (r) => [r.contact_profile?.name, r.contact_profile?.title].filter(Boolean).join(', '),
+    id: 'contact_location',
+    label: 'Contact & Location Details',
+    icon: '📍',
+    fields: ['address', 'postcode', 'contact_profile'],
+    preview: (r) => [
+      r.contact_profile?.name,
+      r.address,
+      r.contact_profile?.email || r.contact_profile?.phone,
+    ].filter(Boolean).join(' · '),
   },
   {
     id: 'nearby',
@@ -258,14 +262,30 @@ function ReviewSection({ section, result, enabled, onToggle }) {
   );
 }
 
+function SourceToggle({ label, checked, onChange }) {
+  return (
+    <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, cursor: 'pointer' }}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        style={{ accentColor: '#C9A84C', width: 14, height: 14, flexShrink: 0 }}
+      />
+      <span style={{ fontSize: 12, color: checked ? '#333' : '#aaa', fontWeight: checked ? 600 : 400 }}>{label}</span>
+    </label>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const AIImportPanel = ({ formData = {}, onChange, listingId = null, onClose }) => {
   // Input state
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [pastedText,    setPastedText]    = useState('');
+  const [websiteUrl,    setWebsiteUrl]    = useState('');
   const [videoLinks,    setVideoLinks]    = useState('');
   const [isDragging,    setIsDragging]    = useState(false);
+  const [sourceToggles, setSourceToggles] = useState({ files: true, paste: true, website: true, videos: true });
   const fileInputRef = useRef(null);
 
   // Processing state
@@ -280,7 +300,12 @@ const AIImportPanel = ({ formData = {}, onChange, listingId = null, onClose }) =
   const venueName = formData.venue_name || '';
   const listingType = formData.listing_type || 'venue';
 
-  const canProcess = uploadedFiles.length > 0 || pastedText.trim() || videoLinks.trim() || venueName;
+  const activeVideoLinks = videoLinks.split(/[\n,]+/).filter(l => l.trim().startsWith('http'));
+  const canProcess = (sourceToggles.files && uploadedFiles.length > 0)
+    || (sourceToggles.paste && !!pastedText.trim())
+    || (sourceToggles.website && !!websiteUrl.trim())
+    || (sourceToggles.videos && activeVideoLinks.length > 0)
+    || !!venueName;
 
   // ── File processing ────────────────────────────────────────────────────────
   const processFile = useCallback(async (file) => {
@@ -366,13 +391,16 @@ const AIImportPanel = ({ formData = {}, onChange, listingId = null, onClose }) =
     setResult(null);
     setApplied(false);
 
-    const videoLinksList = videoLinks
-      .split(/[\n,]+/)
-      .map(l => l.trim())
-      .filter(l => l.startsWith('http'));
+    // Apply source toggles
+    const activeFiles = sourceToggles.files ? uploadedFiles : [];
+    const activePaste = sourceToggles.paste ? pastedText.trim() : '';
+    const activeWebsite = sourceToggles.website ? websiteUrl.trim() : '';
+    const activeVideoLinks = sourceToggles.videos
+      ? videoLinks.split(/[\n,]+/).map(l => l.trim()).filter(l => l.startsWith('http'))
+      : [];
 
     // Build files payload
-    const filesPayload = uploadedFiles.map(f => ({
+    const filesPayload = activeFiles.map(f => ({
       name: f.name,
       type: f.type,
       mediaType: f.mediaType,
@@ -383,12 +411,13 @@ const AIImportPanel = ({ formData = {}, onChange, listingId = null, onClose }) =
     try {
       const { data, error: fnError } = await supabase.functions.invoke('ai-extract-listing', {
         body: {
-          venueName:   venueName || undefined,
-          listingType: listingType || undefined,
-          pastedText:  pastedText.trim() || undefined,
-          videoLinks:  videoLinksList.length ? videoLinksList : undefined,
-          files:       filesPayload.length   ? filesPayload   : undefined,
-          venue_id:    listingId             || undefined,
+          venueName:   venueName       || undefined,
+          listingType: listingType     || undefined,
+          pastedText:  activePaste     || undefined,
+          websiteUrl:  activeWebsite   || undefined,
+          videoLinks:  activeVideoLinks.length ? activeVideoLinks : undefined,
+          files:       filesPayload.length     ? filesPayload     : undefined,
+          venue_id:    listingId               || undefined,
         },
       });
 
@@ -514,10 +543,21 @@ const AIImportPanel = ({ formData = {}, onChange, listingId = null, onClose }) =
       if (r.seo_keywords?.length) onChange('seo_keywords', r.seo_keywords);
     }
 
-    // Contact
-    if (enabled.contact && r.contact_profile) {
-      const existing = formData.contact_profile || {};
-      onChange('contact_profile', { ...existing, ...r.contact_profile });
+    // Contact & Location Details
+    if (enabled.contact_location) {
+      if (r.address)       onChange('address',       r.address);
+      if (r.address_line2) onChange('address_line2', r.address_line2);
+      if (r.postcode)      onChange('postcode',      r.postcode);
+      // City/region/country — only overwrite if core section not enabled (avoid double-write)
+      if (!enabled.core) {
+        if (r.city)    onChange('city',    r.city);
+        if (r.region)  onChange('region',  r.region);
+        if (r.country) onChange('country', r.country);
+      }
+      if (r.contact_profile) {
+        const existing = formData.contact_profile || {};
+        onChange('contact_profile', { ...existing, ...r.contact_profile });
+      }
     }
 
     // Nearby
@@ -563,9 +603,11 @@ const AIImportPanel = ({ formData = {}, onChange, listingId = null, onClose }) =
     enabledSections[s.id] && sectionHasContent(s, result)
   ).length;
 
-  const totalSourceCount = uploadedFiles.length
-    + (pastedText.trim() ? 1 : 0)
-    + videoLinks.split(/[\n,]+/).filter(l => l.trim().startsWith('http')).length;
+  const totalSourceCount =
+    (sourceToggles.files    ? uploadedFiles.length : 0)
+    + (sourceToggles.paste  && pastedText.trim()    ? 1 : 0)
+    + (sourceToggles.website && websiteUrl.trim()   ? 1 : 0)
+    + (sourceToggles.videos ? activeVideoLinks.length : 0);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -704,6 +746,31 @@ const AIImportPanel = ({ formData = {}, onChange, listingId = null, onClose }) =
                 />
               </div>
 
+              {/* Website URL */}
+              <div style={{ marginTop: 16 }}>
+                <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#999', marginBottom: 8 }}>
+                  Website URL
+                  <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginLeft: 6, color: '#bbb' }}>
+                    — optional, AI will fetch and read the page
+                  </span>
+                </p>
+                <input
+                  type="url"
+                  value={websiteUrl}
+                  onChange={(e) => setWebsiteUrl(e.target.value)}
+                  placeholder="https://www.venuewebsite.com"
+                  style={{
+                    width: '100%', fontSize: 12, padding: '9px 12px',
+                    border: '1px solid #ddd4c8', borderRadius: 4,
+                    color: '#333', fontFamily: 'inherit', backgroundColor: '#fff',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <p style={{ margin: '4px 0 0', fontSize: 10, color: '#bbb' }}>
+                  The page will be fetched server-side. For best results, also paste key text below.
+                </p>
+              </div>
+
               {/* Video links */}
               <div style={{ marginTop: 16 }}>
                 <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#999', marginBottom: 8 }}>
@@ -730,9 +797,52 @@ const AIImportPanel = ({ formData = {}, onChange, listingId = null, onClose }) =
                 </p>
               </div>
 
+              {/* Source toggles — shown when any source is added */}
+              {(uploadedFiles.length > 0 || pastedText.trim() || websiteUrl.trim() || videoLinks.trim()) && (
+                <div style={{
+                  marginTop: 16, padding: '12px 14px',
+                  backgroundColor: '#f9f7f3', border: '1px solid #e5ddd0', borderRadius: 4,
+                }}>
+                  <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#999' }}>
+                    Sources to include
+                  </p>
+                  {uploadedFiles.length > 0 && (
+                    <SourceToggle
+                      label={`Uploaded files (${uploadedFiles.length})`}
+                      checked={sourceToggles.files}
+                      onChange={() => setSourceToggles(prev => ({ ...prev, files: !prev.files }))}
+                    />
+                  )}
+                  {pastedText.trim() && (
+                    <SourceToggle
+                      label="Pasted text"
+                      checked={sourceToggles.paste}
+                      onChange={() => setSourceToggles(prev => ({ ...prev, paste: !prev.paste }))}
+                    />
+                  )}
+                  {websiteUrl.trim() && (
+                    <SourceToggle
+                      label={`Website: ${websiteUrl.length > 40 ? websiteUrl.slice(0, 40) + '…' : websiteUrl}`}
+                      checked={sourceToggles.website}
+                      onChange={() => setSourceToggles(prev => ({ ...prev, website: !prev.website }))}
+                    />
+                  )}
+                  {videoLinks.split(/[\n,]+/).some(l => l.trim().startsWith('http')) && (
+                    <SourceToggle
+                      label="Video links"
+                      checked={sourceToggles.videos}
+                      onChange={() => setSourceToggles(prev => ({ ...prev, videos: !prev.videos }))}
+                    />
+                  )}
+                  <p style={{ margin: '6px 0 0', fontSize: 10, color: '#bbb', fontStyle: 'italic' }}>
+                    Priority: PDFs / pasted text → website → images / video
+                  </p>
+                </div>
+              )}
+
               {/* Info banner */}
               <div style={{
-                marginTop: 20, padding: '10px 12px', borderRadius: 4,
+                marginTop: 16, padding: '10px 12px', borderRadius: 4,
                 backgroundColor: '#f9f7f3', border: '1px solid #e5ddd0',
                 fontSize: 11, color: '#888', lineHeight: 1.5,
               }}>
