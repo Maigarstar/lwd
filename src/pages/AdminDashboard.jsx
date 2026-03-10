@@ -6235,12 +6235,18 @@ export { DIRECTORY_CATEGORIES, DIRECTORY_COUNTRIES, DIRECTORY_REGIONS };
 
 export default function AdminDashboard({ onBack, onNavigate }) {
   // Initialize activeTab from hash, defaulting to "overview"
+  // Supports listing-studio routes: #listing-studio, #listing-studio/new, #listing-studio/[id]
   const getInitialTab = () => {
     const hash = window.location.hash.slice(1); // Remove # prefix
     return hash || "overview";
   };
 
-  const [activeTab, setActiveTabState] = useState(getInitialTab);
+  const [activeTab, setActiveTabState] = useState(() => {
+    const hash = getInitialTab();
+    // Normalize listing-studio sub-routes to the base tab for sidebar highlight
+    if (hash.startsWith('listing-studio')) return 'listing-studio';
+    return hash;
+  });
 
   // Wrapper to also update hash when tab changes
   const setActiveTab = (tab) => {
@@ -6255,13 +6261,40 @@ export default function AdminDashboard({ onBack, onNavigate }) {
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [listingStudioMode, setListingStudioMode] = useState(null); // 'new' or 'edit'
-  const [listingStudioListingId, setListingStudioListingId] = useState(null);
+  // Parse listing studio state from URL hash on mount
+  // Supports: #listing-studio (new), #listing-studio/new, #listing-studio/[uuid] (edit)
+  const parseListingStudioHash = (hash) => {
+    if (!hash || !hash.startsWith('listing-studio')) return { mode: null, id: null };
+    const parts = hash.split('/');
+    if (parts.length === 1) return { mode: 'new', id: null }; // #listing-studio
+    const sub = parts[1];
+    if (sub === 'new') return { mode: 'new', id: null }; // #listing-studio/new
+    return { mode: 'edit', id: sub }; // #listing-studio/[uuid]
+  };
+
+  const initialHash = window.location.hash.slice(1);
+  const initialLS = parseListingStudioHash(initialHash);
+
+  const [listingStudioMode, setListingStudioMode] = useState(initialLS.mode); // 'new', 'edit', or null
+  const [listingStudioListingId, setListingStudioListingId] = useState(initialLS.id);
 
   // ── Hash-based routing: listen for hash changes and update activeTab ──
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1); // Remove # prefix
+
+      // Handle listing-studio sub-routes
+      if (hash.startsWith('listing-studio')) {
+        const ls = parseListingStudioHash(hash);
+        setListingStudioMode(ls.mode);
+        setListingStudioListingId(ls.id);
+        setActiveTabState('listing-studio');
+        return;
+      }
+
+      // Other tabs — clear listing studio state
+      setListingStudioMode(null);
+      setListingStudioListingId(null);
       const tab = hash || "overview";
       setActiveTabState(tab);
     };
@@ -6512,11 +6545,11 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <h2 style={{ fontFamily: GD, fontSize: 18, color: C.off, margin: 0, fontWeight: 400 }}>Venue Listings</h2>
-          <button onClick={() => { setListingStudioMode('new'); }} style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", padding: "10px 16px", background: C.gold, color: C.black, border: "none", borderRadius: 3, cursor: "pointer", transition: "all 0.15s" }} onMouseEnter={e => { e.currentTarget.style.background = C.gold2; }} onMouseLeave={e => { e.currentTarget.style.background = C.gold; }}>+ Add New Listing</button>
+          <button onClick={() => { setListingStudioMode('new'); setListingStudioListingId(null); window.location.hash = 'listing-studio/new'; setActiveTabState('listing-studio'); }} style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", padding: "10px 16px", background: C.gold, color: C.black, border: "none", borderRadius: 3, cursor: "pointer", transition: "all 0.15s" }} onMouseEnter={e => { e.currentTarget.style.background = C.gold2; }} onMouseLeave={e => { e.currentTarget.style.background = C.gold; }}>+ Add New Listing</button>
         </div>
         {loading && <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: "32px", textAlign: "center", marginBottom: 20 }}><div style={{ fontFamily: NU, fontSize: 13, color: C.grey }}>Loading listings from Supabase...</div></div>}
         {error && <div style={{ background: C.rose + "20", border: `1px solid ${C.rose}`, borderRadius: 4, padding: "16px", marginBottom: 20 }}><div style={{ fontFamily: NU, fontSize: 12, color: C.rose, fontWeight: 600 }}>⚠ {error}</div></div>}
-        {!loading && listings.length === 0 && !error && <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: "48px", textAlign: "center", marginBottom: 20 }}><div style={{ fontFamily: GD, fontSize: 16, color: C.off, marginBottom: 8 }}>No Listings Yet</div><button onClick={() => { setListingStudioMode('new'); }} style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, padding: "10px 20px", background: C.gold, color: C.black, border: "none", borderRadius: 3, cursor: "pointer" }}>+ Create First Listing</button></div>}
+        {!loading && listings.length === 0 && !error && <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: "48px", textAlign: "center", marginBottom: 20 }}><div style={{ fontFamily: GD, fontSize: 16, color: C.off, marginBottom: 8 }}>No Listings Yet</div><button onClick={() => { setListingStudioMode('new'); setListingStudioListingId(null); window.location.hash = 'listing-studio/new'; setActiveTabState('listing-studio'); }} style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, padding: "10px 20px", background: C.gold, color: C.black, border: "none", borderRadius: 3, cursor: "pointer" }}>+ Create First Listing</button></div>}
       </div>
     );
   };
@@ -6845,6 +6878,15 @@ export default function AdminDashboard({ onBack, onNavigate }) {
                   setListingStudioMode(null);
                   setListingStudioListingId(null);
                   setActiveTab('listings');
+                }}
+                onSaveComplete={(savedId) => {
+                  // After save: update state and URL to reflect the saved listing
+                  if (savedId && typeof savedId === 'string') {
+                    setListingStudioMode('edit');
+                    setListingStudioListingId(savedId);
+                    window.location.hash = `listing-studio/${savedId}`;
+                    setActiveTabState('listing-studio');
+                  }
                 }}
               />
             </Suspense>

@@ -61,22 +61,24 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
   // Handle save as draft
   const handleSaveDraftClick = useCallback(async () => {
     setSaveStatus('saving');
-    const success = await handleSaveDraft();
-    if (success) {
+    const savedId = await handleSaveDraft();
+    if (savedId) {
       setSaveStatus('saved');
-      setTimeout(() => setSaveStatus(null), 2000);
-      if (onSaveComplete) onSaveComplete(listingId);
+      setTimeout(() => setSaveStatus(null), 3000);
+      // Pass the real saved listing ID (important for new listings)
+      if (onSaveComplete) onSaveComplete(typeof savedId === 'string' ? savedId : listingId);
     }
   }, [handleSaveDraft, listingId, onSaveComplete]);
 
   // Handle publish
   const handlePublishClick = useCallback(async () => {
     setSaveStatus('publishing');
-    const success = await handlePublish();
-    if (success) {
+    const savedId = await handlePublish();
+    if (savedId) {
       setSaveStatus('published');
-      setTimeout(() => setSaveStatus(null), 2000);
-      if (onSaveComplete) onSaveComplete(listingId);
+      setTimeout(() => setSaveStatus(null), 3000);
+      // Pass the real saved listing ID (important for new listings)
+      if (onSaveComplete) onSaveComplete(typeof savedId === 'string' ? savedId : listingId);
     }
   }, [handlePublish, listingId, onSaveComplete]);
 

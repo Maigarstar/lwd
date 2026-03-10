@@ -407,7 +407,10 @@ export const useListingForm = (listingId = null) => {
       }
 
       setHasChanges(false);
-      return true;
+      // Return the saved listing's ID so parent can update route
+      const savedId = result?.id || listingId;
+      console.log('Save complete — returning savedId:', savedId);
+      return savedId || true;
     } catch (err) {
       console.error('Error saving listing:', err);
       setError('Failed to save listing: ' + (err.message || 'Unknown error'));

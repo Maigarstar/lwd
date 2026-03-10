@@ -10,18 +10,25 @@ const C = getLightPalette();
  * Handles different modes: new, edit, preview, publishing
  * Can be expanded with additional views as features are added
  */
-const ListingStudioPage = ({ navigationState = {}, onNavigate = () => {} }) => {
+const ListingStudioPage = ({ navigationState = {}, onNavigate = () => {}, onSaveComplete: parentOnSaveComplete = null }) => {
   const { mode = 'new', listingId = null, returnTo = 'listings' } = navigationState;
   const [currentMode, setCurrentMode] = useState(mode);
+  const [currentListingId, setCurrentListingId] = useState(listingId);
 
-  // Handle successful save
+  // Handle successful save — stay on page and switch to edit mode
   const handleSaveComplete = useCallback((savedListingId) => {
-    // Could add more complex logic here for post-save actions
-  }, []);
+    if (savedListingId && typeof savedListingId === 'string') {
+      console.log('ListingStudioPage: Save complete, switching to edit mode for:', savedListingId);
+      // Switch from 'new' to 'edit' mode with the saved listing ID
+      setCurrentMode('edit');
+      setCurrentListingId(savedListingId);
+      // Notify parent to update the URL hash
+      if (parentOnSaveComplete) parentOnSaveComplete(savedListingId);
+    }
+  }, [parentOnSaveComplete]);
 
-  // Handle cancel/discard
+  // Handle cancel/discard — navigate back to listings
   const handleCancel = useCallback(() => {
-    // Navigate back to listings module
     onNavigate();
   }, [onNavigate]);
 
@@ -50,14 +57,14 @@ const ListingStudioPage = ({ navigationState = {}, onNavigate = () => {} }) => {
     case 'edit':
       return (
         <ListingEditor
-          listingId={listingId}
+          key={currentListingId}
+          listingId={currentListingId}
           onCancel={handleCancel}
           onSaveComplete={handleSaveComplete}
         />
       );
 
     case 'preview':
-      // Preview mode - placeholder for future implementation
       return (
         <div style={{ backgroundColor: C.black, minHeight: '100vh', padding: '40px 20px', color: C.white }}>
           <div style={{ maxWidth: 1200, margin: '0 auto' }}>
@@ -84,7 +91,6 @@ const ListingStudioPage = ({ navigationState = {}, onNavigate = () => {} }) => {
       );
 
     case 'publishing':
-      // Publishing workflow - placeholder for future implementation
       return (
         <div style={{ backgroundColor: C.black, minHeight: '100vh', padding: '40px 20px', color: C.white }}>
           <div style={{ maxWidth: 1200, margin: '0 auto' }}>
