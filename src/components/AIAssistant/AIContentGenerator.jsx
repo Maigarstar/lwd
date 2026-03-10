@@ -40,13 +40,14 @@ export default function AIContentGenerator({
     try {
       // Call Supabase Edge Function (ai-generate)
       // Uses same pattern as vendorAccountsService.js and emailService.js
+      // Pass body as object (NOT JSON.stringify) — Supabase client auto-serializes
       const { data, error: invokeError } = await supabase.functions.invoke('ai-generate', {
-        body: JSON.stringify({
+        body: {
           feature,
           systemPrompt,
           userPrompt,
           venue_id: venueId,
-        }),
+        },
       });
 
       if (invokeError) {

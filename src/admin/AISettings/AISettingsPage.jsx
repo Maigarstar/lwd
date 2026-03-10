@@ -28,27 +28,24 @@ export default function AISettingsPage() {
 
   const fetchSettings = async () => {
     try {
-      // Call Edge Function to get settings (with masked key)
-      const response = await fetch('/api/ai-settings', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-        },
-      });
+      // Call Supabase Edge Function to get settings (with masked key)
+      // No body = GET request
+      const { data, error } = await supabase.functions.invoke('ai-settings');
 
-      if (!response.ok) {
-        console.log('No active AI provider configured yet');
+      if (error) {
+        console.log('No active AI provider configured yet:', error.message);
         return;
       }
 
-      const data = await response.json();
-      setSettings(data);
-      setFormData({
-        provider: data.provider,
-        api_key: '', // NEVER load real key into form
-        model: data.model,
-        active: data.active,
-      });
+      if (data) {
+        setSettings(data);
+        setFormData({
+          provider: data.provider,
+          api_key: '', // NEVER load real key into form
+          model: data.model,
+          active: data.active,
+        });
+      }
     } catch (error) {
       console.error('Failed to load AI settings:', error);
       setMessage({ type: 'error', text: 'Failed to load settings' });
@@ -93,57 +90,47 @@ export default function AISettingsPage() {
     setMessage({ type: '', text: '' });
 
     try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
-
-      if (!token) {
-        setMessage({ type: 'error', text: 'Not authenticated' });
-        setLoading(false);
-        return;
-      }
-
-      // Call Edge Function to update settings
-      const response = await fetch('/api/ai-settings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      // Call Supabase Edge Function to update settings
+      // Supabase client handles auth token automatically
+      // Passing a body makes it a POST request automatically
+      // Pass body as object (NOT JSON.stringify) — Supabase client auto-serializes
+      // and sets Content-Type: application/json correctly
+      const { data: updated, error: invokeError } = await supabase.functions.invoke('ai-settings', {
+        body: {
           provider: formData.provider,
           api_key: formData.api_key, // Real key sent in POST, stored server-side
           model: formData.model,
           active: formData.active,
-        }),
+        },
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        setMessage({ type: 'error', text: error.error || 'Failed to save settings' });
+      if (invokeError) {
+        setMessage({ type: 'error', text: invokeError.message || 'Failed to save settings' });
         setLoading(false);
         return;
       }
 
-      const updated = await response.json();
-      setSettings(updated);
-      // SECURITY: Clear api_key from frontend state immediately after successful save
-      // This ensures the real key doesn't linger in memory longer than necessary
-      // Only keep masked key from server response for verification display
-      setFormData(prev => ({
-        ...prev,
-        api_key: '', // ← Clear the real key from frontend state
-        model: updated.model,
-        provider: updated.provider,
-        active: updated.active,
-      }));
+      if (updated) {
+        setSettings(updated);
+        // SECURITY: Clear api_key from frontend state immediately after successful save
+        // This ensures the real key doesn't linger in memory longer than necessary
+        // Only keep masked key from server response for verification display
+        setFormData(prev => ({
+          ...prev,
+          api_key: '', // ← Clear the real key from frontend state
+          model: updated.model,
+          provider: updated.provider,
+          active: updated.active,
+        }));
 
-      setMessage({
-        type: 'success',
-        text: `AI settings updated successfully. Masked key: ${updated.api_key_masked}`,
-      });
+        setMessage({
+          type: 'success',
+          text: `AI settings updated successfully. Masked key: ${updated.api_key_masked}`,
+        });
 
-      // Refresh stats
-      setTimeout(fetchStats, 1000);
+        // Refresh stats
+        setTimeout(fetchStats, 1000);
+      }
     } catch (error) {
       console.error('Save error:', error);
       setMessage({ type: 'error', text: error.message });
