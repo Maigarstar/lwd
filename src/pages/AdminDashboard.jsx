@@ -16,6 +16,7 @@ import categoryCssRaw from "../category.css?raw";
 import { RegionsModule } from "./admin/RegionsModule";
 import AdminAllLeads from "../components/admin/AdminAllLeads";
 import VendorAccountsPage from "../admin/VendorAccounts/VendorAccountsPage";
+import AISettingsPage from "../admin/AISettings/AISettingsPage";
 
 // ── Page Studio imports ──
 import AllPagesModule from "./PageStudio/AllPagesModule";
@@ -231,6 +232,7 @@ const NAV_SECTIONS = [
     items: [
       { key: "aura",         label: "Aura Analytics",    icon: "✧" },
       { key: "api",          label: "API Management",    icon: "⟐" },
+      { key: "ai-settings",  label: "AI Settings",       icon: "⚙" },
     ],
   },
   {
@@ -6537,6 +6539,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "crm":           return <PlaceholderModule title="CRM & Lead Management" C={C} />;
       case "aura":          return <AuraAnalyticsModule C={C} />;
       case "api":           return <APIManagementModule C={C} />;
+      case "ai-settings":   return <AISettingsPage C={C} />;
       case "styles":        return <StyleEditorModule C={C} darkPalette={customDark} lightPalette={customLight} fonts={customFonts} customCss={customCss} siteSettings={siteSettings} auditLog={auditLog} onUpdatePalette={handleUpdatePalette} onUpdateFonts={handleUpdateFonts} onUpdateCss={handleUpdateCss} onUpdateSiteSettings={handleUpdateSiteSettings} onSave={handleSaveThemeLogged} onRevert={handleRevertTheme} onExport={handleExportTheme} onImport={handleImportTheme} onApplyPreset={handleApplyPreset} saveStatus={saveStatus} />;
       case "all-pages":     return <AllPagesModule C={C} NU={NU} GD={GD} />;
       case "page-studio":   return <PageEditorModule C={C} NU={NU} GD={GD} />;

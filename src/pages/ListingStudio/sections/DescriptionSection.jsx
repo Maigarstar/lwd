@@ -1,4 +1,6 @@
 import RichTextEditor from '../components/RichTextEditor';
+import AIContentGenerator from '../../../components/AIAssistant/AIContentGenerator';
+import { LUXURY_TONE_SYSTEM, buildAboutPrompt } from '../../../lib/aiPrompts';
 
 const SUMMARY_MAX = 240;
 
@@ -76,6 +78,20 @@ const DescriptionSection = ({ formData, onChange }) => {
         }}>
           Description
         </label>
+
+        {/* AI Content Generator - Generate Description with AI */}
+        <div style={{ marginBottom: 16 }}>
+          <AIContentGenerator
+            feature="about_description"
+            systemPrompt={LUXURY_TONE_SYSTEM}
+            userPrompt={buildAboutPrompt(formData?.venue_name || '', formData)}
+            venueId={formData?.id}
+            onInsert={(text) => onChange('description', text)}
+            label="Generate Description"
+          />
+        </div>
+
+        {/* Manual editing via RichTextEditor */}
         <RichTextEditor
           value={formData?.description || ''}
           onChange={html => onChange('description', html)}
