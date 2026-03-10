@@ -555,7 +555,7 @@ const AIImportPanel = ({ formData = {}, onChange, listingId = null, onClose }) =
     }
 
     setApplied(true);
-    setTimeout(() => onClose(), 900);
+    setTimeout(() => onClose(enabledCount), 900);
   };
 
   // ── Count enabled sections with content ────────────────────────────────────

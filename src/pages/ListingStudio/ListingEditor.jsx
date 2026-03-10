@@ -55,6 +55,7 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
   const [saveStatus, setSaveStatus] = useState(null);
   const [showAITools,    setShowAITools]    = useState(false);
   const [showAIImport,   setShowAIImport]   = useState(false);
+  const [importToast,    setImportToast]    = useState(null); // { count: n }
 
   // Always use light palette
   const C = getLightPalette();
@@ -312,7 +313,13 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
             formData={formData}
             onChange={handleChange}
             listingId={listingId}
-            onClose={() => setShowAIImport(false)}
+            onClose={(appliedCount) => {
+              setShowAIImport(false);
+              if (appliedCount > 0) {
+                setImportToast({ count: appliedCount });
+                setTimeout(() => setImportToast(null), 5000);
+              }
+            }}
           />
         )}
 
@@ -324,6 +331,28 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
             listingId={listingId}
             onClose={() => setShowAITools(false)}
           />
+        )}
+
+        {/* ── AI IMPORT SUCCESS TOAST ──────────────────────── */}
+        {importToast && (
+          <div style={{
+            backgroundColor: '#f0fdf4',
+            color: '#15803d',
+            padding: '12px 16px',
+            borderRadius: 4,
+            marginBottom: 16,
+            border: '1px solid #bbf7d0',
+            fontSize: 13,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+          }}>
+            <span style={{ fontSize: 16 }}>✓</span>
+            <div>
+              <strong>Listing populated from {importToast.count} section{importToast.count !== 1 ? 's' : ''}.</strong>
+              {' '}Review the form below, then click <strong>Save Draft</strong> to save your changes.
+            </div>
+          </div>
         )}
 
         {/* ── ERROR / SUCCESS MESSAGES ──────────────────────── */}
