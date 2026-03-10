@@ -14,6 +14,7 @@ import { updatePage, getPageById } from '../services/pageService';
 export default function usePageForm(initialPageId) {
   // Initialize formData from mockPages default (homepage)
   // Phase 1: Sections have order property for reordering
+  // Phase 2: Sections have customFields array for extensibility
   const getDefaultFormData = () => ({
     id: initialPageId || 'page_home',
     title: 'Homepage',
@@ -21,14 +22,25 @@ export default function usePageForm(initialPageId) {
     pageType: 'homepage',
     status: 'draft',
     sections: [
-      { id: 'hero', type: 'slim_hero', enabled: true, order: 0, heading: '', subheading: '', ctaText: '', ctaUrl: '', bgImage: '' },
-      { id: 'destinations', type: 'destination_grid', enabled: true, order: 1, heading: '' },
-      { id: 'venues', type: 'venue_grid', enabled: true, order: 2, heading: '', venueIds: [] },
-      { id: 'featured', type: 'featured_slider', enabled: true, order: 3, heading: '', venueIds: [] },
-      { id: 'categories', type: 'category_slider', enabled: true, order: 4, heading: '' },
-      { id: 'vendors', type: 'vendor_preview', enabled: true, order: 5, heading: '', vendorIds: [] },
-      { id: 'newsletter', type: 'newsletter_band', enabled: true, order: 6, heading: '', ctaText: '', ctaUrl: '' },
-      { id: 'directory', type: 'directory_brands', enabled: true, order: 7, heading: '' },
+      {
+        id: 'hero',
+        type: 'slim_hero',
+        enabled: true,
+        order: 0,
+        heading: '',
+        subheading: '',
+        ctaText: '',
+        ctaUrl: '',
+        bgImage: '',
+        customFields: [],
+      },
+      { id: 'destinations', type: 'destination_grid', enabled: true, order: 1, heading: '', customFields: [] },
+      { id: 'venues', type: 'venue_grid', enabled: true, order: 2, heading: '', venueIds: [], customFields: [] },
+      { id: 'featured', type: 'featured_slider', enabled: true, order: 3, heading: '', venueIds: [], customFields: [] },
+      { id: 'categories', type: 'category_slider', enabled: true, order: 4, heading: '', customFields: [] },
+      { id: 'vendors', type: 'vendor_preview', enabled: true, order: 5, heading: '', vendorIds: [], customFields: [] },
+      { id: 'newsletter', type: 'newsletter_band', enabled: true, order: 6, heading: '', ctaText: '', ctaUrl: '', customFields: [] },
+      { id: 'directory', type: 'directory_brands', enabled: true, order: 7, heading: '', customFields: [] },
     ],
     seo: { title: '', metaDescription: '', keywords: [] },
     updatedAt: new Date().toISOString(),

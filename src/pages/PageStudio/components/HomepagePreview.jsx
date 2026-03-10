@@ -7,6 +7,7 @@ import CategorySlider from '../../../components/sections/CategorySlider';
 import VendorPreview from '../../../components/sections/VendorPreview';
 import NewsletterBand from '../../../components/sections/NewsletterBand';
 import DirectoryBrands from '../../../components/sections/DirectoryBrands';
+import CustomFieldsDisplay from './CustomFieldsDisplay';
 import { FEATURED_VENUES } from '../../../data/featuredVenues';
 
 /**
@@ -63,6 +64,9 @@ export default function HomepagePreview({ formData, C }) {
           return (
             <div key={section.id}>
               <Component {...getSectionProps(section.id)} />
+              {section.customFields?.length > 0 && (
+                <CustomFieldsDisplay customFields={section.customFields} C={C} NU="system-ui" />
+              )}
             </div>
           );
         })}

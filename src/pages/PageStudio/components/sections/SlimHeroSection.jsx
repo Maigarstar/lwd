@@ -1,14 +1,14 @@
 /**
  * SlimHeroSection — Hero section editor
  * Layout is locked. Editable content:
- * - Hero heading
- * - Hero subheading
- * - Hero CTA buttons
+ * - Hero heading, subheading, CTA buttons
  * - Hero background media (images, videos, YouTube, Vimeo)
- * - Search bar: locked position, but placeholder text and button label are editable
+ * - Search bar: locked position, editable text
+ * - Custom fields: extensible field system (Phase 2)
  */
 
 import BackgroundMediaControl from '../BackgroundMediaControl';
+import CustomFieldsEditor from '../CustomFieldsEditor';
 
 export default function SlimHeroSection({ section, onChange, C, NU, GD }) {
   if (!section) return null;
@@ -198,6 +198,9 @@ export default function SlimHeroSection({ section, onChange, C, NU, GD }) {
           />
         </div>
       </div>
+
+      {/* CUSTOM FIELDS — Extensible phase 2 feature */}
+      <CustomFieldsEditor section={section} onSectionChange={onChange} C={C} NU={NU} />
 
       <p style={{ fontFamily: NU, fontSize: 10, color: C.grey2, margin: 0, fontStyle: 'italic' }}>
         Note: Hero layout is locked. Only content text is editable.
