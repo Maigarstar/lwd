@@ -461,12 +461,13 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
   // Trigger text-split after mount
   useEffect(() => { const t = setTimeout(() => setHeroLoaded(true), 150); return () => clearTimeout(t); }, []);
 
-  // Auto-advance background image
+  // Auto-advance background image (custom hero images or venues fallback)
   useEffect(() => {
-    if (!venues.length) return;
-    const t = setInterval(() => setIdx((i) => (i + 1) % venues.length), 7000);
+    const images = backgroundData?.backgroundImages || venues;
+    if (!images || !images.length) return;
+    const t = setInterval(() => setIdx((i) => (i + 1) % images.length), 7000);
     return () => clearInterval(t);
-  }, [venues.length]);
+  }, [backgroundData?.backgroundImages, venues]);
 
   // Subtle parallax — image drifts at 15 % of scroll speed
   useEffect(() => {
@@ -550,56 +551,82 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
         {/* Custom background media (if provided) */}
         {backgroundData && backgroundData.backgroundType ? (
           <>
-            {/* Static image background */}
-            {backgroundData.backgroundType === 'image' && backgroundData.backgroundImage?.url && (
-              <div
-                style={{
-                  position: "absolute",
-                  inset: "-8% 0",
-                  overflow: "hidden",
-                  transform: `translateY(${parallaxY}px)`,
-                  willChange: "transform",
-                }}
-              >
-                <img
-                  src={backgroundData.backgroundImage.url}
-                  alt={backgroundData.backgroundImage.alt || "Hero background"}
-                  loading="eager"
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    transform: "scale(1.05)",
-                    transition: "transform 8s ease",
-                  }}
-                />
-              </div>
+            {/* Static image carousel background */}
+            {backgroundData.backgroundType === 'image' && backgroundData.backgroundImages?.length && (
+              <>
+                {backgroundData.backgroundImages.map((img, i) => (
+                  <div
+                    key={img.url}
+                    style={{
+                      position: "absolute",
+                      inset: "-8% 0",
+                      overflow: "hidden",
+                      opacity: i === idx ? 1 : 0,
+                      transition: "opacity 2s ease",
+                      transform: `translateY(${parallaxY}px)`,
+                      willChange: "transform",
+                    }}
+                  >
+                    <img
+                      src={img.url}
+                      alt={img.alt || `Hero background ${i + 1}`}
+                      loading={i === 0 ? "eager" : "lazy"}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        transform: i === idx ? "scale(1.05)" : "scale(1)",
+                        transition: "transform 8s ease",
+                      }}
+                    />
+                  </div>
+                ))}
+              </>
             )}
 
-            {/* Uploaded video background */}
-            {backgroundData.backgroundType === 'video_upload' && backgroundData.backgroundVideo?.url && (
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  overflow: "hidden",
-                }}
-              >
-                <video
-                  autoPlay={backgroundData.autoplay !== false}
-                  muted={backgroundData.muted !== false}
-                  loop={backgroundData.loop !== false}
-                  poster={backgroundData.backgroundPosterImage?.url}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                  }}
-                >
-                  <source src={backgroundData.backgroundVideo.url} type={`video/${backgroundData.backgroundVideo.type}`} />
-                  Your browser does not support the video tag.
-                </video>
-              </div>
+            {/* Video carousel background */}
+            {backgroundData.backgroundType === 'video_upload' && backgroundData.backgroundVideos?.length && (
+              <>
+                {backgroundData.backgroundVideos.map((vid, i) => (
+                  <div
+                    key={vid.url}
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      overflow: "hidden",
+                      opacity: i === idx ? 1 : 0,
+                      transition: "opacity 2s ease",
+                    }}
+                  >
+                    {vid.isUrl ? (
+                      <iframe
+                        src={vid.url}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          border: "none",
+                        }}
+                        allow="autoplay"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <video
+                        autoPlay={backgroundData.autoplay !== false}
+                        muted={backgroundData.muted !== false}
+                        loop={backgroundData.loop !== false}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
+                      >
+                        <source src={vid.url} type={`video/${vid.type}`} />
+                        Your browser does not support the video tag.
+                      </video>
+                    )}
+                  </div>
+                ))}
+              </>
             )}
 
             {/* YouTube iframe background */}

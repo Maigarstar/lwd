@@ -1,11 +1,11 @@
 /**
  * BackgroundMediaControl — Premium background media picker
- * Supports: uploaded images, uploaded videos, YouTube, Vimeo
+ * Supports: up to 10 rotating images, videos, YouTube, Vimeo
  *
  * Data model:
  * {
  *   backgroundType: 'image' | 'video_upload' | 'youtube' | 'vimeo',
- *   backgroundImage: { url, alt, type (jpg|png|webp|gif|svg) },
+ *   backgroundImages: [{ url, alt, type, fileName, size }, ...] (max 10 images for carousel),
  *   backgroundVideo: { url, type (mp4|webm|mov), duration },
  *   backgroundVideoUrl: 'youtube or vimeo URL',
  *   backgroundPosterImage: { url, alt },
@@ -45,71 +45,154 @@ export default function BackgroundMediaControl({ section, onChange, C, NU }) {
   };
 
   const handleImageUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (!SUPPORTED_IMAGE_FORMATS.includes(ext)) {
-      alert(`Unsupported image format. Supported: ${SUPPORTED_IMAGE_FORMATS.join(', ')}`);
+    const currentImages = bgData.backgroundImages || [];
+    if (currentImages.length >= 10) {
+      alert('Maximum 10 hero images allowed. Please remove some images before adding more.');
       return;
     }
 
-    if (file.size > MAX_IMAGE_SIZE) {
-      alert(`Image too large. Max size: ${MAX_IMAGE_SIZE / 1024 / 1024}MB. File size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
-      return;
-    }
+    const newImages = [...currentImages];
+    let filesProcessed = 0;
 
-    // Read file as data URL (for now, Phase 2+ will use Supabase storage)
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      onChange(section.id, 'backgroundData', {
-        ...bgData,
-        backgroundType: 'image',
-        backgroundImage: {
+    files.forEach((file, index) => {
+      if (newImages.length >= 10) {
+        alert(`Can only add ${10 - currentImages.length} more image(s). Skipping remaining.`);
+        return;
+      }
+
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (!SUPPORTED_IMAGE_FORMATS.includes(ext)) {
+        alert(`Unsupported format for ${file.name}. Supported: ${SUPPORTED_IMAGE_FORMATS.join(', ')}`);
+        return;
+      }
+
+      if (file.size > MAX_IMAGE_SIZE) {
+        alert(`${file.name} too large. Max: ${MAX_IMAGE_SIZE / 1024 / 1024}MB. Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        newImages.push({
           url: event.target.result,
           alt: file.name.split('.')[0],
           type: ext,
           fileName: file.name,
           size: file.size,
-        },
-      });
-    };
-    reader.readAsDataURL(file);
+        });
+
+        filesProcessed++;
+        if (filesProcessed === files.length) {
+          onChange(section.id, 'backgroundData', {
+            ...bgData,
+            backgroundType: 'image',
+            backgroundImages: newImages,
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Remove image from carousel
+  const handleRemoveImage = (index) => {
+    const newImages = (bgData.backgroundImages || []).filter((_, i) => i !== index);
+    onChange(section.id, 'backgroundData', {
+      ...bgData,
+      backgroundImages: newImages,
+    });
   };
 
   const handleVideoUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (!SUPPORTED_VIDEO_FORMATS.includes(ext)) {
-      alert(`Unsupported video format. Supported: ${SUPPORTED_VIDEO_FORMATS.join(', ')}`);
+    const currentVideos = bgData.backgroundVideos || [];
+    if (currentVideos.length >= 10) {
+      alert('Maximum 10 hero videos allowed. Please remove some videos before adding more.');
       return;
     }
 
-    if (file.size > MAX_VIDEO_SIZE) {
-      alert(`Video too large. Max size: ${MAX_VIDEO_SIZE / 1024 / 1024}MB. File size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
-      return;
-    }
+    const newVideos = [...currentVideos];
+    let filesProcessed = 0;
 
-    // Read file as data URL (for now, Phase 2+ will use Supabase storage)
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      onChange(section.id, 'backgroundData', {
-        ...bgData,
-        backgroundType: 'video_upload',
-        backgroundVideo: {
+    files.forEach((file) => {
+      if (newVideos.length >= 10) {
+        alert(`Can only add ${10 - currentVideos.length} more video(s). Skipping remaining.`);
+        return;
+      }
+
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (!SUPPORTED_VIDEO_FORMATS.includes(ext)) {
+        alert(`Unsupported format for ${file.name}. Supported: ${SUPPORTED_VIDEO_FORMATS.join(', ')}`);
+        return;
+      }
+
+      if (file.size > MAX_VIDEO_SIZE) {
+        alert(`${file.name} too large. Max: ${MAX_VIDEO_SIZE / 1024 / 1024}MB. Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        newVideos.push({
           url: event.target.result,
           type: ext,
           fileName: file.name,
           size: file.size,
-        },
-        autoplay: true,
-        muted: true,
-        loop: true,
-      });
-    };
-    reader.readAsDataURL(file);
+          isUrl: false,
+        });
+
+        filesProcessed++;
+        if (filesProcessed === files.length) {
+          onChange(section.id, 'backgroundData', {
+            ...bgData,
+            backgroundType: 'video_upload',
+            backgroundVideos: newVideos,
+            autoplay: true,
+            muted: true,
+            loop: true,
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Add video URL to playlist
+  const handleVideoUrlAdd = (url) => {
+    if (!url.trim()) return;
+    const currentVideos = bgData.backgroundVideos || [];
+    if (currentVideos.length >= 10) {
+      alert('Maximum 10 hero videos allowed.');
+      return;
+    }
+
+    const newVideos = [
+      ...currentVideos,
+      { url: url.trim(), type: 'url', isUrl: true, fileName: 'Video URL' }
+    ];
+
+    onChange(section.id, 'backgroundData', {
+      ...bgData,
+      backgroundType: 'video_upload',
+      backgroundVideos: newVideos,
+      autoplay: true,
+      muted: true,
+      loop: true,
+    });
+  };
+
+  // Remove video from carousel
+  const handleRemoveVideo = (index) => {
+    const newVideos = (bgData.backgroundVideos || []).filter((_, i) => i !== index);
+    onChange(section.id, 'backgroundData', {
+      ...bgData,
+      backgroundVideos: newVideos,
+    });
   };
 
   const handleVideoUrlChange = (url) => {
@@ -183,11 +266,11 @@ export default function BackgroundMediaControl({ section, onChange, C, NU }) {
         </div>
       </div>
 
-      {/* Image Upload */}
+      {/* Image Upload — Up to 10 images for carousel */}
       {mediaType === 'image' && (
         <div style={{ marginBottom: 16, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
           <label style={{ fontFamily: NU, fontSize: 10, fontWeight: 600, color: C.grey2, textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
-            Upload Image
+            Hero Images (Carousel — max 10)
           </label>
           <div style={{
             border: `2px dashed ${C.border}`,
@@ -196,19 +279,23 @@ export default function BackgroundMediaControl({ section, onChange, C, NU }) {
             textAlign: 'center',
             cursor: 'pointer',
             transition: 'all 0.2s ease',
+            opacity: (bgData.backgroundImages || []).length >= 10 ? 0.5 : 1,
+            pointerEvents: (bgData.backgroundImages || []).length >= 10 ? 'none' : 'auto',
           }}>
             <input
               type="file"
+              multiple
               accept={SUPPORTED_IMAGE_FORMATS.map(f => `.${f}`).join(',')}
               onChange={handleImageUpload}
               style={{ display: 'none' }}
               id="image-upload"
+              disabled={(bgData.backgroundImages || []).length >= 10}
             />
             <label
               htmlFor="image-upload"
               style={{
                 display: 'block',
-                cursor: 'pointer',
+                cursor: (bgData.backgroundImages || []).length >= 10 ? 'not-allowed' : 'pointer',
                 fontFamily: NU,
                 fontSize: 12,
                 color: C.grey2,
@@ -216,65 +303,127 @@ export default function BackgroundMediaControl({ section, onChange, C, NU }) {
             >
               📁 Click to upload or drag and drop
               <div style={{ fontSize: 10, color: C.grey, marginTop: 4 }}>
+                {(bgData.backgroundImages || []).length}/10 images loaded
+                <br />
                 Supported: {SUPPORTED_IMAGE_FORMATS.join(', ').toUpperCase()}
                 <br />
-                Max size: {MAX_IMAGE_SIZE / 1024 / 1024}MB
+                Max size: {MAX_IMAGE_SIZE / 1024 / 1024}MB per image
               </div>
             </label>
           </div>
-          {bgData.backgroundImage?.fileName && (
-            <div style={{ marginTop: 8, fontFamily: NU, fontSize: 11, color: C.grey2 }}>
-              ✓ {bgData.backgroundImage.fileName} ({(bgData.backgroundImage.size / 1024).toFixed(1)} KB)
-            </div>
-          )}
-          {bgData.backgroundImage?.url && (
-            <div style={{ marginTop: 8 }}>
-              <img
-                src={bgData.backgroundImage.url}
-                alt="preview"
-                style={{
-                  maxWidth: '100%',
-                  maxHeight: 120,
-                  borderRadius: 3,
-                  border: `1px solid ${C.border}`,
-                }}
-              />
+
+          {/* Image Carousel Display */}
+          {(bgData.backgroundImages || []).length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 8 }}>
+                {bgData.backgroundImages.map((img, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      position: 'relative',
+                      borderRadius: 4,
+                      overflow: 'hidden',
+                      border: `1px solid ${C.border}`,
+                    }}
+                  >
+                    <img
+                      src={img.url}
+                      alt={img.alt}
+                      title={`${index + 1}. ${img.fileName}`}
+                      style={{
+                        width: '100%',
+                        height: 80,
+                        objectFit: 'cover',
+                      }}
+                    />
+                    <button
+                      onClick={() => handleRemoveImage(index)}
+                      title="Remove image"
+                      style={{
+                        position: 'absolute',
+                        top: 2,
+                        right: 2,
+                        width: 20,
+                        height: 20,
+                        padding: 0,
+                        borderRadius: '50%',
+                        backgroundColor: 'rgba(255, 0, 0, 0.8)',
+                        color: '#fff',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 0, 0, 1)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 0, 0, 0.8)'; }}
+                    >
+                      ×
+                    </button>
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: 2,
+                        left: 2,
+                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        color: '#fff',
+                        fontSize: 9,
+                        padding: '2px 4px',
+                        borderRadius: 2,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {index + 1}/{bgData.backgroundImages.length}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
       )}
 
-      {/* Video Upload */}
+      {/* Video Carousel — Upload or URL (max 10) */}
       {mediaType === 'video_upload' && (
         <div style={{ marginBottom: 16, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
           <label style={{ fontFamily: NU, fontSize: 10, fontWeight: 600, color: C.grey2, textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
-            Upload Video
+            Hero Videos (Carousel — max 10)
           </label>
+          {/* Upload Videos */}
           <div style={{
             border: `2px dashed ${C.border}`,
             borderRadius: 4,
             padding: 16,
             textAlign: 'center',
             cursor: 'pointer',
+            opacity: (bgData.backgroundVideos || []).length >= 10 ? 0.5 : 1,
+            pointerEvents: (bgData.backgroundVideos || []).length >= 10 ? 'none' : 'auto',
           }}>
             <input
               type="file"
+              multiple
               accept={SUPPORTED_VIDEO_FORMATS.map(f => `.${f}`).join(',')}
               onChange={handleVideoUpload}
               style={{ display: 'none' }}
               id="video-upload"
+              disabled={(bgData.backgroundVideos || []).length >= 10}
             />
             <label
               htmlFor="video-upload"
               style={{
                 display: 'block',
-                cursor: 'pointer',
+                cursor: (bgData.backgroundVideos || []).length >= 10 ? 'not-allowed' : 'pointer',
                 fontFamily: NU,
                 fontSize: 12,
                 color: C.grey2,
               }}
             >
-              🎬 Click to upload video
+              🎬 Click to upload videos
+              <div style={{ fontSize: 10, color: C.grey, marginTop: 4 }}>
+                {(bgData.backgroundVideos || []).length}/10 videos loaded
+              </div>
               <div style={{ fontSize: 10, color: C.grey, marginTop: 4 }}>
                 Supported: {SUPPORTED_VIDEO_FORMATS.join(', ').toUpperCase()}
                 <br />
@@ -282,11 +431,125 @@ export default function BackgroundMediaControl({ section, onChange, C, NU }) {
               </div>
             </label>
           </div>
-          {bgData.backgroundVideo?.fileName && (
-            <div style={{ marginTop: 8, fontFamily: NU, fontSize: 11, color: C.grey2 }}>
-              ✓ {bgData.backgroundVideo.fileName} ({(bgData.backgroundVideo.size / 1024 / 1024).toFixed(1)} MB)
+
+          {/* Add Video URL */}
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+            <label style={{ fontFamily: NU, fontSize: 10, fontWeight: 600, color: C.grey2, textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>
+              Or Add Video URL
+            </label>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <input
+                type="url"
+                placeholder="Paste video URL (MP4, WebM, YouTube link, etc.)"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleVideoUrlAdd(e.target.value);
+                    e.target.value = '';
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: '8px 10px',
+                  fontFamily: NU,
+                  fontSize: 12,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 3,
+                  backgroundColor: C.black,
+                  color: C.white,
+                  boxSizing: 'border-box',
+                }}
+              />
+              <button
+                onClick={(e) => {
+                  const input = e.currentTarget.previousElementSibling;
+                  handleVideoUrlAdd(input.value);
+                  input.value = '';
+                }}
+                style={{
+                  padding: '8px 12px',
+                  backgroundColor: C.gold,
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 3,
+                  cursor: 'pointer',
+                  fontFamily: NU,
+                  fontSize: 10,
+                  fontWeight: 600,
+                }}
+              >
+                Add
+              </button>
+            </div>
+          </div>
+
+          {/* Video Carousel Display */}
+          {(bgData.backgroundVideos || []).length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 8 }}>
+                {bgData.backgroundVideos.map((vid, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      position: 'relative',
+                      borderRadius: 4,
+                      overflow: 'hidden',
+                      border: `1px solid ${C.border}`,
+                      backgroundColor: C.card,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      height: 80,
+                    }}
+                    title={vid.fileName || vid.url}
+                  >
+                    <span style={{ fontSize: 24 }}>🎬</span>
+                    <button
+                      onClick={() => handleRemoveVideo(index)}
+                      title="Remove video"
+                      style={{
+                        position: 'absolute',
+                        top: 2,
+                        right: 2,
+                        width: 20,
+                        height: 20,
+                        padding: 0,
+                        borderRadius: '50%',
+                        backgroundColor: 'rgba(255, 0, 0, 0.8)',
+                        color: '#fff',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 0, 0, 1)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 0, 0, 0.8)'; }}
+                    >
+                      ×
+                    </button>
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: 2,
+                        left: 2,
+                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        color: '#fff',
+                        fontSize: 9,
+                        padding: '2px 4px',
+                        borderRadius: 2,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {index + 1}/{bgData.backgroundVideos.length}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
+
           {/* Video Settings */}
           <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
