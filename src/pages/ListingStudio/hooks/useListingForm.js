@@ -118,6 +118,8 @@ export const useListingForm = (listingId = null) => {
 
           // Convert database snake_case to camelCase and populate form
           setFormData({
+            listing_type: listing.listingType || 'venue',
+            vendor_account_id: listing.vendorAccountId || null,
             venue_name: listing.name || '',
             slug: listing.slug || '',
             category: listing.categorySlug || 'wedding-venues',
@@ -412,10 +414,11 @@ export const useListingForm = (listingId = null) => {
         // Social proof
         pressFeatures: formData.press_features || [],
         awards: formData.awards || [],
-        // Visibility
+        // Visibility & meta
         visibility: formData.visibility || 'private',
         status: publishStatus,
-        listingType: 'wedding-venue',
+        listingType: formData.listing_type || 'venue',
+        vendorAccountId: formData.vendor_account_id || null,
         tier: 'standard',
       };
 

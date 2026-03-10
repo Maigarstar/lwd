@@ -95,7 +95,7 @@ const RichTextEditor = ({
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ heading: { levels: [2, 3] }, codeBlock: false }),
+      StarterKit.configure({ heading: { levels: [2, 3] }, codeBlock: false, underline: false, link: false }),
       Underline,
       Link.configure({
         openOnClick: false,
