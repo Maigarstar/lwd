@@ -180,6 +180,84 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
           </p>
         </div>
 
+        {/* ── TOP ACTION BAR (sticky) ─────────────────────────── */}
+        <div style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 20,
+          backgroundColor: C.black,
+          paddingBottom: 16,
+          marginBottom: 20,
+          borderBottom: `1px solid ${C.border}`,
+          display: 'flex',
+          gap: 10,
+          alignItems: 'center',
+        }}>
+          {/* Discard */}
+          <button
+            type="button"
+            onClick={handleDiscardClick}
+            disabled={loading}
+            style={{
+              padding: '8px 16px',
+              fontSize: 12,
+              backgroundColor: 'transparent',
+              color: C.grey,
+              border: `1px solid ${C.border}`,
+              borderRadius: 3,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.6 : 1,
+              fontWeight: 500,
+              transition: 'all 0.2s ease',
+            }}
+          >
+            Discard
+          </button>
+
+          {/* Save as Draft */}
+          <button
+            type="button"
+            onClick={handleSaveDraftClick}
+            disabled={loading || !hasChanges}
+            style={{
+              padding: '8px 16px',
+              fontSize: 12,
+              backgroundColor: '#555',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 3,
+              cursor: loading || !hasChanges ? 'not-allowed' : 'pointer',
+              opacity: loading || !hasChanges ? 0.5 : 1,
+              fontWeight: 500,
+              transition: 'all 0.2s ease',
+            }}
+          >
+            {saveStatus === 'saving' ? 'Saving…' : 'Save Draft'}
+          </button>
+
+          {/* Publish */}
+          <button
+            type="button"
+            onClick={handlePublishClick}
+            disabled={loading}
+            style={{
+              padding: '8px 18px',
+              fontSize: 12,
+              backgroundColor: C.gold,
+              color: '#fff',
+              border: 'none',
+              borderRadius: 3,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.6 : 1,
+              fontWeight: 700,
+              transition: 'all 0.2s ease',
+              marginLeft: 'auto',
+            }}
+          >
+            {saveStatus === 'publishing' ? 'Publishing…' : '↑ Publish'}
+          </button>
+        </div>
+
         {/* ── ERROR / SUCCESS MESSAGES ──────────────────────── */}
         {error && (
           <div style={{
