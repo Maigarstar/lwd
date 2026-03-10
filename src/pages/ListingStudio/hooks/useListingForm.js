@@ -385,6 +385,35 @@ export const useListingForm = (listingId = null) => {
           floorPlanUrl: s.floorPlanFile instanceof File ? null : (s.floorPlanUrl || ''),
           sortOrder: s.sortOrder ?? idx,
         })),
+        // Rooms & accommodation
+        roomsAccommodationType: formData.rooms_accommodation_type || '',
+        roomsTotal: formData.rooms_total || '',
+        roomsSuites: formData.rooms_suites || '',
+        roomsMaxGuests: formData.rooms_max_guests || '',
+        roomsExclusiveUse: formData.rooms_exclusive_use ?? false,
+        roomsMinStay: formData.rooms_min_stay || '',
+        roomsDescription: formData.rooms_description || '',
+        roomsImages: formData.rooms_images || [],
+        // Dining
+        diningStyle: formData.dining_style || '',
+        diningChefName: formData.dining_chef_name || '',
+        diningInHouse: formData.dining_in_house ?? false,
+        diningExternal: formData.dining_external ?? false,
+        diningMenuStyles: formData.dining_menu_styles || [],
+        diningDietary: formData.dining_dietary || [],
+        diningDrinks: formData.dining_drinks || [],
+        diningDescription: formData.dining_description || '',
+        diningMenuImages: formData.dining_menu_images || [],
+        // Contact profile
+        contactProfile: formData.contact_profile || {},
+        // Opening hours
+        openingHoursEnabled: formData.opening_hours_enabled ?? false,
+        openingHours: formData.opening_hours || {},
+        // Social proof
+        pressFeatures: formData.press_features || [],
+        awards: formData.awards || [],
+        // Visibility
+        visibility: formData.visibility || 'private',
         status: publishStatus,
         listingType: 'wedding-venue',
         tier: 'standard',

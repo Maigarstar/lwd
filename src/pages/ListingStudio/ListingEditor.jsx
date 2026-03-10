@@ -195,30 +195,41 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
           </div>
         )}
 
-        {saveStatus === 'saved' && (
+        {(saveStatus === 'saved' || saveStatus === 'published') && (
           <div style={{
-            backgroundColor: '#f0fdf4',
-            color: '#166534',
-            padding: '12px 16px',
-            borderRadius: 4,
-            marginBottom: 20,
-            border: '1px solid #bbf7d0',
+            backgroundColor: '#064e3b',
+            color: '#ecfdf5',
+            padding: '14px 20px',
+            borderRadius: 6,
+            marginBottom: 24,
+            border: '1px solid #059669',
             fontSize: 13,
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            animation: 'fadeIn 0.3s ease-out',
           }}>
-            ✓ Saved as draft
+            <span style={{ fontSize: 18 }}>✓</span>
+            <span>
+              {saveStatus === 'saved'
+                ? `Listing saved as draft — "${formData.venue_name || 'Untitled'}"`
+                : `Listing published successfully — "${formData.venue_name || 'Untitled'}"`}
+            </span>
           </div>
         )}
-        {saveStatus === 'published' && (
+        {saveStatus === 'saving' && (
           <div style={{
-            backgroundColor: '#f0fdf4',
-            color: '#166534',
-            padding: '12px 16px',
-            borderRadius: 4,
-            marginBottom: 20,
-            border: '1px solid #bbf7d0',
+            backgroundColor: '#1e293b',
+            color: '#94a3b8',
+            padding: '14px 20px',
+            borderRadius: 6,
+            marginBottom: 24,
+            border: '1px solid #334155',
             fontSize: 13,
+            fontWeight: 500,
           }}>
-            ✓ Listing published successfully
+            Saving…
           </div>
         )}
 

@@ -117,4 +117,11 @@ ALTER TABLE listings ADD COLUMN IF NOT EXISTS opening_hours JSONB DEFAULT '{}'::
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS press_features JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS awards JSONB DEFAULT '[]'::jsonb;
 
+-- ── Hero caption/credit (from hero_images array) ─────────────────────────────
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS hero_caption TEXT DEFAULT '';
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS hero_credit TEXT DEFAULT '';
+
+-- ── Videos (JSONB array of video objects) ─────────────────────────────────────
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS videos JSONB DEFAULT '[]'::jsonb;
+
 COMMIT;

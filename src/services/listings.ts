@@ -278,6 +278,22 @@ function mapFormToDatabaseFields(data: any): any {
     'diningDietary': 'dining_dietary',
     'diningDrinks': 'dining_drinks',
     'diningDescription': 'dining_description',
+    'diningMenuImages': 'dining_menu_images',
+    // Rooms images
+    'roomsImages': 'rooms_images',
+    // Hero caption / credit (from hero_images array)
+    'heroCaption': 'hero_caption',
+    'heroCredit': 'hero_credit',
+    // Videos (JSONB array)
+    'videos': 'videos',
+    // Contact profile, opening hours, social proof
+    'contactProfile': 'contact_profile',
+    'openingHoursEnabled': 'opening_hours_enabled',
+    'openingHours': 'opening_hours',
+    'pressFeatures': 'press_features',
+    'awards': 'awards',
+    'visibility': 'visibility',
+    'vendorAccountId': 'vendor_account_id',
     'ceremonySpaces': 'ceremony_spaces',
     'receptionSpaces': 'reception_spaces',
     'accommodation': 'accommodation',
