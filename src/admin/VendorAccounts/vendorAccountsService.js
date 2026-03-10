@@ -4,7 +4,7 @@
 // managing account status, resending invites, disabling accounts
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { supabase } from "../../lib/supabase";
+import { supabase } from "../../lib/supabaseClient";
 
 /**
  * Get all vendor accounts with status and login info
