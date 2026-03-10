@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 import { useListingForm } from './hooks/useListingForm';
 import useListingPreview from './hooks/useListingPreview';
 import ListingLivePreview from './preview/ListingLivePreview';
+import AIContentTools from './components/AIContentTools';
+import AIImportPanel from './components/AIImportPanel';
 import BasicDetailsSection from './sections/BasicDetailsSection';
 import LocationSection from './sections/LocationSection';
 import DescriptionSection from './sections/DescriptionSection';
@@ -51,6 +53,8 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
   const { formData, handleChange, handleSaveDraft, handlePublish, loading, error, hasChanges } = useListingForm(listingId);
   const previewData = useListingPreview(formData);
   const [saveStatus, setSaveStatus] = useState(null);
+  const [showAITools,    setShowAITools]    = useState(false);
+  const [showAIImport,   setShowAIImport]   = useState(false);
 
   // Always use light palette
   const C = getLightPalette();
@@ -235,6 +239,50 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
             {saveStatus === 'saving' ? 'Saving…' : 'Save Draft'}
           </button>
 
+          {/* Populate with AI */}
+          <button
+            type="button"
+            onClick={() => setShowAIImport(true)}
+            disabled={loading}
+            style={{
+              padding: '8px 14px',
+              fontSize: 12,
+              backgroundColor: C.gold,
+              color: '#fff',
+              border: 'none',
+              borderRadius: 3,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.5 : 1,
+              fontWeight: 700,
+              transition: 'all 0.2s ease',
+              letterSpacing: '0.2px',
+            }}
+          >
+            📂 Populate with AI
+          </button>
+
+          {/* AI Fill (quick, text-only) */}
+          <button
+            type="button"
+            onClick={() => setShowAITools(true)}
+            disabled={loading}
+            style={{
+              padding: '8px 12px',
+              fontSize: 12,
+              backgroundColor: 'transparent',
+              color: C.gold,
+              border: `1px solid ${C.gold}`,
+              borderRadius: 3,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.5 : 1,
+              fontWeight: 600,
+              transition: 'all 0.2s ease',
+              letterSpacing: '0.2px',
+            }}
+          >
+            ✦ Fill
+          </button>
+
           {/* Publish */}
           <button
             type="button"
@@ -257,6 +305,26 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
             {saveStatus === 'publishing' ? 'Publishing…' : '↑ Publish'}
           </button>
         </div>
+
+        {/* AI Import panel — Populate with AI */}
+        {showAIImport && (
+          <AIImportPanel
+            formData={formData}
+            onChange={handleChange}
+            listingId={listingId}
+            onClose={() => setShowAIImport(false)}
+          />
+        )}
+
+        {/* AI Fill panel — quick text-only fill */}
+        {showAITools && (
+          <AIContentTools
+            formData={formData}
+            onChange={handleChange}
+            listingId={listingId}
+            onClose={() => setShowAITools(false)}
+          />
+        )}
 
         {/* ── ERROR / SUCCESS MESSAGES ──────────────────────── */}
         {error && (
