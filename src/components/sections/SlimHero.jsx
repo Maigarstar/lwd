@@ -548,11 +548,11 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
     >
       {/* Background container — overflow hidden here to clip parallax images */}
       <div aria-hidden="true" style={{ position: "absolute", inset: 0, overflow: "hidden", zIndex: 0 }}>
-        {/* Custom background media (if provided) */}
-        {backgroundData && backgroundData.backgroundType ? (
+        {/* Custom background media — only render the ACTIVE backgroundType */}
+        {backgroundData?.backgroundType ? (
           <>
-            {/* Static image carousel background */}
-            {backgroundData.backgroundType === 'image' && backgroundData.backgroundImages?.length && (
+            {/* Image carousel — only when type is 'image' */}
+            {backgroundData.backgroundType === 'image' && backgroundData.backgroundImages?.length > 0 && (
               <>
                 {backgroundData.backgroundImages.map((img, i) => (
                   <div
@@ -584,8 +584,8 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
               </>
             )}
 
-            {/* Video carousel background */}
-            {backgroundData.backgroundType === 'video_upload' && backgroundData.backgroundVideos?.length && (
+            {/* Video carousel — only when type is 'video_upload' */}
+            {backgroundData.backgroundType === 'video_upload' && backgroundData.backgroundVideos?.length > 0 && (
               <>
                 {backgroundData.backgroundVideos.map((vid, i) => (
                   <div
@@ -629,8 +629,8 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
               </>
             )}
 
-            {/* YouTube iframe background */}
-            {backgroundData.backgroundType === 'youtube' && backgroundData.backgroundVideoUrl && (
+            {/* YouTube — only when type is 'youtube' */}
+            {backgroundData.backgroundType === 'youtube' && backgroundData.backgroundVideoUrl && extractYouTubeId(backgroundData.backgroundVideoUrl) && (
               <div
                 style={{
                   position: "absolute",
@@ -653,8 +653,8 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
               </div>
             )}
 
-            {/* Vimeo iframe background */}
-            {backgroundData.backgroundType === 'vimeo' && backgroundData.backgroundVideoUrl && (
+            {/* Vimeo — only when type is 'vimeo' */}
+            {backgroundData.backgroundType === 'vimeo' && backgroundData.backgroundVideoUrl && extractVimeoId(backgroundData.backgroundVideoUrl) && (
               <div
                 style={{
                   position: "absolute",
