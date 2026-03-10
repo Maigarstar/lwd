@@ -47,7 +47,7 @@ const corsHeaders = {
 
 interface FileInput {
   name: string;
-  type: "pdf" | "image" | "text";
+  type: "pdf" | "image" | "text" | "docx";
   mediaType: string;
   data?: string;          // base64 for PDFs and images
   extractedText?: string; // plain text for text files
@@ -59,6 +59,7 @@ interface ExtractRequest {
   pastedText?: string;
   websiteUrl?: string;
   videoLinks?: string[];
+  socialLinks?: string[];
   files?: FileInput[];
   venue_id?: string;
 }
@@ -164,11 +165,13 @@ function buildUserPrompt(body: ExtractRequest, fetchedWebContent?: string): stri
   const sourcesList: string[] = [];
   if (files?.some(f => f.type === "pdf"))                    sourcesList.push("PDF documents (attached)");
   if (files?.some(f => f.type === "image"))                  sourcesList.push("images (attached)");
-  if (files?.some(f => f.type === "text" && f.extractedText)) sourcesList.push("text documents");
+  if (files?.some(f => f.type === "text" && f.extractedText && !f.name?.toLowerCase().endsWith(".docx"))) sourcesList.push("text documents");
+  if (files?.some(f => f.name?.toLowerCase().endsWith(".docx") && f.extractedText)) sourcesList.push("Word documents");
   if (pastedText)                                             sourcesList.push("pasted text");
   if (fetchedWebContent)                                      sourcesList.push(`website: ${websiteUrl}`);
   else if (websiteUrl)                                        sourcesList.push(`website URL: ${websiteUrl}`);
   if (videoLinks?.length)                                     sourcesList.push(`${videoLinks.length} video link(s)`);
+  if (body.socialLinks?.length)                               sourcesList.push(`${body.socialLinks.length} social profile(s)`);
 
   // Source priority: PDF/paste (highest) → website → images/video
   const textBlocks: string[] = [];
@@ -192,6 +195,10 @@ function buildUserPrompt(body: ExtractRequest, fetchedWebContent?: string): stri
 
   if (videoLinks?.length) {
     textBlocks.push(`--- VIDEO / MEDIA LINKS ---\n${videoLinks.join("\n")}`);
+  }
+
+  if (body.socialLinks?.length) {
+    textBlocks.push(`--- SOCIAL PROFILE LINKS ---\n${body.socialLinks.join("\n")}\n(Store Instagram handle in contact_profile.instagram)`);
   }
 
   const contextBlock = textBlocks.length > 0
@@ -361,30 +368,82 @@ serve(async (req) => {
       );
     }
 
-    // Fetch website content if URL provided (server-side, no CORS restrictions)
+    // Fetch website content via Jina Reader (handles JS-heavy/SPA sites, returns clean markdown)
     let fetchedWebContent = "";
+    let websiteFetchStatus = body.websiteUrl ? "failed" : "not_provided";
     if (body.websiteUrl) {
       try {
-        const webResp = await fetch(body.websiteUrl, {
-          headers: { "User-Agent": "Mozilla/5.0 (compatible; LuxuryWeddingDirectory/1.0)" },
-          signal: AbortSignal.timeout(10000),
+        const jinaApiKey = Deno.env.get("JINA_API_KEY");
+        const jinaHeaders: Record<string, string> = {
+          "Accept": "text/plain",
+          "X-Return-Format": "markdown",
+        };
+        if (jinaApiKey) jinaHeaders["Authorization"] = `Bearer ${jinaApiKey}`;
+        const webResp = await fetch(`https://r.jina.ai/${body.websiteUrl}`, {
+          headers: jinaHeaders,
+          signal: AbortSignal.timeout(20000),
         });
         if (webResp.ok) {
-          const html = await webResp.text();
-          // Strip scripts, styles, and HTML tags; collapse whitespace
-          fetchedWebContent = html
-            .replace(/<script[\s\S]*?<\/script>/gi, " ")
-            .replace(/<style[\s\S]*?<\/style>/gi, " ")
-            .replace(/<[^>]+>/g, " ")
-            .replace(/&[a-zA-Z#0-9]+;/g, " ")
-            .replace(/\s+/g, " ")
-            .trim()
-            .slice(0, 12000);
+          const content = await webResp.text();
+          fetchedWebContent = content.replace(/\s+/g, " ").trim().slice(0, 12000);
+          websiteFetchStatus = fetchedWebContent ? "success" : "empty_response";
+        } else {
+          websiteFetchStatus = `blocked_${webResp.status}`;
+          console.warn("Jina Reader failed with status:", webResp.status);
         }
       } catch (e) {
-        console.warn("Website fetch failed:", (e as Error).message);
-        // Continue without website content — URL still logged
+        websiteFetchStatus = "connection_failed";
+        console.warn("Jina Reader failed:", (e as Error).message);
       }
+    }
+
+    // Extract text from DOCX files server-side (before building prompt)
+    const docxFiles = (body.files || []).filter(f => f.type === "docx" && f.data);
+    if (docxFiles.length > 0) {
+      try {
+        const { unzipSync } = await import("https://esm.sh/fflate@0.8.2");
+        for (const f of docxFiles) {
+          try {
+            const buffer = Uint8Array.from(atob(f.data!), c => c.charCodeAt(0));
+            const unzipped = unzipSync(buffer);
+            const docXml = unzipped["word/document.xml"];
+            if (docXml) {
+              const xmlText = new TextDecoder("utf-8").decode(docXml);
+              f.extractedText = xmlText
+                .replace(/<\/w:p>/g, "\n")
+                .replace(/<w:t[^>]*>([^<]*)<\/w:t>/g, "$1")
+                .replace(/<[^>]+>/g, "")
+                .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/&quot;/g, '"')
+                .replace(/[ \t]+/g, " ")
+                .replace(/\n{3,}/g, "\n\n")
+                .trim()
+                .slice(0, 10000);
+              (f as Record<string, unknown>).type = "text";
+            }
+          } catch (docErr) {
+            console.warn(`DOCX extraction failed for ${f.name}:`, (docErr as Error).message);
+          }
+        }
+      } catch (fflateErr) {
+        console.warn("fflate import failed:", (fflateErr as Error).message);
+      }
+    }
+
+    // Website-only failure guard: abort early if website was the only source and fetch failed
+    const hasSubstantiveContent =
+      fetchedWebContent ||
+      body.pastedText?.trim() ||
+      (body.files || []).some(f => f.extractedText || (f.type !== "docx" && f.data)) ||
+      (body.videoLinks?.length ?? 0) > 0 ||
+      (body.socialLinks?.length ?? 0) > 0;
+
+    if (!hasSubstantiveContent && body.websiteUrl) {
+      return new Response(
+        JSON.stringify({
+          error: `Website content could not be fetched (${websiteFetchStatus}). Please paste the venue content manually, add PDF or Word files, or try a different URL.`,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
     // Build prompt
@@ -491,6 +550,13 @@ serve(async (req) => {
       // Log the raw response to help diagnose future issues
       console.error("JSON parse failed. Raw response (first 500 chars):", rawText?.slice(0, 500));
       throw new Error(`AI returned malformed JSON. The response may have been cut short — try with less source material, or regenerate. (Output tokens used: ${tokensUsed})`);
+    }
+
+    // Inject website fetch status into _meta so the panel can show a warning
+    if (result._meta && typeof result._meta === "object") {
+      (result._meta as Record<string, unknown>).website_fetch_status = websiteFetchStatus;
+    } else {
+      result._meta = { website_fetch_status: websiteFetchStatus };
     }
 
     const duration = Date.now() - startTime;

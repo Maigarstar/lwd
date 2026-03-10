@@ -19,6 +19,8 @@ import VendorAccountsPage from "../admin/VendorAccounts/VendorAccountsPage";
 import AISettingsPage from "../admin/AISettings/AISettingsPage";
 
 // ── Page Studio imports ──
+import PageStudioHome from "./PageStudio/PageStudioHome";
+import PageEditorLive from "./PageStudio/PageEditorLive";
 import AllPagesModule from "./PageStudio/AllPagesModule";
 import CreatePageModule from "./PageStudio/CreatePageModule";
 import PageEditorModule from "./PageStudio/PageEditorModule";
@@ -244,9 +246,7 @@ const NAV_SECTIONS = [
   {
     group: "Content",
     items: [
-      { key: "all-pages",    label: "All Pages",         icon: "⊞" },
       { key: "page-studio",  label: "Page Studio",       icon: "⟡" },
-      { key: "create-page",  label: "Create Page",       icon: "⊕" },
       { key: "homepage-manager", label: "Homepage Manager", icon: "⌂" },
       { key: "blog-manager", label: "Blog Manager",      icon: "☰" },
       { key: "reusable-blocks", label: "Reusable Blocks", icon: "⊞" },
@@ -6245,6 +6245,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
     const hash = getInitialTab();
     // Normalize listing-studio sub-routes to the base tab for sidebar highlight
     if (hash.startsWith('listing-studio')) return 'listing-studio';
+    if (hash.startsWith('page-editor/'))   return 'page-editor';
     return hash;
   });
 
@@ -6278,6 +6279,13 @@ export default function AdminDashboard({ onBack, onNavigate }) {
   const [listingStudioMode, setListingStudioMode] = useState(initialLS.mode); // 'new', 'edit', or null
   const [listingStudioListingId, setListingStudioListingId] = useState(initialLS.id);
 
+  const getInitialPageEditorId = () => {
+    const hash = window.location.hash.slice(1);
+    if (hash.startsWith('page-editor/')) return hash.split('/')[1] || null;
+    return null;
+  };
+  const [pageEditorPageId, setPageEditorPageId] = useState(getInitialPageEditorId);
+
   // ── Hash-based routing: listen for hash changes and update activeTab ──
   useEffect(() => {
     const handleHashChange = () => {
@@ -6289,6 +6297,13 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         setListingStudioMode(ls.mode);
         setListingStudioListingId(ls.id);
         setActiveTabState('listing-studio');
+        return;
+      }
+
+      // Handle page-editor sub-routes
+      if (hash.startsWith('page-editor/')) {
+        setPageEditorPageId(hash.split('/')[1] || null);
+        setActiveTabState('page-editor');
         return;
       }
 
@@ -6574,9 +6589,22 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "api":           return <APIManagementModule C={C} />;
       case "ai-settings":   return <AISettingsPage C={C} />;
       case "styles":        return <StyleEditorModule C={C} darkPalette={customDark} lightPalette={customLight} fonts={customFonts} customCss={customCss} siteSettings={siteSettings} auditLog={auditLog} onUpdatePalette={handleUpdatePalette} onUpdateFonts={handleUpdateFonts} onUpdateCss={handleUpdateCss} onUpdateSiteSettings={handleUpdateSiteSettings} onSave={handleSaveThemeLogged} onRevert={handleRevertTheme} onExport={handleExportTheme} onImport={handleImportTheme} onApplyPreset={handleApplyPreset} saveStatus={saveStatus} />;
-      case "all-pages":     return <AllPagesModule C={C} NU={NU} GD={GD} />;
-      case "page-studio":   return <PageEditorModule C={C} NU={NU} GD={GD} />;
-      case "create-page":   return <CreatePageModule C={C} NU={NU} GD={GD} />;
+      case "page-studio":   return <PageStudioHome C={C} NU={NU} GD={GD} onNavigate={(action, params) => {
+        if (action === "page-editor" && params?.pageId) {
+          setPageEditorPageId(params.pageId);
+          window.location.hash = `page-editor/${params.pageId}`;
+          setActiveTabState('page-editor');
+        } else if (action === "page-editor-new") {
+          setPageEditorPageId(null);
+          window.location.hash = 'page-editor/new';
+          setActiveTabState('page-editor');
+        }
+      }} />;
+      case "page-editor":   return <PageEditorLive pageId={pageEditorPageId} C={C} NU={NU} GD={GD} onNavigate={() => {
+        setPageEditorPageId(null);
+        window.location.hash = 'page-studio';
+        setActiveTabState('page-studio');
+      }} />;
       case "homepage-manager": return <HomepageManagerModule C={C} NU={NU} GD={GD} />;
       case "blog-manager":  return <BlogManagerModule C={C} NU={NU} GD={GD} />;
       case "reusable-blocks": return <ReusableBlocksModule C={C} NU={NU} GD={GD} />;

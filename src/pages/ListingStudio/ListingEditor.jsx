@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useListingForm } from './hooks/useListingForm';
 import useListingPreview from './hooks/useListingPreview';
 import ListingLivePreview from './preview/ListingLivePreview';
@@ -56,12 +56,35 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
   const [showAITools,    setShowAITools]    = useState(false);
   const [showAIImport,   setShowAIImport]   = useState(false);
   const [importToast,    setImportToast]    = useState(null); // { count: n }
+  const [viewMode,       setViewMode]       = useState('split');
 
   // Always use light palette
   const C = getLightPalette();
 
   // Determine which sections to show based on listing type
   const { showFeatures, showCommercial } = getSectionVisibility(formData.listing_type);
+
+  // Load view mode preference from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedMode = localStorage.getItem('ls_view_mode');
+      if (savedMode && ['split', 'editor', 'preview'].includes(savedMode)) {
+        setViewMode(savedMode);
+      }
+    } catch (e) {
+      console.warn('Failed to load view mode preference:', e);
+    }
+  }, []);
+
+  // Handle view mode change
+  const handleViewModeChange = useCallback((mode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('ls_view_mode', mode);
+    } catch (e) {
+      console.warn('Failed to save view mode preference:', e);
+    }
+  }, []);
 
   // Handle save as draft
   const handleSaveDraftClick = useCallback(async () => {
@@ -104,10 +127,15 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
   const pageTitle = isEditing ? 'Edit Listing' : 'Create New Listing';
   const currentType = LISTING_TYPES.find(t => t.value === formData.listing_type) || LISTING_TYPES[0];
 
+  // Compute grid layout and panel visibility based on viewMode
+  const gridCols = viewMode === 'editor' ? '1fr' : viewMode === 'preview' ? '1fr' : '50% 50%';
+  const showLeftPanel = viewMode !== 'preview';
+  const showRightPanel = viewMode !== 'editor';
+
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: '50% 50%',
+      gridTemplateColumns: gridCols,
       gap: 0,
       minHeight: '100vh',
       backgroundColor: '#fff',
@@ -116,13 +144,28 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
       {/* ═══════════════════════════════════════════════════════
           LEFT PANEL: Editor
       ═══════════════════════════════════════════════════════ */}
+      {showLeftPanel && (
       <div style={{
         overflow: 'auto',
         maxHeight: '100vh',
         padding: '32px 24px 60px',
         backgroundColor: C.black,
-        borderRight: `1px solid ${C.border}`,
+        borderRight: viewMode === 'split' ? `1px solid ${C.border}` : 'none',
+        order: viewMode === 'preview' ? 2 : 1,
+        animation: 'slideInLeft 0.3s ease-out',
       }}>
+        <style>{`
+          @keyframes slideInLeft {
+            from {
+              transform: translateX(-100%);
+              opacity: 0;
+            }
+            to {
+              transform: translateX(0);
+              opacity: 1;
+            }
+          }
+        `}</style>
 
         {/* ── LISTING TYPE SELECTOR ─────────────────────────── */}
         <div style={{ marginBottom: 36 }}>
@@ -283,6 +326,51 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
           >
             ✦ Fill
           </button>
+
+          {/* View Mode Control — Split / Editor / Preview */}
+          <div
+            style={{
+              display: 'flex',
+              gap: 4,
+              paddingRight: 8,
+              borderRight: `1px solid ${C.border}`,
+            }}
+          >
+            {['split', 'editor', 'preview'].map((mode) => {
+              const modeLabel = mode === 'split' ? 'Split' : mode === 'editor' ? 'Editor' : 'Preview';
+              const isActive = viewMode === mode;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => handleViewModeChange(mode)}
+                  title={modeLabel}
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    letterSpacing: '0.5px',
+                    textTransform: 'uppercase',
+                    padding: '8px 10px',
+                    backgroundColor: isActive ? C.gold : 'transparent',
+                    color: isActive ? '#fff' : C.grey2,
+                    border: `1px solid ${isActive ? C.gold : C.border}`,
+                    borderRadius: 3,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    opacity: isActive ? 1 : 0.7,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = isActive ? C.gold2 : `${C.gold}22`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = isActive ? C.gold : 'transparent';
+                  }}
+                >
+                  {modeLabel}
+                </button>
+              );
+            })}
+          </div>
 
           {/* Publish */}
           <button
@@ -539,19 +627,84 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
           </div>
         </form>
       </div>
+      )}
 
       {/* ═══════════════════════════════════════════════════════
           RIGHT PANEL: Live Preview
       ═══════════════════════════════════════════════════════ */}
+      {showRightPanel && (
       <div style={{
-        position: 'sticky',
-        top: 0,
+        display: 'flex',
+        flexDirection: 'column',
         height: '100vh',
-        overflow: 'auto',
         backgroundColor: '#f9f7f3',
+        order: viewMode === 'preview' ? 1 : 2,
       }}>
-        <ListingLivePreview formData={previewData} />
+        {/* Preview Header */}
+        <div style={{
+          padding: '12px 16px',
+          borderBottom: `1px solid ${C.border}`,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          justifyContent: 'space-between',
+          backgroundColor: '#fff',
+          minHeight: 50,
+        }}>
+          <span style={{ fontSize: 12, color: C.grey2 }}>
+            LIVE PREVIEW
+          </span>
+
+          {/* View Mode Control — Only visible in Preview-Only mode */}
+          {viewMode === 'preview' && (
+          <div style={{ display: 'flex', gap: 4 }}>
+            {['split', 'editor', 'preview'].map((mode) => {
+              const modeLabel = mode === 'split' ? 'Split' : mode === 'editor' ? 'Editor' : 'Preview';
+              const isActive = viewMode === mode;
+              return (
+                <button
+                  key={mode}
+                  onClick={() => handleViewModeChange(mode)}
+                  title={modeLabel}
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    padding: '6px 8px',
+                    backgroundColor: isActive ? C.gold : 'transparent',
+                    color: isActive ? '#fff' : C.grey2,
+                    border: `1px solid ${isActive ? C.gold : C.border}`,
+                    borderRadius: 3,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    opacity: isActive ? 1 : 0.7,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = isActive ? C.gold2 || '#7a5c0f' : `${C.gold}22`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = isActive ? C.gold : 'transparent';
+                  }}
+                >
+                  {modeLabel}
+                </button>
+              );
+            })}
+          </div>
+          )}
+        </div>
+
+        {/* Scrollable Preview */}
+        <div style={{
+          flex: 1,
+          overflow: 'auto',
+          backgroundColor: '#f9f7f3',
+        }}>
+          <ListingLivePreview formData={previewData} />
+        </div>
       </div>
+      )}
     </div>
   );
 };

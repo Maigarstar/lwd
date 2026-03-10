@@ -53,6 +53,7 @@ export async function createPage(formData) {
 export async function updatePage(pageId, formData) {
   try {
     const pageRecord = {
+      id: pageId,
       title: formData.title,
       slug: formData.slug,
       page_type: formData.pageType,
@@ -63,17 +64,33 @@ export async function updatePage(pageId, formData) {
       published_at: formData.publishedAt,
     };
 
+    // Use upsert to handle case where page doesn't exist yet
     const { data, error } = await supabase
       .from('pages')
-      .update(pageRecord)
-      .eq('id', pageId)
+      .upsert([pageRecord], { onConflict: 'id' })
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      const errorInfo = {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        status: error.status,
+      };
+      console.error('Supabase upsert error:', JSON.stringify(errorInfo, null, 2));
+      throw error;
+    }
     return data;
   } catch (err) {
-    console.error('Error updating page:', err);
+    const errorInfo = {
+      message: err?.message,
+      code: err?.code,
+      details: err?.details,
+      stack: err?.stack,
+    };
+    console.error('Error updating page:', JSON.stringify(errorInfo, null, 2));
     throw err;
   }
 }

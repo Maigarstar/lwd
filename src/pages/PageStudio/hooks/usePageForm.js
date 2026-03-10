@@ -107,7 +107,12 @@ export default function usePageForm(initialPageId) {
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus(null), 2000);
     } catch (err) {
-      console.error('Error saving draft:', err);
+      console.error('Error saving draft:', {
+        message: err?.message,
+        code: err?.code,
+        details: err?.details,
+        stack: err?.stack,
+      });
       setSaveStatus('error');
       setTimeout(() => setSaveStatus(null), 3000);
     }
@@ -124,7 +129,12 @@ export default function usePageForm(initialPageId) {
       setSaveStatus('published');
       setTimeout(() => setSaveStatus(null), 2000);
     } catch (err) {
-      console.error('Error publishing:', err);
+      console.error('Error publishing:', {
+        message: err?.message,
+        code: err?.code,
+        details: err?.details,
+        stack: err?.stack,
+      });
       setSaveStatus('error');
       setTimeout(() => setSaveStatus(null), 3000);
     }
