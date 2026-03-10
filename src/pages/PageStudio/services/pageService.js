@@ -1,30 +1,45 @@
 /**
  * pageService — Supabase CRUD operations for pages
  *
- * Phase 1: Stubs for integration
- * Phase 2+: Implement actual Supabase calls
+ * Phase 3: Real Supabase CRUD implementation
  *
- * Functions:
- * - createPage(formData) — Create new page
- * - updatePage(pageId, formData) — Update existing page
- * - getPageById(pageId) — Fetch page for editing
- * - publishPage(pageId) — Set page status to published
- * - deletePage(pageId) — Delete page
+ * Persists complete page state including:
+ * - Core page fields (title, slug, pageType, status)
+ * - Section order and enabled state
+ * - Section content (heading, subheading, etc.)
+ * - Custom fields (id, type, label, enabled, value)
+ * - SEO metadata
+ * - Timestamps (updatedAt, publishedAt)
  */
 
-// Phase 1: No Supabase import yet
-// Phase 2+: import { supabase } from '../../../supabase';
+import { supabase } from '../../../lib/supabaseClient';
 
 /**
  * Create new page in Supabase
- * Phase 1: Stub (returns input)
- * Phase 2+: Actual Supabase call
+ * Inserts complete formData as JSON document
  */
 export async function createPage(formData) {
   try {
-    // Phase 1: Just return the formData as if saved
-    // Phase 2+: await supabase.from('pages').insert([...]).select()
-    return formData;
+    const pageRecord = {
+      id: formData.id,
+      title: formData.title,
+      slug: formData.slug,
+      page_type: formData.pageType,
+      status: formData.status,
+      content: formData.sections, // Full section data with custom fields
+      seo: formData.seo,
+      updated_at: formData.updatedAt,
+      published_at: formData.publishedAt,
+    };
+
+    const { data, error } = await supabase
+      .from('pages')
+      .insert([pageRecord])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
   } catch (err) {
     console.error('Error creating page:', err);
     throw err;
@@ -33,14 +48,30 @@ export async function createPage(formData) {
 
 /**
  * Update existing page in Supabase
- * Phase 1: Stub (returns input)
- * Phase 2+: Actual Supabase call
+ * Updates all page fields including section order, custom fields, content
  */
 export async function updatePage(pageId, formData) {
   try {
-    // Phase 1: Just return the formData as if saved
-    // Phase 2+: await supabase.from('pages').update({...}).eq('id', pageId)
-    return formData;
+    const pageRecord = {
+      title: formData.title,
+      slug: formData.slug,
+      page_type: formData.pageType,
+      status: formData.status,
+      content: formData.sections, // Full section data with custom fields
+      seo: formData.seo,
+      updated_at: formData.updatedAt,
+      published_at: formData.publishedAt,
+    };
+
+    const { data, error } = await supabase
+      .from('pages')
+      .update(pageRecord)
+      .eq('id', pageId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
   } catch (err) {
     console.error('Error updating page:', err);
     throw err;
@@ -49,13 +80,39 @@ export async function updatePage(pageId, formData) {
 
 /**
  * Fetch page by ID from Supabase
- * Phase 1: Stub (returns null)
- * Phase 2+: Actual Supabase call
+ * Returns complete page data with all sections and custom fields
  */
 export async function getPageById(pageId) {
   try {
-    // Phase 1: Return default/mock data
-    // Phase 2+: await supabase.from('pages').select().eq('id', pageId).single()
+    const { data, error } = await supabase
+      .from('pages')
+      .select('*')
+      .eq('id', pageId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows found - return null for new pages
+        return null;
+      }
+      throw error;
+    }
+
+    // Map database fields back to formData shape
+    if (data) {
+      return {
+        id: data.id,
+        title: data.title,
+        slug: data.slug,
+        pageType: data.page_type,
+        status: data.status,
+        sections: data.content || [],
+        seo: data.seo || { title: '', metaDescription: '', keywords: [] },
+        updatedAt: data.updated_at,
+        publishedAt: data.published_at,
+      };
+    }
+
     return null;
   } catch (err) {
     console.error('Error fetching page:', err);
@@ -65,14 +122,30 @@ export async function getPageById(pageId) {
 
 /**
  * Publish page (set status to 'published' and set published_at)
- * Phase 1: Stub
- * Phase 2+: Actual Supabase call
  */
 export async function publishPage(pageId, formData) {
   try {
-    // Phase 1: Stub
-    // Phase 2+: await supabase.from('pages').update({...}).eq('id', pageId)
-    return formData;
+    const now = new Date().toISOString();
+    const pageRecord = {
+      title: formData.title,
+      slug: formData.slug,
+      page_type: formData.pageType,
+      status: 'published',
+      content: formData.sections,
+      seo: formData.seo,
+      updated_at: formData.updatedAt,
+      published_at: now,
+    };
+
+    const { data, error } = await supabase
+      .from('pages')
+      .update(pageRecord)
+      .eq('id', pageId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
   } catch (err) {
     console.error('Error publishing page:', err);
     throw err;
@@ -81,13 +154,15 @@ export async function publishPage(pageId, formData) {
 
 /**
  * Delete page from Supabase
- * Phase 1: Stub
- * Phase 2+: Actual Supabase call
  */
 export async function deletePage(pageId) {
   try {
-    // Phase 1: Stub
-    // Phase 2+: await supabase.from('pages').delete().eq('id', pageId)
+    const { error } = await supabase
+      .from('pages')
+      .delete()
+      .eq('id', pageId);
+
+    if (error) throw error;
     return true;
   } catch (err) {
     console.error('Error deleting page:', err);

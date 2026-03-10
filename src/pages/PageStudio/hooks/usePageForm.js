@@ -61,10 +61,13 @@ export default function usePageForm(initialPageId) {
 
     setIsLoading(true);
     try {
-      // For Phase 1, we'll use mock data from mockPages
-      // In Phase 2+, this will call: const page = await getPageById(pageId);
-      // For now, just use default
-      setFormData(getDefaultFormData());
+      const page = await getPageById(pageId);
+      if (page) {
+        setFormData(page);
+      } else {
+        // No page found, use defaults
+        setFormData(getDefaultFormData());
+      }
       setHasChanges(false);
     } catch (err) {
       console.error('Error loading page:', err);
@@ -98,8 +101,7 @@ export default function usePageForm(initialPageId) {
     setSaveStatus('saving');
     try {
       const pageToSave = { ...formData, status: 'draft', publishedAt: null };
-      // For Phase 1, just simulate save (update formData)
-      // In Phase 2+: await updatePage(formData.id, pageToSave);
+      await updatePage(formData.id, pageToSave);
       setFormData(pageToSave);
       setHasChanges(false);
       setSaveStatus('saved');
@@ -116,8 +118,7 @@ export default function usePageForm(initialPageId) {
     setSaveStatus('publishing');
     try {
       const pageToPublish = { ...formData, status: 'published', publishedAt: new Date().toISOString() };
-      // For Phase 1, just simulate publish
-      // In Phase 2+: await updatePage(formData.id, pageToPublish);
+      await updatePage(formData.id, pageToPublish);
       setFormData(pageToPublish);
       setHasChanges(false);
       setSaveStatus('published');
@@ -130,15 +131,26 @@ export default function usePageForm(initialPageId) {
   }, [formData]);
 
   // Discard changes
-  const handleDiscard = useCallback(() => {
+  const handleDiscard = useCallback(async () => {
     if (hasChanges) {
       const confirmed = window.confirm('Discard all changes? This cannot be undone.');
       if (confirmed) {
-        setFormData(getDefaultFormData());
+        // Reload from database or use default
+        try {
+          const page = await getPageById(formData.id);
+          if (page) {
+            setFormData(page);
+          } else {
+            setFormData(getDefaultFormData());
+          }
+        } catch (err) {
+          console.error('Error reloading page:', err);
+          setFormData(getDefaultFormData());
+        }
         setHasChanges(false);
       }
     }
-  }, [hasChanges]);
+  }, [hasChanges, formData.id]);
 
   return {
     formData,
