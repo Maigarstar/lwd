@@ -320,18 +320,22 @@ serve(async (req) => {
 
     if (settings.provider === "claude") {
       const messageContent = buildMessageContent(body, userPrompt);
+      const hasPdfFiles = (body.files || []).some(f => f.type === "pdf");
 
-      // Use a generous token limit for extraction + writing combined
-      const maxTokens = Math.min(settings.max_tokens || 4096, 8192);
+      // Extraction + writing needs generous tokens regardless of the ai_settings value
+      const maxTokens = Math.max(settings.max_tokens || 4096, 8000);
+
+      const claudeHeaders: Record<string, string> = {
+        "Content-Type": "application/json",
+        "x-api-key": settings.api_key,
+        "anthropic-version": "2023-06-01",
+      };
+      // Only add PDF beta header when actual PDF files are present
+      if (hasPdfFiles) claudeHeaders["anthropic-beta"] = "pdfs-2024-09-25";
 
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": settings.api_key,
-          "anthropic-version": "2023-06-01",
-          "anthropic-beta": "pdfs-2024-09-25",
-        },
+        headers: claudeHeaders,
         body: JSON.stringify({
           model: settings.model,
           max_tokens: maxTokens,
@@ -409,7 +413,9 @@ serve(async (req) => {
     try {
       result = JSON.parse(extractJSON(rawText));
     } catch {
-      throw new Error("AI returned malformed JSON. Please try again.");
+      // Log the raw response to help diagnose future issues
+      console.error("JSON parse failed. Raw response (first 500 chars):", rawText?.slice(0, 500));
+      throw new Error(`AI returned malformed JSON. The response may have been cut short — try with less source material, or regenerate. (Output tokens used: ${tokensUsed})`);
     }
 
     const duration = Date.now() - startTime;
