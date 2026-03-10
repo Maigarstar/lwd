@@ -186,7 +186,7 @@ const SEOSection = ({ formData, onChange }) => {
   const descAtLimit    = descRemaining <= 10;
 
   return (
-    <section style={{ marginBottom: 40, paddingBottom: 40, borderBottom: '1px solid #e5ddd0' }}>
+    <section style={{ marginBottom: 16, padding: 20, borderRadius: 8, border: '1px solid rgba(229,221,208,0.4)', boxShadow: '0 2px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)' }}>
 
       {/* ── Section header ─────────────────────────────────────────────── */}
       <div style={{ marginBottom: 24 }}>

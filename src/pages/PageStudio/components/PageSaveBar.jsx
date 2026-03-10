@@ -8,6 +8,8 @@
  * Mirrors Listing Studio save bar pattern
  */
 
+import ViewModeControl from '../../../components/ViewModeControl';
+
 export default function PageSaveBar({
   hasChanges,
   saveStatus,
@@ -143,52 +145,17 @@ export default function PageSaveBar({
             e.currentTarget.style.backgroundColor = 'transparent';
           }}
         >
-          ★ AI
+          ★ Magic AI
         </button>
 
         {/* View Mode Control — Split / Editor / Preview */}
         <div
           style={{
-            display: 'flex',
-            gap: 4,
             paddingRight: 8,
             borderRight: `1px solid ${C.border}`,
           }}
         >
-          {['split', 'editor', 'preview'].map((mode) => {
-            const modeLabel = mode === 'split' ? 'Split' : mode === 'editor' ? 'Editor' : 'Preview';
-            const isActive = viewMode === mode;
-            return (
-              <button
-                key={mode}
-                onClick={() => onViewModeChange(mode)}
-                title={modeLabel}
-                style={{
-                  fontFamily: NU,
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                  padding: '8px 10px',
-                  backgroundColor: isActive ? C.gold : 'transparent',
-                  color: isActive ? '#fff' : C.grey2,
-                  border: `1px solid ${isActive ? C.gold : C.border}`,
-                  borderRadius: 3,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  opacity: isActive ? 1 : 0.7,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = isActive ? C.gold2 || '#7a5c0f' : `${C.gold}22`;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = isActive ? C.gold : 'transparent';
-                }}
-              >
-                {modeLabel}
-              </button>
-            );
-          })}
+          <ViewModeControl viewMode={viewMode} onViewModeChange={onViewModeChange} C={C} NU={NU} />
         </div>
 
         {/* Publish Button */}

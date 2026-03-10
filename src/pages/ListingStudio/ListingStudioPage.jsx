@@ -1,16 +1,14 @@
 import { useState, useCallback } from 'react';
 import ListingEditor from './ListingEditor';
-import { getLightPalette } from '../../theme/tokens';
-
-// Use light palette for listing studio
-const C = getLightPalette();
+import { getLightPalette, getDarkPalette } from '../../theme/tokens';
 
 /**
  * ListingStudio router page
  * Handles different modes: new, edit, preview, publishing
  * Can be expanded with additional views as features are added
  */
-const ListingStudioPage = ({ navigationState = {}, onNavigate = () => {}, onSaveComplete: parentOnSaveComplete = null }) => {
+const ListingStudioPage = ({ darkMode = false, navigationState = {}, onNavigate = () => {}, onSaveComplete: parentOnSaveComplete = null }) => {
+  const C = darkMode ? getDarkPalette() : getLightPalette();
   const { mode = 'new', listingId = null, returnTo = 'listings' } = navigationState;
   const [currentMode, setCurrentMode] = useState(mode);
   const [currentListingId, setCurrentListingId] = useState(listingId);
@@ -49,6 +47,7 @@ const ListingStudioPage = ({ navigationState = {}, onNavigate = () => {}, onSave
       return (
         <ListingEditor
           listingId={null}
+          darkMode={darkMode}
           onCancel={handleCancel}
           onSaveComplete={handleSaveComplete}
         />
@@ -59,6 +58,7 @@ const ListingStudioPage = ({ navigationState = {}, onNavigate = () => {}, onSave
         <ListingEditor
           key={currentListingId}
           listingId={currentListingId}
+          darkMode={darkMode}
           onCancel={handleCancel}
           onSaveComplete={handleSaveComplete}
         />

@@ -424,8 +424,28 @@ function PredictiveField({ value, onChange, placeholder, items, ariaLabel, onEnt
   );
 }
 
+/* ── Utility functions ───────────────────────────────────────────────────── */
+function extractYouTubeId(url) {
+  if (!url) return '';
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/,
+    /youtube\.com\/embed\/([a-zA-Z0-9_-]+)/,
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return '';
+}
+
+function extractVimeoId(url) {
+  if (!url) return '';
+  const match = url.match(/vimeo\.com\/(\d+)/);
+  return match ? match[1] : '';
+}
+
 /* ── SlimHero ────────────────────────────────────────────────────────────── */
-export default function SlimHero({ venues = [], onViewRegion, onViewRegionCategory, onViewCategory }) {
+export default function SlimHero({ venues = [], backgroundData = null, onViewRegion, onViewRegionCategory, onViewCategory }) {
   const C = useTheme();
   const [idx, setIdx] = useState(0);
   const [query, setQuery] = useState("");
@@ -527,34 +547,139 @@ export default function SlimHero({ venues = [], onViewRegion, onViewRegionCatego
     >
       {/* Background container — overflow hidden here to clip parallax images */}
       <div aria-hidden="true" style={{ position: "absolute", inset: 0, overflow: "hidden", zIndex: 0 }}>
-        {/* Background images — parallax layer */}
-        {venues.map((v, i) => (
-          <div
-            key={v.id}
-            style={{
-              position: "absolute",
-              inset: "-8% 0",
-              overflow: "hidden",
-              opacity: i === idx ? 1 : 0,
-              transition: "opacity 2s ease",
-              transform: `translateY(${parallaxY}px)`,
-              willChange: "transform",
-            }}
-          >
-            <img
-              src={v.imgs[0]}
-              alt=""
-              loading={i === 0 ? "eager" : "lazy"}
+        {/* Custom background media (if provided) */}
+        {backgroundData && backgroundData.backgroundType ? (
+          <>
+            {/* Static image background */}
+            {backgroundData.backgroundType === 'image' && backgroundData.backgroundImage?.url && (
+              <div
+                style={{
+                  position: "absolute",
+                  inset: "-8% 0",
+                  overflow: "hidden",
+                  transform: `translateY(${parallaxY}px)`,
+                  willChange: "transform",
+                }}
+              >
+                <img
+                  src={backgroundData.backgroundImage.url}
+                  alt={backgroundData.backgroundImage.alt || "Hero background"}
+                  loading="eager"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    transform: "scale(1.05)",
+                    transition: "transform 8s ease",
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Uploaded video background */}
+            {backgroundData.backgroundType === 'video_upload' && backgroundData.backgroundVideo?.url && (
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  overflow: "hidden",
+                }}
+              >
+                <video
+                  autoPlay={backgroundData.autoplay !== false}
+                  muted={backgroundData.muted !== false}
+                  loop={backgroundData.loop !== false}
+                  poster={backgroundData.backgroundPosterImage?.url}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                  }}
+                >
+                  <source src={backgroundData.backgroundVideo.url} type={`video/${backgroundData.backgroundVideo.type}`} />
+                  Your browser does not support the video tag.
+                </video>
+              </div>
+            )}
+
+            {/* YouTube iframe background */}
+            {backgroundData.backgroundType === 'youtube' && backgroundData.backgroundVideoUrl && (
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  overflow: "hidden",
+                }}
+              >
+                <iframe
+                  src={`https://www.youtube.com/embed/${extractYouTubeId(backgroundData.backgroundVideoUrl)}?autoplay=1&mute=1&loop=1&controls=0&modestbranding=1&playlist=${extractYouTubeId(backgroundData.backgroundVideoUrl)}`}
+                  style={{
+                    position: "absolute",
+                    width: "100%",
+                    height: "100%",
+                    border: "none",
+                    pointerEvents: "none",
+                  }}
+                  allow="autoplay"
+                  title="YouTube video background"
+                />
+              </div>
+            )}
+
+            {/* Vimeo iframe background */}
+            {backgroundData.backgroundType === 'vimeo' && backgroundData.backgroundVideoUrl && (
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  overflow: "hidden",
+                }}
+              >
+                <iframe
+                  src={`https://player.vimeo.com/video/${extractVimeoId(backgroundData.backgroundVideoUrl)}?autoplay=1&muted=1&loop=1&controls=0`}
+                  style={{
+                    position: "absolute",
+                    width: "100%",
+                    height: "100%",
+                    border: "none",
+                    pointerEvents: "none",
+                  }}
+                  allow="autoplay"
+                  title="Vimeo video background"
+                />
+              </div>
+            )}
+          </>
+        ) : (
+          /* Fallback: Background images from venues — parallax layer */
+          venues.map((v, i) => (
+            <div
+              key={v.id}
               style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                transform: i === idx ? "scale(1.05)" : "scale(1)",
-                transition: "transform 8s ease",
+                position: "absolute",
+                inset: "-8% 0",
+                overflow: "hidden",
+                opacity: i === idx ? 1 : 0,
+                transition: "opacity 2s ease",
+                transform: `translateY(${parallaxY}px)`,
+                willChange: "transform",
               }}
-            />
-          </div>
-        ))}
+            >
+              <img
+                src={v.imgs[0]}
+                alt=""
+                loading={i === 0 ? "eager" : "lazy"}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  transform: i === idx ? "scale(1.05)" : "scale(1)",
+                  transition: "transform 8s ease",
+                }}
+              />
+            </div>
+          ))
+        )}
 
         {/* Cinematic overlays */}
         <div

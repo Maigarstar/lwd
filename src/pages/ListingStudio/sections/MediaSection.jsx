@@ -733,7 +733,7 @@ const MediaSection = ({ formData, onChange }) => {
 
   // ── RENDER ─────────────────────────────────────────────────────────────────
   return (
-    <section style={{ marginBottom: 40, paddingBottom: 40, borderBottom: '1px solid #e5ddd0' }}>
+    <section style={{ marginBottom: 16, padding: 20, borderRadius: 8, border: '1px solid rgba(229,221,208,0.4)', boxShadow: '0 2px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)' }}>
       <h3 style={{ marginBottom: 6, fontSize: 16, fontWeight: 600, color: '#1a1a1a' }}>Media</h3>
       <p style={{ fontSize: 12, color: '#888', marginTop: 0, marginBottom: 28, lineHeight: 1.5 }}>
         Hero images appear prominently at the top of the listing. Gallery, videos and virtual tours appear in the body.

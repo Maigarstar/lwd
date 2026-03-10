@@ -6901,6 +6901,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
               </div>
             }>
               <ListingStudioPage
+                darkMode={darkMode}
                 navigationState={{ mode: listingStudioMode || 'new', listingId: listingStudioListingId }}
                 onNavigate={() => {
                   setListingStudioMode(null);

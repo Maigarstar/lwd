@@ -1,10 +1,9 @@
 /**
  * HomepageEditorPanel — Left panel with section editors
  *
- * Phase 1b: Section Reordering with Drag-and-Drop
- * - Drag handle (≡) for dragging sections
- * - Move buttons (↑↓) as accessibility fallback
+ * - Drag handle (≡) for reordering sections
  * - Hero section locked (cannot move)
+ * - ON/OFF toggle per section with pill-style control
  * - Visual feedback during drag operations
  */
 
@@ -45,27 +44,6 @@ export default function HomepageEditorPanel({
 
   // Sort sections by order property
   const sortedSections = [...sections].sort((a, b) => (a.order || 0) - (b.order || 0));
-
-  // Handle section move up/down (button controls)
-  const handleMoveSection = (sectionId, direction) => {
-    const currentIndex = sortedSections.findIndex(s => s.id === sectionId);
-    if (currentIndex === -1) return;
-
-    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (newIndex < 0 || newIndex >= sortedSections.length) return;
-
-    // Swap order values
-    const orders = sortedSections.map(s => s.order || 0);
-    [orders[currentIndex], orders[newIndex]] = [orders[newIndex], orders[currentIndex]];
-
-    // Update both sections with new orders
-    sortedSections[currentIndex].order = orders[currentIndex];
-    sortedSections[newIndex].order = orders[newIndex];
-
-    // Call onChange for each affected section
-    onSectionChange(sectionId, 'order', orders[currentIndex]);
-    onSectionChange(sortedSections[newIndex].id, 'order', orders[newIndex]);
-  };
 
   // Handle drag start
   const handleDragStart = (e, sectionId, isLocked) => {
@@ -132,7 +110,8 @@ export default function HomepageEditorPanel({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 0,
+        gap: 12,
+        padding: '12px 12px',
       }}
     >
       {/* Render sections sorted by order */}
@@ -141,8 +120,6 @@ export default function HomepageEditorPanel({
         if (!config || !section) return null;
 
         const isLocked = config.locked;
-        const isFirst = index === 0;
-        const isLast = index === sortedSections.length - 1;
         const isDragging = draggedSection === section.id;
         const isDragOver = dragOverIndex === index;
 
@@ -156,12 +133,13 @@ export default function HomepageEditorPanel({
             onDrop={(e) => handleDrop(e, index)}
             onDragEnd={handleDragEnd}
             style={{
-              borderBottom: `1px solid ${C.border}`,
               padding: '16px',
-              backgroundColor: isDragOver ? `${C.gold}15` : 'transparent',
+              backgroundColor: isDragOver ? `${C.gold}15` : C.card || 'rgba(255,255,255,0.03)',
+              borderRadius: 8,
+              border: `1px solid ${isDragOver ? C.gold + '44' : 'rgba(255,255,255,0.06)'}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.25), 0 1px 2px rgba(0,0,0,0.15)',
               opacity: isDragging ? 0.5 : 1,
               transition: 'all 0.2s ease',
-              cursor: isLocked ? 'default' : 'move',
             }}
           >
             {/* Section Header */}
@@ -176,24 +154,19 @@ export default function HomepageEditorPanel({
               {/* Drag Handle (only for unlocked sections) */}
               {!isLocked && (
                 <span
-                  title="Drag to reorder sections"
+                  title="Drag to reorder"
                   style={{
-                    fontSize: 14,
+                    fontSize: 16,
                     fontWeight: 700,
-                    color: C.gold || '#FFD700',
+                    color: C.grey2,
                     cursor: 'grab',
                     userSelect: 'none',
-                    padding: '0 4px',
-                    transition: 'opacity 0.2s ease',
-                    opacity: draggedSection === section.id ? 0.5 : 1,
+                    padding: '2px 4px',
+                    transition: 'color 0.15s ease',
+                    lineHeight: 1,
                   }}
-                  onMouseDown={(e) => {
-                    // Visual feedback for drag handle on mouse down
-                    e.currentTarget.style.opacity = '0.7';
-                  }}
-                  onMouseUp={(e) => {
-                    e.currentTarget.style.opacity = '1';
-                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = C.gold; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = C.grey2; }}
                 >
                   ≡
                 </span>
@@ -230,87 +203,36 @@ export default function HomepageEditorPanel({
                 )}
               </h3>
 
-              {/* Move Controls (only for unlocked sections) */}
-              {!isLocked && (
-                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                  <button
-                    onClick={() => handleMoveSection(section.id, 'up')}
-                    disabled={isFirst}
-                    title={isFirst ? 'Already at top' : 'Move section up'}
-                    style={{
-                      padding: '4px 6px',
-                      backgroundColor: isFirst ? C.grey : C.gold || '#FFD700',
-                      color: isFirst ? C.grey2 : C.black,
-                      border: 'none',
-                      borderRadius: 3,
-                      fontFamily: NU,
-                      fontSize: 10,
-                      fontWeight: 600,
-                      cursor: isFirst ? 'not-allowed' : 'pointer',
-                      opacity: isFirst ? 0.4 : 1,
-                      transition: 'all 0.2s ease',
-                    }}
-                    onMouseOver={(e) => !isFirst && (e.target.style.opacity = '0.8')}
-                    onMouseOut={(e) => !isFirst && (e.target.style.opacity = '1')}
-                  >
-                    ↑
-                  </button>
-                  <button
-                    onClick={() => handleMoveSection(section.id, 'down')}
-                    disabled={isLast}
-                    title={isLast ? 'Already at bottom' : 'Move section down'}
-                    style={{
-                      padding: '4px 6px',
-                      backgroundColor: isLast ? C.grey : C.gold || '#FFD700',
-                      color: isLast ? C.grey2 : C.black,
-                      border: 'none',
-                      borderRadius: 3,
-                      fontFamily: NU,
-                      fontSize: 10,
-                      fontWeight: 600,
-                      cursor: isLast ? 'not-allowed' : 'pointer',
-                      opacity: isLast ? 0.4 : 1,
-                      transition: 'all 0.2s ease',
-                    }}
-                    onMouseOver={(e) => !isLast && (e.target.style.opacity = '0.8')}
-                    onMouseOut={(e) => !isLast && (e.target.style.opacity = '1')}
-                  >
-                    ↓
-                  </button>
-                </div>
-              )}
-
               {/* Enable/Disable Toggle */}
-              <label
+              <button
+                onClick={() => onSectionChange(section.id, 'enabled', !section.enabled)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 6,
+                  gap: 4,
+                  padding: '4px 10px',
+                  borderRadius: 12,
+                  border: 'none',
+                  backgroundColor: section.enabled ? `${C.gold}22` : 'rgba(255,255,255,0.05)',
+                  color: section.enabled ? C.gold : C.grey2,
+                  fontFamily: NU,
+                  fontSize: 9,
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
                   cursor: 'pointer',
+                  transition: 'all 0.15s ease',
                 }}
               >
-                <input
-                  type="checkbox"
-                  checked={section.enabled}
-                  onChange={(e) => onSectionChange(section.id, 'enabled', e.target.checked)}
-                  style={{
-                    cursor: 'pointer',
-                    width: 16,
-                    height: 16,
-                  }}
-                />
-                <span
-                  style={{
-                    fontFamily: NU,
-                    fontSize: 9,
-                    color: C.grey2,
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {section.enabled ? 'On' : 'Off'}
-                </span>
-              </label>
+                <span style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  backgroundColor: section.enabled ? C.gold : C.grey2,
+                  transition: 'background-color 0.15s ease',
+                }} />
+                {section.enabled ? 'On' : 'Off'}
+              </button>
             </div>
 
             {/* Section Body — Render actual section editor */}

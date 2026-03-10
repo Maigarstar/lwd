@@ -20,7 +20,7 @@ import ExperiencesSection from './sections/ExperiencesSection';
 import FAQSectionEditor from './sections/FAQSectionEditor';
 import SEOSection from './sections/SEOSection';
 import ListingInfoSection from './sections/ListingInfoSection';
-import { getLightPalette } from '../../theme/tokens';
+import { getLightPalette, getDarkPalette } from '../../theme/tokens';
 
 /**
  * Listing type configuration — controls which sections are visible
@@ -32,6 +32,29 @@ const LISTING_TYPES = [
   { value: 'photographer',label: 'Photographer',  icon: '📸' },
   { value: 'videographer',label: 'Videographer',  icon: '🎬' },
   { value: 'general',     label: 'General',       icon: '📌' },
+];
+
+/**
+ * Section configuration — maps each editor section to its component, label, icon,
+ * lock status, and visibility condition (based on listing type).
+ */
+const LISTING_SECTIONS = [
+  { id: 'basic',       label: 'Basic Details',        icon: '📋', Component: BasicDetailsSection,      locked: true,  condition: null },
+  { id: 'location',    label: 'Location',             icon: '📍', Component: LocationSection,          locked: false, condition: null },
+  { id: 'description', label: 'Description',          icon: '✎',  Component: DescriptionSection,       locked: false, condition: null },
+  { id: 'features',    label: 'Features & Amenities', icon: '✦',  Component: FeaturesSection,          locked: false, condition: 'showFeatures' },
+  { id: 'commercial',  label: 'Commercial Details',   icon: '£',  Component: CommercialDetailsSection, locked: false, condition: 'showCommercial' },
+  { id: 'media',       label: 'Media',                icon: '🖼',  Component: MediaSection,             locked: false, condition: null },
+  { id: 'spaces',      label: 'Spaces',               icon: '⊞',  Component: SpacesSection,            locked: false, condition: 'showFeatures' },
+  { id: 'rooms',       label: 'Rooms',                icon: '🛏',  Component: RoomsSection,             locked: false, condition: 'showFeatures' },
+  { id: 'dining',      label: 'Dining',               icon: '🍽',  Component: DiningSection,            locked: false, condition: 'showFeatures' },
+  { id: 'catering',    label: 'Catering',             icon: '🍰',  Component: CateringCardsSection,     locked: false, condition: 'showFeatures' },
+  { id: 'exclusive',   label: 'Exclusive Use',        icon: '👑',  Component: ExclusiveUseSection,      locked: false, condition: 'showFeatures' },
+  { id: 'weekend',     label: 'Wedding Weekend',      icon: '📅',  Component: WeddingWeekendSection,    locked: false, condition: 'showFeatures' },
+  { id: 'experiences', label: 'Experiences',          icon: '✧',  Component: ExperiencesSection,       locked: false, condition: 'showFeatures' },
+  { id: 'faq',         label: 'FAQ',                  icon: '❓',  Component: FAQSectionEditor,         locked: false, condition: null },
+  { id: 'seo',         label: 'SEO',                  icon: '🔍',  Component: SEOSection,               locked: false, condition: null },
+  { id: 'info',        label: 'Listing Info',         icon: 'ℹ️',  Component: ListingInfoSection,       locked: false, condition: null },
 ];
 
 /**
@@ -49,7 +72,7 @@ const getSectionVisibility = (listingType) => ({
  * Right: Live preview (50%)
  * Handles creating and editing venue listings
  */
-const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = null }) => {
+const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, onSaveComplete = null }) => {
   const { formData, handleChange, handleSaveDraft, handlePublish, loading, error, hasChanges } = useListingForm(listingId);
   const previewData = useListingPreview(formData);
   const [saveStatus, setSaveStatus] = useState(null);
@@ -58,8 +81,24 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
   const [importToast,    setImportToast]    = useState(null); // { count: n }
   const [viewMode,       setViewMode]       = useState('split');
 
-  // Always use light palette
-  const C = getLightPalette();
+  // Section order and enabled state (persisted to localStorage)
+  const [sectionOrder, setSectionOrder] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('ls_section_prefs'));
+      if (saved?.order?.length === LISTING_SECTIONS.length) return saved.order;
+    } catch {}
+    return LISTING_SECTIONS.map(s => s.id);
+  });
+  const [sectionEnabled, setSectionEnabled] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('ls_section_prefs'));
+      if (saved?.enabled) return { ...Object.fromEntries(LISTING_SECTIONS.map(s => [s.id, true])), ...saved.enabled };
+    } catch {}
+    return Object.fromEntries(LISTING_SECTIONS.map(s => [s.id, true]));
+  });
+
+  // Respect dark/light mode from admin sidebar toggle
+  const C = darkMode ? getDarkPalette() : getLightPalette();
 
   // Determine which sections to show based on listing type
   const { showFeatures, showCommercial } = getSectionVisibility(formData.listing_type);
@@ -76,6 +115,13 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
     }
   }, []);
 
+  // Persist section preferences to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('ls_section_prefs', JSON.stringify({ order: sectionOrder, enabled: sectionEnabled }));
+    } catch {}
+  }, [sectionOrder, sectionEnabled]);
+
   // Handle view mode change
   const handleViewModeChange = useCallback((mode) => {
     setViewMode(mode);
@@ -84,6 +130,24 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
     } catch (e) {
       console.warn('Failed to save view mode preference:', e);
     }
+  }, []);
+
+  // Move section up or down in the order
+  const handleMoveSection = useCallback((sectionId, direction) => {
+    setSectionOrder(prev => {
+      const idx = prev.indexOf(sectionId);
+      if (idx === -1) return prev;
+      const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+      if (swapIdx < 0 || swapIdx >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+      return next;
+    });
+  }, []);
+
+  // Toggle section on/off
+  const handleToggleSection = useCallback((sectionId) => {
+    setSectionEnabled(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
   }, []);
 
   // Handle save as draft
@@ -132,13 +196,30 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
   const showLeftPanel = viewMode !== 'preview';
   const showRightPanel = viewMode !== 'editor';
 
+  // Luxury Design System tokens — adapt to light/dark mode
+  const LUX = darkMode ? {
+    gold: '#C9A84C', goldHover: '#D4B85E',
+    green: '#22C55E', greenHover: '#16A34A',
+    red: '#EF4444', redHover: '#DC2626',
+    bg: C.black, card: C.card,
+    border: C.border,
+    text: C.white, muted: C.grey2,
+  } : {
+    gold: '#8A6A18', goldHover: '#A37C1E',
+    green: '#0B5D3B', greenHover: '#0E7348',
+    red: '#C8102E', redHover: '#A60F26',
+    bg: '#F2EFE9', card: '#F8F6F2',
+    border: '#D9D2C6',
+    text: '#222222', muted: '#777777',
+  };
+
   return (
     <div style={{
       display: 'grid',
       gridTemplateColumns: gridCols,
       gap: 0,
       minHeight: '100vh',
-      backgroundColor: '#fff',
+      backgroundColor: LUX.bg,
       width: '100%',
     }}>
       {/* ═══════════════════════════════════════════════════════
@@ -148,194 +229,46 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
       <div style={{
         overflow: 'auto',
         maxHeight: '100vh',
-        padding: '32px 24px 60px',
-        backgroundColor: C.black,
-        borderRight: viewMode === 'split' ? `1px solid ${C.border}` : 'none',
+        padding: '32px 32px 60px',
+        backgroundColor: LUX.bg,
+        color: LUX.text,
+        borderRight: viewMode === 'split' ? `1px solid ${LUX.border}40` : 'none',
         order: viewMode === 'preview' ? 2 : 1,
-        animation: 'slideInLeft 0.3s ease-out',
       }}>
-        <style>{`
-          @keyframes slideInLeft {
-            from {
-              transform: translateX(-100%);
-              opacity: 0;
-            }
-            to {
-              transform: translateX(0);
-              opacity: 1;
-            }
-          }
-        `}</style>
-
-        {/* ── LISTING TYPE SELECTOR ─────────────────────────── */}
-        <div style={{ marginBottom: 36 }}>
-          <p style={{
-            fontSize: 10,
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '1.5px',
-            color: C.grey,
-            margin: '0 0 10px 0',
-          }}>
-            Listing Type
-          </p>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {LISTING_TYPES.map(type => {
-              const isActive = formData.listing_type === type.value;
-              return (
-                <button
-                  key={type.value}
-                  type="button"
-                  onClick={() => handleChange('listing_type', type.value)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    padding: '7px 14px',
-                    fontSize: 12,
-                    fontWeight: isActive ? 700 : 500,
-                    border: `1px solid ${isActive ? C.gold : C.border}`,
-                    borderRadius: 20,
-                    backgroundColor: isActive ? C.gold : 'transparent',
-                    color: isActive ? '#fff' : C.grey,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    letterSpacing: '0.2px',
-                  }}
-                >
-                  <span style={{ fontSize: 13 }}>{type.icon}</span>
-                  {type.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
 
         {/* ── PAGE HEADER ───────────────────────────────────── */}
-        <div style={{ marginBottom: 36, paddingBottom: 24, borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ marginBottom: 24 }}>
           <h1 style={{
-            fontSize: 28,
+            fontSize: 26,
             fontWeight: 600,
-            color: C.white,
+            color: LUX.text,
             margin: '0 0 4px 0',
             lineHeight: 1.2,
           }}>
             {pageTitle}
           </h1>
-          <p style={{ fontSize: 13, color: C.grey, margin: 0 }}>
+          <p style={{ fontSize: 14, color: LUX.muted, margin: 0, fontWeight: 400 }}>
             {currentType.icon} {currentType.label} listing
             {isEditing ? ' — update details below' : ' — fill in the details below'}
           </p>
         </div>
 
-        {/* ── TOP ACTION BAR (sticky) ─────────────────────────── */}
+        {/* ── WORKSPACE BAR (sticky, light) ─────────────────── */}
         <div style={{
           position: 'sticky',
           top: 0,
-          zIndex: 20,
-          backgroundColor: C.black,
-          paddingBottom: 16,
-          marginBottom: 20,
-          borderBottom: `1px solid ${C.border}`,
+          zIndex: 21,
+          backgroundColor: LUX.bg,
+          padding: '12px 0',
           display: 'flex',
-          gap: 10,
-          alignItems: 'center',
+          justifyContent: 'center',
         }}>
-          {/* Discard */}
-          <button
-            type="button"
-            onClick={handleDiscardClick}
-            disabled={loading}
-            style={{
-              padding: '8px 16px',
-              fontSize: 12,
-              backgroundColor: 'transparent',
-              color: C.grey,
-              border: `1px solid ${C.border}`,
-              borderRadius: 3,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.6 : 1,
-              fontWeight: 500,
-              transition: 'all 0.2s ease',
-            }}
-          >
-            Discard
-          </button>
-
-          {/* Save as Draft */}
-          <button
-            type="button"
-            onClick={handleSaveDraftClick}
-            disabled={loading || !hasChanges}
-            style={{
-              padding: '8px 16px',
-              fontSize: 12,
-              backgroundColor: '#555',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 3,
-              cursor: loading || !hasChanges ? 'not-allowed' : 'pointer',
-              opacity: loading || !hasChanges ? 0.5 : 1,
-              fontWeight: 500,
-              transition: 'all 0.2s ease',
-            }}
-          >
-            {saveStatus === 'saving' ? 'Saving…' : 'Save Draft'}
-          </button>
-
-          {/* Populate with AI */}
-          <button
-            type="button"
-            onClick={() => setShowAIImport(true)}
-            disabled={loading}
-            style={{
-              padding: '8px 14px',
-              fontSize: 12,
-              backgroundColor: C.gold,
-              color: '#fff',
-              border: 'none',
-              borderRadius: 3,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.5 : 1,
-              fontWeight: 700,
-              transition: 'all 0.2s ease',
-              letterSpacing: '0.2px',
-            }}
-          >
-            📂 Populate with AI
-          </button>
-
-          {/* AI Fill (quick, text-only) */}
-          <button
-            type="button"
-            onClick={() => setShowAITools(true)}
-            disabled={loading}
-            style={{
-              padding: '8px 12px',
-              fontSize: 12,
-              backgroundColor: 'transparent',
-              color: C.gold,
-              border: `1px solid ${C.gold}`,
-              borderRadius: 3,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.5 : 1,
-              fontWeight: 600,
-              transition: 'all 0.2s ease',
-              letterSpacing: '0.2px',
-            }}
-          >
-            ✦ Fill
-          </button>
-
-          {/* View Mode Control — Split / Editor / Preview */}
-          <div
-            style={{
-              display: 'flex',
-              gap: 4,
-              paddingRight: 8,
-              borderRight: `1px solid ${C.border}`,
-            }}
-          >
+          <div style={{
+            display: 'inline-flex',
+            borderRadius: 6,
+            overflow: 'hidden',
+            border: `1px solid ${LUX.border}`,
+          }}>
             {['split', 'editor', 'preview'].map((mode) => {
               const modeLabel = mode === 'split' ? 'Split' : mode === 'editor' ? 'Editor' : 'Preview';
               const isActive = viewMode === mode;
@@ -344,52 +277,150 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
                   key={mode}
                   type="button"
                   onClick={() => handleViewModeChange(mode)}
-                  title={modeLabel}
                   style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    letterSpacing: '0.5px',
-                    textTransform: 'uppercase',
-                    padding: '8px 10px',
-                    backgroundColor: isActive ? C.gold : 'transparent',
-                    color: isActive ? '#fff' : C.grey2,
-                    border: `1px solid ${isActive ? C.gold : C.border}`,
-                    borderRadius: 3,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    padding: '10px 18px',
+                    backgroundColor: isActive ? LUX.gold : '#F4F1EA',
+                    color: isActive ? '#FFFFFF' : LUX.muted,
+                    border: 'none',
+                    borderRight: mode !== 'preview' ? `1px solid ${LUX.border}` : 'none',
                     cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    opacity: isActive ? 1 : 0.7,
+                    transition: 'all 0.14s ease',
                   }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = isActive ? C.gold2 : `${C.gold}22`;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = isActive ? C.gold : 'transparent';
-                  }}
+                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = '#EDE9E0'; }}
+                  onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = '#F4F1EA'; }}
                 >
                   {modeLabel}
                 </button>
               );
             })}
           </div>
+        </div>
 
-          {/* Publish */}
+        {/* ── LISTING ACTION BAR (sticky below workspace bar) ── */}
+        <div style={{
+          position: 'sticky',
+          top: 48,
+          zIndex: 20,
+          backgroundColor: LUX.bg,
+          padding: '12px 0 16px',
+          borderBottom: `1px solid ${LUX.border}40`,
+          marginBottom: 32,
+          display: 'flex',
+          gap: 8,
+          alignItems: 'center',
+        }}>
+          {/* Left group: Venue selector + AI tools */}
+          <select
+            value={formData.listing_type || 'venue'}
+            onChange={(e) => handleChange('listing_type', e.target.value)}
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              padding: '10px 18px',
+              backgroundColor: '#F4EFE6',
+              color: LUX.text,
+              border: `1px solid ${LUX.border}`,
+              borderRadius: 6,
+              cursor: 'pointer',
+              transition: 'all 0.14s ease',
+              appearance: 'none',
+              WebkitAppearance: 'none',
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23777777'/%3E%3C/svg%3E")`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 12px center',
+              paddingRight: 32,
+            }}
+          >
+            {LISTING_TYPES.map(type => (
+              <option key={type.value} value={type.value}>
+                {type.icon} {type.label}
+              </option>
+            ))}
+          </select>
+
+          <button
+            type="button"
+            onClick={() => setShowAIImport(true)}
+            disabled={loading}
+            style={{
+              fontSize: 14, fontWeight: 600, padding: '10px 18px',
+              backgroundColor: LUX.gold, color: '#fff', border: 'none',
+              borderRadius: 6, cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.5 : 1, transition: 'all 0.14s ease',
+            }}
+            onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = LUX.goldHover; }}
+            onMouseLeave={(e) => { if (!loading) e.currentTarget.style.backgroundColor = LUX.gold; }}
+          >
+            ★ Magic AI
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowAITools(true)}
+            disabled={loading}
+            style={{
+              fontSize: 14, fontWeight: 600, padding: '10px 18px',
+              backgroundColor: '#F4EFE6', color: LUX.text,
+              border: `1px solid ${LUX.border}`, borderRadius: 6,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.5 : 1, transition: 'all 0.14s ease',
+            }}
+            onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = '#EDE9E0'; }}
+            onMouseLeave={(e) => { if (!loading) e.currentTarget.style.backgroundColor = '#F4EFE6'; }}
+          >
+            ✦ Fill
+          </button>
+
+          {/* Right group: Save actions */}
+          <div style={{ marginLeft: 'auto' }} />
+
+          <button
+            type="button"
+            onClick={handleDiscardClick}
+            disabled={loading}
+            style={{
+              fontSize: 14, fontWeight: 600, padding: '10px 18px',
+              backgroundColor: '#F3F1EC', color: LUX.muted,
+              border: `1px solid ${LUX.border}`, borderRadius: 6,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.6 : 1, transition: 'all 0.14s ease',
+            }}
+            onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = '#EDE9E0'; }}
+            onMouseLeave={(e) => { if (!loading) e.currentTarget.style.backgroundColor = '#F3F1EC'; }}
+          >
+            Discard
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSaveDraftClick}
+            disabled={loading || !hasChanges}
+            style={{
+              fontSize: 14, fontWeight: 600, padding: '10px 18px',
+              backgroundColor: LUX.green, color: '#fff', border: 'none',
+              borderRadius: 6, cursor: loading || !hasChanges ? 'not-allowed' : 'pointer',
+              opacity: loading || !hasChanges ? 0.5 : 1, transition: 'all 0.14s ease',
+            }}
+            onMouseEnter={(e) => { if (!loading && hasChanges) e.currentTarget.style.backgroundColor = LUX.greenHover; }}
+            onMouseLeave={(e) => { if (!loading && hasChanges) e.currentTarget.style.backgroundColor = LUX.green; }}
+          >
+            {saveStatus === 'saving' ? 'Saving…' : 'Save Draft'}
+          </button>
+
           <button
             type="button"
             onClick={handlePublishClick}
             disabled={loading}
             style={{
-              padding: '8px 18px',
-              fontSize: 12,
-              backgroundColor: C.gold,
-              color: '#fff',
-              border: 'none',
-              borderRadius: 3,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.6 : 1,
-              fontWeight: 700,
-              transition: 'all 0.2s ease',
-              marginLeft: 'auto',
+              fontSize: 14, fontWeight: 600, padding: '10px 18px',
+              backgroundColor: LUX.gold, color: '#fff', border: 'none',
+              borderRadius: 6, cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.6 : 1, transition: 'all 0.14s ease',
             }}
+            onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = LUX.goldHover; }}
+            onMouseLeave={(e) => { if (!loading) e.currentTarget.style.backgroundColor = LUX.gold; }}
           >
             {saveStatus === 'publishing' ? 'Publishing…' : '↑ Publish'}
           </button>
@@ -424,12 +455,12 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
         {/* ── AI IMPORT SUCCESS TOAST ──────────────────────── */}
         {importToast && (
           <div style={{
-            backgroundColor: '#f0fdf4',
-            color: '#15803d',
+            backgroundColor: darkMode ? '#064e3b' : '#f0fdf4',
+            color: darkMode ? '#bbf7d0' : LUX.green,
             padding: '12px 16px',
-            borderRadius: 4,
+            borderRadius: 6,
             marginBottom: 16,
-            border: '1px solid #bbf7d0',
+            border: `1px solid ${darkMode ? '#059669' : '#bbf7d0'}`,
             fontSize: 13,
             display: 'flex',
             alignItems: 'center',
@@ -446,12 +477,12 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
         {/* ── ERROR / SUCCESS MESSAGES ──────────────────────── */}
         {error && (
           <div style={{
-            backgroundColor: '#fef2f2',
-            color: '#991b1b',
+            backgroundColor: darkMode ? '#7f1d1d' : '#fef2f2',
+            color: darkMode ? '#fecaca' : '#991b1b',
             padding: '12px 16px',
-            borderRadius: 4,
+            borderRadius: 6,
             marginBottom: 20,
-            border: '1px solid #fecaca',
+            border: `1px solid ${darkMode ? '#991b1b' : '#fecaca'}`,
             fontSize: 13,
           }}>
             ⚠️ {error}
@@ -460,12 +491,12 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
 
         {(saveStatus === 'saved' || saveStatus === 'published') && (
           <div style={{
-            backgroundColor: '#064e3b',
-            color: '#ecfdf5',
+            backgroundColor: darkMode ? '#064e3b' : '#f0fdf4',
+            color: darkMode ? '#ecfdf5' : LUX.green,
             padding: '14px 20px',
             borderRadius: 6,
             marginBottom: 24,
-            border: '1px solid #059669',
+            border: `1px solid ${darkMode ? '#059669' : '#bbf7d0'}`,
             fontSize: 13,
             fontWeight: 600,
             display: 'flex',
@@ -483,12 +514,12 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
         )}
         {saveStatus === 'saving' && (
           <div style={{
-            backgroundColor: '#1e293b',
-            color: '#94a3b8',
+            backgroundColor: darkMode ? '#1e293b' : '#f8fafc',
+            color: darkMode ? '#94a3b8' : LUX.muted,
             padding: '14px 20px',
             borderRadius: 6,
             marginBottom: 24,
-            border: '1px solid #334155',
+            border: `1px solid ${darkMode ? '#334155' : LUX.border}`,
             fontSize: 13,
             fontWeight: 500,
           }}>
@@ -496,135 +527,132 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
           </div>
         )}
 
-        {/* ── FORM SECTIONS ─────────────────────────────────── */}
-        <form style={{ marginBottom: 40 }}>
+        {/* ── FORM SECTIONS (array-based with controls) ───── */}
+        <form style={{ marginBottom: 40, padding: '0 4px' }}>
+          {(() => {
+            // Compute visible sections based on listing type conditions
+            const visibleIds = sectionOrder.filter(id => {
+              const cfg = LISTING_SECTIONS.find(s => s.id === id);
+              if (!cfg) return false;
+              if (cfg.condition === 'showFeatures' && !showFeatures) return false;
+              if (cfg.condition === 'showCommercial' && !showCommercial) return false;
+              return true;
+            });
 
-          {/* Always visible sections */}
-          <BasicDetailsSection formData={formData} onChange={handleChange} />
-          <LocationSection formData={formData} onChange={handleChange} />
-          <DescriptionSection formData={formData} onChange={handleChange} />
+            return visibleIds.map((sectionId, visIdx) => {
+              const config = LISTING_SECTIONS.find(s => s.id === sectionId);
+              if (!config) return null;
 
-          {/* Venue-only: Features & Amenities */}
-          {showFeatures && (
-            <FeaturesSection formData={formData} onChange={handleChange} />
-          )}
+              const isEnabled = sectionEnabled[sectionId];
+              const isLocked = config.locked;
+              const isFirst = visIdx === 0;
+              const isLast = visIdx === visibleIds.length - 1;
+              const SectionComponent = config.Component;
 
-          {/* All except General: Commercial Details */}
-          {showCommercial && (
-            <CommercialDetailsSection formData={formData} onChange={handleChange} />
-          )}
+              return (
+                <div key={sectionId} style={{ marginBottom: 24 }}>
+                  {/* Section Header Bar */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '10px 16px',
+                    backgroundColor: LUX.card,
+                    border: `1px solid ${LUX.border}`,
+                    borderRadius: isEnabled ? '8px 8px 0 0' : 8,
+                    borderBottom: isEnabled ? 'none' : undefined,
+                  }}>
+                    {/* Move Up/Down — only for unlocked sections */}
+                    {!isLocked ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        <button
+                          type="button"
+                          onClick={() => handleMoveSection(sectionId, 'up')}
+                          disabled={isFirst}
+                          style={{
+                            background: 'none', border: 'none', cursor: isFirst ? 'default' : 'pointer',
+                            fontSize: 10, lineHeight: 1, padding: '1px 4px',
+                            color: isFirst ? LUX.border : LUX.muted, transition: 'color 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => { if (!isFirst) e.currentTarget.style.color = LUX.gold; }}
+                          onMouseLeave={(e) => { if (!isFirst) e.currentTarget.style.color = LUX.muted; }}
+                        >▲</button>
+                        <button
+                          type="button"
+                          onClick={() => handleMoveSection(sectionId, 'down')}
+                          disabled={isLast}
+                          style={{
+                            background: 'none', border: 'none', cursor: isLast ? 'default' : 'pointer',
+                            fontSize: 10, lineHeight: 1, padding: '1px 4px',
+                            color: isLast ? LUX.border : LUX.muted, transition: 'color 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => { if (!isLast) e.currentTarget.style.color = LUX.gold; }}
+                          onMouseLeave={(e) => { if (!isLast) e.currentTarget.style.color = LUX.muted; }}
+                        >▼</button>
+                      </div>
+                    ) : (
+                      <div style={{ width: 20 }} />
+                    )}
 
-          {/* Always visible sections */}
-          <MediaSection formData={formData} onChange={handleChange} />
+                    {/* Icon */}
+                    <span style={{ fontSize: 14 }}>{config.icon}</span>
 
-          {/* Venue-only: Spaces, Rooms & Dining */}
-          {showFeatures && (
-            <SpacesSection formData={formData} onChange={handleChange} />
-          )}
-          {showFeatures && (
-            <RoomsSection formData={formData} onChange={handleChange} />
-          )}
-          {showFeatures && (
-            <DiningSection formData={formData} onChange={handleChange} />
-          )}
-          {showFeatures && (
-            <CateringCardsSection formData={formData} onChange={handleChange} />
-          )}
-          {showFeatures && (
-            <ExclusiveUseSection formData={formData} onChange={handleChange} />
-          )}
+                    {/* Label */}
+                    <span style={{
+                      flex: 1, fontSize: 15, fontWeight: 600, color: LUX.text,
+                      display: 'flex', alignItems: 'center', gap: 8,
+                    }}>
+                      {config.label}
+                      {isLocked && (
+                        <span style={{
+                          fontSize: 9, fontWeight: 700, color: LUX.gold,
+                          textTransform: 'uppercase', letterSpacing: '0.05em',
+                        }}>
+                          🔒 Locked
+                        </span>
+                      )}
+                    </span>
 
-          {/* Venue-only: Wedding Weekend + Experiences + FAQ */}
-          {showFeatures && (
-            <WeddingWeekendSection formData={formData} onChange={handleChange} />
-          )}
-          {showFeatures && (
-            <ExperiencesSection formData={formData} onChange={handleChange} />
-          )}
-          <FAQSectionEditor formData={formData} onChange={handleChange} />
+                    {/* On/Off Toggle */}
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSection(sectionId)}
+                      disabled={isLocked}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 4,
+                        padding: '3px 10px', borderRadius: 12, border: 'none',
+                        backgroundColor: isEnabled ? `${LUX.gold}22` : (darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
+                        color: isEnabled ? LUX.gold : LUX.muted,
+                        fontSize: 9, fontWeight: 700, textTransform: 'uppercase',
+                        letterSpacing: '0.05em', cursor: isLocked ? 'default' : 'pointer',
+                        transition: 'all 0.15s ease', opacity: isLocked ? 0.5 : 1,
+                      }}
+                    >
+                      <span style={{
+                        width: 6, height: 6, borderRadius: '50%',
+                        backgroundColor: isEnabled ? LUX.gold : LUX.muted,
+                        transition: 'background-color 0.15s ease',
+                      }} />
+                      {isEnabled ? 'On' : 'Off'}
+                    </button>
+                  </div>
 
-          <SEOSection formData={formData} onChange={handleChange} />
-          <ListingInfoSection formData={formData} onChange={handleChange} />
-
-          {/* ── ACTION BUTTONS ─────────────────────────────── */}
-          <div style={{
-            marginTop: 40,
-            paddingTop: 20,
-            borderTop: `1px solid ${C.border}`,
-            display: 'flex',
-            gap: 10,
-            alignItems: 'center',
-          }}>
-            {/* Discard */}
-            <button
-              type="button"
-              onClick={handleDiscardClick}
-              disabled={loading}
-              style={{
-                padding: '10px 20px',
-                fontSize: 13,
-                backgroundColor: 'transparent',
-                color: C.grey,
-                border: `1px solid ${C.border}`,
-                borderRadius: 3,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.6 : 1,
-                fontWeight: 500,
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={(e) => { if (!loading) e.target.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
-              onMouseLeave={(e) => { e.target.style.backgroundColor = 'transparent'; }}
-            >
-              Discard
-            </button>
-
-            {/* Save as Draft */}
-            <button
-              type="button"
-              onClick={handleSaveDraftClick}
-              disabled={loading || !hasChanges}
-              style={{
-                padding: '10px 20px',
-                fontSize: 13,
-                backgroundColor: '#555',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 3,
-                cursor: loading || !hasChanges ? 'not-allowed' : 'pointer',
-                opacity: loading || !hasChanges ? 0.5 : 1,
-                fontWeight: 500,
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={(e) => { if (!loading && hasChanges) e.target.style.backgroundColor = '#333'; }}
-              onMouseLeave={(e) => { e.target.style.backgroundColor = '#555'; }}
-            >
-              {saveStatus === 'saving' ? 'Saving…' : 'Save Draft'}
-            </button>
-
-            {/* Publish */}
-            <button
-              type="button"
-              onClick={handlePublishClick}
-              disabled={loading}
-              style={{
-                padding: '10px 24px',
-                fontSize: 13,
-                backgroundColor: C.gold,
-                color: '#fff',
-                border: 'none',
-                borderRadius: 3,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.6 : 1,
-                fontWeight: 700,
-                transition: 'all 0.2s ease',
-                marginLeft: 'auto',
-              }}
-              onMouseEnter={(e) => { if (!loading) e.target.style.backgroundColor = C.gold2; }}
-              onMouseLeave={(e) => { e.target.style.backgroundColor = C.gold; }}
-            >
-              {saveStatus === 'publishing' ? 'Publishing…' : '↑ Publish Listing'}
-            </button>
-          </div>
+                  {/* Section Content — always light card for form readability */}
+                  {isEnabled && (
+                    <div style={{
+                      backgroundColor: '#ffffff',
+                      color: '#1a1a1a',
+                      borderRadius: '0 0 8px 8px',
+                      border: `1px solid ${LUX.border}`,
+                      borderTop: 'none',
+                    }}>
+                      <SectionComponent formData={formData} onChange={handleChange} />
+                    </div>
+                  )}
+                </div>
+              );
+            });
+          })()}
         </form>
       </div>
       )}
@@ -637,21 +665,21 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
         display: 'flex',
         flexDirection: 'column',
         height: '100vh',
-        backgroundColor: '#f9f7f3',
+        backgroundColor: darkMode ? C.black : '#f9f7f3',
         order: viewMode === 'preview' ? 1 : 2,
       }}>
         {/* Preview Header */}
         <div style={{
           padding: '12px 16px',
-          borderBottom: `1px solid ${C.border}`,
+          borderBottom: `1px solid ${LUX.border}`,
           display: 'flex',
           alignItems: 'center',
           gap: 8,
           justifyContent: 'space-between',
-          backgroundColor: '#fff',
+          backgroundColor: LUX.card,
           minHeight: 50,
         }}>
-          <span style={{ fontSize: 12, color: C.grey2 }}>
+          <span style={{ fontSize: 12, color: LUX.muted }}>
             LIVE PREVIEW
           </span>
 
@@ -672,19 +700,19 @@ const ListingEditor = ({ listingId = null, onCancel = null, onSaveComplete = nul
                     letterSpacing: '0.06em',
                     textTransform: 'uppercase',
                     padding: '6px 8px',
-                    backgroundColor: isActive ? C.gold : 'transparent',
-                    color: isActive ? '#fff' : C.grey2,
-                    border: `1px solid ${isActive ? C.gold : C.border}`,
-                    borderRadius: 3,
+                    backgroundColor: isActive ? LUX.gold : 'transparent',
+                    color: isActive ? '#fff' : LUX.muted,
+                    border: `1px solid ${isActive ? LUX.gold : LUX.border}`,
+                    borderRadius: 6,
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                     opacity: isActive ? 1 : 0.7,
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = isActive ? C.gold2 || '#7a5c0f' : `${C.gold}22`;
+                    e.currentTarget.style.backgroundColor = isActive ? LUX.goldHover : `${LUX.gold}22`;
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = isActive ? C.gold : 'transparent';
+                    e.currentTarget.style.backgroundColor = isActive ? LUX.gold : 'transparent';
                   }}
                 >
                   {modeLabel}

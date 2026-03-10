@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import usePageForm from './hooks/usePageForm';
 import usePagePreview from './hooks/usePagePreview';
+import useViewMode from './hooks/useViewMode';
 import PageSaveBar from './components/PageSaveBar';
 import HomepageEditorPanel from './components/HomepageEditorPanel';
 import HomepagePreview from './components/HomepagePreview';
+import HomepageAIImportPanel from './components/HomepageAIImportPanel';
 
 /**
  * PageEditorLive — Full page editor with 50/50 split layout
@@ -28,9 +30,10 @@ import HomepagePreview from './components/HomepagePreview';
 export default function PageEditorLive({ pageId, C, NU, GD, onNavigate }) {
   const pageForm = usePageForm(pageId);
   const previewData = usePagePreview(pageForm.formData, 200);
+  const { viewMode, handleViewModeChange, gridCols, showLeftPanel, showRightPanel } = useViewMode('ps_view_mode');
 
-  // View Mode state (Split View, Editor Only, Preview Only)
-  const [viewMode, setViewMode] = useState('split');
+  const [showAIImport, setShowAIImport] = useState(false);
+  const [importToast, setImportToast] = useState(null);
 
   // Load page on mount (for existing pages)
   useEffect(() => {
@@ -39,39 +42,10 @@ export default function PageEditorLive({ pageId, C, NU, GD, onNavigate }) {
     }
   }, [pageId]);
 
-  // Load view mode preference from localStorage on mount
-  useEffect(() => {
-    try {
-      const savedMode = localStorage.getItem('ps_view_mode');
-      if (savedMode && ['split', 'editor', 'preview'].includes(savedMode)) {
-        setViewMode(savedMode);
-      }
-    } catch (e) {
-      console.warn('Failed to load view mode preference:', e);
-    }
-  }, []);
-
-  // Handle view mode change
-  const handleViewModeChange = (mode) => {
-    setViewMode(mode);
-    try {
-      localStorage.setItem('ps_view_mode', mode);
-    } catch (e) {
-      console.warn('Failed to save view mode preference:', e);
-    }
-  };
-
   // Handle "Populate with AI" button click
   const handlePopulateAI = () => {
-    console.log('TODO: Integrate AIPageImportPanel in Phase 2');
-    // In Phase 2+:
-    // setShowAIImportPanel(true);
+    setShowAIImport(true);
   };
-
-  // Compute grid layout and panel visibility based on viewMode
-  const gridCols = viewMode === 'editor' ? '1fr' : viewMode === 'preview' ? '1fr' : '1fr 1fr';
-  const showLeftPanel = viewMode !== 'preview';
-  const showRightPanel = viewMode !== 'editor';
 
   return (
     <div
@@ -175,6 +149,30 @@ export default function PageEditorLive({ pageId, C, NU, GD, onNavigate }) {
             backgroundColor: C.black,
           }}
         >
+          {/* Page Details — Title + Excerpt */}
+          <div style={{ padding: '12px 16px', borderBottom: `1px solid ${C.border}` }}>
+            <label style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.grey2, display: 'block', marginBottom: 4 }}>
+              Page Excerpt
+            </label>
+            <textarea
+              value={pageForm.formData.excerpt || ''}
+              onChange={(e) => pageForm.onChange('excerpt', e.target.value)}
+              placeholder="Short summary of the page — used in meta descriptions, cards, and AI context"
+              rows={2}
+              style={{
+                width: '100%',
+                padding: '8px 10px',
+                fontSize: 12,
+                fontFamily: NU,
+                backgroundColor: C.card,
+                color: C.white,
+                border: `1px solid ${C.border}`,
+                borderRadius: 3,
+                resize: 'vertical',
+              }}
+            />
+          </div>
+
           <HomepageEditorPanel
             formData={pageForm.formData}
             onSectionChange={pageForm.onSectionChange}
@@ -204,53 +202,11 @@ export default function PageEditorLive({ pageId, C, NU, GD, onNavigate }) {
             borderBottom: `1px solid ${C.border}`,
             display: 'flex',
             alignItems: 'center',
-            gap: 8,
-            justifyContent: 'space-between',
           }}
         >
-          <span style={{ fontSize: 12, color: C.grey2, fontFamily: NU }}>
+          <span style={{ fontSize: 12, color: C.grey2, fontFamily: NU, letterSpacing: '0.06em' }}>
             LIVE PREVIEW
           </span>
-
-          {/* View Mode Control — Only visible in Preview-Only mode */}
-          {viewMode === 'preview' && (
-          <div style={{ display: 'flex', gap: 4 }}>
-            {['split', 'editor', 'preview'].map((mode) => {
-              const modeLabel = mode === 'split' ? 'Split' : mode === 'editor' ? 'Editor' : 'Preview';
-              const isActive = viewMode === mode;
-              return (
-                <button
-                  key={mode}
-                  onClick={() => handleViewModeChange(mode)}
-                  title={modeLabel}
-                  style={{
-                    fontFamily: NU,
-                    fontSize: 10,
-                    fontWeight: 700,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    padding: '6px 8px',
-                    backgroundColor: isActive ? C.gold : 'transparent',
-                    color: isActive ? '#fff' : C.grey2,
-                    border: `1px solid ${isActive ? C.gold : C.border}`,
-                    borderRadius: 3,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    opacity: isActive ? 1 : 0.7,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = isActive ? C.gold2 || '#7a5c0f' : `${C.gold}22`;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = isActive ? C.gold : 'transparent';
-                  }}
-                >
-                  {modeLabel}
-                </button>
-              );
-            })}
-          </div>
-          )}
         </div>
 
         {/* Scrollable Preview */}
@@ -267,7 +223,49 @@ export default function PageEditorLive({ pageId, C, NU, GD, onNavigate }) {
       </div>
       )}
 
-      {/* TODO: AIPageImportPanel integration in Phase 2+ */}
+      {/* AI Import Panel */}
+      {showAIImport && (
+        <HomepageAIImportPanel
+          formData={pageForm.formData}
+          onChange={pageForm.onChange}
+          onSectionChange={pageForm.onSectionChange}
+          onClose={(appliedCount) => {
+            setShowAIImport(false);
+            if (appliedCount > 0) {
+              setImportToast({ count: appliedCount });
+              setTimeout(() => setImportToast(null), 5000);
+            }
+          }}
+        />
+      )}
+
+      {/* AI Import Toast */}
+      {importToast && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            backgroundColor: '#064e3b',
+            color: '#fff',
+            padding: '12px 20px',
+            borderRadius: 6,
+            fontFamily: NU,
+            fontSize: 13,
+            zIndex: 999,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+            animation: 'slideUpToast 0.3s ease',
+          }}
+        >
+          AI applied {importToast.count} section{importToast.count > 1 ? 's' : ''} to Homepage
+          <style>{`
+            @keyframes slideUpToast {
+              from { transform: translateY(20px); opacity: 0; }
+              to { transform: translateY(0); opacity: 1; }
+            }
+          `}</style>
+        </div>
+      )}
     </div>
   );
 }

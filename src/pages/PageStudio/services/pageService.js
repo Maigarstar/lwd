@@ -26,7 +26,7 @@ export async function createPage(formData) {
       slug: formData.slug,
       page_type: formData.pageType,
       status: formData.status,
-      content: formData.sections, // Full section data with custom fields
+      content: { sections: formData.sections, excerpt: formData.excerpt || '' },
       seo: formData.seo,
       updated_at: formData.updatedAt,
       published_at: formData.publishedAt,
@@ -58,7 +58,7 @@ export async function updatePage(pageId, formData) {
       slug: formData.slug,
       page_type: formData.pageType,
       status: formData.status,
-      content: formData.sections, // Full section data with custom fields
+      content: { sections: formData.sections, excerpt: formData.excerpt || '' },
       seo: formData.seo,
       updated_at: formData.updatedAt,
       published_at: formData.publishedAt,
@@ -116,14 +116,20 @@ export async function getPageById(pageId) {
     }
 
     // Map database fields back to formData shape
+    // Handle both old array format (sections only) and new object format ({ sections, excerpt })
     if (data) {
+      const contentObj = Array.isArray(data.content)
+        ? { sections: data.content, excerpt: '' }
+        : data.content || { sections: [], excerpt: '' };
+
       return {
         id: data.id,
         title: data.title,
         slug: data.slug,
         pageType: data.page_type,
         status: data.status,
-        sections: data.content || [],
+        sections: contentObj.sections || [],
+        excerpt: contentObj.excerpt || '',
         seo: data.seo || { title: '', metaDescription: '', keywords: [] },
         updatedAt: data.updated_at,
         publishedAt: data.published_at,
@@ -148,7 +154,7 @@ export async function publishPage(pageId, formData) {
       slug: formData.slug,
       page_type: formData.pageType,
       status: 'published',
-      content: formData.sections,
+      content: { sections: formData.sections, excerpt: formData.excerpt || '' },
       seo: formData.seo,
       updated_at: formData.updatedAt,
       published_at: now,

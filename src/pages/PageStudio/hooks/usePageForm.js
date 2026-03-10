@@ -19,6 +19,7 @@ export default function usePageForm(initialPageId) {
     id: initialPageId || 'page_home',
     title: 'Homepage',
     slug: '/',
+    excerpt: '',
     pageType: 'homepage',
     status: 'draft',
     sections: [

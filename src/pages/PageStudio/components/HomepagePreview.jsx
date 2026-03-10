@@ -32,9 +32,15 @@ const SECTION_COMPONENTS = {
 };
 
 // Default props for each section component
-const getSectionProps = (sectionId) => {
+const getSectionProps = (sectionId, formData) => {
   switch (sectionId) {
-    case 'hero':
+    case 'hero': {
+      const heroSection = (formData?.sections || []).find(s => s.id === 'hero');
+      return {
+        venues: FEATURED_VENUES, // Fallback if no background media
+        backgroundData: heroSection?.backgroundData || null,
+      };
+    }
     case 'venues':
     case 'featured':
       return { venues: FEATURED_VENUES };
@@ -54,16 +60,22 @@ export default function HomepagePreview({ formData, C }) {
   return (
     <ThemeCtx.Provider value={C}>
       <div style={{ backgroundColor: C.black, minHeight: '100vh' }}>
-        {/* Render sections in sorted order */}
+        {/* Render sections in sorted order — disabled sections fade out instantly */}
         {sortedSections.map((section) => {
-          if (!section.enabled) return null;
-
           const Component = SECTION_COMPONENTS[section.id];
           if (!Component) return null;
 
           return (
-            <div key={section.id}>
-              <Component {...getSectionProps(section.id)} />
+            <div
+              key={section.id}
+              style={{
+                opacity: section.enabled ? 1 : 0,
+                maxHeight: section.enabled ? 'none' : 0,
+                overflow: section.enabled ? 'visible' : 'hidden',
+                transition: 'opacity 0.25s ease',
+              }}
+            >
+              <Component {...getSectionProps(section.id, formData)} />
               {section.customFields?.length > 0 && (
                 <CustomFieldsDisplay customFields={section.customFields} C={C} NU="system-ui" />
               )}
