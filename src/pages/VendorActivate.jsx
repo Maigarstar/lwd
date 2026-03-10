@@ -63,7 +63,7 @@ export default function VendorActivate({ activationToken, onActivationSuccess })
         if (data.activation_token_expires_at) {
           const expiresAt = new Date(data.activation_token_expires_at);
           if (expiresAt < new Date()) {
-            setTokenError("Activation token has expired");
+            setTokenError("This activation link has expired. Please request a new invitation from support@luxuryweddingdirectory.com");
             setIsLoading(false);
             return;
           }

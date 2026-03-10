@@ -100,7 +100,7 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(0,0,0,0.5)",
+        backgroundColor: "rgba(0,0,0,0.25)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -112,7 +112,7 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
         style={{
           backgroundColor: C.card,
           borderRadius: "var(--lwd-radius-container)",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
           maxWidth: 500,
           width: "90%",
           maxHeight: "90vh",
@@ -124,7 +124,7 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
         <div
           style={{
             padding: "20px",
-            borderBottom: `1px solid ${C.grey}20`,
+            borderBottom: `1px solid ${C.border}`,
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
@@ -160,7 +160,7 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
               placeholder="e.g., The Grand Pavilion"
               style={inputStyle(C, errors.vendorName)}
             />
-            {errors.vendorName && <div style={errorStyle}>{errors.vendorName}</div>}
+            {errors.vendorName && <div style={errorStyle(C)}>{errors.vendorName}</div>}
           </div>
 
           {/* Email */}
@@ -176,7 +176,7 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
               placeholder="vendor@email.com"
               style={inputStyle(C, errors.email)}
             />
-            {errors.email && <div style={errorStyle}>{errors.email}</div>}
+            {errors.email && <div style={errorStyle(C)}>{errors.email}</div>}
           </div>
 
           {/* Listing Link */}
@@ -242,8 +242,8 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
               style={{
                 flex: 1,
                 padding: "10px 16px",
-                background: `${C.grey}20`,
-                border: `1px solid ${C.grey}30`,
+                background: `${C.grey}15`,
+                border: `1px solid ${C.border}`,
                 borderRadius: "var(--lwd-radius-input)",
                 fontFamily: NU,
                 fontSize: 13,
@@ -251,7 +251,10 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
                 color: C.white,
                 cursor: submitting ? "not-allowed" : "pointer",
                 opacity: submitting ? 0.6 : 1,
+                transition: "all 0.15s",
               }}
+              onMouseEnter={(e) => !submitting && (e.currentTarget.style.background = `${C.grey}25`)}
+              onMouseLeave={(e) => !submitting && (e.currentTarget.style.background = `${C.grey}15`)}
             >
               Cancel
             </button>
@@ -267,10 +270,13 @@ export default function CreateVendorAccountForm({ C, onSubmit, onCancel, loading
                 fontFamily: NU,
                 fontSize: 13,
                 fontWeight: 700,
-                color: C.black,
+                color: "#ffffff",
                 cursor: submitting || loading ? "not-allowed" : "pointer",
                 opacity: submitting || loading ? 0.6 : 1,
+                transition: "all 0.15s",
               }}
+              onMouseEnter={(e) => !submitting && !loading && (e.currentTarget.style.opacity = "0.9")}
+              onMouseLeave={(e) => !submitting && !loading && (e.currentTarget.style.opacity = "1")}
             >
               {submitting || loading ? "Creating..." : "Create Account"}
             </button>
@@ -287,7 +293,7 @@ function inputStyle(C, hasError = false, disabled = false) {
     padding: "10px 12px",
     fontFamily: "var(--font-body)",
     fontSize: 13,
-    border: `1px solid ${hasError ? "#ef4444" : `${C.grey}30`}`,
+    border: `1px solid ${hasError ? C.rose : C.border}`,
     borderRadius: "var(--lwd-radius-input)",
     backgroundColor: disabled ? `${C.grey}10` : C.card,
     color: C.white,
@@ -296,9 +302,11 @@ function inputStyle(C, hasError = false, disabled = false) {
   };
 }
 
-const errorStyle = {
-  fontFamily: "var(--font-body)",
-  fontSize: 11,
-  color: "#ef4444",
-  marginTop: 4,
-};
+function errorStyle(C) {
+  return {
+    fontFamily: "var(--font-body)",
+    fontSize: 11,
+    color: C.rose,
+    marginTop: 4,
+  };
+}

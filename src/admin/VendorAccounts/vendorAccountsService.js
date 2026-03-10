@@ -4,7 +4,7 @@
 // managing account status, resending invites, disabling accounts
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { supabase } from "../../lib/supabaseClient";
+import { supabase } from "../../lib/supabase";
 
 /**
  * Get all vendor accounts with status and login info
@@ -27,16 +27,20 @@ export const getAllVendorAccounts = async (filters = {}) => {
       .from("vendors")
       .select("*", { count: "exact" });
 
-    // Filter by status
+    // Filter by status (5-state model)
     if (status) {
-      if (status === "not-invited") {
-        query = query.is("activation_token", null).eq("is_activated", false);
+      if (status === "pending-approval") {
+        query = query.eq("approval_status", "pending");
+      } else if (status === "approved") {
+        query = query.eq("approval_status", "approved").eq("is_activated", false).is("activation_token", null);
       } else if (status === "invited") {
-        query = query.not("activation_token", "is", null).eq("is_activated", false);
+        query = query.eq("approval_status", "approved").eq("is_activated", false).not("activation_token", "is", null);
       } else if (status === "activated") {
         query = query.eq("is_activated", true);
       } else if (status === "suspended") {
-        query = query.eq("is_activated", false).not("activation_token", "is", null);
+        query = query.eq("approval_status", "approved").eq("is_activated", false).is("activation_token", null);
+      } else if (status === "rejected") {
+        query = query.eq("approval_status", "rejected");
       }
     }
 
@@ -82,6 +86,8 @@ export const createVendorAccount = async (vendorData) => {
       return { data: null, error: new Error("Supabase not configured") };
     }
 
+    console.log("Invoking create-vendor-account function with:", vendorData);
+
     // Invoke Edge Function to create account (server-side)
     const { data, error } = await supabase.functions.invoke("create-vendor-account", {
       body: {
@@ -93,11 +99,78 @@ export const createVendorAccount = async (vendorData) => {
       },
     });
 
-    if (error) throw error;
+    console.log("Function response:", { data, error });
+
+    if (error) {
+      console.error("Function error:", error);
+      throw error;
+    }
 
     return { data, error: null };
   } catch (error) {
     console.error("Error creating vendor account:", error);
+    const errorMessage = error?.message || JSON.stringify(error) || "Unknown error";
+    return { data: null, error: new Error(`Failed to send a request to the Edge Function: ${errorMessage}`) };
+  }
+};
+
+/**
+ * Approve a vendor account (allow them to receive activation email)
+ * @param {string} vendorId - Vendor UUID
+ * @param {string} adminId - Admin user ID who is approving
+ * @returns {Promise<{data: Object, error: null|Object}>}
+ */
+export const approveVendorAccount = async (vendorId, adminId) => {
+  try {
+    if (!supabase) {
+      return { data: null, error: new Error("Supabase not configured") };
+    }
+
+    const { data, error } = await supabase
+      .from("vendors")
+      .update({
+        approval_status: "approved",
+        approved_at: new Date().toISOString(),
+        approved_by_admin_id: adminId,
+      })
+      .eq("id", vendorId)
+      .select();
+
+    if (error) throw error;
+
+    return { data, error: null };
+  } catch (error) {
+    console.error("Error approving vendor account:", error);
+    return { data: null, error };
+  }
+};
+
+/**
+ * Reject a vendor account (prevent activation)
+ * @param {string} vendorId - Vendor UUID
+ * @param {string} adminId - Admin user ID who is rejecting
+ * @returns {Promise<{data: Object, error: null|Object}>}
+ */
+export const rejectVendorAccount = async (vendorId, adminId) => {
+  try {
+    if (!supabase) {
+      return { data: null, error: new Error("Supabase not configured") };
+    }
+
+    const { data, error } = await supabase
+      .from("vendors")
+      .update({
+        approval_status: "rejected",
+        approved_by_admin_id: adminId,
+      })
+      .eq("id", vendorId)
+      .select();
+
+    if (error) throw error;
+
+    return { data, error: null };
+  } catch (error) {
+    console.error("Error rejecting vendor account:", error);
     return { data: null, error };
   }
 };
@@ -115,16 +188,30 @@ export const sendActivationEmail = async (vendorId, email, vendorName) => {
       return { data: null, error: new Error("Supabase not configured") };
     }
 
-    // Get activation token from vendors table
+    // Fetch vendor and check approval status
     const { data: vendorData, error: fetchError } = await supabase
       .from("vendors")
-      .select("activation_token")
+      .select("activation_token, approval_status")
       .eq("id", vendorId)
       .single();
 
     if (fetchError) throw fetchError;
-    if (!vendorData?.activation_token) {
-      throw new Error("No activation token found for this vendor");
+
+    // Only send email if approved
+    if (vendorData?.approval_status !== "approved") {
+      throw new Error("Vendor account must be approved before sending activation email");
+    }
+
+    // Generate token if one doesn't exist yet
+    let activationToken = vendorData?.activation_token;
+    if (!activationToken) {
+      activationToken = crypto.randomUUID ? crypto.randomUUID() : generateUUID();
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { error: tokenError } = await supabase
+        .from("vendors")
+        .update({ activation_token: activationToken, activation_token_expires_at: expiresAt })
+        .eq("id", vendorId);
+      if (tokenError) throw tokenError;
     }
 
     // Invoke Edge Function to send email
@@ -132,11 +219,24 @@ export const sendActivationEmail = async (vendorId, email, vendorName) => {
       body: {
         email,
         vendorName,
-        activationToken: vendorData.activation_token,
+        activationToken,
       },
     });
 
-    if (error) throw error;
+    if (error) {
+      // Extract the actual error message from the edge function response body
+      let errorMessage = error.message;
+      if (error.context) {
+        try {
+          const body = await error.context.json();
+          errorMessage = body.error || errorMessage;
+          console.error("SendGrid error details:", body);
+        } catch (e) {
+          // Could not parse response body, use original message
+        }
+      }
+      throw new Error(errorMessage);
+    }
 
     return { data, error: null };
   } catch (error) {
@@ -189,7 +289,20 @@ export const resendActivationEmail = async (vendorId) => {
       },
     });
 
-    if (emailError) throw emailError;
+    if (emailError) {
+      // Extract the actual error message from the edge function response body
+      let errorMessage = emailError.message;
+      if (emailError.context) {
+        try {
+          const body = await emailError.context.json();
+          errorMessage = body.error || errorMessage;
+          console.error("SendGrid error details:", body);
+        } catch (e) {
+          // Could not parse response body, use original message
+        }
+      }
+      throw new Error(errorMessage);
+    }
 
     return { data: { success: true }, error: null };
   } catch (error) {
@@ -209,12 +322,13 @@ export const disableVendorAccount = async (vendorId) => {
       return { data: null, error: new Error("Supabase not configured") };
     }
 
-    // Set is_activated = false and clear token
+    // Set is_activated = false, clear token, mark as suspended
     const { data, error } = await supabase
       .from("vendors")
       .update({
         is_activated: false,
         activation_token: null,
+        approval_status: "suspended",
       })
       .eq("id", vendorId)
       .select();
@@ -275,7 +389,7 @@ export const getListingsForDropdown = async () => {
     // If column doesn't exist, return empty gracefully
     const { data, error } = await supabase
       .from("listings")
-      .select("id, name, category");
+      .select("id, name");
 
     if (error) {
       // Column might not exist yet, return empty gracefully
@@ -291,18 +405,39 @@ export const getListingsForDropdown = async () => {
 };
 
 /**
- * Derive vendor account status from fields
+ * Derive vendor account status from fields (5-state model)
  * @param {Object} vendor - Vendor record
- * @returns {string} Status: "not-invited", "invited", "activated", or "suspended"
+ * @returns {string} Status: "pending-approval", "approved", "invited", "activated", "suspended", or "rejected"
  */
 function deriveVendorStatus(vendor) {
+  // Check activation first — overrides everything else
   if (vendor.is_activated) {
     return "activated";
   }
-  if (vendor.activation_token) {
-    return "invited";
+
+  // Explicit rejected or suspended states
+  if (vendor.approval_status === "rejected") {
+    return "rejected";
   }
-  return "not-invited";
+
+  if (vendor.approval_status === "suspended") {
+    return "suspended";
+  }
+
+  // Pending approval (not yet reviewed by admin)
+  if (vendor.approval_status === "pending" || !vendor.approval_status) {
+    return "pending-approval";
+  }
+
+  // Approved — check if invitation has been sent
+  if (vendor.approval_status === "approved") {
+    if (vendor.activation_token) {
+      return "invited";
+    }
+    return "approved"; // approved but email not sent yet
+  }
+
+  return "pending-approval"; // safe default
 }
 
 /**

@@ -30,6 +30,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@^2.42.0";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+// CORS headers for all responses
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Content-Type": "application/json",
+};
+
 interface CreateVendorRequest {
   vendorName: string;
   email: string;
@@ -38,24 +46,23 @@ interface CreateVendorRequest {
   contactName?: string;
 }
 
+// Helper function to create JSON responses with CORS headers
+function corsResponse(body: unknown, status: number = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: CORS_HEADERS,
+  });
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response("ok", {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST",
-        "Access-Control-Allow-Headers": "Content-Type",
-      },
-    });
+    return new Response("ok", { headers: CORS_HEADERS });
   }
 
   // Only allow POST
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { "Content-Type": "application/json" },
-    });
+    return corsResponse({ error: "Method not allowed" }, 405);
   }
 
   try {
@@ -70,28 +77,15 @@ serve(async (req) => {
 
     // Validate required fields
     if (!vendorName || !email) {
-      return new Response(
-        JSON.stringify({
-          error: "Missing required fields: vendorName, email",
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
+      return corsResponse(
+        { error: "Missing required fields: vendorName, email" },
+        400
       );
     }
 
     // Validate email format
     if (!isValidEmail(email)) {
-      return new Response(
-        JSON.stringify({
-          error: "Invalid email format",
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return corsResponse({ error: "Invalid email format" }, 400);
     }
 
     // Initialize Supabase admin client
@@ -116,14 +110,11 @@ serve(async (req) => {
 
     if (existingVendor) {
       const status = existingVendor.is_activated ? "activated" : "invited";
-      return new Response(
-        JSON.stringify({
-          error: `Vendor account already exists for ${email} (status: ${status}). To create a new account, use a different email address.`,
-        }),
+      return corsResponse(
         {
-          status: 409,
-          headers: { "Content-Type": "application/json" },
-        }
+          error: `Vendor account already exists for ${email} (status: ${status}). To create a new account, use a different email address.`,
+        },
+        409
       );
     }
 
@@ -144,14 +135,9 @@ serve(async (req) => {
       );
 
     if (recentVendors.data && recentVendors.data.length >= 10) {
-      return new Response(
-        JSON.stringify({
-          error: "Too many account creation requests. Please wait a moment before trying again.",
-        }),
-        {
-          status: 429, // Too Many Requests
-          headers: { "Content-Type": "application/json" },
-        }
+      return corsResponse(
+        { error: "Too many account creation requests. Please wait a moment before trying again." },
+        429
       );
     }
 
@@ -169,14 +155,9 @@ serve(async (req) => {
       console.error("Auth user creation error:", authError);
       // Check if user already exists
       if (authError.message.includes("already exists")) {
-        return new Response(
-          JSON.stringify({
-            error: `User account already exists for ${email}. This email is already registered in the system.`,
-          }),
-          {
-            status: 409,
-            headers: { "Content-Type": "application/json" },
-          }
+        return corsResponse(
+          { error: `User account already exists for ${email}. This email is already registered in the system.` },
+          409
         );
       }
       throw authError;
@@ -192,6 +173,7 @@ serve(async (req) => {
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
 
     // Create vendor record
+    // approval_status = 'approved' because an admin is directly creating this account
     const { data: vendorData, error: vendorError } = await supabase
       .from("vendors")
       .insert({
@@ -199,6 +181,7 @@ serve(async (req) => {
         email,
         name: vendorName,
         is_activated: false,
+        approval_status: "approved",
         activation_token: activationToken,
         activation_token_expires_at: expiresAt.toISOString(),
         linked_listing_id: linkedListingId || null,
@@ -249,19 +232,16 @@ serve(async (req) => {
     }
 
     // Success response
-    return new Response(
-      JSON.stringify({
+    return corsResponse(
+      {
         id: vendorData.id,
         email: vendorData.email,
         name: vendorData.name,
         status: "invited",
         created_at: vendorData.created_at,
         message: "Vendor account created successfully. Activation email sent.",
-      }),
-      {
-        status: 201,
-        headers: { "Content-Type": "application/json" },
-      }
+      },
+      201
     );
   } catch (error) {
     console.error("Error creating vendor account:", error);
@@ -274,15 +254,7 @@ serve(async (req) => {
       errorMessage = JSON.stringify(error);
     }
 
-    return new Response(
-      JSON.stringify({
-        error: errorMessage,
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    return corsResponse({ error: errorMessage }, 500);
   }
 });
 
