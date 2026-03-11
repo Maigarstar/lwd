@@ -75,7 +75,7 @@ const getSectionVisibility = (listingType) => ({
  * Handles creating and editing venue listings
  */
 const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, onSaveComplete = null }) => {
-  const { formData, handleChange, handleSaveDraft, handlePublish, loading, error, hasChanges } = useListingForm(listingId);
+  const { formData, handleChange, handleSaveDraft, handlePublish, loading, uploadProgress, error, hasChanges } = useListingForm(listingId);
   const previewData = useListingPreview(formData);
   const [saveStatus, setSaveStatus] = useState(null);
   const [showAITools,    setShowAITools]    = useState(false);
@@ -408,7 +408,7 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
             onMouseEnter={(e) => { if (!loading && hasChanges) e.currentTarget.style.backgroundColor = LUX.greenHover; }}
             onMouseLeave={(e) => { if (!loading && hasChanges) e.currentTarget.style.backgroundColor = LUX.green; }}
           >
-            {saveStatus === 'saving' ? 'Saving…' : 'Save Draft'}
+            {uploadProgress || (saveStatus === 'saving' ? 'Saving…' : 'Save Draft')}
           </button>
 
           <button

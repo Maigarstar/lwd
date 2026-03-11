@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { createListing, updateListing, fetchListingById } from '../../../services/listings';
+import { uploadPendingFiles } from '../../../utils/storageUpload';
 
 /**
  * Custom hook for listing form state and submission
@@ -107,6 +108,7 @@ export const useListingForm = (listingId = null) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(''); // e.g. "Uploading 2 of 5 images…"
 
   // Load existing listing if editing
   useEffect(() => {
@@ -283,15 +285,45 @@ export const useListingForm = (listingId = null) => {
       // Generate slug if not provided
       const slug = formData.slug || generateSlug(formData.venue_name);
 
-      // Map form data to listing payload
-      // Extract primary hero image URL from hero_images array
-      const primaryHero  = (formData.hero_images || [])[0] || {};
-      const heroImageUrl = primaryHero.file instanceof File
-        ? null // TODO: handle file upload to storage
-        : primaryHero.url || primaryHero.file || '';
+      // ── Upload any pending File objects to Supabase Storage ─────────────
+      // Must happen before building the payload so every item has a real URL.
+      setUploadProgress('Checking for files to upload…');
+
+      const [heroUpload, mediaUpload] = await Promise.all([
+        uploadPendingFiles(
+          formData.hero_images || [],
+          (msg) => setUploadProgress(msg)
+        ),
+        uploadPendingFiles(
+          formData.media_items || [],
+          (msg) => setUploadProgress(msg)
+        ),
+      ]);
+
+      setUploadProgress('');
+
+      // Persist uploaded URLs back into form state so the UI shows storage
+      // URLs instead of blob: URLs after save (avoids re-uploading on next save)
+      if (heroUpload.uploaded > 0) {
+        handleChange('hero_images', heroUpload.items);
+      }
+      if (mediaUpload.uploaded > 0) {
+        handleChange('media_items', mediaUpload.items);
+      }
+
+      if (heroUpload.failed > 0 || mediaUpload.failed > 0) {
+        console.warn(
+          `[storage] ${heroUpload.failed + mediaUpload.failed} file(s) failed to upload — ` +
+          `they will be excluded from the saved listing.`
+        );
+      }
+
+      // Use the uploaded versions for the payload
+      const primaryHero  = (heroUpload.items)[0] || {};
+      const heroImageUrl = primaryHero.url || '';
 
       // Split unified media_items into gallery images and videos for the DB payload
-      const mediaItems = formData.media_items || [];
+      const mediaItems = mediaUpload.items;
 
       // Strip un-serialisable File objects before including in the DB payload.
       // Items with file instanceof File (not yet uploaded to storage) have url=''
@@ -489,6 +521,7 @@ export const useListingForm = (listingId = null) => {
     handleSaveDraft,
     handlePublish,
     loading,
+    uploadProgress,
     error,
     hasChanges,
     setError,
