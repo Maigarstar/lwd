@@ -27,11 +27,23 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
   const videoRefs = useRef({});
 
   // ── Build media array: images first, video last ──
+  // v.imgs may be plain URL strings OR objects { src/url, credit_name, credit_instagram }
   const allMedia = (() => {
     const items = [];
-    (v.imgs || []).forEach((src) => items.push({ type: "image", src }));
-    if (v.videoUrl) items.push({ type: "video", src: v.videoUrl });
-    return items.length > 0 ? items : [{ type: "image", src: "" }];
+    (v.imgs || []).forEach((img) => {
+      if (typeof img === "string") {
+        items.push({ type: "image", src: img, creditName: null, creditIG: null });
+      } else {
+        items.push({
+          type: "image",
+          src: img.src || img.url || "",
+          creditName: img.credit_name || null,
+          creditIG:   img.credit_instagram || null,
+        });
+      }
+    });
+    if (v.videoUrl) items.push({ type: "video", src: v.videoUrl, creditName: null, creditIG: null });
+    return items.length > 0 ? items : [{ type: "image", src: "", creditName: null, creditIG: null }];
   })();
 
   const mediaCount  = allMedia.length;
@@ -349,6 +361,33 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
           zIndex: 2, padding: isMobile ? "20px 14px 16px" : "20px 18px 18px",
         }}
       >
+        {/* Photographer credit — bottom-right of image, above venue name */}
+        {(() => {
+          const cur = allMedia[slideIdx];
+          const label = cur?.creditIG
+            ? `@${cur.creditIG.replace(/^@/, "")}`
+            : cur?.creditName || null;
+          return label ? (
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute", top: 10, right: 12,
+                display: "flex", alignItems: "center", gap: 3,
+                fontSize: 9, fontFamily: NU,
+                color: "rgba(255,255,255,0.48)",
+                pointerEvents: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+              <span>{label}</span>
+            </div>
+          ) : null;
+        })()}
+
         {/* Name */}
         <div
           onClick={() => onView?.(v)}
