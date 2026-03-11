@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import MediaMetaCanvas from './MediaMetaCanvas';
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 const MAX_HERO          = 5;
@@ -220,7 +221,7 @@ const VirtualTourAddPanel = ({ onAdd }) => {
   );
 };
 
-const MediaItemCard = ({ item, objectUrls, onUpdate, onRemove, inCard, cardPosition }) => {
+const MediaItemCard = ({ item, objectUrls, onUpdate, onRemove, inCard, cardPosition, onMeta }) => {
   const [expanded, setExpanded] = useState(false);
 
   let thumbSrc = null;
@@ -244,16 +245,38 @@ const MediaItemCard = ({ item, objectUrls, onUpdate, onRemove, inCard, cardPosit
         style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', cursor: 'pointer' }}
         onClick={() => setExpanded(p => !p)}
       >
-        {/* Thumbnail */}
-        <div style={{
-          width: 50, height: 50, borderRadius: 3, overflow: 'hidden',
-          backgroundColor: '#f0ebe3', flexShrink: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
+        {/* Thumbnail — click to open metadata canvas */}
+        <div
+          onClick={e => { e.stopPropagation(); if (onMeta) onMeta(); }}
+          title="Edit metadata"
+          style={{
+            width: 50, height: 50, borderRadius: 3, overflow: 'hidden',
+            backgroundColor: '#f0ebe3', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+            position: 'relative',
+            transition: 'opacity 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.opacity = '0.8'; }}
+          onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+        >
           {thumbSrc
             ? <img src={thumbSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             : <span style={{ fontSize: 22 }}>{TYPE_ICONS[item.type]}</span>
           }
+          {/* Edit metadata hint overlay */}
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            paddingBottom: 3,
+            transition: 'background-color 0.15s',
+            pointerEvents: 'none',
+          }}>
+          </div>
         </div>
 
         {/* Info */}
@@ -637,6 +660,13 @@ const MediaSection = ({ formData, onChange }) => {
   const [mediaItems, setMediaItems] = useState(() => initMediaItems(formData));
   const [activeTab, setActiveTab] = useState('all');
 
+  // ── Metadata canvas (open when user clicks a media thumbnail) ───────────────
+  const [metaCanvasItemId, setMetaCanvasItemId] = useState(null);
+  // Always derive from live mediaItems so canvas sees latest field values
+  const liveCanvasItem = metaCanvasItemId
+    ? (mediaItems.find(i => i.id === metaCanvasItemId) ?? null)
+    : null;
+
   // Object URLs for uploaded image File objects
   const mediaFileKey = mediaItems
     .filter(i => i.file instanceof File)
@@ -668,8 +698,9 @@ const MediaSection = ({ formData, onChange }) => {
       id: genId(), type: 'image', source_type: 'upload',
       file, url: '', thumbnail: null,
       title: '', caption: '', description: '',
-      credit_name: '', credit_instagram: '', credit_website: '',
+      credit_name: '', credit_instagram: '', credit_website: '', credit_camera: '',
       location: '', tags: [], sort_order: mediaItems.length + idx, is_featured: false,
+      alt_text: '', copyright: '', visibility: 'public',
     }));
     notifyMedia([...mediaItems, ...toAdd]);
   };
@@ -683,8 +714,9 @@ const MediaSection = ({ formData, onChange }) => {
       id: genId(), type: 'video', source_type: src,
       file: null, url, thumbnail: ytThumb(url) || null,
       title: '', caption: '', description: '',
-      credit_name: '', credit_instagram: '', credit_website: '',
+      credit_name: '', credit_instagram: '', credit_website: '', credit_camera: '',
       location: '', tags: [], sort_order: mediaItems.length, is_featured: false,
+      alt_text: '', copyright: '', visibility: 'public',
     }]);
   };
 
@@ -696,8 +728,9 @@ const MediaSection = ({ formData, onChange }) => {
       id: genId(), type: 'virtual_tour', source_type: provider || detectTourProvider(url),
       file: null, url, thumbnail: null,
       title: '', caption: '', description: '',
-      credit_name: '', credit_instagram: '', credit_website: '',
+      credit_name: '', credit_instagram: '', credit_website: '', credit_camera: '',
       location: '', tags: [], sort_order: mediaItems.length, is_featured: false,
+      alt_text: '', copyright: '', visibility: 'public',
       provider: provider || detectTourProvider(url),
     }]);
   };
@@ -935,7 +968,8 @@ const MediaSection = ({ formData, onChange }) => {
                   .map(item => (
                     <MediaItemCard key={item.id} item={item} objectUrls={mediaObjUrls}
                       onUpdate={updateItem} onRemove={removeItem}
-                      inCard={true} cardPosition={cardPositionOf(item.id)} />
+                      inCard={true} cardPosition={cardPositionOf(item.id)}
+                      onMeta={() => setMetaCanvasItemId(item.id)} />
                   ))
                 }
               </div>
@@ -954,13 +988,25 @@ const MediaSection = ({ formData, onChange }) => {
                 {storedFiltered.map(item => (
                   <MediaItemCard key={item.id} item={item} objectUrls={mediaObjUrls}
                     onUpdate={updateItem} onRemove={removeItem}
-                    inCard={false} cardPosition={null} />
+                    inCard={false} cardPosition={null}
+                    onMeta={() => setMetaCanvasItemId(item.id)} />
                 ))}
               </div>
             )}
           </>
         )}
       </div>
+
+      {/* ── Media Metadata Canvas ──────────────────────────────────────────── */}
+      {liveCanvasItem && (
+        <MediaMetaCanvas
+          item={liveCanvasItem}
+          objectUrls={mediaObjUrls}
+          onUpdate={(field, val) => updateItem(liveCanvasItem.id, field, val)}
+          onClose={() => setMetaCanvasItemId(null)}
+          venueId={formData?.id}
+        />
+      )}
     </section>
   );
 };
