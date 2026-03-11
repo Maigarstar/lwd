@@ -260,6 +260,20 @@ serve(async (req: Request) => {
       `[sync-media-ai-index] ✓ Synced ${records.length} records for listing=${listing_id}`
     );
 
+    // ── Step 4: Fire-and-forget embedding for newly inserted rows ────────
+    // Passes the specific media_ids so only these rows get embedded,
+    // not the entire unembedded backlog.
+    const newMediaIds = indexableItems.map((item) => item.id);
+    supabase.functions
+      .invoke("embed-media-ai-index", {
+        body: { media_ids: newMediaIds },
+      })
+      .then(({ error }) => {
+        if (error) console.warn("[sync-media-ai-index] embed trigger failed (non-blocking):", error);
+        else console.log(`[sync-media-ai-index] ✓ Embedding triggered for ${newMediaIds.length} items`);
+      })
+      .catch((e) => console.warn("[sync-media-ai-index] embed invoke error:", e));
+
     return jsonResponse({ success: true, count: records.length });
 
   } catch (err) {
