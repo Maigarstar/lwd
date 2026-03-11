@@ -293,6 +293,11 @@ export const useListingForm = (listingId = null) => {
       // Split unified media_items into gallery images and videos for the DB payload
       const mediaItems = formData.media_items || [];
 
+      // Strip un-serialisable File objects before including in the DB payload.
+      // Items with file instanceof File (not yet uploaded to storage) have url=''
+      // and are excluded from the AI index by the edge function (url must start with http).
+      const cleanMediaItems = mediaItems.map(({ file: _file, ...rest }) => rest);
+
       const galleryImageUrls = mediaItems
         .filter(item => item.type === 'image' && !(item.file instanceof File) && item.url)
         .sort((a, b) => {
@@ -432,6 +437,9 @@ export const useListingForm = (listingId = null) => {
         listingType: formData.listing_type || 'venue',
         vendorAccountId: formData.vendor_account_id || null,
         tier: 'standard',
+        // Full rich media_items array (File objects stripped) — stored as JSONB.
+        // Also consumed by sync-media-ai-index edge function after save.
+        mediaItems: cleanMediaItems,
       };
 
       // Add published_at if publishing

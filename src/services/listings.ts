@@ -327,6 +327,8 @@ function mapFormToDatabaseFields(data: any): any {
     'createdAt': 'created_at',
     'updatedAt': 'updated_at',
     'publishedAt': 'published_at',
+    // Rich media items — stored as JSONB; File objects must be stripped before calling
+    'mediaItems': 'media_items',
   }
 
   for (const key in data) {
@@ -529,6 +531,53 @@ export interface Listing {
 // LISTINGS SERVICE
 // ═══════════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════════
+// AI MEDIA INDEX SYNC
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Fire-and-forget: sync a listing's media_items into the media_ai_index table.
+ *
+ * Called after every successful create / update. Non-blocking — failures are
+ * logged as warnings but never throw or affect the save result.
+ *
+ * @param listingId   — the saved listing's uuid
+ * @param data        — the raw form payload (contains mediaItems + meta fields)
+ */
+function syncMediaAIIndex(listingId: string, data: any): void {
+  if (!listingId) return;
+
+  const mediaItems = Array.isArray(data.mediaItems)
+    ? data.mediaItems
+    : [];
+
+  const listingMeta = {
+    id:          listingId,
+    name:        data.name        || data.venueName     || '',
+    category:    data.categorySlug                      || '',
+    country:     data.country                           || '',
+    region:      data.region                            || '',
+    destination: data.countrySlug || data.destination   || '',
+    type:        data.listingType                       || 'venue',
+  };
+
+  // Fire-and-forget — do not await
+  supabase!.functions
+    .invoke('sync-media-ai-index', {
+      body: { listing_id: listingId, listing_meta: listingMeta, media_items: mediaItems },
+    })
+    .then(({ error }) => {
+      if (error) {
+        console.warn('[AI sync] media_ai_index sync failed (non-blocking):', error);
+      } else {
+        console.log(`[AI sync] media_ai_index synced for listing ${listingId}`);
+      }
+    })
+    .catch((err) =>
+      console.warn('[AI sync] media_ai_index invoke error (non-blocking):', err)
+    );
+}
+
 /**
  * Create a new listing in Supabase
  */
@@ -557,6 +606,10 @@ export async function createListing(data: Listing) {
       .single()
 
     if (error) throw error
+
+    // Fire-and-forget: sync rich media metadata into AI search index
+    syncMediaAIIndex(listing.id, data)
+
     return listing as Listing
   } catch (error) {
     console.error('Error creating listing:', error)
@@ -622,6 +675,10 @@ export async function updateListing(id: string, data: Partial<Listing>) {
     }
 
     console.log("Supabase UPDATE success - returned listing:", listing);
+
+    // Fire-and-forget: sync rich media metadata into AI search index
+    syncMediaAIIndex(listing.id, data)
+
     return listing as Listing
   } catch (error) {
     console.error('Error updating listing:', error)
