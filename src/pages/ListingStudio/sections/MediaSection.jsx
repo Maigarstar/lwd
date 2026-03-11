@@ -68,8 +68,11 @@ const initMediaItems = formData => {
       file: img.file || null, url: img.url || '', thumbnail: null,
       title: img.title || '', caption: img.caption || '', description: img.description || '',
       credit_name: img.credit_name || '', credit_instagram: img.credit_instagram || '', credit_website: img.credit_website || '',
+      credit_camera: img.credit_camera || '',
       location: img.location || '', tags: img.tags || [],
       sort_order: img.sort_order ?? idx, is_featured: img.is_featured || false,
+      alt_text: img.alt_text || '', copyright: img.copyright || '',
+      visibility: img.visibility || 'public', image_type: img.image_type || '',
     })
   );
   (formData?.videos || []).forEach((v, idx) =>
@@ -78,8 +81,10 @@ const initMediaItems = formData => {
       file: null, url: v.url || '', thumbnail: ytThumb(v.url) || null,
       title: v.title || '', caption: v.caption || '', description: '',
       credit_name: v.credit_name || '', credit_instagram: v.credit_instagram || '', credit_website: '',
+      credit_camera: '',
       location: '', tags: v.tags || [],
       sort_order: (formData?.gallery_images?.length || 0) + idx, is_featured: v.is_featured || false,
+      alt_text: '', copyright: '', visibility: 'public', image_type: '',
     })
   );
   return items;
@@ -655,16 +660,35 @@ const MediaSection = ({ formData, onChange }) => {
     const u = heroImages.filter(img => img.id !== id).map((img, i) => ({ ...img, sort_order: i, is_primary: i === 0 }));
     setHeroImages(u); onChange('hero_images', u);
   };
+  const moveHeroUp = id => {
+    const idx = heroImages.findIndex(i => i.id === id);
+    if (idx <= 0) return;
+    const u = [...heroImages];
+    [u[idx - 1], u[idx]] = [u[idx], u[idx - 1]];
+    const v = u.map((img, i) => ({ ...img, sort_order: i, is_primary: i === 0 }));
+    setHeroImages(v); onChange('hero_images', v);
+  };
+  const moveHeroDown = id => {
+    const idx = heroImages.findIndex(i => i.id === id);
+    if (idx < 0 || idx >= heroImages.length - 1) return;
+    const u = [...heroImages];
+    [u[idx], u[idx + 1]] = [u[idx + 1], u[idx]];
+    const v = u.map((img, i) => ({ ...img, sort_order: i, is_primary: i === 0 }));
+    setHeroImages(v); onChange('hero_images', v);
+  };
 
   // ── Unified media_items pool ────────────────────────────────────────────────
   const [mediaItems, setMediaItems] = useState(() => initMediaItems(formData));
   const [activeTab, setActiveTab] = useState('all');
 
-  // ── Metadata canvas (open when user clicks a media thumbnail) ───────────────
-  const [metaCanvasItemId, setMetaCanvasItemId] = useState(null);
-  // Always derive from live mediaItems so canvas sees latest field values
-  const liveCanvasItem = metaCanvasItemId
-    ? (mediaItems.find(i => i.id === metaCanvasItemId) ?? null)
+  // ── Metadata canvas (open when user clicks any media or hero thumbnail) ─────
+  // metaCanvas = { pool: 'hero' | 'media', id: string } | null
+  const [metaCanvas, setMetaCanvas] = useState(null);
+  // Always derive from the live pool so canvas always sees latest field values
+  const liveCanvasItem = metaCanvas
+    ? (metaCanvas.pool === 'hero'
+        ? (heroImages.find(i => i.id === metaCanvas.id) ?? null)
+        : (mediaItems.find(i => i.id === metaCanvas.id) ?? null))
     : null;
 
   // Object URLs for uploaded image File objects
@@ -700,7 +724,7 @@ const MediaSection = ({ formData, onChange }) => {
       title: '', caption: '', description: '',
       credit_name: '', credit_instagram: '', credit_website: '', credit_camera: '',
       location: '', tags: [], sort_order: mediaItems.length + idx, is_featured: false,
-      alt_text: '', copyright: '', visibility: 'public',
+      alt_text: '', copyright: '', visibility: 'public', image_type: '',
     }));
     notifyMedia([...mediaItems, ...toAdd]);
   };
@@ -716,7 +740,7 @@ const MediaSection = ({ formData, onChange }) => {
       title: '', caption: '', description: '',
       credit_name: '', credit_instagram: '', credit_website: '', credit_camera: '',
       location: '', tags: [], sort_order: mediaItems.length, is_featured: false,
-      alt_text: '', copyright: '', visibility: 'public',
+      alt_text: '', copyright: '', visibility: 'public', image_type: '',
     }]);
   };
 
@@ -730,7 +754,7 @@ const MediaSection = ({ formData, onChange }) => {
       title: '', caption: '', description: '',
       credit_name: '', credit_instagram: '', credit_website: '', credit_camera: '',
       location: '', tags: [], sort_order: mediaItems.length, is_featured: false,
-      alt_text: '', copyright: '', visibility: 'public',
+      alt_text: '', copyright: '', visibility: 'public', image_type: '',
       provider: provider || detectTourProvider(url),
     }]);
   };
@@ -870,7 +894,10 @@ const MediaSection = ({ formData, onChange }) => {
                   border: `1px solid ${idx === 0 ? 'rgba(201,168,76,0.4)' : '#e5ddd0'}`,
                   borderRadius: 4, overflow: 'hidden', backgroundColor: '#fdfcfb',
                 }}>
-                  <div style={{ position: 'relative', height: 110, backgroundColor: '#f5f0e8' }}>
+                  <div
+                    onClick={() => setMetaCanvas({ pool: 'hero', id: img.id })}
+                    title="Edit metadata"
+                    style={{ position: 'relative', height: 110, backgroundColor: '#f5f0e8', cursor: 'pointer' }}>
                     {src
                       ? <img src={src} alt={img.title || `Hero ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc', fontSize: 28 }}>🖼</div>
@@ -882,7 +909,7 @@ const MediaSection = ({ formData, onChange }) => {
                         fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 10,
                       }}>PRIMARY HERO</span>
                     )}
-                    <button type="button" onClick={() => removeHero(img.id)} style={{
+                    <button type="button" onClick={e => { e.stopPropagation(); removeHero(img.id); }} style={{
                       position: 'absolute', top: 8, right: 8,
                       width: 26, height: 26, borderRadius: '50%',
                       backgroundColor: 'rgba(0,0,0,0.5)', color: '#fff',
@@ -999,7 +1026,7 @@ const MediaSection = ({ formData, onChange }) => {
                     <MediaItemCard key={item.id} item={item} objectUrls={mediaObjUrls}
                       onUpdate={updateItem} onRemove={removeItem}
                       inCard={true} cardPosition={cardPositionOf(item.id)}
-                      onMeta={() => setMetaCanvasItemId(item.id)} />
+                      onMeta={() => setMetaCanvas({ pool: 'media', id: item.id })} />
                   ))
                 }
               </div>
@@ -1019,7 +1046,7 @@ const MediaSection = ({ formData, onChange }) => {
                   <MediaItemCard key={item.id} item={item} objectUrls={mediaObjUrls}
                     onUpdate={updateItem} onRemove={removeItem}
                     inCard={false} cardPosition={null}
-                    onMeta={() => setMetaCanvasItemId(item.id)} />
+                    onMeta={() => setMetaCanvas({ pool: 'media', id: item.id })} />
                 ))}
               </div>
             )}
@@ -1029,24 +1056,43 @@ const MediaSection = ({ formData, onChange }) => {
 
       {/* ── Media Metadata Canvas ──────────────────────────────────────────── */}
       {liveCanvasItem && (() => {
-        const sortedForCanvas = [...mediaItems].sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999));
-        const canvasIdx = sortedForCanvas.findIndex(i => i.id === liveCanvasItem.id);
-        const prevId = canvasIdx > 0 ? sortedForCanvas[canvasIdx - 1].id : null;
-        const nextId = canvasIdx < sortedForCanvas.length - 1 ? sortedForCanvas[canvasIdx + 1].id : null;
+        const isHero = metaCanvas?.pool === 'hero';
+        // Normalize hero item: map is_primary → is_featured so canvas uses one shape
+        const canvasItem = isHero
+          ? { ...liveCanvasItem, is_featured: liveCanvasItem.is_primary ?? false }
+          : liveCanvasItem;
+        // Build sorted navigation array from the correct pool
+        const sortedArr = isHero
+          ? [...heroImages].sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999))
+          : [...mediaItems].sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999));
+        const canvasIdx = sortedArr.findIndex(i => i.id === liveCanvasItem.id);
+        const prevId = canvasIdx > 0 ? sortedArr[canvasIdx - 1].id : null;
+        const nextId = canvasIdx < sortedArr.length - 1 ? sortedArr[canvasIdx + 1].id : null;
         return (
           <MediaMetaCanvas
-            item={liveCanvasItem}
-            objectUrls={mediaObjUrls}
-            onUpdate={(field, val) => updateItem(liveCanvasItem.id, field, val)}
-            onClose={() => setMetaCanvasItemId(null)}
+            item={canvasItem}
+            objectUrls={isHero ? heroObjUrls : mediaObjUrls}
+            onUpdate={(field, val) => {
+              if (isHero) {
+                // Map is_featured → is_primary for hero items
+                updateHero(liveCanvasItem.id, field === 'is_featured' ? 'is_primary' : field, val);
+              } else {
+                updateItem(liveCanvasItem.id, field, val);
+              }
+            }}
+            onClose={() => setMetaCanvas(null)}
             venueId={formData?.id}
-            onRemove={() => { removeItem(liveCanvasItem.id); setMetaCanvasItemId(null); }}
-            onMoveUp={() => moveItemUp(liveCanvasItem.id)}
-            onMoveDown={() => moveItemDown(liveCanvasItem.id)}
-            totalItems={mediaItems.length}
+            onRemove={() => {
+              if (isHero) removeHero(liveCanvasItem.id);
+              else removeItem(liveCanvasItem.id);
+              setMetaCanvas(null);
+            }}
+            onMoveUp={() => isHero ? moveHeroUp(liveCanvasItem.id) : moveItemUp(liveCanvasItem.id)}
+            onMoveDown={() => isHero ? moveHeroDown(liveCanvasItem.id) : moveItemDown(liveCanvasItem.id)}
+            totalItems={sortedArr.length}
             itemIndex={canvasIdx}
-            onPrev={prevId ? () => setMetaCanvasItemId(prevId) : null}
-            onNext={nextId ? () => setMetaCanvasItemId(nextId) : null}
+            onPrev={prevId ? () => setMetaCanvas({ pool: metaCanvas.pool, id: prevId }) : null}
+            onNext={nextId ? () => setMetaCanvas({ pool: metaCanvas.pool, id: nextId }) : null}
           />
         );
       })()}
