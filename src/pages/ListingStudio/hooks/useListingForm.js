@@ -12,7 +12,8 @@ export const useListingForm = (listingId = null) => {
     vendor_account_id: null, // linked vendor account
     venue_name: '',
     slug: '',
-    category: 'wedding-venues',
+    category: 'wedding-venues',          // primary category (= assigned_categories[0]?.slug, backwards compat)
+    assigned_categories: [],             // [{ id, slug, name, parentSlug, parentName }] — up to 8
     destination: 'italy',
     summary: '',      // short editorial intro max 240 chars — card + page header
     description: '',
@@ -125,6 +126,7 @@ export const useListingForm = (listingId = null) => {
             venue_name: listing.name || '',
             slug: listing.slug || '',
             category: listing.categorySlug || 'wedding-venues',
+            assigned_categories: Array.isArray(listing.assignedCategories) ? listing.assignedCategories : (listing.categorySlug ? [{ id: listing.categorySlug, slug: listing.categorySlug, name: listing.categorySlug, parentSlug: null, parentName: null }] : []),
             destination: listing.countrySlug || 'italy',
             summary: listing.shortDescription || '',
             description: listing.description || '',
@@ -348,7 +350,8 @@ export const useListingForm = (listingId = null) => {
       const listingPayload = {
         name: formData.venue_name,
         slug: slug,
-        categorySlug: formData.category,
+        categorySlug: formData.assigned_categories?.[0]?.slug || formData.category || 'wedding-venues',
+        assignedCategories: formData.assigned_categories || [],
         countrySlug: formData.destination,
         shortDescription: formData.summary || '',
         description: formData.description,

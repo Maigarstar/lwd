@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
+import CategoryAssignmentField from '../components/CategoryAssignmentField';
 
 /**
  * AccountHolderDropdown
@@ -352,74 +353,52 @@ const BasicDetailsSection = ({ formData, onChange }) => {
         </div>
       </div>
 
-      {/* ── CATEGORY + DESTINATION ────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
-        <div>
-          <label style={{
-            display: 'block',
-            marginBottom: 6,
-            fontSize: 12,
-            fontWeight: 600,
-            textTransform: 'uppercase',
-          }}>
-            Category
-          </label>
-          <select
-            name="category"
-            value={formData?.category || 'wedding-venues'}
-            onChange={(e) => onChange('category', e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px 12px',
-              fontSize: 13,
-              border: '1px solid #ddd4c8',
-              borderRadius: 3,
-              backgroundColor: '#fff',
-            }}
-          >
-            <option value="wedding-venues">Wedding Venues</option>
-            <option value="wedding-planners">Wedding Planners</option>
-            <option value="photographers">Photographers</option>
-            <option value="videographers">Videographers</option>
-            <option value="florists">Florists</option>
-            <option value="catering">Catering</option>
-            <option value="entertainment">Entertainment</option>
-          </select>
-        </div>
+      {/* ── CATEGORY ASSIGNMENTS ─────────────────────────── */}
+      <div style={{ marginTop: 20 }}>
+        <CategoryAssignmentField
+          value={formData?.assigned_categories || []}
+          onChange={(cats) => {
+            onChange('assigned_categories', cats);
+            // Keep primary category in sync (backwards compat)
+            if (cats.length > 0) onChange('category', cats[0].slug);
+          }}
+          darkMode={false}
+        />
+      </div>
 
-        <div>
-          <label style={{
-            display: 'block',
-            marginBottom: 6,
-            fontSize: 12,
-            fontWeight: 600,
-            textTransform: 'uppercase',
-          }}>
-            Destination
-          </label>
-          <select
-            name="destination"
-            value={formData?.destination || 'italy'}
-            onChange={(e) => onChange('destination', e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px 12px',
-              fontSize: 13,
-              border: '1px solid #ddd4c8',
-              borderRadius: 3,
-              backgroundColor: '#fff',
-            }}
-          >
-            <option value="italy">Italy</option>
-            <option value="france">France</option>
-            <option value="spain">Spain</option>
-            <option value="greece">Greece</option>
-            <option value="portugal">Portugal</option>
-            <option value="uk">United Kingdom</option>
-            <option value="us">United States</option>
-            <option value="caribbean">Caribbean</option>
-          </select>
-        </div>
+      {/* ── DESTINATION ──────────────────────────────────── */}
+      <div style={{ marginTop: 16 }}>
+        <label style={{
+          display: 'block',
+          marginBottom: 6,
+          fontSize: 12,
+          fontWeight: 600,
+          textTransform: 'uppercase',
+        }}>
+          Destination
+        </label>
+        <select
+          name="destination"
+          value={formData?.destination || 'italy'}
+          onChange={(e) => onChange('destination', e.target.value)}
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            fontSize: 13,
+            border: '1px solid #ddd4c8',
+            borderRadius: 3,
+            backgroundColor: '#fff',
+          }}
+        >
+          <option value="italy">Italy</option>
+          <option value="france">France</option>
+          <option value="spain">Spain</option>
+          <option value="greece">Greece</option>
+          <option value="portugal">Portugal</option>
+          <option value="uk">United Kingdom</option>
+          <option value="us">United States</option>
+          <option value="caribbean">Caribbean</option>
+        </select>
       </div>
     </section>
   );
