@@ -20,6 +20,7 @@ import ExperiencesSection from './sections/ExperiencesSection';
 import FAQSectionEditor from './sections/FAQSectionEditor';
 import SEOSection from './sections/SEOSection';
 import ListingInfoSection from './sections/ListingInfoSection';
+import CardsSection from './sections/CardsSection';
 import { getLightPalette, getDarkPalette } from '../../theme/tokens';
 
 /**
@@ -54,6 +55,7 @@ const LISTING_SECTIONS = [
   { id: 'experiences', label: 'Experiences',          icon: '✧',  Component: ExperiencesSection,       locked: false, condition: 'showFeatures' },
   { id: 'faq',         label: 'FAQ',                  icon: '❓',  Component: FAQSectionEditor,         locked: false, condition: null },
   { id: 'seo',         label: 'SEO',                  icon: '🔍',  Component: SEOSection,               locked: false, condition: null },
+  { id: 'cards',       label: 'Cards',                icon: '🃏',  Component: CardsSection,             locked: false, condition: null },
   { id: 'info',        label: 'Listing Info',         icon: 'ℹ️',  Component: ListingInfoSection,       locked: false, condition: null },
 ];
 

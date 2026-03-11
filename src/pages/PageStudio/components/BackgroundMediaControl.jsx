@@ -15,7 +15,7 @@
  * }
  */
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 const MEDIA_TYPES = [
   { id: 'image', label: 'Image Upload', icon: '🖼️' },
@@ -28,14 +28,50 @@ const SUPPORTED_IMAGE_FORMATS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'];
 const SUPPORTED_VIDEO_FORMATS = ['mp4', 'webm', 'mov'];
 
 // File size limits
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2 MB
 const MAX_VIDEO_SIZE = 500 * 1024 * 1024; // 500 MB
 
 export default function BackgroundMediaControl({ section, onChange, C, NU }) {
+  // ── Hooks must come before any conditional return (Rules of Hooks) ────────────
+  const dragIdx     = useRef(null);
+  const dragOverIdx = useRef(null);
+  const vidDragIdx     = useRef(null);
+  const vidDragOverIdx = useRef(null);
+
   if (!section) return null;
 
   const bgData = section.backgroundData || {};
   const mediaType = bgData.backgroundType || 'image';
+
+  // ── Image drag-to-reorder ─────────────────────────────────────────────────────
+  const handleImgDragStart = (idx) => { dragIdx.current = idx; };
+  const handleImgDragEnter = (idx) => { dragOverIdx.current = idx; };
+  const handleImgDragEnd   = () => {
+    const from = dragIdx.current;
+    const to   = dragOverIdx.current;
+    dragIdx.current     = null;
+    dragOverIdx.current = null;
+    if (from === null || to === null || from === to) return;
+    const arr = [...(bgData.backgroundImages || [])];
+    const [moved] = arr.splice(from, 1);
+    arr.splice(to, 0, moved);
+    onChange(section.id, 'backgroundData', { ...bgData, backgroundImages: arr });
+  };
+
+  // ── Video drag-to-reorder ─────────────────────────────────────────────────────
+  const handleVidDragStart = (idx) => { vidDragIdx.current = idx; };
+  const handleVidDragEnter = (idx) => { vidDragOverIdx.current = idx; };
+  const handleVidDragEnd   = () => {
+    const from = vidDragIdx.current;
+    const to   = vidDragOverIdx.current;
+    vidDragIdx.current     = null;
+    vidDragOverIdx.current = null;
+    if (from === null || to === null || from === to) return;
+    const arr = [...(bgData.backgroundVideos || [])];
+    const [moved] = arr.splice(from, 1);
+    arr.splice(to, 0, moved);
+    onChange(section.id, 'backgroundData', { ...bgData, backgroundVideos: arr });
+  };
 
   const handleMediaTypeChange = (type) => {
     onChange(section.id, 'backgroundData', {
@@ -312,31 +348,55 @@ export default function BackgroundMediaControl({ section, onChange, C, NU }) {
             </label>
           </div>
 
-          {/* Image Carousel Display */}
+          {/* Image Carousel Display — drag to reorder */}
           {(bgData.backgroundImages || []).length > 0 && (
             <div style={{ marginTop: 12 }}>
+              {bgData.backgroundImages.length > 1 && (
+                <p style={{
+                  fontFamily: NU, fontSize: 9, color: C.grey,
+                  margin: '0 0 6px 0', fontStyle: 'italic',
+                }}>
+                  ↕ Drag thumbnails to reorder · First image = primary
+                </p>
+              )}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 8 }}>
                 {bgData.backgroundImages.map((img, index) => (
                   <div
                     key={index}
+                    draggable
+                    onDragStart={(e) => { e.stopPropagation(); handleImgDragStart(index); }}
+                    onDragEnter={(e) => { e.stopPropagation(); handleImgDragEnter(index); }}
+                    onDragEnd={(e) => { e.stopPropagation(); handleImgDragEnd(); }}
+                    onDragOver={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                    onDrop={(e) => e.stopPropagation()}
                     style={{
                       position: 'relative',
                       borderRadius: 4,
                       overflow: 'hidden',
-                      border: `1px solid ${C.border}`,
+                      border: index === 0
+                        ? `2px solid ${C.gold}`
+                        : `1px solid ${C.border}`,
+                      cursor: 'grab',
+                      transition: 'opacity 0.15s ease',
                     }}
+                    title={`${index + 1}. ${img.fileName} — drag to reorder`}
                   >
                     <img
                       src={img.url}
                       alt={img.alt}
-                      title={`${index + 1}. ${img.fileName}`}
+                      draggable={false}
+                      onDragStart={(e) => e.preventDefault()}
                       style={{
                         width: '100%',
                         height: 80,
                         objectFit: 'cover',
+                        pointerEvents: 'none',
+                        userSelect: 'none',
+                        WebkitUserDrag: 'none',
                       }}
                     />
                     <button
+                      draggable={false}
                       onClick={() => handleRemoveImage(index)}
                       title="Remove image"
                       style={{
@@ -368,14 +428,14 @@ export default function BackgroundMediaControl({ section, onChange, C, NU }) {
                         bottom: 2,
                         left: 2,
                         backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                        color: '#fff',
+                        color: index === 0 ? C.gold : '#fff',
                         fontSize: 9,
                         padding: '2px 4px',
                         borderRadius: 2,
-                        fontWeight: 600,
+                        fontWeight: 700,
                       }}
                     >
-                      {index + 1}/{bgData.backgroundImages.length}
+                      {index === 0 ? '★' : index + 1}
                     </div>
                   </div>
                 ))}
@@ -482,27 +542,45 @@ export default function BackgroundMediaControl({ section, onChange, C, NU }) {
             </div>
           </div>
 
-          {/* Video Carousel Display */}
+          {/* Video Carousel Display — drag to reorder */}
           {(bgData.backgroundVideos || []).length > 0 && (
             <div style={{ marginTop: 12 }}>
+              {bgData.backgroundVideos.length > 1 && (
+                <p style={{
+                  fontFamily: NU, fontSize: 9, color: C.grey,
+                  margin: '0 0 6px 0', fontStyle: 'italic',
+                }}>
+                  ↕ Drag to reorder · First video plays first
+                </p>
+              )}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 8 }}>
                 {bgData.backgroundVideos.map((vid, index) => (
                   <div
                     key={index}
+                    draggable
+                    onDragStart={(e) => { e.stopPropagation(); handleVidDragStart(index); }}
+                    onDragEnter={(e) => { e.stopPropagation(); handleVidDragEnter(index); }}
+                    onDragEnd={(e) => { e.stopPropagation(); handleVidDragEnd(); }}
+                    onDragOver={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                    onDrop={(e) => e.stopPropagation()}
                     style={{
                       position: 'relative',
                       borderRadius: 4,
                       overflow: 'hidden',
-                      border: `1px solid ${C.border}`,
+                      border: index === 0
+                        ? `2px solid ${C.gold}`
+                        : `1px solid ${C.border}`,
                       backgroundColor: C.card,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       height: 80,
+                      cursor: 'grab',
+                      transition: 'opacity 0.15s ease',
                     }}
-                    title={vid.fileName || vid.url}
+                    title={`${index + 1}. ${vid.fileName || vid.url} — drag to reorder`}
                   >
-                    <span style={{ fontSize: 24 }}>🎬</span>
+                    <span style={{ fontSize: 24, pointerEvents: 'none', userSelect: 'none' }}>🎬</span>
                     <button
                       onClick={() => handleRemoveVideo(index)}
                       title="Remove video"
@@ -535,14 +613,14 @@ export default function BackgroundMediaControl({ section, onChange, C, NU }) {
                         bottom: 2,
                         left: 2,
                         backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                        color: '#fff',
+                        color: index === 0 ? C.gold : '#fff',
                         fontSize: 9,
                         padding: '2px 4px',
                         borderRadius: 2,
-                        fontWeight: 600,
+                        fontWeight: 700,
                       }}
                     >
-                      {index + 1}/{bgData.backgroundVideos.length}
+                      {index === 0 ? '★' : index + 1}
                     </div>
                   </div>
                 ))}

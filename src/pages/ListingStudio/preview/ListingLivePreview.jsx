@@ -4,6 +4,7 @@ import ImageGallery from '../../../components/profile/ImageGallery';
 import VideoGallery from '../../../components/profile/VideoGallery';
 import Lightbox from '../../../components/profile/Lightbox';
 import { ThemeCtx, LIGHT } from '../../../components/profile/ProfileDesignSystem';
+import CardPreviewSection from './CardPreviewSection';
 
 const extractYouTubeId = url => {
   const m = url?.match(
@@ -352,6 +353,10 @@ const ListingLivePreview = ({ formData }) => {
           )}
 
         </div>
+
+        {/* ── CARD PREVIEW — renders live card preview below the listing page preview */}
+        <CardPreviewSection formData={formData} />
+
       </div>
     </ThemeCtx.Provider>
   );
