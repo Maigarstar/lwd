@@ -1031,6 +1031,8 @@ const MediaSection = ({ formData, onChange }) => {
       {liveCanvasItem && (() => {
         const sortedForCanvas = [...mediaItems].sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999));
         const canvasIdx = sortedForCanvas.findIndex(i => i.id === liveCanvasItem.id);
+        const prevId = canvasIdx > 0 ? sortedForCanvas[canvasIdx - 1].id : null;
+        const nextId = canvasIdx < sortedForCanvas.length - 1 ? sortedForCanvas[canvasIdx + 1].id : null;
         return (
           <MediaMetaCanvas
             item={liveCanvasItem}
@@ -1043,6 +1045,8 @@ const MediaSection = ({ formData, onChange }) => {
             onMoveDown={() => moveItemDown(liveCanvasItem.id)}
             totalItems={mediaItems.length}
             itemIndex={canvasIdx}
+            onPrev={prevId ? () => setMetaCanvasItemId(prevId) : null}
+            onNext={nextId ? () => setMetaCanvasItemId(nextId) : null}
           />
         );
       })()}

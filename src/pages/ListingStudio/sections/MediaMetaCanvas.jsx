@@ -260,6 +260,9 @@ export default function MediaMetaCanvas({
   onMoveDown,
   totalItems,
   itemIndex,
+  // Navigation props
+  onPrev,
+  onNext,
 }) {
 
   // ── Dark mode toggle (default: dark studio mode) ─────────────────────────────
@@ -293,6 +296,9 @@ export default function MediaMetaCanvas({
   const [altSuggestion,  setAltSuggestion]  = useState(null);
   const [altError,       setAltError]       = useState(null);
 
+  // ── Save flash state ─────────────────────────────────────────────────────────
+  const [savedFlash, setSavedFlash] = useState(false);
+
   // ── Sync local state when item opens / changes ──────────────────────────────
   useEffect(() => {
     if (!item) return;
@@ -323,6 +329,40 @@ export default function MediaMetaCanvas({
     document.addEventListener('keydown', fn);
     return () => document.removeEventListener('keydown', fn);
   }, [handleClose]);
+
+  // ── Flush all local state → parent (captures typed-but-not-blurred values) ──
+  const flushAll = useCallback(() => {
+    onUpdate('title',            localTitle.trim());
+    onUpdate('caption',          localCaption.trim());
+    onUpdate('description',      localDescription.trim());
+    onUpdate('credit_name',      localCreditName.trim());
+    const igVal = localInstagram.trim().replace(/^@/, '');
+    onUpdate('credit_instagram', igVal ? `@${igVal}` : '');
+    onUpdate('credit_website',   localWebsite.trim());
+    onUpdate('credit_camera',    localCamera.trim());
+    onUpdate('location',         localLocation.trim());
+    onUpdate('copyright',        localCopyright.trim());
+    onUpdate('alt_text',         localAltText.trim());
+  }, [onUpdate, localTitle, localCaption, localDescription, localCreditName,
+      localInstagram, localWebsite, localCamera, localLocation, localCopyright, localAltText]);
+
+  const handleSave = useCallback(() => {
+    flushAll();
+    setSavedFlash(true);
+    setTimeout(() => setSavedFlash(false), 1800);
+  }, [flushAll]);
+
+  const handlePrev = useCallback(() => {
+    if (!onPrev) return;
+    flushAll();
+    onPrev();
+  }, [flushAll, onPrev]);
+
+  const handleNext = useCallback(() => {
+    if (!onNext) return;
+    flushAll();
+    onNext();
+  }, [flushAll, onNext]);
 
   // ── Image source ─────────────────────────────────────────────────────────────
   const imgSrc = item
@@ -902,6 +942,81 @@ export default function MediaMetaCanvas({
             </FieldRow>
 
           </div>
+        </div>
+
+        {/* ── Sticky footer: Prev / Save / Next ─────────────────────────────── */}
+        <div style={{
+          flexShrink: 0,
+          display: 'flex', alignItems: 'stretch', gap: 0,
+          borderTop: `1px solid ${s.border}`,
+          backgroundColor: s.headerBg,
+          transition: 'background-color 0.22s ease, border-color 0.22s ease',
+        }}>
+          {/* ← Prev */}
+          <button
+            onClick={handlePrev}
+            disabled={!onPrev}
+            title="Previous image"
+            style={{
+              flex: 1,
+              padding: '13px 0',
+              backgroundColor: 'transparent',
+              border: 'none',
+              borderRight: `1px solid ${s.border}`,
+              color: onPrev ? s.text : s.hint,
+              fontSize: 12, fontWeight: 600,
+              cursor: onPrev ? 'pointer' : 'default',
+              opacity: onPrev ? 1 : 0.35,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              transition: 'all 0.15s',
+            }}
+          >
+            ‹ Prev
+          </button>
+
+          {/* ✓ Save */}
+          <button
+            onClick={handleSave}
+            title="Save all fields"
+            style={{
+              flex: 1.6,
+              padding: '13px 0',
+              backgroundColor: savedFlash
+                ? (isDark ? 'rgba(21,128,61,0.25)' : '#f0faf5')
+                : 'transparent',
+              border: 'none',
+              borderRight: `1px solid ${s.border}`,
+              color: savedFlash ? GREEN : GOLD,
+              fontSize: 12, fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              letterSpacing: '0.03em',
+              transition: 'all 0.22s',
+            }}
+          >
+            {savedFlash ? '✓ Saved' : '✓ Save'}
+          </button>
+
+          {/* Next › */}
+          <button
+            onClick={handleNext}
+            disabled={!onNext}
+            title="Next image"
+            style={{
+              flex: 1,
+              padding: '13px 0',
+              backgroundColor: 'transparent',
+              border: 'none',
+              color: onNext ? s.text : s.hint,
+              fontSize: 12, fontWeight: 600,
+              cursor: onNext ? 'pointer' : 'default',
+              opacity: onNext ? 1 : 0.35,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              transition: 'all 0.15s',
+            }}
+          >
+            Next ›
+          </button>
         </div>
       </div>
     </>
