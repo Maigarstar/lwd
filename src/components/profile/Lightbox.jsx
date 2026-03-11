@@ -14,7 +14,17 @@ export default function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLig
   const thumbRef = useRef(null);
 
   const photo = gallery[idx];
-  const pg = photo?.photographer;
+  // Support both nested photographer object (legacy) and flat credit fields
+  // (new media_items shape from Listing Studio / mediaMappers.js).
+  const pg = photo?.photographer?.name
+    ? photo.photographer
+    : (photo?.credit_name ? {
+        name:      photo.credit_name,
+        instagram: photo.credit_instagram || '',
+        website:   photo.credit_website   || '',
+        camera:    photo.credit_camera    || '',
+        area:      photo.location         || '',
+      } : null);
   const eng = engagement?.[photo?.id] || { likes: 0, comments: [] };
   const isLiked = likedMap[photo?.id] || false;
   const likeCount = eng.likes + (isLiked ? 1 : 0);

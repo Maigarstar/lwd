@@ -763,6 +763,12 @@ const MediaSection = ({ formData, onChange }) => {
   const updateItem = (id, field, val) =>
     notifyMedia(mediaItems.map(item => item.id === id ? { ...item, [field]: val } : item));
 
+  /** Apply a set of credit fields from one item to all other media items */
+  const applyCredit = (sourceId, creditFields) =>
+    notifyMedia(mediaItems.map(item =>
+      item.id === sourceId ? item : { ...item, ...creditFields }
+    ));
+
   const removeItem = id => notifyMedia(mediaItems.filter(item => item.id !== id));
 
   const moveItemUp = id => {
@@ -1094,6 +1100,7 @@ const MediaSection = ({ formData, onChange }) => {
             itemIndex={canvasIdx}
             onPrev={prevId ? () => setMetaCanvas({ pool: metaCanvas.pool, id: prevId }) : null}
             onNext={nextId ? () => setMetaCanvas({ pool: metaCanvas.pool, id: nextId }) : null}
+            onApplyCredit={!isHero ? (fields) => applyCredit(liveCanvasItem.id, fields) : undefined}
           />
         );
       })()}

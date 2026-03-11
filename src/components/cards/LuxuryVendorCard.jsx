@@ -190,7 +190,7 @@ export default function LuxuryVendorCard({ v, onView, isMobile, onSave, saved, o
               {item.type === "image" ? (
                 <img
                   src={item.src}
-                  alt={i === 0 ? `${v.name}` : `${v.name} photo ${i + 1}`}
+                  alt={item.alt_text || (i === 0 ? `${v.name}` : `${v.name} photo ${i + 1}`)}
                   loading="lazy"
                   style={{
                     width: "100%",

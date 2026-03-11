@@ -237,6 +237,7 @@ export default function MediaMetaCanvas({
   itemIndex,
   onPrev,
   onNext,
+  onApplyCredit,  // (creditFields) => void — bulk-applies to all images in pool
 }) {
   // ── Color scheme ─────────────────────────────────────────────────────────────
   const [isDark, setIsDark] = useState(true);
@@ -961,6 +962,39 @@ export default function MediaMetaCanvas({
                 </button>
               </div>
             </FieldRow>
+
+            {/* Apply credit to all images */}
+            {onApplyCredit && totalItems > 1 && (localCreditName || localInstagram || localWebsite || localCamera) && (
+              <FieldRow style={{ marginBottom: 0, marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Flush text fields first so the latest typed values are used
+                    const igVal = localInstagram.trim().replace(/^@/, '');
+                    onApplyCredit({
+                      credit_name:      localCreditName.trim(),
+                      credit_instagram: igVal ? `@${igVal}` : '',
+                      credit_website:   localWebsite.trim(),
+                      credit_camera:    localCamera.trim(),
+                      copyright:        localCopyright.trim(),
+                    });
+                  }}
+                  style={{
+                    width: '100%', padding: '9px 14px',
+                    backgroundColor: 'rgba(197,160,89,0.1)',
+                    border: `1px solid rgba(197,160,89,0.3)`,
+                    borderRadius: 6, cursor: 'pointer',
+                    fontSize: 11, fontWeight: 600, color: GOLD2,
+                    letterSpacing: '0.04em',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <span>📋</span>
+                  Apply this photographer credit to all {totalItems} images
+                </button>
+              </FieldRow>
+            )}
 
             <Divider s={s} />
 

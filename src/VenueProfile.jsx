@@ -2046,17 +2046,17 @@ function ImageGallery({ gallery, onOpenLight }) {
             }}
               onMouseEnter={e => e.currentTarget.querySelector("img").style.transform = "scale(1.04)"}
               onMouseLeave={e => e.currentTarget.querySelector("img").style.transform = "scale(1)"}>
-              <img src={gallery[0]?.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.7s ease" }} />
+              <img src={gallery[0]?.src} alt={gallery[0]?.alt || ""} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.7s ease" }} />
             </div>
             <div onClick={() => onOpenLight(1)} style={{ overflow: "hidden", cursor: "pointer", position: "relative", aspectRatio: "4/3" }}
               onMouseEnter={e => e.currentTarget.querySelector("img").style.transform = "scale(1.04)"}
               onMouseLeave={e => e.currentTarget.querySelector("img").style.transform = "scale(1)"}>
-              <img src={gallery[1]?.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.7s ease" }} />
+              <img src={gallery[1]?.src} alt={gallery[1]?.alt || ""} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.7s ease" }} />
             </div>
             <div onClick={() => setAllOpen(true)} style={{ overflow: "hidden", cursor: "pointer", position: "relative", aspectRatio: "4/3" }}
               onMouseEnter={e => e.currentTarget.querySelector("img").style.transform = "scale(1.04)"}
               onMouseLeave={e => e.currentTarget.querySelector("img").style.transform = "scale(1)"}>
-              <img src={gallery[2]?.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.7s ease" }} />
+              <img src={gallery[2]?.src} alt={gallery[2]?.alt || ""} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.7s ease" }} />
               <div style={{
                 position: "absolute", inset: 0, background: "rgba(0,0,0,0.52)",
                 display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 6,
@@ -2629,7 +2629,7 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
               onMouseEnter={(e) => { if (i !== idx) e.currentTarget.style.opacity = "0.7"; }}
               onMouseLeave={(e) => { if (i !== idx) e.currentTarget.style.opacity = "0.4"; }}
             >
-              <img src={img.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              <img src={img.src} alt={img.alt || img.title || ""} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
             </div>
           ))}
         </div>

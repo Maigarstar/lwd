@@ -193,7 +193,7 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
               {item.type === "image" ? (
                 <img
                   src={item.src}
-                  alt={i === 0 ? `${v.name} – ${v.city}, ${v.region}` : `${v.name} photo ${i + 1}`}
+                  alt={item.alt_text || (i === 0 ? `${v.name} – ${v.city}, ${v.region}` : `${v.name} photo ${i + 1}`)}
                   loading="lazy"
                   style={{
                     width: "100%", height: "100%", objectFit: "cover",
