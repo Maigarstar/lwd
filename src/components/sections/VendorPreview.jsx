@@ -34,12 +34,15 @@ function normalise(v) {
   };
 }
 
-export default function VendorPreview({ onViewVendor }) {
+export default function VendorPreview({ onViewVendor, dbVendors }) {
   const C = useTheme();
   const { isShortlisted, toggleItem } = useShortlist();
   const [quickViewItem, setQuickViewItem] = useState(null);
   const isMobile = useIsMobile();
-  const featured = GLOBAL_VENDORS.filter((v) => v.featured).slice(0, 12);
+  // Use live DB vendors when available; fall back to curated static data
+  const featured = (dbVendors && dbVendors.length > 0)
+    ? dbVendors.slice(0, 12)
+    : GLOBAL_VENDORS.filter((v) => v.featured).slice(0, 12).map(normalise);
 
   // Mobile: vertical feed. Desktop: horizontal carousel
   if (isMobile) {
@@ -63,7 +66,8 @@ export default function VendorPreview({ onViewVendor }) {
           }}
         >
           {featured.map((v) => {
-            const nv = normalise(v);
+            // DB vendors are already normalised; only run normalise() on static fallback data
+            const nv = (dbVendors && dbVendors.length > 0) ? v : normalise(v);
             return (
               <div
                 key={v.id}
@@ -187,7 +191,8 @@ export default function VendorPreview({ onViewVendor }) {
           <div style={{ marginBottom: 48 }}>
             <SliderNav className="home-vendor-grid" cardWidth={360} gap={24}>
               {featured.map((v) => {
-                const nv = normalise(v);
+                // DB vendors are already normalised; only run normalise() on static fallback data
+                const nv = (dbVendors && dbVendors.length > 0) ? v : normalise(v);
                 return (
                   <div key={v.id} className="home-vendor-card" style={{ flex: "0 0 360px", scrollSnapAlign: "start" }}>
                     <LuxuryVendorCard

@@ -5,6 +5,7 @@ import { getDarkPalette, getLightPalette, getDefaultMode } from "../theme/tokens
 import { useChat } from "../chat/ChatContext";
 import { FEATURED_VENUES } from "../data/featuredVenues";
 import { getPageById } from "./PageStudio/services/pageService";
+import { fetchListings } from "../services/listings";
 
 import HomeNav from "../components/nav/HomeNav";
 import SlimHero from "../components/sections/SlimHero";
@@ -19,10 +20,51 @@ import NewsletterBand from "../components/sections/NewsletterBand";
 import EnquiryModal from "../components/modals/EnquiryModal";
 import "../category.css";
 
+// ─── Mapper: Supabase Listing → card-compatible shape ─────────────────────────
+// Called after fetchListings() which already runs buildCardImgs + buildCardVideoUrl,
+// so imgs[] and videoUrl are pre-built rich objects — no further media work needed.
+function listingToCard(listing) {
+  return {
+    id:          listing.id,
+    name:        listing.cardTitle || listing.name || '',
+    city:        listing.city      || '',
+    region:      listing.region    || '',
+    country:     listing.country   || '',
+    lat:         listing.lat       ?? null,
+    lng:         listing.lng       ?? null,
+    slug:        listing.slug      || '',
+    // Media — pre-built by transformSupabaseListingForUI via buildCardImgs / buildCardVideoUrl
+    imgs:        listing.imgs      || [],
+    videoUrl:    listing.videoUrl  || null,
+    // Pricing
+    priceFrom:   listing.priceFrom || null,
+    // Capacity
+    capacity:    listing.capacityMax || listing.capacityMin || null,
+    // Social proof
+    rating:      listing.rating      ?? null,
+    reviews:     listing.reviewCount ?? null,
+    // Status flags
+    verified:    listing.isVerified  ?? false,
+    featured:    listing.isFeatured  ?? false,
+    online:      listing.isFeatured  ?? false,
+    // Editorial
+    desc:        listing.cardSummary || listing.shortDescription || '',
+    tag:         listing.cardBadge   || null,
+    styles:      Array.isArray(listing.styles) ? listing.styles : [],
+    // Classification
+    cat:         listing.categorySlug || listing.listingType || '',
+    type:        listing.listingType  || '',
+    // Vendor-specific amenities / includes
+    includes:    Array.isArray(listing.amenities) ? listing.amenities : (listing.tags || []),
+    specialties: Array.isArray(listing.tags)      ? listing.tags      : [],
+  };
+}
+
 export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, onViewRegionCategory, onViewStandard, onViewAbout, onViewContact, onViewPartnership, onViewVendor, onViewAdmin, onViewUSA, onViewItaly, footerNav }) {
   const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
   const [enquiryVendor, setEnquiryVendor] = useState(null);
   const [heroBackgroundData, setHeroBackgroundData] = useState(null);
+  const [dbListings, setDbListings] = useState([]);
 
   const C = darkMode ? getDarkPalette() : getLightPalette();
   const { setChatContext } = useChat();
@@ -43,6 +85,26 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
     }).catch(() => {});
   }, []);
 
+  // Fetch live published listings from Supabase
+  // Falls back gracefully: VenueGrid uses FEATURED_VENUES, VendorPreview uses GLOBAL_VENDORS
+  useEffect(() => {
+    fetchListings({ status: "published" })
+      .then((listings) => setDbListings(listings))
+      .catch(() => {}); // silent fail — static fallbacks stay active
+  }, []);
+
+  // ── Derive live venue + vendor arrays from DB listings ──────────────────────
+  // venue = listingType "venue"; everything else (photographer, planner, etc.) = vendor
+  // If DB has no data yet, fall back to static curated data automatically.
+  const dbCards      = dbListings.map(listingToCard);
+  const dbVenueCards = dbCards.filter((c) => c.type === "venue");
+  const dbVendorCards= dbCards.filter((c) => c.type !== "venue");
+
+  // VenueGrid: prefer live DB venues, fall back to FEATURED_VENUES
+  const displayVenues = dbVenueCards.length > 0 ? dbVenueCards : FEATURED_VENUES;
+  // VendorPreview handles its own fallback to GLOBAL_VENDORS when dbVendors is empty/null
+  const displayVendors = dbVendorCards.length > 0 ? dbVendorCards : null;
+
   return (
     <ThemeCtx.Provider value={C}>
       <div style={{ background: C.black, minHeight: "100vh" }}>
@@ -55,6 +117,7 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
         />
 
         <main>
+          {/* SlimHero + FeaturedSlider remain on curated static data — editorial content */}
           <SlimHero venues={FEATURED_VENUES} backgroundData={heroBackgroundData} onViewRegion={onViewRegion} onViewRegionCategory={onViewRegionCategory} onViewCategory={onViewCategory} />
           <DestinationGrid
             onDestinationClick={(d) => {
@@ -63,10 +126,13 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
               }
             }}
           />
-          <VenueGrid venues={FEATURED_VENUES} onViewVenue={() => onViewVenue?.()} />
+          {/* VenueGrid: live DB data, falls back to static if DB empty */}
+          <VenueGrid venues={displayVenues} onViewVenue={() => onViewVenue?.()} />
           <FeaturedSlider venues={FEATURED_VENUES} />
           <CategorySlider />
+          {/* VendorPreview: live DB vendors when available; internal fallback to GLOBAL_VENDORS */}
           <VendorPreview
+            dbVendors={displayVendors}
             onViewVendor={(v) => {
               if (v.cat === "venues") onViewVenue?.();
               else setEnquiryVendor(v);

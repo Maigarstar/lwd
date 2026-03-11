@@ -126,6 +126,25 @@ export const buildCardImgs = (mediaItems = [], objectUrls = {}, limit = Infinity
     .slice(0, limit)
     .map(i => mapMediaItemToCardImg(i, objectUrls));
 
+/**
+ * Extract the primary video URL from a media_items pool.
+ * Used to populate v.videoUrl on cards — enables the hero autoplay video slot.
+ * Featured video wins; otherwise first public video by sort_order.
+ *
+ * @param {Array} mediaItems — full media_items[] array
+ * @returns {string|null} URL of the primary public video, or null
+ */
+export const buildCardVideoUrl = (mediaItems = []) => {
+  const vid = mediaItems
+    .filter(i => i.type === 'video' && i.visibility !== 'private' && i.url)
+    .sort((a, b) => {
+      if (a.is_featured && !b.is_featured) return -1;
+      if (!a.is_featured && b.is_featured) return 1;
+      return (a.sort_order ?? 999) - (b.sort_order ?? 999);
+    })[0];
+  return vid?.url || null;
+};
+
 
 // ─── 3. AI INFORMATION POOL ───────────────────────────────────────────────────
 

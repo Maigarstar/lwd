@@ -1,5 +1,5 @@
 import { supabase, isSupabaseAvailable } from '../lib/supabaseClient'
-import { buildCardImgs } from '../utils/mediaMappers'
+import { buildCardImgs, buildCardVideoUrl } from '../utils/mediaMappers'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
@@ -76,11 +76,17 @@ function transformSupabaseListingForUI(listing: any): any {
     transformed.expires = 'N/A'
   }
 
-  // Build rich imgs[] from media_items so cards get alt_text, credits, show_credit, etc.
+  // Build rich imgs[] and primary videoUrl from media_items.
   // Any component rendering LuxuryVenueCard / LuxuryVendorCard from a DB listing will
-  // receive structured image objects instead of plain URL strings.
-  if (!transformed.imgs && Array.isArray(transformed.mediaItems)) {
-    transformed.imgs = buildCardImgs(transformed.mediaItems)
+  // receive structured image objects instead of plain URL strings, and the first
+  // public video item's URL will populate the card's autoplay video slot.
+  if (Array.isArray(transformed.mediaItems)) {
+    if (!transformed.imgs) {
+      transformed.imgs = buildCardImgs(transformed.mediaItems)
+    }
+    if (!transformed.videoUrl) {
+      transformed.videoUrl = buildCardVideoUrl(transformed.mediaItems) ?? undefined
+    }
   }
 
   return transformed

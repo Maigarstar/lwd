@@ -37,6 +37,19 @@ const IMAGE_TYPES = [
   { value: 'other',           label: 'Other' },
 ];
 
+const VIDEO_TYPES = [
+  { value: '',              label: 'Select type…' },
+  { value: 'highlight',     label: 'Highlight Reel' },
+  { value: 'full_film',     label: 'Full Film' },
+  { value: 'teaser',        label: 'Teaser / Trailer' },
+  { value: 'ceremony',      label: 'Ceremony' },
+  { value: 'reception',     label: 'Reception' },
+  { value: 'venue_tour',    label: 'Venue Tour' },
+  { value: 'behind_scenes', label: 'Behind the Scenes' },
+  { value: 'aerial',        label: 'Aerial / Drone' },
+  { value: 'other',         label: 'Other' },
+];
+
 // ─── Color schemes ────────────────────────────────────────────────────────────
 const LIGHT = {
   bg:            '#ffffff',
@@ -408,8 +421,9 @@ export default function MediaMetaCanvas({
   const tags = Array.isArray(item?.tags) ? item.tags : [];
 
   // ── AI context builder ────────────────────────────────────────────────────────
+  const activeTypeList = isVideoItem ? VIDEO_TYPES : IMAGE_TYPES;
   const buildContext = (includeDesc = false) => [
-    localImageType   && `Type: ${IMAGE_TYPES.find(t => t.value === localImageType)?.label || localImageType}`,
+    localImageType   && `Type: ${activeTypeList.find(t => t.value === localImageType)?.label || localImageType}`,
     localTitle       && `Title: ${localTitle}`,
     localCaption     && `Caption: ${localCaption}`,
     includeDesc && localDescription && `Description: ${localDescription}`,
@@ -820,22 +834,24 @@ export default function MediaMetaCanvas({
             {/* ─── CORE INFO ─────────────────────────────────────────── */}
             <SectionLabel>Core Info</SectionLabel>
 
-            {/* Image type */}
-            <FieldRow>
-              <FieldLabel s={s}>Image Type</FieldLabel>
-              <select
-                value={localImageType}
-                onChange={e => { setLocalImageType(e.target.value); onUpdate('image_type', e.target.value); }}
-                style={{
-                  ...INPUT, cursor: 'pointer',
-                  paddingRight: 28, appearance: 'none', WebkitAppearance: 'none',
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='${isDark ? '%23888' : '%23999'}' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E")`,
-                  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', backgroundSize: '8px',
-                }}
-              >
-                {IMAGE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
-            </FieldRow>
+            {/* Image / Video type — hidden for virtual tours */}
+            {item.type !== 'virtual_tour' && (
+              <FieldRow>
+                <FieldLabel s={s}>{isVideoItem ? 'Video Type' : 'Image Type'}</FieldLabel>
+                <select
+                  value={localImageType}
+                  onChange={e => { setLocalImageType(e.target.value); onUpdate('image_type', e.target.value); }}
+                  style={{
+                    ...INPUT, cursor: 'pointer',
+                    paddingRight: 28, appearance: 'none', WebkitAppearance: 'none',
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='${isDark ? '%23888' : '%23999'}' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E")`,
+                    backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', backgroundSize: '8px',
+                  }}
+                >
+                  {activeTypeList.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </FieldRow>
+            )}
 
             {/* Title */}
             <FieldRow style={{ marginBottom: 0 }}>
