@@ -229,7 +229,8 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
         </div>
       )}
 
-      {/* ── Swipe hint on hover ── */}
+      {/* ── Right-side overlay column: SWIPE (top:44) → HEART (top:84) ── */}
+      {/* Swipe hint — below verified badge, shows on hover when multiple slides */}
       {hov && hasMultiple && (
         <div
           style={{
@@ -247,32 +248,68 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
         </div>
       )}
 
-
-      {/* ── Dot indicators ── */}
-      {hasMultiple && (
-        <div
-          aria-hidden="true"
-          style={{
-            position: "absolute", top: 14, left: "50%", transform: "translateX(-50%)",
-            zIndex: 5, display: "flex", alignItems: "center", gap: 5,
-            padding: "4px 8px", borderRadius: 12,
-            background: "rgba(0,0,0,0.35)", backdropFilter: "blur(6px)",
+      {/* Heart — below swipe hint, shows on hover or when saved */}
+      <div
+        style={{
+          position: "absolute", top: v.verified ? 84 : 52, right: 12, zIndex: 4,
+          opacity: isShortlisted(v.id) ? 1 : hov ? 1 : 0,
+          transition: "opacity 200ms ease",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <ShortlistButton
+          item={{ id: v.id, name: v.name, image: v.imgs?.[0], category: "venue", price: v.priceFrom, type: "venue" }}
+          isShortlisted={isShortlisted(v.id)}
+          onToggle={(itemId, newState) => {
+            track(newState ? "shortlist_add" : "shortlist_remove", { itemId, itemName: v.name });
+            toggleItem({ id: itemId, name: v.name, image: v.imgs?.[0], category: "venue", price: v.priceFrom, type: "venue" });
           }}
-        >
-          {allMedia.map((_, i) => (
-            <button
-              key={i}
-              onClick={(e) => { e.stopPropagation(); goTo(i); }}
-              aria-label={`Slide ${i + 1}`}
-              style={{
-                width: slideIdx === i ? 18 : 6, height: 6, borderRadius: 3,
-                background: slideIdx === i ? GOLD : "rgba(255,255,255,0.45)",
-                border: "none", padding: 0, cursor: "pointer", transition: "all 0.3s ease",
-              }}
-            />
-          ))}
-        </div>
-      )}
+          variant="icon"
+          size="medium"
+          strokeColor="#ffffff"
+        />
+      </div>
+
+      {/* ── Slide bar indicators — top-centre, max 3 bars ── */}
+      {hasMultiple && (() => {
+        const barCount = Math.min(mediaCount, 3);
+        // Which of the 3 bars is active: first / middle / last
+        const activeBar = mediaCount <= 3
+          ? slideIdx
+          : slideIdx === 0 ? 0
+          : slideIdx === mediaCount - 1 ? 2
+          : 1;
+        return (
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute", top: 14, left: "50%", transform: "translateX(-50%)",
+              zIndex: 5, display: "flex", alignItems: "center", gap: 3,
+              padding: "5px 8px", borderRadius: 20,
+              background: "rgba(0,0,0,0.45)", backdropFilter: "blur(8px)",
+            }}
+          >
+            {Array.from({ length: barCount }, (_, i) => (
+              <button
+                key={i}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Navigate to the proportional slide for this bar
+                  const target = mediaCount <= 3 ? i : Math.round((i / (barCount - 1)) * (mediaCount - 1));
+                  goTo(target);
+                }}
+                aria-label={`Slide group ${i + 1}`}
+                style={{
+                  width: 16, height: 2, borderRadius: 2,
+                  background: activeBar === i ? GOLD : "rgba(255,255,255,0.35)",
+                  border: "none", padding: 0, cursor: "pointer",
+                  transition: "background 0.3s ease", flexShrink: 0,
+                }}
+              />
+            ))}
+          </div>
+        );
+      })()}
 
       {/* ── Prev/Next arrows removed — SliderNav handles left/right nav ── */}
       {/* Image navigation via swipe/drag + dot indicators above */}
@@ -309,7 +346,7 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
         onClick={(e) => e.stopPropagation()}
         style={{
           position: "absolute", bottom: 0, left: 0, right: 0,
-          zIndex: 2, padding: isMobile ? "20px 16px 16px" : "20px 18px 18px",
+          zIndex: 2, padding: isMobile ? "20px 14px 16px" : "20px 18px 18px",
         }}
       >
         {/* Name */}
@@ -388,33 +425,27 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
         {/* Footer: price + CTAs */}
         <div
           style={{
-            display: "flex", justifyContent: "space-between", alignItems: "center",
+            display: "flex", alignItems: "center",
             paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.1)",
           }}
         >
-          <div style={{ fontFamily: GD, fontSize: 20, fontWeight: 600, color: GOLD, lineHeight: 1 }}>
+          {/* Price — natural block; marginRight:auto creates the gap to buttons */}
+          <div style={{
+            fontFamily: GD, fontSize: 20, fontWeight: 600, color: GOLD, lineHeight: 1,
+            flexShrink: 0, marginRight: "auto",
+          }}>
             <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 400, color: "rgba(255,255,255,0.45)", marginRight: 4, letterSpacing: "0.3px" }}>From</span>
             {v.priceFrom}
           </div>
 
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <ShortlistButton
-              item={{ id: v.id, name: v.name, image: v.imgs?.[0], category: "venue", price: v.priceFrom, type: "venue" }}
-              isShortlisted={isShortlisted(v.id)}
-              onToggle={(itemId, newState) => {
-                track(newState ? "shortlist_add" : "shortlist_remove", { itemId, itemName: v.name });
-                toggleItem({ id: itemId, name: v.name, image: v.imgs?.[0], category: "venue", price: v.priceFrom, type: "venue" });
-              }}
-              variant="icon"
-              size="medium"
-            />
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
             <button
               onClick={(e) => { e.stopPropagation(); setQuickViewItem(v); }}
               style={{
                 fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
                 textTransform: "uppercase", color: GOLD,
                 background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.3)",
-                borderRadius: "var(--lwd-radius-input)", padding: "8px 12px",
+                borderRadius: "var(--lwd-radius-input)", padding: "8px 10px",
                 cursor: "pointer", transition: "all 0.25s", whiteSpace: "nowrap",
               }}
             >
@@ -426,8 +457,8 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
                 fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
                 textTransform: "uppercase", color: "#0f0d0a",
                 background: `linear-gradient(135deg, ${GOLD}, #e8c97a)`,
-                border: "none", borderRadius: "var(--lwd-radius-input)",
-                padding: "8px 14px", cursor: "pointer", transition: "opacity 0.25s", whiteSpace: "nowrap",
+                border: "1px solid transparent", borderRadius: "var(--lwd-radius-input)",
+                padding: "8px 12px", cursor: "pointer", transition: "opacity 0.25s", whiteSpace: "nowrap",
               }}
               onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
               onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
@@ -440,7 +471,7 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
                 fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
                 textTransform: "uppercase", color: GOLD,
                 background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.3)",
-                borderRadius: "var(--lwd-radius-input)", padding: "8px 14px",
+                borderRadius: "var(--lwd-radius-input)", padding: "8px 10px",
                 cursor: "pointer", transition: "all 0.25s", whiteSpace: "nowrap",
               }}
             >

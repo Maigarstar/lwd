@@ -13,6 +13,7 @@ export default function ShortlistButton({
   disabled = false,
   loading = false,
   showLabel = true,
+  strokeColor = null, // override default stroke color when not shortlisted
 }) {
   const C = useTheme();
   const [hovered, setHovered] = useState(false);
@@ -62,7 +63,7 @@ export default function ShortlistButton({
           strokeLinecap="round"
           strokeLinejoin="round"
           style={{
-            color: isShortlisted ? C.gold : C.grey,
+            color: isShortlisted ? C.gold : (strokeColor || C.grey),
             transition: "color 200ms ease, fill 200ms ease",
           }}
         >
