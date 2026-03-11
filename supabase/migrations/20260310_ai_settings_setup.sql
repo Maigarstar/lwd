@@ -118,6 +118,7 @@ ON ai_usage_log(created_at DESC);
 -- ADMIN ONLY: Manage AI settings
 ALTER TABLE ai_settings ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "admin_manage_ai_settings" ON ai_settings;
 CREATE POLICY "admin_manage_ai_settings" ON ai_settings
 FOR ALL
 USING (COALESCE((auth.jwt() ->> 'is_admin')::boolean, FALSE) = TRUE)
@@ -126,6 +127,7 @@ WITH CHECK (COALESCE((auth.jwt() ->> 'is_admin')::boolean, FALSE) = TRUE);
 -- ADMIN ONLY: View usage logs
 ALTER TABLE ai_usage_log ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "admin_view_ai_usage" ON ai_usage_log;
 CREATE POLICY "admin_view_ai_usage" ON ai_usage_log
 FOR SELECT
 USING (COALESCE((auth.jwt() ->> 'is_admin')::boolean, FALSE) = TRUE);

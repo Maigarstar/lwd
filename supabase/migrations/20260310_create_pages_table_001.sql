@@ -26,19 +26,23 @@ CREATE INDEX IF NOT EXISTS idx_pages_updated_at ON public.pages(updated_at);
 ALTER TABLE public.pages ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Allow authenticated admin users to view all pages
+DROP POLICY IF EXISTS "Allow authenticated users to view pages" ON public.pages;
 CREATE POLICY "Allow authenticated users to view pages" ON public.pages
   FOR SELECT USING (auth.role() = 'authenticated');
 
 -- Policy: Allow authenticated admin users to insert pages
+DROP POLICY IF EXISTS "Allow authenticated users to create pages" ON public.pages;
 CREATE POLICY "Allow authenticated users to create pages" ON public.pages
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
 -- Policy: Allow authenticated admin users to update pages
+DROP POLICY IF EXISTS "Allow authenticated users to update pages" ON public.pages;
 CREATE POLICY "Allow authenticated users to update pages" ON public.pages
   FOR UPDATE USING (auth.role() = 'authenticated')
   WITH CHECK (auth.role() = 'authenticated');
 
 -- Policy: Allow authenticated admin users to delete pages
+DROP POLICY IF EXISTS "Allow authenticated users to delete pages" ON public.pages;
 CREATE POLICY "Allow authenticated users to delete pages" ON public.pages
   FOR DELETE USING (auth.role() = 'authenticated');
 
