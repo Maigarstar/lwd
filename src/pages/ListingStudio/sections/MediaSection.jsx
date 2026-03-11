@@ -740,6 +740,36 @@ const MediaSection = ({ formData, onChange }) => {
 
   const removeItem = id => notifyMedia(mediaItems.filter(item => item.id !== id));
 
+  const moveItemUp = id => {
+    const sorted = [...mediaItems].sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999));
+    const idx = sorted.findIndex(i => i.id === id);
+    if (idx <= 0) return;
+    const prev = sorted[idx - 1];
+    const curr = sorted[idx];
+    const prevOrder = prev.sort_order ?? (idx - 1);
+    const currOrder = curr.sort_order ?? idx;
+    notifyMedia(mediaItems.map(item =>
+      item.id === curr.id ? { ...item, sort_order: prevOrder }
+      : item.id === prev.id ? { ...item, sort_order: currOrder }
+      : item
+    ));
+  };
+
+  const moveItemDown = id => {
+    const sorted = [...mediaItems].sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999));
+    const idx = sorted.findIndex(i => i.id === id);
+    if (idx < 0 || idx >= sorted.length - 1) return;
+    const next = sorted[idx + 1];
+    const curr = sorted[idx];
+    const nextOrder = next.sort_order ?? (idx + 1);
+    const currOrder = curr.sort_order ?? idx;
+    notifyMedia(mediaItems.map(item =>
+      item.id === curr.id ? { ...item, sort_order: nextOrder }
+      : item.id === next.id ? { ...item, sort_order: currOrder }
+      : item
+    ));
+  };
+
   // Tab counts + filtered view
   const imgCnt  = mediaItems.filter(i => i.type === 'image').length;
   const vidCnt  = mediaItems.filter(i => i.type === 'video').length;
@@ -998,15 +1028,24 @@ const MediaSection = ({ formData, onChange }) => {
       </div>
 
       {/* ── Media Metadata Canvas ──────────────────────────────────────────── */}
-      {liveCanvasItem && (
-        <MediaMetaCanvas
-          item={liveCanvasItem}
-          objectUrls={mediaObjUrls}
-          onUpdate={(field, val) => updateItem(liveCanvasItem.id, field, val)}
-          onClose={() => setMetaCanvasItemId(null)}
-          venueId={formData?.id}
-        />
-      )}
+      {liveCanvasItem && (() => {
+        const sortedForCanvas = [...mediaItems].sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999));
+        const canvasIdx = sortedForCanvas.findIndex(i => i.id === liveCanvasItem.id);
+        return (
+          <MediaMetaCanvas
+            item={liveCanvasItem}
+            objectUrls={mediaObjUrls}
+            onUpdate={(field, val) => updateItem(liveCanvasItem.id, field, val)}
+            onClose={() => setMetaCanvasItemId(null)}
+            venueId={formData?.id}
+            onRemove={() => { removeItem(liveCanvasItem.id); setMetaCanvasItemId(null); }}
+            onMoveUp={() => moveItemUp(liveCanvasItem.id)}
+            onMoveDown={() => moveItemDown(liveCanvasItem.id)}
+            totalItems={mediaItems.length}
+            itemIndex={canvasIdx}
+          />
+        );
+      })()}
     </section>
   );
 };

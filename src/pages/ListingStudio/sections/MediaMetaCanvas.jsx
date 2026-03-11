@@ -9,82 +9,89 @@
  * dark studio mode. Useful for reviewing images against a dark background.
  *
  * AI features:
- *   - "AI Suggest Description" → generates editorial description from context
- *   - "AI Suggest Alt Text"    → generates SEO/accessibility alt text
+ *   - "Generate Description" → generates editorial description from context
+ *   - "Generate Alt Text"    → generates SEO/accessibility alt text
  *   User must click Insert to apply; AI never auto-fills.
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 
-// ─── Constants that never change ─────────────────────────────────────────────
-const GOLD  = '#b8860b';
-const GREEN = '#15803d';
-const RED   = '#dc2626';
+// ─── Constants ────────────────────────────────────────────────────────────────
+const GOLD   = '#b8860b';   // header/logo gold
+const GOLD2  = '#C5A059';   // section heading gold (brighter, more readable)
+const GREEN  = '#15803d';
+const RED    = '#dc2626';
 
 // ─── Color schemes ────────────────────────────────────────────────────────────
 const LIGHT = {
-  bg:          '#ffffff',
-  headerBg:    '#fafaf8',
-  border:      '#e5ddd0',
-  shadow:      '-6px 0 32px rgba(0,0,0,0.14)',
-  text:        '#333333',
-  subText:     '#555555',
-  muted:       '#999999',
-  hint:        '#bbbbbb',
-  inputBg:     '#fafaf8',
-  inputBorder: '#e5ddd0',
-  inputText:   '#333333',
-  divider:     '#f0ebe3',
-  imageBg:     '#f0ebe3',
-  tagBg:       '#fffbf0',
-  tagBorder:   'rgba(184,134,11,0.3)',
-  tagText:     GOLD,
-  aiBtn:       '#fffbf0',
-  aiBtnBorder: '#e9d97a',
-  discardBg:   '#f4f4f4',
-  discardText: '#666666',
-  discardBorder:'#dddddd',
-  errBg:       '#fff0f0',
-  errBorder:   '#fca5a5',
-  suggBg:      '#f8fcf4',
-  suggBorder:  '#86efac',
-  toggleBg:    '#ffffff',
-  toggleBorder:'#e5ddd0',
-  toggleDot:   'transparent',
+  bg:            '#ffffff',
+  headerBg:      '#fafaf8',
+  border:        '#e5ddd0',
+  shadow:        '-6px 0 32px rgba(0,0,0,0.14)',
+  text:          '#333333',
+  subText:       '#555555',
+  muted:         '#999999',
+  hint:          '#bbbbbb',
+  inputBg:       '#fafaf8',
+  inputBorder:   '#e5ddd0',
+  inputText:     '#333333',
+  divider:       '#ddd4c8',
+  imageBg:       '#f0ebe3',
+  tagBg:         '#fffbf0',
+  tagBorder:     'rgba(184,134,11,0.3)',
+  tagText:       GOLD,
+  aiBtn:         '#fffbf0',
+  aiBtnBorder:   '#e9d97a',
+  discardBg:     '#f4f4f4',
+  discardText:   '#666666',
+  discardBorder: '#dddddd',
+  errBg:         '#fff0f0',
+  errBorder:     '#fca5a5',
+  suggBg:        '#f8fcf4',
+  suggBorder:    '#86efac',
+  toggleBg:      '#ffffff',
+  toggleBorder:  '#e5ddd0',
+  toggleDot:     'transparent',
   toggleDotBorder: '#aaaaaa',
+  actionBg:      '#f5f1eb',
+  actionBorder:  '#ddd4c8',
+  actionText:    '#555555',
 };
 
 const DARK = {
-  bg:          '#141414',
-  headerBg:    '#1c1c1c',
-  border:      'rgba(255,255,255,0.1)',
-  shadow:      '-6px 0 40px rgba(0,0,0,0.6)',
-  text:        '#e8e8e8',
-  subText:     'rgba(255,255,255,0.6)',
-  muted:       'rgba(255,255,255,0.38)',
-  hint:        'rgba(255,255,255,0.25)',
-  inputBg:     'rgba(255,255,255,0.06)',
-  inputBorder: 'rgba(255,255,255,0.12)',
-  inputText:   '#e8e8e8',
-  divider:     'rgba(255,255,255,0.07)',
-  imageBg:     '#000000',
-  tagBg:       'rgba(184,134,11,0.18)',
-  tagBorder:   'rgba(184,134,11,0.45)',
-  tagText:     '#d4a840',
-  aiBtn:       'rgba(240,192,64,0.1)',
-  aiBtnBorder: 'rgba(233,217,122,0.4)',
-  discardBg:   'rgba(255,255,255,0.08)',
-  discardText: 'rgba(255,255,255,0.55)',
-  discardBorder:'rgba(255,255,255,0.15)',
-  errBg:       'rgba(220,38,38,0.12)',
-  errBorder:   'rgba(252,165,165,0.4)',
-  suggBg:      'rgba(21,128,61,0.12)',
-  suggBorder:  'rgba(134,239,172,0.35)',
-  toggleBg:    'rgba(240,192,64,0.15)',
-  toggleBorder:'rgba(240,192,64,0.4)',
-  toggleDot:   '#f0c040',
+  bg:            '#141414',
+  headerBg:      '#1c1c1c',
+  border:        'rgba(255,255,255,0.1)',
+  shadow:        '-6px 0 40px rgba(0,0,0,0.6)',
+  text:          '#e8e8e8',
+  subText:       'rgba(255,255,255,0.6)',
+  muted:         'rgba(255,255,255,0.38)',
+  hint:          'rgba(255,255,255,0.25)',
+  inputBg:       'rgba(255,255,255,0.06)',
+  inputBorder:   'rgba(255,255,255,0.12)',
+  inputText:     '#e8e8e8',
+  divider:       'rgba(255,255,255,0.13)',
+  imageBg:       '#000000',
+  tagBg:         'rgba(184,134,11,0.18)',
+  tagBorder:     'rgba(184,134,11,0.45)',
+  tagText:       '#d4a840',
+  aiBtn:         'rgba(240,192,64,0.1)',
+  aiBtnBorder:   'rgba(233,217,122,0.4)',
+  discardBg:     'rgba(255,255,255,0.08)',
+  discardText:   'rgba(255,255,255,0.55)',
+  discardBorder: 'rgba(255,255,255,0.15)',
+  errBg:         'rgba(220,38,38,0.12)',
+  errBorder:     'rgba(252,165,165,0.4)',
+  suggBg:        'rgba(21,128,61,0.12)',
+  suggBorder:    'rgba(134,239,172,0.35)',
+  toggleBg:      'rgba(240,192,64,0.15)',
+  toggleBorder:  'rgba(240,192,64,0.4)',
+  toggleDot:     '#f0c040',
   toggleDotBorder: 'transparent',
+  actionBg:      'rgba(255,255,255,0.05)',
+  actionBorder:  'rgba(255,255,255,0.1)',
+  actionText:    'rgba(255,255,255,0.5)',
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -92,11 +99,11 @@ const DARK = {
 const SectionLabel = ({ children }) => (
   <p style={{
     margin: '0 0 14px',
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: 700,
-    letterSpacing: '0.09em',
+    letterSpacing: '1px',
     textTransform: 'uppercase',
-    color: GOLD,
+    color: GOLD2,
   }}>
     {children}
   </p>
@@ -121,7 +128,12 @@ const FieldRow = ({ children, style }) => (
 );
 
 const Divider = ({ s }) => (
-  <div style={{ height: 1, backgroundColor: s.divider, margin: '22px 0' }} />
+  <div style={{
+    height: 1,
+    backgroundColor: s.divider,
+    margin: '24px 0',
+    transition: 'background-color 0.22s ease',
+  }} />
 );
 
 // ─── AI Suggest block ─────────────────────────────────────────────────────────
@@ -236,10 +248,22 @@ function AiSuggestBlock({ loading, suggestion, error, onSuggest, onInsert, onRej
 }
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
-export default function MediaMetaCanvas({ item, objectUrls, onUpdate, onClose, venueId }) {
+export default function MediaMetaCanvas({
+  item,
+  objectUrls,
+  onUpdate,
+  onClose,
+  venueId,
+  // Action bar props
+  onRemove,
+  onMoveUp,
+  onMoveDown,
+  totalItems,
+  itemIndex,
+}) {
 
-  // ── Dark mode toggle ────────────────────────────────────────────────────────
-  const [isDark, setIsDark] = useState(false);
+  // ── Dark mode toggle (default: dark studio mode) ─────────────────────────────
+  const [isDark, setIsDark] = useState(true);
   const s = isDark ? DARK : LIGHT;
 
   // ── Slide-in animation ──────────────────────────────────────────────────────
@@ -300,7 +324,7 @@ export default function MediaMetaCanvas({ item, objectUrls, onUpdate, onClose, v
     return () => document.removeEventListener('keydown', fn);
   }, [handleClose]);
 
-  // ── Image source ────────────────────────────────────────────────────────────
+  // ── Image source ─────────────────────────────────────────────────────────────
   const imgSrc = item
     ? (item.file instanceof File
         ? (objectUrls?.[item.id] ?? null)
@@ -309,7 +333,7 @@ export default function MediaMetaCanvas({ item, objectUrls, onUpdate, onClose, v
 
   const tags = Array.isArray(item?.tags) ? item.tags : [];
 
-  // ── AI context builder ──────────────────────────────────────────────────────
+  // ── AI context builder ───────────────────────────────────────────────────────
   const buildContext = (includeDesc = false) => [
     localTitle      && `Title: ${localTitle}`,
     localCaption    && `Caption: ${localCaption}`,
@@ -318,7 +342,7 @@ export default function MediaMetaCanvas({ item, objectUrls, onUpdate, onClose, v
     tags.length     && `Tags: ${tags.join(', ')}`,
   ].filter(Boolean).join('. ');
 
-  // ── AI suggest: description ─────────────────────────────────────────────────
+  // ── AI suggest: description ──────────────────────────────────────────────────
   const suggestDescription = async () => {
     setDescLoading(true); setDescError(null); setDescSuggestion(null);
     try {
@@ -337,7 +361,7 @@ export default function MediaMetaCanvas({ item, objectUrls, onUpdate, onClose, v
     finally { setDescLoading(false); }
   };
 
-  // ── AI suggest: alt text ────────────────────────────────────────────────────
+  // ── AI suggest: alt text ─────────────────────────────────────────────────────
   const suggestAltText = async () => {
     setAltLoading(true); setAltError(null); setAltSuggestion(null);
     try {
@@ -356,7 +380,7 @@ export default function MediaMetaCanvas({ item, objectUrls, onUpdate, onClose, v
     finally { setAltLoading(false); }
   };
 
-  // ── Tag handlers ─────────────────────────────────────────────────────────────
+  // ── Tag handlers ──────────────────────────────────────────────────────────────
   const addTag = (raw) => {
     const tag = raw.trim().replace(/,+$/, '').trim();
     if (!tag || tags.includes(tag)) return;
@@ -371,10 +395,12 @@ export default function MediaMetaCanvas({ item, objectUrls, onUpdate, onClose, v
 
   if (!item) return null;
 
-  const typeLabel = item.type === 'video' ? 'Video' : item.type === 'virtual_tour' ? 'Virtual Tour' : 'Image';
-  const displayName = item.title || item.file?.name || (item.url ? 'Uploaded media' : 'Untitled');
+  const typeLabel   = item.type === 'video' ? 'Video' : item.type === 'virtual_tour' ? 'Virtual Tour' : 'Image';
+  const posLabel    = totalItems > 0
+    ? `${typeLabel} ${(itemIndex ?? 0) + 1} of ${totalItems}`
+    : typeLabel;
 
-  // ── Shared dynamic input style ───────────────────────────────────────────────
+  // ── Shared input style ────────────────────────────────────────────────────────
   const INPUT = {
     width: '100%', padding: '9px 12px',
     border: `1px solid ${s.inputBorder}`,
@@ -385,21 +411,38 @@ export default function MediaMetaCanvas({ item, objectUrls, onUpdate, onClose, v
     transition: 'border-color 0.15s, background-color 0.22s, color 0.22s',
   };
 
+  // ── Action button helper ──────────────────────────────────────────────────────
+  const actionBtn = (active = false, danger = false) => ({
+    display: 'flex', alignItems: 'center', gap: 5,
+    padding: '6px 10px', borderRadius: 4,
+    border: `1px solid ${active ? 'rgba(184,134,11,0.5)' : (danger ? 'rgba(220,38,38,0.35)' : s.actionBorder)}`,
+    backgroundColor: active
+      ? (isDark ? 'rgba(184,134,11,0.22)' : '#fffbf0')
+      : (danger ? (isDark ? 'rgba(220,38,38,0.14)' : '#fff4f4') : s.actionBg),
+    color: active ? GOLD : danger ? RED : s.actionText,
+    fontSize: 11, fontWeight: 600, cursor: 'pointer',
+    transition: 'all 0.15s', whiteSpace: 'nowrap', flexShrink: 0,
+    lineHeight: 1,
+  });
+
+  const canMoveUp   = onMoveUp && itemIndex > 0;
+  const canMoveDown = onMoveDown && itemIndex < (totalItems - 1);
+
   return (
     <>
-      {/* ── Backdrop ─────────────────────────────────────────────────────── */}
+      {/* ── Backdrop ───────────────────────────────────────────────────────── */}
       <div
         onClick={handleClose}
         style={{
           position: 'fixed', inset: 0,
-          backgroundColor: isDark ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.28)',
+          backgroundColor: isDark ? 'rgba(0,0,0,0.58)' : 'rgba(0,0,0,0.28)',
           zIndex: 1299,
           opacity: visible ? 1 : 0,
           transition: 'opacity 0.22s ease',
         }}
       />
 
-      {/* ── Canvas panel ─────────────────────────────────────────────────── */}
+      {/* ── Canvas panel ───────────────────────────────────────────────────── */}
       <div
         style={{
           position: 'fixed', top: 0, right: 0,
@@ -413,23 +456,22 @@ export default function MediaMetaCanvas({ item, objectUrls, onUpdate, onClose, v
         }}
       >
 
-        {/* ── Sticky header ────────────────────────────────────────────── */}
+        {/* ── Fixed header ─────────────────────────────────────────────────── */}
         <div style={{
           flexShrink: 0,
           display: 'flex', alignItems: 'center', gap: 8,
-          padding: '0 14px',
-          height: 56,
+          padding: '0 14px', height: 56,
           borderBottom: `1px solid ${s.border}`,
           backgroundColor: s.headerBg,
           transition: 'background-color 0.22s ease, border-color 0.22s ease',
         }}>
-          {/* Title */}
+          {/* Labels */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{
               margin: 0, fontSize: 8, fontWeight: 700,
               letterSpacing: '0.1em', textTransform: 'uppercase', color: GOLD,
             }}>
-              {typeLabel} Metadata
+              Media Asset
             </p>
             <p style={{
               margin: '2px 0 0', fontSize: 12,
@@ -437,50 +479,42 @@ export default function MediaMetaCanvas({ item, objectUrls, onUpdate, onClose, v
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               transition: 'color 0.22s ease',
             }}>
-              {displayName}
+              {posLabel}
             </p>
           </div>
 
-          {/* ── Light toggle button ─────────────────────────────────── */}
+          {/* Light toggle */}
           <button
             onClick={() => setIsDark(d => !d)}
             title={isDark ? 'Lights on' : 'Lights off'}
             style={{
-              width: 30, height: 30,
-              borderRadius: '50%',
+              width: 30, height: 30, borderRadius: '50%',
               border: `1px solid ${s.toggleBorder}`,
               backgroundColor: s.toggleBg,
               cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-              transition: 'all 0.22s ease',
-              padding: 0,
+              flexShrink: 0, transition: 'all 0.22s ease', padding: 0,
             }}
           >
             <span style={{
-              display: 'block',
-              width: 10, height: 10,
-              borderRadius: '50%',
+              display: 'block', width: 10, height: 10, borderRadius: '50%',
               backgroundColor: s.toggleDot,
               border: `1.5px solid ${s.toggleDotBorder || s.toggleDot}`,
               transition: 'all 0.22s ease',
             }} />
           </button>
 
-          {/* ── Close button ────────────────────────────────────────── */}
+          {/* Close */}
           <button
             onClick={handleClose}
             title="Close (Esc)"
             style={{
-              width: 30, height: 30,
-              borderRadius: '50%',
+              width: 30, height: 30, borderRadius: '50%',
               border: `1px solid ${s.border}`,
               backgroundColor: 'transparent',
-              color: s.muted,
-              fontSize: 18, cursor: 'pointer',
+              color: s.muted, fontSize: 18, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0, lineHeight: 1,
-              transition: 'all 0.15s',
+              flexShrink: 0, lineHeight: 1, transition: 'all 0.15s',
             }}
             onMouseEnter={e => {
               e.currentTarget.style.backgroundColor = isDark ? 'rgba(255,255,255,0.08)' : '#f0ebe3';
@@ -495,82 +529,181 @@ export default function MediaMetaCanvas({ item, objectUrls, onUpdate, onClose, v
           </button>
         </div>
 
-        {/* ── Scrollable body ──────────────────────────────────────────── */}
+        {/* ── Scrollable body ───────────────────────────────────────────────── */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
 
-          {/* Image / video preview */}
+          {/* ── Sticky zone: image + action bar ──────────────────────────── */}
           <div style={{
-            width: '100%', height: 200,
-            backgroundColor: s.imageBg,
-            overflow: 'hidden',
-            borderBottom: `1px solid ${s.border}`,
-            flexShrink: 0, position: 'relative',
+            position: 'sticky', top: 0, zIndex: 10,
+            backgroundColor: s.bg,
             transition: 'background-color 0.22s ease',
           }}>
-            {imgSrc ? (
-              <img
-                src={imgSrc}
-                alt={localAltText || 'Media preview'}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              />
-            ) : (
-              <div style={{
-                width: '100%', height: '100%',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 44,
-              }}>
-                {item.type === 'video' ? '🎬' : item.type === 'virtual_tour' ? '🌐' : '🖼️'}
-              </div>
-            )}
+            {/* Image preview — 260px */}
             <div style={{
-              position: 'absolute', bottom: 10, left: 12,
-              padding: '3px 8px',
-              backgroundColor: 'rgba(0,0,0,0.5)',
-              borderRadius: 3, fontSize: 9, fontWeight: 700,
-              letterSpacing: '0.07em', textTransform: 'uppercase', color: '#fff',
+              width: '100%', height: 260,
+              backgroundColor: s.imageBg,
+              overflow: 'hidden',
+              borderBottom: `1px solid ${s.border}`,
+              position: 'relative',
+              flexShrink: 0,
+              transition: 'background-color 0.22s ease',
             }}>
-              {typeLabel}
+              {imgSrc ? (
+                <img
+                  src={imgSrc}
+                  alt={localAltText || 'Media preview'}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                />
+              ) : (
+                <div style={{
+                  width: '100%', height: '100%',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 48,
+                }}>
+                  {item.type === 'video' ? '🎬' : item.type === 'virtual_tour' ? '🌐' : '🖼️'}
+                </div>
+              )}
+              {/* Type badge */}
+              <div style={{
+                position: 'absolute', bottom: 10, left: 12,
+                padding: '3px 8px',
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                borderRadius: 3, fontSize: 9, fontWeight: 700,
+                letterSpacing: '0.07em', textTransform: 'uppercase', color: '#fff',
+              }}>
+                {typeLabel}
+              </div>
+            </div>
+
+            {/* ── Action bar ─────────────────────────────────────────────── */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '9px 14px',
+              borderBottom: `1px solid ${s.border}`,
+              backgroundColor: s.headerBg,
+              transition: 'background-color 0.22s ease, border-color 0.22s ease',
+            }}>
+              {/* Feature toggle */}
+              <button
+                onClick={() => onUpdate('is_featured', !item.is_featured)}
+                style={actionBtn(item.is_featured)}
+                title={item.is_featured ? 'Remove featured' : 'Set as featured'}
+              >
+                <span>★</span>
+                Feature
+              </button>
+
+              {/* Visibility */}
+              <select
+                value={item.visibility ?? 'public'}
+                onChange={e => onUpdate('visibility', e.target.value)}
+                style={{
+                  padding: '6px 8px',
+                  border: `1px solid ${s.actionBorder}`,
+                  borderRadius: 4,
+                  backgroundColor: s.actionBg,
+                  color: s.actionText,
+                  fontSize: 11, fontWeight: 600,
+                  cursor: 'pointer', outline: 'none',
+                  transition: 'all 0.22s',
+                }}
+              >
+                <option value="public">👁 Public</option>
+                <option value="private">🔒 Private</option>
+              </select>
+
+              {/* Spacer */}
+              <div style={{ flex: 1 }} />
+
+              {/* Move up */}
+              <button
+                onClick={canMoveUp ? onMoveUp : undefined}
+                title="Move up"
+                style={{
+                  ...actionBtn(false),
+                  padding: '6px 9px',
+                  opacity: canMoveUp ? 1 : 0.3,
+                  cursor: canMoveUp ? 'pointer' : 'default',
+                }}
+              >
+                ⬆
+              </button>
+
+              {/* Move down */}
+              <button
+                onClick={canMoveDown ? onMoveDown : undefined}
+                title="Move down"
+                style={{
+                  ...actionBtn(false),
+                  padding: '6px 9px',
+                  opacity: canMoveDown ? 1 : 0.3,
+                  cursor: canMoveDown ? 'pointer' : 'default',
+                }}
+              >
+                ⬇
+              </button>
+
+              {/* Remove */}
+              {onRemove && (
+                <button
+                  onClick={onRemove}
+                  title="Remove from media"
+                  style={{ ...actionBtn(false, true), padding: '6px 9px' }}
+                >
+                  🗑
+                </button>
+              )}
             </div>
           </div>
 
-          {/* ── Metadata form ─────────────────────────────────────────── */}
+          {/* ── Metadata form ─────────────────────────────────────────────── */}
           <div style={{
-            padding: '22px 20px 48px',
+            padding: '24px 20px 52px',
             transition: 'background-color 0.22s ease',
           }}>
 
-            {/* ── CORE INFO ──────────────────────────────────────── */}
+            {/* ─── CORE INFO ───────────────────────────────────────────── */}
             <SectionLabel>Core Info</SectionLabel>
 
             <FieldRow>
               <FieldLabel s={s}>Title</FieldLabel>
-              <input type="text" value={localTitle}
+              <input
+                type="text"
+                value={localTitle}
                 onChange={e => setLocalTitle(e.target.value)}
                 onBlur={() => onUpdate('title', localTitle.trim())}
                 placeholder="e.g. Ceremony at the golden hour"
-                style={INPUT} />
+                style={INPUT}
+              />
             </FieldRow>
 
             <FieldRow>
               <FieldLabel s={s}>Caption</FieldLabel>
-              <input type="text" value={localCaption}
+              <input
+                type="text"
+                value={localCaption}
                 onChange={e => setLocalCaption(e.target.value)}
                 onBlur={() => onUpdate('caption', localCaption.trim())}
                 placeholder="Short caption shown beneath the image"
-                style={INPUT} />
+                style={INPUT}
+              />
             </FieldRow>
 
             <FieldRow style={{ marginBottom: 0 }}>
               <FieldLabel s={s}>Description</FieldLabel>
-              <textarea value={localDescription}
+              <textarea
+                value={localDescription}
                 onChange={e => setLocalDescription(e.target.value)}
                 onBlur={() => onUpdate('description', localDescription.trim())}
                 placeholder="Rich editorial description of this image…"
                 rows={4}
-                style={{ ...INPUT, resize: 'vertical', lineHeight: 1.6 }} />
+                style={{ ...INPUT, resize: 'vertical', lineHeight: 1.6 }}
+              />
               <AiSuggestBlock
-                loading={descLoading} suggestion={descSuggestion} error={descError}
-                label="AI Suggest Description"
+                loading={descLoading}
+                suggestion={descSuggestion}
+                error={descError}
+                label="Generate Description"
                 onSuggest={suggestDescription}
                 onInsert={() => {
                   setLocalDescription(descSuggestion);
@@ -578,21 +711,25 @@ export default function MediaMetaCanvas({ item, objectUrls, onUpdate, onClose, v
                   setDescSuggestion(null);
                 }}
                 onReject={() => setDescSuggestion(null)}
-                s={s} />
+                s={s}
+              />
             </FieldRow>
 
             <Divider s={s} />
 
-            {/* ── PHOTOGRAPHER CREDITS ──────────────────────────── */}
+            {/* ─── PHOTOGRAPHER CREDITS ────────────────────────────────── */}
             <SectionLabel>Photographer Credits</SectionLabel>
 
             <FieldRow>
               <FieldLabel s={s}>Photographer Name</FieldLabel>
-              <input type="text" value={localCreditName}
+              <input
+                type="text"
+                value={localCreditName}
                 onChange={e => setLocalCreditName(e.target.value)}
                 onBlur={() => onUpdate('credit_name', localCreditName.trim())}
                 placeholder="Full name or studio"
-                style={INPUT} />
+                style={INPUT}
+              />
             </FieldRow>
 
             <FieldRow>
@@ -604,7 +741,8 @@ export default function MediaMetaCanvas({ item, objectUrls, onUpdate, onClose, v
                   color: s.hint, fontSize: 13,
                   pointerEvents: 'none', userSelect: 'none',
                 }}>@</span>
-                <input type="text"
+                <input
+                  type="text"
                   value={localInstagram}
                   onChange={e => setLocalInstagram(e.target.value.replace(/^@/, ''))}
                   onBlur={() => {
@@ -613,40 +751,50 @@ export default function MediaMetaCanvas({ item, objectUrls, onUpdate, onClose, v
                     onUpdate('credit_instagram', val ? `@${val}` : '');
                   }}
                   placeholder="instagram_handle"
-                  style={{ ...INPUT, paddingLeft: 26 }} />
+                  style={{ ...INPUT, paddingLeft: 26 }}
+                />
               </div>
             </FieldRow>
 
             <FieldRow>
               <FieldLabel s={s}>Website</FieldLabel>
-              <input type="url" value={localWebsite}
+              <input
+                type="url"
+                value={localWebsite}
                 onChange={e => setLocalWebsite(e.target.value)}
                 onBlur={() => onUpdate('credit_website', localWebsite.trim())}
                 placeholder="https://"
-                style={INPUT} />
+                style={INPUT}
+              />
             </FieldRow>
 
             <FieldRow style={{ marginBottom: 0 }}>
               <FieldLabel s={s}>Camera / Gear</FieldLabel>
-              <input type="text" value={localCamera}
+              <input
+                type="text"
+                value={localCamera}
                 onChange={e => setLocalCamera(e.target.value)}
                 onBlur={() => onUpdate('credit_camera', localCamera.trim())}
                 placeholder="e.g. Sony A7R V · 85mm f/1.4"
-                style={INPUT} />
+                style={INPUT}
+              />
             </FieldRow>
 
             <Divider s={s} />
 
-            {/* ── LOCATION & CONTEXT ────────────────────────────── */}
+            {/* ─── LOCATION & CONTEXT ──────────────────────────────────── */}
             <SectionLabel>Location &amp; Context</SectionLabel>
 
             <FieldRow>
               <FieldLabel s={s}>Location</FieldLabel>
-              <input type="text" value={localLocation}
+              <input
+                type="text"
+                value={localLocation}
                 onChange={e => setLocalLocation(e.target.value)}
                 onBlur={() => onUpdate('location', localLocation.trim())}
                 placeholder="e.g. Tuscany, Italy"
-                style={INPUT} />
+                style={INPUT}
+              />
             </FieldRow>
 
             <FieldRow style={{ marginBottom: 0 }}>
@@ -679,7 +827,9 @@ export default function MediaMetaCanvas({ item, objectUrls, onUpdate, onClose, v
                     }} title={`Remove "${tag}"`}>×</button>
                   </span>
                 ))}
-                <input type="text" value={tagInput}
+                <input
+                  type="text"
+                  value={tagInput}
                   onChange={e => setTagInput(e.target.value)}
                   onKeyDown={handleTagKeyDown}
                   onBlur={() => { if (tagInput.trim()) addTag(tagInput); }}
@@ -691,7 +841,8 @@ export default function MediaMetaCanvas({ item, objectUrls, onUpdate, onClose, v
                     minWidth: tags.length === 0 ? 160 : 40, flex: 1,
                     padding: '2px 2px',
                     fontFamily: 'system-ui, -apple-system, sans-serif',
-                  }} />
+                  }}
+                />
               </div>
               <p style={{ margin: '5px 0 0', fontSize: 10, color: s.hint }}>
                 Press Enter or comma to add · Backspace to remove last
@@ -700,37 +851,45 @@ export default function MediaMetaCanvas({ item, objectUrls, onUpdate, onClose, v
 
             <Divider s={s} />
 
-            {/* ── COPYRIGHT ─────────────────────────────────────── */}
+            {/* ─── COPYRIGHT ───────────────────────────────────────────── */}
             <SectionLabel>Copyright</SectionLabel>
 
             <FieldRow style={{ marginBottom: 0 }}>
               <FieldLabel s={s}>Copyright / Credit Line</FieldLabel>
-              <input type="text" value={localCopyright}
+              <input
+                type="text"
+                value={localCopyright}
                 onChange={e => setLocalCopyright(e.target.value)}
                 onBlur={() => onUpdate('copyright', localCopyright.trim())}
                 placeholder="e.g. © 2025 Jane Smith Photography"
-                style={INPUT} />
+                style={INPUT}
+              />
             </FieldRow>
 
             <Divider s={s} />
 
-            {/* ── SEO & ACCESSIBILITY ───────────────────────────── */}
+            {/* ─── SEO & ACCESSIBILITY ─────────────────────────────────── */}
             <SectionLabel>SEO &amp; Accessibility</SectionLabel>
 
             <FieldRow style={{ marginBottom: 0 }}>
               <FieldLabel s={s}>Alt Text</FieldLabel>
-              <input type="text" value={localAltText}
+              <input
+                type="text"
+                value={localAltText}
                 onChange={e => setLocalAltText(e.target.value)}
                 onBlur={() => onUpdate('alt_text', localAltText.trim())}
                 placeholder="Describe the image for search engines and screen readers"
                 maxLength={200}
-                style={INPUT} />
+                style={INPUT}
+              />
               <p style={{ margin: '4px 0 0', fontSize: 10, color: localAltText.length > 125 ? '#f59e0b' : s.hint }}>
                 {localAltText.length} / 125 recommended
               </p>
               <AiSuggestBlock
-                loading={altLoading} suggestion={altSuggestion} error={altError}
-                label="AI Suggest Alt Text"
+                loading={altLoading}
+                suggestion={altSuggestion}
+                error={altError}
+                label="Generate Alt Text"
                 onSuggest={suggestAltText}
                 onInsert={() => {
                   setLocalAltText(altSuggestion);
@@ -738,57 +897,9 @@ export default function MediaMetaCanvas({ item, objectUrls, onUpdate, onClose, v
                   setAltSuggestion(null);
                 }}
                 onReject={() => setAltSuggestion(null)}
-                s={s} />
+                s={s}
+              />
             </FieldRow>
-
-            <Divider s={s} />
-
-            {/* ── DISPLAY ───────────────────────────────────────── */}
-            <SectionLabel>Display</SectionLabel>
-
-            <div style={{ display: 'flex', gap: 10, alignItems: 'stretch' }}>
-              {/* Featured toggle */}
-              <button
-                onClick={() => onUpdate('is_featured', !(item.is_featured))}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 7,
-                  padding: '9px 16px', borderRadius: 6,
-                  border: `1px solid ${item.is_featured ? 'rgba(184,134,11,0.5)' : s.border}`,
-                  backgroundColor: item.is_featured
-                    ? (isDark ? 'rgba(184,134,11,0.2)' : '#fffbf0')
-                    : s.inputBg,
-                  color: item.is_featured ? GOLD : s.muted,
-                  fontSize: 12, fontWeight: 700,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <span style={{ fontSize: 14 }}>★</span>
-                Featured
-              </button>
-
-              {/* Visibility dropdown */}
-              <div style={{ flex: 1 }}>
-                <select
-                  value={item.visibility ?? 'public'}
-                  onChange={e => onUpdate('visibility', e.target.value)}
-                  style={{
-                    ...INPUT,
-                    cursor: 'pointer',
-                    paddingRight: 28,
-                    appearance: 'none', WebkitAppearance: 'none',
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='${isDark ? '%23888' : '%23999'}' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E")`,
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'right 10px center',
-                    backgroundSize: '8px',
-                  }}
-                >
-                  <option value="public">👁 Public</option>
-                  <option value="private">🔒 Private</option>
-                </select>
-              </div>
-            </div>
 
           </div>
         </div>
