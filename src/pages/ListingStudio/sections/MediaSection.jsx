@@ -234,7 +234,9 @@ const MediaItemCard = ({ item, objectUrls, onUpdate, onRemove, inCard, cardPosit
   if (item.type === 'image') {
     thumbSrc = item.file instanceof File ? objectUrls[item.id] : (item.url || item.thumbnail || null);
   } else if (item.type === 'video') {
-    thumbSrc = item.thumbnail || ytThumb(item.url) || null;
+    // Prefer JPEG thumbnail (YouTube/stored). For uploaded video files fall back to blob URL
+    // so we can render a <video> first-frame thumb instead of just an emoji.
+    thumbSrc = item.thumbnail || ytThumb(item.url) || (item.file instanceof File ? objectUrls[item.id] : null) || null;
   }
 
   const isVideo = item.type === 'video';
@@ -267,22 +269,31 @@ const MediaItemCard = ({ item, objectUrls, onUpdate, onRemove, inCard, cardPosit
           onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
         >
           {thumbSrc
-            ? <img src={thumbSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ? (isVideo && item.file instanceof File
+                /* Uploaded video — show first-frame via <video> */
+                ? <video src={thumbSrc} preload="metadata" muted playsInline
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} />
+                : <img src={thumbSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              )
             : <span style={{ fontSize: 22 }}>{TYPE_ICONS[item.type]}</span>
           }
-          {/* Edit metadata hint overlay */}
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0)',
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'center',
-            paddingBottom: 3,
-            transition: 'background-color 0.15s',
-            pointerEvents: 'none',
-          }}>
-          </div>
+          {/* Metadata completion dot — bottom-right corner */}
+          {(() => {
+            const hasTitle = !!(item.title    || '').trim();
+            const hasAlt   = !!(item.alt_text || '').trim();
+            const dotColor = (hasTitle && hasAlt) ? '#15803d'
+              : (hasTitle || hasAlt) ? '#d97706'
+              : '#d1d5db';
+            return (
+              <span style={{
+                position: 'absolute', bottom: 3, right: 3,
+                width: 7, height: 7, borderRadius: '50%',
+                backgroundColor: dotColor,
+                boxShadow: '0 0 0 1.5px rgba(0,0,0,0.35)',
+                pointerEvents: 'none',
+              }} />
+            );
+          })()}
         </div>
 
         {/* Info */}
@@ -1101,6 +1112,8 @@ const MediaSection = ({ formData, onChange }) => {
             onPrev={prevId ? () => setMetaCanvas({ pool: metaCanvas.pool, id: prevId }) : null}
             onNext={nextId ? () => setMetaCanvas({ pool: metaCanvas.pool, id: nextId }) : null}
             onApplyCredit={!isHero ? (fields) => applyCredit(liveCanvasItem.id, fields) : undefined}
+            allItems={sortedArr}
+            onJump={id => setMetaCanvas({ pool: metaCanvas.pool, id })}
           />
         );
       })()}

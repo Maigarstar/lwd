@@ -238,6 +238,8 @@ export default function MediaMetaCanvas({
   onPrev,
   onNext,
   onApplyCredit,  // (creditFields) => void — bulk-applies to all images in pool
+  allItems = [],  // full sorted items array — drives filmstrip
+  onJump,         // (id: string) => void — jump to any item directly
 }) {
   // ── Color scheme ─────────────────────────────────────────────────────────────
   const [isDark, setIsDark] = useState(true);
@@ -248,7 +250,15 @@ export default function MediaMetaCanvas({
   useEffect(() => { requestAnimationFrame(() => setVisible(true)); }, []);
 
   // ── Scroll body ref (for reset on navigation) ─────────────────────────────────
-  const scrollBodyRef = useRef(null);
+  const scrollBodyRef  = useRef(null);
+
+  // ── Filmstrip ref — auto-scrolls active thumb into view on navigation ─────────
+  const filmstripRef = useRef(null);
+  useEffect(() => {
+    if (!filmstripRef.current || !item?.id) return;
+    const thumb = filmstripRef.current.querySelector(`[data-filmstrip-id="${item.id}"]`);
+    if (thumb) thumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }, [item?.id]);
 
   // ── Local text states ────────────────────────────────────────────────────────
   const [localTitle,       setLocalTitle]       = useState('');
@@ -380,12 +390,20 @@ export default function MediaMetaCanvas({
     return () => document.removeEventListener('keydown', fn);
   }, [handleClose, handlePrev, handleNext, handleSave]);
 
-  // ── Image source ──────────────────────────────────────────────────────────────
-  const imgSrc = item
+  // ── Media source ─────────────────────────────────────────────────────────────
+  // Videos: uploaded file → blob URL (render as <video>)
+  //         YouTube/Vimeo  → item.thumbnail (JPEG), not item.url (YouTube page URL)
+  // Images: File → blob URL · stored → item.url
+  const isVideoItem = item?.type === 'video';
+  const mediaSrc = item
     ? (item.file instanceof File
         ? (objectUrls?.[item.id] ?? null)
-        : (item.url || item.thumbnail || null))
+        : isVideoItem
+          ? (item.thumbnail || null)          // external video → JPEG thumbnail only
+          : (item.url || item.thumbnail || null))
     : null;
+  // Keep legacy alias so nothing else breaks
+  const imgSrc = mediaSrc;
 
   const tags = Array.isArray(item?.tags) ? item.tags : [];
 
@@ -647,19 +665,31 @@ export default function MediaMetaCanvas({
               borderBottom: hasFileInfo ? 'none' : `1px solid ${s.border}`,
               transition: 'background-color 0.22s ease',
             }}>
-              {imgSrc ? (
+              {mediaSrc && isVideoItem && item.file instanceof File ? (
+                /* Uploaded video file — show first frame via <video preload="metadata"> */
+                <video
+                  src={mediaSrc}
+                  preload="metadata"
+                  muted
+                  playsInline
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  onLoadedMetadata={e => setImageDims({ w: e.target.videoWidth, h: e.target.videoHeight })}
+                />
+              ) : mediaSrc ? (
+                /* Image or external-video JPEG thumbnail */
                 <img
-                  src={imgSrc}
+                  src={mediaSrc}
                   alt={localAltText || 'Media preview'}
                   onLoad={e => setImageDims({ w: e.target.naturalWidth, h: e.target.naturalHeight })}
                   style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                 />
               ) : (
+                /* No preview available */
                 <div style={{
                   width: '100%', height: '100%',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48,
                 }}>
-                  {item.type === 'video' ? '🎬' : item.type === 'virtual_tour' ? '🌐' : '🖼️'}
+                  {isVideoItem ? '🎬' : item.type === 'virtual_tour' ? '🌐' : '🖼️'}
                 </div>
               )}
               {/* Type badge */}
@@ -1149,6 +1179,84 @@ export default function MediaMetaCanvas({
 
           </div>
         </div>
+
+        {/* ── Filmstrip ───────────────────────────────────────────────── */}
+        {allItems.length > 1 && (
+          <div
+            ref={filmstripRef}
+            style={{
+              flexShrink: 0,
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '8px 10px',
+              overflowX: 'auto', overflowY: 'hidden',
+              borderTop: `1px solid ${s.border}`,
+              backgroundColor: s.headerBg,
+              scrollbarWidth: 'thin',
+              scrollbarColor: `${s.border} transparent`,
+              transition: 'background-color 0.22s ease, border-color 0.22s ease',
+            }}
+          >
+            {allItems.map((it, idx) => {
+              const isActive = it.id === item.id;
+              // thumbnail source — same logic as canvas preview but compact
+              const isVid = it.type === 'video';
+              const thumbSrc = isVid
+                ? (it.thumbnail || null)                                          // YT thumb JPEG
+                : (it.file instanceof File
+                    ? (objectUrls?.[it.id] || '')
+                    : (it.url || it.thumbnail || ''));
+              // completion dot: green = title+alt filled, amber = one, grey = none
+              const hasTitle = !!(it.title   || '').trim();
+              const hasAlt   = !!(it.alt_text || '').trim();
+              const dotColor = (hasTitle && hasAlt) ? GREEN
+                : (hasTitle || hasAlt) ? AMBER
+                : (isDark ? 'rgba(255,255,255,0.18)' : '#c8c8c8');
+              return (
+                <button
+                  key={it.id}
+                  type="button"
+                  data-filmstrip-id={it.id}
+                  onClick={() => {
+                    flushAll();
+                    if (onJump) onJump(it.id);
+                  }}
+                  title={it.title || `Item ${idx + 1}`}
+                  style={{
+                    flexShrink: 0, width: 52, height: 52,
+                    borderRadius: 4, overflow: 'hidden',
+                    border: isActive ? `2px solid ${GOLD}` : `2px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                    padding: 0, cursor: 'pointer', position: 'relative',
+                    backgroundColor: s.imageBg,
+                    transition: 'border-color 0.15s, opacity 0.15s, transform 0.12s',
+                    opacity: isActive ? 1 : 0.6,
+                    transform: isActive ? 'scale(1.08)' : 'scale(1)',
+                  }}
+                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.opacity = '0.9'; e.currentTarget.style.transform = 'scale(1.04)'; } }}
+                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.opacity = '0.6'; e.currentTarget.style.transform = 'scale(1)'; } }}
+                >
+                  {thumbSrc ? (
+                    isVid && it.file instanceof File
+                      ? <video src={thumbSrc} preload="metadata" muted playsInline
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} />
+                      : <img src={thumbSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  ) : (
+                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', fontSize: 18 }}>
+                      {isVid ? '▶' : it.type === 'virtual_tour' ? '🌐' : '🖼'}
+                    </span>
+                  )}
+                  {/* Metadata completion dot */}
+                  <span style={{
+                    position: 'absolute', bottom: 3, right: 3,
+                    width: 7, height: 7, borderRadius: '50%',
+                    backgroundColor: dotColor,
+                    boxShadow: '0 0 0 1.5px rgba(0,0,0,0.45)',
+                    pointerEvents: 'none',
+                  }} />
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* ── Sticky footer: Prev / Save / Next ────────────────────────── */}
         <div style={{

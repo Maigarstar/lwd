@@ -32,11 +32,12 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
     const items = [];
     (v.imgs || []).forEach((img) => {
       if (typeof img === "string") {
-        items.push({ type: "image", src: img, creditName: null, creditIG: null, showCredit: false });
+        items.push({ type: "image", src: img, alt_text: "", creditName: null, creditIG: null, showCredit: false });
       } else {
         items.push({
           type:        "image",
           src:         img.src || img.url || "",
+          alt_text:    img.alt_text || "",
           creditName:  img.credit_name || null,
           creditIG:    img.credit_instagram || null,
           showCredit:  img.show_credit ?? false,

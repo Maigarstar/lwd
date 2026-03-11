@@ -1,4 +1,5 @@
 import { supabase, isSupabaseAvailable } from '../lib/supabaseClient'
+import { buildCardImgs } from '../utils/mediaMappers'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
@@ -73,6 +74,13 @@ function transformSupabaseListingForUI(listing: any): any {
   }
   if (!transformed.expires) {
     transformed.expires = 'N/A'
+  }
+
+  // Build rich imgs[] from media_items so cards get alt_text, credits, show_credit, etc.
+  // Any component rendering LuxuryVenueCard / LuxuryVendorCard from a DB listing will
+  // receive structured image objects instead of plain URL strings.
+  if (!transformed.imgs && Array.isArray(transformed.mediaItems)) {
+    transformed.imgs = buildCardImgs(transformed.mediaItems)
   }
 
   return transformed

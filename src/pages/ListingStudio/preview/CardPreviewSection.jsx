@@ -22,6 +22,7 @@ import LuxuryVenueCard  from '../../../components/cards/LuxuryVenueCard';
 import LuxuryVendorCard from '../../../components/cards/LuxuryVendorCard';
 import GCard            from '../../../components/cards/GCard';
 import QuickViewModal   from '../../../components/modals/QuickViewModal';
+import { buildCardImgs } from '../../../utils/mediaMappers';
 
 // ── Resolve a single image object to a URL string ─────────────────────────────
 // Handles File objects via a per-object blob URL approach.
@@ -124,15 +125,17 @@ export default function CardPreviewSection({ formData }) {
   const get = (type, field) => formData?.[`card_${type}_${field}`];
 
   const heroImages   = formData?.hero_images  || [];
+  const mediaItems   = formData?.media_items  || [];   // full gallery
   const venueImages  = get('venue',  'images') || [];
   const vendorImages = get('vendor', 'images') || [];
   const gcardImages  = get('gcard',  'images') || [];
 
   // ── Collect all unique File-based images for a single blob URL pass ─────────
+  // Include media_items so buildCardImgs() can resolve blob URLs for uploaded files.
   const allFileImages = (() => {
     const seen = new Set();
     const out  = [];
-    [...heroImages, ...venueImages, ...vendorImages, ...gcardImages].forEach(img => {
+    [...heroImages, ...mediaItems, ...venueImages, ...vendorImages, ...gcardImages].forEach(img => {
       if (img?.file instanceof File && !seen.has(img.id)) {
         seen.add(img.id);
         out.push(img);
@@ -156,14 +159,17 @@ export default function CardPreviewSection({ formData }) {
 
   // ── Build per-card v objects ──────────────────────────────────────────────────
 
+  // ── Shared media fallback: rich objects from the full gallery ──────────────
+  // Used when no card-section-specific images have been configured.
+  const mediaCardImgs = buildCardImgs(mediaItems, blobMap);
+
   // VENUE CARD
   const venueEnabled   = get('venue', 'enabled') !== false;
   const venueBadges    = get('venue', 'badges')    || [];
-  const venueImgs      = buildImgs(
-    venueImages, heroImages,
-    get('venue', 'media_url'), get('venue', 'media_type') || 'image',
-    blobMap
-  );
+  const venueImgs      = (() => {
+    const imgs = buildImgs(venueImages, heroImages, get('venue', 'media_url'), get('venue', 'media_type') || 'image', blobMap);
+    return imgs.length > 0 ? imgs : mediaCardImgs;   // fallback → media gallery
+  })();
   const venueVideoUrl  = getPrimaryVideoUrl(get('venue', 'video_urls') || []);
   const venueV = {
     id:        'studio-preview-venue',
@@ -192,11 +198,10 @@ export default function CardPreviewSection({ formData }) {
   // VENDOR CARD
   const vendorEnabled  = get('vendor', 'enabled') !== false;
   const vendorBadges   = get('vendor', 'badges')   || [];
-  const vendorImgs     = buildImgs(
-    vendorImages, heroImages,
-    get('vendor', 'media_url'), get('vendor', 'media_type') || 'image',
-    blobMap
-  );
+  const vendorImgs     = (() => {
+    const imgs = buildImgs(vendorImages, heroImages, get('vendor', 'media_url'), get('vendor', 'media_type') || 'image', blobMap);
+    return imgs.length > 0 ? imgs : mediaCardImgs;   // fallback → media gallery
+  })();
   const vendorVideoUrl = getPrimaryVideoUrl(get('vendor', 'video_urls') || []);
   const vendorV = {
     id:          'studio-preview-vendor',
@@ -228,11 +233,10 @@ export default function CardPreviewSection({ formData }) {
   // GCARD
   const gcardEnabled   = get('gcard', 'enabled') !== false;
   const gcardBadges    = get('gcard', 'badges')   || [];
-  const gcardImgs      = buildImgs(
-    gcardImages, heroImages,
-    get('gcard', 'media_url'), get('gcard', 'media_type') || 'image',
-    blobMap
-  );
+  const gcardImgs      = (() => {
+    const imgs = buildImgs(gcardImages, heroImages, get('gcard', 'media_url'), get('gcard', 'media_type') || 'image', blobMap);
+    return imgs.length > 0 ? imgs : mediaCardImgs;   // fallback → media gallery
+  })();
   const gcardV = {
     id:       'studio-preview-gcard',
     name:     get('gcard', 'title')       || formData?.venue_name || '',
