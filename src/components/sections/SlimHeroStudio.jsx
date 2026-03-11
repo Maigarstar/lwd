@@ -1,4 +1,5 @@
-// ─── src/components/sections/SlimHero.jsx ─────────────────────────────────────
+// ─── src/components/sections/SlimHeroStudio.jsx ────────────────────────────
+// Studio variant of SlimHero — identical visuals, full-bleed YouTube/Vimeo fix.
 import { useState, useEffect, useRef } from "react";
 import { useTheme } from "../../theme/ThemeContext";
 import { track } from "../../utils/track";
@@ -19,8 +20,6 @@ const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
 
 /* ── Clever-search location field (internal) ─────────────────────────────── */
-/* Shows nothing on focus; as the user types, surfaces matching countries &
-   cities in a compact ranked list — no huge mega menu. */
 function LocationSearchField({ value, onChange, placeholder, items, ariaLabel, onEnter, containerRef }) {
   const [inputText, setInputText] = useState("");
   const [open, setOpen] = useState(false);
@@ -31,7 +30,6 @@ function LocationSearchField({ value, onChange, placeholder, items, ariaLabel, o
 
   const q = inputText.toLowerCase().trim();
 
-  // Build flat ranked results only when user is actually typing
   const results = (() => {
     if (!q) return [];
     const out = [];
@@ -74,7 +72,6 @@ function LocationSearchField({ value, onChange, placeholder, items, ariaLabel, o
 
   useEffect(() => { setHlIdx(-1); }, [q]);
 
-  // Click-outside
   useEffect(() => {
     if (!open) return;
     const handler = (e) => {
@@ -87,7 +84,6 @@ function LocationSearchField({ value, onChange, placeholder, items, ariaLabel, o
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  // Scroll highlighted item
   useEffect(() => {
     if (hlIdx < 0 || !listRef.current) return;
     const el = listRef.current.querySelector(`[data-idx="${hlIdx}"]`);
@@ -122,7 +118,6 @@ function LocationSearchField({ value, onChange, placeholder, items, ariaLabel, o
     ? inputText
     : value && value !== "all" && value !== "Worldwide" ? value : "";
 
-  // Position dropdown to span full search bar width
   const getMegaPos = () => {
     if (!containerRef?.current || !wrapRef.current) return { left: 0, width: "100%" };
     const c = containerRef.current.getBoundingClientRect();
@@ -131,7 +126,6 @@ function LocationSearchField({ value, onChange, placeholder, items, ariaLabel, o
   };
   const megaPos = open ? getMegaPos() : { left: 0, width: "100%" };
 
-  // Highlight matching portion in label
   const highlight = (text) => {
     if (!q) return text;
     const idx = text.toLowerCase().indexOf(q);
@@ -444,8 +438,8 @@ function extractVimeoId(url) {
   return match ? match[1] : '';
 }
 
-/* ── SlimHero ────────────────────────────────────────────────────────────── */
-export default function SlimHero({ venues = [], backgroundData = null, onViewRegion, onViewRegionCategory, onViewCategory }) {
+/* ── SlimHeroStudio ──────────────────────────────────────────────────────── */
+export default function SlimHeroStudio({ venues = [], backgroundData = null, onViewRegion, onViewRegionCategory, onViewCategory }) {
   const C = useTheme();
   const [idx, setIdx] = useState(0);
   const [query, setQuery] = useState("");
@@ -458,10 +452,8 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
   const searchBarRef = useRef(null);
   const sectionRef = useRef(null);
 
-  // Trigger text-split after mount
   useEffect(() => { const t = setTimeout(() => setHeroLoaded(true), 150); return () => clearTimeout(t); }, []);
 
-  // Auto-advance background image (custom hero images or venues fallback)
   useEffect(() => {
     const images = backgroundData?.backgroundImages || venues;
     if (!images || !images.length) return;
@@ -469,7 +461,6 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
     return () => clearInterval(t);
   }, [backgroundData?.backgroundImages, venues]);
 
-  // Subtle parallax — image drifts at 15 % of scroll speed
   useEffect(() => {
     const onScroll = () => {
       const el = sectionRef.current;
@@ -501,7 +492,6 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
   const handleBrowseSearch = () => {
     track("search_submit", { mode: "browse", cat: activeCat, country: activeCountry });
 
-    // Resolve location → { countrySlug, regionSlug }
     let countrySlug = null, regionSlug = null;
     if (activeCountry && activeCountry !== "Worldwide") {
       const comma = activeCountry.lastIndexOf(", ");
@@ -585,7 +575,7 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
               </>
             )}
 
-            {/* Video carousel — only when type is 'video_upload' */}
+            {/* Video upload — only when type is 'video_upload' */}
             {backgroundData.backgroundType === 'video_upload' && backgroundData.backgroundVideos?.length > 0 && (
               <>
                 {backgroundData.backgroundVideos.map((vid, i) => (
@@ -599,56 +589,42 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
                       transition: "opacity 2s ease",
                     }}
                   >
-                    {vid.isUrl ? (
-                      <iframe
-                        src={vid.url}
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          border: "none",
-                        }}
-                        allow="autoplay"
-                        allowFullScreen
-                      />
-                    ) : (
-                      <video
-                        autoPlay={backgroundData.autoplay !== false}
-                        muted={backgroundData.muted !== false}
-                        loop={backgroundData.loop !== false}
-                        style={{
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                          objectPosition: "center center",
-                        }}
-                      >
-                        <source src={vid.url} type={`video/${vid.type}`} />
-                        Your browser does not support the video tag.
-                      </video>
-                    )}
+                    <video
+                      autoPlay={backgroundData.autoplay !== false}
+                      muted={backgroundData.muted !== false}
+                      loop={backgroundData.loop !== false}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        objectPosition: "center center",
+                      }}
+                    >
+                      <source src={vid.url} type={`video/${vid.type}`} />
+                      Your browser does not support the video tag.
+                    </video>
                   </div>
                 ))}
               </>
             )}
 
-            {/* YouTube — only when type is 'youtube' */}
+            {/* YouTube — full-bleed cover, no black bars */}
             {backgroundData.backgroundType === 'youtube' && backgroundData.backgroundVideoUrl && extractYouTubeId(backgroundData.backgroundVideoUrl) && (
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  overflow: "hidden",
-                }}
-              >
+              <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
                 <iframe
                   src={`https://www.youtube.com/embed/${extractYouTubeId(backgroundData.backgroundVideoUrl)}?autoplay=1&mute=1&loop=1&controls=0&modestbranding=1&playlist=${extractYouTubeId(backgroundData.backgroundVideoUrl)}`}
                   style={{
                     position: "absolute",
-                    width: "100%",
-                    height: "100%",
+                    width: "177.78vh",
+                    height: "56.25vw",
+                    minWidth: "100%",
+                    minHeight: "100%",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
                     border: "none",
                     pointerEvents: "none",
                   }}
@@ -658,21 +634,20 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
               </div>
             )}
 
-            {/* Vimeo — only when type is 'vimeo' */}
+            {/* Vimeo — full-bleed cover, no black bars */}
             {backgroundData.backgroundType === 'vimeo' && backgroundData.backgroundVideoUrl && extractVimeoId(backgroundData.backgroundVideoUrl) && (
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  overflow: "hidden",
-                }}
-              >
+              <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
                 <iframe
-                  src={`https://player.vimeo.com/video/${extractVimeoId(backgroundData.backgroundVideoUrl)}?autoplay=1&muted=1&loop=1&controls=0`}
+                  src={`https://player.vimeo.com/video/${extractVimeoId(backgroundData.backgroundVideoUrl)}?autoplay=1&muted=1&loop=1&controls=0&background=1`}
                   style={{
                     position: "absolute",
-                    width: "100%",
-                    height: "100%",
+                    width: "177.78vh",
+                    height: "56.25vw",
+                    minWidth: "100%",
+                    minHeight: "100%",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
                     border: "none",
                     pointerEvents: "none",
                   }}
@@ -683,7 +658,7 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
             )}
           </>
         ) : (
-          /* Fallback: Background images from venues — parallax layer */
+          /* Fallback: FEATURED_VENUES carousel — parallax layer */
           venues.map((v, i) => (
             <div
               key={v.id}
@@ -885,7 +860,7 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
           ))}
         </div>
 
-        {/* Search bar — no backdropFilter here to avoid containing-block trap */}
+        {/* Search bar */}
         <div
           ref={searchBarRef}
           className={`home-hero-search${searchMode === "ai" ? " home-hero-search--ai" : ""}`}
@@ -909,7 +884,6 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
             transition: "border-color 0.4s, box-shadow 0.4s",
           }}
         >
-          {/* Blur layer — separate element so it doesn't create a containing block for dropdowns */}
           <div aria-hidden="true" style={{ position: "absolute", inset: 0, borderRadius: "var(--lwd-radius-card)", background: "rgba(10,9,6,0.6)", backdropFilter: "blur(24px)", pointerEvents: "none", zIndex: 0 }} />
           {searchMode === "ai" ? (
             <>
@@ -966,12 +940,8 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
                   transition: "background 0.2s",
                   borderRadius: "0 4px 4px 0",
                 }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "#e8c97a")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "#C9A84C")
-                }
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#e8c97a")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "#C9A84C")}
               >
                 Ask Aura
               </button>
@@ -981,7 +951,6 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
               className="home-hero-browse-fields"
               style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "stretch", flex: 1, minWidth: 0 }}
             >
-              {/* Field 1: Category */}
               <span
                 style={{
                   padding: "0 12px 0 16px",
@@ -1003,8 +972,6 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
                 onEnter={handleBrowseSearch}
                 containerRef={searchBarRef}
               />
-
-              {/* Soft divider — gradient fade, no hard seam */}
               <div
                 className="home-hero-browse-divider"
                 style={{
@@ -1014,8 +981,6 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
                   flexShrink: 0,
                 }}
               />
-
-              {/* Field 2: Location — clever search, no mega menu */}
               <span
                 style={{
                   padding: "0 10px 0 14px",
@@ -1037,8 +1002,6 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
                 onEnter={handleBrowseSearch}
                 containerRef={searchBarRef}
               />
-
-              {/* Search button */}
               <button
                 onClick={handleBrowseSearch}
                 aria-label="Search"
@@ -1057,12 +1020,8 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
                   transition: "background 0.2s",
                   borderRadius: "0 4px 4px 0",
                 }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "#e8c97a")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "#C9A84C")
-                }
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#e8c97a")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "#C9A84C")}
               >
                 Search
               </button>

@@ -1,5 +1,5 @@
 import { ThemeCtx } from '../../../theme/ThemeContext';
-import SlimHero from '../../../components/sections/SlimHero';
+import SlimHeroStudio from '../../../components/sections/SlimHeroStudio';
 import DestinationGrid from '../../../components/sections/DestinationGrid';
 import VenueGrid from '../../../components/sections/VenueGrid';
 import FeaturedSlider from '../../../components/sections/FeaturedSlider';
@@ -21,7 +21,7 @@ import { FEATURED_VENUES } from '../../../data/featuredVenues';
 
 // Map of section ID to component
 const SECTION_COMPONENTS = {
-  hero: SlimHero,
+  hero: SlimHeroStudio,
   destinations: DestinationGrid,
   venues: VenueGrid,
   featured: FeaturedSlider,
@@ -37,7 +37,7 @@ const getSectionProps = (sectionId, formData) => {
     case 'hero': {
       const heroSection = (formData?.sections || []).find(s => s.id === 'hero');
       return {
-        venues: FEATURED_VENUES, // Fallback if no background media
+        venues: FEATURED_VENUES,
         backgroundData: heroSection?.backgroundData || null,
       };
     }

@@ -202,11 +202,37 @@ export default function PageEditorLive({ pageId, C, NU, GD, onNavigate }) {
             borderBottom: `1px solid ${C.border}`,
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'space-between',
           }}
         >
           <span style={{ fontSize: 12, color: C.grey2, fontFamily: NU, letterSpacing: '0.06em' }}>
             LIVE PREVIEW
           </span>
+          {viewMode === 'preview' && (
+            <div style={{ display: 'flex', gap: 4 }}>
+              {[['⬜ Split', 'split'], ['✏ Edit', 'editor']].map(([label, mode]) => (
+                <button
+                  key={mode}
+                  onClick={() => handleViewModeChange(mode)}
+                  style={{
+                    fontFamily: NU,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    padding: '4px 10px',
+                    borderRadius: 3,
+                    border: `1px solid ${C.border}`,
+                    background: C.card,
+                    color: C.gold,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Scrollable Preview */}

@@ -4,6 +4,7 @@ import { ThemeCtx } from "../theme/ThemeContext";
 import { getDarkPalette, getLightPalette, getDefaultMode } from "../theme/tokens";
 import { useChat } from "../chat/ChatContext";
 import { FEATURED_VENUES } from "../data/featuredVenues";
+import { getPageById } from "./PageStudio/services/pageService";
 
 import HomeNav from "../components/nav/HomeNav";
 import SlimHero from "../components/sections/SlimHero";
@@ -21,6 +22,7 @@ import "../category.css";
 export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, onViewRegionCategory, onViewStandard, onViewAbout, onViewContact, onViewPartnership, onViewVendor, onViewAdmin, onViewUSA, onViewItaly, footerNav }) {
   const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
   const [enquiryVendor, setEnquiryVendor] = useState(null);
+  const [heroBackgroundData, setHeroBackgroundData] = useState(null);
 
   const C = darkMode ? getDarkPalette() : getLightPalette();
   const { setChatContext } = useChat();
@@ -29,6 +31,17 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
   useEffect(() => {
     setChatContext?.({ page: "home" });
   }, [setChatContext]);
+
+  // Load published homepage background media from Page Studio
+  useEffect(() => {
+    getPageById("page_home").then((page) => {
+      if (!page) return;
+      const hero = (page.sections || []).find((s) => s.id === "hero");
+      if (hero?.backgroundData?.backgroundType) {
+        setHeroBackgroundData(hero.backgroundData);
+      }
+    }).catch(() => {});
+  }, []);
 
   return (
     <ThemeCtx.Provider value={C}>
@@ -42,7 +55,7 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
         />
 
         <main>
-          <SlimHero venues={FEATURED_VENUES} onViewRegion={onViewRegion} onViewRegionCategory={onViewRegionCategory} onViewCategory={onViewCategory} />
+          <SlimHero venues={FEATURED_VENUES} backgroundData={heroBackgroundData} onViewRegion={onViewRegion} onViewRegionCategory={onViewRegionCategory} onViewCategory={onViewCategory} />
           <DestinationGrid
             onDestinationClick={(d) => {
               if (d.countrySlug && d.regionSlug) {
