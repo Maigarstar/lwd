@@ -32,18 +32,19 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
     const items = [];
     (v.imgs || []).forEach((img) => {
       if (typeof img === "string") {
-        items.push({ type: "image", src: img, creditName: null, creditIG: null });
+        items.push({ type: "image", src: img, creditName: null, creditIG: null, showCredit: false });
       } else {
         items.push({
-          type: "image",
-          src: img.src || img.url || "",
-          creditName: img.credit_name || null,
-          creditIG:   img.credit_instagram || null,
+          type:        "image",
+          src:         img.src || img.url || "",
+          creditName:  img.credit_name || null,
+          creditIG:    img.credit_instagram || null,
+          showCredit:  img.show_credit ?? false,
         });
       }
     });
-    if (v.videoUrl) items.push({ type: "video", src: v.videoUrl, creditName: null, creditIG: null });
-    return items.length > 0 ? items : [{ type: "image", src: "", creditName: null, creditIG: null }];
+    if (v.videoUrl) items.push({ type: "video", src: v.videoUrl, creditName: null, creditIG: null, showCredit: false });
+    return items.length > 0 ? items : [{ type: "image", src: "", creditName: null, creditIG: null, showCredit: false }];
   })();
 
   const mediaCount  = allMedia.length;
@@ -364,6 +365,7 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
         {/* Photographer credit — bottom-right of image, above venue name */}
         {(() => {
           const cur = allMedia[slideIdx];
+          if (!cur?.showCredit) return null;
           const label = cur?.creditIG
             ? `@${cur.creditIG.replace(/^@/, "")}`
             : cur?.creditName || null;

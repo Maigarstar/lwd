@@ -172,6 +172,7 @@ export const useListingForm = (listingId = null) => {
                 copyright: '',
                 visibility: 'public',
                 image_type: '',
+                show_credit: false,
               })),
               ...(listing.videos || []).map((video, idx) => ({
                 id: `video-${idx}`,
@@ -195,6 +196,7 @@ export const useListingForm = (listingId = null) => {
                 copyright: '',
                 visibility: 'public',
                 image_type: '',
+                show_credit: false,
               })),
             ],
             hero_layout: listing.heroLayout || 'cinematic',

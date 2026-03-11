@@ -73,6 +73,7 @@ const initMediaItems = formData => {
       sort_order: img.sort_order ?? idx, is_featured: img.is_featured || false,
       alt_text: img.alt_text || '', copyright: img.copyright || '',
       visibility: img.visibility || 'public', image_type: img.image_type || '',
+      show_credit: img.show_credit ?? false,
     })
   );
   (formData?.videos || []).forEach((v, idx) =>
@@ -84,7 +85,7 @@ const initMediaItems = formData => {
       credit_camera: '',
       location: '', tags: v.tags || [],
       sort_order: (formData?.gallery_images?.length || 0) + idx, is_featured: v.is_featured || false,
-      alt_text: '', copyright: '', visibility: 'public', image_type: '',
+      alt_text: '', copyright: '', visibility: 'public', image_type: '', show_credit: false,
     })
   );
   return items;
@@ -724,7 +725,7 @@ const MediaSection = ({ formData, onChange }) => {
       title: '', caption: '', description: '',
       credit_name: '', credit_instagram: '', credit_website: '', credit_camera: '',
       location: '', tags: [], sort_order: mediaItems.length + idx, is_featured: false,
-      alt_text: '', copyright: '', visibility: 'public', image_type: '',
+      alt_text: '', copyright: '', visibility: 'public', image_type: '', show_credit: false,
     }));
     notifyMedia([...mediaItems, ...toAdd]);
   };
@@ -740,7 +741,7 @@ const MediaSection = ({ formData, onChange }) => {
       title: '', caption: '', description: '',
       credit_name: '', credit_instagram: '', credit_website: '', credit_camera: '',
       location: '', tags: [], sort_order: mediaItems.length, is_featured: false,
-      alt_text: '', copyright: '', visibility: 'public', image_type: '',
+      alt_text: '', copyright: '', visibility: 'public', image_type: '', show_credit: false,
     }]);
   };
 
@@ -754,7 +755,7 @@ const MediaSection = ({ formData, onChange }) => {
       title: '', caption: '', description: '',
       credit_name: '', credit_instagram: '', credit_website: '', credit_camera: '',
       location: '', tags: [], sort_order: mediaItems.length, is_featured: false,
-      alt_text: '', copyright: '', visibility: 'public', image_type: '',
+      alt_text: '', copyright: '', visibility: 'public', image_type: '', show_credit: false,
       provider: provider || detectTourProvider(url),
     }]);
   };

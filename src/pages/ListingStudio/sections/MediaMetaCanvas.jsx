@@ -261,6 +261,7 @@ export default function MediaMetaCanvas({
   const [localCopyright,   setLocalCopyright]   = useState('');
   const [localAltText,     setLocalAltText]     = useState('');
   const [localImageType,   setLocalImageType]   = useState('');
+  const [localShowCredit,  setLocalShowCredit]  = useState(false);
 
   // ── Tag input ─────────────────────────────────────────────────────────────────
   const [tagInput, setTagInput] = useState('');
@@ -303,6 +304,7 @@ export default function MediaMetaCanvas({
     setLocalCopyright(item.copyright ?? '');
     setLocalAltText(item.alt_text ?? '');
     setLocalImageType(item.image_type ?? '');
+    setLocalShowCredit(item.show_credit ?? false);
     setTagInput('');
     setConfirmDelete(false);
     setImageDims(null);
@@ -480,7 +482,8 @@ export default function MediaMetaCanvas({
     localLocation    !== (item.location           ?? '') ||
     localCopyright   !== (item.copyright          ?? '') ||
     localAltText     !== (item.alt_text           ?? '') ||
-    localImageType   !== (item.image_type         ?? '')
+    localImageType   !== (item.image_type         ?? '') ||
+    localShowCredit  !== (item.show_credit        ?? false)
   );
 
   // ── Shared input style ────────────────────────────────────────────────────────
@@ -900,13 +903,63 @@ export default function MediaMetaCanvas({
                 style={INPUT} />
             </FieldRow>
 
-            <FieldRow style={{ marginBottom: 0 }}>
+            <FieldRow>
               <FieldLabel s={s}>Camera / Gear</FieldLabel>
               <input type="text" value={localCamera}
                 onChange={e => setLocalCamera(e.target.value)}
                 onBlur={() => onUpdate('credit_camera', localCamera.trim())}
                 placeholder="e.g. Sony A7R V · 85mm f/1.4"
                 style={INPUT} />
+            </FieldRow>
+
+            {/* Show credit toggle */}
+            <FieldRow style={{ marginBottom: 0 }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 14px',
+                backgroundColor: localShowCredit ? (s.suggBg) : s.inputBg,
+                border: `1px solid ${localShowCredit ? s.suggBorder : s.inputBorder}`,
+                borderRadius: 6,
+                transition: 'all 0.2s ease',
+              }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: s.text }}>
+                    Show credit on card
+                  </p>
+                  <p style={{ margin: '2px 0 0', fontSize: 10, color: s.muted, lineHeight: 1.4 }}>
+                    {localShowCredit
+                      ? 'Photographer credit visible on listing cards'
+                      : 'Credit stored but hidden from front end'}
+                  </p>
+                </div>
+                {/* Pill toggle */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !localShowCredit;
+                    setLocalShowCredit(next);
+                    onUpdate('show_credit', next);
+                  }}
+                  aria-label={localShowCredit ? 'Hide credit' : 'Show credit'}
+                  style={{
+                    width: 40, height: 22, borderRadius: 11, border: 'none',
+                    cursor: 'pointer', flexShrink: 0, position: 'relative',
+                    backgroundColor: localShowCredit ? GREEN : s.hint,
+                    transition: 'background-color 0.2s ease',
+                    padding: 0,
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute',
+                    top: 3,
+                    left: localShowCredit ? 21 : 3,
+                    width: 16, height: 16, borderRadius: '50%',
+                    backgroundColor: '#ffffff',
+                    transition: 'left 0.2s ease',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+                  }} />
+                </button>
+              </div>
             </FieldRow>
 
             <Divider s={s} />
