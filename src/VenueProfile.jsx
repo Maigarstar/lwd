@@ -2666,7 +2666,7 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
 }
 
 // ─── ABOUT SECTION ────────────────────────────────────────────────────────────
-function AboutSection({ venue }) {
+function AboutSection({ venue, isDbVenue = false }) {
   const C = useT();
   const [expanded, setExpanded] = useState(false);
   const isMobile = useIsMobile();
@@ -2705,7 +2705,8 @@ function AboutSection({ venue }) {
           />
         </div>
         )}
-        {(!venue.imgs || venue.imgs.length < 2) && (
+        {/* Fallback images — static Villa Rosanova only, never shown on DB venues */}
+        {!isDbVenue && (!venue.imgs || venue.imgs.length < 2) && (
         <div style={{
           display: "grid",
           gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
@@ -2727,12 +2728,15 @@ function AboutSection({ venue }) {
         </div>
         )}
 
-        {/* Second paragraph */}
+        {/* Second paragraph — static Villa Rosanova content, only on /venue */}
+        {!isDbVenue && (
         <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9, marginBottom: 16, maxWidth: 780 }}>
           From the frescoed Grand Salon — with its original parquet floors and three Venetian chandeliers — to the centuries-old cypress garden, every space has been designed to create moments of extraordinary beauty. With accommodation for 58 guests across 24 rooms and 6 suites, Villa Rosanova is the perfect setting for multi-day wedding celebrations.
         </p>
+        )}
 
-        {/* Expandable paragraphs */}
+        {/* Expandable paragraphs — static Villa Rosanova content, only on /venue */}
+        {!isDbVenue && (
         <div style={{ overflow: "hidden", maxHeight: expanded ? 500 : 0, transition: "max-height 0.5s ease", maxWidth: 780 }}>
           <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9, marginBottom: 16 }}>
             The estate produces its own Chianti Classico wine, cold-pressed extra virgin olive oil, and seasonal truffles — all of which feature on our exclusively crafted wedding menus. Every detail of your celebration is managed by our dedicated events team, who have hosted over 300 weddings across four decades.
@@ -2741,7 +2745,9 @@ function AboutSection({ venue }) {
             Villa Rosanova has been featured in Vogue, Tatler and Harper's Bazaar, and has received the Luxury Wedding Directory's Best Villa award three years in succession. For couples seeking a truly once-in-a-lifetime setting — where privacy, beauty and impeccable service converge — there is simply nowhere quite like it.
           </p>
         </div>
+        )}
 
+        {!isDbVenue && (
         <button
           onClick={() => setExpanded(e => !e)}
           style={{
@@ -2755,8 +2761,10 @@ function AboutSection({ venue }) {
         >
           {expanded ? "Show less ↑" : "Read the full story →"}
         </button>
+        )}
 
         {/* Awards — horizontal scroll on mobile */}
+        {venue.awards?.length > 0 && (
         <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20, marginBottom: 16 }}>
           <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 12 }}>Awards & Recognition</div>
           <div className="vp-awards-scroll" style={{
@@ -2780,8 +2788,10 @@ function AboutSection({ venue }) {
             ))}
           </div>
         </div>
+        )}
 
         {/* Press */}
+        {venue.press?.length > 0 && (
         <div>
           <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 12 }}>As Seen In</div>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
@@ -2793,6 +2803,7 @@ function AboutSection({ venue }) {
             ))}
           </div>
         </div>
+        )}
 
       </div>
     </section>
@@ -3988,7 +3999,7 @@ function RoomsSection({ venue }) {
 
   return (
     <section id="rooms" style={{ marginBottom: 56 }}>
-      <SectionHeading title="Rooms & Accommodation" subtitle="18 luxurious bedrooms and suites for your guests" />
+      <SectionHeading title="Rooms & Accommodation" subtitle={acc.totalRooms ? `${acc.totalRooms} rooms${acc.totalSuites ? ` & ${acc.totalSuites} suites` : ''} for your guests` : "Accommodation for your guests"} />
       <>
         {/* Stats bar */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
@@ -6000,13 +6011,33 @@ export default function VenueProfile({ onBack = null, slug = null }) {
             })
             .map(item => mapMediaItemToGalleryPhoto(item))
             .filter(item => item.src) || VENUE.gallery,
-          flag: COUNTRY_FLAG[listing.country] || VENUE.flag,
-          videos: [],
-          accommodation: (listing.rooms_max_guests || listing.rooms_total)
+          flag:    COUNTRY_FLAG[listing.country] || VENUE.flag,
+          awards:  Array.isArray(listing.awards)          ? listing.awards          : [],
+          press:   Array.isArray(listing.press_features)  ? listing.press_features  : [],
+          videos:  [],
+          accommodation: (listing.rooms_max_guests || listing.rooms_total || listing.rooms_description)
             ? {
-                maxOvernightGuests: listing.rooms_max_guests || null,
-                maxGuests:          listing.rooms_max_guests || null,
-                totalRooms:         listing.rooms_total      || null,
+                type:              listing.rooms_accommodation_type || null,
+                totalRooms:        listing.rooms_total              || null,
+                totalSuites:       listing.rooms_suites             || null,
+                maxOvernightGuests:listing.rooms_max_guests         || null,
+                maxGuests:         listing.rooms_max_guests         || null,
+                minNightStay:      listing.rooms_min_stay           || null,
+                exclusiveUse:      !!listing.rooms_exclusive_use,
+                description:       listing.rooms_description        || null,
+                images:            Array.isArray(listing.rooms_images) ? listing.rooms_images : [],
+              }
+            : null,
+          exclusiveUse: (listing.exclusive_use_price || listing.exclusive_use_description || listing.exclusive_use_enabled != null)
+            ? {
+                enabled:     listing.exclusive_use_enabled !== false,
+                title:       listing.exclusive_use_title       || 'Exclusive Use',
+                subtitle:    listing.exclusive_use_subtitle    || '',
+                from:        listing.exclusive_use_price       || null,
+                subline:     listing.exclusive_use_subline     || null,
+                description: listing.exclusive_use_description || null,
+                ctaText:     listing.exclusive_use_cta_text    || 'Enquire About Exclusive Use',
+                includes:    Array.isArray(listing.exclusive_use_includes) ? listing.exclusive_use_includes : [],
               }
             : null,
           dining: null,
@@ -6073,7 +6104,7 @@ export default function VenueProfile({ onBack = null, slug = null }) {
           <div className="vp-main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 56, alignItems: "start" }}>
             {/* Content */}
             <div>
-              <AboutSection venue={VV} />
+              <AboutSection venue={VV} isDbVenue={!!slug} />
               <ImageGallery gallery={VV.gallery} onOpenLight={i => setLightIdx(i)} />
               {VV.videos && VV.videos.length > 0 && <VideoGallery videos={VV.videos} venue={VV} />}
               <ExclusiveUse venue={VV} onEnquire={() => setEnquiryOpen(true)} />
