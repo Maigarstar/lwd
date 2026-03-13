@@ -54,6 +54,8 @@ import CategoryPage          from "./pages/Magazine/CategoryPage.jsx";
 import MagazineArticlePage  from "./pages/Magazine/MagazineArticlePage.jsx";
 import FashionLandingPage   from "./pages/Magazine/FashionLandingPage.jsx";
 import MagazineStudio       from "./pages/MagazineStudio/index.jsx";
+import EditorialShowcase    from "./pages/EditorialShowcase.jsx";
+import VenueProfilePage     from "./pages/VenueProfilePage.jsx";
 import { VENDORS }            from "./data/vendors.js";
 
 // ── Lazy-loaded admin modules for bundle optimization ──────────────────────────
@@ -128,6 +130,7 @@ function stateToPath(pg, opts = {}) {
     case "magazine-fashion": return "/magazine/fashion";
     case "magazine-article": return `/magazine/${opts.magazineSlug || ''}`;
     case "magazine-studio":  return "/magazine-studio";
+    case "venue-profile":    return `/venues/${opts.venueSlug || 'grand-tirolia'}`;
     default:                 return "/";
   }
 }
@@ -167,6 +170,8 @@ function pathToState(pathname) {
   // Handle Puglia premium page (Phase 3.1 demo)
   if (parts[0] === "italy" && parts[1] === "puglia" && parts.length === 2) return { page: "puglia" };
   // Magazine routes
+  if (parts[0] === "editorial-showcase" && parts.length === 1) return { page: "editorial-showcase" };
+  if (parts[0] === "venues" && parts.length === 2) return { page: "venue-profile", venueSlug: parts[1] };
   if (parts[0] === "magazine-studio" && parts.length === 1) return { page: "magazine-studio" };
   if (parts[0] === "magazine" && parts.length === 1) return { page: "magazine" };
   if (parts[0] === "magazine" && parts[1] === "category" && parts.length === 3) return { page: "magazine-category", magazineCategoryId: parts[2] };
@@ -216,6 +221,7 @@ function App() {
   const [categorySearchQuery, setCategorySearchQuery] = useState(null);
   const [activeMagazineCategoryId, setActiveMagazineCategoryId] = useState(initial.magazineCategoryId || null);
   const [activeMagazineSlug, setActiveMagazineSlug] = useState(initial.magazineSlug || null);
+  const [activeVenueSlug, setActiveVenueSlug] = useState(initial.venueSlug || null);
   const [magazineLight, setMagazineLight] = useState(true);
 
   // Ref: skip pushState when change came from popstate (back/forward)
@@ -236,6 +242,7 @@ function App() {
       activationToken: activationToken,
       magazineCategoryId: activeMagazineCategoryId,
       magazineSlug: activeMagazineSlug,
+      venueSlug: activeVenueSlug,
     });
     if (window.location.pathname !== path) {
       window.history.pushState(null, "", path);
@@ -255,6 +262,7 @@ function App() {
       setActivationToken(s.activationToken || null);
       setActiveMagazineCategoryId(s.magazineCategoryId || null);
       setActiveMagazineSlug(s.magazineSlug || null);
+      setActiveVenueSlug(s.venueSlug || null);
       setCategoryRegion(null);
       setCategorySearchQuery(null);
       setPage(s.page);
@@ -514,6 +522,8 @@ function App() {
             console.log("Admin navigation:", action, data);
           }} />
         )}
+        {page === "editorial-showcase" && <EditorialShowcase />}
+        {page === "venue-profile" && <VenueProfilePage onBack={goHome} />}
         {page === "vendor-login" && (
           <VendorLogin onLoginSuccess={goVendor} />
         )}
