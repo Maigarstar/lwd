@@ -28,6 +28,12 @@ import HomepageManagerModule from "./PageStudio/HomepageManagerModule";
 import BlogManagerModule from "./PageStudio/BlogManagerModule";
 import ReusableBlocksModule from "./PageStudio/ReusableBlocksModule";
 import ListingStudioPage from "./ListingStudio/ListingStudioPage";
+import MagazineStudio from "./MagazineStudio/index";
+import ArtistryPage from "./Artistry/ArtistryPage";
+import { getAllSubmissions, reviewSubmission, toggleFeatured } from "../services/artistryService";
+import { POSTS } from "./Magazine/data/posts";
+import { PRODUCTS, COLLECTIONS, formatPrice } from "./Magazine/data/products";
+import { CATEGORIES } from "./Magazine/data/categories";
 
 // Font tokens — resolved via CSS custom properties set on admin root
 const GD = "var(--font-heading-primary)";
@@ -203,16 +209,17 @@ const NAV_SECTIONS = [
   {
     group: "Platform",
     items: [
-      { key: "overview",     label: "Overview",          icon: "◈" },
-      { key: "listings",     label: "Listings",          icon: "⊞" },
-      { key: "listing-studio", label: "Listing Studio",  icon: "✎" },
-      { key: "vendor-accounts", label: "Vendor Accounts", icon: "👤" },
-      { key: "categories",   label: "Categories",        icon: "▦" },
-      { key: "enquiries",    label: "Enquiries",         icon: "◇" },
-      { key: "partnerships", label: "Partnerships",      icon: "✦" },
-      { key: "countries",    label: "Countries",         icon: "◎" },
-      { key: "regions",      label: "Regions",           icon: "◇" },
-      { key: "index",        label: "Index Health",      icon: "▧" },
+      { key: "overview",        label: "Overview",          icon: "◈" },
+      { key: "listings",        label: "Listings",          icon: "⊞" },
+      { key: "listing-studio",  label: "Listing Studio",    icon: "✎" },
+      { key: "venue-profiles",  label: "Venue Profiles",    icon: "⌂" },
+      { key: "vendor-accounts", label: "Vendor Accounts",   icon: "👤" },
+      { key: "categories",      label: "Categories",        icon: "▦" },
+      { key: "enquiries",       label: "Enquiries",         icon: "◇" },
+      { key: "partnerships",    label: "Partnerships",      icon: "✦" },
+      { key: "countries",       label: "Countries",         icon: "◎" },
+      { key: "regions",         label: "Regions",           icon: "◇" },
+      { key: "index",           label: "Index Health",      icon: "▧" },
     ],
   },
   {
@@ -227,6 +234,7 @@ const NAV_SECTIONS = [
     group: "Engagement",
     items: [
       { key: "livechat",     label: "Live Chat",         icon: "◉" },
+      { key: "artistry",     label: "Artistry Awards",   icon: "✦" },
     ],
   },
   {
@@ -248,8 +256,9 @@ const NAV_SECTIONS = [
     items: [
       { key: "page-studio",  label: "Page Studio",       icon: "⟡" },
       { key: "homepage-manager", label: "Homepage Manager", icon: "⌂" },
-      { key: "blog-manager", label: "Blog Manager",      icon: "☰" },
-      { key: "reusable-blocks", label: "Reusable Blocks", icon: "⊞" },
+      { key: "magazine",         label: "The Magazine",      icon: "◈" },
+      { key: "magazine-studio",  label: "Magazine Studio",   icon: "✦" },
+      { key: "reusable-blocks",  label: "Reusable Blocks",   icon: "⊞" },
     ],
   },
 ];
@@ -1810,6 +1819,54 @@ function IndexHealthModule({ C }) {
       ))}
       <p style={{ fontFamily: NU, fontSize: 11, fontStyle: "italic", color: C.grey2, fontWeight: 300, margin: "24px 0 0", borderTop: `1px solid ${C.border}`, paddingTop: 16 }}>
         Scores are system-generated. Manual overrides are not permitted.
+      </p>
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LWD Artistry — Coming Soon placeholder
+// ═════════════════════════════════════════════════════════════════════════════
+function ArtistryComingSoon({ C, NU, GD }) {
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: '60vh',
+      padding: '60px 32px',
+      textAlign: 'center',
+    }}>
+      <span style={{ fontSize: 40, marginBottom: 24 }}>✦</span>
+      <h1 style={{
+        fontFamily: GD,
+        fontSize: 32,
+        fontWeight: 400,
+        color: C.white,
+        margin: '0 0 12px',
+      }}>
+        LWD Artistry
+      </h1>
+      <p style={{
+        fontFamily: NU,
+        fontSize: 13,
+        color: C.grey2,
+        margin: '0 0 8px',
+        maxWidth: 420,
+        lineHeight: 1.6,
+      }}>
+        A cinematic editorial showcase of the artists behind extraordinary weddings.
+      </p>
+      <p style={{
+        fontFamily: NU,
+        fontSize: 11,
+        color: C.gold,
+        margin: '24px 0 0',
+        letterSpacing: '0.1em',
+        textTransform: 'uppercase',
+      }}>
+        Coming Soon — In Build
       </p>
     </div>
   );
@@ -5092,6 +5149,218 @@ function CountriesModule({ C }) {
 // ═════════════════════════════════════════════════════════════════════════════
 // Placeholder modules
 // ═════════════════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════════════════════
+// Venue Profiles Module — manage & preview full venue profile pages
+// ═════════════════════════════════════════════════════════════════════════════
+const VENUE_PROFILES = [
+  {
+    slug:       'grand-tirolia',
+    name:       'Grand Tirolia',
+    location:   'Kitzbühel, Tyrol · Austria',
+    status:     'live',
+    heroImage:  '/grand-tirolia/20250820_GTK_DJI_0382-HDR.jpg',
+    logo:       '/grand-tirolia/GT_Logo_Positiv_RGB.jpg',
+    stats:      [
+      { value: '450',      label: 'Max guests' },
+      { value: '5',        label: 'Event spaces' },
+      { value: '98',       label: 'Rooms' },
+      { value: '3,000 m²', label: 'Spa' },
+    ],
+    sections: ['Hero', 'Gallery', 'Overview', 'Spaces', 'Dining', 'Rooms', 'Spa', 'Golf', 'Weddings', 'Enquire'],
+    lastUpdated: 'March 2026',
+    listingId:  null, // wire to Supabase listing ID when available
+  },
+];
+
+function VenueProfilesAdminModule({ C, onNavigate }) {
+  const [hovered, setHovered] = useState(null);
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 32 }}>
+        <div>
+          <p style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.gold, margin: '0 0 6px' }}>
+            Content
+          </p>
+          <h2 style={{ fontFamily: GD, fontSize: 28, fontWeight: 400, color: C.off, margin: 0 }}>
+            Venue Profiles
+          </h2>
+          <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, margin: '6px 0 0', fontWeight: 300 }}>
+            Full editorial venue pages — hero, gallery, spaces, dining, rooms, spa, and enquiry sections.
+          </p>
+        </div>
+        <button
+          style={{
+            background: C.gold, border: 'none', color: '#fff',
+            fontFamily: NU, fontSize: 12, fontWeight: 700,
+            letterSpacing: '0.1em', textTransform: 'uppercase',
+            padding: '10px 20px', borderRadius: 4, cursor: 'pointer',
+            opacity: 0.45,
+          }}
+          title="Coming soon — duplicate the VenueProfilePage template"
+        >
+          + New Profile
+        </button>
+      </div>
+
+      {/* Profile cards grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 20 }}>
+        {VENUE_PROFILES.map((v) => (
+          <div
+            key={v.slug}
+            onMouseEnter={() => setHovered(v.slug)}
+            onMouseLeave={() => setHovered(null)}
+            style={{
+              background: C.card,
+              border: `1px solid ${hovered === v.slug ? C.gold : C.border}`,
+              borderRadius: 6,
+              overflow: 'hidden',
+              transition: 'border-color 0.2s',
+            }}
+          >
+            {/* Hero thumbnail */}
+            <div style={{ position: 'relative', height: 180, background: '#111', overflow: 'hidden' }}>
+              <img
+                src={v.heroImage} alt={v.name}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 40%', display: 'block',
+                  transform: hovered === v.slug ? 'scale(1.03)' : 'scale(1)', transition: 'transform 0.5s ease' }}
+              />
+              {/* Status badge */}
+              <span style={{
+                position: 'absolute', top: 12, left: 12,
+                background: v.status === 'live' ? '#15803d' : C.grey,
+                color: '#fff', fontFamily: NU, fontSize: 10, fontWeight: 700,
+                letterSpacing: '0.12em', textTransform: 'uppercase',
+                padding: '3px 8px', borderRadius: 3,
+              }}>
+                {v.status === 'live' ? '● Live' : '○ Draft'}
+              </span>
+              {/* Logo */}
+              <img
+                src={v.logo} alt=""
+                style={{
+                  position: 'absolute', bottom: 12, right: 12,
+                  height: 28, width: 'auto', objectFit: 'contain',
+                  filter: 'brightness(0) invert(1)',
+                  opacity: 0.85,
+                }}
+              />
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: '16px 20px 20px' }}>
+              <h3 style={{ fontFamily: GD, fontSize: 20, fontWeight: 400, color: C.off, margin: '0 0 4px' }}>
+                {v.name}
+              </h3>
+              <p style={{ fontFamily: NU, fontSize: 12, color: C.grey2, margin: '0 0 16px', fontWeight: 300 }}>
+                {v.location}
+              </p>
+
+              {/* Stats row */}
+              <div style={{ display: 'flex', gap: 16, marginBottom: 16, paddingBottom: 16, borderBottom: `1px solid ${C.border}` }}>
+                {v.stats.map((s) => (
+                  <div key={s.label} style={{ textAlign: 'center' }}>
+                    <div style={{ fontFamily: GD, fontSize: 16, color: C.off, lineHeight: 1.1 }}>{s.value}</div>
+                    <div style={{ fontFamily: NU, fontSize: 10, color: C.grey2, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 2 }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Sections chips */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
+                {v.sections.map((sec) => (
+                  <span key={sec} style={{
+                    fontFamily: NU, fontSize: 10, fontWeight: 600,
+                    color: C.grey, background: C.dark,
+                    padding: '3px 8px', borderRadius: 3,
+                    letterSpacing: '0.06em',
+                  }}>
+                    {sec}
+                  </span>
+                ))}
+              </div>
+
+              {/* Action buttons */}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => window.open(`/venues/${v.slug}`, '_blank')}
+                  style={{
+                    flex: 1, background: C.gold, border: 'none',
+                    color: '#fff', fontFamily: NU, fontSize: 12, fontWeight: 700,
+                    letterSpacing: '0.08em', textTransform: 'uppercase',
+                    padding: '9px 0', borderRadius: 4, cursor: 'pointer',
+                    transition: 'opacity 0.2s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.opacity = '0.82'}
+                  onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                >
+                  Preview Page ↗
+                </button>
+                <button
+                  onClick={() => onNavigate && onNavigate('listing-studio', v.listingId ? { listingId: v.listingId } : {})}
+                  style={{
+                    flex: 1, background: 'none',
+                    border: `1px solid ${C.border2}`, color: C.grey,
+                    fontFamily: NU, fontSize: 12, fontWeight: 600,
+                    letterSpacing: '0.06em', textTransform: 'uppercase',
+                    padding: '9px 0', borderRadius: 4, cursor: 'pointer',
+                    transition: 'border-color 0.2s, color 0.2s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.grey; }}
+                >
+                  Listing Studio →
+                </button>
+              </div>
+
+              <p style={{ fontFamily: NU, fontSize: 11, color: C.grey2, margin: '10px 0 0', fontWeight: 300 }}>
+                Last updated: {v.lastUpdated}
+              </p>
+            </div>
+          </div>
+        ))}
+
+        {/* Add new placeholder card */}
+        <div style={{
+          background: 'none',
+          border: `2px dashed ${C.border}`,
+          borderRadius: 6, minHeight: 400,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          gap: 10, opacity: 0.5,
+        }}>
+          <span style={{ fontSize: 28, color: C.grey2 }}>⌂</span>
+          <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, margin: 0, fontWeight: 400 }}>Add Venue Profile</p>
+          <p style={{ fontFamily: NU, fontSize: 11, color: C.grey2, margin: 0, fontWeight: 300, textAlign: 'center', maxWidth: 180 }}>
+            Duplicate the VenueProfilePage template and add a new slug
+          </p>
+        </div>
+      </div>
+
+      {/* Template info */}
+      <div style={{
+        marginTop: 32, background: C.card,
+        border: `1px solid ${C.border}`, borderRadius: 6, padding: '20px 24px',
+        display: 'flex', alignItems: 'flex-start', gap: 16,
+      }}>
+        <span style={{ fontSize: 20, flexShrink: 0 }}>ℹ</span>
+        <div>
+          <p style={{ fontFamily: NU, fontSize: 13, fontWeight: 700, color: C.white, margin: '0 0 4px' }}>
+            How venue profiles work
+          </p>
+          <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, margin: 0, fontWeight: 300, lineHeight: 1.6 }}>
+            Each profile is driven by a data object in <code style={{ background: C.dark, padding: '1px 5px', borderRadius: 3, fontFamily: 'monospace', fontSize: 11 }}>VenueProfilePage.jsx</code>.
+            Sections: Hero · Gallery · Overview · Spaces · Dining · Rooms · Spa · Golf · Weddings · Amenities · Enquire.
+            Route pattern: <code style={{ background: C.dark, padding: '1px 5px', borderRadius: 3, fontFamily: 'monospace', fontSize: 11 }}>/venues/[slug]</code>.
+            To add a new venue, duplicate the <code style={{ background: C.dark, padding: '1px 5px', borderRadius: 3, fontFamily: 'monospace', fontSize: 11 }}>GT_VENUE</code> export and register the slug in <code style={{ background: C.dark, padding: '1px 5px', borderRadius: 3, fontFamily: 'monospace', fontSize: 11 }}>main.jsx</code>.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PlaceholderModule({ title, C }) {
   return (
     <div style={{
@@ -6575,7 +6844,11 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "partnerships":  return <PartnershipsModule C={C} />;
       case "index":         return <IndexHealthModule C={C} />;
       case "livechat":      return <LiveChatModule C={C} />;
-      case "listings":      return <ListingsModule C={C} />;
+      case "artistry":      return <ArtistryAdminModule C={C} />;
+      case "listings":       return <ListingsModule C={C} />;
+      case "venue-profiles": return <VenueProfilesAdminModule C={C} onNavigate={(action, params) => {
+        if (action === 'listing-studio') { setActiveTab('listing-studio'); }
+      }} />;
       case "listing-studio": return null; // Handled in main render logic
       case "vendor-accounts": return <VendorAccountsPage C={C} />;
       case "categories":    return <CategoriesModule C={C} />;
@@ -6607,6 +6880,11 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       }} />;
       case "homepage-manager": return <HomepageManagerModule C={C} NU={NU} GD={GD} />;
       case "blog-manager":  return <BlogManagerModule C={C} NU={NU} GD={GD} />;
+      case "magazine":      return <MagazineAdminModule C={C} NU={NU} GD={GD} onNavigate={(action) => {
+        if (action === 'magazine-studio') { setActiveTabState('magazine-studio'); }
+        else onNavigate(action);
+      }} />;
+      case "magazine-studio": return null; // Handled in main render logic
       case "reusable-blocks": return <ReusableBlocksModule C={C} NU={NU} GD={GD} />;
       default:              return <OverviewModule C={C} />;
     }
@@ -6619,7 +6897,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         @media (max-width: 768px) {
           .admin-sidebar { display: flex !important; position: fixed !important; z-index: 999; left: 0; top: 0; width: 220px !important; height: 100vh !important; transform: translateX(${sidebarOpen ? "0" : "-100%"}); transition: transform 0.3s ease !important; box-shadow: ${sidebarOpen ? "6px 0 32px rgba(0,0,0,0.7)" : "none"}; border-right: ${sidebarOpen ? "1px solid rgba(201,168,76,0.25)" : "none"} !important; }
           .admin-sidebar-overlay { display: ${sidebarOpen ? "block" : "none"}; position: fixed; inset: 0; z-index: 998; background: rgba(0,0,0,0.5); }
-          .admin-main { padding: 56px 16px 20px !important; }
+          .admin-main { padding: ${activeTab === 'magazine-studio' || activeTab === 'page-editor' || activeTab === 'listing-studio' || listingStudioMode ? '0' : '56px 16px 20px'} !important; }
           .admin-hamburger { display: flex !important; }
           .admin-collapse-btn { display: none !important; }
           .admin-grid-2col { grid-template-columns: 1fr !important; }
@@ -6655,7 +6933,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
           "--font-heading-secondary": "'Playfair Display', Georgia, serif",
           "--font-body": `'${customFonts.body}', sans-serif`,
           "--font-ui": `'${customFonts.body}', sans-serif`,
-          display: "flex", minHeight: "100vh", background: C.black,
+          display: "flex", height: "100dvh", background: C.black,
           transition: "background 0.3s",
         }}
       >
@@ -6685,8 +6963,8 @@ export default function AdminDashboard({ onBack, onNavigate }) {
             flexShrink: 0,
             position: "sticky",
             top: 0,
-            height: "100vh",
-            display: "flex",
+            height: "100dvh",
+            display: ['magazine-studio', 'listing-studio', 'page-editor'].includes(activeTab) || listingStudioMode ? "none" : "flex",
             flexDirection: "column",
             transition: "width 0.25s ease, background 0.3s, border-color 0.3s",
             overflowY: "auto",
@@ -6889,9 +7167,14 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         </aside>
 
         {/* ── Main content ── */}
-        <main className="admin-main" style={{ flex: 1, padding: listingStudioMode || activeTab === 'listing-studio' ? 0 : "40px 48px", overflow: "auto", transition: "background 0.3s" }}>
-          {/* Show ListingStudio page when in listing studio mode or tab */}
-          {listingStudioMode || activeTab === 'listing-studio' ? (
+        <main className="admin-main" style={{ flex: 1, minHeight: 0, padding: listingStudioMode || activeTab === 'listing-studio' || activeTab === 'page-editor' || activeTab === 'magazine-studio' ? 0 : "40px 48px", overflow: activeTab === 'page-editor' || activeTab === 'magazine-studio' ? "hidden" : "auto", transition: "background 0.3s" }}>
+          {/* Magazine Studio — full-screen inside admin layout */}
+          {activeTab === 'magazine-studio' ? (
+            <MagazineStudio
+              onNavigateMagazine={() => onNavigate('magazine')}
+              onNavigateHome={() => setActiveTabState('overview')}
+            />
+          ) : listingStudioMode || activeTab === 'listing-studio' ? (
             <Suspense fallback={
               <div style={{ backgroundColor: C.black, color: C.white, padding: '40px', textAlign: 'center', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div>
@@ -6921,38 +7204,17 @@ export default function AdminDashboard({ onBack, onNavigate }) {
             </Suspense>
           ) : (
             <>
-              <div style={{ marginBottom: 36 }}>
-                <h1 style={{
-                  fontFamily: GD, fontSize: 24, fontWeight: 400,
-                  color: C.off, margin: "0 0 6px", transition: "color 0.3s",
-                }}>
-                  {ALL_NAV_ITEMS.find((n) => n.key === activeTab)?.label}
-                </h1>
-                <div style={{ width: 24, height: 1, background: C.gold, opacity: 0.4, marginTop: 12 }} />
-              </div>
-
-              {/* ── Theme status indicator ── */}
-              <div style={{
-                display: "flex", alignItems: "center", gap: 16, marginBottom: 24,
-                padding: "8px 14px", background: C.dark, borderRadius: 4,
-                border: `1px solid ${C.border}`, fontSize: 10, fontFamily: NU,
-              }}>
-                <span style={{ color: C.grey2, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700 }}>Theme</span>
-                <span style={{ color: darkMode ? C.gold : C.off, fontWeight: 600 }}>{darkMode ? "Dark" : "Light"}</span>
-                <span style={{ width: 1, height: 12, background: C.border }} />
-                <span style={{ color: C.grey2 }}>Admin default:</span>
-                <span style={{ color: C.off, fontWeight: 600 }}>{siteSettings.adminDefaultMode === "dark" ? "Dark" : "Light"}</span>
-                <span style={{ width: 1, height: 12, background: C.border }} />
-                <span style={{ color: C.grey2 }}>Public default:</span>
-                <span style={{ color: C.off, fontWeight: 600 }}>{siteSettings.defaultMode === "dark" ? "Dark" : "Light"}</span>
-                <span style={{ width: 1, height: 12, background: C.border }} />
-                <span style={{
-                  color: saveStatus === "saved" ? C.green : saveStatus === "unsaved" ? C.gold : C.grey2,
-                  fontWeight: 500,
-                }}>
-                  {saveStatus === "saved" ? "● Saved" : saveStatus === "unsaved" ? "● Unsaved" : "● Defaults"}
-                </span>
-              </div>
+              {activeTab !== 'page-editor' && (
+                <div style={{ marginBottom: 36 }}>
+                  <h1 style={{
+                    fontFamily: GD, fontSize: 24, fontWeight: 400,
+                    color: C.off, margin: "0 0 6px", transition: "color 0.3s",
+                  }}>
+                    {ALL_NAV_ITEMS.find((n) => n.key === activeTab)?.label}
+                  </h1>
+                  <div style={{ width: 24, height: 1, background: C.gold, opacity: 0.4, marginTop: 12 }} />
+                </div>
+              )}
 
               {renderModule()}
             </>
@@ -6961,5 +7223,528 @@ export default function AdminDashboard({ onBack, onNavigate }) {
 
       </div>
     </ThemeCtx.Provider>
+  );
+}
+
+// ── Artistry Admin Module ─────────────────────────────────────────────────────
+const STATUS_COLORS = { pending: '#f59e0b', approved: '#10b981', rejected: '#ef4444' };
+const STATUS_LABELS = { pending: 'Pending', approved: 'Approved', rejected: 'Rejected' };
+const NU_A = "var(--font-body)";
+const GD_A = "var(--font-heading-primary)";
+
+function ArtistryAdminModule({ C }) {
+  const [tab, setTab] = useState('submissions');
+  const [submissions, setSubmissions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [noteInputs, setNoteInputs] = useState({});
+  const [actionMsg, setActionMsg] = useState(null);
+
+  const load = async (sf = statusFilter) => {
+    setLoading(true);
+    const { data } = await getAllSubmissions(sf === 'all' ? null : sf);
+    setSubmissions(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleFilter = (sf) => {
+    setStatusFilter(sf);
+    load(sf);
+  };
+
+  const handleReview = async (id, status) => {
+    const note = noteInputs[id] || '';
+    const { error } = await reviewSubmission(id, status, note);
+    if (error) { setActionMsg({ ok: false, text: 'Failed to update.' }); return; }
+    setActionMsg({ ok: true, text: `Entry ${status}.` });
+    setTimeout(() => setActionMsg(null), 3000);
+    load();
+  };
+
+  const handleToggleFeatured = async (id, current) => {
+    await toggleFeatured(id, !current);
+    load();
+  };
+
+  const counts = { all: submissions.length };
+  ['pending','approved','rejected'].forEach(s => {
+    counts[s] = submissions.filter(x => x.status === s).length;
+  });
+
+  const visibleSubs = statusFilter === 'all'
+    ? submissions
+    : submissions.filter(s => s.status === statusFilter);
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontFamily: NU_A, fontSize: 10, letterSpacing: '3px', textTransform: 'uppercase', color: C.gold, marginBottom: 8 }}>✦ Awards Management</div>
+        <h2 style={{ fontFamily: GD_A, fontSize: 32, color: C.white, fontWeight: 600, margin: '0 0 6px' }}>The Wedding Artistry Awards 2026</h2>
+        <p style={{ fontFamily: NU_A, fontSize: 13, color: C.grey, margin: 0 }}>Review vendor submissions · Approve entries to publish them on <span style={{ color: C.gold }}>/artistry-awards</span></p>
+      </div>
+
+      {/* Tab bar */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 28, borderBottom: `1px solid ${C.border}`, paddingBottom: 0 }}>
+        {[
+          { id: 'submissions', label: 'Submissions' },
+          { id: 'preview',     label: 'Live Page Preview' },
+        ].map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={{
+            fontFamily: NU_A, fontSize: 12, fontWeight: tab === t.id ? 700 : 400,
+            color: tab === t.id ? C.gold : C.grey,
+            background: 'none', border: 'none',
+            borderBottom: tab === t.id ? `2px solid ${C.gold}` : '2px solid transparent',
+            padding: '8px 18px', cursor: 'pointer', transition: 'color 0.2s',
+            marginBottom: -1,
+          }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'preview' && (
+        <div style={{ borderRadius: 8, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+          <ArtistryPage />
+        </div>
+      )}
+
+      {tab === 'submissions' && (
+        <>
+          {/* Status filter pills */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+            {['all','pending','approved','rejected'].map(sf => (
+              <button key={sf} onClick={() => handleFilter(sf)} style={{
+                fontFamily: NU_A, fontSize: 11, fontWeight: statusFilter === sf ? 700 : 400,
+                letterSpacing: '0.08em', textTransform: 'capitalize',
+                padding: '5px 14px', borderRadius: 20, cursor: 'pointer',
+                border: `1px solid ${statusFilter === sf ? C.gold : C.border}`,
+                background: statusFilter === sf ? `${C.gold}18` : 'transparent',
+                color: statusFilter === sf ? C.gold : C.grey,
+                transition: 'all 0.18s',
+              }}>
+                {sf === 'all' ? 'All' : STATUS_LABELS[sf]} ({counts[sf] || 0})
+              </button>
+            ))}
+          </div>
+
+          {actionMsg && (
+            <div style={{
+              padding: '10px 16px', borderRadius: 6, marginBottom: 16,
+              background: actionMsg.ok ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+              border: `1px solid ${actionMsg.ok ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+              fontFamily: NU_A, fontSize: 13,
+              color: actionMsg.ok ? '#10b981' : '#ef4444',
+            }}>
+              {actionMsg.text}
+            </div>
+          )}
+
+          {loading ? (
+            <div style={{ padding: 40, textAlign: 'center', fontFamily: NU_A, fontSize: 13, color: C.grey }}>Loading submissions…</div>
+          ) : visibleSubs.length === 0 ? (
+            <div style={{ padding: 40, textAlign: 'center', fontFamily: NU_A, fontSize: 13, color: C.grey }}>
+              {statusFilter === 'all' ? 'No submissions yet. Vendors can submit from their dashboard → Artistry Awards tab.' : `No ${statusFilter} submissions.`}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {visibleSubs.map(sub => (
+                <div key={sub.id} style={{
+                  background: C.card, border: `1px solid ${C.border}`,
+                  borderLeft: `3px solid ${STATUS_COLORS[sub.status]}`,
+                  borderRadius: 8, padding: 20,
+                }}>
+                  <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                    {/* Primary image */}
+                    {sub.images?.[0] && (
+                      <img src={sub.images[0]} alt="" style={{ width: 72, height: 96, objectFit: 'cover', borderRadius: 4, flexShrink: 0, border: `1px solid ${C.border}` }} onError={e => { e.target.style.display = 'none'; }} />
+                    )}
+
+                    {/* Info */}
+                    <div style={{ flex: 1, minWidth: 200 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
+                        <span style={{ fontFamily: GD_A, fontSize: 18, color: C.white, fontWeight: 600 }}>{sub.vendor_name}</span>
+                        <span style={{
+                          fontFamily: NU_A, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+                          textTransform: 'uppercase', color: STATUS_COLORS[sub.status],
+                          padding: '2px 8px', borderRadius: 3,
+                          background: `${STATUS_COLORS[sub.status]}15`,
+                          border: `1px solid ${STATUS_COLORS[sub.status]}30`,
+                        }}>
+                          {STATUS_LABELS[sub.status]}
+                        </span>
+                        {sub.status === 'approved' && (
+                          <button onClick={() => handleToggleFeatured(sub.id, sub.featured)} style={{
+                            fontFamily: NU_A, fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
+                            textTransform: 'uppercase', cursor: 'pointer',
+                            padding: '2px 8px', borderRadius: 3, border: `1px solid ${sub.featured ? C.gold : C.border}`,
+                            background: sub.featured ? `${C.gold}20` : 'transparent',
+                            color: sub.featured ? C.gold : C.grey,
+                          }}>
+                            {sub.featured ? '★ Featured' : '☆ Set Featured'}
+                          </button>
+                        )}
+                      </div>
+                      <div style={{ fontFamily: NU_A, fontSize: 11, color: C.grey, marginBottom: 8 }}>
+                        {sub.category} · {sub.location}, {sub.country}
+                        <span style={{ marginLeft: 12, color: '#555' }}>
+                          Submitted {new Date(sub.submitted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </span>
+                      </div>
+                      {sub.quote && (
+                        <p style={{ fontFamily: NU_A, fontSize: 12, fontStyle: 'italic', color: 'rgba(245,240,232,0.55)', margin: '0 0 8px', lineHeight: 1.5 }}>
+                          "{sub.quote}"
+                        </p>
+                      )}
+                      {/* Image strip */}
+                      {sub.images?.length > 0 && (
+                        <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+                          {sub.images.slice(0, 5).map((url, i) => (
+                            <img key={i} src={url} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 3, border: `1px solid ${C.border}` }} onError={e => { e.target.style.display = 'none'; }} />
+                          ))}
+                        </div>
+                      )}
+                      {sub.video_url && (
+                        <div style={{ fontFamily: NU_A, fontSize: 11, color: C.grey }}>
+                          🎥 <a href={sub.video_url} target="_blank" rel="noreferrer" style={{ color: C.gold, textDecoration: 'none' }}>{sub.video_url.slice(0, 60)}{sub.video_url.length > 60 ? '…' : ''}</a>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    {sub.status !== 'approved' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 180 }}>
+                        <input
+                          value={noteInputs[sub.id] || ''}
+                          onChange={e => setNoteInputs(n => ({ ...n, [sub.id]: e.target.value }))}
+                          placeholder="Optional note to vendor…"
+                          style={{ background: '#1a1a1a', border: `1px solid ${C.border}`, borderRadius: 4, padding: '7px 10px', fontFamily: NU_A, fontSize: 11, color: C.white, outline: 'none', width: '100%', boxSizing: 'border-box' }}
+                        />
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button onClick={() => handleReview(sub.id, 'approved')} style={{
+                            flex: 1, background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.4)',
+                            color: '#10b981', borderRadius: 4, padding: '7px 0',
+                            fontFamily: NU_A, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
+                            textTransform: 'uppercase', cursor: 'pointer',
+                          }}>
+                            ✓ Approve
+                          </button>
+                          <button onClick={() => handleReview(sub.id, 'rejected')} style={{
+                            flex: 1, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+                            color: '#ef4444', borderRadius: 4, padding: '7px 0',
+                            fontFamily: NU_A, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
+                            textTransform: 'uppercase', cursor: 'pointer',
+                          }}>
+                            ✗ Reject
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {sub.status === 'approved' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 140 }}>
+                        <button onClick={() => handleReview(sub.id, 'rejected')} style={{
+                          background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)',
+                          color: '#ef4444', borderRadius: 4, padding: '7px 14px',
+                          fontFamily: NU_A, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
+                          textTransform: 'uppercase', cursor: 'pointer',
+                        }}>
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {sub.admin_note && (
+                    <div style={{ marginTop: 10, fontFamily: NU_A, fontSize: 11, color: C.grey, fontStyle: 'italic' }}>
+                      Note sent to vendor: "{sub.admin_note}"
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Magazine Admin Module
+// ─────────────────────────────────────────────────────────────────────────────
+const GOLD_M = '#c9a96e';
+
+function MagazineAdminModule({ C, onNavigate }) {
+  const [tab, setTab] = useState('posts');
+  const [productSearch, setProductSearch] = useState('');
+  const [productCat, setProductCat] = useState('all');
+  const [search, setSearch] = useState('');
+  const [filterCat, setFilterCat] = useState('all');
+
+  const filtered = POSTS.filter(p => {
+    const matchCat = filterCat === 'all' || p.category === filterCat;
+    const matchSearch = !search || p.title.toLowerCase().includes(search.toLowerCase()) || p.author.name.toLowerCase().includes(search.toLowerCase());
+    return matchCat && matchSearch;
+  });
+
+  const stats = [
+    { label: 'Total Articles', value: POSTS.length },
+    { label: 'Categories', value: CATEGORIES.length },
+    { label: 'Featured', value: POSTS.filter(p => p.featured).length },
+    { label: 'Trending', value: POSTS.filter(p => p.trending).length },
+  ];
+
+  const TabBtn = ({ id, label }) => (
+    <button onClick={() => setTab(id)} style={{
+      fontFamily: NU_A, fontSize: 11, fontWeight: tab === id ? 700 : 400,
+      letterSpacing: '0.06em', padding: '7px 16px', borderRadius: 3,
+      background: tab === id ? `${GOLD_M}18` : 'transparent',
+      border: `1px solid ${tab === id ? GOLD_M : C.border}`,
+      color: tab === id ? GOLD_M : C.grey, cursor: 'pointer',
+    }}>
+      {label}
+    </button>
+  );
+
+  return (
+    <div style={{ padding: 'clamp(24px, 3vw, 40px)', maxWidth: 1100 }}>
+      <div style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+        <div>
+          <div style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: GOLD_M, marginBottom: 6 }}>
+            Content · The Magazine
+          </div>
+          <h2 style={{ fontFamily: GD_A, fontSize: 'clamp(22px, 3vw, 30px)', fontWeight: 400, color: C.heading, margin: 0 }}>
+            The Magazine
+          </h2>
+          <p style={{ fontFamily: NU_A, fontSize: 13, color: C.grey, margin: '6px 0 0' }}>
+            AI-driven editorial · feeds into the Aura AI search engine
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          {onNavigate && (
+            <button
+              onClick={() => onNavigate('magazine-studio')}
+              style={{
+                fontFamily: NU_A, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
+                textTransform: 'uppercase', color: '#0a0a0a',
+                background: GOLD_M, border: 'none',
+                padding: '9px 18px', borderRadius: 3, cursor: 'pointer',
+              }}
+            >
+              Open Magazine Studio ↗
+            </button>
+          )}
+          <a href="/magazine" target="_blank" rel="noreferrer" style={{
+            fontFamily: NU_A, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
+            textTransform: 'uppercase', color: GOLD_M,
+            border: `1px solid ${GOLD_M}50`, padding: '9px 18px', borderRadius: 3,
+            textDecoration: 'none',
+          }}>
+            ↗ View Live Magazine
+          </a>
+        </div>
+      </div>
+
+      <div className="admin-grid-4col" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
+        {stats.map(s => (
+          <div key={s.label} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px' }}>
+            <div style={{ fontFamily: NU_A, fontSize: 10, color: C.grey, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>{s.label}</div>
+            <div style={{ fontFamily: GD_A, fontSize: 28, fontWeight: 400, color: C.heading }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{
+        background: `${GOLD_M}08`, border: `1px solid ${GOLD_M}25`,
+        borderRadius: 6, padding: '16px 20px', marginBottom: 24,
+        display: 'flex', alignItems: 'center', gap: 14,
+      }}>
+        <span style={{ fontSize: 18 }}>✦</span>
+        <div>
+          <div style={{ fontFamily: NU_A, fontSize: 11, fontWeight: 700, color: GOLD_M, letterSpacing: '0.08em', marginBottom: 3 }}>
+            AI ENGINE INTEGRATION ACTIVE
+          </div>
+          <div style={{ fontFamily: NU_A, fontSize: 12, color: C.grey, lineHeight: 1.5 }}>
+            Magazine articles are indexed by Aura AI and surfaced in venue search results, planning recommendations, and the AI chat assistant. New articles auto-index on publish.
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+        <TabBtn id="posts" label="Articles" />
+        <TabBtn id="products" label="Affiliate Products" />
+        <TabBtn id="categories" label="Categories" />
+        <TabBtn id="settings" label="Settings" />
+      </div>
+
+      {tab === 'posts' && (
+        <div>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search articles..." style={{
+              fontFamily: NU_A, fontSize: 12, color: C.text,
+              background: C.surface, border: `1px solid ${C.border}`,
+              borderRadius: 4, padding: '8px 14px', outline: 'none', minWidth: 220,
+            }} />
+            <select value={filterCat} onChange={e => setFilterCat(e.target.value)} style={{
+              fontFamily: NU_A, fontSize: 12, color: C.text,
+              background: C.surface, border: `1px solid ${C.border}`,
+              borderRadius: 4, padding: '8px 14px', outline: 'none',
+            }}>
+              <option value="all">All Categories</option>
+              {CATEGORIES.map(cat => <option key={cat.id} value={cat.id}>{cat.label}</option>)}
+            </select>
+            <span style={{ fontFamily: NU_A, fontSize: 11, color: C.grey, marginLeft: 'auto' }}>
+              {filtered.length} article{filtered.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 130px 90px 70px 90px', padding: '10px 16px', background: C.surface, borderBottom: `1px solid ${C.border}` }}>
+              {['', 'Title', 'Category', 'Author', 'Read', 'Status'].map(h => (
+                <span key={h} style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.grey }}>{h}</span>
+              ))}
+            </div>
+            {filtered.map((post, i) => (
+              <div key={post.id} style={{
+                display: 'grid', gridTemplateColumns: '40px 1fr 130px 90px 70px 90px',
+                padding: '12px 16px', alignItems: 'center',
+                borderBottom: i < filtered.length - 1 ? `1px solid ${C.border}` : 'none',
+                background: i % 2 === 0 ? 'transparent' : `${C.surface}60`,
+              }}>
+                <div style={{ width: 28, height: 28, borderRadius: 2, backgroundImage: `url(${post.coverImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+                <div>
+                  <div style={{ fontFamily: NU_A, fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 8 }}>
+                    {post.title}
+                  </div>
+                  <div style={{ fontFamily: NU_A, fontSize: 10, color: C.grey }}>/{post.slug}</div>
+                </div>
+                <span style={{ fontFamily: NU_A, fontSize: 10, color: C.grey }}>{post.categoryLabel}</span>
+                <span style={{ fontFamily: NU_A, fontSize: 10, color: C.grey }}>{post.author.name.split(' ')[0]}</span>
+                <span style={{ fontFamily: NU_A, fontSize: 10, color: C.grey }}>{post.readingTime} min</span>
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                  {post.featured && <span style={{ fontFamily: NU_A, fontSize: 8, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 2, background: `${GOLD_M}18`, color: GOLD_M, border: `1px solid ${GOLD_M}30` }}>Featured</span>}
+                  {post.trending && <span style={{ fontFamily: NU_A, fontSize: 8, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 2, background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.2)' }}>Trending</span>}
+                  {!post.featured && !post.trending && <span style={{ fontFamily: NU_A, fontSize: 8, color: C.grey }}>Published</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+
+      {tab === 'products' && (
+        <div>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input value={productSearch} onChange={e => setProductSearch(e.target.value)} placeholder="Search products..." style={{
+              fontFamily: NU_A, fontSize: 12, color: C.text,
+              background: C.surface, border: `1px solid ${C.border}`,
+              borderRadius: 4, padding: '8px 14px', outline: 'none', minWidth: 220,
+            }} />
+            <select value={productCat} onChange={e => setProductCat(e.target.value)} style={{
+              fontFamily: NU_A, fontSize: 12, color: C.text,
+              background: C.surface, border: `1px solid ${C.border}`,
+              borderRadius: 4, padding: '8px 14px', outline: 'none',
+            }}>
+              <option value="all">All Categories</option>
+              {['gowns','shoes','jewellery','beauty','accessories','guest-dresses','honeymoon'].map(c => (
+                <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1).replace('-',' ')}</option>
+              ))}
+            </select>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 10 }}>
+              <button style={{ fontFamily: NU_A, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#fff', background: GOLD_M, border: 'none', padding: '9px 18px', borderRadius: 4, cursor: 'pointer' }}>
+                + Add Product
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+            {PRODUCTS
+              .filter(p => (productCat === 'all' || p.category === productCat) && (!productSearch || p.title.toLowerCase().includes(productSearch.toLowerCase()) || p.brand.toLowerCase().includes(productSearch.toLowerCase())))
+              .map(p => (
+                <div key={p.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden', display: 'flex' }}>
+                  <div style={{ width: 80, flexShrink: 0, backgroundImage: `url(${p.image})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+                  <div style={{ padding: '14px 16px', flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: NU_A, fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD_M, marginBottom: 4 }}>
+                      {p.brand}
+                    </div>
+                    <div style={{ fontFamily: NU_A, fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {p.title}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <span style={{ fontFamily: NU_A, fontSize: 12, fontWeight: 600, color: C.text }}>{formatPrice(p.salePrice || p.price)}</span>
+                      {p.salePrice && <span style={{ fontFamily: NU_A, fontSize: 11, color: C.grey, textDecoration: 'line-through' }}>{formatPrice(p.price)}</span>}
+                      {p.badge && <span style={{ fontFamily: NU_A, fontSize: 8, fontWeight: 700, letterSpacing: '0.1em', color: '#fff', background: GOLD_M, padding: '2px 6px', borderRadius: 2 }}>{p.badge}</span>}
+                    </div>
+                    <div style={{ fontFamily: NU_A, fontSize: 10, color: C.grey, marginBottom: 10 }}>
+                      via {p.retailer} · {p.category}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.text, background: C.bg, border: `1px solid ${C.border}`, padding: '5px 10px', borderRadius: 3, cursor: 'pointer' }}>Edit</button>
+                      <button style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.text, background: C.bg, border: `1px solid ${C.border}`, padding: '5px 10px', borderRadius: 3, cursor: 'pointer' }}>Duplicate</button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+
+          <div style={{ marginTop: 24, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: 20 }}>
+            <div style={{ fontFamily: NU_A, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.grey, marginBottom: 12 }}>Collections</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px,1fr))', gap: 12 }}>
+              {Object.entries(COLLECTIONS).map(([id, col]) => (
+                <div key={id} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 4, padding: '12px 14px' }}>
+                  <div style={{ fontFamily: NU_A, fontSize: 11, fontWeight: 600, color: C.text, marginBottom: 4 }}>{col.label}</div>
+                  <div style={{ fontFamily: NU_A, fontSize: 10, color: C.grey }}>{col.productIds.length} products</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === 'categories' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
+          {CATEGORIES.map(cat => {
+            const count = POSTS.filter(p => p.category === cat.id).length;
+            return (
+              <div key={cat.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                <div style={{ width: 44, height: 44, flexShrink: 0, borderRadius: 4, backgroundImage: `url(${cat.heroImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+                <div>
+                  <div style={{ fontFamily: NU_A, fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 3 }}>{cat.label}</div>
+                  <div style={{ fontFamily: NU_A, fontSize: 10, color: C.grey, marginBottom: 6 }}>{count} article{count !== 1 ? 's' : ''}</div>
+                  <div style={{ fontFamily: NU_A, fontSize: 10, color: GOLD_M, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{cat.defaultCardStyle}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {tab === 'settings' && (
+        <div style={{ maxWidth: 600 }}>
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: 24, marginBottom: 20 }}>
+            <div style={{ fontFamily: NU_A, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.grey, marginBottom: 16 }}>Magazine Settings</div>
+            {[
+              { label: 'Default Hero Style', value: 'grid', note: 'editorial · split · grid · carousel' },
+              { label: 'Articles per Page', value: '12' },
+              { label: 'Newsletter CTA', value: 'Enabled' },
+              { label: 'AI Auto-Index', value: 'Active', note: 'New articles indexed on publish' },
+            ].map(({ label, value, note }) => (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: `1px solid ${C.border}` }}>
+                <div>
+                  <div style={{ fontFamily: NU_A, fontSize: 12, color: C.text }}>{label}</div>
+                  {note && <div style={{ fontFamily: NU_A, fontSize: 10, color: C.grey, marginTop: 2 }}>{note}</div>}
+                </div>
+                <span style={{ fontFamily: NU_A, fontSize: 12, fontWeight: 600, color: GOLD_M }}>{value}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontFamily: NU_A, fontSize: 12, color: C.grey, lineHeight: 1.6, padding: '0 4px' }}>
+            <strong style={{ color: C.text }}>Database integration:</strong> Magazine articles currently use static editorial data. When connected to Supabase, articles will be fetched from the <code style={{ color: GOLD_M }}>magazine_posts</code> table and automatically indexed by the Aura AI engine.
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
