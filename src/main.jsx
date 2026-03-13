@@ -56,6 +56,7 @@ import FashionLandingPage   from "./pages/Magazine/FashionLandingPage.jsx";
 import MagazineStudio       from "./pages/MagazineStudio/index.jsx";
 import EditorialShowcase    from "./pages/EditorialShowcase.jsx";
 import ShowcasePage         from "./pages/ShowcasePage.jsx";
+import DdeShowcasePage      from "./pages/DdeShowcasePage.jsx";
 import { VENDORS }            from "./data/vendors.js";
 
 // ── Lazy-loaded admin modules for bundle optimization ──────────────────────────
@@ -131,6 +132,7 @@ function stateToPath(pg, opts = {}) {
     case "magazine-article": return `/magazine/${opts.magazineSlug || ''}`;
     case "magazine-studio":  return "/magazine-studio";
     case "venue-profile":    return `/venues/${opts.venueSlug || 'grand-tirolia'}`;
+    case "dde-showcase":     return "/showcase/domaine-des-etangs";
     case "showcase":         return `/showcase/${opts.showcaseSlug || ''}`;
     default:                 return "/";
   }
@@ -172,6 +174,8 @@ function pathToState(pathname) {
   if (parts[0] === "italy" && parts[1] === "puglia" && parts.length === 2) return { page: "puglia" };
   // Magazine routes
   if (parts[0] === "editorial-showcase" && parts.length === 1) return { page: "editorial-showcase" };
+  // Venue showcase — static DDE page
+  if (parts[0] === "showcase" && parts[1] === "domaine-des-etangs") return { page: "dde-showcase" };
   // Venue showcase: /showcase/{slug}
   if (parts[0] === "showcase" && parts.length === 2) return { page: "showcase", showcaseSlug: parts[1] };
   // Venue listing profile: /venues/{slug}
@@ -399,6 +403,17 @@ function App() {
         )}
         {page === "venue-profile" && (
           <VenueProfile slug={activeVenueSlug} onBack={goHome} />
+        )}
+        {page === "dde-showcase" && (
+          <DdeShowcasePage
+            onBack={goHome}
+            onGoDestination={(countrySlug) => {
+              if (countrySlug) { setActiveCountrySlug(countrySlug); setPage("italy"); }
+              else { setPage("home"); }
+            }}
+            onNavigateStandard={goStandard}
+            onNavigateAbout={goAbout}
+          />
         )}
         {page === "showcase" && (
           <ShowcasePage

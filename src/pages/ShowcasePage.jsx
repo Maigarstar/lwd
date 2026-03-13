@@ -292,7 +292,7 @@ function HeroSection({ venue }) {
       <div
         style={{
           position: 'absolute', inset: 0,
-          backgroundImage: `url(${venue.heroImage})`,
+          backgroundImage: `url("${venue.heroImage}")`,
           backgroundSize: 'cover',
           backgroundPosition: 'center 40%',
         }}
