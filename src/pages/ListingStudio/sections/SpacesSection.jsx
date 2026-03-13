@@ -11,6 +11,8 @@
 
 import { useState, useEffect } from 'react';
 import RichTextEditor from '../components/RichTextEditor';
+import AIContentGenerator from '../../../components/AIAssistant/AIContentGenerator';
+import { LUXURY_TONE_SYSTEM, buildCeremonyDescriptionPrompt } from '../../../lib/aiPrompts';
 
 const MAX_SPACES = 5;
 
@@ -139,9 +141,15 @@ const SPACE_TYPES = [
   'Beach / Waterfront', 'Library / Drawing Room', 'Gallery Space', 'Other',
 ];
 
+const aiLinkStyle = {
+  fontSize: 11, color: '#C9A84C', background: 'none', border: 'none',
+  cursor: 'pointer', fontFamily: 'inherit', padding: 0,
+};
+
 // ── Individual Space Card ─────────────────────────────────────────────────────
-function SpaceCard({ space, index, total, onUpdate, onRemove, onMove }) {
+function SpaceCard({ space, index, total, onUpdate, onRemove, onMove, venueId, venueName }) {
   const [expanded, setExpanded] = useState(true);
+  const [showDescAI, setShowDescAI] = useState(false);
 
   const set = (key, val) => onUpdate({ ...space, [key]: val });
 
@@ -206,7 +214,24 @@ function SpaceCard({ space, index, total, onUpdate, onRemove, onMove }) {
 
           {/* Row 2 — Short Description */}
           <div style={{ marginBottom: 16 }}>
-            <label style={labelStyle}>Short Description</label>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
+              <label style={{ ...labelStyle, marginBottom: 0 }}>Short Description</label>
+              <button type="button" onClick={() => setShowDescAI(v => !v)} style={aiLinkStyle}>
+                ✦ Generate with AI
+              </button>
+            </div>
+            {showDescAI && (
+              <div style={{ marginBottom: 10 }}>
+                <AIContentGenerator
+                  feature="space_description"
+                  systemPrompt={LUXURY_TONE_SYSTEM}
+                  userPrompt={buildCeremonyDescriptionPrompt(space.name || venueName || '', { ...space, location: space.name })}
+                  venueId={venueId}
+                  onInsert={(text) => { set('description', text); setShowDescAI(false); }}
+                  label="Generate Space Description"
+                />
+              </div>
+            )}
             <textarea
               value={space.description || ''}
               onChange={e => set('description', e.target.value)}
@@ -290,7 +315,9 @@ function SpaceCard({ space, index, total, onUpdate, onRemove, onMove }) {
 
 // ── Main section ──────────────────────────────────────────────────────────────
 const SpacesSection = ({ formData, onChange }) => {
-  const spaces = formData?.spaces || [];
+  const spaces    = formData?.spaces || [];
+  const venueId   = formData?.id;
+  const venueName = formData?.venue_name || formData?.name || '';
 
   const addSpace = () => {
     if (spaces.length >= MAX_SPACES) return;
@@ -332,7 +359,7 @@ const SpacesSection = ({ formData, onChange }) => {
   };
 
   return (
-    <section style={{ marginBottom: 16, padding: 20, borderRadius: 8, border: '1px solid rgba(229,221,208,0.4)', boxShadow: '0 2px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)' }}>
+    <section style={{ marginBottom: 16, padding: 20 }}>
 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
@@ -356,6 +383,8 @@ const SpacesSection = ({ formData, onChange }) => {
               onUpdate={updateSpace}
               onRemove={removeSpace}
               onMove={moveSpace}
+              venueId={venueId}
+              venueName={venueName}
             />
           ))}
         </div>

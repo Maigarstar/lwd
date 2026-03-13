@@ -13,6 +13,7 @@ import { getVendorMetrics, subscribeToVendorMetrics, getVendorEnquiries } from "
 import VendorLeadInbox from "../components/VendorLeadInbox";
 import { useVendorAuth } from "../context/VendorAuthContext";
 import { exitAdminPreview } from "../context/AdminPreviewContext";
+import { getMySubmission, upsertSubmission } from "../services/artistryService";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -1300,6 +1301,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
             <DTab id="seo" icon="⊡" label="SEO Tools" />
             <DTab id="billing" icon="◆" label="Billing" />
             <DTab id="calendar" icon="▦" label="Calendar" />
+            <DTab id="awards" icon="✦" label="Artistry Awards" />
           </div>
           {sidebarOpen && (
             <div
@@ -2863,6 +2865,11 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
               </div>
             </div>
           )}
+
+          {/* ── Artistry Awards Tab ─────────────────────────────────────────── */}
+          {dashTab === "awards" && (
+            <AwardsSubmissionTab vendor={vendor} C={C} GD={GD} NU={NU} isMobile={isMobile} />
+          )}
         </div>
       </div>
     </div>
@@ -2871,5 +2878,318 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
     <FooterForVendors />
 
     </ThemeCtx.Provider>
+  );
+}
+
+// ── Awards Submission Tab ─────────────────────────────────────────────────────
+const AWARD_CATEGORIES = [
+  'Photography', 'Film', 'Venues', 'Florals', 'Planning',
+  'Styling', 'Cakes', 'Music', 'Hair & Makeup', 'Content Creators',
+];
+
+function AwardsSubmissionTab({ vendor, C, GD, NU, isMobile }) {
+  const [submission, setSubmission] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState(null);
+  const [imageUrls, setImageUrls] = useState(['', '', '', '', '']);
+
+  const [form, setForm] = useState({
+    vendor_name:     '',
+    category:        '',
+    location:        '',
+    country:         '',
+    quote:           '',
+    micro_different: '',
+    micro_moment:    '',
+    micro_perfect:   '',
+    video_url:       '',
+  });
+
+  const vendorId = vendor?.id || vendor?.legacy_vendor_id || 'unknown';
+
+  useEffect(() => {
+    if (!vendorId || vendorId === 'unknown') { setLoading(false); return; }
+    getMySubmission(vendorId).then(({ data }) => {
+      if (data) {
+        setSubmission(data);
+        setForm({
+          vendor_name:     data.vendor_name     || vendor?.name || '',
+          category:        data.category        || '',
+          location:        data.location        || '',
+          country:         data.country         || '',
+          quote:           data.quote           || '',
+          micro_different: data.micro_different || '',
+          micro_moment:    data.micro_moment    || '',
+          micro_perfect:   data.micro_perfect   || '',
+          video_url:       data.video_url       || '',
+        });
+        const imgs = data.images || [];
+        setImageUrls([...imgs, '', '', '', '', ''].slice(0, 5));
+      } else {
+        setForm(f => ({ ...f, vendor_name: vendor?.name || '' }));
+      }
+      setLoading(false);
+    });
+  }, [vendorId]);
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSubmit = async () => {
+    if (!form.vendor_name || !form.category || !form.location || !form.country || !form.quote) {
+      setSaveMsg({ ok: false, text: 'Please fill in all required fields.' });
+      return;
+    }
+    const images = imageUrls.filter(u => u.trim());
+    if (images.length === 0) {
+      setSaveMsg({ ok: false, text: 'Please add at least one image URL.' });
+      return;
+    }
+    setSaving(true);
+    setSaveMsg(null);
+    const { data, error, alreadyApproved } = await upsertSubmission(vendorId, { ...form, images });
+    setSaving(false);
+    if (alreadyApproved) {
+      setSaveMsg({ ok: false, text: 'Your entry is already approved and live on the awards page.' });
+      return;
+    }
+    if (error) {
+      setSaveMsg({ ok: false, text: 'Something went wrong. Please try again.' });
+      return;
+    }
+    setSubmission(data);
+    setSaveMsg({ ok: true, text: submission ? 'Entry updated and resubmitted for review.' : 'Entry submitted! Our team will review it shortly.' });
+  };
+
+  const statusColors = { pending: '#f59e0b', approved: '#10b981', rejected: '#ef4444' };
+  const statusLabels = { pending: '⏳ Under Review', approved: '✓ Approved', rejected: '✗ Not Selected' };
+
+  if (loading) return (
+    <div style={{ padding: 40, textAlign: 'center', fontFamily: NU, fontSize: 13, color: C.grey }}>Loading…</div>
+  );
+
+  return (
+    <div style={{ maxWidth: 720 }}>
+      {/* Header */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '3px', textTransform: 'uppercase', color: C.gold, marginBottom: 8 }}>
+          ✦ Wedding Artistry Awards
+        </div>
+        <h2 style={{ fontFamily: GD, fontSize: isMobile ? 24 : 32, color: C.white, fontWeight: 600, margin: '0 0 10px' }}>
+          The Wedding Artistry Awards 2026
+        </h2>
+        <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, lineHeight: 1.6, margin: 0 }}>
+          Submit your work for consideration. Approved entries appear on the public awards page at{' '}
+          <span style={{ color: C.gold }}>/artistry-awards</span>. One submission per vendor.
+        </p>
+      </div>
+
+      {/* Status badge (if already submitted) */}
+      {submission && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          padding: '12px 18px', marginBottom: 28,
+          background: `${statusColors[submission.status]}12`,
+          border: `1px solid ${statusColors[submission.status]}40`,
+          borderRadius: 8,
+        }}>
+          <span style={{
+            fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
+            textTransform: 'uppercase', color: statusColors[submission.status],
+          }}>
+            {statusLabels[submission.status]}
+          </span>
+          {submission.admin_note && (
+            <span style={{ fontFamily: NU, fontSize: 12, color: C.grey, marginLeft: 8 }}>
+              — {submission.admin_note}
+            </span>
+          )}
+          {submission.status === 'rejected' && (
+            <span style={{ fontFamily: NU, fontSize: 11, color: C.grey, marginLeft: 'auto' }}>
+              You can edit and resubmit below.
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Form */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+        {/* Row 1: Name + Category */}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
+          <div>
+            <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+              Business / Artist Name *
+            </label>
+            <input
+              value={form.vendor_name}
+              onChange={e => set('vendor_name', e.target.value)}
+              placeholder="e.g. Marco Battista Photography"
+              style={{ width: '100%', boxSizing: 'border-box', background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '10px 14px', fontFamily: NU, fontSize: 13, color: C.white, outline: 'none' }}
+            />
+          </div>
+          <div>
+            <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+              Category *
+            </label>
+            <select
+              value={form.category}
+              onChange={e => set('category', e.target.value)}
+              style={{ width: '100%', boxSizing: 'border-box', background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '10px 14px', fontFamily: NU, fontSize: 13, color: form.category ? C.white : C.grey, outline: 'none' }}
+            >
+              <option value="">Select category…</option>
+              {AWARD_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* Row 2: Location + Country */}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
+          <div>
+            <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+              Location *
+            </label>
+            <input
+              value={form.location}
+              onChange={e => set('location', e.target.value)}
+              placeholder="e.g. Lake Como, Italy"
+              style={{ width: '100%', boxSizing: 'border-box', background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '10px 14px', fontFamily: NU, fontSize: 13, color: C.white, outline: 'none' }}
+            />
+          </div>
+          <div>
+            <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+              Country *
+            </label>
+            <input
+              value={form.country}
+              onChange={e => set('country', e.target.value)}
+              placeholder="e.g. Italy"
+              style={{ width: '100%', boxSizing: 'border-box', background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '10px 14px', fontFamily: NU, fontSize: 13, color: C.white, outline: 'none' }}
+            />
+          </div>
+        </div>
+
+        {/* Quote */}
+        <div>
+          <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+            Your Signature Quote * <span style={{ color: C.grey, fontSize: 10, textTransform: 'none', letterSpacing: 0 }}>(shown on your award card)</span>
+          </label>
+          <textarea
+            value={form.quote}
+            onChange={e => set('quote', e.target.value)}
+            rows={2}
+            maxLength={160}
+            placeholder="A short, memorable line that defines your work…"
+            style={{ width: '100%', boxSizing: 'border-box', background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '10px 14px', fontFamily: NU, fontSize: 13, color: C.white, outline: 'none', resize: 'vertical', lineHeight: 1.6 }}
+          />
+          <div style={{ textAlign: 'right', fontFamily: NU, fontSize: 10, color: C.grey, marginTop: 4 }}>{form.quote.length}/160</div>
+        </div>
+
+        {/* Micro-prompts */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: isMobile ? 16 : 22 }}>
+          <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '2px', textTransform: 'uppercase', color: C.gold, marginBottom: 18 }}>
+            3 Questions — Shown in your profile panel
+          </div>
+          {[
+            { key: 'micro_different', label: 'What makes you different?' },
+            { key: 'micro_moment',    label: 'The moment you live for?' },
+            { key: 'micro_perfect',   label: 'Your perfect day?' },
+          ].map(({ key, label }) => (
+            <div key={key} style={{ marginBottom: 16 }}>
+              <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, display: 'block', marginBottom: 6 }}>{label}</label>
+              <textarea
+                value={form[key]}
+                onChange={e => set(key, e.target.value)}
+                rows={2}
+                maxLength={200}
+                style={{ width: '100%', boxSizing: 'border-box', background: '#1a1a1a', border: `1px solid ${C.border}`, borderRadius: 6, padding: '9px 12px', fontFamily: NU, fontSize: 12, color: C.white, outline: 'none', resize: 'vertical', lineHeight: 1.5 }}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Images */}
+        <div>
+          <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+            Images for Judging * <span style={{ color: C.grey, fontSize: 10, textTransform: 'none', letterSpacing: 0 }}>(up to 5 — paste public image URLs)</span>
+          </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {imageUrls.map((url, i) => (
+              <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <span style={{ fontFamily: NU, fontSize: 11, color: C.grey, minWidth: 16 }}>{i + 1}.</span>
+                <input
+                  value={url}
+                  onChange={e => {
+                    const next = [...imageUrls];
+                    next[i] = e.target.value;
+                    setImageUrls(next);
+                  }}
+                  placeholder={i === 0 ? 'Primary image URL (required)' : `Image ${i + 1} URL (optional)`}
+                  style={{ flex: 1, background: C.card, border: `1px solid ${i === 0 ? C.border : C.border}`, borderRadius: 6, padding: '9px 12px', fontFamily: NU, fontSize: 12, color: C.white, outline: 'none' }}
+                />
+                {url && (
+                  <img src={url} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, flexShrink: 0, border: `1px solid ${C.border}` }} onError={e => { e.target.style.display = 'none'; }} />
+                )}
+              </div>
+            ))}
+          </div>
+          <p style={{ fontFamily: NU, fontSize: 11, color: C.grey, marginTop: 8, lineHeight: 1.5 }}>
+            Tip: use Unsplash, your CDN, or any publicly accessible image URL. Images must be portrait or square for best display.
+          </p>
+        </div>
+
+        {/* Video URL */}
+        <div>
+          <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+            Video URL <span style={{ color: C.grey, fontSize: 10, textTransform: 'none', letterSpacing: 0 }}>(optional — YouTube, TikTok or Instagram Reel)</span>
+          </label>
+          <input
+            value={form.video_url}
+            onChange={e => set('video_url', e.target.value)}
+            placeholder="https://www.youtube.com/watch?v=..."
+            style={{ width: '100%', boxSizing: 'border-box', background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '10px 14px', fontFamily: NU, fontSize: 13, color: C.white, outline: 'none' }}
+          />
+        </div>
+
+        {/* Save message */}
+        {saveMsg && (
+          <div style={{
+            padding: '11px 16px', borderRadius: 6,
+            background: saveMsg.ok ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+            border: `1px solid ${saveMsg.ok ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+            fontFamily: NU, fontSize: 13,
+            color: saveMsg.ok ? '#10b981' : '#ef4444',
+          }}>
+            {saveMsg.text}
+          </div>
+        )}
+
+        {/* Submit button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <button
+            onClick={handleSubmit}
+            disabled={saving || submission?.status === 'approved'}
+            style={{
+              background: submission?.status === 'approved' ? C.border : C.gold,
+              color: submission?.status === 'approved' ? C.grey : '#0a0a0a',
+              border: 'none', borderRadius: 6,
+              padding: '12px 28px',
+              fontFamily: NU, fontSize: 13, fontWeight: 700,
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              cursor: saving || submission?.status === 'approved' ? 'not-allowed' : 'pointer',
+              transition: 'opacity 0.2s',
+              opacity: saving ? 0.6 : 1,
+            }}
+          >
+            {saving ? 'Submitting…' : submission ? (submission.status === 'approved' ? 'Entry Approved ✓' : 'Update & Resubmit') : 'Submit Entry'}
+          </button>
+          {submission && submission.status !== 'approved' && (
+            <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>
+              Last submitted: {new Date(submission.submitted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

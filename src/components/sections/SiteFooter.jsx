@@ -39,6 +39,8 @@ const NAV_COLS = [
       { text: "Music & DJs" },
       { text: "Wedding Planners" },
       { text: "Real Weddings" },
+      { text: "The Magazine", action: "onNavigateMagazine" },
+      { text: "Artistry Awards", action: "onNavigateArtistryAwards" },
       { text: "Getting Married", action: "onNavigateGettingMarried" },
       { text: "Budget Calculator" },
       { text: "Planning Checklist" },
@@ -96,6 +98,8 @@ export default function SiteFooter({
   onNavigateStandard,
   onViewCategory,
   onNavigateGettingMarried,
+  onNavigateArtistryAwards,
+  onNavigateMagazine,
 }) {
   const C = useTheme();
 
@@ -109,6 +113,8 @@ export default function SiteFooter({
     onNavigateStandard,
     onViewCategory,
     onNavigateGettingMarried,
+    onNavigateArtistryAwards,
+    onNavigateMagazine,
   };
 
   return (

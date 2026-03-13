@@ -50,14 +50,40 @@ export default function PageEditorLive({ pageId, C, NU, GD, onNavigate }) {
   return (
     <div
       style={{
-        display: 'grid',
-        gridTemplateColumns: gridCols,
-        gap: 0,
+        display: 'flex',
+        flexDirection: 'column',
         height: '100vh',
         overflow: 'hidden',
         backgroundColor: C.black,
       }}
     >
+      {/* FULL-WIDTH ACTION BAR — matches Listing Studio exactly */}
+      <PageSaveBar
+        hasChanges={pageForm.hasChanges}
+        saveStatus={pageForm.saveStatus}
+        onDiscard={pageForm.handleDiscard}
+        onSaveDraft={pageForm.handleSaveDraft}
+        onPublish={pageForm.handlePublish}
+        onPopulateAI={handlePopulateAI}
+        viewMode={viewMode}
+        onViewModeChange={handleViewModeChange}
+        C={C}
+        NU={NU}
+      />
+
+      {/* SPLIT PANELS GRID */}
+      <div
+        className="ps-panels-grid"
+        data-split={viewMode === 'split' ? 'true' : 'false'}
+        style={{
+          display: 'grid',
+          gridTemplateColumns: gridCols,
+          gap: 0,
+          flex: 1,
+          overflow: 'hidden',
+        }}
+      >
+
       {/* LEFT PANEL — Editor */}
       {showLeftPanel && (
       <div
@@ -68,34 +94,8 @@ export default function PageEditorLive({ pageId, C, NU, GD, onNavigate }) {
           borderRight: viewMode === 'split' ? '1px solid rgba(255,255,255,0.08)' : 'none',
           overflow: 'hidden',
           order: viewMode === 'preview' ? 2 : 1,
-          animation: 'slideInLeft 0.3s ease-out',
         }}
       >
-        <style>{`
-          @keyframes slideInLeft {
-            from {
-              transform: translateX(-100%);
-              opacity: 0;
-            }
-            to {
-              transform: translateX(0);
-              opacity: 1;
-            }
-          }
-        `}</style>
-        {/* Sticky Save Bar */}
-        <PageSaveBar
-          hasChanges={pageForm.hasChanges}
-          saveStatus={pageForm.saveStatus}
-          onDiscard={pageForm.handleDiscard}
-          onSaveDraft={pageForm.handleSaveDraft}
-          onPublish={pageForm.handlePublish}
-          onPopulateAI={handlePopulateAI}
-          viewMode={viewMode}
-          onViewModeChange={handleViewModeChange}
-          C={C}
-          NU={NU}
-        />
 
         {/* Breadcrumb Navigation */}
         <div
@@ -187,6 +187,8 @@ export default function PageEditorLive({ pageId, C, NU, GD, onNavigate }) {
       {/* RIGHT PANEL — Live Preview */}
       {showRightPanel && (
       <div
+        className="ps-panel-right"
+        data-split={viewMode === 'split' ? 'true' : 'false'}
         style={{
           display: 'flex',
           flexDirection: 'column',
@@ -264,6 +266,8 @@ export default function PageEditorLive({ pageId, C, NU, GD, onNavigate }) {
           }}
         />
       )}
+
+      </div> {/* end grid */}
 
       {/* AI Import Toast */}
       {importToast && (

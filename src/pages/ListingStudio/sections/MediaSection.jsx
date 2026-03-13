@@ -560,8 +560,8 @@ const HeroLayoutPicker = ({ value, onChange, videoUrl, onVideoUrlChange }) => (
       Hero Layout Style
     </label>
 
-    {/* 4-column grid of style cards */}
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+    {/* 4-column grid of style cards — 2 cols on mobile */}
+    <div className="ls-hero-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
       {HERO_LAYOUTS.map(({ key, label, desc, thumb }) => {
         const active = value === key;
         return (
@@ -640,6 +640,14 @@ const MediaSection = ({ formData, onChange }) => {
   );
   const [heroObjUrls, setHeroObjUrls] = useState({});
 
+  // Sync hero images from formData when DB data loads async (edit mode)
+  // Only fires when local state is still empty — never overwrites user edits
+  useEffect(() => {
+    if (heroImages.length === 0 && Array.isArray(formData?.hero_images) && formData.hero_images.length > 0) {
+      setHeroImages(formData.hero_images);
+    }
+  }, [formData?.hero_images]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const urls = {};
     heroImages.forEach(img => { if (img?.file instanceof File) urls[img.id] = URL.createObjectURL(img.file); });
@@ -691,6 +699,14 @@ const MediaSection = ({ formData, onChange }) => {
 
   // ── Unified media_items pool ────────────────────────────────────────────────
   const [mediaItems, setMediaItems] = useState(() => initMediaItems(formData));
+
+  // Sync media items from formData when DB data loads async (edit mode)
+  useEffect(() => {
+    if (mediaItems.length === 0 && Array.isArray(formData?.media_items) && formData.media_items.length > 0) {
+      setMediaItems(initMediaItems(formData));
+    }
+  }, [formData?.media_items]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [activeTab, setActiveTab] = useState('all');
 
   // ── Metadata canvas (open when user clicks any media or hero thumbnail) ─────
@@ -838,7 +854,7 @@ const MediaSection = ({ formData, onChange }) => {
 
   // ── RENDER ─────────────────────────────────────────────────────────────────
   return (
-    <section style={{ marginBottom: 16, padding: 20, borderRadius: 8, border: '1px solid rgba(229,221,208,0.4)', boxShadow: '0 2px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)' }}>
+    <section style={{ marginBottom: 16, padding: 20 }}>
       <h3 style={{ marginBottom: 6, fontSize: 16, fontWeight: 600, color: '#1a1a1a' }}>Media</h3>
       <p style={{ fontSize: 12, color: '#888', marginTop: 0, marginBottom: 28, lineHeight: 1.5 }}>
         Hero images appear prominently at the top of the listing. Gallery, videos and virtual tours appear in the body.

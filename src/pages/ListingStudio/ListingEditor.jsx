@@ -28,11 +28,11 @@ import { getLightPalette, getDarkPalette } from '../../theme/tokens';
  * and what label/icon represents each listing type.
  */
 const LISTING_TYPES = [
-  { value: 'venue',        label: 'Venue',         icon: '🏛' },
-  { value: 'planner',     label: 'Planner',       icon: '📋' },
-  { value: 'photographer',label: 'Photographer',  icon: '📸' },
-  { value: 'videographer',label: 'Videographer',  icon: '🎬' },
-  { value: 'general',     label: 'General',       icon: '📌' },
+  { value: 'venue',        label: 'Wedding Venues' },
+  { value: 'planner',     label: 'Wedding Planners' },
+  { value: 'photographer',label: 'Photographers' },
+  { value: 'videographer',label: 'Videographers' },
+  { value: 'general',     label: 'General' },
 ];
 
 /**
@@ -190,7 +190,7 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
   }, [hasChanges, onCancel]);
 
   const isEditing = !!listingId;
-  const pageTitle = isEditing ? 'Edit Listing' : 'Create New Listing';
+  const pageTitle = isEditing ? 'Edit Listing' : 'Create Your Business Profile';
   const currentType = LISTING_TYPES.find(t => t.value === formData.listing_type) || LISTING_TYPES[0];
 
   // Compute grid layout and panel visibility based on viewMode
@@ -205,7 +205,7 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
     red: '#EF4444', redHover: '#DC2626',
     bg: C.black, card: C.card,
     border: C.border,
-    text: C.white, muted: C.grey2,
+    text: C.white, muted: C.grey,
   } : {
     gold: '#8A6A18', goldHover: '#A37C1E',
     green: '#0B5D3B', greenHover: '#0E7348',
@@ -216,22 +216,220 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
   };
 
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: gridCols,
-      gap: 0,
-      minHeight: '100vh',
-      backgroundColor: LUX.bg,
-      width: '100%',
-    }}>
+    <div className={darkMode ? 'lse-dark' : ''} style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: LUX.bg, width: '100%' }}>
+      {darkMode && (
+        <style>{`
+          .lse-dark input,
+          .lse-dark textarea,
+          .lse-dark select {
+            background-color: #1e1e1e !important;
+            color: #ffffff !important;
+            border-color: #2a2a2a !important;
+          }
+          .lse-dark input::placeholder,
+          .lse-dark textarea::placeholder {
+            color: #888888 !important;
+          }
+          .lse-dark option {
+            background-color: #1e1e1e;
+            color: #ffffff;
+          }
+          .lse-dark h1, .lse-dark h2, .lse-dark h3,
+          .lse-dark h4, .lse-dark h5, .lse-dark h6 {
+            color: #ffffff !important;
+          }
+          .lse-dark label {
+            color: #aaaaaa !important;
+          }
+          .lse-dark p {
+            color: #cccccc !important;
+          }
+        `}</style>
+      )}
+
+      {/* Mobile responsive styles */}
+      <style>{`
+        @media (max-width: 767px) {
+          .ls-toolbar {
+            flex-wrap: wrap !important;
+            padding: 8px 12px !important;
+            row-gap: 6px !important;
+          }
+          .ls-toolbar-vm {
+            order: 3;
+            width: 100%;
+            justify-content: center;
+            border-top: 1px solid rgba(0,0,0,0.08);
+            padding-top: 6px;
+          }
+          .ls-toolbar-div { display: none !important; }
+          .ls-toolbar-save {
+            order: 2;
+            flex-shrink: 0;
+          }
+          .ls-toolbar-save button {
+            padding: 6px 10px !important;
+            font-size: 11px !important;
+          }
+          .ls-editor-panel {
+            padding: 16px 14px 40px !important;
+          }
+          .ls-panel-right[data-split="true"] {
+            display: none !important;
+          }
+          .ls-panels-grid[data-split="true"] {
+            grid-template-columns: 1fr !important;
+          }
+          .ls-hero-grid-4 {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+          .ls-section-header {
+            padding: 8px 10px !important;
+          }
+        }
+      `}</style>
+
+      {/* ═══════════════════════════════════════════════════════
+          FULL-WIDTH ACTION BAR (above the split panels)
+      ═══════════════════════════════════════════════════════ */}
+      <div className="ls-toolbar" style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '10px 24px',
+        borderBottom: `1px solid ${LUX.border}`,
+        backgroundColor: LUX.bg,
+        position: 'sticky',
+        top: 0,
+        zIndex: 30,
+        gap: 8,
+        flexShrink: 0,
+      }}>
+        {/* Left: AI tools */}
+        <div className="ls-toolbar-left" style={{ display: 'flex', gap: 8, order: 1 }}>
+          <button
+            type="button"
+            onClick={() => setShowAIImport(true)}
+            disabled={loading}
+            style={{
+              fontSize: 13, fontWeight: 600, padding: '7px 14px',
+              backgroundColor: darkMode ? '#ffffff' : '#1a1a1a',
+              color: darkMode ? '#0a0a0a' : '#ffffff',
+              border: 'none',
+              borderRadius: 6, cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.5 : 1,
+            }}
+          >
+            Magic AI
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowAITools(true)}
+            disabled={loading}
+            style={{
+              fontSize: 13, fontWeight: 500, padding: '7px 14px',
+              backgroundColor: 'transparent', color: LUX.text,
+              border: `1px solid ${LUX.border}`, borderRadius: 6,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.5 : 1,
+            }}
+          >
+            Fill with AI
+          </button>
+        </div>
+
+        {/* Save actions — order:2 so they stay on row 1 next to AI tools on mobile */}
+        <div className="ls-toolbar-save" style={{ display: 'flex', gap: 8, order: 2, marginLeft: 'auto' }}>
+          <button
+            type="button"
+            onClick={handleDiscardClick}
+            disabled={loading}
+            style={{
+              fontSize: 13, fontWeight: 500, padding: '7px 14px',
+              backgroundColor: 'transparent', color: LUX.muted,
+              border: `1px solid ${LUX.border}`, borderRadius: 6,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.6 : 1,
+            }}
+          >
+            Discard
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveDraftClick}
+            disabled={loading || !hasChanges}
+            style={{
+              fontSize: 13, fontWeight: 600, padding: '7px 14px',
+              backgroundColor: darkMode ? '#ffffff' : '#1a1a1a',
+              color: darkMode ? '#0a0a0a' : '#ffffff',
+              border: 'none',
+              borderRadius: 6, cursor: loading || !hasChanges ? 'not-allowed' : 'pointer',
+              opacity: loading || !hasChanges ? 0.35 : 1,
+            }}
+          >
+            {uploadProgress || (saveStatus === 'saving' ? 'Saving…' : 'Save Draft')}
+          </button>
+          <button
+            type="button"
+            onClick={handlePublishClick}
+            disabled={loading}
+            style={{
+              fontSize: 13, fontWeight: 600, padding: '7px 14px',
+              backgroundColor: darkMode ? '#ffffff' : '#1a1a1a',
+              color: darkMode ? '#0a0a0a' : '#ffffff',
+              border: 'none',
+              borderRadius: 6, cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.6 : 1,
+            }}
+          >
+            {saveStatus === 'publishing' ? 'Publishing…' : 'Publish'}
+          </button>
+        </div>
+
+        {/* View mode text links — order:3 so they wrap to row 2 on mobile */}
+        <div className="ls-toolbar-vm" style={{ display: 'flex', gap: 16, alignItems: 'center', order: 3 }}>
+          {/* Divider — hidden on mobile */}
+          <span className="ls-toolbar-div" style={{ width: 1, height: 16, backgroundColor: LUX.border, display: 'inline-block' }} />
+          {['split', 'editor', 'preview'].map((mode) => {
+            const modeLabel = mode === 'split' ? 'Split' : mode === 'editor' ? 'Editor' : 'Preview';
+            const isActive = viewMode === mode;
+            return (
+              <span
+                key={mode}
+                onClick={() => handleViewModeChange(mode)}
+                style={{
+                  fontSize: 11, fontWeight: isActive ? 700 : 500,
+                  letterSpacing: '0.08em', textTransform: 'uppercase',
+                  color: isActive ? LUX.text : LUX.muted,
+                  cursor: 'pointer',
+                  borderBottom: isActive ? `1px solid ${LUX.text}` : '1px solid transparent',
+                  paddingBottom: 1,
+                }}
+              >
+                {modeLabel}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════
+          SPLIT PANELS GRID
+      ═══════════════════════════════════════════════════════ */}
+      <div className="ls-panels-grid" data-split={viewMode === 'split' ? 'true' : 'false'} style={{
+        display: 'grid',
+        gridTemplateColumns: gridCols,
+        gap: 0,
+        flex: 1,
+      }}>
       {/* ═══════════════════════════════════════════════════════
           LEFT PANEL: Editor
       ═══════════════════════════════════════════════════════ */}
       {showLeftPanel && (
-      <div style={{
+      <div className="ls-editor-panel" style={{
         overflow: 'auto',
-        maxHeight: '100vh',
-        padding: '32px 32px 60px',
+        maxHeight: 'calc(100vh - 48px)',
+        padding: '28px 32px 60px',
         backgroundColor: LUX.bg,
         color: LUX.text,
         borderRight: viewMode === 'split' ? `1px solid ${LUX.border}40` : 'none',
@@ -250,183 +448,12 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
             {pageTitle}
           </h1>
           <p style={{ fontSize: 14, color: LUX.muted, margin: 0, fontWeight: 400 }}>
-            {currentType.icon} {currentType.label} listing
+            {currentType.label} listing
             {isEditing ? ' — update details below' : ' — fill in the details below'}
           </p>
         </div>
 
-        {/* ── WORKSPACE BAR (sticky, light) ─────────────────── */}
-        <div style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 21,
-          backgroundColor: LUX.bg,
-          padding: '12px 0',
-          display: 'flex',
-          justifyContent: 'center',
-        }}>
-          <div style={{
-            display: 'inline-flex',
-            borderRadius: 6,
-            overflow: 'hidden',
-            border: `1px solid ${LUX.border}`,
-          }}>
-            {['split', 'editor', 'preview'].map((mode) => {
-              const modeLabel = mode === 'split' ? 'Split' : mode === 'editor' ? 'Editor' : 'Preview';
-              const isActive = viewMode === mode;
-              return (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => handleViewModeChange(mode)}
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    padding: '10px 18px',
-                    backgroundColor: isActive ? LUX.gold : '#F4F1EA',
-                    color: isActive ? '#FFFFFF' : LUX.muted,
-                    border: 'none',
-                    borderRight: mode !== 'preview' ? `1px solid ${LUX.border}` : 'none',
-                    cursor: 'pointer',
-                    transition: 'all 0.14s ease',
-                  }}
-                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = '#EDE9E0'; }}
-                  onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = '#F4F1EA'; }}
-                >
-                  {modeLabel}
-                </button>
-              );
-            })}
-          </div>
-        </div>
 
-        {/* ── LISTING ACTION BAR (sticky below workspace bar) ── */}
-        <div style={{
-          position: 'sticky',
-          top: 48,
-          zIndex: 20,
-          backgroundColor: LUX.bg,
-          padding: '12px 0 16px',
-          borderBottom: `1px solid ${LUX.border}40`,
-          marginBottom: 32,
-          display: 'flex',
-          gap: 8,
-          alignItems: 'center',
-        }}>
-          {/* Left group: Venue selector + AI tools */}
-          <select
-            value={formData.listing_type || 'venue'}
-            onChange={(e) => handleChange('listing_type', e.target.value)}
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              padding: '10px 18px',
-              backgroundColor: '#F4EFE6',
-              color: LUX.text,
-              border: `1px solid ${LUX.border}`,
-              borderRadius: 6,
-              cursor: 'pointer',
-              transition: 'all 0.14s ease',
-              appearance: 'none',
-              WebkitAppearance: 'none',
-              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23777777'/%3E%3C/svg%3E")`,
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'right 12px center',
-              paddingRight: 32,
-            }}
-          >
-            {LISTING_TYPES.map(type => (
-              <option key={type.value} value={type.value}>
-                {type.icon} {type.label}
-              </option>
-            ))}
-          </select>
-
-          <button
-            type="button"
-            onClick={() => setShowAIImport(true)}
-            disabled={loading}
-            style={{
-              fontSize: 14, fontWeight: 600, padding: '10px 18px',
-              backgroundColor: LUX.gold, color: '#fff', border: 'none',
-              borderRadius: 6, cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.5 : 1, transition: 'all 0.14s ease',
-            }}
-            onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = LUX.goldHover; }}
-            onMouseLeave={(e) => { if (!loading) e.currentTarget.style.backgroundColor = LUX.gold; }}
-          >
-            ★ Magic AI
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowAITools(true)}
-            disabled={loading}
-            style={{
-              fontSize: 14, fontWeight: 600, padding: '10px 18px',
-              backgroundColor: '#F4EFE6', color: LUX.text,
-              border: `1px solid ${LUX.border}`, borderRadius: 6,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.5 : 1, transition: 'all 0.14s ease',
-            }}
-            onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = '#EDE9E0'; }}
-            onMouseLeave={(e) => { if (!loading) e.currentTarget.style.backgroundColor = '#F4EFE6'; }}
-          >
-            ✦ Fill
-          </button>
-
-          {/* Right group: Save actions */}
-          <div style={{ marginLeft: 'auto' }} />
-
-          <button
-            type="button"
-            onClick={handleDiscardClick}
-            disabled={loading}
-            style={{
-              fontSize: 14, fontWeight: 600, padding: '10px 18px',
-              backgroundColor: '#F3F1EC', color: LUX.muted,
-              border: `1px solid ${LUX.border}`, borderRadius: 6,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.6 : 1, transition: 'all 0.14s ease',
-            }}
-            onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = '#EDE9E0'; }}
-            onMouseLeave={(e) => { if (!loading) e.currentTarget.style.backgroundColor = '#F3F1EC'; }}
-          >
-            Discard
-          </button>
-
-          <button
-            type="button"
-            onClick={handleSaveDraftClick}
-            disabled={loading || !hasChanges}
-            style={{
-              fontSize: 14, fontWeight: 600, padding: '10px 18px',
-              backgroundColor: LUX.green, color: '#fff', border: 'none',
-              borderRadius: 6, cursor: loading || !hasChanges ? 'not-allowed' : 'pointer',
-              opacity: loading || !hasChanges ? 0.5 : 1, transition: 'all 0.14s ease',
-            }}
-            onMouseEnter={(e) => { if (!loading && hasChanges) e.currentTarget.style.backgroundColor = LUX.greenHover; }}
-            onMouseLeave={(e) => { if (!loading && hasChanges) e.currentTarget.style.backgroundColor = LUX.green; }}
-          >
-            {uploadProgress || (saveStatus === 'saving' ? 'Saving…' : 'Save Draft')}
-          </button>
-
-          <button
-            type="button"
-            onClick={handlePublishClick}
-            disabled={loading}
-            style={{
-              fontSize: 14, fontWeight: 600, padding: '10px 18px',
-              backgroundColor: LUX.gold, color: '#fff', border: 'none',
-              borderRadius: 6, cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.6 : 1, transition: 'all 0.14s ease',
-            }}
-            onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = LUX.goldHover; }}
-            onMouseLeave={(e) => { if (!loading) e.currentTarget.style.backgroundColor = LUX.gold; }}
-          >
-            {saveStatus === 'publishing' ? 'Publishing…' : '↑ Publish'}
-          </button>
-        </div>
 
         {/* AI Import panel — Populate with AI */}
         {showAIImport && (
@@ -450,6 +477,7 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
             formData={formData}
             onChange={handleChange}
             listingId={listingId}
+            darkMode={darkMode}
             onClose={() => setShowAITools(false)}
           />
         )}
@@ -529,6 +557,35 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
           </div>
         )}
 
+        {/* ── LISTING TYPE SELECTOR ─────────────────────────── */}
+        <div style={{ marginBottom: 16 }}>
+          <select
+            value={formData.listing_type || 'venue'}
+            onChange={(e) => handleChange('listing_type', e.target.value)}
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              padding: '8px 32px 8px 12px',
+              backgroundColor: darkMode ? LUX.card : '#F4EFE6',
+              color: LUX.text,
+              border: `1px solid ${LUX.border}`,
+              borderRadius: 6,
+              cursor: 'pointer',
+              appearance: 'none',
+              WebkitAppearance: 'none',
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23777777'/%3E%3C/svg%3E")`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 10px center',
+            }}
+          >
+            {LISTING_TYPES.map(type => (
+              <option key={type.value} value={type.value}>
+                {type.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* ── FORM SECTIONS (array-based with controls) ───── */}
         <form style={{ marginBottom: 40, padding: '0 4px' }}>
           {(() => {
@@ -554,7 +611,7 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
               return (
                 <div key={sectionId} style={{ marginBottom: 24 }}>
                   {/* Section Header Bar */}
-                  <div style={{
+                  <div className="ls-section-header" style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
@@ -639,16 +696,16 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
                     </button>
                   </div>
 
-                  {/* Section Content — always light card for form readability */}
+                  {/* Section Content */}
                   {isEnabled && (
                     <div style={{
-                      backgroundColor: '#ffffff',
-                      color: '#1a1a1a',
+                      backgroundColor: darkMode ? C.card : '#ffffff',
+                      color: LUX.text,
                       borderRadius: '0 0 8px 8px',
                       border: `1px solid ${LUX.border}`,
                       borderTop: 'none',
                     }}>
-                      <SectionComponent formData={formData} onChange={handleChange} />
+                      <SectionComponent formData={formData} onChange={handleChange} darkMode={darkMode} />
                     </div>
                   )}
                 </div>
@@ -663,10 +720,10 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
           RIGHT PANEL: Live Preview
       ═══════════════════════════════════════════════════════ */}
       {showRightPanel && (
-      <div style={{
+      <div className="ls-panel-right" data-split={viewMode === 'split' ? 'true' : 'false'} style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100vh',
+        height: 'calc(100vh - 48px)',
         backgroundColor: darkMode ? C.black : '#f9f7f3',
         order: viewMode === 'preview' ? 1 : 2,
       }}>
@@ -674,67 +731,27 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
         <div style={{
           padding: '12px 16px',
           borderBottom: `1px solid ${LUX.border}`,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          justifyContent: 'space-between',
           backgroundColor: LUX.card,
           minHeight: 50,
+          display: 'flex',
+          alignItems: 'center',
         }}>
-          <span style={{ fontSize: 12, color: LUX.muted }}>
+          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', color: LUX.muted, textTransform: 'uppercase' }}>
             LIVE PREVIEW
           </span>
-
-          {/* View Mode Control — Only visible in Preview-Only mode */}
-          {viewMode === 'preview' && (
-          <div style={{ display: 'flex', gap: 4 }}>
-            {['split', 'editor', 'preview'].map((mode) => {
-              const modeLabel = mode === 'split' ? 'Split' : mode === 'editor' ? 'Editor' : 'Preview';
-              const isActive = viewMode === mode;
-              return (
-                <button
-                  key={mode}
-                  onClick={() => handleViewModeChange(mode)}
-                  title={modeLabel}
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    padding: '6px 8px',
-                    backgroundColor: isActive ? LUX.gold : 'transparent',
-                    color: isActive ? '#fff' : LUX.muted,
-                    border: `1px solid ${isActive ? LUX.gold : LUX.border}`,
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    opacity: isActive ? 1 : 0.7,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = isActive ? LUX.goldHover : `${LUX.gold}22`;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = isActive ? LUX.gold : 'transparent';
-                  }}
-                >
-                  {modeLabel}
-                </button>
-              );
-            })}
-          </div>
-          )}
         </div>
 
         {/* Scrollable Preview */}
         <div style={{
           flex: 1,
           overflow: 'auto',
-          backgroundColor: '#f9f7f3',
+          backgroundColor: darkMode ? LUX.bg : '#f9f7f3',
         }}>
           <ListingLivePreview formData={previewData} />
         </div>
       </div>
       )}
+      </div>
     </div>
   );
 };

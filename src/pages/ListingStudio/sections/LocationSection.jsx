@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import AIContentGenerator from '../../../components/AIAssistant/AIContentGenerator';
+import { SEO_SYSTEM, buildAddressLookupPrompt } from '../../../lib/aiPrompts';
 
 // ── Region options keyed by country value ────────────────────────────────────
 const REGIONS_BY_COUNTRY = {
@@ -41,14 +43,24 @@ const REGIONS_BY_COUNTRY = {
 };
 
 const COUNTRIES = [
-  { value: 'italy',     label: 'Italy' },
-  { value: 'france',    label: 'France' },
-  { value: 'spain',     label: 'Spain' },
-  { value: 'greece',    label: 'Greece' },
-  { value: 'portugal',  label: 'Portugal' },
-  { value: 'uk',        label: 'United Kingdom' },
-  { value: 'us',        label: 'United States' },
-  { value: 'caribbean', label: 'Caribbean' },
+  { value: 'Italy',          label: 'Italy' },
+  { value: 'France',         label: 'France' },
+  { value: 'Spain',          label: 'Spain' },
+  { value: 'Greece',         label: 'Greece' },
+  { value: 'Portugal',       label: 'Portugal' },
+  { value: 'Austria',        label: 'Austria' },
+  { value: 'Switzerland',    label: 'Switzerland' },
+  { value: 'Germany',        label: 'Germany' },
+  { value: 'United Kingdom', label: 'United Kingdom' },
+  { value: 'Ireland',        label: 'Ireland' },
+  { value: 'Scotland',       label: 'Scotland' },
+  { value: 'United States',  label: 'United States' },
+  { value: 'Caribbean',      label: 'Caribbean' },
+  { value: 'Maldives',       label: 'Maldives' },
+  { value: 'Bali',           label: 'Bali' },
+  { value: 'Mexico',         label: 'Mexico' },
+  { value: 'Croatia',        label: 'Croatia' },
+  { value: 'Monaco',         label: 'Monaco' },
 ];
 
 const FIELD = {
@@ -266,11 +278,14 @@ function MapPlaceholder() {
 // ═══════════════════════════════════════════════════════════════════════════
 // Main LocationSection component
 // ═══════════════════════════════════════════════════════════════════════════
+const COUNTRY_KEYS = ['italy', 'france', 'spain', 'greece', 'portugal', 'uk', 'us', 'caribbean'];
+
 const LocationSection = ({ formData, onChange }) => {
   const [coordPaste, setCoordPaste]         = useState('');
   const [showMultiLoc, setShowMultiLoc]     = useState(
     () => (formData?.additional_locations || []).length > 0
   );
+  const [showAddressAI, setShowAddressAI]   = useState(false);
 
   const country        = formData?.country || '';
   const regions        = REGIONS_BY_COUNTRY[country] || [];
@@ -325,11 +340,47 @@ const LocationSection = ({ formData, onChange }) => {
     : null;
 
   return (
-    <section style={{ marginBottom: 16, padding: 20, borderRadius: 8, border: '1px solid rgba(229,221,208,0.4)', boxShadow: '0 2px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)' }}>
-      <h3 style={{ marginBottom: 4 }}>Location</h3>
-      <p style={{ fontSize: 12, color: '#999', marginBottom: 20, marginTop: 0 }}>
+    <section style={{ marginBottom: 16, padding: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
+        <h3 style={{ margin: 0 }}>Location</h3>
+        <button
+          type="button"
+          onClick={() => setShowAddressAI(v => !v)}
+          style={{ fontSize: 11, color: '#C9A84C', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
+        >
+          ✦ Fill address with AI
+        </button>
+      </div>
+      <p style={{ fontSize: 12, color: '#999', marginBottom: showAddressAI ? 12 : 20, marginTop: 4 }}>
         Full venue address, region, and map pin
       </p>
+
+      {showAddressAI && (
+        <div style={{ marginBottom: 20 }}>
+          <AIContentGenerator
+            feature="address_lookup"
+            systemPrompt={SEO_SYSTEM}
+            userPrompt={buildAddressLookupPrompt(
+              formData?.venue_name || formData?.name || '',
+              formData?.website || formData?.website_url || formData?.url || ''
+            )}
+            venueId={formData?.id}
+            onInsert={(text) => {
+              try {
+                const addr = JSON.parse(text);
+                if (addr.address)       onChange('address', addr.address);
+                if (addr.address_line2) onChange('address_line2', addr.address_line2);
+                if (addr.city)          onChange('city', addr.city);
+                if (addr.postcode)      onChange('postcode', addr.postcode);
+                if (addr.region)        onChange('region', addr.region);
+                if (addr.country && COUNTRY_KEYS.includes(addr.country)) onChange('country', addr.country);
+              } catch { /* invalid JSON — ignore */ }
+              setShowAddressAI(false);
+            }}
+            label="Find Address"
+          />
+        </div>
+      )}
 
       {/* ── Row 1: Country + Region ──────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>

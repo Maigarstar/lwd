@@ -569,12 +569,13 @@ export default function MediaMetaCanvas({
       <div
         style={{
           position: 'fixed', top: 0, right: 0,
-          width: 420, height: '100vh',
+          width: 'min(420px, 100vw)', height: '100vh',
           backgroundColor: s.bg, zIndex: 1300,
           display: 'flex', flexDirection: 'column',
           boxShadow: s.shadow,
           transform: visible ? 'translateX(0)' : 'translateX(100%)',
           transition: 'transform 0.22s ease, background-color 0.22s ease, box-shadow 0.22s ease',
+          boxSizing: 'border-box',
         }}
       >
 

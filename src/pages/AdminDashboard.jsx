@@ -6825,15 +6825,129 @@ export default function AdminDashboard({ onBack, onNavigate }) {
     const tierBg = { signature: `${C.gold}15`, curated: `${C.blue}12`, standard: `${C.grey}10` };
     const selectStyle = { fontFamily: NU, fontSize: 11, color: C.off, background: C.card, border: `1px solid ${C.border}`, borderRadius: 3, padding: "6px 10px", cursor: "pointer", outline: "none" };
 
+    const statusColour = { published: '#22c55e', draft: C.grey, paused: '#f59e0b', archived: C.rose };
+    const openInStudio = (id) => {
+      setListingStudioMode('edit');
+      setListingStudioListingId(id);
+      window.location.hash = `listing-studio/${id}`;
+      setActiveTabState('listing-studio');
+    };
+
     return (
       <div>
+        {/* ── Header ── */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h2 style={{ fontFamily: GD, fontSize: 18, color: C.off, margin: 0, fontWeight: 400 }}>Venue Listings</h2>
+          <div>
+            <h2 style={{ fontFamily: GD, fontSize: 18, color: C.off, margin: 0, fontWeight: 400 }}>Venue Listings</h2>
+            {!loading && <p style={{ fontFamily: NU, fontSize: 11, color: C.grey, margin: "4px 0 0" }}>{filtered.length} of {listings.length} listing{listings.length !== 1 ? 's' : ''}</p>}
+          </div>
           <button onClick={() => { setListingStudioMode('new'); setListingStudioListingId(null); window.location.hash = 'listing-studio/new'; setActiveTabState('listing-studio'); }} style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", padding: "10px 16px", background: C.gold, color: C.black, border: "none", borderRadius: 3, cursor: "pointer", transition: "all 0.15s" }} onMouseEnter={e => { e.currentTarget.style.background = C.gold2; }} onMouseLeave={e => { e.currentTarget.style.background = C.gold; }}>+ Add New Listing</button>
         </div>
-        {loading && <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: "32px", textAlign: "center", marginBottom: 20 }}><div style={{ fontFamily: NU, fontSize: 13, color: C.grey }}>Loading listings from Supabase...</div></div>}
+
+        {/* ── Filters ── */}
+        {!loading && listings.length > 0 && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
+            <input
+              placeholder="Search listings…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ ...selectStyle, padding: "6px 10px", width: 180, outline: "none" }}
+            />
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={selectStyle}>
+              <option value="all">All statuses</option>
+              <option value="published">Published</option>
+              <option value="draft">Draft</option>
+              <option value="paused">Paused</option>
+              <option value="archived">Archived</option>
+            </select>
+            <select value={catFilter} onChange={e => setCatFilter(e.target.value)} style={selectStyle}>
+              <option value="all">All categories</option>
+              <option value="wedding-venues">Wedding Venues</option>
+              <option value="photographers">Photographers</option>
+              <option value="florists">Florists</option>
+              <option value="catering">Catering</option>
+            </select>
+            {(search || statusFilter !== 'all' || catFilter !== 'all') && (
+              <button onClick={() => { setSearch(''); setStatusFilter('all'); setCatFilter('all'); }} style={{ ...selectStyle, background: 'none', color: C.gold, border: 'none', cursor: 'pointer', padding: '6px 4px' }}>✕ Clear</button>
+            )}
+          </div>
+        )}
+
+        {/* ── States ── */}
+        {loading && <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: "32px", textAlign: "center", marginBottom: 20 }}><div style={{ fontFamily: NU, fontSize: 13, color: C.grey }}>Loading listings from Supabase…</div></div>}
         {error && <div style={{ background: C.rose + "20", border: `1px solid ${C.rose}`, borderRadius: 4, padding: "16px", marginBottom: 20 }}><div style={{ fontFamily: NU, fontSize: 12, color: C.rose, fontWeight: 600 }}>⚠ {error}</div></div>}
-        {!loading && listings.length === 0 && !error && <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: "48px", textAlign: "center", marginBottom: 20 }}><div style={{ fontFamily: GD, fontSize: 16, color: C.off, marginBottom: 8 }}>No Listings Yet</div><button onClick={() => { setListingStudioMode('new'); setListingStudioListingId(null); window.location.hash = 'listing-studio/new'; setActiveTabState('listing-studio'); }} style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, padding: "10px 20px", background: C.gold, color: C.black, border: "none", borderRadius: 3, cursor: "pointer" }}>+ Create First Listing</button></div>}
+        {!loading && listings.length === 0 && !error && (
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: "48px", textAlign: "center", marginBottom: 20 }}>
+            <div style={{ fontFamily: GD, fontSize: 16, color: C.off, marginBottom: 8 }}>No Listings Yet</div>
+            <button onClick={() => { setListingStudioMode('new'); setListingStudioListingId(null); window.location.hash = 'listing-studio/new'; setActiveTabState('listing-studio'); }} style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, padding: "10px 20px", background: C.gold, color: C.black, border: "none", borderRadius: 3, cursor: "pointer" }}>+ Create First Listing</button>
+          </div>
+        )}
+        {!loading && filtered.length === 0 && listings.length > 0 && (
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: "32px", textAlign: "center" }}>
+            <div style={{ fontFamily: NU, fontSize: 13, color: C.grey }}>No listings match your filters.</div>
+          </div>
+        )}
+
+        {/* ── Listing Cards ── */}
+        {!loading && filtered.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {filtered.map(l => {
+              const heroUrl = l.imgs?.[0]?.url || l.heroImages?.[0]?.url || l.mediaItems?.[0]?.url || null;
+              const statusKey = (l.status || '').toLowerCase();
+              const dot = statusColour[statusKey] || C.grey;
+              return (
+                <div key={l.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, display: "flex", alignItems: "stretch", overflow: "hidden", transition: "box-shadow 0.15s" }}
+                  onMouseEnter={e => e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.08)'}
+                  onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
+                >
+                  {/* Thumbnail */}
+                  <div style={{ width: 80, minHeight: 72, background: C.border, flexShrink: 0, overflow: "hidden", position: "relative" }}>
+                    {heroUrl
+                      ? <img src={heroUrl} alt={l.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>⌂</div>
+                    }
+                  </div>
+
+                  {/* Main info */}
+                  <div style={{ flex: 1, padding: "12px 16px", display: "flex", flexDirection: "column", justifyContent: "center", gap: 4, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ fontFamily: GD, fontSize: 14, color: C.off, fontWeight: 400 }}>{l.name || l.venueName || '—'}</span>
+                      {l.tier && <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: C.gold, background: `${C.gold}18`, padding: "2px 6px", borderRadius: 2 }}>{l.tier}</span>}
+                      <span style={{ display: "flex", alignItems: "center", gap: 4, fontFamily: NU, fontSize: 10, color: dot, fontWeight: 600 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: dot, display: "inline-block" }} />
+                        {l.status || 'Draft'}
+                      </span>
+                    </div>
+                    <div style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>
+                      {[l.city, l.region, l.country].filter(Boolean).join(' · ')}
+                      {l.category && <span style={{ marginLeft: 8, color: C.border2 || C.grey }}>· {l.category}</span>}
+                    </div>
+                    <div style={{ fontFamily: NU, fontSize: 10, color: C.grey }}>
+                      Listed {l.listed || '—'} · Updated {l.lastUpdated || '—'}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 16px", flexShrink: 0 }}>
+                    <button
+                      onClick={() => openInStudio(l.id)}
+                      style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, padding: "7px 14px", background: C.gold, color: C.black, border: "none", borderRadius: 3, cursor: "pointer", letterSpacing: "0.05em" }}
+                    >
+                      Edit →
+                    </button>
+                    <button
+                      onClick={() => window.open(`/venues/${l.slug}`, '_blank')}
+                      title="Preview live page"
+                      style={{ fontFamily: NU, fontSize: 11, padding: "7px 10px", background: "none", color: C.grey, border: `1px solid ${C.border}`, borderRadius: 3, cursor: "pointer" }}
+                    >
+                      ↗
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   };

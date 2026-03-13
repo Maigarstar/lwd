@@ -306,6 +306,72 @@ Never compare to other venues or use marketing tactics.
 Use editorial tone focused on what makes this investment worthwhile.`;
 };
 
+/**
+ * Build prompt for Exclusive Use Description generation
+ */
+export const buildExclusiveUsePrompt = (venueName, venueData) => {
+  return `Generate a compelling editorial description for the Exclusive Use block at ${venueName}.
+
+VENUE INFORMATION:
+${venueData?.location ? `Location: ${venueData.location}` : 'Location: (not provided)'}
+${venueData?.price ? `Exclusive Use Price: ${venueData.price}` : 'Price: (not provided)'}
+${venueData?.totalRooms ? `Rooms: ${venueData.totalRooms}` : ''}
+${venueData?.capacity ? `Capacity: ${venueData.capacity} guests` : ''}
+
+IMPORTANT: If information is missing, do not invent details. Use only what's provided above.
+
+Write 2–3 sentences that:
+- Capture the intimacy and exclusivity of hiring the entire estate
+- Convey what makes the experience uniquely private and special
+- Speak directly to luxury couples ("your guests", "your day")
+- Use editorial tone — no marketing clichés, no exclamation marks
+
+RETURN ONLY THE DESCRIPTION TEXT. No explanation, no labels.`;
+};
+
+/**
+ * Build prompt for Featured Amenities generation
+ */
+export const buildAmenitiesPrompt = (venueName, venueData) => {
+  return `Generate a list of featured amenities and highlights for ${venueName}, a luxury wedding venue.
+
+VENUE INFORMATION:
+${venueData?.location ? `Location: ${venueData.location}` : 'Location: (not provided)'}
+${venueData?.style ? `Venue Style: ${venueData.style}` : 'Venue Style: (not provided)'}
+${venueData?.capacity ? `Capacity: ${venueData.capacity} guests` : 'Capacity: (not provided)'}
+
+IMPORTANT: If information is missing, do not invent details. Only include what can be reasonably inferred from the venue type, style, and location provided.
+
+Return a comma-separated list of 10–16 specific, evocative amenity phrases (e.g. "Private chapel, Helicopter landing pad, 40-room estate, Michelin-star catering, Bridal suite with lake views, On-site coordinator, Dedicated parking").
+
+Each item should be:
+- 2–5 words, title-case
+- Specific and distinctive (avoid generic phrases like "great views" or "beautiful gardens")
+- Relevant to luxury wedding experiences
+
+RETURN ONLY THE COMMA-SEPARATED LIST. No numbering, no explanation.`;
+};
+
+/**
+ * Build prompt for Address Lookup from business name + URL
+ */
+export const buildAddressLookupPrompt = (venueName, websiteUrl) => {
+  return `Look up the address for the business "${venueName}"${websiteUrl ? ` (website: ${websiteUrl})` : ''}.
+
+Return ONLY a valid JSON object in this exact format:
+{
+  "address": "Street address line 1",
+  "address_line2": "Second line if any, otherwise empty string",
+  "city": "City or town name",
+  "postcode": "Postcode or ZIP code",
+  "country": "One of: italy, france, spain, greece, portugal, uk, us, caribbean — or empty string",
+  "region": "Region, county, or area name — or empty string"
+}
+
+IMPORTANT: Only include information you are certain about. Use empty string "" for any field you are unsure about. Never invent or guess an address.
+RETURN ONLY THE JSON OBJECT. No markdown, no code fences, no explanation.`;
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 // DEFAULT EXPORT
 // ═══════════════════════════════════════════════════════════════════════════
@@ -326,4 +392,7 @@ export default {
   buildDiningDescriptionPrompt,
   buildRoomsDescriptionPrompt,
   buildPricingDescriptionPrompt,
+  buildAmenitiesPrompt,
+  buildExclusiveUsePrompt,
+  buildAddressLookupPrompt,
 };

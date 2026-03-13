@@ -17,6 +17,13 @@
  */
 
 import { useState } from 'react';
+import AIContentGenerator from '../../../components/AIAssistant/AIContentGenerator';
+import { LUXURY_TONE_SYSTEM, buildExclusiveUsePrompt } from '../../../lib/aiPrompts';
+
+const aiLinkStyle = {
+  fontSize: 11, color: '#C9A84C', background: 'none', border: 'none',
+  cursor: 'pointer', fontFamily: 'inherit', padding: 0,
+};
 
 const MAX_INCLUDES = 7;
 
@@ -138,6 +145,7 @@ function IncludesItem({ item, index, total, onUpdate, onRemove, onMove }) {
 const ExclusiveUseSection = ({ formData, onChange }) => {
   const enabled  = formData?.exclusive_use_enabled ?? false;
   const includes = formData?.exclusive_use_includes ?? [];
+  const [showDescAI, setShowDescAI] = useState(false);
 
   const set = (key, val) => onChange(key, val);
 
@@ -166,7 +174,7 @@ const ExclusiveUseSection = ({ formData, onChange }) => {
   };
 
   return (
-    <section style={{ marginBottom: 16, padding: 20, borderRadius: 8, border: '1px solid rgba(229,221,208,0.4)', boxShadow: '0 2px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)' }}>
+    <section style={{ marginBottom: 16, padding: 20 }}>
 
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
@@ -240,7 +248,30 @@ const ExclusiveUseSection = ({ formData, onChange }) => {
 
         {/* Row 3 — Body description */}
         <div style={{ marginBottom: 16 }}>
-          <label style={labelStyle}>Body Description</label>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
+            <label style={{ ...labelStyle, marginBottom: 0 }}>Body Description</label>
+            <button type="button" onClick={() => setShowDescAI(v => !v)} style={aiLinkStyle}>
+              ✦ Generate with AI
+            </button>
+          </div>
+          {showDescAI && (
+            <div style={{ marginBottom: 10 }}>
+              <AIContentGenerator
+                feature="exclusive_use_description"
+                systemPrompt={LUXURY_TONE_SYSTEM}
+                userPrompt={buildExclusiveUsePrompt(
+                  formData?.venue_name || formData?.name || '',
+                  { location: [formData?.city, formData?.region, formData?.country].filter(Boolean).join(', '),
+                    price: formData?.exclusive_use_price,
+                    totalRooms: formData?.total_rooms,
+                    capacity: formData?.capacity }
+                )}
+                venueId={formData?.id}
+                onInsert={(text) => { onChange('exclusive_use_description', text); setShowDescAI(false); }}
+                label="Generate Description"
+              />
+            </div>
+          )}
           <textarea
             value={formData?.exclusive_use_description || ''}
             onChange={e => set('exclusive_use_description', e.target.value)}

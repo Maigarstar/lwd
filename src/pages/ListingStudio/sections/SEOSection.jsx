@@ -9,7 +9,9 @@
  *     Remove pills with × button. Counter shows X / 8.
  */
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import AIContentGenerator from '../../../components/AIAssistant/AIContentGenerator';
+import { SEO_SYSTEM, buildSeoTitlePrompt, buildSeoDescriptionPrompt, buildSeoKeywordsPrompt } from '../../../lib/aiPrompts';
 
 const KEYWORD_MAX = 8;
 
@@ -172,11 +174,19 @@ const KeywordsInput = ({ keywords = [], onChange }) => {
   );
 };
 
+const aiLinkStyle = {
+  fontSize: 11, color: '#C9A84C', background: 'none', border: 'none',
+  cursor: 'pointer', fontFamily: 'inherit', padding: 0,
+};
+
 // ── Main section ──────────────────────────────────────────────────────────────
 const SEOSection = ({ formData, onChange }) => {
   const seoTitle       = formData?.seo_title || '';
   const seoDescription = formData?.seo_description || '';
   const seoKeywords    = formData?.seo_keywords || [];
+  const [showTitleAI, setShowTitleAI]   = useState(false);
+  const [showDescAI, setShowDescAI]     = useState(false);
+  const [showKwAI, setShowKwAI]         = useState(false);
 
   const titleRemaining = 60 - seoTitle.length;
   const descRemaining  = 160 - seoDescription.length;
@@ -186,7 +196,7 @@ const SEOSection = ({ formData, onChange }) => {
   const descAtLimit    = descRemaining <= 10;
 
   return (
-    <section style={{ marginBottom: 16, padding: 20, borderRadius: 8, border: '1px solid rgba(229,221,208,0.4)', boxShadow: '0 2px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)' }}>
+    <section style={{ marginBottom: 16, padding: 20 }}>
 
       {/* ── Section header ─────────────────────────────────────────────── */}
       <div style={{ marginBottom: 24 }}>
@@ -204,15 +214,32 @@ const SEOSection = ({ formData, onChange }) => {
       {/* ── Meta Title ─────────────────────────────────────────────────── */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
-          <label style={labelStyle}>Meta Title</label>
-          <span style={{
-            fontSize: 11,
-            fontWeight: titleAtLimit ? 700 : 400,
-            color: titleAtLimit ? '#dc2626' : titleNearLimit ? '#f59e0b' : '#bbb',
-          }}>
-            {seoTitle.length} / 60
-          </span>
+          <label style={{ ...labelStyle, marginBottom: 0 }}>Meta Title</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button type="button" onClick={() => setShowTitleAI(v => !v)} style={aiLinkStyle}>
+              ✦ Generate with AI
+            </button>
+            <span style={{
+              fontSize: 11,
+              fontWeight: titleAtLimit ? 700 : 400,
+              color: titleAtLimit ? '#dc2626' : titleNearLimit ? '#f59e0b' : '#bbb',
+            }}>
+              {seoTitle.length} / 60
+            </span>
+          </div>
         </div>
+        {showTitleAI && (
+          <div style={{ marginBottom: 10 }}>
+            <AIContentGenerator
+              feature="seo_title"
+              systemPrompt={SEO_SYSTEM}
+              userPrompt={buildSeoTitlePrompt(formData?.venue_name || formData?.name || '', formData)}
+              venueId={formData?.id}
+              onInsert={(text) => { onChange('seo_title', text.slice(0, 60)); setShowTitleAI(false); }}
+              label="Generate Meta Title"
+            />
+          </div>
+        )}
         <input
           type="text"
           name="seo_title"
@@ -228,15 +255,32 @@ const SEOSection = ({ formData, onChange }) => {
       {/* ── Meta Description ───────────────────────────────────────────── */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
-          <label style={labelStyle}>Meta Description</label>
-          <span style={{
-            fontSize: 11,
-            fontWeight: descAtLimit ? 700 : 400,
-            color: descAtLimit ? '#dc2626' : descNearLimit ? '#f59e0b' : '#bbb',
-          }}>
-            {seoDescription.length} / 160
-          </span>
+          <label style={{ ...labelStyle, marginBottom: 0 }}>Meta Description</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button type="button" onClick={() => setShowDescAI(v => !v)} style={aiLinkStyle}>
+              ✦ Generate with AI
+            </button>
+            <span style={{
+              fontSize: 11,
+              fontWeight: descAtLimit ? 700 : 400,
+              color: descAtLimit ? '#dc2626' : descNearLimit ? '#f59e0b' : '#bbb',
+            }}>
+              {seoDescription.length} / 160
+            </span>
+          </div>
         </div>
+        {showDescAI && (
+          <div style={{ marginBottom: 10 }}>
+            <AIContentGenerator
+              feature="seo_description"
+              systemPrompt={SEO_SYSTEM}
+              userPrompt={buildSeoDescriptionPrompt(formData?.venue_name || formData?.name || '', formData)}
+              venueId={formData?.id}
+              onInsert={(text) => { onChange('seo_description', text.slice(0, 160)); setShowDescAI(false); }}
+              label="Generate Meta Description"
+            />
+          </div>
+        )}
         <textarea
           name="seo_description"
           value={seoDescription}
@@ -251,11 +295,32 @@ const SEOSection = ({ formData, onChange }) => {
       {/* ── Meta Keywords ──────────────────────────────────────────────── */}
       <div>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
-          <label style={labelStyle}>Keywords</label>
-          <span style={{ fontSize: 10, color: '#C9A84C', fontWeight: 600, letterSpacing: '0.03em' }}>
-            SEO + AI Search
-          </span>
+          <label style={{ ...labelStyle, marginBottom: 0 }}>Keywords</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button type="button" onClick={() => setShowKwAI(v => !v)} style={aiLinkStyle}>
+              ✦ Generate with AI
+            </button>
+            <span style={{ fontSize: 10, color: '#C9A84C', fontWeight: 600, letterSpacing: '0.03em' }}>
+              SEO + AI Search
+            </span>
+          </div>
         </div>
+        {showKwAI && (
+          <div style={{ marginBottom: 10 }}>
+            <AIContentGenerator
+              feature="seo_keywords"
+              systemPrompt={SEO_SYSTEM}
+              userPrompt={buildSeoKeywordsPrompt(formData?.venue_name || formData?.name || '', formData)}
+              venueId={formData?.id}
+              onInsert={(text) => {
+                const parsed = text.split(',').map(k => k.trim().toLowerCase()).filter(Boolean).slice(0, 8);
+                onChange('seo_keywords', parsed);
+                setShowKwAI(false);
+              }}
+              label="Generate Keywords"
+            />
+          </div>
+        )}
         <KeywordsInput
           keywords={seoKeywords}
           onChange={(kws) => onChange('seo_keywords', kws)}

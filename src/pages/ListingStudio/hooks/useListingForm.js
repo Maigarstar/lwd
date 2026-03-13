@@ -2,6 +2,29 @@ import { useState, useCallback, useEffect } from 'react';
 import { createListing, updateListing, fetchListingById } from '../../../services/listings';
 import { uploadPendingFiles } from '../../../utils/storageUpload';
 
+// ── Country normaliser ────────────────────────────────────────────────────────
+// Dropdown values are full display names ("Austria", "United Kingdom") to match
+// how the DB stores the country column. Just pass through as-is.
+function countryToSlug(name) {
+  return name || '';
+}
+
+// ── Local snake_case → camelCase conversion ───────────────────────────────────
+// fetchListingById returns raw Supabase rows (snake_case). Convert so all
+// camelCase field references in the form population block below work correctly.
+function snakeToCamel(obj) {
+  if (Array.isArray(obj)) return obj.map(snakeToCamel);
+  if (obj && typeof obj === 'object' && !(obj instanceof File) && !(obj instanceof Blob)) {
+    return Object.fromEntries(
+      Object.entries(obj).map(([k, v]) => [
+        k.replace(/_([a-z])/g, (_, c) => c.toUpperCase()),
+        snakeToCamel(v),
+      ])
+    );
+  }
+  return obj;
+}
+
 /**
  * Custom hook for listing form state and submission
  * Handles creating and updating listings with proper error/loading states
@@ -117,7 +140,77 @@ export const useListingForm = (listingId = null) => {
       const loadListing = async () => {
         try {
           setLoading(true);
-          const listing = await fetchListingById(listingId);
+          // Convert snake_case DB row → camelCase so all field references below work
+          const listing = snakeToCamel(await fetchListingById(listingId));
+
+          // ── hero_images: prefer rich JSONB array, fall back to legacy single heroImage ──
+          const heroImagesFromDb = Array.isArray(listing.heroImages) && listing.heroImages.length > 0
+            ? listing.heroImages.map((img, idx) => ({
+                id: img.id || `hero-${idx}`,
+                file: null,
+                url: img.url || '',
+                title: img.title || img.altText || '',
+                caption: img.caption || listing.heroCaption || '',
+                credit_name: img.creditCamera || img.creditName || listing.heroCredit || '',
+                copyright: img.copyright || '',
+                alt_text: img.altText || img.alt_text || '',
+                show_credit: img.showCredit ?? false,
+                sort_order: img.sortOrder ?? idx,
+                is_primary: img.featured ?? (idx === 0),
+                visibility: img.visibility || 'public',
+              }))
+            : listing.heroImage
+              ? [{ id: 'hero-0', file: null, url: listing.heroImage, title: listing.heroTitle || '', caption: listing.heroCaption || '', credit_name: listing.heroCredit || '', sort_order: 0, is_primary: true }]
+              : [];
+
+          // ── media_items: prefer rich JSONB array, fall back to legacy heroImageSet + videos ──
+          const mediaItemsFromDb = Array.isArray(listing.mediaItems) && listing.mediaItems.length > 0
+            ? listing.mediaItems.map((item, idx) => ({
+                id: item.id || `media-${idx}`,
+                // DB stores semantic categories (hero, exterior, spa, etc.)
+                // The media pool only understands: image | video | virtual_tour
+                type: (item.type === 'video' || item.type === 'virtual_tour') ? item.type : 'image',
+                source_type: item.sourceType || 'upload',
+                file: null,
+                url: item.url || '',
+                thumbnail: item.thumbnail || null,
+                title: item.title || '',
+                caption: item.caption || '',
+                description: item.description || '',
+                credit_name: item.creditCamera || item.creditName || '',
+                credit_instagram: item.creditInstagram || '',
+                credit_website: item.creditWebsite || '',
+                credit_camera: item.creditCamera || '',
+                location: item.location || '',
+                tags: Array.isArray(item.tags) ? item.tags : [],
+                sort_order: item.sortOrder ?? idx,
+                is_featured: item.featured ?? false,
+                alt_text: item.altText || item.alt_text || '',
+                copyright: item.copyright || '',
+                visibility: item.visibility || 'public',
+                image_type: item.type || '',
+                show_credit: item.showCredit ?? false,
+              }))
+            : [
+                ...(listing.heroImageSet || []).map((url, idx) => ({
+                  id: `img-${idx}`, type: 'image', source_type: 'upload', file: null, url,
+                  thumbnail: null, title: '', caption: '', description: '', credit_name: '',
+                  credit_instagram: '', credit_website: '', credit_camera: '', location: '',
+                  tags: [], sort_order: idx, is_featured: false, alt_text: '', copyright: '',
+                  visibility: 'public', image_type: '', show_credit: false,
+                })),
+                ...(listing.videos || []).map((video, idx) => ({
+                  id: `video-${idx}`, type: 'video', source_type: 'external', file: null,
+                  url: typeof video === 'string' ? video : (video.url || ''),
+                  thumbnail: null,
+                  title: typeof video === 'object' ? (video.title || '') : '',
+                  caption: typeof video === 'object' ? (video.caption || '') : '',
+                  description: '', credit_name: typeof video === 'object' ? (video.credit_name || '') : '',
+                  credit_instagram: '', credit_website: '', credit_camera: '', location: '', tags: [],
+                  sort_order: (listing.heroImageSet?.length || 0) + idx, is_featured: false,
+                  alt_text: '', copyright: '', visibility: 'public', image_type: '', show_credit: false,
+                })),
+              ];
 
           // Convert database snake_case to camelCase and populate form
           setFormData({
@@ -125,13 +218,15 @@ export const useListingForm = (listingId = null) => {
             vendor_account_id: listing.vendorAccountId || null,
             venue_name: listing.name || '',
             slug: listing.slug || '',
-            category: listing.categorySlug || 'wedding-venues',
+            category: listing.categorySlug || listing.category || 'wedding-venues',
             assigned_categories: Array.isArray(listing.assignedCategories) ? listing.assignedCategories : (listing.categorySlug ? [{ id: listing.categorySlug, slug: listing.categorySlug, name: listing.categorySlug, parentSlug: null, parentName: null }] : []),
-            destination: listing.countrySlug || 'italy',
-            summary: listing.shortDescription || '',
+            // destination: prefer countrySlug (legacy), fall back to destination column (new schema)
+            destination: listing.countrySlug || listing.destination || 'italy',
+            // summary: prefer shortDescription (legacy), fall back to summary column (new schema)
+            summary: listing.shortDescription || listing.summary || '',
             description: listing.description || '',
             amenities: listing.amenities || '',
-            country: listing.country || '',
+            country: countryToSlug(listing.country || ''),
             region: listing.region || '',
             city: listing.city || '',
             postcode: listing.postcode || '',
@@ -139,70 +234,12 @@ export const useListingForm = (listingId = null) => {
             address_line2: '',
             lat: listing.lat != null ? String(listing.lat) : '',
             lng: listing.lng != null ? String(listing.lng) : '',
-            price_range: listing.priceLabel || '',
-            capacity: listing.capacityMin || '',
-            // Convert existing single heroImage to hero_images array
-            hero_images: listing.heroImage ? [{
-              id: 'hero-0',
-              file: null,
-              url: listing.heroImage,
-              title: listing.heroTitle || '',
-              caption: listing.heroCaption || '',
-              credit_name: listing.heroCredit || '',
-              sort_order: 0,
-              is_primary: true,
-            }] : [],
-            // Build unified media_items from legacy heroImageSet + videos
-            media_items: [
-              ...(listing.heroImageSet || []).map((url, idx) => ({
-                id: `img-${idx}`,
-                type: 'image',
-                source_type: 'upload',
-                file: null,
-                url,
-                thumbnail: null,
-                title: '',
-                caption: '',
-                description: '',
-                credit_name: '',
-                credit_instagram: '',
-                credit_website: '',
-                credit_camera: '',
-                location: '',
-                tags: [],
-                sort_order: idx,
-                is_featured: false,
-                alt_text: '',
-                copyright: '',
-                visibility: 'public',
-                image_type: '',
-                show_credit: false,
-              })),
-              ...(listing.videos || []).map((video, idx) => ({
-                id: `video-${idx}`,
-                type: 'video',
-                source_type: 'external',
-                file: null,
-                url: typeof video === 'string' ? video : (video.url || ''),
-                thumbnail: null,
-                title: typeof video === 'object' ? (video.title || '') : '',
-                caption: typeof video === 'object' ? (video.caption || '') : '',
-                description: '',
-                credit_name: typeof video === 'object' ? (video.credit_name || '') : '',
-                credit_instagram: '',
-                credit_website: '',
-                credit_camera: '',
-                location: '',
-                tags: [],
-                sort_order: (listing.heroImageSet?.length || 0) + idx,
-                is_featured: false,
-                alt_text: '',
-                copyright: '',
-                visibility: 'public',
-                image_type: '',
-                show_credit: false,
-              })),
-            ],
+            // price_range: prefer priceLabel (legacy), fall back to priceRange / price_range (new schema)
+            price_range: listing.priceLabel || listing.priceRange || '',
+            // capacity: prefer capacityMin (legacy), fall back to capacity (new schema)
+            capacity: listing.capacityMin != null ? String(listing.capacityMin) : (listing.capacity || ''),
+            hero_images: heroImagesFromDb,
+            media_items: mediaItemsFromDb,
             hero_layout: listing.heroLayout || 'cinematic',
             hero_video_url: listing.heroVideoUrl || '',
             seo_title: listing.seoTitle || '',
@@ -234,9 +271,32 @@ export const useListingForm = (listingId = null) => {
             faq_cta_subtext: listing.faqCtaSubtext || '',
             faq_cta_button_text: listing.faqCtaButtonText || '',
             faq_categories: Array.isArray(listing.faqCategories) ? listing.faqCategories : [],
+            // ── Rooms & Accommodation ─────────────────────────────────────────
+            rooms_accommodation_type: listing.roomsAccommodationType || '',
+            rooms_total: listing.roomsTotal || '',
+            rooms_suites: listing.roomsSuites || '',
+            rooms_max_guests: listing.roomsMaxGuests || '',
+            rooms_exclusive_use: listing.roomsExclusiveUse ?? false,
+            rooms_min_stay: listing.roomsMinStay || '',
+            rooms_description: listing.roomsDescription || '',
+            rooms_images: Array.isArray(listing.roomsImages) ? listing.roomsImages : [],
+            // ── Dining ───────────────────────────────────────────────────────
+            dining_style: listing.diningStyle || '',
+            dining_chef_name: listing.diningChefName || '',
+            dining_in_house: listing.diningInHouse ?? false,
+            dining_external: listing.diningExternal ?? false,
+            dining_menu_styles: Array.isArray(listing.diningMenuStyles) ? listing.diningMenuStyles : [],
+            dining_dietary: Array.isArray(listing.diningDietary) ? listing.diningDietary : [],
+            dining_drinks: Array.isArray(listing.diningDrinks) ? listing.diningDrinks : [],
+            dining_description: listing.diningDescription || '',
+            dining_menu_images: Array.isArray(listing.diningMenuImages) ? listing.diningMenuImages : [],
+            // ── Contact Profile ───────────────────────────────────────────────
+            contact_profile: listing.contactProfile && typeof listing.contactProfile === 'object'
+              ? { photo_file: null, photo_url: listing.contactProfile.photoUrl || listing.contactProfile.photo_url || '', name: listing.contactProfile.name || '', title: listing.contactProfile.title || '', bio: listing.contactProfile.bio || '', email: listing.contactProfile.email || '', phone: listing.contactProfile.phone || '', whatsapp: listing.contactProfile.whatsapp || '', response_time: listing.contactProfile.responseTime || listing.contactProfile.response_time || '', response_rate: listing.contactProfile.responseRate || listing.contactProfile.response_rate || '', instagram: listing.contactProfile.instagram || '', website: listing.contactProfile.website || '' }
+              : { photo_file: null, photo_url: '', name: '', title: '', bio: '', email: '', phone: '', whatsapp: '', response_time: '', response_rate: '', instagram: '', website: '' },
             status: listing.status || 'draft',
             published_at: listing.publishedAt || null,
-            visibility: listing.isHidden ? 'private' : 'public',
+            visibility: listing.isHidden ? 'private' : (listing.visibility || 'public'),
           });
           setHasChanges(false);
         } catch (err) {

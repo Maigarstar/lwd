@@ -273,9 +273,9 @@ function AccountHolderDropdown({ value, onChange }) {
  * - Listing name and slug
  * - Category and destination
  */
-const BasicDetailsSection = ({ formData, onChange }) => {
+const BasicDetailsSection = ({ formData, onChange, darkMode = false }) => {
   return (
-    <section style={{ marginBottom: 16, padding: 20, borderRadius: 8, border: '1px solid rgba(229,221,208,0.4)', boxShadow: '0 2px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)' }}>
+    <section style={{ marginBottom: 16, padding: 20 }}>
       <h3 style={{ marginBottom: 20 }}>Basic Details</h3>
 
       {/* ── ACCOUNT HOLDER ───────────────────────────────── */}
@@ -334,7 +334,7 @@ const BasicDetailsSection = ({ formData, onChange }) => {
             fontWeight: 600,
             textTransform: 'uppercase',
           }}>
-            Slug
+            URL
           </label>
           <input
             type="text"
@@ -362,7 +362,7 @@ const BasicDetailsSection = ({ formData, onChange }) => {
             // Keep primary category in sync (backwards compat)
             if (cats.length > 0) onChange('category', cats[0].slug);
           }}
-          darkMode={false}
+          darkMode={darkMode}
         />
       </div>
 
@@ -395,9 +395,19 @@ const BasicDetailsSection = ({ formData, onChange }) => {
           <option value="spain">Spain</option>
           <option value="greece">Greece</option>
           <option value="portugal">Portugal</option>
+          <option value="austria">Austria</option>
+          <option value="switzerland">Switzerland</option>
+          <option value="germany">Germany</option>
           <option value="uk">United Kingdom</option>
+          <option value="ireland">Ireland</option>
+          <option value="scotland">Scotland</option>
           <option value="us">United States</option>
           <option value="caribbean">Caribbean</option>
+          <option value="maldives">Maldives</option>
+          <option value="bali">Bali</option>
+          <option value="mexico">Mexico</option>
+          <option value="croatia">Croatia</option>
+          <option value="monaco">Monaco</option>
         </select>
       </div>
     </section>

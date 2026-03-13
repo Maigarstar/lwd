@@ -1,14 +1,12 @@
 /**
- * PageSaveBar — Sticky save bar (top of left editor panel)
+ * PageSaveBar — Full-width action bar for Page Studio editor
  *
- * Buttons: Discard | Save Draft | Populate with AI | Publish
- * States: unsaved, saving, saved, publishing, published, error
- * Toast feedback for user actions
+ * Matches Listing Studio toolbar exactly:
+ * Left:  Magic AI | Fill with AI
+ * Right: Split | Editor | Preview (text links) + divider + Discard | Save Draft | Publish
  *
- * Mirrors Listing Studio save bar pattern
+ * Mobile: save actions stay on row 1, view mode links wrap to row 2.
  */
-
-import ViewModeControl from '../../../components/ViewModeControl';
 
 export default function PageSaveBar({
   hasChanges,
@@ -23,6 +21,7 @@ export default function PageSaveBar({
   NU,
 }) {
   const isLoading = saveStatus === 'saving' || saveStatus === 'publishing';
+
   const toastMessage =
     saveStatus === 'saved' ? 'Saved as draft' :
     saveStatus === 'published' ? 'Published successfully' :
@@ -36,179 +35,163 @@ export default function PageSaveBar({
 
   return (
     <>
-      {/* Sticky Save Bar */}
+      {/* Mobile responsive styles */}
+      <style>{`
+        @media (max-width: 767px) {
+          .ps-toolbar {
+            flex-wrap: wrap !important;
+            padding: 8px 12px !important;
+            row-gap: 6px !important;
+          }
+          .ps-toolbar-vm {
+            order: 3;
+            width: 100%;
+            justify-content: center;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            padding-top: 6px;
+          }
+          .ps-toolbar-div { display: none !important; }
+          .ps-toolbar-save {
+            order: 2;
+            flex-shrink: 0;
+          }
+          .ps-toolbar-save button {
+            padding: 6px 10px !important;
+            font-size: 11px !important;
+          }
+          .ps-panel-right[data-split="true"] {
+            display: none !important;
+          }
+          .ps-panels-grid[data-split="true"] {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
+
+      {/* Full-width toolbar */}
       <div
+        className="ps-toolbar"
         style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 20,
-          backgroundColor: C.card,
-          borderBottom: `1px solid ${C.border}`,
-          padding: '12px 16px',
           display: 'flex',
           alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '10px 24px',
+          borderBottom: `1px solid ${C.border}`,
+          backgroundColor: C.dark,
+          position: 'sticky',
+          top: 0,
+          zIndex: 30,
           gap: 8,
-          flexWrap: 'wrap',
+          flexShrink: 0,
         }}
       >
-        {/* Discard Button */}
-        <button
-          onClick={onDiscard}
-          disabled={isLoading || !hasChanges}
-          style={{
-            fontFamily: NU,
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            padding: '8px 14px',
-            backgroundColor: 'transparent',
-            color: hasChanges && !isLoading ? '#ef4444' : C.grey2,
-            border: `1px solid ${hasChanges && !isLoading ? '#ef4444' : C.border}`,
-            borderRadius: 3,
-            cursor: hasChanges && !isLoading ? 'pointer' : 'not-allowed',
-            opacity: hasChanges && !isLoading ? 1 : 0.5,
-            transition: 'all 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            if (hasChanges && !isLoading) {
-              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-          }}
-        >
-          Discard
-        </button>
-
-        {/* Save Draft Button */}
-        <button
-          onClick={onSaveDraft}
-          disabled={isLoading || !hasChanges}
-          style={{
-            fontFamily: NU,
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            padding: '8px 14px',
-            backgroundColor: hasChanges && !isLoading ? C.gold : '#f0f0f0',
-            color: hasChanges && !isLoading ? '#fff' : C.grey2,
-            border: 'none',
-            borderRadius: 3,
-            cursor: hasChanges && !isLoading ? 'pointer' : 'not-allowed',
-            opacity: isLoading ? 0.7 : 1,
-            transition: 'all 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            if (hasChanges && !isLoading) {
-              e.currentTarget.style.backgroundColor = C.gold2 || '#7a5c0f';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (hasChanges && !isLoading) {
-              e.currentTarget.style.backgroundColor = C.gold;
-              e.currentTarget.style.transform = 'none';
-            }
-          }}
-        >
-          {saveStatus === 'saving' ? 'Saving…' : 'Save Draft'}
-        </button>
-
-        {/* Populate with AI Button */}
-        <button
-          onClick={onPopulateAI}
-          disabled={isLoading}
-          style={{
-            fontFamily: NU,
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            padding: '8px 14px',
-            backgroundColor: 'transparent',
-            color: C.gold,
-            border: `1px solid ${C.gold}`,
-            borderRadius: 3,
-            cursor: isLoading ? 'not-allowed' : 'pointer',
-            opacity: isLoading ? 0.5 : 1,
-            transition: 'all 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            if (!isLoading) {
-              e.currentTarget.style.backgroundColor = `${C.gold}22`;
-            }
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-          }}
-        >
-          ★ Magic AI
-        </button>
-
-        {/* View Mode Control — Split / Editor / Preview */}
-        <div
-          style={{
-            paddingRight: 8,
-            borderRight: `1px solid ${C.border}`,
-          }}
-        >
-          <ViewModeControl viewMode={viewMode} onViewModeChange={onViewModeChange} C={C} NU={NU} />
-        </div>
-
-        {/* Publish Button */}
-        <button
-          onClick={onPublish}
-          disabled={isLoading}
-          style={{
-            fontFamily: NU,
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            padding: '8px 14px',
-            backgroundColor: C.gold,
-            color: '#fff',
-            border: 'none',
-            borderRadius: 3,
-            cursor: isLoading ? 'not-allowed' : 'pointer',
-            opacity: isLoading ? 0.7 : 1,
-            transition: 'all 0.15s ease',
-            marginLeft: 'auto',
-          }}
-          onMouseEnter={(e) => {
-            if (!isLoading) {
-              e.currentTarget.style.backgroundColor = C.gold2 || '#7a5c0f';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!isLoading) {
-              e.currentTarget.style.backgroundColor = C.gold;
-              e.currentTarget.style.transform = 'none';
-            }
-          }}
-        >
-          {saveStatus === 'publishing' ? 'Publishing…' : '↑ Publish'}
-        </button>
-
-        {/* Unsaved Indicator */}
-        {hasChanges && !isLoading && (
-          <span
+        {/* Left: AI tools — order 1 */}
+        <div style={{ display: 'flex', gap: 8, order: 1 }}>
+          <button
+            type="button"
+            onClick={onPopulateAI}
+            disabled={isLoading}
             style={{
+              fontSize: 13, fontWeight: 600, padding: '7px 14px',
+              backgroundColor: C.white, color: C.dark,
+              border: 'none', borderRadius: 6,
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              opacity: isLoading ? 0.5 : 1,
               fontFamily: NU,
-              fontSize: 9,
-              color: '#ef4444',
-              marginLeft: 'auto',
-              fontWeight: 600,
-              letterSpacing: '0.05em',
             }}
           >
-            Unsaved changes
-          </span>
-        )}
+            Magic AI
+          </button>
+          <button
+            type="button"
+            onClick={onPopulateAI}
+            disabled={isLoading}
+            style={{
+              fontSize: 13, fontWeight: 500, padding: '7px 14px',
+              backgroundColor: 'transparent', color: C.white,
+              border: `1px solid ${C.border}`, borderRadius: 6,
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              opacity: isLoading ? 0.5 : 1,
+              fontFamily: NU,
+            }}
+          >
+            Fill with AI
+          </button>
+        </div>
+
+        {/* Save actions — order 2, stays on row 1 next to AI tools on mobile */}
+        <div className="ps-toolbar-save" style={{ display: 'flex', gap: 8, order: 2, marginLeft: 'auto' }}>
+          <button
+            type="button"
+            onClick={onDiscard}
+            disabled={isLoading}
+            style={{
+              fontSize: 13, fontWeight: 500, padding: '7px 14px',
+              backgroundColor: 'transparent', color: C.grey2,
+              border: `1px solid ${C.border}`, borderRadius: 6,
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              fontFamily: NU,
+            }}
+          >
+            Discard
+          </button>
+          <button
+            type="button"
+            onClick={onSaveDraft}
+            disabled={isLoading || !hasChanges}
+            style={{
+              fontSize: 13, fontWeight: 600, padding: '7px 14px',
+              backgroundColor: C.white, color: C.dark,
+              border: 'none', borderRadius: 6,
+              cursor: isLoading || !hasChanges ? 'not-allowed' : 'pointer',
+              opacity: isLoading || !hasChanges ? 0.35 : 1,
+              fontFamily: NU,
+            }}
+          >
+            {saveStatus === 'saving' ? 'Saving…' : 'Save Draft'}
+          </button>
+          <button
+            type="button"
+            onClick={onPublish}
+            disabled={isLoading}
+            style={{
+              fontSize: 13, fontWeight: 600, padding: '7px 14px',
+              backgroundColor: C.white, color: C.dark,
+              border: 'none', borderRadius: 6,
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              opacity: isLoading ? 0.6 : 1,
+              fontFamily: NU,
+            }}
+          >
+            {saveStatus === 'publishing' ? 'Publishing…' : 'Publish'}
+          </button>
+        </div>
+
+        {/* View mode text links — order 3, wraps to row 2 on mobile */}
+        <div className="ps-toolbar-vm" style={{ display: 'flex', gap: 16, alignItems: 'center', order: 3 }}>
+          {/* Divider — hidden on mobile */}
+          <span className="ps-toolbar-div" style={{ width: 1, height: 16, backgroundColor: C.border, display: 'inline-block' }} />
+          {['split', 'editor', 'preview'].map((mode) => {
+            const isActive = viewMode === mode;
+            return (
+              <span
+                key={mode}
+                onClick={() => onViewModeChange(mode)}
+                style={{
+                  fontSize: 11, fontWeight: isActive ? 700 : 500,
+                  letterSpacing: '0.08em', textTransform: 'uppercase',
+                  color: isActive ? C.white : C.grey2,
+                  cursor: 'pointer',
+                  borderBottom: isActive ? `1px solid ${C.white}` : '1px solid transparent',
+                  paddingBottom: 1,
+                  fontFamily: NU,
+                }}
+              >
+                {mode.charAt(0).toUpperCase() + mode.slice(1)}
+              </span>
+            );
+          })}
+        </div>
       </div>
 
       {/* Toast Notification */}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 
 /**
@@ -18,12 +18,17 @@ import { supabase } from '../../../lib/supabaseClient';
  */
 
 const FIELDS = [
-  { key: 'summary',         label: 'Editorial Summary',   hint: 'Short intro shown on listing cards (max 240 chars)' },
-  { key: 'description',     label: 'Main Description',    hint: 'Full venue description (rich HTML, 3–4 paragraphs)' },
-  { key: 'amenities',       label: 'Amenities',           hint: 'Key features and offerings' },
-  { key: 'seo_title',       label: 'SEO Title',           hint: 'Page title for search engines (max 60 chars)' },
-  { key: 'seo_description', label: 'SEO Description',     hint: 'Meta description (150–160 chars)' },
-  { key: 'seo_keywords',    label: 'SEO Keywords',        hint: 'Up to 8 keyword phrases for search indexing' },
+  { key: 'summary',                    label: 'Editorial Summary',       hint: 'Short intro shown on listing cards (max 240 chars)' },
+  { key: 'description',                label: 'About / Profile',         hint: 'Full venue description (rich HTML, 3–4 paragraphs)' },
+  { key: 'amenities',                  label: 'Featured Amenities',      hint: 'Key features and offerings — comma-separated list' },
+  { key: 'dining_description',         label: 'Catering & Dining',       hint: 'Editorial dining description (rich HTML, 1–2 paragraphs)' },
+  { key: 'rooms_description',          label: 'Accommodation',           hint: 'Guest rooms & overnight experience (rich HTML, 1–2 paragraphs)' },
+  { key: 'spaces_description',         label: 'Event Spaces & Ceremony', hint: 'Overview of ceremony spaces and event areas (rich HTML, 1–2 paragraphs)' },
+  { key: 'exclusive_use_description',  label: 'Exclusive Use',           hint: 'Private hire description (2–3 sentences, plain text)' },
+  { key: 'card_venue_description',     label: 'Card Description',        hint: 'Short teaser shown on venue cards (max 160 chars)' },
+  { key: 'seo_title',                  label: 'SEO Title',               hint: 'Page title for search engines (max 60 chars)' },
+  { key: 'seo_description',            label: 'SEO Description',         hint: 'Meta description (150–160 chars)' },
+  { key: 'seo_keywords',               label: 'SEO Keywords',            hint: 'Up to 8 keyword phrases for search indexing' },
 ];
 
 // Strip JSON code fences if the AI wraps its response
@@ -39,7 +44,7 @@ function extractJSON(raw) {
   return trimmed;
 }
 
-const AIContentTools = ({ formData = {}, onChange, listingId = null, onClose }) => {
+const AIContentTools = ({ formData = {}, onChange, listingId = null, onClose, darkMode = false }) => {
   const [selectedFields, setSelectedFields] = useState(
     FIELDS.reduce((acc, f) => ({ ...acc, [f.key]: true }), {})
   );
@@ -55,7 +60,62 @@ const AIContentTools = ({ formData = {}, onChange, listingId = null, onClose }) 
   const listingType = formData.listing_type || 'venue';
   const category    = formData.category    || 'wedding-venues';
 
+  // Dark-mode colour tokens
+  const DK = darkMode ? {
+    panel:        '#111111',
+    header:       '#0a0a0a',
+    border:       '#2a2a2a',
+    body:         '#111111',
+    footer:       '#0d0d0d',
+    card:         '#1a1a1a',
+    labelText:    '#e0e0e0',
+    hintText:     '#666666',
+    previewLabel: '#C9A84C',
+    previewText:  '#cccccc',
+    infoBox:      '#1e1b10',
+    infoBoxBorder:'#3a3220',
+    warnBox:      '#1e1a00',
+    warnBoxBorder:'#4a3c00',
+    errBox:       '#1e0808',
+    errBoxBorder: '#5a1a1a',
+    spinnerBg:    '#2a2a2a',
+    cancelBg:     'transparent',
+    cancelColor:  '#888',
+    cancelBorder: '#333',
+    regenerate:   '#666',
+  } : {
+    panel:        '#fff',
+    header:       '#0a0a0a',
+    border:       '#e5ddd0',
+    body:         '#fff',
+    footer:       '#fafaf8',
+    card:         '#fdfcfb',
+    labelText:    '#222',
+    hintText:     '#aaa',
+    previewLabel: '#7a5f10',
+    previewText:  '#555',
+    infoBox:      '#f9f7f3',
+    infoBoxBorder:'#e5ddd0',
+    warnBox:      '#fef9ec',
+    warnBoxBorder:'#f5d87e',
+    errBox:       '#fef2f2',
+    errBoxBorder: '#fecaca',
+    spinnerBg:    '#e5ddd0',
+    cancelBg:     'transparent',
+    cancelColor:  '#888',
+    cancelBorder: '#ddd4c8',
+    regenerate:   '#aaa',
+  };
+
   const canGenerate = !!venueName.trim();
+
+  // Auto-start generation when panel opens if venue name is available
+  useEffect(() => {
+    if (canGenerate) {
+      const t = setTimeout(() => handleGenerate(), 300);
+      return () => clearTimeout(t);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleField = (key) =>
     setSelectedFields(prev => ({ ...prev, [key]: !prev[key] }));
@@ -89,9 +149,14 @@ Listing details:
 - Location: ${locationStr}
 
 Field requirements:
-- summary: Max 240 chars. One to two elegant sentences for card display. No quotes.
+- summary: Max 240 chars. One to two elegant sentences for card display. Plain text, no quotes.
 - description: Rich HTML using <p> tags only. 3–4 paragraphs. Evocative, detailed, aspirational.
 - amenities: Comma-separated list of key venue features and services (e.g. "Private chapel, Helicopter landing, 40-room estate, On-site catering").
+- dining_description: Rich HTML using <p> tags only. 1–2 paragraphs about the culinary experience — cuisine style, sourcing, chef, atmosphere.
+- rooms_description: Rich HTML using <p> tags only. 1–2 paragraphs about guest accommodations — room types, design, comfort, wedding night experience.
+- spaces_description: Rich HTML using <p> tags only. 1–2 paragraphs describing the ceremony and event spaces — setting, ambiance, flexibility for different ceremony styles.
+- exclusive_use_description: 2–3 sentences. Plain text. Describes the intimacy and appeal of hiring the entire estate privately — speak to luxury couples directly.
+- card_venue_description: Max 160 chars. A single compelling teaser sentence for venue card display. Plain text, no quotes.
 - seo_title: Max 60 chars. Natural language, include venue name and location.
 - seo_description: 150–160 chars. Compelling meta description with a soft call to action.
 - seo_keywords: JSON array of 6–8 keyword phrases (e.g. ["villa wedding italy", "tuscany wedding venue"]).
@@ -156,7 +221,7 @@ Return ONLY the JSON object. No explanation, no markdown fences.`;
             <span key={i} style={{
               padding: '2px 8px', fontSize: 11, borderRadius: 10,
               backgroundColor: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.25)',
-              color: '#7a5f10', fontWeight: 500,
+              color: DK.previewLabel, fontWeight: 500,
             }}>
               {kw}
             </span>
@@ -164,15 +229,16 @@ Return ONLY the JSON object. No explanation, no markdown fences.`;
         </div>
       );
     }
-    if (key === 'description') {
+    // HTML-rendered fields
+    if (['description', 'dining_description', 'rooms_description', 'spaces_description'].includes(key)) {
       return (
         <div
-          style={{ fontSize: 12, color: '#555', marginTop: 4, lineHeight: 1.6 }}
+          style={{ fontSize: 12, color: DK.previewText, marginTop: 4, lineHeight: 1.6 }}
           dangerouslySetInnerHTML={{ __html: value }}
         />
       );
     }
-    return <p style={{ fontSize: 12, color: '#555', margin: '4px 0 0', lineHeight: 1.5 }}>{value}</p>;
+    return <p style={{ fontSize: 12, color: DK.previewText, margin: '4px 0 0', lineHeight: 1.5 }}>{value}</p>;
   };
 
   return (
@@ -191,8 +257,8 @@ Return ONLY the JSON object. No explanation, no markdown fences.`;
         position: 'fixed',
         top: 0, right: 0, bottom: 0,
         width: 480,
-        backgroundColor: '#fff',
-        boxShadow: '-4px 0 32px rgba(0,0,0,0.18)',
+        backgroundColor: DK.panel,
+        boxShadow: '-4px 0 32px rgba(0,0,0,0.28)',
         zIndex: 901,
         display: 'flex',
         flexDirection: 'column',
@@ -202,8 +268,8 @@ Return ONLY the JSON object. No explanation, no markdown fences.`;
         {/* Header */}
         <div style={{
           padding: '20px 24px',
-          borderBottom: '1px solid #e5ddd0',
-          backgroundColor: '#0a0a0a',
+          borderBottom: `1px solid ${DK.border}`,
+          backgroundColor: DK.header,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -231,16 +297,16 @@ Return ONLY the JSON object. No explanation, no markdown fences.`;
         </div>
 
         {/* Body — scrollable */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', backgroundColor: DK.body }}>
 
           {/* Location context note */}
           {(city || region || country) && (
             <div style={{
               padding: '8px 12px', borderRadius: 4, marginBottom: 16,
-              backgroundColor: '#f9f7f3', border: '1px solid #e5ddd0',
+              backgroundColor: DK.infoBox, border: `1px solid ${DK.infoBoxBorder}`,
               fontSize: 12, color: '#888',
             }}>
-              📍 Using location context: <strong style={{ color: '#555' }}>
+              📍 Using location context: <strong style={{ color: DK.previewText }}>
                 {[city, region, country].filter(Boolean).join(', ')}
               </strong>
             </div>
@@ -250,7 +316,7 @@ Return ONLY the JSON object. No explanation, no markdown fences.`;
           {!canGenerate && (
             <div style={{
               padding: '12px 14px', borderRadius: 4, marginBottom: 16,
-              backgroundColor: '#fef9ec', border: '1px solid #f5d87e',
+              backgroundColor: DK.warnBox, border: `1px solid ${DK.warnBoxBorder}`,
               fontSize: 12, color: '#92610d',
             }}>
               ⚠️ Enter a Listing Name in Basic Details before generating.
@@ -262,7 +328,7 @@ Return ONLY the JSON object. No explanation, no markdown fences.`;
             <div style={{ marginBottom: 20 }}>
               <p style={{
                 fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-                letterSpacing: '0.08em', color: '#999', marginBottom: 12,
+                letterSpacing: '0.08em', color: DK.hintText, marginBottom: 12,
               }}>
                 Fields to generate
               </p>
@@ -281,8 +347,8 @@ Return ONLY the JSON object. No explanation, no markdown fences.`;
                     style={{ marginTop: 2, accentColor: '#C9A84C', flexShrink: 0 }}
                   />
                   <div>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>{f.label}</span>
-                    <span style={{ fontSize: 11, color: '#aaa', display: 'block', marginTop: 1 }}>{f.hint}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: DK.labelText }}>{f.label}</span>
+                    <span style={{ fontSize: 11, color: DK.hintText, display: 'block', marginTop: 1 }}>{f.hint}</span>
                   </div>
                 </label>
               ))}
@@ -293,8 +359,8 @@ Return ONLY the JSON object. No explanation, no markdown fences.`;
           {error && (
             <div style={{
               padding: '12px 14px', borderRadius: 4, marginBottom: 16,
-              backgroundColor: '#fef2f2', border: '1px solid #fecaca',
-              fontSize: 12, color: '#991b1b',
+              backgroundColor: DK.errBox, border: `1px solid ${DK.errBoxBorder}`,
+              fontSize: 12, color: '#f87171',
             }}>
               ⚠️ {error}
             </div>
@@ -304,10 +370,10 @@ Return ONLY the JSON object. No explanation, no markdown fences.`;
           {isGenerating && (
             <div style={{
               padding: '24px', textAlign: 'center',
-              color: '#888', fontSize: 13,
+              color: DK.hintText, fontSize: 13,
             }}>
               <div style={{
-                width: 32, height: 32, border: '2px solid #e5ddd0',
+                width: 32, height: 32, border: `2px solid ${DK.spinnerBg}`,
                 borderTopColor: '#C9A84C', borderRadius: '50%',
                 animation: 'spin 0.8s linear infinite',
                 margin: '0 auto 12px',
@@ -322,7 +388,7 @@ Return ONLY the JSON object. No explanation, no markdown fences.`;
             <div>
               <p style={{
                 fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-                letterSpacing: '0.08em', color: '#999', marginBottom: 12,
+                letterSpacing: '0.08em', color: DK.hintText, marginBottom: 12,
               }}>
                 Preview — review before applying
               </p>
@@ -330,13 +396,13 @@ Return ONLY the JSON object. No explanation, no markdown fences.`;
               {FIELDS.filter(f => preview[f.key] !== undefined).map(f => (
                 <div key={f.key} style={{
                   marginBottom: 16, padding: '12px 14px',
-                  border: '1px solid #e5ddd0', borderRadius: 4,
-                  backgroundColor: '#fdfcfb',
+                  border: `1px solid ${DK.border}`, borderRadius: 4,
+                  backgroundColor: DK.card,
                 }}>
                   <p style={{
                     margin: 0, fontSize: 11, fontWeight: 700,
                     textTransform: 'uppercase', letterSpacing: '0.06em',
-                    color: '#7a5f10',
+                    color: DK.previewLabel,
                   }}>
                     {f.label}
                   </p>
@@ -350,7 +416,7 @@ Return ONLY the JSON object. No explanation, no markdown fences.`;
                 onClick={() => { setPreview(null); setError(null); }}
                 style={{
                   background: 'none', border: 'none',
-                  color: '#aaa', fontSize: 12, cursor: 'pointer',
+                  color: DK.regenerate, fontSize: 12, cursor: 'pointer',
                   textDecoration: 'underline', padding: 0, marginBottom: 8,
                 }}
               >
@@ -363,8 +429,8 @@ Return ONLY the JSON object. No explanation, no markdown fences.`;
         {/* Footer actions */}
         <div style={{
           padding: '16px 24px',
-          borderTop: '1px solid #e5ddd0',
-          backgroundColor: '#fafaf8',
+          borderTop: `1px solid ${DK.border}`,
+          backgroundColor: DK.footer,
           display: 'flex',
           gap: 10,
           flexShrink: 0,
@@ -374,8 +440,8 @@ Return ONLY the JSON object. No explanation, no markdown fences.`;
             onClick={onClose}
             style={{
               flex: 1, padding: '10px', fontSize: 13, fontWeight: 500,
-              backgroundColor: 'transparent', color: '#888',
-              border: '1px solid #ddd4c8', borderRadius: 3, cursor: 'pointer',
+              backgroundColor: DK.cancelBg, color: DK.cancelColor,
+              border: `1px solid ${DK.cancelBorder}`, borderRadius: 3, cursor: 'pointer',
             }}
           >
             Cancel
@@ -388,8 +454,9 @@ Return ONLY the JSON object. No explanation, no markdown fences.`;
               disabled={!canGenerate || isGenerating}
               style={{
                 flex: 2, padding: '10px', fontSize: 13, fontWeight: 700,
-                backgroundColor: canGenerate && !isGenerating ? '#0a0a0a' : '#ccc',
-                color: '#fff', border: 'none', borderRadius: 3,
+                backgroundColor: canGenerate && !isGenerating ? '#C9A84C' : '#444',
+                color: canGenerate && !isGenerating ? '#0a0a0a' : '#888',
+                border: 'none', borderRadius: 3,
                 cursor: canGenerate && !isGenerating ? 'pointer' : 'not-allowed',
                 transition: 'background 0.2s',
               }}
@@ -403,7 +470,8 @@ Return ONLY the JSON object. No explanation, no markdown fences.`;
               style={{
                 flex: 2, padding: '10px', fontSize: 13, fontWeight: 700,
                 backgroundColor: applied ? '#15803d' : '#C9A84C',
-                color: '#fff', border: 'none', borderRadius: 3,
+                color: applied ? '#fff' : '#0a0a0a',
+                border: 'none', borderRadius: 3,
                 cursor: 'pointer', transition: 'background 0.2s',
               }}
             >

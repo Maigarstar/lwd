@@ -15,6 +15,8 @@
 
 import { useState, useEffect } from 'react';
 import RichTextEditor from '../components/RichTextEditor';
+import AIContentGenerator from '../../../components/AIAssistant/AIContentGenerator';
+import { LUXURY_TONE_SYSTEM, buildDiningDescriptionPrompt } from '../../../lib/aiPrompts';
 
 const MAX_MENU_IMAGES = 4;
 
@@ -232,11 +234,17 @@ const DIETARY_OPTIONS    = ['Vegetarian', 'Vegan', 'Halal', 'Kosher', 'Gluten Fr
 const DRINKS_OPTIONS     = ['Open Bar', 'Wine Pairing', 'Signature Cocktails', 'Beer & Spirits', 'Non-Alcoholic', 'Soft Drinks Only'];
 
 // ── Main section ──────────────────────────────────────────────────────────────
+const aiLinkStyle = {
+  fontSize: 11, color: '#C9A84C', background: 'none', border: 'none',
+  cursor: 'pointer', fontFamily: 'inherit', padding: 0,
+};
+
 const DiningSection = ({ formData, onChange }) => {
   const menu_images = formData?.dining_menu_images || [];
+  const [showDiningAI, setShowDiningAI] = useState(false);
 
   return (
-    <section style={{ marginBottom: 16, padding: 20, borderRadius: 8, border: '1px solid rgba(229,221,208,0.4)', boxShadow: '0 2px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)' }}>
+    <section style={{ marginBottom: 16, padding: 20 }}>
 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
@@ -318,7 +326,24 @@ const DiningSection = ({ formData, onChange }) => {
 
       {/* Dining Description */}
       <div style={{ marginBottom: 24 }}>
-        <label style={labelStyle}>Dining Description</label>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
+          <label style={{ ...labelStyle, marginBottom: 0 }}>Dining Description</label>
+          <button type="button" onClick={() => setShowDiningAI(v => !v)} style={aiLinkStyle}>
+            ✦ Generate with AI
+          </button>
+        </div>
+        {showDiningAI && (
+          <div style={{ marginBottom: 10 }}>
+            <AIContentGenerator
+              feature="dining_description"
+              systemPrompt={LUXURY_TONE_SYSTEM}
+              userPrompt={buildDiningDescriptionPrompt(formData?.venue_name || formData?.name || '', formData)}
+              venueId={formData?.id}
+              onInsert={(text) => { onChange('dining_description', text); setShowDiningAI(false); }}
+              label="Generate Dining Description"
+            />
+          </div>
+        )}
         <RichTextEditor
           value={formData?.dining_description || ''}
           onChange={html => onChange('dining_description', html)}

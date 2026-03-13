@@ -13,6 +13,8 @@
 
 import { useState, useEffect } from 'react';
 import RichTextEditor from '../components/RichTextEditor';
+import AIContentGenerator from '../../../components/AIAssistant/AIContentGenerator';
+import { LUXURY_TONE_SYSTEM, buildRoomsDescriptionPrompt } from '../../../lib/aiPrompts';
 
 const MAX_ROOM_IMAGES = 6;
 
@@ -178,11 +180,17 @@ const RoomImageManager = ({ images = [], onChange }) => {
 };
 
 // ── Main section ──────────────────────────────────────────────────────────────
+const aiLinkStyle = {
+  fontSize: 11, color: '#C9A84C', background: 'none', border: 'none',
+  cursor: 'pointer', fontFamily: 'inherit', padding: 0,
+};
+
 const RoomsSection = ({ formData, onChange }) => {
   const rooms_images = formData?.rooms_images || [];
+  const [showRoomsAI, setShowRoomsAI] = useState(false);
 
   return (
-    <section style={{ marginBottom: 16, padding: 20, borderRadius: 8, border: '1px solid rgba(229,221,208,0.4)', boxShadow: '0 2px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)' }}>
+    <section style={{ marginBottom: 16, padding: 20 }}>
 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
@@ -261,7 +269,24 @@ const RoomsSection = ({ formData, onChange }) => {
 
       {/* Room Description — TipTap */}
       <div style={{ marginBottom: 24 }}>
-        <label style={labelStyle}>Room Description</label>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
+          <label style={{ ...labelStyle, marginBottom: 0 }}>Room Description</label>
+          <button type="button" onClick={() => setShowRoomsAI(v => !v)} style={aiLinkStyle}>
+            ✦ Generate with AI
+          </button>
+        </div>
+        {showRoomsAI && (
+          <div style={{ marginBottom: 10 }}>
+            <AIContentGenerator
+              feature="rooms_description"
+              systemPrompt={LUXURY_TONE_SYSTEM}
+              userPrompt={buildRoomsDescriptionPrompt(formData?.venue_name || formData?.name || '', formData)}
+              venueId={formData?.id}
+              onInsert={(text) => { onChange('rooms_description', text); setShowRoomsAI(false); }}
+              label="Generate Room Description"
+            />
+          </div>
+        )}
         <RichTextEditor
           value={formData?.rooms_description || ''}
           onChange={html => onChange('rooms_description', html)}

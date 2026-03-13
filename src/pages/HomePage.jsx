@@ -17,6 +17,7 @@ import VendorPreview from "../components/sections/VendorPreview";
 import CategorySlider from "../components/sections/CategorySlider";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import NewsletterBand from "../components/sections/NewsletterBand";
+import MagazineEditorial from "../components/sections/MagazineEditorial";
 import EnquiryModal from "../components/modals/EnquiryModal";
 import "../category.css";
 
@@ -60,7 +61,7 @@ function listingToCard(listing) {
   };
 }
 
-export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, onViewRegionCategory, onViewStandard, onViewAbout, onViewContact, onViewPartnership, onViewVendor, onViewAdmin, onViewUSA, onViewItaly, footerNav }) {
+export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, onViewRegionCategory, onViewStandard, onViewAbout, onViewContact, onViewPartnership, onViewVendor, onViewAdmin, onViewUSA, onViewItaly, onViewMagazine, onViewMagazineArticle, footerNav }) {
   const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
   const [enquiryVendor, setEnquiryVendor] = useState(null);
   const [heroBackgroundData, setHeroBackgroundData] = useState(null);
@@ -137,6 +138,10 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
               if (v.cat === "venues") onViewVenue?.();
               else setEnquiryVendor(v);
             }}
+          />
+          <MagazineEditorial
+            onViewMagazine={onViewMagazine}
+            onViewMagazineArticle={onViewMagazineArticle}
           />
           <NewsletterBand />
           <DirectoryBrands onViewRegion={(countrySlug, regionSlug) => onViewRegion?.(countrySlug, regionSlug)} onViewCategory={onViewCategory} onViewUSA={onViewUSA} onViewItaly={onViewItaly} />

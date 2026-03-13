@@ -138,11 +138,25 @@ const PageStudioHome = ({ C, NU, GD, onNavigate }) => {
   };
 
   return (
-    <div style={{
+    <div className="psh-outer" style={{
       padding: '32px 28px 60px',
       backgroundColor: C.black,
       minHeight: '100%',
     }}>
+      <style>{`
+        @media (max-width: 767px) {
+          .psh-outer { padding: 14px 14px 40px !important; }
+          .psh-filters { flex-direction: column !important; align-items: stretch !important; }
+          .psh-search { width: 100% !important; max-width: 100% !important; }
+          .psh-table-header { grid-template-columns: 1fr auto auto 60px !important; }
+          .psh-table-header > span:nth-child(4),
+          .psh-table-header > span:nth-child(5) { display: none !important; }
+          .psh-table-row { grid-template-columns: 1fr auto auto 60px !important; }
+          .psh-table-row > div:nth-child(4),
+          .psh-table-row > div:nth-child(5) { display: none !important; }
+          .psh-table-row > div:nth-child(6) button { padding: 4px 8px !important; font-size: 9px !important; }
+        }
+      `}</style>
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div style={{
@@ -237,7 +251,7 @@ const PageStudioHome = ({ C, NU, GD, onNavigate }) => {
       </div>
 
       {/* ── Filters ─────────────────────────────────────────────────────── */}
-      <div style={{
+      <div className="psh-filters" style={{
         display: 'flex',
         gap: 8,
         marginBottom: 20,
@@ -245,6 +259,7 @@ const PageStudioHome = ({ C, NU, GD, onNavigate }) => {
         flexWrap: 'wrap',
       }}>
         <input
+          className="psh-search"
           type="text"
           placeholder="Search pages…"
           value={search}
@@ -295,7 +310,7 @@ const PageStudioHome = ({ C, NU, GD, onNavigate }) => {
         overflow: 'hidden',
       }}>
         {/* Header row */}
-        <div style={{
+        <div className="psh-table-header" style={{
           display: 'grid',
           gridTemplateColumns: '1fr 110px 100px 180px 90px 80px',
           gap: 0,
@@ -367,6 +382,7 @@ const PageRow = ({ page, isFirst, isLast, isHomepage, C, NU, GD, onEdit }) => {
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      className="psh-table-row"
       style={{
         display: 'grid',
         gridTemplateColumns: '1fr 110px 100px 180px 90px 80px',

@@ -17,6 +17,8 @@
  */
 
 import { useState } from 'react';
+import AIContentGenerator from '../../../components/AIAssistant/AIContentGenerator';
+import { FAQ_SYSTEM, buildFaqPrompt } from '../../../lib/aiPrompts';
 
 const MAX_CATEGORIES = 4;
 
@@ -182,11 +184,17 @@ function CategoryEditor({ cat, index, total, onUpdate, onRemove, onMove }) {
   );
 }
 
+const aiLinkStyle = {
+  fontSize: 11, color: '#C9A84C', background: 'none', border: 'none',
+  cursor: 'pointer', fontFamily: 'inherit', padding: 0,
+};
+
 // ── Main editor ────────────────────────────────────────────────────────────────
 const FAQSectionEditor = ({ formData, onChange }) => {
   const enabled     = formData?.faq_enabled     ?? false;
   const ctaEnabled  = formData?.faq_cta_enabled ?? true;
   const categories  = formData?.faq_categories  ?? [];
+  const [showFaqAI, setShowFaqAI] = useState(false);
 
   const set = (key, val) => onChange(key, val);
 
@@ -212,7 +220,7 @@ const FAQSectionEditor = ({ formData, onChange }) => {
   };
 
   return (
-    <section style={{ marginBottom: 16, padding: 20, borderRadius: 8, border: '1px solid rgba(229,221,208,0.4)', boxShadow: '0 2px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)' }}>
+    <section style={{ marginBottom: 16, padding: 20 }}>
 
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
@@ -246,9 +254,46 @@ const FAQSectionEditor = ({ formData, onChange }) => {
 
         {/* Categories */}
         <div style={{ marginBottom: 20 }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-            Categories ({categories.length} / {MAX_CATEGORIES})
-          </p>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+              Categories ({categories.length} / {MAX_CATEGORIES})
+            </p>
+            <button type="button" onClick={() => setShowFaqAI(v => !v)} style={aiLinkStyle}>
+              ✦ Generate FAQs with AI
+            </button>
+          </div>
+          {showFaqAI && (
+            <div style={{ marginBottom: 12 }}>
+              <AIContentGenerator
+                feature="faq_generate"
+                systemPrompt={FAQ_SYSTEM}
+                userPrompt={buildFaqPrompt(formData?.venue_name || formData?.name || '', formData)}
+                venueId={formData?.id}
+                onInsert={(text) => {
+                  try {
+                    const parsed = JSON.parse(text);
+                    const newCats = [{
+                      id: `cat-${Date.now()}`,
+                      icon: 'I',
+                      category: 'General',
+                      questions: parsed.map((item, j) => ({
+                        id: `q-${Date.now()}-${j}`,
+                        q: item.question || item.q || '',
+                        a: item.answer || item.a || '',
+                        sortOrder: j,
+                      })),
+                      sortOrder: 0,
+                    }];
+                    onChange('faq_categories', newCats);
+                    setShowFaqAI(false);
+                  } catch {
+                    // Not valid JSON — ignore
+                  }
+                }}
+                label="Generate FAQs"
+              />
+            </div>
+          )}
           {categories.map((cat, i) => (
             <CategoryEditor key={cat.id || i} cat={cat} index={i} total={categories.length}
               onUpdate={updateCat} onRemove={removeCat} onMove={moveCat} />
