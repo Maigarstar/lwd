@@ -343,6 +343,8 @@ function mapFormToDatabaseFields(data: any): any {
     'publishedAt': 'published_at',
     // Rich media items — stored as JSONB; File objects must be stripped before calling
     'mediaItems': 'media_items',
+    // Description read-more toggle
+    'readmoreEnabled': 'readmore_enabled',
   }
 
   for (const key in data) {

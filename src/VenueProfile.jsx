@@ -804,7 +804,7 @@ function HeroCinematic({ venue, onEnquire }) {
             {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: "#4ade80", fontWeight: 700 }}>✓ LWD Verified</span>}
           </div>
           {/* Hero CTA */}
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
             <button onClick={onEnquire} style={{
               padding: "14px 28px", background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)",
               color: "#0f0d0a", fontFamily: FB, fontSize: 13, fontWeight: 800,
@@ -814,6 +814,25 @@ function HeroCinematic({ venue, onEnquire }) {
               onMouseEnter={e => e.currentTarget.style.opacity = "0.88"}
               onMouseLeave={e => e.currentTarget.style.opacity = "1"}
             >Begin Your Enquiry →</button>
+            {venue.showcaseUrl && (
+              <a href={venue.showcaseUrl}
+                onClick={e => { e.preventDefault(); window.history.pushState(null, "", venue.showcaseUrl); window.dispatchEvent(new PopStateEvent('popstate')); }}
+                style={{
+                padding: "13px 22px",
+                background: "transparent",
+                border: "1px solid rgba(255,255,255,0.45)",
+                borderRadius: "var(--lwd-radius-input)",
+                color: "rgba(255,255,255,0.9)",
+                fontFamily: FB, fontSize: 13, fontWeight: 700,
+                letterSpacing: "1px", textTransform: "uppercase",
+                textDecoration: "none",
+                display: "inline-flex", alignItems: "center", gap: 6,
+                transition: "all 0.2s",
+              }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.75)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.45)"; }}
+              >✦ Showcase</a>
+            )}
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {venue.priceFrom && (
                 <span style={{ fontFamily: FB, fontSize: 14, fontWeight: 600, color: "rgba(201,168,76,0.95)", letterSpacing: "0.3px" }}>
@@ -887,6 +906,21 @@ function HeroSplit({ venue, onEnquire }) {
           onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
           Begin Your Enquiry →
         </button>
+        {venue.showcaseUrl && (
+          <a href={venue.showcaseUrl}
+            onClick={e => { e.preventDefault(); window.history.pushState(null, "", venue.showcaseUrl); window.dispatchEvent(new PopStateEvent('popstate')); }}
+            style={{
+            display: "block", textAlign: "center", marginTop: 10,
+            padding: "11px", border: `1px solid ${C.border2}`,
+            borderRadius: "var(--lwd-radius-input)",
+            color: C.textMid, fontFamily: FB, fontSize: 12, fontWeight: 700,
+            letterSpacing: "0.8px", textTransform: "uppercase",
+            textDecoration: "none", transition: "all 0.2s",
+          }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.textMid; }}
+          >✦ View Showcase</a>
+        )}
       </div>
     </div>
   );
@@ -921,11 +955,25 @@ function HeroMagazine({ venue, onEnquire }) {
               {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: C.green, fontWeight: 700 }}>✓ LWD Verified</span>}
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 24, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontFamily: FD, fontSize: 26, color: C.gold }}>From {venue.priceFrom}</div>
               <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted }}>per event</div>
             </div>
+            {venue.showcaseUrl && (
+              <a href={venue.showcaseUrl}
+                onClick={e => { e.preventDefault(); window.history.pushState(null, "", venue.showcaseUrl); window.dispatchEvent(new PopStateEvent('popstate')); }}
+                style={{
+                padding: "12px 18px", border: `1px solid ${C.border2}`,
+                borderRadius: "var(--lwd-radius-input)",
+                color: C.textMid, fontFamily: FB, fontSize: 11, fontWeight: 700,
+                letterSpacing: "0.8px", textTransform: "uppercase",
+                textDecoration: "none", whiteSpace: "nowrap", transition: "all 0.2s",
+              }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.textMid; }}
+              >✦ Showcase</a>
+            )}
             <button onClick={onEnquire} style={{
               padding: "13px 22px", background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)",
               color: "#0f0d0a", fontFamily: FB, fontSize: 12, fontWeight: 800,
@@ -1936,13 +1984,28 @@ function LeadForm({ venue }) {
 
       {/* Step content */}
       {step === 0 && (
-        <button onClick={() => setStep(1)} style={{
-          width: "100%", padding: "15px 20px",
-          background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)", color: "#fff",
-          fontFamily: FB, fontSize: 14, fontWeight: 800, letterSpacing: "1.2px",
-          textTransform: "uppercase", cursor: "pointer",
-          transition: "all 0.2s",
-        }}>Begin Your Enquiry →</button>
+        <>
+          <button onClick={() => setStep(1)} style={{
+            width: "100%", padding: "15px 20px",
+            background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)", color: "#fff",
+            fontFamily: FB, fontSize: 14, fontWeight: 800, letterSpacing: "1.2px",
+            textTransform: "uppercase", cursor: "pointer",
+            transition: "all 0.2s",
+          }}>Begin Your Enquiry →</button>
+          {venue.showcaseUrl && (
+            <a href={venue.showcaseUrl}
+              onClick={e => { e.preventDefault(); window.history.pushState(null, "", venue.showcaseUrl); window.dispatchEvent(new PopStateEvent('popstate')); }}
+              style={{
+              display: "block", textAlign: "center", marginTop: 12,
+              fontFamily: FB, fontSize: 12, fontWeight: 600,
+              color: C.textLight, textDecoration: "none",
+              letterSpacing: "0.4px", transition: "color 0.2s",
+            }}
+              onMouseEnter={e => e.currentTarget.style.color = C.gold}
+              onMouseLeave={e => e.currentTarget.style.color = C.textLight}
+            >✦ View Full Showcase →</a>
+          )}
+        </>
       )}
 
       {step > 0 && step < 4 && (
@@ -2675,7 +2738,7 @@ function AboutSection({ venue, isDbVenue = false }) {
     <section id="overview" style={{ marginBottom: 56 }}>
       <SectionHeading title={`About ${venue.name}`} />
 
-      {/* Single-column editorial layout — no side image, no stats block */}
+      {/* Single-column editorial layout */}
       <div>
 
         {/* Intro paragraph — uses DB short_description when available */}
@@ -2683,49 +2746,13 @@ function AboutSection({ venue, isDbVenue = false }) {
           {venue.description || venue.tagline || "Set within 120 acres of rolling Tuscan countryside, Villa Rosanova is one of the finest privately-owned estates in Italy. Built in 1847 for the Marchese di Rosanova, the property has been meticulously restored to its original grandeur while offering every modern comfort a discerning couple could wish for."}
         </p>
 
-        {/* Two landscape images — uses DB images when available */}
-        {venue.imgs && venue.imgs.length >= 2 && (
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
-          gap: 6,
-          marginBottom: 28,
-        }}>
-          <img
-            src={venue.imgs[1] || venue.imgs[0]}
-            alt={`${venue.name} photo`}
-            loading="lazy"
-            style={{ width: "100%", height: isMobile ? 220 : 300, objectFit: "cover", display: "block", borderRadius: 3 }}
+        {/* Full description — DB venues: always shown inline, no read more gate */}
+        {isDbVenue && venue.fullDescription && (
+          <div
+            className="ldw-prose-body"
+            style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9, marginBottom: 28, maxWidth: 780 }}
+            dangerouslySetInnerHTML={{ __html: venue.fullDescription }}
           />
-          <img
-            src={venue.imgs[2] || venue.imgs[1]}
-            alt={`${venue.name} photo`}
-            loading="lazy"
-            style={{ width: "100%", height: isMobile ? 220 : 300, objectFit: "cover", display: "block", borderRadius: 3 }}
-          />
-        </div>
-        )}
-        {/* Fallback images — static Villa Rosanova only, never shown on DB venues */}
-        {!isDbVenue && (!venue.imgs || venue.imgs.length < 2) && (
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
-          gap: 6,
-          marginBottom: 28,
-        }}>
-          <img
-            src="https://images.unsplash.com/photo-1617806118233-18e1de247200?w=800&q=80"
-            alt="Villa Rosanova interior detail"
-            loading="lazy"
-            style={{ width: "100%", height: isMobile ? 220 : 300, objectFit: "cover", display: "block", borderRadius: 3 }}
-          />
-          <img
-            src="https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&q=80"
-            alt="Cypress garden at dusk"
-            loading="lazy"
-            style={{ width: "100%", height: isMobile ? 220 : 300, objectFit: "cover", display: "block", borderRadius: 3 }}
-          />
-        </div>
         )}
 
         {/* Second paragraph — static Villa Rosanova content, only on /venue */}
@@ -2814,8 +2841,9 @@ function AboutSection({ venue, isDbVenue = false }) {
 function ContactSection({ venue }) {
   const C = useT();
   const [emailRevealed, setEmailRevealed] = useState(false);
-  const addr = venue.contact.address;
-  const rm = venue.contact.responseMetrics;
+  if (!venue.contact) return null;
+  const addr = venue.contact.address || {};
+  const rm = venue.contact.responseMetrics || {};
 
   const contactRow = (iconName, label, content, props = {}) => {
     const Tag = props.href ? "a" : "div";
@@ -2849,15 +2877,15 @@ function ContactSection({ venue }) {
         {/* Contact details */}
         <div>
           <div style={{ display: "flex", flexDirection: "column", gap: 0, border: `1px solid ${C.border}`, overflow: "hidden" }}>
-            {contactRow("pin", "Address",
+            {addressFormatted && contactRow("pin", "Address",
               <div style={{ fontFamily: FB, fontSize: 14, color: C.textMid, lineHeight: 1.6 }}>{addressFormatted}</div>,
               { topAlign: true }
             )}
-            {contactRow("phone", "Phone",
+            {venue.contact.phone && contactRow("phone", "Phone",
               <div style={{ fontFamily: FB, fontSize: 15, color: C.gold, fontWeight: 600 }}>{venue.contact.phone}</div>,
               { href: `tel:${venue.contact.phone}` }
             )}
-            {contactRow("email", "Email",
+            {venue.contact.email && contactRow("email", "Email",
               emailRevealed
                 ? <a href={`mailto:${venue.contact.email}`} style={{ fontFamily: FB, fontSize: 14, color: C.gold, textDecoration: "none" }}>{venue.contact.email}</a>
                 : <button onClick={() => setEmailRevealed(true)} style={{
@@ -2866,22 +2894,24 @@ function ContactSection({ venue }) {
                     cursor: "pointer", letterSpacing: "0.3px",
                   }}>Click to reveal email</button>
             )}
-            {contactRow("globe", "Website",
+            {venue.contact.website && contactRow("globe", "Website",
               <div style={{ fontFamily: FB, fontSize: 14, color: C.gold, fontWeight: 600 }}>{venue.contact.website}</div>,
               { href: `https://${venue.contact.website}`, target: "_blank", rel: "noopener noreferrer", last: true }
             )}
           </div>
 
-          {/* Response metrics */}
+          {/* Response metrics — only show if data exists */}
+          {rm.averageResponseHours && (
           <div style={{ marginTop: 14, padding: "12px 16px", background: C.goldLight, border: `1px solid ${C.goldBorder}`, display: "flex", alignItems: "flex-start", gap: 10 }}>
             <Icon name="zap" size={14} color={C.gold} style={{ marginTop: 1 }} />
             <div>
               <div style={{ fontFamily: FB, fontSize: 12, color: C.gold, fontWeight: 600, marginBottom: 3 }}>Responds within {rm.averageResponseHours} hrs</div>
               <div style={{ fontFamily: FB, fontSize: 12, color: C.textLight }}>
-                {rm.responseRatePercent}% response rate{rm.sameDayTypical ? " . Typically replies same day" : ""}
+                {rm.responseRatePercent}% response rate{rm.sameDayTypical ? " · Typically replies same day" : ""}
               </div>
             </div>
           </div>
+          )}
         </div>
 
         {/* Google Map */}
@@ -6025,7 +6055,11 @@ export default function VenueProfile({ onBack = null, slug = null }) {
                 minNightStay:      listing.rooms_min_stay           || null,
                 exclusiveUse:      !!listing.rooms_exclusive_use,
                 description:       listing.rooms_description        || null,
-                images:            Array.isArray(listing.rooms_images) ? listing.rooms_images : [],
+                images:            Array.isArray(listing.rooms_images)
+                  ? listing.rooms_images
+                      .map(img => typeof img === 'string' ? img : (img.url || img.src || ''))
+                      .filter(Boolean)
+                  : [],
               }
             : null,
           exclusiveUse: (listing.exclusive_use_price || listing.exclusive_use_description || listing.exclusive_use_enabled != null)
@@ -6040,7 +6074,58 @@ export default function VenueProfile({ onBack = null, slug = null }) {
                 includes:    Array.isArray(listing.exclusive_use_includes) ? listing.exclusive_use_includes : [],
               }
             : null,
-          dining: null,
+          showcaseUrl:      `/showcase/${slug}`,
+          fullDescription:  listing.description || null,
+          readmoreEnabled:  !!listing.readmore_enabled,
+          contact: {
+            address: {
+              line1:   listing.address  || '',
+              city:    listing.city     || '',
+              region:  listing.region   || '',
+              postcode:listing.postcode || '',
+              country: listing.country  || '',
+            },
+            phone:   listing.phone   || null,
+            email:   listing.email   || null,
+            website: listing.website || null,
+            responseMetrics: {
+              averageResponseHours: null,
+              responseRatePercent:  null,
+              sameDayTypical: false,
+            },
+            addressFormatted: [listing.address, listing.city, [listing.postcode, listing.region].filter(Boolean).join(' '), listing.country].filter(Boolean).join(', '),
+            mapQuery: [listing.city, listing.region, listing.country].filter(Boolean).join(',+').replace(/ /g, '+'),
+          },
+          catering: (() => {
+            const hasCards = Array.isArray(listing.catering_cards) && listing.catering_cards.length > 0;
+            if (!hasCards && listing.catering_enabled == null) return null;
+            if (listing.catering_enabled === false) return null;
+            return {
+              enabled: true,
+              cards:   Array.isArray(listing.catering_cards)      ? listing.catering_cards      : [],
+              styles:  Array.isArray(listing.dining_menu_styles)  ? listing.dining_menu_styles  : [],
+              dietary: Array.isArray(listing.dining_dietary)      ? listing.dining_dietary       : [],
+            };
+          })(),
+          dining: (listing.dining_style || listing.dining_description || listing.dining_chef_name)
+            ? {
+                style:                  listing.dining_style         || null,
+                chefName:               listing.dining_chef_name     || null,
+                inHouseCatering:        !!listing.dining_in_house,
+                externalCateringAllowed:!!listing.dining_external,
+                menuStyles:             Array.isArray(listing.dining_menu_styles)  ? listing.dining_menu_styles  : [],
+                dietaryOptions:         Array.isArray(listing.dining_dietary)      ? listing.dining_dietary      : [],
+                drinksOptions:          Array.isArray(listing.dining_drinks)       ? listing.dining_drinks       : [],
+                description:            listing.dining_description   || null,
+                menuImages:             Array.isArray(listing.dining_menu_images)
+                  ? listing.dining_menu_images.map(img =>
+                      typeof img === 'string'
+                        ? { src: img, title: '' }
+                        : { src: img.url || img.src || '', title: img.title || '' }
+                    ).filter(img => img.src)
+                  : [],
+              }
+            : null,
           spaces: null,
         };
         if (!ignore) setDbVenue(mapped);

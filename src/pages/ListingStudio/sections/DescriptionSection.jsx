@@ -101,6 +101,52 @@ const DescriptionSection = ({ formData, onChange }) => {
         <p style={{ fontSize: 10, color: '#aaa', margin: '4px 0 0' }}>
           Supports bold, italic, headings, lists, links and blockquotes. Paste from Word — formatting is auto-cleaned.
         </p>
+
+        {/* ── READ MORE TOGGLE ──────────────────────────────────────── */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginTop: 20, padding: '14px 16px',
+          background: formData?.readmoreEnabled ? 'rgba(201,168,76,0.05)' : '#fafaf9',
+          border: `1px solid ${formData?.readmoreEnabled ? 'rgba(201,168,76,0.3)' : '#ebe7e0'}`,
+          borderRadius: 4,
+        }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a', letterSpacing: '0.03em' }}>
+              Show "Read more" on listing
+            </div>
+            <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>
+              When ON, a "Read more →" expander appears after the summary on the venue profile page
+            </div>
+          </div>
+          {/* Pill toggle */}
+          <button
+            type="button"
+            onClick={() => onChange('readmoreEnabled', !formData?.readmoreEnabled)}
+            style={{
+              flexShrink: 0,
+              marginLeft: 16,
+              width: 44, height: 24,
+              borderRadius: 12,
+              border: 'none',
+              cursor: 'pointer',
+              background: formData?.readmoreEnabled ? '#C9A84C' : '#d1cdc6',
+              position: 'relative',
+              transition: 'background 0.2s',
+              padding: 0,
+            }}
+            aria-label={formData?.readmoreEnabled ? 'Disable Read More' : 'Enable Read More'}
+          >
+            <span style={{
+              position: 'absolute',
+              top: 3, left: formData?.readmoreEnabled ? 23 : 3,
+              width: 18, height: 18,
+              borderRadius: '50%',
+              background: '#fff',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+              transition: 'left 0.2s',
+            }} />
+          </button>
+        </div>
       </div>
 
     </section>

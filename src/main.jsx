@@ -55,6 +55,7 @@ import MagazineArticlePage  from "./pages/Magazine/MagazineArticlePage.jsx";
 import FashionLandingPage   from "./pages/Magazine/FashionLandingPage.jsx";
 import MagazineStudio       from "./pages/MagazineStudio/index.jsx";
 import EditorialShowcase    from "./pages/EditorialShowcase.jsx";
+import ShowcasePage         from "./pages/ShowcasePage.jsx";
 import { VENDORS }            from "./data/vendors.js";
 
 // ── Lazy-loaded admin modules for bundle optimization ──────────────────────────
@@ -130,6 +131,7 @@ function stateToPath(pg, opts = {}) {
     case "magazine-article": return `/magazine/${opts.magazineSlug || ''}`;
     case "magazine-studio":  return "/magazine-studio";
     case "venue-profile":    return `/venues/${opts.venueSlug || 'grand-tirolia'}`;
+    case "showcase":         return `/showcase/${opts.showcaseSlug || ''}`;
     default:                 return "/";
   }
 }
@@ -170,6 +172,8 @@ function pathToState(pathname) {
   if (parts[0] === "italy" && parts[1] === "puglia" && parts.length === 2) return { page: "puglia" };
   // Magazine routes
   if (parts[0] === "editorial-showcase" && parts.length === 1) return { page: "editorial-showcase" };
+  // Venue showcase: /showcase/{slug}
+  if (parts[0] === "showcase" && parts.length === 2) return { page: "showcase", showcaseSlug: parts[1] };
   // Venue listing profile: /venues/{slug}
   if (parts[0] === "venues" && parts.length === 2) return { page: "venue-profile", venueSlug: parts[1] };
   if (parts[0] === "magazine-studio" && parts.length === 1) return { page: "magazine-studio" };
@@ -222,6 +226,7 @@ function App() {
   const [activeMagazineCategoryId, setActiveMagazineCategoryId] = useState(initial.magazineCategoryId || null);
   const [activeMagazineSlug, setActiveMagazineSlug] = useState(initial.magazineSlug || null);
   const [activeVenueSlug, setActiveVenueSlug] = useState(initial.venueSlug || null);
+  const [activeShowcaseSlug, setActiveShowcaseSlug] = useState(initial.showcaseSlug || null);
   const [magazineLight, setMagazineLight] = useState(true);
 
   // Ref: skip pushState when change came from popstate (back/forward)
@@ -243,11 +248,12 @@ function App() {
       magazineCategoryId: activeMagazineCategoryId,
       magazineSlug: activeMagazineSlug,
       venueSlug: activeVenueSlug,
+      showcaseSlug: activeShowcaseSlug,
     });
     if (window.location.pathname !== path) {
       window.history.pushState(null, "", path);
     }
-  }, [page, activeCountrySlug, activeRegionSlug, activeCategorySlug, activePlannerSlug, activeWeddingSlug, activationToken, activeMagazineCategoryId, activeMagazineSlug, activeVenueSlug]);
+  }, [page, activeCountrySlug, activeRegionSlug, activeCategorySlug, activePlannerSlug, activeWeddingSlug, activationToken, activeMagazineCategoryId, activeMagazineSlug, activeVenueSlug, activeShowcaseSlug]);
 
   // ── Popstate: back / forward browser buttons ─────────────────────────────
   useEffect(() => {
@@ -263,6 +269,7 @@ function App() {
       setActiveMagazineCategoryId(s.magazineCategoryId || null);
       setActiveMagazineSlug(s.magazineSlug || null);
       setActiveVenueSlug(s.venueSlug || null);
+      setActiveShowcaseSlug(s.showcaseSlug || null);
       setCategoryRegion(null);
       setCategorySearchQuery(null);
       setPage(s.page);
@@ -392,6 +399,23 @@ function App() {
         )}
         {page === "venue-profile" && (
           <VenueProfile slug={activeVenueSlug} onBack={goHome} />
+        )}
+        {page === "showcase" && (
+          <ShowcasePage
+            slug={activeShowcaseSlug}
+            onBack={() => {
+              setActiveVenueSlug(activeShowcaseSlug);
+              setPage("venue-profile");
+            }}
+            onGoDestination={(countrySlug) => {
+              if (countrySlug) {
+                setActiveCountrySlug(countrySlug);
+                setPage("italy"); // expand later per country
+              } else {
+                setPage("home");
+              }
+            }}
+          />
         )}
         {page === "region" && (
           <RegionPage onBack={goHome} onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} countrySlug={activeCountrySlug} regionSlug={activeRegionSlug} footerNav={footerNav} />
