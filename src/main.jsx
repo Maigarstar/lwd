@@ -415,6 +415,8 @@ function App() {
                 setPage("home");
               }
             }}
+            onNavigateStandard={goStandard}
+            onNavigateAbout={goAbout}
           />
         )}
         {page === "region" && (

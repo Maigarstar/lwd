@@ -22,6 +22,7 @@ import { CarouselRow }         from '../components/cards/editorial/CarouselCard'
 import PhotoGalleryGrid        from '../components/cards/editorial/PhotoGalleryGrid';
 import VenueEnquireCard        from '../components/cards/editorial/VenueEnquireCard';
 import { useBreakpoint }       from '../hooks/useWindowWidth';
+import HomeNav                from '../components/nav/HomeNav';
 
 // ── Design tokens ────────────────────────────────────────────────────────────
 const GD   = 'var(--font-heading-primary)';
@@ -135,7 +136,7 @@ function BreadcrumbBar({ venue, onBack, onGoDestination }) {
   const venueName   = venue?.name || '';
 
   const crumbs = [
-    { label: 'Home',         onClick: onBack },
+    { label: '← Back to listing', onClick: onBack },
     { label: 'Destinations', onClick: () => onGoDestination?.('') },
     { label: country,        onClick: () => onGoDestination?.(countrySlug) },
     { label: venueName,      current: true },
@@ -385,7 +386,7 @@ function Section({ id, bg = C.cream, children, pad }) {
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
-export default function ShowcasePage({ venue: venueProp, slug, onBack, onGoDestination }) {
+export default function ShowcasePage({ venue: venueProp, slug, onBack, onGoDestination, onNavigateStandard, onNavigateAbout }) {
   const { isMobile } = useBreakpoint();
   const [activeSection, setActiveSection] = useState('overview');
   const venue = venueProp || GT_VENUE;
@@ -412,9 +413,18 @@ export default function ShowcasePage({ venue: venueProp, slug, onBack, onGoDesti
   };
 
   return (
-    <div style={{ background: C.cream, fontFamily: NU }}>
+    <div style={{ background: C.cream, fontFamily: NU, paddingTop: 64 }}>
 
-      {/* ── Breadcrumb: Home › Destinations › Austria › Grand Tirolia ────── */}
+      {/* ── Site Navigation ─────────────────────────────────────────────── */}
+      <HomeNav
+        darkMode={false}
+        onToggleDark={() => {}}
+        onVendorLogin={null}
+        onNavigateStandard={onNavigateStandard}
+        onNavigateAbout={onNavigateAbout}
+      />
+
+      {/* ── Breadcrumb: ← Back to listing › Destinations › Country › Name ── */}
       <BreadcrumbBar venue={venue} onBack={onBack} onGoDestination={onGoDestination} />
 
       {/* ── Sticky nav (appears after scrolling past hero) ───────────────── */}
