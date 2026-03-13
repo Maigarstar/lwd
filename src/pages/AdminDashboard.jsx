@@ -5168,7 +5168,25 @@ const VENUE_PROFILES = [
     ],
     sections: ['Hero', 'Gallery', 'Overview', 'Spaces', 'Dining', 'Rooms', 'Spa', 'Golf', 'Weddings', 'Enquire'],
     lastUpdated: 'March 2026',
-    listingId:  null, // wire to Supabase listing ID when available
+    listingId:  'c0eab313-1bf0-45cb-978f-2186e8b5386c',
+  },
+  {
+    slug:       'domaine-des-etangs-auberge-collection',
+    name:       'Domaine des Etangs',
+    location:   'Massignac · Charente · France',
+    status:     'live',
+    heroImage:  '/Domaine-des-Etangs-Auberge-Collection/DDE_Exterior_Drone_2025_DJI_0745-HDR.jpg',
+    logo:       null,
+    previewUrl: '/showcase/domaine-des-etangs',
+    stats:      [
+      { value: '200',   label: 'Max guests' },
+      { value: '6+',    label: 'Event spaces' },
+      { value: '29',    label: 'Rooms' },
+      { value: '★ 1',   label: 'Michelin star' },
+    ],
+    sections: ['Hero', 'Gallery', 'Overview', 'Spaces', 'Dining', 'Rooms', 'Pool & Spa', 'Art', 'Weddings', 'Enquire'],
+    lastUpdated: 'March 2026',
+    listingId:  'fe5cef98-fca8-44fa-a02e-b2a16eb1daeb',
   },
 ];
 
@@ -5237,15 +5255,17 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
                 {v.status === 'live' ? '● Live' : '○ Draft'}
               </span>
               {/* Logo */}
-              <img
-                src={v.logo} alt=""
-                style={{
-                  position: 'absolute', bottom: 12, right: 12,
-                  height: 28, width: 'auto', objectFit: 'contain',
-                  filter: 'brightness(0) invert(1)',
-                  opacity: 0.85,
-                }}
-              />
+              {v.logo && (
+                <img
+                  src={v.logo} alt=""
+                  style={{
+                    position: 'absolute', bottom: 12, right: 12,
+                    height: 28, width: 'auto', objectFit: 'contain',
+                    filter: 'brightness(0) invert(1)',
+                    opacity: 0.85,
+                  }}
+                />
+              )}
             </div>
 
             {/* Content */}
@@ -5284,7 +5304,7 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
               {/* Action buttons */}
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
-                  onClick={() => window.open(`/venues/${v.slug}`, '_blank')}
+                  onClick={() => window.open(v.previewUrl || `/venues/${v.slug}`, '_blank')}
                   style={{
                     flex: 1, background: C.gold, border: 'none',
                     color: '#fff', fontFamily: NU, fontSize: 12, fontWeight: 700,
