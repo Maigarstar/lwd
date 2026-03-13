@@ -603,7 +603,7 @@ function Pill({ children, color }) {
 }
 
 // ─── NAV ─────────────────────────────────────────────────────────────────────
-function Nav({ darkMode, setDarkMode, saved, setSaved, compareList, onAddCompare, onBack }) {
+function Nav({ venue, darkMode, setDarkMode, saved, setSaved, compareList, onAddCompare, onBack }) {
   const C = useT();
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -663,7 +663,7 @@ function Nav({ darkMode, setDarkMode, saved, setSaved, compareList, onAddCompare
 
         {/* Breadcrumb */}
         <div className="vp-breadcrumb" style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: FB, fontSize: 12, letterSpacing: "0.2px" }}>
-          {["Venues", "Italy", "Tuscany"].map((crumb) => (
+          {["Venues", venue.country, venue.location?.split(', ').pop()].filter(Boolean).map((crumb) => (
             <span key={crumb} style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span
                 style={{ color: crumbColor, cursor: "pointer", transition: "color 0.2s" }}
@@ -674,7 +674,7 @@ function Nav({ darkMode, setDarkMode, saved, setSaved, compareList, onAddCompare
               <span style={{ color: scrolled ? C.border2 : "rgba(255,255,255,0.25)", fontSize: 10 }}>›</span>
             </span>
           ))}
-          <span style={{ color: crumbActive, fontWeight: 600 }}>Villa Rosanova</span>
+          <span style={{ color: crumbActive, fontWeight: 600 }}>{venue.name}</span>
         </div>
       </div>
 
@@ -5967,63 +5967,82 @@ export default function VenueProfile({ onBack = null, slug = null }) {
   };
 
   const addCompare = () => {
-    if (!compareList.find(v => v.id === VENUE.id)) {
-      setCompareList(l => [...l, { id: VENUE.id, name: VENUE.name }]);
+    if (!compareList.find(v => v.id === VV.id)) {
+      setCompareList(l => [...l, { id: VV.id, name: VV.name }]);
     }
   };
+
+  if (slug && loading) return (
+    <Theme.Provider value={C}>
+      <GlobalStyles />
+      <div style={{ background: C.bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.textMuted, fontFamily: FB, fontSize: 14 }}>
+        Loading venue…
+      </div>
+    </Theme.Provider>
+  );
+
+  if (slug && notFound) return (
+    <Theme.Provider value={C}>
+      <GlobalStyles />
+      <div style={{ background: C.bg, minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, color: C.text, fontFamily: FB }}>
+        <div style={{ fontSize: 22, fontFamily: FD }}>Venue Not Found</div>
+        {onBack && <button onClick={onBack} style={{ border: 'none', background: 'none', color: C.gold, cursor: 'pointer', fontSize: 13, textDecoration: 'underline' }}>← Back</button>}
+      </div>
+    </Theme.Provider>
+  );
 
   return (
     <Theme.Provider value={C}>
       <GlobalStyles />
       <div className="vp-root" style={{ background: C.bg, minHeight: "100vh", color: C.text }}>
-        <Nav darkMode={darkMode} setDarkMode={setDarkMode} saved={saved} setSaved={setSaved} compareList={compareList} onAddCompare={addCompare} onBack={onBack} />
-        <Hero venue={VENUE} heroStyle={heroStyle} setHeroStyle={setHeroStyle} onEnquire={() => setEnquiryOpen(true)} />
-        <StatsStrip venue={VENUE} />
-        <StickyTabNav venue={VENUE} activeTab={activeTab} onTabClick={scrollToSection} />
+        <Nav venue={VV} darkMode={darkMode} setDarkMode={setDarkMode} saved={saved} setSaved={setSaved} compareList={compareList} onAddCompare={addCompare} onBack={onBack} />
+        <Hero venue={VV} heroStyle={heroStyle} setHeroStyle={setHeroStyle} onEnquire={() => setEnquiryOpen(true)} />
+        <StatsStrip venue={VV} />
+        <StickyTabNav venue={VV} activeTab={activeTab} onTabClick={scrollToSection} />
 
         {/* Main layout */}
         <div className="vp-main-wrapper" style={{ maxWidth: 1280, margin: "0 auto", padding: "48px 40px 120px" }}>
           <div className="vp-main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 56, alignItems: "start" }}>
             {/* Content */}
             <div>
-              <AboutSection venue={VENUE} />
-              <ImageGallery gallery={VENUE.gallery} onOpenLight={i => setLightIdx(i)} />
-              <VideoGallery videos={VENUE.videos} />
-              <ExclusiveUse venue={VENUE} onEnquire={() => setEnquiryOpen(true)} />
-              <CateringSection venue={VENUE} />
-              <SpacesSection spaces={VENUE.spaces} />
-              <RoomsSection venue={VENUE} />
-              <DiningSection venue={VENUE} />
-              <VenueTypeSection venue={VENUE} />
-              <WeddingWeekend venue={VENUE} />
-              <ContactSection venue={VENUE} />
-              <GettingHere access={VENUE.access} />
-              <Reviews testimonials={VENUE.testimonials} venue={VENUE} />
-              <FAQSection venue={VENUE} onAsk={() => setEnquiryOpen(true)} />
-              <SimilarVenues venue={VENUE} />
-              <RecentlyViewed venue={VENUE} />
+              <AboutSection venue={VV} />
+              <ImageGallery gallery={VV.gallery} onOpenLight={i => setLightIdx(i)} />
+              <VideoGallery videos={VV.videos} />
+              <ExclusiveUse venue={VV} onEnquire={() => setEnquiryOpen(true)} />
+              <CateringSection venue={VV} />
+              {VV.spaces && <SpacesSection spaces={VV.spaces} />}
+              <RoomsSection venue={VV} />
+              {VV.dining && <DiningSection venue={VV} />}
+              <VenueTypeSection venue={VV} />
+              <WeddingWeekend venue={VV} />
+              <ContactSection venue={VV} />
+              <GettingHere access={VV.access} />
+              <Reviews testimonials={VV.testimonials} venue={VV} />
+              <FAQSection venue={VV} onAsk={() => setEnquiryOpen(true)} />
+              <SimilarVenues venue={VV} />
+              <RecentlyViewed venue={VV} />
             </div>
             {/* Sidebar — 4 zones, sticky on desktop */}
             <div className="lwd-sidebar" style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 56, alignSelf: "start" }}>
               {/* Zone 1 — Owner card */}
-              <OwnerCard owner={VENUE.owner} venue={VENUE} />
+              <OwnerCard owner={VV.owner} venue={VV} />
               {/* Zone 2 — Lead form (scrolls naturally) */}
-              <LeadForm venue={VENUE} />
+              <LeadForm venue={VV} />
               {/* Zone 3 — Mini map + quick contact */}
-              <SidebarContact venue={VENUE} />
+              <SidebarContact venue={VV} />
               {/* Zone 4 — Venue notices (open days, offers, late availability, news) */}
-              <SidebarNotices notices={VENUE.notices} venueName={VENUE.name} />
+              <SidebarNotices notices={VV.notices} venueName={VV.name} />
               {/* Zone 5 — Instagram teaser (placeholder — to be connected to live feed) */}
-              {/* <SidebarInstagram venue={VENUE} /> */}
+              {/* <SidebarInstagram venue={VV} /> */}
             </div>
           </div>
         </div>
 
         <Footer />
-        <MobileLeadBar venue={VENUE} />
+        <MobileLeadBar venue={VV} />
         <CompareBar items={compareList} onRemove={id => setCompareList(l => l.filter(v => v.id !== id))} onClear={() => setCompareList([])} />
-        <Lightbox gallery={VENUE.gallery} idx={lightIdx} setLightIdx={setLightIdx} onClose={() => setLightIdx(null)} onPrev={() => setLightIdx(i => (i - 1 + VENUE.gallery.length) % VENUE.gallery.length)} onNext={() => setLightIdx(i => (i + 1) % VENUE.gallery.length)} engagement={VENUE.engagement?.photos} />
-        {enquiryOpen && <EnquiryModal venue={VENUE} onClose={() => setEnquiryOpen(false)} />}
+        <Lightbox gallery={VV.gallery} idx={lightIdx} setLightIdx={setLightIdx} onClose={() => setLightIdx(null)} onPrev={() => setLightIdx(i => (i - 1 + (VV.gallery?.length || 1)) % (VV.gallery?.length || 1))} onNext={() => setLightIdx(i => (i + 1) % (VV.gallery?.length || 1))} engagement={VV.engagement?.photos} />
+        {enquiryOpen && <EnquiryModal venue={VV} onClose={() => setEnquiryOpen(false)} />}
         <VenueCookieBanner />
       </div>
     </Theme.Provider>

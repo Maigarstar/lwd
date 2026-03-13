@@ -17,7 +17,6 @@ applyThemeToDocument();
 
 import HomePage from "./pages/HomePage.jsx";
 import VenueProfile           from "./VenueProfile.jsx";
-import VenueProfilePage       from "./pages/VenueProfilePage.jsx";
 // CountryTemplate removed — /category now renders ItalyPage with noIndex
 import RegionPage             from "./pages/RegionPage.jsx";
 import RegionCategoryPage     from "./pages/RegionCategoryPage.jsx";
@@ -386,7 +385,7 @@ function App() {
           <VenueProfile onBack={goHome} />
         )}
         {page === "venue-profile" && (
-          <VenueProfilePage slug={activeVenueSlug} onBack={goHome} />
+          <VenueProfile slug={activeVenueSlug} onBack={goHome} />
         )}
         {page === "region" && (
           <RegionPage onBack={goHome} onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} countrySlug={activeCountrySlug} regionSlug={activeRegionSlug} footerNav={footerNav} />
