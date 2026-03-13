@@ -188,15 +188,19 @@ function BreadcrumbBar({ venue, onBack, onGoDestination }) {
 }
 
 // ─── StickyVenueNav ───────────────────────────────────────────────────────────
-function StickyVenueNav({ venue, activeSection, onScrollTo }) {
+function StickyVenueNav({ venue, activeSection, onScrollTo, onVisibilityChange }) {
   const { isMobile } = useBreakpoint();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setVisible(window.scrollY > window.innerHeight * 0.7);
+    const onScroll = () => {
+      const next = window.scrollY > window.innerHeight * 0.7;
+      setVisible(next);
+      onVisibilityChange?.(next);
+    };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+  }, []); // eslint-disable-line
 
   const NAV_ITEMS = [
     { id: 'overview',  label: 'Overview' },
@@ -389,6 +393,7 @@ function Section({ id, bg = C.cream, children, pad }) {
 export default function ShowcasePage({ venue: venueProp, slug, onBack, onGoDestination, onNavigateStandard, onNavigateAbout }) {
   const { isMobile } = useBreakpoint();
   const [activeSection, setActiveSection] = useState('overview');
+  const [stickyVisible, setStickyVisible] = useState(false);
   const venue = venueProp || GT_VENUE;
 
   // ── Section scroll spy ────────────────────────────────────────────────────
@@ -415,20 +420,30 @@ export default function ShowcasePage({ venue: venueProp, slug, onBack, onGoDesti
   return (
     <div style={{ background: C.cream, fontFamily: NU, paddingTop: 64 }}>
 
-      {/* ── Site Navigation ─────────────────────────────────────────────── */}
-      <HomeNav
-        darkMode={false}
-        onToggleDark={() => {}}
-        onVendorLogin={null}
-        onNavigateStandard={onNavigateStandard}
-        onNavigateAbout={onNavigateAbout}
-      />
+      {/* ── Site Navigation — slides out when StickyVenueNav takes over ─── */}
+      {/* Wrapper is fixed + has a transform so the HomeNav (also fixed) is  */}
+      {/* contained by it and moves with it when we translate upward.        */}
+      <div style={{
+        position: 'fixed',
+        top: 0, left: 0, right: 0,
+        zIndex: 699,
+        transform: stickyVisible ? 'translateY(-110%)' : 'translateY(0)',
+        transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+      }}>
+        <HomeNav
+          darkMode={false}
+          onToggleDark={() => {}}
+          onVendorLogin={null}
+          onNavigateStandard={onNavigateStandard}
+          onNavigateAbout={onNavigateAbout}
+        />
+      </div>
 
       {/* ── Breadcrumb: ← Back to listing › Destinations › Country › Name ── */}
       <BreadcrumbBar venue={venue} onBack={onBack} onGoDestination={onGoDestination} />
 
-      {/* ── Sticky nav (appears after scrolling past hero) ───────────────── */}
-      <StickyVenueNav venue={venue} activeSection={activeSection} onScrollTo={scrollTo} />
+      {/* ── Sticky venue nav — slides in after hero, replaces HomeNav ─────── */}
+      <StickyVenueNav venue={venue} activeSection={activeSection} onScrollTo={scrollTo} onVisibilityChange={setStickyVisible} />
 
       {/* ── Hero ────────────────────────────────────────────────────────── */}
       <HeroSection venue={venue} />
