@@ -3,7 +3,7 @@ import { getDefaultMode } from "./theme/tokens";
 import GCardMobile from "./components/cards/GCardMobile";
 import SliderNav from "./components/ui/SliderNav";
 import { fetchListingBySlug } from './services/listings';
-import { buildCardImgs } from './utils/mediaMappers';
+import { buildCardImgs, mapMediaItemToGalleryPhoto } from './utils/mediaMappers';
 
 function useIsMobile(bp = 768) {
   const [mobile, setMobile] = useState(() => window.innerWidth <= bp);
@@ -62,6 +62,17 @@ const useT = () => useContext(Theme);
 // Font stacks — resolved via CSS custom properties set by ThemeLoader
 const FD = "var(--font-heading-primary)"; // display
 const FB = "var(--font-body)";            // body
+
+// ─── COUNTRY → FLAG LOOKUP ────────────────────────────────────────────────────
+const COUNTRY_FLAG = {
+  'Italy': '🇮🇹', 'Austria': '🇦🇹', 'France': '🇫🇷', 'Spain': '🇪🇸',
+  'Portugal': '🇵🇹', 'Greece': '🇬🇷', 'United Kingdom': '🇬🇧', 'UK': '🇬🇧',
+  'United States': '🇺🇸', 'USA': '🇺🇸', 'Switzerland': '🇨🇭', 'Germany': '🇩🇪',
+  'Croatia': '🇭🇷', 'Mexico': '🇲🇽', 'Maldives': '🇲🇻', 'Turkey': '🇹🇷',
+  'Cyprus': '🇨🇾', 'Morocco': '🇲🇦', 'South Africa': '🇿🇦', 'Thailand': '🇹🇭',
+  'Bali': '🇮🇩', 'Indonesia': '🇮🇩', 'Ireland': '🇮🇪', 'Scotland': '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+  'England': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Wales': '🏴󠁧󠁢󠁷󠁬󠁳󠁿',
+};
 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 const VENUE = {
@@ -803,9 +814,21 @@ function HeroCinematic({ venue, onEnquire }) {
               onMouseEnter={e => e.currentTarget.style.opacity = "0.88"}
               onMouseLeave={e => e.currentTarget.style.opacity = "1"}
             >Begin Your Enquiry →</button>
-            <span style={{ fontFamily: FB, fontSize: 12, color: "rgba(255,255,255,0.55)", letterSpacing: "0.3px" }}>
-              From {venue.priceFrom} · Replies in {venue.responseTime}
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {venue.priceFrom && (
+                <span style={{ fontFamily: FB, fontSize: 14, fontWeight: 600, color: "rgba(201,168,76,0.95)", letterSpacing: "0.3px" }}>
+                  From {venue.priceFrom}
+                </span>
+              )}
+              {venue.priceFrom && venue.responseTime && (
+                <span style={{ width: 1, height: 11, background: "rgba(255,255,255,0.2)", display: "inline-block" }} />
+              )}
+              {venue.responseTime && (
+                <span style={{ fontFamily: FB, fontSize: 12, color: "rgba(255,255,255,0.6)", letterSpacing: "0.2px" }}>
+                  Replies in {venue.responseTime}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </HeroSlider>
@@ -1217,14 +1240,16 @@ function Hero({ venue, heroStyle, setHeroStyle, onEnquire }) {
 // ─── STATS STRIP ─────────────────────────────────────────────────────────────
 function StatsStrip({ venue }) {
   const C = useT();
+  const sleepsValue = venue.accommodation?.maxOvernightGuests ?? venue.accommodation?.maxGuests ?? null;
+  const sleepsSub   = venue.accommodation?.totalRooms ? `${venue.accommodation.totalRooms} rooms` : 'rooms';
   const stats = [
-    { label: "From", value: venue.priceFrom, sub: "per event" },
-    { label: "Ceremony", value: `Up to ${venue.capacity.ceremony}`, sub: "guests" },
-    { label: "Dinner", value: `Up to ${venue.capacity.dinner}`, sub: "guests" },
-    { label: "Sleeps", value: venue.accommodation?.maxOvernightGuests ?? venue.accommodation?.maxGuests, sub: `${venue.accommodation?.totalRooms ?? venue.accommodation?.rooms ?? ''} rooms` },
-    { label: "Responds", value: venue.responseTime, sub: `${venue.responseRate}% response rate` },
-    { label: "Rating", value: `${venue.rating} ★`, sub: `${venue.reviews} reviews` },
-  ];
+    { label: "From",      value: venue.priceFrom,                             sub: "per event",                      hide: !venue.priceFrom },
+    { label: "Ceremony",  value: venue.capacity?.ceremony ? `Up to ${venue.capacity.ceremony}` : null, sub: "guests", hide: !venue.capacity?.ceremony },
+    { label: "Dinner",    value: venue.capacity?.dinner   ? `Up to ${venue.capacity.dinner}`   : null, sub: "guests", hide: !venue.capacity?.dinner },
+    { label: "Sleeps",    value: sleepsValue,                                  sub: sleepsSub,                        hide: !sleepsValue },
+    { label: "Responds",  value: venue.responseTime,                           sub: `${venue.responseRate || ''}% response rate`, hide: !venue.responseTime },
+    { label: "Rating",    value: venue.rating ? `${venue.rating} ★` : null,   sub: `${venue.reviews || 0} reviews`,  hide: !venue.rating },
+  ].filter(s => !s.hide);
   return (
     <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "0 40px" }}>
       <div style={{ display: "flex", overflowX: "auto", gap: 0 }}>
@@ -2653,12 +2678,34 @@ function AboutSection({ venue }) {
       {/* Single-column editorial layout — no side image, no stats block */}
       <div>
 
-        {/* Intro paragraph */}
+        {/* Intro paragraph — uses DB short_description when available */}
         <p style={{ fontFamily: FB, fontSize: isMobile ? 15 : 16, color: C.textMid, lineHeight: 1.9, marginBottom: 28, maxWidth: 780 }}>
-          Set within 120 acres of rolling Tuscan countryside, Villa Rosanova is one of the finest privately-owned estates in Italy. Built in 1847 for the Marchese di Rosanova, the property has been meticulously restored to its original grandeur while offering every modern comfort a discerning couple could wish for.
+          {venue.description || venue.tagline || "Set within 120 acres of rolling Tuscan countryside, Villa Rosanova is one of the finest privately-owned estates in Italy. Built in 1847 for the Marchese di Rosanova, the property has been meticulously restored to its original grandeur while offering every modern comfort a discerning couple could wish for."}
         </p>
 
-        {/* Two landscape images — equal height, side by side */}
+        {/* Two landscape images — uses DB images when available */}
+        {venue.imgs && venue.imgs.length >= 2 && (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+          gap: 6,
+          marginBottom: 28,
+        }}>
+          <img
+            src={venue.imgs[1] || venue.imgs[0]}
+            alt={`${venue.name} photo`}
+            loading="lazy"
+            style={{ width: "100%", height: isMobile ? 220 : 300, objectFit: "cover", display: "block", borderRadius: 3 }}
+          />
+          <img
+            src={venue.imgs[2] || venue.imgs[1]}
+            alt={`${venue.name} photo`}
+            loading="lazy"
+            style={{ width: "100%", height: isMobile ? 220 : 300, objectFit: "cover", display: "block", borderRadius: 3 }}
+          />
+        </div>
+        )}
+        {(!venue.imgs || venue.imgs.length < 2) && (
         <div style={{
           display: "grid",
           gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
@@ -2678,6 +2725,7 @@ function AboutSection({ venue }) {
             style={{ width: "100%", height: isMobile ? 220 : 300, objectFit: "cover", display: "block", borderRadius: 3 }}
           />
         </div>
+        )}
 
         {/* Second paragraph */}
         <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9, marginBottom: 16, maxWidth: 780 }}>
@@ -3348,16 +3396,18 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
 }
 
 // ─── VIDEO GALLERY ────────────────────────────────────────────────────────────
-function VideoGallery({ videos }) {
+function VideoGallery({ videos, venue }) {
   const C = useT();
   const isMobile = useIsMobile();
   const [active, setActive] = useState(0);
   const [playing, setPlaying] = useState(null);
+  if (!videos || videos.length === 0) return null;
   const vg = videos[active].videographer;
+  const venueName = venue?.name || 'Villa Rosanova';
 
   return (
     <section style={{ marginBottom: 56 }}>
-      <SectionHeading title="Films" subtitle="Real weddings, estate tours and highlights from Villa Rosanova" />
+      <SectionHeading title="Films" subtitle={`Real weddings, estate tours and highlights from ${venueName}`} />
 
       {/* Main featured video */}
       <div
@@ -5940,7 +5990,25 @@ export default function VenueProfile({ onBack = null, slug = null }) {
           imgs:      buildCardImgs(listing.media_items || []).map(i => i.src).filter(Boolean),
           verified:  !!listing.is_verified,
           venueType: { ...(VENUE.venueType || {}), features: listing.amenities || [], styles: listing.styles || [] },
-          accommodation: null,
+          description: listing.short_description || listing.card_summary || null,
+          gallery: (listing.media_items || [])
+            .filter(i => i.type !== 'video' && i.type !== 'virtual_tour' && i.visibility !== 'private')
+            .sort((a, b) => {
+              if (a.is_featured && !b.is_featured) return -1;
+              if (!a.is_featured && b.is_featured) return 1;
+              return (a.sort_order ?? 999) - (b.sort_order ?? 999);
+            })
+            .map(item => mapMediaItemToGalleryPhoto(item))
+            .filter(item => item.src) || VENUE.gallery,
+          flag: COUNTRY_FLAG[listing.country] || VENUE.flag,
+          videos: [],
+          accommodation: (listing.rooms_max_guests || listing.rooms_total)
+            ? {
+                maxOvernightGuests: listing.rooms_max_guests || null,
+                maxGuests:          listing.rooms_max_guests || null,
+                totalRooms:         listing.rooms_total      || null,
+              }
+            : null,
           dining: null,
           spaces: null,
         };
@@ -6007,7 +6075,7 @@ export default function VenueProfile({ onBack = null, slug = null }) {
             <div>
               <AboutSection venue={VV} />
               <ImageGallery gallery={VV.gallery} onOpenLight={i => setLightIdx(i)} />
-              <VideoGallery videos={VV.videos} />
+              {VV.videos && VV.videos.length > 0 && <VideoGallery videos={VV.videos} venue={VV} />}
               <ExclusiveUse venue={VV} onEnquire={() => setEnquiryOpen(true)} />
               <CateringSection venue={VV} />
               {VV.spaces && <SpacesSection spaces={VV.spaces} />}
