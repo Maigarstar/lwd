@@ -212,7 +212,7 @@ const NAV_SECTIONS = [
       { key: "overview",        label: "Overview",          icon: "◈" },
       { key: "listings",        label: "Listings",          icon: "⊞" },
       { key: "listing-studio",  label: "Listing Studio",    icon: "✎" },
-      { key: "venue-profiles",  label: "Venue Profiles",    icon: "⌂" },
+      { key: "venue-profiles",    label: "Venue Profiles",     icon: "⌂" },
       { key: "vendor-accounts", label: "Vendor Accounts",   icon: "👤" },
       { key: "categories",      label: "Categories",        icon: "▦" },
       { key: "enquiries",       label: "Enquiries",         icon: "◇" },

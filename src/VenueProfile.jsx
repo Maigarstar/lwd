@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, createContext, useContext } from "react";
 import { getDefaultMode } from "./theme/tokens";
 import GCardMobile from "./components/cards/GCardMobile";
 import SliderNav from "./components/ui/SliderNav";
+import { fetchListingBySlug } from './services/listings';
+import { buildCardImgs } from './utils/mediaMappers';
 
 function useIsMobile(bp = 768) {
   const [mobile, setMobile] = useState(() => window.innerWidth <= bp);
@@ -5886,7 +5888,7 @@ function VenueCookieBanner() {
 }
 
 // ─── MAIN EXPORT ─────────────────────────────────────────────────────────────
-export default function VenueProfile({ onBack = null }) {
+export default function VenueProfile({ onBack = null, slug = null }) {
   const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
   const [saved, setSaved] = useState(false);
   const [lightIdx, setLightIdx] = useState(null);
@@ -5894,8 +5896,12 @@ export default function VenueProfile({ onBack = null }) {
   const [heroStyle, setHeroStyle] = useState("cinematic");
   const [enquiryOpen, setEnquiryOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [dbVenue, setDbVenue] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [notFound, setNotFound] = useState(false);
 
   const C = darkMode ? DARK : LIGHT;
+  const VV = dbVenue ? { ...VENUE, ...dbVenue } : VENUE;
 
   // Record this venue visit for Recently Viewed tracking
   useEffect(() => { recordVenueView(VENUE); }, []);
@@ -5915,6 +5921,40 @@ export default function VenueProfile({ onBack = null }) {
     });
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    let ignore = false;
+    async function loadVenue() {
+      if (!slug) return;
+      setLoading(true);
+      try {
+        const listing = await fetchListingBySlug(slug);
+        if (!listing || ignore) return;
+        const mapped = {
+          name:      listing.name || VENUE.name,
+          tagline:   listing.short_description || listing.card_summary || VENUE.tagline,
+          location:  [listing.city, listing.region].filter(Boolean).join(', ') || VENUE.location,
+          country:   listing.country || VENUE.country,
+          priceFrom: listing.price_from || VENUE.priceFrom,
+          capacity:  { ...VENUE.capacity, max: listing.capacity_max || VENUE.capacity?.max },
+          imgs:      buildCardImgs(listing.media_items || []).map(i => i.src).filter(Boolean),
+          verified:  !!listing.is_verified,
+          venueType: { ...(VENUE.venueType || {}), features: listing.amenities || [], styles: listing.styles || [] },
+          accommodation: null,
+          dining: null,
+          spaces: null,
+        };
+        if (!ignore) setDbVenue(mapped);
+      } catch (err) {
+        console.error('Failed to load venue by slug', err);
+        if (!ignore) setNotFound(true);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    }
+    loadVenue();
+    return () => { ignore = true; };
+  }, [slug]);
 
   const scrollToSection = (key) => {
     setActiveTab(key);

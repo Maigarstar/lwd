@@ -17,6 +17,7 @@ applyThemeToDocument();
 
 import HomePage from "./pages/HomePage.jsx";
 import VenueProfile           from "./VenueProfile.jsx";
+import VenueProfilePage       from "./pages/VenueProfilePage.jsx";
 // CountryTemplate removed — /category now renders ItalyPage with noIndex
 import RegionPage             from "./pages/RegionPage.jsx";
 import RegionCategoryPage     from "./pages/RegionCategoryPage.jsx";
@@ -55,7 +56,6 @@ import MagazineArticlePage  from "./pages/Magazine/MagazineArticlePage.jsx";
 import FashionLandingPage   from "./pages/Magazine/FashionLandingPage.jsx";
 import MagazineStudio       from "./pages/MagazineStudio/index.jsx";
 import EditorialShowcase    from "./pages/EditorialShowcase.jsx";
-import VenueProfilePage     from "./pages/VenueProfilePage.jsx";
 import { VENDORS }            from "./data/vendors.js";
 
 // ── Lazy-loaded admin modules for bundle optimization ──────────────────────────
@@ -171,6 +171,7 @@ function pathToState(pathname) {
   if (parts[0] === "italy" && parts[1] === "puglia" && parts.length === 2) return { page: "puglia" };
   // Magazine routes
   if (parts[0] === "editorial-showcase" && parts.length === 1) return { page: "editorial-showcase" };
+  // Venue listing profile: /venues/{slug}
   if (parts[0] === "venues" && parts.length === 2) return { page: "venue-profile", venueSlug: parts[1] };
   if (parts[0] === "magazine-studio" && parts.length === 1) return { page: "magazine-studio" };
   if (parts[0] === "magazine" && parts.length === 1) return { page: "magazine" };
@@ -247,7 +248,7 @@ function App() {
     if (window.location.pathname !== path) {
       window.history.pushState(null, "", path);
     }
-  }, [page, activeCountrySlug, activeRegionSlug, activeCategorySlug, activePlannerSlug, activeWeddingSlug, activationToken, activeMagazineCategoryId, activeMagazineSlug]);
+  }, [page, activeCountrySlug, activeRegionSlug, activeCategorySlug, activePlannerSlug, activeWeddingSlug, activationToken, activeMagazineCategoryId, activeMagazineSlug, activeVenueSlug]);
 
   // ── Popstate: back / forward browser buttons ─────────────────────────────
   useEffect(() => {
@@ -383,6 +384,9 @@ function App() {
         {/* ── Pages ── */}
         {page === "venue" && (
           <VenueProfile onBack={goHome} />
+        )}
+        {page === "venue-profile" && (
+          <VenueProfilePage slug={activeVenueSlug} onBack={goHome} />
         )}
         {page === "region" && (
           <RegionPage onBack={goHome} onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} countrySlug={activeCountrySlug} regionSlug={activeRegionSlug} footerNav={footerNav} />
@@ -523,7 +527,6 @@ function App() {
           }} />
         )}
         {page === "editorial-showcase" && <EditorialShowcase />}
-        {page === "venue-profile" && <VenueProfilePage onBack={goHome} />}
         {page === "vendor-login" && (
           <VendorLogin onLoginSuccess={goVendor} />
         )}
