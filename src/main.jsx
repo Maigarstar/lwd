@@ -276,10 +276,16 @@ function App() {
     setActiveCategorySlug(null); setCategorySearchQuery(null);
     setPage("home");
   };
-  const goVenue = () => {
+  const goVenue = (venueOrSlug) => {
     setCategoryRegion(null); setActiveCountrySlug(null); setActiveRegionSlug(null);
     setActiveCategorySlug(null); setCategorySearchQuery(null);
-    setPage("venue");
+    const slug = typeof venueOrSlug === 'string' ? venueOrSlug : venueOrSlug?.slug;
+    if (slug) {
+      setActiveVenueSlug(slug);
+      setPage("venue-profile");
+    } else {
+      setPage("venue");
+    }
   };
   const goRegion = (countrySlug, regionSlug) => {
     setActiveCountrySlug(countrySlug || null);
