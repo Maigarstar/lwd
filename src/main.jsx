@@ -57,6 +57,7 @@ import MagazineStudio       from "./pages/MagazineStudio/index.jsx";
 import EditorialShowcase    from "./pages/EditorialShowcase.jsx";
 import ShowcasePage         from "./pages/ShowcasePage.jsx";
 import DdeShowcasePage      from "./pages/DdeShowcasePage.jsx";
+import NotFoundPage         from "./pages/NotFoundPage.jsx";
 import { VENDORS }            from "./data/vendors.js";
 
 // ── Lazy-loaded admin modules for bundle optimization ──────────────────────────
@@ -132,6 +133,7 @@ function stateToPath(pg, opts = {}) {
     case "magazine-article": return `/magazine/${opts.magazineSlug || ''}`;
     case "magazine-studio":  return "/magazine-studio";
     case "venue-profile":    return `/venues/${opts.venueSlug || 'grand-tirolia'}`;
+    case "listing-profile":  return `/wedding-venues/${opts.venueSlug || ''}`;
     case "dde-showcase":     return "/showcase/domaine-des-etangs";
     case "showcase":         return `/showcase/${opts.showcaseSlug || ''}`;
     default:                 return "/";
@@ -180,6 +182,8 @@ function pathToState(pathname) {
   if (parts[0] === "showcase" && parts.length === 2) return { page: "showcase", showcaseSlug: parts[1] };
   // Venue listing profile: /venues/{slug}
   if (parts[0] === "venues" && parts.length === 2) return { page: "venue-profile", venueSlug: parts[1] };
+  // Wedding venue listing profile: /wedding-venues/{slug}
+  if (parts[0] === "wedding-venues" && parts.length === 2) return { page: "listing-profile", venueSlug: parts[1] };
   if (parts[0] === "magazine-studio" && parts.length === 1) return { page: "magazine-studio" };
   if (parts[0] === "magazine" && parts.length === 1) return { page: "magazine" };
   if (parts[0] === "magazine" && parts[1] === "category" && parts.length === 3) return { page: "magazine-category", magazineCategoryId: parts[2] };
@@ -191,7 +195,7 @@ function pathToState(pathname) {
   if (parts.length === 2) return { page: "region", countrySlug: parts[0], regionSlug: parts[1] };
   if (parts.length === 3) return { page: "region-category", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2] };
   if (parts.length === 4) return { page: "planner-profile", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2], plannerSlug: parts[3] };
-  return { page: "home" };
+  return { page: "not-found" };
 }
 
 // ── Admin Route Wrapper (properly calls hooks at top level) ──────────────────
@@ -402,6 +406,9 @@ function App() {
           <VenueProfile onBack={goHome} />
         )}
         {page === "venue-profile" && (
+          <VenueProfile slug={activeVenueSlug} onBack={goHome} />
+        )}
+        {page === "listing-profile" && (
           <VenueProfile slug={activeVenueSlug} onBack={goHome} />
         )}
         {page === "dde-showcase" && (
@@ -628,6 +635,9 @@ function App() {
         )}
         {page === "home" && (
           <HomePage onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} onViewStandard={goStandard} onViewAbout={goAbout} onViewContact={goContact} onViewPartnership={goPartnership} onViewVendor={goVendor} onViewAdmin={goAdmin} onViewUSA={goUSA} onViewItaly={goItaly} onViewMagazine={goMagazine} onViewMagazineArticle={goMagazineArticle} footerNav={footerNav} />
+        )}
+        {page === "not-found" && (
+          <NotFoundPage onNavigateHome={goHome} onNavigateCategory={goCategory} />
         )}
 
         {/* ── Global chat system — hidden on dashboards and auth pages ── */}
