@@ -1300,7 +1300,7 @@ const NOTICE_FORM_CONFIG = {
   },
   "availability": {
     heading: "Enquire About This Date",
-    getContext: (n) => `${n.title} — exclusive use`,
+    getContext: (n) => `${n.title} (exclusive use inquiry)`,
     fields: [
       { key: "name",  label: "Full name",    type: "text",  required: true  },
       { key: "email", label: "Email address",type: "email", required: true  },
@@ -3675,7 +3675,7 @@ function SpacesSection({ spaces }) {
     <section id="capacity" style={{ marginBottom: 56 }}>
       <SectionHeading
         title="Venue Spaces"
-        subtitle={`${spaces.length} distinct event space${spaces.length !== 1 ? 's' : ''} — each with its own character and atmosphere`}
+        subtitle={`${spaces.length} distinct event space${spaces.length !== 1 ? 's' : ''}, each with unique character and atmosphere`}
       />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 48 : 64 }}>
@@ -5245,7 +5245,7 @@ function AuraChat({ venue }) {
   // mode: "closed" | "modal" | "full"
   const [mode, setMode] = useState("closed");
   const [msgs, setMsgs] = useState([
-    { from: "aura", text: `Hi! I'm Aura, your LWD assistant. I know everything about ${venue.name} — pricing, spaces, availability and more. What would you like to know?` }
+    { from: "aura", text: `Hi! I'm Aura, your LWD assistant. I know about pricing, spaces, availability and more. What would you like to know?` }
   ]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
