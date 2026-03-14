@@ -9,6 +9,7 @@
 // Route:  /venues/grand-tirolia  (add more slugs in main.jsx + pathToState)
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useEffect, useRef } from 'react';
+import { fetchVenueContent } from '../services/venueContentService';
 
 import ParallaxBannerCard      from '../components/cards/editorial/ParallaxBannerCard';
 import FeatureCard             from '../components/cards/editorial/FeatureCard';
@@ -388,7 +389,40 @@ function Section({ id, bg = C.cream, children, pad }) {
 export default function VenueProfilePage({ venue: venueProp, onBack }) {
   const { isMobile } = useBreakpoint();
   const [activeSection, setActiveSection] = useState('overview');
-  const venue = venueProp || GT_VENUE;
+  const [venueContent, setVenueContent] = useState(null);
+  const basevenue = venueProp || GT_VENUE;
+
+  // Merge static venue with dynamic content
+  const venue = venueContent
+    ? {
+        ...basevenue,
+        sectionIntros: { ...basevenue.sectionIntros, ...venueContent.sectionIntros },
+        sectionVisibility: { ...basevenue.sectionVisibility, ...venueContent.sectionVisibility },
+        factChecked: venueContent.factChecked,
+        approved: venueContent.approved,
+        lastReviewedAt: venueContent.lastReviewedAt,
+      }
+    : basevenue;
+
+  // Fetch venue content from database on mount
+  useEffect(() => {
+    const loadVenueContent = async () => {
+      try {
+        // Use listingId from venue data if available
+        const venueId = basevenue.listingId || basevenue.id;
+        if (venueId) {
+          const content = await fetchVenueContent(venueId);
+          if (content && !content._offline) {
+            setVenueContent(content);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load venue content:', err);
+        // Gracefully fall back to static data
+      }
+    };
+    loadVenueContent();
+  }, [basevenue]);
 
   // ── Section scroll spy ────────────────────────────────────────────────────
   useEffect(() => {

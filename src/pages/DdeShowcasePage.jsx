@@ -17,6 +17,7 @@ import { ThemeCtx, LIGHT }   from '../components/profile/ProfileDesignSystem';
 import VenueEnquireCard       from '../components/cards/editorial/VenueEnquireCard';
 import HomeNav                from '../components/nav/HomeNav';
 import { useBreakpoint }      from '../hooks/useWindowWidth';
+import { fetchVenueContent }  from '../services/venueContentService';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const GD   = 'var(--font-heading-primary)';
@@ -549,7 +550,37 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
   const { isMobile } = useBreakpoint();
   const [activeSection, setActiveSection] = useState('overview');
   const [stickyVisible, setStickyVisible] = useState(false);
-  const venue = DDE_VENUE;
+  const [venueContent, setVenueContent] = useState(null);
+
+  // Merge static venue with dynamic content
+  const venue = venueContent
+    ? {
+        ...DDE_VENUE,
+        sectionIntros: { ...DDE_VENUE.sectionIntros, ...venueContent.sectionIntros },
+        sectionVisibility: { ...DDE_VENUE.sectionVisibility, ...venueContent.sectionVisibility },
+        factChecked: venueContent.factChecked,
+        approved: venueContent.approved,
+        lastReviewedAt: venueContent.lastReviewedAt,
+      }
+    : DDE_VENUE;
+
+  // Fetch venue content from database on mount
+  useEffect(() => {
+    const loadVenueContent = async () => {
+      try {
+        // Assuming we have a venue_id from DDE_VENUE or from route params
+        // For now, we'll use a placeholder - this would be fetched from the listing
+        const content = await fetchVenueContent(DDE_VENUE.listingId);
+        if (content && !content._offline) {
+          setVenueContent(content);
+        }
+      } catch (err) {
+        console.error('Failed to load venue content:', err);
+        // Gracefully fall back to static data
+      }
+    };
+    loadVenueContent();
+  }, []);
 
   // Section scroll spy
   useEffect(() => {
