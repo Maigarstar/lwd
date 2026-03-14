@@ -5217,6 +5217,7 @@ function NewShowcaseModal({ C, onClose, onSave, type = 'venue' }) {
   const emptyForm = type === 'planner' ? EMPTY_PLANNER_SHOWCASE : EMPTY_VENUE_SHOWCASE;
   const sectionList = type === 'planner' ? PLANNER_SECTIONS : VENUE_SECTIONS;
   const [form, setForm] = useState({ ...emptyForm });
+  const [slugLocked, setSlugLocked] = useState(false);
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
   const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
@@ -5279,7 +5280,7 @@ function NewShowcaseModal({ C, onClose, onSave, type = 'venue' }) {
               <input
                 style={inputStyle} placeholder="e.g. Villa Rosanova"
                 value={form.name}
-                onChange={e => { set('name', e.target.value); if (!form.slug) set('slug', slugify(e.target.value)); }}
+                onChange={e => { set('name', e.target.value); if (!slugLocked) set('slug', slugify(e.target.value)); }}
               />
             </div>
             <div>
@@ -5287,7 +5288,7 @@ function NewShowcaseModal({ C, onClose, onSave, type = 'venue' }) {
               <input
                 style={inputStyle} placeholder="auto-generated"
                 value={form.slug}
-                onChange={e => set('slug', slugify(e.target.value))}
+                onChange={e => { setSlugLocked(true); set('slug', slugify(e.target.value)); }}
               />
             </div>
           </div>
@@ -5430,8 +5431,12 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
           fetchShowcases('venue'),
           fetchShowcases('planner'),
         ]);
-        // Only replace if DB returned data; keep static seed as fallback
-        if (venues.length > 0)   setVenueProfiles(venues);
+        // Merge: static seed always shown first, DB records appended (no slug duplicates)
+        if (venues.length > 0) {
+          const staticSlugs = new Set(VENUE_PROFILES.map(p => p.slug));
+          const dbOnly = venues.filter(v => !staticSlugs.has(v.slug));
+          setVenueProfiles([...VENUE_PROFILES, ...dbOnly]);
+        }
         if (planners.length > 0) setPlannerProfiles(planners);
       } catch (e) {
         console.warn('[ShowcaseAdmin] DB load failed, using static seed:', e);

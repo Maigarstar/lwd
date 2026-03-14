@@ -146,6 +146,19 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
             }}
           >
             <div>
+              {v.showcaseUrl && (
+                <a href={v.showcaseUrl} onClick={(e) => e.stopPropagation()} style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  marginBottom: 14, marginTop: -4,
+                  padding: "3px 9px", borderRadius: 20,
+                  background: "rgba(255,255,255,0.12)", backdropFilter: "blur(6px)",
+                  border: "1px solid rgba(255,255,255,0.25)",
+                  textDecoration: "none",
+                }}>
+                  <span style={{ color: "#fff", fontSize: 7, lineHeight: 1 }}>✦</span>
+                  <span style={{ fontFamily: "var(--font-body)", fontSize: 8, fontWeight: 700, letterSpacing: "1.2px", textTransform: "uppercase", color: "#fff" }}>A Showcase Property</span>
+                </a>
+              )}
               <h3
                 style={{
                   fontFamily: "var(--font-heading-primary)",

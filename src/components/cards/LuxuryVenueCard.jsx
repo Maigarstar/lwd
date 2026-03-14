@@ -391,6 +391,28 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
           ) : null;
         })()}
 
+        {/* Showcase indicator — above name */}
+        {v.showcaseUrl && (
+          <a
+            href={v.showcaseUrl}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              marginBottom: 14, marginTop: -4,
+              padding: "3px 9px", borderRadius: 20,
+              background: "rgba(255,255,255,0.12)", backdropFilter: "blur(6px)",
+              border: "1px solid rgba(255,255,255,0.25)",
+              textDecoration: "none", cursor: "pointer",
+            }}
+          >
+            <span style={{ color: "#fff", fontSize: 7, lineHeight: 1 }}>✦</span>
+            <span style={{
+              fontFamily: NU, fontSize: 8, fontWeight: 700, letterSpacing: "1.2px",
+              textTransform: "uppercase", color: "#fff",
+            }}>A Showcase Property</span>
+          </a>
+        )}
+
         {/* Name */}
         <div
           onClick={() => onView?.(v)}
@@ -508,17 +530,17 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
               Enquire
             </button>
             <button
-              onClick={(e) => { e.stopPropagation(); onView?.(v); }}
-              style={{
-                fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
-                textTransform: "uppercase", color: GOLD,
-                background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.3)",
-                borderRadius: "var(--lwd-radius-input)", padding: "8px 10px",
-                cursor: "pointer", transition: "all 0.25s", whiteSpace: "nowrap",
-              }}
-            >
-              Profile ›
-            </button>
+                onClick={(e) => { e.stopPropagation(); onView?.(v); }}
+                style={{
+                  fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
+                  textTransform: "uppercase", color: GOLD,
+                  background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.3)",
+                  borderRadius: "var(--lwd-radius-input)", padding: "8px 10px",
+                  cursor: "pointer", transition: "all 0.25s", whiteSpace: "nowrap",
+                }}
+              >
+                Profile ›
+              </button>
           </div>
         </div>
       </div>

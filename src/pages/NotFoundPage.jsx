@@ -1,201 +1,170 @@
 import { useState, useEffect } from 'react';
 
-/**
- * NotFoundPage — Elegant 404 page for luxury wedding directory
- * Shows when a route doesn't exist. Features subtle, premium design.
- */
-export default function NotFoundPage({ onNavigateHome = () => {}, onNavigateCategory = () => {} }) {
-  const [isLoaded, setIsLoaded] = useState(false);
+const GD   = 'var(--font-heading-primary)';
+const NU   = 'var(--font-body)';
+const GOLD = '#C9A84C';
 
-  useEffect(() => {
-    setIsLoaded(true);
-  }, []);
+export default function NotFoundPage({ onNavigateHome = () => {}, onNavigateCategory = () => {} }) {
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => { setLoaded(true); }, []);
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        backgroundColor: '#0a0a0a',
-        color: '#ffffff',
-        fontFamily: "'Nunito', sans-serif",
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-        overflow: 'hidden',
-      }}
-    >
-      {/* Subtle background decoration */}
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          background: 'radial-gradient(ellipse at 50% 0%, rgba(212, 175, 55, 0.03) 0%, transparent 70%)',
-          pointerEvents: 'none',
-          zIndex: 0,
-        }}
-      />
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: '#0a0806',
+      color: '#ffffff',
+      fontFamily: NU,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '40px 24px',
+      overflow: 'hidden',
+      position: 'relative',
+    }}>
+      {/* Ambient gold glow */}
+      <div style={{
+        position: 'fixed',
+        top: 0, left: 0, width: '100%', height: '100%',
+        background: 'radial-gradient(ellipse at 50% 0%, rgba(201,168,76,0.04) 0%, transparent 65%)',
+        pointerEvents: 'none',
+        zIndex: 0,
+      }} />
 
-      {/* Main content */}
-      <div
-        style={{
-          position: 'relative',
-          zIndex: 1,
-          maxWidth: '600px',
-          textAlign: 'center',
-          opacity: isLoaded ? 1 : 0,
-          transform: isLoaded ? 'translateY(0)' : 'translateY(20px)',
-          transition: 'all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)',
-        }}
-      >
-        {/* Large "404" text with gold accent */}
-        <div
-          style={{
-            fontSize: '120px',
-            fontWeight: '300',
-            letterSpacing: '-4px',
-            marginBottom: '20px',
-            background: 'linear-gradient(135deg, #d4af37 0%, #f4e8c1 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            fontFamily: "'Georgia', serif",
-          }}
-        >
+      {/* Content */}
+      <div style={{
+        position: 'relative',
+        zIndex: 1,
+        maxWidth: 560,
+        width: '100%',
+        textAlign: 'center',
+        opacity: loaded ? 1 : 0,
+        transform: loaded ? 'translateY(0)' : 'translateY(24px)',
+        transition: 'opacity 0.9s ease, transform 0.9s ease',
+      }}>
+        {/* Eyebrow */}
+        <p style={{
+          fontFamily: NU,
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: '3px',
+          textTransform: 'uppercase',
+          color: 'rgba(255,255,255,0.35)',
+          marginBottom: 28,
+        }}>
+          Error · 404
+        </p>
+
+        {/* Large 404 */}
+        <div style={{
+          fontFamily: GD,
+          fontSize: 'clamp(80px, 18vw, 140px)',
+          fontWeight: 400,
+          letterSpacing: '-4px',
+          lineHeight: 1,
+          marginBottom: 24,
+          background: `linear-gradient(135deg, ${GOLD} 0%, #e8c97a 50%, ${GOLD} 100%)`,
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+        }}>
           404
         </div>
 
-        {/* Gold divider line */}
-        <div
-          style={{
-            width: '60px',
-            height: '2px',
-            backgroundColor: '#d4af37',
-            margin: '30px auto 30px',
-          }}
-        />
+        {/* Gold rule */}
+        <div style={{
+          width: 48,
+          height: 1,
+          background: `linear-gradient(90deg, transparent, ${GOLD}, transparent)`,
+          margin: '0 auto 32px',
+        }} />
 
-        {/* Main message */}
-        <h1
-          style={{
-            fontSize: '32px',
-            fontWeight: '300',
-            letterSpacing: '0.5px',
-            marginBottom: '16px',
-            lineHeight: '1.4',
-          }}
-        >
+        {/* Headline */}
+        <h1 style={{
+          fontFamily: GD,
+          fontSize: 'clamp(22px, 4vw, 32px)',
+          fontWeight: 400,
+          letterSpacing: '-0.3px',
+          marginBottom: 14,
+          lineHeight: 1.25,
+          color: '#ffffff',
+        }}>
           Page Not Found
         </h1>
 
-        {/* Descriptive text */}
-        <p
-          style={{
-            fontSize: '16px',
-            color: '#a0a0a0',
-            marginBottom: '40px',
-            lineHeight: '1.8',
-            letterSpacing: '0.3px',
-          }}
-        >
-          We couldn't find the page you were looking for. It may have moved, or perhaps the
-          link you followed was incorrect. Let's get you back on track.
+        {/* Body */}
+        <p style={{
+          fontFamily: NU,
+          fontSize: 14,
+          color: 'rgba(255,255,255,0.45)',
+          marginBottom: 40,
+          lineHeight: 1.85,
+          letterSpacing: '0.2px',
+          maxWidth: 420,
+          margin: '0 auto 40px',
+        }}>
+          The page you're looking for may have moved or no longer exists.
+          Let us guide you back to the collection.
         </p>
 
-        {/* Action buttons */}
-        <div
-          style={{
-            display: 'flex',
-            gap: '16px',
-            justifyContent: 'center',
-            flexWrap: 'wrap',
-            marginBottom: '40px',
-          }}
-        >
-          {/* Home button */}
+        {/* CTAs */}
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 48 }}>
           <button
             onClick={onNavigateHome}
             style={{
-              padding: '12px 32px',
-              backgroundColor: '#d4af37',
-              color: '#000000',
+              padding: '11px 32px',
+              background: `linear-gradient(135deg, ${GOLD}, #e8c97a)`,
+              color: '#0a0806',
               border: 'none',
-              fontSize: '14px',
-              fontWeight: '600',
-              letterSpacing: '0.5px',
+              borderRadius: 'var(--lwd-radius-input, 4px)',
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '1.5px',
+              textTransform: 'uppercase',
               cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              fontFamily: "'Nunito', sans-serif",
+              fontFamily: NU,
+              transition: 'opacity 0.2s',
             }}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = '#f4e8c1';
-              e.target.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = '#d4af37';
-              e.target.style.transform = 'translateY(0)';
-            }}
+            onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
           >
-            Go to Home
+            Back to Home
           </button>
 
-          {/* Browse venues button */}
           <button
             onClick={onNavigateCategory}
             style={{
-              padding: '12px 32px',
-              backgroundColor: 'transparent',
-              color: '#d4af37',
-              border: '1px solid #d4af37',
-              fontSize: '14px',
-              fontWeight: '600',
-              letterSpacing: '0.5px',
+              padding: '11px 28px',
+              background: 'none',
+              color: GOLD,
+              border: `1px solid rgba(201,168,76,0.35)`,
+              borderRadius: 'var(--lwd-radius-input, 4px)',
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '1.2px',
+              textTransform: 'uppercase',
               cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              fontFamily: "'Nunito', sans-serif",
+              fontFamily: NU,
+              transition: 'all 0.2s',
             }}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = '#d4af37';
-              e.target.style.color = '#000000';
-              e.target.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = 'transparent';
-              e.target.style.color = '#d4af37';
-              e.target.style.transform = 'translateY(0)';
-            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.background = 'rgba(201,168,76,0.08)'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.35)'; e.currentTarget.style.background = 'none'; }}
           >
             Browse Venues
           </button>
         </div>
 
-        {/* Secondary help text */}
-        <p
-          style={{
-            fontSize: '13px',
-            color: '#808080',
-            letterSpacing: '0.3px',
-            lineHeight: '1.6',
-          }}
-        >
-          If you believe this is an error, please contact{' '}
+        {/* Support link */}
+        <p style={{ fontFamily: NU, fontSize: 12, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.2px' }}>
+          Something wrong?{' '}
           <a
-            href='mailto:support@luxuryweddingdirectory.com'
-            style={{
-              color: '#d4af37',
-              textDecoration: 'none',
-              fontWeight: '500',
-              transition: 'color 0.3s ease',
-            }}
-            onMouseEnter={(e) => (e.target.style.color = '#f4e8c1')}
-            onMouseLeave={(e) => (e.target.style.color = '#d4af37')}
+            href="mailto:support@luxuryweddingdirectory.com"
+            style={{ color: 'rgba(201,168,76,0.7)', textDecoration: 'none', transition: 'color 0.2s' }}
+            onMouseEnter={e => (e.currentTarget.style.color = GOLD)}
+            onMouseLeave={e => (e.currentTarget.style.color = 'rgba(201,168,76,0.7)')}
           >
-            our support team
+            Contact support
           </a>
-          .
         </p>
       </div>
     </div>

@@ -715,7 +715,7 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
           style={{
             flexShrink:     0,
             display:        "flex",
-            justifyContent: "flex-end",
+            justifyContent: "space-between",
             alignItems:     "center",
             gap:            12,
             padding:        "14px 24px",
@@ -723,6 +723,27 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
             background:     "#0f0d0a",
           }}
         >
+          {/* Bottom-left: Showcase link (if available) */}
+          {item?.showcaseUrl ? (
+            <a
+              href={item.showcaseUrl}
+              onClick={onClose}
+              style={{
+                fontFamily: "var(--font-body)", fontSize: 11, fontWeight: 700,
+                letterSpacing: "1.2px", textTransform: "uppercase",
+                color: "#0f0d0a", textDecoration: "none",
+                background: "linear-gradient(135deg,#C9A84C,#e8c97a)",
+                border: "none", borderRadius: "var(--lwd-radius-input)",
+                padding: "9px 18px", cursor: "pointer",
+                display: "inline-flex", alignItems: "center", gap: 6,
+              }}
+            >
+              <span style={{ fontSize: 9 }}>✦</span> Showcase
+            </a>
+          ) : (
+            <div />
+          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button
             onClick={onClose}
             style={{
@@ -761,6 +782,7 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
           >
             Full Profile →
           </button>
+          </div>
         </div>
       </div>
 

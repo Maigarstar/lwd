@@ -57,6 +57,7 @@ import MagazineStudio       from "./pages/MagazineStudio/index.jsx";
 import EditorialShowcase    from "./pages/EditorialShowcase.jsx";
 import ShowcasePage         from "./pages/ShowcasePage.jsx";
 import DdeShowcasePage      from "./pages/DdeShowcasePage.jsx";
+import VenueProfilePage     from "./pages/VenueProfilePage.jsx";
 import NotFoundPage         from "./pages/NotFoundPage.jsx";
 import { VENDORS }            from "./data/vendors.js";
 
@@ -135,6 +136,7 @@ function stateToPath(pg, opts = {}) {
     case "venue-profile":    return `/venues/${opts.venueSlug || 'grand-tirolia'}`;
     case "listing-profile":  return `/wedding-venues/${opts.venueSlug || ''}`;
     case "dde-showcase":     return "/showcase/domaine-des-etangs";
+    case "gt-showcase":      return "/showcase/grand-tirolia-kitzbuehel";
     case "showcase":         return `/showcase/${opts.showcaseSlug || ''}`;
     default:                 return "/";
   }
@@ -178,6 +180,8 @@ function pathToState(pathname) {
   if (parts[0] === "editorial-showcase" && parts.length === 1) return { page: "editorial-showcase" };
   // Venue showcase — static DDE page
   if (parts[0] === "showcase" && parts[1] === "domaine-des-etangs") return { page: "dde-showcase" };
+  // Venue showcase — static Grand Tirolia editorial page
+  if (parts[0] === "showcase" && parts[1] === "grand-tirolia-kitzbuehel") return { page: "gt-showcase" };
   // Venue showcase: /showcase/{slug}
   if (parts[0] === "showcase" && parts.length === 2) return { page: "showcase", showcaseSlug: parts[1] };
   // Venue listing profile: /venues/{slug}
@@ -420,6 +424,11 @@ function App() {
             }}
             onNavigateStandard={goStandard}
             onNavigateAbout={goAbout}
+          />
+        )}
+        {page === "gt-showcase" && (
+          <VenueProfilePage
+            onBack={goHome}
           />
         )}
         {page === "showcase" && (

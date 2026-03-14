@@ -34,6 +34,7 @@ function listingToCard(listing) {
     lat:         listing.lat       ?? null,
     lng:         listing.lng       ?? null,
     slug:        listing.slug      || '',
+    showcaseUrl: listing.showcaseEnabled && listing.slug ? `/showcase/${listing.slug}` : null,
     // Media — pre-built by transformSupabaseListingForUI via buildCardImgs / buildCardVideoUrl
     imgs:        listing.imgs      || [],
     videoUrl:    listing.videoUrl  || null,
