@@ -1,7 +1,7 @@
 // venueContentService.js
 // Manages venue content (section intros, visibility, approval status)
 
-import { supabase } from './supabaseClient';
+import { supabase } from '../lib/supabaseClient';
 
 /**
  * Fetch venue content by venue_id
