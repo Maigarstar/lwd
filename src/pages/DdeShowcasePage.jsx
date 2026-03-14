@@ -129,6 +129,24 @@ const DDE_VENUE = {
     detail3:    I('wedding-Credit Chloe Fayollas-720.jpg'),
     setup:      I('DDE_Events__Decoration-Setups_2023_21.jpg'),
   },
+
+  // ── Dynamic section intro text (fallback to hardcoded defaults if missing)
+  sectionIntros: {
+    overview: 'A 13th-century château set within 1,000 hectares of private forests, lakes, meadows, and sculpture-dotted parkland — one of the most extraordinary estate wedding venues in France.',
+    spaces: 'From an intimate lakeside chapel to a 200 m² stone barn, each space at Domaine des Etangs carries centuries of character — and a contemporary soul.',
+    dining: "Chef Matthieu Pasgrimaud builds every menu around the Domaine's own organic kitchen garden — inventive, terroir-driven, and rooted in the seasons of Charente.",
+    rooms: "Each of the 29 rooms and cottages at Domaine des Etangs echoes the estate's character — stone fireplaces, hand-woven textiles, and views onto the lakes and gardens.",
+    art: 'A rotating programme of contemporary sculpture and site-specific installations transforms the estate into an open-air gallery.',
+    weddings: 'Every wedding at Domaine des Etangs is designed to feel entirely unique — shaped by your story, your guests, and the landscape itself.',
+  },
+
+  // ── Approval & content freshness (internal metadata)
+  factChecked: false,
+  approved: false,
+  lastReviewedAt: null,
+  lastUpdatedAt: null,
+  refreshStatus: 'current',
+  refreshNotes: '',
 };
 
 // ── SectionHeader ──────────────────────────────────────────────────────────────
@@ -177,6 +195,40 @@ function SectionHeader({ eyebrow, title, subtitle, light = false, center = false
       }} />
     </div>
   );
+}
+
+// ── ApprovedBadge ──────────────────────────────────────────────────────────
+function ApprovedBadge() {
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '6px 12px',
+        background: 'rgba(201, 168, 76, 0.08)',
+        border: `1px solid rgba(201, 168, 76, 0.2)`,
+        borderRadius: 4,
+        fontSize: 12,
+        fontFamily: NU,
+        color: GOLD,
+        fontWeight: 500,
+        letterSpacing: '0.05em',
+        textTransform: 'uppercase',
+      }}
+    >
+      <span>✓</span>
+      <span>Approved</span>
+    </div>
+  );
+}
+
+// ── Utility: Format date to "Month Year" ────────────────────────────────────
+function formatMonthYear(dateString) {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const options = { year: 'numeric', month: 'long' };
+  return date.toLocaleDateString('en-US', options);
 }
 
 // ── Section wrapper ────────────────────────────────────────────────────────────
@@ -243,6 +295,25 @@ function BreadcrumbBar({ venue, onBack, onGoDestination }) {
           )}
         </span>
       ))}
+
+      {/* View Listing link — far right */}
+      <div style={{ marginLeft: 'auto', flexShrink: 0 }}>
+        <a
+          href="/venues/domaine-des-etangs-auberge-collection"
+          style={{
+            fontFamily: NU, fontSize: 10, fontWeight: 700,
+            letterSpacing: '0.12em', textTransform: 'uppercase',
+            color: GOLD, textDecoration: 'none',
+            border: `1px solid ${GOLD}`,
+            padding: '3px 10px', borderRadius: 3,
+            transition: 'opacity 0.2s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.opacity = '0.7')}
+          onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+        >
+          View Listing ↗
+        </a>
+      </div>
     </div>
   );
 }
@@ -337,6 +408,27 @@ function StickyVenueNav({ venue, activeSection, onScrollTo, onVisibilityChange }
       >
         Enquire
       </button>
+
+      {/* View Listing link — desktop only */}
+      {!isMobile && (
+        <a
+          href="/venues/domaine-des-etangs-auberge-collection"
+          style={{
+            marginLeft: 8,
+            fontFamily: NU, fontSize: 11, fontWeight: 600,
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+            color: C.muted, textDecoration: 'none',
+            padding: '9px 14px', borderRadius: 4,
+            border: `1px solid ${C.border}`,
+            transition: 'color 0.2s, border-color 0.2s',
+            whiteSpace: 'nowrap',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = C.text; e.currentTarget.style.borderColor = C.text; }}
+          onMouseLeave={e => { e.currentTarget.style.color = C.muted; e.currentTarget.style.borderColor = C.border; }}
+        >
+          Listing ↗
+        </a>
+      )}
     </div>
   );
 }
@@ -520,7 +612,7 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
         <SectionHeader
           eyebrow="Event Spaces"
           title="Eight Distinct Spaces. One Private Estate."
-          subtitle="From an intimate lakeside chapel to a 200 m² stone barn, each space at Domaine des Etangs carries centuries of character — and a contemporary soul."
+          subtitle={venue.sectionIntros?.spaces || "From an intimate lakeside chapel to a 200 m² stone barn, each space at Domaine des Etangs carries centuries of character — and a contemporary soul."}
         />
 
         {/* La Laiterie — the former dairy */}
@@ -606,7 +698,7 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
         <SectionHeader
           eyebrow="Restaurant Dyades · 1 Michelin Star"
           title="A Kitchen Shaped by the Estate"
-          subtitle="Chef Matthieu Pasgrimaud builds every menu around the Domaine's own organic kitchen garden — inventive, terroir-driven, and rooted in the seasons of Charente."
+          subtitle={venue.sectionIntros?.dining || "Chef Matthieu Pasgrimaud builds every menu around the Domaine's own organic kitchen garden — inventive, terroir-driven, and rooted in the seasons of Charente."}
           light
         />
 
@@ -663,7 +755,7 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
         <SectionHeader
           eyebrow="Accommodation"
           title="29 Rooms Across a Private Universe"
-          subtitle="Château suites named for celestial bodies, seasonal Longère apartments, and six constellation-named farmhouse cottages — each a private world within the estate."
+          subtitle={venue.sectionIntros?.rooms || "Château suites named for celestial bodies, seasonal Longère apartments, and six constellation-named farmhouse cottages — each a private world within the estate."}
         />
 
         {/* Venus suite feature */}
@@ -711,7 +803,7 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
         <SectionHeader
           eyebrow="A Living Art Collection"
           title="The Estate as Gallery"
-          subtitle="Curated by Garance Primat, the collection weaves Yves Klein, Olafur Eliasson, Henri Matisse, Richard Long, and Ugo Rondinone across every corner of the estate — from the château corridors to the lakeside sculpture park."
+          subtitle={venue.sectionIntros?.art || "Curated by Garance Primat, the collection weaves Yves Klein, Olafur Eliasson, Henri Matisse, Richard Long, and Ugo Rondinone across every corner of the estate — from the château corridors to the lakeside sculpture park."}
         />
 
         {/* Art installation feature */}
@@ -755,7 +847,7 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
         <SectionHeader
           eyebrow="Weddings & Celebrations"
           title="A Fairytale Castle for Weddings"
-          subtitle="Complete privacy across 2,500 acres. Michelin-starred catering. Eight distinct spaces. No noise restrictions. The entire estate is yours."
+          subtitle={venue.sectionIntros?.weddings || "Complete privacy across 2,500 acres. Michelin-starred catering. Eight distinct spaces. No noise restrictions. The entire estate is yours."}
           light
         />
 
