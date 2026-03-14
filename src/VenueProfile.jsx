@@ -5925,8 +5925,12 @@ export default function VenueProfile({ onBack = null, slug = null }) {
           rating:  listing.rating       ?? VENUE.rating,
           reviews: listing.review_count ?? listing.reviewCount ?? VENUE.reviews,
           flag:    COUNTRY_FLAG[listing.country] || VENUE.flag,
-          awards:  Array.isArray(listing.awards)          ? listing.awards          : [],
-          press:   Array.isArray(listing.press_features)  ? listing.press_features  : [],
+          awards:  Array.isArray(listing.awards)
+            ? listing.awards.map(a => typeof a === 'string' ? a : (a.award || a.title || a.issuer || '')).filter(Boolean)
+            : [],
+          press:   Array.isArray(listing.press_features)
+            ? listing.press_features.map(p => typeof p === 'string' ? p : (p.outlet || p.title || '')).filter(Boolean)
+            : [],
           videos:  Array.isArray(listing.media_items) ? buildVenueVideos(listing.media_items) : [],
           accommodation: (listing.rooms_max_guests || listing.rooms_total || listing.rooms_description)
             ? {
@@ -5960,6 +5964,16 @@ export default function VenueProfile({ onBack = null, slug = null }) {
           showcaseUrl:      `/showcase/${slug}`,
           fullDescription:  listing.description || null,
           readmoreEnabled:  !!listing.readmore_enabled,
+          responseTime: listing.contact_profile?.response_time || null,
+          responseRate: listing.contact_profile?.response_rate
+            ? String(listing.contact_profile.response_rate).replace('%', '')
+            : null,
+          owner: (listing.contact_profile?.name) ? {
+            name:   listing.contact_profile.name  || null,
+            title:  listing.contact_profile.title || null,
+            bio:    listing.contact_profile.about || null,
+            photo:  listing.contact_profile.photo || null,
+          } : null,
           contact: {
             address: {
               line1:   listing.address  || '',
@@ -5968,9 +5982,9 @@ export default function VenueProfile({ onBack = null, slug = null }) {
               postcode:listing.postcode || '',
               country: listing.country  || '',
             },
-            phone:   listing.phone   || null,
-            email:   listing.email   || null,
-            website: listing.website || null,
+            phone:   listing.phone   || listing.contact_profile?.phone   || null,
+            email:   listing.email   || listing.contact_profile?.email   || null,
+            website: listing.website || listing.contact_profile?.website || null,
             responseMetrics: {
               averageResponseHours: null,
               responseRatePercent:  null,
