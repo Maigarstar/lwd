@@ -4,6 +4,8 @@ import GCardMobile from "./components/cards/GCardMobile";
 import SliderNav from "./components/ui/SliderNav";
 import { fetchListingBySlug } from './services/listings';
 import { buildCardImgs, mapMediaItemToGalleryPhoto, buildVenueVideos } from './utils/mediaMappers';
+import ReviewsSection from './components/reviews/ReviewsSection';
+import ReviewSubmitForm from './components/reviews/ReviewSubmitForm';
 
 function useIsMobile(bp = 768) {
   const [mobile, setMobile] = useState(() => window.innerWidth <= bp);
@@ -72,6 +74,15 @@ const COUNTRY_FLAG = {
   'Cyprus': '🇨🇾', 'Morocco': '🇲🇦', 'South Africa': '🇿🇦', 'Thailand': '🇹🇭',
   'Bali': '🇮🇩', 'Indonesia': '🇮🇩', 'Ireland': '🇮🇪', 'Scotland': '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
   'England': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Wales': '🏴󠁧󠁢󠁷󠁬󠁳󠁿',
+};
+
+// ─── PRICE FORMATTER ──────────────────────────────────────────────────────────
+const fmtPrice = (amount, currency) => {
+  if (!amount && amount !== 0) return '';
+  const sym = currency || '';
+  const num = Number(amount);
+  if (isNaN(num)) return `${sym}${amount}`;
+  return `${sym}${num.toLocaleString()}`;
 };
 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
@@ -658,7 +669,7 @@ function HeroCinematic({ venue, onEnquire }) {
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {venue.priceFrom && (
                 <span style={{ fontFamily: FD, fontSize: isMobile ? 20 : 26, fontWeight: 400, color: "#fff", lineHeight: 1 }}>
-                  From {venue.priceFrom}
+                  From {fmtPrice(venue.priceFrom, venue.priceCurrency)}
                 </span>
               )}
               {venue.priceFrom && venue.responseTime && (
@@ -719,7 +730,7 @@ function HeroSplit({ venue, onEnquire }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isMobile ? 16 : 24, gap: 12, flexWrap: isMobile ? "wrap" : "nowrap" }}>
           {venue.priceFrom && (
             <div>
-              <div style={{ fontFamily: FD, fontSize: isMobile ? 24 : 28, color: C.gold }}>From {venue.priceFrom}</div>
+              <div style={{ fontFamily: FD, fontSize: isMobile ? 24 : 28, color: C.gold }}>From {fmtPrice(venue.priceFrom, venue.priceCurrency)}</div>
               <div style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, marginTop: 2 }}>per event · up to {venue.capacity.ceremony} guests</div>
             </div>
           )}
@@ -784,7 +795,7 @@ function HeroMagazine({ venue, onEnquire }) {
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
             {venue.priceFrom && (
               <div style={{ textAlign: "right" }}>
-                <div style={{ fontFamily: FD, fontSize: 26, color: C.gold }}>From {venue.priceFrom}</div>
+                <div style={{ fontFamily: FD, fontSize: 26, color: C.gold }}>From {fmtPrice(venue.priceFrom, venue.priceCurrency)}</div>
                 <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted }}>per event</div>
               </div>
             )}
@@ -942,6 +953,7 @@ const TABS = [
   { key: 'dining',       label: 'Dining',       show: (v) => v.dining?.description || v.dining?.style },
   { key: 'pricing',      label: 'Pricing',      show: (v) => (v.exclusiveUse?.enabled !== false && v.exclusiveUse) || v.priceFrom },
   { key: 'availability', label: 'Availability', show: (v) => (v.notices?.length || 0) > 0 },
+  { key: 'reviews',      label: 'Reviews',      show: (v) => true },
   { key: 'faqs',         label: 'FAQs',         show: (v) => true },
   { key: 'venue-type',   label: 'Venue Type',   show: (v) => v.venueType?.primaryType || (v.categories?.length || 0) > 0 },
   { key: 'things-to-do', label: 'Things to Do', show: (v) => (v.experiences?.length || 0) > 0 },
@@ -954,8 +966,8 @@ function StickyTabNav({ venue, activeTab, onTabClick }) {
 
   if (isMobile) {
     return (
-      <div style={{
-        position: 'sticky', top: 0, zIndex: 50,
+      <div data-tab-nav style={{
+        position: 'sticky', top: 72, zIndex: 50,
         backgroundColor: C.navBg || C.bg, borderBottom: `1px solid ${C.border}`,
         padding: '10px 20px',
         backdropFilter: 'blur(12px)',
@@ -987,8 +999,8 @@ function StickyTabNav({ venue, activeTab, onTabClick }) {
   }
 
   return (
-    <div style={{
-      position: 'sticky', top: 56, zIndex: 50,
+    <div data-tab-nav style={{
+      position: 'sticky', top: 72, zIndex: 50,
       backgroundColor: C.navBg || C.bg,
       backdropFilter: 'blur(12px)',
       borderBottom: `1px solid ${C.border}`,
@@ -1090,25 +1102,6 @@ function Hero({ venue, heroStyle, setHeroStyle, onEnquire }) {
       {heroStyle === "split"     && <HeroSplit venue={venue} onEnquire={onEnquire} />}
       {heroStyle === "magazine"  && <HeroMagazine venue={venue} onEnquire={onEnquire} />}
       {heroStyle === "video"     && <HeroVideo venue={venue} onEnquire={onEnquire} />}
-      {/* Style picker, admin/preview tool (vendor backend will replace this) */}
-      <div style={{
-        position: "fixed", bottom: 80, right: 16, zIndex: 800,
-        background: C.surface, border: `1px solid ${C.border}`,
-        boxShadow: C.shadowMd, padding: "10px 12px",
-      }}>
-        <div style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 8 }}>Hero style</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          {styles.map(s => (
-            <button key={s.key} onClick={() => setHeroStyle(s.key)} style={{
-              padding: "5px 10px", border: `1px solid ${heroStyle === s.key ? C.gold : C.border}`,
-              borderRadius: "var(--lwd-radius-input)",
-              background: heroStyle === s.key ? C.goldLight : "none",
-              color: heroStyle === s.key ? C.gold : C.textLight,
-              fontFamily: FB, fontSize: 11, cursor: "pointer", textAlign: "left",
-            }}>{s.label}</button>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
@@ -1119,7 +1112,7 @@ function StatsStrip({ venue }) {
   const sleepsValue = venue.accommodation?.maxOvernightGuests ?? venue.accommodation?.maxGuests ?? null;
   const sleepsSub   = venue.accommodation?.totalRooms ? `${venue.accommodation.totalRooms} rooms` : 'rooms';
   const stats = [
-    { label: "From",      value: venue.priceFrom,                             sub: "per event",                      hide: !venue.priceFrom },
+    { label: "From",      value: venue.priceFrom ? fmtPrice(venue.priceFrom, venue.priceCurrency) : null, sub: "per event", hide: !venue.priceFrom },
     { label: "Ceremony",  value: venue.capacity?.ceremony ? `Up to ${venue.capacity.ceremony}` : null, sub: "guests", hide: !venue.capacity?.ceremony },
     { label: "Dinner",    value: venue.capacity?.dinner   ? `Up to ${venue.capacity.dinner}`   : null, sub: "guests", hide: !venue.capacity?.dinner },
     { label: "Sleeps",    value: sleepsValue,                                  sub: sleepsSub,                        hide: !sleepsValue },
@@ -1192,16 +1185,18 @@ function OwnerCard({ owner, venue }) {
           </div>
         </div>
 
-        {/* Quote */}
-        <div style={{
-          borderLeft: `2px solid ${C.goldBorder}`,
-          paddingLeft: 14, marginBottom: 16,
-        }}>
-          <p style={{
-            fontFamily: FD, fontSize: 13, fontStyle: "italic",
-            color: C.textMid, lineHeight: 1.75, margin: 0,
-          }}>"{owner.bio}"</p>
-        </div>
+        {/* Quote — only render when bio has content */}
+        {owner.bio && (
+          <div style={{
+            borderLeft: `2px solid ${C.goldBorder}`,
+            paddingLeft: 14, marginBottom: 16,
+          }}>
+            <p style={{
+              fontFamily: FD, fontSize: 13, fontStyle: "italic",
+              color: C.textMid, lineHeight: 1.75, margin: 0,
+            }}>"{owner.bio}"</p>
+          </div>
+        )}
 
         {/* Stats grid */}
         <div className="vp-stats-strip" style={{
@@ -1210,11 +1205,11 @@ function OwnerCard({ owner, venue }) {
           paddingTop: 14,
         }}>
           {[
-            { label: "Responds in",  value: venue.responseTime },
-            { label: "Response rate", value: `${venue.responseRate}%` },
-            { label: "Weddings held", value: `${venue.weddingsHosted}+` },
-            { label: "Partner since", value: `${owner.memberSince}` },
-          ].map((s, i) => (
+            { label: "Responds in",   value: venue.responseTime                                              },
+            { label: "Response rate", value: venue.responseRate ? `${venue.responseRate}%` : null            },
+            { label: "Weddings held", value: venue.weddingsHosted != null ? `${venue.weddingsHosted}+` : null },
+            { label: "Partner since", value: owner.memberSince || null                                       },
+          ].filter(s => s.value).map((s, i) => (
             <div key={s.label} style={{
               padding: "10px 0",
               borderRight: i % 2 === 0 ? `1px solid ${C.border}` : "none",
@@ -1232,6 +1227,43 @@ function OwnerCard({ owner, venue }) {
 }
 
 // ─── SIDEBAR: MINI CONTACT ───────────────────────────────────────────────────
+// ─── OPENING HOURS WIDGET ─────────────────────────────────────────────────────
+function OpeningHoursWidget({ openingHours }) {
+  const C = useT();
+  if (!openingHours?.enabled || !openingHours?.hours) return null;
+  const DAYS = [
+    { key: 'mon', label: 'Mon' }, { key: 'tue', label: 'Tue' }, { key: 'wed', label: 'Wed' },
+    { key: 'thu', label: 'Thu' }, { key: 'fri', label: 'Fri' }, { key: 'sat', label: 'Sat' },
+    { key: 'sun', label: 'Sun' },
+  ];
+  // Group consecutive days with same hours
+  const rows = DAYS.map(d => ({ ...d, ...(openingHours.hours[d.key] || { type: 'closed' }) }));
+  return (
+    <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 16px' }}>
+      <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 10 }}>Opening Hours</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {rows.map(r => (
+          <div key={r.key} style={{ display: 'flex', justifyContent: 'space-between', fontFamily: FB, fontSize: 12 }}>
+            <span style={{ color: (r.type === 'closed' && !r.from) ? C.textMuted : C.text, width: 32 }}>{r.label}</span>
+            <span style={{ color: r.type === 'closed' ? C.textMuted : (r.type === 'appointment' || r.type === 'by_appointment') ? C.gold : C.text }}>
+              {r.type === 'closed'
+                ? 'Closed'
+                : (r.type === 'appointment' || r.type === 'by_appointment')
+                  ? 'By appt.'
+                  : (r.from && r.to)
+                    ? `${r.from} – ${r.to}`
+                    : 'Open'}
+            </span>
+          </div>
+        ))}
+      </div>
+      {openingHours.note && (
+        <div style={{ marginTop: 8, fontFamily: FB, fontSize: 11, color: C.textLight, lineHeight: 1.5 }}>{openingHours.note}</div>
+      )}
+    </div>
+  );
+}
+
 function SidebarContact({ venue }) {
   const C = useT();
   return (
@@ -1274,6 +1306,8 @@ function SidebarContact({ venue }) {
           ><Icon name="globe" size={12} /> Website</a>
         </div>
       </div>
+      {/* Opening hours */}
+      <OpeningHoursWidget openingHours={venue.openingHours} />
     </div>
   );
 }
@@ -1792,7 +1826,7 @@ function LeadForm({ venue }) {
       <div style={{ marginBottom: 20 }}>
         {venue.priceFrom && (
           <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 6 }}>
-            <span style={{ fontFamily: FD, fontSize: 29, fontWeight: 700, color: C.gold }}>From {venue.priceFrom}</span>
+            <span style={{ fontFamily: FD, fontSize: 29, fontWeight: 700, color: C.gold }}>From {fmtPrice(venue.priceFrom, venue.priceCurrency)}</span>
           </div>
         )}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -5087,7 +5121,7 @@ function MobileLeadBar({ venue }) {
         animation: "slideUp 0.4s ease",
       }}>
         <div>
-          <div style={{ fontFamily: FD, fontSize: 18, color: C.gold }}>From {venue.priceFrom}</div>
+          <div style={{ fontFamily: FD, fontSize: 18, color: C.gold }}>From {fmtPrice(venue.priceFrom, venue.priceCurrency)}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
             <Stars rating={venue.rating} size={11} />
             {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 11, color: C.textLight }}>{venue.reviews} reviews</span>}
@@ -5867,6 +5901,7 @@ export default function VenueProfile({ onBack = null, slug = null }) {
   const [compareList, setCompareList] = useState([]);
   const [heroStyle, setHeroStyle] = useState("cinematic");
   const [enquiryOpen, setEnquiryOpen] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [dbVenue, setDbVenue] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -5881,11 +5916,17 @@ export default function VenueProfile({ onBack = null, slug = null }) {
   useEffect(() => {
     const observer = new IntersectionObserver(
       entries => {
-        entries.forEach(e => {
-          if (e.isIntersecting) setActiveTab(e.target.id);
-        });
+        // Only update active tab from the topmost intersecting section
+        const intersecting = entries.filter(e => e.isIntersecting);
+        if (intersecting.length > 0) {
+          // Pick the section closest to the top of the viewport
+          const topmost = intersecting.reduce((a, b) =>
+            a.boundingClientRect.top < b.boundingClientRect.top ? a : b
+          );
+          setActiveTab(topmost.target.id);
+        }
       },
-      { rootMargin: '-10% 0px -75% 0px', threshold: 0 }
+      { rootMargin: '-137px 0px -60% 0px', threshold: 0 }
     );
     TABS.forEach(t => {
       const el = document.getElementById(t.key);
@@ -5903,11 +5944,13 @@ export default function VenueProfile({ onBack = null, slug = null }) {
         const listing = await fetchListingBySlug(slug);
         if (!listing || ignore) return;
         const mapped = {
+          id:        listing.id,
           name:      listing.name || VENUE.name,
           tagline:   listing.heroTagline || listing.hero_tagline || VENUE.tagline,
           location:  [listing.city, listing.region].filter(Boolean).join(', ') || VENUE.location,
           country:   listing.country || VENUE.country,
           priceFrom: listing.price_from || VENUE.priceFrom,
+          priceCurrency: listing.price_currency || listing.priceCurrency || '£',
           capacity:  { ...VENUE.capacity, max: listing.capacity_max || VENUE.capacity?.max },
           imgs:      buildCardImgs(listing.media_items || []).map(i => i.src).filter(Boolean).slice(0, 10),
           verified:  !!listing.is_verified,
@@ -5964,15 +6007,24 @@ export default function VenueProfile({ onBack = null, slug = null }) {
           showcaseUrl:      `/showcase/${slug}`,
           fullDescription:  listing.description || null,
           readmoreEnabled:  !!listing.readmore_enabled,
+          openingHours: listing.opening_hours_enabled
+            ? {
+                enabled: true,
+                hours:   listing.opening_hours || {},
+                note:    listing.opening_hours_note || null,
+              }
+            : null,
           responseTime: listing.contact_profile?.response_time || null,
           responseRate: listing.contact_profile?.response_rate
             ? String(listing.contact_profile.response_rate).replace('%', '')
             : null,
+          weddingsHosted: listing.weddings_hosted ?? listing.weddingsHosted ?? null,
           owner: (listing.contact_profile?.name) ? {
-            name:   listing.contact_profile.name  || null,
-            title:  listing.contact_profile.title || null,
-            bio:    listing.contact_profile.about || null,
-            photo:  listing.contact_profile.photo || null,
+            name:        listing.contact_profile.name  || null,
+            title:       listing.contact_profile.title || null,
+            bio:         listing.contact_profile.bio || listing.contact_profile.about || null,
+            photo:       listing.contact_profile.photo_url || listing.contact_profile.photo || null,
+            memberSince: listing.member_since || listing.memberSince || null,
           } : null,
           contact: {
             address: {
@@ -6068,11 +6120,14 @@ export default function VenueProfile({ onBack = null, slug = null }) {
   const scrollToSection = (key) => {
     setActiveTab(key);
     const el = document.getElementById(key);
-    if (el) {
-      const offset = 110; // nav height + tab bar height
-      const top = el.getBoundingClientRect().top + window.scrollY - offset;
-      window.scrollTo({ top, behavior: 'smooth' });
-    }
+    if (!el) return;
+    // Measure the tab nav bar height directly (it carries the combined sticky offset)
+    // The tab nav sits at top:56, so its bottom = 56 + its own height
+    const tabNavEl = document.querySelector('[data-tab-nav]');
+    const tabNavBottom = tabNavEl ? tabNavEl.getBoundingClientRect().bottom : 116;
+    const offset = Math.max(tabNavBottom, 137) + 16;
+    const top = el.getBoundingClientRect().top + window.scrollY - offset;
+    window.scrollTo({ top, behavior: 'smooth' });
   };
 
   const addCompare = () => {
@@ -6127,12 +6182,13 @@ export default function VenueProfile({ onBack = null, slug = null }) {
               <ContactSection venue={VV} />
               {VV.access && Array.isArray(VV.access.airports) && VV.access.airports.length > 0 && <GettingHere access={VV.access} />}
               {VV.testimonials && Array.isArray(VV.testimonials) && VV.testimonials.length > 0 && <Reviews testimonials={VV.testimonials} venue={VV} />}
+              {dbVenue && dbVenue.id && <ReviewsSection entityType="venue" entityId={dbVenue.id} onOpenReviewForm={() => setShowReviewForm(true)} />}
               <FAQSection venue={VV} onAsk={() => setEnquiryOpen(true)} />
               <SimilarVenues venue={VV} />
               <RecentlyViewed venue={VV} />
             </div>
             {/* Sidebar, 4 zones, sticky on desktop */}
-            <div className="lwd-sidebar" style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 56, alignSelf: "start" }}>
+            <div className="lwd-sidebar" style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 137, alignSelf: "start" }}>
               {/* Zone 1, Owner card (only if owner data available) */}
               {VV.owner && VV.owner.name && <OwnerCard owner={VV.owner} venue={VV} />}
               {/* Zone 2, Lead form (scrolls naturally) */}
@@ -6152,6 +6208,45 @@ export default function VenueProfile({ onBack = null, slug = null }) {
         <CompareBar items={compareList} onRemove={id => setCompareList(l => l.filter(v => v.id !== id))} onClear={() => setCompareList([])} />
         <Lightbox gallery={VV.gallery} idx={lightIdx} setLightIdx={setLightIdx} onClose={() => setLightIdx(null)} onPrev={() => setLightIdx(i => (i - 1 + (VV.gallery?.length || 1)) % (VV.gallery?.length || 1))} onNext={() => setLightIdx(i => (i + 1) % (VV.gallery?.length || 1))} engagement={VV.engagement?.photos} />
         {enquiryOpen && <EnquiryModal venue={VV} onClose={() => setEnquiryOpen(false)} />}
+        {showReviewForm && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              padding: 20,
+            }}
+            onClick={() => setShowReviewForm(false)}
+          >
+            <div
+              style={{
+                background: C.bg,
+                borderRadius: 8,
+                padding: 40,
+                maxWidth: 600,
+                maxHeight: '90vh',
+                overflow: 'auto',
+                position: 'relative',
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              {dbVenue && dbVenue.id && (
+                <ReviewSubmitForm
+                  entityType="venue"
+                  entityId={dbVenue.id}
+                  onSubmitSuccess={() => {
+                    setShowReviewForm(false);
+                  }}
+                  onCancel={() => setShowReviewForm(false)}
+                />
+              )}
+            </div>
+          </div>
+        )}
         <VenueCookieBanner />
       </div>
     </Theme.Provider>
