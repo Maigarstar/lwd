@@ -126,6 +126,44 @@ function SectionHeader({ eyebrow, title, subtitle, light = false, center = false
   );
 }
 
+// ─── ApprovedBadge ────────────────────────────────────────────────────────────
+function ApprovedBadge({ onDarkBg = false }) {
+  const bgColor = onDarkBg ? 'rgba(201, 168, 76, 0.15)' : 'rgba(201, 168, 76, 0.08)';
+  const borderColor = onDarkBg ? 'rgba(201, 168, 76, 0.4)' : 'rgba(201, 168, 76, 0.2)';
+  const textColor = onDarkBg ? '#f5f2ec' : GOLD;
+
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '6px 12px',
+        background: bgColor,
+        border: `1px solid ${borderColor}`,
+        borderRadius: 4,
+        fontSize: 12,
+        fontFamily: NU,
+        color: textColor,
+        fontWeight: 500,
+        letterSpacing: '0.05em',
+        textTransform: 'uppercase',
+      }}
+    >
+      <span>✓</span>
+      <span>Approved</span>
+    </div>
+  );
+}
+
+// ─── Utility: Format date to "Month Year" ────────────────────────────────────
+function formatMonthYear(dateString) {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const options = { year: 'numeric', month: 'long' };
+  return date.toLocaleDateString('en-US', options);
+}
+
 // ─── StickyVenueNav ───────────────────────────────────────────────────────────
 function StickyVenueNav({ venue, activeSection, onScrollTo }) {
   const { isMobile } = useBreakpoint();
@@ -273,6 +311,23 @@ function HeroSection({ venue }) {
           {venue.tagline}
         </p>
 
+        {/* ── Approval & Last Updated Display ────────────────────────────── */}
+        {venue.approved && (
+          <div style={{ marginBottom: 32, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <ApprovedBadge onDarkBg={true} />
+            {venue.lastUpdatedAt && (
+              <p style={{
+                fontFamily: NU, fontSize: 12,
+                color: 'rgba(255,255,255,0.5)',
+                margin: 0,
+                letterSpacing: '0.02em',
+              }}>
+                Last updated: {formatMonthYear(venue.lastUpdatedAt)}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Quick stats row */}
         <div style={{
           display: 'flex', flexWrap: 'wrap', gap: isMobile ? 16 : 32,
@@ -377,7 +432,7 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
         <SectionHeader
           eyebrow={`${venue.location.town} · ${venue.location.country}`}
           title={venue.overview.headline}
-          subtitle={venue.overview.intro}
+          subtitle={venue.sectionIntros?.overview || venue.overview.intro}
         />
         <VenueStatsCard data={{
           variant: 'strip',
@@ -405,7 +460,7 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
         <SectionHeader
           eyebrow="Event Spaces"
           title="Five Spaces. One Seamless Vision."
-          subtitle="From intimate ceremonies for twenty to grand receptions for four hundred and fifty, every space at Grand Tirolia has been designed with weddings in mind."
+          subtitle={venue.sectionIntros?.spaces || "From intimate ceremonies for twenty to grand receptions for four hundred and fifty, every space at Grand Tirolia has been designed with weddings in mind."}
         />
 
         {/* Grand Atrium */}
@@ -468,7 +523,7 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
         <SectionHeader
           eyebrow="Culinary"
           title="Five Dining Concepts. One Alpine Philosophy."
-          subtitle="From Restaurant Tirolia to The Golden jazz bar, every dining space at Grand Tirolia has been conceived to complement the occasion, including yours."
+          subtitle={venue.sectionIntros?.dining || "From Restaurant Tirolia to The Golden jazz bar, every dining space at Grand Tirolia has been conceived to complement the occasion, including yours."}
         />
 
         <TwoColumnEditorialCard data={{
@@ -540,7 +595,7 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
         <SectionHeader
           eyebrow="Accommodation"
           title="98 Rooms with Views You Will Not Forget"
-          subtitle="Every room at Grand Tirolia opens to the mountains. Wood-clad walls, Alpine textiles, and private balconies overlooking Kitzbühel, for you and every one of your guests."
+          subtitle={venue.sectionIntros?.rooms || "Every room at Grand Tirolia opens to the mountains. Wood-clad walls, Alpine textiles, and private balconies overlooking Kitzbühel, for you and every one of your guests."}
         />
 
         <TwoColumnEditorialCard data={{
@@ -594,7 +649,7 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
         <SectionHeader
           eyebrow="Golf Eichenheim"
           title="Eighteen Holes Against the Wilder Kaiser"
-          subtitle="The championship course at Eichenheim is consistently rated among Austria's finest. When your guests are not celebrating, they are playing."
+          subtitle={venue.sectionIntros?.golf || "The championship course at Eichenheim is consistently rated among Austria's finest. When your guests are not celebrating, they are playing."}
         />
 
         <TwoColumnEditorialCard data={{
@@ -640,7 +695,7 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
         <SectionHeader
           eyebrow="Weddings at Grand Tirolia"
           title="There Is No Wedding Here That Looks Like Any Other."
-          subtitle="Every wedding at Grand Tirolia begins with a conversation. Your story, your guests, your vision, translated into an experience that is entirely your own."
+          subtitle={venue.sectionIntros?.weddings || "Every wedding at Grand Tirolia begins with a conversation. Your story, your guests, your vision, translated into an experience that is entirely your own."}
           light
         />
 
@@ -877,6 +932,24 @@ export const GT_VENUE = {
     { icon: 'yoga',       label: 'Wellness Classes',   sublabel: 'daily schedule' },
     { icon: 'lake',       label: 'Black See Lake',     sublabel: '15 min transfer' },
   ],
+
+  // Dynamic section intro text (fallback to hardcoded defaults if missing)
+  sectionIntros: {
+    overview: 'Perched above Kitzbühel at an elevation of 800 metres, Grand Tirolia has been the benchmark for Alpine luxury since 1895. With five dedicated wedding spaces, a two-Michelin-starred kitchen, and an 18-hole championship golf course, it offers something no other estate in Europe can replicate, a complete world unto itself.',
+    spaces: 'From the Grand Atrium with its 18-metre LED wall to intimate ceremony lawns overlooking the Kitzbüheler Horn, each of Grand Tirolia\'s five event spaces is purpose-built for moments that demand perfection.',
+    dining: "Grand Tirolia's culinary team brings together five distinct dining concepts, from the precision of Restaurant Tirolia to the informal warmth of Gasthaus Eichenheim and the late-night energy of The Golden. Every wedding menu is designed exclusively for your day.",
+    rooms: 'From the 52 m² Deluxe Alpine Room to the 320 m² Grand Tirolia Suite with its private sauna and fireplace, every one of our 98 rooms has been designed to put the landscape first. Wood-panelled walls, hand-woven Alpine textiles, and private balconies overlooking the Kitzbüheler Horn mean your guests wake up already in the Alps.',
+    golf: 'Golf Eichenheim was first laid out in the shadow of the Wilder Kaiser in 1965 and has been refined every decade since. Eighteen holes. Uninterrupted mountain panoramas. An optional addition to any wedding weekend package, for guests who prefer their morning with a five-iron.',
+    weddings: 'Five event spaces. Two Michelin stars. An 18-hole championship golf course. 450-guest capacity. Grand Tirolia is not a venue that needs to compromise on any front, because it doesn\'t have to. Your wedding, at elevation, surrounded by mountains that have watched Alpine celebrations for centuries.',
+  },
+
+  // Approval & content freshness (internal metadata)
+  factChecked: false,
+  approved: false,
+  lastReviewedAt: null,
+  lastUpdatedAt: null,
+  refreshStatus: 'current',
+  refreshNotes: '',
 
   // Enquire
   enquire: {
