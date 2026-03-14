@@ -76,175 +76,76 @@ const COUNTRY_FLAG = {
 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 const VENUE = {
+  // ── MINIMAL FALLBACK: ID ONLY ──
+  // All other fields MUST come from database. Do not add venue-specific defaults.
   id: 1,
-  name: "Villa Rosanova",
-  tagline: "An eighteenth-century Tuscan estate for weddings of extraordinary distinction",
-  location: "San Casciano in Val di Pesa, Tuscany",
-  country: "Italy", flag: "🇮🇹",
-  rating: 4.9, reviews: 127,
-  responseTime: "2 hrs", responseRate: 98,
-  established: 1847, weddingsHosted: 312,
-  priceFrom: "£12,500",
-  capacity: { min: 20, max: 180, ceremony: 200, dinner: 160 },
-  verified: true, featured: true,
+  name: null,
+  tagline: null,
+  location: null,
+  country: null,
+  flag: null,
+  rating: null,
+  reviews: null,
+  responseTime: null,
+  responseRate: null,
+  established: null,
+  weddingsHosted: null,
+  priceFrom: null,
+  capacity: null,
+  verified: null,
+  featured: null,
   accommodation: {
-    type: 'Historic Tuscan Villa',
-    totalRooms: 18,
-    totalSuites: 6,
-    maxOvernightGuests: 40,
-    exclusiveUse: true,
-    minNightStay: 2,
-    description: '<p>Villa Rosanova offers 18 beautifully appointed bedrooms and suites across the main villa and three historic cottages. Couples and their guests can enjoy a full wedding weekend experience in exclusive surroundings, with the entire property available for private hire.</p><p>Each room is individually decorated with antique furnishings, Frette linens, and original artworks sourced from local artists.</p>',
-    images: [
-      'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&q=80',
-      'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&q=80',
-      'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&q=80',
-      'https://images.unsplash.com/photo-1564078516393-cf04bd966897?w=800&q=80',
-    ],
+    type: null,
+    totalRooms: null,
+    totalSuites: null,
+    maxOvernightGuests: null,
+    exclusiveUse: null,
+    minNightStay: null,
+    description: null,
+    images: [],
   },
   dining: {
-    style: 'Michelin-inspired Tuscan farm-to-table cuisine',
-    chefName: 'Marco Ricci',
-    inHouseCatering: true,
-    externalCateringAllowed: true,
-    menuStyles: ['Plated Dinner', 'Tasting Menu', 'Family Style', 'Buffet'],
-    dietaryOptions: ['Vegetarian', 'Vegan', 'Gluten Free', 'Halal', 'Kosher'],
-    drinksOptions: ['Wine Pairing', 'Open Bar', 'Signature Cocktails', 'Non-Alcoholic'],
-    description: '<p>Seasonal Italian cuisine, prepared using produce grown in Villa Rosanova\'s kitchen garden and sourced from neighbouring farms, forms the heart of every celebration. Head Chef Marco Ricci crafts bespoke menus that reflect the rhythms of the Tuscan seasons — from truffle risotto in autumn to grilled sea bass with summer herbs.</p><p>Couples choose from elegant plated dinners, relaxed family-style dining, or curated tasting menus paired with regional wines selected by our in-house sommelier.</p>',
-    menuImages: [
-      { src: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80', title: 'Antipasto Board — Local cheeses, truffle honey, cured meats' },
-      { src: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=80', title: 'Primo — Handmade pappardelle with wild boar ragù' },
-      { src: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80', title: 'Secondo — Wood-roasted lamb with rosemary and juniper' },
-      { src: 'https://images.unsplash.com/photo-1551024601-bec78aea704b?w=800&q=80', title: 'Dolce — Lemon tart with Amalfi cream and basil sorbet' },
-    ],
+    style: null,
+    chefName: null,
+    inHouseCatering: null,
+    externalCateringAllowed: null,
+    menuStyles: [],
+    dietaryOptions: [],
+    drinksOptions: [],
+    description: null,
+    menuImages: [],
   },
   venueType: {
-    primaryType: 'Historic Villa',
-    styles: ['Tuscan', 'Countryside', 'Vineyard', 'Exclusive Use', 'Garden Ceremony'],
-    architecture: 'Renaissance',
-    built: '1742',
-    description: 'Villa Rosanova is a meticulously restored 18th-century Tuscan villa set within 12 hectares of manicured gardens, vineyards, and olive groves in the heart of Chianti.',
-    features: ['Outdoor Ceremony', 'Indoor Ceremony', 'Vineyard', 'Chapel', 'Gardens', 'Swimming Pool', 'Helicopter Pad'],
+    primaryType: null,
+    styles: [],
+    architecture: null,
+    built: null,
+    description: null,
+    features: [],
   },
-  categories: ["Luxury Villa", "Exclusive Use", "Destination Wedding"],
-  awards: ["LWD Best Villa 2025", "Couples' Choice 2024", "Editor's Pick 2025"],
-  press: ["Vogue", "HELLO!", "Tatler", "Harper's Bazaar"],
-  imgs: [
-    "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=1920&q=80",
-    "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?w=1920&q=80",
-    "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=1920&q=80",
-    "https://images.unsplash.com/photo-1464808322410-1a934aab61e5?w=1920&q=80",
-    "https://images.unsplash.com/photo-1533104816931-20fa691ff6ca?w=1920&q=80",
-  ],
-  gallery: [
-    { id: 1,  src: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=800&q=80", alt: "Grand ballroom ceremony setup with chandeliers and floral arch", tags: ["ceremony", "ballroom", "indoor", "chandelier", "floral"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
-    { id: 2,  src: "https://images.unsplash.com/photo-1537633552985-df8429e8048b?w=800&q=80", alt: "Bride and groom first dance under string lights", tags: ["first-dance", "reception", "evening", "string-lights", "couple"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
-    { id: 3,  src: "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&q=80", alt: "Outdoor garden ceremony with cypress tree backdrop", tags: ["ceremony", "garden", "outdoor", "cypress", "tuscan"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
-    { id: 4,  src: "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?w=800&q=80", alt: "Villa grounds at golden hour with rolling hills", tags: ["venue", "exterior", "golden-hour", "landscape", "tuscan-hills"], photographer: { name: "Lucia Conti", area: "Siena & Chianti", website: "luciaconti.com", instagram: "@luciaconti_weddings", camera: "Sony A7IV" } },
-    { id: 5,  src: "https://images.unsplash.com/photo-1514222134-b57cbb8ce073?w=800&q=80", alt: "Elegant table setting with gold details and candles", tags: ["table-setting", "reception", "details", "gold", "candlelight"], photographer: { name: "Lucia Conti", area: "Siena & Chianti", website: "luciaconti.com", instagram: "@luciaconti_weddings", camera: "Sony A7IV" } },
-    { id: 6,  src: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80", alt: "Aerial view of villa estate and surrounding vineyards", tags: ["aerial", "drone", "estate", "vineyards", "landscape"], photographer: { name: "Drone Italia", area: "All Italy", website: "droneitalia.it", instagram: "@droneitalia", camera: "DJI Mavic 3" } },
-    { id: 7,  src: "https://images.unsplash.com/photo-1583418855232-f0d0b13b77c9?w=800&q=80", alt: "Bridal bouquet with white roses and olive branch details", tags: ["bouquet", "flowers", "details", "bridal", "roses"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
-    { id: 8,  src: "https://images.unsplash.com/photo-1533104816931-20fa691ff6ca?w=800&q=80", alt: "Loggia terrace dinner setup overlooking the valley", tags: ["loggia", "dinner", "terrace", "sunset", "al-fresco"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
-    { id: 9,  src: "https://images.unsplash.com/photo-1464808322410-1a934aab61e5?w=800&q=80", alt: "Candlelit salon with frescoed ceiling and parquet floor", tags: ["salon", "indoor", "evening", "frescoes", "candlelight"], photographer: { name: "Lucia Conti", area: "Siena & Chianti", website: "luciaconti.com", instagram: "@luciaconti_weddings", camera: "Sony A7IV" } },
-    { id: 10, src: "https://images.unsplash.com/photo-1539635278303-d4002c07eae3?w=800&q=80", alt: "Wedding party celebration on the grand terrace", tags: ["party", "celebration", "terrace", "group", "evening"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
-    { id: 11, src: "https://images.unsplash.com/photo-1561998338-13ad7883b20f?w=800&q=80", alt: "Wine cellar intimate dinner for the wedding party", tags: ["cellar", "dinner", "intimate", "wine", "underground"], photographer: { name: "Lucia Conti", area: "Siena & Chianti", website: "luciaconti.com", instagram: "@luciaconti_weddings", camera: "Sony A7IV" } },
-    { id: 12, src: "https://images.unsplash.com/photo-1551418320-5fe5f36d2d05?w=800&q=80", alt: "Confetti throw outside the chapel entrance", tags: ["confetti", "chapel", "celebration", "outdoor", "couple"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
-    { id: 13, src: "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&q=80", alt: "Swimming pool area with sun terrace and lounge seating", tags: ["pool", "terrace", "exterior", "relaxation", "luxury"], photographer: { name: "Drone Italia", area: "All Italy", website: "droneitalia.it", instagram: "@droneitalia", camera: "DJI Mavic 3" } },
-    { id: 14, src: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&q=80", alt: "Villa facade at twilight with warm interior glow", tags: ["villa", "exterior", "twilight", "architecture", "facade"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
-    { id: 15, src: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=800&q=80", alt: "Wine cellar archway with barrel room in background", tags: ["cellar", "architecture", "wine", "interior", "historic"], photographer: { name: "Lucia Conti", area: "Siena & Chianti", website: "luciaconti.com", instagram: "@luciaconti_weddings", camera: "Sony A7IV" } },
-    { id: 16, src: "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&q=80", alt: "Bridal couple walking through olive grove at sunset", tags: ["couple", "olive-grove", "sunset", "portrait", "romantic"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
-  ],
-  videos: [
-    { id: 1, title: "Sofia & James — Tuscan Wedding Film", duration: "4:32", thumb: "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&q=80", type: "wedding", youtubeId: "LXb3EKWsInQ", desc: "A cinematic wedding film capturing Sofia and James's three-day celebration at Villa Rosanova, from the rehearsal dinner in the wine cellar to the sunset ceremony in the Cypress Garden.", tags: ["wedding-film", "ceremony", "reception", "tuscan", "cinematic"], videographer: { name: "Luca Visconti Films", area: "Florence & Tuscany", website: "lucavisconti.it", instagram: "@lucaviscontifilms", camera: "RED Komodo 6K" } },
-    { id: 2, title: "Villa Rosanova — Estate Tour", duration: "2:15", thumb: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&q=80", type: "tour", youtubeId: "LXb3EKWsInQ", desc: "A guided aerial and ground-level tour of the estate — the Grand Salon, Cypress Garden, vineyard terraces, wine cellar and all 30 rooms and suites.", tags: ["estate-tour", "aerial", "drone", "property", "venue"], videographer: { name: "Drone Italia", area: "All Italy", website: "droneitalia.it", instagram: "@droneitalia", camera: "DJI Inspire 3" } },
-    { id: 3, title: "Isabella & Marco — Highlights", duration: "3:48", thumb: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=800&q=80", type: "wedding", youtubeId: "LXb3EKWsInQ", desc: "A highlight reel of Isabella and Marco's intimate summer wedding — 60 guests, an outdoor ceremony under the loggia, and a magical first dance beneath the chandeliers.", tags: ["wedding-film", "highlights", "intimate", "summer", "first-dance"], videographer: { name: "Luca Visconti Films", area: "Florence & Tuscany", website: "lucavisconti.it", instagram: "@lucaviscontifilms", camera: "Sony FX6" } },
-  ],
-  // ── Engagement data for rating/review system ──
+  categories: [],
+  awards: [],
+  press: [],
+  imgs: [],
+  gallery: [],
+  videos: [],
+  // ── Engagement data is removed from fallback. Load from database only. ──
   engagement: {
-    photos: {
-      1:  { likes: 24, avgRating: 4.8, ratingCount: 12, comments: [{ name: "Sarah M.", text: "Absolutely stunning ceremony setup. The chandeliers were magical!", rating: 5, date: "2025-11-14" }, { name: "James L.", text: "Beautiful capture of the ballroom atmosphere.", rating: 5, date: "2025-10-28" }] },
-      2:  { likes: 31, avgRating: 4.9, ratingCount: 18, comments: [{ name: "Emma T.", text: "This first dance photo is everything! The string lights are dreamy.", rating: 5, date: "2025-12-02" }] },
-      3:  { likes: 19, avgRating: 4.7, ratingCount: 9, comments: [{ name: "Rachel K.", text: "The cypress backdrop is incredible for photos.", rating: 5, date: "2025-09-18" }] },
-      4:  { likes: 28, avgRating: 4.6, ratingCount: 14, comments: [{ name: "Michael R.", text: "Golden hour at its finest. Lucia really knows how to capture light.", rating: 4, date: "2025-10-05" }] },
-      5:  { likes: 15, avgRating: 4.5, ratingCount: 7, comments: [] },
-      6:  { likes: 22, avgRating: 4.8, ratingCount: 11, comments: [{ name: "Tom & Alice", text: "The aerial perspective really shows the full beauty of the estate.", rating: 5, date: "2025-11-22" }] },
-      7:  { likes: 17, avgRating: 4.4, ratingCount: 8, comments: [] },
-      8:  { likes: 26, avgRating: 4.9, ratingCount: 15, comments: [{ name: "Clara V.", text: "The terrace dinner setup overlooking the valley — pure magic.", rating: 5, date: "2025-12-10" }] },
-      9:  { likes: 13, avgRating: 4.3, ratingCount: 6, comments: [] },
-      10: { likes: 20, avgRating: 4.5, ratingCount: 10, comments: [] },
-      11: { likes: 11, avgRating: 4.6, ratingCount: 5, comments: [] },
-      12: { likes: 35, avgRating: 4.9, ratingCount: 21, comments: [{ name: "Sophie B.", text: "The confetti moment is everything! So much joy captured perfectly.", rating: 5, date: "2025-11-30" }, { name: "David H.", text: "Marco's timing is impeccable. What a shot!", rating: 5, date: "2025-12-05" }] },
-      13: { likes: 14, avgRating: 4.4, ratingCount: 7, comments: [] },
-      14: { likes: 29, avgRating: 4.8, ratingCount: 16, comments: [{ name: "Olivia N.", text: "The twilight facade shot sold us on this venue instantly.", rating: 5, date: "2025-10-15" }] },
-      15: { likes: 10, avgRating: 4.3, ratingCount: 4, comments: [] },
-      16: { likes: 38, avgRating: 5.0, ratingCount: 24, comments: [{ name: "Lily & George", text: "Walking through the olive grove at sunset — our favourite photo of the entire wedding.", rating: 5, date: "2025-12-15" }, { name: "Kate W.", text: "Marco is a genius. This is the most romantic photo I've ever seen.", rating: 5, date: "2025-12-18" }] },
-    },
-    videos: {
-      1: { likes: 42, avgRating: 4.9, ratingCount: 23, comments: [{ name: "Sofia & James", text: "Luca captured our day perfectly. We cry every time we watch it!", rating: 5, date: "2025-11-20" }, { name: "Marie P.", text: "Absolutely cinematic. The drone shots over the vineyard are breathtaking.", rating: 5, date: "2025-12-01" }] },
-      2: { likes: 18, avgRating: 4.6, ratingCount: 10, comments: [{ name: "Emily R.", text: "This tour really helped us decide on Villa Rosanova for our wedding.", rating: 5, date: "2025-10-12" }] },
-      3: { likes: 36, avgRating: 4.8, ratingCount: 19, comments: [{ name: "Isabella & Marco", text: "The highlight reel is pure perfection. Thank you Luca!", rating: 5, date: "2025-12-08" }, { name: "Anna G.", text: "The first dance sequence gave me goosebumps. Stunning cinematography.", rating: 5, date: "2025-12-12" }] },
-    },
+    photos: {},
+    videos: {},
   },
-  notices: [
-    {
-      id: 4,
-      type: "news",
-      badge: "Estate News",
-      title: "New Executive Chef — Lorenzo Conti",
-      detail: "We are delighted to welcome Lorenzo Conti as our new Executive Chef. Lorenzo joins from a Michelin-starred kitchen in Florence, bringing a philosophy rooted in Tuscan terroir, seasonal produce and elegant simplicity.",
-      img: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&q=80",
-      imgCaption: "Lorenzo Conti · Executive Chef, Villa Rosanova",
-      cta: "View sample menus",
-    },
-    {
-      id: 1,
-      type: "open-day",
-      badge: "Open Day",
-      title: "Spring Open Day",
-      detail: "Saturday 22 March 2025 · 11am–4pm · Guided tours of all spaces, seasonal tastings and a chance to meet our full team.",
-      img: "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?w=600&q=80",
-      imgCaption: "The Cypress Garden · Villa Rosanova",
-      cta: "Reserve your place",
-    },
-    {
-      id: 2,
-      type: "offer",
-      badge: "Special Offer",
-      title: "Early 2026 Booking Offer",
-      detail: "10% off venue hire for June–September 2026 bookings confirmed before 31 March 2025. Includes complimentary cellar tour and welcome dinner for the wedding party.",
-      img: "https://images.unsplash.com/photo-1464808322410-1a934aab61e5?w=600&q=80",
-      imgCaption: "The Grand Salon · candlelit dinner setting",
-      cta: "Enquire now",
-      expires: "31 Mar 2025",
-    },
-    {
-      id: 3,
-      type: "availability",
-      badge: "Late Availability",
-      title: "Saturday 14 June 2025",
-      detail: "A rare cancellation has opened this peak-season date. The full estate is available for exclusive use. Contact us to secure it before it is offered publicly.",
-      img: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=600&q=80",
-      imgCaption: "Villa Rosanova · available 14 June 2025",
-      cta: "Enquire About This Date",
-    },
-  ],
+  // ── Notices: Load from database only. Do not provide hardcoded fallbacks. ──
+  notices: [],
   exclusiveUse: {
-    enabled: true,
-    title: "Exclusive Use",
-    subtitle: "Hire the entire estate — just your guests, your celebration, your way",
-    from: "£28,000",
-    subline: "Minimum 2 nights · Sleeps 40 guests",
-    description: "When you book exclusive use of Villa Rosanova, the estate is entirely yours. No other guests. No other events. Just your family and friends in one of Italy's most extraordinary properties.",
-    ctaText: "Enquire About Exclusive Use",
-    includes: [
-      "All 24 rooms & 6 suites",
-      "Private grounds & gardens",
-      "Full catering team",
-      "Event & hospitality staff",
-      "Bar facilities & cellar",
-      "Bridal suite & prep rooms",
-    ],
-    minNights: 2,
+    enabled: false,
+    title: null,
+    subtitle: null,
+    from: null,
+    subline: null,
+    description: null,
+    ctaText: null,
+    includes: [],
+    minNights: null,
   },
   catering: {
     enabled: true,
@@ -277,48 +178,8 @@ const VENUE = {
     styles: ["Fine dining", "Banquet", "Family style", "Food stations", "Late-night snacks"],
     dietary: ["Vegan", "Vegetarian", "Halal", "Kosher", "Gluten-free"],
   },
-  spaces: [
-    {
-      id: 's1', name: 'The Grand Salon', type: 'Ballroom', sortOrder: 1,
-      description: 'Frescoed 18th-century ballroom with original parquet floors and three Venetian chandeliers. The crown jewel of Villa Rosanova, bathed in golden candlelight.',
-      capacityCeremony: 160, capacityReception: 200, capacityDining: 160, capacityStanding: 220,
-      indoor: true, covered: true, accessible: true,
-      img: 'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=800&q=80',
-      floorPlanUrl: null,
-    },
-    {
-      id: 's2', name: 'The Cypress Garden', type: 'Garden', sortOrder: 2,
-      description: 'Formal Italian garden framed by century-old cypress trees. The natural amphitheatre and south-facing orientation make it the ideal setting for outdoor ceremonies at sunset.',
-      capacityCeremony: 200, capacityReception: 180, capacityDining: null, capacityStanding: 250,
-      indoor: false, covered: false, accessible: true,
-      img: 'https://images.unsplash.com/photo-1523438885200-e635ba2c371e?w=800&q=80',
-      floorPlanUrl: null,
-    },
-    {
-      id: 's3', name: 'The Loggia', type: 'Terrace', sortOrder: 3,
-      description: 'A covered stone terrace overlooking the vineyard — perfect for cocktail receptions and aperitivo as the vines glow gold at dusk. Heated in cooler months.',
-      capacityCeremony: null, capacityReception: 80, capacityDining: 50, capacityStanding: 100,
-      indoor: false, covered: true, accessible: true,
-      img: 'https://images.unsplash.com/photo-1464808322410-1a934aab61e5?w=800&q=80',
-      floorPlanUrl: null,
-    },
-    {
-      id: 's4', name: 'The Wine Cellar', type: 'Private Dining Room', sortOrder: 4,
-      description: 'Intimate vaulted 14th-century cellar for private dinners, barrel tastings and late-night celebrations. Surrounded by the estate\'s finest bottles.',
-      capacityCeremony: null, capacityReception: null, capacityDining: 30, capacityStanding: 40,
-      indoor: true, covered: true, accessible: false,
-      img: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=800&q=80',
-      floorPlanUrl: null,
-    },
-    {
-      id: 's5', name: 'The Poolside Terrace', type: 'Poolside Area', sortOrder: 5,
-      description: 'A sleek infinity terrace beside the heated pool, overlooking the valley. The setting for legendary Sunday brunches and evening cocktail parties under the stars.',
-      capacityCeremony: null, capacityReception: 60, capacityDining: null, capacityStanding: 80,
-      indoor: false, covered: false, accessible: true,
-      img: 'https://images.unsplash.com/photo-1540541338537-9c86a1dd9f23?w=800&q=80',
-      floorPlanUrl: null,
-    },
-  ],
+  // ── Spaces: Load from database only. Hardcoded spaces (Grand Salon, Cypress Garden, etc.) removed. ──
+  spaces: [],
   experiences: [
     { id: "e1", label: "Private wine cellar tasting",       category: "estate", kind: "wine",    isIncluded: true, season: "all-year" },
     { id: "e2", label: "Full spa and wellness suite",        category: "estate", kind: "spa",     isIncluded: true, season: "all-year" },
@@ -344,11 +205,8 @@ const VENUE = {
     ],
     get primaryAirport() { return this.airports.reduce((a, b) => a.driveTimeMinutes < b.driveTimeMinutes ? a : b); },
   },
-  testimonials: [
-    { id: 1, names: "Charlotte & Oliver", date: "September 2024", location: "London, UK", rating: 5, text: "Villa Rosanova was everything we dreamed of and more. Our 140 guests flew in from 14 countries — every single one said it was the most beautiful wedding they had ever attended.", avatar: "CO" },
-    { id: 2, names: "Sophia & Marco", date: "June 2024", location: "New York, USA", rating: 5, text: "We hosted a 4-day wedding weekend for 90 guests. The staff anticipated every need. The food was extraordinary — our guests still talk about the truffle risotto and the private cellar dinner on night three.", avatar: "SM" },
-    { id: 3, names: "Amelia & James", date: "May 2024", location: "Dubai, UAE", rating: 5, text: "From the helicopter arrival to the farewell prosecco on the terrace — every moment was flawlessly orchestrated. The Cypress Garden ceremony at sunset is something we will never forget.", avatar: "AJ" },
-  ],
+  // ── Testimonials: Load from database only. Do not provide hardcoded fallbacks. ──
+  testimonials: [],
   similar: [
     { id: 2, name: "Castello di Velona", location: "Montalcino, Tuscany", price: "£14,500", rating: 4.8, img: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&q=80" },
     { id: 3, name: "Villa del Balbianello", location: "Lake Como, Lombardy", price: "£18,000", rating: 4.9, img: "https://images.unsplash.com/photo-1539635278303-d4002c07eae3?w=400&q=80" },
@@ -356,88 +214,54 @@ const VENUE = {
   ],
   contact: {
     address: {
-      line1: "Via Scopeti 19",
-      city: "San Casciano in Val di Pesa",
-      region: "Tuscany",
-      postcode: "50026",
-      country: "Italy",
-      latitude: 43.6567,
-      longitude: 11.1847,
+      line1: null,
+      city: null,
+      region: null,
+      postcode: null,
+      country: null,
+      latitude: null,
+      longitude: null,
     },
-    phone: "+39 055 820 0700",
-    email: "events@villarosanova.it",
-    website: "www.villarosanova.it",
+    phone: null,
+    email: null,
+    website: null,
     responseMetrics: {
-      averageResponseHours: 2,
-      responseRatePercent: 98,
-      sameDayTypical: true,
+      averageResponseHours: null,
+      responseRatePercent: null,
+      sameDayTypical: null,
     },
   },
-  // null type = no video hero (falls back to image slider)
   video: {
-    type: "youtube",  // "youtube" | "vimeo" | null
-    heroId: "LXb3EKWsInQ",
-    filmId: "LXb3EKWsInQ",
+    type: null,
+    heroId: null,
+    filmId: null,
   },
+  // ── Owner: Load from database only. Do not provide hardcoded fallbacks (Isabella Rosanova removed). ──
   owner: {
-    name: "Isabella Rosanova",
-    title: "Estate Director",
-    photo: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=160&q=80",
-    bio: "We have hosted over 300 weddings at Villa Rosanova across four decades. I personally oversee every celebration to ensure it exceeds every expectation.",
-    memberSince: 2019,
+    name: null,
+    title: null,
+    photo: null,
+    bio: null,
+    memberSince: null,
   },
+  // ── Wedding Weekend: Load from database only. Hardcoded Villa descriptions removed. ──
   weddingWeekend: {
-    enabled: true,
-    subtitle: "Villa Rosanova is designed for multi-day celebrations — a full wedding weekend experience",
-    days: [
-      { id: 'd1', day: "Thursday",  title: "Arrival Day",       desc: "Guests settle in. Welcome drinks on the loggia. Private vineyard tour at golden hour.", sortOrder: 0 },
-      { id: 'd2', day: "Friday",    title: "Welcome Evening",   desc: "Rehearsal dinner in the wine cellar. Intimate, candlelit, unforgettable.", sortOrder: 1 },
-      { id: 'd3', day: "Saturday",  title: "The Wedding",       desc: "Ceremony in the Cypress Garden. Reception in the Grand Salon. Celebrate until dawn.", sortOrder: 2 },
-      { id: 'd4', day: "Sunday",    title: "Farewell Brunch",   desc: "Late breakfast on the terrace. Final toasts. Memories that last a lifetime.", sortOrder: 3 },
-    ],
+    enabled: false,
+    subtitle: null,
+    days: [],
   },
-  estateEnabled: true,
-  nearbyEnabled: true,
+  estateEnabled: false,
+  nearbyEnabled: false,
+  // ── FAQ: Load from database only. All hardcoded Villa Rosanova FAQs removed. ──
   faq: {
-    enabled: true,
-    title: "Your Guide to Villa Rosanova",
-    subtitle: "Curated answers to every question — from your first enquiry to your final farewell toast.",
-    ctaEnabled: true,
-    ctaHeadline: "Still have a question?",
-    ctaSubtext: "Our team responds within 2 hours — we'd love to help.",
-    ctaButtonText: "Ask a question",
-    categories: [
-      {
-        category: "The Venue", icon: "I",
-        questions: [
-          { q: "Is Villa Rosanova available for exclusive use?", a: "Yes — Villa Rosanova is available for exclusive hire from Thursday to Sunday. Exclusive use includes all 24 bedrooms and 6 suites, full use of the grounds, gardens, pool pavilion and all venue spaces. Pricing from £28,000 for the full weekend." },
-          { q: "What is the maximum guest capacity?", a: "The estate accommodates up to 200 guests for a ceremony, 160 for a seated dinner and 180 for a standing reception. For intimate celebrations, we welcome parties from 20 guests." },
-          { q: "Can we hold both the ceremony and reception here?", a: "Absolutely. The Cypress Garden seats 200 for outdoor ceremonies, while the Grand Salon accommodates 160 for indoor ceremonies. All reception spaces are on the same estate." },
-        ],
-      },
-      {
-        category: "Catering & Drink", icon: "II",
-        questions: [
-          { q: "Do you work with an in-house caterer or can we bring our own?", a: "We have an award-winning in-house culinary team led by Chef Marco Bellini. External caterers are permitted with prior approval and a corkage arrangement. Our sommelier curates a bespoke wine list featuring our own estate Chianti Classico." },
-          { q: "Can you accommodate dietary requirements?", a: "Yes — our kitchen is fully equipped to cater for vegan, vegetarian, halal, kosher and gluten-free guests. Please advise your dedicated event planner of any requirements when confirming your booking." },
-          { q: "Is there a corkage fee if we bring our own wine?", a: "External wine and spirits are welcome at £18 per bottle. We recommend our estate wine list as a first choice — our Chianti Classico is particularly popular with guests." },
-        ],
-      },
-      {
-        category: "Accommodation", icon: "III",
-        questions: [
-          { q: "How many guests can stay on the estate overnight?", a: "Villa Rosanova sleeps 58 guests across 24 bedrooms and 6 suites. All rooms are uniquely decorated and include en-suite bathrooms. Bridal and groom suites are available with dedicated dressing areas." },
-          { q: "What are the check-in and check-out times?", a: "Check-in is from 3pm on your arrival day. Check-out is by 11am on your departure day. For exclusive use bookings, we are flexible around your schedule — please discuss timing with your event planner." },
-        ],
-      },
-      {
-        category: "Getting Here", icon: "IV",
-        questions: [
-          { q: "What is the closest airport?", a: "Florence Airport (FLR) is 45 minutes by car (42km). We can arrange private transfers and helicopter arrivals from FLR — 20 minutes by helicopter. Pisa (PSA) is 70 minutes and Bologna (BLQ) is 90 minutes." },
-          { q: "Is there parking on the estate?", a: "Yes — complimentary secure parking for up to 60 vehicles within the estate grounds. For larger parties, additional overflow parking is available 200m from the entrance with a complimentary shuttle." },
-        ],
-      },
-    ],
+    enabled: false,
+    title: null,
+    subtitle: null,
+    ctaEnabled: false,
+    ctaHeadline: null,
+    ctaSubtext: null,
+    ctaButtonText: null,
+    categories: [],
   },
   similarVenuesEnabled: true,
   recentlyViewedEnabled: true,
@@ -2041,7 +1865,7 @@ function LeadForm({ venue }) {
           <div style={{ fontSize: 36, marginBottom: 12 }}>✓</div>
           <div style={{ fontFamily: FD, fontSize: 20, color: C.text, marginBottom: 8 }}>Enquiry Sent</div>
           <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight, lineHeight: 1.6 }}>
-            Your message is with Villa Rosanova. They typically reply within {venue.responseTime}.
+            Your message has been sent. The venue typically replies within {venue.responseTime}.
           </div>
           <button onClick={() => setStep(0)} style={{
             marginTop: 16, padding: "9px 20px",
@@ -2254,8 +2078,8 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
 
   // Share via email
   const handleEmailShare = () => {
-    const subject = encodeURIComponent(`Villa Rosanova — Photo ${idx + 1}`);
-    const body = encodeURIComponent(`Check out this photo from Villa Rosanova:\n${photo.alt || ""}\n\nPhotographer: ${pg?.name || "Unknown"}\n${window.location.href}#photo-${photo.id}`);
+    const subject = encodeURIComponent(`Photo — ${venue.name || 'Wedding Venue'}`);
+    const body = encodeURIComponent(`Check out this photo:\n${photo.alt || ""}\n\nPhotographer: ${pg?.name || "Unknown"}\n${window.location.href}#photo-${photo.id}`);
     window.open(`mailto:?subject=${subject}&body=${body}`);
   };
 
@@ -3014,8 +2838,8 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
   };
 
   const handleEmailShare = () => {
-    const subject = encodeURIComponent(`Villa Rosanova — ${video.title}`);
-    const body = encodeURIComponent(`Check out this film from Villa Rosanova:\n${video.title}\n\nFilmed by: ${vg?.name || "Unknown"}\n${window.location.href}#film-${video.id}`);
+    const subject = encodeURIComponent(`Video — ${video.title}`);
+    const body = encodeURIComponent(`Check out this film:\n${video.title}\n\nFilmed by: ${vg?.name || "Unknown"}\n${window.location.href}#film-${video.id}`);
     window.open(`mailto:?subject=${subject}&body=${body}`);
   };
 
@@ -3444,7 +3268,7 @@ function VideoGallery({ videos, venue }) {
   const [playing, setPlaying] = useState(null);
   if (!videos || videos.length === 0) return null;
   const vg = videos[active].videographer;
-  const venueName = venue?.name || 'Villa Rosanova';
+  const venueName = venue?.name || 'Wedding Venue';
 
   return (
     <section style={{ marginBottom: 56 }}>
@@ -4477,7 +4301,7 @@ function GettingHere({ access }) {
 
   return (
     <section id="availability" style={{ marginBottom: 56 }}>
-      <SectionHeading title="Getting Here" subtitle="International airports serving Villa Rosanova, with transfer options for your guests" />
+      <SectionHeading title="Getting Here" subtitle="International airports with transfer options for your guests" />
 
       {/* Helicopter callout */}
       {access.helicopterTransferAvailable && (
@@ -4569,7 +4393,7 @@ function Reviews({ testimonials, venue }) {
 
   return (
     <section id="reviews" style={{ marginBottom: 56 }}>
-      <SectionHeading title="Reviews" subtitle="Trusted by 127 couples who have celebrated at Villa Rosanova" />
+      <SectionHeading title="Reviews" subtitle={`Trusted by ${venue?.reviews || 0} couples who have celebrated at this venue`} />
       <>
 
         {/* Summary bar */}
