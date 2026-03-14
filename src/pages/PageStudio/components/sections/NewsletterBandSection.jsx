@@ -1,5 +1,5 @@
 /**
- * NewsletterBandSection — Newsletter subscription band editor
+ * NewsletterBandSection, Newsletter subscription band editor
  * Editable: heading, ctaText, ctaUrl
  */
 

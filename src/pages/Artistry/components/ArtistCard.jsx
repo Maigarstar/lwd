@@ -74,7 +74,7 @@ export default function ArtistCard({ artist, fontDisplay, fontUI, onClick }) {
       >
         <img src={artist.image} alt={artist.name} loading="lazy" />
 
-        {/* Video badge — top-right, shown when artist has video */}
+        {/* Video badge, top-right, shown when artist has video */}
         {getEmbedInfo(artist.videoUrl) && (
           <div style={{
             position: 'absolute', top: 10, right: 10,

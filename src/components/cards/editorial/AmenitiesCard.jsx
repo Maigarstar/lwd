@@ -1,6 +1,6 @@
 // ─── src/components/cards/editorial/AmenitiesCard.jsx ─────────────────────────
 // Luxury venue amenities / facilities display.
-// SVG icon + label grid — 3-col or 4-col. Optional intro text.
+// SVG icon + label grid, 3-col or 4-col. Optional intro text.
 // Inspired by Four Seasons, Aman, Rosewood hotel pages.
 //
 // data.amenities = [{ icon: "golf", label: "18-Hole Golf Course", sublabel: "Championship" }]

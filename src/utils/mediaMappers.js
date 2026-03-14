@@ -10,8 +10,8 @@
  *   4. buildListingMediaAIRecords  → AI information pool (full listing batch)
  *
  * Having one source of truth here means every time a new field is added
- * to media_items, it flows automatically to all consumers — frontend,
- * editorial, and AI — without touching each consumer individually.
+ * to media_items, it flows automatically to all consumers, frontend,
+ * editorial, and AI, without touching each consumer individually.
  */
 
 // ─── 1. GALLERY / LIGHTBOX ────────────────────────────────────────────────────
@@ -19,8 +19,8 @@
 /**
  * Convert a media_items entry to a Lightbox-compatible gallery photo.
  *
- * @param {object} item       — a media_items[] entry from Listing Studio
- * @param {object} objectUrls — { [id]: blobUrl } for File objects (upload preview)
+ * @param {object} item      , a media_items[] entry from Listing Studio
+ * @param {object} objectUrls, { [id]: blobUrl } for File objects (upload preview)
  * @returns {object} gallery photo consumable by Lightbox.jsx + ImageGallery.jsx
  *
  * Output shape:
@@ -39,7 +39,7 @@ export const mapMediaItemToGalleryPhoto = (item, objectUrls = {}) => {
     id:          item.id,
     src,
 
-    // SEO / accessibility — alt_text is the primary source
+    // SEO / accessibility, alt_text is the primary source
     alt:         item.alt_text || item.title || item.caption || '',
 
     // Editorial
@@ -82,8 +82,8 @@ export const mapMediaItemToGalleryPhoto = (item, objectUrls = {}) => {
  * Convert a media_items entry to a rich card image object.
  * Replaces the plain URL string previously used in v.imgs[].
  *
- * @param {object} item       — a media_items[] entry
- * @param {object} objectUrls — { [id]: blobUrl } for File objects
+ * @param {object} item      , a media_items[] entry
+ * @param {object} objectUrls, { [id]: blobUrl } for File objects
  * @returns {object} rich image object consumable by LuxuryVenueCard / LuxuryVendorCard
  *
  * Output shape:
@@ -110,9 +110,9 @@ export const mapMediaItemToCardImg = (item, objectUrls = {}) => ({
  * Build a sorted, card-ready imgs array from a full media_items pool.
  * Filters to images only, excludes private items, sorts featured first.
  *
- * @param {Array}  mediaItems — full media_items[] array
- * @param {object} objectUrls — blob URL map for file previews
- * @param {number} limit      — max items (default: all)
+ * @param {Array}  mediaItems, full media_items[] array
+ * @param {object} objectUrls, blob URL map for file previews
+ * @param {number} limit     , max items (default: all)
  * @returns {Array} rich image objects ready for v.imgs
  */
 export const buildCardImgs = (mediaItems = [], objectUrls = {}, limit = Infinity) =>
@@ -128,10 +128,10 @@ export const buildCardImgs = (mediaItems = [], objectUrls = {}, limit = Infinity
 
 /**
  * Extract the primary video URL from a media_items pool.
- * Used to populate v.videoUrl on cards — enables the hero autoplay video slot.
+ * Used to populate v.videoUrl on cards, enables the hero autoplay video slot.
  * Featured video wins; otherwise first public video by sort_order.
  *
- * @param {Array} mediaItems — full media_items[] array
+ * @param {Array} mediaItems, full media_items[] array
  * @returns {string|null} URL of the primary public video, or null
  */
 export const buildCardVideoUrl = (mediaItems = []) => {
@@ -153,10 +153,10 @@ export const buildCardVideoUrl = (mediaItems = []) => {
  *
  * This is the shape that feeds the platform's AI information pool.
  * Each record links the media to its listing, venue, destination, category,
- * and photographer — making it queryable across all those dimensions.
+ * and photographer, making it queryable across all those dimensions.
  *
- * @param {object} item        — a media_items[] entry
- * @param {object} listingMeta — { id, name, category, country, region, destination, type }
+ * @param {object} item       , a media_items[] entry
+ * @param {object} listingMeta, { id, name, category, country, region, destination, type }
  * @returns {object} AI-ready structured knowledge record
  *
  * Designed to be stored in:
@@ -181,13 +181,13 @@ export const buildMediaAIRecord = (item, listingMeta = {}) => ({
   image_type:   item.image_type      || '',        // ceremony | reception | detail_shot…
   tags:         Array.isArray(item.tags) ? item.tags : [],
 
-  // ── Geography — destination intelligence ─────────────────────────────────
+  // ── Geography, destination intelligence ─────────────────────────────────
   location:     item.location        || '',        // free-text from editor
   country:      listingMeta.country  || '',        // e.g. "Italy"
   region:       listingMeta.region   || '',        // e.g. "Tuscany"
   destination:  listingMeta.destination || '',     // e.g. "Lake Como", "Amalfi Coast"
 
-  // ── Entity links — for knowledge graph queries ───────────────────────────
+  // ── Entity links, for knowledge graph queries ───────────────────────────
   category:     listingMeta.category || '',        // venue | planner | photographer…
   listing_type: listingMeta.type     || '',        // Historic Villa | Estate | Chapel…
 
@@ -234,8 +234,8 @@ export const buildMediaAIRecord = (item, listingMeta = {}) => ({
  * Excludes private media (visibility: 'private').
  * Typically called when a listing is saved, to sync to the AI index.
  *
- * @param {Array}  mediaItems  — full media_items[] array
- * @param {object} listingMeta — listing-level context
+ * @param {Array}  mediaItems , full media_items[] array
+ * @param {object} listingMeta, listing-level context
  * @returns {Array} array of AI knowledge records
  */
 export const buildListingMediaAIRecords = (mediaItems = [], listingMeta = {}) =>
@@ -292,7 +292,7 @@ export const buildVideoEmbedUrl = (url, origin = '') => {
  * Filters to public videos only, sorts featured/sort_order.
  * Extracts youtubeId + vimeoId so VideoPlayModal can build the correct embed URL.
  *
- * @param {Array} mediaItems — full media_items[] array from a listing
+ * @param {Array} mediaItems, full media_items[] array from a listing
  * @returns {Array} video objects consumable by VideoGallery + VideoPlayModal
  *
  * Output shape per item:
@@ -319,7 +319,7 @@ export const buildVenueVideos = (mediaItems = []) =>
         thumb:       item.thumbnail || ytThumb(item.url) || null,
         desc:        item.caption  || item.description || '',
         duration:    item.duration || '',
-        type:        item.image_type || 'tour',   // 'wedding' | 'tour' | '' — drives label
+        type:        item.image_type || 'tour',   // 'wedding' | 'tour' | '', drives label
         tags:        Array.isArray(item.tags) ? item.tags : [],
         source_type: item.source_type || 'external',
         videographer: item.credit_name

@@ -1,5 +1,5 @@
 // ─── src/components/cards/LuxuryVenueCard.jsx ─────────────────────────────────
-// Exact copy of PlannerCard GridCard — full-bleed swipeable media, cinematic
+// Exact copy of PlannerCard GridCard, full-bleed swipeable media, cinematic
 // gradient, content overlaid at bottom. Venue data swapped in for planner data.
 
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -244,7 +244,7 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
       )}
 
       {/* ── Right-side overlay column: SWIPE (top:44) → HEART (top:84) ── */}
-      {/* Swipe hint — below verified badge, shows on hover when multiple slides */}
+      {/* Swipe hint, below verified badge, shows on hover when multiple slides */}
       {hov && hasMultiple && (
         <div
           style={{
@@ -262,7 +262,7 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
         </div>
       )}
 
-      {/* Heart — below swipe hint, shows on hover or when saved */}
+      {/* Heart, below swipe hint, shows on hover or when saved */}
       <div
         style={{
           position: "absolute", top: v.verified ? 84 : 52, right: 12, zIndex: 4,
@@ -284,7 +284,7 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
         />
       </div>
 
-      {/* ── Slide bar indicators — top-centre, max 3 bars ── */}
+      {/* ── Slide bar indicators, top-centre, max 3 bars ── */}
       {hasMultiple && (() => {
         const barCount = Math.min(mediaCount, 3);
         // Which of the 3 bars is active: first / middle / last
@@ -325,7 +325,7 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
         );
       })()}
 
-      {/* ── Prev/Next arrows removed — SliderNav handles left/right nav ── */}
+      {/* ── Prev/Next arrows removed, SliderNav handles left/right nav ── */}
       {/* Image navigation via swipe/drag + dot indicators above */}
 
       {/* ── Mute toggle on video slide ── */}
@@ -363,7 +363,7 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
           zIndex: 2, padding: isMobile ? "20px 14px 16px" : "20px 18px 18px",
         }}
       >
-        {/* Photographer credit — bottom-right of image, above venue name */}
+        {/* Photographer credit, bottom-right of image, above venue name */}
         {(() => {
           const cur = allMedia[slideIdx];
           if (!cur?.showCredit) return null;
@@ -391,7 +391,7 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
           ) : null;
         })()}
 
-        {/* Showcase indicator — above name */}
+        {/* Showcase indicator, above name */}
         {v.showcaseUrl && (
           <a
             href={v.showcaseUrl}
@@ -493,7 +493,7 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
             paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.1)",
           }}
         >
-          {/* Price — natural block; marginRight:auto creates the gap to buttons */}
+          {/* Price, natural block; marginRight:auto creates the gap to buttons */}
           <div style={{
             fontFamily: GD, fontSize: 20, fontWeight: 600, color: GOLD, lineHeight: 1,
             flexShrink: 0, marginRight: "auto",

@@ -13,7 +13,7 @@ const ListingStudioPage = ({ darkMode = false, navigationState = {}, onNavigate 
   const [currentMode, setCurrentMode] = useState(mode);
   const [currentListingId, setCurrentListingId] = useState(listingId);
 
-  // Handle successful save — stay on page and switch to edit mode
+  // Handle successful save, stay on page and switch to edit mode
   const handleSaveComplete = useCallback((savedListingId) => {
     if (savedListingId && typeof savedListingId === 'string') {
       console.log('ListingStudioPage: Save complete, switching to edit mode for:', savedListingId);
@@ -25,7 +25,7 @@ const ListingStudioPage = ({ darkMode = false, navigationState = {}, onNavigate 
     }
   }, [parentOnSaveComplete]);
 
-  // Handle cancel/discard — navigate back to listings
+  // Handle cancel/discard, navigate back to listings
   const handleCancel = useCallback(() => {
     onNavigate();
   }, [onNavigate]);

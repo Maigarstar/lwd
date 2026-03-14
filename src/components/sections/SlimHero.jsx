@@ -20,7 +20,7 @@ const NU = "var(--font-body)";
 
 /* ── Clever-search location field (internal) ─────────────────────────────── */
 /* Shows nothing on focus; as the user types, surfaces matching countries &
-   cities in a compact ranked list — no huge mega menu. */
+   cities in a compact ranked list, no huge mega menu. */
 function LocationSearchField({ value, onChange, placeholder, items, ariaLabel, onEnter, containerRef }) {
   const [inputText, setInputText] = useState("");
   const [open, setOpen] = useState(false);
@@ -469,7 +469,7 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
     return () => clearInterval(t);
   }, [backgroundData?.backgroundImages, venues]);
 
-  // Subtle parallax — image drifts at 15 % of scroll speed
+  // Subtle parallax, image drifts at 15 % of scroll speed
   useEffect(() => {
     const onScroll = () => {
       const el = sectionRef.current;
@@ -547,12 +547,12 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
         transition: "height 0.6s ease",
       }}
     >
-      {/* Background container — overflow hidden here to clip parallax images */}
+      {/* Background container, overflow hidden here to clip parallax images */}
       <div aria-hidden="true" style={{ position: "absolute", inset: 0, overflow: "hidden", zIndex: 0 }}>
-        {/* Custom background media — only render the ACTIVE backgroundType */}
+        {/* Custom background media, only render the ACTIVE backgroundType */}
         {backgroundData?.backgroundType ? (
           <>
-            {/* Image carousel — only when type is 'image' */}
+            {/* Image carousel, only when type is 'image' */}
             {backgroundData.backgroundType === 'image' && backgroundData.backgroundImages?.length > 0 && (
               <>
                 {backgroundData.backgroundImages.map((img, i) => (
@@ -585,7 +585,7 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
               </>
             )}
 
-            {/* Video carousel — only when type is 'video_upload' */}
+            {/* Video carousel, only when type is 'video_upload' */}
             {backgroundData.backgroundType === 'video_upload' && backgroundData.backgroundVideos?.length > 0 && (
               <>
                 {backgroundData.backgroundVideos.map((vid, i) => (
@@ -634,7 +634,7 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
               </>
             )}
 
-            {/* YouTube — only when type is 'youtube' */}
+            {/* YouTube, only when type is 'youtube' */}
             {backgroundData.backgroundType === 'youtube' && backgroundData.backgroundVideoUrl && extractYouTubeId(backgroundData.backgroundVideoUrl) && (
               <div
                 style={{
@@ -658,7 +658,7 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
               </div>
             )}
 
-            {/* Vimeo — only when type is 'vimeo' */}
+            {/* Vimeo, only when type is 'vimeo' */}
             {backgroundData.backgroundType === 'vimeo' && backgroundData.backgroundVideoUrl && extractVimeoId(backgroundData.backgroundVideoUrl) && (
               <div
                 style={{
@@ -683,7 +683,7 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
             )}
           </>
         ) : (
-          /* Fallback: Background images from venues — parallax layer */
+          /* Fallback: Background images from venues, parallax layer */
           venues.map((v, i) => (
             <div
               key={v.id}
@@ -785,7 +785,7 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
           </span>
         </div>
 
-        {/* Headline — word-by-word reveal */}
+        {/* Headline, word-by-word reveal */}
         <h1
           style={{
             fontFamily: GD,
@@ -833,7 +833,7 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
             marginRight: "auto",
           }}
         >
-          Intelligent discovery for modern luxury weddings — search by
+          Intelligent discovery for modern luxury weddings, search by
           destination, style, guest count, and collection.
         </p>
 
@@ -885,7 +885,7 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
           ))}
         </div>
 
-        {/* Search bar — no backdropFilter here to avoid containing-block trap */}
+        {/* Search bar, no backdropFilter here to avoid containing-block trap */}
         <div
           ref={searchBarRef}
           className={`home-hero-search${searchMode === "ai" ? " home-hero-search--ai" : ""}`}
@@ -909,7 +909,7 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
             transition: "border-color 0.4s, box-shadow 0.4s",
           }}
         >
-          {/* Blur layer — separate element so it doesn't create a containing block for dropdowns */}
+          {/* Blur layer, separate element so it doesn't create a containing block for dropdowns */}
           <div aria-hidden="true" style={{ position: "absolute", inset: 0, borderRadius: "var(--lwd-radius-card)", background: "rgba(10,9,6,0.6)", backdropFilter: "blur(24px)", pointerEvents: "none", zIndex: 0 }} />
           {searchMode === "ai" ? (
             <>
@@ -1004,7 +1004,7 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
                 containerRef={searchBarRef}
               />
 
-              {/* Soft divider — gradient fade, no hard seam */}
+              {/* Soft divider, gradient fade, no hard seam */}
               <div
                 className="home-hero-browse-divider"
                 style={{
@@ -1015,7 +1015,7 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
                 }}
               />
 
-              {/* Field 2: Location — clever search, no mega menu */}
+              {/* Field 2: Location, clever search, no mega menu */}
               <span
                 style={{
                   padding: "0 10px 0 14px",
@@ -1095,7 +1095,7 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
           >
             Ask Aura
           </span>{" "}
-          — get personalised venue suggestions instantly.
+         , get personalised venue suggestions instantly.
         </div>
 
         {/* Trust micro-line */}

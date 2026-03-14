@@ -1,7 +1,7 @@
 import AIImportEngine, { isEmpty, stripHtml } from '../../../components/AIImportEngine/AIImportEngine';
 
 /**
- * AIImportPanel — Listing Studio wrapper around AIImportEngine
+ * AIImportPanel, Listing Studio wrapper around AIImportEngine
  *
  * Provides the listing-specific:
  *   • Review section definitions (what to show + how to preview each field group)
@@ -64,7 +64,7 @@ function normaliseRegion(raw, countryKey) {
   const lower = raw.toLowerCase().trim();
   return regions.find(r => r.toLowerCase() === lower)
     || regions.find(r => lower.includes(r.toLowerCase()) || r.toLowerCase().includes(lower))
-    || ''; // ← return blank if no valid match — never set an invalid value on a select
+    || ''; // ← return blank if no valid match, never set an invalid value on a select
 }
 
 // ─── Listing review sections ──────────────────────────────────────────────────
@@ -285,14 +285,14 @@ export const LISTING_FIELD_SCHEMA = [
   { aiKey: 'postcode',        formKey: 'postcode',        section: 'contact_location', kind: 'fact', merge: 'overwrite' },
   { aiKey: 'contact_profile', formKey: 'contact_profile', section: 'contact_location', kind: 'fact', merge: 'merge_object' },
 
-  // ── Complex fields — handled manually in applyListingResult() ─────────────
-  // country          — normalised against COUNTRY_NORM lookup
-  // region           — normalised against REGION_OPTIONS[country] SELECT options
-  // spaces[]         — ID injection + shape mapping
-  // exclusive_use_*  — guarded by exclusive_use_enabled flag
-  // faq_categories[] — guarded by faq_enabled flag, needs ID injection
-  // nearby_items[]   — guarded by nearby_enabled flag, needs ID injection
-  // video_urls[]     — mapped to media_items (different formKey + shape)
+  // ── Complex fields, handled manually in applyListingResult() ─────────────
+  // country         , normalised against COUNTRY_NORM lookup
+  // region          , normalised against REGION_OPTIONS[country] SELECT options
+  // spaces[]        , ID injection + shape mapping
+  // exclusive_use_* , guarded by exclusive_use_enabled flag
+  // faq_categories[], guarded by faq_enabled flag, needs ID injection
+  // nearby_items[]  , guarded by nearby_enabled flag, needs ID injection
+  // video_urls[]    , mapped to media_items (different formKey + shape)
 ];
 
 // ─── Listing apply function ───────────────────────────────────────────────────
@@ -301,7 +301,7 @@ function applyListingResult(result, enabledSections, mergeOnly, formData, onChan
   const r       = result;
   const enabled = enabledSections;
 
-  // Normalise country/region once — used by both core and contact_location sections
+  // Normalise country/region once, used by both core and contact_location sections
   const countryKey       = normaliseCountry(r.country);
   const activeCountryKey = countryKey || formData.country || '';
   const normRegion       = r.region ? normaliseRegion(r.region, activeCountryKey) : '';

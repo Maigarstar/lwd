@@ -171,7 +171,7 @@ const PageEditorModule = ({ pageId, C, NU, GD, onNavigate }) => {
 
   const selectedSection = page?.sections?.find((s) => s.id === selectedSectionId);
 
-  // Compute grid layout based on viewMode — matches Listing Studio pattern exactly
+  // Compute grid layout based on viewMode, matches Listing Studio pattern exactly
   const gridCols = viewMode === 'editor' ? '1fr' : viewMode === 'preview' ? '1fr' : '1fr 1fr';
   const showLeftPanel = viewMode !== 'preview';
   const showRightPanel = viewMode !== 'editor';
@@ -202,7 +202,7 @@ const PageEditorModule = ({ pageId, C, NU, GD, onNavigate }) => {
       `}</style>
 
       {/* ═══════════════════════════════════════════════════════
-          FULL-WIDTH ACTION BAR — matches Listing Studio exactly
+          FULL-WIDTH ACTION BAR, matches Listing Studio exactly
       ═══════════════════════════════════════════════════════ */}
       <div style={{
         display: 'flex',
@@ -317,7 +317,7 @@ const PageEditorModule = ({ pageId, C, NU, GD, onNavigate }) => {
       </div>
 
       {/* ═══════════════════════════════════════════════════════
-          SPLIT PANELS GRID — matches Listing Studio pattern
+          SPLIT PANELS GRID, matches Listing Studio pattern
       ═══════════════════════════════════════════════════════ */}
       <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 0, flex: 1, overflow: 'hidden' }}>
 

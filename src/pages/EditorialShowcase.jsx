@@ -39,9 +39,9 @@ const GT = {
   food5:      '/grand-tirolia/GrandTirolia_Juni2024_204.jpg',   // ribs on marble table
 };
 
-// ── Sample images — Paris by Giuseppe Suma ────────────────────────────────────
+// ── Sample images, Paris by Giuseppe Suma ────────────────────────────────────
 const IMG = {
-  // Portrait (couple & street — vertical)
+  // Portrait (couple & street, vertical)
   portrait1:  '/paris/_SMU0856.jpg',  // couple at the Louvre (colour)
   portrait2:  '/paris/_SMU0511.jpg',  // couple on bench, B&W
   portrait3:  '/paris/_SMU0725.jpg',  // woman at café, B&W
@@ -54,7 +54,7 @@ const IMG = {
   // Wide
   wide1:      '/paris/_SMU0398.jpg',  // Palais Royal (wider)
   wide2:      '/paris/_SMU1097.jpg',  // B&W street, Saint André café
-  // Product (Unsplash — fashion/bridal shots)
+  // Product (Unsplash, fashion/bridal shots)
   product1:   'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=600&q=80',
   product2:   'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&q=80',
   product3:   'https://images.unsplash.com/photo-1445205170230-053b83016050?w=600&q=80',
@@ -265,7 +265,7 @@ export default function EditorialShowcase() {
             <FeatureCard data={{
               image: IMG.landscape2,
               title: 'The Dress That Changed Everything',
-              excerpt: 'How one couture house redefined what it means to be a modern bride — and why the world is still talking.',
+              excerpt: 'How one couture house redefined what it means to be a modern bride, and why the world is still talking.',
               category: 'Fashion',
               date: '5 March 2026',
               accentBg: '#3d3a35',
@@ -298,7 +298,7 @@ export default function EditorialShowcase() {
             <MosaicCard data={{
               images: [IMG.portrait1, IMG.portrait2, IMG.portrait3, IMG.portrait4],
               title: 'The Spring Bridal Edit',
-              excerpt: 'From gossamer silks to structured lace — the pieces our editors can\'t stop talking about.',
+              excerpt: 'From gossamer silks to structured lace, the pieces our editors can\'t stop talking about.',
               category: 'Fashion',
               date: 'March 2026',
               saved: !!saved.m1, onSave: () => toggle('m1'),
@@ -328,7 +328,7 @@ export default function EditorialShowcase() {
           <div>
             <Label text="Centered (default)" />
             <QuoteCard data={{
-              quote: 'A wedding is not a day — it is the beginning of a life. Plan it with the same care you\'ll give to everything that follows.',
+              quote: 'A wedding is not a day, it is the beginning of a life. Plan it with the same care you\'ll give to everything that follows.',
               attribution: 'Vera Wang',
               attributionRole: 'Designer',
               accentBg: '#2a2825',
@@ -337,7 +337,7 @@ export default function EditorialShowcase() {
           <div>
             <Label text="With portrait image" />
             <QuoteCard data={{
-              quote: 'The details are not the details. They make the design — and in bridal, they make the memory.',
+              quote: 'The details are not the details. They make the design, and in bridal, they make the memory.',
               attribution: 'Sophie Pham',
               attributionRole: 'Senior Bridal Editor',
               image: IMG.portrait3,
@@ -348,7 +348,7 @@ export default function EditorialShowcase() {
           <div>
             <Label text="Light theme" />
             <QuoteCard data={{
-              quote: 'Every bride deserves to feel extraordinary. That\'s not a luxury — it\'s the standard we hold ourselves to.',
+              quote: 'Every bride deserves to feel extraordinary. That\'s not a luxury, it\'s the standard we hold ourselves to.',
               attribution: 'Eliza Morton',
               attributionRole: 'Editor-in-Chief',
               theme: 'light',
@@ -361,7 +361,7 @@ export default function EditorialShowcase() {
       <Section title="7 · Category Tile Card">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div>
-            <Label text="Banner (default) — olive" />
+            <Label text="Banner (default), olive" />
             <CategoryTileCard data={{
               title: 'The Gold Edit',
               eyebrow: 'Curated for you',
@@ -370,7 +370,7 @@ export default function EditorialShowcase() {
             }} />
           </div>
           <div>
-            <Label text="Banner — charcoal" />
+            <Label text="Banner, charcoal" />
             <CategoryTileCard data={{
               title: 'Honeymoon & Travel',
               eyebrow: 'Destinations',
@@ -380,7 +380,7 @@ export default function EditorialShowcase() {
           </div>
           <Grid cols={2}>
             <div>
-              <Label text="Tile (square) — dark rose" />
+              <Label text="Tile (square), dark rose" />
               <CategoryTileCard data={{
                 title: 'Bridal Fashion',
                 eyebrow: 'Spring 2026',
@@ -407,7 +407,7 @@ export default function EditorialShowcase() {
       <Section title="8 · Carousel Card">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
           <div>
-            <Label text="Product carousel (default) — full bleed" />
+            <Label text="Product carousel (default), full bleed" />
           </div>
         </div>
       </Section>
@@ -445,7 +445,7 @@ export default function EditorialShowcase() {
       <Section title="9 · Editorial Feature Card (Hero)">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
           <div>
-            <Label text="Mosaic — 5 panels (default)" />
+            <Label text="Mosaic, 5 panels (default)" />
             <EditorialFeatureCard data={{
               images: [IMG.portrait1, IMG.portrait2, IMG.portrait3, IMG.portrait4, IMG.portrait5],
               title: 'The Spring Bridal Collections',
@@ -458,11 +458,11 @@ export default function EditorialShowcase() {
             }} />
           </div>
           <div>
-            <Label text="Split — 70/30" />
+            <Label text="Split, 70/30" />
             <EditorialFeatureCard data={{
               image: IMG.wide2,
               title: 'The Most Beautiful Wedding Venues in the World',
-              excerpt: 'From ancient Italian villas to cliffside châteaux — the addresses every bride should know.',
+              excerpt: 'From ancient Italian villas to cliffside châteaux, the addresses every bride should know.',
               category: 'Destinations',
               date: 'March 2026',
               variant: 'split',
@@ -472,7 +472,7 @@ export default function EditorialShowcase() {
             }} />
           </div>
           <div>
-            <Label text="Cinematic — single full-bleed" />
+            <Label text="Cinematic, single full-bleed" />
             <EditorialFeatureCard data={{
               image: IMG.wide1,
               title: 'A Wedding in Positano',
@@ -491,7 +491,7 @@ export default function EditorialShowcase() {
       <Section title="10 · Venue Stats Card">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
           <div>
-            <Label text="Strip (default) — cream" />
+            <Label text="Strip (default), cream" />
             <VenueStatsCard data={{
               eyebrow: 'By the numbers',
               stats: [
@@ -504,7 +504,7 @@ export default function EditorialShowcase() {
             }} />
           </div>
           <div>
-            <Label text="Strip — dark" />
+            <Label text="Strip, dark" />
             <VenueStatsCard data={{
               eyebrow: 'Grand Tirolia · Kitzbühel',
               stats: [
@@ -536,10 +536,10 @@ export default function EditorialShowcase() {
       <Section title="11 · Amenities Card">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
           <div>
-            <Label text="Light theme — 3 cols" />
+            <Label text="Light theme, 3 cols" />
             <AmenitiesCard data={{
               title: 'Everything You Need',
-              description: 'Grand Tirolia is equipped for the most discerning celebration — from helipad arrivals to post-reception jazz.',
+              description: 'Grand Tirolia is equipped for the most discerning celebration, from helipad arrivals to post-reception jazz.',
               amenities: [
                 { icon: 'golf',       label: '18-Hole Golf Course',   sublabel: 'Championship' },
                 { icon: 'spa',        label: 'Spa & Wellness',        sublabel: '2,500m²' },
@@ -556,7 +556,7 @@ export default function EditorialShowcase() {
             }} />
           </div>
           <div>
-            <Label text="Dark theme — 4 cols" />
+            <Label text="Dark theme, 4 cols" />
             <AmenitiesCard data={{
               amenities: [
                 { icon: 'golf',     label: 'Golf Course'   },
@@ -578,26 +578,26 @@ export default function EditorialShowcase() {
       <Section title="12 · Two-Column Editorial Card">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
           <div>
-            <Label text="Default (two-column) — light" />
+            <Label text="Default (two-column), light" />
             <TwoColumnEditorialCard data={{
               eyebrow: 'Grand Tirolia · Kitzbühel',
               title: 'Where the Alps Become the Setting',
               body: [
                 'Set on a private ridge above Kitzbühel at 1,070 metres, Grand Tirolia occupies one of the most spectacular positions in the Eastern Alps. The hotel commands uninterrupted views across the Kitzbüheler Horn, the Hahnenkamm race mountain, and the rolling pastures of the Tyrol.',
-                'For weddings, the property offers an unmatched range of spaces — from the intimate Cooper Bar to the Grand Ballroom which seats 450 guests. Every celebration is supported by a dedicated events team with decades of experience in Austrian luxury hospitality.',
+                'For weddings, the property offers an unmatched range of spaces, from the intimate Cooper Bar to the Grand Ballroom which seats 450 guests. Every celebration is supported by a dedicated events team with decades of experience in Austrian luxury hospitality.',
               ],
               cta: { label: 'View the venue', href: '#' },
               theme: 'light',
             }} />
           </div>
           <div>
-            <Label text="With pull-stat — dark" />
+            <Label text="With pull-stat, dark" />
             <TwoColumnEditorialCard data={{
               eyebrow: 'By the numbers',
               title: 'An Estate Designed for Celebration',
               pullStat: { value: '1,070m', label: 'Above sea level' },
               body: [
-                'Grand Tirolia is not merely a hotel — it is an estate, a private mountain, a stage for the most important days of your life. From the curved LED installation in the Atrium to the hand-picked Austrian pine of the Jazzclub, every space has been designed with the deliberate intention of making guests feel extraordinary.',
+                'Grand Tirolia is not merely a hotel, it is an estate, a private mountain, a stage for the most important days of your life. From the curved LED installation in the Atrium to the hand-picked Austrian pine of the Jazzclub, every space has been designed with the deliberate intention of making guests feel extraordinary.',
               ],
               cta: { label: 'Enquire now', href: '#' },
               accentBg: '#1c1a15',
@@ -620,7 +620,7 @@ export default function EditorialShowcase() {
       <Section title="13 · Parallax Banner Card">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
           <div>
-            <Label text="Centered — misty aerial" />
+            <Label text="Centered, misty aerial" />
             <ParallaxBannerCard data={{
               image: GT.aerial2,
               eyebrow: 'Grand Tirolia · Kitzbühel · Austria',
@@ -632,7 +632,7 @@ export default function EditorialShowcase() {
             }} />
           </div>
           <div style={{ marginTop: 40 }}>
-            <Label text="Bottom-text — summer aerial" />
+            <Label text="Bottom-text, summer aerial" />
             <ParallaxBannerCard data={{
               image: GT.aerial1,
               title: 'Eighteen Holes, One Mountain, Endless Views',
@@ -643,7 +643,7 @@ export default function EditorialShowcase() {
             }} />
           </div>
           <div style={{ marginTop: 40 }}>
-            <Label text="Minimal — no text" />
+            <Label text="Minimal, no text" />
             <ParallaxBannerCard data={{
               image: GT.atrium,
               height: '40vh',
@@ -656,7 +656,7 @@ export default function EditorialShowcase() {
     </div>{/* end constrained wrapper */}
 
       {/* ══════════════════════════════════════════════════════════════════════
-           GRAND TIROLIA · KITZBÜHEL — Full Venue Editorial
+           GRAND TIROLIA · KITZBÜHEL, Full Venue Editorial
            A complete real-world example using all card types together
           ══════════════════════════════════════════════════════════════════ */}
 
@@ -675,7 +675,7 @@ export default function EditorialShowcase() {
         image: GT.aerial2,
         eyebrow: 'Austria · 1,070m · Kitzbühel',
         title: 'Where the Alps Become Your Backdrop',
-        subtitle: 'A five-star estate above Kitzbühel — the most spectacular wedding address in the Eastern Alps.',
+        subtitle: 'A five-star estate above Kitzbühel, the most spectacular wedding address in the Eastern Alps.',
         cta: { label: 'Enquire about your date', href: '#' },
         height: '80vh',
         overlay: 'medium',
@@ -693,13 +693,13 @@ export default function EditorialShowcase() {
         accentBg: '#f3ede6',
       }} />
 
-      {/* 3. Two-col editorial — about GT */}
+      {/* 3. Two-col editorial, about GT */}
       <TwoColumnEditorialCard data={{
         eyebrow: 'Grand Tirolia · Kitzbühel',
         title: 'The Alps at Their Most Refined',
         pullStat: { value: '1895', label: 'Founded' },
         body: [
-          'Set on a private ridge above Kitzbühel, Grand Tirolia commands views across the Kitzbüheler Horn and the rolling pastures of the Tyrol. The estate spans an 18-hole championship golf course, a 2,500m² spa, five restaurants, three bars — and a Grand Ballroom that seats 450.',
+          'Set on a private ridge above Kitzbühel, Grand Tirolia commands views across the Kitzbüheler Horn and the rolling pastures of the Tyrol. The estate spans an 18-hole championship golf course, a 2,500m² spa, five restaurants, three bars, and a Grand Ballroom that seats 450.',
           'Every detail is considered. From the curved LED installation in the Atrium to the hand-selected pine beams of the Jazzclub, each space is designed to make a profound impression. Your wedding here will not be forgotten.',
         ],
         cta: { label: 'View all spaces', href: '#' },
@@ -708,22 +708,22 @@ export default function EditorialShowcase() {
         theme: 'light',
       }} />
 
-      {/* 4. Feature card — Cooper Bar */}
+      {/* 4. Feature card, Cooper Bar */}
       <FeatureCard data={{
         image: GT.cooperBar,
         title: 'The Cooper Bar',
         category: 'Bars & Nightlife',
-        excerpt: 'Stone walls, arched mirrors, green leather — the Cooper Bar is Grand Tirolia\'s most arresting room. Signature cocktails, natural wines, and the best whisky list in Kitzbühel.',
+        excerpt: 'Stone walls, arched mirrors, green leather, the Cooper Bar is Grand Tirolia\'s most arresting room. Signature cocktails, natural wines, and the best whisky list in Kitzbühel.',
         accentBg: '#2c2820',
         variant: 'image-left',
       }} />
 
-      {/* 5. Feature card — Jazzclub reversed */}
+      {/* 5. Feature card, Jazzclub reversed */}
       <FeatureCard data={{
         image: GT.jazzclub,
         title: 'The Jazzclub',
         category: 'Entertainment',
-        excerpt: 'Tufted velvet sofas, shelves of rare single malts, Edison bulbs over a curved bar — the Jazzclub is the most intimate setting for a late-night reception. Live acts every weekend.',
+        excerpt: 'Tufted velvet sofas, shelves of rare single malts, Edison bulbs over a curved bar, the Jazzclub is the most intimate setting for a late-night reception. Live acts every weekend.',
         accentBg: '#3a2e1e',
         variant: 'image-right',
       }} />
@@ -731,7 +731,7 @@ export default function EditorialShowcase() {
       {/* 6. Amenities grid */}
       <AmenitiesCard data={{
         title: 'Every Amenity. Every Occasion.',
-        description: 'Grand Tirolia provides a complete ecosystem of luxury — from helicopter arrivals to post-ceremony skiing.',
+        description: 'Grand Tirolia provides a complete ecosystem of luxury, from helicopter arrivals to post-ceremony skiing.',
         amenities: [
           { icon: 'golf',       label: '18-Hole Golf Course',   sublabel: 'Championship' },
           { icon: 'spa',        label: 'Spa & Wellness',        sublabel: '2,500m²' },
@@ -751,7 +751,7 @@ export default function EditorialShowcase() {
       <MosaicCard data={{
         images: [GT.food3, GT.food2, GT.food4, GT.food5],
         title: 'Five-Star Dining, Alpine Character',
-        excerpt: 'From refined tasting menus to casual Tyrolean classics — every plate tells the story of the region.',
+        excerpt: 'From refined tasting menus to casual Tyrolean classics, every plate tells the story of the region.',
         category: 'Dining',
         date: 'Grand Tirolia',
         height: 480,
@@ -759,14 +759,14 @@ export default function EditorialShowcase() {
 
       {/* 8. Quote card */}
       <QuoteCard data={{
-        quote: 'There is no more spectacular setting for a wedding in the Austrian Alps. Grand Tirolia is not a venue — it is an experience that begins the moment you arrive.',
+        quote: 'There is no more spectacular setting for a wedding in the Austrian Alps. Grand Tirolia is not a venue, it is an experience that begins the moment you arrive.',
         attribution: 'Luxury Wedding Directory',
         attributionRole: 'Editor\'s Choice 2026',
         accentBg: '#1c1a15',
         variant: 'centered',
       }} />
 
-      {/* 9. Image overlay — Atrium */}
+      {/* 9. Image overlay, Atrium */}
       <ImageOverlayCard data={{
         image: GT.atrium,
         title: 'The Grand Ballroom & Atrium',

@@ -40,7 +40,7 @@ export const MOCK_PAGES = [
     pageType: "custom",
     templateKey: "hero_image",
     status: "published",
-    excerpt: "The story behind Luxury Wedding Directory — who we are and what we stand for.",
+    excerpt: "The story behind Luxury Wedding Directory, who we are and what we stand for.",
     featuredImage: null,
     heroVideoUrl: null,
     seo: {

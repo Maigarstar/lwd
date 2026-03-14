@@ -5,8 +5,8 @@
  * member since badge, and a compact stats grid (response rate, weddings, etc).
  *
  * Props:
- *   entity  {object} — listing/venue/vendor data
- *   C       {object} — colour palette
+ *   entity  {object}, listing/venue/vendor data
+ *   C       {object}, colour palette
  */
 
 const FD = "var(--font-heading-primary)";
@@ -46,7 +46,7 @@ export default function SidebarProfileCard({ entity = {}, C = {} }) {
   const memberSince = owner.memberSince || entity.memberSince || null;
   const verified = entity.verified || owner.verified || false;
 
-  // Build stats — only include items that have data
+  // Build stats, only include items that have data
   const stats = [
     entity.responseTime  && { label: "Responds in",     value: entity.responseTime },
     entity.responseRate  && { label: "Response rate",   value: `${entity.responseRate}%` },

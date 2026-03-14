@@ -102,7 +102,7 @@ export default function AdminAllLeads({ C }) {
           All Leads
         </h1>
         <p style={{ fontFamily: FB, fontSize: 13, color: C.grey }}>
-          Marketplace intelligence dashboard — track high-value leads, vendor response times & conversion metrics
+          Marketplace intelligence dashboard, track high-value leads, vendor response times & conversion metrics
         </p>
       </div>
 
@@ -356,11 +356,11 @@ export default function AdminAllLeads({ C }) {
                     {enq.vendor_name}
                   </td>
                   <td style={{ padding: 12, fontFamily: FB, fontSize: 12, color: C.white, textAlign: "center" }}>
-                    <div>{enq.guest_count || "—"}</div>
+                    <div>{enq.guest_count || " - "}</div>
                     {enq.budget_range && <div style={{ fontSize: 11, color: C.gold, fontWeight: 600 }}>{enq.budget_range}</div>}
                   </td>
                   <td style={{ padding: 12, fontFamily: FB, fontSize: 12, color: C.white }}>
-                    {enq.event_date ? new Date(enq.event_date).toLocaleDateString("en-GB") : "—"}
+                    {enq.event_date ? new Date(enq.event_date).toLocaleDateString("en-GB") : " - "}
                   </td>
                   <td style={{ padding: 12, fontFamily: FB, fontSize: 11, color: C.grey }}>
                     {enq.lead_source || "Venue Profile"}
@@ -565,12 +565,12 @@ export default function AdminAllLeads({ C }) {
                   <div>
                     <div style={{ fontFamily: FB, fontSize: 10, color: C.grey, marginBottom: 4 }}>WEDDING DATE</div>
                     <div style={{ fontFamily: FB, fontSize: 13, color: C.text }}>
-                      {selectedLead.event_date ? new Date(selectedLead.event_date).toLocaleDateString() : "—"}
+                      {selectedLead.event_date ? new Date(selectedLead.event_date).toLocaleDateString() : " - "}
                     </div>
                   </div>
                   <div>
                     <div style={{ fontFamily: FB, fontSize: 10, color: C.grey, marginBottom: 4 }}>GUESTS</div>
-                    <div style={{ fontFamily: FB, fontSize: 13, color: C.text }}>{selectedLead.guest_count || "—"}</div>
+                    <div style={{ fontFamily: FB, fontSize: 13, color: C.text }}>{selectedLead.guest_count || " - "}</div>
                   </div>
                   <div>
                     <div style={{ fontFamily: FB, fontSize: 10, color: C.grey, marginBottom: 4 }}>BUDGET</div>

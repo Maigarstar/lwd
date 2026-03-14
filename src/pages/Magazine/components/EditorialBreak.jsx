@@ -1,5 +1,5 @@
 /**
- * EditorialBreak — Full-width cinematic feature band.
+ * EditorialBreak, Full-width cinematic feature band.
  * Background image with dark gradient overlay, editorial label,
  * display headline, intro text, and "Read the Feature" CTA.
  *

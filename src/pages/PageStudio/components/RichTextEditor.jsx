@@ -104,7 +104,7 @@ const RichTextEditor = ({ value = "", onChange, placeholder = "", C, NU }) => {
         {toolbarButton("Clear", "removeFormat")}
       </div>
 
-      {/* Editor — ref-based, no dangerouslySetInnerHTML to prevent cursor jumps */}
+      {/* Editor, ref-based, no dangerouslySetInnerHTML to prevent cursor jumps */}
       <div
         ref={editorRef}
         contentEditable

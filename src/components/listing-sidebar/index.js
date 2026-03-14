@@ -1,7 +1,7 @@
 /**
  * listing-sidebar module exports
  *
- * ListingSidebar  — main composer (recommended entry point)
+ * ListingSidebar , main composer (recommended entry point)
  * Individual card modules exported for standalone use if needed.
  */
 

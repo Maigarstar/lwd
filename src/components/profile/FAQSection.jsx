@@ -102,7 +102,7 @@ export default function FAQSection({ faqData, onAsk }) {
       }}>
         <div>
           <div style={{ fontFamily: FD, fontSize: 17, color: C.text, marginBottom: 4 }}>Still have a question?</div>
-          <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>Our team responds within 2 hours — we'd love to help.</div>
+          <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>Our team responds within 2 hours, we'd love to help.</div>
         </div>
         <button style={{
           padding: "11px 24px", background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)",

@@ -387,7 +387,7 @@ function getActivationStatusDisplay(vendor, C) {
   }
 
   // Default
-  return <div style={{ fontSize: 12, color: C.grey }}>—</div>;
+  return <div style={{ fontSize: 12, color: C.grey }}> - </div>;
 }
 
 function tableHeaderStyle(fontFamily, C) {

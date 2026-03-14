@@ -1,5 +1,5 @@
 // ─── src/pages/USAPage.jsx ───────────────────────────────────────────────────
-// United States country hub — a snapshot of getting married in America.
+// United States country hub, a snapshot of getting married in America.
 // Full luxury editorial page matching Italy CategoryPage quality.
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { ThemeCtx } from "../theme/ThemeContext";
@@ -87,7 +87,7 @@ const USA_VENUES = [
     countrySlug:"usa", regionSlug:"north-carolina", lat:35.5438, lng:-82.5515, online:true,
     styles:["Historic","Black Tie","Garden"], capacity:400, priceLabel:"£££", priceFrom:"$15,000",
     rating:4.8, reviews:234, featured:false, verified:true, lwdScore:89,
-    desc:"America's largest privately owned estate — 8,000 acres of Blue Ridge Mountain beauty surrounding a French Renaissance chateau.",
+    desc:"America's largest privately owned estate, 8,000 acres of Blue Ridge Mountain beauty surrounding a French Renaissance chateau.",
     includes:["250 Room Chateau","Award-Winning Gardens","Winery","Private Tours","Exclusive Use"],
     imgs:["https://images.unsplash.com/photo-1515542622106-78bda8ba0e5b?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1467951591042-f388365db261?auto=format&fit=crop&w=900&q=80",
@@ -309,7 +309,7 @@ export default function USAPage({
     const staleRobots = document.querySelector('meta[name="robots"]');
     if (staleRobots) staleRobots.remove();
 
-    // Canonical — this IS the canonical URL
+    // Canonical, this IS the canonical URL
     let canon = document.querySelector('link[rel="canonical"]');
     if (!canon) {
       canon = document.createElement("link");
@@ -369,7 +369,7 @@ export default function USAPage({
         <HomeNav darkMode={darkMode} onToggleDark={() => setDarkMode((d) => !d)} onNavigateStandard={onViewStandard} onNavigateAbout={onViewAbout} />
 
         <main>
-          {/* ═══ 1. HERO (72vh) — full-width image slider ══════════════════ */}
+          {/* ═══ 1. HERO (72vh), full-width image slider ══════════════════ */}
           <section style={{ position: "relative", height: "72vh", minHeight: 580, overflow: "hidden", background: "#0a0806" }}>
             {/* Gold shimmer bar */}
             <div aria-hidden="true" style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, zIndex: 10, background: "linear-gradient(90deg,#C9A84C,#e8c97a,#C9A84C)", backgroundSize: "200% 100%", animation: "shimmer 3s linear infinite" }} />
@@ -394,11 +394,11 @@ export default function USAPage({
               />
             ))}
 
-            {/* Gradient overlays — lighter to let images breathe */}
+            {/* Gradient overlays, lighter to let images breathe */}
             <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(10,8,6,0.25) 0%, rgba(10,8,6,0.7) 100%)" }} />
             <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(10,8,6,0.55) 0%, transparent 60%)" }} />
 
-            {/* Text content — always-dark section, hardcoded colours */}
+            {/* Text content, always-dark section, hardcoded colours */}
             <div className="usa-hero-content" style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: "0 80px 80px", zIndex: 2, opacity: loaded ? 1 : 0, transform: loaded ? "translateY(0)" : "translateY(20px)", transition: "all 0.9s ease" }}>
               {/* Category label with gold ornament line */}
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }} aria-hidden="true">
@@ -416,10 +416,10 @@ export default function USAPage({
               {/* Tagline */}
               <p style={{ fontFamily: NU, fontSize: 16, color: "rgba(255,255,255,0.6)", fontWeight: 300, lineHeight: 1.6, maxWidth: 520, margin: "0 0 20px" }}>
                 Discover {filteredVenues.length} extraordinary venues and world-class wedding professionals across the
-                United States — from Gatsby-era estates to sun-drenched coastal retreats.
+                United States, from Gatsby-era estates to sun-drenched coastal retreats.
               </p>
 
-              {/* Trust line — gold uppercase matching Italy */}
+              {/* Trust line, gold uppercase matching Italy */}
               <p style={{ fontFamily: NU, fontSize: 11, letterSpacing: "2.5px", textTransform: "uppercase", color: "rgba(201,168,76,0.7)", fontWeight: 500, margin: "0 0 36px" }}>
                 Each venue personally vetted · No paid placements
               </p>
@@ -430,7 +430,7 @@ export default function USAPage({
                   { val: String(USA_VENUES.length), label: "Curated Venues" },
                   { val: "50", label: "States Covered" },
                   { val: "100%", label: "Personally Verified" },
-                  { val: "—", label: "Limited Annual Availability" },
+                  { val: " - ", label: "Limited Annual Availability" },
                 ].map((s, i) => (
                   <div key={i} style={{ borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.15)" : "none", paddingLeft: i > 0 ? 32 : 0 }}>
                     <div style={{ fontFamily: GD, fontSize: 28, fontWeight: 600, color: "#C9A84C", lineHeight: 1 }}>{s.val}</div>
@@ -504,7 +504,7 @@ export default function USAPage({
           {/* ═══ 4. EDITORIAL SPLIT ═══════════════════════════════════════ */}
           <section className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "56px 48px 80px" }}>
             <div className="usa-split-grid" style={{ display: "grid", gridTemplateColumns: "55% 45%", gap: 40 }}>
-              {/* Left — image mosaic */}
+              {/* Left, image mosaic */}
               <div className="usa-mosaic-grid" style={{ display: "grid", gap: 6, gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr 1fr", gridTemplateAreas: '"one two" "one three" "four five"', minHeight: 500 }}>
                 {LATEST_5.map((v, i) => {
                   const areas = ["one","two","three","four","five"];
@@ -522,7 +522,7 @@ export default function USAPage({
                   );
                 })}
               </div>
-              {/* Right — editorial */}
+              {/* Right, editorial */}
               <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", paddingLeft: 20 }}>
                 <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: C.gold, fontWeight: 600, marginBottom: 14 }}>Why America</div>
                 <div style={{ width: 48, height: 1, background: C.gold, opacity: 0.5, marginBottom: 22 }} />
@@ -563,7 +563,7 @@ export default function USAPage({
           <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "52px 48px 8px" }}>
             <p style={{ fontFamily: GD, fontSize: "clamp(22px,2.5vw,32px)", fontWeight: 300, fontStyle: "italic", color: C.grey, letterSpacing: "0.5px", margin: "0 0 6px" }}>Latest Venues.</p>
             <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, opacity: 0.6, lineHeight: 1.6, maxWidth: 520, margin: 0 }}>
-              Newly added estates, resorts, and private properties — each personally vetted by our editorial team.
+              Newly added estates, resorts, and private properties, each personally vetted by our editorial team.
             </p>
           </div>
           <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 0" }}>
@@ -580,7 +580,7 @@ export default function USAPage({
             </SliderNav>
           </div>
 
-          {/* ═══ 7. SIGNATURE COLLECTION (slider) — always-dark section ════ */}
+          {/* ═══ 7. SIGNATURE COLLECTION (slider), always-dark section ════ */}
           <div style={{ marginTop: 72 }}>
             <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 48px" }}>
               <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(201,168,76,0.3), transparent)" }} />
@@ -629,7 +629,7 @@ export default function USAPage({
           <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "48px 48px 8px", marginTop: 40 }}>
             <p style={{ fontFamily: GD, fontSize: "clamp(22px,2.5vw,32px)", fontWeight: 300, fontStyle: "italic", color: C.grey, letterSpacing: "0.5px", margin: "0 0 6px" }}>Latest Vendors.</p>
             <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, opacity: 0.6, lineHeight: 1.6, maxWidth: 520, margin: 0 }}>
-              Planners, photographers, florists, and culinary artists — the professionals behind America's finest celebrations.
+              Planners, photographers, florists, and culinary artists, the professionals behind America's finest celebrations.
             </p>
           </div>
           <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 0" }}>
@@ -646,7 +646,7 @@ export default function USAPage({
             </SliderNav>
           </div>
 
-          {/* ═══ 9. EDITORIAL BANNER — cinematic with image ═══════════════ */}
+          {/* ═══ 9. EDITORIAL BANNER, cinematic with image ═══════════════ */}
           <section style={{ position: "relative", height: 480, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", marginTop: 80, overflow: "hidden", background: "#0a0806" }}>
             <img src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1920&q=80" alt="" loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.35 }} />
             <div style={{ position: "relative", zIndex: 1, maxWidth: 760, padding: "0 40px" }}>
@@ -656,7 +656,7 @@ export default function USAPage({
                 <div style={{ width: 60, height: 1, background: "rgba(255,255,255,0.2)" }} />
               </div>
               <h2 style={{ fontFamily: GD, fontSize: "clamp(26px,3vw,40px)", fontWeight: 400, color: "#ffffff", lineHeight: 1.15, margin: "0 0 18px" }}>
-                America — where grand estates meet <span style={{ fontStyle: "italic", color: "#C9A84C" }}>endless possibility.</span>
+                America, where grand estates meet <span style={{ fontStyle: "italic", color: "#C9A84C" }}>endless possibility.</span>
               </h2>
               <p style={{ fontFamily: NU, fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.7, maxWidth: 520, margin: "0 auto 32px" }}>
                 Every venue and vendor in our American collection has been personally visited and
@@ -679,7 +679,7 @@ export default function USAPage({
                   Your Guide to <span style={{ fontStyle: "italic", color: C.gold }}>American Weddings</span>
                 </h2>
                 <p style={{ fontFamily: NU, fontSize: 14, color: C.grey, lineHeight: 1.85, marginBottom: 12 }}>
-                  The United States offers a wedding landscape of extraordinary breadth — from the
+                  The United States offers a wedding landscape of extraordinary breadth, from the
                   Gilded Age mansions of Newport to the sun-soaked vineyards of Sonoma County.
                 </p>
                 <p style={{ fontFamily: NU, fontSize: 14, color: C.grey, lineHeight: 1.85, marginBottom: 28, opacity: 0.8 }}>

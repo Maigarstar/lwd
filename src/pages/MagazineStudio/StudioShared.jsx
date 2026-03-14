@@ -39,7 +39,7 @@ const LIGHT_S = {
   purple:      '#7b5fa8',
 };
 
-export const S = DARK_S; // default dark — backwards compat
+export const S = DARK_S; // default dark, backwards compat
 export function getS(isLight) { return isLight ? LIGHT_S : DARK_S; }
 export { LIGHT_S, DARK_S };
 

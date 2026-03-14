@@ -18,7 +18,7 @@ const G = {
   green:    "#22c55e",
 };
 
-// Keyframes injected once — keeps ChatWidget self-contained (no external CSS needed)
+// Keyframes injected once, keeps ChatWidget self-contained (no external CSS needed)
 const KEYFRAMES = `
   @keyframes lwd-dot-pulse {
     0%,80%,100% { opacity:0.35; transform:scale(0.75); }
@@ -302,7 +302,7 @@ export default function ChatWidget() {
                     borderRadius: "50%",
                     background:   G.green,
                     border:       `2px solid ${G.bgHead}`,
-                    /* solid dot — no pulse */
+                    /* solid dot, no pulse */
                   }}
                 />
               </div>

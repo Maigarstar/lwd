@@ -1,5 +1,5 @@
 /**
- * CustomFieldsEditor — Editor for custom section fields
+ * CustomFieldsEditor, Editor for custom section fields
  *
  * Features:
  * - Multiple field types (text, textarea, richtext, url, number, toggle, image, video)

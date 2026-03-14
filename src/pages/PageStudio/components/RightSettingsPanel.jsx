@@ -158,7 +158,7 @@ const RightSettingsPanel = ({
                 {fieldDef.label}
                 {fieldDef.characterCount && (
                   <span style={{ fontSize: 9, color: C.grey2, marginLeft: 8 }}>
-                    {currentValue?.length || 0}/{fieldDef.maxLength || "—"}
+                    {currentValue?.length || 0}/{fieldDef.maxLength || " - "}
                   </span>
                 )}
               </label>

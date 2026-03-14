@@ -1,5 +1,5 @@
 // ─── src/components/cards/editorial/TwoColumnEditorialCard.jsx ────────────────
-// Magazine-style two-column text spread — no primary image.
+// Magazine-style two-column text spread, no primary image.
 // Left column: large serif headline + optional pull-stat or decorative element.
 // Right column: 1–3 paragraphs of body copy + optional CTA.
 // Inspired by Condé Nast Traveller print double-page editorial spreads.

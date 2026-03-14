@@ -252,7 +252,7 @@ export default function ArticleBody({ content = [], isLight = true }) {
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto' }}>
-      {/* Scoped WYSIWYG styles — respects isLight */}
+      {/* Scoped WYSIWYG styles, respects isLight */}
       <style>{`
         .ab-img-wide {
           margin: 44px -60px;
@@ -417,7 +417,7 @@ export default function ArticleBody({ content = [], isLight = true }) {
                     letterSpacing: '0.12em', textTransform: 'uppercase',
                     color: GOLD, fontStyle: 'normal',
                   }}>
-                    — {block.attribution}
+                   , {block.attribution}
                   </cite>
                 )}
               </blockquote>
@@ -683,7 +683,7 @@ export default function ArticleBody({ content = [], isLight = true }) {
                 </p>
                 {block.attribution && (
                   <cite style={{ fontFamily: FU, fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD, fontStyle: 'normal', display: 'block' }}>
-                    — {block.attribution}
+                   , {block.attribution}
                   </cite>
                 )}
                 {block.source && (

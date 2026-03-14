@@ -1,13 +1,13 @@
 /**
- * CategoryLayoutEditorial — Style 2: Story-River Editorial
+ * CategoryLayoutEditorial, Style 2: Story-River Editorial
  *
  * Feels like the feature well of a serious magazine.
  * Structure:
  *   1. Full-screen editorial hero
- *   2. Lead story river — CardHorizontal alternating
+ *   2. Lead story river, CardHorizontal alternating
  *   3. Visual editorial break
- *   4. 2-column feature grid — CardLargeEditorial
- *   5. Compact minimal list — remaining posts
+ *   4. 2-column feature grid, CardLargeEditorial
+ *   5. Compact minimal list, remaining posts
  *   6. Category explorer strip
  */
 import { HeroEditorial } from '../components/HeroModules';

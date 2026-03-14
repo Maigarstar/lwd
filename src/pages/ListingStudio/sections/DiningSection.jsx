@@ -1,11 +1,11 @@
 /**
- * DiningSection — Listing Studio editor for dining & drinks
+ * DiningSection, Listing Studio editor for dining & drinks
  *
  * Fields:
  *   Dining Style · Chef Name · In-house Catering · External Catering Allowed
  *   Menu Styles (multi-checkbox) · Dietary Options (multi-checkbox)
  *   Drinks Options (multi-checkbox) · Dining Description (TipTap)
- *   Menu Highlight Images (file upload, max 4 — popup only, not main gallery)
+ *   Menu Highlight Images (file upload, max 4, popup only, not main gallery)
  *
  * formData keys:
  *   dining_style · dining_chef_name · dining_in_house · dining_external
@@ -347,7 +347,7 @@ const DiningSection = ({ formData, onChange }) => {
         <RichTextEditor
           value={formData?.dining_description || ''}
           onChange={html => onChange('dining_description', html)}
-          placeholder="Describe the dining experience — cuisine philosophy, local sourcing, seasonal menus, wine list, sommelier, private dining options…"
+          placeholder="Describe the dining experience, cuisine philosophy, local sourcing, seasonal menus, wine list, sommelier, private dining options…"
           minHeight={200}
         />
         <p style={hintStyle}>Supports rich text. This is the editorial description shown on the listing.</p>

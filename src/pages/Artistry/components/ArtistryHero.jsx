@@ -53,7 +53,7 @@ export default function ArtistryHero({ fontDisplay, fontUI, audioSrc }) {
         }
       `}</style>
 
-      {/* Background — Ken Burns */}
+      {/* Background, Ken Burns */}
       <div style={{
         position: 'absolute', inset: 0,
         backgroundImage: `url(${HERO_IMAGE})`,
@@ -120,11 +120,11 @@ export default function ArtistryHero({ fontDisplay, fontUI, audioSrc }) {
           opacity: loaded ? 1 : 0,
           transition: 'opacity 1s ease 0.7s',
         }}>
-          Celebrating the artists behind extraordinary weddings — worldwide
+          Celebrating the artists behind extraordinary weddings, worldwide
         </p>
       </div>
 
-      {/* Sound toggle — only shown when audioSrc provided */}
+      {/* Sound toggle, only shown when audioSrc provided */}
       {audioSrc && (
         <button
           onClick={() => setSoundOn(s => !s)}

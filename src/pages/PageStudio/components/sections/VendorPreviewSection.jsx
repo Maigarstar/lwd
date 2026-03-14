@@ -1,5 +1,5 @@
 /**
- * VendorPreviewSection — Vendor preview section editor
+ * VendorPreviewSection, Vendor preview section editor
  * Editable: heading
  * Vendor selection (Phase 2+)
  */

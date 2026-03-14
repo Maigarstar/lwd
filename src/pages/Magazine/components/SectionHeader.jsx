@@ -1,5 +1,5 @@
 /**
- * SectionHeader — Compact two-layer heading for sidebar/tight sections.
+ * SectionHeader, Compact two-layer heading for sidebar/tight sections.
  * Gold uppercase label + display headline with optional View All link.
  *
  * Use EditorialHeading for major editorial sections (3 layers with intro).

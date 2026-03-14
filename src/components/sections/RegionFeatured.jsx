@@ -42,7 +42,7 @@ export default function RegionFeatured({ config, region, venues, C, isMobile, on
   if (displayMode === "carousel") {
     return (
       <section style={{ position: "relative", margin: "60px 0 0" }}>
-        {/* Title + Controls — Constrained Width */}
+        {/* Title + Controls, Constrained Width */}
         <div
           style={{
             maxWidth: 1280,
@@ -106,7 +106,7 @@ export default function RegionFeatured({ config, region, venues, C, isMobile, on
           </div>
         </div>
 
-        {/* Featured Slider — Full Width */}
+        {/* Featured Slider, Full Width */}
         <FeaturedSlider venues={featuredVenues} />
       </section>
     );
@@ -115,7 +115,7 @@ export default function RegionFeatured({ config, region, venues, C, isMobile, on
   // Grid mode - render as GCard grid
   return (
     <section style={{ margin: "60px 0 0" }}>
-      {/* Title + Controls — Constrained Width */}
+      {/* Title + Controls, Constrained Width */}
       <div
         style={{
           maxWidth: 1280,
@@ -179,7 +179,7 @@ export default function RegionFeatured({ config, region, venues, C, isMobile, on
         </div>
       </div>
 
-      {/* Grid of venues — Full Width */}
+      {/* Grid of venues, Full Width */}
       <div
         style={{
           display: "grid",

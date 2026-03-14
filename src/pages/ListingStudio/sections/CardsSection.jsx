@@ -1,5 +1,5 @@
 /**
- * CardsSection — Site Card control for Listing Studio
+ * CardsSection, Site Card control for Listing Studio
  *
  * Supports three card types:  Venue Card · Vendor Card · GCard
  *
@@ -15,15 +15,15 @@
  * Data fields on formData (flat, snake_case):
  *   card_{type}_enabled        boolean
  *   card_{type}_media_type     'image' | 'video' | 'reel' | 'youtube' | 'vimeo'
- *   card_{type}_images         [{id, file, url}]        — uploaded images, max 20
- *   card_{type}_video_urls     string[4]                — 4 video URL slots
- *   card_{type}_reel_urls      string[4]                — 4 reel URL slots
- *   card_{type}_media_url      string                   — YouTube / Vimeo URL
+ *   card_{type}_images         [{id, file, url}]       , uploaded images, max 20
+ *   card_{type}_video_urls     string[4]               , 4 video URL slots
+ *   card_{type}_reel_urls      string[4]               , 4 reel URL slots
+ *   card_{type}_media_url      string                  , YouTube / Vimeo URL
  *   card_{type}_title          string (max 80)
  *   card_{type}_description    string (max 160)
  *   card_{type}_cta_text       string (max 40)
  *   card_{type}_cta_link       string
- *   card_{type}_badges         [{value, label, active}] — editable badge list
+ *   card_{type}_badges         [{value, label, active}], editable badge list
  *   card_{type}_vendor_edit    boolean
  *
  * Auto-fill (one-time, non-destructive):
@@ -55,7 +55,7 @@ const MEDIA_TYPES = [
   { value: 'vimeo',   label: 'Vimeo' },
 ];
 
-// Default badge definitions — used as seed when no badge data exists yet.
+// Default badge definitions, used as seed when no badge data exists yet.
 // value is the internal key; label is displayed and fully editable.
 const DEFAULT_BADGES = [
   { value: 'estate_of_month', label: 'Estate of the Month', active: false },
@@ -114,7 +114,7 @@ const hintStyle = {
   margin: '4px 0 0',
 };
 
-// ── ImgThumb — single image thumbnail (manages its own blob URL) ───────────────
+// ── ImgThumb, single image thumbnail (manages its own blob URL) ───────────────
 
 const ImgThumb = ({ img }) => {
   const [src, setSrc] = useState(() => img?.url || '');
@@ -144,7 +144,7 @@ const ImgThumb = ({ img }) => {
   );
 };
 
-// ── CardModule — renders a single card type module ────────────────────────────
+// ── CardModule, renders a single card type module ────────────────────────────
 
 const CardModule = ({ typeId, label, formData, onChange }) => {
   const [open, setOpen]         = useState(true);
@@ -346,7 +346,7 @@ const CardModule = ({ typeId, label, formData, onChange }) => {
               ))}
             </div>
 
-            {/* IMAGE — upload + reorderable grid */}
+            {/* IMAGE, upload + reorderable grid */}
             {mediaType === 'image' && (
               <>
                 <input
@@ -486,13 +486,13 @@ const CardModule = ({ typeId, label, formData, onChange }) => {
               </>
             )}
 
-            {/* VIDEO — 4 URL slots */}
+            {/* VIDEO, 4 URL slots */}
             {mediaType === 'video' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {Array.from({ length: MAX_VIDEO_SLOTS }, (_, i) => (
                   <div key={i}>
                     <label style={{ ...hintStyle, display: 'block', marginBottom: 4, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      Video {i + 1}{i === 0 ? ' — Primary' : ''}
+                      Video {i + 1}{i === 0 ? ', Primary' : ''}
                     </label>
                     <input
                       type="url"
@@ -507,13 +507,13 @@ const CardModule = ({ typeId, label, formData, onChange }) => {
               </div>
             )}
 
-            {/* REEL — 4 URL slots */}
+            {/* REEL, 4 URL slots */}
             {mediaType === 'reel' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {Array.from({ length: MAX_REEL_SLOTS }, (_, i) => (
                   <div key={i}>
                     <label style={{ ...hintStyle, display: 'block', marginBottom: 4, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      Reel {i + 1}{i === 0 ? ' — Primary' : ''}
+                      Reel {i + 1}{i === 0 ? ', Primary' : ''}
                     </label>
                     <input
                       type="url"
@@ -528,7 +528,7 @@ const CardModule = ({ typeId, label, formData, onChange }) => {
               </div>
             )}
 
-            {/* YOUTUBE / VIMEO — single URL */}
+            {/* YOUTUBE / VIMEO, single URL */}
             {(mediaType === 'youtube' || mediaType === 'vimeo') && (
               <>
                 <input
@@ -613,7 +613,7 @@ const CardModule = ({ typeId, label, formData, onChange }) => {
             </div>
           </div>
 
-          {/* ── BADGES — fully editable, admin only ────────────────────────── */}
+          {/* ── BADGES, fully editable, admin only ────────────────────────── */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <label style={{ ...labelStyle, marginBottom: 0 }}>Badges</label>
@@ -651,7 +651,7 @@ const CardModule = ({ typeId, label, formData, onChange }) => {
                       alignItems: 'center', justifyContent: 'center',
                       transition: 'all 0.13s ease',
                     }}
-                    title={badge.active ? 'Active — click to deactivate' : 'Inactive — click to activate'}
+                    title={badge.active ? 'Active, click to deactivate' : 'Inactive, click to activate'}
                   >
                     {badge.active && (
                       <span style={{ fontSize: 9, color: '#fff', fontWeight: 700 }}>✓</span>
@@ -763,7 +763,7 @@ const CardModule = ({ typeId, label, formData, onChange }) => {
   );
 };
 
-// ── CardsSection — top-level section component ────────────────────────────────
+// ── CardsSection, top-level section component ────────────────────────────────
 
 const CardsSection = ({ formData, onChange }) => {
   // ── Auto-fill from listing data (one-time, non-destructive) ─────────────────
@@ -825,7 +825,7 @@ const CardsSection = ({ formData, onChange }) => {
           Site Cards
         </h3>
         <p style={{ fontSize: 12, color: '#999', margin: 0 }}>
-          Control how this listing appears on cards across the site — homepage features, category pages, and campaign highlights.
+          Control how this listing appears on cards across the site, homepage features, category pages, and campaign highlights.
         </p>
       </div>
 

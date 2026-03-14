@@ -56,7 +56,7 @@ const ITALY_COLUMN_DEFS = [
   },
 ];
 
-// ── USA column layout definitions (search-based — not yet in geo.js) ────────
+// ── USA column layout definitions (search-based, not yet in geo.js) ────────
 const USA_COLUMN_DEFS = [
   {
     title: "Northeast",
@@ -76,7 +76,7 @@ const USA_COLUMN_DEFS = [
   },
 ];
 
-// ── International destinations (display only — hover, no navigation yet) ────
+// ── International destinations (display only, hover, no navigation yet) ────
 const INTL_DESTINATIONS = [
   "Antigua", "Argentina", "Australia", "Austria", "Bahamas", "Bali",
   "Barbados", "Belgium", "Bermuda", "Brazil", "Canada", "Caribbean",
@@ -238,7 +238,7 @@ export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUS
     </section>
   );
 
-  // Search-based grid renderer (for USA — destinations not yet in geo.js)
+  // Search-based grid renderer (for USA, destinations not yet in geo.js)
   const renderSearchGrid = (columnDefs, label, subtitle) => (
     <section
       aria-label={`${label} destinations directory`}

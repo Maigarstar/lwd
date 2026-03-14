@@ -84,7 +84,7 @@ export default function VideoEmbed({ videoUrl, fontUI, artistName }) {
         </span>
       </div>
 
-      {/* Iframe wrapper — 16:9 for YouTube/Instagram, 9:16 for TikTok */}
+      {/* Iframe wrapper, 16:9 for YouTube/Instagram, 9:16 for TikTok */}
       <div style={{
         position: 'relative',
         width: '100%',
@@ -95,7 +95,7 @@ export default function VideoEmbed({ videoUrl, fontUI, artistName }) {
       }}>
         <iframe
           src={info.src}
-          title={`${info.label} video — ${artistName}`}
+          title={`${info.label} video, ${artistName}`}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
           style={{

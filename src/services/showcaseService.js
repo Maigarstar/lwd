@@ -1,7 +1,7 @@
 // ─── showcaseService.js ───────────────────────────────────────────────────────
 // CRUD for venue_showcases table
 // Supports: venue and planner showcase types
-// RLS disabled — anon key writes (matches magazine_posts pattern)
+// RLS disabled, anon key writes (matches magazine_posts pattern)
 // ─────────────────────────────────────────────────────────────────────────────
 import { supabase, isSupabaseAvailable } from '../lib/supabaseClient';
 

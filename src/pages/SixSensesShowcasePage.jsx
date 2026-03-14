@@ -1,7 +1,7 @@
-// ─── DdeShowcasePage.jsx ──────────────────────────────────────────────────────
-// Showcase page, Domaine des Etangs, Auberge Collection
-// Massignac · Charente · France
-// Route: /showcase/domaine-des-etangs
+// ─── SixSensesShowcasePage.jsx ────────────────────────────────────────────────
+// Showcase page, Six Senses Krabey Island
+// Koh Krabey Island · Preah Sihanouk Province · Cambodia
+// Route: /showcase/six-senses-krabey-island
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useEffect } from 'react';
 
@@ -30,119 +30,158 @@ const C = {
   border: '#e4e0d8',
   gold:   GOLD,
   ivory:  '#f5f2ec',
-  forest: '#1c2318',
+  ocean:  '#0d1a1f',    // deep teal-dark for ocean/wellness sections
+  jungle: '#131c14',    // deep jungle green
 };
 
-// ── Image helper, all images live in public/Domaine-des-Etangs-Auberge-Collection/
-const I = (filename) => `/Domaine-des-Etangs-Auberge-Collection/${filename}`;
+// ── Image helper, all images live in public/Six-Senses-Krabey-Island/
+const I = (filename) => `/Six-Senses-Krabey-Island/${filename}`;
 
 // ── Venue data ─────────────────────────────────────────────────────────────────
-const DDE_VENUE = {
-  name:     'Domaine des Etangs',
-  tagline:  'Where art, nature and French country elegance converge',
+const SSKRABEY_VENUE = {
+  name:     'Six Senses Krabey Island',
+  tagline:  'A private island sanctuary where the Gulf of Thailand meets barefoot luxury',
   logo:     null,
   location: {
-    town:    'Massignac',
-    region:  'Charente',
-    country: 'France',
-    address: 'Le Bourg, 16310 Massignac, Charente, France',
+    town:    'Koh Krabey Island',
+    region:  'Preah Sihanouk Province',
+    country: 'Cambodia',
+    address: 'Koh Krabey Island, Preah Sihanouk Province, Cambodia',
   },
-  priceFrom: '€15,000',
+  priceFrom: 'POA',
 
-  heroImage: I('DDE_Exterior_Drone_2025_DJI_0745-HDR.jpg'),
+  heroImage: I('DJI_20240519072805_0089_D-Enhanced-NR.jpg'),
   heroStats: [
-    { value: '13th C',  label: 'Origins' },
-    { value: '2,500',   label: 'Private Acres' },
-    { value: '200',     label: 'Max Guests' },
-    { value: '★ 1',     label: 'Michelin Star' },
+    { value: '40',        label: 'Private Villas' },
+    { value: '100',       label: 'Max Guests' },
+    { value: 'Private',   label: 'Island' },
+    { value: '5 km',      label: 'From Mainland' },
   ],
 
   galleryImages: [
-    { src: I('Ceremony Domainedesetangs-1.jpg'),           alt: 'Outdoor ceremony at Domaine des Etangs' },
-    { src: I('DDE_Castle_Exteriors_2023_33.jpg'),          alt: 'The château façade at Domaine des Etangs' },
-    { src: I('Wedding long table.jpg'),                    alt: 'Long wedding reception table' },
-    { src: I('Castle courtyard.jpg'),                      alt: 'Castle courtyard garden' },
-    { src: I('Signature-Suite-Venus-6.jpg'),               alt: 'Signature Vénus Suite' },
+    // Aerial & island
+    { src: I('Krabey_Island_aerial_view-4500x3006-8fa955b.jpg'),                alt: 'Aerial view of Six Senses Krabey Island' },
+    { src: I('Aerial_view_of_Krabey_Island_[8360-A4].jpg'),                      alt: 'Aerial view of the island' },
+    { src: I('DJI_20240519113528_0120_D-Enhanced-NR.jpg'),                        alt: 'Drone shot over Krabey Island' },
+    { src: I('Aerial_view_of_the_main_pool_[8363-A4].jpg'),                      alt: 'Aerial view of the main pool' },
+    { src: I('Aerial_view_of_the_Khmer_House_[8366-A4].jpg'),                    alt: 'Aerial view of the Khmer House' },
+    // Villas
+    { src: I('Ocean_Pool_Villa_Suite_sunset_[7382-A4].jpg'),                     alt: 'Ocean Pool Villa Suite at sunset' },
+    { src: I('Ocean_Pool_Villa_Suite2_[7375-A4].jpg'),                           alt: 'Ocean Pool Villa Suite' },
+    { src: I('Private_Sundeck_of_Ocean_Pool_Villa_[8354-A4].jpg'),               alt: 'Private sundeck of the Ocean Pool Villa' },
+    { src: I('Ocean_Pool_Villa_Suite_bedroom-7952x5304-364164d.jpg'),            alt: 'Ocean Pool Villa Suite bedroom' },
+    { src: I('The Beach Retreat-7952x5304-364164d.jpg'),                         alt: 'The Beach Retreat villa' },
+    { src: I('Copy of The Beach Retreat Aerial View 2-4500x2999-07588e5.jpg'),   alt: 'Beach Retreat aerial view' },
+    { src: I('Outdoor_bathtub_at_The_Beach_Retreat_[8277-A4].jpg'),              alt: 'Outdoor bathtub at The Beach Retreat' },
+    { src: I('Hideaway Pool Villa Suite-4500x3000-4cf3e1a.jpg'),                 alt: 'Hideaway Pool Villa Suite' },
+    { src: I('Oceanfront_Two-bedroom_Pool_Villa-7952x5304-364164d.jpg'),         alt: 'Oceanfront Two-bedroom Pool Villa' },
+    // Pool & beach
+    { src: I('Main_pool_[8371-A4].jpg'),                                          alt: 'Main pool at Six Senses Krabey Island' },
+    { src: I('krabey-island-cambodia_Main_beach-4500x3000-4cf3e1a.jpg'),         alt: 'Main beach at Krabey Island' },
+    { src: I('Boardwalk_sunset_[7383-A4].jpg'),                                   alt: 'Boardwalk at sunset' },
+    { src: I('Boardwalk1_[8316-A4].jpg'),                                          alt: 'Resort boardwalk' },
+    // Dining
+    { src: I('Romantic_boardwalk_dinner_[8279-A4].jpg'),                         alt: 'Private boardwalk dinner' },
+    { src: I('Romantic_boardwalk_dinner_[8340-A4].jpg'),                          alt: 'Romantic boardwalk dinner at night' },
+    { src: I('AHA_Restaurant-Terrace_[8335-A4].jpg'),                             alt: 'AHA Restaurant terrace' },
+    { src: I('Tree_Restaurant_[8255-A4].jpg'),                                    alt: 'Tree Restaurant' },
+    { src: I('Sunset_Bar1_[8254-A4].jpg'),                                        alt: 'Sunset Bar' },
+    // Wellness & spa
+    { src: I('Yoga_on_the_Rocks_[8357-A4].jpg'),                                  alt: 'Yoga on the rocks' },
+    { src: I('Yoga_rooftop_pavilion1_[8347-A4].jpg'),                             alt: 'Yoga rooftop pavilion' },
+    { src: I('SixSensesKrabeyIslandSpa.jpg'),                                     alt: 'Six Senses Spa' },
+    { src: I('Six_Senses_Spa_Treatment_Room_[8252-A4].jpg'),                      alt: 'Six Senses Spa treatment room' },
+    { src: I('Bamboo Massage.jpg'),                                                alt: 'Bamboo massage treatment' },
+    { src: I('Hydrotherapy_pool2_[8319-A4].jpg'),                                 alt: 'Hydrotherapy pool' },
+    // Activities
+    { src: I('Snorkeling_[8305-A4].jpg'),                                         alt: 'Snorkelling off Krabey Island' },
+    { src: I('Surf_ski1_[8306-A4].jpg'),                                          alt: 'Water sports on the ocean' },
+    { src: I('Khmer_cooking_class_[8365-A4].jpg'),                                alt: 'Khmer cooking class' },
+    { src: I('Beach_picnic_at_Koh_Ta_Kiev_with_models_[8299-A4].jpg'),           alt: 'Private beach picnic' },
+    // Architecture & arrival
+    { src: I('Lobby_[8422-A4].jpg'),                                              alt: 'Resort lobby' },
+    { src: I('Arrival_pavilion_[8367-A4].jpg'),                                   alt: 'Arrival pavilion' },
+    { src: I('Banyan_tree_[8315-A4].jpg'),                                        alt: 'Banyan tree on the estate' },
+    // Weddings
+    { src: I('6Z6A9594.jpg'),                                                     alt: 'Wedding at Six Senses Krabey Island' },
+    { src: I('6Z6A9599-Enhanced-NR.jpg'),                                         alt: 'Wedding ceremony' },
+    { src: I('A17I2625.jpg'),                                                     alt: 'Wedding celebration' },
+    { src: I('A17I2745.jpg'),                                                     alt: 'Wedding reception' },
   ],
-  totalPhotoCount: 55,
-  videos: [],   // populated via Listing Studio media_items
+  totalPhotoCount: 40,
+  videos: [],
 
   keyStats: [
-    { value: '13th C',  label: 'Origins',       sub: 'Charente, France'  },
-    { value: '29',      label: 'Rooms',          sub: 'inc. 6 cottages'   },
-    { value: '200',     label: 'Max. Capacity',  sub: 'outdoor events'    },
-    { value: '8+',      label: 'Event Spaces',   sub: 'each distinct'     },
-    { value: '2,500',   label: 'Private Acres',  sub: 'lakes & forests'   },
-    { value: '★ 1',     label: 'Michelin Star',  sub: 'Restaurant Dyades' },
+    { value: '40',      label: 'Private Villas',   sub: 'overwater & beachfront'   },
+    { value: '100',     label: 'Max Guests',        sub: 'for celebrations'         },
+    { value: '100%',    label: 'Private Island',    sub: 'exclusively yours'        },
+    { value: '5 km',    label: 'From Mainland',     sub: 'Preah Sihanouk'           },
+    { value: '★',       label: 'Six Senses Spa',    sub: 'world-class wellness'     },
+    { value: '∞',       label: 'Ocean Views',       sub: 'Gulf of Thailand'         },
   ],
 
   overview: {
-    headline:          '2,500 Acres of Art, Lakes & French Country Elegance',
-    intro:             'A 13th-century château set within 1,000 hectares of private forests, lakes, meadows, and sculpture-dotted parkland, one of the most extraordinary estate wedding venues in France.',
-    storyEyebrow:      'The Domaine des Etangs Story',
-    storyHeadline:     'From Medieval Fortification to Living Art Estate',
-    storyImage:        I('DDE_Exteriors_Drone_2023_24.jpg'),
-    storyBody:         'Founded as a fortified residence by the Dukes of Aquitaine in the 13th century, Domaine des Etangs has evolved across seven hundred years, from aristocratic stronghold to wheat farm, from neglected ruin to one of France\'s most celebrated private estates. The current neo-Gothic château was shaped in 1860 by the influence of architect Eugène Viollet-le-Duc. After a transformative restoration under Garance Primat, who closed the property entirely in 2013 to reimagine it as a living work of art, the Domaine reopened in 2015 as a five-star hotel. Today it is managed by Auberge Collection, and celebrated as Travel + Leisure\'s No. 2 hotel in France.',
+    headline:      'A Private Island Sanctuary in the Gulf of Thailand',
+    intro:         'Six Senses Krabey Island is Cambodia\'s most intimate resort, 40 overwater and beachfront villas set across a pristine private island, united by extraordinary wellness, farm-to-table dining, and an exceptional weddings programme.',
+    storyEyebrow:  'The Island Story',
+    storyHeadline: 'An Island Transformed by Six Senses',
+    storyImage:    I('Aerial_view_of_the_Khmer_House_[8313-A4].jpg'),
+    storyBody:     'Koh Krabey Island sits in the warm waters of the Gulf of Thailand, just 5 kilometres from the shores of Preah Sihanouk Province. Once an untouched stretch of jungle and beach, the island was reimagined by Six Senses Hotels & Resorts as a place where nature and barefoot luxury could coexist. Today, the resort stands as one of Southeast Asia\'s most compelling luxury destinations, an escape where thatched-roof villas reach out over the water, jungle trails wind through untouched forest, and the rhythm of island life sets the pace for every day. For weddings and celebrations, the island can be taken over completely, making it one of the most exclusive and unique wedding venues in Asia.',
   },
 
-  spaces: {
-    laLaiterieImage:   I('DDE_Events__Decoration-Setups_2023_Credit Manu Heslop (6).jpg'),
-    octaveImage:       I('DDE_Events__Decoration-Setups_2023_33.jpg'),
-    dragonBarnImage:   I('Dragon farm cottage (3).jpg'),
-    gardensImage:      I('Castle gardens.jpg'),
-    courtyardImage:    I('Castle courtyard.jpg'),
-    ceremonyImage:     I('Ceremony Domainedesetangs-7a.jpg'),
-    weddingTableImage: I('Honor table.jpg'),
-    decorImage:        I('DDE_Events__Decoration-Setups_2023_Credit Manu Heslop (13).jpg'),
+  villas: {
+    overwaterHero:  I('Ocean_Pool_Villa_Suite2_[7375-A4].jpg'),
+    beachfrontHero: I('The Beach Retreat-7952x5304-364164d.jpg'),
+    interior:       I('Ocean_Pool_Villa_Suite_bedroom-7952x5304-364164d.jpg'),
+    terrace:        I('Private_Sundeck_of_Ocean_Pool_Villa_[8354-A4].jpg'),
+    pool:           I('Hideaway Pool Villa Suite-4500x3000-4cf3e1a.jpg'),
+    sunset:         I('Ocean_Pool_Villa_Suite_sunset-7980x5346-9fb6307.jpg'),
+    twoBedroom:     I('Oceanfront_Two-bedroom_Pool_Villa-7952x5304-364164d.jpg'),
+    boardwalk:      I('Boardwalk_sunset_[7383-A4].jpg'),
   },
 
   dining: {
-    hero:     I('DDE_Dine_Dyades_YC-2019-Terrasse-Dyades-19.jpg'),
-    food1:    I('DDE_Events__Decoration-Setups_2023_40.jpg'),
-    garden:   I('DDE_Exteriors_Vegetable garden_lin-25.jpg'),
+    hero:    I('AHA_Restaurant_[8343-A4].jpg'),
+    beach:   I('Romantic_boardwalk_dinner_[8340-A4].jpg'),
+    kitchen: I('Tree_restaurant-open_kitchen_[8295-A4].jpg'),
+    garden:  I('Khmer_cooking_class_[8365-A4].jpg'),
   },
 
-  rooms: {
-    venus:     I('Signature-Suite-Venus-6.jpg'),
-    soleil:    I('Prestige Suite Soleil (4).jpg'),
-    saturne:   I('Prestige room Saturne (6) (1).jpg'),
-    lounge:    I('Salon Famille.jpg'),
-    pegase:    I('Pegase-farm-cottage.jpg'),
-    cottages:  I('Cottages-Pegase-Cassiopee.jpg'),
-    dragon:    I('Dragon farm cottage (3).jpg'),
-    longere:   I('DDE_Longere_Exteriors_2023.jpg'),
-    pool:      I('Indoor-pool-Yorrick.jpg'),
-  },
-
-  art: {
-    installation: I('DDE_Art_Rondinone_Sun.jpg'),
-    exterior:     I('DDE_Castle_Exteriors_2023_39 (1).jpg'),
-    nature:       I('DDE_Exteriors_Nature_2022_sol-37.jpg'),
+  wellness: {
+    spa:       I('SixSensesKrabeyIslandSpa.jpg'),
+    yoga:      I('Yoga_on_the_Rocks_[8357-A4].jpg'),
+    treatment: I('Six_Senses_Spa_Treatment_Room_[8252-A4].jpg'),
+    pool:      I('Hydrotherapy_pool2_[8319-A4].jpg'),
+    alchemy:   I('Alchemy_Bar_[8314-A4].jpg'),
+    nature:    I('Nature_s_walk_[8322-A4].jpg'),
   },
 
   weddings: {
-    hero:       I('Wedding-Credit Chloe Fayollas-260.jpg'),
-    ceremony1:  I('Ceremony Domainedesetangs-5a.jpg'),
-    ceremony2:  I('Ceremony.jpg'),
-    reception1: I('DDE_Events_Birthday_Rose_CreditYannFalempin_2025_36.jpg'),
-    reception2: I('DDE_Events_Birthday_Rose_CreditYannFalempin_2025_38.jpg'),
-    detail1:    I('wedding-Credit Chloe Fayollas-713.jpg'),
-    detail2:    I('wedding-Credit Chloe Fayollas-716.jpg'),
-    detail3:    I('wedding-Credit Chloe Fayollas-720.jpg'),
-    setup:      I('DDE_Events__Decoration-Setups_2023_21.jpg'),
+    hero:       I('6Z6A9594.jpg'),
+    ceremony:   I('6Z6A9599-Enhanced-NR.jpg'),
+    beach:      I('Beach_picnic_at_Koh_Ta_Kiev_with_models_[8299-A4].jpg'),
+    reception:  I('Romantic_boardwalk_dinner_with_host_[8293-A4].jpg'),
+    couple:     I('6Z6A9711.jpg'),
+    detail1:    I('6Z6A9724.jpg'),
+    detail2:    I('6Z6A9740.jpg'),
+    setup:      I('A17I2625.jpg'),
+    enquireImg: I('Romantic_boardwalk_dinner_[8279-A4].jpg'),
   },
 
-  // ── Dynamic section intro text (fallback to hardcoded defaults if missing)
   sectionIntros: {
-    overview: 'A 13th-century château set within 1,000 hectares of private forests, lakes, meadows, and sculpture-dotted parkland, one of the most extraordinary estate wedding venues in France.',
-    spaces: 'From an intimate lakeside chapel to a 200 m² stone barn, each space at Domaine des Etangs carries centuries of character, and a contemporary soul.',
-    dining: "Chef Matthieu Pasgrimaud builds every menu around the Domaine's own organic kitchen garden, inventive, terroir-driven, and rooted in the seasons of Charente.",
-    rooms: "Each of the 29 rooms and cottages at Domaine des Etangs echoes the estate's character, stone fireplaces, hand-woven textiles, and views onto the lakes and gardens.",
-    art: 'A rotating programme of contemporary sculpture and site-specific installations transforms the estate into an open-air gallery.',
-    weddings: 'Every wedding at Domaine des Etangs is designed to feel entirely unique, shaped by your story, your guests, and the landscape itself.',
+    overview:  'Six Senses Krabey Island is Cambodia\'s most intimate resort, 40 overwater and beachfront villas set across a pristine private island, united by extraordinary wellness, farm-to-table dining, and an exceptional weddings programme.',
+    villas:    '40 overwater and beachfront villas, each with private pool, open-air bathroom, and unobstructed views across the Gulf of Thailand, designed to blur the boundary between inside and ocean.',
+    dining:    'Chef-driven, produce-led menus rooted in Cambodian flavour, from barefoot beach dinners to candlelit tables in the jungle, every meal is shaped by the island around it.',
+    wellness:  'The Six Senses Spa Krabey Island is built on the philosophy of longevity, combining ancient Cambodian healing traditions with cutting-edge biohacking and personalised wellness programmes.',
+    weddings:  'Every wedding at Six Senses Krabey Island is an island to yourself, a completely private backdrop of ocean, jungle, and sky, shaped entirely by you.',
   },
 
-  // ── Approval & content freshness (internal metadata)
+  contact: {
+    phone: '+855 69 944 888',
+    email: 'reservations-krabey@sixsenses.com',
+    website: 'https://www.sixsenses.com/en/hotels/krabey-island',
+  },
+
   factChecked: false,
   approved: false,
   lastReviewedAt: null,
@@ -197,40 +236,6 @@ function SectionHeader({ eyebrow, title, subtitle, light = false, center = false
       }} />
     </div>
   );
-}
-
-// ── ApprovedBadge ──────────────────────────────────────────────────────────
-function ApprovedBadge() {
-  return (
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        padding: '6px 12px',
-        background: 'rgba(201, 168, 76, 0.08)',
-        border: `1px solid rgba(201, 168, 76, 0.2)`,
-        borderRadius: 4,
-        fontSize: 12,
-        fontFamily: NU,
-        color: GOLD,
-        fontWeight: 500,
-        letterSpacing: '0.05em',
-        textTransform: 'uppercase',
-      }}
-    >
-      <span>✓</span>
-      <span>Approved</span>
-    </div>
-  );
-}
-
-// ── Utility: Format date to "Month Year" ────────────────────────────────────
-function formatMonthYear(dateString) {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  const options = { year: 'numeric', month: 'long' };
-  return date.toLocaleDateString('en-US', options);
 }
 
 // ── Section wrapper ────────────────────────────────────────────────────────────
@@ -301,7 +306,7 @@ function BreadcrumbBar({ venue, onBack, onGoDestination }) {
       {/* View Listing link, far right */}
       <div style={{ marginLeft: 'auto', flexShrink: 0 }}>
         <a
-          href="/wedding-venues/domaine-des-etangs"
+          href="/wedding-venues/six-senses-krabey-island"
           style={{
             fontFamily: NU, fontSize: 10, fontWeight: 700,
             letterSpacing: '0.12em', textTransform: 'uppercase',
@@ -321,12 +326,11 @@ function BreadcrumbBar({ venue, onBack, onGoDestination }) {
 }
 
 // ── StickyVenueNav ─────────────────────────────────────────────────────────────
-const DDE_NAV = [
+const SSKRABEY_NAV = [
   { id: 'overview', label: 'Overview'  },
-  { id: 'spaces',   label: 'Spaces'    },
+  { id: 'villas',   label: 'Villas'    },
   { id: 'dining',   label: 'Dining'    },
-  { id: 'rooms',    label: 'Rooms'     },
-  { id: 'art',      label: 'Art'       },
+  { id: 'wellness', label: 'Wellness'  },
   { id: 'weddings', label: 'Weddings'  },
 ];
 
@@ -364,7 +368,7 @@ function StickyVenueNav({ venue, activeSection, onScrollTo, onVisibilityChange }
         </span>
         {!isMobile && (
           <span style={{ fontFamily: NU, fontSize: 11, color: C.muted, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-            Auberge Collection
+            Six Senses Hotels & Resorts
           </span>
         )}
       </div>
@@ -372,7 +376,7 @@ function StickyVenueNav({ venue, activeSection, onScrollTo, onVisibilityChange }
       {/* Section pills, desktop */}
       {!isMobile && (
         <nav style={{ display: 'flex', gap: 4 }}>
-          {DDE_NAV.map(item => (
+          {SSKRABEY_NAV.map(item => (
             <button
               key={item.id}
               onClick={() => onScrollTo(item.id)}
@@ -411,10 +415,9 @@ function StickyVenueNav({ venue, activeSection, onScrollTo, onVisibilityChange }
         Enquire
       </button>
 
-      {/* View Listing link, desktop only */}
       {!isMobile && (
         <a
-          href="/wedding-venues/domaine-des-etangs"
+          href="/wedding-venues/six-senses-krabey-island"
           style={{
             marginLeft: 8,
             fontFamily: NU, fontSize: 11, fontWeight: 600,
@@ -439,16 +442,16 @@ function StickyVenueNav({ venue, activeSection, onScrollTo, onVisibilityChange }
 function HeroSection({ venue }) {
   const { isMobile } = useBreakpoint();
   return (
-    <section style={{ position: 'relative', width: '100%', height: '100vh', minHeight: 600, background: C.forest }}>
+    <section style={{ position: 'relative', width: '100%', height: '100vh', minHeight: 600, background: C.ocean }}>
       <div style={{
         position: 'absolute', inset: 0,
         backgroundImage: `url("${venue.heroImage}")`,
         backgroundSize: 'cover',
-        backgroundPosition: 'center 50%',
+        backgroundPosition: 'center 55%',
       }} />
       <div style={{
         position: 'absolute', inset: 0,
-        background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.05) 45%, rgba(0,0,0,0.68) 100%)',
+        background: 'linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.04) 40%, rgba(0,0,0,0.72) 100%)',
       }} />
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0,
@@ -462,7 +465,7 @@ function HeroSection({ venue }) {
           {venue.location.region} · {venue.location.country}
         </p>
         <h1 style={{
-          fontFamily: GD, fontSize: isMobile ? 42 : 76,
+          fontFamily: GD, fontSize: isMobile ? 38 : 72,
           fontWeight: 400, color: '#ffffff',
           margin: '0 0 8px', lineHeight: 1.0,
           textShadow: '0 2px 32px rgba(0,0,0,0.45)',
@@ -475,12 +478,12 @@ function HeroSection({ venue }) {
           margin: '0 0 4px', fontStyle: 'italic',
           letterSpacing: '0.04em',
         }}>
-          Auberge Collection
+          Six Senses Hotels & Resorts
         </p>
         <p style={{
           fontFamily: NU, fontSize: isMobile ? 15 : 18,
           color: 'rgba(255,255,255,0.75)',
-          margin: '0 0 32px', maxWidth: 520, lineHeight: 1.6,
+          margin: '0 0 32px', maxWidth: 560, lineHeight: 1.6,
         }}>
           {venue.tagline}
         </p>
@@ -508,15 +511,15 @@ function HeroSection({ venue }) {
 }
 
 // ── Main page ──────────────────────────────────────────────────────────────────
-export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateStandard, onNavigateAbout }) {
+export default function SixSensesShowcasePage({ onBack, onGoDestination, onNavigateStandard, onNavigateAbout }) {
   const { isMobile } = useBreakpoint();
   const [activeSection, setActiveSection] = useState('overview');
   const [stickyVisible, setStickyVisible] = useState(false);
-  const venue = DDE_VENUE;
+  const venue = SSKRABEY_VENUE;
 
   // Section scroll spy
   useEffect(() => {
-    const sections = ['overview', 'spaces', 'dining', 'rooms', 'art', 'weddings', 'enquire'];
+    const sections = ['overview', 'villas', 'dining', 'wellness', 'weddings', 'enquire'];
     const onScroll = () => {
       for (let i = sections.length - 1; i >= 0; i--) {
         const el = document.getElementById(sections[i]);
@@ -575,7 +578,7 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
             <MediaBlock
               videos={venue.videos || []}
               gallery={(venue.galleryImages || []).map((img, i) => ({
-                id:    img.id  || `dde-img-${i}`,
+                id:    img.id  || `sskrabey-img-${i}`,
                 src:   img.src || '',
                 alt:   img.alt || img.title || '',
                 title: img.title || '',
@@ -590,9 +593,9 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
       ═══════════════════════════════════════════════════════════════════ */}
       <Section id="overview" bg={C.cream}>
         <SectionHeader
-          eyebrow={`${venue.location.town} · ${venue.location.country}`}
+          eyebrow={`${venue.location.region} · ${venue.location.country}`}
           title={venue.overview.headline}
-          subtitle={venue.overview.intro}
+          subtitle={venue.sectionIntros?.overview || venue.overview.intro}
         />
         <VenueStatsCard data={{
           variant:  'strip',
@@ -609,53 +612,53 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
             eyebrow:  venue.overview.storyEyebrow,
             title:    venue.overview.storyHeadline,
             body:     venue.overview.storyBody,
-            cta:      { label: 'Explore the Estate →', href: '#spaces' },
+            cta:      { label: 'Discover the Island →', href: '#villas' },
           }} />
         </div>
       </Section>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 2, EVENT SPACES
+          SECTION 2, VILLAS
       ═══════════════════════════════════════════════════════════════════ */}
-      <Section id="spaces" bg="#ffffff">
+      <Section id="villas" bg="#ffffff">
         <SectionHeader
-          eyebrow="Event Spaces"
-          title="Eight Distinct Spaces. One Private Estate."
-          subtitle={venue.sectionIntros?.spaces || "From an intimate lakeside chapel to a 200 m² stone barn, each space at Domaine des Etangs carries centuries of character, and a contemporary soul."}
+          eyebrow="Accommodation"
+          title="40 Villas. Ocean, Beach & Jungle."
+          subtitle={venue.sectionIntros?.villas || "40 overwater and beachfront villas, each with private pool, open-air bathroom, and unobstructed views across the Gulf of Thailand, designed to blur the boundary between inside and ocean."}
         />
 
-        {/* La Laiterie, the former dairy */}
+        {/* Overwater villa feature */}
         <div style={{ marginBottom: 4 }}>
           <FeatureCard data={{
-            image:    venue.spaces.laLaiterieImage,
+            image:    venue.villas.overwaterHero,
             variant:  'image-left',
-            accentBg: C.forest,
+            accentBg: C.ocean,
             theme:    'dark',
-            category: 'La Laiterie · Up to 90 guests',
-            title:    'The Dairy Gallery',
-            excerpt:  'A former stone dairy transformed into an elegant, blank-canvas reception hall, exposed beams, white walls, and a permanent Yves Klein artwork. Steps from both the Château and the Longère.',
+            category: 'Overwater Villas · Up to 2 guests',
+            title:    'Suspended Over the Gulf',
+            excerpt:  'Six Senses Krabey Island\'s overwater villas extend out from the island on stilts, with glass-floored living areas, private infinity plunge pools, and direct ladder access to the sea below. Fall asleep to the sound of the tide and wake to the sunrise over the Gulf of Thailand.',
           }} />
         </div>
 
-        {/* Octave, the stone barn */}
+        {/* Beachfront villa feature */}
         <div style={{ marginTop: 4 }}>
           <FeatureCard data={{
-            image:    venue.spaces.octaveImage,
+            image:    venue.villas.beachfrontHero,
             variant:  'image-right',
-            accentBg: '#2a2420',
+            accentBg: '#1a1a14',
             theme:    'dark',
-            category: 'Octave · Up to 90 guests',
-            title:    'The Stone Barn',
-            excerpt:  'A 200 m² former barn where pastures, forests, and lakes converge. Thick stone walls, a Tomas Saraceno sculpture overhead, and seamless indoor-outdoor flow to a lawn edged by orchard trees and vineyard vines.',
+            category: 'Beachfront Pool Villas · Up to 4 guests',
+            title:    'Private Beach at Your Door',
+            excerpt:  'The beachfront pool villas sit directly on the sand, each with a generous private pool, thatched-roof living pavilion, and stepped garden leading to the shore. Among the most sought-after for honeymooners and private buyouts.',
           }} />
         </div>
 
-        {/* Wide ceremony photo */}
+        {/* Wide villa image */}
         <div style={{ marginTop: 4, position: 'relative', width: '100%', height: isMobile ? 300 : 420, overflow: 'hidden' }}>
           <img
-            src={venue.spaces.ceremonyImage}
-            alt="Outdoor ceremony at Domaine des Etangs"
-            style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 40%', display: 'block' }}
+            src={venue.villas.terrace}
+            alt="Villa terrace at Six Senses Krabey Island"
+            style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 50%', display: 'block' }}
           />
           <div style={{
             position: 'absolute', bottom: 0, left: 0, right: 0,
@@ -663,39 +666,38 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
             background: 'linear-gradient(to top, rgba(0,0,0,0.68) 0%, transparent 100%)',
           }}>
             <p style={{ fontFamily: GD, fontSize: isMobile ? 22 : 30, color: '#fff', margin: 0, fontWeight: 400, fontStyle: 'italic' }}>
-              "A place where every detail reflects the art of living."
+              "Where the horizon dissolves into the Gulf of Thailand."
             </p>
           </div>
         </div>
 
-        {/* Dragon Barn + Gardens, two-up mosaic */}
+        {/* Villa features mosaic */}
         <div style={{ marginTop: 4 }}>
           <MosaicCard data={{
-            theme:   'light',
+            theme:    'light',
             accentBg: C.ivory,
-            images: [
-              venue.spaces.dragonBarnImage,
-              venue.spaces.gardensImage,
-              venue.spaces.courtyardImage,
-              venue.spaces.weddingTableImage,
+            images:   [
+              venue.villas.interior,
+              venue.villas.pool,
+              venue.villas.sunset,
+              venue.villas.boardwalk,
             ],
-            title:   'Gardens, Courtyards & Hidden Spaces',
-            excerpt: 'The Dragon Barn for relaxed lunches and creative workshops; the castle courtyard for afternoon teas and intimate ceremonies; the lake-facing gardens for cocktails beneath sculpture.',
+            title:   'Every Villa a Private Sanctuary',
+            excerpt: 'Handcrafted teak furniture, open-air bathrooms with jungle canopy views, private infinity pools, and curated Six Senses amenities, every detail considered, nothing left to chance.',
           }} />
         </div>
 
-        {/* Spaces carousel */}
+        {/* Villas carousel */}
         <div style={{ marginTop: 56 }}>
           <p style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', color: GOLD, textTransform: 'uppercase', margin: '0 0 20px' }}>
-            All Event Spaces
+            Villa Categories
           </p>
           <CarouselRow items={[
-            { image: venue.spaces.laLaiterieImage,  title: 'La Laiterie',        category: 'Up to 90 guests',     theme: 'dark' },
-            { image: venue.spaces.octaveImage,      title: 'Octave Barn',        category: 'Up to 90 guests',     theme: 'dark' },
-            { image: venue.spaces.dragonBarnImage,  title: 'Dragon Barn',        category: 'Up to 50 guests',     theme: 'dark' },
-            { image: venue.spaces.gardensImage,     title: 'Castle Gardens',     category: 'Up to 90 guests',     theme: 'dark' },
-            { image: venue.spaces.courtyardImage,   title: 'Castle Courtyard',   category: 'Al fresco dining',    theme: 'dark' },
-            { image: venue.spaces.decorImage,       title: 'The Terrace',        category: 'Cocktail receptions', theme: 'dark' },
+            { image: venue.villas.overwaterHero,  title: 'Ocean Pool Villa Suite',   category: 'Plunge pool · Ocean views',   theme: 'dark' },
+            { image: venue.villas.beachfrontHero, title: 'The Beach Retreat',        category: 'Private pool · Beach access', theme: 'dark' },
+            { image: venue.villas.pool,           title: 'Hideaway Pool Villa',      category: 'Private pool · Garden',       theme: 'dark' },
+            { image: venue.villas.twoBedroom,     title: 'Two-Bedroom Pool Villa',   category: 'Families & groups',           theme: 'dark' },
+            { image: venue.villas.sunset,         title: 'Sunset Villa',             category: 'West-facing · Sunset views',  theme: 'dark' },
           ]} />
         </div>
       </Section>
@@ -703,54 +705,54 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 3, DINING
       ═══════════════════════════════════════════════════════════════════ */}
-      <Section id="dining" bg={C.forest} pad={isMobile ? '64px 24px' : '96px 64px'}>
+      <Section id="dining" bg={C.jungle} pad={isMobile ? '64px 24px' : '96px 64px'}>
         <SectionHeader
-          eyebrow="Restaurant Dyades · 1 Michelin Star"
-          title="A Kitchen Shaped by the Estate"
-          subtitle={venue.sectionIntros?.dining || "Chef Matthieu Pasgrimaud builds every menu around the Domaine's own organic kitchen garden, inventive, terroir-driven, and rooted in the seasons of Charente."}
+          eyebrow="Dining · Farm to Table · Ocean to Plate"
+          title="A Kitchen Rooted in Cambodia"
+          subtitle={venue.sectionIntros?.dining || "Chef-driven, produce-led menus rooted in Cambodian flavour, from barefoot beach dinners to candlelit tables in the jungle, every meal is shaped by the island around it."}
           light
         />
 
         <TwoColumnEditorialCard data={{
           variant:  'image-right',
-          accentBg: '#1c2318',
+          accentBg: '#131c14',
           theme:    'dark',
           image:    venue.dining.hero,
-          eyebrow:  'Dyades · Est. 2015',
-          title:    'One Michelin Star, One Kitchen Garden',
-          body:     'Restaurant Dyades earned its first Michelin star in 2016 and has held it continuously since. Chef Matthieu Pasgrimaud, trained at La Vague d\'Or and Daniel Boulud, sources approximately 25% of ingredients directly from the estate\'s permaculture potager. Dragonfly-motif tableware, Bernardaud plates, and a curated cellar complete a dining experience unlike any other in Charente.',
-          cta:      { label: 'Discover the restaurant →', href: 'https://auberge.com/domaine-des-etangs/dine/' },
+          eyebrow:  'The Restaurant · Farm-to-Table Philosophy',
+          title:    'The Island Table',
+          body:     'Six Senses Krabey Island\'s culinary philosophy is built on the same principles as every Six Senses property, organic where possible, local always, and deeply respectful of the flavours of place. Chefs work with the resort\'s own organic garden, local Cambodian fishermen, and regional small-scale producers to create menus that change with the tides and the seasons. From sunrise breakfasts on your villa terrace to multi-course candlelit dinners on the beach, every meal is a celebration of the island\'s extraordinary natural larder.',
+          cta:      { label: 'Explore dining ↗', href: venue.contact.website },
         }} />
 
         <div style={{ marginTop: 4 }}>
           <QuoteCard data={{
-            accentBg: '#111a0e',
+            accentBg: '#0d1a1f',
             theme:    'dark',
-            quote:    'I wanted to create my own mythology while respecting the past, every element of this estate, including what we eat, must tell that story.',
-            attribution:     'Garance Primat',
-            attributionRole: 'Owner & Creator, Domaine des Etangs',
+            quote:    'The best luxury is knowing exactly where your food came from and the story behind every ingredient on your plate.',
+            attribution:     'Six Senses Krabey Island',
+            attributionRole: 'Culinary Philosophy',
           }} />
         </div>
 
-        {/* Kitchen garden full-bleed */}
+        {/* Dining beach full-bleed */}
         <div style={{ marginTop: 4, position: 'relative', width: '100%', height: isMobile ? 280 : 380, overflow: 'hidden', borderRadius: 2 }}>
           <img
-            src={venue.dining.garden}
-            alt="The organic kitchen garden at Domaine des Etangs"
-            style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 60%', display: 'block' }}
+            src={venue.dining.beach}
+            alt="Beach dining at Six Senses Krabey Island"
+            style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 50%', display: 'block' }}
           />
           <div style={{
             position: 'absolute', inset: 0,
             display: 'flex', alignItems: 'flex-end',
             padding: isMobile ? '20px 24px' : '28px 48px',
-            background: 'linear-gradient(to top, rgba(15,25,12,0.75) 0%, transparent 60%)',
+            background: 'linear-gradient(to top, rgba(5,12,10,0.78) 0%, transparent 60%)',
           }}>
             <div>
               <p style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', color: GOLD, textTransform: 'uppercase', margin: '0 0 6px' }}>
-                The Potager · Organic Kitchen Garden
+                Private Beach Dinners · Island Garden
               </p>
               <p style={{ fontFamily: NU, fontSize: isMobile ? 14 : 16, color: 'rgba(255,255,255,0.85)', margin: 0, maxWidth: 520, lineHeight: 1.6 }}>
-                A working permaculture garden that feeds the Michelin-starred kitchen, rated in the Ecotables top three for eco-responsible sourcing.
+                Dine with your feet in the sand, under the stars, with the sound of the Gulf of Thailand and a menu composed just for you.
               </p>
             </div>
           </div>
@@ -758,105 +760,84 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
       </Section>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 4, ROOMS & COTTAGES
+          SECTION 4, WELLNESS
       ═══════════════════════════════════════════════════════════════════ */}
-      <Section id="rooms" bg={C.cream}>
+      <Section id="wellness" bg={C.cream}>
         <SectionHeader
-          eyebrow="Accommodation"
-          title="29 Rooms Across a Private Universe"
-          subtitle={venue.sectionIntros?.rooms || "Château suites named for celestial bodies, seasonal Longère apartments, and six constellation-named farmhouse cottages, each a private world within the estate."}
+          eyebrow="Six Senses Spa · Longevity · Wellbeing"
+          title="The World's Most Immersive Wellness Experience"
+          subtitle={venue.sectionIntros?.wellness || "The Six Senses Spa Krabey Island is built on the philosophy of longevity, combining ancient Cambodian healing traditions with cutting-edge biohacking and personalised wellness programmes."}
         />
 
-        {/* Venus suite feature */}
+        {/* Spa feature */}
         <div style={{ marginBottom: 4 }}>
           <ImageOverlayCard data={{
-            image:    venue.rooms.venus,
+            image:    venue.wellness.spa,
             theme:    'dark',
-            category: 'Château · Signature Suite',
-            title:    'Suite Vénus',
-            excerpt:  'Grand sitting rooms, copper bathtub, tower views, vaulted ceilings, and a working fireplace, the preferred honeymoon suite of the estate.',
+            category: 'Six Senses Spa · Krabey Island',
+            title:    'Healing at the Edge of the Ocean',
+            excerpt:  'Set within open-sided jungle pavilions, the Six Senses Spa on Krabey Island offers a comprehensive menu of traditional Cambodian treatments, Ayurvedic therapies, advanced biohacking, and personalised longevity programmes, guided by Six Senses\' world-renowned wellness experts.',
             variant:  'floating-box',
           }} />
         </div>
 
-        {/* Rooms carousel */}
+        {/* Wellness carousel */}
         <div style={{ marginTop: 32 }}>
           <CarouselRow items={[
-            { image: venue.rooms.soleil,   title: 'Suite Soleil',         category: 'Château · Prestige Suite',  theme: 'dark' },
-            { image: venue.rooms.saturne,  title: 'Room Saturne',         category: 'Château · Prestige Room',   theme: 'dark' },
-            { image: venue.rooms.lounge,   title: 'Family Salon',         category: 'Private living space',      theme: 'dark' },
-            { image: venue.rooms.longere,  title: 'La Longère',           category: '4 seasonal suites',         theme: 'dark' },
-            { image: venue.rooms.cottages, title: 'Pégase & Cassiopée',   category: 'Métairie Cottages',         theme: 'dark' },
-            { image: venue.rooms.dragon,   title: 'Dragon Cottage',       category: '5-bedroom private cottage', theme: 'dark' },
-            { image: venue.rooms.pool,     title: 'Le Moulin Spa & Pool', category: '12th-century water mill',   theme: 'dark' },
+            { image: venue.wellness.spa,       title: 'Six Senses Spa',        category: 'Full treatment menu',         theme: 'dark' },
+            { image: venue.wellness.yoga,      title: 'Yoga & Meditation',     category: 'Daily classes · All levels',  theme: 'dark' },
+            { image: venue.wellness.treatment, title: 'Longevity Programme',   category: 'Personalised & immersive',    theme: 'dark' },
+            { image: venue.wellness.pool,      title: 'Hydrotherapy Pool',     category: 'Thermal & cold therapy',      theme: 'dark' },
+            { image: venue.wellness.alchemy,   title: 'Alchemy Bar',           category: 'Natural remedies & tonics',   theme: 'dark' },
+            { image: venue.wellness.nature,    title: "Nature's Walk",         category: 'Guided island trails',        theme: 'dark' },
           ]} />
         </div>
 
         <div style={{ marginTop: 40 }}>
           <TwoColumnEditorialCard data={{
-            variant:  'image-right',
+            variant:  'image-left',
             accentBg: C.ivory,
             theme:    'light',
-            image:    venue.rooms.cottages,
-            eyebrow:  'The Métairie Cottages',
-            title:    'Six Private Cottages, Six Constellations',
-            body:     'The six Métairie cottages, Dragon, Pégase, Serpentaire, Cassiopée, Centaure, and Licorne, each named for a constellation and housing between one and five bedrooms. All include oversized living rooms, fully equipped kitchens, private gardens, and electric cars for exploring the estate at your own pace.',
+            image:    venue.wellness.yoga,
+            eyebrow:  'Wellness Philosophy',
+            title:    'Ancient Wisdom, Modern Science',
+            body:     'Six Senses Krabey Island\'s wellness programme draws on Cambodia\'s rich tradition of herbal medicine and holistic healing, layered with the science-backed longevity protocols that have made Six Senses Spas celebrated worldwide. Guests may choose a single treatment or a fully immersive multi-day programme, designed by Six Senses wellness experts around their specific health and longevity goals. Water sports, sunrise beach yoga, forest meditation, and ocean kayaking complete the offering.',
           }} />
+        </div>
+
+        {/* Wellness highlights */}
+        <div style={{ marginTop: 48, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 24 }}>
+          {[
+            { label: 'Six Senses Spa',            desc: 'Full menu of traditional Cambodian treatments, Ayurvedic therapies, and advanced longevity protocols.' },
+            { label: 'Yoga & Meditation',          desc: 'Daily morning and sunset yoga in open-sided jungle pavilions, suitable for beginners and experienced practitioners.' },
+            { label: 'Water Sports & Ocean',       desc: 'Snorkelling, kayaking, paddleboarding, and diving from the island\'s private beach and overwater jetty.' },
+          ].map((item, i) => (
+            <div key={i} style={{
+              padding: '24px 28px',
+              background: '#fff',
+              border: `1px solid ${C.border}`,
+              borderTop: `2px solid ${GOLD}`,
+              borderRadius: 4,
+            }}>
+              <p style={{ fontFamily: NU, fontWeight: 700, fontSize: 13, color: C.text, letterSpacing: '0.04em', margin: '0 0 10px', textTransform: 'uppercase' }}>
+                {item.label}
+              </p>
+              <p style={{ fontFamily: NU, fontSize: 14, color: C.muted, margin: 0, lineHeight: 1.7 }}>
+                {item.desc}
+              </p>
+            </div>
+          ))}
         </div>
       </Section>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 5, THE ART
+          SECTION 5, WEDDINGS
       ═══════════════════════════════════════════════════════════════════ */}
-      <Section id="art" bg="#fff">
-        <SectionHeader
-          eyebrow="A Living Art Collection"
-          title="The Estate as Gallery"
-          subtitle={venue.sectionIntros?.art || "Curated by Garance Primat, the collection weaves Yves Klein, Olafur Eliasson, Henri Matisse, Richard Long, and Ugo Rondinone across every corner of the estate, from the château corridors to the lakeside sculpture park."}
-        />
-
-        {/* Art installation feature */}
-        <div style={{ marginBottom: 4 }}>
-          <FeatureCard data={{
-            image:    venue.art.installation,
-            variant:  'image-left',
-            accentBg: '#0e0e0b',
-            theme:    'dark',
-            category: 'Ugo Rondinone · "The Sun"',
-            title:    'Art Embedded in the Landscape',
-            excerpt:  'The contemporary art collection is not confined to gallery walls, it inhabits the estate. Richard Long\'s Stone Circle borders the lake, a Tomas Saraceno net floats above the Octave Barn lawn, and Olafur Eliasson\'s light works illuminate the château interiors.',
-          }} />
-        </div>
-
-        {/* Nature / exterior pairing */}
-        <div style={{ marginTop: 4, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 4 }}>
-          <div style={{ position: 'relative', height: isMobile ? 260 : 380, overflow: 'hidden' }}>
-            <img src={venue.art.exterior} alt="Domaine des Etangs château exterior" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-          </div>
-          <div style={{ position: 'relative', height: isMobile ? 260 : 380, overflow: 'hidden' }}>
-            <img src={venue.art.nature} alt="Domaine des Etangs natural landscape" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-          </div>
-        </div>
-
-        <div style={{ marginTop: 4 }}>
-          <QuoteCard data={{
-            accentBg: '#1a1a18',
-            theme:    'dark',
-            quote:    'The estate has a sense of harmony, art and nature existing together, neither dominating the other.',
-            attribution:     'Garance Primat',
-            attributionRole: 'Creator, Domaine des Etangs',
-          }} />
-        </div>
-      </Section>
-
-      {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 6, WEDDINGS
-      ═══════════════════════════════════════════════════════════════════ */}
-      <Section id="weddings" bg={C.forest} pad={isMobile ? '64px 24px' : '96px 64px'}>
+      <Section id="weddings" bg={C.ocean} pad={isMobile ? '64px 24px' : '96px 64px'}>
         <SectionHeader
           eyebrow="Weddings & Celebrations"
-          title="A Fairytale Castle for Weddings"
-          subtitle={venue.sectionIntros?.weddings || "Complete privacy across 2,500 acres. Michelin-starred catering. Eight distinct spaces. No noise restrictions. The entire estate is yours."}
+          title="An Entire Island, Exclusively Yours"
+          subtitle={venue.sectionIntros?.weddings || "Every wedding at Six Senses Krabey Island is an island to yourself, a completely private backdrop of ocean, jungle, and sky, shaped entirely by you."}
           light
         />
 
@@ -864,17 +845,17 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
         <div style={{ position: 'relative', width: '100%', height: isMobile ? 340 : 520, overflow: 'hidden', marginBottom: 4 }}>
           <img
             src={venue.weddings.hero}
-            alt="Wedding at Domaine des Etangs"
+            alt="Wedding at Six Senses Krabey Island"
             style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 40%', display: 'block' }}
           />
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 40%, rgba(10,15,8,0.6) 100%)' }} />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 40%, rgba(8,20,25,0.65) 100%)' }} />
         </div>
 
         {/* Wedding grid */}
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 4, marginBottom: 4 }}>
-          {[venue.weddings.ceremony1, venue.weddings.reception1, venue.weddings.detail1].map((src, i) => (
+          {[venue.weddings.ceremony, venue.weddings.reception, venue.weddings.couple].map((src, i) => (
             <div key={i} style={{ position: 'relative', height: isMobile ? 220 : 300, overflow: 'hidden' }}>
-              <img src={src} alt="Wedding at Domaine des Etangs" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              <img src={src} alt="Wedding at Six Senses Krabey Island" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             </div>
           ))}
         </div>
@@ -882,10 +863,10 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
         {/* Wedding highlights */}
         <div style={{ marginTop: 48, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 32 }}>
           {[
-            { icon: '🏰', label: 'Full Estate Exclusivity',     desc: 'All 29 rooms, 6 cottages, 8 event spaces, spa and grounds, exclusively yours.' },
-            { icon: '⭐', label: 'Michelin-Starred Catering',    desc: 'Every wedding menu crafted by Chef Matthieu Pasgrimaud from estate-grown organic ingredients.' },
-            { icon: '🎆', label: 'No Restrictions',              desc: 'No noise curfews, fireworks permitted, complete privacy across 2,500 acres of private land.' },
-            { icon: '🎨', label: 'Art & Nature as Backdrop',     desc: 'Ceremonies and receptions set against Richard Long sculptures, lakeside gardens, and century-old forest.' },
+            { icon: '🏝️', label: 'Full Island Exclusivity',       desc: 'The entire island is yours, all 40 villas, every beach, the spa, and every dining experience.' },
+            { icon: '🌊', label: 'Ceremony Locations',             desc: 'Beachfront, overwater, jungle clearing, or clifftop, the island offers more ceremony backdrops than most countries.' },
+            { icon: '🌿', label: 'Six Senses Wedding Team',        desc: 'A dedicated Six Senses wedding concierge plans every detail, from traditional Cambodian blessings to barefoot beach receptions.' },
+            { icon: '✨', label: 'Completely Bespoke',             desc: 'No standard packages. Every wedding is designed from scratch, food, flowers, lighting, ceremony, music, all tailored to your story.' },
           ].map((item, i) => (
             <div key={i} style={{ display: 'flex', gap: 16 }}>
               <span style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>{item.icon}</span>
@@ -903,11 +884,55 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
 
         {/* Wedding image strip */}
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr 1fr', gap: 4, marginTop: 48 }}>
-          {[venue.weddings.detail2, venue.weddings.detail3, venue.weddings.setup, venue.weddings.ceremony2].map((src, i) => (
+          {[venue.weddings.detail1, venue.weddings.detail2, venue.weddings.setup, venue.weddings.beach].map((src, i) => (
             <div key={i} style={{ position: 'relative', height: isMobile ? 160 : 220, overflow: 'hidden' }}>
-              <img src={src} alt="Wedding detail at Domaine des Etangs" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              <img src={src} alt="Wedding detail at Six Senses Krabey Island" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             </div>
           ))}
+        </div>
+
+        {/* FAQs */}
+        <div style={{ marginTop: 64 }}>
+          <p style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', color: GOLD, textTransform: 'uppercase', margin: '0 0 32px' }}>
+            Weddings, Frequently Asked Questions
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '28px 48px' }}>
+            {[
+              {
+                q: 'Can we have exclusive use of the whole island?',
+                a: 'Yes. Six Senses Krabey Island can be taken on a full buyout basis, giving you exclusive access to all 40 villas, every beach, the spa, and all dining areas. The island accommodates up to 100 guests for celebrations.',
+              },
+              {
+                q: 'What ceremony styles are available?',
+                a: 'Symbolic beachfront ceremonies, traditional Cambodian Buddhist blessings, overwater ceremonies, jungle clearings, and cliff-top sunset settings. Your wedding concierge will help you choose the location that best matches your vision.',
+              },
+              {
+                q: 'How far in advance should we book?',
+                a: 'Given the limited availability and high demand for island buyouts, we recommend contacting the Six Senses wedding team at least 12–18 months before your preferred date.',
+              },
+              {
+                q: 'What is the minimum guest count for a wedding?',
+                a: 'Six Senses Krabey Island welcomes intimate weddings from 2 guests to full island buyouts of up to 100 guests. There is no minimum, and the island is just as magical for an elopement as for a grand celebration.',
+              },
+              {
+                q: 'Does Six Senses Krabey Island handle all logistics?',
+                a: 'Yes. The dedicated Six Senses events team manages all logistics, accommodation, transfers, catering, décor, ceremony setup, legal documentation, entertainment, and every last detail in between.',
+              },
+              {
+                q: 'How do guests travel to the island?',
+                a: 'Guests fly into Sihanoukville International Airport and then transfer by speedboat to the island, approximately 20 minutes from the mainland pier. The resort arranges all transfers.',
+              },
+            ].map((faq, i) => (
+              <div key={i} style={{ borderTop: `1px solid rgba(245,242,236,0.12)`, paddingTop: 20 }}>
+                <p style={{ fontFamily: NU, fontSize: 14, fontWeight: 700, color: 'rgba(245,242,236,0.9)', margin: '0 0 8px', lineHeight: 1.5 }}>
+                  {faq.q}
+                </p>
+                <p style={{ fontFamily: NU, fontSize: 14, color: 'rgba(245,242,236,0.5)', margin: 0, lineHeight: 1.7 }}>
+                  {faq.a}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </Section>
 
@@ -921,11 +946,11 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
             tagline:   venue.tagline,
             location:  `${venue.location.town}, ${venue.location.region}, ${venue.location.country}`,
             priceFrom: venue.priceFrom,
-            image:     venue.weddings.reception2,
+            image:     venue.weddings.enquireImg,
           },
           contact: {
-            phone: '+33 5 45 61 93 66',
-            email: 'dde.commercial@auberge.com',
+            phone: venue.contact.phone,
+            email: venue.contact.email,
           },
         }} />
       </section>

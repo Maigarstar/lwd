@@ -23,7 +23,7 @@ import "../category.css";
 
 // ─── Mapper: Supabase Listing → card-compatible shape ─────────────────────────
 // Called after fetchListings() which already runs buildCardImgs + buildCardVideoUrl,
-// so imgs[] and videoUrl are pre-built rich objects — no further media work needed.
+// so imgs[] and videoUrl are pre-built rich objects, no further media work needed.
 function listingToCard(listing) {
   return {
     id:          listing.id,
@@ -35,7 +35,7 @@ function listingToCard(listing) {
     lng:         listing.lng       ?? null,
     slug:        listing.slug      || '',
     showcaseUrl: listing.showcaseEnabled && listing.slug ? `/showcase/${listing.slug}` : null,
-    // Media — pre-built by transformSupabaseListingForUI via buildCardImgs / buildCardVideoUrl
+    // Media, pre-built by transformSupabaseListingForUI via buildCardImgs / buildCardVideoUrl
     imgs:        listing.imgs      || [],
     videoUrl:    listing.videoUrl  || null,
     // Pricing
@@ -92,7 +92,7 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
   useEffect(() => {
     fetchListings({ status: "published" })
       .then((listings) => setDbListings(listings))
-      .catch(() => {}); // silent fail — static fallbacks stay active
+      .catch(() => {}); // silent fail, static fallbacks stay active
   }, []);
 
   // ── Derive live venue + vendor arrays from DB listings ──────────────────────
@@ -119,7 +119,7 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
         />
 
         <main>
-          {/* SlimHero + FeaturedSlider remain on curated static data — editorial content */}
+          {/* SlimHero + FeaturedSlider remain on curated static data, editorial content */}
           <SlimHero venues={FEATURED_VENUES} backgroundData={heroBackgroundData} onViewRegion={onViewRegion} onViewRegionCategory={onViewRegionCategory} onViewCategory={onViewCategory} />
           <DestinationGrid
             onDestinationClick={(d) => {

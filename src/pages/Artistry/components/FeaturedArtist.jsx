@@ -149,7 +149,7 @@ export default function FeaturedArtist({ artist, fontDisplay, fontUI, onViewProf
         onMouseLeave={() => onHoverEnd && onHoverEnd()}
       >
 
-        {/* Left — Image */}
+        {/* Left, Image */}
         <div
           className={`fa-img-wrap${vis ? ' vis' : ''}`}
           style={{ opacity: fading ? 0 : undefined, transition: fading ? 'opacity 0.5s ease' : undefined }}
@@ -170,7 +170,7 @@ export default function FeaturedArtist({ artist, fontDisplay, fontUI, onViewProf
           </div>
         </div>
 
-        {/* Right — Content */}
+        {/* Right, Content */}
         <div
           className={`fa-content${vis ? ' vis' : ''}`}
           style={{ opacity: fading ? 0 : undefined, transition: fading ? 'opacity 0.5s ease' : undefined }}

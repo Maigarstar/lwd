@@ -1,15 +1,15 @@
 /**
- * ExclusiveUseSection — Listing Studio editor for the Exclusive Use block
+ * ExclusiveUseSection, Listing Studio editor for the Exclusive Use block
  *
  * Fields managed:
- *   exclusive_use_enabled    — boolean section toggle (default false → hidden on listing)
- *   exclusive_use_title      — section heading text
- *   exclusive_use_subtitle   — intro line beneath heading
- *   exclusive_use_price      — headline price string (e.g. "From £28,000")
- *   exclusive_use_subline    — price sub-line (e.g. "Minimum 2 nights · Sleeps 40 guests")
- *   exclusive_use_description— body paragraph (plain text, ~3 sentences)
- *   exclusive_use_cta_text   — CTA button label
- *   exclusive_use_includes   — string[] max 7, fully editable + reorderable
+ *   exclusive_use_enabled   , boolean section toggle (default false → hidden on listing)
+ *   exclusive_use_title     , section heading text
+ *   exclusive_use_subtitle  , intro line beneath heading
+ *   exclusive_use_price     , headline price string (e.g. "From £28,000")
+ *   exclusive_use_subline   , price sub-line (e.g. "Minimum 2 nights · Sleeps 40 guests")
+ *   exclusive_use_description -  body paragraph (plain text, ~3 sentences)
+ *   exclusive_use_cta_text  , CTA button label
+ *   exclusive_use_includes  , string[] max 7, fully editable + reorderable
  *
  * Frontend visibility rule:
  *   Show block only when exclusive_use_enabled === true AND at least one
@@ -69,7 +69,7 @@ const SectionToggle = ({ enabled, onChange }) => (
       <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>
         {enabled
           ? 'Exclusive Use block is visible on the listing'
-          : 'Exclusive Use block is hidden — enable to show it'}
+          : 'Exclusive Use block is hidden, enable to show it'}
       </div>
     </div>
     <button
@@ -193,10 +193,10 @@ const ExclusiveUseSection = ({ formData, onChange }) => {
         onChange={v => set('exclusive_use_enabled', v)}
       />
 
-      {/* Fields — shown even when disabled so content can be prepared in advance */}
+      {/* Fields, shown even when disabled so content can be prepared in advance */}
       <div style={{ opacity: enabled ? 1 : 0.55, transition: 'opacity 0.2s' }}>
 
-        {/* Row 1 — Title + Subtitle */}
+        {/* Row 1, Title + Subtitle */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16, marginBottom: 16 }}>
           <div>
             <label style={labelStyle}>Section Title</label>
@@ -214,13 +214,13 @@ const ExclusiveUseSection = ({ formData, onChange }) => {
               type="text"
               value={formData?.exclusive_use_subtitle || ''}
               onChange={e => set('exclusive_use_subtitle', e.target.value)}
-              placeholder="Hire the entire estate — just your guests, your celebration, your way"
+              placeholder="Hire the entire estate, just your guests, your celebration, your way"
               style={inputStyle}
             />
           </div>
         </div>
 
-        {/* Row 2 — Price + Subline */}
+        {/* Row 2, Price + Subline */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16, marginBottom: 16 }}>
           <div>
             <label style={labelStyle}>Headline Price</label>
@@ -246,7 +246,7 @@ const ExclusiveUseSection = ({ formData, onChange }) => {
           </div>
         </div>
 
-        {/* Row 3 — Body description */}
+        {/* Row 3, Body description */}
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
             <label style={{ ...labelStyle, marginBottom: 0 }}>Body Description</label>
@@ -281,7 +281,7 @@ const ExclusiveUseSection = ({ formData, onChange }) => {
           <p style={hintStyle}>2–3 sentences. Displayed alongside the price on the listing.</p>
         </div>
 
-        {/* Row 4 — CTA text */}
+        {/* Row 4, CTA text */}
         <div style={{ marginBottom: 24 }}>
           <label style={labelStyle}>CTA Button Text</label>
           <input
@@ -294,7 +294,7 @@ const ExclusiveUseSection = ({ formData, onChange }) => {
           <p style={hintStyle}>Button opens the venue enquiry form. Arrow (→) is added automatically.</p>
         </div>
 
-        {/* Row 5 — Includes list */}
+        {/* Row 5, Includes list */}
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <label style={{ ...labelStyle, margin: 0 }}>

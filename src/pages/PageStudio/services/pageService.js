@@ -1,5 +1,5 @@
 /**
- * pageService — Supabase CRUD operations for pages
+ * pageService, Supabase CRUD operations for pages
  *
  * Phase 3: Real Supabase CRUD implementation
  *

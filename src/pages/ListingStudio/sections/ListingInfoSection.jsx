@@ -228,7 +228,7 @@ function ContactProfileEditor({ profile = {}, onChange }) {
         <textarea
           value={profile.bio || ''}
           onChange={e => update('bio', e.target.value)}
-          placeholder="A brief introduction about this person — shown on the public listing sidebar…"
+          placeholder="A brief introduction about this person, shown on the public listing sidebar…"
           rows={4}
           style={{ ...FIELD, resize: 'vertical', lineHeight: 1.6 }}
         />
@@ -288,7 +288,7 @@ function ContactProfileEditor({ profile = {}, onChange }) {
       <div style={{ marginBottom: 16 }}>
         <label style={LABEL}>
           WhatsApp Number{' '}
-          <span style={{ fontWeight: 400, textTransform: 'none', fontSize: 11, color: '#bbb' }}>optional — for WhatsApp enquiry button</span>
+          <span style={{ fontWeight: 400, textTransform: 'none', fontSize: 11, color: '#bbb' }}>optional, for WhatsApp enquiry button</span>
         </label>
         <div style={{ position: 'relative' }}>
           <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14 }}>💬</span>
@@ -573,11 +573,11 @@ function PressEditor({ items = [], onChange }) {
             </div>
           </div>
 
-          {/* Editorial excerpt — rich text */}
+          {/* Editorial excerpt, rich text */}
           <div>
             <label style={LABEL}>
               Editorial Excerpt{' '}
-              <span style={{ fontWeight: 400, textTransform: 'none', fontSize: 11, color: '#bbb' }}>optional — shown on listing</span>
+              <span style={{ fontWeight: 400, textTransform: 'none', fontSize: 11, color: '#bbb' }}>optional, shown on listing</span>
             </label>
             <RichTextEditor
               value={item.body || ''}
@@ -688,7 +688,7 @@ function AwardsEditor({ items = [], onChange }) {
               </button>
             </div>
 
-            {/* Description — rich text */}
+            {/* Description, rich text */}
             <div>
               <label style={{ ...LABEL, marginBottom: 4 }}>
                 Description{' '}
@@ -748,7 +748,7 @@ const ListingInfoSection = ({ formData, onChange }) => {
     <section style={{ marginBottom: 16, padding: 20 }}>
       <h3 style={{ marginBottom: 4 }}>Listing Info</h3>
       <p style={{ fontSize: 12, color: '#999', marginBottom: 24, marginTop: 0 }}>
-        Profile card, opening hours, press features and awards — shown in the public listing sidebar
+        Profile card, opening hours, press features and awards, shown in the public listing sidebar
       </p>
 
       {/* ── Contact / Profile card ───────────────────────────────── */}
@@ -827,7 +827,7 @@ const ListingInfoSection = ({ formData, onChange }) => {
       <SectionCard
         icon="📰"
         title="Press & News"
-        subtitle="'As Featured In' — publication features and editorial coverage"
+        subtitle="'As Featured In', publication features and editorial coverage"
         defaultOpen={false}
         badge={pressItems.length > 0 ? `${pressItems.length} feature${pressItems.length !== 1 ? 's' : ''}` : null}
       >

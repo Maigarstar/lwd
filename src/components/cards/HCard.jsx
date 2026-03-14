@@ -53,7 +53,7 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
           boxShadow:  hov ? "0 12px 40px rgba(0,0,0,0.12)" : "none",
         }}
       >
-        {/* ── Image panel — 40% flex, max 500px ── */}
+        {/* ── Image panel, 40% flex, max 500px ── */}
         <div
           className="lwd-hcard-image"
           style={{
@@ -204,7 +204,7 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
               </span>
             )}
 
-            {/* Online indicator — pushed right */}
+            {/* Online indicator, pushed right */}
             <div
               style={{
                 display:    "flex",
@@ -400,7 +400,7 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
 
             {/* Action buttons */}
             <div className="lwd-hcard-btns" style={{ display: "flex", gap: 8 }}>
-              {/* View Venue — primary */}
+              {/* View Venue, primary */}
               <button
                 onClick={() => onView(v)}
                 onMouseEnter={() => setHovView(true)}
@@ -424,7 +424,7 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
                 View Venue
               </button>
 
-              {/* Quick View — secondary */}
+              {/* Quick View, secondary */}
               <button
                 onClick={() => onQuickView?.(v)}
                 onMouseEnter={() => setHovQV(true)}
@@ -447,7 +447,7 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
                 Quick View
               </button>
 
-              {/* Chat — online-aware */}
+              {/* Chat, online-aware */}
               <button
                 onClick={() => setLoginGate(true)}
                 onMouseEnter={() => setHovChat(true)}

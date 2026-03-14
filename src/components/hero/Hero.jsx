@@ -137,7 +137,7 @@ export default function Hero({ count }) {
             marginBottom: 20,
           }}
         >
-          Discover {count} extraordinary venues — from Tuscan vineyards and Venetian
+          Discover {count} extraordinary venues, from Tuscan vineyards and Venetian
           palazzos to cliffside estates on the Amalfi Coast.
         </p>
 
@@ -166,7 +166,7 @@ export default function Hero({ count }) {
             { val: count, label: "Curated Venues" },
             { val: "9",   label: "Regions Covered" },
             { val: "100%",label: "Personally Verified" },
-            { val: "—",   label: "Limited Annual Availability" },
+            { val: " - ",   label: "Limited Annual Availability" },
           ].map((s, i) => (
             <div
               key={i}

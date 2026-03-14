@@ -1,5 +1,5 @@
 /**
- * FeaturedSliderSection — Featured slider section editor
+ * FeaturedSliderSection, Featured slider section editor
  * Editable: heading
  * Venue selection (Phase 2+)
  */

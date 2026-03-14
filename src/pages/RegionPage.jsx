@@ -1,5 +1,5 @@
 // ─── src/pages/RegionPage.jsx ──────────────────────────────────────────────────
-// County hub template — renders any region entity as a mini website.
+// County hub template, renders any region entity as a mini website.
 // Data-driven: one template, many counties.
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { ThemeCtx } from "../theme/ThemeContext";
@@ -350,8 +350,8 @@ export default function RegionPage({
               aria-label="Key statistics"
             >
               {[
-                { val: regionVenues.length || "—", label: "Curated Venues" },
-                { val: cities.length || "—", label: region.localTerm || "Cities" },
+                { val: regionVenues.length || " - ", label: "Curated Venues" },
+                { val: cities.length || " - ", label: region.localTerm || "Cities" },
                 { val: region.listingCount > 0 ? "100%" : "Coming Soon", label: region.listingCount > 0 ? "Personally Verified" : "Listings", soft: region.listingCount === 0 },
               ].map((s, i) => (
                 <div
@@ -422,7 +422,7 @@ export default function RegionPage({
         </section>
         )}
 
-        {/* ═══ FILTER BAR — Search, filter, view mode, and sort ═══════════════════ */}
+        {/* ═══ FILTER BAR, Search, filter, view mode, and sort ═══════════════════ */}
         <CountrySearchBar
           filters={filters}
           onFiltersChange={handleFiltersChange}
@@ -446,7 +446,7 @@ export default function RegionPage({
           }
         />
 
-        {/* ═══ TRUST SIGNAL STRIP — region-specific authority tags ═══════════ */}
+        {/* ═══ TRUST SIGNAL STRIP, region-specific authority tags ═══════════ */}
         {region.trustSignals && region.trustSignals.length > 0 && (
           <div
             aria-label="Regional credentials"
@@ -587,7 +587,7 @@ export default function RegionPage({
               </h2>
             </div>
 
-            {/* Paginated category carousel — 8 per page */}
+            {/* Paginated category carousel, 8 per page */}
             <CategoryCarousel
               categories={VENDOR_CATEGORIES}
               C={C}
@@ -615,7 +615,7 @@ export default function RegionPage({
               <FeaturedSlider venues={featuredVenues} />
             ) : null}
 
-{/* Venue grid — first 6 GCards (horizontal slider) */}
+{/* Venue grid, first 6 GCards (horizontal slider) */}
             <section
               aria-label={`Venues in ${region.name}`}
               className="lwd-region-section"
@@ -663,12 +663,12 @@ export default function RegionPage({
               </div>
             </section>
 
-            {/* ═══ E-E-A-T EDITORIAL — between map & second grid ═════════════ */}
+            {/* ═══ E-E-A-T EDITORIAL, between map & second grid ═════════════ */}
             {region.editorial && (
               <EditorialSection editorial={region.editorial} region={region} C={C} />
             )}
 
-            {/* Venue grid — remaining cards (7+, horizontal slider) */}
+            {/* Venue grid, remaining cards (7+, horizontal slider) */}
             {regionVenues.length > 6 && (
               <section
                 aria-label={`More venues in ${region.name}`}
@@ -778,7 +778,7 @@ export default function RegionPage({
                 }}
               >
                 Our editorial team is personally visiting and verifying the finest wedding
-                venues in {region.name}. Every listing on LWD is hand-selected — we never
+                venues in {region.name}. Every listing on LWD is hand-selected, we never
                 accept pay-to-play placements. Sign up below to be the first to know when
                 {region.name} venues go live.
               </p>
@@ -1058,7 +1058,7 @@ export default function RegionPage({
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-// ── RegionNav — CatNav-style fixed nav with dynamic breadcrumbs ─────────────
+// ── RegionNav, CatNav-style fixed nav with dynamic breadcrumbs ─────────────
 function RegionNav({ onBack, scrolled, darkMode, onToggleDark, countryName, regionName, C }) {
   const [hovBack, setHovBack] = useState(false);
   const [hovHome, setHovHome] = useState(false);
@@ -1239,7 +1239,7 @@ function RegionNav({ onBack, scrolled, darkMode, onToggleDark, countryName, regi
 
 
 // ── Category Shortcut Card ──────────────────────────────────────────────────
-// ── Luxury SVG icons — matching RegionCategoryPage ──────────────────────────
+// ── Luxury SVG icons, matching RegionCategoryPage ──────────────────────────
 const LUXURY_ICONS = {
   "wedding-venues": (color) => (
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
@@ -1344,7 +1344,7 @@ const LUXURY_ICONS = {
   ),
 };
 
-// ── Category Carousel — show 7 per page with next/prev arrows ───────────
+// ── Category Carousel, show 7 per page with next/prev arrows ───────────
 const CATS_PER_PAGE = 7;
 
 function CategoryCarousel({ categories, C, onSelect }) {
@@ -1405,7 +1405,7 @@ function CategoryCarousel({ categories, C, onSelect }) {
         ))}
       </div>
 
-      {/* Navigation row — arrows + dots */}
+      {/* Navigation row, arrows + dots */}
       {totalPages > 1 && (
         <div
           style={{
@@ -1504,7 +1504,7 @@ function CategoryShortcutCard({ vc, C, onClick }) {
 }
 
 
-// ── Venue Card (minimal — for region listings) ─────────────────────────────
+// ── Venue Card (minimal, for region listings) ─────────────────────────────
 function VenueCard({ v, C, onView }) {
   const [hov, setHov] = useState(false);
   return (
@@ -1756,7 +1756,7 @@ function RelatedRegionCard({ region, C, onClick }) {
 }
 
 
-// ── EditorialSection — E-E-A-T rich content block ───────────────────────────
+// ── EditorialSection, E-E-A-T rich content block ───────────────────────────
 function EditorialSection({ editorial, region, C }) {
   const [expanded, setExpanded] = useState(false);
   const visibleSections = expanded ? editorial.sections : editorial.sections.slice(0, 2);
@@ -1815,7 +1815,7 @@ function EditorialSection({ editorial, region, C }) {
           {editorial.headline}
         </h2>
 
-        {/* Standfirst — the E-E-A-T credibility line */}
+        {/* Standfirst, the E-E-A-T credibility line */}
         <p
           style={{
             fontFamily: NU,
@@ -1901,7 +1901,7 @@ function EditorialSection({ editorial, region, C }) {
           </div>
         )}
 
-        {/* Expert note — the trust signal */}
+        {/* Expert note, the trust signal */}
         {editorial.expertNote && (
           <div
             style={{
@@ -1944,7 +1944,7 @@ function EditorialSection({ editorial, region, C }) {
             </blockquote>
 
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              {/* Avatar placeholder — gold circle with initials */}
+              {/* Avatar placeholder, gold circle with initials */}
               <div
                 style={{
                   width: 36,
@@ -2021,7 +2021,7 @@ function EditorialSection({ editorial, region, C }) {
 }
 
 
-// ── MapVenueList — sidebar venue list for inline map ────────────────────────
+// ── MapVenueList, sidebar venue list for inline map ────────────────────────
 function MapVenueList({ venues, C }) {
   const [active, setActive] = useState(null);
   return (
@@ -2085,7 +2085,7 @@ function MapVenueList({ venues, C }) {
 }
 
 
-// ── SEO Panel — collapsible AI/SEO data blocks ─────────────────────────────
+// ── SEO Panel, collapsible AI/SEO data blocks ─────────────────────────────
 function SEOPanel({ region, C }) {
   const [expanded, setExpanded] = useState(false);
 

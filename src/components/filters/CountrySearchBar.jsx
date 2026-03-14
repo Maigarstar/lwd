@@ -1,6 +1,6 @@
 // ─── src/components/filters/CountrySearchBar.jsx ─────────────────────────────
 // Unified sticky search bar for country pages.
-// Light warm-stone editorial system — dark hero, light everything below.
+// Light warm-stone editorial system, dark hero, light everything below.
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useTheme } from "../../theme/ThemeContext";
 import { CAPS, DEFAULT_FILTERS } from "../../data/italyVenues";
@@ -48,7 +48,7 @@ const SORT_OPTIONS = [
   { slug: "price-high",  name: "Price: High \u2192 Low" },
 ];
 
-// ── Warm stone palette — no pure white, no heavy black ───────────────────────
+// ── Warm stone palette, no pure white, no heavy black ───────────────────────
 const STONE = "#F6F3EE";          // warm stone base
 const STONE_DEEP = "#EBE6DC";     // deeper stone for refinement panels
 const CL = {
@@ -66,7 +66,7 @@ const CL = {
 };
 
 // ═════════════════════════════════════════════════════════════════════════════
-// MegaPill — warm-stone editorial pill
+// MegaPill, warm-stone editorial pill
 // ═════════════════════════════════════════════════════════════════════════════
 function MegaPill({ label, active, isFirst, onSelect, onHover, hovered }) {
   return (
@@ -113,7 +113,7 @@ function MegaPill({ label, active, isFirst, onSelect, onHover, hovered }) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// LuxPanel — warm-stone editorial panel
+// LuxPanel, warm-stone editorial panel
 // ═════════════════════════════════════════════════════════════════════════════
 function LuxPanel({ label, children }) {
   return (
@@ -146,7 +146,7 @@ function LuxPanel({ label, children }) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// CountrySearchBar — the unified sticky bar with luxury mega menus
+// CountrySearchBar, the unified sticky bar with luxury mega menus
 // ═════════════════════════════════════════════════════════════════════════════
 export default function CountrySearchBar({
   filters, onFiltersChange, viewMode, onViewMode, sortMode, onSortChange, total, regions,
@@ -159,7 +159,7 @@ export default function CountrySearchBar({
   const [hov, setHov] = useState(null);
   const barRef = useRef(null);
 
-  // Map slide animation — mount on open, keep mounted during close animation
+  // Map slide animation, mount on open, keep mounted during close animation
   const [mapMounted, setMapMounted] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
 
@@ -229,7 +229,7 @@ export default function CountrySearchBar({
     : null;
   const cities = countryEntry ? countryEntry.cities : [];
 
-  // Toggle a menu — clicking the same trigger closes it
+  // Toggle a menu, clicking the same trigger closes it
   const toggle = (key) => setOpenMenu((prev) => prev === key ? null : key);
 
   // ── Trigger button factory ──
@@ -291,7 +291,7 @@ export default function CountrySearchBar({
   }, [vendorLocation, regionOpts]);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // Mega menu panel content renderers — warm-stone editorial panels
+  // Mega menu panel content renderers, warm-stone editorial panels
   // ═══════════════════════════════════════════════════════════════════════════
 
   const renderRegionPanel = () => (
@@ -505,7 +505,7 @@ export default function CountrySearchBar({
         </div>
       </div>
 
-      {/* ═══ MEGA MENU PANEL — warm stone refinement ══════════════════════ */}
+      {/* ═══ MEGA MENU PANEL, warm stone refinement ══════════════════════ */}
       {openMenu && (
         <div className="lwd-country-mega-panel" style={{
           borderTop: `1px solid ${CL.divider}`,
@@ -533,7 +533,7 @@ export default function CountrySearchBar({
         </div>
       )}
 
-      {/* ═══ MAP PANEL — slides down/up attached to bar ══════════════════ */}
+      {/* ═══ MAP PANEL, slides down/up attached to bar ══════════════════ */}
       {mapMounted && mapContent && (
         <div style={{
           display: "grid",

@@ -9,8 +9,8 @@ const GOLD = '#c9a96e';
 // ─── ShopTheStory ──────────────────────────────────────────────────────────────
 // Used inline in fashion articles.
 // Accepts either:
-//   categories: [{ label, collectionId }]  — grouped tabs with collection refs
-//   products: Product[]                     — flat list (no tabs)
+//   categories: [{ label, collectionId }] , grouped tabs with collection refs
+//   products: Product[]                    , flat list (no tabs)
 export default function ShopTheStory({
   headline = 'Shop the Story',
   categories = [],         // [{ label: 'Gowns', collectionId: 'silhouette-2026-gowns' }]

@@ -410,7 +410,7 @@ export const getListingsForDropdown = async () => {
  * @returns {string} Status: "pending-approval", "approved", "invited", "activated", "suspended", or "rejected"
  */
 function deriveVendorStatus(vendor) {
-  // Check activation first — overrides everything else
+  // Check activation first, overrides everything else
   if (vendor.is_activated) {
     return "activated";
   }
@@ -429,7 +429,7 @@ function deriveVendorStatus(vendor) {
     return "pending-approval";
   }
 
-  // Approved — check if invitation has been sent
+  // Approved, check if invitation has been sent
   if (vendor.approval_status === "approved") {
     if (vendor.activation_token) {
       return "invited";

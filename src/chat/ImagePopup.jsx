@@ -20,7 +20,7 @@ export default function ImagePopup({ item, onClose }) {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={`${item.name} — full view`}
+      aria-label={`${item.name}, full view`}
       onClick={onClose}
       style={{
         position:       "fixed",

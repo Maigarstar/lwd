@@ -1,15 +1,15 @@
 /**
- * CategoryLayoutDualFeature — Style 6: Dual-Feature Lead
+ * CategoryLayoutDualFeature, Style 6: Dual-Feature Lead
  *
  * Two commanding feature stories share the hero. A bold opening
  * statement for categories where two concurrent stories deserve
- * equal weight — Travel, Real Weddings, Honeymoons.
+ * equal weight, Travel, Real Weddings, Honeymoons.
  * Structure:
- *   1. HeroDualFeature — two side-by-side heroes
+ *   1. HeroDualFeature, two side-by-side heroes
  *   2. Section descriptor bar
- *   3. 3-column feature grid — CardLargeEditorial
+ *   3. 3-column feature grid, CardLargeEditorial
  *   4. Editorial break
- *   5. Story river — CardHorizontal
+ *   5. Story river, CardHorizontal
  *   6. Dense minimal list
  *   7. Category explorer strip
  */

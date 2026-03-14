@@ -1,5 +1,5 @@
 /**
- * BackgroundMediaControl — Premium background media picker
+ * BackgroundMediaControl, Premium background media picker
  * Supports: up to 10 rotating images, videos, YouTube, Vimeo
  *
  * Data model:
@@ -302,11 +302,11 @@ export default function BackgroundMediaControl({ section, onChange, C, NU }) {
         </div>
       </div>
 
-      {/* Image Upload — Up to 10 images for carousel */}
+      {/* Image Upload, Up to 10 images for carousel */}
       {mediaType === 'image' && (
         <div style={{ marginBottom: 16, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
           <label style={{ fontFamily: NU, fontSize: 10, fontWeight: 600, color: C.grey2, textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
-            Hero Images (Carousel — max 10)
+            Hero Images (Carousel, max 10)
           </label>
           <div style={{
             border: `2px dashed ${C.border}`,
@@ -348,7 +348,7 @@ export default function BackgroundMediaControl({ section, onChange, C, NU }) {
             </label>
           </div>
 
-          {/* Image Carousel Display — drag to reorder */}
+          {/* Image Carousel Display, drag to reorder */}
           {(bgData.backgroundImages || []).length > 0 && (
             <div style={{ marginTop: 12 }}>
               {bgData.backgroundImages.length > 1 && (
@@ -379,7 +379,7 @@ export default function BackgroundMediaControl({ section, onChange, C, NU }) {
                       cursor: 'grab',
                       transition: 'opacity 0.15s ease',
                     }}
-                    title={`${index + 1}. ${img.fileName} — drag to reorder`}
+                    title={`${index + 1}. ${img.fileName}, drag to reorder`}
                   >
                     <img
                       src={img.url}
@@ -445,11 +445,11 @@ export default function BackgroundMediaControl({ section, onChange, C, NU }) {
         </div>
       )}
 
-      {/* Video Carousel — Upload or URL (max 10) */}
+      {/* Video Carousel, Upload or URL (max 10) */}
       {mediaType === 'video_upload' && (
         <div style={{ marginBottom: 16, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
           <label style={{ fontFamily: NU, fontSize: 10, fontWeight: 600, color: C.grey2, textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
-            Hero Videos (Carousel — max 10)
+            Hero Videos (Carousel, max 10)
           </label>
           {/* Upload Videos */}
           <div style={{
@@ -542,7 +542,7 @@ export default function BackgroundMediaControl({ section, onChange, C, NU }) {
             </div>
           </div>
 
-          {/* Video Carousel Display — drag to reorder */}
+          {/* Video Carousel Display, drag to reorder */}
           {(bgData.backgroundVideos || []).length > 0 && (
             <div style={{ marginTop: 12 }}>
               {bgData.backgroundVideos.length > 1 && (
@@ -578,7 +578,7 @@ export default function BackgroundMediaControl({ section, onChange, C, NU }) {
                       cursor: 'grab',
                       transition: 'opacity 0.15s ease',
                     }}
-                    title={`${index + 1}. ${vid.fileName || vid.url} — drag to reorder`}
+                    title={`${index + 1}. ${vid.fileName || vid.url}, drag to reorder`}
                   >
                     <span style={{ fontSize: 24, pointerEvents: 'none', userSelect: 'none' }}>🎬</span>
                     <button

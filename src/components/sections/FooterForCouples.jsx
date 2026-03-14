@@ -1,5 +1,5 @@
 // ─── src/components/sections/FooterForCouples.jsx ──────────────────────────────────
-// Couples-focused footer — appears on GettingMarriedDashboard and couple-oriented pages
+// Couples-focused footer, appears on GettingMarriedDashboard and couple-oriented pages
 // Emphasizes planning tools, vendor discovery, and wedding journey features
 import { useTheme } from "../../theme/ThemeContext";
 

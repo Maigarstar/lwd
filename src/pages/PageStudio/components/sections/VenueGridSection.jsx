@@ -1,5 +1,5 @@
 /**
- * VenueGridSection — Venue grid section editor
+ * VenueGridSection, Venue grid section editor
  * Editable: heading
  * Venue selection (Phase 2+)
  */

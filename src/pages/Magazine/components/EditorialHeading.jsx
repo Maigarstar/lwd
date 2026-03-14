@@ -1,10 +1,10 @@
 /**
- * EditorialHeading — Three-layer editorial contrast typography.
+ * EditorialHeading, Three-layer editorial contrast typography.
  *
  * Follows the Vogue / Condé Nast pattern:
- *   1. Small uppercase label  (Nunito — category / section marker)
- *   2. Large display headline (Gilda Display — the statement)
- *   3. Optional intro text    (Nunito — supporting context)
+ *   1. Small uppercase label  (Nunito, category / section marker)
+ *   2. Large display headline (Gilda Display, the statement)
+ *   3. Optional intro text    (Nunito, supporting context)
  *
  * Usage:
  *   <EditorialHeading
@@ -47,7 +47,7 @@ export default function EditorialHeading({
         ...wrapperStyle,
       }}
     >
-      {/* Layer 1 — Small label */}
+      {/* Layer 1, Small label */}
       {label && (
         <div style={{
           display: 'flex',
@@ -75,7 +75,7 @@ export default function EditorialHeading({
         </div>
       )}
 
-      {/* Layer 2 — Display headline */}
+      {/* Layer 2, Display headline */}
       {title && (
         <div style={{
           display: 'flex',
@@ -114,7 +114,7 @@ export default function EditorialHeading({
         </div>
       )}
 
-      {/* Layer 3 — Intro paragraph */}
+      {/* Layer 3, Intro paragraph */}
       {intro && (
         <p style={{
           fontFamily: FU,

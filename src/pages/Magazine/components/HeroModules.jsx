@@ -540,7 +540,7 @@ export function HeroPortrait({ posts = [], onRead }) {
       `}</style>
 
       <div className="hp5-grid">
-        {/* Lead story — left side */}
+        {/* Lead story, left side */}
         <div style={{ position: 'relative', overflow: 'hidden' }}>
           <div style={{
             position: 'absolute', inset: 0,
@@ -600,7 +600,7 @@ export function HeroPortrait({ posts = [], onRead }) {
           </div>
         </div>
 
-        {/* Portrait cards — right side, bleeding off edge */}
+        {/* Portrait cards, right side, bleeding off edge */}
         <div className="hp5-cards">
           {portraits.map((p) => (
             <div key={p.id} className="hp5-card" onClick={() => onRead && onRead(p)}>
@@ -641,7 +641,7 @@ export function HeroPortrait({ posts = [], onRead }) {
 }
 
 // ── Hero Style 6: Dual Feature ──────────────────────────────────────────────
-// Two side-by-side hero stories with equal visual weight — editorial spread
+// Two side-by-side hero stories with equal visual weight, editorial spread
 export function HeroDualFeature({ posts = [], onRead }) {
   const [loaded, setLoaded] = useState(false);
   useEffect(() => { const t = setTimeout(() => setLoaded(true), 100); return () => clearTimeout(t); }, []);

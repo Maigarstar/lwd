@@ -164,7 +164,7 @@ export default function CreateCategoryModal({ allCategories, initialName = '', d
               cursor: 'pointer',
             }}
           >
-            <option value="">— No parent (top-level) —</option>
+            <option value=""> -  No parent (top-level)  - </option>
             {topLevelCategories.map(cat => (
               <option key={cat.id} value={cat.id}>{cat.name}</option>
             ))}

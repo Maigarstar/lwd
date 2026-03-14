@@ -23,7 +23,7 @@ export default function LatestSplit({ venues }) {
         alignItems: "center",
       }}
     >
-      {/* LEFT — magazine image grid */}
+      {/* LEFT, magazine image grid */}
       <div
         className="lwd-latestsplit-imgrid"
         style={{
@@ -126,7 +126,7 @@ export default function LatestSplit({ venues }) {
         ))}
       </div>
 
-      {/* RIGHT — SEO editorial text */}
+      {/* RIGHT, SEO editorial text */}
       <div style={{ padding: "0 8px" }}>
         {/* Ornament */}
         <div
@@ -179,7 +179,7 @@ export default function LatestSplit({ venues }) {
             marginBottom: 20,
           }}
         >
-          Italy has long been regarded as the world's most romantic wedding destination — a
+          Italy has long been regarded as the world's most romantic wedding destination, a
           country where centuries of art, architecture and culinary mastery converge to
           create celebrations of extraordinary distinction.
         </p>
@@ -196,7 +196,7 @@ export default function LatestSplit({ venues }) {
           From the sun-drenched terraces of Tuscany to the sapphire shores of Lake Como,
           each region offers a distinct character and depth of beauty unmatched anywhere on
           earth. Our curated collection represents only the finest estates, villas, palazzi
-          and masserie — each personally visited by our editorial team.
+          and masserie, each personally visited by our editorial team.
         </p>
 
         {/* Key facts */}

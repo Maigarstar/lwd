@@ -316,7 +316,7 @@ export default function LuxuryVendorCard({ v, onView, isMobile, onSave, saved, o
       )}
 
       {/* ── Right-side overlay column: SWIPE (top:44) → HEART (top:84) ── */}
-      {/* Swipe hint — shows on hover when multiple slides */}
+      {/* Swipe hint, shows on hover when multiple slides */}
       {hov && hasMultiple && (
         <div
           style={{
@@ -334,7 +334,7 @@ export default function LuxuryVendorCard({ v, onView, isMobile, onSave, saved, o
         </div>
       )}
 
-      {/* Heart — shows on hover or when saved */}
+      {/* Heart, shows on hover or when saved */}
       <div
         style={{
           position: "absolute", top: v.verified ? 84 : 52, right: 12, zIndex: 4,
@@ -356,7 +356,7 @@ export default function LuxuryVendorCard({ v, onView, isMobile, onSave, saved, o
         />
       </div>
 
-      {/* ── Slide bar indicators — top-centre, max 3 bars ── */}
+      {/* ── Slide bar indicators, top-centre, max 3 bars ── */}
       {hasMultiple && (() => {
         const barCount = Math.min(mediaCount, 3);
         const activeBar = mediaCount <= 3
@@ -445,7 +445,7 @@ export default function LuxuryVendorCard({ v, onView, isMobile, onSave, saved, o
           padding: isMobile ? "20px 16px 16px" : "20px 18px 18px",
         }}
       >
-        {/* Photographer credit — bottom-right of image, above vendor name */}
+        {/* Photographer credit, bottom-right of image, above vendor name */}
         {(() => {
           const cur = allMedia[slideIdx];
           if (!cur?.showCredit) return null;
@@ -550,7 +550,7 @@ export default function LuxuryVendorCard({ v, onView, isMobile, onSave, saved, o
             paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.1)",
           }}
         >
-          {/* Price — natural block; marginRight:auto creates gap to buttons */}
+          {/* Price, natural block; marginRight:auto creates gap to buttons */}
           {v.priceFrom && (
             <div style={{ fontFamily: GD, fontSize: 20, fontWeight: 600, color: GOLD, lineHeight: 1, flexShrink: 0, marginRight: "auto" }}>
               <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 400, color: "rgba(255,255,255,0.45)", marginRight: 4, letterSpacing: "0.3px" }}>From</span>

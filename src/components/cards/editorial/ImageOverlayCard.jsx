@@ -53,7 +53,7 @@ export default function ImageOverlayCard({ data = {} }) {
           />
         )}
 
-        {/* Floating text box — centred, appears over image */}
+        {/* Floating text box, centred, appears over image */}
         <div style={{
           position: 'absolute',
           bottom: S.xl,
@@ -121,7 +121,7 @@ export default function ImageOverlayCard({ data = {} }) {
         background: 'linear-gradient(to top, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.3) 45%, rgba(0,0,0,0) 70%)',
       }} />
 
-      {/* Text — pinned bottom */}
+      {/* Text, pinned bottom */}
       <div style={{
         position: 'absolute',
         bottom: 0, left: 0, right: 0,

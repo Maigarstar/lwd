@@ -1,5 +1,5 @@
 /**
- * MagazineHomePage — Thin orchestrator for the magazine homepage.
+ * MagazineHomePage, Thin orchestrator for the magazine homepage.
  *
  * Responsibilities:
  *   1. Fetch article data (DB or static fallback)

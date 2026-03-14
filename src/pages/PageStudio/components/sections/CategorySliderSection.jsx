@@ -1,5 +1,5 @@
 /**
- * CategorySliderSection — Category slider section editor
+ * CategorySliderSection, Category slider section editor
  * Editable: heading
  * Enable/disable toggle handled by parent
  */

@@ -1,14 +1,14 @@
 /**
- * CategoryLayoutPortrait — Style 5: Portrait-First Editorial
+ * CategoryLayoutPortrait, Style 5: Portrait-First Editorial
  *
  * Designed for fashion, beauty, and portrait-heavy categories.
  * Lead story takes the full left column; four tall portrait cards
  * bleed off the right. Natural for Fashion & Beauty and Trends.
  * Structure:
- *   1. HeroPortrait — lead story + 4 portrait cards
+ *   1. HeroPortrait, lead story + 4 portrait cards
  *   2. Section descriptor bar
- *   3. Story river — CardHorizontal alternating
- *   4. Overlay card grid — 4-column portrait tiles
+ *   3. Story river, CardHorizontal alternating
+ *   4. Overlay card grid, 4-column portrait tiles
  *   5. Editorial break
  *   6. Category explorer strip
  */

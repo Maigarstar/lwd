@@ -20,7 +20,7 @@ export default function GettingMarriedDashboard({ onBack }) {
   const { couple: _contextCouple, logout, loading: authLoading } = useCoupleAuth();
 
   // ── Admin Preview Mode ─────────────────────────────────────────────────────
-  // Synchronous sessionStorage read — no async, no Supabase race conditions.
+  // Synchronous sessionStorage read, no async, no Supabase race conditions.
   // To remove: delete this block + the exitAdminPreview import above.
   const _adminPreviewData = (() => {
     try { return JSON.parse(sessionStorage.getItem("lwd_admin_preview") || "null"); } catch { return null; }
@@ -169,7 +169,7 @@ export default function GettingMarriedDashboard({ onBack }) {
               Viewing as couple: <strong>{couple?.firstName} {couple?.lastName || couple?.first_name}</strong>
             </span>
             <span style={{ fontSize: 11, color: "rgba(201,168,76,0.5)" }}>
-              — changes here are real
+             , changes here are real
             </span>
           </div>
           <button
@@ -875,7 +875,7 @@ export default function GettingMarriedDashboard({ onBack }) {
                           fontWeight: 400,
                         }}
                       >
-                        {coupleProfile.first_name || "—"}
+                        {coupleProfile.first_name || " - "}
                       </p>
                     </div>
                     <div>
@@ -891,7 +891,7 @@ export default function GettingMarriedDashboard({ onBack }) {
                           fontWeight: 400,
                         }}
                       >
-                        {coupleProfile.last_name || "—"}
+                        {coupleProfile.last_name || " - "}
                       </p>
                     </div>
                     <div>
@@ -923,7 +923,7 @@ export default function GettingMarriedDashboard({ onBack }) {
                           fontWeight: 400,
                         }}
                       >
-                        {coupleProfile.guest_count || "—"}
+                        {coupleProfile.guest_count || " - "}
                       </p>
                     </div>
                   </div>
@@ -1024,7 +1024,7 @@ export default function GettingMarriedDashboard({ onBack }) {
                   margin: 0,
                 }}
               >
-                Timeline, budgets, guest lists, and more — arriving soon to make wedding planning effortless
+                Timeline, budgets, guest lists, and more, arriving soon to make wedding planning effortless
               </p>
             </div>
           </section>

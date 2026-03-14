@@ -49,7 +49,7 @@ export default function GCardMobile({ v, saved, onSave, onView }) {
         }}
       />
 
-      {/* ── Online badge — top left ── */}
+      {/* ── Online badge, top left ── */}
       <div
         style={{
           position: "absolute",
@@ -91,7 +91,7 @@ export default function GCardMobile({ v, saved, onSave, onView }) {
         </span>
       </div>
 
-      {/* ── Save heart — top right ── */}
+      {/* ── Save heart, top right ── */}
       <button
         onClick={(e) => {
           e.stopPropagation();

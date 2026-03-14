@@ -16,7 +16,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { S, FU, FD, Field, Input, Textarea } from './StudioShared';
 
 const BUCKET = 'listing-media';
-// CSS-var-aware gold — picks up --s-gold if set on an ancestor
+// CSS-var-aware gold, picks up --s-gold if set on an ancestor
 const GOLD = 'var(--s-gold, #c9a96e)';
 
 const FOCAL_PRESETS = [
@@ -112,7 +112,7 @@ function DropZone({ onFile, onUrl, accept, uploading, error }) {
         <div style={{ fontFamily: FU, fontSize: 10, color: 'var(--s-error, #e05555)', marginTop: 8 }}>{error}</div>
       )}
 
-      {/* URL input — stop click propagation to prevent file dialog */}
+      {/* URL input, stop click propagation to prevent file dialog */}
       <div
         onClick={e => e.stopPropagation()}
         style={{ display: 'flex', gap: 6, marginTop: 12, alignItems: 'center' }}

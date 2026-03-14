@@ -1,5 +1,5 @@
 /**
- * ViewModeControl — Shared split/editor/preview view mode buttons
+ * ViewModeControl, Shared split/editor/preview view mode buttons
  *
  * Used by both Page Studio and Listing Studio save bars.
  * Displays three toggle buttons: Split, Editor, Preview.

@@ -54,7 +54,7 @@ export const PRODUCTS = [
   },
   {
     id: 'gown_04',
-    title: 'Minimalist Crepe Sheath — The Modern Bride',
+    title: 'Minimalist Crepe Sheath, The Modern Bride',
     brand: 'Roland Mouret',
     price: 4200,
     salePrice: 3150,

@@ -1,5 +1,5 @@
 // ─── src/pages/ContactLWD.jsx ──────────────────────────────────────────────────
-// Contact LWD — structured access page with controlled submission.
+// Contact LWD, structured access page with controlled submission.
 // Not a support page. Not a chat box. A curated submission gateway.
 // Dark mode locked. Institutional tone throughout.
 // No "Get in touch." No "We'd love to hear from you."
@@ -108,7 +108,7 @@ export default function ContactLWD({ onBack, onViewCategory, onViewStandard, onV
 
         <main>
           {/* ──────────────────────────────────────────────────────────────────
-              SECTION 1: Hero — Structured Access
+              SECTION 1: Hero, Structured Access
           ────────────────────────────────────────────────────────────────── */}
           <section
             className="lwd-standard-section lwd-standard-hero"
@@ -163,7 +163,7 @@ export default function ContactLWD({ onBack, onViewCategory, onViewStandard, onV
                 alignItems: "start",
               }}
             >
-              {/* Left — For Couples */}
+              {/* Left, For Couples */}
               <div style={{ padding: "0 48px 0 0" }}>
                 <h2 style={{
                   fontFamily: GD, fontSize: "clamp(24px, 2.5vw, 36px)", fontWeight: 400,
@@ -209,7 +209,7 @@ export default function ContactLWD({ onBack, onViewCategory, onViewStandard, onV
                 alignSelf: "stretch",
               }} />
 
-              {/* Right — For Venues & Vendors */}
+              {/* Right, For Venues & Vendors */}
               <div style={{ padding: "0 0 0 48px" }}>
                 <h2 style={{
                   fontFamily: GD, fontSize: "clamp(24px, 2.5vw, 36px)", fontWeight: 400,
@@ -424,7 +424,7 @@ export default function ContactLWD({ onBack, onViewCategory, onViewStandard, onV
                 fontFamily: NU, fontSize: 14, color: C.grey, lineHeight: 1.85,
                 fontWeight: 300, margin: 0,
               }}>
-                For media and editorial enquiries —{" "}
+                For media and editorial enquiries  - {" "}
                 <a
                   href="mailto:press@luxuryweddingdirectory.com"
                   style={{

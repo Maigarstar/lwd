@@ -42,7 +42,7 @@ const fetchVideoMeta = async (url, sourceType) => {
     return {
       title:       d.title        || '',
       thumbnail:   d.thumbnail_url || null,
-      caption:     d.description  || '',   // Vimeo only — YouTube oEmbed has no description
+      caption:     d.description  || '',   // Vimeo only, YouTube oEmbed has no description
       credit_name: d.author_name  || '',
       duration:    d.duration ? fmtDuration(d.duration) : '',  // Vimeo only
     };
@@ -177,8 +177,8 @@ const CardDisplayMeter = ({ mediaItems }) => {
       </div>
       <p style={{ fontSize: 10, color: '#aaa', margin: '3px 0 0', textAlign: 'right' }}>
         {count < CARD_LIMIT
-          ? `${CARD_LIMIT - count} slot${CARD_LIMIT - count === 1 ? '' : 's'} available — featured items shown first`
-          : 'All card slots filled — increase sort order or remove featured to shift items out'}
+          ? `${CARD_LIMIT - count} slot${CARD_LIMIT - count === 1 ? '' : 's'} available, featured items shown first`
+          : 'All card slots filled, increase sort order or remove featured to shift items out'}
       </p>
     </div>
   );
@@ -286,7 +286,7 @@ const MediaItemCard = ({ item, objectUrls, onUpdate, onRemove, inCard, cardPosit
         style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', cursor: 'pointer' }}
         onClick={() => setExpanded(p => !p)}
       >
-        {/* Thumbnail — click to open metadata canvas */}
+        {/* Thumbnail, click to open metadata canvas */}
         <div
           onClick={e => { e.stopPropagation(); if (onMeta) onMeta(); }}
           title="Edit metadata"
@@ -303,14 +303,14 @@ const MediaItemCard = ({ item, objectUrls, onUpdate, onRemove, inCard, cardPosit
         >
           {thumbSrc
             ? (isVideo && item.file instanceof File
-                /* Uploaded video — show first-frame via <video> */
+                /* Uploaded video, show first-frame via <video> */
                 ? <video src={thumbSrc} preload="metadata" muted playsInline
                     style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} />
                 : <img src={thumbSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               )
             : <span style={{ fontSize: 22 }}>{TYPE_ICONS[item.type]}</span>
           }
-          {/* Metadata completion dot — bottom-right corner */}
+          {/* Metadata completion dot, bottom-right corner */}
           {(() => {
             const hasTitle = !!(item.title    || '').trim();
             const hasAlt   = !!(item.alt_text || '').trim();
@@ -479,7 +479,7 @@ const MediaItemCard = ({ item, objectUrls, onUpdate, onRemove, inCard, cardPosit
                 checked={!!item.is_featured}
                 onChange={e => onUpdate(item.id, 'is_featured', e.target.checked)}
               />
-              ★ Featured — prioritise in card display slots
+              ★ Featured, prioritise in card display slots
             </label>
           </div>
         </div>
@@ -491,10 +491,10 @@ const MediaItemCard = ({ item, objectUrls, onUpdate, onRemove, inCard, cardPosit
 
 // ─── HERO LAYOUT PICKER ──────────────────────────────────────────────────────
 // 4 hero layout styles matching the public VenueProfile.jsx styles:
-//   cinematic  — full-width fade slider, name overlaid at bottom (DEFAULT)
-//   split      — image left, info panel right
-//   magazine   — image top, title bar below
-//   video      — autoplay YouTube / Vimeo background loop
+//   cinematic , full-width fade slider, name overlaid at bottom (DEFAULT)
+//   split     , image left, info panel right
+//   magazine  , image top, title bar below
+//   video     , autoplay YouTube / Vimeo background loop
 
 const HERO_LAYOUTS = [
   {
@@ -593,7 +593,7 @@ const HeroLayoutPicker = ({ value, onChange, videoUrl, onVideoUrlChange }) => (
       Hero Layout Style
     </label>
 
-    {/* 4-column grid of style cards — 2 cols on mobile */}
+    {/* 4-column grid of style cards, 2 cols on mobile */}
     <div className="ls-hero-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
       {HERO_LAYOUTS.map(({ key, label, desc, thumb }) => {
         const active = value === key;
@@ -636,12 +636,12 @@ const HeroLayoutPicker = ({ value, onChange, videoUrl, onVideoUrlChange }) => (
       })}
     </div>
 
-    {/* Video URL input — shown only when video layout is selected */}
+    {/* Video URL input, shown only when video layout is selected */}
     {value === 'video' && (
       <div style={{ marginTop: 12 }}>
         <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#555', marginBottom: 5 }}>
           Hero Video URL{' '}
-          <span style={{ fontWeight: 400, color: '#aaa' }}>(YouTube or Vimeo — autoplays muted &amp; looped)</span>
+          <span style={{ fontWeight: 400, color: '#aaa' }}>(YouTube or Vimeo, autoplays muted &amp; looped)</span>
         </label>
         <input
           type="url"
@@ -674,7 +674,7 @@ const MediaSection = ({ formData, onChange }) => {
   const [heroObjUrls, setHeroObjUrls] = useState({});
 
   // Sync hero images from formData when DB data loads async (edit mode)
-  // Only fires when local state is still empty — never overwrites user edits
+  // Only fires when local state is still empty, never overwrites user edits
   useEffect(() => {
     if (heroImages.length === 0 && Array.isArray(formData?.hero_images) && formData.hero_images.length > 0) {
       setHeroImages(formData.hero_images);
@@ -1124,7 +1124,7 @@ const MediaSection = ({ formData, onChange }) => {
                 {cardFiltered.length > 0 && (
                   <div style={{ borderTop: '1px dashed #ddd4c8', paddingTop: 12, marginBottom: 8 }}>
                     <p style={{ fontSize: 10, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
-                      Stored — outside card display
+                      Stored, outside card display
                     </p>
                   </div>
                 )}

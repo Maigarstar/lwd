@@ -1,7 +1,7 @@
 /**
- * LayoutEditorial — Style 1: Editorial Magazine Cover
+ * LayoutEditorial, Style 1: Editorial Magazine Cover
  *
- * Condé Nast Traveller feel — one dominant cover story commands attention.
+ * Condé Nast Traveller feel, one dominant cover story commands attention.
  * Full-width cinematic hero, two-up secondary cards, story river with
  * alternating image positions, editorial break, and category spotlights.
  */
@@ -54,7 +54,7 @@ export default function LayoutEditorial({
         isLight={isLight}
       />
 
-      {/* ── Story River — Alternating horizontal cards ─────────────── */}
+      {/* ── Story River, Alternating horizontal cards ─────────────── */}
       <section style={{ padding: 'clamp(56px, 8vw, 100px) clamp(24px, 5vw, 80px)', background: BG }}>
         <div style={{ maxWidth: 1280, margin: '0 auto' }}>
           <EditorialHeading
@@ -86,7 +86,7 @@ export default function LayoutEditorial({
         </div>
       </section>
 
-      {/* ── Destinations — Tall overlay cards ──────────────────────── */}
+      {/* ── Destinations, Tall overlay cards ──────────────────────── */}
       <section style={{ padding: '0 clamp(24px, 5vw, 80px) clamp(56px, 8vw, 100px)', background: BG }}>
         <div style={{ maxWidth: 1280, margin: '0 auto' }}>
           <EditorialHeading

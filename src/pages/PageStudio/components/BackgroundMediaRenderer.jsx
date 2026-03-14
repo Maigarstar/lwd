@@ -1,5 +1,5 @@
 /**
- * BackgroundMediaRenderer — Renders background media for preview
+ * BackgroundMediaRenderer, Renders background media for preview
  * Handles: uploaded images, uploaded videos, YouTube, Vimeo
  * Falls back to default background if no media is set
  */

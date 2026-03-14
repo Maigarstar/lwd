@@ -3,7 +3,7 @@ import { loadPages } from './utils/pageStorage';
 import { MOCK_PAGES } from './data/mockPages';
 
 /**
- * PageStudioHome — Pages index / home screen for Page Studio
+ * PageStudioHome, Pages index / home screen for Page Studio
  *
  * Matches the premium visual language of Listing Studio:
  *   same spacing, card density, gold accents, button styles, font usage.
@@ -64,7 +64,7 @@ const TYPE_LABELS = {
 };
 
 function relativeDate(iso) {
-  if (!iso) return '—';
+  if (!iso) return ' - ';
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 2)   return 'Just now';

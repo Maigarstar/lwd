@@ -36,7 +36,7 @@ function AccountHolderDropdown({ value, onChange }) {
           }
         }
       } catch (_) {
-        // Silently fail — account linking is non-critical on load error
+        // Silently fail, account linking is non-critical on load error
       } finally {
         setLoading(false);
       }
@@ -294,7 +294,7 @@ const BasicDetailsSection = ({ formData, onChange, darkMode = false }) => {
           onChange={onChange}
         />
         <p style={{ fontSize: 11, color: '#999', marginTop: 6 }}>
-          Link this listing to a vendor account — type to search all accounts in the system
+          Link this listing to a vendor account, type to search all accounts in the system
         </p>
       </div>
 
@@ -451,7 +451,7 @@ const BasicDetailsSection = ({ formData, onChange, darkMode = false }) => {
           </div>
         </label>
 
-        {/* Showcase category — shown when enabled */}
+        {/* Showcase category, shown when enabled */}
         {formData?.showcase_enabled && (
           <div style={{ marginTop: 12, paddingLeft: 52 }}>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#5a4e44', marginBottom: 5 }}>

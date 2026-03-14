@@ -1,12 +1,12 @@
 /**
- * CategoryLayoutGrid — Style 3: Visual Magazine Grid
+ * CategoryLayoutGrid, Style 3: Visual Magazine Grid
  *
- * Bold, image-first editorial grid. Dense mosaic layout —
+ * Bold, image-first editorial grid. Dense mosaic layout  - 
  * Vogue.com meets T Magazine. Lead posts in hero grid, rest
  * in uniform overlay cards, with a feature band mid-section.
  * Structure:
- *   1. HeroMagazineGrid — editorial 2-3 mosaic
- *   2. Overlay card grid — remaining posts
+ *   1. HeroMagazineGrid, editorial 2-3 mosaic
+ *   2. Overlay card grid, remaining posts
  *   3. Editorial break
  *   4. Minimal story list
  *   5. Category explorer strip

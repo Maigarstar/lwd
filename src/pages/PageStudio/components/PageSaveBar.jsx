@@ -1,5 +1,5 @@
 /**
- * PageSaveBar — Full-width action bar for Page Studio editor
+ * PageSaveBar, Full-width action bar for Page Studio editor
  *
  * Matches Listing Studio toolbar exactly:
  * Left:  Magic AI | Fill with AI
@@ -85,7 +85,7 @@ export default function PageSaveBar({
           flexShrink: 0,
         }}
       >
-        {/* Left: AI tools — order 1 */}
+        {/* Left: AI tools, order 1 */}
         <div style={{ display: 'flex', gap: 8, order: 1 }}>
           <button
             type="button"
@@ -119,7 +119,7 @@ export default function PageSaveBar({
           </button>
         </div>
 
-        {/* Save actions — order 2, stays on row 1 next to AI tools on mobile */}
+        {/* Save actions, order 2, stays on row 1 next to AI tools on mobile */}
         <div className="ps-toolbar-save" style={{ display: 'flex', gap: 8, order: 2, marginLeft: 'auto' }}>
           <button
             type="button"
@@ -167,9 +167,9 @@ export default function PageSaveBar({
           </button>
         </div>
 
-        {/* View mode text links — order 3, wraps to row 2 on mobile */}
+        {/* View mode text links, order 3, wraps to row 2 on mobile */}
         <div className="ps-toolbar-vm" style={{ display: 'flex', gap: 16, alignItems: 'center', order: 3 }}>
-          {/* Divider — hidden on mobile */}
+          {/* Divider, hidden on mobile */}
           <span className="ps-toolbar-div" style={{ width: 1, height: 16, backgroundColor: C.border, display: 'inline-block' }} />
           {['split', 'editor', 'preview'].map((mode) => {
             const isActive = viewMode === mode;

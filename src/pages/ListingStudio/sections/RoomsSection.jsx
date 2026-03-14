@@ -1,5 +1,5 @@
 /**
- * RoomsSection — Listing Studio editor for accommodation / rooms
+ * RoomsSection, Listing Studio editor for accommodation / rooms
  *
  * Fields:
  *   Accommodation Type · Total Rooms · Total Suites · Max Overnight Guests
@@ -198,7 +198,7 @@ const RoomsSection = ({ formData, onChange }) => {
           Rooms & Accommodation
         </h3>
         <p style={{ fontSize: 12, color: '#999', margin: 0 }}>
-          Couples look for overnight accommodation first. Fill in what's available — empty sections are hidden on the listing.
+          Couples look for overnight accommodation first. Fill in what's available, empty sections are hidden on the listing.
         </p>
       </div>
 
@@ -214,7 +214,7 @@ const RoomsSection = ({ formData, onChange }) => {
         />
       </div>
 
-      {/* Numeric fields — 2-col grid */}
+      {/* Numeric fields, 2-col grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
         <div>
           <label style={labelStyle}>Total Rooms</label>
@@ -267,7 +267,7 @@ const RoomsSection = ({ formData, onChange }) => {
         />
       </div>
 
-      {/* Room Description — TipTap */}
+      {/* Room Description, TipTap */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
           <label style={{ ...labelStyle, marginBottom: 0 }}>Room Description</label>

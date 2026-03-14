@@ -19,7 +19,7 @@ const SORT_OPTIONS = [
   { value: 'az',      label: 'A–Z' },
 ];
 
-// Category-specific hero style mapping — editorial layouts per category
+// Category-specific hero style mapping, editorial layouts per category
 const CATEGORY_HERO_MAP = {
   'destinations':   'editorial',
   'venues':         'editorial',
@@ -33,7 +33,7 @@ const CATEGORY_HERO_MAP = {
   'home-living':    'portrait',
 };
 
-// Subcategory pills per category — contextual navigation
+// Subcategory pills per category, contextual navigation
 const SUBCATEGORY_MAP = {
   'destinations': ['Europe', 'Asia', 'Caribbean', 'Americas', 'Africa', 'Middle East', 'Pacific'],
   'venues':       ['Châteaux', 'Villas', 'Hotels', 'Estates', 'Gardens', 'Beach', 'City'],
@@ -104,7 +104,7 @@ export default function MagazineCategoryPage({ categoryId, onNavigateArticle, on
   const [featured, ...rest] = sorted;
   const goArticle = post => onNavigateArticle && onNavigateArticle(post.slug);
 
-  // Related categories — 3 neighbours in the CATEGORIES array
+  // Related categories, 3 neighbours in the CATEGORIES array
   const relatedCategories = useMemo(() => {
     const idx = CATEGORIES.findIndex(c => c.id === categoryId);
     if (idx === -1) return CATEGORIES.slice(0, 3);
@@ -187,7 +187,7 @@ export default function MagazineCategoryPage({ categoryId, onNavigateArticle, on
         onToggleLight={onToggleLight}
       />
 
-      {/* Category hero — variant per category */}
+      {/* Category hero, variant per category */}
       {renderHero()}
 
       {/* Subcategory pills strip */}
@@ -283,7 +283,7 @@ export default function MagazineCategoryPage({ categoryId, onNavigateArticle, on
           </div>
         ) : (
           <>
-            {/* Lead story — only for editorial hero (portrait/dual already show it) */}
+            {/* Lead story, only for editorial hero (portrait/dual already show it) */}
             {heroConsumed === 0 && featured && (
               <div style={{ marginBottom: 'clamp(40px, 5vw, 64px)' }}>
                 <LeadStory post={featured} onClick={goArticle} isLight={isLight} />

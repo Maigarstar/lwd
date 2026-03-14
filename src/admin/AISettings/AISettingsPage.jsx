@@ -93,7 +93,7 @@ export default function AISettingsPage() {
       // Call Supabase Edge Function to update settings
       // Supabase client handles auth token automatically
       // Passing a body makes it a POST request automatically
-      // Pass body as object (NOT JSON.stringify) — Supabase client auto-serializes
+      // Pass body as object (NOT JSON.stringify), Supabase client auto-serializes
       // and sets Content-Type: application/json correctly
       const { data: updated, error: invokeError } = await supabase.functions.invoke('ai-settings', {
         body: {

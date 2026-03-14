@@ -132,7 +132,7 @@ export default function AuraMiniBar() {
                   borderRadius: "50%",
                   background:   "#22c55e",
                   display:      "inline-block",
-                  /* no pulse — luxury stays still */
+                  /* no pulse, luxury stays still */
                 }}
               />
               <span
@@ -192,7 +192,7 @@ export default function AuraMiniBar() {
         </div>
       </div>
 
-      {/* ── Compact thread — fixed 96px ── */}
+      {/* ── Compact thread, fixed 96px ── */}
       <div
         ref={threadRef}
         style={{

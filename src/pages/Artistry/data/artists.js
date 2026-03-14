@@ -22,7 +22,7 @@ export const ARTISTS = [
       'https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&w=800&q=80',
       'https://images.unsplash.com/photo-1550005809-91ad75fb315f?auto=format&fit=crop&w=800&q=80',
     ],
-    // YouTube — behind-the-scenes wedding photography film
+    // YouTube, behind-the-scenes wedding photography film
     videoUrl: 'https://www.youtube.com/watch?v=2Vv-BfVoq4g',
     featured: true,
     type: 'image',
@@ -44,7 +44,7 @@ export const ARTISTS = [
       'https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=800&q=80',
       'https://images.unsplash.com/photo-1512909006721-3d6018887383?auto=format&fit=crop&w=800&q=80',
     ],
-    // YouTube — cinematic wedding highlight reel
+    // YouTube, cinematic wedding highlight reel
     videoUrl: 'https://www.youtube.com/watch?v=JGwWNGJdvx8',
     featured: false,
     type: 'video',
@@ -66,7 +66,7 @@ export const ARTISTS = [
       'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
       'https://images.unsplash.com/photo-1571624436279-b272aff752b5?auto=format&fit=crop&w=800&q=80',
     ],
-    // YouTube — venue tour
+    // YouTube, venue tour
     videoUrl: 'https://www.youtube.com/watch?v=tgbNymZ7vqY',
     featured: false,
     type: 'image',
@@ -80,7 +80,7 @@ export const ARTISTS = [
     quote: 'Flowers don\'t decorate a wedding. They remember it.',
     microPrompts: {
       different: 'Every arrangement is foraged the morning of. Nothing is held in cold storage.',
-      momentFor: 'When the bride walks past the altar installation and doesn\'t see the flowers — she feels them.',
+      momentFor: 'When the bride walks past the altar installation and doesn\'t see the flowers, she feels them.',
       perfectDay: 'When the roses have opened exactly right by ceremony time.',
     },
     image: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=900&q=80',
@@ -88,7 +88,7 @@ export const ARTISTS = [
       'https://images.unsplash.com/photo-1468852831956-6ac5e75fe9a7?auto=format&fit=crop&w=800&q=80',
       'https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&w=800&q=80',
     ],
-    // Instagram reel — floral installation process
+    // Instagram reel, floral installation process
     videoUrl: 'https://www.instagram.com/reel/C4example1234/',
     featured: false,
     type: 'image',
@@ -128,7 +128,7 @@ export const ARTISTS = [
     gallery: [
       'https://images.unsplash.com/photo-1457972729786-0411a3b2b626?auto=format&fit=crop&w=800&q=80',
     ],
-    // TikTok — bridal transformation reel
+    // TikTok, bridal transformation reel
     videoUrl: 'https://www.tiktok.com/@atelierluna/video/7234567890123456789',
     featured: false,
     type: 'image',
@@ -149,7 +149,7 @@ export const ARTISTS = [
     gallery: [
       'https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=800&q=80',
     ],
-    // YouTube — drone footage of the venue
+    // YouTube, drone footage of the venue
     videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     featured: false,
     type: 'image',
@@ -162,7 +162,7 @@ export const ARTISTS = [
     country: 'Italy',
     quote: 'I\'m not documenting the day. I\'m catching it before it disappears.',
     microPrompts: {
-      different: 'Every reel has a single emotion at its centre. Not a sequence of moments — a feeling.',
+      different: 'Every reel has a single emotion at its centre. Not a sequence of moments, a feeling.',
       momentFor: 'The unscripted 30 seconds between the grand moments.',
       perfectDay: 'When guests ask if I got a certain moment and I already did.',
     },
@@ -170,7 +170,7 @@ export const ARTISTS = [
     gallery: [
       'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=800&q=80',
     ],
-    // TikTok — viral wedding reel
+    // TikTok, viral wedding reel
     videoUrl: 'https://www.tiktok.com/@giuliaferraro/video/7198765432109876543',
     featured: false,
     type: 'video',
@@ -189,7 +189,7 @@ export const ARTISTS = [
     },
     image: 'https://images.unsplash.com/photo-1535254973040-607b474cb50d?auto=format&fit=crop&w=900&q=80',
     gallery: [],
-    // Instagram reel — cake design process
+    // Instagram reel, cake design process
     videoUrl: 'https://www.instagram.com/reel/CxampleReel567/',
     featured: false,
     type: 'image',
@@ -204,11 +204,11 @@ export const ARTISTS = [
     microPrompts: {
       different: 'We learn the couple\'s story before we choose a single note. The music should feel inevitable.',
       momentFor: 'The silence before the first note. Forty people holding their breath.',
-      perfectDay: 'When someone says they didn\'t hear us — they only felt us.',
+      perfectDay: 'When someone says they didn\'t hear us, they only felt us.',
     },
     image: 'https://images.unsplash.com/photo-1415369629372-26f2fe60c467?auto=format&fit=crop&w=900&q=80',
     gallery: [],
-    // YouTube — live ceremony performance
+    // YouTube, live ceremony performance
     videoUrl: 'https://www.youtube.com/watch?v=ZRtdQ81jPUQ',
     featured: false,
     type: 'video',
@@ -229,7 +229,7 @@ export const ARTISTS = [
     gallery: [
       'https://images.unsplash.com/photo-1445633629932-0029acc44e88?auto=format&fit=crop&w=800&q=80',
     ],
-    // Instagram reel — styling reveal
+    // Instagram reel, styling reveal
     videoUrl: 'https://www.instagram.com/reel/AriaStudio2024xyz/',
     featured: false,
     type: 'image',
@@ -250,7 +250,7 @@ export const ARTISTS = [
     gallery: [
       'https://images.unsplash.com/photo-1580019542155-247062e19ce4?auto=format&fit=crop&w=800&q=80',
     ],
-    // YouTube — golden hour shoot behind the scenes
+    // YouTube, golden hour shoot behind the scenes
     videoUrl: 'https://www.youtube.com/watch?v=9bZkp7q19f0',
     featured: false,
     type: 'image',

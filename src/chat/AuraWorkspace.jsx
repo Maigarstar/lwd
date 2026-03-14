@@ -98,7 +98,7 @@ export default function AuraWorkspace({ onBack, onHome, onVenues, onLogin }) {
   const handleShare = () => {
     const url = window.location.href;
     if (navigator.share) {
-      navigator.share({ title: "Aura — Wedding Planning", text: "Discover luxury wedding venues in Italy", url }).catch(() => {});
+      navigator.share({ title: "Aura, Wedding Planning", text: "Discover luxury wedding venues in Italy", url }).catch(() => {});
     } else {
       navigator.clipboard?.writeText(url).catch(() => {});
       setShareToast(true);
@@ -150,7 +150,7 @@ export default function AuraWorkspace({ onBack, onHome, onVenues, onLogin }) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Aura — wedding planning workspace"
+        aria-label="Aura, wedding planning workspace"
         style={{
           position:      "fixed",
           inset:          0,
@@ -181,7 +181,7 @@ export default function AuraWorkspace({ onBack, onHome, onVenues, onLogin }) {
         >
           {/* Left: hamburger (mobile) + Identity */}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {/* Hamburger — mobile only */}
+            {/* Hamburger, mobile only */}
             <button
               className="aws-mobile-only"
               onClick={openLeft}
@@ -225,7 +225,7 @@ export default function AuraWorkspace({ onBack, onHome, onVenues, onLogin }) {
             </div>
           </div>
 
-          {/* Centre nav — hidden on mobile */}
+          {/* Centre nav, hidden on mobile */}
           <div className="aws-topbar-nav" style={{ display: "flex", alignItems: "center", gap: 2 }}>
             <TopNavBtn label="Home"   onClick={handleHome}   />
             <TopNavBtn label="Venues" onClick={handleVenues} />
@@ -245,7 +245,7 @@ export default function AuraWorkspace({ onBack, onHome, onVenues, onLogin }) {
 
           {/* Controls */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
-            {/* Results — mobile only */}
+            {/* Results, mobile only */}
             <button
               className="aws-mobile-only"
               onClick={openRight}
@@ -544,7 +544,7 @@ export default function AuraWorkspace({ onBack, onHome, onVenues, onLogin }) {
         <div className="aws-footer" style={{ flexShrink: 0, background: darkMode ? "rgba(255,255,255,0.03)" : "#F5F2ED", borderTop: `1px solid ${darkMode ? "rgba(255,255,255,0.06)" : "rgba(26,23,20,0.08)"}`, padding: "7px 24px 8px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 4 }}>
             <span style={{ fontSize: 10, color: darkMode ? "rgba(255,255,255,0.28)" : "rgba(26,23,20,0.55)", fontFamily: "var(--font-body)" }}>
-              <Icon name="alertTriangle" size={10} style={{ marginRight: 3, opacity: 0.6 }} /> Aura can make mistakes — always verify details directly with venues &amp; vendors.
+              <Icon name="alertTriangle" size={10} style={{ marginRight: 3, opacity: 0.6 }} /> Aura can make mistakes, always verify details directly with venues &amp; vendors.
             </span>
             <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10, color: darkMode ? "rgba(255,255,255,0.22)" : "rgba(26,23,20,0.45)", fontFamily: "var(--font-body)" }}>
               <span>Powered by <span style={{ color: GOLD, opacity: 0.8 }}>Taigenic.ai</span></span>
@@ -554,7 +554,7 @@ export default function AuraWorkspace({ onBack, onHome, onVenues, onLogin }) {
             </div>
           </div>
           <div className="aws-footer-copyright" style={{ marginTop: 3, fontSize: 9, color: darkMode ? "rgba(255,255,255,0.15)" : "rgba(26,23,20,0.35)", fontFamily: "var(--font-body)" }}>
-            © Luxury Wedding Directory — Part of 5 Star Weddings Ltd. 2006–2026. All rights reserved.
+            © Luxury Wedding Directory, Part of 5 Star Weddings Ltd. 2006–2026. All rights reserved.
           </div>
         </div>
 

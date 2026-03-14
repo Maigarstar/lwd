@@ -1,7 +1,7 @@
 /**
  * proseStyles.js
  * Injects shared CSS for the rich-text editor and preview panel.
- * Call injectProseStyles() once — subsequent calls are no-ops.
+ * Call injectProseStyles() once, subsequent calls are no-ops.
  *
  * Class contract:
  *   .ldw-prose-body  →  applied to:

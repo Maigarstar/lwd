@@ -1,5 +1,5 @@
 // ─── src/data/italy/country.js ────────────────────────────────────────────────
-// Italy country entity — reference architecture for global entity graph.
+// Italy country entity, reference architecture for global entity graph.
 // Schema: id, slug, name, iso2, seo fields, ai fields, intent signals, aliases.
 
 export const ITALY_COUNTRY = {
@@ -10,7 +10,7 @@ export const ITALY_COUNTRY = {
   listingCount: 20,
   canonicalRoute: "/italy",
   seoTitleTemplate: "Luxury Wedding Vendors in Italy | LWD",
-  metaDescriptionTemplate: "Discover curated luxury wedding venues, planners and vendors across Italy. From Lake Como to the Amalfi Coast — editorially selected.",
+  metaDescriptionTemplate: "Discover curated luxury wedding venues, planners and vendors across Italy. From Lake Como to the Amalfi Coast, editorially selected.",
   evergreenContent: "Italy remains the world's most sought-after destination for luxury weddings. From the Renaissance grandeur of Tuscan villas to the dramatic cliffs of the Amalfi Coast, every region offers a distinct expression of la dolce vita.",
   focusKeywords: [
     "luxury wedding italy",

@@ -18,8 +18,8 @@ const QUICK_REPLIES = [
 
 const AUTO_REPLIES = {
   "best venues in tuscany": "Tuscany is spectacular for weddings. Our top picks include Villa Rosanova in San Casciano for its private vineyard chapel, Castello di Vicarello for an intimate medieval estate, and Tenuta di Neri near Montalcino for a stunning Brunello wine estate. Shall I share more details on any of these?",
-  "compare lake como & amalfi": "Both are extraordinary — it really comes down to scale and style. Lake Como offers grand classical villas like Villa d'Este (up to 200 guests) with serene alpine reflections. The Amalfi Coast — particularly Ravello — is more intimate and dramatic, perched above the sea. Amalfi tends to suit smaller, more theatrical celebrations (50–100 guests).",
-  "what's included in hire fees?": "Venue hire typically covers exclusive use of the estate, ceremony spaces, reception terraces, and guest accommodation. Catering, florals, music and legal paperwork are usually separate. Most of our featured estates include a dedicated venue coordinator. I can send you a detailed breakdown — would that help?",
+  "compare lake como & amalfi": "Both are extraordinary, it really comes down to scale and style. Lake Como offers grand classical villas like Villa d'Este (up to 200 guests) with serene alpine reflections. The Amalfi Coast, particularly Ravello, is more intimate and dramatic, perched above the sea. Amalfi tends to suit smaller, more theatrical celebrations (50–100 guests).",
+  "what's included in hire fees?": "Venue hire typically covers exclusive use of the estate, ceremony spaces, reception terraces, and guest accommodation. Catering, florals, music and legal paperwork are usually separate. Most of our featured estates include a dedicated venue coordinator. I can send you a detailed breakdown, would that help?",
   "book a consultation": "Wonderful! Our consultants specialise in Italian wedding planning and have personal relationships with every venue on our list. I'll connect you with a specialist. Could I take your name and preferred contact method?",
 };
 

@@ -1,5 +1,5 @@
 // ─── src/pages/ItalyPage.jsx ──────────────────────────────────────────────────
-// Dedicated Italy country hub at /italy — the canonical, indexable Italy page.
+// Dedicated Italy country hub at /italy, the canonical, indexable Italy page.
 // Full luxury editorial page with venue browsing, vendor discovery, and filters.
 import "../category.css";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -105,7 +105,7 @@ export default function ItalyPage({
 
   // ── SEO: indexable entity or noindex template ────────────────────────────
   useEffect(() => {
-    // Robots — noindex only when used as /category template
+    // Robots, noindex only when used as /category template
     let robots = document.querySelector('meta[name="robots"]');
     if (noIndex) {
       if (!robots) {
@@ -118,7 +118,7 @@ export default function ItalyPage({
       robots.remove();
     }
 
-    // Canonical — always point to /italy
+    // Canonical, always point to /italy
     let canon = document.querySelector('link[rel="canonical"]');
     if (!canon) {
       canon = document.createElement("link");
@@ -160,7 +160,7 @@ export default function ItalyPage({
     root.style.setProperty("--lwd-white", C.white);
   }, [C.dark, C.gold, C.white]);
 
-  // ── Filtered + sorted venue list — memoised ───────────────────────────
+  // ── Filtered + sorted venue list, memoised ───────────────────────────
   const filtered = useMemo(() => {
     const parsePrice = (s) => parseInt(String(s).replace(/[^0-9]/g, ""), 10) || 0;
     const q = searchQuery.trim().toLowerCase();
@@ -274,7 +274,7 @@ export default function ItalyPage({
           </>
         )}
 
-        {/* ══ VENUE + VENDOR CARDS (always visible — scroll below map) ════ */}
+        {/* ══ VENUE + VENDOR CARDS (always visible, scroll below map) ════ */}
           <>
             {/* ── Bridge: Latest Venues ── */}
             {filtered.length > 0 && (
@@ -299,7 +299,7 @@ export default function ItalyPage({
                   maxWidth: 520,
                   margin: 0,
                 }}>
-                  Newly added villas, palazzi, and estates — each personally vetted by our editorial team.
+                  Newly added villas, palazzi, and estates, each personally vetted by our editorial team.
                 </p>
               </div>
             )}
@@ -307,7 +307,7 @@ export default function ItalyPage({
             {/* Batch 1 (first 6) */}
             <div className="lwd-venue-list-wrap" style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 0" }}>
               {filtered.length === 0 ? (
-                /* Empty state — brand-aligned tone */
+                /* Empty state, brand-aligned tone */
                 <div style={{ textAlign: "center", padding: "100px 0" }}>
                   <div
                     style={{
@@ -319,7 +319,7 @@ export default function ItalyPage({
                       fontFamily: "var(--font-body)",
                     }}
                   >
-                    Nothing here — yet
+                    Nothing here, yet
                   </div>
                   <div
                     style={{
@@ -341,7 +341,7 @@ export default function ItalyPage({
                     fontWeight: 300,
                     marginBottom: 28,
                   }}>
-                    Try broadening your filters — or let us surprise you.
+                    Try broadening your filters, or let us surprise you.
                   </p>
                   <button
                     onClick={() => setFilters(DEFAULT_FILTERS)}
@@ -393,7 +393,7 @@ export default function ItalyPage({
               )}
             </div>
 
-            {/* ── Signature Collection — premium tier ── */}
+            {/* ── Signature Collection, premium tier ── */}
             {showSlider && (
               <div style={{ marginTop: 72 }}>
                 {/* Thin gold divider */}
@@ -463,7 +463,7 @@ export default function ItalyPage({
                     maxWidth: 520,
                     margin: 0,
                   }}>
-                    Planners, photographers, florists, and culinary artists — the professionals behind Italy's finest celebrations.
+                    Planners, photographers, florists, and culinary artists, the professionals behind Italy's finest celebrations.
                   </p>
                 </div>
                 <div style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 0" }}>
@@ -525,7 +525,7 @@ export default function ItalyPage({
   );
 }
 
-// ── Tiny helper — Load More button with state-driven hover ──────────────────
+// ── Tiny helper, Load More button with state-driven hover ──────────────────
 function LoadMoreBtn({ C, onClick }) {
   const [hov, setHov] = useState(false);
   return (

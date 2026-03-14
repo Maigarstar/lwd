@@ -1,5 +1,5 @@
 /**
- * DestinationGridSection — Destination grid section editor
+ * DestinationGridSection, Destination grid section editor
  * Editable: heading
  * Enable/disable toggle handled by parent
  */

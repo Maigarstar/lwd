@@ -17,7 +17,7 @@ applyThemeToDocument();
 
 import HomePage from "./pages/HomePage.jsx";
 import VenueProfile           from "./VenueProfile.jsx";
-// CountryTemplate removed — /category now renders ItalyPage with noIndex
+// CountryTemplate removed, /category now renders ItalyPage with noIndex
 import RegionPage             from "./pages/RegionPage.jsx";
 import RegionCategoryPage     from "./pages/RegionCategoryPage.jsx";
 import LWDStandard            from "./pages/LWDStandard.jsx";
@@ -56,8 +56,9 @@ import FashionLandingPage   from "./pages/Magazine/FashionLandingPage.jsx";
 import MagazineStudio       from "./pages/MagazineStudio/index.jsx";
 import EditorialShowcase    from "./pages/EditorialShowcase.jsx";
 import ShowcasePage         from "./pages/ShowcasePage.jsx";
-import DdeShowcasePage      from "./pages/DdeShowcasePage.jsx";
-import VenueProfilePage     from "./pages/VenueProfilePage.jsx";
+import DdeShowcasePage          from "./pages/DdeShowcasePage.jsx";
+import SixSensesShowcasePage    from "./pages/SixSensesShowcasePage.jsx";
+import VenueProfilePage         from "./pages/VenueProfilePage.jsx";
 import NotFoundPage         from "./pages/NotFoundPage.jsx";
 import { VENDORS }            from "./data/vendors.js";
 
@@ -135,8 +136,9 @@ function stateToPath(pg, opts = {}) {
     case "magazine-studio":  return "/magazine-studio";
     case "venue-profile":    return `/venues/${opts.venueSlug || 'grand-tirolia'}`;
     case "listing-profile":  return `/wedding-venues/${opts.venueSlug || ''}`;
-    case "dde-showcase":     return "/showcase/domaine-des-etangs";
-    case "gt-showcase":      return "/showcase/grand-tirolia-kitzbuehel";
+    case "dde-showcase":      return "/showcase/domaine-des-etangs";
+    case "gt-showcase":       return "/showcase/grand-tirolia-kitzbuehel";
+    case "sskrabey-showcase": return "/showcase/six-senses-krabey-island";
     case "showcase":         return `/showcase/${opts.showcaseSlug || ''}`;
     default:                 return "/";
   }
@@ -178,9 +180,10 @@ function pathToState(pathname) {
   if (parts[0] === "italy" && parts[1] === "puglia" && parts.length === 2) return { page: "puglia" };
   // Magazine routes
   if (parts[0] === "editorial-showcase" && parts.length === 1) return { page: "editorial-showcase" };
-  // Venue showcase — static DDE page
-  if (parts[0] === "showcase" && parts[1] === "domaine-des-etangs") return { page: "dde-showcase" };
-  // Venue showcase — static Grand Tirolia editorial page
+  // Venue showcase, static DDE page
+  if (parts[0] === "showcase" && parts[1] === "domaine-des-etangs")       return { page: "dde-showcase" };
+  if (parts[0] === "showcase" && parts[1] === "six-senses-krabey-island") return { page: "sskrabey-showcase" };
+  // Venue showcase, static Grand Tirolia editorial page
   if (parts[0] === "showcase" && parts[1] === "grand-tirolia-kitzbuehel") return { page: "gt-showcase" };
   // Venue showcase: /showcase/{slug}
   if (parts[0] === "showcase" && parts.length === 2) return { page: "showcase", showcaseSlug: parts[1] };
@@ -431,6 +434,17 @@ function App() {
             onBack={goHome}
           />
         )}
+        {page === "sskrabey-showcase" && (
+          <SixSensesShowcasePage
+            onBack={goHome}
+            onGoDestination={(countrySlug) => {
+              if (countrySlug) { setActiveCountrySlug(countrySlug); setPage("italy"); }
+              else { setPage("home"); }
+            }}
+            onNavigateStandard={goStandard}
+            onNavigateAbout={goAbout}
+          />
+        )}
         {page === "showcase" && (
           <ShowcasePage
             slug={activeShowcaseSlug}
@@ -649,7 +663,7 @@ function App() {
           <NotFoundPage onNavigateHome={goHome} onNavigateCategory={goCategory} />
         )}
 
-        {/* ── Global chat system — hidden on dashboards and auth pages ── */}
+        {/* ── Global chat system, hidden on dashboards and auth pages ── */}
         {page !== "admin" && page !== "vendor" && page !== "vendor-login" && page !== "vendor-activate" && page !== "vendor-confirm-email" && page !== "vendor-forgot-password" && page !== "vendor-reset-password" && page !== "couple-signup" && page !== "couple-login" && page !== "couple-confirm-email" && page !== "couple-forgot-password" && page !== "couple-reset-password" && page !== "join" && (
           <AuraChat onNavigateHome={goHome} />
         )}

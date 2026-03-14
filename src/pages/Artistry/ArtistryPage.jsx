@@ -36,7 +36,7 @@ export default function ArtistryPage() {
     });
   }, []);
 
-  // Auto-rotate featured artist — pauses on hover
+  // Auto-rotate featured artist, pauses on hover
   useEffect(() => {
     const t = setInterval(() => {
       if (!pausedRef.current) {
@@ -46,7 +46,7 @@ export default function ArtistryPage() {
     return () => clearInterval(t);
   }, [artists.length]);
 
-  // Filtered list for the grid (not the lightbox — lightbox navigates all)
+  // Filtered list for the grid (not the lightbox, lightbox navigates all)
   const filteredArtists = artists.filter(a => {
     const catOk = activeCategory === 'All' || a.category === activeCategory;
     const countryOk = !activeCountry || activeCountry === 'All' || a.country === activeCountry;

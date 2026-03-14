@@ -40,7 +40,7 @@ const POST_FIELD_MAP = {
   categorySlug:        'category_slug',
   categoryLabel:       'category_label',
   authorData:          'author_data',        // { id, name, role, bio, avatar }
-  author:              'author_data',        // alias — editor stores it as `author`
+  author:              'author_data',        // alias, editor stores it as `author`
   tags:                'tags',
   readingTime:         'reading_time',
   published:           'published',
@@ -104,7 +104,7 @@ function mapPostFromDb(row) {
 /**
  * Ensure the slug is unique in magazine_posts.
  * If a collision exists for a DIFFERENT id, append -2, -3, etc.
- * Returns { slug, changed } — callers should surface a warning if changed=true.
+ * Returns { slug, changed }, callers should surface a warning if changed=true.
  */
 async function resolveSlug(slug, excludeId = null) {
   if (!isSupabaseAvailable()) return { slug, changed: false };
@@ -157,7 +157,7 @@ export async function fetchPostBySlug(slug) {
       .eq('slug', slug)
       .maybeSingle();
     if (postErr) throw postErr;
-    if (!post) return { data: null, error: null }; // not in DB yet — caller uses static fallback
+    if (!post) return { data: null, error: null }; // not in DB yet, caller uses static fallback
 
     const { data: blocks, error: blocksErr } = await supabase
       .from('magazine_blocks')
@@ -523,7 +523,7 @@ export async function saveHomepageConfig(sections) {
 /**
  * Track an uploaded file in magazine_media.
  * Called by MagazineMediaUploader after a successful Supabase Storage upload.
- * Fire-and-forget — errors are logged but not thrown.
+ * Fire-and-forget, errors are logged but not thrown.
  */
 export async function trackMediaUpload(fileUrl, meta = {}) {
   if (!isSupabaseAvailable()) return;

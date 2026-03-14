@@ -1,7 +1,7 @@
 // ─── src/components/cards/editorial/QuoteCard.jsx ────────────────────────────
 // Editorial quote / pull-quote block.
 // Large decorative quotation mark (Gilda Display, gold) + italic quote +
-// attribution. Full-width coloured background — lots of breathing room.
+// attribution. Full-width coloured background, lots of breathing room.
 //
 // variants:
 //   "centered"  (default) → centred layout, no image
@@ -79,7 +79,7 @@ export default function QuoteCard({ data = {} }) {
               margin: 0,
               letterSpacing: '0.1em',
             }}>
-              — {attribution}
+             , {attribution}
               {attributionRole && (
                 <span style={{ fontWeight: 300, textTransform: 'none', letterSpacing: 0 }}>
                   , {attributionRole}

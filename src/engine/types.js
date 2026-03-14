@@ -70,7 +70,7 @@ export const DIETARY_OPTION_LABELS = Object.freeze({
 /**
  * @typedef {Object} ResponseMetrics
  * @property {number} averageResponseHours
- * @property {number} responseRatePercent — 0–100
+ * @property {number} responseRatePercent, 0–100
  * @property {boolean} sameDayTypical
  */
 
@@ -85,7 +85,7 @@ export const DIETARY_OPTION_LABELS = Object.freeze({
 
 /**
  * @typedef {Object} AirportEntry
- * @property {string} code — IATA code
+ * @property {string} code, IATA code
  * @property {string} name
  * @property {number} driveTimeMinutes
  * @property {number} [distanceKm]
@@ -110,18 +110,18 @@ export const DIETARY_OPTION_LABELS = Object.freeze({
 
 /**
  * @typedef {Object} CuratedIndexBreakdown
- * @property {number|null} presentation — 0–10, null if excluded
- * @property {number|null} experienceDepth — 0–10, null if excluded
- * @property {number|null} responsiveness — 0–10, null if excluded
- * @property {number|null} cateringQuality — 0–10, null if excluded
- * @property {number|null} completeness — 0–10, null if excluded
+ * @property {number|null} presentation, 0–10, null if excluded
+ * @property {number|null} experienceDepth, 0–10, null if excluded
+ * @property {number|null} responsiveness, 0–10, null if excluded
+ * @property {number|null} cateringQuality, 0–10, null if excluded
+ * @property {number|null} completeness, 0–10, null if excluded
  */
 
 /**
  * @typedef {Object} CuratedIndexResult
- * @property {number} lwdScore10 — 0–10, one decimal
- * @property {number} lwdScore100 — 0–100 integer (UI compat)
+ * @property {number} lwdScore10, 0–10, one decimal
+ * @property {number} lwdScore100, 0–100 integer (UI compat)
  * @property {"low"|"medium"|"high"} confidence
  * @property {CuratedIndexBreakdown} breakdown
- * @property {Object<string,number>} weights — effective weights used
+ * @property {Object<string,number>} weights, effective weights used
  */

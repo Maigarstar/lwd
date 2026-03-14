@@ -48,8 +48,8 @@ const PAGE_LAYOUTS = [
   { value: 'editorial',     label: 'Editorial',     icon: '▤', desc: 'Full-screen hero + story river' },
   { value: 'grid',          label: 'Grid',          icon: '⊟', desc: 'Magazine grid + overlay cards' },
   { value: 'immersive',     label: 'Immersive',     icon: '◉', desc: 'Carousel + cinematic blocks' },
-  { value: 'portrait',      label: 'Portrait',      icon: '▯', desc: 'Portrait hero — ideal for Fashion' },
-  { value: 'dual-feature',  label: 'Dual Feature',  icon: '◧', desc: 'Two heroes — ideal for Travel / Weddings' },
+  { value: 'portrait',      label: 'Portrait',      icon: '▯', desc: 'Portrait hero, ideal for Fashion' },
+  { value: 'dual-feature',  label: 'Dual Feature',  icon: '◧', desc: 'Two heroes, ideal for Travel / Weddings' },
 ];
 
 const VIEWPORT_OPTIONS = [
@@ -103,7 +103,7 @@ function AccentPicker({ value, onChange }) {
 function FeaturedPostSelector({ categoryId, value, onChange }) {
   const posts = getPostsByCategory(categoryId);
   const options = [
-    { value: '', label: '— None —' },
+    { value: '', label: ' -  None  - ' },
     ...posts.map(p => ({ value: p.slug, label: p.title })),
   ];
   return <Select value={value} onChange={onChange} options={options} />;
@@ -129,7 +129,7 @@ function SEOPanel({ data, onChange }) {
           placeholder={data.label}
         />
         {warn(!data.seoTitle, 'Will default to category label')}
-        {warn(titleLen > 60, 'Title too long — Google will truncate')}
+        {warn(titleLen > 60, 'Title too long, Google will truncate')}
       </Field>
 
       <Field label="Meta Description" hint={`${descLen}/160 chars`}>
@@ -140,7 +140,7 @@ function SEOPanel({ data, onChange }) {
           minHeight={70}
         />
         {warn(!data.metaDescription, 'Will default to category description')}
-        {warn(descLen > 160, 'Description too long — Google will truncate')}
+        {warn(descLen > 160, 'Description too long, Google will truncate')}
       </Field>
 
       <Field label="OG Image URL" hint="Social share preview image (1200×630)">
@@ -532,7 +532,7 @@ export default function CategoryEditor({ categoryId: initialId, onBack, isLight 
         {/* Create new category button */}
         <GoldBtn small onClick={() => setCreatingNew(true)}>+ NEW CATEGORY</GoldBtn>
 
-        {/* Delete category button — only for DB-created categories, not static ones */}
+        {/* Delete category button, only for DB-created categories, not static ones */}
         {isDbOnlyCategory && (
           <button
             onClick={handleDeleteCategory}
@@ -611,7 +611,7 @@ export default function CategoryEditor({ categoryId: initialId, onBack, isLight 
       {/* ── Body ── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-        {/* ── LEFT panel — Page Builder ── */}
+        {/* ── LEFT panel, Page Builder ── */}
         <div style={{
           width: 300, flexShrink: 0,
           background: S.surface, borderRight: `1px solid ${S.border}`,
@@ -713,7 +713,7 @@ export default function CategoryEditor({ categoryId: initialId, onBack, isLight 
           </div>
         </div>
 
-        {/* ── CENTER — Live preview ── */}
+        {/* ── CENTER, Live preview ── */}
         <div style={{ flex: 1, overflow: 'hidden', position: 'relative', background: S.bg }}>
           {/* Viewport label */}
           <div style={{
@@ -750,7 +750,7 @@ export default function CategoryEditor({ categoryId: initialId, onBack, isLight 
           </div>
         </div>
 
-        {/* ── RIGHT panel — SEO & Meta ── */}
+        {/* ── RIGHT panel, SEO & Meta ── */}
         <div style={{
           width: 260, flexShrink: 0,
           background: S.surface, borderLeft: `1px solid ${S.border}`,
@@ -828,7 +828,7 @@ export default function CategoryEditor({ categoryId: initialId, onBack, isLight 
                 value={newCatData.parentSlug || ''}
                 onChange={v => setNewCatData(prev => ({ ...prev, parentSlug: v }))}
                 options={[
-                  { value: '', label: '— None (Top-level) —' },
+                  { value: '', label: ' -  None (Top-level)  - ' },
                   ...allCategories.filter(c => !c.parentSlug).map(c => ({
                     value: c.id,  // id is already in slug format (e.g. 'destinations', 'photography')
                     label: c.label

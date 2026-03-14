@@ -23,9 +23,9 @@ function getOrCreateSession() {
 
 // ── Stub responses ────────────────────────────────────────────────────────────
 const STUBS = [
-  "I've updated the recommendations on the right — take a look at a few venues that match what you're describing.",
+  "I've updated the recommendations on the right, take a look at a few venues that match what you're describing.",
   "Great question. Each region has its own distinct character. The right panel shows venues filtered to your preference.",
-  "Our curated selection in the recommendations panel reflects your search — let me know if you'd like to refine further.",
+  "Our curated selection in the recommendations panel reflects your search, let me know if you'd like to refine further.",
   "I've picked out some options based on what you've shared. You'll see them highlighted in the panel beside this chat.",
   "Every venue in our collection offers full exclusive use. I've surfaced the best matches on the right.",
   "That is a wonderful question. Our team personally visits every venue in our collection to ensure it meets our standards for luxury and exclusivity.",
@@ -38,7 +38,7 @@ const nextStub = () => STUBS[stubIdx++ % STUBS.length];
 const INIT_MESSAGE = {
   id: 0,
   from: "aura",
-  text: "Hello, I'm Aura — your private wedding concierge. Tell me what you're looking for and I'll curate the perfect options.",
+  text: "Hello, I'm Aura, your private wedding concierge. Tell me what you're looking for and I'll curate the perfect options.",
 };
 
 // ── Context ───────────────────────────────────────────────────────────────────

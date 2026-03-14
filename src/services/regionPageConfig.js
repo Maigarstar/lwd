@@ -49,7 +49,7 @@ const DEFAULT_PAGE_CONFIG = {
 export const PUGLIA_PAGE_CONFIG = {
   about: {
     title: "About Puglia",
-    content: "Puglia (Apulia) — Southern Italy's fastest-growing luxury wedding destination. Masseria estates in olive groves, whitewashed trulli villages, Baroque Lecce, and pristine coastlines offer authentic Italian charm at exceptional value. From Salento's romance to the Itria Valley's countryside, experience world-class cuisine, stunning natural light, and centuries of tradition.",
+    content: "Puglia (Apulia), Southern Italy's fastest-growing luxury wedding destination. Masseria estates in olive groves, whitewashed trulli villages, Baroque Lecce, and pristine coastlines offer authentic Italian charm at exceptional value. From Salento's romance to the Itria Valley's countryside, experience world-class cuisine, stunning natural light, and centuries of tradition.",
   },
   hero: {
     title: "Discover Puglia's Finest Wedding Venues",

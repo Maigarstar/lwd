@@ -13,7 +13,7 @@ const PILLARS = [
   {
     icon: "✦",
     title: "AI-Powered Smart Discovery",
-    body: "Aura, our AI concierge, understands your style, budget and vision — and finds matches in seconds.",
+    body: "Aura, our AI concierge, understands your style, budget and vision, and finds matches in seconds.",
   },
   {
     icon: "♡",

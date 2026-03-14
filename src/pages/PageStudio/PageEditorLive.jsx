@@ -8,7 +8,7 @@ import HomepagePreview from './components/HomepagePreview';
 import HomepageAIImportPanel from './components/HomepageAIImportPanel';
 
 /**
- * PageEditorLive — Full page editor with 50/50 split layout
+ * PageEditorLive, Full page editor with 50/50 split layout
  *
  * Left Panel: Sticky save bar + section editors (scrollable)
  * Right Panel: Live preview (scrollable)
@@ -57,7 +57,7 @@ export default function PageEditorLive({ pageId, C, NU, GD, onNavigate }) {
         backgroundColor: C.black,
       }}
     >
-      {/* FULL-WIDTH ACTION BAR — matches Listing Studio exactly */}
+      {/* FULL-WIDTH ACTION BAR, matches Listing Studio exactly */}
       <PageSaveBar
         hasChanges={pageForm.hasChanges}
         saveStatus={pageForm.saveStatus}
@@ -84,7 +84,7 @@ export default function PageEditorLive({ pageId, C, NU, GD, onNavigate }) {
         }}
       >
 
-      {/* LEFT PANEL — Editor */}
+      {/* LEFT PANEL, Editor */}
       {showLeftPanel && (
       <div
         style={{
@@ -149,7 +149,7 @@ export default function PageEditorLive({ pageId, C, NU, GD, onNavigate }) {
             backgroundColor: C.black,
           }}
         >
-          {/* Page Details — Title + Excerpt */}
+          {/* Page Details, Title + Excerpt */}
           <div style={{ padding: '12px 16px', borderBottom: `1px solid ${C.border}` }}>
             <label style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.grey2, display: 'block', marginBottom: 4 }}>
               Page Excerpt
@@ -157,7 +157,7 @@ export default function PageEditorLive({ pageId, C, NU, GD, onNavigate }) {
             <textarea
               value={pageForm.formData.excerpt || ''}
               onChange={(e) => pageForm.onChange('excerpt', e.target.value)}
-              placeholder="Short summary of the page — used in meta descriptions, cards, and AI context"
+              placeholder="Short summary of the page, used in meta descriptions, cards, and AI context"
               rows={2}
               style={{
                 width: '100%',
@@ -184,7 +184,7 @@ export default function PageEditorLive({ pageId, C, NU, GD, onNavigate }) {
       </div>
       )}
 
-      {/* RIGHT PANEL — Live Preview */}
+      {/* RIGHT PANEL, Live Preview */}
       {showRightPanel && (
       <div
         className="ps-panel-right"

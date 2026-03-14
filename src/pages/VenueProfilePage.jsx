@@ -1,5 +1,5 @@
 // ─── VenueProfilePage.jsx ─────────────────────────────────────────────────────
-// Full venue profile template — ready to be driven by DB data.
+// Full venue profile template, ready to be driven by DB data.
 // Demo: Grand Tirolia, Kitzbühel, Austria.
 //
 // TEMPLATE USAGE:
@@ -28,7 +28,7 @@ const GD   = 'var(--font-heading-primary)';
 const NU   = 'var(--font-body)';
 const GOLD = '#C9A84C';
 
-// ── Photo map — Grand Tirolia ─────────────────────────────────────────────────
+// ── Photo map, Grand Tirolia ─────────────────────────────────────────────────
 const GT = {
   // Exterior / Aerial
   heroAerial:        '/grand-tirolia/20250820_GTK_DJI_0382-HDR.jpg',
@@ -172,7 +172,7 @@ function StickyVenueNav({ venue, activeSection, onScrollTo }) {
         )}
       </div>
 
-      {/* Section pills — desktop only */}
+      {/* Section pills, desktop only */}
       {!isMobile && (
         <nav style={{ display: 'flex', gap: 4 }}>
           {NAV_ITEMS.map(item => (
@@ -233,13 +233,13 @@ function HeroSection({ venue }) {
         }}
       />
 
-      {/* Gradient overlay — bottom heavy */}
+      {/* Gradient overlay, bottom heavy */}
       <div style={{
         position: 'absolute', inset: 0,
         background: 'linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.08) 50%, rgba(0,0,0,0.72) 100%)',
       }} />
 
-      {/* Content — bottom aligned */}
+      {/* Content, bottom aligned */}
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0,
         padding: isMobile ? '0 24px 40px' : '0 64px 52px',
@@ -371,7 +371,7 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 1 — OVERVIEW
+          SECTION 1, OVERVIEW
       ═══════════════════════════════════════════════════════════════════ */}
       <Section id="overview" bg={C.cream}>
         <SectionHeader
@@ -399,13 +399,13 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
       </Section>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 2 — WEDDING SPACES
+          SECTION 2, WEDDING SPACES
       ═══════════════════════════════════════════════════════════════════ */}
       <Section id="spaces" bg="#fff">
         <SectionHeader
           eyebrow="Event Spaces"
           title="Five Spaces. One Seamless Vision."
-          subtitle="From intimate ceremonies for twenty to grand receptions for four hundred and fifty — every space at Grand Tirolia has been designed with weddings in mind."
+          subtitle="From intimate ceremonies for twenty to grand receptions for four hundred and fifty, every space at Grand Tirolia has been designed with weddings in mind."
         />
 
         {/* Grand Atrium */}
@@ -462,13 +462,13 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
       </Section>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 3 — DINING
+          SECTION 3, DINING
       ═══════════════════════════════════════════════════════════════════ */}
       <Section id="dining" bg={C.cream}>
         <SectionHeader
           eyebrow="Culinary"
           title="Five Dining Concepts. One Alpine Philosophy."
-          subtitle="From Restaurant Tirolia to The Golden jazz bar, every dining space at Grand Tirolia has been conceived to complement the occasion — including yours."
+          subtitle="From Restaurant Tirolia to The Golden jazz bar, every dining space at Grand Tirolia has been conceived to complement the occasion, including yours."
         />
 
         <TwoColumnEditorialCard data={{
@@ -534,13 +534,13 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
       </Section>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 4 — ACCOMMODATION
+          SECTION 4, ACCOMMODATION
       ═══════════════════════════════════════════════════════════════════ */}
       <Section id="rooms" bg="#fff">
         <SectionHeader
           eyebrow="Accommodation"
           title="98 Rooms with Views You Will Not Forget"
-          subtitle="Every room at Grand Tirolia opens to the mountains. Wood-clad walls, Alpine textiles, and private balconies overlooking Kitzbühel — for you and every one of your guests."
+          subtitle="Every room at Grand Tirolia opens to the mountains. Wood-clad walls, Alpine textiles, and private balconies overlooking Kitzbühel, for you and every one of your guests."
         />
 
         <TwoColumnEditorialCard data={{
@@ -575,7 +575,7 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
       </Section>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 5 — SPA & WELLNESS
+          SECTION 5, SPA & WELLNESS
       ═══════════════════════════════════════════════════════════════════ */}
       <ParallaxBannerCard data={{
         image: venue.spa.heroImage,
@@ -588,7 +588,7 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
       }} />
 
       {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 6 — GOLF
+          SECTION 6, GOLF
       ═══════════════════════════════════════════════════════════════════ */}
       <Section id="golf" bg={C.cream}>
         <SectionHeader
@@ -634,13 +634,13 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
       </Section>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 7 — YOUR WEDDING DAY
+          SECTION 7, YOUR WEDDING DAY
       ═══════════════════════════════════════════════════════════════════ */}
       <Section id="weddings" bg="#1a1a18">
         <SectionHeader
           eyebrow="Weddings at Grand Tirolia"
           title="There Is No Wedding Here That Looks Like Any Other."
-          subtitle="Every wedding at Grand Tirolia begins with a conversation. Your story, your guests, your vision — translated into an experience that is entirely your own."
+          subtitle="Every wedding at Grand Tirolia begins with a conversation. Your story, your guests, your vision, translated into an experience that is entirely your own."
           light
         />
 
@@ -660,7 +660,7 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
             theme: 'dark',
             category: 'Table Settings',
             title: 'Every table tells a story.',
-            excerpt: 'Our in-house floral and styling team works with each couple to create a table design that is entirely unique. From wildflower centrepieces to hand-painted menus — every detail is considered.',
+            excerpt: 'Our in-house floral and styling team works with each couple to create a table design that is entirely unique. From wildflower centrepieces to hand-painted menus, every detail is considered.',
           }} />
           <div style={{ background: '#111', overflow: 'hidden' }}>
             <img
@@ -689,7 +689,7 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
         <SectionHeader
           eyebrow="Everything Included"
           title="Every Amenity. Every Occasion."
-          subtitle="Grand Tirolia is a complete ecosystem — from helipad arrivals to post-wedding ski days. Every amenity your wedding guests could need is already here."
+          subtitle="Grand Tirolia is a complete ecosystem, from helipad arrivals to post-wedding ski days. Every amenity your wedding guests could need is already here."
         />
         <AmenitiesCard data={{
           accentBg: '#ffffff',
@@ -715,7 +715,7 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// VENUE DATA — Grand Tirolia
+// VENUE DATA, Grand Tirolia
 // TEMPLATE: Replace this object with your DB fetch / CMS data.
 // ═══════════════════════════════════════════════════════════════════════════════
 export const GT_VENUE = {
@@ -729,7 +729,7 @@ export const GT_VENUE = {
     country: 'Austria',
     flag:    '🇦🇹',
   },
-  tagline: "Europe's most celebrated Alpine wedding estate — where the mountains are not a backdrop, they are part of the ceremony.",
+  tagline: "Europe's most celebrated Alpine wedding estate, where the mountains are not a backdrop, they are part of the ceremony.",
 
   // Hero
   heroImage: GT.heroAerial,
@@ -753,7 +753,7 @@ export const GT_VENUE = {
   // Overview section
   overview: {
     headline:          'Where the Alps Define Everything',
-    intro:             'Perched above Kitzbühel at an elevation of 800 metres, Grand Tirolia has been the benchmark for Alpine luxury since 1895. With five dedicated wedding spaces, a two-Michelin-starred kitchen, and an 18-hole championship golf course, it offers something no other estate in Europe can replicate — a complete world unto itself.',
+    intro:             'Perched above Kitzbühel at an elevation of 800 metres, Grand Tirolia has been the benchmark for Alpine luxury since 1895. With five dedicated wedding spaces, a two-Michelin-starred kitchen, and an 18-hole championship golf course, it offers something no other estate in Europe can replicate, a complete world unto itself.',
     secondaryHeadline: 'One hundred and thirty years of alpine hospitality.',
     body: [
       'Grand Tirolia began as a hunting lodge for a Tyrolean aristocrat who understood that the most important thing a host can do is make their guests feel that no detail was left to chance. That philosophy has informed every renovation, every appointment, and every hire since.',
@@ -776,7 +776,7 @@ export const GT_VENUE = {
     atrium: {
       name:        'The Grand Atrium',
       image:        GT.atrium,
-      description:  'The centrepiece of Grand Tirolia — a fully customisable event hall with a curved 18-metre LED wall, integrated state-of-the-art sound, and a stage built for performances of any scale. Up to 450 guests for a seated dinner.',
+      description:  'The centrepiece of Grand Tirolia, a fully customisable event hall with a curved 18-metre LED wall, integrated state-of-the-art sound, and a stage built for performances of any scale. Up to 450 guests for a seated dinner.',
       stats: [
         { value: '450', label: 'Seated capacity' },
         { value: '18m',  label: 'LED installation' },
@@ -785,7 +785,7 @@ export const GT_VENUE = {
     ballroom: {
       name:        'The Grand Ballroom',
       image:        GT.galaWide2,
-      description:  'The Ballroom seats 280 guests beneath original Tyrolean plasterwork and cascading crystal chandeliers. Ghost chairs, bespoke linen, and candlelit tables — the room transforms entirely to match your vision. Perfect for black-tie receptions, dinner dances, and intimate civil ceremonies.',
+      description:  'The Ballroom seats 280 guests beneath original Tyrolean plasterwork and cascading crystal chandeliers. Ghost chairs, bespoke linen, and candlelit tables, the room transforms entirely to match your vision. Perfect for black-tie receptions, dinner dances, and intimate civil ceremonies.',
       stats: [
         { value: '280', label: 'Seated capacity' },
         { value: 'C & D', label: 'Ceremony & Dinner' },
@@ -797,21 +797,21 @@ export const GT_VENUE = {
   // Dining
   dining: {
     headline: 'Alpine gastronomy at its most refined.',
-    intro:    "Grand Tirolia's culinary team brings together five distinct dining concepts — from the precision of Restaurant Tirolia to the informal warmth of Gasthaus Eichenheim and the late-night energy of The Golden. Every wedding menu is designed exclusively for your day.",
+    intro:    "Grand Tirolia's culinary team brings together five distinct dining concepts, from the precision of Restaurant Tirolia to the informal warmth of Gasthaus Eichenheim and the late-night energy of The Golden. Every wedding menu is designed exclusively for your day.",
     gasthaus: {
       name:        'Gasthaus Eichenheim',
       image:        GT.gasthaus,
-      description:  'Rustic Alpine interiors, long communal tables, and a menu rooted in Tyrolean farmhouse cooking elevated to something memorable. Gasthaus Eichenheim is where your guests gather the morning after the reception — for schnapps, for eggs, for stories.',
+      description:  'Rustic Alpine interiors, long communal tables, and a menu rooted in Tyrolean farmhouse cooking elevated to something memorable. Gasthaus Eichenheim is where your guests gather the morning after the reception, for schnapps, for eggs, for stories.',
     },
     cooperBar: {
       name:        'The Cooper Bar',
       image:        GT.cooperBar,
-      description:  "Stone walls, arched brass mirrors, green leather banquettes — the Cooper Bar is Grand Tirolia's most unexpected room. Signature cocktails, natural wines, and the best whisky list in Kitzbühel. Available for private hire as part of your wedding evening.",
+      description:  "Stone walls, arched brass mirrors, green leather banquettes, the Cooper Bar is Grand Tirolia's most unexpected room. Signature cocktails, natural wines, and the best whisky list in Kitzbühel. Available for private hire as part of your wedding evening.",
     },
     jazzclub: {
       name:        'The Golden',
       image:        GT.jazzclub,
-      description:  'Tufted velvet sofas. Shelves of rare single malts. A curved bar hand-finished in Austrian pine — The Golden is Grand Tirolia\'s jazz club and cocktail bar. Live acts every weekend, and available for an intimate late-night wedding reception.',
+      description:  'Tufted velvet sofas. Shelves of rare single malts. A curved bar hand-finished in Austrian pine, The Golden is Grand Tirolia\'s jazz club and cocktail bar. Live acts every weekend, and available for an intimate late-night wedding reception.',
     },
     foodMosaic: [GT.food1, GT.food2, GT.food3, GT.food4],
   },
@@ -819,7 +819,7 @@ export const GT_VENUE = {
   // Accommodation
   accommodation: {
     headline: 'The mountains, from your private balcony.',
-    body:     'From the 52 m² Deluxe Alpine Room to the 320 m² Grand Tirolia Suite with its private sauna and fireplace — every one of our 98 rooms has been designed to put the landscape first. Wood-panelled walls, hand-woven Alpine textiles, and private balconies overlooking the Kitzbüheler Horn mean your guests wake up already in the Alps.',
+    body:     'From the 52 m² Deluxe Alpine Room to the 320 m² Grand Tirolia Suite with its private sauna and fireplace, every one of our 98 rooms has been designed to put the landscape first. Wood-panelled walls, hand-woven Alpine textiles, and private balconies overlooking the Kitzbüheler Horn mean your guests wake up already in the Alps.',
     roomCards: [
       { image: GT.deluxeRoom,    title: 'Deluxe Alpine Room',     brand: '52 m² · Alpine view · Balcony with loungers' },
       { image: GT.deluxeTerrace, title: 'Junior Suite',           brand: '64 m² · Separate living area · Balcony' },
@@ -838,13 +838,13 @@ export const GT_VENUE = {
   spa: {
     heroImage:  GT.spaPool,
     headline:   'Steam Rising. Mountains Surrounding.',
-    subline:    'The Grand Alps Spa spans over 3,000 m² of wellness — thermal pools, saunas, and relaxation suites overlooking the Alps. One of the few places where a wedding morning feels truly unhurried.',
+    subline:    'The Grand Alps Spa spans over 3,000 m² of wellness, thermal pools, saunas, and relaxation suites overlooking the Alps. One of the few places where a wedding morning feels truly unhurried.',
   },
 
   // Golf
   golf: {
     headline:    'Where weddings and fairways share the same view.',
-    body:        'Golf Eichenheim was first laid out in the shadow of the Wilder Kaiser in 1965 and has been refined every decade since. Eighteen holes. Uninterrupted mountain panoramas. An optional addition to any wedding weekend package — for guests who prefer their morning with a five-iron.',
+    body:        'Golf Eichenheim was first laid out in the shadow of the Wilder Kaiser in 1965 and has been refined every decade since. Eighteen holes. Uninterrupted mountain panoramas. An optional addition to any wedding weekend package, for guests who prefer their morning with a five-iron.',
     courseImage:  GT.golfIndianSummer,
     terraceImage: GT.champagneTerrace,
   },

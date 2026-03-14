@@ -63,7 +63,7 @@ function OnlineDot({ online }) {
   );
 }
 
-// ── VideoSlide — renders YouTube / Vimeo iframe or direct <video> ──────────────
+// ── VideoSlide, renders YouTube / Vimeo iframe or direct <video> ──────────────
 function VideoSlide({ src, isActive }) {
   const kind    = mediaKind(src);
   const ytId    = extractYouTubeId(src);
@@ -138,7 +138,7 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
   // ── Build combined media array: images first, then videos, then reels ────────
   const mediaItems = (() => {
     const items = [];
-    // Images — imgs[] may be plain URL strings or rich objects { src, url, alt_text, ... }
+    // Images, imgs[] may be plain URL strings or rich objects { src, url, alt_text, ... }
     (item?.imgs || []).forEach(img => {
       const src = typeof img === "string" ? img : (img?.src || img?.url || "");
       if (src) items.push({ type: "image", src });
@@ -147,7 +147,7 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
     if (item?.videoUrl) {
       items.push({ type: "video", src: item.videoUrl });
     }
-    // Multiple video_urls (from card overrides — 4 slots)
+    // Multiple video_urls (from card overrides, 4 slots)
     (item?.video_urls || []).forEach(src => {
       if (src && !items.some(m => m.src === src)) {
         items.push({ type: "video", src });
@@ -170,7 +170,7 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
     return () => setVisible(false);
   }, []);
 
-  // Auto-advance images only — pauses on video/reel slides
+  // Auto-advance images only, pauses on video/reel slides
   useEffect(() => {
     clearInterval(timerRef.current);
     if (totalSlides <= 1 || isVideoSlide) return;
@@ -786,7 +786,7 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
         </div>
       </div>
 
-      {/* Login gate — stacks on top (z-1300) */}
+      {/* Login gate, stacks on top (z-1300) */}
       {loginGate && (
         <LoginGateModal onClose={() => setLoginGate(false)} />
       )}

@@ -2,7 +2,7 @@ import { useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 
 /**
- * LightboxModal — shared, dependency-free overlay.
+ * LightboxModal, shared, dependency-free overlay.
  *
  * Props
  *   isOpen     {boolean}  show / hide

@@ -156,7 +156,7 @@ function FashionHero({ post, isLight, onRead }) {
   );
 }
 
-// ─── Editorial Grid — 3 fashion stories ────────────────────────────────────────
+// ─── Editorial Grid, 3 fashion stories ────────────────────────────────────────
 function FashionEditorialGrid({ posts, isLight, onRead }) {
   const BG    = isLight ? '#fafaf8' : '#0a0a0a';
   const TEXT  = isLight ? '#1a1806' : CREAM;
@@ -219,7 +219,7 @@ function FashionPlusShop({ post, products, isLight, onRead }) {
   );
 }
 
-// ─── Style Edit Cards — shoppable story cards ───────────────────────────────────
+// ─── Style Edit Cards, shoppable story cards ───────────────────────────────────
 function StyleEditCards({ items, isLight, onRead }) {
   // items: posts with shopping edit page type
   const BG   = isLight ? '#fafaf8' : '#0a0a0a';
@@ -293,7 +293,7 @@ export default function FashionLandingPage({
         <FashionEditorialGrid posts={editPosts} isLight={isLight} onRead={goArticle} />
       )}
 
-      {/* ── Shop the Bridal Edit — Gowns ──────────────────────────────────── */}
+      {/* ── Shop the Bridal Edit, Gowns ──────────────────────────────────── */}
       <ShoppableProductRow
         subline="Bridal 2026"
         headline="Gowns Worth Every Fitting"
@@ -341,7 +341,7 @@ export default function FashionLandingPage({
           <StyleAdvice
             heading="How to Choose Your Wedding Dress"
             body="The single most important piece of advice we give every bride: do not go to fittings with a visual mood board. Go with an open mind. The dress that will make you look extraordinary is almost never the dress you pinned. Your body knows what it wants. Let it tell you."
-            tip="Wear the dress that makes you feel like the most beautiful version of yourself — not the most beautiful version of someone else."
+            tip="Wear the dress that makes you feel like the most beautiful version of yourself, not the most beautiful version of someone else."
             author="Sofia Esposito, Fashion & Beauty Editor"
             isLight={isLight}
           />
@@ -356,7 +356,7 @@ export default function FashionLandingPage({
               name: 'Valentino Haute Couture',
               country: 'Rome, Italy · Est. 1960',
               heroImage: 'https://images.unsplash.com/photo-1594938298603-c8148c4b4883?auto=format&fit=crop&w=1200&q=80',
-              story: 'For sixty years, the house of Valentino has understood something that other designers are still learning: that true luxury is not about excess. Their bridal work — always made in the Roman atelier by artisans who have spent decades perfecting the craft — achieves that rare quality of feeling inevitable. Not a detail added, not a detail missing.',
+              story: 'For sixty years, the house of Valentino has understood something that other designers are still learning: that true luxury is not about excess. Their bridal work, always made in the Roman atelier by artisans who have spent decades perfecting the craft, achieves that rare quality of feeling inevitable. Not a detail added, not a detail missing.',
               signature: 'The most elegant dress is always the one with fewer choices to make.',
               ctaLabel: 'Explore Valentino Bridal →',
             }}
@@ -377,7 +377,7 @@ export default function FashionLandingPage({
       <AffiliateBreak
         brand="Jimmy Choo Bridal"
         tagline="The Perfect Sole"
-        description="Since 1996, Jimmy Choo has been the first choice for brides who understand that the right shoe does not end a look — it begins it. The 2026 Bridal Collection is the finest they have produced."
+        description="Since 1996, Jimmy Choo has been the first choice for brides who understand that the right shoe does not end a look, it begins it. The 2026 Bridal Collection is the finest they have produced."
         image="https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&w=1920&q=80"
         ctaLabel="Shop the Bridal Collection"
         ctaUrl="#"

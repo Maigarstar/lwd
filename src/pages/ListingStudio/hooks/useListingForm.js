@@ -37,9 +37,9 @@ export const useListingForm = (listingId = null) => {
     hero_tagline: '',
     slug: '',
     category: 'wedding-venues',          // primary category (= assigned_categories[0]?.slug, backwards compat)
-    assigned_categories: [],             // [{ id, slug, name, parentSlug, parentName }] — up to 8
+    assigned_categories: [],             // [{ id, slug, name, parentSlug, parentName }], up to 8
     destination: 'italy',
-    summary: '',      // short editorial intro max 240 chars — card + page header
+    summary: '',      // short editorial intro max 240 chars, card + page header
     description: '',
     amenities: '',
     country: '',
@@ -52,7 +52,7 @@ export const useListingForm = (listingId = null) => {
     lng: '',
     price_range: '',
     capacity: '',
-    // Hero images — up to 5, first = primary
+    // Hero images, up to 5, first = primary
     hero_images: [],
     // Unified media pool: gallery images + videos + virtual tours
     // Replaces legacy gallery_images[] + videos[]
@@ -91,7 +91,7 @@ export const useListingForm = (listingId = null) => {
     dining_drinks: [],
     dining_description: '',
     dining_menu_images: [],
-    // ── Catering cards (max 3 — icon + title + description + subtext) ────────
+    // ── Catering cards (max 3, icon + title + description + subtext) ────────
     catering_enabled: false,
     catering_cards: [],  // [{ id, icon, title, description, subtext, sortOrder }]
     // ── Wedding Weekend day cards (max 4) ─────────────────────────────────────
@@ -115,10 +115,10 @@ export const useListingForm = (listingId = null) => {
     // Hero layout style: cinematic | split | magazine | video
     // cinematic = default (5-image luxury fade transition)
     hero_layout: 'cinematic',
-    hero_video_url: '',   // YouTube or Vimeo URL — required when hero_layout === 'video'
+    hero_video_url: '',   // YouTube or Vimeo URL, required when hero_layout === 'video'
     seo_title: '',
     seo_description: '',
-    seo_keywords: [],   // max 8 — used for meta keywords + AI search indexing
+    seo_keywords: [],   // max 8, used for meta keywords + AI search indexing
     status: 'draft',
     published_at: null,
     visibility: 'private',
@@ -381,7 +381,7 @@ export const useListingForm = (listingId = null) => {
 
       if (heroUpload.failed > 0 || mediaUpload.failed > 0) {
         console.warn(
-          `[storage] ${heroUpload.failed + mediaUpload.failed} file(s) failed to upload — ` +
+          `[storage] ${heroUpload.failed + mediaUpload.failed} file(s) failed to upload, ` +
           `they will be excluded from the saved listing.`
         );
       }
@@ -491,7 +491,7 @@ export const useListingForm = (listingId = null) => {
         faqCtaSubtext: formData.faq_cta_subtext || '',
         faqCtaButtonText: formData.faq_cta_button_text || '',
         faqCategories: formData.faq_categories || [],
-        // Venue spaces — strip File objects, keep structured data
+        // Venue spaces, strip File objects, keep structured data
         spaces: (formData.spaces || []).map((s, idx) => ({
           id: s.id,
           name: s.name,
@@ -541,7 +541,7 @@ export const useListingForm = (listingId = null) => {
         listingType: formData.listing_type || 'venue',
         vendorAccountId: formData.vendor_account_id || null,
         tier: 'standard',
-        // Full rich media_items array (File objects stripped) — stored as JSONB.
+        // Full rich media_items array (File objects stripped), stored as JSONB.
         // Also consumed by sync-media-ai-index edge function after save.
         mediaItems: cleanMediaItems,
       };
@@ -565,7 +565,7 @@ export const useListingForm = (listingId = null) => {
       setHasChanges(false);
       // Return the saved listing's ID so parent can update route
       const savedId = result?.id || listingId;
-      console.log('Save complete — returning savedId:', savedId);
+      console.log('Save complete, returning savedId:', savedId);
       return savedId || true;
     } catch (err) {
       console.error('Error saving listing:', err);

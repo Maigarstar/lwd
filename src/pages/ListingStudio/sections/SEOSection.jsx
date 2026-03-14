@@ -1,11 +1,11 @@
 /**
- * SEOSection — Meta title, description, and keywords (max 8)
+ * SEOSection, Meta title, description, and keywords (max 8)
  *
  * Keywords are used for:
  *   • HTML <meta name="keywords"> tag
  *   • AI search indexing / vector embeddings
  *
- * UX: tag-pill input — type keyword, press Enter / Tab / comma to add.
+ * UX: tag-pill input, type keyword, press Enter / Tab / comma to add.
  *     Remove pills with × button. Counter shows X / 8.
  */
 

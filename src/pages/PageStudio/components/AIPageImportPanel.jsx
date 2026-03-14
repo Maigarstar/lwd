@@ -1,11 +1,11 @@
 import AIImportEngine, { isEmpty, stripHtml } from '../../../components/AIImportEngine/AIImportEngine';
 
 /**
- * AIPageImportPanel — Page Studio wrapper around AIImportEngine
+ * AIPageImportPanel, Page Studio wrapper around AIImportEngine
  *
  * Provides the page-specific:
  *   • Review section definitions (what to show + how to preview each field group)
- *   • Field mapping logic — translates AI result → page section mutations
+ *   • Field mapping logic, translates AI result → page section mutations
  *
  * Page data is section-based: page.sections[] each with { id, sectionType, content, settings }.
  * The apply function finds or creates sections by type and calls onSavePage(updatedPage).
@@ -69,7 +69,7 @@ const PAGE_REVIEW_SECTIONS = [
     },
     details: (r) => (r.body_sections || []).map((s, i) => ({
       label: `Section ${i + 1}`,
-      value: [s.heading, s.body ? stripHtml(s.body).slice(0, 80) + '…' : ''].filter(Boolean).join(' — '),
+      value: [s.heading, s.body ? stripHtml(s.body).slice(0, 80) + '…' : ''].filter(Boolean).join(', '),
     })),
     gated: (r) => !!(r.body_sections?.length),
   },
@@ -159,7 +159,7 @@ function makeSection(sectionType, content = {}, settings = {}) {
 // ─── Apply function ───────────────────────────────────────────────────────────
 
 /**
- * applyPageResult — Map AI extraction result to page sections + flat fields.
+ * applyPageResult, Map AI extraction result to page sections + flat fields.
  *
  * Differences from listing apply:
  *   - Page has sections[] not flat onChange fields

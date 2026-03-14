@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 
 /**
- * AIImportEngine — Generic AI content import panel
+ * AIImportEngine, Generic AI content import panel
  *
  * Reusable across Listing Studio, Pages, Blog editor, and any future editor.
  * Source handling (files, paste, website, videos, social) and review UI are
@@ -13,10 +13,10 @@ import { supabase } from '../../lib/supabaseClient';
  *   entityName     {string?}   Entity name for AI context (e.g. venue name, page title)
  *   entityType     {string?}   Entity type hint passed to the function (e.g. 'venue', 'page')
  *   entityId       {string?}   Entity ID for usage logging
- *   reviewSections {Section[]} Content-type-specific review section configs — see Section shape below
+ *   reviewSections {Section[]} Content-type-specific review section configs, see Section shape below
  *   emptyMessage   {string?}   Shown when AI returns no extractable content
  *   targetLabel    {string?}   Appears in "Apply N sections to [targetLabel]" (default: 'form')
- *   onApply        {fn}        Called with (result, enabledSections, mergeOnly) — do field writes here
+ *   onApply        {fn}        Called with (result, enabledSections, mergeOnly), do field writes here
  *   onClose        {fn?}       Called with (count?) when panel closes
  *
  * Section shape:
@@ -66,27 +66,27 @@ const SOCIAL_PLATFORMS = [
 // ─── Exported helpers and schema utilities ───────────────────────────────────
 
 /**
- * Field schema format — used with createApplyFn() for declarative field mapping.
+ * Field schema format, used with createApplyFn() for declarative field mapping.
  *
  * Each entry in a field schema array describes one AI result → form field mapping:
  *
  * {
- *   aiKey:     string          — key in the AI result object
- *   formKey:   string          — key passed to onChange(formKey, value)
- *   section:   string          — review section id (must match reviewSections[].id)
+ *   aiKey:     string         , key in the AI result object
+ *   formKey:   string         , key passed to onChange(formKey, value)
+ *   section:   string         , review section id (must match reviewSections[].id)
  *   kind:      'fact'|'editorial'
  *                fact       = value copied exactly from source (names, phone, price)
  *                editorial  = AI-written prose (summary, description, seo_*)
  *   merge:     'overwrite'|'replace_if_empty'|'append'|'merge_object'
- *                overwrite        — write always (unless mergeOnly and field has content)
- *                replace_if_empty — only write if form field is currently empty
- *                append           — extend an existing array (e.g. media_items)
- *                merge_object     — deep-merge object (e.g. contact_profile)
+ *                overwrite       , write always (unless mergeOnly and field has content)
+ *                replace_if_empty, only write if form field is currently empty
+ *                append          , extend an existing array (e.g. media_items)
+ *                merge_object    , deep-merge object (e.g. contact_profile)
  *   normalise?: (aiVal, result, formData) => normalisedValue | ''
  *                Return '' to skip writing the field entirely.
  *   transform?: (aiVal, formData) => transformedValue
  *                Reshape the value (e.g. inject IDs into array items).
- *   stringify?: boolean — call String() on the value before writing
+ *   stringify?: boolean, call String() on the value before writing
  * }
  *
  * For complex cases (multi-field normalisation, flag+data pairs, array ID injection)
@@ -94,7 +94,7 @@ const SOCIAL_PLATFORMS = [
  */
 
 /**
- * createApplyFn — Generate an onApply callback from a declarative field schema.
+ * createApplyFn, Generate an onApply callback from a declarative field schema.
  *
  * Usage in a content-type wrapper:
  *   const handleApply = createApplyFn(MY_FIELD_SCHEMA, formData, onChange);
@@ -114,7 +114,7 @@ export function createApplyFn(fieldSchema, formData, onChange) {
       let aiVal = result[aiKey];
       if (aiVal === null || aiVal === undefined) continue;
 
-      // Apply normaliser — return '' to skip
+      // Apply normaliser, return '' to skip
       if (normalise) {
         aiVal = normalise(aiVal, result, formData);
         if (!aiVal && aiVal !== 0) continue;
@@ -241,7 +241,7 @@ function ReviewSection({ section, result, enabled, onToggle }) {
       opacity: enabled ? 1 : 0.5,
       transition: 'all 0.15s ease',
     }}>
-      {/* Header — clicking toggles include/exclude */}
+      {/* Header, clicking toggles include/exclude */}
       <div
         onClick={onToggle}
         style={{
@@ -281,7 +281,7 @@ function ReviewSection({ section, result, enabled, onToggle }) {
         </div>
       </div>
 
-      {/* Expand / collapse field details — independent of include toggle */}
+      {/* Expand / collapse field details, independent of include toggle */}
       {details.length > 0 && (
         <button
           type="button"
@@ -386,13 +386,13 @@ const AIImportEngine = ({
     if (!fileType) {
       const ext = '.' + file.name.split('.').pop().toLowerCase();
       if (ext === '.doc') {
-        return { error: `${file.name}: .doc format not supported — please save as .docx or paste the text content.` };
+        return { error: `${file.name}: .doc format not supported, please save as .docx or paste the text content.` };
       }
       return { error: `${file.name}: unsupported format. Use PDF, Word (.docx), images, or text files.` };
     }
 
     if (file.size > MAX_FILE_MB * 1048576) {
-      return { error: `${file.name} is ${formatSize(file.size)} — max ${MAX_FILE_MB}MB per file.` };
+      return { error: `${file.name} is ${formatSize(file.size)}, max ${MAX_FILE_MB}MB per file.` };
     }
 
     return new Promise((resolve) => {
@@ -410,7 +410,7 @@ const AIImportEngine = ({
         });
         reader.readAsText(file);
       } else {
-        // pdf, docx, image — send as base64 (server handles extraction for docx)
+        // pdf, docx, image, send as base64 (server handles extraction for docx)
         reader.onload = (e) => {
           resolve({
             id: `${file.name}-${Date.now()}`,
@@ -579,7 +579,7 @@ const AIImportEngine = ({
             </h3>
             <p style={{ margin: '3px 0 0', fontSize: 12, color: '#888' }}>
               {result
-                ? 'Review extracted content — toggle sections to include'
+                ? 'Review extracted content, toggle sections to include'
                 : 'Upload source materials and AI will populate your content'}
             </p>
           </div>
@@ -652,7 +652,7 @@ const AIImportEngine = ({
                 <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#999', marginBottom: 8 }}>
                   Paste Text
                   <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginLeft: 6, color: '#bbb' }}>
-                    — web copy, descriptions, any text
+                   , web copy, descriptions, any text
                   </span>
                 </p>
                 <textarea
@@ -675,7 +675,7 @@ const AIImportEngine = ({
                 <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#999', marginBottom: 8 }}>
                   Website URL
                   <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginLeft: 6, color: '#bbb' }}>
-                    — optional, AI will fetch and read the page
+                   , optional, AI will fetch and read the page
                   </span>
                 </p>
                 <input
@@ -691,7 +691,7 @@ const AIImportEngine = ({
                   }}
                 />
                 <p style={{ margin: '4px 0 0', fontSize: 10, color: '#bbb' }}>
-                  Fetched via Jina Reader — works on most modern sites. For best results, also paste key text above.
+                  Fetched via Jina Reader, works on most modern sites. For best results, also paste key text above.
                 </p>
               </div>
 
@@ -700,7 +700,7 @@ const AIImportEngine = ({
                 <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#999', marginBottom: 8 }}>
                   Video Links
                   <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginLeft: 6, color: '#bbb' }}>
-                    — YouTube, Vimeo, etc.
+                   , YouTube, Vimeo, etc.
                   </span>
                 </p>
                 <textarea
@@ -732,7 +732,7 @@ const AIImportEngine = ({
                     Social Profiles
                   </p>
                   <span style={{ fontSize: 10, color: '#bbb' }}>
-                    {hasSocial ? `(${activeSocialUrls.length} added)` : '— optional context'}
+                    {hasSocial ? `(${activeSocialUrls.length} added)` : ' -  optional context'}
                     {' '}{showSocial ? '▲' : '▼'}
                   </span>
                 </button>
@@ -757,13 +757,13 @@ const AIImportEngine = ({
                       </div>
                     ))}
                     <p style={{ margin: '2px 0 0', fontSize: 10, color: '#bbb' }}>
-                      Social URLs are used as context — AI won't fetch their content.
+                      Social URLs are used as context, AI won't fetch their content.
                     </p>
                   </div>
                 )}
               </div>
 
-              {/* Source toggles — only shown when there's something to toggle */}
+              {/* Source toggles, only shown when there's something to toggle */}
               {(uploadedFiles.length > 0 || pastedText.trim() || websiteUrl.trim() || videoLinks.trim() || hasSocial) && (
                 <div style={{
                   marginTop: 16, padding: '12px 14px',
@@ -819,7 +819,7 @@ const AIImportEngine = ({
                 backgroundColor: '#f9f7f3', border: '1px solid #e5ddd0',
                 fontSize: 11, color: '#888', lineHeight: 1.5,
               }}>
-                <strong style={{ color: '#555' }}>How it works:</strong> AI reads your source materials to extract real facts, then writes polished content. You review everything before it's applied — nothing is saved automatically.
+                <strong style={{ color: '#555' }}>How it works:</strong> AI reads your source materials to extract real facts, then writes polished content. You review everything before it's applied, nothing is saved automatically.
               </div>
 
               {error && (
@@ -861,7 +861,7 @@ const AIImportEngine = ({
                   backgroundColor: '#fffbeb', border: '1px solid #fde68a',
                   fontSize: 11, color: '#92400e',
                 }}>
-                  ⚠️ Website content could not be fetched — continuing with other selected sources.
+                  ⚠️ Website content could not be fetched, continuing with other selected sources.
                 </div>
               )}
 
@@ -899,7 +899,7 @@ const AIImportEngine = ({
                 />
                 <div>
                   <span style={{ fontSize: 12, fontWeight: 600, color: '#333' }}>Fill empty fields only</span>
-                  <span style={{ fontSize: 11, color: '#999', marginLeft: 6 }}>— keep existing curated content</span>
+                  <span style={{ fontSize: 11, color: '#999', marginLeft: 6 }}> -  keep existing curated content</span>
                 </div>
               </label>
 

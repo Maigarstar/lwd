@@ -1,5 +1,5 @@
 /**
- * SpacesSection — Listing Studio editor for Venue Spaces
+ * SpacesSection, Listing Studio editor for Venue Spaces
  *
  * Up to 5 event spaces per venue. Each space has:
  *   name · type · description · capacities (ceremony/reception/dining/standing)
@@ -191,7 +191,7 @@ function SpaceCard({ space, index, total, onUpdate, onRemove, onMove, venueId, v
       {expanded && (
         <div style={{ padding: 20 }}>
 
-          {/* Row 1 — Name + Type */}
+          {/* Row 1, Name + Type */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
             <div>
               <label style={labelStyle}>Space Name <span style={{ color: '#dc2626', fontWeight: 700 }}>*</span></label>
@@ -212,7 +212,7 @@ function SpaceCard({ space, index, total, onUpdate, onRemove, onMove, venueId, v
             </div>
           </div>
 
-          {/* Row 2 — Short Description */}
+          {/* Row 2, Short Description */}
           <div style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
               <label style={{ ...labelStyle, marginBottom: 0 }}>Short Description</label>
@@ -235,13 +235,13 @@ function SpaceCard({ space, index, total, onUpdate, onRemove, onMove, venueId, v
             <textarea
               value={space.description || ''}
               onChange={e => set('description', e.target.value)}
-              placeholder="Describe this space — its character, setting, and what makes it special for a wedding event."
+              placeholder="Describe this space, its character, setting, and what makes it special for a wedding event."
               style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }}
             />
             <p style={hintStyle}>Displayed on the listing beneath the space name. Keep it evocative and concise.</p>
           </div>
 
-          {/* Row 3 — Capacities (4-col) */}
+          {/* Row 3, Capacities (4-col) */}
           <div style={{ marginBottom: 16 }}>
             <label style={labelStyle}>Capacities</label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
@@ -257,7 +257,7 @@ function SpaceCard({ space, index, total, onUpdate, onRemove, onMove, venueId, v
                     type="number" min="0"
                     value={space[key] ?? ''}
                     onChange={e => set(key, e.target.value === '' ? null : Number(e.target.value))}
-                    placeholder="—"
+                    placeholder=" - "
                     style={{ ...inputStyle, textAlign: 'center' }}
                   />
                 </div>
@@ -266,7 +266,7 @@ function SpaceCard({ space, index, total, onUpdate, onRemove, onMove, venueId, v
             <p style={hintStyle}>Leave blank if this space type doesn't apply. Used to drive the capacity numbers on the listing.</p>
           </div>
 
-          {/* Row 4 — Indoor / Covered / Accessible */}
+          {/* Row 4, Indoor / Covered / Accessible */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
             <TriToggle
               label="Indoor / Outdoor"
@@ -288,7 +288,7 @@ function SpaceCard({ space, index, total, onUpdate, onRemove, onMove, venueId, v
             />
           </div>
 
-          {/* Row 5 — Optional Image + Floor Plan */}
+          {/* Row 5, Optional Image + Floor Plan */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <FileUploadField
               label="Space Image"

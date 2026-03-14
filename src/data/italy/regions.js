@@ -1,5 +1,5 @@
 // ─── src/data/italy/regions.js ─────────────────────────────────────────────────
-// Italy region entities — primary, secondary, and legacy.
+// Italy region entities, primary, secondary, and legacy.
 // Schema: id, countrySlug, slug, name, priorityLevel, listingCount,
 //         urlEnabledManual, urlEverActivated, canonicalRoute,
 //         description, focusKeywords, aiSummary, intentSignals, entityAliases,
@@ -75,7 +75,7 @@ export const ITALY_REGIONS = [
     priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 4,
     canonicalRoute: "/italy/puglia",
     heroSubtitle: "Experience the rustic charm and Mediterranean beauty of Southern Italy's most enchanting wedding destination. Masserie, trulli villages, and whitewashed coastal towns bring authentic Italian elegance to your celebration.",
-    description: "Puglia (Apulia) — Southern Italy's fastest-growing luxury wedding destination. Masseria estates in olive groves, whitewashed trulli villages, Baroque Lecce, and pristine coastlines offer authentic Italian charm at exceptional value. From Salento's romance to the Itria Valley's countryside, experience world-class cuisine, stunning natural light, and centuries of tradition.",
+    description: "Puglia (Apulia), Southern Italy's fastest-growing luxury wedding destination. Masseria estates in olive groves, whitewashed trulli villages, Baroque Lecce, and pristine coastlines offer authentic Italian charm at exceptional value. From Salento's romance to the Itria Valley's countryside, experience world-class cuisine, stunning natural light, and centuries of tradition.",
     focusKeywords: ["puglia wedding", "masseria wedding venue", "lecce wedding", "salento wedding", "trulli wedding", "apulia wedding", "puglia destination wedding", "itria valley wedding", "puglia wedding planner", "masserie wedding italy"],
     aiSummary: "Fastest-growing Italian luxury wedding destination. Masseria estates and authentic farm venues drive demand. Strong food-and-wine culture differentiator. More affordable than Tuscany/Amalfi. Peak seasons May-June and September-October. Rising search volume from US/UK luxury couples seeking authentic Italian charm with exceptional value.",
     intentSignals: {
@@ -89,7 +89,7 @@ export const ITALY_REGIONS = [
     id: "rome", countrySlug: "italy", slug: "rome", name: "Rome",
     priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 0,
     canonicalRoute: "/italy/rome",
-    description: "The Eternal City — ancient ruins, baroque palazzi and a cinematic grandeur that no other city on earth can match.",
+    description: "The Eternal City, ancient ruins, baroque palazzi and a cinematic grandeur that no other city on earth can match.",
     focusKeywords: ["rome wedding", "rome wedding venue", "luxury wedding rome"],
     aiSummary: "Urban luxury hub. Palazzo and hotel venues dominate. Strong elopement and intimate ceremony demand.",
     intentSignals: {
@@ -117,7 +117,7 @@ export const ITALY_REGIONS = [
     id: "milan", countrySlug: "italy", slug: "milan", name: "Milan",
     priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 0,
     canonicalRoute: "/italy/milan",
-    description: "Italy's fashion and design capital — contemporary elegance, Michelin dining and world-class couture.",
+    description: "Italy's fashion and design capital, contemporary elegance, Michelin dining and world-class couture.",
     focusKeywords: ["milan wedding", "milan wedding venue", "luxury wedding milan"],
     aiSummary: "Fashion-forward market. Bridal couture hub. Strong corporate-luxury crossover. Urban hotel and villa venues.",
     intentSignals: {
@@ -131,7 +131,7 @@ export const ITALY_REGIONS = [
     id: "italian-riviera", countrySlug: "italy", slug: "italian-riviera", name: "Italian Riviera",
     priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 0,
     canonicalRoute: "/italy/italian-riviera",
-    description: "Portofino's pastel harbour and Cinque Terre's terraced villages — Liguria's coastline at its most glamorous.",
+    description: "Portofino's pastel harbour and Cinque Terre's terraced villages, Liguria's coastline at its most glamorous.",
     focusKeywords: ["italian riviera wedding", "portofino wedding venue", "cinque terre wedding"],
     aiSummary: "Ultra-exclusive micro-market. Portofino anchors luxury tier. Cinque Terre drives aspirational search.",
     intentSignals: {
@@ -145,7 +145,7 @@ export const ITALY_REGIONS = [
     id: "dolomites", countrySlug: "italy", slug: "dolomites", name: "Dolomites",
     priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 0,
     canonicalRoute: "/italy/dolomites",
-    description: "UNESCO jagged peaks and alpine meadows — dramatic mountain ceremonies in northern Italy's most spectacular landscape.",
+    description: "UNESCO jagged peaks and alpine meadows, dramatic mountain ceremonies in northern Italy's most spectacular landscape.",
     focusKeywords: ["dolomites wedding", "cortina wedding venue", "mountain wedding italy"],
     aiSummary: "Emerging alpine luxury destination. Winter and summer dual season. Cortina d'Ampezzo leads.",
     intentSignals: {
@@ -159,7 +159,7 @@ export const ITALY_REGIONS = [
     id: "lake-garda", countrySlug: "italy", slug: "lake-garda", name: "Lake Garda",
     priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 0,
     canonicalRoute: "/italy/lake-garda",
-    description: "Italy's largest lake — lemon groves, Sirmione's thermal peninsula and Gardone Riviera's belle époque villas.",
+    description: "Italy's largest lake, lemon groves, Sirmione's thermal peninsula and Gardone Riviera's belle époque villas.",
     focusKeywords: ["lake garda wedding", "lake garda wedding venue", "sirmione wedding"],
     aiSummary: "Growing market. Sirmione and Gardone Riviera lead. Lower price point than Lake Como. Strong German/Austrian demand.",
     intentSignals: {
@@ -187,7 +187,7 @@ export const ITALY_REGIONS = [
     id: "capri", countrySlug: "italy", slug: "capri", name: "Capri",
     priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 0,
     canonicalRoute: "/italy/capri",
-    description: "The legendary isle of la dolce vita — Faraglioni rocks, the Blue Grotto and Caprese glamour since the Roman emperors.",
+    description: "The legendary isle of la dolce vita, Faraglioni rocks, the Blue Grotto and Caprese glamour since the Roman emperors.",
     focusKeywords: ["capri wedding", "capri wedding venue", "island wedding capri"],
     aiSummary: "Ultra-luxury island market. Hotel-only venue model. Strong celebrity and fashion association.",
     intentSignals: {
@@ -234,7 +234,7 @@ export const ITALY_REGIONS = [
     id: "umbria", countrySlug: "italy", slug: "umbria", name: "Umbria",
     priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2,
     canonicalRoute: "/italy/umbria",
-    description: "The green heart of Italy — medieval villages, olive groves and understated elegance.",
+    description: "The green heart of Italy, medieval villages, olive groves and understated elegance.",
     focusKeywords: ["umbria wedding", "umbria wedding venue"],
     aiSummary: "Niche market. Overflow from Tuscany demand. Growing slowly.",
     intentSignals: { high: [], mid: ["umbria wedding venues"], low: ["umbria wedding ideas"] },
@@ -264,7 +264,7 @@ export const ITALY_REGIONS = [
     id: "piedmont", countrySlug: "italy", slug: "piedmont", name: "Piedmont",
     priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1,
     canonicalRoute: "/italy/piedmont",
-    description: "Barolo vineyards, Alba truffles and the alpine grandeur of Italy's northwest — refined, understated luxury.",
+    description: "Barolo vineyards, Alba truffles and the alpine grandeur of Italy's northwest, refined, understated luxury.",
     focusKeywords: ["piedmont wedding", "piedmont wedding venue", "barolo wedding"],
     aiSummary: "Wine tourism crossover. Langhe UNESCO vineyards. Michelin dining density. Niche luxury market.",
     intentSignals: {
@@ -278,7 +278,7 @@ export const ITALY_REGIONS = [
     id: "emilia-romagna", countrySlug: "italy", slug: "emilia-romagna", name: "Emilia-Romagna",
     priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 0,
     canonicalRoute: "/italy/emilia-romagna",
-    description: "Italy's culinary heartland — Parma, Bologna, Modena and the Romagna Riviera.",
+    description: "Italy's culinary heartland, Parma, Bologna, Modena and the Romagna Riviera.",
     focusKeywords: ["emilia romagna wedding"],
     aiSummary: "Food tourism crossover potential. Minimal wedding-specific search. Monitor.",
     intentSignals: { high: [], mid: [], low: ["emilia romagna wedding"] },
@@ -288,7 +288,7 @@ export const ITALY_REGIONS = [
     id: "calabria", countrySlug: "italy", slug: "calabria", name: "Calabria",
     priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 0,
     canonicalRoute: "/italy/calabria",
-    description: "The toe of Italy's boot — wild coastline, ancient Greek ruins and authentic southern hospitality.",
+    description: "The toe of Italy's boot, wild coastline, ancient Greek ruins and authentic southern hospitality.",
     focusKeywords: ["calabria wedding"],
     aiSummary: "Pre-market. Very low search volume. Tropea coast has potential. Watchlist.",
     intentSignals: { high: [], mid: [], low: ["calabria wedding"] },
@@ -298,7 +298,7 @@ export const ITALY_REGIONS = [
     id: "basilicata", countrySlug: "italy", slug: "basilicata", name: "Basilicata",
     priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 0,
     canonicalRoute: "/italy/basilicata",
-    description: "Matera's cave dwellings and dramatic ravines — UNESCO World Heritage and an utterly unique ceremony backdrop.",
+    description: "Matera's cave dwellings and dramatic ravines, UNESCO World Heritage and an utterly unique ceremony backdrop.",
     focusKeywords: ["basilicata wedding", "matera wedding venue"],
     aiSummary: "Matera drives all search. Cave hotel weddings unique globally. Very niche.",
     intentSignals: { high: [], mid: ["matera wedding venue"], low: ["basilicata wedding"] },
@@ -328,7 +328,7 @@ export const ITALY_REGIONS = [
     id: "valle-d-aosta", countrySlug: "italy", slug: "valle-d-aosta", name: "Valle d'Aosta",
     priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 0,
     canonicalRoute: "/italy/valle-d-aosta",
-    description: "Italy's smallest region — Mont Blanc, medieval castles and intimate Alpine valley celebrations.",
+    description: "Italy's smallest region, Mont Blanc, medieval castles and intimate Alpine valley celebrations.",
     focusKeywords: ["valle d'aosta wedding"],
     aiSummary: "Micro-market. Castle weddings potential. Mont Blanc backdrop unique. Very early.",
     intentSignals: { high: [], mid: [], low: ["valle d'aosta wedding"] },
@@ -336,7 +336,7 @@ export const ITALY_REGIONS = [
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // LEGACY REGIONS — from imported listing data, disabled by default.
+  // LEGACY REGIONS, from imported listing data, disabled by default.
   // These exist for traceability. Listings from these regions have been mapped
   // to spec regions where the city clearly belongs (e.g. Ravello → amalfi-coast).
   // Listings that cannot be cleanly mapped retain regionSlug of the legacy region.
@@ -346,7 +346,7 @@ export const ITALY_REGIONS = [
     id: "veneto", countrySlug: "italy", slug: "veneto", name: "Veneto",
     priorityLevel: "secondary", urlEnabledManual: false, urlEverActivated: false, listingCount: 0,
     canonicalRoute: "/italy/veneto",
-    description: "The Veneto extends far beyond Venice — Verona, Padua, the Prosecco hills and the Palladian villas of the Brenta.",
+    description: "The Veneto extends far beyond Venice, Verona, Padua, the Prosecco hills and the Palladian villas of the Brenta.",
     focusKeywords: ["veneto wedding"],
     aiSummary: "Legacy region. Venice listings mapped to venice region. Residual Veneto-only listings may exist.",
     intentSignals: { high: [], mid: [], low: ["veneto wedding"] },
@@ -358,7 +358,7 @@ export const ITALY_REGIONS = [
     id: "lombardy", countrySlug: "italy", slug: "lombardy", name: "Lombardy",
     priorityLevel: "secondary", urlEnabledManual: false, urlEverActivated: false, listingCount: 1,
     canonicalRoute: "/italy/lombardy",
-    description: "Italy's economic heartland — Milan, Lake Como, Lake Garda and the Lombard plain.",
+    description: "Italy's economic heartland, Milan, Lake Como, Lake Garda and the Lombard plain.",
     focusKeywords: ["lombardy wedding"],
     aiSummary: "Legacy region. Lake Como and Milan listings mapped to their own regions. Non-lake Lombard listings remain here.",
     intentSignals: { high: [], mid: [], low: ["lombardy wedding"] },
@@ -370,7 +370,7 @@ export const ITALY_REGIONS = [
     id: "lazio", countrySlug: "italy", slug: "lazio", name: "Lazio",
     priorityLevel: "secondary", urlEnabledManual: false, urlEverActivated: false, listingCount: 0,
     canonicalRoute: "/italy/lazio",
-    description: "The region surrounding Rome — ancient Etruscan villages, volcanic lakes and the Roman countryside.",
+    description: "The region surrounding Rome, ancient Etruscan villages, volcanic lakes and the Roman countryside.",
     focusKeywords: ["lazio wedding"],
     aiSummary: "Legacy region. Rome-area listings mapped to rome region. Non-Rome Lazio listings may exist.",
     intentSignals: { high: [], mid: [], low: ["lazio wedding"] },
@@ -382,7 +382,7 @@ export const ITALY_REGIONS = [
     id: "campania", countrySlug: "italy", slug: "campania", name: "Campania",
     priorityLevel: "secondary", urlEnabledManual: false, urlEverActivated: false, listingCount: 0,
     canonicalRoute: "/italy/campania",
-    description: "Naples, Pompeii, the Amalfi Coast and the islands of Capri and Ischia — southern Italy's most celebrated coastline.",
+    description: "Naples, Pompeii, the Amalfi Coast and the islands of Capri and Ischia, southern Italy's most celebrated coastline.",
     focusKeywords: ["campania wedding"],
     aiSummary: "Legacy region. Amalfi Coast / Capri / Ischia listings mapped to their own regions.",
     intentSignals: { high: [], mid: [], low: ["campania wedding"] },

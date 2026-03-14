@@ -1,5 +1,5 @@
 /**
- * SlimHeroSection — Hero section editor
+ * SlimHeroSection, Hero section editor
  * Layout is locked. Editable content:
  * - Hero heading, subheading, CTA buttons
  * - Hero background media (images, videos, YouTube, Vimeo)
@@ -19,7 +19,7 @@ export default function SlimHeroSection({ section, onChange, C, NU, GD }) {
 
   return (
     <div style={{ backgroundColor: C.card, borderRadius: 4, padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* HERO CONTENT — Editable */}
+      {/* HERO CONTENT, Editable */}
       <div style={{ paddingBottom: 12, borderBottom: `1px solid ${C.border}` }}>
         <p style={{ fontFamily: NU, fontSize: 9, fontWeight: 600, color: C.grey, textTransform: 'uppercase', margin: '0 0 8px 0' }}>
           Hero Content
@@ -119,7 +119,7 @@ export default function SlimHeroSection({ section, onChange, C, NU, GD }) {
         <BackgroundMediaControl section={section} onChange={onChange} C={C} NU={NU} />
       </div>
 
-      {/* LOCKED SEARCH BAR — Position fixed, text editable */}
+      {/* LOCKED SEARCH BAR, Position fixed, text editable */}
       <div>
         <p style={{ fontFamily: NU, fontSize: 9, fontWeight: 600, color: C.grey, textTransform: 'uppercase', margin: '0 0 8px 0' }}>
           Search Bar (Locked in Position)
@@ -181,7 +181,7 @@ export default function SlimHeroSection({ section, onChange, C, NU, GD }) {
           <textarea
             value={section.aiSuggestionText || ''}
             onChange={(e) => handleFieldChange('aiSuggestionText', e.target.value)}
-            placeholder="Not sure where to start? Ask Aura — get personalised venue suggestions instantly."
+            placeholder="Not sure where to start? Ask Aura, get personalised venue suggestions instantly."
             style={{
               width: '100%',
               padding: '8px 10px',
@@ -199,7 +199,7 @@ export default function SlimHeroSection({ section, onChange, C, NU, GD }) {
         </div>
       </div>
 
-      {/* CUSTOM FIELDS — Extensible phase 2 feature */}
+      {/* CUSTOM FIELDS, Extensible phase 2 feature */}
       <CustomFieldsEditor section={section} onSectionChange={onChange} C={C} NU={NU} />
 
       <p style={{ fontFamily: NU, fontSize: 10, color: C.grey2, margin: 0, fontStyle: 'italic' }}>

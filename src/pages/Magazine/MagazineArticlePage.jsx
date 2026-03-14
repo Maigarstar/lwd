@@ -313,7 +313,7 @@ function LayoutSidebar({ post, relatedPosts, onNavigateArticle, onNavigateHome, 
         onToggleLight={onToggleLight}
       />
 
-      {/* Hero — narrower, left-aligned for sidebar layout */}
+      {/* Hero, narrower, left-aligned for sidebar layout */}
       <header style={{
         position: 'relative', overflow: 'hidden',
         background: '#0a0a0a',

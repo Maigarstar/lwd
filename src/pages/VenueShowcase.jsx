@@ -1,6 +1,6 @@
 /**
  * VenueShowcase.jsx
- * /showcase/[slug] — cinematic, full-media page for a venue
+ * /showcase/[slug], cinematic, full-media page for a venue
  *
  * Fetches listing by slug, shows all public media items in a
  * column-masonry grid with a full-screen hero, key stats, and
@@ -110,7 +110,7 @@ function ShowcaseLightbox({ images, idx, onClose, onPrev, onNext }) {
           maxWidth: "70vw",
         }}>
           {img.caption}
-          {img.credit && ` — © ${img.credit}`}
+          {img.credit && `, © ${img.credit}`}
         </div>
       )}
 
@@ -306,7 +306,7 @@ export default function VenueShowcase({ slug, onBack }) {
   const priceFrom = listing.price_from ? `From ${listing.price_from}` : null;
   const capacity  = listing.capacity_max ? `Up to ${listing.capacity_max} guests` : null;
 
-  // SPA navigation — use onBack (goes to venue profile)
+  // SPA navigation, use onBack (goes to venue profile)
   const goProfile = onBack;
 
   return (
@@ -340,7 +340,7 @@ export default function VenueShowcase({ slug, onBack }) {
           ← Back to profile
         </button>
 
-        {/* Name — only visible after hero scrolls off */}
+        {/* Name, only visible after hero scrolls off */}
         <div style={{
           fontFamily: FD, fontSize: 15,
           color: C.text,

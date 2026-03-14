@@ -84,7 +84,7 @@ export default function PhotoGalleryGrid({ data = {} }) {
         background: '#111',
       }}
     >
-      {/* ── Large left panel — spans both rows ─────────────────────────── */}
+      {/* ── Large left panel, spans both rows ─────────────────────────── */}
       <div
         style={{ ...cellStyle(0, { gridRow: '1 / 3' }) }}
         onMouseEnter={() => setHovered(0)}
@@ -142,7 +142,7 @@ export default function PhotoGalleryGrid({ data = {} }) {
           {img4 && <img src={img4.src} alt={img4.alt || ''} style={imgStyle(3)} />}
         </div>
 
-        {/* Bottom-right last — "See all" overlay */}
+        {/* Bottom-right last, "See all" overlay */}
         <div
           style={cellStyle(4)}
           onMouseEnter={() => setHovered(4)}

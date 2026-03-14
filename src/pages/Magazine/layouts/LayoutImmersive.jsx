@@ -1,7 +1,7 @@
 /**
- * LayoutImmersive — Style 3: Immersive Story Layout
+ * LayoutImmersive, Style 3: Immersive Story Layout
  *
- * Cinematic, full-width storytelling — National Geographic meets Vogue.
+ * Cinematic, full-width storytelling, National Geographic meets Vogue.
  * Full-screen carousel hero, immersive full-width feature blocks with
  * alternating gradients, editorial break, and category spotlights.
  */

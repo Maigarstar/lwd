@@ -1,5 +1,5 @@
 /**
- * MediaMetaCanvas — Premium right-side metadata editor for uploaded media
+ * MediaMetaCanvas, Premium right-side metadata editor for uploaded media
  *
  * Opens as a slide-in panel when the user clicks any image thumbnail
  * (both hero images and gallery media).
@@ -10,7 +10,7 @@
  * Keyboard: ← → navigate · Esc close · Cmd/Ctrl+S save
  *
  * AI: Generate Title, Description, Alt Text, Tags
- * User always confirms before inserting — AI never auto-fills.
+ * User always confirms before inserting, AI never auto-fills.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -250,9 +250,9 @@ export default function MediaMetaCanvas({
   itemIndex,
   onPrev,
   onNext,
-  onApplyCredit,  // (creditFields) => void — bulk-applies to all images in pool
-  allItems = [],  // full sorted items array — drives filmstrip
-  onJump,         // (id: string) => void — jump to any item directly
+  onApplyCredit,  // (creditFields) => void, bulk-applies to all images in pool
+  allItems = [],  // full sorted items array, drives filmstrip
+  onJump,         // (id: string) => void, jump to any item directly
 }) {
   // ── Color scheme ─────────────────────────────────────────────────────────────
   const [isDark, setIsDark] = useState(true);
@@ -265,7 +265,7 @@ export default function MediaMetaCanvas({
   // ── Scroll body ref (for reset on navigation) ─────────────────────────────────
   const scrollBodyRef  = useRef(null);
 
-  // ── Filmstrip ref — auto-scrolls active thumb into view on navigation ─────────
+  // ── Filmstrip ref, auto-scrolls active thumb into view on navigation ─────────
   const filmstripRef = useRef(null);
   useEffect(() => {
     if (!filmstripRef.current || !item?.id) return;
@@ -681,7 +681,7 @@ export default function MediaMetaCanvas({
               transition: 'background-color 0.22s ease',
             }}>
               {mediaSrc && isVideoItem && item.file instanceof File ? (
-                /* Uploaded video file — show first frame via <video preload="metadata"> */
+                /* Uploaded video file, show first frame via <video preload="metadata"> */
                 <video
                   src={mediaSrc}
                   preload="metadata"
@@ -835,7 +835,7 @@ export default function MediaMetaCanvas({
             {/* ─── CORE INFO ─────────────────────────────────────────── */}
             <SectionLabel>Core Info</SectionLabel>
 
-            {/* Image / Video type — hidden for virtual tours */}
+            {/* Image / Video type, hidden for virtual tours */}
             {item.type !== 'virtual_tour' && (
               <FieldRow>
                 <FieldLabel s={s}>{isVideoItem ? 'Video Type' : 'Image Type'}</FieldLabel>
@@ -1215,7 +1215,7 @@ export default function MediaMetaCanvas({
           >
             {allItems.map((it, idx) => {
               const isActive = it.id === item.id;
-              // thumbnail source — same logic as canvas preview but compact
+              // thumbnail source, same logic as canvas preview but compact
               const isVid = it.type === 'video';
               const thumbSrc = isVid
                 ? (it.thumbnail || null)                                          // YT thumb JPEG

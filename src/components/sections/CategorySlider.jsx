@@ -202,7 +202,7 @@ export default function CategorySlider() {
               fontWeight: 300,
             }}
           >
-            Connect with top-tier planners and luxury wedding experts —
+            Connect with top-tier planners and luxury wedding experts  - 
             ranked by the LWD Curated Index for quality, reliability, and style.
           </p>
         </div>
@@ -283,7 +283,7 @@ export default function CategorySlider() {
             key={cat.id}
             role="button"
             tabIndex={0}
-            aria-label={`Browse ${cat.label} — ${cat.count} listings`}
+            aria-label={`Browse ${cat.label}, ${cat.count} listings`}
             onClick={() => track("category_click", { category: cat.id })}
             onKeyDown={(e) => {
               if (e.key === "Enter") track("category_click", { category: cat.id });

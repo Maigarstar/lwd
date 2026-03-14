@@ -24,7 +24,7 @@ import CardsSection from './sections/CardsSection';
 import { getLightPalette, getDarkPalette } from '../../theme/tokens';
 
 /**
- * Listing type configuration — controls which sections are visible
+ * Listing type configuration, controls which sections are visible
  * and what label/icon represents each listing type.
  */
 const LISTING_TYPES = [
@@ -36,7 +36,7 @@ const LISTING_TYPES = [
 ];
 
 /**
- * Section configuration — maps each editor section to its component, label, icon,
+ * Section configuration, maps each editor section to its component, label, icon,
  * lock status, and visibility condition (based on listing type).
  */
 const LISTING_SECTIONS = [
@@ -210,7 +210,7 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
   const showLeftPanel = viewMode !== 'preview';
   const showRightPanel = viewMode !== 'editor';
 
-  // Luxury Design System tokens — adapt to light/dark mode
+  // Luxury Design System tokens, adapt to light/dark mode
   const LUX = darkMode ? {
     gold: '#C9A84C', goldHover: '#D4B85E',
     green: '#22C55E', greenHover: '#16A34A',
@@ -350,7 +350,7 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
           </button>
         </div>
 
-        {/* Save actions — order:2 so they stay on row 1 next to AI tools on mobile */}
+        {/* Save actions, order:2 so they stay on row 1 next to AI tools on mobile */}
         <div className="ls-toolbar-save" style={{ display: 'flex', gap: 8, order: 2, marginLeft: 'auto' }}>
           <button
             type="button"
@@ -412,9 +412,9 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
           </button>
         </div>
 
-        {/* View mode text links — order:3 so they wrap to row 2 on mobile */}
+        {/* View mode text links, order:3 so they wrap to row 2 on mobile */}
         <div className="ls-toolbar-vm" style={{ display: 'flex', gap: 16, alignItems: 'center', order: 3 }}>
-          {/* Divider — hidden on mobile */}
+          {/* Divider, hidden on mobile */}
           <span className="ls-toolbar-div" style={{ width: 1, height: 16, backgroundColor: LUX.border, display: 'inline-block' }} />
           {['split', 'editor', 'preview'].map((mode) => {
             const modeLabel = mode === 'split' ? 'Split' : mode === 'editor' ? 'Editor' : 'Preview';
@@ -475,13 +475,13 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
           </h1>
           <p style={{ fontSize: 14, color: LUX.muted, margin: 0, fontWeight: 400 }}>
             {currentType.label} listing
-            {isEditing ? ' — update details below' : ' — fill in the details below'}
+            {isEditing ? ', update details below' : ', fill in the details below'}
           </p>
         </div>
 
 
 
-        {/* AI Import panel — Populate with AI */}
+        {/* AI Import panel, Populate with AI */}
         {showAIImport && (
           <AIImportPanel
             formData={formData}
@@ -497,7 +497,7 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
           />
         )}
 
-        {/* AI Fill panel — quick text-only fill */}
+        {/* AI Fill panel, quick text-only fill */}
         {showAITools && (
           <AIContentTools
             formData={formData}
@@ -563,8 +563,8 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
             <span style={{ fontSize: 18 }}>✓</span>
             <span>
               {saveStatus === 'saved'
-                ? `Listing saved as draft — "${formData.venue_name || 'Untitled'}"`
-                : `Listing published successfully — "${formData.venue_name || 'Untitled'}"`}
+                ? `Listing saved as draft, "${formData.venue_name || 'Untitled'}"`
+                : `Listing published successfully, "${formData.venue_name || 'Untitled'}"`}
             </span>
           </div>
         )}
@@ -647,7 +647,7 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
                     borderRadius: isEnabled ? '8px 8px 0 0' : 8,
                     borderBottom: isEnabled ? 'none' : undefined,
                   }}>
-                    {/* Move Up/Down — only for unlocked sections */}
+                    {/* Move Up/Down, only for unlocked sections */}
                     {!isLocked ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                         <button

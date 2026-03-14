@@ -324,7 +324,7 @@ Write 2–3 sentences that:
 - Capture the intimacy and exclusivity of hiring the entire estate
 - Convey what makes the experience uniquely private and special
 - Speak directly to luxury couples ("your guests", "your day")
-- Use editorial tone — no marketing clichés, no exclamation marks
+- Use editorial tone, no marketing clichés, no exclamation marks
 
 RETURN ONLY THE DESCRIPTION TEXT. No explanation, no labels.`;
 };
@@ -364,8 +364,8 @@ Return ONLY a valid JSON object in this exact format:
   "address_line2": "Second line if any, otherwise empty string",
   "city": "City or town name",
   "postcode": "Postcode or ZIP code",
-  "country": "One of: italy, france, spain, greece, portugal, uk, us, caribbean — or empty string",
-  "region": "Region, county, or area name — or empty string"
+  "country": "One of: italy, france, spain, greece, portugal, uk, us, caribbean, or empty string",
+  "region": "Region, county, or area name, or empty string"
 }
 
 IMPORTANT: Only include information you are certain about. Use empty string "" for any field you are unsure about. Never invent or guess an address.

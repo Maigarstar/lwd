@@ -104,7 +104,7 @@ export default function VenueGrid({ venues = [], onViewVenue }) {
         }}
       >
         <div style={{ maxWidth: 1320, margin: "0 auto", position: "relative" }}>
-          {/* Heading — mirrors VendorPreview style */}
+          {/* Heading, mirrors VendorPreview style */}
           <div style={{ marginBottom: 48 }}>
             <div
               style={{
@@ -156,7 +156,7 @@ export default function VenueGrid({ venues = [], onViewVenue }) {
               }}
             >
               Explore our hand-picked selection of the world's most extraordinary
-              wedding venues — filtered by location, capacity, style, and features.
+              wedding venues, filtered by location, capacity, style, and features.
             </p>
           </div>
 

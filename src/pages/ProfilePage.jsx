@@ -180,7 +180,7 @@ export default function ProfilePage({
               <BottomQuestionCta entity={enriched} />
             </div>
 
-            {/* Right rail sticky sidebar — modular ListingSidebar */}
+            {/* Right rail sticky sidebar, modular ListingSidebar */}
             <div
               className="vpt-sidebar"
               style={{

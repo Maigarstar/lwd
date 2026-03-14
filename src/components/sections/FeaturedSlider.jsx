@@ -15,7 +15,7 @@ export default function FeaturedSlider({ venues }) {
   const transTimer  = useRef(null);
   const sectionRef  = useRef(null);
 
-  // Subtle parallax — image drifts at 15 % of scroll speed
+  // Subtle parallax, image drifts at 15 % of scroll speed
   useEffect(() => {
     const onScroll = () => {
       const el = sectionRef.current;
@@ -44,7 +44,7 @@ export default function FeaturedSlider({ venues }) {
     }, 400);
   }, []);
 
-  // Auto-advance — reads from refs, so never stale
+  // Auto-advance, reads from refs, so never stale
   useEffect(() => {
     timerRef.current = setInterval(() => {
       goTo((idxRef.current + 1) % venues.length);
@@ -79,7 +79,7 @@ export default function FeaturedSlider({ venues }) {
         }}
       />
 
-      {/* Slide images — parallax layer */}
+      {/* Slide images, parallax layer */}
       {venues.map((v, i) => (
         <div
           key={v.id}

@@ -1,12 +1,12 @@
 /**
- * ExperiencesSection — Listing Studio editor for On the Estate + Nearby Experiences
+ * ExperiencesSection, Listing Studio editor for On the Estate + Nearby Experiences
  *
  * Two parallel repeatable lists, each with its own enable/disable toggle:
  *
- *   estate_enabled      — boolean toggle for "On the Estate" list
- *   estate_items        — array of experience items (icon, title, status, note, sortOrder)
- *   nearby_enabled      — boolean toggle for "Nearby Experiences" list
- *   nearby_items        — array of experience items (icon, title, status, note, sortOrder)
+ *   estate_enabled     , boolean toggle for "On the Estate" list
+ *   estate_items       , array of experience items (icon, title, status, note, sortOrder)
+ *   nearby_enabled     , boolean toggle for "Nearby Experiences" list
+ *   nearby_items       , array of experience items (icon, title, status, note, sortOrder)
  *
  * Each item:
  *   { id, icon, title, status ('included'|'private'|'optional'|''), note, sortOrder }
@@ -40,7 +40,7 @@ const ICON_OPTIONS = [
 ];
 
 const STATUS_OPTIONS = [
-  { value: '',         label: '— None' },
+  { value: '',         label: ' -  None' },
   { value: 'included', label: '✦ Included' },
   { value: 'private',  label: '🔒 Private' },
   { value: 'optional', label: '+ Optional' },

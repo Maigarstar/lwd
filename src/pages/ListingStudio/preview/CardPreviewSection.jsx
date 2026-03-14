@@ -1,20 +1,20 @@
 /**
- * CardPreviewSection — Live card preview block for ListingLivePreview
+ * CardPreviewSection, Live card preview block for ListingLivePreview
  *
  * Renders the actual LuxuryVenueCard, LuxuryVendorCard, and GCard components
  * using the current formData + card override fields from CardsSection.
  * Placed additively at the bottom of the listing live preview pane.
  *
  * Data resolution priority (per card):
- *   1. card_{type}_images[]      — uploaded card-specific images
- *   2. card_{type}_media_url     — single image URL (legacy / URL fallback)
- *   3. formData.hero_images[]    — listing hero images (auto-fill fallback)
+ *   1. card_{type}_images[]     , uploaded card-specific images
+ *   2. card_{type}_media_url    , single image URL (legacy / URL fallback)
+ *   3. formData.hero_images[]   , listing hero images (auto-fill fallback)
  *
  * Quick View:
  *   Manages its own quickViewItem state. QuickViewModal is rendered here so
  *   all three card types share one modal instance.
  *
- * This file is purely additive — no existing code was changed.
+ * This file is purely additive, no existing code was changed.
  */
 
 import { useState, useEffect } from 'react';
@@ -33,7 +33,7 @@ const resolveUrl = (img, blobMap) => {
   return img.url || img.src || '';
 };
 
-// ── useBlobUrls — create and revoke blob URLs for all File objects ─────────────
+// ── useBlobUrls, create and revoke blob URLs for all File objects ─────────────
 // Accepts a deduplicated array of image objects.  Creates one blob URL per
 // unique File and revokes stale URLs when the set changes.
 function useBlobUrls(images) {

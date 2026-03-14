@@ -1,13 +1,13 @@
 /**
- * CategoryLayoutCurated — Balanced editorial section front.
+ * CategoryLayoutCurated, Balanced editorial section front.
  *
- * Feels like a curated magazine section — not a blog archive.
+ * Feels like a curated magazine section, not a blog archive.
  * Structure:
  *   1. Split-screen category hero with cover post
- *   2. "In This Section" — 3 featured cards
- *   3. Story river — alternating horizontal cards
+ *   2. "In This Section", 3 featured cards
+ *   3. Story river, alternating horizontal cards
  *   4. Visual pull-quote break
- *   5. Secondary grid — remaining posts
+ *   5. Secondary grid, remaining posts
  *   6. Category explorer strip
  */
 import { HeroSplitScreen } from '../components/HeroModules';
@@ -63,7 +63,7 @@ export default function CategoryLayoutCurated({ category, posts = [], coverPost,
         </div>
       </div>
 
-      {/* ── 2. In This Section — 3 featured cards ──────────────────────────── */}
+      {/* ── 2. In This Section, 3 featured cards ──────────────────────────── */}
       {picks.length > 0 && (
         <section style={{ padding: 'clamp(48px, 6vw, 72px) clamp(24px, 5vw, 80px)', maxWidth: 1440, margin: '0 auto' }}>
           <SectionHeader
@@ -111,7 +111,7 @@ export default function CategoryLayoutCurated({ category, posts = [], coverPost,
         </section>
       )}
 
-      {/* ── 4. Editorial break — pull quote from a story ───────────────────── */}
+      {/* ── 4. Editorial break, pull quote from a story ───────────────────── */}
       {pullQuote && (
         <EditorialBreak post={pullQuote} onRead={() => onRead(pullQuote.slug)} isLight={isLight} label={category.label} />
       )}

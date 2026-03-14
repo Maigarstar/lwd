@@ -5,7 +5,7 @@ import { useTheme } from "../../theme/ThemeContext";
 export default function CatNav({ onBack, scrolled, darkMode, onToggleDark, crumbs }) {
   const C = useTheme();
 
-  // State-driven hover — no direct DOM style mutations
+  // State-driven hover, no direct DOM style mutations
   const [hovBack, setHovBack]       = useState(false);
   const [hovHome, setHovHome]       = useState(false);
   const [hovToggle, setHovToggle]   = useState(false);

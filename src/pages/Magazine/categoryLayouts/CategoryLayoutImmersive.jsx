@@ -1,12 +1,12 @@
 /**
- * CategoryLayoutImmersive — Style 4: Cinematic Immersive
+ * CategoryLayoutImmersive, Style 4: Cinematic Immersive
  *
  * Full-screen storytelling. Every post is a world you step into.
  * National Geographic meets Vogue. Full-bleed image blocks,
  * alternating gradient directions, and a closing grid.
  * Structure:
- *   1. HeroCarousel — full-screen autoplay
- *   2. Immersive feature blocks — alternating left/right
+ *   1. HeroCarousel, full-screen autoplay
+ *   2. Immersive feature blocks, alternating left/right
  *   3. Editorial break
  *   4. Closing story grid
  *   5. Category explorer strip

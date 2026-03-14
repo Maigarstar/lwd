@@ -1,4 +1,4 @@
-// Luxury post card system — 5 styles + smart router
+// Luxury post card system, 5 styles + smart router
 import { getMagTheme, FD, FU, GOLD_CONST as GOLD } from '../magazineTheme';
 
 const CREAM = '#f5f0e8';
@@ -80,7 +80,7 @@ export function CardStandard({ post, onClick, light = false }) {
   return (
     <article style={{ cursor: 'pointer' }} onClick={() => onClick && onClick(post)}>
       <style>{`.csm-img:hover { transform: scale(1.05) !important; }`}</style>
-      {/* Aspect ratio increased from 3/2 to 4/3 — ~33% taller image */}
+      {/* Aspect ratio increased from 3/2 to 4/3, ~33% taller image */}
       <div style={{ overflow: 'hidden', borderRadius: 2, marginBottom: 18 }}>
         <div className="csm-img" style={{
           width: '100%', aspectRatio: '4 / 3',
@@ -125,7 +125,7 @@ export function CardMinimal({ post, index, onClick, light = false }) {
       borderBottom: `1px solid ${T.border}`,
       display: 'flex', gap: 16, alignItems: 'flex-start',
     }} onClick={() => onClick && onClick(post)}>
-      {/* Thumbnail — responsive image on trending cards */}
+      {/* Thumbnail, responsive image on trending cards */}
       {post.coverImage && (
         <div style={{
           width: 'clamp(56px, 12vw, 80px)', height: 'clamp(42px, 9vw, 60px)', flexShrink: 0, overflow: 'hidden',

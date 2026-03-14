@@ -442,7 +442,7 @@ export default function ListingProfilePage({ slug, onBack }) {
   // Scroll to top
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, [slug]);
 
-  // Scroll spy — MUST be before early returns (Rules of Hooks)
+  // Scroll spy, MUST be before early returns (Rules of Hooks)
   useEffect(() => {
     if (!listing) return;
     const mediaItems = listing.media_items || [];

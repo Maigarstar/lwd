@@ -1,9 +1,9 @@
 /**
- * CateringCardsSection — Listing Studio editor for the Catering & Dining cards block
+ * CateringCardsSection, Listing Studio editor for the Catering & Dining cards block
  *
  * Fields managed:
- *   catering_enabled  — boolean section toggle
- *   catering_cards    — array (max 3) of:
+ *   catering_enabled , boolean section toggle
+ *   catering_cards   , array (max 3) of:
  *     { id, icon, title, description, subtext, sortOrder }
  *
  * Frontend visibility rule:
@@ -71,7 +71,7 @@ const SectionToggle = ({ enabled, onChange }) => (
       <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>
         {enabled
           ? 'Catering & Dining cards are visible on the listing'
-          : 'Catering & Dining cards are hidden — enable to show them'}
+          : 'Catering & Dining cards are hidden, enable to show them'}
       </div>
     </div>
     <button
@@ -123,7 +123,7 @@ function CardEditor({ card, index, total, onUpdate, onRemove, onMove }) {
           {index + 1}
         </span>
         <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: card.title ? '#1a1a1a' : '#aaa' }}>
-          {card.title || `Card ${index + 1} — untitled`}
+          {card.title || `Card ${index + 1}, untitled`}
         </span>
 
         {/* Reorder */}
@@ -279,7 +279,7 @@ const CateringCardsSection = ({ formData, onChange }) => {
         onChange={v => set('catering_enabled', v)}
       />
 
-      {/* Card editors — always visible so content can be prepared in advance */}
+      {/* Card editors, always visible so content can be prepared in advance */}
       <div style={{ opacity: enabled ? 1 : 0.55, transition: 'opacity 0.2s' }}>
 
         {/* Cards counter */}

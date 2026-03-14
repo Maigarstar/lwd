@@ -253,7 +253,7 @@ function mapFormToDatabaseFields(data: any): any {
     'exclusiveUseDescription': 'exclusive_use_description',
     'exclusiveUseCtaText':     'exclusive_use_cta_text',
     'exclusiveUseIncludes':    'exclusive_use_includes',
-    // Catering cards (max 3 — stored as JSONB array)
+    // Catering cards (max 3, stored as JSONB array)
     'cateringEnabled':         'catering_enabled',
     'cateringCards':           'catering_cards',
     // Wedding Weekend day cards (max 4)
@@ -274,7 +274,7 @@ function mapFormToDatabaseFields(data: any): any {
     'faqCtaSubtext':           'faq_cta_subtext',
     'faqCtaButtonText':        'faq_cta_button_text',
     'faqCategories':           'faq_categories',
-    // Venue spaces (max 5 — stored as JSONB array)
+    // Venue spaces (max 5, stored as JSONB array)
     'spaces': 'spaces',
     // Rooms & accommodation
     'roomsAccommodationType': 'rooms_accommodation_type',
@@ -344,7 +344,7 @@ function mapFormToDatabaseFields(data: any): any {
     'createdAt': 'created_at',
     'updatedAt': 'updated_at',
     'publishedAt': 'published_at',
-    // Rich media items — stored as JSONB; File objects must be stripped before calling
+    // Rich media items, stored as JSONB; File objects must be stripped before calling
     'mediaItems': 'media_items',
     // Description read-more toggle
     'readmoreEnabled': 'readmore_enabled',
@@ -557,11 +557,11 @@ export interface Listing {
 /**
  * Fire-and-forget: sync a listing's media_items into the media_ai_index table.
  *
- * Called after every successful create / update. Non-blocking — failures are
+ * Called after every successful create / update. Non-blocking, failures are
  * logged as warnings but never throw or affect the save result.
  *
- * @param listingId   — the saved listing's uuid
- * @param data        — the raw form payload (contains mediaItems + meta fields)
+ * @param listingId  , the saved listing's uuid
+ * @param data       , the raw form payload (contains mediaItems + meta fields)
  */
 function syncMediaAIIndex(listingId: string, data: any): void {
   if (!listingId) return;
@@ -580,7 +580,7 @@ function syncMediaAIIndex(listingId: string, data: any): void {
     type:        data.listingType                       || 'venue',
   };
 
-  // Fire-and-forget — do not await
+  // Fire-and-forget, do not await
   supabase!.functions
     .invoke('sync-media-ai-index', {
       body: { listing_id: listingId, listing_meta: listingMeta, media_items: mediaItems },

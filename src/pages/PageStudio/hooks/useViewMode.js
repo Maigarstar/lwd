@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 /**
- * useViewMode — Shared view mode state management for studios
+ * useViewMode, Shared view mode state management for studios
  *
  * Manages split/editor/preview view modes with localStorage persistence.
  * Used by both Page Studio and Listing Studio.

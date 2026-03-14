@@ -10,7 +10,7 @@ const GOLD = '#c9a96e';
 function CategoryLabel({ label }) {
   return (
     <span style={{ fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: GOLD }}>
-      — {label}
+     , {label}
     </span>
   );
 }

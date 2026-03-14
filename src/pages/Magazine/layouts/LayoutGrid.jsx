@@ -1,7 +1,7 @@
 /**
- * LayoutGrid — Style 2: Luxury Visual Grid
+ * LayoutGrid, Style 2: Luxury Visual Grid
  *
- * Modern editorial platform feel — Pinterest meets Architectural Digest.
+ * Modern editorial platform feel, Pinterest meets Architectural Digest.
  * Multi-story magazine grid hero, masonry-like content grid with spanning tiles,
  * category strip, and curated section spotlights.
  */
@@ -100,7 +100,7 @@ export default function LayoutGrid({
           `}</style>
 
           <div className="mag-masonry">
-            {/* Lead tile — spans 2 columns and 2 rows */}
+            {/* Lead tile, spans 2 columns and 2 rows */}
             {masonryPosts[0] && (
               <div>
                 <CardOverlay post={masonryPosts[0]} onClick={goArticle} tall />

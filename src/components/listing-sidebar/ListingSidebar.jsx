@@ -4,34 +4,34 @@
  * Modular sidebar composer for public listing detail pages.
  * Stacks independent card modules in a flex column with consistent spacing.
  *
- * Each module is independently imported and self-manages its own null states —
+ * Each module is independently imported and self-manages its own null states  - 
  * if a module has nothing to render it returns null automatically.
  *
  * Module render order (top → bottom):
- *   1. SidebarEnquiryCard  — pricing + primary CTA (always first)
- *   2. SidebarProfileCard  — owner / contact person
- *   3. SidebarOfferCard    — featured package or offer
- *   4. SidebarNewsCard     — press features / awards
- *   5. SidebarMapCard      — location map
+ *   1. SidebarEnquiryCard , pricing + primary CTA (always first)
+ *   2. SidebarProfileCard , owner / contact person
+ *   3. SidebarOfferCard   , featured package or offer
+ *   4. SidebarNewsCard    , press features / awards
+ *   5. SidebarMapCard     , location map
  *
  * ── ENQUIRY NOTE ──────────────────────────────────────────────────────────────
  * The full contact / enquiry form experience is NOT built here yet.
- * SidebarEnquiryCard is intentionally simple — it shows pricing, CTA, and
+ * SidebarEnquiryCard is intentionally simple, it shows pricing, CTA, and
  * urgency signals only. The complete enquiry flow will be designed and built
  * in a dedicated future phase (multi-step, trust signals, CRM integration, etc).
  * ─────────────────────────────────────────────────────────────────────────────
  *
  * Props:
- *   entity      {object}  — full listing / venue / vendor data object
- *   entityType  {string}  — "venue" | "planner" | "photographer" | etc.
- *   C           {object}  — colour palette (from getLightPalette / getDarkPalette)
- *   onEnquire   {fn}      — called when primary CTA clicked
- *   onSave      {fn}      — called when Save button clicked
- *   onCompare   {fn}      — called when Compare button clicked
- *   onViewMap   {fn}      — called when map CTA clicked
+ *   entity      {object} , full listing / venue / vendor data object
+ *   entityType  {string} , "venue" | "planner" | "photographer" | etc.
+ *   C           {object} , colour palette (from getLightPalette / getDarkPalette)
+ *   onEnquire   {fn}     , called when primary CTA clicked
+ *   onSave      {fn}     , called when Save button clicked
+ *   onCompare   {fn}     , called when Compare button clicked
+ *   onViewMap   {fn}     , called when map CTA clicked
  *   isSaved     {bool}
  *   isCompared  {bool}
- *   modules     {array}   — optional explicit override of module order/visibility
+ *   modules     {array}  , optional explicit override of module order/visibility
  *                           e.g. ["enquiry", "profile", "map"] skips news/offer
  */
 
@@ -41,7 +41,7 @@ import SidebarNewsCard    from "./SidebarNewsCard";
 import SidebarOfferCard   from "./SidebarOfferCard";
 import SidebarMapCard     from "./SidebarMapCard";
 
-// Default module order — every module is optional (self-nulls if no data)
+// Default module order, every module is optional (self-nulls if no data)
 const DEFAULT_MODULES = [
   "enquiry",
   "profile",

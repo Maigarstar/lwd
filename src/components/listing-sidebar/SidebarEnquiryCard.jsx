@@ -4,7 +4,7 @@
  * The primary conversion module in the listing sidebar.
  * Shows pricing, rating, response badge, urgency signals, and CTA buttons.
  *
- * MODULAR — kept intentionally simple. The full enquiry/contact form experience
+ * MODULAR, kept intentionally simple. The full enquiry/contact form experience
  * will be designed and built in a dedicated future phase.
  *
  * This card does NOT include an embedded contact form.
@@ -12,11 +12,11 @@
  * full form is added.
  *
  * Props:
- *   entity    {object}  — listing/venue data
- *   C         {object}  — colour palette
- *   onEnquire {fn}      — primary CTA callback (open modal, scroll to form, etc.)
- *   onSave    {fn}      — save/shortlist callback
- *   onCompare {fn}      — compare callback
+ *   entity    {object} , listing/venue data
+ *   C         {object} , colour palette
+ *   onEnquire {fn}     , primary CTA callback (open modal, scroll to form, etc.)
+ *   onSave    {fn}     , save/shortlist callback
+ *   onCompare {fn}     , compare callback
  *   isSaved   {bool}
  *   isCompared{bool}
  */
@@ -120,7 +120,7 @@ export default function SidebarEnquiryCard({
     : entity.priceLabel || null;
 
   return (
-    // .lwd-enquiry-anchor — future contact form will be placed here or triggered from here
+    // .lwd-enquiry-anchor, future contact form will be placed here or triggered from here
     <div className="lwd-enquiry-anchor" style={{
       border: `1px solid ${C.border}`,
       background: C.surface || C.card,
@@ -152,7 +152,7 @@ export default function SidebarEnquiryCard({
       {/* Urgency / conversion signals */}
       <UrgencySignals entity={entity} C={C} />
 
-      {/* Primary CTA — full contact form is a future phase */}
+      {/* Primary CTA, full contact form is a future phase */}
       <button
         onClick={onEnquire}
         style={{
@@ -230,7 +230,7 @@ export default function SidebarEnquiryCard({
         </button>
       </div>
 
-      {/* Subtle trust note — will be replaced by full form trust signals in future phase */}
+      {/* Subtle trust note, will be replaced by full form trust signals in future phase */}
       <p style={{
         fontFamily: FB,
         fontSize: 11,

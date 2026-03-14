@@ -71,7 +71,7 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
             </div>
           )}
 
-          {/* Online indicator — top-left */}
+          {/* Online indicator, top-left */}
           <div
             style={{
               position:   "absolute",
@@ -311,7 +311,7 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
           {/* ── Three-button row ── */}
           <div style={{ display: "flex", gap: 6 }}>
 
-            {/* View Venue — gold filled primary */}
+            {/* View Venue, gold filled primary */}
             <button
               onClick={(e) => { e.stopPropagation(); onView?.(v); }}
               onMouseEnter={() => setHovView(true)}
@@ -336,7 +336,7 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
               View Venue
             </button>
 
-            {/* Quick View — ghost */}
+            {/* Quick View, ghost */}
             <button
               onClick={(e) => { e.stopPropagation(); onQuickView?.(v); }}
               onMouseEnter={() => setHovQV(true)}
@@ -360,7 +360,7 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
               Quick View
             </button>
 
-            {/* Chat / Message — green if online */}
+            {/* Chat / Message, green if online */}
             <button
               onClick={(e) => { e.stopPropagation(); setLoginGate(true); }}
               onMouseEnter={() => setHovChat(true)}

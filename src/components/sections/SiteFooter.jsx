@@ -1,12 +1,12 @@
 // ─── src/components/sections/SiteFooter.jsx ──────────────────────────────────
-// Universal luxury footer — used on every page.
+// Universal luxury footer, used on every page.
 // Always dark. Continuous iconic-venues scroll band. Institutional tone.
 import { useTheme } from "../../theme/ThemeContext";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
 
-// ── Iconic venue names (curated global luxury alliance — display only) ────────
+// ── Iconic venue names (curated global luxury alliance, display only) ────────
 const ICONIC_VENUES = [
   "Rosewood","Belmond","Aman","Six Senses","Mandarin Oriental","Oetker Collection",
   "Four Seasons","The Peninsula Hotels","Raffles","One and Only","Auberge Resorts",
@@ -363,7 +363,7 @@ export default function SiteFooter({
                 </div>
               ))}
 
-              {/* WhatsApp — monochrome SVG icon */}
+              {/* WhatsApp, monochrome SVG icon */}
               <a
                 href={WA_URL}
                 target="_blank"

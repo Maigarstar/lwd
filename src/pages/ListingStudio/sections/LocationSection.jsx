@@ -374,7 +374,7 @@ const LocationSection = ({ formData, onChange }) => {
                 if (addr.postcode)      onChange('postcode', addr.postcode);
                 if (addr.region)        onChange('region', addr.region);
                 if (addr.country && COUNTRY_KEYS.includes(addr.country)) onChange('country', addr.country);
-              } catch { /* invalid JSON — ignore */ }
+              } catch { /* invalid JSON, ignore */ }
               setShowAddressAI(false);
             }}
             label="Find Address"
@@ -616,7 +616,7 @@ const LocationSection = ({ formData, onChange }) => {
             </button>
           </div>
           <p style={{ fontSize: 11, color: '#bbb', marginTop: 5, marginBottom: 0 }}>
-            Paste a lat,lng pair — the fields below will populate automatically
+            Paste a lat,lng pair, the fields below will populate automatically
           </p>
         </div>
 

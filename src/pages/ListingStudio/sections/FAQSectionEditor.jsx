@@ -1,15 +1,15 @@
 /**
- * FAQSectionEditor — Listing Studio editor for the FAQ section
+ * FAQSectionEditor, Listing Studio editor for the FAQ section
  *
  * Fields managed:
- *   faq_enabled          — boolean section toggle
- *   faq_title            — section heading (default "FAQs")
- *   faq_subtitle         — subtitle line below heading
- *   faq_cta_enabled      — boolean CTA block toggle
- *   faq_cta_headline     — CTA headline
- *   faq_cta_subtext      — CTA sub-text
- *   faq_cta_button_text  — CTA button label
- *   faq_categories       — array (max 4) of:
+ *   faq_enabled         , boolean section toggle
+ *   faq_title           , section heading (default "FAQs")
+ *   faq_subtitle        , subtitle line below heading
+ *   faq_cta_enabled     , boolean CTA block toggle
+ *   faq_cta_headline    , CTA headline
+ *   faq_cta_subtext     , CTA sub-text
+ *   faq_cta_button_text , CTA button label
+ *   faq_categories      , array (max 4) of:
  *     { id, icon, category, questions: [{id, q, a, sortOrder}], sortOrder }
  *
  * Frontend visibility rule:
@@ -234,7 +234,7 @@ const FAQSectionEditor = ({ formData, onChange }) => {
 
       {/* Section toggle */}
       <SectionToggle enabled={enabled} onChange={v => set('faq_enabled', v)} label="Section visibility"
-        hint={on => on ? 'FAQ section is visible on the listing' : 'FAQ section is hidden — enable to show it'} />
+        hint={on => on ? 'FAQ section is visible on the listing' : 'FAQ section is hidden, enable to show it'} />
 
       <div style={{ opacity: enabled ? 1 : 0.55, transition: 'opacity 0.2s' }}>
 
@@ -287,7 +287,7 @@ const FAQSectionEditor = ({ formData, onChange }) => {
                     onChange('faq_categories', newCats);
                     setShowFaqAI(false);
                   } catch {
-                    // Not valid JSON — ignore
+                    // Not valid JSON, ignore
                   }
                 }}
                 label="Generate FAQs"
@@ -315,7 +315,7 @@ const FAQSectionEditor = ({ formData, onChange }) => {
         {/* CTA block */}
         <div style={{ paddingTop: 20, borderTop: '1px solid #e8e2da' }}>
           <p style={{ fontSize: 11, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-            CTA Block — "Still have a question?"
+            CTA Block, "Still have a question?"
           </p>
           <SectionToggle enabled={ctaEnabled} onChange={v => set('faq_cta_enabled', v)} label="CTA block visibility"
             hint={on => on ? 'CTA shown below FAQ section' : 'CTA block hidden'} />
@@ -335,7 +335,7 @@ const FAQSectionEditor = ({ formData, onChange }) => {
             <div>
               <label style={labelStyle}>CTA Sub-text</label>
               <input type="text" value={formData?.faq_cta_subtext || ''} onChange={e => set('faq_cta_subtext', e.target.value)}
-                placeholder="Our team responds within 2 hours — we'd love to help." style={inputStyle} />
+                placeholder="Our team responds within 2 hours, we'd love to help." style={inputStyle} />
             </div>
           </div>
         </div>

@@ -59,7 +59,7 @@ const DARK = {
 };
 const Theme = createContext(LIGHT);
 const useT = () => useContext(Theme);
-// Font stacks — resolved via CSS custom properties set by ThemeLoader
+// Font stacks, resolved via CSS custom properties set by ThemeLoader
 const FD = "var(--font-heading-primary)"; // display
 const FB = "var(--font-body)";            // body
 
@@ -273,7 +273,7 @@ VENUE.contact.addressFormatted = [
   VENUE.contact.address.country,
 ].join(", ");
 
-// ─── RECENTLY VIEWED — localStorage helpers ────────────────────────────────────
+// ─── RECENTLY VIEWED, localStorage helpers ────────────────────────────────────
 const RV_KEY = 'ldw_recently_viewed';
 const MAX_RV_STORED = 6;
 
@@ -688,7 +688,7 @@ function HeroSplit({ venue, onEnquire }) {
       height: isMobile ? "auto" : "62vh",
       marginTop: 64,
     }}>
-      {/* Image — top on mobile, left on desktop */}
+      {/* Image, top on mobile, left on desktop */}
       <HeroSlider imgs={venue.imgs} height={isMobile ? "44vh" : "100%"}>
         {venue.featured && (
           <div style={{ position: "absolute", top: 20, left: 20, display: "inline-flex", padding: "4px 12px", border: `1px solid ${C.gold}`, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(8px)" }}>
@@ -696,7 +696,7 @@ function HeroSplit({ venue, onEnquire }) {
           </div>
         )}
       </HeroSlider>
-      {/* Info — below on mobile, right on desktop */}
+      {/* Info, below on mobile, right on desktop */}
       <div style={{
         background: C.surface,
         borderLeft: isMobile ? "none" : `1px solid ${C.border}`,
@@ -857,7 +857,7 @@ function HeroVideo({ venue, onEnquire }) {
         pointerEvents: "none",
       }} />
 
-      {/* Content — same layout as Cinematic */}
+      {/* Content, same layout as Cinematic */}
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "0 40px 52px", animation: "fadeUp 0.8s ease both" }}>
         {venue.featured && (
           <div style={{ display: "inline-flex", marginBottom: 12, padding: "4px 12px", border: `1px solid ${C.gold}`, background: "rgba(157,135,62,0.18)" }}>
@@ -1039,7 +1039,7 @@ function StickyTabNav({ venue, activeTab, onTabClick }) {
 }
 
 // ─── SECTION SIDE IMAGE ──────────────────────────────────────────────────────
-// Consistent 3:4 portrait block — same size for ALL sections. No layout shift.
+// Consistent 3:4 portrait block, same size for ALL sections. No layout shift.
 function SectionSideImage({ src, alt = '' }) {
   if (!src) return null;
   return (
@@ -1074,7 +1074,7 @@ function SectionLayout({ children, sideImg, isMobile }) {
   );
 }
 
-// ─── HERO WRAPPER — style switcher ───────────────────────────────────────────
+// ─── HERO WRAPPER, style switcher ───────────────────────────────────────────
 function Hero({ venue, heroStyle, setHeroStyle, onEnquire }) {
   const C = useT();
   // Only show Video option if the venue has video configured
@@ -1090,7 +1090,7 @@ function Hero({ venue, heroStyle, setHeroStyle, onEnquire }) {
       {heroStyle === "split"     && <HeroSplit venue={venue} onEnquire={onEnquire} />}
       {heroStyle === "magazine"  && <HeroMagazine venue={venue} onEnquire={onEnquire} />}
       {heroStyle === "video"     && <HeroVideo venue={venue} onEnquire={onEnquire} />}
-      {/* Style picker — admin/preview tool (vendor backend will replace this) */}
+      {/* Style picker, admin/preview tool (vendor backend will replace this) */}
       <div style={{
         position: "fixed", bottom: 80, right: 16, zIndex: 800,
         background: C.surface, border: `1px solid ${C.border}`,
@@ -1631,7 +1631,7 @@ function SidebarNotices({ notices, venueName }) {
                 <div style={{
                   borderTop: `1px solid ${C.border}`,
                 }}>
-                  {/* Image — only for news type */}
+                  {/* Image, only for news type */}
                   {n.img && (
                     <div style={{ position: "relative", overflow: "hidden" }}>
                       <img
@@ -1696,7 +1696,7 @@ function SidebarNotices({ notices, venueName }) {
 // ─── SIDEBAR: INSTAGRAM TEASER ───────────────────────────────────────────────
 function SidebarInstagram({ venue }) {
   const C = useT();
-  // Placeholder tiles — real impl pulls from Instagram Basic Display API
+  // Placeholder tiles, real impl pulls from Instagram Basic Display API
   const posts = [
     { id: 0, src: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=240&q=75" },
     { id: 1, src: "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=240&q=75" },
@@ -1750,7 +1750,7 @@ function LeadForm({ venue }) {
       content: (
         <div>
           <label style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.6px", textTransform: "uppercase", display: "block", marginBottom: 8 }}>
-            Guests — <span style={{ color: C.gold, fontWeight: 700 }}>{form.guests}</span>
+            Guests, <span style={{ color: C.gold, fontWeight: 700 }}>{form.guests}</span>
           </label>
           <input type="range" min={20} max={200} value={form.guests} onChange={e => setForm(f => ({ ...f, guests: +e.target.value }))}
             style={{ width: "100%", accentColor: C.gold }} />
@@ -1908,7 +1908,7 @@ function LeadForm({ venue }) {
   );
 }
 
-// ─── IMAGE GALLERY — Coco-style 3-photo preview ──────────────────────────────
+// ─── IMAGE GALLERY, Coco-style 3-photo preview ──────────────────────────────
 function ImageGallery({ gallery, onOpenLight }) {
   const C = useT();
   const isMobile = useIsMobile();
@@ -2007,7 +2007,7 @@ function ImageGallery({ gallery, onOpenLight }) {
         </div>
       )}
 
-      {/* ── Full gallery — masonry ── */}
+      {/* ── Full gallery, masonry ── */}
       {allOpen && (
         <div style={{ animation: "fadeUp 0.4s ease" }}>
           <div style={{ columns: isMobile ? 2 : 3, columnGap: 6, marginBottom: 16 }}>
@@ -2065,7 +2065,7 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
     return () => window.removeEventListener("keydown", fn);
   }, [onClose, onPrev, onNext, viewAll]);
 
-  // Auto-play slideshow — stop if idx is null (lightbox closed)
+  // Auto-play slideshow, stop if idx is null (lightbox closed)
   useEffect(() => {
     if (!autoPlay || idx === null) return;
     const timer = setInterval(() => onNext(), 3000);
@@ -2080,7 +2080,7 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
     }
   }, [idx]);
 
-  // Scroll active thumbnail into view — scroll the strip container, not the page
+  // Scroll active thumbnail into view, scroll the strip container, not the page
   useEffect(() => {
     if (!thumbRef.current) return;
     const strip = thumbRef.current;
@@ -2102,7 +2102,7 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
 
   // Share via email
   const handleEmailShare = () => {
-    const subject = encodeURIComponent(`Photo — ${venue.name || 'Wedding Venue'}`);
+    const subject = encodeURIComponent(`Photo, ${venue.name || 'Wedding Venue'}`);
     const body = encodeURIComponent(`Check out this photo:\n${photo.alt || ""}\n\nPhotographer: ${pg?.name || "Unknown"}\n${window.location.href}#photo-${photo.id}`);
     window.open(`mailto:?subject=${subject}&body=${body}`);
   };
@@ -2111,7 +2111,7 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
   const handlePinterestShare = () => {
     const url = encodeURIComponent(window.location.href);
     const media = encodeURIComponent(photo.src);
-    const desc = encodeURIComponent(`${photo.alt || "Villa Rosanova"} — Photo by ${pg?.name || ""}`);
+    const desc = encodeURIComponent(`${photo.alt || "Villa Rosanova"}, Photo by ${pg?.name || ""}`);
     window.open(`https://pinterest.com/pin/create/button/?url=${url}&media=${media}&description=${desc}`, "_blank", "width=600,height=400");
   };
 
@@ -2123,7 +2123,7 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
 
   // Share via Instagram (copy link + open Instagram)
   const handleInstagramShare = () => {
-    navigator.clipboard.writeText(`${photo.alt || "Villa Rosanova"} — Photo by ${pg?.name || ""}\n${window.location.href}#photo-${photo.id}`).then(() => {
+    navigator.clipboard.writeText(`${photo.alt || "Villa Rosanova"}, Photo by ${pg?.name || ""}\n${window.location.href}#photo-${photo.id}`).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       window.open("https://www.instagram.com/", "_blank");
@@ -2252,7 +2252,7 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
           {pg && <span style={{ fontFamily: FB, fontSize: 11, color: "rgba(255,255,255,0.35)" }}>📷 {pg.name}</span>}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {/* Auto-play toggle — hidden on mobile */}
+          {/* Auto-play toggle, hidden on mobile */}
           {!isMobile && (
             <button onClick={() => setAutoPlay((a) => !a)}
               style={{
@@ -2267,7 +2267,7 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
               {autoPlay ? "❚❚" : "▶"} {autoPlay ? "Pause" : "Slideshow"}
             </button>
           )}
-          {/* View All — hidden on mobile */}
+          {/* View All, hidden on mobile */}
           {!isMobile && (
             <button onClick={() => setViewAll(true)}
               style={{
@@ -2317,7 +2317,7 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
               animation: "fadeIn 0.3s ease",
             }}
           />
-          {/* Nav arrows — on mobile show smaller inline arrows */}
+          {/* Nav arrows, on mobile show smaller inline arrows */}
           {isMobile ? (
             <>
               <button onClick={(e) => { e.stopPropagation(); onPrev(); }} style={{
@@ -2522,7 +2522,7 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
                         "{c.text}"
                       </div>
                       <div style={{ fontFamily: FB, fontSize: 10, color: "rgba(201,168,76,0.5)", marginTop: 6, fontWeight: 600 }}>
-                        — {c.name}
+                       , {c.name}
                       </div>
                     </div>
                   ))}
@@ -2589,12 +2589,12 @@ function AboutSection({ venue, isDbVenue = false }) {
       {/* Single-column editorial layout */}
       <div>
 
-        {/* Intro paragraph — uses DB short_description when available */}
+        {/* Intro paragraph, uses DB short_description when available */}
         <p style={{ fontFamily: FB, fontSize: isMobile ? 15 : 16, color: C.textMid, lineHeight: 1.9, marginBottom: 28, maxWidth: 780 }}>
           {venue.description || venue.tagline || "Set within 120 acres of rolling Tuscan countryside, Villa Rosanova is one of the finest privately-owned estates in Italy. Built in 1847 for the Marchese di Rosanova, the property has been meticulously restored to its original grandeur while offering every modern comfort a discerning couple could wish for."}
         </p>
 
-        {/* Full description — DB venues: always shown inline, no read more gate */}
+        {/* Full description, DB venues: always shown inline, no read more gate */}
         {isDbVenue && venue.fullDescription && (
           <div
             className="ldw-prose-body"
@@ -2603,21 +2603,21 @@ function AboutSection({ venue, isDbVenue = false }) {
           />
         )}
 
-        {/* Second paragraph — static Villa Rosanova content, only on /venue */}
+        {/* Second paragraph, static Villa Rosanova content, only on /venue */}
         {!isDbVenue && (
         <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9, marginBottom: 16, maxWidth: 780 }}>
-          From the frescoed Grand Salon — with its original parquet floors and three Venetian chandeliers — to the centuries-old cypress garden, every space has been designed to create moments of extraordinary beauty. With accommodation for 58 guests across 24 rooms and 6 suites, Villa Rosanova is the perfect setting for multi-day wedding celebrations.
+          From the frescoed Grand Salon, with its original parquet floors and three Venetian chandeliers, to the centuries-old cypress garden, every space has been designed to create moments of extraordinary beauty. With accommodation for 58 guests across 24 rooms and 6 suites, Villa Rosanova is the perfect setting for multi-day wedding celebrations.
         </p>
         )}
 
-        {/* Expandable paragraphs — static Villa Rosanova content, only on /venue */}
+        {/* Expandable paragraphs, static Villa Rosanova content, only on /venue */}
         {!isDbVenue && (
         <div style={{ overflow: "hidden", maxHeight: expanded ? 500 : 0, transition: "max-height 0.5s ease", maxWidth: 780 }}>
           <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9, marginBottom: 16 }}>
-            The estate produces its own Chianti Classico wine, cold-pressed extra virgin olive oil, and seasonal truffles — all of which feature on our exclusively crafted wedding menus. Every detail of your celebration is managed by our dedicated events team, who have hosted over 300 weddings across four decades.
+            The estate produces its own Chianti Classico wine, cold-pressed extra virgin olive oil, and seasonal truffles, all of which feature on our exclusively crafted wedding menus. Every detail of your celebration is managed by our dedicated events team, who have hosted over 300 weddings across four decades.
           </p>
           <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9 }}>
-            Villa Rosanova has been featured in Vogue, Tatler and Harper's Bazaar, and has received the Luxury Wedding Directory's Best Villa award three years in succession. For couples seeking a truly once-in-a-lifetime setting — where privacy, beauty and impeccable service converge — there is simply nowhere quite like it.
+            Villa Rosanova has been featured in Vogue, Tatler and Harper's Bazaar, and has received the Luxury Wedding Directory's Best Villa award three years in succession. For couples seeking a truly once-in-a-lifetime setting, where privacy, beauty and impeccable service converge, there is simply nowhere quite like it.
           </p>
         </div>
         )}
@@ -2638,7 +2638,7 @@ function AboutSection({ venue, isDbVenue = false }) {
         </button>
         )}
 
-        {/* Awards — horizontal scroll on mobile */}
+        {/* Awards, horizontal scroll on mobile */}
         {venue.awards?.length > 0 && (
         <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20, marginBottom: 16 }}>
           <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 12 }}>Awards & Recognition</div>
@@ -2748,7 +2748,7 @@ function ContactSection({ venue }) {
             )}
           </div>
 
-          {/* Response metrics — only show if data exists */}
+          {/* Response metrics, only show if data exists */}
           {rm.averageResponseHours && (
           <div style={{ marginTop: 14, padding: "12px 16px", background: C.goldLight, border: `1px solid ${C.goldBorder}`, display: "flex", alignItems: "flex-start", gap: 10 }}>
             <Icon name="zap" size={14} color={C.gold} style={{ marginTop: 1 }} />
@@ -2878,7 +2878,7 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
   };
 
   const handleEmailShare = () => {
-    const subject = encodeURIComponent(`Video — ${video.title}`);
+    const subject = encodeURIComponent(`Video, ${video.title}`);
     const body = encodeURIComponent(`Check out this film:\n${video.title}\n\nFilmed by: ${vg?.name || "Unknown"}\n${window.location.href}#film-${video.id}`);
     window.open(`mailto:?subject=${subject}&body=${body}`);
   };
@@ -2891,7 +2891,7 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
 
   // Share via Instagram (copy link + open Instagram)
   const handleInstagramShare = () => {
-    navigator.clipboard.writeText(`${video.title} — Filmed by ${vg?.name || ""}\n${window.location.href}#film-${video.id}`).then(() => {
+    navigator.clipboard.writeText(`${video.title}, Filmed by ${vg?.name || ""}\n${window.location.href}#film-${video.id}`).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       window.open("https://www.instagram.com/", "_blank");
@@ -2902,7 +2902,7 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
   const handlePinterestShare = () => {
     const url = encodeURIComponent(window.location.href + `#film-${video.id}`);
     const media = encodeURIComponent(video.thumb);
-    const desc = encodeURIComponent(`${video.title} — Filmed by ${vg?.name || ""} at Villa Rosanova`);
+    const desc = encodeURIComponent(`${video.title}, Filmed by ${vg?.name || ""} at Villa Rosanova`);
     window.open(`https://pinterest.com/pin/create/button/?url=${url}&media=${media}&description=${desc}`, "_blank", "width=600,height=400");
   };
 
@@ -2987,7 +2987,7 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
       }}>
         {/* Video area */}
         <div style={{ flex: isMobile ? "none" : 1, display: "flex", flexDirection: "column", minWidth: 0, position: "relative" }}>
-          {/* Prev / Next arrows — hidden on mobile */}
+          {/* Prev / Next arrows, hidden on mobile */}
           {!isMobile && videos.length > 1 && navBtn("prev", hasPrev, hovPrev, setHovPrev)}
           {!isMobile && videos.length > 1 && navBtn("next", hasNext, hovNext, setHovNext)}
 
@@ -3239,7 +3239,7 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
                         "{c.text}"
                       </div>
                       <div style={{ fontFamily: FB, fontSize: 10, color: "rgba(201,168,76,0.5)", marginTop: 6, fontWeight: 600 }}>
-                        — {c.name}
+                       , {c.name}
                       </div>
                     </div>
                   ))}
@@ -3350,7 +3350,7 @@ function VideoGallery({ videos, venue }) {
         </div>
       </div>
 
-      {/* Video info bar — stacked on mobile */}
+      {/* Video info bar, stacked on mobile */}
       <div className="vp-video-info" style={{
         padding: isMobile ? "14px 0" : "16px 20px", background: isMobile ? "transparent" : C.surface,
         border: isMobile ? "none" : `1px solid ${C.border}`, borderTop: "none",
@@ -3406,7 +3406,7 @@ function VideoGallery({ videos, venue }) {
         )}
       </div>
 
-      {/* Thumbnail strip — slider on mobile, grid on desktop */}
+      {/* Thumbnail strip, slider on mobile, grid on desktop */}
       {isMobile ? (
         <div className="vp-films-slider" style={{
           display: "flex", gap: 10, overflowX: "auto", scrollSnapType: "x mandatory",
@@ -3742,7 +3742,7 @@ function SpacesSection({ spaces }) {
               animation: `fadeUp 0.5s ease ${i * 0.08}s both`,
               alignItems: 'center',
             }}>
-              {/* Image column — full landscape, max 750px height */}
+              {/* Image column, full landscape, max 750px height */}
               {s.img && (
                 <div style={{
                   order: isMobile ? 0 : (isEven ? 0 : 1),
@@ -3764,7 +3764,7 @@ function SpacesSection({ spaces }) {
                 </div>
               )}
 
-              {/* Content column — editorial layout, more open spacing */}
+              {/* Content column, editorial layout, more open spacing */}
               <div style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -3789,7 +3789,7 @@ function SpacesSection({ spaces }) {
                   </div>
                 )}
 
-                {/* Space name — serif headline */}
+                {/* Space name, serif headline */}
                 <div style={{
                   fontFamily: FD,
                   fontSize: isMobile ? 24 : 32,
@@ -3800,10 +3800,10 @@ function SpacesSection({ spaces }) {
                   {s.name}
                 </div>
 
-                {/* Capacity numbers — clean row */}
+                {/* Capacity numbers, clean row */}
                 <SpaceCapacityRow space={s} C={C} />
 
-                {/* Description — readable paragraph width */}
+                {/* Description, readable paragraph width */}
                 {s.description && (
                   <p style={{
                     fontFamily: FB,
@@ -3877,14 +3877,14 @@ function SpacesSection({ spaces }) {
             style={{ position: 'relative', maxWidth: 900, width: '100%', backgroundColor: '#fff', borderRadius: 2 }}
           >
             <div style={{ padding: '16px 20px', borderBottom: '1px solid #e5ddd0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontFamily: FB, fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>Floor Plan — {floorPlanModal.name}</span>
+              <span style={{ fontFamily: FB, fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>Floor Plan, {floorPlanModal.name}</span>
               <button
                 type="button"
                 onClick={() => setFloorPlanModal(null)}
                 style={{ border: 'none', background: 'none', fontSize: 22, color: '#888', cursor: 'pointer', lineHeight: 1 }}
               >×</button>
             </div>
-            <img src={floorPlanModal.url} alt={`Floor plan — ${floorPlanModal.name}`} style={{ width: '100%', display: 'block', borderRadius: '0 0 2px 2px' }} />
+            <img src={floorPlanModal.url} alt={`Floor plan, ${floorPlanModal.name}`} style={{ width: '100%', display: 'block', borderRadius: '0 0 2px 2px' }} />
           </div>
         </div>
       )}
@@ -4474,7 +4474,7 @@ function Reviews({ testimonials, venue }) {
           </div>
         </div>
 
-        {/* Review cards — slider on mobile, paginated grid on desktop */}
+        {/* Review cards, slider on mobile, paginated grid on desktop */}
         {isMobile ? (
           <div style={{ display: "flex", gap: 12, overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", marginBottom: 20, scrollbarWidth: "none", msOverflowStyle: "none" }} className="vp-reviews-slider">
             {testimonials.map(reviewCard)}
@@ -4562,7 +4562,7 @@ function EnquiryModal({ venue, onClose }) {
   };
 
   const prefilledMsg = () =>
-    `Hi, we're ${form.name1}${form.name2 ? " & " + form.name2 : ""}. We're planning a ${form.hasDate ? `wedding on ${form.date}` : `${form.season?.split("  ")[0].toLowerCase()} ${form.year} wedding`} for ${form.guests} guests${form.budget ? " with a budget of " + form.budget : ""}. We'd love to learn more about ${venue.name} — could you share availability and pricing?`;
+    `Hi, we're ${form.name1}${form.name2 ? " & " + form.name2 : ""}. We're planning a ${form.hasDate ? `wedding on ${form.date}` : `${form.season?.split("  ")[0].toLowerCase()} ${form.year} wedding`} for ${form.guests} guests${form.budget ? " with a budget of " + form.budget : ""}. We'd love to learn more about ${venue.name}, could you share availability and pricing?`;
 
   const echoSummary = () => {
     const datePart = form.hasDate
@@ -4585,7 +4585,7 @@ function EnquiryModal({ venue, onClose }) {
           <div style={{ position: "absolute", bottom: 14, left: 24, fontFamily: FD, fontSize: 13, color: "rgba(255,255,255,0.8)", letterSpacing: "0.4px" }}>{venue.name} · {venue.location}</div>
         </div>
 
-        {/* Gold ✓ circle — floats on the seam */}
+        {/* Gold ✓ circle, floats on the seam */}
         <div style={{ display: "flex", justifyContent: "center", marginTop: -28 }}>
           <div style={{
             width: 56, height: 56, borderRadius: "50%",
@@ -4603,7 +4603,7 @@ function EnquiryModal({ venue, onClose }) {
             <strong style={{ color: C.text, fontWeight: 600 }}>{venue.responseTime}</strong>.
           </p>
 
-          {/* Echo card — reflects their selections back */}
+          {/* Echo card, reflects their selections back */}
           <div style={{
             background: C.goldLight, border: `1px solid ${C.goldBorder}`,
             borderRadius: "var(--lwd-radius-card)", padding: "14px 18px", marginBottom: 24, textAlign: "left",
@@ -4652,7 +4652,7 @@ function EnquiryModal({ venue, onClose }) {
         {/* Step content */}
         <div style={{ padding: "20px 28px 0" }}>
 
-          {/* Step 1 — Date */}
+          {/* Step 1, Date */}
           {step === 1 && (
             <div>
               <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
@@ -4689,7 +4689,7 @@ function EnquiryModal({ venue, onClose }) {
             </div>
           )}
 
-          {/* Step 2 — Guests + Budget */}
+          {/* Step 2, Guests + Budget */}
           {step === 2 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               <div>
@@ -4707,7 +4707,7 @@ function EnquiryModal({ venue, onClose }) {
             </div>
           )}
 
-          {/* Step 3 — Contact */}
+          {/* Step 3, Contact */}
           {step === 3 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -4766,7 +4766,7 @@ const FAQ_DATA = [
     category: "The Venue",
     icon: "I",
     questions: [
-      { q: "Is Villa Rosanova available for exclusive use?", a: "Yes — Villa Rosanova is available for exclusive hire from Thursday to Sunday. Exclusive use includes all 24 bedrooms and 6 suites, full use of the grounds, gardens, pool pavilion and all venue spaces. Pricing from £28,000 for the full weekend." },
+      { q: "Is Villa Rosanova available for exclusive use?", a: "Yes, Villa Rosanova is available for exclusive hire from Thursday to Sunday. Exclusive use includes all 24 bedrooms and 6 suites, full use of the grounds, gardens, pool pavilion and all venue spaces. Pricing from £28,000 for the full weekend." },
       { q: "What is the maximum guest capacity?", a: "The estate accommodates up to 200 guests for a ceremony, 160 for a seated dinner and 180 for a standing reception. For intimate celebrations, we welcome parties from 20 guests." },
       { q: "Can we hold both the ceremony and reception here?", a: "Absolutely. The Cypress Garden seats 200 for outdoor ceremonies, while the Grand Salon accommodates 160 for indoor ceremonies. All reception spaces are on the same estate." },
     ],
@@ -4776,8 +4776,8 @@ const FAQ_DATA = [
     icon: "II",
     questions: [
       { q: "Do you work with an in-house caterer or can we bring our own?", a: "We have an award-winning in-house culinary team led by Chef Marco Bellini. External caterers are permitted with prior approval and a corkage arrangement. Our sommelier curates a bespoke wine list featuring our own estate Chianti Classico." },
-      { q: "Can you accommodate dietary requirements?", a: "Yes — our kitchen is fully equipped to cater for vegan, vegetarian, halal, kosher and gluten-free guests. Please advise your dedicated event planner of any requirements when confirming your booking." },
-      { q: "Is there a corkage fee if we bring our own wine?", a: "External wine and spirits are welcome at £18 per bottle. We recommend our estate wine list as a first choice — our Chianti Classico is particularly popular with guests." },
+      { q: "Can you accommodate dietary requirements?", a: "Yes, our kitchen is fully equipped to cater for vegan, vegetarian, halal, kosher and gluten-free guests. Please advise your dedicated event planner of any requirements when confirming your booking." },
+      { q: "Is there a corkage fee if we bring our own wine?", a: "External wine and spirits are welcome at £18 per bottle. We recommend our estate wine list as a first choice, our Chianti Classico is particularly popular with guests." },
     ],
   },
   {
@@ -4785,7 +4785,7 @@ const FAQ_DATA = [
     icon: "III",
     questions: [
       { q: "How many guests can stay on the estate overnight?", a: "Villa Rosanova sleeps 58 guests across 24 bedrooms and 6 suites. All rooms are uniquely decorated and include en-suite bathrooms. Bridal and groom suites are available with dedicated dressing areas." },
-      { q: "What are the check-in and check-out times?", a: "Check-in is from 3pm on your arrival day. Check-out is by 11am on your departure day. For exclusive use bookings, we are flexible around your schedule — please discuss timing with your event planner." },
+      { q: "What are the check-in and check-out times?", a: "Check-in is from 3pm on your arrival day. Check-out is by 11am on your departure day. For exclusive use bookings, we are flexible around your schedule, please discuss timing with your event planner." },
     ],
   },
   {
@@ -4800,7 +4800,7 @@ const FAQ_DATA = [
     category: "Planning & Suppliers",
     icon: "V",
     questions: [
-      { q: "Do we need to use your recommended suppliers?", a: "We have a curated list of preferred suppliers — florists, photographers, bands and planners — who know the estate well. However, you are welcome to bring your own suppliers subject to prior approval from our events team." },
+      { q: "Do we need to use your recommended suppliers?", a: "We have a curated list of preferred suppliers, florists, photographers, bands and planners, who know the estate well. However, you are welcome to bring your own suppliers subject to prior approval from our events team." },
       { q: "How far in advance should we book?", a: "Peak summer dates (June–September) book 18–24 months in advance. Spring and autumn dates are often available with 12 months' notice. We recommend securing your date as early as possible to avoid disappointment." },
       { q: "Is a wedding planner included in the venue hire?", a: "Our dedicated event coordinator will support you from enquiry through to your wedding day. For comprehensive planning services, we can recommend preferred planning partners." },
     ],
@@ -4886,7 +4886,7 @@ function FAQSection({ venue, onAsk }) {
                       }}>+</span>
                     </button>
 
-                    {/* Answer — smooth height transition */}
+                    {/* Answer, smooth height transition */}
                     <div style={{
                       overflow: "hidden",
                       maxHeight: isOpen ? 300 : 0,
@@ -5152,7 +5152,7 @@ function CompareBar({ items, onRemove, onClear }) {
 
 // ─── FOOTER ──────────────────────────────────────────────────────────────────
 function Footer() {
-  // Always dark — luxury brand standard, independent of light/dark page theme
+  // Always dark, luxury brand standard, independent of light/dark page theme
   const bg      = "#0c0c0a";
   const bgMid   = "#111110";
   const gold    = "#b8a05a";
@@ -5255,7 +5255,7 @@ function Footer() {
       <div style={{ background: bgMid, borderTop: `1px solid ${border}`, borderBottom: `1px solid ${border}` }}>
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 40px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24 }}>
           <div>
-            <div style={{ fontFamily: FD, fontSize: 18, color: text, marginBottom: 4 }}>The LWD Edit — monthly inspiration for couples</div>
+            <div style={{ fontFamily: FD, fontSize: 18, color: text, marginBottom: 4 }}>The LWD Edit, monthly inspiration for couples</div>
             <div style={{ fontFamily: FB, fontSize: 13, color: muted }}>Extraordinary venues, real weddings, and planning guides. No spam.</div>
           </div>
           <div style={{ display: "flex", gap: 0, flexShrink: 0 }}>
@@ -5773,7 +5773,7 @@ function AuraChat({ venue }) {
   );
 }
 
-// ─── COOKIE BANNER (standalone — no ChatContext dependency) ──────────────────
+// ─── COOKIE BANNER (standalone, no ChatContext dependency) ──────────────────
 const COOKIE_KEY = "lwd_cookies_accepted";
 function VenueCookieBanner() {
   const C = useT();
@@ -6089,17 +6089,17 @@ export default function VenueProfile({ onBack = null, slug = null }) {
               <SimilarVenues venue={VV} />
               <RecentlyViewed venue={VV} />
             </div>
-            {/* Sidebar — 4 zones, sticky on desktop */}
+            {/* Sidebar, 4 zones, sticky on desktop */}
             <div className="lwd-sidebar" style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 56, alignSelf: "start" }}>
-              {/* Zone 1 — Owner card (only if owner data available) */}
+              {/* Zone 1, Owner card (only if owner data available) */}
               {VV.owner && VV.owner.name && <OwnerCard owner={VV.owner} venue={VV} />}
-              {/* Zone 2 — Lead form (scrolls naturally) */}
+              {/* Zone 2, Lead form (scrolls naturally) */}
               <LeadForm venue={VV} />
-              {/* Zone 3 — Mini map + quick contact */}
+              {/* Zone 3, Mini map + quick contact */}
               <SidebarContact venue={VV} />
-              {/* Zone 4 — Venue notices (open days, offers, late availability, news) */}
+              {/* Zone 4, Venue notices (open days, offers, late availability, news) */}
               <SidebarNotices notices={VV.notices} venueName={VV.name} />
-              {/* Zone 5 — Instagram teaser (placeholder — to be connected to live feed) */}
+              {/* Zone 5, Instagram teaser (placeholder, to be connected to live feed) */}
               {/* <SidebarInstagram venue={VV} /> */}
             </div>
           </div>

@@ -35,7 +35,7 @@ const DescriptionSection = ({ formData, onChange }) => {
           onChange={e => {
             if (e.target.value.length <= SUMMARY_MAX) onChange('summary', e.target.value);
           }}
-          placeholder="A short editorial introduction — shown on listing cards and under the venue name on the listing page. Keep it punchy and evocative."
+          placeholder="A short editorial introduction, shown on listing cards and under the venue name on the listing page. Keep it punchy and evocative."
           style={{
             width: '100%',
             padding: '10px 12px',
@@ -95,11 +95,11 @@ const DescriptionSection = ({ formData, onChange }) => {
         <RichTextEditor
           value={formData?.description || ''}
           onChange={html => onChange('description', html)}
-          placeholder="Full description of the venue — its history, setting, atmosphere, and what makes it unique for a wedding…"
+          placeholder="Full description of the venue, its history, setting, atmosphere, and what makes it unique for a wedding…"
           minHeight={200}
         />
         <p style={{ fontSize: 10, color: '#aaa', margin: '4px 0 0' }}>
-          Supports bold, italic, headings, lists, links and blockquotes. Paste from Word — formatting is auto-cleaned.
+          Supports bold, italic, headings, lists, links and blockquotes. Paste from Word, formatting is auto-cleaned.
         </p>
 
         {/* ── READ MORE TOGGLE ──────────────────────────────────────── */}

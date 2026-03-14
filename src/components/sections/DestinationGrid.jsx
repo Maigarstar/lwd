@@ -94,7 +94,7 @@ export default function DestinationGrid({ onDestinationClick }) {
           >
             From coastal escapes to castle retreats, explore iconic venues that
             define elegance, romance, and grandeur by destination. Discover
-            trend-led destinations where style meets celebration — curated for
+            trend-led destinations where style meets celebration, curated for
             the modern couple with an eye for elegance.
           </p>
         </div>
@@ -175,7 +175,7 @@ export default function DestinationGrid({ onDestinationClick }) {
             key={d.name}
             role="button"
             tabIndex={0}
-            aria-label={`Explore ${d.name} — ${d.venues} venues`}
+            aria-label={`Explore ${d.name}, ${d.venues} venues`}
             onClick={() => {
               track("destination_click", { destination: d.name });
               onDestinationClick?.(d);

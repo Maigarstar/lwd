@@ -1,7 +1,7 @@
 /**
- * LayoutCurated — Style 4: Curated Editorial Mix
+ * LayoutCurated, Style 4: Curated Editorial Mix
  *
- * The balanced editorial layout — refined visual rhythm with category sections.
+ * The balanced editorial layout, refined visual rhythm with category sections.
  * Split hero, editor's picks, destinations, editorial break, real weddings,
  * latest stories, trending + honeymoons sidebar, fashion spotlight.
  *

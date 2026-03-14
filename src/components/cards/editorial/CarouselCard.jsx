@@ -2,7 +2,7 @@
 // Compact portrait card designed for horizontal scroll carousels.
 // Inspired by SheerLuxe's "THE GOLD EDIT" product carousel.
 //
-// Width is fixed (220px default) — parent carousel handles the scroll container.
+// Width is fixed (220px default), parent carousel handles the scroll container.
 // variants:
 //   "default"   → portrait 3:4, product name, brand below
 //   "editorial" → portrait 3:4, category label, headline (editorial story link)

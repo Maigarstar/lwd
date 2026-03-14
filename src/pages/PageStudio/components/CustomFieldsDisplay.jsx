@@ -1,5 +1,5 @@
 /**
- * CustomFieldsDisplay — Renders enabled custom fields in preview
+ * CustomFieldsDisplay, Renders enabled custom fields in preview
  *
  * Only renders fields marked as enabled.
  * Displays field values with type-appropriate formatting.

@@ -11,7 +11,7 @@ import CustomFieldsDisplay from './CustomFieldsDisplay';
 import { FEATURED_VENUES } from '../../../data/featuredVenues';
 
 /**
- * HomepagePreview — Right panel live preview
+ * HomepagePreview, Right panel live preview
  *
  * Phase 1: Section Reordering
  * - Renders sections in the order specified by order property
@@ -60,7 +60,7 @@ export default function HomepagePreview({ formData, C }) {
   return (
     <ThemeCtx.Provider value={C}>
       <div style={{ backgroundColor: C.black, minHeight: '100vh' }}>
-        {/* Render sections in sorted order — disabled sections fade out instantly */}
+        {/* Render sections in sorted order, disabled sections fade out instantly */}
         {sortedSections.map((section) => {
           const Component = SECTION_COMPONENTS[section.id];
           if (!Component) return null;

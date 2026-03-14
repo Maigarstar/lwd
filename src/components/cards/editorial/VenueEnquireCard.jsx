@@ -1,5 +1,5 @@
 // ─── VenueEnquireCard ────────────────────────────────────────────────────────
-// Full-width venue enquiry section — background image + centred form.
+// Full-width venue enquiry section, background image + centred form.
 // data: {
 //   background: string        // image URL
 //   headline: string

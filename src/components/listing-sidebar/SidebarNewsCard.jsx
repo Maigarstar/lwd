@@ -5,9 +5,9 @@
  * Keeps the venue feeling credible and editorially validated.
  *
  * Props:
- *   entity  {object} — listing data (entity.news, entity.awards, entity.pressFeatures)
- *   C       {object} — colour palette
- *   items   {array}  — optional explicit override: [{title, outlet, year, url}]
+ *   entity  {object}, listing data (entity.news, entity.awards, entity.pressFeatures)
+ *   C       {object}, colour palette
+ *   items   {array} , optional explicit override: [{title, outlet, year, url}]
  */
 
 const FD = "var(--font-heading-primary)";

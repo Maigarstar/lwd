@@ -1,10 +1,10 @@
 /**
- * WeddingWeekendSection — Listing Studio editor for the Wedding Weekend day cards
+ * WeddingWeekendSection, Listing Studio editor for the Wedding Weekend day cards
  *
  * Fields managed:
- *   wedding_weekend_enabled  — boolean section toggle
- *   wedding_weekend_subtitle — intro subtitle line below heading
- *   wedding_weekend_days     — array (max 4) of:
+ *   wedding_weekend_enabled , boolean section toggle
+ *   wedding_weekend_subtitle, intro subtitle line below heading
+ *   wedding_weekend_days    , array (max 4) of:
  *     { id, day, title, desc, sortOrder }
  *
  * Field limits (enforced in editor + frontend truncation):
@@ -52,7 +52,7 @@ const SectionToggle = ({ enabled, onChange }) => (
     <div>
       <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>Section visibility</div>
       <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>
-        {enabled ? 'Wedding Weekend section is visible on the listing' : 'Section is hidden — enable to show it'}
+        {enabled ? 'Wedding Weekend section is visible on the listing' : 'Section is hidden, enable to show it'}
       </div>
     </div>
     <button type="button" onClick={() => onChange(!enabled)} style={{
@@ -78,7 +78,7 @@ function DayCardEditor({ day, index, total, onUpdate, onRemove, onMove }) {
         <span style={{ fontSize: 11, color: '#bbb', width: 16, textAlign: 'center', flexShrink: 0 }}>{index + 1}</span>
         <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: day.day ? '#1a1a1a' : '#aaa' }}>
           {day.day || `Day ${index + 1}`}
-          {day.title && <span style={{ fontWeight: 400, color: '#aaa', marginLeft: 8 }}>— {day.title}</span>}
+          {day.title && <span style={{ fontWeight: 400, color: '#aaa', marginLeft: 8 }}> -  {day.title}</span>}
         </span>
         <button type="button" onClick={() => onMove(index, -1)} disabled={index === 0}
           style={{ border: 'none', background: 'none', cursor: index === 0 ? 'default' : 'pointer', opacity: index === 0 ? 0.3 : 1, fontSize: 13, padding: '0 2px' }}>↑</button>
@@ -115,7 +115,7 @@ function DayCardEditor({ day, index, total, onUpdate, onRemove, onMove }) {
             placeholder="Guests settle in. Welcome drinks on the loggia. Private vineyard tour at golden hour."
             style={{ ...inputStyle, minHeight: 60, resize: 'none' }} maxLength={110} />
           {charCount(day.desc, 110)}
-          <p style={hintStyle}>Max 110 characters — keeps all cards the same height on the listing</p>
+          <p style={hintStyle}>Max 110 characters, keeps all cards the same height on the listing</p>
         </div>
       </div>
     </div>
@@ -171,7 +171,7 @@ const WeddingWeekendSection = ({ formData, onChange }) => {
         <div style={{ marginBottom: 20 }}>
           <label style={labelStyle}>Section Subtitle</label>
           <input type="text" value={formData?.wedding_weekend_subtitle || ''} onChange={e => set('wedding_weekend_subtitle', e.target.value)}
-            placeholder="Villa Rosanova is designed for multi-day celebrations — a full wedding weekend experience"
+            placeholder="Villa Rosanova is designed for multi-day celebrations, a full wedding weekend experience"
             style={inputStyle} />
           <p style={hintStyle}>Short intro line shown below the section heading</p>
         </div>

@@ -15,17 +15,17 @@ export const NU = "var(--font-body)";              // Nunito Sans
 
 // ── Typography scale ─────────────────────────────────────────────────────────
 export const T = {
-  // Small labels — Nunito uppercase (never use GD for labels)
+  // Small labels, Nunito uppercase (never use GD for labels)
   label:     { fontFamily: NU, fontSize: 9,  letterSpacing: '0.13em', textTransform: 'uppercase', fontWeight: 600 },
   brand:     { fontFamily: NU, fontSize: 10, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 400 },
   meta:      { fontFamily: NU, fontSize: 11, fontWeight: 300 },
 
-  // Body — Nunito light weight for editorial feel
+  // Body, Nunito light weight for editorial feel
   bodySm:    { fontFamily: NU, fontSize: 12, fontWeight: 300, lineHeight: 1.55 },
   body:      { fontFamily: NU, fontSize: 14, fontWeight: 300, lineHeight: 1.65 },
   bodyMd:    { fontFamily: NU, fontSize: 15, fontWeight: 300, lineHeight: 1.7  },
 
-  // Headlines — Gilda Display only
+  // Headlines, Gilda Display only
   titleSm:   { fontFamily: GD, fontSize: 18, fontWeight: 400, lineHeight: 1.3  },
   titleMd:   { fontFamily: GD, fontSize: 24, fontWeight: 400, lineHeight: 1.2  },
   titleLg:   { fontFamily: GD, fontSize: 32, fontWeight: 400, lineHeight: 1.15 },
@@ -53,7 +53,7 @@ export const S = {
   xxxl: 64,
 };
 
-// ── Gold accent — matches site-wide value ────────────────────────────────────
+// ── Gold accent, matches site-wide value ────────────────────────────────────
 export const GOLD = '#C9A84C';
 
 // ── Resolve colour palette based on theme prop ───────────────────────────────

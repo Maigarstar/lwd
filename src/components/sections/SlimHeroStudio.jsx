@@ -1,5 +1,5 @@
 // ─── src/components/sections/SlimHeroStudio.jsx ────────────────────────────
-// Studio variant of SlimHero — identical visuals, full-bleed YouTube/Vimeo fix.
+// Studio variant of SlimHero, identical visuals, full-bleed YouTube/Vimeo fix.
 import { useState, useEffect, useRef } from "react";
 import { useTheme } from "../../theme/ThemeContext";
 import { track } from "../../utils/track";
@@ -537,12 +537,12 @@ export default function SlimHeroStudio({ venues = [], backgroundData = null, onV
         transition: "height 0.6s ease",
       }}
     >
-      {/* Background container — overflow hidden here to clip parallax images */}
+      {/* Background container, overflow hidden here to clip parallax images */}
       <div aria-hidden="true" style={{ position: "absolute", inset: 0, overflow: "hidden", zIndex: 0 }}>
-        {/* Custom background media — only render the ACTIVE backgroundType */}
+        {/* Custom background media, only render the ACTIVE backgroundType */}
         {backgroundData?.backgroundType ? (
           <>
-            {/* Image carousel — only when type is 'image' */}
+            {/* Image carousel, only when type is 'image' */}
             {backgroundData.backgroundType === 'image' && backgroundData.backgroundImages?.length > 0 && (
               <>
                 {backgroundData.backgroundImages.map((img, i) => (
@@ -575,7 +575,7 @@ export default function SlimHeroStudio({ venues = [], backgroundData = null, onV
               </>
             )}
 
-            {/* Video upload — only when type is 'video_upload' */}
+            {/* Video upload, only when type is 'video_upload' */}
             {backgroundData.backgroundType === 'video_upload' && backgroundData.backgroundVideos?.length > 0 && (
               <>
                 {backgroundData.backgroundVideos.map((vid, i) => (
@@ -611,7 +611,7 @@ export default function SlimHeroStudio({ venues = [], backgroundData = null, onV
               </>
             )}
 
-            {/* YouTube — full-bleed cover, no black bars */}
+            {/* YouTube, full-bleed cover, no black bars */}
             {backgroundData.backgroundType === 'youtube' && backgroundData.backgroundVideoUrl && extractYouTubeId(backgroundData.backgroundVideoUrl) && (
               <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
                 <iframe
@@ -634,7 +634,7 @@ export default function SlimHeroStudio({ venues = [], backgroundData = null, onV
               </div>
             )}
 
-            {/* Vimeo — full-bleed cover, no black bars */}
+            {/* Vimeo, full-bleed cover, no black bars */}
             {backgroundData.backgroundType === 'vimeo' && backgroundData.backgroundVideoUrl && extractVimeoId(backgroundData.backgroundVideoUrl) && (
               <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
                 <iframe
@@ -658,7 +658,7 @@ export default function SlimHeroStudio({ venues = [], backgroundData = null, onV
             )}
           </>
         ) : (
-          /* Fallback: FEATURED_VENUES carousel — parallax layer */
+          /* Fallback: FEATURED_VENUES carousel, parallax layer */
           venues.map((v, i) => (
             <div
               key={v.id}
@@ -760,7 +760,7 @@ export default function SlimHeroStudio({ venues = [], backgroundData = null, onV
           </span>
         </div>
 
-        {/* Headline — word-by-word reveal */}
+        {/* Headline, word-by-word reveal */}
         <h1
           style={{
             fontFamily: GD,
@@ -808,7 +808,7 @@ export default function SlimHeroStudio({ venues = [], backgroundData = null, onV
             marginRight: "auto",
           }}
         >
-          Intelligent discovery for modern luxury weddings — search by
+          Intelligent discovery for modern luxury weddings, search by
           destination, style, guest count, and collection.
         </p>
 
@@ -1054,7 +1054,7 @@ export default function SlimHeroStudio({ venues = [], backgroundData = null, onV
           >
             Ask Aura
           </span>{" "}
-          — get personalised venue suggestions instantly.
+         , get personalised venue suggestions instantly.
         </div>
 
         {/* Trust micro-line */}

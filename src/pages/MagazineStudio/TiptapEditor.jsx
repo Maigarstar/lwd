@@ -1,7 +1,7 @@
 /**
- * TiptapEditor — full WYSIWYG editor for Magazine Studio.
+ * TiptapEditor, full WYSIWYG editor for Magazine Studio.
  * Replaces the custom contentEditable RichTextEditor for intro + body_wysiwyg blocks.
- * Outputs / accepts HTML strings — compatible with ArticleBody dangerouslySetInnerHTML.
+ * Outputs / accepts HTML strings, compatible with ArticleBody dangerouslySetInnerHTML.
  */
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -16,7 +16,7 @@ import { FU, FD } from './StudioShared';
 import { supabase } from '../../lib/supabaseClient';
 
 const BUCKET = 'listing-media';
-// CSS-var tokens — cascade from themeVars() on any ancestor wrapper
+// CSS-var tokens, cascade from themeVars() on any ancestor wrapper
 const S = {
   bg:          'var(--s-bg, #0f0f0d)',
   surface:     'var(--s-surface, #161614)',
@@ -311,7 +311,7 @@ const TOOLBAR_GROUPS = [
   SEP,
   [
     { cmd: 'link',         label: '🔗', title: 'Insert link (⌘K)' },
-    { cmd: 'horizontalRule', label: '—',  title: 'Horizontal rule' },
+    { cmd: 'horizontalRule', label: ' - ',  title: 'Horizontal rule' },
     { cmd: 'image',        label: '🖼',  title: 'Insert image' },
   ],
   SEP,

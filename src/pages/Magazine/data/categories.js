@@ -2,7 +2,7 @@ export const CATEGORIES = [
   {
     id: 'destinations',
     label: 'Destinations',
-    description: 'The world\'s most extraordinary wedding locations — from Amalfi clifftops to Scottish estates.',
+    description: 'The world\'s most extraordinary wedding locations, from Amalfi clifftops to Scottish estates.',
     heroImage: 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=1920&q=85',
     accentColor: '#7ba7bc',
     defaultCardStyle: 'overlay',

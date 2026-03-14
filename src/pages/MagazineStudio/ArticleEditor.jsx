@@ -79,7 +79,7 @@ function useAIGenerate(formData, tone) {
   return { runAI, loading, error };
 }
 
-// CSS-var tokens — cascade from themeVars() set on any ancestor wrapper.
+// CSS-var tokens, cascade from themeVars() set on any ancestor wrapper.
 // Dark values are fallbacks; light values come from themeVars(true) on the left panel.
 const CV = {
   bg:          'var(--s-bg, #0f0f0d)',
@@ -102,7 +102,7 @@ const CV = {
 // Inside ArticleEditor, `const S = getS(editorLight)` shadows this with actual values.
 const S = CV;
 
-// ── Paste cleaner — strips Word / Google Docs / Notion formatting ─────────────
+// ── Paste cleaner, strips Word / Google Docs / Notion formatting ─────────────
 function cleanPastedHTML(html) {
   try {
     const parser = new DOMParser();
@@ -136,7 +136,7 @@ function RichTextEditor({ value, onChange, placeholder, minHeight = 120, full = 
         return;
       }
     }
-    // Markdown shortcuts — trigger on space
+    // Markdown shortcuts, trigger on space
     if (full && e.key === ' ') {
       const sel = window.getSelection();
       if (!sel?.rangeCount) return;
@@ -202,7 +202,7 @@ function RichTextEditor({ value, onChange, placeholder, minHeight = 120, full = 
     null,
     [
       { label: '⌘K', title: 'Insert link (⌘K)', cmd: () => { const u = window.prompt('URL:', 'https://'); if (u) document.execCommand('createLink', false, u); } },
-      { label: '—',  title: 'Horizontal rule',   cmd: () => document.execCommand('insertHorizontalRule') },
+      { label: ' - ',  title: 'Horizontal rule',   cmd: () => document.execCommand('insertHorizontalRule') },
       { label: 'Tx', title: 'Clear formatting',  cmd: () => document.execCommand('removeFormat') },
     ],
   ] : [
@@ -306,7 +306,7 @@ const BLOCK_TYPES = [
   { type: 'video',           label: 'Video',             icon: '▶',  group: 'Media'    },
   { type: 'video_gallery',   label: 'Video Gallery',     icon: '▶▦', group: 'Media'    },
   { type: 'embed',           label: 'YouTube / Vimeo',   icon: '⊡',  group: 'Media'    },
-  { type: 'divider',         label: 'Divider',           icon: '—',  group: 'Layout'   },
+  { type: 'divider',         label: 'Divider',           icon: ' - ',  group: 'Layout'   },
   { type: 'shop_the_story',  label: 'Shop the Story',    icon: '◈',  group: 'Commerce' },
   { type: 'mood_board',      label: 'Mood Board',        icon: '◉',  group: 'Commerce' },
   { type: 'style_tip',       label: 'Style Tip',         icon: '✦',  group: 'Commerce' },
@@ -545,7 +545,7 @@ function CanvasView({ blocks, onChange, onSwitchToEditor, onAddBlock, canvasSize
                   position: 'relative',
                 }}
               >
-                {/* Insertion marker — top or bottom edge */}
+                {/* Insertion marker, top or bottom edge */}
                 {isDropTarget && (
                   <div style={{
                     position: 'absolute',
@@ -556,7 +556,7 @@ function CanvasView({ blocks, onChange, onSwitchToEditor, onAddBlock, canvasSize
                     pointerEvents: 'none', zIndex: 4,
                   }} />
                 )}
-                {/* Drag handle — hidden on mobile (HTML5 DnD doesn't work on touch) */}
+                {/* Drag handle, hidden on mobile (HTML5 DnD doesn't work on touch) */}
                 {!isMobile && (
                   <div
                     draggable
@@ -588,7 +588,7 @@ function CanvasView({ blocks, onChange, onSwitchToEditor, onAddBlock, canvasSize
                   position: 'absolute', top: 6, left: 10,
                   fontFamily: FU, fontSize: 8, fontWeight: 700, color: S.muted,
                 }}>{i + 1}</span>
-                {/* ↑↓ arrows — always visible on mobile, hover-reveal on desktop */}
+                {/* ↑↓ arrows, always visible on mobile, hover-reveal on desktop */}
                 {(isMobile || isHovered) && (
                   <div style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: 2 }}>
                     <button onClick={e => { e.stopPropagation(); moveBlock(i, -1); }} disabled={i === 0}
@@ -625,7 +625,7 @@ function CanvasView({ blocks, onChange, onSwitchToEditor, onAddBlock, canvasSize
                 position: 'relative',
               }}
             >
-              {/* Insertion marker — left or right edge */}
+              {/* Insertion marker, left or right edge */}
               {isDropTarget && (
                 <div style={{
                   position: 'absolute',
@@ -663,7 +663,7 @@ function CanvasView({ blocks, onChange, onSwitchToEditor, onAddBlock, canvasSize
                   fontFamily: FU, fontSize: 8, fontWeight: 700,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>{i + 1}</div>
-                {/* Drag handle — hidden on mobile (HTML5 DnD doesn't work on touch) */}
+                {/* Drag handle, hidden on mobile (HTML5 DnD doesn't work on touch) */}
                 {!isMobile && (
                   <div
                     draggable
@@ -712,7 +712,7 @@ function CanvasView({ blocks, onChange, onSwitchToEditor, onAddBlock, canvasSize
                     textTransform: 'uppercase', color: groupColour, opacity: 0.7,
                     background: `${groupColour}12`, padding: '2px 6px', borderRadius: 2,
                   }}>{meta.group}</span>
-                  {/* ↑↓ arrows — always visible on mobile, hover-reveal on desktop */}
+                  {/* ↑↓ arrows, always visible on mobile, hover-reveal on desktop */}
                   <div style={{
                     display: 'flex', gap: 1,
                     opacity: isMobile || isHovered ? 1 : 0,
@@ -794,7 +794,7 @@ const TEMPLATES = [
       { type: 'image', src: '', caption: 'The main facade at golden hour', wide: true },
       { type: 'heading', text: 'The Spaces', level: 2 },
       { type: 'paragraph', text: 'Detail the venue\'s spaces and their possibilities for an unforgettable celebration...' },
-      { type: 'quote', text: 'Every great wedding tells the story of the people in it — and this place has witnessed thousands of those stories.', attribution: 'Estate Director' },
+      { type: 'quote', text: 'Every great wedding tells the story of the people in it, and this place has witnessed thousands of those stories.', attribution: 'Estate Director' },
       { type: 'image', src: '', caption: '', wide: false },
       { type: 'paragraph', text: 'Closing thoughts and how couples can begin the conversation...' },
     ],
@@ -824,7 +824,7 @@ const TEMPLATES = [
       { type: 'heading', text: 'The Details', level: 2 },
       { type: 'gallery', images: ['', '', ''] },
       { type: 'paragraph', text: 'The fashion, flowers, styling, and the vendors who brought it all together...' },
-      { type: 'quote', text: 'It was exactly as we imagined — and somehow more.', attribution: 'The Bride' },
+      { type: 'quote', text: 'It was exactly as we imagined, and somehow more.', attribution: 'The Bride' },
     ],
   },
   {
@@ -834,10 +834,10 @@ const TEMPLATES = [
       { type: 'image', src: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=1600&h=800&fit=crop', caption: 'The Season\'s Defining Vision', wide: true },
       { type: 'intro', text: 'Discover the season\'s most transformative bridal fashion trends. From revolutionary silhouettes to unexpected fabric choices, explore the designers and designs that are redefining modern luxury bridal wear.' },
       { type: 'heading', text: 'The Silhouette Story', level: 2 },
-      { type: 'paragraph', text: 'This season celebrates silhouettes that balance timeless elegance with contemporary edge. The houses leading the conversation—from heritage ateliers to emerging designers—share a common vision: empowering brides to express their most authentic selves. Whether it\'s the return of minimalist drama, unexpected asymmetry, or a renewed appreciation for sculptural proportions, the message is clear: luxury bridal fashion is evolving.' },
+      { type: 'paragraph', text: 'This season celebrates silhouettes that balance timeless elegance with contemporary edge. The houses leading the conversation - from heritage ateliers to emerging designers - share a common vision: empowering brides to express their most authentic selves. Whether it\'s the return of minimalist drama, unexpected asymmetry, or a renewed appreciation for sculptural proportions, the message is clear: luxury bridal fashion is evolving.' },
       { type: 'mood_board', title: 'The Edit', images: ['https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=500&h=500&fit=crop', 'https://images.unsplash.com/photo-1595777707802-221eb3cb6411?w=500&h=500&fit=crop', 'https://images.unsplash.com/photo-1583092087894-f4f2be6bed21?w=500&h=500&fit=crop', 'https://images.unsplash.com/photo-1620961068444-cc8dbb5b8a10?w=500&h=500&fit=crop'] },
       { type: 'paragraph', text: 'Translating these runway moments into your real bridal wardrobe is about understanding your personal narrative. Consider how these key trends align with your vision: Do the season\'s architectural shapes speak to your aesthetic? Will a bold statement gown feel authentic, or does refined simplicity better represent your style? The best choice is always the one that makes you feel most like yourself on your wedding day.' },
-      { type: 'quote', text: 'The modern bride has finally given herself permission to want more—more boldness, more individuality, more joy.', attribution: 'Fashion Director' },
+      { type: 'quote', text: 'The modern bride has finally given herself permission to want more - more boldness, more individuality, more joy.', attribution: 'Fashion Director' },
       { type: 'shop_the_story', headline: 'Shop the Story', categories: [{ label: 'Gowns', collectionId: 'bridal-gowns' }, { label: 'Shoes', collectionId: 'bridal-shoes' }] },
     ],
   },
@@ -962,7 +962,7 @@ function BlockEditor({ block, onChange }) {
         <TiptapEditor
           value={block.text}
           onChange={v => upd('text', v)}
-          placeholder="Opening paragraph — sets the tone of the piece…"
+          placeholder="Opening paragraph, sets the tone of the piece…"
           minHeight={80}
         />
       );
@@ -979,14 +979,14 @@ function BlockEditor({ block, onChange }) {
 
     case 'heading': {
       const HEADING_LEVELS = [
-        { value: '1', label: 'H1 — Feature Title' },
-        { value: '2', label: 'H2 — Section' },
-        { value: '3', label: 'H3 — Subheading' },
-        { value: '4', label: 'H4 — Label / Caption' },
+        { value: '1', label: 'H1, Feature Title' },
+        { value: '2', label: 'H2, Section' },
+        { value: '3', label: 'H3, Subheading' },
+        { value: '4', label: 'H4, Label / Caption' },
       ];
       return (
         <div>
-          {/* Level chooser — visual chips */}
+          {/* Level chooser, visual chips */}
           <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
             {HEADING_LEVELS.map(h => (
               <button
@@ -999,10 +999,10 @@ function BlockEditor({ block, onChange }) {
                   border: `1px solid ${String(block.level || 2) === h.value ? `${GOLD}80` : S.border}`,
                   color: String(block.level || 2) === h.value ? S.gold : S.muted,
                 }}
-              >{h.label.split(' — ')[0]}</button>
+              >{h.label.split(', ')[0]}</button>
             ))}
             <span style={{ fontFamily: FU, fontSize: 10, color: S.muted, alignSelf: 'center', marginLeft: 4 }}>
-              {HEADING_LEVELS.find(h => h.value === String(block.level || 2))?.label.split(' — ')[1]}
+              {HEADING_LEVELS.find(h => h.value === String(block.level || 2))?.label.split(', ')[1]}
             </span>
           </div>
           <Input value={block.text} onChange={v => upd('text', v)} placeholder="Section heading…" />
@@ -1013,9 +1013,9 @@ function BlockEditor({ block, onChange }) {
     case 'quote':
       return (
         <>
-          <Textarea value={block.text} onChange={v => upd('text', v)} placeholder="Pull quote text — make it memorable…" minHeight={70} />
+          <Textarea value={block.text} onChange={v => upd('text', v)} placeholder="Pull quote text, make it memorable…" minHeight={70} />
           <div style={{ height: 8 }} />
-          <Input value={block.attribution} onChange={v => upd('attribution', v)} placeholder="Attribution — person, role (optional)" />
+          <Input value={block.attribution} onChange={v => upd('attribution', v)} placeholder="Attribution, person, role (optional)" />
         </>
       );
 
@@ -1355,7 +1355,7 @@ function BlockEditor({ block, onChange }) {
     }
 
     case 'divider':
-      return <div style={{ fontFamily: FU, fontSize: 10, color: S.muted, padding: '6px 0' }}>✦ Ornamental divider — no configuration needed</div>;
+      return <div style={{ fontFamily: FU, fontSize: 10, color: S.muted, padding: '6px 0' }}>✦ Ornamental divider, no configuration needed</div>;
 
     case 'shop_the_story':
       return (
@@ -1517,11 +1517,11 @@ function BlockEditor({ block, onChange }) {
     case 'quote_highlight':
       return (
         <>
-          <Textarea value={block.text} onChange={v => upd('text', v)} placeholder="A memorable quote — make it stand out…" minHeight={80} />
+          <Textarea value={block.text} onChange={v => upd('text', v)} placeholder="A memorable quote, make it stand out…" minHeight={80} />
           <div style={{ height: 8 }} />
-          <Input value={block.attribution || ''} onChange={v => upd('attribution', v)} placeholder="Attribution — who said it" />
+          <Input value={block.attribution || ''} onChange={v => upd('attribution', v)} placeholder="Attribution, who said it" />
           <div style={{ height: 6 }} />
-          <Input value={block.source || ''} onChange={v => upd('source', v)} placeholder="Source — publication, interview, etc. (optional)" />
+          <Input value={block.source || ''} onChange={v => upd('source', v)} placeholder="Source, publication, interview, etc. (optional)" />
         </>
       );
 
@@ -1820,7 +1820,7 @@ function HeroVideoInput({ value, onChange }) {
         )}
       </div>
       {detect && <div style={{ fontFamily: FU, fontSize: 9, color: S.gold, marginTop: 4 }}>✓ {detect} detected</div>}
-      {value && !embed && <div style={{ fontFamily: FU, fontSize: 9, color: S.error, marginTop: 4 }}>Unrecognised URL — paste a YouTube, Vimeo or .mp4 link</div>}
+      {value && !embed && <div style={{ fontFamily: FU, fontSize: 9, color: S.error, marginTop: 4 }}>Unrecognised URL, paste a YouTube, Vimeo or .mp4 link</div>}
     </div>
   );
 }
@@ -1828,13 +1828,13 @@ function HeroVideoInput({ value, onChange }) {
 // ── Hero styles ────────────────────────────────────────────────────────────────
 const HERO_STYLES = [
   { id: 'editorial',  label: 'Editorial',  icon: '▉', desc: 'Full-bleed image, gradient overlay, text at bottom' },
-  { id: 'split',      label: 'Split',      icon: '▐', desc: 'Text left — image right (50 / 50)' },
+  { id: 'split',      label: 'Split',      icon: '▐', desc: 'Text left, image right (50 / 50)' },
   { id: 'cinematic',  label: 'Cinematic',  icon: '▣', desc: 'Full-screen image with centred text overlay' },
   { id: 'minimal',    label: 'Minimal',    icon: '▢', desc: 'Dark background, no image, centred type' },
   { id: 'banner',     label: 'Banner',     icon: '▬', desc: 'Short banner strip with title' },
 ];
 
-// ── Hero options panel — with live visual mini-preview ─────────────────────────
+// ── Hero options panel, with live visual mini-preview ─────────────────────────
 function HeroPanel({ formData, onChange, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
   const upd = (key, val) => onChange({ ...formData, [key]: val });
@@ -1849,7 +1849,7 @@ function HeroPanel({ formData, onChange, defaultOpen = false }) {
   // ── Mini hero preview ─────────────────────────────────────────────────────
   const previewText = (
     <>
-      {catLabel && <div style={{ fontFamily: FU, fontSize: 7, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: S.gold, marginBottom: 3 }}>— {catLabel}</div>}
+      {catLabel && <div style={{ fontFamily: FU, fontSize: 7, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: S.gold, marginBottom: 3 }}> -  {catLabel}</div>}
       <div style={{ fontFamily: FD, fontSize: 14, fontWeight: 400, color: S.text, lineHeight: 1.15, marginBottom: 3 }}>
         {formData.title || 'Article Title'}
       </div>
@@ -1866,7 +1866,7 @@ function HeroPanel({ formData, onChange, defaultOpen = false }) {
   const miniEmbed = getVideoEmbed(formData.heroVideoUrl);
   const miniHero = (
     <div style={{ position: 'relative', height: 160, overflow: 'hidden', background: S.bg, cursor: 'pointer' }} onClick={() => setOpen(o => !o)}>
-      {/* Background — video takes priority over image */}
+      {/* Background, video takes priority over image */}
       {miniEmbed?.type === 'direct' && hasImage && (
         <video src={miniEmbed.embedUrl} autoPlay muted loop playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
       )}
@@ -1966,9 +1966,9 @@ function HeroPanel({ formData, onChange, defaultOpen = false }) {
             </Field>
           )}
 
-          {/* Hero video URL — YouTube, Vimeo, or direct .mp4 */}
+          {/* Hero video URL, YouTube, Vimeo, or direct .mp4 */}
           {hasImage && (
-            <Field label="Hero Video" hint="YouTube, Vimeo or .mp4 — plays as looping background">
+            <Field label="Hero Video" hint="YouTube, Vimeo or .mp4, plays as looping background">
               <HeroVideoInput value={formData.heroVideoUrl} onChange={v => upd('heroVideoUrl', v)} />
             </Field>
           )}
@@ -2186,7 +2186,7 @@ function ContentPanel({ blocks, onChange, tone, openIndices = new Set(), setOpen
           </button>
         ))}
 
-        {/* Zoom controls — visible in canvas mode, hidden on mobile (forced compact) */}
+        {/* Zoom controls, visible in canvas mode, hidden on mobile (forced compact) */}
         {contentView === 'canvas' && !isMobile && (
           <>
             <div style={{ width: 1, height: 14, background: S.border, margin: '0 2px' }} />
@@ -2320,7 +2320,7 @@ function MetaPanel({ formData, onChange, tone, onToneChange }) {
       <Field label="Title">
         <Input value={formData.title} onChange={v => upd('title', v)} placeholder="Article title" />
       </Field>
-      <Field label="Slug" hint="URL path — auto-formatted to kebab-case">
+      <Field label="Slug" hint="URL path, auto-formatted to kebab-case">
         <Input
           value={formData.slug}
           onChange={v => upd('slug', v.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''))}
@@ -2397,7 +2397,7 @@ function MetaPanel({ formData, onChange, tone, onToneChange }) {
       <Field label="Cover Image Alt Text">
         <Input value={formData.coverImageAlt} onChange={v => upd('coverImageAlt', v)} placeholder="Describe the image for accessibility" />
       </Field>
-      <Field label="Tags" hint="Comma-separated — amalfi, italy, venues">
+      <Field label="Tags" hint="Comma-separated, amalfi, italy, venues">
         <Input
           value={Array.isArray(formData.tags) ? formData.tags.join(', ') : formData.tags || ''}
           onChange={v => upd('tags', v.split(',').map(t => t.trim()).filter(Boolean))}
@@ -2523,15 +2523,15 @@ function SEOPanel({ formData, onChange, tone }) {
   );
 
   const warnings = [];
-  if (!formData.excerpt)           warnings.push({ type: 'warn', msg: 'Missing excerpt — required for meta description fallback' });
-  if (!formData.coverImage)         warnings.push({ type: 'warn', msg: 'Missing cover image — affects OG sharing appearance' });
-  if (wc < 300 && (formData.content || []).length > 0) warnings.push({ type: 'error', msg: `Thin content — only ${wc} words. Aim for 400+` });
-  if (!formData.tags?.length)       warnings.push({ type: 'warn', msg: 'No tags — add 3–5 tags to aid discoverability' });
+  if (!formData.excerpt)           warnings.push({ type: 'warn', msg: 'Missing excerpt, required for meta description fallback' });
+  if (!formData.coverImage)         warnings.push({ type: 'warn', msg: 'Missing cover image, affects OG sharing appearance' });
+  if (wc < 300 && (formData.content || []).length > 0) warnings.push({ type: 'error', msg: `Thin content, only ${wc} words. Aim for 400+` });
+  if (!formData.tags?.length)       warnings.push({ type: 'warn', msg: 'No tags, add 3–5 tags to aid discoverability' });
   if (formData.seoTitle && formData.seoTitle.length > 60)
-    warnings.push({ type: 'warn', msg: `SEO title is ${formData.seoTitle.length} chars — keep under 60` });
+    warnings.push({ type: 'warn', msg: `SEO title is ${formData.seoTitle.length} chars, keep under 60` });
   if (formData.metaDescription && formData.metaDescription.length > 155)
-    warnings.push({ type: 'warn', msg: `Meta description is ${formData.metaDescription.length} chars — keep under 155` });
-  if (!formData.seoTitle && !formData.title) warnings.push({ type: 'warn', msg: 'No SEO title — will fall back to article title' });
+    warnings.push({ type: 'warn', msg: `Meta description is ${formData.metaDescription.length} chars, keep under 155` });
+  if (!formData.seoTitle && !formData.title) warnings.push({ type: 'warn', msg: 'No SEO title, will fall back to article title' });
 
   return (
     <div>
@@ -2576,13 +2576,13 @@ function SEOPanel({ formData, onChange, tone }) {
       {warnings.length === 0 && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 10px', marginBottom: 16, background: 'color-mix(in srgb, var(--s-success, #5aaa78) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--s-success, #5aaa78) 40%, transparent)', borderRadius: 2 }}>
           <span style={{ color: 'var(--s-success, #5aaa78)' }}>✓</span>
-          <span style={{ fontFamily: FU, fontSize: 10, color: 'var(--s-text, #f5f0e8)' }}>SEO looks good — no issues found</span>
+          <span style={{ fontFamily: FU, fontSize: 10, color: 'var(--s-text, #f5f0e8)' }}>SEO looks good, no issues found</span>
         </div>
       )}
 
       <Divider />
       <SectionLabel>Search Engine</SectionLabel>
-      <Field label="SEO Title" hint="Defaults to article title if blank — keep under 60 characters">
+      <Field label="SEO Title" hint="Defaults to article title if blank, keep under 60 characters">
         <Input value={formData.seoTitle} onChange={v => upd('seoTitle', v)} placeholder={formData.title || 'SEO title…'} />
         {formData.seoTitle && (
           <div style={{ fontFamily: FU, fontSize: 9, color: formData.seoTitle.length > 60 ? 'var(--s-warn, #d4a843)' : 'var(--s-muted, rgba(245,240,232,0.45))', marginTop: 3 }}>
@@ -2737,7 +2737,7 @@ function AIPanel({ formData, onChange, tone, onToneChange }) {
   );
 }
 
-// ── Publish panel — final workflow step ───────────────────────────────────────
+// ── Publish panel, final workflow step ───────────────────────────────────────
 function PublishPanel({ formData, onChange, onPublish, onUnpublish, onSave, onDuplicate, saving }) {
   const upd = (key, val) => onChange({ ...formData, [key]: val });
   const wc  = computeWordCount(formData.content);
@@ -2781,7 +2781,7 @@ function PublishPanel({ formData, onChange, onPublish, onUnpublish, onSave, onDu
             {allPassed ? 'Ready to Publish' : 'Pre-publish Checklist'}
           </div>
           <div style={{ fontFamily: FU, fontSize: 9, color: 'var(--s-muted, rgba(245,240,232,0.45))', marginTop: 2 }}>
-            {allPassed ? 'All checks complete — article is ready' : `${passCount} of ${checks.length} checks complete`}
+            {allPassed ? 'All checks complete, article is ready' : `${passCount} of ${checks.length} checks complete`}
           </div>
         </div>
       </div>
@@ -3012,7 +3012,7 @@ function LinksPanel({ formData }) {
 
       <Divider />
       <div style={{ fontFamily: FU, fontSize: 10, color: S.muted, lineHeight: 1.6 }}>
-        Vendor & venue link suggestions — coming soon.<br />
+        Vendor & venue link suggestions, coming soon.<br />
         Will surface relevant listings from the directory automatically.
       </div>
     </div>
@@ -3045,7 +3045,7 @@ function ArticlePreview({ formData, isLight, viewport, onBlockClick, selectedBlo
       <>
         {formData.categoryLabel && (
           <div style={{ fontFamily: FU, fontSize: 8, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--s-gold, #c9a96e)', marginBottom: 8, ...themeVars(isLight) }}>
-            — {formData.categoryLabel}
+           , {formData.categoryLabel}
           </div>
         )}
         <h1 style={{ fontFamily: FD, fontSize: 'clamp(18px,3vw,32px)', fontWeight: 400, color: tc, margin: '0 0 10px', lineHeight: 1.1 }}>
@@ -3072,7 +3072,7 @@ function ArticlePreview({ formData, isLight, viewport, onBlockClick, selectedBlo
       ? { top: 0 }
       : { top: '50%', transform: 'translateY(-50%)' };
 
-  // HeroBg — video takes priority; falls back to image; falls back to solid colour
+  // HeroBg, video takes priority; falls back to image; falls back to solid colour
   const heroBgStyle = { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' };
   const iframeBgStyle = { position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none', pointerEvents: 'none' };
   const videoEmbed = getVideoEmbed(formData.heroVideoUrl);
@@ -3085,12 +3085,12 @@ function ArticlePreview({ formData, isLight, viewport, onBlockClick, selectedBlo
 
   const previewContent = (
     <div style={{ background: TBG, minHeight: '100%' }}>
-      {/* Cover hero — click to open hero panel */}
+      {/* Cover hero, click to open hero panel */}
       <div
         onClick={() => onBlockClick?.(-1)}
         style={{ cursor: onBlockClick ? 'pointer' : 'default', outline: selectedBlockIdx === -1 ? `2px solid color-mix(in srgb, #c9a96e 70%, transparent)` : '2px solid transparent', outlineOffset: -2, transition: 'outline 0.15s' }}
       >
-      {/* Cover hero — style variants */}
+      {/* Cover hero, style variants */}
       {heroStyle === 'editorial' && (
         (formData.coverImage || formData.heroVideoUrl) ? (
           <div style={{ position: 'relative', height: heroHeightPx, overflow: 'hidden' }}>
@@ -3146,7 +3146,7 @@ function ArticlePreview({ formData, isLight, viewport, onBlockClick, selectedBlo
 
       </div>{/* end hero click wrapper */}
 
-      {/* Article body — each block wrapped for click-to-select */}
+      {/* Article body, each block wrapped for click-to-select */}
       <div style={{ padding: 'clamp(20px,3vw,48px) clamp(16px,3vw,40px)' }}>
         {(formData.content || []).length === 0 ? (
           <div style={{ fontFamily: FU, fontSize: 11, color: TM, padding: '40px 0', textAlign: 'center' }}>
@@ -3226,7 +3226,7 @@ function HeroPreviewPane({ formData, isLight }) {
       <>
         {formData.categoryLabel && (
           <div style={{ fontFamily: FU, fontSize: 8, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--s-gold, #c9a96e)', marginBottom: 8, ...themeVars(isLight) }}>
-            — {formData.categoryLabel}
+           , {formData.categoryLabel}
           </div>
         )}
         <h1 style={{ fontFamily: FD, fontSize: 'clamp(16px,2.8vw,26px)', fontWeight: 400, color: tc, margin: '0 0 8px', lineHeight: 1.1 }}>
@@ -3300,7 +3300,7 @@ function HeroPreviewPane({ formData, isLight }) {
   );
 }
 
-// ── Step navigation — Next / Previous buttons at bottom of each panel ─────────
+// ── Step navigation, Next / Previous buttons at bottom of each panel ─────────
 function StepNav({ activeTab, onTabChange }) {
   const idx = TABS.findIndex(t => t.id === activeTab);
   const prev = idx > 0 ? TABS[idx - 1] : null;
@@ -3459,7 +3459,7 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
           {statuses.slice(0, 2).map(s => <StatusBadge key={s.label} label={s.label} color={s.color} />)}
         </div>
 
-        {/* Viewport toggle — centre */}
+        {/* Viewport toggle, centre */}
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center', gap: 2 }}>
           {[
             { key: 'editor',  label: 'Editor' },
@@ -3523,7 +3523,7 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
         </GhostBtn>
       </div>
 
-      {/* Main workspace — [Editor panel (left, 50%)] [Preview canvas (right, 50%)] */}
+      {/* Main workspace, [Editor panel (left, 50%)] [Preview canvas (right, 50%)] */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
 
         {/* ── Left: editor panel ── */}

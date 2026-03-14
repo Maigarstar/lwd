@@ -336,7 +336,7 @@ function VideoPlayModal({ video, videos, onSelect, onClose }) {
         </div>
       </div>
 
-      {/* Thumbnail strip — always shown when multiple videos */}
+      {/* Thumbnail strip, always shown when multiple videos */}
       {videos.length > 1 && (
         <div onClick={(e) => e.stopPropagation()} style={{
           flexShrink: 0, borderTop: "1px solid rgba(255,255,255,0.06)",

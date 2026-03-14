@@ -89,7 +89,7 @@ export default function EditorialBanner() {
             letterSpacing: "-0.5px",
           }}
         >
-          Italy — where every moment becomes a memory
+          Italy, where every moment becomes a memory
           <br />
           <em style={{ fontStyle: "italic", color: "#C9A84C" }}>
             worth keeping forever.

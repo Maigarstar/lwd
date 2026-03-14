@@ -5,9 +5,9 @@
  * When no map/coordinates are available, shows a clean location text card.
  *
  * Props:
- *   entity       {object} — listing data
- *   C            {object} — colour palette
- *   onViewMap    {fn}     — callback to open full map view
+ *   entity       {object}, listing data
+ *   C            {object}, colour palette
+ *   onViewMap    {fn}    , callback to open full map view
  */
 
 const FD = "var(--font-heading-primary)";
@@ -15,12 +15,12 @@ const FB = "var(--font-body)";
 
 /**
  * Static Google Maps embed URL for a rough location pin.
- * Uses Maps Embed API — requires no API key for basic static display.
+ * Uses Maps Embed API, requires no API key for basic static display.
  * Falls back to an Open Street Map iframe if preferred.
  */
 function StaticMapEmbed({ lat, lng, label }) {
   if (!lat || !lng) return null;
-  // Using OpenStreetMap iframe — no API key needed
+  // Using OpenStreetMap iframe, no API key needed
   const bbox = `${lng - 0.01},${lat - 0.007},${lng + 0.01},${lat + 0.007}`;
   const src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lng}`;
 

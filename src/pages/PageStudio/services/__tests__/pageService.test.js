@@ -64,7 +64,7 @@ let passed = 0;
 let failed = 0;
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TEST 1: Data Mapping — formData → pageRecord → formData
+// TEST 1: Data Mapping, formData → pageRecord → formData
 // ═══════════════════════════════════════════════════════════════════════════
 
 console.log('\n📋 TEST SUITE 1: Data Mapping & Serialization\n');

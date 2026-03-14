@@ -86,7 +86,7 @@ export const VENUES = [
     styles:["Garden","Romantic","Historic"],             capacity:100,
     priceLabel:"££££", priceFrom:"£24,000", rating:5.0, reviews:74,
     featured:false, verified:true, lwdScore:89, tag:null,
-    desc:"The legendary Villa Cimbrone in Ravello. Its famous Terrace of Infinity overlooks the Mediterranean — a view Greta Garbo once called the most beautiful in the world.",
+    desc:"The legendary Villa Cimbrone in Ravello. Its famous Terrace of Infinity overlooks the Mediterranean, a view Greta Garbo once called the most beautiful in the world.",
     includes:["Terrace of Infinity","Historic Gardens","Private Access","Luxury Rooms","Bespoke Florals"],
     imgs:["https://images.unsplash.com/photo-1574236170878-f66e35f83207?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1602002418816-5c0aeef426aa?auto=format&fit=crop&w=900&q=80",
@@ -190,7 +190,7 @@ export const VENUES = [
     styles:["Rustic Luxe","Destination","Garden"],       capacity:300,
     priceLabel:"££££", priceFrom:"£30,000", rating:5.0, reviews:129,
     featured:false, verified:true, lwdScore:95, tag:"G8 Summit Venue",
-    desc:"Where Justin Timberlake married Jessica Biel, and world leaders convene. A stunning recreation of a Puglian village — all whitewashed stone, bougainvillea, and Mediterranean magic.",
+    desc:"Where Justin Timberlake married Jessica Biel, and world leaders convene. A stunning recreation of a Puglian village, all whitewashed stone, bougainvillea, and Mediterranean magic.",
     includes:["Three Swimming Pools","Golf Course","Spa","250 Rooms","Exclusive Village Hire"],
     imgs:["https://images.unsplash.com/photo-1561501900-3701fa6a0864?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1551918120-9739cb430c6d?auto=format&fit=crop&w=900&q=80",
@@ -203,7 +203,7 @@ export const VENUES = [
     styles:["Intimate","Romantic","Historic"],           capacity:60,
     priceLabel:"££££", priceFrom:"£18,000", rating:5.0, reviews:38,
     featured:false, verified:true, lwdScore:93, tag:"Michelin 2★",
-    desc:"An extraordinary Moorish-style tower on the shores of Lake Orta — one of Italy's most intimate and theatrical venues. Celebrated chef Antonino Cannavacciuolo oversees an extraordinary culinary experience.",
+    desc:"An extraordinary Moorish-style tower on the shores of Lake Orta, one of Italy's most intimate and theatrical venues. Celebrated chef Antonino Cannavacciuolo oversees an extraordinary culinary experience.",
     includes:["Moorish Architecture","Lake Orta Views","Michelin Dining","14 Rooms","Private Island Access"],
     imgs:["https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1600573472550-8090b5e0745e?auto=format&fit=crop&w=900&q=80",
@@ -242,7 +242,7 @@ export const VENUES = [
     styles:["Black Tie","Historic","Romantic"],          capacity:80,
     priceLabel:"££££", priceFrom:"£35,000", rating:5.0, reviews:29,
     featured:false, verified:true, lwdScore:98, tag:"Ultra Luxury",
-    desc:"Within a sixteenth-century palazzo on the Grand Canal, Aman Venice offers the most intimate and exclusive private entertaining spaces in all of Venice — available entirely for your celebration.",
+    desc:"Within a sixteenth-century palazzo on the Grand Canal, Aman Venice offers the most intimate and exclusive private entertaining spaces in all of Venice, available entirely for your celebration.",
     includes:["Grand Canal Palazzo","Aman Service","Private Boats","6 Ballrooms","Exclusive Access"],
     imgs:["https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&w=900&q=80",
@@ -268,7 +268,7 @@ export const VENUES = [
     styles:["Black Tie","Historic","Elegant"],           capacity:250,
     priceLabel:"££££", priceFrom:"£28,000", rating:4.9, reviews:97,
     featured:true, verified:true, lwdScore:95, tag:"Iconic Venue",
-    desc:"London's finest surviving Georgian townhouse, built for the first Earl Spencer in 1756. Eight gilded state rooms overlooking Green Park — a setting of unmatched grandeur for black-tie celebrations.",
+    desc:"London's finest surviving Georgian townhouse, built for the first Earl Spencer in 1756. Eight gilded state rooms overlooking Green Park, a setting of unmatched grandeur for black-tie celebrations.",
     includes:["8 State Rooms","Green Park Views","Exclusive Use","On-Site Events Team","Valet Parking"],
     imgs:["https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1448906654166-444d494666b3?auto=format&fit=crop&w=900&q=80",
@@ -281,7 +281,7 @@ export const VENUES = [
     styles:["Garden","Romantic","Classic"],               capacity:150,
     priceLabel:"£££",  priceFrom:"£16,000", rating:4.8, reviews:134,
     featured:false, verified:true, lwdScore:88, tag:"Botanical",
-    desc:"An eighteenth-century orangery within the UNESCO-listed Royal Botanic Gardens. Floor-to-ceiling arched windows frame three hundred acres of botanical beauty — utterly romantic in every season.",
+    desc:"An eighteenth-century orangery within the UNESCO-listed Royal Botanic Gardens. Floor-to-ceiling arched windows frame three hundred acres of botanical beauty, utterly romantic in every season.",
     includes:["UNESCO Gardens","Orangery Ceremony","300 Acres","Private Terrace","Botanical Backdrop"],
     imgs:["https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1600047509358-9dc75507daeb?auto=format&fit=crop&w=900&q=80",
@@ -333,7 +333,7 @@ export const VENUES = [
     styles:["Garden","Romantic","Bohemian"],                capacity:80,
     priceLabel:"£££",  priceFrom:"£12,000", rating:4.7, reviews:89,
     featured:false, verified:true, lwdScore:82, tag:"Secret Garden",
-    desc:"A hidden Edwardian pergola draped in wisteria above the Hampstead Heath hillside. An impossibly romantic secret garden — intimate, wild, and unlike any other venue in London.",
+    desc:"A hidden Edwardian pergola draped in wisteria above the Hampstead Heath hillside. An impossibly romantic secret garden, intimate, wild, and unlike any other venue in London.",
     includes:["Edwardian Pergola","Wisteria Canopy","Hampstead Heath","Al Fresco Dining","Private Hire"],
     imgs:["https://images.unsplash.com/photo-1540979388789-6cee28a1cdc9?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1511882150382-421056c89033?auto=format&fit=crop&w=900&q=80",
@@ -346,7 +346,7 @@ export const VENUES = [
     styles:["Art Deco","Black Tie","Elegant"],                capacity:400,
     priceLabel:"££££", priceFrom:"£42,000", rating:5.0, reviews:105,
     featured:false, verified:true, lwdScore:96, tag:"Legendary Hotel",
-    desc:"London's most iconic hotel since 1889 — where Monet painted the Thames and Sinatra held court. The Lancaster Ballroom seats four hundred beneath a domed ceiling of handcrafted gold leaf.",
+    desc:"London's most iconic hotel since 1889, where Monet painted the Thames and Sinatra held court. The Lancaster Ballroom seats four hundred beneath a domed ceiling of handcrafted gold leaf.",
     includes:["Lancaster Ballroom","Thames Views","Bridal Suite","Michelin Dining","Champagne Reception"],
     imgs:["https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=900&q=80",
@@ -372,7 +372,7 @@ export const VENUES = [
     styles:["Modern","Elegant","Intimate"],                    capacity:220,
     priceLabel:"££££", priceFrom:"£25,000", rating:4.9, reviews:76,
     featured:true, verified:true, lwdScore:92, tag:"Deconsecrated Church",
-    desc:"A striking John Soane–designed church reimagined as a contemporary events space. Soaring neoclassical columns meet cutting-edge lighting design — where heritage architecture becomes a canvas for modern celebration.",
+    desc:"A striking John Soane–designed church reimagined as a contemporary events space. Soaring neoclassical columns meet cutting-edge lighting design, where heritage architecture becomes a canvas for modern celebration.",
     includes:["Soane Architecture","LED Lighting","Two Ceremony Rooms","Catering Kitchen","Bridal Suite"],
     imgs:["https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1505236858219-8359eb29e329?auto=format&fit=crop&w=900&q=80",
@@ -385,7 +385,7 @@ export const VENUES = [
     styles:["Garden","Classic","Elegant"],                     capacity:350,
     priceLabel:"££££", priceFrom:"£30,000", rating:4.9, reviews:58,
     featured:false, verified:true, lwdScore:93, tag:"Private Members",
-    desc:"Forty-two acres of immaculate grounds in the heart of Fulham — London's most prestigious private members' club. The East Lawn marquee overlooking croquet lawns and rose gardens is the definition of English elegance.",
+    desc:"Forty-two acres of immaculate grounds in the heart of Fulham, London's most prestigious private members' club. The East Lawn marquee overlooking croquet lawns and rose gardens is the definition of English elegance.",
     includes:["42-Acre Grounds","East Lawn Marquee","Croquet Lawns","Rose Garden","Private Members Club"],
     imgs:["https://images.unsplash.com/photo-1533090161767-e6ffed986c88?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=900&q=80",
@@ -398,7 +398,7 @@ export const VENUES = [
     styles:["Gothic","Historic","Romantic"],                   capacity:120,
     priceLabel:"£££",  priceFrom:"£18,000", rating:4.8, reviews:67,
     featured:false, verified:true, lwdScore:87, tag:"Gothic Revival",
-    desc:"Horace Walpole's Gothic Revival masterpiece — a theatrical confection of turrets, fan vaulting, and stained glass that inspired an entire architectural movement. Intimate, eccentric, and utterly unforgettable.",
+    desc:"Horace Walpole's Gothic Revival masterpiece, a theatrical confection of turrets, fan vaulting, and stained glass that inspired an entire architectural movement. Intimate, eccentric, and utterly unforgettable.",
     includes:["Gothic Gallery","Long Gallery","Private Grounds","Stained Glass","Exclusive Use"],
     imgs:["https://images.unsplash.com/photo-1505761671935-60b3a7427bad?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1523731407965-2430cd12f5e4?auto=format&fit=crop&w=900&q=80",
@@ -411,7 +411,7 @@ export const VENUES = [
     styles:["Art Deco","Historic","Garden"],                   capacity:160,
     priceLabel:"£££",  priceFrom:"£15,000", rating:4.7, reviews:82,
     featured:false, verified:true, lwdScore:85, tag:"English Heritage",
-    desc:"A medieval royal palace fused with a 1930s Art Deco mansion — part Henry VIII hunting lodge, part Gatsby fantasy. The entrance hall's marquetry dome and sunken garden create a setting that defies era.",
+    desc:"A medieval royal palace fused with a 1930s Art Deco mansion, part Henry VIII hunting lodge, part Gatsby fantasy. The entrance hall's marquetry dome and sunken garden create a setting that defies era.",
     includes:["Art Deco Entrance Hall","Medieval Great Hall","Sunken Garden","19 Acres","English Heritage"],
     imgs:["https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&w=900&q=80",
@@ -419,7 +419,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?auto=format&fit=crop&w=900&q=80"] },
 ];
 
-// ── REGIONS — delegated to geo.js (single source of truth) ─────────────────
+// ── REGIONS, delegated to geo.js (single source of truth) ─────────────────
 // Re-export backward-compat { name, slug, group } array + lookup helpers
 import {
   REGIONS_FLAT as REGIONS,
@@ -433,7 +433,7 @@ export const STYLES  = ["All Styles","Rustic Luxe","Black Tie","Romantic","Garde
 export const CAPS    = ["Any Capacity","Up to 50","51–100","101–200","200+"];
 export const PRICES  = ["All Budgets","£££","££££"];
 
-/** Default filter state — exported so CategoryPage and FilterBar share the same reset values */
+/** Default filter state, exported so CategoryPage and FilterBar share the same reset values */
 export const DEFAULT_FILTERS = {
   region:   "all",
   style:    STYLES[0],

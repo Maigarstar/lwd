@@ -181,11 +181,11 @@ const UK_IRELAND_FULL_REGIONS = [
     priorityLevel: "primary",
     listingCount: 12,
     heroTitle: "Weddings in London",
-    heroSubtitle: "From Mayfair townhouses to skyline terraces — the United Kingdom's most distinguished collection of luxury wedding venues.",
+    heroSubtitle: "From Mayfair townhouses to skyline terraces, the United Kingdom's most distinguished collection of luxury wedding venues.",
     heroImg:
       "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=1600&q=80",
     introEditorial:
-      "London commands a position no other British city can claim. Twelve distinct districts, each with its own character, deliver over two hundred licensed wedding venues ranging from Grade I–listed Georgian townhouses and private members' clubs to contemporary riverside terraces and converted power stations. The capital concentrates the United Kingdom's finest caterers, florists, photographers and planners within a single metropolitan area — precision, prestige and an unmatched density of excellence.",
+      "London commands a position no other British city can claim. Twelve distinct districts, each with its own character, deliver over two hundred licensed wedding venues ranging from Grade I–listed Georgian townhouses and private members' clubs to contemporary riverside terraces and converted power stations. The capital concentrates the United Kingdom's finest caterers, florists, photographers and planners within a single metropolitan area, precision, prestige and an unmatched density of excellence.",
     categoryShortcuts: VENDOR_CATEGORIES.map(vc => ({
       categorySlug: vc.slug,
       label: vc.label,
@@ -244,25 +244,25 @@ const UK_IRELAND_FULL_REGIONS = [
       sections: [
         {
           heading: "A City of Unmatched Venue Diversity",
-          body: "No other city on earth offers the breadth of wedding settings that London delivers. Within a single square mile you can choose between a Grade I–listed Georgian townhouse, a converted Victorian power station, a rooftop terrace overlooking the Thames, or a members-only garden square accessible to fewer than two hundred families. This density of choice is London's defining advantage — and it's why couples travel from over forty countries each year to marry here. From the gilded state rooms of Spencer House in Mayfair to the wisteria-draped pergola hidden above Hampstead Heath, every neighbourhood has its own character, its own light, and its own story to tell.",
+          body: "No other city on earth offers the breadth of wedding settings that London delivers. Within a single square mile you can choose between a Grade I–listed Georgian townhouse, a converted Victorian power station, a rooftop terrace overlooking the Thames, or a members-only garden square accessible to fewer than two hundred families. This density of choice is London's defining advantage, and it's why couples travel from over forty countries each year to marry here. From the gilded state rooms of Spencer House in Mayfair to the wisteria-draped pergola hidden above Hampstead Heath, every neighbourhood has its own character, its own light, and its own story to tell.",
         },
         {
           heading: "The LWD Verification Standard",
-          body: "Every venue listed on this page has been personally visited, photographed and assessed by our editorial team. We evaluate over thirty criteria including natural light quality, acoustics, catering flexibility, accessibility, overnight accommodation, and — critically — how the venue performs on the day itself, not just in marketing materials. We reject approximately sixty percent of the venues we visit. Those that make our directory represent the genuine best of London.",
+          body: "Every venue listed on this page has been personally visited, photographed and assessed by our editorial team. We evaluate over thirty criteria including natural light quality, acoustics, catering flexibility, accessibility, overnight accommodation, and, critically, how the venue performs on the day itself, not just in marketing materials. We reject approximately sixty percent of the venues we visit. Those that make our directory represent the genuine best of London.",
         },
         {
           heading: "Neighbourhood Guide for Couples",
-          body: "Mayfair and Belgravia command the ultra-luxury tier — expect five-star hotels, private members' clubs, and starting prices above £25,000. Chelsea and South Bank deliver a blend of heritage and contemporary cool, ideal for couples who want tradition without formality. Hampstead and Richmond offer rare green space for garden ceremonies within zone two, while Shoreditch and King's Cross cater to the creative couple seeking industrial-chic warehouse settings with bespoke catering. Each neighbourhood shapes the tone of your celebration before a single flower is arranged.",
+          body: "Mayfair and Belgravia command the ultra-luxury tier, expect five-star hotels, private members' clubs, and starting prices above £25,000. Chelsea and South Bank deliver a blend of heritage and contemporary cool, ideal for couples who want tradition without formality. Hampstead and Richmond offer rare green space for garden ceremonies within zone two, while Shoreditch and King's Cross cater to the creative couple seeking industrial-chic warehouse settings with bespoke catering. Each neighbourhood shapes the tone of your celebration before a single flower is arranged.",
         },
         {
           heading: "Seasonal Considerations & Insider Advice",
-          body: "London's peak wedding season runs April through September, with Saturday dates at premium venues booking twelve to eighteen months ahead. Autumn weddings — particularly October — offer a sweet spot: warm golden light, lower venue rates, and the capital's parks ablaze with colour. Winter weddings in December and January unlock dramatic settings at significantly reduced cost, and several venues on our list offer exclusive Christmas and New Year packages. Our editorial recommendation: consider a Thursday or Friday celebration for thirty to forty percent savings at identical venues.",
+          body: "London's peak wedding season runs April through September, with Saturday dates at premium venues booking twelve to eighteen months ahead. Autumn weddings, particularly October, offer a sweet spot: warm golden light, lower venue rates, and the capital's parks ablaze with colour. Winter weddings in December and January unlock dramatic settings at significantly reduced cost, and several venues on our list offer exclusive Christmas and New Year packages. Our editorial recommendation: consider a Thursday or Friday celebration for thirty to forty percent savings at identical venues.",
         },
       ],
       expertNote: {
         author: "LWD Editorial Team",
         credential: "18 months · 200+ venue visits · London",
-        quote: "London is the only city where we've found venues that genuinely surprise us on every visit. The depth of quality here — from a hidden Jacobean hall in the City to a modernist gallery in Mayfair — is without equal.",
+        quote: "London is the only city where we've found venues that genuinely surprise us on every visit. The depth of quality here, from a hidden Jacobean hall in the City to a modernist gallery in Mayfair, is without equal.",
       },
       lastVerified: "February 2026",
     },
@@ -654,7 +654,7 @@ const UK_IRELAND_CITIES = [
     regionSlug: "london",
     countrySlug: "uk",
     listingCount: 0,
-    introEditorial: "Belgravia is London's most refined neighbourhood — stucco-fronted crescents, embassy-grade townhouses, and discreet elegance at every turn.",
+    introEditorial: "Belgravia is London's most refined neighbourhood, stucco-fronted crescents, embassy-grade townhouses, and discreet elegance at every turn.",
   },
 
   // Surrey
@@ -819,7 +819,7 @@ export const REGIONS_FLAT = REGIONS.map(r => ({
 }));
 
 // ---------------------------------------------------------------------------
-// CANONICAL PATH BUILDERS — for future URL routing, used in SEO panels now
+// CANONICAL PATH BUILDERS, for future URL routing, used in SEO panels now
 // ---------------------------------------------------------------------------
 
 export function getRegionPath(countrySlug, regionSlug) {
@@ -831,7 +831,7 @@ export function getRegionCategoryPath(countrySlug, regionSlug, categorySlug) {
 }
 
 // ---------------------------------------------------------------------------
-// VENDOR CATEGORY MAPPING — geo slug → vendors.js category values
+// VENDOR CATEGORY MAPPING, geo slug → vendors.js category values
 // ---------------------------------------------------------------------------
 
 const GEO_TO_VENDOR_CAT = {
@@ -858,22 +858,22 @@ export function getVendorCategoryByGeoSlug(geoSlug) {
 
 const REGION_CATEGORY_EDITORIALS = {
   "london--wedding-venues":
-    "London offers an extraordinary range of luxury wedding venues unlike anywhere else in the United Kingdom. From the timeless grandeur of Mayfair townhouses and Belgravia ballrooms to sweeping Thames-side terraces with skyline views and contemporary gallery spaces in Shoreditch, the capital delivers every style of celebration imaginable. Whether you envision a black-tie affair beneath crystal chandeliers, a bohemian garden party in Hampstead or a dramatic rooftop ceremony overlooking St Paul's Cathedral, London's diversity is its greatest strength. The city's concentration of five-star hotels, private members' clubs, historic livery halls and converted industrial spaces means couples are never short of options at any scale or budget. Our editorial team personally visits every venue before it appears on LWD — ensuring the collection represents only the very finest London has to offer.",
+    "London offers an extraordinary range of luxury wedding venues unlike anywhere else in the United Kingdom. From the timeless grandeur of Mayfair townhouses and Belgravia ballrooms to sweeping Thames-side terraces with skyline views and contemporary gallery spaces in Shoreditch, the capital delivers every style of celebration imaginable. Whether you envision a black-tie affair beneath crystal chandeliers, a bohemian garden party in Hampstead or a dramatic rooftop ceremony overlooking St Paul's Cathedral, London's diversity is its greatest strength. The city's concentration of five-star hotels, private members' clubs, historic livery halls and converted industrial spaces means couples are never short of options at any scale or budget. Our editorial team personally visits every venue before it appears on LWD, ensuring the collection represents only the very finest London has to offer.",
 
   "london--wedding-planners":
-    "London is home to the United Kingdom's highest concentration of luxury wedding planners, from full-service design studios orchestrating multi-day celebrations to specialist day-of coordinators who ensure flawless execution. The capital's planners draw on unrivalled vendor networks spanning florists, caterers, couturiers, lighting designers and entertainment agencies — many of whom work exclusively by referral. Whether you need a bilingual planner for an international guest list, a specialist in Jewish or South Asian ceremonies, or a creative director who can transform a blank-canvas warehouse into a botanical wonderland, London delivers at the highest level. Many of the UK's most awarded planners are based here, bringing editorial-quality design thinking to every celebration. Our editorial team personally vets each planner's portfolio, client references and operational standards before recommending them on LWD.",
+    "London is home to the United Kingdom's highest concentration of luxury wedding planners, from full-service design studios orchestrating multi-day celebrations to specialist day-of coordinators who ensure flawless execution. The capital's planners draw on unrivalled vendor networks spanning florists, caterers, couturiers, lighting designers and entertainment agencies, many of whom work exclusively by referral. Whether you need a bilingual planner for an international guest list, a specialist in Jewish or South Asian ceremonies, or a creative director who can transform a blank-canvas warehouse into a botanical wonderland, London delivers at the highest level. Many of the UK's most awarded planners are based here, bringing editorial-quality design thinking to every celebration. Our editorial team personally vets each planner's portfolio, client references and operational standards before recommending them on LWD.",
 
   "london--photographers":
-    "London's wedding photography scene is among the most sophisticated in the world, shaped by the city's thriving fashion, editorial and documentary photography cultures. The capital's photographers range from fine-art portraitists who create gallery-worthy images to photojournalists who capture raw, unposed emotion with cinematic precision. London itself provides an extraordinary canvas — from the grandeur of Kensington Palace Gardens and the moody elegance of Marylebone to the industrial textures of Bermondsey and the sweeping river views from Battersea Power Station. Many London photographers are published in Vogue, Harpers Bazaar and Tatler, bringing fashion-world sensibility to every wedding they shoot. Whether your style is classic and timeless or bold and contemporary, LWD's curated selection represents only photographers whose work consistently meets the highest editorial standards.",
+    "London's wedding photography scene is among the most sophisticated in the world, shaped by the city's thriving fashion, editorial and documentary photography cultures. The capital's photographers range from fine-art portraitists who create gallery-worthy images to photojournalists who capture raw, unposed emotion with cinematic precision. London itself provides an extraordinary canvas, from the grandeur of Kensington Palace Gardens and the moody elegance of Marylebone to the industrial textures of Bermondsey and the sweeping river views from Battersea Power Station. Many London photographers are published in Vogue, Harpers Bazaar and Tatler, bringing fashion-world sensibility to every wedding they shoot. Whether your style is classic and timeless or bold and contemporary, LWD's curated selection represents only photographers whose work consistently meets the highest editorial standards.",
 
   "london--florists":
-    "London's wedding florists draw on a heritage that stretches from the historic flower markets of Columbia Road and New Covent Garden to the cutting-edge installations of the Chelsea Flower Show. The city's floral designers range from romantic English garden specialists working with seasonal British blooms to avant-garde artists creating suspended installations, living walls and architectural centrepieces that transform entire venues. London florists have access to the widest range of flowers in the UK, sourced from Dutch auctions, British growers and specialist importers — enabling designs that simply aren't possible elsewhere. Whether you envision cascading peonies in soft blush tones, dramatic tropical arrangements, or minimalist single-stem tablescapes, London's florists deliver artistry at every scale. Every florist on LWD is selected for design excellence, reliability and the ability to execute flawlessly under pressure.",
+    "London's wedding florists draw on a heritage that stretches from the historic flower markets of Columbia Road and New Covent Garden to the cutting-edge installations of the Chelsea Flower Show. The city's floral designers range from romantic English garden specialists working with seasonal British blooms to avant-garde artists creating suspended installations, living walls and architectural centrepieces that transform entire venues. London florists have access to the widest range of flowers in the UK, sourced from Dutch auctions, British growers and specialist importers, enabling designs that simply aren't possible elsewhere. Whether you envision cascading peonies in soft blush tones, dramatic tropical arrangements, or minimalist single-stem tablescapes, London's florists deliver artistry at every scale. Every florist on LWD is selected for design excellence, reliability and the ability to execute flawlessly under pressure.",
 
   "london--caterers":
-    "London's private dining and wedding catering scene is among the finest in the world, fuelled by the city's extraordinary concentration of Michelin-starred chefs, artisan producers and multi-cultural culinary traditions. From elegant silver-service banquets in historic halls to relaxed sharing feasts and street-food style receptions, London caterers bring world-class creativity to every menu. The city's caterers can accommodate virtually any dietary requirement, cultural tradition or cuisine — whether you want a classic British wedding breakfast, a South Asian feast for five hundred, or a seven-course tasting menu designed by a former Michelin-starred chef. Many of London's top caterers work exclusively with luxury weddings and private events, bringing hotel-level service to any venue. LWD's curated caterers are selected for culinary excellence, service standards and the ability to deliver consistently at scale.",
+    "London's private dining and wedding catering scene is among the finest in the world, fuelled by the city's extraordinary concentration of Michelin-starred chefs, artisan producers and multi-cultural culinary traditions. From elegant silver-service banquets in historic halls to relaxed sharing feasts and street-food style receptions, London caterers bring world-class creativity to every menu. The city's caterers can accommodate virtually any dietary requirement, cultural tradition or cuisine, whether you want a classic British wedding breakfast, a South Asian feast for five hundred, or a seven-course tasting menu designed by a former Michelin-starred chef. Many of London's top caterers work exclusively with luxury weddings and private events, bringing hotel-level service to any venue. LWD's curated caterers are selected for culinary excellence, service standards and the ability to deliver consistently at scale.",
 
   "london--hair-makeup":
-    "London's bridal beauty industry sits at the intersection of fashion, film and luxury — producing hair and makeup artists whose work graces the pages of Vogue, the runways of London Fashion Week and the sets of major film productions. The capital's bridal specialists offer everything from classic English beauty and vintage Hollywood glamour to contemporary editorial looks and South Asian bridal artistry with intricate techniques honed across generations. London's proximity to the UK's leading beauty brands, product houses and training academies means artists here have access to the latest techniques and products before anywhere else. Most offer trial sessions months in advance, working closely with brides to perfect a look that photographs beautifully in any light. Every artist on LWD is selected for technical skill, professionalism and consistently outstanding client reviews.",
+    "London's bridal beauty industry sits at the intersection of fashion, film and luxury, producing hair and makeup artists whose work graces the pages of Vogue, the runways of London Fashion Week and the sets of major film productions. The capital's bridal specialists offer everything from classic English beauty and vintage Hollywood glamour to contemporary editorial looks and South Asian bridal artistry with intricate techniques honed across generations. London's proximity to the UK's leading beauty brands, product houses and training academies means artists here have access to the latest techniques and products before anywhere else. Most offer trial sessions months in advance, working closely with brides to perfect a look that photographs beautifully in any light. Every artist on LWD is selected for technical skill, professionalism and consistently outstanding client reviews.",
 
   "london--entertainment":
     "London's wedding entertainment scene is unmatched in the United Kingdom, drawing from the city's world-class music, theatre and performance cultures. From string quartets trained at the Royal Academy of Music and jazz ensembles from Soho's legendary clubs to high-energy party bands, internationally touring DJs and bespoke theatrical experiences, London offers entertainment for every taste and every moment of the day. The city's entertainment agencies curate acts ranging from elegant cocktail-hour performers to spectacular late-night sets that keep dance floors packed until the early hours. Many London-based musicians and performers work regularly at the capital's most prestigious venues and private events, bringing polished professionalism and genuine star quality. LWD's curated entertainment providers are selected for performance excellence, reliability and the ability to read a room and elevate any celebration.",
@@ -883,10 +883,10 @@ export function getRegionCategoryEditorial(regionSlug, categorySlug) {
   const key = `${regionSlug}--${categorySlug}`;
   if (REGION_CATEGORY_EDITORIALS[key]) return REGION_CATEGORY_EDITORIALS[key];
 
-  // Template fallback — never implies listings exist when count is 0
+  // Template fallback, never implies listings exist when count is 0
   const region = REGIONS.find(r => r.slug === regionSlug);
   const vc = VENDOR_CATEGORIES.find(c => c.slug === categorySlug);
   const regionName = region ? region.name : regionSlug;
   const label = vc ? vc.label : categorySlug;
-  return `Discover the finest ${label} in ${regionName}. Our editorial team is personally vetting every recommendation — we never accept pay-to-play listings. Premium ${label.toLowerCase()} in ${regionName} are arriving soon.`;
+  return `Discover the finest ${label} in ${regionName}. Our editorial team is personally vetting every recommendation, we never accept pay-to-play listings. Premium ${label.toLowerCase()} in ${regionName} are arriving soon.`;
 }

@@ -51,7 +51,7 @@ export default function EditorialProductCard({ data = {} }) {
       {/* Content */}
       <div style={{ padding: `${S.md}px ${S.md}px ${S.lg}px` }}>
 
-        {/* Brand label — gold uppercase Nunito */}
+        {/* Brand label, gold uppercase Nunito */}
         {brand && (
           <p style={{
             ...T.brand,
@@ -73,7 +73,7 @@ export default function EditorialProductCard({ data = {} }) {
           </p>
         )}
 
-        {/* Editorial note — italic Nunito */}
+        {/* Editorial note, italic Nunito */}
         {editorialNote && !isCompact && (
           <p style={{
             ...T.bodySm,

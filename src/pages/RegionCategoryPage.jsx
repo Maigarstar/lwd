@@ -79,7 +79,7 @@ export default function RegionCategoryPage({
     [regionSlug, categorySlug],
   );
 
-  // ── Listings — wedding-venues → VENUES, else → VENDORS ───────────────────
+  // ── Listings, wedding-venues → VENUES, else → VENDORS ───────────────────
   const listings = useMemo(() => {
     if (categorySlug === "wedding-venues") {
       return VENUES.filter(
@@ -160,7 +160,7 @@ export default function RegionCategoryPage({
       <div style={{ background: C.black, minHeight: "100vh", color: C.white }}>
 
         {/* ════════════════════════════════════════════════════════════════════
-            1. NAV — breadcrumbs
+            1. NAV, breadcrumbs
         ════════════════════════════════════════════════════════════════════ */}
         <RegionCategoryNav
           onBack={onBack}
@@ -177,7 +177,7 @@ export default function RegionCategoryPage({
         />
 
         {/* ════════════════════════════════════════════════════════════════════
-            2. HERO — 50vh
+            2. HERO, 50vh
         ════════════════════════════════════════════════════════════════════ */}
         <section
           aria-label={`${categoryLabel} in ${regionName}`}
@@ -313,7 +313,7 @@ export default function RegionCategoryPage({
               )}
             </div>
 
-            {/* Subtitle — first sentence of editorial */}
+            {/* Subtitle, first sentence of editorial */}
             <p
               style={{
                 fontSize: 16,
@@ -335,7 +335,7 @@ export default function RegionCategoryPage({
               aria-label="Key statistics"
             >
               {[
-                { val: listingCount > 0 ? listingCount : "—", label: categorySlug === "wedding-venues" ? "Curated Venues" : "Curated Listings" },
+                { val: listingCount > 0 ? listingCount : " - ", label: categorySlug === "wedding-venues" ? "Curated Venues" : "Curated Listings" },
                 { val: regionName, label: "Region", isText: true },
                 {
                   val: listingCount > 0 ? "100%" : "Coming Soon",
@@ -617,7 +617,7 @@ export default function RegionCategoryPage({
                 }}
               >
                 Our editorial team is personally vetting {categoryLabel.toLowerCase()} in {regionName}.
-                Premium listings are arriving soon — every recommendation is editorially
+                Premium listings are arriving soon, every recommendation is editorially
                 verified, never pay-to-play.
               </p>
               <BrowseAllButton
@@ -631,7 +631,7 @@ export default function RegionCategoryPage({
 
 
         {/* ════════════════════════════════════════════════════════════════════
-            5b. MAP — only for wedding-venues with real listings
+            5b. MAP, only for wedding-venues with real listings
         ════════════════════════════════════════════════════════════════════ */}
         {categorySlug === "wedding-venues" && listingCount > 0 && (
           <MapSection
@@ -781,7 +781,7 @@ export default function RegionCategoryPage({
 
 
         {/* ════════════════════════════════════════════════════════════════════
-            9. SEO PANEL — collapsible
+            9. SEO PANEL, collapsible
         ════════════════════════════════════════════════════════════════════ */}
         <section
           className="lwd-rc-section"
@@ -880,7 +880,7 @@ export default function RegionCategoryPage({
                     Page Title
                   </h3>
                   <div style={{ fontSize: 13, color: C.grey, fontFamily: NU, lineHeight: 1.7 }}>
-                    {categoryLabel} in {regionName} — Luxury Wedding Directory
+                    {categoryLabel} in {regionName}, Luxury Wedding Directory
                   </div>
                 </div>
 
@@ -957,7 +957,7 @@ export default function RegionCategoryPage({
 
 
 // ═════════════════════════════════════════════════════════════════════════════
-// SUB-COMPONENTS — local to this file
+// SUB-COMPONENTS, local to this file
 // ═════════════════════════════════════════════════════════════════════════════
 
 
@@ -1143,7 +1143,7 @@ function RegionCategoryNav({ onBack, onBackHome, scrolled, darkMode, onToggleDar
 }
 
 
-// ── Listing Card — works for both venues and vendors ─────────────────────
+// ── Listing Card, works for both venues and vendors ─────────────────────
 function ListingCard({ item, C, isVenue, onView }) {
   const [hov, setHov] = useState(false);
 

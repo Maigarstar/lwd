@@ -8,9 +8,9 @@
  * File objects in hero_images[] and media_items[] are persisted.
  *
  * Storage path: listing-media/{media_id}.{ext}
- *   — media_id is already a nanoid/UUID unique to each item
- *   — upsert: true so re-saving the same item overwrites cleanly
- *   — 1-year cache header (images are immutable by media_id)
+ *  , media_id is already a nanoid/UUID unique to each item
+ *  , upsert: true so re-saving the same item overwrites cleanly
+ *  , 1-year cache header (images are immutable by media_id)
  */
 
 import { supabase } from '../lib/supabaseClient';
@@ -24,8 +24,8 @@ const BUCKET = 'listing-media';
  * Returns the permanent public URL on success.
  * Throws on network or storage error.
  *
- * @param {File}   file    — the File object from the input / drop event
- * @param {string} mediaId — the item's id (nanoid), used as the filename
+ * @param {File}   file   , the File object from the input / drop event
+ * @param {string} mediaId, the item's id (nanoid), used as the filename
  */
 export async function uploadMediaFile(file, mediaId) {
   const rawExt = file.name.split('.').pop()?.toLowerCase() || '';
@@ -38,7 +38,7 @@ export async function uploadMediaFile(file, mediaId) {
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
     .upload(path, file, {
-      cacheControl:  '31536000',   // 1 year — images don't change at a given path
+      cacheControl:  '31536000',   // 1 year, images don't change at a given path
       upsert:        true,         // overwrite if the same media_id is re-uploaded
       contentType:   file.type || 'image/jpeg',
     });
@@ -59,8 +59,8 @@ export async function uploadMediaFile(file, mediaId) {
  * Items that already have a URL (already uploaded) are untouched.
  * Items that fail to upload are left as-is (url stays ''); the save continues.
  *
- * @param {Array}    items       — hero_images[] or media_items[] from formData
- * @param {Function} onProgress  — optional callback (string message)
+ * @param {Array}    items      , hero_images[] or media_items[] from formData
+ * @param {Function} onProgress , optional callback (string message)
  * @returns {{ items: Array, uploaded: number, failed: number }}
  */
 export async function uploadPendingFiles(items = [], onProgress) {
@@ -91,7 +91,7 @@ export async function uploadPendingFiles(items = [], onProgress) {
 
   // Return new array with File-backed items replaced by storage URLs
   const updatedItems = items.map(item => {
-    if (!urlMap[item.id]) return item;          // not uploaded — keep as-is
+    if (!urlMap[item.id]) return item;          // not uploaded, keep as-is
     const { file: _drop, ...rest } = item;      // strip File object
     return { ...rest, url: urlMap[item.id] };   // replace with permanent URL
   });

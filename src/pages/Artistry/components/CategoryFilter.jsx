@@ -18,7 +18,7 @@ export default function CategoryFilter({ active, onChange, fontUI }) {
 
   return (
     <>
-      {/* Sentinel — 1px element that sits just above the filter bar */}
+      {/* Sentinel, 1px element that sits just above the filter bar */}
       <div ref={sentinel} style={{ height: 1 }} />
 
       <div className="cf-wrap" style={{

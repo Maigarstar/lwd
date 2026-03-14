@@ -63,7 +63,7 @@ export default function RecommendationCard({ item, darkMode = true, onQuickView,
         marginBottom: 14,
       }}
     >
-      {/* ── Image — clicking opens Quick View ── */}
+      {/* ── Image, clicking opens Quick View ── */}
       <div
         onClick={() => onQuickView?.(item)}
         style={{
@@ -96,7 +96,7 @@ export default function RecommendationCard({ item, darkMode = true, onQuickView,
           }}
         />
 
-        {/* Online dot — top-left */}
+        {/* Online dot, top-left */}
         <div
           style={{
             position:   "absolute",
@@ -117,7 +117,7 @@ export default function RecommendationCard({ item, darkMode = true, onQuickView,
               height:       5,
               borderRadius: "50%",
               background:   item.online ? "#22c55e" : "#6b7280",
-              /* solid dot — no pulse */
+              /* solid dot, no pulse */
               flexShrink:   0,
             }}
           />

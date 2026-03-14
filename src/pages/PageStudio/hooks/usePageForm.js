@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { updatePage, getPageById } from '../services/pageService';
 
 /**
- * usePageForm — Form state management for page editor
+ * usePageForm, Form state management for page editor
  *
  * Mirrors useListingForm pattern:
  * - Single formData object (source of truth)

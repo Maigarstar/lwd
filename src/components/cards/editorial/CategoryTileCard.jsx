@@ -135,7 +135,7 @@ export default function CategoryTileCard({ data = {} }) {
     );
   }
 
-  // ── Banner variant (default) — full width coloured band ──────────────────
+  // ── Banner variant (default), full width coloured band ──────────────────
   return (
     <div
       onMouseEnter={() => setHover(true)}

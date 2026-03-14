@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 
 /**
- * AIContentTools — "Fill with AI" overlay panel for Listing Studio
+ * AIContentTools, "Fill with AI" overlay panel for Listing Studio
  *
  * On trigger: reads venue name + location from formData, sends a single
  * AI call to `ai-generate`, receives structured JSON, populates fields.
@@ -13,14 +13,14 @@ import { supabase } from '../../../lib/supabaseClient';
  * Props:
  *   formData   {object}  Current form state (read venue name/location context)
  *   onChange   {fn}      handleChange(fieldName, value) from useListingForm
- *   listingId  {string}  Optional — passed to usage log
+ *   listingId  {string}  Optional, passed to usage log
  *   onClose    {fn}      Called when panel is dismissed
  */
 
 const FIELDS = [
   { key: 'summary',                    label: 'Editorial Summary',       hint: 'Short intro shown on listing cards (max 240 chars)' },
   { key: 'description',                label: 'About / Profile',         hint: 'Full venue description (rich HTML, 3–4 paragraphs)' },
-  { key: 'amenities',                  label: 'Featured Amenities',      hint: 'Key features and offerings — comma-separated list' },
+  { key: 'amenities',                  label: 'Featured Amenities',      hint: 'Key features and offerings, comma-separated list' },
   { key: 'dining_description',         label: 'Catering & Dining',       hint: 'Editorial dining description (rich HTML, 1–2 paragraphs)' },
   { key: 'rooms_description',          label: 'Accommodation',           hint: 'Guest rooms & overnight experience (rich HTML, 1–2 paragraphs)' },
   { key: 'spaces_description',         label: 'Event Spaces & Ceremony', hint: 'Overview of ceremony spaces and event areas (rich HTML, 1–2 paragraphs)' },
@@ -136,10 +136,10 @@ const AIContentTools = ({ formData = {}, onChange, listingId = null, onClose, da
     const locationParts = [city, region, country].filter(Boolean);
     const locationStr   = locationParts.length ? locationParts.join(', ') : 'location not specified';
 
-    const systemPrompt = `You are a luxury wedding editorial writer for Luxury Wedding Directory — a premium venue and vendor discovery platform.
+    const systemPrompt = `You are a luxury wedding editorial writer for Luxury Wedding Directory, a premium venue and vendor discovery platform.
 Write in a sophisticated, elegant tone that appeals to high-net-worth couples planning destination weddings.
 Avoid clichés. Be specific, evocative, and aspirational.
-Always return valid JSON only — no markdown, no prose outside the JSON object.`;
+Always return valid JSON only, no markdown, no prose outside the JSON object.`;
 
     const userPrompt = `Generate editorial content for this listing. Return ONLY a JSON object with these fields: ${activeKeys.join(', ')}.
 
@@ -152,10 +152,10 @@ Field requirements:
 - summary: Max 240 chars. One to two elegant sentences for card display. Plain text, no quotes.
 - description: Rich HTML using <p> tags only. 3–4 paragraphs. Evocative, detailed, aspirational.
 - amenities: Comma-separated list of key venue features and services (e.g. "Private chapel, Helicopter landing, 40-room estate, On-site catering").
-- dining_description: Rich HTML using <p> tags only. 1–2 paragraphs about the culinary experience — cuisine style, sourcing, chef, atmosphere.
-- rooms_description: Rich HTML using <p> tags only. 1–2 paragraphs about guest accommodations — room types, design, comfort, wedding night experience.
-- spaces_description: Rich HTML using <p> tags only. 1–2 paragraphs describing the ceremony and event spaces — setting, ambiance, flexibility for different ceremony styles.
-- exclusive_use_description: 2–3 sentences. Plain text. Describes the intimacy and appeal of hiring the entire estate privately — speak to luxury couples directly.
+- dining_description: Rich HTML using <p> tags only. 1–2 paragraphs about the culinary experience, cuisine style, sourcing, chef, atmosphere.
+- rooms_description: Rich HTML using <p> tags only. 1–2 paragraphs about guest accommodations, room types, design, comfort, wedding night experience.
+- spaces_description: Rich HTML using <p> tags only. 1–2 paragraphs describing the ceremony and event spaces, setting, ambiance, flexibility for different ceremony styles.
+- exclusive_use_description: 2–3 sentences. Plain text. Describes the intimacy and appeal of hiring the entire estate privately, speak to luxury couples directly.
 - card_venue_description: Max 160 chars. A single compelling teaser sentence for venue card display. Plain text, no quotes.
 - seo_title: Max 60 chars. Natural language, include venue name and location.
 - seo_description: 150–160 chars. Compelling meta description with a soft call to action.
@@ -296,7 +296,7 @@ Return ONLY the JSON object. No explanation, no markdown fences.`;
           </button>
         </div>
 
-        {/* Body — scrollable */}
+        {/* Body, scrollable */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', backgroundColor: DK.body }}>
 
           {/* Location context note */}
@@ -390,7 +390,7 @@ Return ONLY the JSON object. No explanation, no markdown fences.`;
                 fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
                 letterSpacing: '0.08em', color: DK.hintText, marginBottom: 12,
               }}>
-                Preview — review before applying
+                Preview, review before applying
               </p>
 
               {FIELDS.filter(f => preview[f.key] !== undefined).map(f => (

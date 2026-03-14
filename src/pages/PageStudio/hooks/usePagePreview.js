@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 /**
- * usePagePreview — Debounce preview updates (200ms)
+ * usePagePreview, Debounce preview updates (200ms)
  *
  * Prevents excessive re-renders when editing text fields.
  * Returns debounced formData for preview component.

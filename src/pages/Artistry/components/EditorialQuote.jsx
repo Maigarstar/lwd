@@ -61,7 +61,7 @@ export default function EditorialQuote({ quote, attribution, fontDisplay, fontUI
           opacity: vis ? 1 : 0,
           transition: 'opacity 0.8s ease 0.4s',
         }}>
-          — {attribution}
+         , {attribution}
         </p>
       )}
 

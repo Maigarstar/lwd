@@ -1,5 +1,5 @@
 /**
- * HomepageEditor 2.0 — Visual Editorial Homepage Builder
+ * HomepageEditor 2.0, Visual Editorial Homepage Builder
  *
  * Three-panel layout:
  *   LEFT  (260px): Layout selector, cover story picker, compact section list, presets
@@ -73,7 +73,7 @@ const DEFAULT_SECTIONS = [
   { id: 'affiliate',       label: 'Affiliate Showcase', icon: '◆', visible: false, config: { productCategory: '', productSubcategory: '', mode: 'curated', count: 6, sortOrder: 'featured', title: 'The Edit: Curated Picks' } },
   { id: 'category-strip',  label: 'Category Strip',    icon: '═', visible: true,  config: { categories: [] } },
   { id: 'banner',          label: 'Feature Banner',    icon: '▬', visible: false, config: { title: '', subtitle: '', image: '', ctaLabel: 'Discover More', ctaUrl: '' } },
-  { id: 'newsletter',      label: 'Newsletter',        icon: '✉', visible: true,  config: { headline: 'Join the World of Luxury Weddings', subtext: 'Editorial stories, venue discoveries, and exclusive features — delivered with discretion.' } },
+  { id: 'newsletter',      label: 'Newsletter',        icon: '✉', visible: true,  config: { headline: 'Join the World of Luxury Weddings', subtext: 'Editorial stories, venue discoveries, and exclusive features, delivered with discretion.' } },
   { id: 'spotlight',       label: 'Category Spotlight', icon: '▩', visible: false, config: { categories: [] } },
 ];
 
@@ -94,7 +94,7 @@ const CONTENT_SECTIONS = new Set(['fashion', 'honeymoons', 'weddings', 'destinat
 
 // ── Affiliate product categories ────────────────────────────────────────────
 const AFFILIATE_CATEGORIES = [
-  { value: '', label: '— All Categories —' },
+  { value: '', label: ' -  All Categories  - ' },
   { value: 'bridal-fashion', label: 'Bridal Fashion' },
   { value: 'accessories', label: 'Accessories & Jewellery' },
   { value: 'beauty', label: 'Beauty & Fragrance' },
@@ -150,14 +150,14 @@ const AFFILIATE_SUBCATEGORIES = {
 
 
 /* ═══════════════════════════════════════════════════════════════════════════════
- * SECTION CONFIG EDITOR — per-section form controls (reused from v1, enhanced)
+ * SECTION CONFIG EDITOR, per-section form controls (reused from v1, enhanced)
  * ═══════════════════════════════════════════════════════════════════════════════ */
 function SectionConfigEditor({ section, onChange }) {
   const upd = (key, val) => onChange({ ...section, config: { ...section.config, [key]: val } });
   const { config } = section;
 
   const categoryOptions = [
-    { value: '', label: '— Default —' },
+    { value: '', label: ' -  Default  - ' },
     ...CATEGORIES.map(c => ({ value: c.id, label: c.label })),
   ];
 
@@ -322,7 +322,7 @@ function SectionConfigEditor({ section, onChange }) {
                 value={config.productSubcategory || ''}
                 onChange={v => upd('productSubcategory', v)}
                 options={[
-                  { value: '', label: '— All —' },
+                  { value: '', label: ' -  All  - ' },
                   ...AFFILIATE_SUBCATEGORIES[config.productCategory],
                 ]}
               />
@@ -374,7 +374,7 @@ function SectionConfigEditor({ section, onChange }) {
 
 
 /* ═══════════════════════════════════════════════════════════════════════════════
- * LAYOUT SELECTOR — 2×2 visual layout cards
+ * LAYOUT SELECTOR, 2×2 visual layout cards
  * ═══════════════════════════════════════════════════════════════════════════════ */
 function LayoutSelector({ activeStyle, onChange, S }) {
   return (
@@ -463,7 +463,7 @@ function LayoutSelector({ activeStyle, onChange, S }) {
 
 
 /* ═══════════════════════════════════════════════════════════════════════════════
- * COVER STORY PICKER — dropdown + thumbnail preview
+ * COVER STORY PICKER, dropdown + thumbnail preview
  * ═══════════════════════════════════════════════════════════════════════════════ */
 function CoverStoryPicker({ slug, allPosts, onChange, S }) {
   const candidates = useMemo(() => {
@@ -524,7 +524,7 @@ function CoverStoryPicker({ slug, allPosts, onChange, S }) {
           padding: '6px 8px', borderRadius: 2, cursor: 'pointer', outline: 'none',
         }}
       >
-        <option value="">— Default (first featured) —</option>
+        <option value=""> -  Default (first featured)  - </option>
         {candidates.map(p => (
           <option key={p.id} value={p.slug}>{p.title}</option>
         ))}
@@ -535,7 +535,7 @@ function CoverStoryPicker({ slug, allPosts, onChange, S }) {
 
 
 /* ═══════════════════════════════════════════════════════════════════════════════
- * COMPACT SECTION ROW — ~36px, icon + label + visibility toggle
+ * COMPACT SECTION ROW, ~36px, icon + label + visibility toggle
  * ═══════════════════════════════════════════════════════════════════════════════ */
 function CompactSectionRow({ section, index, total, onChange, onMove, isActive, onSelect, S }) {
   if (section.id === 'layout' || section.id === 'cover') return null;
@@ -603,7 +603,7 @@ function CompactSectionRow({ section, index, total, onChange, onMove, isActive, 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════════
- * CONTEXT PANEL — right slide-in editor (320px)
+ * CONTEXT PANEL, right slide-in editor (320px)
  * ═══════════════════════════════════════════════════════════════════════════════ */
 function ContextPanel({ section, onChange, onClose, S }) {
   if (!section) return null;
@@ -658,7 +658,7 @@ function ContextPanel({ section, onChange, onClose, S }) {
             padding: '8px 10px', background: S.inputBg, borderRadius: 2,
             border: `1px solid ${S.border}`,
           }}>
-            Section hidden — toggle visibility to show on homepage.
+            Section hidden, toggle visibility to show on homepage.
           </div>
         )}
         <SectionConfigEditor section={section} onChange={onChange} />
@@ -669,7 +669,7 @@ function ContextPanel({ section, onChange, onClose, S }) {
 
 
 /* ═══════════════════════════════════════════════════════════════════════════════
- * LIVE PREVIEW — renders actual layout components, ResizeObserver + scale
+ * LIVE PREVIEW, renders actual layout components, ResizeObserver + scale
  * ═══════════════════════════════════════════════════════════════════════════════ */
 function LivePreview({ sections, allPosts, viewport }) {
   const containerRef = useRef(null);
@@ -756,7 +756,7 @@ function LivePreview({ sections, allPosts, viewport }) {
         padding: 2,
       }}
     >
-      {/* Height wrapper — ensures scroll area matches visual height */}
+      {/* Height wrapper, ensures scroll area matches visual height */}
       <div style={{
         width: Math.ceil(vpWidth * scale),
         height: scaledHeight,
@@ -797,7 +797,7 @@ function LivePreview({ sections, allPosts, viewport }) {
 
 
 /* ═══════════════════════════════════════════════════════════════════════════════
- * PRESETS PANEL — auto-configure sections
+ * PRESETS PANEL, auto-configure sections
  * ═══════════════════════════════════════════════════════════════════════════════ */
 function PresetsPanel({ onApplyPreset, S }) {
   return (
@@ -835,7 +835,7 @@ function PresetsPanel({ onApplyPreset, S }) {
 
 
 /* ═══════════════════════════════════════════════════════════════════════════════
- * MAIN — HomepageEditor: three-panel visual builder
+ * MAIN, HomepageEditor: three-panel visual builder
  * ═══════════════════════════════════════════════════════════════════════════════ */
 export default function HomepageEditor({ onBack, isLight = false, allPosts = [] }) {
   const S = getS(isLight);
@@ -975,7 +975,7 @@ export default function HomepageEditor({ onBack, isLight = false, allPosts = [] 
       {/* ── Three-panel body ──────────────────────────────────────────────── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
 
-        {/* LEFT PANEL — Layout selector, cover picker, section list, presets */}
+        {/* LEFT PANEL, Layout selector, cover picker, section list, presets */}
         <div style={{
           width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column',
           borderRight: `1px solid ${S.border}`, overflow: 'hidden',
@@ -1031,14 +1031,14 @@ export default function HomepageEditor({ onBack, isLight = false, allPosts = [] 
           <PresetsPanel onApplyPreset={applyPreset} S={S} />
         </div>
 
-        {/* CENTER PANEL — Live Preview */}
+        {/* CENTER PANEL, Live Preview */}
         <LivePreview
           sections={sections}
           allPosts={allPosts}
           viewport={viewport}
         />
 
-        {/* RIGHT PANEL — Context Editor (slide-in overlay) */}
+        {/* RIGHT PANEL, Context Editor (slide-in overlay) */}
         {selectedSection && selectedSection.id !== 'layout' && selectedSection.id !== 'cover' && (
           <ContextPanel
             section={selectedSection}

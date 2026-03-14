@@ -12,7 +12,7 @@ const CREAM = '#f5f0e8';
 
 // ─── EDITORIAL MODULES ─────────────────────────────────────────────────────────
 
-// Fashion Quote Block — full-width editorial pull quote
+// Fashion Quote Block, full-width editorial pull quote
 export function FashionQuote({ quote, attribution, isLight = true }) {
   const TEXT = isLight ? '#1a1806' : CREAM;
   const MUTED = isLight ? 'rgba(30,28,22,0.45)' : 'rgba(245,240,232,0.45)';
@@ -30,14 +30,14 @@ export function FashionQuote({ quote, attribution, isLight = true }) {
       </p>
       {attribution && (
         <cite style={{ fontFamily: FU, fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD, fontStyle: 'normal' }}>
-          — {attribution}
+         , {attribution}
         </cite>
       )}
     </blockquote>
   );
 }
 
-// Style Feature Grid — 2-3 column editorial image grid with captions
+// Style Feature Grid, 2-3 column editorial image grid with captions
 export function StyleFeatureGrid({ items = [], isLight = true }) {
   // items: [{ image, caption, tag }]
   const BORDER = isLight ? 'rgba(30,28,22,0.08)' : 'rgba(201,169,110,0.08)';
@@ -77,7 +77,7 @@ export function StyleFeatureGrid({ items = [], isLight = true }) {
   );
 }
 
-// Trend Report Block — full-width editorial trend feature
+// Trend Report Block, full-width editorial trend feature
 export function TrendReport({ trend, isLight = true, onRead }) {
   const [hov, setHov] = useState(false);
   const TEXT  = isLight ? '#1a1806' : CREAM;
@@ -121,7 +121,7 @@ export function TrendReport({ trend, isLight = true, onRead }) {
   );
 }
 
-// Designer Spotlight — brand feature with logo + story
+// Designer Spotlight, brand feature with logo + story
 export function DesignerSpotlight({ designer, isLight = true, onRead }) {
   // designer: { name, country, heroImage, logoOrTag, story, signature, ctaLabel }
   const BG     = isLight ? '#f5f3ef' : '#0d0d0b';
@@ -178,7 +178,7 @@ export function DesignerSpotlight({ designer, isLight = true, onRead }) {
   );
 }
 
-// Mood Board — editorial image collage for fashion atmosphere
+// Mood Board, editorial image collage for fashion atmosphere
 export function MoodBoard({ images = [], title, isLight = true }) {
   // images: string[] (4-6 images recommended)
   const TEXT = isLight ? '#1a1806' : CREAM;
@@ -217,7 +217,7 @@ export function MoodBoard({ images = [], title, isLight = true }) {
   );
 }
 
-// Style Advice Block — editorial text feature with pull quote
+// Style Advice Block, editorial text feature with pull quote
 export function StyleAdvice({ heading, body, tip, author, isLight = true }) {
   const BG    = isLight ? '#f5f3ef' : '#0d0d0b';
   const TEXT  = isLight ? '#1a1806' : CREAM;
@@ -245,7 +245,7 @@ export function StyleAdvice({ heading, body, tip, author, isLight = true }) {
       )}
       {author && (
         <div style={{ fontFamily: FU, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: GOLD }}>
-          — {author}
+         , {author}
         </div>
       )}
     </div>
@@ -254,7 +254,7 @@ export function StyleAdvice({ heading, body, tip, author, isLight = true }) {
 
 // ─── COMMERCE MODULES ──────────────────────────────────────────────────────────
 
-// Shoppable Product Row — horizontal scrolling product row
+// Shoppable Product Row, horizontal scrolling product row
 export function ShoppableProductRow({ headline, subline, collectionId, products: propProducts, isLight = true, ctaLabel, onCtaClick }) {
   const products = propProducts || (collectionId ? getProductsByCollection(collectionId) : []);
   const BG     = isLight ? '#fafaf8' : '#0a0a0a';
@@ -312,7 +312,7 @@ export function ShoppableProductRow({ headline, subline, collectionId, products:
   );
 }
 
-// Beauty Shelf — 4-item beauty product grid with editorial feel
+// Beauty Shelf, 4-item beauty product grid with editorial feel
 export function BeautyShelf({ headline, products: propProducts, collectionId, isLight = true }) {
   const products = (propProducts || (collectionId ? getProductsByCollection(collectionId) : [])).slice(0, 4);
   const BG    = isLight ? '#fafaf8' : '#0a0a0a';
@@ -342,7 +342,7 @@ export function BeautyShelf({ headline, products: propProducts, collectionId, is
   );
 }
 
-// Accessories Edit — horizontal list of accessories with minimal cards
+// Accessories Edit, horizontal list of accessories with minimal cards
 export function AccessoriesEdit({ headline, products: propProducts, collectionId, isLight = true }) {
   const products = propProducts || (collectionId ? getProductsByCollection(collectionId) : []);
   const BG     = isLight ? '#fff' : '#0d0d0b';
@@ -371,7 +371,7 @@ export function AccessoriesEdit({ headline, products: propProducts, collectionId
   );
 }
 
-// Three-Item Luxury Edit — editorial 3-column product feature (portrait, with larger editorial note)
+// Three-Item Luxury Edit, editorial 3-column product feature (portrait, with larger editorial note)
 export function ThreeItemLuxuryEdit({ headline, products: propProducts, collectionId, isLight = true }) {
   const products = (propProducts || (collectionId ? getProductsByCollection(collectionId) : [])).slice(0, 3);
   const BG     = isLight ? '#fafaf8' : '#0a0a0a';
@@ -399,7 +399,7 @@ export function ThreeItemLuxuryEdit({ headline, products: propProducts, collecti
   );
 }
 
-// Gift Guide Row — editorial gift guide with budget labels
+// Gift Guide Row, editorial gift guide with budget labels
 export function GiftGuideRow({ headline, items = [], isLight = true }) {
   // items: [{ label, product }]
   const BG   = isLight ? '#fff' : '#0d0d0b';
@@ -431,7 +431,7 @@ export function GiftGuideRow({ headline, items = [], isLight = true }) {
   );
 }
 
-// Affiliate Break — full-width ambient affiliate CTA (editorial brand feature)
+// Affiliate Break, full-width ambient affiliate CTA (editorial brand feature)
 export function AffiliateBreak({ brand, tagline, description, image, ctaLabel, ctaUrl, isLight = true }) {
   const [hov, setHov] = useState(false);
   return (
@@ -473,7 +473,7 @@ export function AffiliateBreak({ brand, tagline, description, image, ctaLabel, c
   );
 }
 
-// Where to Buy Panel — list of retailers for a single product/look
+// Where to Buy Panel, list of retailers for a single product/look
 export function WhereToBuy({ title, retailers = [], isLight = true }) {
   // retailers: [{ name, url, price, note }]
   const BG     = isLight ? '#f5f3ef' : '#0d0d0b';

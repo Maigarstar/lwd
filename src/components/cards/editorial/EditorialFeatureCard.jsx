@@ -50,7 +50,7 @@ export default function EditorialFeatureCard({ data = {} }) {
           cursor: onClick ? 'pointer' : 'default',
         }}
       >
-        {/* Large image — 70% */}
+        {/* Large image, 70% */}
         <div style={{ flex: '0 0 70%', position: 'relative', overflow: 'hidden' }}>
           {imgs[0] && (
             <img
@@ -65,7 +65,7 @@ export default function EditorialFeatureCard({ data = {} }) {
           )}
         </div>
 
-        {/* Text panel — 30% */}
+        {/* Text panel, 30% */}
         <div style={{
           flex: '0 0 30%',
           background: C.card,
@@ -168,7 +168,7 @@ export default function EditorialFeatureCard({ data = {} }) {
     );
   }
 
-  // ── Mosaic variant (default) — N image panels + floating text ────────────
+  // ── Mosaic variant (default), N image panels + floating text ────────────
   // Panel widths: centre panel slightly wider for visual rhythm
   const panelWidths = panelCount === 5
     ? ['18%', '22%', '20%', '22%', '18%']

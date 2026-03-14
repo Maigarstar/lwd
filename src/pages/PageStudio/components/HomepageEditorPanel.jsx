@@ -1,5 +1,5 @@
 /**
- * HomepageEditorPanel — Left panel with section editors
+ * HomepageEditorPanel, Left panel with section editors
  *
  * - Drag handle (≡) for reordering sections
  * - Hero section locked (cannot move)
@@ -235,7 +235,7 @@ export default function HomepageEditorPanel({
               </button>
             </div>
 
-            {/* Section Body — Render actual section editor */}
+            {/* Section Body, Render actual section editor */}
             {config.id === 'hero' && <SlimHeroSection section={section} onChange={onSectionChange} C={C} NU={NU} GD={GD} />}
             {config.id === 'destinations' && <DestinationGridSection section={section} onChange={onSectionChange} C={C} NU={NU} />}
             {config.id === 'venues' && <VenueGridSection section={section} onChange={onSectionChange} C={C} NU={NU} />}

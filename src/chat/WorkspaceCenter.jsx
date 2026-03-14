@@ -200,7 +200,7 @@ export default function WorkspaceCenter({ darkMode }) {
                   {m.text}
                 </div>
 
-                {/* Thumbs — Aura only */}
+                {/* Thumbs, Aura only */}
                 {m.from === "aura" && (
                   <div className={`ws-thumbs${feedback[m.id] ? " ws-thumbs--active" : ""}`} style={{ display: "flex", alignItems: "center", gap: 4, paddingLeft: 4 }}>
                     <ThumbBtn icon={<Icon name="thumbUp" size={12} />} active={feedback[m.id] === "up"}   label="Helpful"     onClick={() => toggleFeedback(m.id, "up")}   T={T} />
@@ -216,7 +216,7 @@ export default function WorkspaceCenter({ darkMode }) {
             </div>
           ))}
 
-          {/* Smart suggestion chips — only on initial greeting state */}
+          {/* Smart suggestion chips, only on initial greeting state */}
           {messages.length === 1 && messages[0].id === 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingLeft: 38, marginTop: -4 }}>
               {SMART_CHIPS.map((chip) => (

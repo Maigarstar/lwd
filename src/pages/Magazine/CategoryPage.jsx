@@ -1,17 +1,17 @@
 /**
- * CategoryPage — Editorial Category Page Orchestrator
+ * CategoryPage, Editorial Category Page Orchestrator
  *
  * The category-level equivalent of MagazineHomePage.
  * Six swappable editorial layouts, a cover story system,
  * subcategory pills, sort control, and a layout switcher.
  *
  * Layouts:
- *   1. Curated       — split-screen hero + editorial well
- *   2. Editorial     — full-screen hero + story river
- *   3. Grid          — magazine grid hero + overlay cards
- *   4. Immersive     — carousel + cinematic blocks
- *   5. Portrait      — portrait hero (fashion / trends)
- *   6. Dual Feature  — side-by-side hero (travel / weddings)
+ *   1. Curated      , split-screen hero + editorial well
+ *   2. Editorial    , full-screen hero + story river
+ *   3. Grid         , magazine grid hero + overlay cards
+ *   4. Immersive    , carousel + cinematic blocks
+ *   5. Portrait     , portrait hero (fashion / trends)
+ *   6. Dual Feature , side-by-side hero (travel / weddings)
  */
 import { useState, useEffect, useMemo } from 'react';
 import { getPostsByCategory } from './data/posts';

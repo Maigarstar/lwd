@@ -1,7 +1,7 @@
 import AIImportEngine, { isEmpty, stripHtml } from '../../../components/AIImportEngine/AIImportEngine';
 
 /**
- * HomepageAIImportPanel — Homepage-specific wrapper around AIImportEngine
+ * HomepageAIImportPanel, Homepage-specific wrapper around AIImportEngine
  *
  * Maps AI extraction output into the homepage's fixed-section formData structure:
  *   sections[].id = 'hero' | 'destinations' | 'venues' | 'featured' |
@@ -112,7 +112,7 @@ const HOMEPAGE_REVIEW_SECTIONS = [
 // ─── Apply function ──────────────────────────────────────────────────────────
 
 /**
- * applyHomepageResult — Map AI extraction result to homepage formData.
+ * applyHomepageResult, Map AI extraction result to homepage formData.
  *
  * Uses onChange for flat fields (title, seo) and onSectionChange for
  * section-level fields (hero.heading, newsletter.ctaText, etc.).

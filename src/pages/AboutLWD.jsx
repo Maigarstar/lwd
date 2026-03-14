@@ -1,5 +1,5 @@
 // ─── src/pages/AboutLWD.jsx ────────────────────────────────────────────────────
-// About LWD — institutional positioning page.
+// About LWD, institutional positioning page.
 // Not a lifestyle page. Not a romantic page. A statement of authority.
 // Reinforces: 20+ years, structured standard evolution, founders, vision.
 // No vanity metrics. No emotional fluff. No numeric score exposure.
@@ -65,7 +65,7 @@ export default function AboutLWD({ onBack, onViewCategory, onViewStandard, onVie
 
         <main>
           {/* ──────────────────────────────────────────────────────────────────
-              SECTION 1: Hero — Authoritative Opening
+              SECTION 1: Hero, Authoritative Opening
           ────────────────────────────────────────────────────────────────── */}
           <section
             className="lwd-standard-section lwd-standard-hero"
@@ -194,7 +194,7 @@ export default function AboutLWD({ onBack, onViewCategory, onViewStandard, onVie
                 </p>
               </div>
 
-              {/* Right column — vertical gold accent */}
+              {/* Right column, vertical gold accent */}
               <div style={{
                 display: "flex",
                 alignItems: "center",
@@ -247,7 +247,7 @@ export default function AboutLWD({ onBack, onViewCategory, onViewStandard, onVie
                 fontFamily: NU, fontSize: 15, color: C.grey, lineHeight: 1.85,
                 fontWeight: 300, margin: "0 0 16px",
               }}>
-                At the core of the platform is the Curated Index — a structured
+                At the core of the platform is the Curated Index, a structured
                 framework assessing venues across measurable dimensions of quality,
                 experience depth, responsiveness, catering, and completeness.
               </p>
@@ -448,7 +448,7 @@ export default function AboutLWD({ onBack, onViewCategory, onViewStandard, onVie
               className="lwd-standard-ctas"
               style={{ display: "flex", gap: 16, justifyContent: "center" }}
             >
-              {/* Primary — Discover Venues */}
+              {/* Primary, Discover Venues */}
               <button
                 onClick={onViewCategory}
                 style={{
@@ -464,7 +464,7 @@ export default function AboutLWD({ onBack, onViewCategory, onViewStandard, onVie
                 Discover Venues
               </button>
 
-              {/* Secondary — The LWD Standard */}
+              {/* Secondary, The LWD Standard */}
               <button
                 onClick={onViewStandard}
                 style={{

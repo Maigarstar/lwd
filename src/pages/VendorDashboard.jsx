@@ -242,7 +242,7 @@ function LeadRow({ lead, expanded }) {
   );
 }
 
-// ── Notification chime (Web Audio API — no external files) ──────────────────
+// ── Notification chime (Web Audio API, no external files) ──────────────────
 function playChime() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -266,8 +266,8 @@ function playChime() {
 
 // ── Simulated incoming chat requests ────────────────────────────────────────
 const INCOMING_CHATS = [
-  { id: 1, name: "Sophie & James",  page: "Your Venue Profile",         msg: "Hi! We love your venue — is June 2026 available?", guests: "80–150" },
-  { id: 2, name: "Aisha & Tom",     page: "Lake Como — Venues",         msg: "We're comparing a few venues. Can you tell us about packages?", guests: "30–80" },
+  { id: 1, name: "Sophie & James",  page: "Your Venue Profile",         msg: "Hi! We love your venue, is June 2026 available?", guests: "80–150" },
+  { id: 2, name: "Aisha & Tom",     page: "Lake Como, Venues",         msg: "We're comparing a few venues. Can you tell us about packages?", guests: "30–80" },
   { id: 3, name: "Elena & Marco",   page: "Your Photo Gallery",         msg: "The ballroom looks stunning! Do you offer winter weddings?", guests: "30–80" },
   { id: 4, name: "Priya & Daniel",  page: "Wedding Venue Search",       msg: "We need space for 200+ guests. Is that possible?", guests: "150–300" },
   { id: 5, name: "Charlotte & Will", page: "Your Catering Menu",        msg: "Do you accommodate fully vegan menus?", guests: "150–300" },
@@ -380,7 +380,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
   const { vendor: _contextVendor, isAuthenticated, loading, logout } = useVendorAuth();
 
   // ── Admin Preview Mode ─────────────────────────────────────────────────────
-  // Synchronous sessionStorage read — no async, no Supabase race conditions.
+  // Synchronous sessionStorage read, no async, no Supabase race conditions.
   // The admin sidebar sets "lwd_admin_preview" before navigating here.
   // To remove later: delete this block + the exitAdminPreview import above.
   const _adminPreviewData = (() => {
@@ -537,7 +537,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
   const [takenOverChats, setTakenOverChats] = useState(new Set()); // AI handles by default; vendor takes over on request
   const [engagementTooltip, setEngagementTooltip] = useState(false);
 
-  // Chat sources — where each enquiry came from
+  // Chat sources, where each enquiry came from
   const CHAT_SOURCES = {
     "Sophie & James": { source: "Venue Listing", icon: "⊙" },
     "Aisha & Tom": { source: "Contact Form", icon: "✉" },
@@ -547,26 +547,26 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
 
   const AURA_COACHING = {
     "Sophie & James": {
-      strategies: ["Confirm June 2026 availability quickly — scarcity creates urgency", "Offer a private virtual walkthrough of the Walled Garden", "Send personalised mood board based on garden ceremony preference"],
-      reasoning: "High-intent couple with specific date and guest count — fast, personalised response converts at 3.2× rate",
+      strategies: ["Confirm June 2026 availability quickly, scarcity creates urgency", "Offer a private virtual walkthrough of the Walled Garden", "Send personalised mood board based on garden ceremony preference"],
+      reasoning: "High-intent couple with specific date and guest count, fast, personalised response converts at 3.2× rate",
     },
     "Aisha & Tom": {
-      strategies: ["Lead with social proof — share recent 5-star reviews", "Offer a downloadable brochure with package pricing"],
-      reasoning: "Comparison stage — they need differentiation, not pressure. Build trust with transparency.",
+      strategies: ["Lead with social proof, share recent 5-star reviews", "Offer a downloadable brochure with package pricing"],
+      reasoning: "Comparison stage, they need differentiation, not pressure. Build trust with transparency.",
     },
     "Elena & Marco": {
       strategies: ["Send a follow-up with exclusive availability hold offer", "Share a short video tour from a recent wedding", "Suggest a no-obligation callback at their convenience"],
-      reasoning: "Warm but not committed — re-engage with value, not sales pressure. Follow-up within 24h converts 68% of warm leads.",
+      reasoning: "Warm but not committed, re-engage with value, not sales pressure. Follow-up within 24h converts 68% of warm leads.",
     },
     "Mark & Lisa": {
       strategies: ["Provide clear payment plan breakdown with deposit options", "Highlight flexible cancellation policy to reduce friction", "Offer to schedule a call with the events coordinator"],
-      reasoning: "High budget, high intent — financial clarity removes the last barrier. Payment flexibility increases conversion by 41%.",
+      reasoning: "High budget, high intent, financial clarity removes the last barrier. Payment flexibility increases conversion by 41%.",
     },
   };
 
   const CHAT_THREADS = {
     "Sophie & James": [
-      { from: "couple", text: "Hi! We love your venue — is June 2026 available?", time: "2:14 PM" },
+      { from: "couple", text: "Hi! We love your venue, is June 2026 available?", time: "2:14 PM" },
       { from: "couple", text: "We're planning for around 120 guests, garden ceremony ideally.", time: "2:14 PM" },
       { from: "aura", text: "Thank you for your enquiry, Sophie & James! June 2026 has limited availability at The Grand Pavilion. For 120 guests with a garden ceremony, we'd recommend our Walled Garden setting. A member of the team will be with you shortly to discuss your vision in detail.", time: "2:14 PM" },
     ],
@@ -624,15 +624,15 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
 
   const EMAIL_TEMPLATES = [
     { id: "custom", label: "Custom Email", subject: "", body: "" },
-    { id: "thankyou", label: "Thank You for Your Enquiry", subject: "Thank you for your enquiry — The Grand Pavilion",
+    { id: "thankyou", label: "Thank You for Your Enquiry", subject: "Thank you for your enquiry, The Grand Pavilion",
       body: "Dear {name},\n\nThank you so much for reaching out to The Grand Pavilion. We're delighted that you're considering us for your special day.\n\nWe'd love to learn more about your vision and discuss how we can make it a reality. Would you be available for a call or a venue visit this week?\n\nWarm regards,\nThe Grand Pavilion Team" },
-    { id: "availability", label: "Availability Confirmation", subject: "Your date availability — The Grand Pavilion",
-      body: "Dear {name},\n\nGreat news — we have availability on your requested date.\n\nI'd love to schedule a showround so you can experience the venue in person. We have slots available this week and next.\n\nShall I reserve a time for you?\n\nWarm regards,\nThe Grand Pavilion Team" },
-    { id: "pricing", label: "Pricing & Packages", subject: "Your bespoke wedding package — The Grand Pavilion",
+    { id: "availability", label: "Availability Confirmation", subject: "Your date availability, The Grand Pavilion",
+      body: "Dear {name},\n\nGreat news, we have availability on your requested date.\n\nI'd love to schedule a showround so you can experience the venue in person. We have slots available this week and next.\n\nShall I reserve a time for you?\n\nWarm regards,\nThe Grand Pavilion Team" },
+    { id: "pricing", label: "Pricing & Packages", subject: "Your bespoke wedding package, The Grand Pavilion",
       body: "Dear {name},\n\nThank you for your interest in our wedding packages. I've attached our brochure with full pricing details.\n\nOur packages start from £12,500 and include exclusive venue hire, catering for up to 300 guests, a dedicated wedding coordinator, and complimentary bridal suite.\n\nI'd be happy to put together a bespoke quote tailored to your vision. Would you like to discuss further?\n\nWarm regards,\nThe Grand Pavilion Team" },
-    { id: "followup", label: "Post-Showround Follow Up", subject: "Lovely to meet you — The Grand Pavilion",
+    { id: "followup", label: "Post-Showround Follow Up", subject: "Lovely to meet you, The Grand Pavilion",
       body: "Dear {name},\n\nIt was an absolute pleasure showing you around The Grand Pavilion today. I hope you could feel the magic of the space.\n\nAs discussed, I've reserved your preferred date provisionally for 14 days. To confirm, we'd need a £2,500 deposit.\n\nPlease don't hesitate to reach out with any questions. We'd be honoured to host your celebration.\n\nWarm regards,\nThe Grand Pavilion Team" },
-    { id: "review", label: "Review Request", subject: "How was your experience? — The Grand Pavilion",
+    { id: "review", label: "Review Request", subject: "How was your experience?, The Grand Pavilion",
       body: "Dear {name},\n\nCongratulations once again on your beautiful wedding! It was a privilege to be part of your special day.\n\nWe'd be incredibly grateful if you could spare a moment to share your experience. Your feedback helps other couples discover their perfect venue.\n\nYou can leave a review here: [Review Link]\n\nWith warmest wishes,\nThe Grand Pavilion Team" },
   ];
 
@@ -691,7 +691,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
     setChatMessages(prev => ({
       ...prev,
       [chatName]: [...(prev[chatName] || CHAT_THREADS[chatName] || []),
-        { from: "vendor", text: `Thanks for reaching out! We're currently helping another couple — we'll be with you in approximately ${waitMins} minutes. ✦`, time, auto: true }
+        { from: "vendor", text: `Thanks for reaching out! We're currently helping another couple, we'll be with you in approximately ${waitMins} minutes. ✦`, time, auto: true }
       ],
     }));
   }, []);
@@ -782,7 +782,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
     { id: 2, name: "Priya & Daniel", email: "priya@email.com", date: "18 Sep 2025", guests: "150–300", budget: "£50–100k", msg: "We're planning a large Asian fusion celebration and your ballroom looks perfect...", status: "replied", time: "1 day ago" },
     { id: 3, name: "Elena & Marco", email: "elena@email.com", date: "3 Mar 2026", guests: "30–80", budget: "£10–25k", msg: "Looking for an intimate winter wedding venue in London...", status: "new", time: "3 hrs ago" },
     { id: 4, name: "Charlotte & Will", email: "charlotte@email.com", date: "21 Aug 2025", guests: "150–300", budget: "£50–100k", msg: "We saw your venue on Vogue Weddings and have been dreaming about it ever since...", status: "booked", time: "5 days ago" },
-    { id: 5, name: "Aisha & Tom", email: "aisha@email.com", date: "14 Feb 2026", guests: "30–80", budget: "£25–50k", msg: "Valentine's Day wedding — is this something you'd consider?", status: "new", time: "6 hrs ago" },
+    { id: 5, name: "Aisha & Tom", email: "aisha@email.com", date: "14 Feb 2026", guests: "30–80", budget: "£25–50k", msg: "Valentine's Day wedding, is this something you'd consider?", status: "new", time: "6 hrs ago" },
   ];
 
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -792,7 +792,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
   const handleGenBio = () => {
     setGenBio(true);
     setAiBio("");
-    const text = `The Grand Pavilion stands as London's most iconic wedding venue — a breathtaking Victorian ballroom where crystal chandeliers cast a golden glow across hand-carved marble floors. Exclusively yours for your wedding day, this legendary space accommodates up to 320 seated guests or 500 for a standing celebration.\n\nOur award-winning in-house culinary team craft bespoke menus for every couple, while our dedicated wedding concierge ensures every detail is flawlessly executed. With 60 luxurious guest bedrooms and an exquisite bridal suite, your entire wedding party can celebrate and stay in one magnificent location.\n\nWinner of the Hitched 2025 Award and featured in Vogue Weddings, The Grand Pavilion is where London's most extraordinary love stories begin.`;
+    const text = `The Grand Pavilion stands as London's most iconic wedding venue, a breathtaking Victorian ballroom where crystal chandeliers cast a golden glow across hand-carved marble floors. Exclusively yours for your wedding day, this legendary space accommodates up to 320 seated guests or 500 for a standing celebration.\n\nOur award-winning in-house culinary team craft bespoke menus for every couple, while our dedicated wedding concierge ensures every detail is flawlessly executed. With 60 luxurious guest bedrooms and an exquisite bridal suite, your entire wedding party can celebrate and stay in one magnificent location.\n\nWinner of the Hitched 2025 Award and featured in Vogue Weddings, The Grand Pavilion is where London's most extraordinary love stories begin.`;
     let i = 0;
     const interval = setInterval(() => {
       i += 2;
@@ -890,7 +890,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
             Viewing as vendor: <strong>{vendor?.name || vendor?.id}</strong>
           </span>
           <span style={{ fontSize: 11, color: "rgba(201,168,76,0.5)" }}>
-            — changes here are real
+           , changes here are real
           </span>
         </div>
         <button
@@ -1371,10 +1371,10 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
                 </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: isMobile ? 10 : 16, marginBottom: 32 }}>
-                <StatCard label="New Enquiries" val={metricsLoading ? "—" : metrics?.newEnquiries || 0} change="Real-time" icon="◇" />
-                <StatCard label="Profile Views" val={metricsLoading ? "—" : (metrics?.profileViews || 0).toLocaleString()} change="Real-time" icon="⊙" color={C.blue} />
-                <StatCard label="Conversion Rate" val={metricsLoading ? "—" : `${metrics?.conversionRate || 0}%`} icon="△" color={C.green} />
-                <StatCard label="Avg Response Time" val={metricsLoading ? "—" : `${metrics?.responseTimeHours || 0}h`} icon="⟡" color="#a78bfa" />
+                <StatCard label="New Enquiries" val={metricsLoading ? " - " : metrics?.newEnquiries || 0} change="Real-time" icon="◇" />
+                <StatCard label="Profile Views" val={metricsLoading ? " - " : (metrics?.profileViews || 0).toLocaleString()} change="Real-time" icon="⊙" color={C.blue} />
+                <StatCard label="Conversion Rate" val={metricsLoading ? " - " : `${metrics?.conversionRate || 0}%`} icon="△" color={C.green} />
+                <StatCard label="Avg Response Time" val={metricsLoading ? " - " : `${metrics?.responseTimeHours || 0}h`} icon="⟡" color="#a78bfa" />
               </div>
 
               {/* ── Shortlist/Favorites (B2B) ──────────────────────────────────── */}
@@ -1425,7 +1425,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
                         fontWeight: 400,
                       }}
                     >
-                      {metricsLoading ? "—" : metrics?.savedByCouples || 0}
+                      {metricsLoading ? " - " : metrics?.savedByCouples || 0}
                     </p>
                   </div>
                   <div style={{ textAlign: "right" }}>
@@ -1631,7 +1631,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
                 ))}
               </div>
               <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "var(--lwd-radius-card)", padding: 24 }}>
-                <div style={{ fontFamily: NU, fontSize: 13, fontWeight: 700, color: C.white, marginBottom: 20 }}>Lead Volume — Last 12 Months</div>
+                <div style={{ fontFamily: NU, fontSize: 13, fontWeight: 700, color: C.white, marginBottom: 20 }}>Lead Volume, Last 12 Months</div>
                 <MiniChart data={leadsData} labels={months} color={C.gold} />
               </div>
             </div>
@@ -1674,7 +1674,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
             </div>
           )}
 
-          {/* LEAD INBOX — Mini CRM Pipeline */}
+          {/* LEAD INBOX, Mini CRM Pipeline */}
           {dashTab === "leads" && (
             <VendorLeadInbox vendorId={vendor.id} C={C} isMobile={isMobile} />
           )}
@@ -1684,7 +1684,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
             <VendorInquiryManager vendorId={vendor.id} />
           )}
 
-          {/* LIVE CONVERSATIONS — Client Intelligence System */}
+          {/* LIVE CONVERSATIONS, Client Intelligence System */}
           {dashTab === "livechat" && (
             <div>
               <div style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "flex-end" }}>
@@ -1738,7 +1738,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
                 </div>
               </div>
 
-              {/* Revenue Opportunity Missed — luxury urgency banner */}
+              {/* Revenue Opportunity Missed, luxury urgency banner */}
               <div style={{
                 display: "flex", alignItems: isMobile ? "flex-start" : "center",
                 flexDirection: isMobile ? "column" : "row",
@@ -1814,10 +1814,10 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
               {/* Gold divider */}
               <div style={{ height: 1, background: `linear-gradient(90deg, transparent, ${C.gold}40, transparent)`, marginBottom: 20 }} />
 
-              {/* Split: conversation list + chat window — ALWAYS DARK luxury treatment */}
+              {/* Split: conversation list + chat window, ALWAYS DARK luxury treatment */}
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : (activeChat ? (isTablet ? "280px 1fr" : "320px 1fr") : "1fr"), gap: 0, border: "none", borderRadius: 4, overflow: "hidden", height: isMobile ? "calc(100vh - 280px)" : isTablet ? 480 : 520, boxShadow: "0 4px 24px rgba(0,0,0,0.4)" }}>
 
-                {/* ─── Conversation list (left panel) — dark layered ─── */}
+                {/* ─── Conversation list (left panel), dark layered ─── */}
                 <div style={{ background: "#141517", borderRight: activeChat ? "1px solid #2a2b2f" : "none", display: isMobile && activeChat ? "none" : "flex", flexDirection: "column", overflow: "hidden" }}>
                   <div style={{ padding: "12px 18px", borderBottom: "1px solid #2a2b2f", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0, minHeight: 58, boxSizing: "border-box" }}>
                     <span style={{ fontFamily: NU, fontSize: 12, fontWeight: 700, color: "#ffffff" }}>Client Enquiries</span>
@@ -1825,7 +1825,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
                   </div>
                   <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
                   {[
-                    { name: "Sophie & James", msg: "Hi! We love your venue — is June 2026 available?", time: "Just now", status: "active", unread: 2, value: "£65–120k", intent: "high" },
+                    { name: "Sophie & James", msg: "Hi! We love your venue, is June 2026 available?", time: "Just now", status: "active", unread: 2, value: "£65–120k", intent: "high" },
                     { name: "Aisha & Tom", msg: "We're comparing a few venues. Can you tell us about packages?", time: "3m ago", status: "active", unread: 1, value: "£45–80k", intent: "medium" },
                     { name: "Elena & Marco", msg: "Thanks so much! We'll be in touch soon.", time: "18m ago", status: "ended", unread: 0, value: "£25–50k", intent: "high" },
                     { name: "Mark & Lisa", msg: "Do you offer a payment plan for the deposit?", time: "1h ago", status: "ended", unread: 0, value: "£80–150k", intent: "high" },
@@ -2104,7 +2104,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
                       <div ref={chatEndRef} />
                     </div>
 
-                    {/* ── AI Coaching Bar — only when vendor has taken over ── */}
+                    {/* ── AI Coaching Bar, only when vendor has taken over ── */}
                     {takenOverChats.has(activeChat) && <div style={{
                       padding: "10px 20px", borderTop: "1px solid #2a2b2f",
                       background: "rgba(201,168,76,0.06)",
@@ -2147,7 +2147,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
                       })()}
                     </div>}
 
-                    {/* Compose bar — only when vendor has taken over, otherwise show AI status */}
+                    {/* Compose bar, only when vendor has taken over, otherwise show AI status */}
                     {!takenOverChats.has(activeChat) ? (
                       <div style={{
                         padding: "16px 20px", borderTop: "1px solid #2a2b2f",
@@ -2327,7 +2327,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
               {/* Gold divider */}
               <div style={{ height: 1, background: `linear-gradient(90deg, transparent, ${C.gold}40, transparent)`, marginTop: 20, marginBottom: 20 }} />
 
-              {/* Intelligence panels — 3 columns */}
+              {/* Intelligence panels, 3 columns */}
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr", gap: 16 }}>
                 {/* AI Assisted Messaging */}
                 <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "var(--lwd-radius-card)", padding: 20 }}>
@@ -2780,7 +2780,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
                   lineHeight: 1.7,
                 }}
               >
-                Current plan: <span style={{ color: C.gold, fontWeight: 700 }}>Featured — £149/month</span> · Next billing date:{" "}
+                Current plan: <span style={{ color: C.gold, fontWeight: 700 }}>Featured, £149/month</span> · Next billing date:{" "}
                 <span style={{ color: C.white }}>1 March 2026</span> · All prices exclude VAT
               </div>
             </div>
@@ -3001,7 +3001,7 @@ function AwardsSubmissionTab({ vendor, C, GD, NU, isMobile }) {
           </span>
           {submission.admin_note && (
             <span style={{ fontFamily: NU, fontSize: 12, color: C.grey, marginLeft: 8 }}>
-              — {submission.admin_note}
+             , {submission.admin_note}
             </span>
           )}
           {submission.status === 'rejected' && (
@@ -3088,7 +3088,7 @@ function AwardsSubmissionTab({ vendor, C, GD, NU, isMobile }) {
         {/* Micro-prompts */}
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: isMobile ? 16 : 22 }}>
           <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '2px', textTransform: 'uppercase', color: C.gold, marginBottom: 18 }}>
-            3 Questions — Shown in your profile panel
+            3 Questions, Shown in your profile panel
           </div>
           {[
             { key: 'micro_different', label: 'What makes you different?' },
@@ -3111,7 +3111,7 @@ function AwardsSubmissionTab({ vendor, C, GD, NU, isMobile }) {
         {/* Images */}
         <div>
           <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
-            Images for Judging * <span style={{ color: C.grey, fontSize: 10, textTransform: 'none', letterSpacing: 0 }}>(up to 5 — paste public image URLs)</span>
+            Images for Judging * <span style={{ color: C.grey, fontSize: 10, textTransform: 'none', letterSpacing: 0 }}>(up to 5, paste public image URLs)</span>
           </label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {imageUrls.map((url, i) => (
@@ -3141,7 +3141,7 @@ function AwardsSubmissionTab({ vendor, C, GD, NU, isMobile }) {
         {/* Video URL */}
         <div>
           <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
-            Video URL <span style={{ color: C.grey, fontSize: 10, textTransform: 'none', letterSpacing: 0 }}>(optional — YouTube, TikTok or Instagram Reel)</span>
+            Video URL <span style={{ color: C.grey, fontSize: 10, textTransform: 'none', letterSpacing: 0 }}>(optional, YouTube, TikTok or Instagram Reel)</span>
           </label>
           <input
             value={form.video_url}

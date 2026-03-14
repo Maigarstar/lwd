@@ -45,7 +45,7 @@ const ThemeContext = createContext(LIGHT_C);
 const C = LIGHT_C;
 
 // ═══════════════════════════════════════════════════════════════════════
-// FEATURED VENUE SLIDER DATA — real Unsplash photography
+// FEATURED VENUE SLIDER DATA, real Unsplash photography
 // ═══════════════════════════════════════════════════════════════════════
 const FEATURED_VENUES = [
   { id:1, name:"Villa Rosanova", location:"San Casciano, Tuscany · Italy",
@@ -90,7 +90,7 @@ const FEATURED_VENUES = [
     link:null },
   { id:9, name:"Palazzo Vendramin", location:"Grand Canal, Venice · Italy",
     highlight:"Most Romantic Venue",
-    tagline:"A sixteenth-century palazzo on Venice's Grand Canal — utterly unmatched",
+    tagline:"A sixteenth-century palazzo on Venice's Grand Canal, utterly unmatched",
     img:"https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=1920&q=80",
     link:null },
   { id:10, name:"Domaine de Châteauvieux", location:"Geneva, Switzerland",
@@ -267,7 +267,7 @@ const AI_FLOWS = {
     options: ["Yes, let's find my perfect vendors ✨","I have a specific question","I'm a vendor looking to list my business"],
   },
   start: {
-    msg: "Wonderful! Let's find your perfect wedding team. First — when are you planning to get married?",
+    msg: "Wonderful! Let's find your perfect wedding team. First, when are you planning to get married?",
     options: ["This year (2025)","Next year (2026)","2027 or beyond","We're flexible on dates"],
   },
   location: {
@@ -284,7 +284,7 @@ const AI_FLOWS = {
   },
   priorities: {
     msg: "Almost there! Which vendors are your top priority right now?",
-    options: ["Venue — it sets everything else","Photographer — memories last forever","Full planning — I need help with everything","Show me the best across all categories"],
+    options: ["Venue, it sets everything else","Photographer, memories last forever","Full planning, I need help with everything","Show me the best across all categories"],
   },
   capture: {
     msg: "I've found some incredible matches for you! To send you a personalised shortlist with exclusive availability and pricing, I just need your email. What is it?",
@@ -292,7 +292,7 @@ const AI_FLOWS = {
     isCapture: true,
   },
   done: {
-    msg: "🎉 Your personalised shortlist is on its way! Our team will also be in touch within 24 hours to discuss your options.\n\nIn the meantime, browse our full directory below — your matched vendors are highlighted.",
+    msg: "🎉 Your personalised shortlist is on its way! Our team will also be in touch within 24 hours to discuss your options.\n\nIn the meantime, browse our full directory below, your matched vendors are highlighted.",
     options: ["Browse my matches","Start over","Speak to a consultant"],
   },
 };
@@ -926,7 +926,7 @@ function VendorDashboard({ onBack }) {
     {id:2,name:"Priya & Daniel",email:"priya@email.com",date:"18 Sep 2025",guests:"150–300",budget:"£50–100k",msg:"We're planning a large Asian fusion celebration and your ballroom looks perfect...",status:"replied",time:"1 day ago"},
     {id:3,name:"Elena & Marco",email:"elena@email.com",date:"3 Mar 2026",guests:"30–80",budget:"£10–25k",msg:"Looking for an intimate winter wedding venue in London...",status:"new",time:"3 hrs ago"},
     {id:4,name:"Charlotte & Will",email:"charlotte@email.com",date:"21 Aug 2025",guests:"150–300",budget:"£50–100k",msg:"We saw your venue on Vogue Weddings and have been dreaming about it ever since...",status:"booked",time:"5 days ago"},
-    {id:5,name:"Aisha & Tom",email:"aisha@email.com",date:"14 Feb 2026",guests:"30–80",budget:"£25–50k",msg:"Valentine's Day wedding — is this something you'd consider?",status:"new",time:"6 hrs ago"},
+    {id:5,name:"Aisha & Tom",email:"aisha@email.com",date:"14 Feb 2026",guests:"30–80",budget:"£25–50k",msg:"Valentine's Day wedding, is this something you'd consider?",status:"new",time:"6 hrs ago"},
   ];
 
   const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -936,7 +936,7 @@ function VendorDashboard({ onBack }) {
   const handleGenBio = () => {
     setGenBio(true);
     setAiBio("");
-    const text = `The Grand Pavilion stands as London's most iconic wedding venue — a breathtaking Victorian ballroom where crystal chandeliers cast a golden glow across hand-carved marble floors. Exclusively yours for your wedding day, this legendary space accommodates up to 320 seated guests or 500 for a standing celebration.\n\nOur award-winning in-house culinary team craft bespoke menus for every couple, while our dedicated wedding concierge ensures every detail is flawlessly executed. With 60 luxurious guest bedrooms and an exquisite bridal suite, your entire wedding party can celebrate and stay in one magnificent location.\n\nWinner of the Hitched 2025 Award and featured in Vogue Weddings, The Grand Pavilion is where London's most extraordinary love stories begin.`;
+    const text = `The Grand Pavilion stands as London's most iconic wedding venue, a breathtaking Victorian ballroom where crystal chandeliers cast a golden glow across hand-carved marble floors. Exclusively yours for your wedding day, this legendary space accommodates up to 320 seated guests or 500 for a standing celebration.\n\nOur award-winning in-house culinary team craft bespoke menus for every couple, while our dedicated wedding concierge ensures every detail is flawlessly executed. With 60 luxurious guest bedrooms and an exquisite bridal suite, your entire wedding party can celebrate and stay in one magnificent location.\n\nWinner of the Hitched 2025 Award and featured in Vogue Weddings, The Grand Pavilion is where London's most extraordinary love stories begin.`;
     let i=0;
     const interval = setInterval(()=>{
       i+=2;
@@ -1037,7 +1037,7 @@ function VendorDashboard({ onBack }) {
 
               {/* Mini chart */}
               <div style={{background:C.card,border:`1px solid ${C.border}`,padding:24}}>
-                <div style={{fontSize:13,fontWeight:700,color:C.white,marginBottom:20}}>Lead Volume — Last 12 Months</div>
+                <div style={{fontSize:13,fontWeight:700,color:C.white,marginBottom:20}}>Lead Volume, Last 12 Months</div>
                 <MiniChart data={leadsData} labels={months} color={C.gold}/>
               </div>
             </div>
@@ -1213,7 +1213,7 @@ function VendorDashboard({ onBack }) {
                 ))}
               </div>
               <div style={{background:C.card,border:`1px solid ${C.border}`,padding:24,fontSize:13,color:C.grey,lineHeight:1.7}}>
-                Current plan: <span style={{color:C.gold,fontWeight:700}}>Featured — £149/month</span> · Next billing date: <span style={{color:C.white}}>1 March 2026</span> · All prices exclude VAT
+                Current plan: <span style={{color:C.gold,fontWeight:700}}>Featured, £149/month</span> · Next billing date: <span style={{color:C.white}}>1 March 2026</span> · All prices exclude VAT
               </div>
             </div>
           )}
@@ -1280,7 +1280,7 @@ function MiniChart({data,labels,color}){
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// AURA CHAT — HOMEPAGE (3-state: bar → modal → full)
+// AURA CHAT, HOMEPAGE (3-state: bar → modal → full)
 // ═══════════════════════════════════════════════════════════════════════
 function AuraChatHP() {
   const C = useContext(ThemeContext);
@@ -1288,7 +1288,7 @@ function AuraChatHP() {
   const [mode, setMode] = useState("closed");
   const [dismissed, setDismissed] = useState(() => localStorage.getItem("lwd_aura_dismissed") === "true");
   const [msgs, setMsgs] = useState([
-    { from:"aura", text:"Hi! I'm Aura, your LWD planning guide. Ask me anything — venues, destinations, budgets, photographers or how to get started." }
+    { from:"aura", text:"Hi! I'm Aura, your LWD planning guide. Ask me anything, venues, destinations, budgets, photographers or how to get started." }
   ]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
@@ -1391,7 +1391,7 @@ function AuraChatHP() {
           onMouseLeave={e=>{e.currentTarget.style.boxShadow="0 4px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(201,168,76,0.12)";e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.animation="barGlow 3s ease-in-out infinite";}}>
             <div style={{width:40,height:40,borderRadius:"50%",flexShrink:0,background:`linear-gradient(135deg,${GOLD},${GREEN})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,color:"#0a0906",boxShadow:`0 2px 10px rgba(201,168,76,0.35)`}}>✦</div>
             <div style={{flex:1,textAlign:"left"}}>
-              <div style={{fontFamily:GD,fontSize:13,color:"#f5f0e8",letterSpacing:"0.02em",lineHeight:1.2}}>Ask Aura — your LWD planning guide</div>
+              <div style={{fontFamily:GD,fontSize:13,color:"#f5f0e8",letterSpacing:"0.02em",lineHeight:1.2}}>Ask Aura, your LWD planning guide</div>
               <div style={{fontFamily:"var(--font-body)",fontSize:11,color:"rgba(255,255,255,0.3)",marginTop:2}}>AI-powered · Responds instantly</div>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
@@ -1642,7 +1642,7 @@ export default function App({ onViewVenue = () => {} }) {
         </div>
       </nav>
 
-      {/* ── HERO — full-screen featured venue slider ── */}
+      {/* ── HERO, full-screen featured venue slider ── */}
       <div style={{ minHeight:"100vh", position:"relative", overflow:"hidden", background:"#0a0906" }}>
         {/* ── Sliding venue photography ── */}
         {FEATURED_VENUES.map((v, i) => (
@@ -1666,7 +1666,7 @@ export default function App({ onViewVenue = () => {} }) {
             </span>
           </div>
 
-          {/* Headline — centered Gilda Display */}
+          {/* Headline, centered Gilda Display */}
           <h1 style={{ fontFamily:"var(--font-heading-primary)", fontSize:"clamp(48px,7vw,106px)", fontWeight:400, color:"#f5f0e8", lineHeight:1.0, letterSpacing:"-1px", marginBottom:0, animation:"fadeUp 0.8s ease 0.1s both" }}>
             The World's Finest
           </h1>
@@ -1782,9 +1782,9 @@ export default function App({ onViewVenue = () => {} }) {
             </h2>
           </div>
 
-          {/* Mosaic grid — organic, not rigid */}
+          {/* Mosaic grid, organic, not rigid */}
           <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gridTemplateRows:"280px 220px",gap:16}}>
-            {/* Tuscany — large, spans 2 rows */}
+            {/* Tuscany, large, spans 2 rows */}
             {[
               {name:"Tuscany",country:"Italy",venues:312,style:{gridRow:"1 / 3",gridColumn:"1 / 2"},img:"2a2015,9a8040"},
               {name:"Provence",country:"France",venues:148,style:{},img:"1e1a12,8a7838"},
@@ -1947,7 +1947,7 @@ export default function App({ onViewVenue = () => {} }) {
             Join thousands of luxury wedding professionals reaching couples who have already decided to spend. Our 20-year domain authority puts your listing in front of the right audience, every time.
           </p>
 
-          {/* Four pillars — horizontal, no pricing */}
+          {/* Four pillars, horizontal, no pricing */}
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:1,marginBottom:52,background:`${C.border}`}}>
             {[
               {icon:"💌",title:"Direct Enquiries",body:"Every lead lands straight in your inbox with full couple details."},
@@ -1977,7 +1977,7 @@ export default function App({ onViewVenue = () => {} }) {
         </div>
       </div>
 
-      {/* ── FOOTER — always dark ── */}
+      {/* ── FOOTER, always dark ── */}
       <footer style={{background:"#0c0c0a",borderTop:"1px solid rgba(201,168,76,0.12)",padding:"70px 60px 36px"}}>
         {/* Gold gradient accent line */}
         <div style={{height:1,background:`linear-gradient(90deg,transparent,${C.gold},rgba(116,129,114,0.6),transparent)`,marginBottom:60}}/>
@@ -2039,7 +2039,7 @@ function EmailCapture(){
   const C = useContext(ThemeContext);
   const [val,setVal]=useState("");
   const [done,setDone]=useState(false);
-  if(done) return <div style={{color:C.gold,fontFamily:"var(--font-heading-primary)",fontSize:20,fontStyle:"italic"}}>✦ Welcome to the community — we'll be in touch!</div>;
+  if(done) return <div style={{color:C.gold,fontFamily:"var(--font-heading-primary)",fontSize:20,fontStyle:"italic"}}>✦ Welcome to the community, we'll be in touch!</div>;
   return (
     <div style={{display:"flex",maxWidth:440,margin:"0 auto"}}>
       <input value={val} onChange={e=>setVal(e.target.value)}

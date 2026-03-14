@@ -1,5 +1,5 @@
 /**
- * RichTextEditor — shared TipTap editor for Listing Studio
+ * RichTextEditor, shared TipTap editor for Listing Studio
  *
  * Uses the existing TipTap installation (same as RegionsModule).
  * Packages: @tiptap/react · @tiptap/starter-kit · @tiptap/extension-image

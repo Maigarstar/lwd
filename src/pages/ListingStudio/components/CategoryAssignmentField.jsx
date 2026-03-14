@@ -72,7 +72,7 @@ export default function CategoryAssignmentField({ value = [], onChange, darkMode
     }
   }, [dropdownOpen]);
 
-  // Filtered category list — exclude already-assigned, match search
+  // Filtered category list, exclude already-assigned, match search
   const assigned = Array.isArray(value) ? value : [];
   const assignedIds = new Set(assigned.map(c => c.id));
 

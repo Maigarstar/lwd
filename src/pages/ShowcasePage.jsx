@@ -1,5 +1,5 @@
 // ─── ShowcasePage.jsx ─────────────────────────────────────────────────────────
-// Dynamic showcase template — /showcase/:slug
+// Dynamic showcase template, /showcase/:slug
 // Loads from venue_showcases table, enriches with linked listings record.
 // Renders sections based on the sections JSONB array stored in the DB.
 // Falls back to VenueShowcase media-grid if no showcase record found.
@@ -286,7 +286,7 @@ export default function ShowcasePage({ slug, onBack, onGoDestination, onNavigate
             if (!ignore && lst) setListing(lst);
           }
         } else {
-          // No showcase record — try listing directly as fallback
+          // No showcase record, try listing directly as fallback
           const lst = await fetchListingBySlug(slug);
           if (!ignore) {
             if (lst) {

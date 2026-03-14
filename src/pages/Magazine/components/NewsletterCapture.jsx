@@ -66,7 +66,7 @@ export default function NewsletterCapture({ isLight = false }) {
           margin: '0 0 40px', lineHeight: 1.7,
           letterSpacing: '0.03em',
         }}>
-          Editorial stories, venue discoveries, and exclusive features — delivered with the discretion and elegance our readers expect.
+          Editorial stories, venue discoveries, and exclusive features, delivered with the discretion and elegance our readers expect.
         </p>
 
         {!submitted ? (

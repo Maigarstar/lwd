@@ -289,7 +289,7 @@ export default function ArtistLightbox({ artists, initialId, onClose, fontDispla
           {/* Image/Video pane */}
           <div className="alb-img-pane">
 
-            {/* Media tab switcher — only shown when artist has video */}
+            {/* Media tab switcher, only shown when artist has video */}
             {hasVideo && (
               <div style={{
                 position: 'absolute', top: 16, left: '50%',
@@ -337,7 +337,7 @@ export default function ArtistLightbox({ artists, initialId, onClose, fontDispla
               </div>
             )}
 
-            {/* Prev/Next arrows — images only */}
+            {/* Prev/Next arrows, images only */}
             {mediaTab === 'images' && (
               <>
                 <button className="alb-arrow prev" onClick={prev} aria-label="Previous artist">‹</button>

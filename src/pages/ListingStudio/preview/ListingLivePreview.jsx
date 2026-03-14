@@ -18,8 +18,8 @@ const extractVimeoId = url => url?.match(/vimeo\.com\/(?:video\/)?(\d+)/)?.[1] |
 /**
  * Live preview of the listing as it would appear on the public venue page.
  * Consumes:
- *   - formData.hero_images[]        — hero banner images
- *   - formData.media_items[]        — unified gallery images + videos + virtual tours
+ *   - formData.hero_images[]       , hero banner images
+ *   - formData.media_items[]       , unified gallery images + videos + virtual tours
  * Falls back to legacy formData.gallery_images / formData.videos when media_items is absent.
  */
 const ListingLivePreview = ({ formData }) => {
@@ -162,7 +162,7 @@ const ListingLivePreview = ({ formData }) => {
             padding: '8px 20px', fontSize: '12px', fontWeight: 'bold',
             textAlign: 'center', borderBottom: '1px solid #e8954f',
           }}>
-            📝 DRAFT — Not published
+            📝 DRAFT, Not published
           </div>
         )}
 
@@ -230,7 +230,7 @@ const ListingLivePreview = ({ formData }) => {
             </div>
           )}
 
-          {/* Summary — shown in body when there IS a hero image (editorial intro before description) */}
+          {/* Summary, shown in body when there IS a hero image (editorial intro before description) */}
           {heroImageUrl && formData.summary && (
             <div style={{ marginBottom: 20 }}>
               <p style={{
@@ -259,7 +259,7 @@ const ListingLivePreview = ({ formData }) => {
             </div>
           )}
 
-          {/* Description — renders rich HTML from TipTap editor */}
+          {/* Description, renders rich HTML from TipTap editor */}
           {formData.description && (
             <div style={{ marginBottom: 28 }}>
               <h3 style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.2px', margin: '0 0 10px 0', color: '#333' }}>
@@ -354,7 +354,7 @@ const ListingLivePreview = ({ formData }) => {
 
         </div>
 
-        {/* ── CARD PREVIEW — renders live card preview below the listing page preview */}
+        {/* ── CARD PREVIEW, renders live card preview below the listing page preview */}
         <CardPreviewSection formData={formData} />
 
       </div>

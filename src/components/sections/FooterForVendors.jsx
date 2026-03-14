@@ -1,5 +1,5 @@
 // ─── src/components/sections/FooterForVendors.jsx ──────────────────────────────────
-// Vendors-focused footer — appears on VendorDashboard and vendor-oriented pages
+// Vendors-focused footer, appears on VendorDashboard and vendor-oriented pages
 // Emphasizes business growth, lead management, and B2B opportunities
 import { useTheme } from "../../theme/ThemeContext";
 

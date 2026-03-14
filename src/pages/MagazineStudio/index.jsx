@@ -7,7 +7,7 @@ import {
   StatusBadge, GoldBtn, GhostBtn, Input,
 } from './StudioShared';
 
-// CSS-var tokens — cascade from themeVars() on the MagazineStudio root wrapper.
+// CSS-var tokens, cascade from themeVars() on the MagazineStudio root wrapper.
 // Module-level components (StudioHome, ArticleList) use these so they
 // automatically pick up the correct light/dark values from the ancestor.
 // Inside MagazineStudio, `const S = getS(studioLight)` shadows this with actual values.
@@ -44,7 +44,7 @@ function uid() {
 }
 
 function formatDate(d) {
-  if (!d) return '—';
+  if (!d) return ' - ';
   const dt = new Date(d);
   return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
@@ -443,7 +443,7 @@ function ArticleList({ posts, onEdit, onNew, onDuplicate, onDelete, onBack }) {
                     {/* Words */}
                     <td style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}>
                       <span style={{ fontFamily: FU, fontSize: 12, color: S.muted }}>
-                        {wc > 0 ? wc.toLocaleString() : '—'}
+                        {wc > 0 ? wc.toLocaleString() : ' - '}
                       </span>
                     </td>
                     {/* Date */}
@@ -596,7 +596,7 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
     const { data: saved, error, slugChanged, resolvedSlug } = await savePost(updated);
     setSaving(false);
     if (error) {
-      showToast('Save failed — ' + (error.message || 'unknown error'), 'error');
+      showToast('Save failed, ' + (error.message || 'unknown error'), 'error');
       return null;
     }
     // Replace local entry with real DB data (handles static ID → real UUID on first save)
@@ -667,7 +667,7 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
           {saveToast.msg}
         </div>
       )}
-      {/* Top bar — hidden in full-screen editors (they have their own toolbars) */}
+      {/* Top bar, hidden in full-screen editors (they have their own toolbars) */}
       {mode !== 'article-edit' && mode !== 'homepage' && mode !== 'category' && <div style={{
         height: 52, flexShrink: 0,
         background: S.surface, borderBottom: `1px solid ${S.border}`,

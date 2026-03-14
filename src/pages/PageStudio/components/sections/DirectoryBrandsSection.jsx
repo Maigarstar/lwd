@@ -1,5 +1,5 @@
 /**
- * DirectoryBrandsSection — Directory brands section editor
+ * DirectoryBrandsSection, Directory brands section editor
  * Editable: heading
  * Enable/disable toggle handled by parent
  */

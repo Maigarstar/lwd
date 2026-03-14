@@ -3,14 +3,14 @@
  *
  * Highlights a featured package, special offer, or exclusive deal
  * associated with the listing. Designed to draw attention without
- * being pushy — the luxury tone is maintained through restraint.
+ * being pushy, the luxury tone is maintained through restraint.
  *
  * Props:
- *   entity     {object} — listing data (entity.featuredOffer, entity.packages[0])
- *   C          {object} — colour palette
- *   offer      {object} — optional explicit override:
+ *   entity     {object}, listing data (entity.featuredOffer, entity.packages[0])
+ *   C          {object}, colour palette
+ *   offer      {object}, optional explicit override:
  *                         { title, description, badge, ctaLabel, ctaUrl }
- *   onCtaClick {fn}     — callback when CTA tapped
+ *   onCtaClick {fn}    , callback when CTA tapped
  */
 
 const FD = "var(--font-heading-primary)";

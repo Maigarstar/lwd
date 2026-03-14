@@ -1,6 +1,6 @@
 // ─── src/components/cards/editorial/ParallaxBannerCard.jsx ────────────────────
 // Cinematic full-width banner with CSS parallax (background-attachment: fixed).
-// The image stays fixed while the page scrolls — reveals different portions.
+// The image stays fixed while the page scrolls, reveals different portions.
 // Best with wide landscape or aerial photography.
 //
 // Height: 70vh default (configurable via data.height)

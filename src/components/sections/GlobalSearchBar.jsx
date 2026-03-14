@@ -1,11 +1,11 @@
 // ─── src/components/sections/GlobalSearchBar.jsx ─────────────────────────────
 // Global navigational search bar for the home page.
-// Warm-stone editorial design — matches CountrySearchBar system.
-// Navigational only — sends users to country pages, not in-place filtering.
+// Warm-stone editorial design, matches CountrySearchBar system.
+// Navigational only, sends users to country pages, not in-place filtering.
 import { useState, useCallback, useRef, useEffect } from "react";
 import { track } from "../../utils/track";
 
-// ── Curated luxury destinations — key markets only ───────────────────────────
+// ── Curated luxury destinations, key markets only ───────────────────────────
 // Scarcity builds prestige. Show established luxury wedding markets.
 const CURATED_DESTINATIONS = [
   { group: "Europe", items: [
@@ -75,7 +75,7 @@ const CL = {
 };
 
 // ═════════════════════════════════════════════════════════════════════════════
-// MegaPill — warm-stone editorial pill
+// MegaPill, warm-stone editorial pill
 // ═════════════════════════════════════════════════════════════════════════════
 function MegaPill({ label, active, isFirst, onSelect, onHover, hovered }) {
   return (
@@ -122,7 +122,7 @@ function MegaPill({ label, active, isFirst, onSelect, onHover, hovered }) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// LuxPanel — warm-stone editorial panel wrapper
+// LuxPanel, warm-stone editorial panel wrapper
 // ═════════════════════════════════════════════════════════════════════════════
 function LuxPanel({ label, children }) {
   return (
@@ -140,7 +140,7 @@ function LuxPanel({ label, children }) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// GroupHeader — continent header inside the destination panel
+// GroupHeader, continent header inside the destination panel
 // ═════════════════════════════════════════════════════════════════════════════
 function GroupHeader({ label, first }) {
   return (
@@ -164,7 +164,7 @@ function GroupHeader({ label, first }) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// GlobalSearchBar — the navigational search bar
+// GlobalSearchBar, the navigational search bar
 // ═════════════════════════════════════════════════════════════════════════════
 export default function GlobalSearchBar({
   onNavigateItaly,
@@ -259,7 +259,7 @@ export default function GlobalSearchBar({
     setOpenMenu(null);
   }, [mode]);
 
-  // ── Search handler — navigational ──
+  // ── Search handler, navigational ──
   const handleSearch = useCallback(() => {
     const dest = mode === "venues" ? destination : vendorDestination;
 
@@ -286,7 +286,7 @@ export default function GlobalSearchBar({
 
   const renderDestinationPanel = (activeDest, onSelectDest) => (
     <LuxPanel label="Select Destination">
-      {/* Worldwide — elevated master selection, own row */}
+      {/* Worldwide, elevated master selection, own row */}
       <div style={{
         marginBottom: 10,
         paddingBottom: 12,

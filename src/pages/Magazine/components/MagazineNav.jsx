@@ -312,7 +312,7 @@ function MobileDrawer({
         }}
       />
 
-      {/* Drawer panel — slides from right */}
+      {/* Drawer panel, slides from right */}
       <div
         style={{
           position: 'fixed', top: 0, right: 0, bottom: 0,
@@ -632,7 +632,7 @@ export default function MagazineNav({
           )}
 
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {/* Search icon — desktop only */}
+            {/* Search icon, desktop only */}
             {!isMobile && (
               <button
                 onClick={() => setShowSearch(true)}
@@ -650,7 +650,7 @@ export default function MagazineNav({
               </button>
             )}
 
-            {/* Theme toggle — desktop only */}
+            {/* Theme toggle, desktop only */}
             {!isMobile && onToggleLight && (
               <button
                 onClick={onToggleLight}
@@ -668,7 +668,7 @@ export default function MagazineNav({
               </button>
             )}
 
-            {/* Subscribe — desktop only */}
+            {/* Subscribe, desktop only */}
             {!isMobile && (
               <button
                 onClick={() => setShowSubscribe(true)}
@@ -685,7 +685,7 @@ export default function MagazineNav({
               </button>
             )}
 
-            {/* Hamburger — mobile only */}
+            {/* Hamburger, mobile only */}
             {isMobile && (
               <button
                 onClick={() => setDrawerOpen(true)}
@@ -705,7 +705,7 @@ export default function MagazineNav({
           </div>
         </div>
 
-        {/* Category row — desktop only */}
+        {/* Category row, desktop only */}
         {!isMobile && (
           <div className="mag-cats" ref={scrollRef} style={{ position: 'relative' }}>
             <button
@@ -754,7 +754,7 @@ export default function MagazineNav({
           </div>
         )}
 
-        {/* Fashion Mega Menu — desktop only, positioned inside nav */}
+        {/* Fashion Mega Menu, desktop only, positioned inside nav */}
         {!isMobile && megaOpen && (
           <div onMouseEnter={openMega} onMouseLeave={closeMega}>
             <FashionMegaMenu
