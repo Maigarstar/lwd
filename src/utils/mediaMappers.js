@@ -14,6 +14,16 @@
  * editorial, and AI, without touching each consumer individually.
  */
 
+// ─── URL normaliser ───────────────────────────────────────────────────────────
+// Relative paths stored in the DB (e.g. "Six-Senses-Krabey-Island/hero.jpg")
+// must be served from the Vite public/ root, so they need a leading "/".
+// Absolute URLs (https://...) and already-rooted paths (/) are left unchanged.
+const normaliseUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http') || url.startsWith('/') || url.startsWith('blob:') || url.startsWith('data:')) return url;
+  return '/' + url;
+};
+
 // ─── 1. GALLERY / LIGHTBOX ────────────────────────────────────────────────────
 
 /**
@@ -32,7 +42,7 @@
 export const mapMediaItemToGalleryPhoto = (item, objectUrls = {}) => {
   const src = item.file instanceof File
     ? (objectUrls[item.id] || '')
-    : (item.url || '');
+    : normaliseUrl(item.url || '');
 
   return {
     // Core identity
@@ -93,8 +103,8 @@ export const mapMediaItemToGalleryPhoto = (item, objectUrls = {}) => {
 export const mapMediaItemToCardImg = (item, objectUrls = {}) => ({
   src:              item.file instanceof File
                       ? (objectUrls[item.id] || '')
-                      : (item.url || ''),
-  url:              item.url              || '',
+                      : normaliseUrl(item.url || ''),
+  url:              normaliseUrl(item.url || ''),
   alt_text:         item.alt_text         || item.title || '',
   credit_name:      item.credit_name      || '',
   credit_instagram: item.credit_instagram || '',
