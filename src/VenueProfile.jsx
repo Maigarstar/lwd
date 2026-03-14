@@ -195,15 +195,10 @@ const VENUE = {
     { id: "e12", label: "Private Uffizi after-hours visit",  category: "nearby", kind: "culture", distanceMinutes: 30 },
   ],
   access: {
-    helicopterTransferAvailable: true,
-    helicopterTransferMinutesFromAirport: 20,
-    airports: [
-      { code: "FLR", name: "Florence", driveTimeMinutes: 45, distanceKm: 42 },
-      { code: "PSA", name: "Pisa Galileo Galilei", driveTimeMinutes: 70, distanceKm: 88 },
-      { code: "BLQ", name: "Bologna Marconi", driveTimeMinutes: 90, distanceKm: 115 },
-      { code: "FCO", name: "Rome Fiumicino", driveTimeMinutes: 160, distanceKm: 285 },
-    ],
-    get primaryAirport() { return this.airports.reduce((a, b) => a.driveTimeMinutes < b.driveTimeMinutes ? a : b); },
+    helicopterTransferAvailable: false,
+    helicopterTransferMinutesFromAirport: null,
+    airports: [],
+    primaryAirport: null,
   },
   // ── Testimonials: Load from database only. Do not provide hardcoded fallbacks. ──
   testimonials: [],
@@ -2696,7 +2691,7 @@ function ContactSection({ venue }) {
 
   return (
     <section style={{ marginBottom: 56 }}>
-      <SectionHeading title="Contact & Location" subtitle="Located in the heart of Tuscany, easily accessible from Florence" />
+      <SectionHeading title="Contact & Location" subtitle="Find us and plan your journey" />
       <div className="vp-contact-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
 
         {/* Contact details */}
@@ -4744,8 +4739,8 @@ const FAQ_DATA = [
     category: "Getting Here",
     icon: "IV",
     questions: [
-      { q: "What is the closest airport?", a: "Florence Airport (FLR) is 45 minutes by car (42km). We can arrange private transfers and helicopter arrivals from FLR — 20 minutes by helicopter. Pisa (PSA) is 70 minutes and Bologna (BLQ) is 90 minutes." },
-      { q: "Is there parking on the estate?", a: "Yes — complimentary secure parking for up to 60 vehicles within the estate grounds. For larger parties, additional overflow parking is available 200m from the entrance with a complimentary shuttle." },
+      { q: "What is the closest airport?", a: "Please see our Getting Here section for detailed airport information, driving times, and transfer options." },
+      { q: "Is there parking on the estate?", a: "Parking information will be provided during your enquiry consultation." },
     ],
   },
   {
@@ -4754,7 +4749,7 @@ const FAQ_DATA = [
     questions: [
       { q: "Do we need to use your recommended suppliers?", a: "We have a curated list of preferred suppliers — florists, photographers, bands and planners — who know the estate well. However, you are welcome to bring your own suppliers subject to prior approval from our events team." },
       { q: "How far in advance should we book?", a: "Peak summer dates (June–September) book 18–24 months in advance. Spring and autumn dates are often available with 12 months' notice. We recommend securing your date as early as possible to avoid disappointment." },
-      { q: "Is a wedding planner included in the venue hire?", a: "A dedicated Villa Rosanova event coordinator is included and will work with you from enquiry through to your wedding day. For full planning services, we can recommend our preferred wedding planning partners." },
+      { q: "Is a wedding planner included in the venue hire?", a: "Our dedicated event coordinator will support you from enquiry through to your wedding day. For comprehensive planning services, we can recommend preferred planning partners." },
     ],
   },
 ];
