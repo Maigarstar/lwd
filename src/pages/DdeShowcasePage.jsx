@@ -200,7 +200,11 @@ function SectionHeader({ eyebrow, title, subtitle, light = false, center = false
 }
 
 // ── ApprovedBadge ──────────────────────────────────────────────────────────
-function ApprovedBadge() {
+function ApprovedBadge({ onDarkBg = false }) {
+  const bgColor = onDarkBg ? 'rgba(201, 168, 76, 0.15)' : 'rgba(201, 168, 76, 0.08)';
+  const borderColor = onDarkBg ? 'rgba(201, 168, 76, 0.4)' : 'rgba(201, 168, 76, 0.2)';
+  const textColor = onDarkBg ? '#f5f2ec' : GOLD;
+
   return (
     <div
       style={{
@@ -208,12 +212,12 @@ function ApprovedBadge() {
         alignItems: 'center',
         gap: 6,
         padding: '6px 12px',
-        background: 'rgba(201, 168, 76, 0.08)',
-        border: `1px solid rgba(201, 168, 76, 0.2)`,
+        background: bgColor,
+        border: `1px solid ${borderColor}`,
         borderRadius: 4,
         fontSize: 12,
         fontFamily: NU,
-        color: GOLD,
+        color: textColor,
         fontWeight: 500,
         letterSpacing: '0.05em',
         textTransform: 'uppercase',
@@ -484,6 +488,24 @@ function HeroSection({ venue }) {
         }}>
           {venue.tagline}
         </p>
+
+        {/* ── Approval & Last Updated Display ────────────────────────────── */}
+        {venue.approved && (
+          <div style={{ marginBottom: 32, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <ApprovedBadge onDarkBg={true} />
+            {venue.lastUpdatedAt && (
+              <p style={{
+                fontFamily: NU, fontSize: 12,
+                color: 'rgba(255,255,255,0.5)',
+                margin: 0,
+                letterSpacing: '0.02em',
+              }}>
+                Last updated: {formatMonthYear(venue.lastUpdatedAt)}
+              </p>
+            )}
+          </div>
+        )}
+
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: isMobile ? 16 : 32, alignItems: 'center' }}>
           {venue.heroStats.map((s, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -592,7 +614,7 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
         <SectionHeader
           eyebrow={`${venue.location.town} · ${venue.location.country}`}
           title={venue.overview.headline}
-          subtitle={venue.overview.intro}
+          subtitle={venue.sectionIntros?.overview || venue.overview.intro}
         />
         <VenueStatsCard data={{
           variant:  'strip',
