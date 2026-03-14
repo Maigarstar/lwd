@@ -33,25 +33,26 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
 
   const LABEL = {
     display: 'block',
-    marginBottom: 6,
-    fontSize: 12,
-    fontWeight: 600,
+    marginBottom: 10,
+    fontSize: 11,
+    fontWeight: 700,
     textTransform: 'uppercase',
-    color: '#ffffff',
+    color: '#d4d4d4',
     fontFamily: FB,
-    letterSpacing: '0.5px',
+    letterSpacing: '0.8px',
   };
 
   const INPUT = {
     width: '100%',
-    padding: '12px 14px',
+    padding: '14px 16px',
     fontSize: 14,
     fontFamily: FB,
-    border: '1px solid #333333',
+    border: '1px solid #444444',
     borderRadius: 1,
     boxSizing: 'border-box',
-    color: '#ffffff',
+    color: '#f5f5f5',
     background: '#0f0f0f',
+    transition: 'all 0.2s ease',
   };
 
   const updateForm = (key, value) => {
@@ -204,11 +205,12 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
 
   return (
     <div style={{
-      maxWidth: 500,
+      maxWidth: 560,
       backgroundColor: '#1a1a1a',
-      padding: '32px 32px 20px 32px',
-      color: '#ffffff',
-      borderRadius: 1,
+      padding: '48px',
+      color: '#f5f5f5',
+      borderRadius: 2,
+      border: '1px solid #333333',
     }}>
       {/* Progress indicator */}
       <div
@@ -264,7 +266,7 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
             Your Details
           </h3>
 
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 24 }}>
             <label style={LABEL}>Name *</label>
             <input
               type="text"
@@ -275,7 +277,7 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
             />
           </div>
 
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 24 }}>
             <label style={LABEL}>Email *</label>
             <input
               type="email"
@@ -306,7 +308,7 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
             Your Event
           </h3>
 
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 24 }}>
             <label style={LABEL}>Event Type *</label>
             <select
               value={formData.event_type}
@@ -407,7 +409,7 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
             Your Review
           </h3>
 
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 24 }}>
             <label style={LABEL}>Review Title *</label>
             <input
               type="text"
@@ -510,21 +512,31 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
             disabled={loading || !canProceedStep()}
             style={{
               fontFamily: FB,
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: 700,
               textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              color: '#fff',
-              background: canProceedStep() && !loading ? C.gold : C.border,
-              border: 'none',
-              padding: '10px 24px',
+              letterSpacing: '1px',
+              color: '#1a1a1a',
+              background: canProceedStep() && !loading ? C.gold : '#444444',
+              border: `1px solid ${canProceedStep() && !loading ? C.gold : '#444444'}`,
+              padding: '14px 40px',
               borderRadius: 1,
               cursor: canProceedStep() && !loading ? 'pointer' : 'not-allowed',
-              transition: 'all 0.2s',
-              opacity: loading ? 0.7 : 1,
+              transition: 'all 0.3s ease',
+              opacity: loading ? 0.6 : 1,
             }}
-            onMouseOver={e => canProceedStep() && !loading && (e.target.style.opacity = '0.9')}
-            onMouseOut={e => (e.target.style.opacity = '1')}
+            onMouseOver={e => {
+              if (canProceedStep() && !loading) {
+                e.target.style.background = '#1a1a1a';
+                e.target.style.color = C.gold;
+              }
+            }}
+            onMouseOut={e => {
+              if (canProceedStep() && !loading) {
+                e.target.style.background = C.gold;
+                e.target.style.color = '#1a1a1a';
+              }
+            }}
           >
             {loading ? 'Submitting...' : 'Submit Review'}
           </button>
