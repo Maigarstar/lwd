@@ -142,6 +142,16 @@ const DDE_VENUE = {
     weddings: 'Every wedding at Domaine des Etangs is designed to feel entirely unique, shaped by your story, your guests, and the landscape itself.',
   },
 
+  // ── Dynamic section visibility (control which sections are shown)
+  sectionVisibility: {
+    overview: true,
+    spaces: true,
+    dining: true,
+    rooms: true,
+    art: true,
+    weddings: true,
+  },
+
   // ── Approval & content freshness (internal metadata)
   factChecked: false,
   approved: false,
@@ -348,6 +358,11 @@ function StickyVenueNav({ venue, activeSection, onScrollTo, onVisibilityChange }
     return () => window.removeEventListener('scroll', onScroll);
   }, []); // eslint-disable-line
 
+  // Filter NAV_ITEMS based on section visibility
+  const visibleNavItems = DDE_NAV.filter(
+    item => venue.sectionVisibility?.[item.id] !== false
+  );
+
   return (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, zIndex: 900,
@@ -376,7 +391,7 @@ function StickyVenueNav({ venue, activeSection, onScrollTo, onVisibilityChange }
       {/* Section pills, desktop */}
       {!isMobile && (
         <nav style={{ display: 'flex', gap: 4 }}>
-          {DDE_NAV.map(item => (
+          {visibleNavItems.map(item => (
             <button
               key={item.id}
               onClick={() => onScrollTo(item.id)}
@@ -610,35 +625,38 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 1, OVERVIEW
       ═══════════════════════════════════════════════════════════════════ */}
-      <Section id="overview" bg={C.cream}>
-        <SectionHeader
-          eyebrow={`${venue.location.town} · ${venue.location.country}`}
-          title={venue.overview.headline}
-          subtitle={venue.sectionIntros?.overview || venue.overview.intro}
-        />
-        <VenueStatsCard data={{
-          variant:  'strip',
-          accentBg: '#ffffff',
-          theme:    'light',
-          stats:    venue.keyStats,
-        }} />
-        <div style={{ marginTop: 40 }}>
-          <TwoColumnEditorialCard data={{
-            variant:  'image-left',
-            accentBg: C.cream,
+      {venue.sectionVisibility?.overview !== false && (
+        <Section id="overview" bg={C.cream}>
+          <SectionHeader
+            eyebrow={`${venue.location.town} · ${venue.location.country}`}
+            title={venue.overview.headline}
+            subtitle={venue.sectionIntros?.overview || venue.overview.intro}
+          />
+          <VenueStatsCard data={{
+            variant:  'strip',
+            accentBg: '#ffffff',
             theme:    'light',
-            image:    venue.overview.storyImage,
-            eyebrow:  venue.overview.storyEyebrow,
-            title:    venue.overview.storyHeadline,
-            body:     venue.overview.storyBody,
-            cta:      { label: 'Explore the Estate →', href: '#spaces' },
+            stats:    venue.keyStats,
           }} />
-        </div>
-      </Section>
+          <div style={{ marginTop: 40 }}>
+            <TwoColumnEditorialCard data={{
+              variant:  'image-left',
+              accentBg: C.cream,
+              theme:    'light',
+              image:    venue.overview.storyImage,
+              eyebrow:  venue.overview.storyEyebrow,
+              title:    venue.overview.storyHeadline,
+              body:     venue.overview.storyBody,
+              cta:      { label: 'Explore the Estate →', href: '#spaces' },
+            }} />
+          </div>
+        </Section>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 2, EVENT SPACES
       ═══════════════════════════════════════════════════════════════════ */}
+      {venue.sectionVisibility?.spaces !== false && (
       <Section id="spaces" bg="#ffffff">
         <SectionHeader
           eyebrow="Event Spaces"
@@ -721,10 +739,12 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
           ]} />
         </div>
       </Section>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 3, DINING
       ═══════════════════════════════════════════════════════════════════ */}
+      {venue.sectionVisibility?.dining !== false && (
       <Section id="dining" bg={C.forest} pad={isMobile ? '64px 24px' : '96px 64px'}>
         <SectionHeader
           eyebrow="Restaurant Dyades · 1 Michelin Star"
@@ -778,10 +798,12 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
           </div>
         </div>
       </Section>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 4, ROOMS & COTTAGES
       ═══════════════════════════════════════════════════════════════════ */}
+      {venue.sectionVisibility?.rooms !== false && (
       <Section id="rooms" bg={C.cream}>
         <SectionHeader
           eyebrow="Accommodation"
@@ -826,10 +848,12 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
           }} />
         </div>
       </Section>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 5, THE ART
       ═══════════════════════════════════════════════════════════════════ */}
+      {venue.sectionVisibility?.art !== false && (
       <Section id="art" bg="#fff">
         <SectionHeader
           eyebrow="A Living Art Collection"
@@ -870,10 +894,12 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
           }} />
         </div>
       </Section>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 6, WEDDINGS
       ═══════════════════════════════════════════════════════════════════ */}
+      {venue.sectionVisibility?.weddings !== false && (
       <Section id="weddings" bg={C.forest} pad={isMobile ? '64px 24px' : '96px 64px'}>
         <SectionHeader
           eyebrow="Weddings & Celebrations"
@@ -932,6 +958,7 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
           ))}
         </div>
       </Section>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           ENQUIRE

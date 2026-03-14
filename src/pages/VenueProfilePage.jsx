@@ -184,6 +184,11 @@ function StickyVenueNav({ venue, activeSection, onScrollTo }) {
     { id: 'weddings',  label: 'Weddings' },
   ];
 
+  // Filter NAV_ITEMS based on section visibility
+  const visibleNavItems = NAV_ITEMS.filter(
+    item => venue.sectionVisibility?.[item.id] !== false
+  );
+
   return (
     <div
       style={{
@@ -213,7 +218,7 @@ function StickyVenueNav({ venue, activeSection, onScrollTo }) {
       {/* Section pills, desktop only */}
       {!isMobile && (
         <nav style={{ display: 'flex', gap: 4 }}>
-          {NAV_ITEMS.map(item => (
+          {visibleNavItems.map(item => (
             <button
               key={item.id}
               onClick={() => onScrollTo(item.id)}
@@ -428,6 +433,7 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 1, OVERVIEW
       ═══════════════════════════════════════════════════════════════════ */}
+      {venue.sectionVisibility?.overview !== false && (
       <Section id="overview" bg={C.cream}>
         <SectionHeader
           eyebrow={`${venue.location.town} · ${venue.location.country}`}
@@ -452,10 +458,12 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
           }} />
         </div>
       </Section>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 2, WEDDING SPACES
       ═══════════════════════════════════════════════════════════════════ */}
+      {venue.sectionVisibility?.spaces !== false && (
       <Section id="spaces" bg="#fff">
         <SectionHeader
           eyebrow="Event Spaces"
@@ -515,10 +523,12 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
           }} />
         </div>
       </Section>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 3, DINING
       ═══════════════════════════════════════════════════════════════════ */}
+      {venue.sectionVisibility?.dining !== false && (
       <Section id="dining" bg={C.cream}>
         <SectionHeader
           eyebrow="Culinary"
@@ -587,10 +597,12 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
           }} />
         </div>
       </Section>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 4, ACCOMMODATION
       ═══════════════════════════════════════════════════════════════════ */}
+      {venue.sectionVisibility?.rooms !== false && (
       <Section id="rooms" bg="#fff">
         <SectionHeader
           eyebrow="Accommodation"
@@ -628,6 +640,7 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
           }} />
         </div>
       </Section>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 5, SPA & WELLNESS
@@ -645,6 +658,7 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 6, GOLF
       ═══════════════════════════════════════════════════════════════════ */}
+      {venue.sectionVisibility?.golf !== false && (
       <Section id="golf" bg={C.cream}>
         <SectionHeader
           eyebrow="Golf Eichenheim"
@@ -687,10 +701,12 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
           }} />
         </div>
       </Section>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 7, YOUR WEDDING DAY
       ═══════════════════════════════════════════════════════════════════ */}
+      {venue.sectionVisibility?.weddings !== false && (
       <Section id="weddings" bg="#1a1a18">
         <SectionHeader
           eyebrow="Weddings at Grand Tirolia"
@@ -736,6 +752,7 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
           }} />
         </div>
       </Section>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           AMENITIES
@@ -941,6 +958,16 @@ export const GT_VENUE = {
     rooms: 'From the 52 m² Deluxe Alpine Room to the 320 m² Grand Tirolia Suite with its private sauna and fireplace, every one of our 98 rooms has been designed to put the landscape first. Wood-panelled walls, hand-woven Alpine textiles, and private balconies overlooking the Kitzbüheler Horn mean your guests wake up already in the Alps.',
     golf: 'Golf Eichenheim was first laid out in the shadow of the Wilder Kaiser in 1965 and has been refined every decade since. Eighteen holes. Uninterrupted mountain panoramas. An optional addition to any wedding weekend package, for guests who prefer their morning with a five-iron.',
     weddings: 'Five event spaces. Two Michelin stars. An 18-hole championship golf course. 450-guest capacity. Grand Tirolia is not a venue that needs to compromise on any front, because it doesn\'t have to. Your wedding, at elevation, surrounded by mountains that have watched Alpine celebrations for centuries.',
+  },
+
+  // Dynamic section visibility (control which sections are shown)
+  sectionVisibility: {
+    overview: true,
+    spaces: true,
+    dining: true,
+    rooms: true,
+    golf: true,
+    weddings: true,
   },
 
   // Approval & content freshness (internal metadata)

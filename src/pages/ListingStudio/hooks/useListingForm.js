@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { createListing, updateListing, fetchListingById } from '../../../services/listings';
-import { uploadPendingFiles } from '../../../utils/storageUpload';
+import { uploadPendingFiles, uploadMediaFile } from '../../../utils/storageUpload';
 
 // ── Country normaliser ────────────────────────────────────────────────────────
 // Dropdown values are full display names ("Austria", "United Kingdom") to match
@@ -51,6 +51,8 @@ export const useListingForm = (listingId = null) => {
     lat: '',
     lng: '',
     price_range: '',
+    price_from: '',
+    price_currency: '£',
     capacity: '',
     // Hero images, up to 5, first = primary
     hero_images: [],
@@ -126,6 +128,8 @@ export const useListingForm = (listingId = null) => {
     additional_locations: [],
     // Listing info / sidebar card fields
     contact_profile: { photo_file: null, photo_url: '', name: '', title: '', bio: '', email: '', phone: '', whatsapp: '', response_time: '', response_rate: '', instagram: '', website: '' },
+    weddings_hosted: '',
+    member_since: '',
     opening_hours_enabled: false,
     opening_hours: {},
     press_features: [],
@@ -240,6 +244,8 @@ export const useListingForm = (listingId = null) => {
             lng: listing.lng != null ? String(listing.lng) : '',
             // price_range: prefer priceLabel (legacy), fall back to priceRange / price_range (new schema)
             price_range: listing.priceLabel || listing.priceRange || '',
+            price_from: listing.priceFrom != null ? String(listing.priceFrom) : '',
+            price_currency: listing.priceCurrency || '£',
             // capacity: prefer capacityMin (legacy), fall back to capacity (new schema)
             capacity: listing.capacityMin != null ? String(listing.capacityMin) : (listing.capacity || ''),
             hero_images: heroImagesFromDb,
@@ -300,6 +306,8 @@ export const useListingForm = (listingId = null) => {
             contact_profile: listing.contactProfile && typeof listing.contactProfile === 'object'
               ? { photo_file: null, photo_url: listing.contactProfile.photoUrl || listing.contactProfile.photo_url || '', name: listing.contactProfile.name || '', title: listing.contactProfile.title || '', bio: listing.contactProfile.bio || '', email: listing.contactProfile.email || '', phone: listing.contactProfile.phone || '', whatsapp: listing.contactProfile.whatsapp || '', response_time: listing.contactProfile.responseTime || listing.contactProfile.response_time || '', response_rate: listing.contactProfile.responseRate || listing.contactProfile.response_rate || '', instagram: listing.contactProfile.instagram || '', website: listing.contactProfile.website || '' }
               : { photo_file: null, photo_url: '', name: '', title: '', bio: '', email: '', phone: '', whatsapp: '', response_time: '', response_rate: '', instagram: '', website: '' },
+            weddings_hosted: listing.weddingsHosted != null ? String(listing.weddingsHosted) : '',
+            member_since:    listing.memberSince    || '',
             status: listing.status || 'draft',
             published_at: listing.publishedAt || null,
             visibility: listing.isHidden ? 'private' : (listing.visibility || 'public'),
@@ -356,6 +364,24 @@ export const useListingForm = (listingId = null) => {
       // ── Upload any pending File objects to Supabase Storage ─────────────
       // Must happen before building the payload so every item has a real URL.
       setUploadProgress('Checking for files to upload…');
+
+      // Upload contact profile photo if a new File was selected
+      let contactPhotoUrl = formData.contact_profile?.photo_url || '';
+      const contactPhotoFile = formData.contact_profile?.photo_file;
+      if (contactPhotoFile instanceof File) {
+        try {
+          setUploadProgress('Uploading contact photo…');
+          const photoId = `contact-${slug}-${Date.now()}`;
+          contactPhotoUrl = await uploadMediaFile(contactPhotoFile, photoId);
+          handleChange('contact_profile', {
+            ...formData.contact_profile,
+            photo_file: null,
+            photo_url: contactPhotoUrl,
+          });
+        } catch (err) {
+          console.warn('[storage] Contact photo upload failed:', err.message);
+        }
+      }
 
       const [heroUpload, mediaUpload] = await Promise.all([
         uploadPendingFiles(
@@ -431,6 +457,8 @@ export const useListingForm = (listingId = null) => {
         lat: formData.lat,
         lng: formData.lng,
         priceLabel: formData.price_range,
+        priceFrom: formData.price_from ? (parseFloat(formData.price_from) || null) : null,
+        priceCurrency: formData.price_currency || null,
         capacityMin: formData.capacity ? parseInt(formData.capacity, 10) : null,
         heroImage: heroImageUrl,
         heroTitle: primaryHero.title || '',
@@ -527,8 +555,12 @@ export const useListingForm = (listingId = null) => {
         diningDrinks: formData.dining_drinks || [],
         diningDescription: formData.dining_description || '',
         diningMenuImages: formData.dining_menu_images || [],
-        // Contact profile
-        contactProfile: formData.contact_profile || {},
+        // Contact profile (strip the non-serialisable File object; persist the uploaded URL)
+        contactProfile: formData.contact_profile
+          ? { ...formData.contact_profile, photo_file: undefined, photo_url: contactPhotoUrl }
+          : {},
+        weddingsHosted: formData.weddings_hosted ? parseInt(formData.weddings_hosted, 10) || formData.weddings_hosted : null,
+        memberSince:    formData.member_since    || null,
         // Opening hours
         openingHoursEnabled: formData.opening_hours_enabled ?? false,
         openingHours: formData.opening_hours || {},

@@ -303,6 +303,8 @@ function mapFormToDatabaseFields(data: any): any {
     'videos': 'videos',
     // Contact profile, opening hours, social proof
     'contactProfile': 'contact_profile',
+    'weddingsHosted': 'weddings_hosted',
+    'memberSince': 'member_since',
     'openingHoursEnabled': 'opening_hours_enabled',
     'openingHours': 'opening_hours',
     'pressFeatures': 'press_features',

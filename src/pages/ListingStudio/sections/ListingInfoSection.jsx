@@ -391,7 +391,14 @@ function OpeningHoursEditor({ hours = DEFAULT_HOURS, onChange }) {
                     <button
                       key={dt.value}
                       type="button"
-                      onClick={() => updateDay(key, { type: dt.value })}
+                      onClick={() => {
+                        const patch = { type: dt.value };
+                        if (dt.value === 'open' && !hours[key]?.from) {
+                          patch.from = '09:00';
+                          patch.to   = '17:00';
+                        }
+                        updateDay(key, patch);
+                      }}
                       style={{
                         padding: '4px 10px',
                         fontSize: 11,
@@ -762,6 +769,37 @@ const ListingInfoSection = ({ formData, onChange }) => {
           profile={profile}
           onChange={val => onChange('contact_profile', val)}
         />
+
+        {/* Weddings Held + Partner Since */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
+          <div>
+            <label style={LABEL}>
+              Weddings Held{' '}
+              <span style={{ fontWeight: 400, textTransform: 'none', fontSize: 11, color: '#bbb' }}>shown as "X+" on listing</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              value={formData?.weddings_hosted || ''}
+              onChange={e => onChange('weddings_hosted', e.target.value)}
+              placeholder="e.g. 150"
+              style={FIELD}
+            />
+          </div>
+          <div>
+            <label style={LABEL}>
+              Partner Since{' '}
+              <span style={{ fontWeight: 400, textTransform: 'none', fontSize: 11, color: '#bbb' }}>year joined LWD</span>
+            </label>
+            <input
+              type="text"
+              value={formData?.member_since || ''}
+              onChange={e => onChange('member_since', e.target.value)}
+              placeholder="e.g. 2022"
+              style={FIELD}
+            />
+          </div>
+        </div>
       </SectionCard>
 
       {/* ── Opening hours ────────────────────────────────────────── */}

@@ -124,7 +124,7 @@ const ReviewsSection = ({ entityType, entityId, onOpenReviewForm }) => {
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: '1px',
-              color: '#1a1a1a',
+              color: '#fff',
               background: C.gold,
               border: `1px solid ${C.gold}`,
               padding: '14px 40px',
@@ -138,7 +138,7 @@ const ReviewsSection = ({ entityType, entityId, onOpenReviewForm }) => {
             }}
             onMouseOut={e => {
               e.target.style.background = C.gold;
-              e.target.style.color = '#1a1a1a';
+              e.target.style.color = '#fff';
             }}
           >
             Write a Review

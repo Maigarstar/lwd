@@ -33,6 +33,7 @@ import ListingStudioPage from "./ListingStudio/ListingStudioPage";
 import MagazineStudio from "./MagazineStudio/index";
 import ArtistryPage from "./Artistry/ArtistryPage";
 import { getAllSubmissions, reviewSubmission, toggleFeatured } from "../services/artistryService";
+import ReviewsModule from "./AdminDashboard/ReviewsModule";
 import { POSTS } from "./Magazine/data/posts";
 import { PRODUCTS, COLLECTIONS, formatPrice } from "./Magazine/data/products";
 import { CATEGORIES } from "./Magazine/data/categories";
@@ -215,6 +216,7 @@ const NAV_SECTIONS = [
       { key: "listings",        label: "Listings",          icon: "⊞" },
       { key: "listing-studio",  label: "Listing Studio",    icon: "✎" },
       { key: "venue-profiles",    label: "Showcase Profiles",  icon: "⌂" },
+      { key: "reviews",         label: "Reviews",           icon: "★" },
       { key: "vendor-accounts", label: "Vendor Accounts",   icon: "👤" },
       { key: "categories",      label: "Categories",        icon: "▦" },
       { key: "enquiries",       label: "Enquiries",         icon: "◇" },
@@ -7519,6 +7521,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "venue-profiles": return <VenueProfilesAdminModule C={C} onNavigate={(action, params) => {
         if (action === 'listing-studio') { setActiveTab('listing-studio'); }
       }} />;
+      case "reviews": return <ReviewsModule />;
       case "listing-studio": return null; // Handled in main render logic
       case "vendor-accounts": return <VendorAccountsPage C={C} />;
       case "categories":    return <CategoriesModule C={C} />;
