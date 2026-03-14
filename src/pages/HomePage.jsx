@@ -128,7 +128,7 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
             }}
           />
           {/* VenueGrid: live DB data, falls back to static if DB empty */}
-          <VenueGrid venues={displayVenues} onViewVenue={() => onViewVenue?.()} />
+          <VenueGrid venues={displayVenues} onViewVenue={(v) => onViewVenue?.(v)} />
           <FeaturedSlider venues={FEATURED_VENUES} />
           <CategorySlider />
           {/* VendorPreview: live DB vendors when available; internal fallback to GLOBAL_VENDORS */}

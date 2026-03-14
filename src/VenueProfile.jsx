@@ -4351,7 +4351,7 @@ function VenueTypeSection({ venue }) {
         )}
 
         {/* Features checklist */}
-        {vt?.features?.length > 0 && (
+        {Array.isArray(vt?.features) && vt.features.length > 0 && (
           <div>
             <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textLight, marginBottom: 10 }}>Features</p>
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: 8 }}>

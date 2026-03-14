@@ -138,8 +138,11 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
   // ── Build combined media array: images first, then videos, then reels ────────
   const mediaItems = (() => {
     const items = [];
-    // Images
-    (item?.imgs || []).forEach(src => { if (src) items.push({ type: "image", src }); });
+    // Images — imgs[] may be plain URL strings or rich objects { src, url, alt_text, ... }
+    (item?.imgs || []).forEach(img => {
+      const src = typeof img === "string" ? img : (img?.src || img?.url || "");
+      if (src) items.push({ type: "image", src });
+    });
     // Single videoUrl (from LuxuryVenueCard / LuxuryVendorCard)
     if (item?.videoUrl) {
       items.push({ type: "video", src: item.videoUrl });
@@ -550,7 +553,7 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
               >
                 <span aria-hidden="true" style={{ color: "#C9A84C", fontSize: 9 }}>◆</span>
                 {item.city}, {item.region}
-                {!isVendor && " · Italy"}
+                {!isVendor && item.country && ` · ${item.country}`}
               </div>
 
               {/* Rating */}

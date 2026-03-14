@@ -11,7 +11,7 @@ import { ITALY_COUNTRY } from "../data/italy/country.js";
 import { ITALY_REGIONS } from "../data/italy/regions.js";
 import { ITALY_CITIES } from "../data/italy/cities.js";
 import { REGION_AUTO_THRESHOLD, evaluateRegionActivation } from "../engine/activation.js";
-import { fetchListings, isSupabaseAvailable, createListing } from "../services/listings";
+import { fetchListings, isSupabaseAvailable, createListing, deleteListing } from "../services/listings";
 import categoryCssRaw from "../category.css?raw";
 import { RegionsModule } from "./admin/RegionsModule";
 import AdminAllLeads from "../components/admin/AdminAllLeads";
@@ -6961,6 +6961,21 @@ export default function AdminDashboard({ onBack, onNavigate }) {
                       style={{ fontFamily: NU, fontSize: 11, padding: "7px 10px", background: "none", color: C.grey, border: `1px solid ${C.border}`, borderRadius: 3, cursor: "pointer" }}
                     >
                       ↗
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!window.confirm(`Delete "${l.name || l.venueName}"? This cannot be undone.`)) return;
+                        try {
+                          await deleteListing(l.id);
+                          setListings(prev => prev.filter(x => x.id !== l.id));
+                        } catch(e) {
+                          alert('Delete failed: ' + (e.message || e));
+                        }
+                      }}
+                      title="Delete listing"
+                      style={{ fontFamily: NU, fontSize: 11, padding: "7px 10px", background: "none", color: "#c0392b", border: `1px solid #c0392b44`, borderRadius: 3, cursor: "pointer" }}
+                    >
+                      ✕
                     </button>
                   </div>
                 </div>

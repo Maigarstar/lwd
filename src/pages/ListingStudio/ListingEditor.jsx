@@ -75,7 +75,7 @@ const getSectionVisibility = (listingType) => ({
  * Handles creating and editing venue listings
  */
 const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, onSaveComplete = null }) => {
-  const { formData, handleChange, handleSaveDraft, handlePublish, loading, uploadProgress, error, hasChanges } = useListingForm(listingId);
+  const { formData, handleChange, handleSave, handleSaveDraft, handlePublish, loading, uploadProgress, error, hasChanges } = useListingForm(listingId);
   const previewData = useListingPreview(formData);
   const [saveStatus, setSaveStatus] = useState(null);
   const [showAITools,    setShowAITools]    = useState(false);
@@ -151,6 +151,18 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
   const handleToggleSection = useCallback((sectionId) => {
     setSectionEnabled(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
   }, []);
+
+  // Handle save (preserve current status)
+  const handleSaveClick = useCallback(async () => {
+    setSaveStatus('saving');
+    const savedId = await handleSave(formData.status || 'draft');
+    if (savedId) {
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus(null), 3000);
+      // Pass the real saved listing ID (important for new listings)
+      if (onSaveComplete) onSaveComplete(typeof savedId === 'string' ? savedId : listingId);
+    }
+  }, [handleSave, formData.status, listingId, onSaveComplete]);
 
   // Handle save as draft
   const handleSaveDraftClick = useCallback(async () => {
@@ -353,6 +365,20 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
             }}
           >
             Discard
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveClick}
+            disabled={loading || !hasChanges}
+            style={{
+              fontSize: 13, fontWeight: 500, padding: '7px 14px',
+              backgroundColor: 'transparent', color: LUX.text,
+              border: `1px solid ${LUX.border}`, borderRadius: 6,
+              cursor: loading || !hasChanges ? 'not-allowed' : 'pointer',
+              opacity: loading || !hasChanges ? 0.35 : 1,
+            }}
+          >
+            {uploadProgress || (saveStatus === 'saving' ? 'Saving…' : 'Save')}
           </button>
           <button
             type="button"

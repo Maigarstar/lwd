@@ -151,11 +151,13 @@ export default function CardPreviewSection({ formData }) {
   const basePath    = listingType === 'venue' ? '/venues/' : '/vendors/';
   const listingUrl  = formData?.slug ? `${basePath}${formData.slug}` : '#';
 
-  const amenityLines = (formData?.amenities || '')
-    .split('\n')
-    .map(s => s.trim())
-    .filter(Boolean)
-    .slice(0, 5);
+  // amenities can be a string (newline-separated) or an array (from DB JSONB)
+  const amenityLines = (() => {
+    const raw = formData?.amenities;
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw.map(s => String(s).trim()).filter(Boolean).slice(0, 5);
+    return String(raw).split('\n').map(s => s.trim()).filter(Boolean).slice(0, 5);
+  })();
 
   // ── Build per-card v objects ──────────────────────────────────────────────────
 

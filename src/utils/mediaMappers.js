@@ -100,7 +100,7 @@ export const mapMediaItemToCardImg = (item, objectUrls = {}) => ({
   credit_instagram: item.credit_instagram || '',
   credit_website:   item.credit_website   || '',
   show_credit:      item.show_credit      ?? false,
-  image_type:       item.image_type       || '',
+  image_type:       item.image_type       || item.type || '',
   visibility:       item.visibility       || 'public',
   is_featured:      item.is_featured      ?? false,
   sort_order:       item.sort_order       ?? 0,
@@ -117,7 +117,7 @@ export const mapMediaItemToCardImg = (item, objectUrls = {}) => ({
  */
 export const buildCardImgs = (mediaItems = [], objectUrls = {}, limit = Infinity) =>
   mediaItems
-    .filter(i => i.type === 'image' && i.visibility !== 'private')
+    .filter(i => i.type !== 'video' && i.type !== 'virtual_tour' && i.visibility !== 'private')
     .sort((a, b) => {
       if (a.is_featured && !b.is_featured) return -1;
       if (!a.is_featured && b.is_featured) return 1;
