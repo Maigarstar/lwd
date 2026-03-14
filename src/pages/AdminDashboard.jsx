@@ -12,6 +12,7 @@ import { ITALY_REGIONS } from "../data/italy/regions.js";
 import { ITALY_CITIES } from "../data/italy/cities.js";
 import { REGION_AUTO_THRESHOLD, evaluateRegionActivation } from "../engine/activation.js";
 import { fetchListings, isSupabaseAvailable, createListing, deleteListing } from "../services/listings";
+import { fetchShowcases, createShowcase, deleteShowcase } from "../services/showcaseService";
 import categoryCssRaw from "../category.css?raw";
 import { RegionsModule } from "./admin/RegionsModule";
 import AdminAllLeads from "../components/admin/AdminAllLeads";
@@ -5197,15 +5198,15 @@ const ALL_SECTIONS = VENUE_SECTIONS; // kept for backward compat
 const PLANNER_SHOWCASES = [];
 
 const EMPTY_VENUE_SHOWCASE = {
-  slug: '', name: '', location: '', heroImage: '', logo: '', listingId: '',
-  previewUrl: '', status: 'draft', lastUpdated: '',
+  slug: '', name: '', location: '', excerpt: '', heroImage: '', logo: '', listingId: '',
+  previewUrl: '', status: 'draft', lastUpdated: '', sortOrder: 0,
   stats: [{ value: '', label: '' }, { value: '', label: '' }, { value: '', label: '' }, { value: '', label: '' }],
   sections: ['Hero', 'Gallery', 'Overview', 'Spaces', 'Dining', 'Rooms', 'Weddings', 'Enquire'],
 };
 
 const EMPTY_PLANNER_SHOWCASE = {
-  slug: '', name: '', location: '', heroImage: '', logo: '', listingId: '',
-  previewUrl: '', status: 'draft', lastUpdated: '',
+  slug: '', name: '', location: '', excerpt: '', heroImage: '', logo: '', listingId: '',
+  previewUrl: '', status: 'draft', lastUpdated: '', sortOrder: 0,
   stats: [{ value: '', label: '' }, { value: '', label: '' }, { value: '', label: '' }, { value: '', label: '' }],
   sections: ['Hero', 'Portfolio', 'About', 'Services', 'Process', 'Reviews', 'Real Weddings', 'Enquire'],
 };
@@ -5298,6 +5299,17 @@ function NewShowcaseModal({ C, onClose, onSave, type = 'venue' }) {
           </div>
 
           {/* Hero Image */}
+          {/* Excerpt */}
+          <div>
+            <label style={labelStyle}>Excerpt <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>— short description for cards &amp; SEO</span></label>
+            <textarea
+              style={{ ...inputStyle, resize: 'vertical', minHeight: 64, lineHeight: 1.5 }}
+              placeholder="One or two sentences describing this showcase…"
+              value={form.excerpt || ''}
+              onChange={e => set('excerpt', e.target.value)}
+            />
+          </div>
+
           <div>
             <label style={labelStyle}>Hero Image URL</label>
             <input style={inputStyle} placeholder="/images/hero.jpg or https://..." value={form.heroImage} onChange={e => set('heroImage', e.target.value)} />
@@ -5397,18 +5409,59 @@ const SHOWCASE_TABS = [
 ];
 
 function VenueProfilesAdminModule({ C, onNavigate }) {
-  const [hovered, setHovered]           = useState(null);
-  const [activeTab, setActiveTab]       = useState('venues');
+  const [hovered, setHovered]                   = useState(null);
+  const [activeTab, setActiveTab]               = useState('venues');
   const [venueProfiles, setVenueProfiles]       = useState(VENUE_PROFILES);
   const [plannerProfiles, setPlannerProfiles]   = useState(PLANNER_SHOWCASES);
-  const [showModal, setShowModal]       = useState(false);
+  const [showModal, setShowModal]               = useState(false);
+  const [dbLoaded, setDbLoaded]                 = useState(false);
+  const [saving, setSaving]                     = useState(false);
 
-  const isVenues   = activeTab === 'venues';
-  const profiles   = isVenues ? venueProfiles : plannerProfiles;
+  const isVenues    = activeTab === 'venues';
+  const profiles    = isVenues ? venueProfiles : plannerProfiles;
   const setProfiles = isVenues ? setVenueProfiles : setPlannerProfiles;
-  const tab        = SHOWCASE_TABS.find(t => t.key === activeTab);
+  const tab         = SHOWCASE_TABS.find(t => t.key === activeTab);
 
-  const handleSave = (newProfile) => setProfiles(p => [...p, newProfile]);
+  // Load from Supabase on mount (both types at once)
+  useEffect(() => {
+    async function load() {
+      try {
+        const [venues, planners] = await Promise.all([
+          fetchShowcases('venue'),
+          fetchShowcases('planner'),
+        ]);
+        // Only replace if DB returned data; keep static seed as fallback
+        if (venues.length > 0)   setVenueProfiles(venues);
+        if (planners.length > 0) setPlannerProfiles(planners);
+      } catch (e) {
+        console.warn('[ShowcaseAdmin] DB load failed, using static seed:', e);
+      } finally {
+        setDbLoaded(true);
+      }
+    }
+    load();
+  }, []);
+
+  const handleSave = async (formData) => {
+    setSaving(true);
+    try {
+      const type = isVenues ? 'venue' : 'planner';
+      const saved = await createShowcase(formData, type);
+      setProfiles(p => [saved, ...p]);
+    } catch (err) {
+      console.error('[ShowcaseAdmin] save error:', err);
+      // Optimistic fallback: add with temp id
+      setProfiles(p => [{
+        ...formData,
+        id: `temp-${Date.now()}`,
+        lastUpdated: new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
+        stats: (formData.stats || []).filter(s => s.value && s.label),
+        _offline: true,
+      }, ...p]);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div>
