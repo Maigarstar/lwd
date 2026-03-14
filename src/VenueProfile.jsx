@@ -6009,7 +6009,23 @@ export default function VenueProfile({ onBack = null, slug = null }) {
                   : [],
               }
             : null,
-          spaces: null,
+          spaces: Array.isArray(listing.spaces) && listing.spaces.length > 0
+            ? listing.spaces.map(s => ({
+                id:          s.id          || s.name,
+                name:        s.name        || '',
+                type:        s.type        || '',
+                description: s.description || '',
+                img:         s.img         ? (s.img.startsWith('/') || s.img.startsWith('http') ? s.img : '/' + s.img) : null,
+                capacityCeremony: s.capacityCeremony || null,
+                capacityReception: s.capacityReception || null,
+                capacityDining:   s.capacityDining   || null,
+                capacityStanding: s.capacityStanding || null,
+                indoor:     s.indoor    ?? false,
+                covered:    s.covered   ?? false,
+                accessible: s.accessible ?? false,
+                floorPlanUrl: s.floorPlanUrl || null,
+              }))
+            : null,
           faq: (listing.faq_categories && Array.isArray(listing.faq_categories) && listing.faq_categories.length > 0)
             ? {
                 enabled:       listing.faq_enabled !== false,
