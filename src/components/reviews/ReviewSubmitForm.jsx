@@ -37,7 +37,7 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
     fontSize: 12,
     fontWeight: 600,
     textTransform: 'uppercase',
-    color: C.textMid,
+    color: '#ffffff',
     fontFamily: FB,
     letterSpacing: '0.5px',
   };
@@ -47,11 +47,11 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
     padding: '12px 14px',
     fontSize: 14,
     fontFamily: FB,
-    border: `1px solid ${C.border}`,
-    borderRadius: 2,
+    border: '1px solid #333333',
+    borderRadius: 1,
     boxSizing: 'border-box',
-    color: C.textDark,
-    background: C.surface,
+    color: '#ffffff',
+    background: '#0f0f0f',
   };
 
   const updateForm = (key, value) => {
@@ -107,14 +107,20 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
   // Success state
   if (submitted) {
     return (
-      <div style={{ padding: 40, textAlign: 'center' }}>
+      <div style={{
+        backgroundColor: '#1a1a1a',
+        padding: '40px 32px 20px 32px',
+        textAlign: 'center',
+        color: '#ffffff',
+        borderRadius: 1,
+      }}>
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 48, color: C.gold, marginBottom: 16 }}>✓</div>
           <h3
             style={{
               fontFamily: FD,
               fontSize: 24,
-              color: C.textDark,
+              color: '#ffffff',
               marginBottom: 12,
             }}
           >
@@ -125,7 +131,7 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
           style={{
             fontFamily: FB,
             fontSize: 14,
-            color: C.textMuted,
+            color: '#cccccc',
             lineHeight: 1.6,
             maxWidth: 400,
             margin: '0 auto',
@@ -162,7 +168,7 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
               background: C.gold,
               border: 'none',
               padding: '10px 24px',
-              borderRadius: 2,
+              borderRadius: 1,
               cursor: 'pointer',
               transition: 'all 0.2s',
             }}
@@ -181,7 +187,7 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
                 background: 'transparent',
                 border: `1px solid ${C.border}`,
                 padding: '10px 24px',
-                borderRadius: 2,
+                borderRadius: 1,
                 cursor: 'pointer',
                 transition: 'all 0.2s',
               }}
@@ -197,7 +203,13 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
   }
 
   return (
-    <div style={{ maxWidth: 500, paddingBottom: 60 }}>
+    <div style={{
+      maxWidth: 500,
+      backgroundColor: '#1a1a1a',
+      padding: '32px 32px 20px 32px',
+      color: '#ffffff',
+      borderRadius: 1,
+    }}>
       {/* Progress indicator */}
       <div
         style={{
@@ -235,7 +247,7 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
             border: '1px solid #ef5350',
             color: '#c62828',
             padding: 12,
-            borderRadius: 2,
+            borderRadius: 1,
             marginBottom: 20,
             fontFamily: FB,
             fontSize: 13,
@@ -248,7 +260,7 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
       {/* Step 1: Reviewer details */}
       {step === 1 && (
         <div>
-          <h3 style={{ fontFamily: FD, fontSize: 20, marginBottom: 20 }}>
+          <h3 style={{ fontFamily: FD, fontSize: 20, marginBottom: 20, color: '#ffffff' }}>
             Your Details
           </h3>
 
@@ -290,7 +302,7 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
       {/* Step 2: Event details */}
       {step === 2 && (
         <div>
-          <h3 style={{ fontFamily: FD, fontSize: 20, marginBottom: 20 }}>
+          <h3 style={{ fontFamily: FD, fontSize: 20, marginBottom: 20, color: '#ffffff' }}>
             Your Event
           </h3>
 
@@ -325,7 +337,7 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
       {/* Step 3: Ratings */}
       {step === 3 && (
         <div>
-          <h3 style={{ fontFamily: FD, fontSize: 20, marginBottom: 20 }}>
+          <h3 style={{ fontFamily: FD, fontSize: 20, marginBottom: 20, color: '#ffffff' }}>
             Your Ratings
           </h3>
 
@@ -342,7 +354,7 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
                     height: 44,
                     border: `2px solid ${formData.overall_rating === r ? C.gold : C.border}`,
                     background: formData.overall_rating === r ? C.goldBg : 'transparent',
-                    borderRadius: 2,
+                    borderRadius: 1,
                     fontSize: 24,
                     cursor: 'pointer',
                     transition: 'all 0.2s',
@@ -391,7 +403,7 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
       {/* Step 4: Review text */}
       {step === 4 && (
         <div>
-          <h3 style={{ fontFamily: FD, fontSize: 20, marginBottom: 20 }}>
+          <h3 style={{ fontFamily: FD, fontSize: 20, marginBottom: 20, color: '#ffffff' }}>
             Your Review
           </h3>
 
@@ -453,7 +465,7 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
               border: `1px solid ${C.border}`,
               background: 'transparent',
               padding: '10px 24px',
-              borderRadius: 2,
+              borderRadius: 1,
               cursor: 'pointer',
               transition: 'all 0.2s',
             }}
@@ -483,7 +495,7 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
               background: canProceedStep() ? C.gold : C.border,
               border: 'none',
               padding: '10px 24px',
-              borderRadius: 2,
+              borderRadius: 1,
               cursor: canProceedStep() ? 'pointer' : 'not-allowed',
               transition: 'all 0.2s',
             }}
@@ -506,7 +518,7 @@ const ReviewSubmitForm = ({ entityType, entityId, onSubmitSuccess, onCancel }) =
               background: canProceedStep() && !loading ? C.gold : C.border,
               border: 'none',
               padding: '10px 24px',
-              borderRadius: 2,
+              borderRadius: 1,
               cursor: canProceedStep() && !loading ? 'pointer' : 'not-allowed',
               transition: 'all 0.2s',
               opacity: loading ? 0.7 : 1,
