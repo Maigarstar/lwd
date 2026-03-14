@@ -207,11 +207,8 @@ const VENUE = {
   },
   // ── Testimonials: Load from database only. Do not provide hardcoded fallbacks. ──
   testimonials: [],
-  similar: [
-    { id: 2, name: "Castello di Velona", location: "Montalcino, Tuscany", price: "£14,500", rating: 4.8, img: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&q=80" },
-    { id: 3, name: "Villa del Balbianello", location: "Lake Como, Lombardy", price: "£18,000", rating: 4.9, img: "https://images.unsplash.com/photo-1539635278303-d4002c07eae3?w=400&q=80" },
-    { id: 4, name: "Convento di Amalfi", location: "Amalfi Coast", price: "£16,500", rating: 4.7, img: "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=400&q=80" },
-  ],
+  // ── Similar Venues: Load from database only. Do not provide hardcoded fallbacks. ──
+  similar: [],
   contact: {
     address: {
       line1: null,
@@ -1144,6 +1141,10 @@ function StatsStrip({ venue }) {
 // ─── SIDEBAR: OWNER CARD ─────────────────────────────────────────────────────
 function OwnerCard({ owner, venue }) {
   const C = useT();
+
+  // Only render if owner data exists
+  if (!owner || !owner.name) return null;
+
   return (
     <div style={{
       border: `1px solid ${C.border}`,
@@ -4133,7 +4134,7 @@ function VenueTypeSection({ venue }) {
 
   return (
     <section id="venue-type" style={{ marginBottom: 56 }}>
-      <SectionHeading title="Venue Type" subtitle="Historic villa set within a private Tuscan estate" />
+      <SectionHeading title="Venue Type" subtitle={vt?.description || "Unique venue with distinctive character and style"} />
       <SectionLayout sideImg={sideImg} isMobile={isMobile}>
         {/* Primary type + architecture */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
@@ -4287,6 +4288,10 @@ function WeddingWeekend({ venue }) {
 // ─── GETTING HERE ─────────────────────────────────────────────────────────────
 function GettingHere({ access }) {
   const C = useT();
+
+  // Only render if access data exists with airports
+  if (!access || !Array.isArray(access.airports) || access.airports.length === 0) return null;
+
   const formatDrive = (mins) => {
     if (mins < 60) return `${mins} min`;
     const h = Math.floor(mins / 60);
@@ -4301,7 +4306,7 @@ function GettingHere({ access }) {
 
   return (
     <section id="availability" style={{ marginBottom: 56 }}>
-      <SectionHeading title="Getting Here" subtitle="International airports with transfer options for your guests" />
+      <SectionHeading title="Getting Here" subtitle="Transportation options and airport proximity for guest convenience" />
 
       {/* Helicopter callout */}
       {access.helicopterTransferAvailable && (
@@ -4362,6 +4367,10 @@ function GettingHere({ access }) {
 function Reviews({ testimonials, venue }) {
   const C = useT();
   const isMobile = useIsMobile();
+
+  // Only render if testimonials data exists
+  if (!testimonials || !Array.isArray(testimonials) || testimonials.length === 0) return null;
+
   const PER_PAGE = 3;
   const pages = Math.ceil(testimonials.length / PER_PAGE);
   const [page, setPage] = useState(0);
@@ -6024,16 +6033,16 @@ export default function VenueProfile({ onBack = null, slug = null }) {
               <VenueTypeSection venue={VV} />
               <WeddingWeekend venue={VV} />
               <ContactSection venue={VV} />
-              <GettingHere access={VV.access} />
-              <Reviews testimonials={VV.testimonials} venue={VV} />
+              {VV.access && Array.isArray(VV.access.airports) && VV.access.airports.length > 0 && <GettingHere access={VV.access} />}
+              {VV.testimonials && Array.isArray(VV.testimonials) && VV.testimonials.length > 0 && <Reviews testimonials={VV.testimonials} venue={VV} />}
               <FAQSection venue={VV} onAsk={() => setEnquiryOpen(true)} />
               <SimilarVenues venue={VV} />
               <RecentlyViewed venue={VV} />
             </div>
             {/* Sidebar — 4 zones, sticky on desktop */}
             <div className="lwd-sidebar" style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 56, alignSelf: "start" }}>
-              {/* Zone 1 — Owner card */}
-              <OwnerCard owner={VV.owner} venue={VV} />
+              {/* Zone 1 — Owner card (only if owner data available) */}
+              {VV.owner && VV.owner.name && <OwnerCard owner={VV.owner} venue={VV} />}
               {/* Zone 2 — Lead form (scrolls naturally) */}
               <LeadForm venue={VV} />
               {/* Zone 3 — Mini map + quick contact */}
