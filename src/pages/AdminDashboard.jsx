@@ -3903,6 +3903,11 @@ const getActivationBadge = (r, C) => {
 function CountriesModule({ C }) {
   const [expandedCountry, setExpandedCountry] = useState(null);
   const [expandedRegion, setExpandedRegion] = useState(null);
+  const [showAddCountry, setShowAddCountry] = useState(false);
+  const [addCountryForm, setAddCountryForm] = useState({ name: "", slug: "", iso2: "", evergreenContent: "" });
+  const [extraCountries, setExtraCountries] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('lwd_extra_countries') || '[]'); } catch { return []; }
+  });
   // Full-page SEO detail editor
   const [openCountry, setOpenCountry] = useState(null);
   const [openRegion, setOpenRegion] = useState(null);
@@ -3924,7 +3929,8 @@ function CountriesModule({ C }) {
   const thumbInputRef = useRef(null);
   const iconInputRef = useRef(null);
 
-  const totalCountries = DIRECTORY_COUNTRIES.length;
+  const allCountries = [...DIRECTORY_COUNTRIES, ...extraCountries];
+  const totalCountries = allCountries.length;
   const totalRegions = DIRECTORY_REGIONS.length;
   const activeUrls = DIRECTORY_REGIONS.filter(r => isRegionActive(r)).length;
   const seoProtected = DIRECTORY_REGIONS.filter(r => r.urlEverActivated && isRegionActive(r)).length;
@@ -4015,7 +4021,7 @@ function CountriesModule({ C }) {
   });
 
   // ── Unified activeItem abstraction ─────────────────────────────────
-  const activeCountryObj = openCountry ? DIRECTORY_COUNTRIES.find(c => c.id === openCountry) : null;
+  const activeCountryObj = openCountry ? allCountries.find(c => c.id === openCountry) : null;
   let activeRegionObj = null, activeRegionParent = null;
   if (openRegion) {
     const [pId, rId] = openRegion.split(":");
@@ -4851,12 +4857,111 @@ function CountriesModule({ C }) {
           <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2, letterSpacing: "0.1em" }}>
             /{"{country}"}/{"{region}"}/{"{category}"}
           </span>
+          <button
+            onClick={() => setShowAddCountry(v => !v)}
+            style={{
+              fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "0.12em",
+              textTransform: "uppercase", color: showAddCountry ? C.gold : C.grey,
+              background: showAddCountry ? `${C.gold}12` : "transparent",
+              border: `1px solid ${showAddCountry ? C.gold + "60" : C.border}`,
+              borderRadius: 3, padding: "6px 14px", cursor: "pointer", transition: "all 0.2s",
+              display: "flex", alignItems: "center", gap: 6,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
+            onMouseLeave={e => { if (!showAddCountry) { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.grey; } }}
+          >
+            <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> Add Country
+          </button>
         </div>
       </div>
 
+      {/* ── Add Country form ──────────────────────────────────────────────── */}
+      {showAddCountry && (
+        <div style={{
+          background: C.card, border: `1px solid ${C.gold}40`, borderLeft: `3px solid ${C.gold}`,
+          borderRadius: 4, padding: "20px 24px", marginBottom: 20,
+        }}>
+          <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: C.gold, fontWeight: 700, marginBottom: 16 }}>New Country</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 80px", gap: 12, marginBottom: 12 }}>
+            <div>
+              <label style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: C.grey2, fontWeight: 600, marginBottom: 4, display: "block" }}>Country Name *</label>
+              <input
+                value={addCountryForm.name}
+                onChange={e => setAddCountryForm(p => ({ ...p, name: e.target.value, slug: e.target.value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") }))}
+                placeholder="e.g. South Korea"
+                style={{ fontFamily: NU, fontSize: 12, color: C.off, background: C.black, border: `1px solid ${C.border}`, borderRadius: 3, padding: "7px 12px", width: "100%", boxSizing: "border-box", outline: "none" }}
+              />
+            </div>
+            <div>
+              <label style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: C.grey2, fontWeight: 600, marginBottom: 4, display: "block" }}>Slug</label>
+              <input
+                value={addCountryForm.slug}
+                onChange={e => setAddCountryForm(p => ({ ...p, slug: e.target.value }))}
+                placeholder="e.g. south-korea"
+                style={{ fontFamily: NU, fontSize: 12, color: C.off, background: C.black, border: `1px solid ${C.border}`, borderRadius: 3, padding: "7px 12px", width: "100%", boxSizing: "border-box", outline: "none" }}
+              />
+            </div>
+            <div>
+              <label style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: C.grey2, fontWeight: 600, marginBottom: 4, display: "block" }}>ISO2</label>
+              <input
+                value={addCountryForm.iso2}
+                onChange={e => setAddCountryForm(p => ({ ...p, iso2: e.target.value.toUpperCase().slice(0,2) }))}
+                placeholder="KR"
+                maxLength={2}
+                style={{ fontFamily: NU, fontSize: 12, color: C.off, background: C.black, border: `1px solid ${C.border}`, borderRadius: 3, padding: "7px 12px", width: "100%", boxSizing: "border-box", outline: "none", textTransform: "uppercase" }}
+              />
+            </div>
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: C.grey2, fontWeight: 600, marginBottom: 4, display: "block" }}>Description (optional)</label>
+            <input
+              value={addCountryForm.evergreenContent}
+              onChange={e => setAddCountryForm(p => ({ ...p, evergreenContent: e.target.value }))}
+              placeholder="Brief description of the destination..."
+              style={{ fontFamily: NU, fontSize: 12, color: C.off, background: C.black, border: `1px solid ${C.border}`, borderRadius: 3, padding: "7px 12px", width: "100%", boxSizing: "border-box", outline: "none" }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => {
+                if (!addCountryForm.name.trim() || !addCountryForm.slug.trim()) return;
+                const newEntry = {
+                  id: addCountryForm.slug,
+                  slug: addCountryForm.slug,
+                  name: addCountryForm.name.trim(),
+                  iso2: addCountryForm.iso2 || "??",
+                  listingCount: 0,
+                  focusKeywords: [],
+                  aiSummary: "",
+                  intentSignals: { high: [], mid: [], low: [] },
+                  evergreenContent: addCountryForm.evergreenContent.trim(),
+                };
+                setExtraCountries(prev => {
+                  const updated = [...prev, newEntry];
+                  // Persist to localStorage so Listing Studio dropdown picks them up
+                  try { localStorage.setItem('lwd_extra_countries', JSON.stringify(updated)); } catch {}
+                  return updated;
+                });
+                setAddCountryForm({ name: "", slug: "", iso2: "", evergreenContent: "" });
+                setShowAddCountry(false);
+              }}
+              style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#000", background: C.gold, border: "none", borderRadius: 3, padding: "7px 16px", cursor: "pointer" }}
+            >
+              Add Country
+            </button>
+            <button
+              onClick={() => { setShowAddCountry(false); setAddCountryForm({ name: "", slug: "", iso2: "", evergreenContent: "" }); }}
+              style={{ fontFamily: NU, fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: C.grey, background: "transparent", border: `1px solid ${C.border}`, borderRadius: 3, padding: "6px 14px", cursor: "pointer" }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Country cards grid (2 columns, matches Categories) ─────────── */}
       <div className="admin-grid-2col" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16 }}>
-        {DIRECTORY_COUNTRIES.map(country => {
+        {allCountries.map(country => {
           const regions = getCountryRegions(country.slug);
           const activeRegions = regions.filter(r => isRegionActive(r)).length;
           const isOpen = expandedCountry === country.slug;
@@ -5136,7 +5241,7 @@ function CountriesModule({ C }) {
           { label: "Cities", val: DIRECTORY_CITIES.length, color: "#C41E3A" },
           { label: "Active URLs", val: activeUrls, color: activeUrls > 0 ? C.green : C.grey2 },
           { label: "SEO Protected", val: seoProtected, color: seoProtected > 0 ? C.gold : C.grey2 },
-          { label: "SEO Complete", val: (() => { const allKeys = [...DIRECTORY_COUNTRIES.map(c => c.id), ...DIRECTORY_REGIONS.map(r => `${r.countrySlug}:${r.id}`)]; return allKeys.filter(k => seoScoreByKey(k) === 7).length; })(), color: C.green, total: totalCountries + totalRegions },
+          { label: "SEO Complete", val: (() => { const allKeys = [...allCountries.map(c => c.id), ...DIRECTORY_REGIONS.map(r => `${r.countrySlug}:${r.id}`)]; return allKeys.filter(k => seoScoreByKey(k) === 7).length; })(), color: C.green, total: totalCountries + totalRegions },
         ].map((s, i) => (
           <div key={i} style={{ textAlign: "center" }}>
             <div style={{ fontFamily: GD, fontSize: 22, color: s.color || C.gold, fontWeight: 400 }}>{s.val}{s.total != null ? <span style={{ fontFamily: NU, fontSize: 12, color: C.grey2 }}> / {s.total}</span> : null}</div>
@@ -7710,6 +7815,35 @@ export default function AdminDashboard({ onBack, onNavigate }) {
               >
                 <span style={{ fontSize: 12, flexShrink: 0 }}>♡</span>
                 {!sidebarCollapsed && "Getting Married"}
+              </button>
+
+              {/* View Live Site */}
+              <button
+                title="View live site"
+                onClick={() => window.open(import.meta.env.VITE_LIVE_SITE_URL || "https://luxuryweddingdirectory.com", "_blank")}
+                style={{
+                  background: "none",
+                  border: `1px solid ${DARK_C.gold}`,
+                  borderRadius: 3,
+                  cursor: "pointer",
+                  padding: sidebarCollapsed ? "8px 0" : "8px 12px",
+                  fontFamily: NU,
+                  fontSize: 10,
+                  color: DARK_C.gold,
+                  fontWeight: 600,
+                  letterSpacing: "0.1em",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: sidebarCollapsed ? "center" : "flex-start",
+                  gap: 8,
+                  width: "100%",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.12)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+              >
+                <span style={{ fontSize: 11, flexShrink: 0 }}>↗</span>
+                {!sidebarCollapsed && "View Live Site"}
               </button>
             </div>
             {/* ── End Preview Portals ───────────────────────────────── */}

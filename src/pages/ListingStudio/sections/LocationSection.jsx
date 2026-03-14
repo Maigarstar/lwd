@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import AIContentGenerator from '../../../components/AIAssistant/AIContentGenerator';
 import { SEO_SYSTEM, buildAddressLookupPrompt } from '../../../lib/aiPrompts';
+import { getCountryOptions } from '../utils/countryOptions';
 
 // ── Region options keyed by country value ────────────────────────────────────
 const REGIONS_BY_COUNTRY = {
@@ -42,26 +43,7 @@ const REGIONS_BY_COUNTRY = {
   ],
 };
 
-const COUNTRIES = [
-  { value: 'Italy',          label: 'Italy' },
-  { value: 'France',         label: 'France' },
-  { value: 'Spain',          label: 'Spain' },
-  { value: 'Greece',         label: 'Greece' },
-  { value: 'Portugal',       label: 'Portugal' },
-  { value: 'Austria',        label: 'Austria' },
-  { value: 'Switzerland',    label: 'Switzerland' },
-  { value: 'Germany',        label: 'Germany' },
-  { value: 'United Kingdom', label: 'United Kingdom' },
-  { value: 'Ireland',        label: 'Ireland' },
-  { value: 'Scotland',       label: 'Scotland' },
-  { value: 'United States',  label: 'United States' },
-  { value: 'Caribbean',      label: 'Caribbean' },
-  { value: 'Maldives',       label: 'Maldives' },
-  { value: 'Bali',           label: 'Bali' },
-  { value: 'Mexico',         label: 'Mexico' },
-  { value: 'Croatia',        label: 'Croatia' },
-  { value: 'Monaco',         label: 'Monaco' },
-];
+// Replaced by dynamic getter below (see component body)
 
 const FIELD = {
   width: '100%',
@@ -281,6 +263,7 @@ function MapPlaceholder() {
 const COUNTRY_KEYS = ['italy', 'france', 'spain', 'greece', 'portugal', 'uk', 'us', 'caribbean'];
 
 const LocationSection = ({ formData, onChange }) => {
+  const COUNTRIES = useMemo(() => getCountryOptions(), []);
   const [coordPaste, setCoordPaste]         = useState('');
   const [showMultiLoc, setShowMultiLoc]     = useState(
     () => (formData?.additional_locations || []).length > 0

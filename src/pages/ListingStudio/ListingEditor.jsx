@@ -436,6 +436,36 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
               </span>
             );
           })}
+          {/* View live page - only show when listing has a slug */}
+          {formData.slug && (
+            <>
+              <span style={{ width: 1, height: 16, backgroundColor: LUX.border, display: 'inline-block' }} />
+              <span
+                onClick={() => {
+                  const slug = formData.slug;
+                  const listingType = formData.listing_type || 'venue';
+                  // venue -> /venues/{slug}, others stay on /venues for now
+                  const url = `/venues/${slug}`;
+                  window.open(url, '_blank');
+                }}
+                title="Open live listing page in new tab"
+                style={{
+                  fontSize: 11, fontWeight: 500,
+                  letterSpacing: '0.08em', textTransform: 'uppercase',
+                  color: '#c9a84c',
+                  cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  paddingBottom: 1,
+                  borderBottom: '1px solid transparent',
+                  transition: 'opacity 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.opacity = '0.75'; }}
+                onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+              >
+                View Page <span style={{ fontSize: 13, lineHeight: 1 }}>↗</span>
+              </span>
+            </>
+          )}
         </div>
       </div>
 

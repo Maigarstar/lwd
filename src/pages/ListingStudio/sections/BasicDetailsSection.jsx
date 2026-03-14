@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import CategoryAssignmentField from '../components/CategoryAssignmentField';
+import { getCountryOptions } from '../utils/countryOptions';
 
 /**
  * AccountHolderDropdown
@@ -274,6 +275,7 @@ function AccountHolderDropdown({ value, onChange }) {
  * - Category and destination
  */
 const BasicDetailsSection = ({ formData, onChange, darkMode = false }) => {
+  const countryOptions = useMemo(() => getCountryOptions(), []);
   return (
     <section style={{ marginBottom: 16, padding: 20 }}>
       <h3 style={{ marginBottom: 20 }}>Basic Details</h3>
@@ -405,24 +407,9 @@ const BasicDetailsSection = ({ formData, onChange, darkMode = false }) => {
             backgroundColor: '#fff',
           }}
         >
-          <option value="italy">Italy</option>
-          <option value="france">France</option>
-          <option value="spain">Spain</option>
-          <option value="greece">Greece</option>
-          <option value="portugal">Portugal</option>
-          <option value="austria">Austria</option>
-          <option value="switzerland">Switzerland</option>
-          <option value="germany">Germany</option>
-          <option value="uk">United Kingdom</option>
-          <option value="ireland">Ireland</option>
-          <option value="scotland">Scotland</option>
-          <option value="us">United States</option>
-          <option value="caribbean">Caribbean</option>
-          <option value="maldives">Maldives</option>
-          <option value="bali">Bali</option>
-          <option value="mexico">Mexico</option>
-          <option value="croatia">Croatia</option>
-          <option value="monaco">Monaco</option>
+          {countryOptions.map(c => (
+            <option key={c.value} value={c.value}>{c.label}</option>
+          ))}
         </select>
       </div>
 
