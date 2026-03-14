@@ -12,7 +12,8 @@ import VenueStatsCard         from '../components/cards/editorial/VenueStatsCard
 import TwoColumnEditorialCard from '../components/cards/editorial/TwoColumnEditorialCard';
 import MosaicCard             from '../components/cards/editorial/MosaicCard';
 import { CarouselRow }        from '../components/cards/editorial/CarouselCard';
-import PhotoGalleryGrid       from '../components/cards/editorial/PhotoGalleryGrid';
+import MediaBlock             from '../components/profile/MediaBlock';
+import { ThemeCtx, LIGHT }   from '../components/profile/ProfileDesignSystem';
 import VenueEnquireCard       from '../components/cards/editorial/VenueEnquireCard';
 import HomeNav                from '../components/nav/HomeNav';
 import { useBreakpoint }      from '../hooks/useWindowWidth';
@@ -64,6 +65,7 @@ const DDE_VENUE = {
     { src: I('Signature-Suite-Venus-6.jpg'),               alt: 'Signature Vénus Suite' },
   ],
   totalPhotoCount: 55,
+  videos: [],   // populated via Listing Studio media_items
 
   keyStats: [
     { value: '13th C',  label: 'Origins',       sub: 'Charente, France'  },
@@ -299,7 +301,7 @@ function BreadcrumbBar({ venue, onBack, onGoDestination }) {
       {/* View Listing link — far right */}
       <div style={{ marginLeft: 'auto', flexShrink: 0 }}>
         <a
-          href="/venues/domaine-des-etangs-auberge-collection"
+          href="/wedding-venues/domaine-des-etangs"
           style={{
             fontFamily: NU, fontSize: 10, fontWeight: 700,
             letterSpacing: '0.12em', textTransform: 'uppercase',
@@ -412,7 +414,7 @@ function StickyVenueNav({ venue, activeSection, onScrollTo, onVisibilityChange }
       {/* View Listing link — desktop only */}
       {!isMobile && (
         <a
-          href="/venues/domaine-des-etangs-auberge-collection"
+          href="/wedding-venues/domaine-des-etangs"
           style={{
             marginLeft: 8,
             fontFamily: NU, fontSize: 11, fontWeight: 600,
@@ -566,13 +568,20 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <HeroSection venue={venue} />
 
-      {/* ── Gallery grid ─────────────────────────────────────────────────── */}
+      {/* ── Gallery + Video block ─────────────────────────────────────────── */}
       <div style={{ background: '#fff' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '24px 16px' : '28px 64px' }}>
-          <PhotoGalleryGrid data={{
-            images: venue.galleryImages,
-            totalCount: venue.totalPhotoCount,
-          }} />
+          <ThemeCtx.Provider value={LIGHT}>
+            <MediaBlock
+              videos={venue.videos || []}
+              gallery={(venue.galleryImages || []).map((img, i) => ({
+                id:    img.id  || `dde-img-${i}`,
+                src:   img.src || '',
+                alt:   img.alt || img.title || '',
+                title: img.title || '',
+              }))}
+            />
+          </ThemeCtx.Provider>
         </div>
       </div>
 

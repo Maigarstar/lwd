@@ -212,7 +212,7 @@ const NAV_SECTIONS = [
       { key: "overview",        label: "Overview",          icon: "◈" },
       { key: "listings",        label: "Listings",          icon: "⊞" },
       { key: "listing-studio",  label: "Listing Studio",    icon: "✎" },
-      { key: "venue-profiles",    label: "Venue Profiles",     icon: "⌂" },
+      { key: "venue-profiles",    label: "Showcase Profiles",  icon: "⌂" },
       { key: "vendor-accounts", label: "Vendor Accounts",   icon: "👤" },
       { key: "categories",      label: "Categories",        icon: "▦" },
       { key: "enquiries",       label: "Enquiries",         icon: "◇" },
@@ -5190,41 +5190,283 @@ const VENUE_PROFILES = [
   },
 ];
 
+const VENUE_SECTIONS  = ['Hero', 'Gallery', 'Overview', 'Spaces', 'Dining', 'Rooms', 'Pool & Spa', 'Spa', 'Golf', 'Art', 'Weddings', 'Enquire'];
+const PLANNER_SECTIONS = ['Hero', 'Portfolio', 'About', 'Services', 'Process', 'Philosophy', 'Reviews', 'Real Weddings', 'Press', 'Enquire'];
+const ALL_SECTIONS = VENUE_SECTIONS; // kept for backward compat
+
+const PLANNER_SHOWCASES = [];
+
+const EMPTY_VENUE_SHOWCASE = {
+  slug: '', name: '', location: '', heroImage: '', logo: '', listingId: '',
+  previewUrl: '', status: 'draft', lastUpdated: '',
+  stats: [{ value: '', label: '' }, { value: '', label: '' }, { value: '', label: '' }, { value: '', label: '' }],
+  sections: ['Hero', 'Gallery', 'Overview', 'Spaces', 'Dining', 'Rooms', 'Weddings', 'Enquire'],
+};
+
+const EMPTY_PLANNER_SHOWCASE = {
+  slug: '', name: '', location: '', heroImage: '', logo: '', listingId: '',
+  previewUrl: '', status: 'draft', lastUpdated: '',
+  stats: [{ value: '', label: '' }, { value: '', label: '' }, { value: '', label: '' }, { value: '', label: '' }],
+  sections: ['Hero', 'Portfolio', 'About', 'Services', 'Process', 'Reviews', 'Real Weddings', 'Enquire'],
+};
+
+const EMPTY_SHOWCASE = EMPTY_VENUE_SHOWCASE; // backward compat
+
+function NewShowcaseModal({ C, onClose, onSave, type = 'venue' }) {
+  const emptyForm = type === 'planner' ? EMPTY_PLANNER_SHOWCASE : EMPTY_VENUE_SHOWCASE;
+  const sectionList = type === 'planner' ? PLANNER_SECTIONS : VENUE_SECTIONS;
+  const [form, setForm] = useState({ ...emptyForm });
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+  const toggleSection = (sec) => {
+    setForm(p => ({
+      ...p,
+      sections: p.sections.includes(sec) ? p.sections.filter(s => s !== sec) : [...p.sections, sec],
+    }));
+  };
+
+  const handleSave = () => {
+    if (!form.name.trim()) return;
+    onSave({
+      ...form,
+      slug: form.slug || slugify(form.name),
+      lastUpdated: new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
+      stats: form.stats.filter(s => s.value && s.label),
+    });
+    onClose();
+  };
+
+  const inputStyle = {
+    width: '100%', background: '#1a1a18', border: '1px solid #2e2e2a',
+    borderRadius: 4, padding: '9px 12px',
+    fontFamily: 'var(--font-body)', fontSize: 13, color: '#f5f2ec',
+    outline: 'none', boxSizing: 'border-box',
+  };
+  const labelStyle = {
+    fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700,
+    letterSpacing: '0.08em', textTransform: 'uppercase', color: '#9c9690',
+    display: 'block', marginBottom: 5,
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }} onClick={onClose}>
+      <div style={{
+        background: '#141412', border: '1px solid #2e2e2a', borderRadius: 8,
+        width: 580, maxHeight: '88vh', overflowY: 'auto',
+        padding: '32px 36px',
+      }} onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+          <div>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.gold, margin: '0 0 4px' }}>New</p>
+            <h3 style={{ fontFamily: 'var(--font-heading-primary)', fontSize: 22, fontWeight: 400, color: '#f5f2ec', margin: 0 }}>{type === 'planner' ? 'Planner Showcase' : 'Venue Showcase'}</h3>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#6b6860', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+        </div>
+
+        {/* Fields */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+          {/* Name + Slug */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div>
+              <label style={labelStyle}>Venue Name *</label>
+              <input
+                style={inputStyle} placeholder="e.g. Villa Rosanova"
+                value={form.name}
+                onChange={e => { set('name', e.target.value); if (!form.slug) set('slug', slugify(e.target.value)); }}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>URL Slug</label>
+              <input
+                style={inputStyle} placeholder="auto-generated"
+                value={form.slug}
+                onChange={e => set('slug', slugify(e.target.value))}
+              />
+            </div>
+          </div>
+
+          {/* Location */}
+          <div>
+            <label style={labelStyle}>Location</label>
+            <input style={inputStyle} placeholder="e.g. Lake Como · Lombardy · Italy" value={form.location} onChange={e => set('location', e.target.value)} />
+          </div>
+
+          {/* Hero Image */}
+          <div>
+            <label style={labelStyle}>Hero Image URL</label>
+            <input style={inputStyle} placeholder="/images/hero.jpg or https://..." value={form.heroImage} onChange={e => set('heroImage', e.target.value)} />
+          </div>
+
+          {/* Preview URL + Listing ID */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div>
+              <label style={labelStyle}>Preview URL</label>
+              <input style={inputStyle} placeholder="/showcase/slug" value={form.previewUrl} onChange={e => set('previewUrl', e.target.value)} />
+            </div>
+            <div>
+              <label style={labelStyle}>Listing ID</label>
+              <input style={inputStyle} placeholder="UUID from Listing Studio" value={form.listingId} onChange={e => set('listingId', e.target.value)} />
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div>
+            <label style={labelStyle}>Key Stats (up to 4)</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {form.stats.map((s, i) => (
+                <div key={i} style={{ display: 'flex', gap: 6 }}>
+                  <input
+                    style={{ ...inputStyle, width: '45%' }} placeholder="Value"
+                    value={s.value}
+                    onChange={e => { const st = [...form.stats]; st[i] = { ...st[i], value: e.target.value }; set('stats', st); }}
+                  />
+                  <input
+                    style={{ ...inputStyle, flex: 1 }} placeholder="Label"
+                    value={s.label}
+                    onChange={e => { const st = [...form.stats]; st[i] = { ...st[i], label: e.target.value }; set('stats', st); }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Sections */}
+          <div>
+            <label style={labelStyle}>Sections</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+              {sectionList.map(sec => {
+                const on = form.sections.includes(sec);
+                return (
+                  <button key={sec} onClick={() => toggleSection(sec)} style={{
+                    fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600,
+                    letterSpacing: '0.06em', padding: '5px 11px', borderRadius: 3,
+                    cursor: 'pointer', border: `1px solid ${on ? C.gold : '#2e2e2a'}`,
+                    background: on ? 'rgba(184,160,90,0.12)' : '#1a1a18',
+                    color: on ? C.gold : '#6b6860',
+                    transition: 'all 0.15s',
+                  }}>{sec}</button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Status */}
+          <div style={{ display: 'flex', gap: 10 }}>
+            {['draft', 'live'].map(s => (
+              <button key={s} onClick={() => set('status', s)} style={{
+                fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700,
+                letterSpacing: '0.1em', textTransform: 'uppercase',
+                padding: '7px 18px', borderRadius: 3, cursor: 'pointer',
+                border: `1px solid ${form.status === s ? C.gold : '#2e2e2a'}`,
+                background: form.status === s ? 'rgba(184,160,90,0.12)' : 'none',
+                color: form.status === s ? C.gold : '#6b6860',
+              }}>{s === 'live' ? '● Live' : '○ Draft'}</button>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ display: 'flex', gap: 10, marginTop: 28, paddingTop: 24, borderTop: '1px solid #2e2e2a' }}>
+          <button onClick={onClose} style={{
+            flex: 1, background: 'none', border: '1px solid #2e2e2a', color: '#6b6860',
+            fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600,
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+            padding: '10px 0', borderRadius: 4, cursor: 'pointer',
+          }}>Cancel</button>
+          <button onClick={handleSave} style={{
+            flex: 2, background: C.gold, border: 'none', color: '#0f0d0a',
+            fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700,
+            letterSpacing: '0.1em', textTransform: 'uppercase',
+            padding: '10px 0', borderRadius: 4, cursor: 'pointer',
+          }}>Create Showcase</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const SHOWCASE_TABS = [
+  { key: 'venues',   label: 'Venues',   desc: 'Full editorial venue pages — hero, gallery, spaces, dining, rooms, spa, and enquiry sections.' },
+  { key: 'planners', label: 'Planners', desc: 'Full editorial planner profiles — portfolio, services, process, real weddings, and enquiry.' },
+];
+
 function VenueProfilesAdminModule({ C, onNavigate }) {
-  const [hovered, setHovered] = useState(null);
+  const [hovered, setHovered]           = useState(null);
+  const [activeTab, setActiveTab]       = useState('venues');
+  const [venueProfiles, setVenueProfiles]       = useState(VENUE_PROFILES);
+  const [plannerProfiles, setPlannerProfiles]   = useState(PLANNER_SHOWCASES);
+  const [showModal, setShowModal]       = useState(false);
+
+  const isVenues   = activeTab === 'venues';
+  const profiles   = isVenues ? venueProfiles : plannerProfiles;
+  const setProfiles = isVenues ? setVenueProfiles : setPlannerProfiles;
+  const tab        = SHOWCASE_TABS.find(t => t.key === activeTab);
+
+  const handleSave = (newProfile) => setProfiles(p => [...p, newProfile]);
 
   return (
     <div>
+      {showModal && (
+        <NewShowcaseModal
+          C={C}
+          type={activeTab === 'planners' ? 'planner' : 'venue'}
+          onClose={() => setShowModal(false)}
+          onSave={handleSave}
+        />
+      )}
+
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 32 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <p style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.gold, margin: '0 0 6px' }}>
             Content
           </p>
           <h2 style={{ fontFamily: GD, fontSize: 28, fontWeight: 400, color: C.off, margin: 0 }}>
-            Venue Profiles
+            Showcase Profiles
           </h2>
-          <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, margin: '6px 0 0', fontWeight: 300 }}>
-            Full editorial venue pages — hero, gallery, spaces, dining, rooms, spa, and enquiry sections.
-          </p>
         </div>
         <button
+          onClick={() => setShowModal(true)}
           style={{
-            background: C.gold, border: 'none', color: '#fff',
+            background: C.gold, border: 'none', color: '#0f0d0a',
             fontFamily: NU, fontSize: 12, fontWeight: 700,
             letterSpacing: '0.1em', textTransform: 'uppercase',
             padding: '10px 20px', borderRadius: 4, cursor: 'pointer',
-            opacity: 0.45,
+            transition: 'opacity 0.2s',
           }}
-          title="Coming soon — duplicate the VenueProfilePage template"
+          onMouseEnter={e => e.currentTarget.style.opacity = '0.82'}
+          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
         >
-          + New Profile
+          + New Showcase
         </button>
       </div>
 
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 4, borderBottom: `1px solid ${C.border}`, marginBottom: 28 }}>
+        {SHOWCASE_TABS.map(t => (
+          <button key={t.key} onClick={() => setActiveTab(t.key)} style={{
+            fontFamily: NU, fontSize: 12, fontWeight: 700,
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+            padding: '10px 18px', background: 'none', border: 'none',
+            borderBottom: activeTab === t.key ? `2px solid ${C.gold}` : '2px solid transparent',
+            color: activeTab === t.key ? C.gold : C.grey,
+            cursor: 'pointer', transition: 'color 0.15s',
+            marginBottom: -1,
+          }}>{t.label}</button>
+        ))}
+      </div>
+
+      <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, margin: '-12px 0 24px', fontWeight: 300 }}>{tab.desc}</p>
+
       {/* Profile cards grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 20 }}>
-        {VENUE_PROFILES.map((v) => (
+        {profiles.map((v) => (
           <div
             key={v.slug}
             onMouseEnter={() => setHovered(v.slug)}
@@ -5342,18 +5584,24 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
         ))}
 
         {/* Add new placeholder card */}
-        <div style={{
-          background: 'none',
-          border: `2px dashed ${C.border}`,
-          borderRadius: 6, minHeight: 400,
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          gap: 10, opacity: 0.5,
-        }}>
-          <span style={{ fontSize: 28, color: C.grey2 }}>⌂</span>
-          <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, margin: 0, fontWeight: 400 }}>Add Venue Profile</p>
+        <div
+          onClick={() => setShowModal(true)}
+          style={{
+            background: 'none',
+            border: `2px dashed ${C.border}`,
+            borderRadius: 6, minHeight: 400,
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            gap: 10, opacity: 0.6, cursor: 'pointer',
+            transition: 'opacity 0.2s, border-color 0.2s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.borderColor = C.gold; }}
+          onMouseLeave={e => { e.currentTarget.style.opacity = '0.6'; e.currentTarget.style.borderColor = C.border; }}
+        >
+          <span style={{ fontSize: 28, color: C.grey2 }}>+</span>
+          <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, margin: 0, fontWeight: 400 }}>New Showcase</p>
           <p style={{ fontFamily: NU, fontSize: 11, color: C.grey2, margin: 0, fontWeight: 300, textAlign: 'center', maxWidth: 180 }}>
-            Duplicate the VenueProfilePage template and add a new slug
+            Create a new full editorial venue showcase page
           </p>
         </div>
       </div>
@@ -5367,14 +5615,21 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
         <span style={{ fontSize: 20, flexShrink: 0 }}>ℹ</span>
         <div>
           <p style={{ fontFamily: NU, fontSize: 13, fontWeight: 700, color: C.white, margin: '0 0 4px' }}>
-            How venue profiles work
+            How {isVenues ? 'venue' : 'planner'} showcases work
           </p>
-          <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, margin: 0, fontWeight: 300, lineHeight: 1.6 }}>
-            Each profile is driven by a data object in <code style={{ background: C.dark, padding: '1px 5px', borderRadius: 3, fontFamily: 'monospace', fontSize: 11 }}>VenueProfilePage.jsx</code>.
-            Sections: Hero · Gallery · Overview · Spaces · Dining · Rooms · Spa · Golf · Weddings · Amenities · Enquire.
-            Route pattern: <code style={{ background: C.dark, padding: '1px 5px', borderRadius: 3, fontFamily: 'monospace', fontSize: 11 }}>/venues/[slug]</code>.
-            To add a new venue, duplicate the <code style={{ background: C.dark, padding: '1px 5px', borderRadius: 3, fontFamily: 'monospace', fontSize: 11 }}>GT_VENUE</code> export and register the slug in <code style={{ background: C.dark, padding: '1px 5px', borderRadius: 3, fontFamily: 'monospace', fontSize: 11 }}>main.jsx</code>.
-          </p>
+          {isVenues ? (
+            <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, margin: 0, fontWeight: 300, lineHeight: 1.6 }}>
+              Each profile is driven by a data object in <code style={{ background: C.dark, padding: '1px 5px', borderRadius: 3, fontFamily: 'monospace', fontSize: 11 }}>VenueProfilePage.jsx</code>.
+              Sections: Hero · Gallery · Overview · Spaces · Dining · Rooms · Spa · Golf · Weddings · Amenities · Enquire.
+              Route pattern: <code style={{ background: C.dark, padding: '1px 5px', borderRadius: 3, fontFamily: 'monospace', fontSize: 11 }}>/venues/[slug]</code>.
+            </p>
+          ) : (
+            <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, margin: 0, fontWeight: 300, lineHeight: 1.6 }}>
+              Each profile is driven by a data object in <code style={{ background: C.dark, padding: '1px 5px', borderRadius: 3, fontFamily: 'monospace', fontSize: 11 }}>PlannerProfilePage.jsx</code>.
+              Sections: Hero · Portfolio · About · Services · Process · Reviews · Real Weddings · Enquire.
+              Route pattern: <code style={{ background: C.dark, padding: '1px 5px', borderRadius: 3, fontFamily: 'monospace', fontSize: 11 }}>/[country]/[region]/wedding-planners/[slug]</code>.
+            </p>
+          )}
         </div>
       </div>
     </div>

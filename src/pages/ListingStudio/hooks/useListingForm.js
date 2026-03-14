@@ -34,6 +34,7 @@ export const useListingForm = (listingId = null) => {
     listing_type: 'venue', // venue | planner | photographer | videographer | general
     vendor_account_id: null, // linked vendor account
     venue_name: '',
+    hero_tagline: '',
     slug: '',
     category: 'wedding-venues',          // primary category (= assigned_categories[0]?.slug, backwards compat)
     assigned_categories: [],             // [{ id, slug, name, parentSlug, parentName }] — up to 8
@@ -56,6 +57,8 @@ export const useListingForm = (listingId = null) => {
     // Unified media pool: gallery images + videos + virtual tours
     // Replaces legacy gallery_images[] + videos[]
     media_items: [], // Array of { type: 'image'|'video'|'virtual_tour', source_type, file, url, thumbnail, title, caption, credit_name, ... }
+    showcase_enabled: false,           // showcase page toggle
+    showcase_category: 'venue',        // 'venue' | 'planner' | 'photographer' | 'vendor' | 'florist' | 'caterer' | 'stylist'
     // ── Exclusive Use block ───────────────────────────────────────────────────
     exclusive_use_enabled: false,      // section toggle
     exclusive_use_title: '',           // heading (default "Exclusive Use")
@@ -217,6 +220,7 @@ export const useListingForm = (listingId = null) => {
             listing_type: listing.listingType || 'venue',
             vendor_account_id: listing.vendorAccountId || null,
             venue_name: listing.name || '',
+            hero_tagline: listing.heroTagline || '',
             slug: listing.slug || '',
             category: listing.categorySlug || listing.category || 'wedding-venues',
             assigned_categories: Array.isArray(listing.assignedCategories) ? listing.assignedCategories : (listing.categorySlug ? [{ id: listing.categorySlug, slug: listing.categorySlug, name: listing.categorySlug, parentSlug: null, parentName: null }] : []),
@@ -246,6 +250,8 @@ export const useListingForm = (listingId = null) => {
             seo_description: listing.seoDescription || '',
             seo_keywords: Array.isArray(listing.seoKeywords) ? listing.seoKeywords : [],
             spaces: Array.isArray(listing.spaces) ? listing.spaces : [],
+            showcase_enabled: listing.showcaseEnabled ?? false,
+            showcase_category: listing.showcaseCategory || 'venue',
             exclusive_use_enabled: listing.exclusiveUseEnabled ?? false,
             exclusive_use_title: listing.exclusiveUseTitle || '',
             exclusive_use_subtitle: listing.exclusiveUseSubtitle || '',
@@ -409,6 +415,7 @@ export const useListingForm = (listingId = null) => {
 
       const listingPayload = {
         name: formData.venue_name,
+        heroTagline: formData.hero_tagline || '',
         slug: slug,
         categorySlug: formData.assigned_categories?.[0]?.slug || formData.category || 'wedding-venues',
         assignedCategories: formData.assigned_categories || [],
@@ -440,6 +447,8 @@ export const useListingForm = (listingId = null) => {
         seoTitle: formData.seo_title,
         seoDescription: formData.seo_description,
         seoKeywords: formData.seo_keywords || [],
+        showcaseEnabled: formData.showcase_enabled ?? false,
+        showcaseCategory: formData.showcase_category || 'venue',
         // Exclusive Use block
         exclusiveUseEnabled: formData.exclusive_use_enabled ?? false,
         exclusiveUseTitle: formData.exclusive_use_title || '',

@@ -3,7 +3,7 @@ import { getDefaultMode } from "./theme/tokens";
 import GCardMobile from "./components/cards/GCardMobile";
 import SliderNav from "./components/ui/SliderNav";
 import { fetchListingBySlug } from './services/listings';
-import { buildCardImgs, mapMediaItemToGalleryPhoto } from './utils/mediaMappers';
+import { buildCardImgs, mapMediaItemToGalleryPhoto, buildVenueVideos } from './utils/mediaMappers';
 
 function useIsMobile(bp = 768) {
   const [mobile, setMobile] = useState(() => window.innerWidth <= bp);
@@ -261,7 +261,9 @@ const VENUE = {
 
 // ─── COMPUTED BACKWARD-COMPAT FIELDS ─────────────────────────────────────────
 // These derive from structured data so older references (sidebar, chat, etc.) keep working.
-VENUE.responseTime = `${VENUE.contact.responseMetrics.averageResponseHours} hrs`;
+VENUE.responseTime = VENUE.contact.responseMetrics.averageResponseHours
+  ? `${VENUE.contact.responseMetrics.averageResponseHours} hrs`
+  : null;
 VENUE.responseRate = VENUE.contact.responseMetrics.responseRatePercent;
 VENUE.contact.mapQuery = `${VENUE.contact.address.city},+${VENUE.contact.address.region},+${VENUE.contact.address.country}`.replace(/ /g, "+");
 VENUE.contact.addressFormatted = [
@@ -600,6 +602,7 @@ function HeroSlider({ imgs, height, children }) {
 // ─── HERO STYLE 1: CINEMATIC ─────────────────────────────────────────────────
 function HeroCinematic({ venue, onEnquire }) {
   const C = useT();
+  const isMobile = useIsMobile();
   return (
     <div style={{ position: "relative" }}>
       <HeroSlider imgs={venue.imgs} height="62vh">
@@ -610,13 +613,16 @@ function HeroCinematic({ venue, onEnquire }) {
               <span style={{ fontFamily: FB, fontSize: 10, color: "#fff", letterSpacing: "1.5px", fontWeight: 700, textTransform: "uppercase" }}>✦ Editor's Pick</span>
             </div>
           )}
-          <h1 style={{ fontFamily: FD, fontSize: "clamp(38px, 5.3vw, 68px)", fontWeight: 400, color: "#fff", letterSpacing: "-0.5px", lineHeight: 1.05, marginBottom: 12 }}>{venue.name}</h1>
+          <h1 style={{ fontFamily: FD, fontSize: "clamp(38px, 5.3vw, 68px)", fontWeight: 400, color: "#fff", letterSpacing: "-0.5px", lineHeight: 1.05, marginBottom: 10 }}>{venue.name}</h1>
+          {venue.tagline && (
+            <p style={{ fontFamily: FB, fontSize: "clamp(13px, 1.4vw, 16px)", color: "rgba(255,255,255,0.72)", lineHeight: 1.6, marginBottom: 14, maxWidth: 560, letterSpacing: "0.1px" }}>{venue.tagline}</p>
+          )}
           <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 22 }}>
             <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.8)" }}>{venue.flag} {venue.location}</span>
-            <span style={{ width: 1, height: 12, background: "rgba(255,255,255,0.3)" }} />
-            <Stars rating={venue.rating} size={13} />
+            {(venue.rating > 0 || venue.verified) && <span style={{ width: 1, height: 12, background: "rgba(255,255,255,0.3)" }} />}
+            {venue.rating != null && venue.rating > 0 && <><Stars rating={venue.rating} size={13} />
             <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.85)", fontWeight: 600 }}>{venue.rating}</span>
-            <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.55)" }}>({venue.reviews} reviews)</span>
+            {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.55)" }}>({venue.reviews} reviews)</span>}</> }
             {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: "#4ade80", fontWeight: 700 }}>✓ LWD Verified</span>}
           </div>
           {/* Hero CTA */}
@@ -651,7 +657,7 @@ function HeroCinematic({ venue, onEnquire }) {
             )}
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {venue.priceFrom && (
-                <span style={{ fontFamily: FB, fontSize: 14, fontWeight: 600, color: "rgba(201,168,76,0.95)", letterSpacing: "0.3px" }}>
+                <span style={{ fontFamily: FD, fontSize: isMobile ? 20 : 26, fontWeight: 400, color: "#fff", lineHeight: 1 }}>
                   From {venue.priceFrom}
                 </span>
               )}
@@ -704,18 +710,22 @@ function HeroSplit({ venue, onEnquire }) {
         <h1 style={{ fontFamily: FD, fontSize: isMobile ? 32 : "clamp(30px, 3.5vw, 52px)", fontWeight: 400, color: C.text, lineHeight: 1.05, marginBottom: 8 }}>{venue.name}</h1>
         <p style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginBottom: isMobile ? 14 : 20, lineHeight: 1.6 }}>{venue.flag} {venue.location}</p>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: isMobile ? 16 : 24, flexWrap: "wrap" }}>
-          <Stars rating={venue.rating} size={14} />
+          {venue.rating != null && venue.rating > 0 && <><Stars rating={venue.rating} size={14} />
           <span style={{ fontFamily: FB, fontSize: 14, fontWeight: 700, color: C.text }}>{venue.rating}</span>
-          <span style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>· {venue.reviews} reviews</span>
+          {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>· {venue.reviews} reviews</span>}</> }
           {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: C.green, fontWeight: 700 }}>✓ Verified</span>}
         </div>
         <div style={{ height: 1, background: C.border, marginBottom: isMobile ? 16 : 24 }} />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isMobile ? 16 : 24, gap: 12, flexWrap: isMobile ? "wrap" : "nowrap" }}>
-          <div>
-            <div style={{ fontFamily: FD, fontSize: isMobile ? 24 : 28, color: C.gold }}>From {venue.priceFrom}</div>
-            <div style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, marginTop: 2 }}>per event · up to {venue.capacity.ceremony} guests</div>
-          </div>
-          <div style={{ fontFamily: FB, fontSize: 12, color: C.green, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}><Icon name="zap" size={13} color={C.green} /> Replies in {venue.responseTime}</div>
+          {venue.priceFrom && (
+            <div>
+              <div style={{ fontFamily: FD, fontSize: isMobile ? 24 : 28, color: C.gold }}>From {venue.priceFrom}</div>
+              <div style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, marginTop: 2 }}>per event · up to {venue.capacity.ceremony} guests</div>
+            </div>
+          )}
+          {venue.responseTime && (
+            <div style={{ fontFamily: FB, fontSize: 12, color: C.green, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}><Icon name="zap" size={13} color={C.green} /> Replies in {venue.responseTime}</div>
+          )}
         </div>
         <button onClick={onEnquire} style={{ width: "100%", padding: isMobile ? "13px" : "14px", background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)", color: "#0f0d0a", fontFamily: FB, fontSize: 13, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", cursor: "pointer", transition: "opacity 0.2s" }}
           onMouseEnter={e => e.currentTarget.style.opacity = "0.88"}
@@ -765,17 +775,19 @@ function HeroMagazine({ venue, onEnquire }) {
             <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               <span style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>{venue.flag} {venue.location}</span>
               <span style={{ width: 1, height: 12, background: C.border2 }} />
-              <Stars rating={venue.rating} size={13} />
+              {venue.rating != null && venue.rating > 0 && <><Stars rating={venue.rating} size={13} />
               <span style={{ fontFamily: FB, fontSize: 13, fontWeight: 700, color: C.text }}>{venue.rating}</span>
-              <span style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>({venue.reviews} reviews)</span>
+              {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>({venue.reviews} reviews)</span>}</> }
               {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: C.green, fontWeight: 700 }}>✓ LWD Verified</span>}
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontFamily: FD, fontSize: 26, color: C.gold }}>From {venue.priceFrom}</div>
-              <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted }}>per event</div>
-            </div>
+            {venue.priceFrom && (
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontFamily: FD, fontSize: 26, color: C.gold }}>From {venue.priceFrom}</div>
+                <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted }}>per event</div>
+              </div>
+            )}
             {venue.showcaseUrl && (
               <a href={venue.showcaseUrl}
                 onClick={e => { e.preventDefault(); window.history.pushState(null, "", venue.showcaseUrl); window.dispatchEvent(new PopStateEvent('popstate')); }}
@@ -858,7 +870,7 @@ function HeroVideo({ venue, onEnquire }) {
           <span style={{ width: 1, height: 12, background: "rgba(255,255,255,0.3)" }} />
           <Stars rating={venue.rating} size={13} />
           <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.85)", fontWeight: 600 }}>{venue.rating}</span>
-          <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.5)" }}>({venue.reviews} reviews)</span>
+          {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.5)" }}>({venue.reviews} reviews)</span>}
           {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: "#4ade80", fontWeight: 700 }}>✓ LWD Verified</span>}
         </div>
         {/* Hero CTAs */}
@@ -1778,17 +1790,21 @@ function LeadForm({ venue }) {
     }}>
       {/* Price + rating */}
       <div style={{ marginBottom: 20 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 6 }}>
-          <span style={{ fontFamily: FD, fontSize: 29, fontWeight: 700, color: C.gold }}>From {venue.priceFrom}</span>
-        </div>
+        {venue.priceFrom && (
+          <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 6 }}>
+            <span style={{ fontFamily: FD, fontSize: 29, fontWeight: 700, color: C.gold }}>From {venue.priceFrom}</span>
+          </div>
+        )}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Stars rating={venue.rating} size={12} />
           <span style={{ fontFamily: FB, fontSize: 13, fontWeight: 700, color: C.text }}>{venue.rating}</span>
-          <span style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>· {venue.reviews} reviews</span>
+          {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>· {venue.reviews} reviews</span>}
         </div>
-        <div style={{ marginTop: 8, fontFamily: FB, fontSize: 12, color: C.green, fontWeight: 600 }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="zap" size={13} color={C.green} /> Responds within {venue.responseTime}</span>
-        </div>
+        {venue.responseTime && (
+          <div style={{ marginTop: 8, fontFamily: FB, fontSize: 12, color: C.green, fontWeight: 600 }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="zap" size={13} color={C.green} /> Responds within {venue.responseTime}</span>
+          </div>
+        )}
       </div>
 
       <div style={{ height: 1, background: C.border, marginBottom: 20 }} />
@@ -2049,19 +2065,31 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
     return () => window.removeEventListener("keydown", fn);
   }, [onClose, onPrev, onNext, viewAll]);
 
-  // Auto-play slideshow
+  // Auto-play slideshow — stop if idx is null (lightbox closed)
   useEffect(() => {
-    if (!autoPlay) return;
+    if (!autoPlay || idx === null) return;
     const timer = setInterval(() => onNext(), 3000);
     return () => clearInterval(timer);
-  }, [autoPlay, onNext]);
+  }, [autoPlay, idx, onNext]);
 
-  // Scroll active thumbnail into view
+  // Reset internal state when lightbox is closed
   useEffect(() => {
-    if (thumbRef.current) {
-      const active = thumbRef.current.children[idx];
-      if (active) active.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    if (idx === null) {
+      setAutoPlay(false);
+      setViewAll(false);
     }
+  }, [idx]);
+
+  // Scroll active thumbnail into view — scroll the strip container, not the page
+  useEffect(() => {
+    if (!thumbRef.current) return;
+    const strip = thumbRef.current;
+    const active = strip.children[idx];
+    if (!active) return;
+    const stripRect  = strip.getBoundingClientRect();
+    const activeRect = active.getBoundingClientRect();
+    const offset = activeRect.left - stripRect.left - (stripRect.width / 2) + (activeRect.width / 2);
+    strip.scrollBy({ left: offset, behavior: "smooth" });
   }, [idx]);
 
   // Copy link to clipboard
@@ -2207,7 +2235,7 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
   }
 
   return (
-    <div onClick={onClose} style={{
+    <div onClick={onClose} onMouseDown={e => { if (e.target.tagName === "BUTTON" || e.target.closest("button")) e.preventDefault(); }} style={{
       position: "fixed", inset: 0, background: "rgba(0,0,0,0.96)", zIndex: 2000,
       display: "flex", flexDirection: "column",
     }}>
@@ -2780,6 +2808,22 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
   // Reset paused overlay when video changes
   useEffect(() => { setYtPaused(false); }, [video.id]);
 
+  // Stop video playback on unmount (prevents audio continuing after modal closes)
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    return () => {
+      try {
+        if (iframe) {
+          iframe.contentWindow.postMessage(
+            JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }), '*'
+          );
+          // Clear src as nuclear fallback to guarantee playback stops
+          iframe.src = '';
+        }
+      } catch (_) {}
+    };
+  }, []);
+
   // Keyboard nav
   useEffect(() => {
     const onKey = (e) => {
@@ -2904,6 +2948,7 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
   return (
     <div
       onClick={onClose}
+      onMouseDown={e => { if (e.target.tagName === "BUTTON" || e.target.closest("button")) e.preventDefault(); }}
       role="dialog" aria-modal="true" aria-label={`Play ${video.title}`}
       style={{
         position: "fixed", inset: 0, zIndex: 3000,
@@ -3262,6 +3307,14 @@ function VideoGallery({ videos, venue }) {
   const isMobile = useIsMobile();
   const [active, setActive] = useState(0);
   const [playing, setPlaying] = useState(null);
+
+  // Reset all state when VideoGallery unmounts (route change / navigation away)
+  useEffect(() => {
+    return () => {
+      setPlaying(null);
+      setActive(0);
+    };
+  }, []);
   if (!videos || videos.length === 0) return null;
   const vg = videos[active].videographer;
   const venueName = venue?.name || 'Wedding Venue';
@@ -4405,7 +4458,7 @@ function Reviews({ testimonials, venue }) {
           <div style={{ textAlign: "center", borderRight: isMobile ? "none" : `1px solid ${C.border}`, borderBottom: isMobile ? `1px solid ${C.border}` : "none", paddingRight: isMobile ? 0 : 40, paddingBottom: isMobile ? 16 : 0 }}>
             <div style={{ fontFamily: FD, fontSize: isMobile ? 56 : 78, fontWeight: 400, color: C.gold, lineHeight: 1 }}>{venue.rating}</div>
             <Stars rating={venue.rating} size={18} />
-            <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginTop: 8 }}>{venue.reviews} verified reviews</div>
+            {venue.reviews != null && <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginTop: 8 }}>{venue.reviews} verified reviews</div>}
           </div>
           <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 8 }}>
             {[5,4,3,2,1].map(star => (
@@ -5037,7 +5090,7 @@ function MobileLeadBar({ venue }) {
           <div style={{ fontFamily: FD, fontSize: 18, color: C.gold }}>From {venue.priceFrom}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
             <Stars rating={venue.rating} size={11} />
-            <span style={{ fontFamily: FB, fontSize: 11, color: C.textLight }}>{venue.reviews} reviews</span>
+            {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 11, color: C.textLight }}>{venue.reviews} reviews</span>}
           </div>
         </div>
         <button onClick={() => setOpen(true)} style={{
@@ -5851,12 +5904,12 @@ export default function VenueProfile({ onBack = null, slug = null }) {
         if (!listing || ignore) return;
         const mapped = {
           name:      listing.name || VENUE.name,
-          tagline:   listing.short_description || listing.card_summary || VENUE.tagline,
+          tagline:   listing.heroTagline || listing.hero_tagline || VENUE.tagline,
           location:  [listing.city, listing.region].filter(Boolean).join(', ') || VENUE.location,
           country:   listing.country || VENUE.country,
           priceFrom: listing.price_from || VENUE.priceFrom,
           capacity:  { ...VENUE.capacity, max: listing.capacity_max || VENUE.capacity?.max },
-          imgs:      buildCardImgs(listing.media_items || []).map(i => i.src).filter(Boolean),
+          imgs:      buildCardImgs(listing.media_items || []).map(i => i.src).filter(Boolean).slice(0, 10),
           verified:  !!listing.is_verified,
           venueType: { ...(VENUE.venueType || {}), features: listing.amenities || [], styles: listing.styles || [] },
           description: listing.short_description || listing.card_summary || null,
@@ -5869,10 +5922,12 @@ export default function VenueProfile({ onBack = null, slug = null }) {
             })
             .map(item => mapMediaItemToGalleryPhoto(item))
             .filter(item => item.src) || VENUE.gallery,
+          rating:  listing.rating       ?? VENUE.rating,
+          reviews: listing.review_count ?? listing.reviewCount ?? VENUE.reviews,
           flag:    COUNTRY_FLAG[listing.country] || VENUE.flag,
           awards:  Array.isArray(listing.awards)          ? listing.awards          : [],
           press:   Array.isArray(listing.press_features)  ? listing.press_features  : [],
-          videos:  [],
+          videos:  Array.isArray(listing.media_items) ? buildVenueVideos(listing.media_items) : [],
           accommodation: (listing.rooms_max_guests || listing.rooms_total || listing.rooms_description)
             ? {
                 type:              listing.rooms_accommodation_type || null,

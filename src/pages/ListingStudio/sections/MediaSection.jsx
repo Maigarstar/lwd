@@ -18,6 +18,39 @@ const genId = () =>
     return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
   });
 
+// Format seconds → "4:32" or "1:02:15"
+const fmtDuration = (secs) => {
+  if (!secs || isNaN(secs)) return '';
+  const s = Math.floor(secs);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  return `${m}:${String(sec).padStart(2,'0')}`;
+};
+
+// Fetch title, description, thumbnail, duration from YouTube/Vimeo oEmbed (no API key needed)
+const fetchVideoMeta = async (url, sourceType) => {
+  if (sourceType !== 'youtube' && sourceType !== 'vimeo') return null;
+  try {
+    const endpoint = sourceType === 'youtube'
+      ? `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`
+      : `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(url)}`;
+    const res = await fetch(endpoint);
+    if (!res.ok) return null;
+    const d = await res.json();
+    return {
+      title:       d.title        || '',
+      thumbnail:   d.thumbnail_url || null,
+      caption:     d.description  || '',   // Vimeo only — YouTube oEmbed has no description
+      credit_name: d.author_name  || '',
+      duration:    d.duration ? fmtDuration(d.duration) : '',  // Vimeo only
+    };
+  } catch {
+    return null;
+  }
+};
+
 const extractYouTubeId = url => {
   const m = url?.match(
     /(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/
@@ -757,19 +790,38 @@ const MediaSection = ({ formData, onChange }) => {
     notifyMedia([...mediaItems, ...toAdd]);
   };
 
-  const addVideo = url => {
+  const addVideo = async (url) => {
     if (mediaItems.filter(i => i.type === 'video').length >= VIDEO_STORAGE_MAX) {
       alert(`Maximum ${VIDEO_STORAGE_MAX} videos reached.`); return;
     }
     const src = detectVideoSource(url);
-    notifyMedia([...mediaItems, {
-      id: genId(), type: 'video', source_type: src,
+    const newId = genId();
+    const newItem = {
+      id: newId, type: 'video', source_type: src,
       file: null, url, thumbnail: ytThumb(url) || null,
       title: '', caption: '', description: '',
       credit_name: '', credit_instagram: '', credit_website: '', credit_camera: '',
       location: '', tags: [], sort_order: mediaItems.length, is_featured: false,
       alt_text: '', copyright: '', visibility: 'public', image_type: '', show_credit: false,
-    }]);
+    };
+    notifyMedia([...mediaItems, newItem]);
+
+    // Auto-fill metadata from YouTube / Vimeo oEmbed
+    const meta = await fetchVideoMeta(url, src);
+    if (meta) {
+      setMediaItems(prev => {
+        const updated = prev.map(item => item.id === newId ? {
+          ...item,
+          title:       meta.title       || item.title,
+          thumbnail:   meta.thumbnail   || item.thumbnail,
+          caption:     meta.caption     || item.caption,
+          credit_name: meta.credit_name || item.credit_name,
+          duration:    meta.duration    || item.duration,
+        } : item);
+        onChange('media_items', updated);
+        return updated;
+      });
+    }
   };
 
   const addTour = (url, provider) => {

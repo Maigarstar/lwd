@@ -242,3 +242,88 @@ export const buildListingMediaAIRecords = (mediaItems = [], listingMeta = {}) =>
   mediaItems
     .filter(item => item.visibility !== 'private' && !!item.url)
     .map(item => buildMediaAIRecord(item, listingMeta));
+
+
+// ─── 5. VENUE PROFILE VIDEO GALLERY ──────────────────────────────────────────
+
+/**
+ * Build a YouTube thumbnail URL from a YouTube watch/short URL.
+ * Returns null if the URL is not a YouTube URL.
+ */
+const extractYouTubeId = (url) => {
+  const m = url?.match(
+    /(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/
+  );
+  return m?.[1] || null;
+};
+
+const ytThumb = (url) => {
+  const id = extractYouTubeId(url);
+  return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null;
+};
+
+/**
+ * Extract the numeric Vimeo video ID from a Vimeo URL.
+ * Handles: vimeo.com/123456789, vimeo.com/channels/…/123456789, player.vimeo.com/video/123456789
+ */
+const extractVimeoId = (url) => {
+  const m = url?.match(/vimeo\.com\/(?:video\/|channels\/[^/]+\/|groups\/[^/]+\/videos\/|album\/[^/]+\/video\/)?(\d+)/);
+  return m?.[1] || null;
+};
+
+/**
+ * Build an embed URL for YouTube or Vimeo.
+ * Returns null for unsupported platforms (Instagram, TikTok, etc.).
+ */
+export const buildVideoEmbedUrl = (url, origin = '') => {
+  const ytId = extractYouTubeId(url);
+  if (ytId) {
+    return `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&showinfo=0&controls=1&playsinline=1&enablejsapi=1${origin ? `&origin=${encodeURIComponent(origin)}` : ''}`;
+  }
+  const vimeoId = extractVimeoId(url);
+  if (vimeoId) {
+    return `https://player.vimeo.com/video/${vimeoId}?autoplay=1&title=0&byline=0&portrait=0&color=C9A84C&badge=0`;
+  }
+  return null;
+};
+
+/**
+ * Convert media_items[] videos into the shape expected by VenueProfile VideoGallery.
+ * Filters to public videos only, sorts featured/sort_order.
+ * Extracts youtubeId + vimeoId so VideoPlayModal can build the correct embed URL.
+ *
+ * @param {Array} mediaItems — full media_items[] array from a listing
+ * @returns {Array} video objects consumable by VideoGallery + VideoPlayModal
+ *
+ * Output shape per item:
+ *   { id, url, youtubeId, vimeoId, title, thumb, desc, duration, type, tags,
+ *     source_type, videographer: { name, area } | null }
+ */
+export const buildVenueVideos = (mediaItems = []) =>
+  mediaItems
+    .filter(i => i.type === 'video' && i.visibility !== 'private' && i.url)
+    .sort((a, b) => {
+      if (a.is_featured && !b.is_featured) return -1;
+      if (!a.is_featured && b.is_featured) return 1;
+      return (a.sort_order ?? 999) - (b.sort_order ?? 999);
+    })
+    .map(item => {
+      const ytId    = extractYouTubeId(item.url);
+      const vimeoId = extractVimeoId(item.url);
+      return {
+        id:          item.id,
+        url:         item.url,
+        youtubeId:   ytId    || null,
+        vimeoId:     vimeoId || null,
+        title:       item.title    || 'Venue Video',
+        thumb:       item.thumbnail || ytThumb(item.url) || null,
+        desc:        item.caption  || item.description || '',
+        duration:    item.duration || '',
+        type:        item.image_type || 'tour',   // 'wedding' | 'tour' | '' — drives label
+        tags:        Array.isArray(item.tags) ? item.tags : [],
+        source_type: item.source_type || 'external',
+        videographer: item.credit_name
+          ? { name: item.credit_name, area: item.location || '' }
+          : null,
+      };
+    });

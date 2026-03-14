@@ -327,6 +327,21 @@ const BasicDetailsSection = ({ formData, onChange, darkMode = false }) => {
         </div>
 
         <div>
+          <label style={{ display: 'block', marginBottom: 6, fontSize: 12, fontWeight: 600, textTransform: 'uppercase' }}>
+            Hero Tagline
+          </label>
+          <input
+            type="text"
+            name="hero_tagline"
+            value={formData?.hero_tagline || ''}
+            onChange={(e) => onChange('hero_tagline', e.target.value)}
+            placeholder="e.g., A 13th-century château on 2,500 private acres in Charente, France"
+            style={{ width: '100%', padding: '10px 12px', fontSize: 13, border: '1px solid #ddd4c8', borderRadius: 3 }}
+          />
+          <p style={{ fontSize: 11, color: '#999', marginTop: 4 }}>Shown under the venue name in the listing hero. Keep to 1–2 lines.</p>
+        </div>
+
+        <div>
           <label style={{
             display: 'block',
             marginBottom: 6,
@@ -409,6 +424,64 @@ const BasicDetailsSection = ({ formData, onChange, darkMode = false }) => {
           <option value="croatia">Croatia</option>
           <option value="monaco">Monaco</option>
         </select>
+      </div>
+
+      {/* Showcase Page toggle */}
+      <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid #ede9e3' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+          <div
+            onClick={() => onChange('showcase_enabled', !formData?.showcase_enabled)}
+            style={{
+              width: 40, height: 22, borderRadius: 11, cursor: 'pointer', flexShrink: 0,
+              background: formData?.showcase_enabled ? '#c9a84c' : '#d1c9bc',
+              position: 'relative', transition: 'background 0.2s',
+            }}
+          >
+            <div style={{
+              position: 'absolute', top: 3, left: formData?.showcase_enabled ? 21 : 3,
+              width: 16, height: 16, borderRadius: '50%', background: '#fff',
+              transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+            }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#3c3530' }}>Showcase Page</div>
+            <div style={{ fontSize: 11, color: '#8c7b6e', marginTop: 2 }}>
+              Show "A Showcase Property" badge on cards linking to /showcase/{formData?.slug || '…'}
+            </div>
+          </div>
+        </label>
+
+        {/* Showcase category — shown when enabled */}
+        {formData?.showcase_enabled && (
+          <div style={{ marginTop: 12, paddingLeft: 52 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#5a4e44', marginBottom: 5 }}>
+              Showcase Category
+            </label>
+            <select
+              value={formData?.showcase_category || 'venue'}
+              onChange={e => onChange('showcase_category', e.target.value)}
+              style={{
+                width: '100%', padding: '8px 10px', fontSize: 12,
+                border: '1px solid #ddd4c8', borderRadius: 4,
+                background: '#fff', color: '#3c3530', cursor: 'pointer',
+                appearance: 'auto',
+              }}
+            >
+              <option value="venue">Venue</option>
+              <option value="planner">Wedding Planner</option>
+              <option value="photographer">Photographer</option>
+              <option value="vendor">Vendor</option>
+              <option value="florist">Florist</option>
+              <option value="caterer">Caterer</option>
+              <option value="stylist">Venue Stylist</option>
+              <option value="entertainment">Entertainment</option>
+              <option value="hair_makeup">Hair & Make-up</option>
+            </select>
+            <div style={{ fontSize: 10, color: '#aaa', marginTop: 4 }}>
+              Determines the showcase page template used for this listing
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

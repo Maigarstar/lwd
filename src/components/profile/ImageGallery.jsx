@@ -1,10 +1,11 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useTheme, useIsMobile, SectionHeading, FB } from "./ProfileDesignSystem";
 
 export default function ImageGallery({ gallery, onOpenLight }) {
   const C = useTheme();
   const isMobile = useIsMobile();
   const [allOpen, setAllOpen] = useState(false);
+  const [hoverFirst, setHoverFirst] = useState(false);
   const scrollRef = useRef(null);
   const preview = gallery.slice(0, 6);
   const remaining = gallery.length - 5;
@@ -58,12 +59,25 @@ export default function ImageGallery({ gallery, onOpenLight }) {
         <div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "auto auto", gap: 6 }}>
             <div onClick={() => onOpenLight(0)} style={{
-              gridRow: "1 / 3", overflow: "hidden", cursor: "pointer",
+              gridRow: "1 / 3", cursor: "pointer",
               position: "relative", minHeight: 360,
             }}
-              onMouseEnter={e => e.currentTarget.querySelector("img").style.transform = "scale(1.04)"}
-              onMouseLeave={e => e.currentTarget.querySelector("img").style.transform = "scale(1)"}>
-              <img src={gallery[0]?.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.7s ease" }} />
+              onMouseEnter={e => { e.currentTarget.querySelector("img").style.transform = "scale(1.04)"; setHoverFirst(true); }}
+              onMouseLeave={e => { e.currentTarget.querySelector("img").style.transform = "scale(1)"; setHoverFirst(false); }}>
+              <div style={{ width: "100%", height: "100%", overflow: "hidden", position: "absolute", inset: 0 }}>
+                <img src={gallery[0]?.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.7s ease" }} />
+              </div>
+              <div style={{
+                position: "absolute", inset: 0, zIndex: 2,
+                background: "rgba(0,0,0,0.45)",
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6,
+                opacity: hoverFirst ? 1 : 0,
+                transition: "opacity 0.3s ease",
+                pointerEvents: "none",
+              }}>
+                <span style={{ fontFamily: "var(--font-heading-primary)", fontSize: 48, color: "#fff", fontWeight: 400, lineHeight: 1 }}>+{gallery.length}</span>
+                <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(255,255,255,0.85)", letterSpacing: "1px", textTransform: "uppercase" }}>View Gallery</span>
+              </div>
             </div>
             <div onClick={() => onOpenLight(1)} style={{ overflow: "hidden", cursor: "pointer", position: "relative", aspectRatio: "4/3" }}
               onMouseEnter={e => e.currentTarget.querySelector("img").style.transform = "scale(1.04)"}
