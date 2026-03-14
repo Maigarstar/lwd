@@ -943,7 +943,7 @@ function StickyTabNav({ venue, activeTab, onTabClick }) {
   if (isMobile) {
     return (
       <div style={{
-        position: 'sticky', top: 56, zIndex: 50,
+        position: 'sticky', top: 0, zIndex: 50,
         backgroundColor: C.navBg || C.bg, borderBottom: `1px solid ${C.border}`,
         padding: '10px 20px',
         backdropFilter: 'blur(12px)',
