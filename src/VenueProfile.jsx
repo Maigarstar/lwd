@@ -3587,7 +3587,7 @@ function ExclusiveUse({ venue, onEnquire }) {
               {eu.includes.slice(0, 7).map((item, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
                   <span style={{ color: C.gold, fontSize: 14, lineHeight: 1, flexShrink: 0 }}>✓</span>
-                  <span style={{ fontFamily: FB, fontSize: 14, color: C.textMid }}>{item}</span>
+                  <span style={{ fontFamily: FB, fontSize: 14, color: C.textMid }}>{typeof item === 'string' ? item : item?.text || ''}</span>
                 </div>
               ))}
             </div>
@@ -6010,6 +6010,18 @@ export default function VenueProfile({ onBack = null, slug = null }) {
               }
             : null,
           spaces: null,
+          faq: (listing.faq_categories && Array.isArray(listing.faq_categories) && listing.faq_categories.length > 0)
+            ? {
+                enabled:       listing.faq_enabled !== false,
+                title:         listing.faq_title    || 'FAQs',
+                subtitle:      listing.faq_subtitle || '',
+                ctaEnabled:    listing.faq_cta_enabled !== false,
+                ctaHeadline:   listing.faq_cta_headline   || null,
+                ctaSubtext:    listing.faq_cta_subtext     || null,
+                ctaButtonText: listing.faq_cta_button_text || null,
+                categories:    listing.faq_categories,
+              }
+            : null,
         };
         if (!ignore) setDbVenue(mapped);
       } catch (err) {
