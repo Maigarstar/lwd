@@ -236,6 +236,14 @@ const NAV_SECTIONS = [
     ],
   },
   {
+    group: "Internal Sales",
+    items: [
+      { key: "partner-enquiries", label: "Partner Enquiries", icon: "⊛" },
+      { key: "sales-pipeline",    label: "Sales Pipeline",    icon: "◆" },
+      { key: "advertise-leads",   label: "Advertise Leads",   icon: "⊡" },
+    ],
+  },
+  {
     group: "Engagement",
     items: [
       { key: "livechat",     label: "Live Chat",         icon: "◉" },
@@ -278,6 +286,7 @@ const GROUP_ICON_PATHS = {
   Intelligence: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
   Design:       'M12 20h9M16.5 3.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z',
   Content:      'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6',
+  'Internal Sales': 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
 };
 
 function NavIcon({ path, size = 18, color = 'currentColor' }) {
@@ -5928,6 +5937,275 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Leads Module - Lead Engine Control Centre
+// ═════════════════════════════════════════════════════════════════════════════
+// PartnerEnquiriesModule - Internal Sales CRM view for partner/advertise leads
+// Shows leads with leadType = 'partner_enquiry' from the leads table
+// ═════════════════════════════════════════════════════════════════════════════
+
+function PartnerEnquiriesModule({ C }) {
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedLead, setSelectedLead] = useState(null);
+  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [notes, setNotes] = useState([]);
+  const [noteText, setNoteText] = useState('');
+  const [noteSubmitting, setNoteSubmitting] = useState(false);
+
+  const statusColors = {
+    new: '#3b82f6', contacted: '#f59e0b', qualified: '#8b5cf6',
+    converted: '#10b981', lost: '#ef4444',
+  };
+
+  const loadLeads = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { supabase } = await import('../lib/supabaseClient');
+      const { data, error: err } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('lead_type', 'partner_enquiry')
+        .order('created_at', { ascending: false });
+      if (err) throw err;
+      setLeads(data || []);
+    } catch (err) {
+      setError('Failed to load partner enquiries.');
+      console.warn('PartnerEnquiriesModule:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadLeads(); }, []);
+
+  const loadNotes = async (leadId) => {
+    try {
+      const { supabase } = await import('../lib/supabaseClient');
+      const { data } = await supabase
+        .from('lead_messages')
+        .select('id, body, created_at')
+        .eq('lead_id', leadId)
+        .eq('message_type', 'internal_note')
+        .order('created_at', { ascending: true });
+      setNotes(data || []);
+    } catch (err) { console.warn('loadNotes failed:', err); }
+  };
+
+  const handleAddNote = async () => {
+    if (!noteText.trim() || !selectedLead) return;
+    setNoteSubmitting(true);
+    try {
+      const { supabase } = await import('../lib/supabaseClient');
+      const { data, error: err } = await supabase
+        .from('lead_messages')
+        .insert({ lead_id: selectedLead.id, message_type: 'internal_note', body: noteText.trim() })
+        .select('id, body, created_at').single();
+      if (!err && data) { setNotes(prev => [...prev, data]); setNoteText(''); }
+    } catch (err) { console.warn('addNote failed:', err); }
+    finally { setNoteSubmitting(false); }
+  };
+
+  const handleStatusChange = async (leadId, newStatus) => {
+    setStatusUpdating(true);
+    try {
+      const { supabase } = await import('../lib/supabaseClient');
+      await supabase.from('leads').update({ status: newStatus }).eq('id', leadId);
+      setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: newStatus } : l));
+      if (selectedLead?.id === leadId) setSelectedLead(prev => ({ ...prev, status: newStatus }));
+    } catch (err) { console.warn('status update failed:', err); }
+    finally { setStatusUpdating(false); }
+  };
+
+  if (loading) return (
+    <div style={{ padding: 48, textAlign: 'center', color: C.grey, fontFamily: 'var(--font-body)' }}>
+      Loading partner enquiries...
+    </div>
+  );
+
+  if (error) return (
+    <div style={{ padding: 48, textAlign: 'center', color: '#ef4444', fontFamily: 'var(--font-body)' }}>
+      {error}
+    </div>
+  );
+
+  return (
+    <div style={{ display: 'flex', gap: 0, height: '100%', minHeight: 0 }}>
+      {/* Left: list */}
+      <div style={{ flex: '0 0 420px', borderRight: `1px solid ${C.border}`, overflowY: 'auto' }}>
+        {/* Header */}
+        <div style={{ padding: '24px 24px 16px', borderBottom: `1px solid ${C.border}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 20, fontWeight: 600, color: C.black, margin: 0 }}>
+              Partner Enquiries
+            </h2>
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: C.grey, background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: '2px 10px' }}>
+              {leads.length} total
+            </span>
+          </div>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: C.grey, margin: 0 }}>
+            Venues and vendors wanting to list or advertise
+          </p>
+        </div>
+
+        {leads.length === 0 ? (
+          <div style={{ padding: 40, textAlign: 'center', color: C.grey, fontFamily: 'var(--font-body)', fontSize: 13 }}>
+            No partner enquiries yet.
+          </div>
+        ) : (
+          leads.map(lead => {
+            const active = selectedLead?.id === lead.id;
+            const req = lead.requirements_json || {};
+            return (
+              <div
+                key={lead.id}
+                onClick={() => { setSelectedLead(lead); setNotes([]); loadNotes(lead.id); }}
+                style={{
+                  padding: '14px 24px', cursor: 'pointer',
+                  background: active ? C.goldDim : 'transparent',
+                  borderLeft: active ? `2px solid ${C.gold}` : '2px solid transparent',
+                  borderBottom: `1px solid ${C.border}`,
+                  transition: 'background 0.15s',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: C.black }}>
+                    {req.businessName || `${lead.first_name} ${lead.last_name}`.trim() || 'Unknown'}
+                  </span>
+                  <span style={{
+                    fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
+                    color: statusColors[lead.status] || C.grey,
+                    background: `${statusColors[lead.status] || '#aaa'}18`,
+                    border: `1px solid ${statusColors[lead.status] || '#aaa'}40`,
+                    borderRadius: 10, padding: '2px 8px',
+                  }}>{lead.status || 'new'}</span>
+                </div>
+                <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: C.grey }}>
+                  {req.businessType && <span style={{ marginRight: 8, textTransform: 'capitalize' }}>{req.businessType}</span>}
+                  {lead.email}
+                </div>
+                <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: C.grey, marginTop: 4 }}>
+                  {req.interests?.join(', ')}
+                </div>
+                <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: C.grey, marginTop: 2 }}>
+                  {new Date(lead.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Right: detail */}
+      {selectedLead ? (
+        <div style={{ flex: 1, overflowY: 'auto', padding: '28px 32px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+            <div>
+              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: 22, fontWeight: 600, color: C.black, margin: '0 0 4px' }}>
+                {(selectedLead.requirements_json?.businessName) || `${selectedLead.first_name} ${selectedLead.last_name}`}
+              </h3>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: C.grey }}>
+                {selectedLead.requirements_json?.businessType && (
+                  <span style={{ textTransform: 'capitalize', marginRight: 12 }}>
+                    {selectedLead.requirements_json.businessType}
+                  </span>
+                )}
+                {selectedLead.email}
+                {selectedLead.phone && <span style={{ marginLeft: 12 }}>{selectedLead.phone}</span>}
+              </div>
+            </div>
+            <button onClick={() => setSelectedLead(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 18 }}>✕</button>
+          </div>
+
+          {/* Status */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.grey, marginBottom: 8 }}>Status</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {['new', 'contacted', 'qualified', 'converted', 'lost'].map(s => (
+                <button key={s} onClick={() => handleStatusChange(selectedLead.id, s)} disabled={statusUpdating}
+                  style={{
+                    padding: '5px 14px', borderRadius: 14, cursor: 'pointer',
+                    fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600,
+                    letterSpacing: '0.08em', textTransform: 'uppercase', transition: 'all 0.15s',
+                    background: selectedLead.status === s ? statusColors[s] : 'transparent',
+                    color: selectedLead.status === s ? '#fff' : statusColors[s],
+                    border: `1px solid ${statusColors[s]}`,
+                  }}
+                >{s}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Interests */}
+          {selectedLead.requirements_json?.interests?.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.grey, marginBottom: 8 }}>Interests</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {selectedLead.requirements_json.interests.map(i => (
+                  <span key={i} style={{ fontSize: 12, color: C.gold, background: C.goldDim, border: `1px solid ${C.gold}40`, borderRadius: 10, padding: '3px 10px', fontFamily: 'var(--font-body)' }}>{i}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Website */}
+          {selectedLead.requirements_json?.website && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.grey, marginBottom: 4 }}>Website</div>
+              <a href={selectedLead.requirements_json.website} target="_blank" rel="noreferrer"
+                style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: C.gold, textDecoration: 'none' }}>
+                {selectedLead.requirements_json.website}
+              </a>
+            </div>
+          )}
+
+          {/* Message */}
+          {selectedLead.message && (
+            <div style={{ marginBottom: 24, background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '14px 16px' }}>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.grey, marginBottom: 8 }}>Message</div>
+              <pre style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: C.black, margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{selectedLead.message}</pre>
+            </div>
+          )}
+
+          {/* Notes */}
+          <div style={{ marginTop: 8 }}>
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.grey, marginBottom: 10 }}>Internal Notes</div>
+            {notes.length === 0 ? (
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: C.grey, margin: '0 0 12px' }}>No notes yet.</p>
+            ) : (
+              <div style={{ marginBottom: 12 }}>
+                {notes.map(n => (
+                  <div key={n.id} style={{ borderLeft: `2px solid ${C.gold}`, paddingLeft: 12, marginBottom: 10 }}>
+                    <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: C.black, margin: '0 0 2px' }}>{n.body}</p>
+                    <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: C.grey }}>
+                      {new Date(n.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <textarea
+              value={noteText}
+              onChange={e => setNoteText(e.target.value)}
+              placeholder="Add a note..."
+              rows={3}
+              style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 13, color: C.black, background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, resize: 'vertical', boxSizing: 'border-box', outline: 'none' }}
+            />
+            <button onClick={handleAddNote} disabled={!noteText.trim() || noteSubmitting}
+              style={{ marginTop: 8, padding: '8px 20px', background: noteText.trim() ? C.gold : C.goldDim, color: '#fff', border: 'none', borderRadius: 3, fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, letterSpacing: '0.08em', cursor: noteText.trim() ? 'pointer' : 'not-allowed' }}>
+              {noteSubmitting ? 'Saving...' : 'Add Note'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.grey, fontFamily: 'var(--font-body)', fontSize: 14 }}>
+          Select an enquiry to view details
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Displays all leads from the lead engine with filters, scoring, and detail view
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -8380,6 +8658,9 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "marketing":     return <PlaceholderModule title="Marketing Intelligence" C={C} />;
       case "seo":           return <PlaceholderModule title="SEO Command Centre" C={C} />;
       case "crm":           return <PlaceholderModule title="CRM & Lead Management" C={C} />;
+      case "partner-enquiries": return <PartnerEnquiriesModule C={C} />;
+      case "sales-pipeline":    return <PlaceholderModule title="Sales Pipeline" C={C} />;
+      case "advertise-leads":   return <PartnerEnquiriesModule C={C} filterType="advertise" />;
       case "aura":          return <AuraAnalyticsModule C={C} />;
       case "api":           return <APIManagementModule C={C} />;
       case "ai-settings":   return <AISettingsPage C={C} />;
