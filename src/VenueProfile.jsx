@@ -292,12 +292,30 @@ function getRVList() {
   try { return JSON.parse(localStorage.getItem(RV_KEY) || '[]'); } catch { return []; }
 }
 
-function recordVenueView(v) {
+function recordVenueView(v, slug) {
   try {
+    // Extract gallery photo or first image
+    let img = '';
+    if (v.imgs && Array.isArray(v.imgs) && v.imgs.length > 0) {
+      img = v.imgs[0];
+    } else if (v.gallery && typeof v.gallery === 'object') {
+      // If gallery is an object (from DB), extract src from first item
+      if (Array.isArray(v.gallery) && v.gallery.length > 0) {
+        img = v.gallery[0].src || v.gallery[0];
+      } else if (v.gallery.src) {
+        img = v.gallery.src;
+      }
+    }
+
     const entry = {
-      id: v.id, name: v.name, location: v.location,
-      rating: v.rating, price: v.priceFrom,
-      img: v.imgs?.[0] || v.gallery?.[0] || '',
+      id: v.id,
+      name: v.name,
+      location: v.location,
+      rating: v.rating,
+      price: v.priceFrom,
+      currency: v.priceCurrency || '£',
+      img: img,
+      slug: slug,
       viewedAt: Date.now(),
     };
     const updated = [entry, ...getRVList().filter(x => x.id !== entry.id)].slice(0, MAX_RV_STORED);
@@ -4987,17 +5005,19 @@ function SimilarVenues({ venue }) {
   if (venues.length === 0) return null;
 
   return (
-    <section id="you-might-also-love" style={{ marginBottom: 56 }}>
+    <section id="continue-exploring" style={{ marginBottom: 56 }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
-        <SectionHeading title="You Might Also Love" />
+        <SectionHeading title="Continue Exploring" />
       </div>
       <div style={{ fontFamily: FB, fontSize: 12, color: C.gold, marginBottom: 24, marginTop: -20 }}>
         ✦ Curated based on location, venue type &amp; capacity
       </div>
       {isMobile ? (
         <SliderNav className="venue-similar-slider" cardWidth={300} gap={12}>
-          {venues.map(({ location: loc, ...rest }) => (
-            <div key={rest.id} style={{ flex: "0 0 300px", scrollSnapAlign: "start" }}>
+          {venues.map(({ location: loc, slug, ...rest }) => (
+            <div key={rest.id} style={{ flex: "0 0 300px", scrollSnapAlign: "start" }} onClick={() => {
+              if (slug) window.location.href = `/wedding-venues/${slug}`;
+            }}>
               <GCardMobile
                 v={{ ...rest, region: loc, image: rest.img, priceFrom: rest.price }}
                 saved={false}
@@ -5011,6 +5031,9 @@ function SimilarVenues({ venue }) {
         <div style={{ display: "grid", gridTemplateColumns: `repeat(${venues.length}, 1fr)`, gap: 16 }}>
           {venues.map(v => (
             <div key={v.id} style={{ border: `1px solid ${C.border}`, background: C.surface, overflow: "hidden", cursor: "pointer", borderRadius: 2 }}
+              onClick={() => {
+                if (v.slug) window.location.href = `/wedding-venues/${v.slug}`;
+              }}
               onMouseEnter={e => e.currentTarget.style.boxShadow = C.shadowMd}
               onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
               <div style={{ overflow: "hidden", aspectRatio: "1/1" }}>
@@ -5026,7 +5049,7 @@ function SimilarVenues({ venue }) {
                     <Stars rating={v.rating} size={11} />
                     <span style={{ fontFamily: FB, fontSize: 12, color: C.textLight }}>{v.rating}</span>
                   </div>
-                  <span style={{ fontFamily: FD, fontSize: 16, color: C.gold }}>From {v.price}</span>
+                  <span style={{ fontFamily: FD, fontSize: 16, color: C.gold }}>From {fmtPrice(v.price, v.currency)}</span>
                 </div>
               </div>
             </div>
@@ -5066,8 +5089,10 @@ function RecentlyViewed({ venue }) {
       </div>
       {isMobile ? (
         <SliderNav className="venue-recent-slider" cardWidth={300} gap={12}>
-          {items.map(({ location: loc, img, price, ...rest }) => (
-            <div key={rest.id} style={{ flex: "0 0 300px", scrollSnapAlign: "start" }}>
+          {items.map(({ location: loc, img, price, slug, ...rest }) => (
+            <div key={rest.id} style={{ flex: "0 0 300px", scrollSnapAlign: "start" }} onClick={() => {
+              if (slug) window.location.href = `/wedding-venues/${slug}`;
+            }}>
               <GCardMobile
                 v={{ ...rest, region: loc, image: img, priceFrom: price }}
                 saved={false}
@@ -5081,6 +5106,9 @@ function RecentlyViewed({ venue }) {
         <div style={{ display: "grid", gridTemplateColumns: `repeat(${items.length}, 1fr)`, gap: 16 }}>
           {items.map(v => (
             <div key={v.id} style={{ border: `1px solid ${C.border}`, background: C.surface, overflow: "hidden", cursor: "pointer", borderRadius: 2 }}
+              onClick={() => {
+                if (v.slug) window.location.href = `/wedding-venues/${v.slug}`;
+              }}
               onMouseEnter={e => e.currentTarget.style.boxShadow = C.shadowMd}
               onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
               <div style={{ overflow: "hidden", aspectRatio: "1/1" }}>
@@ -5096,7 +5124,7 @@ function RecentlyViewed({ venue }) {
                     <Stars rating={v.rating} size={11} />
                     <span style={{ fontFamily: FB, fontSize: 12, color: C.textLight }}>{v.rating}</span>
                   </div>
-                  <span style={{ fontFamily: FD, fontSize: 16, color: C.gold }}>From {v.price}</span>
+                  <span style={{ fontFamily: FD, fontSize: 16, color: C.gold }}>From {fmtPrice(v.price, v.currency)}</span>
                 </div>
               </div>
             </div>
@@ -5911,7 +5939,12 @@ export default function VenueProfile({ onBack = null, slug = null }) {
   const VV = dbVenue ? { ...VENUE, ...dbVenue } : VENUE;
 
   // Record this venue visit for Recently Viewed tracking
-  useEffect(() => { recordVenueView(VENUE); }, []);
+  // Only record AFTER database has loaded with real data, not on mount with dummy data
+  useEffect(() => {
+    if (dbVenue && dbVenue.name && slug) {
+      recordVenueView(VV, slug);
+    }
+  }, [slug, dbVenue]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
