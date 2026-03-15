@@ -43,7 +43,10 @@
       "Bash(grep -i \"\\\\.jsx\\\\|\\\\.ts\\\\|\\\\.js$\")",
       "Bash(node -e \":*)",
       "Bash(xargs kill:*)",
-      "Bash(ls -la /Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan/src/utils/mediaMappers*)"
+      "Bash(ls -la /Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan/src/utils/mediaMappers*)",
+      "Bash(curl -s -X GET \"https://qpkggfibwreznussudfh.supabase.co/rest/v1/listings?select=id%2Cname%2Cslug%2Clocation%2Ccontent_quality_score%2Ceditorial_approved%2Ceditorial_fact_checked%2Ceditorial_last_reviewed_at&limit=3\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwa2dnZmlid3JlemludXNzdWRmaCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzA2NjE1MTkwLCJleHAiOjE4NjQzODEwNzB9.GPlb1eUJdpCJRPLJZ-IgVl5p6EwwDCgLhMfg8aM6iFE\" -H \"Content-Type: application/json\")",
+      "Bash(curl -s -X GET \"https://qpkggfibwreznussudfh.supabase.co/rest/v1/listings?select=id%2Cname%2Cslug%2Clocation%2Ccontent_quality_score%2Ceditorial_approved%2Ceditorial_fact_checked%2Ceditorial_last_reviewed_at&limit=3\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwa2dnZmlid3JlemludXNzdWRmaCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzA2NjE1MTkwLCJleHAiOjE4NjQzODEwNzB9.GPlb1eUJdpCJRPLJZ-IgVl5p6EwwDCgLhMfg8aM6iFE\" -H \"Content-Type: application/json\")",
+      "Bash(psql -d \"postgresql://postgres:password@db.qpkggfibwreznussudfh.supabase.co:5432/postgres\" -c \"\\\\d listings\")"
     ]
   }
 }

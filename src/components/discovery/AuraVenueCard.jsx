@@ -22,7 +22,7 @@ function formatDaysAgo(timestamp) {
   return diffDays;
 }
 
-export default function AuraVenueCard({ venueId, slug, onDetailsClick, isLight = true, editorialEnabled = true }) {
+export default function AuraVenueCard({ venue: venueObj, venueId, slug, onDetailsClick, onClick, isLight = true, editorialEnabled = true }) {
   const [knowledge, setKnowledge] = useState(null);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState(null);
@@ -40,7 +40,11 @@ export default function AuraVenueCard({ venueId, slug, onDetailsClick, isLight =
   useEffect(() => {
     const loadVenueIntelligence = async () => {
       try {
-        const k = await fetchVenueKnowledgeLayer(venueId);
+        // If venue object provided with knowledge already loaded, use that
+        let k = venueObj?.knowledge;
+        if (!k && venueId) {
+          k = await fetchVenueKnowledgeLayer(venueId);
+        }
         if (!k) {
           setLoading(false);
           return;
@@ -58,7 +62,7 @@ export default function AuraVenueCard({ venueId, slug, onDetailsClick, isLight =
     };
 
     loadVenueIntelligence();
-  }, [venueId]);
+  }, [venueId, venueObj]);
 
   if (loading) {
     return (
@@ -112,7 +116,7 @@ export default function AuraVenueCard({ venueId, slug, onDetailsClick, isLight =
       e.currentTarget.style.borderColor = borderColor;
       e.currentTarget.style.boxShadow = 'none';
     }}
-    onClick={() => onDetailsClick?.(slug)}
+    onClick={() => onClick?.() || onDetailsClick?.(slug)}
     >
       {/* Header with venue name and quality badge */}
       <div style={{ padding: '24px 24px 16px', borderBottom: `1px solid ${borderColor}` }}>
