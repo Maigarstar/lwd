@@ -7,12 +7,6 @@ import { buildCardImgs, mapMediaItemToGalleryPhoto, buildVenueVideos } from './u
 import ReviewsSection from './components/reviews/ReviewsSection';
 import ReviewSubmitForm from './components/reviews/ReviewSubmitForm';
 
-// ─── FIELD ACCESS HELPER (handles camelCase/snake_case from DB) ─────────────
-// After commit 46cefb5, fetchListingBySlug returns camelCased data.
-// This helper supports both formats for backward compatibility.
-const getField = (obj, camelKey, snakeKey, fallback = null) =>
-  obj?.[camelKey] ?? obj?.[snakeKey] ?? fallback;
-
 function useIsMobile(bp = 768) {
   const [mobile, setMobile] = useState(() => window.innerWidth <= bp);
   useEffect(() => {
@@ -5982,21 +5976,21 @@ export default function VenueProfile({ onBack = null, slug = null }) {
       try {
         const listing = await fetchListingBySlug(slug);
         if (!listing || ignore) return;
-        const mediaItems = getField(listing, 'mediaItems', 'media_items', []);
+        // All data is now camelCase from mapListingFromDb mapper
         const mapped = {
           id:        listing.id,
           name:      listing.name || VENUE.name,
-          tagline:   getField(listing, 'heroTagline', 'hero_tagline', VENUE.tagline),
-          location:  [getField(listing, 'city', 'city'), getField(listing, 'region', 'region')].filter(Boolean).join(', ') || VENUE.location,
+          tagline:   listing.heroTagline || VENUE.tagline,
+          location:  [listing.city, listing.region].filter(Boolean).join(', ') || VENUE.location,
           country:   listing.country || VENUE.country,
-          priceFrom: getField(listing, 'priceFrom', 'price_from', VENUE.priceFrom),
-          priceCurrency: getField(listing, 'priceCurrency', 'price_currency', '£'),
-          capacity:  { ...VENUE.capacity, max: getField(listing, 'capacityMax', 'capacity_max', VENUE.capacity?.max) },
-          imgs:      buildCardImgs(mediaItems).map(i => i.src).filter(Boolean).slice(0, 10),
-          verified:  !!getField(listing, 'isVerified', 'is_verified', false),
-          venueType: { ...(VENUE.venueType || {}), features: getField(listing, 'amenities', 'amenities', []), styles: getField(listing, 'styles', 'styles', []) },
-          description: getField(listing, 'shortDescription', 'short_description', getField(listing, 'cardSummary', 'card_summary', null)),
-          gallery: (mediaItems)
+          priceFrom: listing.priceFrom || VENUE.priceFrom,
+          priceCurrency: listing.priceCurrency || '£',
+          capacity:  { ...VENUE.capacity, max: listing.capacityMax || VENUE.capacity?.max },
+          imgs:      (listing.imgs || []).map(i => i.src).filter(Boolean).slice(0, 10),
+          verified:  !!listing.isVerified,
+          venueType: { ...(VENUE.venueType || {}), features: listing.amenities || [], styles: listing.styles || [] },
+          description: listing.shortDescription || listing.cardSummary || null,
+          gallery: (listing.mediaItems || [])
             .filter(i => i.type !== 'video' && i.type !== 'virtual_tour' && i.visibility !== 'private')
             .sort((a, b) => {
               if (a.is_featured && !b.is_featured) return -1;
@@ -6006,66 +6000,66 @@ export default function VenueProfile({ onBack = null, slug = null }) {
             .map(item => mapMediaItemToGalleryPhoto(item))
             .filter(item => item.src) || VENUE.gallery,
           rating:  listing.rating ?? VENUE.rating,
-          reviews: getField(listing, 'reviewCount', 'review_count', VENUE.reviews),
+          reviews: listing.reviewCount ?? VENUE.reviews,
           flag:    COUNTRY_FLAG[listing.country] || VENUE.flag,
           awards:  Array.isArray(listing.awards)
             ? listing.awards.map(a => typeof a === 'string' ? a : (a.award || a.title || a.issuer || '')).filter(Boolean)
             : [],
-          press:   Array.isArray(getField(listing, 'pressFeatures', 'press_features', []))
-            ? getField(listing, 'pressFeatures', 'press_features', []).map(p => typeof p === 'string' ? p : (p.outlet || p.title || '')).filter(Boolean)
+          press:   Array.isArray(listing.pressFeatures)
+            ? listing.pressFeatures.map(p => typeof p === 'string' ? p : (p.outlet || p.title || '')).filter(Boolean)
             : [],
-          videos:  Array.isArray(mediaItems) ? buildVenueVideos(mediaItems) : [],
-          accommodation: (getField(listing, 'roomsMaxGuests', 'rooms_max_guests') || getField(listing, 'roomsTotal', 'rooms_total') || getField(listing, 'roomsDescription', 'rooms_description'))
+          videos:  Array.isArray(listing.mediaItems) ? buildVenueVideos(listing.mediaItems) : [],
+          accommodation: (listing.roomsMaxGuests || listing.roomsTotal || listing.roomsDescription)
             ? {
-                type:              getField(listing, 'roomsAccommodationType', 'rooms_accommodation_type', null),
-                totalRooms:        getField(listing, 'roomsTotal', 'rooms_total', null),
-                totalSuites:       getField(listing, 'roomsSuites', 'rooms_suites', null),
-                maxOvernightGuests:getField(listing, 'roomsMaxGuests', 'rooms_max_guests', null),
-                maxGuests:         getField(listing, 'roomsMaxGuests', 'rooms_max_guests', null),
-                minNightStay:      getField(listing, 'roomsMinStay', 'rooms_min_stay', null),
-                exclusiveUse:      !!getField(listing, 'roomsExclusiveUse', 'rooms_exclusive_use', false),
-                description:       getField(listing, 'roomsDescription', 'rooms_description', null),
-                images:            Array.isArray(getField(listing, 'roomsImages', 'rooms_images', []))
-                  ? getField(listing, 'roomsImages', 'rooms_images', [])
+                type:              listing.roomsAccommodationType || null,
+                totalRooms:        listing.roomsTotal || null,
+                totalSuites:       listing.roomsSuites || null,
+                maxOvernightGuests:listing.roomsMaxGuests || null,
+                maxGuests:         listing.roomsMaxGuests || null,
+                minNightStay:      listing.roomsMinStay || null,
+                exclusiveUse:      !!listing.roomsExclusiveUse,
+                description:       listing.roomsDescription || null,
+                images:            Array.isArray(listing.roomsImages)
+                  ? listing.roomsImages
                       .map(img => typeof img === 'string' ? img : (img.url || img.src || ''))
                       .filter(Boolean)
                   : [],
               }
             : null,
-          exclusiveUse: (getField(listing, 'exclusiveUsePrice', 'exclusive_use_price') || getField(listing, 'exclusiveUseDescription', 'exclusive_use_description') || getField(listing, 'exclusiveUseEnabled', 'exclusive_use_enabled') != null)
+          exclusiveUse: (listing.exclusiveUsePrice || listing.exclusiveUseDescription || listing.exclusiveUseEnabled != null)
             ? {
-                enabled:     getField(listing, 'exclusiveUseEnabled', 'exclusive_use_enabled', true) !== false,
-                title:       getField(listing, 'exclusiveUseTitle', 'exclusive_use_title', 'Exclusive Use'),
-                subtitle:    getField(listing, 'exclusiveUseSubtitle', 'exclusive_use_subtitle', ''),
-                from:        getField(listing, 'exclusiveUsePrice', 'exclusive_use_price', null),
-                subline:     getField(listing, 'exclusiveUseSubline', 'exclusive_use_subline', null),
-                description: getField(listing, 'exclusiveUseDescription', 'exclusive_use_description', null),
-                ctaText:     getField(listing, 'exclusiveUseCtaText', 'exclusive_use_cta_text', 'Enquire About Exclusive Use'),
-                includes:    Array.isArray(getField(listing, 'exclusiveUseIncludes', 'exclusive_use_includes', [])) ? getField(listing, 'exclusiveUseIncludes', 'exclusive_use_includes', []) : [],
+                enabled:     listing.exclusiveUseEnabled !== false,
+                title:       listing.exclusiveUseTitle || 'Exclusive Use',
+                subtitle:    listing.exclusiveUseSubtitle || '',
+                from:        listing.exclusiveUsePrice || null,
+                subline:     listing.exclusiveUseSubline || null,
+                description: listing.exclusiveUseDescription || null,
+                ctaText:     listing.exclusiveUseCtaText || 'Enquire About Exclusive Use',
+                includes:    Array.isArray(listing.exclusiveUseIncludes) ? listing.exclusiveUseIncludes : [],
               }
             : null,
           showcaseUrl:      `/showcase/${slug}`,
-          fullDescription:  getField(listing, 'description', 'description', null),
-          readmoreEnabled:  !!getField(listing, 'readmoreEnabled', 'readmore_enabled', false),
-          openingHours: getField(listing, 'openingHoursEnabled', 'opening_hours_enabled')
+          fullDescription:  listing.description || null,
+          readmoreEnabled:  !!listing.readmoreEnabled,
+          openingHours: listing.openingHoursEnabled
             ? {
                 enabled: true,
-                hours:   getField(listing, 'openingHours', 'opening_hours', {}),
-                note:    getField(listing, 'openingHoursNote', 'opening_hours_note', null),
+                hours:   listing.openingHours || {},
+                note:    listing.openingHoursNote || null,
               }
             : null,
-          responseTime: getField(listing.contact_profile, 'responseTime', 'response_time', null),
+          responseTime: listing.contactProfile?.responseTime || null,
           responseRate: (() => {
-            const rate = getField(listing.contact_profile, 'responseRate', 'response_rate');
+            const rate = listing.contactProfile?.responseRate;
             return rate ? String(rate).replace('%', '') : null;
           })(),
-          weddingsHosted: getField(listing, 'weddingsHosted', 'weddings_hosted', null),
-          owner: (getField(listing.contact_profile, 'name', 'name')) ? {
-            name:        getField(listing.contact_profile, 'name', 'name', null),
-            title:       getField(listing.contact_profile, 'title', 'title', null),
-            bio:         getField(listing.contact_profile, 'bio', 'bio', getField(listing.contact_profile, 'about', 'about', null)),
-            photo:       getField(listing.contact_profile, 'photoUrl', 'photo_url', getField(listing.contact_profile, 'photo', 'photo', null)),
-            memberSince: getField(listing, 'memberSince', 'member_since', null),
+          weddingsHosted: listing.weddingsHosted || null,
+          owner: listing.contactProfile?.name ? {
+            name:        listing.contactProfile.name || null,
+            title:       listing.contactProfile.title || null,
+            bio:         listing.contactProfile.bio || listing.contactProfile.about || null,
+            photo:       listing.contactProfile.photoUrl || listing.contactProfile.photo || null,
+            memberSince: listing.memberSince || null,
           } : null,
           contact: {
             address: {
@@ -6075,9 +6069,9 @@ export default function VenueProfile({ onBack = null, slug = null }) {
               postcode:listing.postcode || '',
               country: listing.country  || '',
             },
-            phone:   listing.phone   || listing.contact_profile?.phone   || null,
-            email:   listing.email   || listing.contact_profile?.email   || null,
-            website: listing.website || listing.contact_profile?.website || null,
+            phone:   listing.phone   || listing.contactProfile?.phone   || null,
+            email:   listing.email   || listing.contactProfile?.email   || null,
+            website: listing.website || listing.contactProfile?.website || null,
             responseMetrics: {
               averageResponseHours: null,
               responseRatePercent:  null,
@@ -6087,30 +6081,30 @@ export default function VenueProfile({ onBack = null, slug = null }) {
             mapQuery: [listing.city, listing.region, listing.country].filter(Boolean).join(',+').replace(/ /g, '+'),
           },
           catering: (() => {
-            const cateringCards = getField(listing, 'cateringCards', 'catering_cards', []);
-            const cateringEnabled = getField(listing, 'cateringEnabled', 'catering_enabled');
+            const cateringCards = listing.cateringCards || [];
+            const cateringEnabled = listing.cateringEnabled;
             const hasCards = Array.isArray(cateringCards) && cateringCards.length > 0;
             if (!hasCards && cateringEnabled == null) return null;
             if (cateringEnabled === false) return null;
             return {
               enabled: true,
               cards:   Array.isArray(cateringCards) ? cateringCards : [],
-              styles:  Array.isArray(getField(listing, 'diningMenuStyles', 'dining_menu_styles', [])) ? getField(listing, 'diningMenuStyles', 'dining_menu_styles', []) : [],
-              dietary: Array.isArray(getField(listing, 'diningDietary', 'dining_dietary', [])) ? getField(listing, 'diningDietary', 'dining_dietary', []) : [],
+              styles:  Array.isArray(listing.diningMenuStyles) ? listing.diningMenuStyles : [],
+              dietary: Array.isArray(listing.diningDietary) ? listing.diningDietary : [],
             };
           })(),
-          dining: (getField(listing, 'diningStyle', 'dining_style') || getField(listing, 'diningDescription', 'dining_description') || getField(listing, 'diningChefName', 'dining_chef_name'))
+          dining: (listing.diningStyle || listing.diningDescription || listing.diningChefName)
             ? {
-                style:                  getField(listing, 'diningStyle', 'dining_style', null),
-                chefName:               getField(listing, 'diningChefName', 'dining_chef_name', null),
-                inHouseCatering:        !!getField(listing, 'diningInHouse', 'dining_in_house', false),
-                externalCateringAllowed:!!getField(listing, 'diningExternal', 'dining_external', false),
-                menuStyles:             Array.isArray(getField(listing, 'diningMenuStyles', 'dining_menu_styles', [])) ? getField(listing, 'diningMenuStyles', 'dining_menu_styles', []) : [],
-                dietaryOptions:         Array.isArray(getField(listing, 'diningDietary', 'dining_dietary', [])) ? getField(listing, 'diningDietary', 'dining_dietary', []) : [],
-                drinksOptions:          Array.isArray(getField(listing, 'diningDrinks', 'dining_drinks', [])) ? getField(listing, 'diningDrinks', 'dining_drinks', []) : [],
-                description:            getField(listing, 'diningDescription', 'dining_description', null),
-                menuImages:             Array.isArray(getField(listing, 'diningMenuImages', 'dining_menu_images', []))
-                  ? getField(listing, 'diningMenuImages', 'dining_menu_images', []).map(img =>
+                style:                  listing.diningStyle || null,
+                chefName:               listing.diningChefName || null,
+                inHouseCatering:        !!listing.diningInHouse,
+                externalCateringAllowed:!!listing.diningExternal,
+                menuStyles:             Array.isArray(listing.diningMenuStyles) ? listing.diningMenuStyles : [],
+                dietaryOptions:         Array.isArray(listing.diningDietary) ? listing.diningDietary : [],
+                drinksOptions:          Array.isArray(listing.diningDrinks) ? listing.diningDrinks : [],
+                description:            listing.diningDescription || null,
+                menuImages:             Array.isArray(listing.diningMenuImages)
+                  ? listing.diningMenuImages.map(img =>
                       typeof img === 'string'
                         ? { src: img, title: '' }
                         : { src: img.url || img.src || '', title: img.title || '' }
@@ -6135,16 +6129,16 @@ export default function VenueProfile({ onBack = null, slug = null }) {
                 floorPlanUrl: s.floorPlanUrl || null,
               }))
             : null,
-          faq: (listing.faq_categories && Array.isArray(listing.faq_categories) && listing.faq_categories.length > 0)
+          faq: (listing.faqCategories && Array.isArray(listing.faqCategories) && listing.faqCategories.length > 0)
             ? {
-                enabled:       listing.faq_enabled !== false,
-                title:         listing.faq_title    || 'FAQs',
-                subtitle:      listing.faq_subtitle || '',
-                ctaEnabled:    listing.faq_cta_enabled !== false,
-                ctaHeadline:   listing.faq_cta_headline   || null,
-                ctaSubtext:    listing.faq_cta_subtext     || null,
-                ctaButtonText: listing.faq_cta_button_text || null,
-                categories:    listing.faq_categories,
+                enabled:       listing.faqEnabled !== false,
+                title:         listing.faqTitle    || 'FAQs',
+                subtitle:      listing.faqSubtitle || '',
+                ctaEnabled:    listing.faqCtaEnabled !== false,
+                ctaHeadline:   listing.faqCtaHeadline   || null,
+                ctaSubtext:    listing.faqCtaSubtext     || null,
+                ctaButtonText: listing.faqCtaButtonText || null,
+                categories:    listing.faqCategories,
               }
             : null,
         };
