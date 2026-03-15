@@ -13,8 +13,10 @@
 
 import { useState, useEffect } from 'react';
 import AuraDiscoveryGrid from '../components/discovery/AuraDiscoveryGrid';
+import { useChat } from '../chat/ChatContext';
 
 export default function AuraDiscoveryDemoPage({ onViewVenue }) {
+  const { openMiniBar } = useChat();
   const [isLight, setIsLight] = useState(() => {
     const saved = localStorage.getItem('aura-discovery-light-mode');
     return saved !== null ? JSON.parse(saved) : true;
@@ -502,19 +504,21 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             Start by telling Aura what you're looking for. It will guide you to the right venue.
           </p>
 
-          <button style={{
-            padding: '14px 32px',
-            background: '#8f7420',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: 6,
-            fontFamily: 'var(--font-heading-primary)',
-            fontSize: 16,
-            fontWeight: 400,
-            cursor: 'pointer',
-            transition: 'all 0.3s ease',
-            boxShadow: '0 8px 24px rgba(143, 116, 32, 0.25)',
-          }}
+          <button
+            onClick={openMiniBar}
+            style={{
+              padding: '14px 32px',
+              background: '#8f7420',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: 6,
+              fontFamily: 'var(--font-heading-primary)',
+              fontSize: 16,
+              fontWeight: 400,
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 8px 24px rgba(143, 116, 32, 0.25)',
+            }}
             onMouseEnter={(e) => {
               e.currentTarget.style.opacity = '0.9';
               e.currentTarget.style.boxShadow = '0 12px 32px rgba(143, 116, 32, 0.35)';
