@@ -447,5 +447,24 @@ export const DEFAULT_FILTERS = {
   price:    PRICES[0],
 };
 
+// ── Ensure all venues have essential editorial fields ──────────────────────
+VENUES.forEach((venue) => {
+  // Ensure contentQualityScore defaults to lwdScore or 50 if neither exists
+  if (!venue.contentQualityScore) {
+    venue.contentQualityScore = venue.lwdScore || 50;
+  }
+  // Ensure editorial flags default to false
+  if (venue.editorial_approved === undefined) {
+    venue.editorial_approved = false;
+  }
+  if (venue.editorial_fact_checked === undefined) {
+    venue.editorial_fact_checked = false;
+  }
+  // Ensure type is set for RecommendationCard
+  if (!venue.type) {
+    venue.type = "venue";
+  }
+});
+
 // ── Hydrate curated index scores ─────────────────────────────────────────────
 hydrateScores(VENUES);

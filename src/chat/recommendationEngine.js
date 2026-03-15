@@ -167,6 +167,7 @@ export function extractIntent(messages) {
 // ── Build curated recommendation list ────────────────────────────────────────
 export function getRecommendations(messages, activeContext) {
   const editorialEnabled = isEditorialCurationEnabled();
+  console.log('[getRecommendations] called with messagesLength:', messages?.length, 'editorialEnabled:', editorialEnabled, 'venuesCount:', VENUES.length);
 
   if (!messages || messages.length === 0) {
     let defaultVenues;
@@ -264,7 +265,15 @@ export function getRecommendations(messages, activeContext) {
     if (vendorResults.length === 0) vendorResults = rankByCuratedIndex([...VENDORS]).slice(0, limit);
   }
 
-  const items = [...venueResults, ...vendorResults];
+  let items = [...venueResults, ...vendorResults];
+  console.log('[getRecommendations] returning', items.length, 'items (venues:', venueResults.length, 'vendors:', vendorResults.length, ')');
+
+  // Safety check: if no items returned, provide default venues
+  if (items.length === 0) {
+    console.warn('[getRecommendations] No items found, returning default venues');
+    const defaultVenues = rankByCuratedIndex([...VENUES]).slice(0, 4);
+    items = defaultVenues;
+  }
 
   // ── Summary line ──
   let summary = "Curated for your search";

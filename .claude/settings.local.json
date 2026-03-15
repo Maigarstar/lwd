@@ -38,7 +38,10 @@
       "Bash(find /Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan/src -name *Showcase* -o -name *showcase*)",
       "Bash(grep -r 'Domaine des Etangs' /Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan/src --include=*.jsx --include=*.js)",
       "Bash(grep -l \"showcase\\\\|Showcase\" /Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan/src/**/*.js /Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan/src/**/*.jsx)",
-      "Bash(/tmp/update_showcase_scores.sql:*)"
+      "Bash(/tmp/update_showcase_scores.sql:*)",
+      "Bash(find /Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan/src -name *discovery* -o -name *Aura*)",
+      "Bash(grep -i \"\\\\.jsx\\\\|\\\\.ts\\\\|\\\\.js$\")",
+      "Bash(node -e \":*)"
     ]
   }
 }
