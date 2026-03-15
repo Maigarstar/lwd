@@ -10,6 +10,7 @@
 import { useState, useEffect, useRef } from "react";
 import { fetchListingBySlug } from "../services/listings";
 import { getDefaultMode } from "../theme/tokens";
+import SiteFooter from "../components/sections/SiteFooter";
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const LIGHT = {
@@ -584,6 +585,8 @@ export default function VenueShowcase({ slug, onBack }) {
         onPrev={() => setLightIdx((i) => Math.max(0, i - 1))}
         onNext={() => setLightIdx((i) => Math.min(images.length - 1, i + 1))}
       />
+
+      <SiteFooter footerNav={{}} />
     </div>
   );
 }

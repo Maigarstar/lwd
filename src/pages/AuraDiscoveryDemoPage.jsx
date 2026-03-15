@@ -15,6 +15,7 @@ import { useState, useEffect } from 'react';
 import AuraDiscoveryGrid from '../components/discovery/AuraDiscoveryGrid';
 import { useChat } from '../chat/ChatContext';
 import HomeNav from '../components/nav/HomeNav';
+import SiteFooter from '../components/sections/SiteFooter';
 
 export default function AuraDiscoveryDemoPage({ onViewVenue }) {
   const { openMiniBar } = useChat();
@@ -783,79 +784,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
           </p>
         </div>
 
-        {/* Footer */}
-        <footer style={{
-          marginTop: 120,
-          paddingTop: 40,
-          borderTop: `1px solid ${borderColor}`,
-          textAlign: 'center',
-        }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            gap: 32,
-            marginBottom: 32,
-            flexWrap: 'wrap',
-          }}>
-            <a href="/" style={{
-              color: subtextColor,
-              textDecoration: 'none',
-              fontSize: 13,
-              fontFamily: 'var(--font-body)',
-              transition: 'color 0.2s',
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.color = '#8f7420'}
-            onMouseLeave={(e) => e.currentTarget.style.color = subtextColor}
-            >
-              Home
-            </a>
-            <a href="/" style={{
-              color: subtextColor,
-              textDecoration: 'none',
-              fontSize: 13,
-              fontFamily: 'var(--font-body)',
-              transition: 'color 0.2s',
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.color = '#8f7420'}
-            onMouseLeave={(e) => e.currentTarget.style.color = subtextColor}
-            >
-              About
-            </a>
-            <a href="/" style={{
-              color: subtextColor,
-              textDecoration: 'none',
-              fontSize: 13,
-              fontFamily: 'var(--font-body)',
-              transition: 'color 0.2s',
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.color = '#8f7420'}
-            onMouseLeave={(e) => e.currentTarget.style.color = subtextColor}
-            >
-              Privacy
-            </a>
-            <a href="/" style={{
-              color: subtextColor,
-              textDecoration: 'none',
-              fontSize: 13,
-              fontFamily: 'var(--font-body)',
-              transition: 'color 0.2s',
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.color = '#8f7420'}
-            onMouseLeave={(e) => e.currentTarget.style.color = subtextColor}
-            >
-              Contact
-            </a>
-          </div>
-          <p style={{
-            margin: 0,
-            color: subtextColor,
-            fontSize: 12,
-            fontFamily: 'var(--font-body)',
-            letterSpacing: 0.5,
-          }}>
-            © 2026 Luxury Wedding Directory. All rights reserved.
-          </p>
-        </footer>
+        <SiteFooter footerNav={{}} />
       </div>
     </div>
     </>
