@@ -6,7 +6,10 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 5176,
-      "autoPort": true
+      "autoPort": false,
+      "env": {
+        "VITE_PORT": "5176"
+      }
     }
   ]
 }

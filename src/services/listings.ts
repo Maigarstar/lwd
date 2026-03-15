@@ -81,6 +81,64 @@ export function calculateContentQualityScore(
 }
 
 /**
+ * Quality tier definitions for editorial curation
+ * Tiers are assigned based on content_quality_score (0-100)
+ */
+export const QUALITY_TIERS = {
+  platinum: {
+    score: [90, 100],
+    label: 'Platinum',
+    icon: '◆',
+    color: '#D4AF37',
+    bgColor: 'rgba(212, 175, 55, 0.1)',
+    description: 'Exceptional venue with comprehensive, reviewed content'
+  },
+  signature: {
+    score: [70, 89],
+    label: 'Signature',
+    icon: '★',
+    color: '#C9A84C',
+    bgColor: 'rgba(201, 168, 76, 0.1)',
+    description: 'Premium venue with strong editorial standards'
+  },
+  approved: {
+    score: [50, 69],
+    label: 'Approved',
+    icon: '✓',
+    color: '#10b981',
+    bgColor: 'rgba(16, 185, 129, 0.1)',
+    description: 'Verified and approved venue'
+  },
+  standard: {
+    score: [0, 49],
+    label: 'Standard',
+    icon: null,
+    color: '#9ca3af',
+    bgColor: 'transparent',
+    description: 'Standard listing'
+  }
+};
+
+/**
+ * Get quality tier based on content quality score
+ * Maps 0-100 score to tier string: platinum, signature, approved, or standard
+ */
+export function getQualityTier(contentQualityScore: number): 'platinum' | 'signature' | 'approved' | 'standard' {
+  if (contentQualityScore >= 90) return 'platinum';
+  if (contentQualityScore >= 70) return 'signature';
+  if (contentQualityScore >= 50) return 'approved';
+  return 'standard';
+}
+
+/**
+ * Get tier properties (label, icon, color, etc.) by tier name
+ * Returns the tier configuration object with styling and metadata
+ */
+export function getTierProperties(tier: string): any {
+  return QUALITY_TIERS[tier as keyof typeof QUALITY_TIERS] || QUALITY_TIERS.standard;
+}
+
+/**
  * Transform Supabase listing data to match frontend UI expectations
  * Maps database field names and values to expected format
  */

@@ -61,16 +61,19 @@ export function ChatProvider({ children }) {
   const [messages,        setMessages]        = useState(() => loadMessages() ?? [INIT_MESSAGE]);
   const [isTyping,        setIsTyping]        = useState(false);
   const [activeContext,   setActiveContext]   = useState({ country: null, region: null, page: null });
-  const [recommendations, setRecommendations] = useState(
-    () => getRecommendations([INIT_MESSAGE], null)
-  );
+  const [recommendations, setRecommendations] = useState({ items: [], summary: "", intent: {} });
 
   // Persist messages
   useEffect(() => { saveMessages(messages); }, [messages]);
 
   // Recompute recommendations whenever messages or activeContext change
   useEffect(() => {
-    setRecommendations(getRecommendations(messages, activeContext));
+    try {
+      setRecommendations(getRecommendations(messages, activeContext));
+    } catch (err) {
+      console.warn("[ChatContext] Error computing recommendations:", err);
+      setRecommendations({ items: [], summary: "", intent: {} });
+    }
   }, [messages, activeContext]);
 
   // Cleanup timer on unmount

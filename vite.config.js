@@ -6,6 +6,7 @@ export default defineConfig({
   server: {
     port: 5176,
     strictPort: true,
-    host: true,
+    host: '0.0.0.0',
+    middlewareMode: false,
   },
 })
