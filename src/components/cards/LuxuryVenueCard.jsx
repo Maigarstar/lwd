@@ -10,6 +10,10 @@ import { GoldBadge, VerifiedBadge } from "../ui/Badges";
 import EnquiryFormModal from "../ui/EnquiryFormModal";
 import ShortlistButton from "../buttons/ShortlistButton";
 import { track } from "../../utils/track";
+import { getQualityTier } from "../../services/listings";
+import TierBadge from "../editorial/TierBadge";
+import ApprovalIndicators from "../editorial/ApprovalIndicators";
+import FreshnessText from "../editorial/FreshnessText";
 
 const GOLD = "#C9A84C";
 const GD   = "var(--font-heading-primary)";
@@ -430,7 +434,7 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
           {v.city}, {v.region}
         </div>
 
-        {/* Style tier + Stars */}
+        {/* Style tier + Stars + Phase 4 Editorial Tier Badge */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
           {v.styles?.[0] && (
             <span
@@ -452,7 +456,33 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
               </span>
             </div>
           )}
+          {/* Phase 4a: Quality tier badge */}
+          {v.contentScore !== undefined && (
+            <TierBadge tier={getQualityTier(v.contentScore)} showLabel={true} size="sm" />
+          )}
         </div>
+
+        {/* Phase 4b: Editorial approval indicators */}
+        {(v.editorialApproved || v.editorialFactChecked) && (
+          <div style={{ marginBottom: 8 }}>
+            <ApprovalIndicators
+              approved={v.editorialApproved}
+              factChecked={v.editorialFactChecked}
+              layout="horizontal"
+            />
+          </div>
+        )}
+
+        {/* Phase 4b: Freshness indicator */}
+        {v.editorialApproved && v.editorialLastReviewedAt && (
+          <div style={{ marginBottom: 8 }}>
+            <FreshnessText
+              lastReviewedAt={v.editorialLastReviewedAt}
+              color="rgba(255,255,255,0.6)"
+              fontSize={10}
+            />
+          </div>
+        )}
 
         {/* Capacity badge (venue-specific, replaces social icons) */}
         {v.capacity && (

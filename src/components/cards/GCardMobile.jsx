@@ -4,6 +4,10 @@
 // Tap anywhere → onView. Heart icon top-right. Clean editorial feel.
 import { useTheme } from "../../theme/ThemeContext";
 import { GoldBadge } from "../ui/Badges";
+import { getQualityTier } from "../../services/listings";
+import TierBadge from "../editorial/TierBadge";
+import ApprovalIndicators from "../editorial/ApprovalIndicators";
+import FreshnessText from "../editorial/FreshnessText";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -174,6 +178,7 @@ export default function GCardMobile({ v, saved, onSave, onView }) {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            marginBottom: 8,
           }}
         >
           <span
@@ -202,6 +207,31 @@ export default function GCardMobile({ v, saved, onSave, onView }) {
             >
               from {v.priceFrom}
             </span>
+          )}
+        </div>
+
+        {/* Phase 4a: Tier badge + Phase 4b: Editorial indicators */}
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
+            {v.contentScore !== undefined && (
+              <TierBadge tier={getQualityTier(v.contentScore)} showLabel={true} size="sm" />
+            )}
+          </div>
+          {(v.editorialApproved || v.editorialFactChecked) && (
+            <ApprovalIndicators
+              approved={v.editorialApproved}
+              factChecked={v.editorialFactChecked}
+              layout="horizontal"
+            />
+          )}
+          {v.editorialApproved && v.editorialLastReviewedAt && (
+            <div style={{ marginTop: 6 }}>
+              <FreshnessText
+                lastReviewedAt={v.editorialLastReviewedAt}
+                color="rgba(255,255,255,0.6)"
+                fontSize={10}
+              />
+            </div>
           )}
         </div>
 

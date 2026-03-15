@@ -592,6 +592,14 @@ export const useListingForm = (listingId = null) => {
         // Full rich media_items array (File objects stripped), stored as JSONB.
         // Also consumed by sync-media-ai-index edge function after save.
         mediaItems: cleanMediaItems,
+        // Editorial Content Layer (Phase 3)
+        heroSummary: formData.hero_summary || null,
+        sectionIntros: formData.section_intros || {},
+        editorialApproved: formData.editorial_approved ?? false,
+        editorialFactChecked: formData.editorial_fact_checked ?? false,
+        editorialLastReviewedAt: formData.editorial_last_reviewed_at || null,
+        editorialLastReviewedBy: formData.editorial_last_reviewed_by || null,
+        refreshNotes: formData.refresh_notes || null,
       };
 
       // Calculate content quality score for editorial layer (Phase 3)

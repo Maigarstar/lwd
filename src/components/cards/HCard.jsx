@@ -6,6 +6,10 @@ import Pill from "../ui/Pill";
 import { GoldBadge, VerifiedBadge } from "../ui/Badges";
 import CuratedIndexBadge from "../ui/CuratedIndexBadge";
 import LoginGateModal from "../modals/LoginGateModal";
+import { getQualityTier } from "../../services/listings";
+import TierBadge from "../editorial/TierBadge";
+import ApprovalIndicators from "../editorial/ApprovalIndicators";
+import FreshnessText from "../editorial/FreshnessText";
 
 export default function HCard({ v, saved, onSave, onView, onQuickView }) {
   const C = useTheme();
@@ -282,15 +286,41 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
             {v.city}, {v.region} · Italy
           </div>
 
-          {/* Stars + reviews */}
+          {/* Stars + reviews + Phase 4 Editorial Tier Badge */}
           <div
-            style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}
+            style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}
             aria-label={`Rating: ${v.rating} out of 5, ${v.reviews} reviews`}
           >
             <Stars r={v.rating} />
             <span style={{ fontSize: 12, color: C.gold, fontWeight: 700 }}>{v.rating}</span>
             <span style={{ fontSize: 11, color: C.grey }}>({v.reviews} reviews)</span>
+            {/* Phase 4a: Quality tier badge */}
+            {v.contentScore !== undefined && (
+              <TierBadge tier={getQualityTier(v.contentScore)} showLabel={true} size="sm" />
+            )}
           </div>
+
+          {/* Phase 4b: Editorial approval indicators */}
+          {(v.editorialApproved || v.editorialFactChecked) && (
+            <div style={{ marginBottom: 8 }}>
+              <ApprovalIndicators
+                approved={v.editorialApproved}
+                factChecked={v.editorialFactChecked}
+                layout="horizontal"
+              />
+            </div>
+          )}
+
+          {/* Phase 4b: Freshness indicator */}
+          {v.editorialApproved && v.editorialLastReviewedAt && (
+            <div style={{ marginBottom: 8 }}>
+              <FreshnessText
+                lastReviewedAt={v.editorialLastReviewedAt}
+                color={C.grey}
+                fontSize={11}
+              />
+            </div>
+          )}
 
           {/* Description */}
           <p

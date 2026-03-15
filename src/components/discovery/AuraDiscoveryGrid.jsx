@@ -5,13 +5,21 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { fetchVenueKnowledgeLayer } from '../../services/auraKnowledgeLayerService';
+import {
+  fetchVenueKnowledgeLayer,
+  fetchRankedVenuesForDiscovery,
+  markAuraRecommendedVenues,
+  calculateRecommendationScore
+} from '../../services/auraKnowledgeLayerService';
+import { getQualityTier } from '../../services/listings';
+import { isEditorialCurationEnabledCached } from '../../services/platformSettingsService';
 import AuraVenueCard from './AuraVenueCard';
 
 export default function AuraDiscoveryGrid({ minContentScore = 0, onVenueClick, limit = 12, isLight = true }) {
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [editorialEnabled, setEditorialEnabled] = useState(true);
 
   // Theme colors
   const bgColor = isLight ? '#ffffff' : '#2a2a2a';
@@ -20,50 +28,66 @@ export default function AuraDiscoveryGrid({ minContentScore = 0, onVenueClick, l
   const subtextColor = isLight ? '#6b6560' : '#a89f98';
   const lightBg = isLight ? '#faf9f6' : '#242424';
 
+  // Check global editorial curation toggle on mount
+  useEffect(() => {
+    const checkEditorialEnabled = async () => {
+      const enabled = await isEditorialCurationEnabledCached();
+      setEditorialEnabled(enabled);
+    };
+    checkEditorialEnabled();
+  }, []);
+
   // Load venues with their knowledge layers
   useEffect(() => {
     const loadVenues = async () => {
       try {
-        // Fetch all listings
-        const { data: listings, error } = await supabase
-          .from('listings')
-          .select('id, name, slug, location')
-          .limit(limit);
+        // Phase 4c: Fetch venues ranked by quality tier and approval status
+        const rankedVenues = await fetchRankedVenuesForDiscovery({
+          limit: limit * 1.5, // Fetch extra for filtering
+          minScore: minContentScore,
+          sort: 'tier'
+        });
 
-        if (error) {
-          console.error('Failed to fetch listings:', error);
+        if (!rankedVenues || rankedVenues.length === 0) {
           setLoading(false);
           return;
         }
 
-        // Enrich with knowledge layers
-        const enrichedVenues = await Promise.all(
-          listings.map(async (listing) => {
-            const knowledge = await fetchVenueKnowledgeLayer(listing.id);
-            return {
-              ...listing,
-              knowledge,
-              contentScore: knowledge?.content.contentScore || 0,
-              approved: knowledge?.content.approved || false,
-              averageRating: knowledge?.reviews.averageRating || 0,
-            };
-          })
-        );
+        // Mark top 3 as Aura Recommended for badge display
+        const withRecommendationFlags = markAuraRecommendedVenues(rankedVenues, 3);
+
+        // Add computed fields for display
+        const enriched = withRecommendationFlags.map(v => ({
+          ...v,
+          contentScore: v.knowledge?.content.contentScore || 0,
+          approved: v.knowledge?.content.approved || false,
+          averageRating: v.knowledge?.reviews.averageRating || 0,
+          tier: getQualityTier(v.content_quality_score || 0),
+          recommendationScore: calculateRecommendationScore(v, v.knowledge),
+        }));
 
         // Filter by content score
-        const filtered = enrichedVenues.filter(v => v.contentScore >= minContentScore);
+        const filtered = enriched.filter(v => v.contentScore >= minContentScore);
 
-        // Sort based on filter
+        // Sort based on filter (can override tier ranking)
         let sorted = filtered;
         if (filter === 'approved') {
-          sorted = filtered.filter(v => v.approved).sort((a, b) => b.contentScore - a.contentScore);
+          // Show approved venues first, then by tier
+          const tierOrder = { platinum: 0, signature: 1, approved: 2, standard: 3 };
+          sorted = filtered
+            .filter(v => v.approved)
+            .sort((a, b) => {
+              const tierDiff = tierOrder[a.tier] - tierOrder[b.tier];
+              if (tierDiff !== 0) return tierDiff;
+              return b.recommendationScore - a.recommendationScore;
+            });
         } else if (filter === 'highest-rated') {
           sorted = filtered.sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0));
         } else if (filter === 'best-editorial') {
           sorted = filtered.sort((a, b) => b.contentScore - a.contentScore);
         } else {
-          // 'all' - sort by content score
-          sorted = filtered.sort((a, b) => b.contentScore - a.contentScore);
+          // 'all' - sort by tier (primary), then by recommendation score
+          sorted = filtered;
         }
 
         setVenues(sorted);
@@ -82,13 +106,34 @@ export default function AuraDiscoveryGrid({ minContentScore = 0, onVenueClick, l
     setVenues(prev => {
       let sorted = [...prev];
       if (filter === 'approved') {
-        sorted = sorted.filter(v => v.approved).sort((a, b) => b.contentScore - a.contentScore);
+        // Show approved venues, sorted by tier
+        const tierOrder = { platinum: 0, signature: 1, approved: 2, standard: 3 };
+        sorted = sorted
+          .filter(v => v.approved)
+          .sort((a, b) => {
+            const tierDiff = tierOrder[a.tier] - tierOrder[b.tier];
+            if (tierDiff !== 0) return tierDiff;
+            return b.recommendationScore - a.recommendationScore;
+          });
       } else if (filter === 'highest-rated') {
         sorted = sorted.sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0));
       } else if (filter === 'best-editorial') {
-        sorted = sorted.sort((a, b) => b.contentScore - a.contentScore);
+        // Sort by content score, respecting tier hierarchy
+        const tierOrder = { platinum: 0, signature: 1, approved: 2, standard: 3 };
+        sorted = sorted.sort((a, b) => {
+          const scoreDiff = b.contentScore - a.contentScore;
+          if (Math.abs(scoreDiff) > 10) return scoreDiff; // If scores differ significantly, use score
+          // Otherwise use tier as tiebreaker
+          return tierOrder[a.tier] - tierOrder[b.tier];
+        });
       } else {
-        sorted = sorted.sort((a, b) => b.contentScore - a.contentScore);
+        // 'all' - maintain tier-based ordering with recommendation scores
+        const tierOrder = { platinum: 0, signature: 1, approved: 2, standard: 3 };
+        sorted = sorted.sort((a, b) => {
+          const tierDiff = tierOrder[a.tier] - tierOrder[b.tier];
+          if (tierDiff !== 0) return tierDiff;
+          return b.recommendationScore - a.recommendationScore;
+        });
       }
       return sorted;
     });
@@ -227,6 +272,7 @@ export default function AuraDiscoveryGrid({ minContentScore = 0, onVenueClick, l
               slug={venue.slug}
               isLight={isLight}
               onDetailsClick={onVenueClick}
+              editorialEnabled={editorialEnabled && venue.editorial_enabled !== false}
             />
           ))}
         </div>

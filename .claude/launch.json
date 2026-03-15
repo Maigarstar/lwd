@@ -7,6 +7,7 @@
       "runtimeArgs": ["run", "dev"],
       "port": 5176,
       "autoPort": false,
+      "cwd": "/Users/taiwoadedayo/LDW-01",
       "env": {
         "VITE_PORT": "5176"
       }

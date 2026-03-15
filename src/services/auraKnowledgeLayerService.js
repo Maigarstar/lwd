@@ -14,6 +14,7 @@
 //   const themes = analyzeReviewThemes(knowledge);
 
 import { supabase } from '../lib/supabaseClient';
+import { getQualityTier, QUALITY_TIERS } from './listings';
 
 /**
  * Fetch complete knowledge layer for a venue
@@ -397,4 +398,197 @@ ${highlights.map(h => `- ${h}`).join('\n')}
 VENUE DESCRIPTION:
 ${venue.description || 'No description available'}
 `;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 4c: AURA RECOMMENDATION PRIORITIZATION
+// Ranks venues by quality tier, approval status, and guest ratings for discovery
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Calculate recommendation score for Aura discovery ranking
+ * Combines: quality tier (0-40), approval status (0-30), freshness (0-20), reviews (0-10)
+ * Returns 0-100 score for use in venue ranking
+ *
+ * Scoring breakdown:
+ * - Quality tier: Platinum=40, Signature=30, Approved=20, Standard=0
+ * - Approval status: Approved=30 pts (10 pts per week freshness bonus, capped at 30)
+ * - Freshness: 0-20 pts (recently reviewed venues score higher)
+ * - Guest ratings: 0-10 pts (based on average rating)
+ */
+export function calculateRecommendationScore(venue, knowledge) {
+  let score = 0;
+
+  // 1. Quality tier (0-40 points)
+  const tier = getQualityTier(venue.content_quality_score || 0);
+  const tierScores = {
+    platinum: 40,
+    signature: 30,
+    approved: 20,
+    standard: 0
+  };
+  score += tierScores[tier] || 0;
+
+  // 2. Approval status (0-30 points)
+  if (venue.editorial_approved) {
+    score += 30;
+
+    // Freshness bonus: Recently reviewed venues score higher
+    if (venue.editorial_last_reviewed_at) {
+      const daysSinceReview = Math.floor(
+        (new Date() - new Date(venue.editorial_last_reviewed_at)) / (1000 * 60 * 60 * 24)
+      );
+
+      if (daysSinceReview <= 30) {
+        score += 10; // Very fresh (< 1 month)
+      } else if (daysSinceReview <= 90) {
+        score += 5;  // Recent (< 3 months)
+      }
+      // Beyond 90 days: no freshness bonus
+    }
+  }
+
+  // 3. Guest ratings (0-10 points)
+  if (knowledge && knowledge.reviews && knowledge.reviews.averageRating) {
+    const avgRating = parseFloat(knowledge.reviews.averageRating) || 0;
+    if (avgRating >= 4.5) {
+      score += 10;
+    } else if (avgRating >= 4.0) {
+      score += 7;
+    } else if (avgRating >= 3.5) {
+      score += 5;
+    } else if (avgRating >= 3.0) {
+      score += 2;
+    }
+  }
+
+  return Math.min(100, Math.max(0, score));
+}
+
+/**
+ * Fetch and rank venues for Aura discovery with quality tier prioritization
+ * Returns venues ordered by: tier (platinum first), then approval, then score
+ *
+ * @param {Object} options - Configuration options
+ * @param {number} options.limit - Max venues to return (default: 12)
+ * @param {number} options.minScore - Minimum content quality score (default: 0)
+ * @param {string} options.sort - Sort strategy: 'tier' (default), 'rating', 'recent'
+ * @param {boolean} options.includeNonEditorial - Include venues with editorial_enabled=false (default: true)
+ * @returns {Array} Venues ranked for Aura discovery, with recommendation scores
+ */
+export async function fetchRankedVenuesForDiscovery(options = {}) {
+  const {
+    limit = 12,
+    minScore = 0,
+    sort = 'tier',
+    includeNonEditorial = true
+  } = options;
+
+  try {
+    // Fetch all listings with minimal data
+    let query = supabase
+      .from('listings')
+      .select('id, name, slug, location, content_quality_score, editorial_approved, editorial_fact_checked, editorial_last_reviewed_at, editorial_enabled')
+      .limit(limit * 2); // Fetch extra to account for filtering
+
+    // Filter by editorial_enabled if requested (Phase 4d: control toggles)
+    if (!includeNonEditorial) {
+      query = query.eq('editorial_enabled', true);
+    }
+
+    const { data: listings, error } = await query;
+
+    if (error) {
+      console.error('fetchRankedVenuesForDiscovery error:', error);
+      return [];
+    }
+
+    if (!listings || listings.length === 0) {
+      return [];
+    }
+
+    // Enrich with knowledge layers and calculate recommendation scores
+    const rankedVenues = await Promise.all(
+      listings.map(async (venue) => {
+        try {
+          const knowledge = await fetchVenueKnowledgeLayer(venue.id);
+          const recommendationScore = calculateRecommendationScore(venue, knowledge);
+          const tier = getQualityTier(venue.content_quality_score || 0);
+
+          return {
+            ...venue,
+            knowledge,
+            tier,
+            recommendationScore,
+            averageRating: knowledge?.reviews?.averageRating || 0,
+            approved: venue.editorial_approved || false,
+          };
+        } catch (err) {
+          console.error(`Error enriching venue ${venue.id}:`, err);
+          return null;
+        }
+      })
+    );
+
+    // Filter out null entries
+    let filtered = rankedVenues.filter(v => v && v.knowledge && v.knowledge.content.contentScore >= minScore);
+
+    // Sort based on strategy
+    if (sort === 'tier') {
+      // Primary: tier (platinum > signature > approved > standard)
+      // Secondary: approval status
+      // Tertiary: recommendation score
+      const tierOrder = { platinum: 0, signature: 1, approved: 2, standard: 3 };
+      filtered.sort((a, b) => {
+        const tierDiff = tierOrder[a.tier] - tierOrder[b.tier];
+        if (tierDiff !== 0) return tierDiff;
+
+        const approveDiff = (b.approved ? 1 : 0) - (a.approved ? 1 : 0);
+        if (approveDiff !== 0) return approveDiff;
+
+        return b.recommendationScore - a.recommendationScore;
+      });
+    } else if (sort === 'rating') {
+      // Sort by guest rating, then by tier
+      filtered.sort((a, b) => {
+        const ratingDiff = (b.averageRating || 0) - (a.averageRating || 0);
+        if (ratingDiff !== 0) return ratingDiff;
+
+        const tierOrder = { platinum: 0, signature: 1, approved: 2, standard: 3 };
+        return tierOrder[a.tier] - tierOrder[b.tier];
+      });
+    } else if (sort === 'recent') {
+      // Sort by freshness (recently reviewed first)
+      filtered.sort((a, b) => {
+        const aDate = a.editorial_last_reviewed_at ? new Date(a.editorial_last_reviewed_at) : new Date(0);
+        const bDate = b.editorial_last_reviewed_at ? new Date(b.editorial_last_reviewed_at) : new Date(0);
+        return bDate - aDate;
+      });
+    } else {
+      // Default: by recommendation score
+      filtered.sort((a, b) => b.recommendationScore - a.recommendationScore);
+    }
+
+    // Return only requested limit
+    return filtered.slice(0, limit);
+  } catch (err) {
+    console.error('fetchRankedVenuesForDiscovery exception:', err);
+    return [];
+  }
+}
+
+/**
+ * Mark top N venues as "Aura Recommended" for the current session
+ * This is used to show "Aura Recommended" badge on top-ranked venues
+ * Called by AuraDiscoveryGrid after fetching recommendations
+ *
+ * @param {Array} venues - Venues returned from fetchRankedVenuesForDiscovery
+ * @param {number} topN - Number of top venues to mark as recommended (default: 3)
+ * @returns {Array} Venues with auraRecommended flag set on top N
+ */
+export function markAuraRecommendedVenues(venues, topN = 3) {
+  return venues.map((venue, idx) => ({
+    ...venue,
+    auraRecommended: idx < topN
+  }));
 }

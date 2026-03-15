@@ -5,6 +5,10 @@
 
 import { useEffect, useState } from 'react';
 import { fetchVenueKnowledgeLayer, generateVenueSummary, extractVenueHighlights, analyzeReviewThemes } from '../../services/auraKnowledgeLayerService';
+import { getQualityTier } from '../../services/listings';
+import TierBadge from '../editorial/TierBadge';
+import ApprovalIndicators from '../editorial/ApprovalIndicators';
+import FreshnessText from '../editorial/FreshnessText';
 
 /**
  * Format a timestamp as "X days ago"
@@ -18,7 +22,7 @@ function formatDaysAgo(timestamp) {
   return diffDays;
 }
 
-export default function AuraVenueCard({ venueId, slug, onDetailsClick, isLight = true }) {
+export default function AuraVenueCard({ venueId, slug, onDetailsClick, isLight = true, editorialEnabled = true }) {
   const [knowledge, setKnowledge] = useState(null);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState(null);
@@ -84,6 +88,9 @@ export default function AuraVenueCard({ venueId, slug, onDetailsClick, isLight =
     low: '#8a8078',
   }[contentQuality];
 
+  // Calculate quality tier for Phase 4 editorial display
+  const tier = getQualityTier(content.contentScore || 0);
+
   return (
     <div style={{
       background: bgColor,
@@ -130,91 +137,74 @@ export default function AuraVenueCard({ venueId, slug, onDetailsClick, isLight =
             </p>
           </div>
 
-          {/* Content quality badge */}
+          {/* Right column: Tier badge + Content quality score */}
           <div style={{
             display: 'flex',
             flexDirection: 'column',
-            alignItems: 'center',
-            gap: 6,
+            alignItems: 'flex-end',
+            gap: 8,
           }}>
+            {/* Tier badge (Phase 4) - Hidden if editorial curation disabled globally or per-venue */}
+            {editorialEnabled && <TierBadge tier={tier} showLabel={true} size="sm" />}
+
+            {/* Content quality badge */}
             <div style={{
-              width: 48,
-              height: 48,
-              borderRadius: '50%',
-              background: contentQualityColor,
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
-              fontFamily: 'var(--font-body)',
-              fontSize: 14,
-              fontWeight: 600,
+              gap: 6,
             }}>
-              {content.contentScore}
+              <div style={{
+                width: 48,
+                height: 48,
+                borderRadius: '50%',
+                background: contentQualityColor,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ffffff',
+                fontFamily: 'var(--font-body)',
+                fontSize: 14,
+                fontWeight: 600,
+              }}>
+                {content.contentScore}
+              </div>
+              <span style={{
+                fontFamily: 'var(--font-body)',
+                fontSize: 11,
+                color: '#6b6560',
+                textTransform: 'uppercase',
+                letterSpacing: 0.5,
+                fontWeight: 600,
+              }}>
+                {contentQuality}
+              </span>
             </div>
-            <span style={{
-              fontFamily: 'var(--font-body)',
-              fontSize: 11,
-              color: '#6b6560',
-              textTransform: 'uppercase',
-              letterSpacing: 0.5,
-              fontWeight: 600,
-            }}>
-              {contentQuality}
-            </span>
           </div>
         </div>
 
-        {/* Approval badges and freshness indicator */}
-        <div style={{ marginTop: 12 }}>
-          {(content.editorial_approved || content.editorial_fact_checked || content.approved || content.factChecked) && (
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-              {(content.editorial_fact_checked || content.factChecked) && (
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  padding: '4px 8px',
-                  background: '#f0f5f0',
-                  color: '#15803d',
-                  borderRadius: 4,
-                  fontFamily: 'var(--font-body)',
-                  fontSize: 11,
-                  fontWeight: 600,
-                }}>
-                  ✓ Fact-Checked
-                </span>
-              )}
-              {(content.editorial_approved || content.approved) && (
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  padding: '4px 8px',
-                  background: '#faf7f0',
-                  color: '#8f7420',
-                  borderRadius: 4,
-                  fontFamily: 'var(--font-body)',
-                  fontSize: 11,
-                  fontWeight: 600,
-                }}>
-                  ★ Editor Approved
-                </span>
-              )}
-            </div>
-          )}
+        {/* Phase 4b: Approval indicators and freshness (Phase 4d: Respect editorial_enabled toggle) */}
+        {editorialEnabled && (
+          <div style={{ marginTop: 12 }}>
+            {/* Approval badges */}
+            <ApprovalIndicators
+              approved={content.editorial_approved || content.approved}
+              factChecked={content.editorial_fact_checked || content.factChecked}
+              layout="horizontal"
+            />
 
-          {/* Freshness indicator */}
-          {content.editorial_approved && content.lastReviewedAt && (
-            <div style={{
-              fontSize: 11,
-              color: subtextColor,
-              fontFamily: 'var(--font-body)',
-            }}>
-              Updated {formatDaysAgo(content.lastReviewedAt)} days ago
-            </div>
-          )}
-        </div>
+            {/* Freshness indicator */}
+            {(content.editorial_approved || content.approved) && (
+              <div style={{ marginTop: content.editorial_approved || content.approved ? 8 : 0 }}>
+                <FreshnessText
+                  lastReviewedAt={content.editorial_last_reviewed_at || content.lastReviewedAt}
+                  color={subtextColor}
+                  fontSize={11}
+                />
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Editorial summary */}

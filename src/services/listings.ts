@@ -440,6 +440,15 @@ function mapFormToDatabaseFields(data: any): any {
     'mediaItems': 'media_items',
     // Description read-more toggle
     'readmoreEnabled': 'readmore_enabled',
+    // Editorial Content Layer (Phase 3)
+    'heroSummary': 'hero_summary',
+    'sectionIntros': 'section_intros',
+    'editorialApproved': 'editorial_approved',
+    'editorialFactChecked': 'editorial_fact_checked',
+    'editorialLastReviewedAt': 'editorial_last_reviewed_at',
+    'editorialLastReviewedBy': 'editorial_last_reviewed_by',
+    'refreshNotes': 'refresh_notes',
+    'contentQualityScore': 'content_quality_score',
   }
 
   for (const key in data) {
@@ -636,6 +645,15 @@ export interface Listing {
   createdAt?: string
   updatedAt?: string
   publishedAt?: string
+  // Editorial Content Layer (Phase 3)
+  heroSummary?: string
+  sectionIntros?: Record<string, string>
+  editorialApproved?: boolean
+  editorialFactChecked?: boolean
+  editorialLastReviewedAt?: string
+  editorialLastReviewedBy?: string
+  refreshNotes?: string
+  contentQualityScore?: number
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

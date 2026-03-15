@@ -13,6 +13,10 @@ import { GoldBadge, VerifiedBadge } from "../ui/Badges";
 import CuratedIndexBadge from "../ui/CuratedIndexBadge";
 import MediaGalleryModal from "../ui/MediaGalleryModal";
 import EnquiryFormModal from "../ui/EnquiryFormModal";
+import { getQualityTier } from "../../services/listings";
+import TierBadge from "../editorial/TierBadge";
+import ApprovalIndicators from "../editorial/ApprovalIndicators";
+import FreshnessText from "../editorial/FreshnessText";
 
 const GOLD = "#C9A84C";
 const GD   = "var(--font-heading-primary)";
@@ -1078,7 +1082,7 @@ function GridCard({ v, onView, isMobile }) {
           {v.city}, {v.region}
         </div>
 
-        {/* Service tier + Stars row */}
+        {/* Service tier + Stars row + Phase 4 Editorial Tier Badge */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
           {v.serviceTier && (
             <span
@@ -1106,7 +1110,33 @@ function GridCard({ v, onView, isMobile }) {
               </span>
             </div>
           )}
+          {/* Phase 4a: Quality tier badge */}
+          {v.contentScore !== undefined && (
+            <TierBadge tier={getQualityTier(v.contentScore)} showLabel={true} size="sm" />
+          )}
         </div>
+
+        {/* Phase 4b: Editorial approval indicators */}
+        {(v.editorialApproved || v.editorialFactChecked) && (
+          <div style={{ marginBottom: 8 }}>
+            <ApprovalIndicators
+              approved={v.editorialApproved}
+              factChecked={v.editorialFactChecked}
+              layout="horizontal"
+            />
+          </div>
+        )}
+
+        {/* Phase 4b: Freshness indicator */}
+        {v.editorialApproved && v.editorialLastReviewedAt && (
+          <div style={{ marginBottom: 8 }}>
+            <FreshnessText
+              lastReviewedAt={v.editorialLastReviewedAt}
+              color="rgba(255,255,255,0.6)"
+              fontSize={10}
+            />
+          </div>
+        )}
 
         {/* Social + contact icons */}
         <SocialRow socials={v.socials} color="rgba(255,255,255,0.5)" phone={v.phone} whatsapp={v.whatsapp} email={v.email} darkMode />
