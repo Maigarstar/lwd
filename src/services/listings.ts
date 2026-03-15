@@ -49,6 +49,38 @@ function snakeToCamel(obj: any): any {
 }
 
 /**
+ * Calculate content quality score (0-100) based on editorial completeness
+ * Score breakdown:
+ * - Section intros completed: 0-40 points (N filled sections / 6 max)
+ * - Fact-checked: 30 points
+ * - Approved: 30 points
+ */
+export function calculateContentQualityScore(
+  sectionIntros: Record<string, string> | undefined,
+  factChecked: boolean,
+  approved: boolean
+): number {
+  let score = 0;
+
+  // Section intros: 0-40 points (6 sections max)
+  if (sectionIntros && typeof sectionIntros === 'object') {
+    const filledSections = Object.values(sectionIntros)
+      .filter(intro => intro && typeof intro === 'string' && intro.trim().length > 0)
+      .length;
+    const maxSections = Object.keys(sectionIntros).length || 6;
+    score += Math.round((filledSections / maxSections) * 40);
+  }
+
+  // Fact-checked: 30 points
+  if (factChecked === true) score += 30;
+
+  // Approved: 30 points
+  if (approved === true) score += 30;
+
+  return Math.min(100, Math.max(0, score));
+}
+
+/**
  * Transform Supabase listing data to match frontend UI expectations
  * Maps database field names and values to expected format
  */

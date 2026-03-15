@@ -64,25 +64,23 @@ export async function fetchVenueKnowledgeLayer(venueId) {
         highlights: listingRes.data.highlights,
       } : null,
 
-      content: contentRes.data ? {
-        id: contentRes.data.id,
-        sectionIntros: contentRes.data.section_intros || {},
-        sectionVisibility: contentRes.data.section_visibility || {},
-        approved: contentRes.data.approved || false,
-        factChecked: contentRes.data.fact_checked || false,
-        contentScore: contentRes.data.content_score || 0,
-        lastReviewedAt: contentRes.data.last_reviewed_at,
-        updatedBy: contentRes.data.updated_by,
-      } : {
-        // Default content structure if no venue_content record exists
-        id: null,
-        sectionIntros: {},
-        sectionVisibility: {},
-        approved: false,
-        factChecked: false,
-        contentScore: 0,
-        lastReviewedAt: null,
-        updatedBy: null,
+      content: {
+        id: contentRes.data?.id || null,
+        // Phase 3: Read editorial fields from listings table (source of truth)
+        // Fallback to venue_content for backward compatibility
+        heroSummary: listingRes.data?.hero_summary || '',
+        sectionIntros: listingRes.data?.section_intros || contentRes.data?.section_intros || {},
+        sectionVisibility: contentRes.data?.section_visibility || {},
+        editorial_approved: listingRes.data?.editorial_approved ?? contentRes.data?.approved ?? false,
+        editorial_fact_checked: listingRes.data?.editorial_fact_checked ?? contentRes.data?.fact_checked ?? false,
+        contentQualityScore: listingRes.data?.content_quality_score ?? contentRes.data?.content_score ?? 0,
+        lastReviewedAt: listingRes.data?.editorial_last_reviewed_at || contentRes.data?.last_reviewed_at,
+        refreshNotes: listingRes.data?.refresh_notes || null,
+        updatedBy: contentRes.data?.updated_by || null,
+        // Keep old field names for backward compatibility
+        approved: listingRes.data?.editorial_approved ?? contentRes.data?.approved ?? false,
+        factChecked: listingRes.data?.editorial_fact_checked ?? contentRes.data?.fact_checked ?? false,
+        contentScore: listingRes.data?.content_quality_score ?? contentRes.data?.content_score ?? 0,
       },
 
       reviews: reviewsRes.data ? {
@@ -106,9 +104,11 @@ export async function fetchVenueKnowledgeLayer(venueId) {
       // Metadata for AI consumption
       metadata: {
         fetchedAt: new Date().toISOString(),
-        contentQualityLevel: getContentQualityLevel(contentRes.data),
-        isApprovedEditorial: contentRes.data?.approved === true,
-        hasCompleteSectionIntros: Object.values(contentRes.data?.section_intros || {}).filter(
+        contentQualityLevel: getContentQualityLevel(
+          listingRes.data?.content_quality_score ?? contentRes.data?.content_score
+        ),
+        isApprovedEditorial: listingRes.data?.editorial_approved ?? contentRes.data?.approved ?? false,
+        hasCompleteSectionIntros: Object.values(listingRes.data?.section_intros || contentRes.data?.section_intros || {}).filter(
           intro => intro && typeof intro === 'string' && intro.trim().length > 0
         ).length >= 4, // At least 4 sections have intros
       },

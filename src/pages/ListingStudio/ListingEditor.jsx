@@ -21,6 +21,9 @@ import FAQSectionEditor from './sections/FAQSectionEditor';
 import SEOSection from './sections/SEOSection';
 import ListingInfoSection from './sections/ListingInfoSection';
 import CardsSection from './sections/CardsSection';
+import EditorialContentSection from './sections/EditorialContentSection';
+import ApprovalWorkflowSection from './sections/ApprovalWorkflowSection';
+import ContentQualityStatusSection from './sections/ContentQualityStatusSection';
 import { getLightPalette, getDarkPalette } from '../../theme/tokens';
 
 /**
@@ -43,6 +46,9 @@ const LISTING_SECTIONS = [
   { id: 'basic',       label: 'Basic Details',        icon: '📋', Component: BasicDetailsSection,      locked: true,  condition: null },
   { id: 'location',    label: 'Location',             icon: '📍', Component: LocationSection,          locked: false, condition: null },
   { id: 'description', label: 'Description',          icon: '✎',  Component: DescriptionSection,       locked: false, condition: null },
+  { id: 'editorial',   label: 'Editorial Content',    icon: '✎',  Component: EditorialContentSection,  locked: false, condition: null },
+  { id: 'approval',    label: 'Approval Workflow',    icon: '✅', Component: ApprovalWorkflowSection,  locked: false, condition: null },
+  { id: 'quality',     label: 'Content Quality',      icon: '⭐', Component: ContentQualityStatusSection, locked: false, condition: null },
   { id: 'features',    label: 'Features & Amenities', icon: '✦',  Component: FeaturesSection,          locked: false, condition: 'showFeatures' },
   { id: 'commercial',  label: 'Commercial Details',   icon: '£',  Component: CommercialDetailsSection, locked: false, condition: 'showCommercial' },
   { id: 'media',       label: 'Media',                icon: '🖼',  Component: MediaSection,             locked: false, condition: null },
@@ -761,7 +767,12 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
                       border: `1px solid ${LUX.border}`,
                       borderTop: 'none',
                     }}>
-                      <SectionComponent formData={formData} onChange={handleChange} darkMode={darkMode} />
+                      <SectionComponent
+                        formData={formData}
+                        onChange={handleChange}
+                        darkMode={darkMode}
+                        currentUserId={null}
+                      />
                     </div>
                   )}
                 </div>

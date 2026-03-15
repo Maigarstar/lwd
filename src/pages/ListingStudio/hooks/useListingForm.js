@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { createListing, updateListing, fetchListingById } from '../../../services/listings';
+import { createListing, updateListing, fetchListingById, calculateContentQualityScore } from '../../../services/listings';
 import { uploadPendingFiles, uploadMediaFile } from '../../../utils/storageUpload';
 
 // ── Country normaliser ────────────────────────────────────────────────────────
@@ -134,6 +134,22 @@ export const useListingForm = (listingId = null) => {
     opening_hours: {},
     press_features: [],
     awards: [],
+    // ── Editorial Content Layer (Phase 3) ─────────────────────────────────────
+    hero_summary: null,
+    section_intros: {
+      overview: '',
+      spaces: '',
+      dining: '',
+      rooms: '',
+      art: '',
+      weddings: ''
+    },
+    editorial_approved: false,
+    editorial_fact_checked: false,
+    editorial_last_reviewed_at: null,
+    refresh_notes: null,
+    content_quality_score: 0,
+    editorial_last_reviewed_by: null,
   });
 
   const [loading, setLoading] = useState(false);
@@ -577,6 +593,14 @@ export const useListingForm = (listingId = null) => {
         // Also consumed by sync-media-ai-index edge function after save.
         mediaItems: cleanMediaItems,
       };
+
+      // Calculate content quality score for editorial layer (Phase 3)
+      const contentQualityScore = calculateContentQualityScore(
+        formData.section_intros,
+        formData.editorial_fact_checked,
+        formData.editorial_approved
+      );
+      listingPayload.contentQualityScore = contentQualityScore;
 
       // Add published_at if publishing
       if (publishStatus === 'published') {

@@ -6,6 +6,18 @@
 import { useEffect, useState } from 'react';
 import { fetchVenueKnowledgeLayer, generateVenueSummary, extractVenueHighlights, analyzeReviewThemes } from '../../services/auraKnowledgeLayerService';
 
+/**
+ * Format a timestamp as "X days ago"
+ */
+function formatDaysAgo(timestamp) {
+  if (!timestamp) return null;
+  const now = new Date();
+  const date = new Date(timestamp);
+  const diffMs = now - date;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  return diffDays;
+}
+
 export default function AuraVenueCard({ venueId, slug, onDetailsClick, isLight = true }) {
   const [knowledge, setKnowledge] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -153,43 +165,56 @@ export default function AuraVenueCard({ venueId, slug, onDetailsClick, isLight =
           </div>
         </div>
 
-        {/* Approval badges */}
-        {(content.approved || content.factChecked) && (
-          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-            {content.factChecked && (
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                padding: '4px 8px',
-                background: '#f0f5f0',
-                color: '#15803d',
-                borderRadius: 4,
-                fontFamily: 'var(--font-body)',
-                fontSize: 11,
-                fontWeight: 600,
-              }}>
-                ✓ Fact-Checked
-              </span>
-            )}
-            {content.approved && (
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                padding: '4px 8px',
-                background: '#faf7f0',
-                color: '#8f7420',
-                borderRadius: 4,
-                fontFamily: 'var(--font-body)',
-                fontSize: 11,
-                fontWeight: 600,
-              }}>
-                ★ Approved
-              </span>
-            )}
-          </div>
-        )}
+        {/* Approval badges and freshness indicator */}
+        <div style={{ marginTop: 12 }}>
+          {(content.editorial_approved || content.editorial_fact_checked || content.approved || content.factChecked) && (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+              {(content.editorial_fact_checked || content.factChecked) && (
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '4px 8px',
+                  background: '#f0f5f0',
+                  color: '#15803d',
+                  borderRadius: 4,
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 11,
+                  fontWeight: 600,
+                }}>
+                  ✓ Fact-Checked
+                </span>
+              )}
+              {(content.editorial_approved || content.approved) && (
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '4px 8px',
+                  background: '#faf7f0',
+                  color: '#8f7420',
+                  borderRadius: 4,
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 11,
+                  fontWeight: 600,
+                }}>
+                  ★ Editor Approved
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Freshness indicator */}
+          {content.editorial_approved && content.lastReviewedAt && (
+            <div style={{
+              fontSize: 11,
+              color: subtextColor,
+              fontFamily: 'var(--font-body)',
+            }}>
+              Updated {formatDaysAgo(content.lastReviewedAt)} days ago
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Editorial summary */}
