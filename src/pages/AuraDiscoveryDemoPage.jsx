@@ -83,11 +83,11 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             gap: 8,
             padding: '12px 16px',
             background: isLight ? 'rgba(255, 255, 255, 0.6)' : 'rgba(42, 42, 42, 0.6)',
-            border: `1.5px solid #8f7420`,
+            border: `2px solid #8f7420`,
             borderRadius: 8,
             marginBottom: 24,
-            boxShadow: isLight ? '0 0 20px rgba(143, 116, 32, 0.15)' : '0 0 20px rgba(143, 116, 32, 0.25)',
-            backdropFilter: 'blur(8px)',
+            boxShadow: isLight ? '0 0 30px rgba(143, 116, 32, 0.2), inset 0 0 20px rgba(143, 116, 32, 0.05)' : '0 0 30px rgba(143, 116, 32, 0.35), inset 0 0 20px rgba(143, 116, 32, 0.1)',
+            backdropFilter: 'blur(12px)',
           }}>
             <span style={{
               fontFamily: 'var(--font-body)',
@@ -107,9 +107,9 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             fontSize: 48,
             fontWeight: 400,
             color: textColor,
-            lineHeight: 1.2,
+            lineHeight: 1.3,
           }}>
-            Discover Extraordinary Wedding Venues Curated by Editorial Intelligence
+            Discover Extraordinary Wedding Venues<br />Curated by Editorial Intelligence
           </h1>
 
           <p style={{
@@ -130,9 +130,11 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
         <div style={{
           marginBottom: 64,
           padding: 32,
-          background: cardBg,
-          border: `1px solid ${borderColor}`,
+          background: isLight ? 'rgba(255, 255, 255, 0.5)' : 'rgba(42, 42, 42, 0.4)',
+          border: `1px solid ${isLight ? 'rgba(228, 224, 216, 0.8)' : 'rgba(58, 58, 58, 0.6)'}`,
           borderRadius: 8,
+          backdropFilter: 'blur(10px)',
+          boxShadow: isLight ? '0 8px 32px rgba(0, 0, 0, 0.05)' : '0 8px 32px rgba(0, 0, 0, 0.3)',
         }}>
           <h2 style={{
             margin: '0 0 24px',
@@ -151,7 +153,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
           }}>
             {[
               {
-                title: 'Content Intelligence',
+                title: 'Editorial Content Intelligence',
                 description: 'Each venue is scored 0-100 based on editorial completeness, fact-checking, and approval status. Only high-quality content gets featured.',
               },
               {
@@ -212,9 +214,11 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
         <div style={{
           marginBottom: 64,
           padding: 32,
-          background: isLight ? '#faf9f6' : '#242424',
-          border: `1px solid ${borderColor}`,
+          background: isLight ? 'rgba(250, 249, 246, 0.6)' : 'rgba(36, 36, 36, 0.4)',
+          border: `1px solid ${isLight ? 'rgba(228, 224, 216, 0.8)' : 'rgba(58, 58, 58, 0.6)'}`,
           borderRadius: 8,
+          backdropFilter: 'blur(10px)',
+          boxShadow: isLight ? '0 8px 32px rgba(0, 0, 0, 0.05)' : '0 8px 32px rgba(0, 0, 0, 0.3)',
         }}>
           <h2 style={{
             margin: '0 0 24px',
@@ -302,6 +306,102 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
           </div>
         </div>
 
+        {/* Why Venues Join */}
+        <div style={{
+          marginBottom: 64,
+          padding: 32,
+          background: isLight ? 'rgba(255, 255, 255, 0.5)' : 'rgba(42, 42, 42, 0.4)',
+          border: `1px solid ${isLight ? 'rgba(228, 224, 216, 0.8)' : 'rgba(58, 58, 58, 0.6)'}`,
+          borderRadius: 8,
+          backdropFilter: 'blur(10px)',
+          boxShadow: isLight ? '0 8px 32px rgba(0, 0, 0, 0.05)' : '0 8px 32px rgba(0, 0, 0, 0.3)',
+        }}>
+          <h2 style={{
+            margin: '0 0 32px',
+            fontFamily: 'var(--font-heading-primary)',
+            fontSize: 24,
+            fontWeight: 400,
+            color: textColor,
+            textAlign: 'center',
+          }}>
+            Why Luxury Venues Join the Platform
+          </h2>
+
+          <p style={{
+            margin: '0 0 32px',
+            fontFamily: 'var(--font-body)',
+            fontSize: 14,
+            color: subtextColor,
+            textAlign: 'center',
+            lineHeight: 1.8,
+            maxWidth: 700,
+            marginLeft: 'auto',
+            marginRight: 'auto',
+          }}>
+            This is not an open directory. Only venues with strong editorial quality and verified information are featured. That creates value for everyone.
+          </p>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: 24,
+          }}>
+            {[
+              {
+                title: 'Curated Visibility',
+                description: 'Your venue appears in a platform designed specifically for luxury destination weddings, not in a general database.',
+              },
+              {
+                title: 'Editorial Positioning',
+                description: 'Every listing includes refined narratives and structured venue intelligence that positions your venue as a premium choice.',
+              },
+              {
+                title: 'Aura Powered Discovery',
+                description: 'Your venue becomes discoverable through intelligent search and guided recommendations powered by AI.',
+              },
+              {
+                title: 'Guest Insight Signals',
+                description: 'Reviews and feedback are analyzed to highlight your strongest experiences and what guests genuinely value.',
+              },
+              {
+                title: 'Quality Visibility',
+                description: 'Higher editorial quality scores receive stronger visibility across discovery pages and featured positions.',
+              },
+              {
+                title: 'Motivated Partners',
+                description: 'The platform encourages venues to improve listings continuously to maintain and increase visibility.',
+              },
+            ].map((benefit, idx) => (
+              <div key={idx} style={{
+                padding: 20,
+                background: isLight ? 'rgba(255, 255, 255, 0.3)' : 'rgba(26, 26, 26, 0.4)',
+                border: `1px solid ${isLight ? 'rgba(228, 224, 216, 0.5)' : 'rgba(58, 58, 58, 0.4)'}`,
+                borderRadius: 6,
+                backdropFilter: 'blur(4px)',
+              }}>
+                <h3 style={{
+                  margin: '0 0 8px',
+                  fontFamily: 'var(--font-heading-primary)',
+                  fontSize: 14,
+                  fontWeight: 400,
+                  color: textColor,
+                }}>
+                  {benefit.title}
+                </h3>
+                <p style={{
+                  margin: 0,
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 12,
+                  color: subtextColor,
+                  lineHeight: 1.6,
+                }}>
+                  {benefit.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Discovery intro line */}
         <div style={{
           marginBottom: 32,
@@ -340,9 +440,11 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
           marginTop: 64,
           marginBottom: 64,
           padding: 32,
-          background: cardBg,
-          border: `1px solid ${borderColor}`,
+          background: isLight ? 'rgba(255, 255, 255, 0.5)' : 'rgba(42, 42, 42, 0.4)',
+          border: `1px solid ${isLight ? 'rgba(228, 224, 216, 0.8)' : 'rgba(58, 58, 58, 0.6)'}`,
           borderRadius: 8,
+          backdropFilter: 'blur(10px)',
+          boxShadow: isLight ? '0 8px 32px rgba(0, 0, 0, 0.05)' : '0 8px 32px rgba(0, 0, 0, 0.3)',
         }}>
           <h2 style={{
             margin: '0 0 32px',
@@ -352,7 +454,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             color: textColor,
             textAlign: 'center',
           }}>
-            What Aura Intelligence Analyzes
+            How Aura Understands Each Venue
           </h2>
 
           <div style={{
@@ -464,9 +566,11 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
         <div style={{
           marginBottom: 0,
           padding: 32,
-          background: cardBg,
-          border: `1px solid ${borderColor}`,
+          background: isLight ? 'rgba(255, 255, 255, 0.5)' : 'rgba(42, 42, 42, 0.4)',
+          border: `1px solid ${isLight ? 'rgba(228, 224, 216, 0.8)' : 'rgba(58, 58, 58, 0.6)'}`,
           borderRadius: 8,
+          backdropFilter: 'blur(10px)',
+          boxShadow: isLight ? '0 8px 32px rgba(0, 0, 0, 0.05)' : '0 8px 32px rgba(0, 0, 0, 0.3)',
           textAlign: 'center',
         }}>
           <h2 style={{
