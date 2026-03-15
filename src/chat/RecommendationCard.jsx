@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useShortlist } from "../shortlist/ShortlistContext";
 import Icon, { StarRating } from "./Icons";
 import CuratedIndexBadge from "../components/ui/CuratedIndexBadge";
+import CollectionBadge from "../components/editorial/CollectionBadge";
+import { AURA_RECOMMENDED_COLLECTION } from "../services/listings";
 
 const GOLD = "#C9A84C";
 
@@ -279,6 +281,13 @@ export default function RecommendationCard({ item, darkMode = true, onQuickView,
                 {f}
               </span>
             ))}
+          </div>
+        )}
+
+        {/* Aura Recommended collection badge */}
+        {item.aura_recommended && (
+          <div style={{ marginBottom: 10 }}>
+            <CollectionBadge collection={AURA_RECOMMENDED_COLLECTION} size="sm" />
           </div>
         )}
 
