@@ -28,6 +28,7 @@ import WeddingPlannersPage    from "./pages/WeddingPlannersPage.jsx";
 import PlannerProfilePage     from "./pages/PlannerProfilePage.jsx";
 import VendorDirectoryPage    from "./pages/VendorDirectoryPage.jsx";
 import PublicVendorProfilePage from "./pages/PublicVendorProfilePage.jsx";
+import ShowcasePage           from "./pages/ShowcasePage.jsx";
 import { VENDORS }            from "./data/vendors.js";
 
 // ── Planner slug helpers ─────────────────────────────────────────────────────
@@ -43,12 +44,13 @@ function getPlannerByIdOrSlug(idOrSlug) {
 
 // ── URL ↔ state helpers ──────────────────────────────────────────────────────
 function stateToPath(pg, opts = {}) {
-  const { countrySlug, regionSlug, categorySlug, plannerSlug, vendorSlug } = opts;
+  const { countrySlug, regionSlug, categorySlug, plannerSlug, vendorSlug, showcaseSlug } = opts;
   switch (pg) {
     case "region":           return `/${countrySlug}/${regionSlug}`;
     case "region-category":  return `/${countrySlug}/${regionSlug}/${categorySlug}`;
     case "planner-profile":  return `/${countrySlug}/${regionSlug}/wedding-planners/${plannerSlug}`;
     case "vendor-profile":   return `/vendor/${vendorSlug}`;
+    case "showcase":         return `/showcase/${showcaseSlug}`;
     case "category":         return "/category";
     case "venue":            return "/venue";
     case "directory":        return "/wed-venues";
@@ -77,6 +79,7 @@ function pathToState(pathname) {
   // like /italy/tuscany or /italy/tuscany/wedding-planners are dynamic.
   if (parts.length === 1 && statics[parts[0]]) return { page: statics[parts[0]] };
   if (parts.length === 2 && parts[0] === "vendor") return { page: "vendor-profile", vendorSlug: parts[1] };
+  if (parts.length === 2 && parts[0] === "showcase") return { page: "showcase", showcaseSlug: parts[1] };
   if (parts.length === 2) return { page: "region", countrySlug: parts[0], regionSlug: parts[1] };
   if (parts.length === 3) return { page: "region-category", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2] };
   if (parts.length === 4) return { page: "planner-profile", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2], plannerSlug: parts[3] };
@@ -95,6 +98,7 @@ function App() {
   const [activeCategorySlug, setActiveCategorySlug] = useState(initial.categorySlug || null);
   const [activePlannerSlug, setActivePlannerSlug] = useState(initial.plannerSlug || null);
   const [activeVendorSlug, setActiveVendorSlug] = useState(initial.vendorSlug || null);
+  const [activeShowcaseSlug, setActiveShowcaseSlug] = useState(initial.showcaseSlug || null);
   const [categorySearchQuery, setCategorySearchQuery] = useState(null);
 
   // Ref: skip pushState when change came from popstate (back/forward)
@@ -112,11 +116,12 @@ function App() {
       categorySlug: activeCategorySlug,
       plannerSlug: activePlannerSlug,
       vendorSlug: activeVendorSlug,
+      showcaseSlug: activeShowcaseSlug,
     });
     if (window.location.pathname !== path) {
       window.history.pushState(null, "", path);
     }
-  }, [page, activeCountrySlug, activeRegionSlug, activeCategorySlug, activeVendorSlug]);
+  }, [page, activeCountrySlug, activeRegionSlug, activeCategorySlug, activeVendorSlug, activeShowcaseSlug]);
 
   // ── Popstate: back / forward browser buttons ─────────────────────────────
   useEffect(() => {
@@ -128,6 +133,7 @@ function App() {
       setActiveCategorySlug(s.categorySlug || null);
       setActivePlannerSlug(s.plannerSlug || null);
       setActiveVendorSlug(s.vendorSlug || null);
+      setActiveShowcaseSlug(s.showcaseSlug || null);
       setCategoryRegion(null);
       setCategorySearchQuery(null);
       setPage(s.page);
@@ -154,6 +160,10 @@ function App() {
   const goVendorProfile = (vendorSlug) => {
     setActiveVendorSlug(vendorSlug);
     setPage("vendor-profile");
+  };
+  const goShowcase = (showcaseSlug) => {
+    setActiveShowcaseSlug(showcaseSlug);
+    setPage("showcase");
   };
   const goRegion = (countrySlug, regionSlug) => {
     setActiveCountrySlug(countrySlug || null);
@@ -224,6 +234,9 @@ function App() {
         )}
         {page === "vendor-profile" && (
           <PublicVendorProfilePage vendorSlug={activeVendorSlug} onBack={goHome} footerNav={footerNav} />
+        )}
+        {page === "showcase" && (
+          <ShowcasePage showcaseSlug={activeShowcaseSlug} onBack={goHome} />
         )}
         {page === "region" && (
           <RegionPage onBack={goHome} onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} countrySlug={activeCountrySlug} regionSlug={activeRegionSlug} footerNav={footerNav} />

@@ -1,0 +1,400 @@
+// ─── ShowcasePage.jsx ─────────────────────────────────────────────────────────
+// Dynamic showcase template, /showcase/:slug
+// Loads from venue_showcases table, enriches with linked listings record.
+// Renders sections based on the sections JSONB array stored in the DB.
+// Falls back to VenueShowcase media-grid if no showcase record found.
+// ─────────────────────────────────────────────────────────────────────────────
+import { useState, useEffect, useRef } from 'react';
+import { fetchShowcaseBySlug }  from '../services/showcaseService';
+import { fetchListingBySlug }   from '../services/listings';
+import { getQualityTier }       from '../services/listings';
+import TierStrip                from '../components/editorial/TierStrip';
+import HomeNav                  from '../components/nav/HomeNav';
+import SiteFooter               from '../components/sections/SiteFooter';
+import { buildCardImgs }        from '../utils/mediaMappers';
+
+// ── Design tokens ─────────────────────────────────────────────────────────────
+const C = {
+  bg:        '#0a0a08',
+  surface:   '#111110',
+  border:    '#2a2a26',
+  border2:   '#3a3a36',
+  gold:      '#C9A84C',
+  goldDim:   'rgba(201,168,76,0.12)',
+  text:      '#f5f2ec',
+  textMid:   '#c8c4bc',
+  textLight: '#9c9890',
+  navBg:     'rgba(10,10,8,0.92)',
+};
+const FD = 'var(--font-heading-primary)';
+const FB = 'var(--font-body)';
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function useIsMobile(bp = 768) {
+  const [mobile, setMobile] = useState(() => window.innerWidth <= bp);
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${bp}px)`);
+    const fn = (e) => setMobile(e.matches);
+    mql.addEventListener('change', fn);
+    return () => mql.removeEventListener('change', fn);
+  }, [bp]);
+  return mobile;
+}
+
+function getImages(mediaItems = []) {
+  return (mediaItems || [])
+    .filter(i => (i.type === 'image' || !i.type) && (i.visibility || 'public') === 'public' && !(i.file instanceof File) && (i.url || i.src))
+    .sort((a, b) => {
+      if (a.is_featured && !b.is_featured) return -1;
+      if (!a.is_featured && b.is_featured) return 1;
+      return (a.sort_order ?? 999) - (b.sort_order ?? 999);
+    })
+    .map(i => ({ id: i.id || i.url, src: i.url || i.src, alt: i.alt_text || i.title || '' }));
+}
+
+// ── Section: Hero ─────────────────────────────────────────────────────────────
+function HeroSection({ showcase, listing, onEnquire, isMobile }) {
+  const heroImg = showcase?.heroImage || listing?.heroImage || (listing?.imgs?.[0]) || '';
+  const title   = showcase?.name || listing?.name || '';
+  const location = showcase?.location || (listing?.city && listing?.country ? `${listing.city}, ${listing.country}` : '') || '';
+  const excerpt  = showcase?.excerpt || listing?.short_description || '';
+
+  return (
+    <div style={{ position: 'relative', height: isMobile ? '80vh' : '100vh', overflow: 'hidden', background: '#0a0a08' }}>
+      {heroImg && (
+        <img
+          src={heroImg} alt={title}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', opacity: 0.65 }}
+        />
+      )}
+      {/* Gradient overlay */}
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(10,10,8,0.92) 0%, rgba(10,10,8,0.25) 50%, rgba(10,10,8,0.1) 100%)' }} />
+      {/* Content */}
+      <div style={{ position: 'absolute', bottom: isMobile ? 40 : 80, left: isMobile ? 24 : 64, right: isMobile ? 24 : 64 }}>
+        {location && (
+          <p style={{ fontFamily: FB, fontSize: 12, color: C.gold, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 12 }}>{location}</p>
+        )}
+        <h1 style={{ fontFamily: FD, fontSize: isMobile ? 36 : 72, fontWeight: 400, color: C.text, lineHeight: 1.05, marginBottom: excerpt ? 18 : 28, letterSpacing: '-0.5px' }}>
+          {title}
+        </h1>
+        {excerpt && (
+          <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 17, color: C.textMid, lineHeight: 1.65, maxWidth: 560, marginBottom: 28 }}>{excerpt}</p>
+        )}
+        <button
+          onClick={onEnquire}
+          style={{
+            background: C.gold, border: 'none', color: '#0a0a08',
+            fontFamily: FB, fontSize: 12, fontWeight: 800,
+            letterSpacing: '0.12em', textTransform: 'uppercase',
+            padding: '14px 28px', cursor: 'pointer',
+            transition: 'opacity 0.2s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+        >
+          Begin Your Enquiry →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Section: Stats strip ──────────────────────────────────────────────────────
+function StatsSection({ stats = [], isMobile }) {
+  if (!stats || stats.length === 0) return null;
+  return (
+    <div style={{ background: C.surface, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: isMobile ? '0 16px' : '0 64px' }}>
+      <div style={{ display: 'flex', overflowX: 'auto', gap: 0 }}>
+        {stats.filter(s => s.value && s.label).map((s, i, arr) => (
+          <div key={i} style={{
+            flex: '0 0 auto', padding: isMobile ? '20px 20px' : '24px 36px',
+            borderRight: i < arr.length - 1 ? `1px solid ${C.border}` : 'none',
+            textAlign: 'center', minWidth: isMobile ? 100 : 130,
+          }}>
+            <div style={{ fontFamily: FD, fontSize: isMobile ? 22 : 28, color: C.gold, lineHeight: 1 }}>{s.value}</div>
+            <div style={{ fontFamily: FB, fontSize: 10, color: C.textLight, marginTop: 5, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Section: Overview ─────────────────────────────────────────────────────────
+function OverviewSection({ listing, isMobile }) {
+  const desc = listing?.description || listing?.short_description || listing?.card_summary || null;
+  if (!desc) return null;
+  return (
+    <div style={{ padding: isMobile ? '56px 24px' : '80px 64px', maxWidth: 760, margin: '0 auto' }}>
+      <p style={{ fontFamily: FB, fontSize: 10, color: C.gold, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 16 }}>About</p>
+      <p style={{ fontFamily: FD, fontSize: isMobile ? 22 : 30, color: C.text, lineHeight: 1.4, fontWeight: 400 }}>{desc}</p>
+    </div>
+  );
+}
+
+// ── Section: Gallery ──────────────────────────────────────────────────────────
+function GallerySection({ listing, isMobile }) {
+  const images = getImages(listing?.media_items || []);
+  if (!images.length) return null;
+
+  const [lightIdx, setLightIdx] = useState(null);
+
+  return (
+    <div style={{ padding: isMobile ? '0 0 48px' : '0 0 80px' }}>
+      <div style={{ padding: isMobile ? '0 24px 28px' : '0 64px 36px' }}>
+        <p style={{ fontFamily: FB, fontSize: 10, color: C.gold, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 8 }}>Gallery</p>
+        <div style={{ width: 40, height: 1, background: C.gold }} />
+      </div>
+
+      {/* Masonry-style grid */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
+        gap: 3,
+        padding: isMobile ? '0 3px' : '0 3px',
+      }}>
+        {images.slice(0, 12).map((img, i) => (
+          <div
+            key={img.id || i}
+            onClick={() => setLightIdx(i)}
+            style={{
+              aspectRatio: i === 0 ? '16/9' : i % 5 === 0 ? '4/5' : '4/3',
+              gridColumn: i === 0 ? (isMobile ? 'span 2' : 'span 2') : 'span 1',
+              overflow: 'hidden', cursor: 'pointer', position: 'relative',
+              background: '#111',
+            }}
+          >
+            <img
+              src={img.src} alt={img.alt}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s ease', display: 'block' }}
+              onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.04)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Lightbox */}
+      {lightIdx !== null && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.95)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setLightIdx(null)}
+        >
+          <img src={images[lightIdx]?.src} alt="" style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain' }} onClick={e => e.stopPropagation()} />
+          <button onClick={() => setLightIdx(null)} style={{ position: 'absolute', top: 20, right: 24, background: 'none', border: 'none', color: '#fff', fontSize: 28, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+          {lightIdx > 0 && <button onClick={e => { e.stopPropagation(); setLightIdx(i => i - 1); }} style={{ position: 'absolute', left: 20, background: 'none', border: `1px solid rgba(255,255,255,0.2)`, color: '#fff', width: 44, height: 44, cursor: 'pointer', fontSize: 20 }}>←</button>}
+          {lightIdx < images.length - 1 && <button onClick={e => { e.stopPropagation(); setLightIdx(i => i + 1); }} style={{ position: 'absolute', right: 20, background: 'none', border: `1px solid rgba(255,255,255,0.2)`, color: '#fff', width: 44, height: 44, cursor: 'pointer', fontSize: 20 }}>→</button>}
+          <div style={{ position: 'absolute', bottom: 20, fontFamily: FB, fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{lightIdx + 1} / {images.length}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Section: Sections header label ────────────────────────────────────────────
+function SectionLabel({ label }) {
+  return (
+    <div style={{ padding: '64px 64px 0' }}>
+      <p style={{ fontFamily: FB, fontSize: 10, color: C.gold, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 8 }}>{label}</p>
+      <div style={{ width: 40, height: 1, background: C.gold }} />
+    </div>
+  );
+}
+
+// ── Section: Tier ─────────────────────────────────────────────────────────────
+function TierSection({ listing, isMobile }) {
+  if (!listing?.contentQualityScore) return null;
+  const tier = getQualityTier(listing.contentQualityScore);
+  if (tier === 'standard') return null;
+
+  return (
+    <div style={{ background: C.surface, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: isMobile ? '24px 24px' : '28px 64px' }}>
+      <TierStrip tier={tier} fullText={true} />
+    </div>
+  );
+}
+
+// ── Section: Enquire CTA ──────────────────────────────────────────────────────
+function EnquireSection({ showcase, listing, onEnquire, isMobile }) {
+  const title = showcase?.name || listing?.name || '';
+  return (
+    <div style={{
+      background: C.surface, borderTop: `1px solid ${C.border}`,
+      padding: isMobile ? '56px 24px' : '80px 64px',
+      textAlign: 'center',
+    }}>
+      <p style={{ fontFamily: FB, fontSize: 10, color: C.gold, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 20 }}>Enquire</p>
+      <h2 style={{ fontFamily: FD, fontSize: isMobile ? 28 : 44, color: C.text, fontWeight: 400, marginBottom: 16 }}>Plan your wedding at {title}</h2>
+      <p style={{ fontFamily: FB, fontSize: 14, color: C.textLight, lineHeight: 1.65, maxWidth: 480, margin: '0 auto 32px' }}>
+        Our team will be in touch within 24 hours to discuss availability, exclusive packages, and everything your day deserves.
+      </p>
+      <button
+        onClick={onEnquire}
+        style={{
+          background: C.gold, border: 'none', color: '#0a0a08',
+          fontFamily: FB, fontSize: 12, fontWeight: 800,
+          letterSpacing: '0.12em', textTransform: 'uppercase',
+          padding: '16px 40px', cursor: 'pointer', transition: 'opacity 0.2s',
+        }}
+        onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+      >
+        Begin Your Enquiry →
+      </button>
+      {listing?.price_from && (
+        <p style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginTop: 16 }}>From {listing.price_from}</p>
+      )}
+    </div>
+  );
+}
+
+// ── Loading skeleton ───────────────────────────────────────────────────────────
+function LoadingSkeleton() {
+  return (
+    <div style={{ height: '100vh', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <p style={{ fontFamily: FB, fontSize: 13, color: C.textLight, letterSpacing: '0.08em' }}>Loading…</p>
+    </div>
+  );
+}
+
+// ── Not found ─────────────────────────────────────────────────────────────────
+function NotFound({ slug, onBack }) {
+  return (
+    <div style={{ height: '100vh', background: C.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+      <p style={{ fontFamily: FD, fontSize: 28, color: C.text }}>Showcase not found</p>
+      <p style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>No showcase found for <code style={{ color: C.gold }}>{slug}</code></p>
+      <button onClick={onBack} style={{ background: 'none', border: `1px solid ${C.border2}`, color: C.textLight, fontFamily: FB, fontSize: 12, padding: '10px 20px', cursor: 'pointer' }}>← Go back</button>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+export default function ShowcasePage({ slug, onBack, onGoDestination, onNavigateStandard, onNavigateAbout }) {
+  const isMobile = useIsMobile();
+  const [showcase, setShowcase]   = useState(null);
+  const [listing, setListing]     = useState(null);
+  const [loading, setLoading]     = useState(true);
+  const [notFound, setNotFound]   = useState(false);
+  const [enquireOpen, setEnquireOpen] = useState(false);
+
+  useEffect(() => {
+    if (!slug) { setNotFound(true); setLoading(false); return; }
+    let ignore = false;
+
+    async function load() {
+      setLoading(true);
+      try {
+        // 1. Load showcase record
+        const sc = await fetchShowcaseBySlug(slug);
+
+        if (ignore) return;
+
+        if (sc) {
+          setShowcase(sc);
+          // 2. If linked listing, load it too
+          if (sc.listingId) {
+            const lst = await fetchListingBySlug(sc.listingId);
+            if (!ignore && lst) setListing(lst);
+          } else {
+            // Try to load listing by same slug as fallback
+            const lst = await fetchListingBySlug(slug);
+            if (!ignore && lst) setListing(lst);
+          }
+        } else {
+          // No showcase record, try listing directly as fallback
+          const lst = await fetchListingBySlug(slug);
+          if (!ignore) {
+            if (lst) {
+              // Build a minimal showcase shell from listing data
+              setShowcase({
+                name: lst.name, slug, location: [lst.city, lst.country].filter(Boolean).join(', '),
+                excerpt: lst.short_description || '',
+                heroImage: lst.imgs?.[0] || '',
+                stats: [
+                  lst.price_from         ? { value: lst.price_from,             label: 'From' }        : null,
+                  lst.capacity_max        ? { value: `Up to ${lst.capacity_max}`, label: 'Guests' }     : null,
+                  lst.rooms_total         ? { value: String(lst.rooms_total),     label: 'Rooms' }       : null,
+                ].filter(Boolean),
+                sections: ['Hero', 'Gallery', 'Overview', 'Enquire'],
+              });
+              setListing(lst);
+            } else {
+              setNotFound(true);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[ShowcasePage] load error:', err);
+        if (!ignore) setNotFound(true);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    }
+
+    load();
+    return () => { ignore = true; };
+  }, [slug]);
+
+  if (loading)  return <LoadingSkeleton />;
+  if (notFound) return <NotFound slug={slug} onBack={onBack} />;
+
+  const sections = showcase?.sections || ['Hero', 'Gallery', 'Overview', 'Enquire'];
+
+  const renderSection = (sec) => {
+    switch (sec) {
+      case 'Hero':
+        return <HeroSection key="hero" showcase={showcase} listing={listing} onEnquire={() => setEnquireOpen(true)} isMobile={isMobile} />;
+      case 'Tier':
+        return <TierSection key="tier" listing={listing} isMobile={isMobile} />;
+      case 'Stats':
+        return <StatsSection key="stats" stats={showcase?.stats} isMobile={isMobile} />;
+      case 'Overview':
+        return <OverviewSection key="overview" listing={listing} isMobile={isMobile} />;
+      case 'Gallery':
+        return listing ? <GallerySection key="gallery" listing={listing} isMobile={isMobile} /> : null;
+      case 'Enquire':
+        return <EnquireSection key="enquire" showcase={showcase} listing={listing} onEnquire={() => setEnquireOpen(true)} isMobile={isMobile} />;
+      default:
+        // Generic placeholder for sections not yet fully implemented (Spaces, Dining, etc.)
+        return (
+          <div key={sec} style={{ padding: isMobile ? '48px 24px' : '64px 64px', borderTop: `1px solid ${C.border}` }}>
+            <SectionLabel label={sec} />
+          </div>
+        );
+    }
+  };
+
+  // Always inject Tier and Stats after Hero if applicable
+  const sectionsToRender = [...sections];
+  const heroIdx = sectionsToRender.indexOf('Hero');
+  if (heroIdx >= 0) {
+    // Insert Tier right after Hero if listing has contentQualityScore
+    if (listing?.contentQualityScore && !sectionsToRender.includes('Tier')) {
+      sectionsToRender.splice(heroIdx + 1, 0, 'Tier');
+    }
+    // Insert Stats after Tier/Hero if key_stats exist
+    if (showcase?.stats?.length > 0 && !sectionsToRender.includes('Stats')) {
+      const tierIdx = sectionsToRender.indexOf('Tier');
+      const insertIdx = tierIdx >= 0 ? tierIdx + 1 : heroIdx + 1;
+      sectionsToRender.splice(insertIdx, 0, 'Stats');
+    }
+  }
+
+  return (
+    <div style={{ background: C.bg, minHeight: '100vh', color: C.text }}>
+      {/* Nav */}
+      <HomeNav
+        onNavigateStandard={onNavigateStandard}
+        onNavigateAbout={onNavigateAbout}
+        transparent
+        light={false}
+      />
+
+      {/* Sections */}
+      {sectionsToRender.map(sec => renderSection(sec))}
+
+      {/* Footer */}
+      <SiteFooter footerNav={{}} onNavigateStandard={onNavigateStandard} />
+    </div>
+  );
+}

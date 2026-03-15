@@ -26,7 +26,19 @@
       "Bash(grep -r \"listings\\\\|venues\" /Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan/src/data --include=*.js --include=*.ts)",
       "Bash(grep -E \"\\\\.\\(js|ts\\)$\")",
       "Bash(grep -r \"lwdScore\\\\|LWD Score\" /Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan/src --include=*.jsx --include=*.js)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git add:*)",
+      "Bash(find /Users/taiwoadedayo/LDW-01 -name *.lock -type f)",
+      "Bash(git -c core.preloadindex=false add src/chat/recommendationEngine.js src/engine/queryEngine.js)",
+      "Bash(supabase db:*)",
+      "Bash(supabase migration:*)",
+      "Bash(/tmp/verify_migration.sql:*)",
+      "Read(//tmp/**)",
+      "Bash(grep -i \".jsx$\")",
+      "Bash(find /Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan/src -name *Showcase* -o -name *showcase*)",
+      "Bash(grep -r 'Domaine des Etangs' /Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan/src --include=*.jsx --include=*.js)",
+      "Bash(grep -l \"showcase\\\\|Showcase\" /Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan/src/**/*.js /Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan/src/**/*.jsx)",
+      "Bash(/tmp/update_showcase_scores.sql:*)"
     ]
   }
 }
