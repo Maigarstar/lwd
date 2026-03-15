@@ -14,12 +14,13 @@
 import { useState, useEffect } from 'react';
 import AuraDiscoveryGrid from '../components/discovery/AuraDiscoveryGrid';
 import { useChat } from '../chat/ChatContext';
+import HomeNav from '../components/nav/HomeNav';
 
 export default function AuraDiscoveryDemoPage({ onViewVenue }) {
   const { openMiniBar } = useChat();
   const [isLight, setIsLight] = useState(() => {
     const saved = localStorage.getItem('aura-discovery-light-mode');
-    return saved !== null ? JSON.parse(saved) : true;
+    return saved !== null ? JSON.parse(saved) : false;
   });
 
   useEffect(() => {
@@ -33,12 +34,20 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
   const subtextColor = isLight ? '#6b6560' : '#a89f98';
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: bgColor,
-      padding: '64px 24px',
-      transition: 'background 0.3s ease, color 0.3s ease',
-    }}>
+    <>
+      <HomeNav
+        darkMode={!isLight}
+        onToggleDark={() => setIsLight(!isLight)}
+        onVendorLogin={() => window.location.href = '/admin'}
+        onNavigateStandard={() => window.location.href = '/'}
+        onNavigateAbout={() => window.location.href = '/'}
+      />
+      <div style={{
+        minHeight: '100vh',
+        background: bgColor,
+        padding: '64px 24px',
+        transition: 'background 0.3s ease, color 0.3s ease',
+      }}>
       <div style={{
         maxWidth: 1400,
         margin: '0 auto',
@@ -757,5 +766,6 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
         </div>
       </div>
     </div>
+    </>
   );
 }
