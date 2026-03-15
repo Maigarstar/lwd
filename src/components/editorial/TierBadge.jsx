@@ -1,4 +1,5 @@
 import { getTierProperties } from '../../services/listings';
+import { isEditorialCurationEnabled } from '../../services/platformSettingsService';
 
 /**
  * TierBadge - Displays editorial quality tier (Platinum, Signature, Approved)
@@ -7,9 +8,10 @@ import { getTierProperties } from '../../services/listings';
  */
 export default function TierBadge({ tier = 'standard', showLabel = true, size = 'sm' }) {
   const tierProps = getTierProperties(tier);
+  const editorialEnabled = isEditorialCurationEnabled();
 
-  // Don't show badge for standard listings
-  if (tier === 'standard' || !tierProps) {
+  // Don't show badge if editorial curation is disabled globally or tier is standard
+  if (!editorialEnabled || tier === 'standard' || !tierProps) {
     return null;
   }
 

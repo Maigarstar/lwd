@@ -2,6 +2,7 @@
 import { VENUES } from "../data/italyVenues";
 import { VENDORS } from "../data/vendors";
 import { rankByCuratedIndex } from "../engine/index.js";
+import { isEditorialCurationEnabled } from "../services/platformSettingsService";
 
 // ── Intent maps ───────────────────────────────────────────────────────────────
 const REGION_MAP = {
@@ -165,12 +166,29 @@ export function extractIntent(messages) {
 
 // ── Build curated recommendation list ────────────────────────────────────────
 export function getRecommendations(messages, activeContext) {
+  const editorialEnabled = isEditorialCurationEnabled();
+
   if (!messages || messages.length === 0) {
-    const defaultVenues = rankByCuratedIndex([...VENUES]).slice(0, 4);
-    // Mark top recommendations with aura_recommended flag (system-driven)
-    defaultVenues.forEach((v, idx) => {
-      if (idx < 3) v.aura_recommended = true;
-    });
+    let defaultVenues;
+
+    if (editorialEnabled) {
+      // Apply editorial boost when feature is enabled
+      VENUES.forEach((venue) => {
+        const boost = calculateEditorialBoost(venue);
+        if (boost > 1.0) {
+          venue._editorialBoost = boost;
+        }
+      });
+      defaultVenues = rankByCuratedIndex([...VENUES]).slice(0, 4);
+      // Mark top recommendations with aura_recommended flag (system-driven)
+      defaultVenues.forEach((v, idx) => {
+        if (idx < 3) v.aura_recommended = true;
+      });
+    } else {
+      // Use standard ranking without editorial boost
+      defaultVenues = rankByCuratedIndex([...VENUES]).slice(0, 4);
+    }
+
     return { items: defaultVenues, summary: "Popular venues in Italy", intent: {} };
   }
 
@@ -186,6 +204,7 @@ export function getRecommendations(messages, activeContext) {
   // ── Venues ──
   if (resultType === "venue" || resultType === "mixed") {
     const limit = resultType === "mixed" ? 3 : 6;
+    const editorialEnabled = isEditorialCurationEnabled();
 
     // Filter venues by criteria
     let filteredVenues = VENUES.filter((v) => {
@@ -207,22 +226,26 @@ export function getRecommendations(messages, activeContext) {
     // Final fallback: use all venues
     if (filteredVenues.length === 0) filteredVenues = [...VENUES];
 
-    // Apply editorial boost to scores
-    filteredVenues.forEach((venue) => {
-      const boost = calculateEditorialBoost(venue);
-      if (boost > 1.0) {
-        // Apply boost to lwdScore (computed by rankByCuratedIndex)
-        venue._editorialBoost = boost;
-      }
-    });
+    // Apply editorial boost to scores (only if global toggle enabled)
+    if (editorialEnabled) {
+      filteredVenues.forEach((venue) => {
+        const boost = calculateEditorialBoost(venue);
+        if (boost > 1.0) {
+          // Apply boost to lwdScore (computed by rankByCuratedIndex)
+          venue._editorialBoost = boost;
+        }
+      });
+    }
 
     // Rank and sort
     venueResults = rankByCuratedIndex(filteredVenues).slice(0, limit);
 
-    // Mark top recommendations with aura_recommended flag (system-driven)
-    venueResults.forEach((v, idx) => {
-      if (idx < 3) v.aura_recommended = true;
-    });
+    // Mark top recommendations with aura_recommended flag (system-driven, only if editorial enabled)
+    if (editorialEnabled) {
+      venueResults.forEach((v, idx) => {
+        if (idx < 3) v.aura_recommended = true;
+      });
+    }
   }
 
   // ── Vendors ──

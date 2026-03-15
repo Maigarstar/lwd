@@ -1,6 +1,8 @@
+import { isEditorialCurationEnabled } from '../../services/platformSettingsService';
+
 /**
  * FreshnessText - Display when content was last reviewed
- * Only shows if lastReviewedAt date is provided
+ * Only shows if lastReviewedAt date is provided and editorial curation is enabled
  * Format: "Updated 3 days ago", "Updated 1 week ago", etc.
  */
 export default function FreshnessText({
@@ -8,7 +10,10 @@ export default function FreshnessText({
   color = '#999',
   size = 'sm'
 }) {
-  if (!lastReviewedAt) {
+  const editorialEnabled = isEditorialCurationEnabled();
+
+  // Don't show if editorial curation disabled globally or no review date
+  if (!editorialEnabled || !lastReviewedAt) {
     return null;
   }
 

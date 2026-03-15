@@ -1,16 +1,20 @@
+import { isEditorialCurationEnabled } from '../../services/platformSettingsService';
+
 /**
  * ApprovalIndicators - Display editorial approval status badges
  * Shows: ★ Editor Approved (when editorial_approved = true)
  *        ✓ Fact Checked (when editorial_fact_checked = true)
- * Returns null if neither status is true
+ * Returns null if neither status is true or editorial curation is disabled globally
  */
 export default function ApprovalIndicators({
   approved = false,
   factChecked = false,
   layout = 'horizontal'
 }) {
-  // Don't show if neither status is true
-  if (!approved && !factChecked) {
+  const editorialEnabled = isEditorialCurationEnabled();
+
+  // Don't show if editorial curation disabled globally or if neither status is true
+  if (!editorialEnabled || (!approved && !factChecked)) {
     return null;
   }
 
