@@ -35,6 +35,22 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
 
   return (
     <>
+      <style>{`
+        @keyframes auraPulse {
+          0%, 100% {
+            box-shadow: 0 0 40px rgba(143, 116, 32, 0.4), 0 0 80px rgba(143, 116, 32, 0.15), inset 0 0 20px rgba(143, 116, 32, 0.15);
+            border-color: #8f7420;
+          }
+          50% {
+            box-shadow: 0 0 60px rgba(143, 116, 32, 0.7), 0 0 120px rgba(143, 116, 32, 0.3), inset 0 0 30px rgba(143, 116, 32, 0.25);
+            border-color: #c9a84c;
+          }
+        }
+
+        .aura-certified-badge {
+          animation: auraPulse 3s ease-in-out infinite;
+        }
+      `}</style>
       <HomeNav
         darkMode={!isLight}
         onToggleDark={() => setIsLight(!isLight)}
@@ -45,7 +61,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
       <div style={{
         minHeight: '100vh',
         background: bgColor,
-        padding: '64px 24px',
+        padding: '110px 24px',
         transition: 'background 0.3s ease, color 0.3s ease',
       }}>
       <div style={{
@@ -88,7 +104,9 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
           marginBottom: 64,
           textAlign: 'center',
         }}>
-          <div style={{
+          <div
+            className="aura-certified-badge"
+            style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: 8,
@@ -764,6 +782,80 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             This is luxury discovery powered by both human editorial judgement and Aura intelligence.
           </p>
         </div>
+
+        {/* Footer */}
+        <footer style={{
+          marginTop: 120,
+          paddingTop: 40,
+          borderTop: `1px solid ${borderColor}`,
+          textAlign: 'center',
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: 32,
+            marginBottom: 32,
+            flexWrap: 'wrap',
+          }}>
+            <a href="/" style={{
+              color: subtextColor,
+              textDecoration: 'none',
+              fontSize: 13,
+              fontFamily: 'var(--font-body)',
+              transition: 'color 0.2s',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = '#8f7420'}
+            onMouseLeave={(e) => e.currentTarget.style.color = subtextColor}
+            >
+              Home
+            </a>
+            <a href="/" style={{
+              color: subtextColor,
+              textDecoration: 'none',
+              fontSize: 13,
+              fontFamily: 'var(--font-body)',
+              transition: 'color 0.2s',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = '#8f7420'}
+            onMouseLeave={(e) => e.currentTarget.style.color = subtextColor}
+            >
+              About
+            </a>
+            <a href="/" style={{
+              color: subtextColor,
+              textDecoration: 'none',
+              fontSize: 13,
+              fontFamily: 'var(--font-body)',
+              transition: 'color 0.2s',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = '#8f7420'}
+            onMouseLeave={(e) => e.currentTarget.style.color = subtextColor}
+            >
+              Privacy
+            </a>
+            <a href="/" style={{
+              color: subtextColor,
+              textDecoration: 'none',
+              fontSize: 13,
+              fontFamily: 'var(--font-body)',
+              transition: 'color 0.2s',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = '#8f7420'}
+            onMouseLeave={(e) => e.currentTarget.style.color = subtextColor}
+            >
+              Contact
+            </a>
+          </div>
+          <p style={{
+            margin: 0,
+            color: subtextColor,
+            fontSize: 12,
+            fontFamily: 'var(--font-body)',
+            letterSpacing: 0.5,
+          }}>
+            © 2026 Luxury Wedding Directory. All rights reserved.
+          </p>
+        </footer>
       </div>
     </div>
     </>
