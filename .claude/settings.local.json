@@ -25,7 +25,8 @@
       "Bash(curl -s http://localhost:5176)",
       "Bash(grep -r \"listings\\\\|venues\" /Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan/src/data --include=*.js --include=*.ts)",
       "Bash(grep -E \"\\\\.\\(js|ts\\)$\")",
-      "Bash(grep -r \"lwdScore\\\\|LWD Score\" /Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan/src --include=*.jsx --include=*.js)"
+      "Bash(grep -r \"lwdScore\\\\|LWD Score\" /Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan/src --include=*.jsx --include=*.js)",
+      "Bash(git commit:*)"
     ]
   }
 }
