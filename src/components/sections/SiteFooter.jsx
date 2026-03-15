@@ -50,6 +50,7 @@ const NAV_COLS = [
     title: "Vendors",
     links: [
       { text: "List Your Business", action: "onNavigatePartnership" },
+      { text: "Advertise", action: "onNavigatePartnerEnquiry" },
       { text: "Pricing Plans", action: "onNavigatePartnership" },
       { text: "Vendor Dashboard" },
       { text: "SEO Tools" },
@@ -100,6 +101,7 @@ export default function SiteFooter({
   onNavigateGettingMarried,
   onNavigateArtistryAwards,
   onNavigateMagazine,
+  onNavigatePartnerEnquiry,
 }) {
   const C = useTheme();
 
@@ -115,6 +117,7 @@ export default function SiteFooter({
     onNavigateGettingMarried,
     onNavigateArtistryAwards,
     onNavigateMagazine,
+    onNavigatePartnerEnquiry,
   };
 
   return (

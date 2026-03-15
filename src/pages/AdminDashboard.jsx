@@ -5946,6 +5946,9 @@ function LeadsModule({ C }) {
   const [statusSuccess, setStatusSuccess] = useState(null);
   const [lossReason, setLossReason] = useState('');
   const [showLossInput, setShowLossInput] = useState(false);
+  const [notes, setNotes] = useState([]);
+  const [noteText, setNoteText] = useState('');
+  const [noteSubmitting, setNoteSubmitting] = useState(false);
 
   const LEAD_TYPES = [
     { key: 'all',            label: 'All' },
@@ -6061,6 +6064,42 @@ function LeadsModule({ C }) {
       console.error('Status update failed:', err);
     } finally {
       setStatusUpdating(false);
+    }
+  };
+
+  const loadNotes = async (leadId) => {
+    try {
+      const { supabase } = await import('../lib/supabaseClient');
+      const { data } = await supabase
+        .from('lead_messages')
+        .select('id, body, created_at')
+        .eq('lead_id', leadId)
+        .eq('message_type', 'internal_note')
+        .order('created_at', { ascending: true });
+      setNotes(data || []);
+    } catch (err) {
+      console.warn('loadNotes failed:', err);
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!noteText.trim() || !selectedLead) return;
+    setNoteSubmitting(true);
+    try {
+      const { supabase } = await import('../lib/supabaseClient');
+      const { data, error } = await supabase
+        .from('lead_messages')
+        .insert({ lead_id: selectedLead.id, message_type: 'internal_note', body: noteText.trim() })
+        .select('id, body, created_at')
+        .single();
+      if (!error && data) {
+        setNotes(prev => [...prev, data]);
+        setNoteText('');
+      }
+    } catch (err) {
+      console.warn('addNote failed:', err);
+    } finally {
+      setNoteSubmitting(false);
     }
   };
 
@@ -6399,6 +6438,70 @@ function LeadsModule({ C }) {
               </div>
             </div>
 
+            {/* ── Notes / Comments ─────────────────────────────────────── */}
+            <div style={{
+              background: C.card, border: `1px solid ${C.border}`,
+              borderRadius: 2, padding: '18px 20px',
+            }}>
+              <div style={{
+                fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+                textTransform: 'uppercase', color: C.grey2, marginBottom: 14,
+              }}>Notes</div>
+
+              {/* existing notes */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+                {notes.length === 0 && (
+                  <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, fontStyle: 'italic' }}>
+                    No notes yet.
+                  </div>
+                )}
+                {notes.map(n => (
+                  <div key={n.id} style={{
+                    background: C.dark, borderRadius: 2, padding: '9px 12px',
+                    borderLeft: `2px solid ${C.gold}`,
+                  }}>
+                    <div style={{ fontFamily: NU, fontSize: 12, color: C.off, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+                      {n.body}
+                    </div>
+                    <div style={{ fontFamily: NU, fontSize: 10, color: C.grey2, marginTop: 5 }}>
+                      {new Date(n.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* add note */}
+              <textarea
+                placeholder="Add a note..."
+                value={noteText}
+                onChange={e => setNoteText(e.target.value)}
+                rows={3}
+                onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleAddNote(); }}
+                style={{
+                  width: '100%', padding: '8px 10px', borderRadius: 2,
+                  border: `1px solid ${C.border}`, background: C.dark,
+                  fontFamily: NU, fontSize: 12, color: C.off, resize: 'vertical',
+                  outline: 'none', boxSizing: 'border-box', lineHeight: 1.5,
+                  transition: 'border 150ms',
+                }}
+                onFocus={e => e.target.style.borderColor = C.gold}
+                onBlur={e => e.target.style.borderColor = C.border}
+              />
+              <button
+                disabled={!noteText.trim() || noteSubmitting}
+                onClick={handleAddNote}
+                style={{
+                  marginTop: 8, width: '100%', padding: '8px 0', borderRadius: 2,
+                  fontFamily: NU, fontSize: 11, fontWeight: 600, letterSpacing: '0.06em',
+                  background: noteText.trim() ? C.gold : 'transparent',
+                  color: noteText.trim() ? '#fff' : C.grey2,
+                  border: `1px solid ${noteText.trim() ? C.gold : C.border}`,
+                  cursor: noteText.trim() ? 'pointer' : 'not-allowed',
+                  transition: 'all 150ms', opacity: noteSubmitting ? 0.6 : 1,
+                }}
+              >{noteSubmitting ? 'Saving...' : 'Add Note'}</button>
+            </div>
+
           </div>
         </div>
       </div>
@@ -6566,7 +6669,7 @@ function LeadsModule({ C }) {
                       style={{ cursor: 'pointer', transition: 'background 100ms' }}
                       onMouseEnter={e => e.currentTarget.style.background = C.goldDim}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                      onClick={() => setSelectedLead(l)}
+                      onClick={() => { setSelectedLead(l); setNotes([]); loadNotes(l.id); }}
                     >
                       <td style={tdSt}>
                         <span style={{ fontWeight: 600, color: C.off, fontSize: 13 }}>{l.full_name || l.first_name || '-'}</span>

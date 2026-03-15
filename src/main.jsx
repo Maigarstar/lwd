@@ -48,6 +48,7 @@ import RealWeddingsPage       from "./pages/RealWeddingsPage.jsx";
 import RealWeddingDetailPage  from "./pages/RealWeddingDetailPage.jsx";
 import GettingMarriedDashboard from "./pages/GettingMarriedDashboard.jsx";
 import JoinPage from "./pages/JoinPage.jsx";
+import PartnerEnquiryPage from "./pages/PartnerEnquiryPage.jsx";
 import ArtistryPage from "./pages/Artistry/ArtistryPage.jsx";
 import MagazineHomePage     from "./pages/Magazine/MagazineHomePage.jsx";
 import CategoryPage          from "./pages/Magazine/CategoryPage.jsx";
@@ -130,6 +131,7 @@ function stateToPath(pg, opts = {}) {
     case "getting-married":  return "/getting-married";
     case "shortlist":        return "/shortlist";
     case "artistry-awards":  return "/artistry-awards";
+    case "partner-enquiry":  return "/partner-enquiry";
     case "magazine":         return "/magazine";
     case "magazine-category": return `/magazine/category/${opts.magazineCategoryId || ''}`;
     case "magazine-fashion": return "/magazine/fashion";
@@ -152,7 +154,7 @@ function pathToState(pathname) {
   const statics = {
     venue: "venue", category: "category", "the-lwd-standard": "standard",
     about: "about", contact: "contact", partnership: "partnership",
-    usa: "usa", italy: "italy", admin: "admin", vendor: "vendor", couple: "couple", "real-weddings": "real-weddings", shortlist: "shortlist", "getting-married": "getting-married", join: "join", "artistry-awards": "artistry-awards",
+    usa: "usa", italy: "italy", admin: "admin", vendor: "vendor", couple: "couple", "real-weddings": "real-weddings", shortlist: "shortlist", "getting-married": "getting-married", join: "join", "artistry-awards": "artistry-awards", "partner-enquiry": "partner-enquiry",
   };
   const parts = clean.split("/");
   // Handle vendor auth subroutes first (before treating /vendor as static)
@@ -386,6 +388,7 @@ function App() {
   const goGettingMarried = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("getting-married"); };
   const goArtistryAwards = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("artistry-awards"); };
   const goJoin = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("join"); };
+  const goPartnerEnquiry = () => setPage("partner-enquiry");
   const goMagazine = () => { setActiveMagazineCategoryId(null); setActiveMagazineSlug(null); setPage("magazine"); };
   const goMagazineCategory = (categoryId) => { setActiveMagazineCategoryId(categoryId); setActiveMagazineSlug(null); setPage("magazine-category"); };
   const goMagazineArticle = (slug) => { setActiveMagazineSlug(slug); setActiveMagazineCategoryId(null); setPage("magazine-article"); };
@@ -404,6 +407,7 @@ function App() {
     onNavigateGettingMarried: goGettingMarried,
     onNavigateArtistryAwards: goArtistryAwards,
     onNavigateMagazine: goMagazine,
+    onNavigatePartnerEnquiry: goPartnerEnquiry,
   };
 
   return (
@@ -663,6 +667,9 @@ function App() {
         )}
         {page === "join" && (
           <JoinPage />
+        )}
+        {page === "partner-enquiry" && (
+          <PartnerEnquiryPage />
         )}
         {page === "home" && (
           <HomePage onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} onViewStandard={goStandard} onViewAbout={goAbout} onViewContact={goContact} onViewPartnership={goPartnership} onViewVendor={goVendor} onViewAdmin={goAdmin} onViewUSA={goUSA} onViewItaly={goItaly} onViewMagazine={goMagazine} onViewMagazineArticle={goMagazineArticle} footerNav={footerNav} />
