@@ -32,6 +32,13 @@ CREATE TABLE IF NOT EXISTS venue_content (
   approved BOOLEAN NOT NULL DEFAULT false,
   last_reviewed_at TIMESTAMPTZ,
 
+  -- Content quality scoring (0-100)
+  -- Score factors: sections with intros, fact_checked status, approved status
+  content_score INT DEFAULT 0,
+
+  -- Editorial ownership tracking
+  updated_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+
   -- Timestamps
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -44,6 +51,9 @@ CREATE INDEX IF NOT EXISTS venue_content_venue_id_idx ON venue_content(venue_id)
 
 -- Index for filtering by approval status
 CREATE INDEX IF NOT EXISTS venue_content_approved_idx ON venue_content(approved);
+
+-- Index for sorting by content quality score (useful for Aura rankings)
+CREATE INDEX IF NOT EXISTS venue_content_score_idx ON venue_content(content_score DESC);
 
 -- Trigger to auto-update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_venue_content_updated_at()
