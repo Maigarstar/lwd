@@ -6,6 +6,7 @@ import { fetchListingBySlug } from './services/listings';
 import { buildCardImgs, mapMediaItemToGalleryPhoto, buildVenueVideos } from './utils/mediaMappers';
 import ReviewsSection from './components/reviews/ReviewsSection';
 import ReviewSubmitForm from './components/reviews/ReviewSubmitForm';
+import VenueEnquiryForm from './components/enquiry/VenueEnquiryForm';
 
 function useIsMobile(bp = 768) {
   const [mobile, setMobile] = useState(() => window.innerWidth <= bp);
@@ -6228,13 +6229,24 @@ export default function VenueProfile({ onBack = null, slug = null }) {
             <div className="lwd-sidebar" style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 137, alignSelf: "start" }}>
               {/* Zone 1, Owner card (only if owner data available) */}
               {VV.owner && VV.owner.name && <OwnerCard owner={VV.owner} venue={VV} />}
-              {/* Zone 2, Lead form (scrolls naturally) */}
+              {/* Zone 2, Venue enquiry form (lead gen) */}
+              <VenueEnquiryForm
+                listingId={VV.id}
+                venueId={VV.id}
+                vendorId={VV.vendorId || null}
+                vendorName={VV.name}
+                vendorEmail={VV.contactProfile?.email || VV.contact?.email || null}
+                venueName={VV.name}
+                responseTime={VV.responseTime}
+                sticky={false}
+              />
+              {/* Zone 3, Lead form (scrolls naturally) */}
               <LeadForm venue={VV} />
-              {/* Zone 3, Mini map + quick contact */}
+              {/* Zone 4, Mini map + quick contact */}
               <SidebarContact venue={VV} />
-              {/* Zone 4, Venue notices (open days, offers, late availability, news) */}
+              {/* Zone 5, Venue notices (open days, offers, late availability, news) */}
               <SidebarNotices notices={VV.notices} venueName={VV.name} />
-              {/* Zone 5, Instagram teaser (placeholder, to be connected to live feed) */}
+              {/* Zone 6, Instagram teaser (placeholder, to be connected to live feed) */}
               {/* <SidebarInstagram venue={VV} /> */}
             </div>
           </div>

@@ -15,6 +15,7 @@ import { CarouselRow }        from '../components/cards/editorial/CarouselCard';
 import MediaBlock             from '../components/profile/MediaBlock';
 import { ThemeCtx, LIGHT }   from '../components/profile/ProfileDesignSystem';
 import VenueEnquireCard       from '../components/cards/editorial/VenueEnquireCard';
+import VenueEnquiryForm       from '../components/enquiry/VenueEnquiryForm';
 import HomeNav                from '../components/nav/HomeNav';
 import SiteFooter             from '../components/sections/SiteFooter';
 import { useBreakpoint }      from '../hooks/useWindowWidth';
@@ -997,6 +998,17 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
           ENQUIRE
       ═══════════════════════════════════════════════════════════════════ */}
       <section id="enquire">
+        <div style={{ maxWidth: '480px', margin: '0 auto 48px', padding: '0 20px' }}>
+          <VenueEnquiryForm
+            listingId="dde-auberge-collection"
+            venueId="dde-auberge-collection"
+            vendorName="Domaine des Etangs"
+            vendorEmail="dde.commercial@auberge.com"
+            venueName="Domaine des Etangs"
+            responseTime="Within 24 hours"
+            sticky={false}
+          />
+        </div>
         <VenueEnquireCard data={{
           venue: {
             name:      venue.name,
