@@ -783,9 +783,9 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             This is luxury discovery powered by both human editorial judgement and Aura intelligence.
           </p>
         </div>
-
-        <SiteFooter footerNav={{}} />
       </div>
+
+      <SiteFooter footerNav={{}} />
     </div>
     </>
   );
