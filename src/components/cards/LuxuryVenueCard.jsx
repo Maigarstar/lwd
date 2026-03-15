@@ -7,6 +7,8 @@ import { useTheme } from "../../theme/ThemeContext";
 import Stars from "../ui/Stars";
 import { GoldBadge, VerifiedBadge } from "../ui/Badges";
 import TierBadge from "../editorial/TierBadge";
+import ApprovalIndicators from "../editorial/ApprovalIndicators";
+import FreshnessText from "../editorial/FreshnessText";
 import EnquiryFormModal from "../ui/EnquiryFormModal";
 import QuickViewModal from "../modals/QuickViewModal";
 import { getQualityTier } from "../../services/listings";
@@ -376,6 +378,26 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
         >
           {v.desc}
         </p>
+
+        {/* Editorial Indicators */}
+        {(v.editorial_approved || v.editorial_fact_checked) && (
+          <div style={{ marginBottom: 10, paddingBottom: 10, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+            <ApprovalIndicators
+              approved={v.editorial_approved}
+              factChecked={v.editorial_fact_checked}
+              layout="vertical"
+            />
+            {v.editorial_approved && v.editorial_last_reviewed_at && (
+              <div style={{ marginTop: 6 }}>
+                <FreshnessText
+                  lastReviewedAt={v.editorial_last_reviewed_at}
+                  color="rgba(255,255,255,0.5)"
+                  size="xs"
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Footer: price + CTAs */}
         <div

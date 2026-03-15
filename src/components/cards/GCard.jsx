@@ -5,6 +5,8 @@ import Stars from "../ui/Stars";
 import Pill from "../ui/Pill";
 import { GoldBadge } from "../ui/Badges";
 import TierBadge from "../editorial/TierBadge";
+import ApprovalIndicators from "../editorial/ApprovalIndicators";
+import FreshnessText from "../editorial/FreshnessText";
 import CuratedIndexBadge from "../ui/CuratedIndexBadge";
 import LoginGateModal from "../modals/LoginGateModal";
 import { getQualityTier } from "../../services/listings";
@@ -402,6 +404,26 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
               <Pill key={s} text={s} />
             ))}
           </div>
+
+          {/* Editorial Indicators */}
+          {(v.editorial_approved || v.editorial_fact_checked) && (
+            <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: `1px solid ${C.border}` }}>
+              <ApprovalIndicators
+                approved={v.editorial_approved}
+                factChecked={v.editorial_fact_checked}
+                layout="horizontal"
+              />
+              {v.editorial_approved && v.editorial_last_reviewed_at && (
+                <div style={{ marginTop: 6 }}>
+                  <FreshnessText
+                    lastReviewedAt={v.editorial_last_reviewed_at}
+                    color={C.grey}
+                    size="xs"
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── Footer: price + capacity row ── */}
           <div
