@@ -28,32 +28,62 @@ export async function fetchVenueKnowledgeLayer(venueId) {
   }
 
   try {
-    // Parallel fetch: listings, venue_content, reviews
-    const [listingRes, contentRes, reviewsRes] = await Promise.all([
+    // Parallel fetch: listings and reviews
+    // Note: venue_content table not queried as all needed data is in listings table
+    const [listingRes, reviewsRes] = await Promise.all([
       supabase
         .from('listings')
         .select('*')
         .eq('id', venueId)
         .single(),
       supabase
-        .from('venue_content')
-        .select('*')
-        .eq('venue_id', venueId)
-        .single(),
-      supabase
         .from('reviews')
-        .select('rating, content, created_at')
-        .eq('listing_id', venueId)
-        .is('deleted_at', null) // Exclude soft-deleted reviews
+        .select('overall_rating, review_text, created_at')
+        .eq('entity_id', venueId)
+        .eq('entity_type', 'listing')
         .order('created_at', { ascending: false })
     ]);
+
+    // TRACE: Log query results
+    console.log(`[fetchVenueKnowledgeLayer] Query results for ${venueId}:`, {
+      listingHasError: !!listingRes.error,
+      listingError: listingRes.error?.message,
+      listingData: !!listingRes.data,
+      listingDataKeys: listingRes.data ? Object.keys(listingRes.data).slice(0, 5) : null,
+      reviewsHasError: !!reviewsRes.error,
+      reviewsCount: reviewsRes.data?.length || 0
+    });
+
+    // Check for query errors - log them but don't fail
+    if (listingRes.error) {
+      console.error(`[fetchVenueKnowledgeLayer] Listing query error for ${venueId}:`, {
+        code: listingRes.error.code,
+        message: listingRes.error.message,
+        details: listingRes.error.details
+      });
+      // Continue with null data - will build empty knowledge object below
+    }
+
+    if (!listingRes.data && !listingRes.error) {
+      console.warn(`[fetchVenueKnowledgeLayer] No listing found for ${venueId}`);
+      // Continue with null data - will build empty knowledge object below
+    }
+
+    if (reviewsRes.error) {
+      console.warn(`fetchVenueKnowledgeLayer: Error fetching reviews for ${venueId}:`, reviewsRes.error);
+      // Don't return null - reviews are optional, continue with empty reviews
+    }
+
+    // contentRes is no longer needed since all data comes from listings
+    const contentRes = { data: null, error: null };
 
     // Build knowledge layer structure
     return {
       venue: listingRes.data ? {
         id: listingRes.data.id,
         name: listingRes.data.name,
-        location: listingRes.data.location,
+        city: listingRes.data.city,
+        region: listingRes.data.region,
         country: listingRes.data.country,
         style: listingRes.data.style,
         capacity: listingRes.data.capacity,
@@ -87,12 +117,12 @@ export async function fetchVenueKnowledgeLayer(venueId) {
       reviews: reviewsRes.data ? {
         total: reviewsRes.data.length,
         items: reviewsRes.data.map(r => ({
-          rating: r.rating,
-          content: r.content,
+          rating: r.overall_rating,
+          content: r.review_text,
           createdAt: r.created_at,
         })),
         averageRating: reviewsRes.data.length > 0
-          ? (reviewsRes.data.reduce((sum, r) => sum + (r.rating || 0), 0) / reviewsRes.data.length).toFixed(1)
+          ? (reviewsRes.data.reduce((sum, r) => sum + (r.overall_rating || 0), 0) / reviewsRes.data.length).toFixed(1)
           : null,
         ratingDistribution: calculateRatingDistribution(reviewsRes.data),
       } : {
@@ -477,6 +507,13 @@ export function calculateRecommendationScore(venue, knowledge) {
  * @returns {Array} Venues ranked for Aura discovery, with recommendation scores
  */
 export async function fetchRankedVenuesForDiscovery(options = {}) {
+  // Mark that service was called
+  if (typeof globalThis !== 'undefined') {
+    globalThis._serviceWasCalled = true;
+    globalThis._serviceCallTime = new Date().toISOString();
+  }
+  console.log('[SERVICE] fetchRankedVenuesForDiscovery called with:', options);
+
   const {
     limit = 12,
     minScore = 0,
@@ -485,29 +522,57 @@ export async function fetchRankedVenuesForDiscovery(options = {}) {
   } = options;
 
   try {
-    // Fetch all listings with minimal data
+    // Fetch all listings with basic columns (Phase 3 editorial columns added later)
+    if (typeof window !== 'undefined') {
+      window._auraLogs = window._auraLogs || [];
+      window._auraLogs.push('QUERY: Starting Supabase query for listings table');
+      window._auraLogs.push('QUERY_PARAMS: limit=' + (limit * 2) + ', columns=id,name,slug,city,region');
+    }
+
     let query = supabase
       .from('listings')
-      .select('id, name, slug, location, content_quality_score, editorial_approved, editorial_fact_checked, editorial_last_reviewed_at, editorial_enabled')
+      .select('*')
       .limit(limit * 2); // Fetch extra to account for filtering
-
-    // Filter by editorial_enabled if requested (Phase 4d: control toggles)
-    if (!includeNonEditorial) {
-      query = query.eq('editorial_enabled', true);
-    }
 
     const { data: listings, error } = await query;
 
+    const stage1Result = {
+      listedCount: listings?.length || 0,
+      dataType: typeof listings,
+      isArray: Array.isArray(listings),
+      error: error ? {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      } : null,
+      venueNames: listings?.map(l => l.name) || [],
+      fullListingsData: listings
+    };
+    console.log('[AURA] STAGE 1 - Supabase query complete:', stage1Result);
+    if (typeof window !== 'undefined') {
+      window._auraLogs.push('STAGE 1: ' + JSON.stringify(stage1Result));
+      localStorage.setItem('_auraDebug', JSON.stringify(window._auraLogs));
+    }
+
     if (error) {
-      console.error('fetchRankedVenuesForDiscovery error:', error);
+      console.error('[AURA] Query error at STAGE 1:', error);
+      if (typeof window !== 'undefined') {
+        window._auraLogs.push('ERROR_FULL: ' + JSON.stringify(error));
+        localStorage.setItem('_auraDebug', JSON.stringify(window._auraLogs));
+      }
       return [];
     }
 
     if (!listings || listings.length === 0) {
+      console.log('[AURA] STAGE 1 - No listings found in database');
       return [];
     }
 
+    console.log(`[AURA] STAGE 2 - Starting knowledge layer enrichment for ${listings.length} venues`);
+
     // Enrich with knowledge layers and calculate recommendation scores
+    const enrichmentResults = [];
     const rankedVenues = await Promise.all(
       listings.map(async (venue) => {
         try {
@@ -515,23 +580,108 @@ export async function fetchRankedVenuesForDiscovery(options = {}) {
           const recommendationScore = calculateRecommendationScore(venue, knowledge);
           const tier = getQualityTier(venue.content_quality_score || 0);
 
-          return {
+          // FALLBACK: If knowledge fetch failed, still return venue with basic data
+          const knowledgeOrFallback = knowledge || {
+            venue: {
+              id: venue.id,
+              name: venue.name,
+              city: venue.city,
+              region: venue.region,
+              country: venue.country,
+            },
+            content: {
+              contentQualityScore: venue.content_quality_score || 0,
+              approved: false,
+              factChecked: false,
+              contentScore: venue.content_quality_score || 0,
+            },
+            reviews: {
+              total: 0,
+              items: [],
+              averageRating: null,
+              ratingDistribution: {},
+            },
+            metadata: {
+              fetchedAt: new Date().toISOString(),
+              contentQualityLevel: getContentQualityLevel(venue.content_quality_score),
+              isApprovedEditorial: false,
+              hasCompleteSectionIntros: false,
+            }
+          };
+
+          const enrichedVenue = {
             ...venue,
-            knowledge,
+            knowledge: knowledgeOrFallback,
             tier,
             recommendationScore,
-            averageRating: knowledge?.reviews?.averageRating || 0,
+            averageRating: knowledgeOrFallback?.reviews?.averageRating || 0,
             approved: venue.editorial_approved || false,
           };
+
+          enrichmentResults.push({
+            venueId: venue.id,
+            name: venue.name,
+            success: !!knowledge,
+            hasKnowledge: !!knowledgeOrFallback,
+            usedFallback: !knowledge
+          });
+
+          return enrichedVenue;
         } catch (err) {
-          console.error(`Error enriching venue ${venue.id}:`, err);
-          return null;
+          console.error(`[ENRICHMENT ERROR] venue ${venue.id}: ${err.message}`);
+
+          // FALLBACK: Return minimal venue object on exception
+          const fallbackVenue = {
+            ...venue,
+            knowledge: {
+              venue: { id: venue.id, name: venue.name },
+              content: { contentScore: 0, approved: false },
+              reviews: { total: 0, items: [], averageRating: null },
+              metadata: { fetchedAt: new Date().toISOString(), isApprovedEditorial: false }
+            },
+            tier: getQualityTier(venue.content_quality_score || 0),
+            recommendationScore: calculateRecommendationScore(venue, null),
+            averageRating: 0,
+            approved: false,
+          };
+
+          enrichmentResults.push({
+            venueId: venue.id,
+            name: venue.name,
+            success: false,
+            hasKnowledge: true,
+            usedFallback: true,
+            error: err.message
+          });
+
+          return fallbackVenue;
         }
       })
     );
 
-    // Filter out null entries
-    let filtered = rankedVenues.filter(v => v && v.knowledge && v.knowledge.content.contentScore >= minScore);
+    const stage2Result = {
+      inputCount: listings.length,
+      outputCount: rankedVenues.length,
+      allEnriched: rankedVenues.length === listings.length,
+      venueNames: rankedVenues.map(v => v.name)
+    };
+    console.log('[AURA] STAGE 2 - After Promise.all enrichment:', stage2Result);
+    if (typeof window !== 'undefined') {
+      window._auraLogs.push('STAGE 2: ' + JSON.stringify(stage2Result));
+    }
+
+    // Filter out null entries and invalid knowledge (minScore filtering disabled for testing)
+    let filtered = rankedVenues.filter(v => v && v.knowledge);
+    const stage3Result = {
+      beforeFilterCount: rankedVenues.length,
+      afterFilterCount: filtered.length,
+      removedCount: rankedVenues.length - filtered.length,
+      remainingVenueNames: filtered.map(v => v.name)
+    };
+    console.log('[AURA] STAGE 3 - After filtering (nulls + knowledge):', stage3Result);
+    if (typeof window !== 'undefined') {
+      window._auraLogs.push('STAGE 3: ' + JSON.stringify(stage3Result));
+    }
 
     // Sort based on strategy
     if (sort === 'tier') {
@@ -569,8 +719,31 @@ export async function fetchRankedVenuesForDiscovery(options = {}) {
       filtered.sort((a, b) => b.recommendationScore - a.recommendationScore);
     }
 
-    // Return only requested limit
-    return filtered.slice(0, limit);
+    // Sort and slice to limit
+    const final = filtered.slice(0, limit);
+    const stage4Result = {
+      afterSortCount: filtered.length,
+      afterLimitCount: final.length,
+      requestedLimit: limit,
+      finalVenueNames: final.map(v => v.name)
+    };
+    console.log('[AURA] STAGE 4 - Final return from fetchRankedVenuesForDiscovery:', stage4Result);
+    if (typeof window !== 'undefined') {
+      window._auraLogs.push('STAGE 4: ' + JSON.stringify(stage4Result));
+    }
+
+    const journeyResult = {
+      stage1_listings: listings.length,
+      stage2_enriched: rankedVenues.length,
+      stage3_filtered: filtered.length,
+      stage4_final: final.length
+    };
+    console.log('[AURA] JOURNEY SUMMARY - listings → enrichment → filter → sort → final:', journeyResult);
+    if (typeof window !== 'undefined') {
+      window._auraLogs.push('JOURNEY: ' + JSON.stringify(journeyResult));
+      localStorage.setItem('_auraDebug', JSON.stringify(window._auraLogs));
+    }
+    return final;
   } catch (err) {
     console.error('fetchRankedVenuesForDiscovery exception:', err);
     return [];
