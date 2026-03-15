@@ -1,9 +1,11 @@
 // VenueContentEditorSection.jsx
 // Admin UI for managing venue content: section intros, visibility, and approval status
+// Tracks editorial ownership via updated_by field for content accountability
 
 import { useState, useEffect, useCallback } from 'react';
 import { saveVenueContent } from '../../../services/venueContentService';
 import { useBreakpoint } from '../../../hooks/useWindowWidth';
+import { supabase } from '../../../lib/supabaseClient';
 
 const SECTION_IDS = ['overview', 'spaces', 'dining', 'rooms', 'art', 'golf', 'weddings'];
 
@@ -53,6 +55,27 @@ export default function VenueContentEditorSection({
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
   const [saveTimeout, setSaveTimeout] = useState(null);
+  const [adminUserId, setAdminUserId] = useState(null);
+
+  // Get current admin user on mount (for editorial accountability)
+  useEffect(() => {
+    const getAdminUser = async () => {
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error) {
+          console.warn('Failed to get admin user:', error.message);
+          return;
+        }
+        if (user?.id) {
+          setAdminUserId(user.id);
+        }
+      } catch (err) {
+        console.warn('Error fetching admin user:', err.message);
+      }
+    };
+
+    getAdminUser();
+  }, []);
 
   // Initialize form with current content
   useEffect(() => {
@@ -124,7 +147,7 @@ export default function VenueContentEditorSection({
     [formData]
   );
 
-  // Save to database
+  // Save to database with admin user ID for editorial tracking
   const handleSave = async (data) => {
     if (!venueId) {
       setSaveStatus({ type: 'error', message: 'Venue ID is required' });
@@ -135,7 +158,8 @@ export default function VenueContentEditorSection({
     setSaveStatus(null);
 
     try {
-      const result = await saveVenueContent(venueId, data);
+      // Pass adminUserId to track who made the changes
+      const result = await saveVenueContent(venueId, data, adminUserId);
 
       if (result.error) {
         setSaveStatus({
