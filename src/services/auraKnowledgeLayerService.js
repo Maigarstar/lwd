@@ -531,7 +531,7 @@ export async function fetchRankedVenuesForDiscovery(options = {}) {
 
     let query = supabase
       .from('listings')
-      .select('id, name, slug, city, region')
+      .select('*')
       .limit(limit * 2); // Fetch extra to account for filtering
 
     const { data: listings, error } = await query;

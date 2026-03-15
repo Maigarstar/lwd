@@ -83,7 +83,7 @@ export default function AuraDiscoveryGrid({ minContentScore = 0, onVenueClick, l
         // TRACE: Mark top 3 as Aura Recommended
         const withRecommendationFlags = markAuraRecommendedVenues(rankedVenues, 3);
 
-        // TRACE: Add computed fields for display
+        // Add computed fields for display and map image fields
         const enriched = withRecommendationFlags.map(v => ({
           ...v,
           contentScore: v.knowledge?.content?.contentScore ?? 0,
@@ -91,6 +91,11 @@ export default function AuraDiscoveryGrid({ minContentScore = 0, onVenueClick, l
           averageRating: v.knowledge?.reviews?.averageRating || 0,
           tier: getQualityTier(v.content_quality_score || 0),
           recommendationScore: calculateRecommendationScore(v, v.knowledge),
+          // Map snake_case image fields from database to camelCase for component
+          heroImage: v.hero_image,
+          cardImage: v.card_image,
+          heroImageSet: v.hero_image_set,
+          galleryImages: v.gallery_images,
         }));
 
 
