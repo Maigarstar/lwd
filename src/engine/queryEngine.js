@@ -115,12 +115,21 @@ export function filterByResponseTime(venues, maxHours) {
 
 // ── rankByCuratedIndex ───────────────────────────────────────────────────────
 /**
- * Hydrates scores, then returns a new array sorted by item.lwdScore descending.
+ * Hydrates scores, applies editorial boost if present, then returns a new array sorted by item.lwdScore descending.
+ * Checks for _editorialBoost flag (set by recommendation engine for editorial prioritization).
  * @param {Object[]} venues
  * @returns {Object[]}
  */
 export function rankByCuratedIndex(venues) {
   hydrateScores(venues);
+
+  // Apply editorial boost if present (from Aura prioritization)
+  for (const venue of venues) {
+    if (venue._editorialBoost && typeof venue._editorialBoost === 'number') {
+      venue.lwdScore = (venue.lwdScore || 0) * venue._editorialBoost;
+    }
+  }
+
   return [...venues].sort((a, b) => (b.lwdScore || 0) - (a.lwdScore || 0));
 }
 
