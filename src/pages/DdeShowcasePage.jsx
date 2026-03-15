@@ -1000,8 +1000,6 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
       <section id="enquire">
         <div style={{ maxWidth: '480px', margin: '0 auto 48px', padding: '0 20px' }}>
           <VenueEnquiryForm
-            listingId="dde-auberge-collection"
-            venueId="dde-auberge-collection"
             vendorName="Domaine des Etangs"
             vendorEmail="dde.commercial@auberge.com"
             venueName="Domaine des Etangs"
