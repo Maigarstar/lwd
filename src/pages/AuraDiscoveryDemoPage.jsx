@@ -655,7 +655,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
 
           <div style={{
             marginTop: 40,
-            paddingTop: 32,
+            paddingTop: 48,
             borderTop: `1px solid ${borderColor}`,
             display: 'flex',
             flexDirection: 'column',
