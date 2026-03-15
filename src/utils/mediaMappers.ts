@@ -3,6 +3,14 @@
  * Used in listings.ts to build imgs[] and videoUrl from media_items database field
  */
 
+// Relative paths stored in the DB (e.g. "Six-Senses-Krabey-Island/hero.jpg")
+// must be served from the Vite public/ root, so they need a leading "/".
+function normaliseUrl(url: string): string {
+  if (!url) return ''
+  if (url.startsWith('http') || url.startsWith('/') || url.startsWith('blob:') || url.startsWith('data:')) return url
+  return '/' + url
+}
+
 /**
  * Transform mediaItems into structured image objects for card rendering
  * Filters for public images, sorts by featured/sort_order, returns {id, src, alt} objects
@@ -22,7 +30,7 @@ export function buildCardImgs(mediaItems: any[] = []): any[] {
     })
     .map(i => ({
       id: i.id || i.url,
-      src: i.url || i.src,
+      src: normaliseUrl(i.url || i.src),
       alt: i.alt_text || i.title || ''
     }))
 }

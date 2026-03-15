@@ -13,8 +13,8 @@ export async function getPlatformSetting(settingKey: string) {
   try {
     const { data, error } = await supabase
       .from('platform_settings')
-      .select('value')
-      .eq('key', settingKey)
+      .select('setting_value')
+      .eq('setting_key', settingKey)
       .single();
 
     if (error) {
@@ -26,7 +26,7 @@ export async function getPlatformSetting(settingKey: string) {
       return null;
     }
 
-    return data?.value;
+    return data?.setting_value;
   } catch (err) {
     console.error(`getPlatformSetting exception for ${settingKey}:`, err);
     return null;
@@ -42,8 +42,8 @@ export async function updatePlatformSetting(settingKey: string, settingValue: an
     const { data, error } = await supabase
       .from('platform_settings')
       .upsert(
-        { key: settingKey, value: settingValue },
-        { onConflict: 'key' }
+        { setting_key: settingKey, setting_value: settingValue },
+        { onConflict: 'setting_key' }
       )
       .select();
 
@@ -70,11 +70,7 @@ export async function isEditorialCurationEnabled(): Promise<boolean> {
       // Default to true if not set
       return true;
     }
-    // Setting is stored as JSON string 'true' or 'false', or as boolean
-    if (typeof setting === 'string') {
-      return setting === 'true';
-    }
-    return setting === true;
+    return setting.enabled === true;
   } catch (err) {
     console.error('isEditorialCurationEnabled exception:', err);
     return true; // Default to enabled on error
@@ -85,7 +81,7 @@ export async function isEditorialCurationEnabled(): Promise<boolean> {
  * Toggle editorial curation feature globally
  */
 export async function setEditorialCurationEnabled(enabled: boolean) {
-  return updatePlatformSetting('editorial_curation_enabled', enabled);
+  return updatePlatformSetting('editorial_curation_enabled', { enabled });
 }
 
 /**

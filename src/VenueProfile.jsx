@@ -6,6 +6,7 @@ import { fetchListingBySlug } from './services/listings';
 import { buildCardImgs, mapMediaItemToGalleryPhoto, buildVenueVideos } from './utils/mediaMappers';
 import ReviewsSection from './components/reviews/ReviewsSection';
 import ReviewSubmitForm from './components/reviews/ReviewSubmitForm';
+import VenueEnquiryForm from './components/enquiry/VenueEnquiryForm';
 
 function useIsMobile(bp = 768) {
   const [mobile, setMobile] = useState(() => window.innerWidth <= bp);
@@ -292,12 +293,30 @@ function getRVList() {
   try { return JSON.parse(localStorage.getItem(RV_KEY) || '[]'); } catch { return []; }
 }
 
-function recordVenueView(v) {
+function recordVenueView(v, slug) {
   try {
+    // Extract gallery photo or first image
+    let img = '';
+    if (v.imgs && Array.isArray(v.imgs) && v.imgs.length > 0) {
+      img = v.imgs[0];
+    } else if (v.gallery && typeof v.gallery === 'object') {
+      // If gallery is an object (from DB), extract src from first item
+      if (Array.isArray(v.gallery) && v.gallery.length > 0) {
+        img = v.gallery[0].src || v.gallery[0];
+      } else if (v.gallery.src) {
+        img = v.gallery.src;
+      }
+    }
+
     const entry = {
-      id: v.id, name: v.name, location: v.location,
-      rating: v.rating, price: v.priceFrom,
-      img: v.imgs?.[0] || v.gallery?.[0] || '',
+      id: v.id,
+      name: v.name,
+      location: v.location,
+      rating: v.rating,
+      price: v.priceFrom,
+      currency: v.priceCurrency || '£',
+      img: img,
+      slug: slug,
       viewedAt: Date.now(),
     };
     const updated = [entry, ...getRVList().filter(x => x.id !== entry.id)].slice(0, MAX_RV_STORED);
@@ -4987,17 +5006,19 @@ function SimilarVenues({ venue }) {
   if (venues.length === 0) return null;
 
   return (
-    <section id="you-might-also-love" style={{ marginBottom: 56 }}>
+    <section id="continue-exploring" style={{ marginBottom: 56 }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
-        <SectionHeading title="You Might Also Love" />
+        <SectionHeading title="Continue Exploring" />
       </div>
       <div style={{ fontFamily: FB, fontSize: 12, color: C.gold, marginBottom: 24, marginTop: -20 }}>
         ✦ Curated based on location, venue type &amp; capacity
       </div>
       {isMobile ? (
         <SliderNav className="venue-similar-slider" cardWidth={300} gap={12}>
-          {venues.map(({ location: loc, ...rest }) => (
-            <div key={rest.id} style={{ flex: "0 0 300px", scrollSnapAlign: "start" }}>
+          {venues.map(({ location: loc, slug, ...rest }) => (
+            <div key={rest.id} style={{ flex: "0 0 300px", scrollSnapAlign: "start" }} onClick={() => {
+              if (slug) window.location.href = `/wedding-venues/${slug}`;
+            }}>
               <GCardMobile
                 v={{ ...rest, region: loc, image: rest.img, priceFrom: rest.price }}
                 saved={false}
@@ -5011,6 +5032,9 @@ function SimilarVenues({ venue }) {
         <div style={{ display: "grid", gridTemplateColumns: `repeat(${venues.length}, 1fr)`, gap: 16 }}>
           {venues.map(v => (
             <div key={v.id} style={{ border: `1px solid ${C.border}`, background: C.surface, overflow: "hidden", cursor: "pointer", borderRadius: 2 }}
+              onClick={() => {
+                if (v.slug) window.location.href = `/wedding-venues/${v.slug}`;
+              }}
               onMouseEnter={e => e.currentTarget.style.boxShadow = C.shadowMd}
               onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
               <div style={{ overflow: "hidden", aspectRatio: "1/1" }}>
@@ -5026,7 +5050,7 @@ function SimilarVenues({ venue }) {
                     <Stars rating={v.rating} size={11} />
                     <span style={{ fontFamily: FB, fontSize: 12, color: C.textLight }}>{v.rating}</span>
                   </div>
-                  <span style={{ fontFamily: FD, fontSize: 16, color: C.gold }}>From {v.price}</span>
+                  <span style={{ fontFamily: FD, fontSize: 16, color: C.gold }}>From {fmtPrice(v.price, v.currency)}</span>
                 </div>
               </div>
             </div>
@@ -5046,9 +5070,9 @@ function RecentlyViewed({ venue }) {
   const [items, setItems] = useState([]);
 
   useEffect(() => {
-    // Read stored visits, exclude current venue, cap at 3
+    // Read stored visits, exclude current venue, filter out invalid entries, cap at 3
     const stored = getRVList()
-      .filter(v => v.id !== venue.id)
+      .filter(v => v.id !== venue.id && v.name && v.location)
       .slice(0, 3);
     setItems(stored);
   }, [venue.id]);
@@ -5066,8 +5090,10 @@ function RecentlyViewed({ venue }) {
       </div>
       {isMobile ? (
         <SliderNav className="venue-recent-slider" cardWidth={300} gap={12}>
-          {items.map(({ location: loc, img, price, ...rest }) => (
-            <div key={rest.id} style={{ flex: "0 0 300px", scrollSnapAlign: "start" }}>
+          {items.map(({ location: loc, img, price, slug, ...rest }) => (
+            <div key={rest.id} style={{ flex: "0 0 300px", scrollSnapAlign: "start" }} onClick={() => {
+              if (slug) window.location.href = `/wedding-venues/${slug}`;
+            }}>
               <GCardMobile
                 v={{ ...rest, region: loc, image: img, priceFrom: price }}
                 saved={false}
@@ -5081,6 +5107,9 @@ function RecentlyViewed({ venue }) {
         <div style={{ display: "grid", gridTemplateColumns: `repeat(${items.length}, 1fr)`, gap: 16 }}>
           {items.map(v => (
             <div key={v.id} style={{ border: `1px solid ${C.border}`, background: C.surface, overflow: "hidden", cursor: "pointer", borderRadius: 2 }}
+              onClick={() => {
+                if (v.slug) window.location.href = `/wedding-venues/${v.slug}`;
+              }}
               onMouseEnter={e => e.currentTarget.style.boxShadow = C.shadowMd}
               onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
               <div style={{ overflow: "hidden", aspectRatio: "1/1" }}>
@@ -5096,7 +5125,7 @@ function RecentlyViewed({ venue }) {
                     <Stars rating={v.rating} size={11} />
                     <span style={{ fontFamily: FB, fontSize: 12, color: C.textLight }}>{v.rating}</span>
                   </div>
-                  <span style={{ fontFamily: FD, fontSize: 16, color: C.gold }}>From {v.price}</span>
+                  <span style={{ fontFamily: FD, fontSize: 16, color: C.gold }}>From {fmtPrice(v.price, v.currency)}</span>
                 </div>
               </div>
             </div>
@@ -5911,7 +5940,12 @@ export default function VenueProfile({ onBack = null, slug = null }) {
   const VV = dbVenue ? { ...VENUE, ...dbVenue } : VENUE;
 
   // Record this venue visit for Recently Viewed tracking
-  useEffect(() => { recordVenueView(VENUE); }, []);
+  // Only record AFTER database has loaded with real data, not on mount with dummy data
+  useEffect(() => {
+    if (dbVenue && dbVenue.name && slug) {
+      recordVenueView(VV, slug);
+    }
+  }, [slug, dbVenue]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -5943,20 +5977,21 @@ export default function VenueProfile({ onBack = null, slug = null }) {
       try {
         const listing = await fetchListingBySlug(slug);
         if (!listing || ignore) return;
+        // All data is now camelCase from mapListingFromDb mapper
         const mapped = {
           id:        listing.id,
           name:      listing.name || VENUE.name,
-          tagline:   listing.heroTagline || listing.hero_tagline || VENUE.tagline,
+          tagline:   listing.heroTagline || VENUE.tagline,
           location:  [listing.city, listing.region].filter(Boolean).join(', ') || VENUE.location,
           country:   listing.country || VENUE.country,
-          priceFrom: listing.price_from || VENUE.priceFrom,
-          priceCurrency: listing.price_currency || listing.priceCurrency || '£',
-          capacity:  { ...VENUE.capacity, max: listing.capacity_max || VENUE.capacity?.max },
-          imgs:      buildCardImgs(listing.media_items || []).map(i => i.src).filter(Boolean).slice(0, 10),
-          verified:  !!listing.is_verified,
+          priceFrom: listing.priceFrom || VENUE.priceFrom,
+          priceCurrency: listing.priceCurrency || '£',
+          capacity:  { ...VENUE.capacity, max: listing.capacityMax || VENUE.capacity?.max },
+          imgs:      (listing.imgs || []).map(i => i.src).filter(Boolean).slice(0, 10),
+          verified:  !!listing.isVerified,
           venueType: { ...(VENUE.venueType || {}), features: listing.amenities || [], styles: listing.styles || [] },
-          description: listing.short_description || listing.card_summary || null,
-          gallery: (listing.media_items || [])
+          description: listing.shortDescription || listing.cardSummary || null,
+          gallery: (listing.mediaItems || [])
             .filter(i => i.type !== 'video' && i.type !== 'virtual_tour' && i.visibility !== 'private')
             .sort((a, b) => {
               if (a.is_featured && !b.is_featured) return -1;
@@ -5965,66 +6000,67 @@ export default function VenueProfile({ onBack = null, slug = null }) {
             })
             .map(item => mapMediaItemToGalleryPhoto(item))
             .filter(item => item.src) || VENUE.gallery,
-          rating:  listing.rating       ?? VENUE.rating,
-          reviews: listing.review_count ?? listing.reviewCount ?? VENUE.reviews,
+          rating:  listing.rating ?? VENUE.rating,
+          reviews: listing.reviewCount ?? VENUE.reviews,
           flag:    COUNTRY_FLAG[listing.country] || VENUE.flag,
           awards:  Array.isArray(listing.awards)
             ? listing.awards.map(a => typeof a === 'string' ? a : (a.award || a.title || a.issuer || '')).filter(Boolean)
             : [],
-          press:   Array.isArray(listing.press_features)
-            ? listing.press_features.map(p => typeof p === 'string' ? p : (p.outlet || p.title || '')).filter(Boolean)
+          press:   Array.isArray(listing.pressFeatures)
+            ? listing.pressFeatures.map(p => typeof p === 'string' ? p : (p.outlet || p.title || '')).filter(Boolean)
             : [],
-          videos:  Array.isArray(listing.media_items) ? buildVenueVideos(listing.media_items) : [],
-          accommodation: (listing.rooms_max_guests || listing.rooms_total || listing.rooms_description)
+          videos:  Array.isArray(listing.mediaItems) ? buildVenueVideos(listing.mediaItems) : [],
+          accommodation: (listing.roomsMaxGuests || listing.roomsTotal || listing.roomsDescription)
             ? {
-                type:              listing.rooms_accommodation_type || null,
-                totalRooms:        listing.rooms_total              || null,
-                totalSuites:       listing.rooms_suites             || null,
-                maxOvernightGuests:listing.rooms_max_guests         || null,
-                maxGuests:         listing.rooms_max_guests         || null,
-                minNightStay:      listing.rooms_min_stay           || null,
-                exclusiveUse:      !!listing.rooms_exclusive_use,
-                description:       listing.rooms_description        || null,
-                images:            Array.isArray(listing.rooms_images)
-                  ? listing.rooms_images
+                type:              listing.roomsAccommodationType || null,
+                totalRooms:        listing.roomsTotal || null,
+                totalSuites:       listing.roomsSuites || null,
+                maxOvernightGuests:listing.roomsMaxGuests || null,
+                maxGuests:         listing.roomsMaxGuests || null,
+                minNightStay:      listing.roomsMinStay || null,
+                exclusiveUse:      !!listing.roomsExclusiveUse,
+                description:       listing.roomsDescription || null,
+                images:            Array.isArray(listing.roomsImages)
+                  ? listing.roomsImages
                       .map(img => typeof img === 'string' ? img : (img.url || img.src || ''))
                       .filter(Boolean)
                   : [],
               }
             : null,
-          exclusiveUse: (listing.exclusive_use_price || listing.exclusive_use_description || listing.exclusive_use_enabled != null)
+          exclusiveUse: (listing.exclusiveUsePrice || listing.exclusiveUseDescription || listing.exclusiveUseEnabled != null)
             ? {
-                enabled:     listing.exclusive_use_enabled !== false,
-                title:       listing.exclusive_use_title       || 'Exclusive Use',
-                subtitle:    listing.exclusive_use_subtitle    || '',
-                from:        listing.exclusive_use_price       || null,
-                subline:     listing.exclusive_use_subline     || null,
-                description: listing.exclusive_use_description || null,
-                ctaText:     listing.exclusive_use_cta_text    || 'Enquire About Exclusive Use',
-                includes:    Array.isArray(listing.exclusive_use_includes) ? listing.exclusive_use_includes : [],
+                enabled:     listing.exclusiveUseEnabled !== false,
+                title:       listing.exclusiveUseTitle || 'Exclusive Use',
+                subtitle:    listing.exclusiveUseSubtitle || '',
+                from:        listing.exclusiveUsePrice || null,
+                subline:     listing.exclusiveUseSubline || null,
+                description: listing.exclusiveUseDescription || null,
+                ctaText:     listing.exclusiveUseCtaText || 'Enquire About Exclusive Use',
+                includes:    Array.isArray(listing.exclusiveUseIncludes) ? listing.exclusiveUseIncludes : [],
               }
             : null,
           showcaseUrl:      `/showcase/${slug}`,
           fullDescription:  listing.description || null,
-          readmoreEnabled:  !!listing.readmore_enabled,
-          openingHours: listing.opening_hours_enabled
+          readmoreEnabled:  !!listing.readmoreEnabled,
+          openingHours: listing.openingHoursEnabled
             ? {
                 enabled: true,
-                hours:   listing.opening_hours || {},
-                note:    listing.opening_hours_note || null,
+                hours:   listing.openingHours || {},
+                note:    listing.openingHoursNote || null,
               }
             : null,
-          responseTime: listing.contact_profile?.response_time || null,
-          responseRate: listing.contact_profile?.response_rate
-            ? String(listing.contact_profile.response_rate).replace('%', '')
-            : null,
-          weddingsHosted: listing.weddings_hosted ?? listing.weddingsHosted ?? null,
-          owner: (listing.contact_profile?.name) ? {
-            name:        listing.contact_profile.name  || null,
-            title:       listing.contact_profile.title || null,
-            bio:         listing.contact_profile.bio || listing.contact_profile.about || null,
-            photo:       listing.contact_profile.photo_url || listing.contact_profile.photo || null,
-            memberSince: listing.member_since || listing.memberSince || null,
+          responseTime: listing.contactProfile?.responseTime || null,
+          responseRate: (() => {
+            const rate = listing.contactProfile?.responseRate;
+            return rate ? String(rate).replace('%', '') : null;
+          })(),
+          weddingsHosted: listing.weddingsHosted || null,
+          owner: listing.contactProfile?.name ? {
+            name:        listing.contactProfile.name || null,
+            title:       listing.contactProfile.title || null,
+            bio:         listing.contactProfile.bio || listing.contactProfile.about || null,
+            photo:       listing.contactProfile.photoUrl || listing.contactProfile.photo || null,
+            memberSince: listing.memberSince || null,
           } : null,
           contact: {
             address: {
@@ -6034,9 +6070,9 @@ export default function VenueProfile({ onBack = null, slug = null }) {
               postcode:listing.postcode || '',
               country: listing.country  || '',
             },
-            phone:   listing.phone   || listing.contact_profile?.phone   || null,
-            email:   listing.email   || listing.contact_profile?.email   || null,
-            website: listing.website || listing.contact_profile?.website || null,
+            phone:   listing.phone   || listing.contactProfile?.phone   || null,
+            email:   listing.email   || listing.contactProfile?.email   || null,
+            website: listing.website || listing.contactProfile?.website || null,
             responseMetrics: {
               averageResponseHours: null,
               responseRatePercent:  null,
@@ -6046,28 +6082,30 @@ export default function VenueProfile({ onBack = null, slug = null }) {
             mapQuery: [listing.city, listing.region, listing.country].filter(Boolean).join(',+').replace(/ /g, '+'),
           },
           catering: (() => {
-            const hasCards = Array.isArray(listing.catering_cards) && listing.catering_cards.length > 0;
-            if (!hasCards && listing.catering_enabled == null) return null;
-            if (listing.catering_enabled === false) return null;
+            const cateringCards = listing.cateringCards || [];
+            const cateringEnabled = listing.cateringEnabled;
+            const hasCards = Array.isArray(cateringCards) && cateringCards.length > 0;
+            if (!hasCards && cateringEnabled == null) return null;
+            if (cateringEnabled === false) return null;
             return {
               enabled: true,
-              cards:   Array.isArray(listing.catering_cards)      ? listing.catering_cards      : [],
-              styles:  Array.isArray(listing.dining_menu_styles)  ? listing.dining_menu_styles  : [],
-              dietary: Array.isArray(listing.dining_dietary)      ? listing.dining_dietary       : [],
+              cards:   Array.isArray(cateringCards) ? cateringCards : [],
+              styles:  Array.isArray(listing.diningMenuStyles) ? listing.diningMenuStyles : [],
+              dietary: Array.isArray(listing.diningDietary) ? listing.diningDietary : [],
             };
           })(),
-          dining: (listing.dining_style || listing.dining_description || listing.dining_chef_name)
+          dining: (listing.diningStyle || listing.diningDescription || listing.diningChefName)
             ? {
-                style:                  listing.dining_style         || null,
-                chefName:               listing.dining_chef_name     || null,
-                inHouseCatering:        !!listing.dining_in_house,
-                externalCateringAllowed:!!listing.dining_external,
-                menuStyles:             Array.isArray(listing.dining_menu_styles)  ? listing.dining_menu_styles  : [],
-                dietaryOptions:         Array.isArray(listing.dining_dietary)      ? listing.dining_dietary      : [],
-                drinksOptions:          Array.isArray(listing.dining_drinks)       ? listing.dining_drinks       : [],
-                description:            listing.dining_description   || null,
-                menuImages:             Array.isArray(listing.dining_menu_images)
-                  ? listing.dining_menu_images.map(img =>
+                style:                  listing.diningStyle || null,
+                chefName:               listing.diningChefName || null,
+                inHouseCatering:        !!listing.diningInHouse,
+                externalCateringAllowed:!!listing.diningExternal,
+                menuStyles:             Array.isArray(listing.diningMenuStyles) ? listing.diningMenuStyles : [],
+                dietaryOptions:         Array.isArray(listing.diningDietary) ? listing.diningDietary : [],
+                drinksOptions:          Array.isArray(listing.diningDrinks) ? listing.diningDrinks : [],
+                description:            listing.diningDescription || null,
+                menuImages:             Array.isArray(listing.diningMenuImages)
+                  ? listing.diningMenuImages.map(img =>
                       typeof img === 'string'
                         ? { src: img, title: '' }
                         : { src: img.url || img.src || '', title: img.title || '' }
@@ -6092,16 +6130,16 @@ export default function VenueProfile({ onBack = null, slug = null }) {
                 floorPlanUrl: s.floorPlanUrl || null,
               }))
             : null,
-          faq: (listing.faq_categories && Array.isArray(listing.faq_categories) && listing.faq_categories.length > 0)
+          faq: (listing.faqCategories && Array.isArray(listing.faqCategories) && listing.faqCategories.length > 0)
             ? {
-                enabled:       listing.faq_enabled !== false,
-                title:         listing.faq_title    || 'FAQs',
-                subtitle:      listing.faq_subtitle || '',
-                ctaEnabled:    listing.faq_cta_enabled !== false,
-                ctaHeadline:   listing.faq_cta_headline   || null,
-                ctaSubtext:    listing.faq_cta_subtext     || null,
-                ctaButtonText: listing.faq_cta_button_text || null,
-                categories:    listing.faq_categories,
+                enabled:       listing.faqEnabled !== false,
+                title:         listing.faqTitle    || 'FAQs',
+                subtitle:      listing.faqSubtitle || '',
+                ctaEnabled:    listing.faqCtaEnabled !== false,
+                ctaHeadline:   listing.faqCtaHeadline   || null,
+                ctaSubtext:    listing.faqCtaSubtext     || null,
+                ctaButtonText: listing.faqCtaButtonText || null,
+                categories:    listing.faqCategories,
               }
             : null,
         };
@@ -6191,13 +6229,24 @@ export default function VenueProfile({ onBack = null, slug = null }) {
             <div className="lwd-sidebar" style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 137, alignSelf: "start" }}>
               {/* Zone 1, Owner card (only if owner data available) */}
               {VV.owner && VV.owner.name && <OwnerCard owner={VV.owner} venue={VV} />}
-              {/* Zone 2, Lead form (scrolls naturally) */}
+              {/* Zone 2, Venue enquiry form (lead gen) */}
+              <VenueEnquiryForm
+                listingId={VV.id}
+                venueId={VV.id}
+                vendorId={VV.vendorId || null}
+                vendorName={VV.name}
+                vendorEmail={VV.contactProfile?.email || VV.contact?.email || null}
+                venueName={VV.name}
+                responseTime={VV.responseTime}
+                sticky={false}
+              />
+              {/* Zone 3, Lead form (scrolls naturally) */}
               <LeadForm venue={VV} />
-              {/* Zone 3, Mini map + quick contact */}
+              {/* Zone 4, Mini map + quick contact */}
               <SidebarContact venue={VV} />
-              {/* Zone 4, Venue notices (open days, offers, late availability, news) */}
+              {/* Zone 5, Venue notices (open days, offers, late availability, news) */}
               <SidebarNotices notices={VV.notices} venueName={VV.name} />
-              {/* Zone 5, Instagram teaser (placeholder, to be connected to live feed) */}
+              {/* Zone 6, Instagram teaser (placeholder, to be connected to live feed) */}
               {/* <SidebarInstagram venue={VV} /> */}
             </div>
           </div>

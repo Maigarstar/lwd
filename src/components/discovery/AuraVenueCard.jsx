@@ -1,7 +1,6 @@
 // AuraVenueCard.jsx
-// Aura-powered venue discovery card showcasing editorial + AI intelligence
-// Combines: approved editorial, content quality, guest themes, AI highlights
-// Demonstrates the full power of the knowledge layer in a single component
+// Luxury editorial venue discovery card
+// Photography-focused design with subtle editorial signals
 
 import { useEffect, useState } from 'react';
 import { fetchVenueKnowledgeLayer, generateVenueSummary, extractVenueHighlights, analyzeReviewThemes } from '../../services/auraKnowledgeLayerService';
@@ -10,37 +9,21 @@ import TierBadge from '../editorial/TierBadge';
 import ApprovalIndicators from '../editorial/ApprovalIndicators';
 import FreshnessText from '../editorial/FreshnessText';
 
-/**
- * Format a timestamp as "X days ago"
- */
-function formatDaysAgo(timestamp) {
-  if (!timestamp) return null;
-  const now = new Date();
-  const date = new Date(timestamp);
-  const diffMs = now - date;
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  return diffDays;
-}
-
 export default function AuraVenueCard({ venue: venueObj, venueId, slug, onDetailsClick, onClick, isLight = true, editorialEnabled = true }) {
   const [knowledge, setKnowledge] = useState(null);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState(null);
-  const [highlights, setHighlights] = useState([]);
-  const [themes, setThemes] = useState(null);
 
   // Theme colors
   const bgColor = isLight ? '#ffffff' : '#2a2a2a';
   const textColor = isLight ? '#171717' : '#f5f2ec';
   const borderColor = isLight ? '#e4e0d8' : '#3a3a3a';
   const subtextColor = isLight ? '#6b6560' : '#a89f98';
-  const lightBg = isLight ? '#faf9f6' : '#242424';
 
   // Fetch and process venue knowledge on mount
   useEffect(() => {
     const loadVenueIntelligence = async () => {
       try {
-        // If venue object provided with knowledge already loaded, use that
         let k = venueObj?.knowledge;
         if (!k && venueId) {
           k = await fetchVenueKnowledgeLayer(venueId);
@@ -52,8 +35,6 @@ export default function AuraVenueCard({ venue: venueObj, venueId, slug, onDetail
 
         setKnowledge(k);
         setSummary(generateVenueSummary(k));
-        setHighlights(extractVenueHighlights(k));
-        setThemes(analyzeReviewThemes(k));
       } catch (err) {
         console.error('Failed to load venue intelligence:', err);
       } finally {
@@ -73,8 +54,12 @@ export default function AuraVenueCard({ venue: venueObj, venueId, slug, onDetail
         padding: 24,
         textAlign: 'center',
         color: '#6b6560',
+        minHeight: 300,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}>
-        Loading venue intelligence...
+        Loading...
       </div>
     );
   }
@@ -83,27 +68,28 @@ export default function AuraVenueCard({ venue: venueObj, venueId, slug, onDetail
     return null;
   }
 
-  const { venue, content, reviews } = knowledge;
-  const contentQuality = content.contentScore >= 90 ? 'premium' : content.contentScore >= 70 ? 'high' : content.contentScore >= 40 ? 'medium' : 'low';
-  const contentQualityColor = {
-    premium: '#15803d',
-    high: '#8f7420',
-    medium: '#a88338',
-    low: '#8a8078',
-  }[contentQuality];
-
-  // Calculate quality tier for Phase 4 editorial display
+  const { venue, content } = knowledge;
   const tier = getQualityTier(content.contentScore || 0);
 
   // Get primary image from venue object
   const primaryImage = venueObj?.heroImage || venueObj?.cardImage || (venueObj?.heroImageSet?.[0]) || null;
 
-  // Fallback placeholder image for luxury aesthetic
+  // Convert relative image paths to full Supabase Storage URLs
+  const resolveImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http') || imagePath.startsWith('data:')) {
+      return imagePath;
+    }
+    return `https://qpkggfibwreznussudfh.supabase.co/storage/v1/object/public/listing-media/${imagePath}`;
+  };
+
+  // Fallback placeholder image
   const fallbackImage = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Cdefs%3E%3ClinearGradient id="g1" x1="0%25" y1="0%25" x2="100%25" y2="100%25"%3E%3Cstop offset="0%25" style="stop-color:%23d4af37;stop-opacity:0.1" /%3E%3Cstop offset="100%25" style="stop-color:%238f7420;stop-opacity:0.1" /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill="%232a2a2a" width="400" height="300"/%3E%3Crect fill="url(%23g1)" width="400" height="300"/%3E%3Ctext x="50%25" y="45%25" font-family="Georgia, serif" font-size="24" fill="%23d4af37" text-anchor="middle" opacity="0.6"%3ELuxury Venue%3C/text%3E%3Ctext x="50%25" y="60%25" font-family="Georgia, serif" font-size="14" fill="%23a89f98" text-anchor="middle" opacity="0.5"%3EImage Coming Soon%3C/text%3E%3C/svg%3E';
-  const imageUrl = primaryImage || fallbackImage;
+  const imageUrl = resolveImageUrl(primaryImage) || fallbackImage;
 
   return (
     <div style={{
+      position: 'relative',
       background: bgColor,
       border: `1px solid ${borderColor}`,
       borderRadius: 8,
@@ -116,7 +102,7 @@ export default function AuraVenueCard({ venue: venueObj, venueId, slug, onDetail
     }}
     onMouseEnter={(e) => {
       e.currentTarget.style.borderColor = '#8f7420';
-      e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)';
+      e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.15)';
     }}
     onMouseLeave={(e) => {
       e.currentTarget.style.borderColor = borderColor;
@@ -124,255 +110,178 @@ export default function AuraVenueCard({ venue: venueObj, venueId, slug, onDetail
     }}
     onClick={() => onClick?.() || onDetailsClick?.(slug)}
     >
-      {/* Hero Image Section */}
+      {/* Large Hero Image - Photography is the hero */}
       <div style={{
         position: 'relative',
         width: '100%',
-        height: 200,
-        backgroundImage: `url(${imageUrl})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
+        height: 280,
+        overflow: 'hidden',
+        borderRadius: '8px 8px 0 0',
         display: 'flex',
         alignItems: 'flex-start',
-        justifyContent: 'flex-end',
-        padding: 12,
+        justifyContent: 'space-between',
+        padding: 16,
+        gap: 12,
       }}>
-        {/* Tier badge overlay - top right */}
-        {editorialEnabled && tier !== 'standard' && (
+        {/* Image with proper object-fit framing */}
+        <img
+          src={imageUrl}
+          alt={venue.name}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'center',
+            display: 'block',
+          }}
+        />
+
+        {/* Subtle overlay for contrast and depth */}
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(135deg, rgba(0,0,0,0.08) 0%, transparent 50%)',
+          pointerEvents: 'none',
+        }} />
+
+        {/* Score Badge - Top Left */}
+        <div style={{
+          position: 'relative',
+          zIndex: 10,
+          width: 40,
+          height: 40,
+          borderRadius: '50%',
+          background: 'rgba(26, 26, 26, 0.3)',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 11,
+          fontWeight: 600,
+          color: '#f5f2ec',
+          backdropFilter: 'blur(8px)',
+        }}>
+          {Math.round(content.contentScore || 0)}
+        </div>
+
+        {/* Tier badge overlay */}
+        {editorialEnabled && tier !== 'standard' && tier !== 'approved' && (
           <div style={{
+            position: 'relative',
             zIndex: 10,
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
+            filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.2))'
           }}>
             <TierBadge tier={tier} showLabel={true} size="sm" />
           </div>
         )}
       </div>
 
-      {/* Header with venue name and quality badge */}
-      <div style={{ padding: '16px 16px 12px', borderBottom: `1px solid ${borderColor}`, flex: 1 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
-          <div style={{ flex: 1 }}>
-            <h3 style={{
-              margin: 0,
-              fontFamily: 'var(--font-heading-primary)',
-              fontSize: 18,
-              fontWeight: 400,
-              color: textColor,
-            }}>
-              {venue.name}
-            </h3>
-            <p style={{
-              margin: '6px 0 0',
-              fontFamily: 'var(--font-body)',
-              fontSize: 13,
-              color: subtextColor,
-            }}>
-              {venue.location}
-            </p>
-          </div>
+      {/* Content Section - Clean and Editorial */}
+      <div style={{
+        padding: '24px 24px 20px',
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+      }}>
 
-          {/* Right column: Tier badge + Content quality score */}
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-end',
-            gap: 8,
+        {/* Venue Name and Location */}
+        <div style={{ marginBottom: 16 }}>
+          <h3 style={{
+            margin: 0,
+            fontFamily: 'var(--font-heading-primary)',
+            fontSize: 20,
+            fontWeight: 400,
+            color: textColor,
+            lineHeight: 1.3,
           }}>
-            {/* Tier badge (Phase 4) - Hidden if editorial curation disabled globally or per-venue */}
-            {editorialEnabled && <TierBadge tier={tier} showLabel={true} size="sm" />}
-
-            {/* Content quality badge */}
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 6,
-            }}>
-              <div style={{
-                width: 48,
-                height: 48,
-                borderRadius: '50%',
-                background: contentQualityColor,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#ffffff',
-                fontFamily: 'var(--font-body)',
-                fontSize: 14,
-                fontWeight: 600,
-              }}>
-                {content.contentScore}
-              </div>
-              <span style={{
-                fontFamily: 'var(--font-body)',
-                fontSize: 11,
-                color: '#6b6560',
-                textTransform: 'uppercase',
-                letterSpacing: 0.5,
-                fontWeight: 600,
-              }}>
-                {contentQuality}
-              </span>
-            </div>
-          </div>
+            {venue.name}
+          </h3>
+          <p style={{
+            margin: '8px 0 0',
+            fontFamily: 'var(--font-body)',
+            fontSize: 12,
+            color: subtextColor,
+            letterSpacing: '0.5px',
+            textTransform: 'uppercase',
+          }}>
+            {venue.location}
+          </p>
         </div>
 
-        {/* Phase 4b: Approval indicators and freshness (Phase 4d: Respect editorial_enabled toggle) */}
-        {editorialEnabled && (
-          <div style={{ marginTop: 12 }}>
-            {/* Approval badges */}
-            <ApprovalIndicators
-              approved={content.editorial_approved || content.approved}
-              factChecked={content.editorial_fact_checked || content.factChecked}
-              layout="horizontal"
-            />
-
-            {/* Freshness indicator */}
-            {(content.editorial_approved || content.approved) && (
-              <div style={{ marginTop: content.editorial_approved || content.approved ? 8 : 0 }}>
-                <FreshnessText
-                  lastReviewedAt={content.editorial_last_reviewed_at || content.lastReviewedAt}
-                  color={subtextColor}
-                  fontSize={11}
-                />
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Editorial summary */}
-      {summary.summary && (
-        <div style={{ padding: '16px 24px', borderBottom: '1px solid #f0ede5' }}>
+        {/* Editorial Summary - Subtle description */}
+        {summary.summary && (
           <p style={{
             margin: 0,
             fontFamily: 'var(--font-body)',
             fontSize: 13,
             lineHeight: 1.6,
-            color: '#4a4540',
+            color: subtextColor,
+            marginBottom: 16,
           }}>
-            {summary.summary.length > 180 ? `${summary.summary.substring(0, 180)}...` : summary.summary}
+            {summary.summary.length > 160 ? `${summary.summary.substring(0, 160)}...` : summary.summary}
           </p>
-        </div>
-      )}
+        )}
 
-      {/* Highlights grid */}
-      {highlights.length > 0 && (
-        <div style={{ padding: '16px 24px', borderBottom: '1px solid #f0ede5' }}>
-          <p style={{
-            margin: '0 0 12px',
-            fontFamily: 'var(--font-body)',
-            fontSize: 11,
-            textTransform: 'uppercase',
-            letterSpacing: 0.5,
-            color: '#6b6560',
-            fontWeight: 600,
-          }}>
-            Key Highlights
-          </p>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
-            gap: 8,
-          }}>
-            {highlights.slice(0, 4).map((highlight, idx) => (
-              <div
-                key={idx}
-                style={{
-                  padding: '8px 12px',
-                  background: '#faf9f6',
-                  border: '1px solid #f0ede5',
-                  borderRadius: 4,
-                  fontFamily: 'var(--font-body)',
-                  fontSize: 12,
-                  color: '#4a4540',
-                  fontWeight: 500,
-                  textAlign: 'center',
-                }}
-              >
-                {highlight}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Reviews & themes */}
-      <div style={{ padding: '16px 24px', borderBottom: '1px solid #f0ede5' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            {reviews.averageRating && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{
-                  fontFamily: 'var(--font-body)',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: '#171717',
-                }}>
-                  {reviews.averageRating}
-                </span>
-                <span style={{
-                  fontFamily: 'var(--font-body)',
-                  fontSize: 13,
-                  color: '#6b6560',
-                }}>
-                  {reviews.total > 0 ? `from ${reviews.total} reviews` : 'No reviews yet'}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Top themes from reviews */}
-        {themes && themes.topThemes.length > 0 && (
-          <div style={{ marginTop: 12 }}>
-            <p style={{
-              margin: '0 0 8px',
-              fontFamily: 'var(--font-body)',
-              fontSize: 11,
-              color: '#6b6560',
-              textTransform: 'uppercase',
-              letterSpacing: 0.5,
-              fontWeight: 600,
-            }}>
-              Guest Praise Themes
-            </p>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {themes.topThemes.slice(0, 3).map((theme, idx) => (
-                <span
-                  key={idx}
-                  style={{
-                    padding: '4px 10px',
-                    background: '#f5f2ec',
-                    borderRadius: 12,
-                    fontFamily: 'var(--font-body)',
-                    fontSize: 11,
-                    color: '#4a4540',
-                    fontWeight: 500,
-                  }}
-                >
-                  {theme.theme} ({theme.percentage}%)
-                </span>
-              ))}
+        {/* Editorial Metadata - Approval and Freshness */}
+        {editorialEnabled && (content.editorial_approved || content.approved) && (
+          <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: 12, color: subtextColor, fontWeight: 400, fontStyle: 'italic' }}>
+              <FreshnessText
+                lastReviewedAt={content.editorial_last_reviewed_at || content.lastReviewedAt}
+                color={subtextColor}
+              />
             </div>
+            <span style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: '#10b981',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              whiteSpace: 'nowrap',
+            }}>
+              <span>✓</span>
+              <span>Approved</span>
+            </span>
           </div>
         )}
-      </div>
 
-      {/* Footer CTA */}
-      <div style={{
-        padding: '12px 24px',
-        background: '#faf9f6',
-        textAlign: 'center',
-      }}>
-        <span style={{
-          fontFamily: 'var(--font-body)',
-          fontSize: 13,
-          color: '#8f7420',
-          fontWeight: 600,
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+
+        {/* CTA Link - Minimal, Editorial */}
+        <div style={{
+          paddingTop: 16,
+          borderTop: `1px solid ${borderColor}`,
         }}>
-          View Full Profile ↗
-        </span>
+          <a style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: 13,
+            fontWeight: 500,
+            color: '#8f7420',
+            textDecoration: 'none',
+            letterSpacing: '0.5px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.gap = '10px';
+            e.target.style.color = '#a89f98';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.gap = '6px';
+            e.target.style.color = '#8f7420';
+          }}
+          >
+            Discover More
+            <span style={{ fontSize: 12 }}>→</span>
+          </a>
+        </div>
       </div>
     </div>
   );

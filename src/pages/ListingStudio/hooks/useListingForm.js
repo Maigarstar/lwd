@@ -164,7 +164,9 @@ export const useListingForm = (listingId = null) => {
         try {
           setLoading(true);
           // Convert snake_case DB row → camelCase so all field references below work
-          const listing = snakeToCamel(await fetchListingById(listingId));
+          const rawFromService = await fetchListingById(listingId);
+          // Convert snake_case DB row to camelCase for form field references
+          const listing = snakeToCamel(rawFromService);
 
           // ── hero_images: prefer rich JSONB array, fall back to legacy single heroImage ──
           const heroImagesFromDb = Array.isArray(listing.heroImages) && listing.heroImages.length > 0
@@ -327,6 +329,15 @@ export const useListingForm = (listingId = null) => {
             status: listing.status || 'draft',
             published_at: listing.publishedAt || null,
             visibility: listing.isHidden ? 'private' : (listing.visibility || 'public'),
+            // ── Editorial Content Layer (Phase 3) ─────────────────────────────────────
+            hero_summary: listing.heroSummary || null,
+            section_intros: (listing.sectionIntros && typeof listing.sectionIntros === 'object') ? listing.sectionIntros : { overview: '', spaces: '', dining: '', rooms: '', art: '', weddings: '' },
+            editorial_approved: listing.editorialApproved ?? false,
+            editorial_fact_checked: listing.editorialFactChecked ?? false,
+            editorial_last_reviewed_at: listing.editorialLastReviewedAt || null,
+            editorial_last_reviewed_by: listing.editorialLastReviewedBy || null,
+            refresh_notes: listing.refreshNotes || null,
+            content_quality_score: listing.contentQualityScore || 0,
           });
           setHasChanges(false);
         } catch (err) {

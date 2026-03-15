@@ -21,6 +21,7 @@ import {
 } from '../components/cards/editorial';
 import { GD, NU, S, GOLD } from '../components/cards/editorial';
 import { useBreakpoint } from '../hooks/useWindowWidth';
+import SiteFooter from '../components/sections/SiteFooter';
 
 // ── Grand Tirolia photos ──────────────────────────────────────────────────────
 const GT = {
@@ -808,12 +809,7 @@ export default function EditorialShowcase() {
         />
       </div>
 
-    {/* Footer note */}
-    <div style={{ textAlign: 'center', padding: '40px', borderTop: '1px solid rgba(0,0,0,0.08)', background: '#ffffff' }}>
-      <p style={{ fontFamily: NU, fontSize: 12, color: '#555', margin: 0 }}>
-        Editorial Card System · 13 types · Grand Tirolia showcase
-      </p>
-    </div>
+    <SiteFooter footerNav={{}} />
 
   </div>
   );

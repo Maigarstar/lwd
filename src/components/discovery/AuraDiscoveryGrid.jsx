@@ -295,7 +295,7 @@ export default function AuraDiscoveryGrid({ minContentScore = 0, onVenueClick, l
             <AuraVenueCard
               key={venue.id}
               venue={venue}
-              onClick={() => onVenueClick && onVenueClick(venue)}
+              onClick={() => onVenueClick && onVenueClick(venue.slug)}
               isLight={isLight}
             />
           ))}

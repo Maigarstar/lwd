@@ -49,6 +49,53 @@ function snakeToCamel(obj: any): any {
 }
 
 /**
+ * Central mapper: Converts raw Supabase listing (snake_case) to frontend format (camelCase)
+ *
+ * This is the single point where all snake_case → camelCase conversion happens.
+ * All UI components consume camelCase only. No dual access patterns in components.
+ *
+ * @param rawListing - Raw snake_case data from Supabase
+ * @returns Clean camelCase Listing object for UI consumption
+ */
+export function mapListingFromDb(rawListing: any): Listing {
+  if (!rawListing) return {} as Listing;
+
+  // Convert all fields from snake_case to camelCase
+  const listing = snakeToCamel(rawListing) as Listing;
+
+  // Normalize media URLs: prepend "/" to relative paths for public folder access
+  if (Array.isArray(listing.mediaItems)) {
+    listing.mediaItems = listing.mediaItems.map((item: any) => ({
+      ...item,
+      url: item.url ? normaliseUrl(item.url) : item.url,
+      src: item.src ? normaliseUrl(item.src) : item.src,
+    }));
+  }
+
+  // Build imgs array from media_items for display
+  if (Array.isArray(listing.mediaItems) && !listing.imgs) {
+    listing.imgs = buildCardImgs(listing.mediaItems);
+  }
+
+  // Build video URL from media_items
+  if (Array.isArray(listing.mediaItems) && !listing.videoUrl) {
+    listing.videoUrl = buildCardVideoUrl(listing.mediaItems) ?? undefined;
+  }
+
+  return listing;
+}
+
+/**
+ * Normalize URL: prepend "/" to relative paths for public folder access
+ * External URLs (http, blob, data) pass through unchanged
+ */
+function normaliseUrl(url: string): string {
+  if (!url) return '';
+  if (url.startsWith('http') || url.startsWith('/') || url.startsWith('blob:') || url.startsWith('data:')) return url;
+  return '/' + url;
+}
+
+/**
  * Calculate content quality score (0-100) based on editorial completeness
  * Score breakdown:
  * - Section intros completed: 0-40 points (N filled sections / 6 max)
@@ -739,7 +786,8 @@ export async function createListing(data: Listing) {
     // Fire-and-forget: sync rich media metadata into AI search index
     syncMediaAIIndex(listing.id, data)
 
-    return listing as Listing
+    // Convert snake_case database response back to camelCase for frontend
+    return snakeToCamel(listing) as Listing
   } catch (error) {
     console.error('Error creating listing:', error)
     throw error
@@ -808,7 +856,8 @@ export async function updateListing(id: string, data: Partial<Listing>) {
     // Fire-and-forget: sync rich media metadata into AI search index
     syncMediaAIIndex(listing.id, data)
 
-    return listing as Listing
+    // Convert snake_case database response back to camelCase for frontend
+    return snakeToCamel(listing) as Listing
   } catch (error) {
     console.error('Error updating listing:', error)
     console.error('Error stack:', error instanceof Error ? error.stack : 'N/A')
@@ -833,7 +882,8 @@ export async function fetchListingById(id: string) {
       .single()
 
     if (error) throw error
-    return listing as Listing
+    // Map raw DB data to camelCase frontend format (single point of conversion)
+    return mapListingFromDb(listing)
   } catch (error) {
     console.error('Error fetching listing:', error)
     throw error
@@ -857,7 +907,8 @@ export async function fetchListingBySlug(slug: string) {
       .single()
 
     if (error) throw error
-    return listing as Listing
+    // Map raw DB data to camelCase frontend format (single point of conversion)
+    return mapListingFromDb(listing)
   } catch (error) {
     console.error('Error fetching listing by slug:', error)
     throw error

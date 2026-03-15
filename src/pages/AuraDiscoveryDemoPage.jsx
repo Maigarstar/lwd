@@ -13,11 +13,15 @@
 
 import { useState, useEffect } from 'react';
 import AuraDiscoveryGrid from '../components/discovery/AuraDiscoveryGrid';
+import { useChat } from '../chat/ChatContext';
+import HomeNav from '../components/nav/HomeNav';
+import SiteFooter from '../components/sections/SiteFooter';
 
 export default function AuraDiscoveryDemoPage({ onViewVenue }) {
+  const { openMiniBar } = useChat();
   const [isLight, setIsLight] = useState(() => {
     const saved = localStorage.getItem('aura-discovery-light-mode');
-    return saved !== null ? JSON.parse(saved) : true;
+    return saved !== null ? JSON.parse(saved) : false;
   });
 
   useEffect(() => {
@@ -31,15 +35,40 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
   const subtextColor = isLight ? '#6b6560' : '#a89f98';
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: bgColor,
-      padding: '64px 24px',
-      transition: 'background 0.3s ease, color 0.3s ease',
-    }}>
+    <>
+      <style>{`
+        @keyframes auraPulse {
+          0%, 100% {
+            box-shadow: 0 0 40px rgba(143, 116, 32, 0.4), 0 0 80px rgba(143, 116, 32, 0.15), inset 0 0 20px rgba(143, 116, 32, 0.15);
+            border-color: #8f7420;
+          }
+          50% {
+            box-shadow: 0 0 60px rgba(143, 116, 32, 0.7), 0 0 120px rgba(143, 116, 32, 0.3), inset 0 0 30px rgba(143, 116, 32, 0.25);
+            border-color: #c9a84c;
+          }
+        }
+
+        .aura-certified-badge {
+          animation: auraPulse 3s ease-in-out infinite;
+        }
+      `}</style>
+      <HomeNav
+        darkMode={!isLight}
+        onToggleDark={() => setIsLight(!isLight)}
+        onVendorLogin={() => window.location.href = '/admin'}
+        onNavigateStandard={() => window.location.href = '/'}
+        onNavigateAbout={() => window.location.href = '/'}
+      />
+      <div style={{
+        background: bgColor,
+        transition: 'background 0.3s ease, color 0.3s ease',
+        paddingTop: '110px',
+        paddingBottom: '0',
+      }}>
       <div style={{
         maxWidth: 1400,
         margin: '0 auto',
+        padding: '0 24px 24px 24px',
       }}>
         {/* Dark mode toggle */}
         <div style={{
@@ -77,7 +106,9 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
           marginBottom: 64,
           textAlign: 'center',
         }}>
-          <div style={{
+          <div
+            className="aura-certified-badge"
+            style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: 8,
@@ -309,9 +340,43 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
           </div>
         </div>
 
+        {/* Discovery intro line */}
+        <div style={{
+          marginBottom: 32,
+          textAlign: 'center',
+        }}>
+          <p style={{
+            margin: 0,
+            fontFamily: 'var(--font-body)',
+            fontSize: 13,
+            color: subtextColor,
+            textTransform: 'uppercase',
+            letterSpacing: 0.5,
+            fontWeight: 600,
+          }}>
+            Showing venues ranked by editorial quality and guest experience
+          </p>
+        </div>
+
+        {/* Main discovery grid */}
+        <AuraDiscoveryGrid
+          minContentScore={0}
+          isLight={isLight}
+          onVenueClick={(slug) => {
+            if (onViewVenue) {
+              onViewVenue({ slug });
+            } else {
+              // Fallback: navigate directly
+              window.location.href = `/showcase/${slug}`;
+            }
+          }}
+          limit={20}
+        />
+
         {/* Why Venues Join */}
         <div style={{
           marginBottom: 64,
+          marginTop: 64,
           padding: 32,
           background: isLight ? 'rgba(255, 255, 255, 0.5)' : 'rgba(42, 42, 42, 0.4)',
           border: `1px solid ${isLight ? 'rgba(228, 224, 216, 0.8)' : 'rgba(58, 58, 58, 0.6)'}`,
@@ -348,6 +413,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
             gap: 24,
+            marginBottom: 40,
           }}>
             {[
               {
@@ -369,10 +435,6 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
               {
                 title: 'Quality Visibility',
                 description: 'Higher editorial quality scores receive stronger visibility across discovery pages and featured positions.',
-              },
-              {
-                title: 'Motivated Partners',
-                description: 'The platform encourages venues to improve listings continuously to maintain and increase visibility.',
               },
             ].map((benefit, idx) => (
               <div key={idx} style={{
@@ -403,40 +465,35 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
               </div>
             ))}
           </div>
-        </div>
 
-        {/* Discovery intro line */}
-        <div style={{
-          marginBottom: 32,
-          textAlign: 'center',
-        }}>
-          <p style={{
-            margin: 0,
-            fontFamily: 'var(--font-body)',
-            fontSize: 13,
-            color: subtextColor,
-            textTransform: 'uppercase',
-            letterSpacing: 0.5,
-            fontWeight: 600,
+          <div style={{
+            textAlign: 'center',
+            paddingTop: 32,
+            borderTop: `1px solid ${isLight ? 'rgba(228, 224, 216, 0.5)' : 'rgba(58, 58, 58, 0.4)'}`,
           }}>
-            Showing venues ranked by editorial quality and guest experience
-          </p>
+            <h3 style={{
+              margin: '0 0 12px',
+              fontFamily: 'var(--font-heading-primary)',
+              fontSize: 16,
+              fontWeight: 400,
+              color: textColor,
+            }}>
+              A Platform That Rewards Quality
+            </h3>
+            <p style={{
+              margin: 0,
+              fontFamily: 'var(--font-body)',
+              fontSize: 13,
+              color: subtextColor,
+              lineHeight: 1.7,
+              maxWidth: 600,
+              marginLeft: 'auto',
+              marginRight: 'auto',
+            }}>
+              The platform encourages venues to improve listings continuously to maintain and increase visibility.
+            </p>
+          </div>
         </div>
-
-        {/* Main discovery grid */}
-        <AuraDiscoveryGrid
-          minContentScore={0}
-          isLight={isLight}
-          onVenueClick={(slug) => {
-            if (onViewVenue) {
-              onViewVenue({ slug });
-            } else {
-              // Fallback: navigate directly
-              window.location.href = `/showcase/${slug}`;
-            }
-          }}
-          limit={20}
-        />
 
         {/* What Aura Does - Knowledge Layer Section */}
         <div style={{
@@ -598,19 +655,21 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             Start by telling Aura what you're looking for. It will guide you to the right venue.
           </p>
 
-          <button style={{
-            padding: '14px 32px',
-            background: '#8f7420',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: 6,
-            fontFamily: 'var(--font-heading-primary)',
-            fontSize: 16,
-            fontWeight: 400,
-            cursor: 'pointer',
-            transition: 'all 0.3s ease',
-            boxShadow: '0 8px 24px rgba(143, 116, 32, 0.25)',
-          }}
+          <button
+            onClick={openMiniBar}
+            style={{
+              padding: '14px 32px',
+              background: '#8f7420',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: 6,
+              fontFamily: 'var(--font-heading-primary)',
+              fontSize: 16,
+              fontWeight: 400,
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 8px 24px rgba(143, 116, 32, 0.25)',
+            }}
             onMouseEnter={(e) => {
               e.currentTarget.style.opacity = '0.9';
               e.currentTarget.style.boxShadow = '0 12px 32px rgba(143, 116, 32, 0.35)';
@@ -625,10 +684,11 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
 
           <div style={{
             marginTop: 40,
-            paddingTop: 32,
+            paddingTop: 48,
             borderTop: `1px solid ${borderColor}`,
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
             gap: 16,
           }}>
             <p style={{
@@ -639,41 +699,47 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
               textTransform: 'uppercase',
               letterSpacing: 0.5,
               fontWeight: 600,
-              gridColumn: '1 / -1',
             }}>
               Try asking about
             </p>
-            {[
-              'Lake Como weddings',
-              'Venues with gardens',
-              'Multi-day celebrations',
-              'Intimate settings',
-            ].map((prompt, idx) => (
-              <div
-                key={idx}
-                style={{
-                  padding: 12,
-                  background: isLight ? 'rgba(143, 116, 32, 0.08)' : 'rgba(143, 116, 32, 0.12)',
-                  border: `1px solid rgba(143, 116, 32, 0.2)`,
-                  borderRadius: 6,
-                  fontFamily: 'var(--font-body)',
-                  fontSize: 13,
-                  color: textColor,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = isLight ? 'rgba(143, 116, 32, 0.12)' : 'rgba(143, 116, 32, 0.18)';
-                  e.currentTarget.style.borderColor = 'rgba(143, 116, 32, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = isLight ? 'rgba(143, 116, 32, 0.08)' : 'rgba(143, 116, 32, 0.12)';
-                  e.currentTarget.style.borderColor = 'rgba(143, 116, 32, 0.2)';
-                }}
-              >
-                {prompt}
-              </div>
-            ))}
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              gap: 16,
+            }}>
+              {[
+                'Lake Como weddings',
+                'Venues with gardens',
+                'Multi-day celebrations',
+                'Intimate settings',
+              ].map((prompt, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    padding: 12,
+                    background: isLight ? 'rgba(143, 116, 32, 0.08)' : 'rgba(143, 116, 32, 0.12)',
+                    border: `1px solid rgba(143, 116, 32, 0.2)`,
+                    borderRadius: 6,
+                    fontFamily: 'var(--font-body)',
+                    fontSize: 13,
+                    color: textColor,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = isLight ? 'rgba(143, 116, 32, 0.12)' : 'rgba(143, 116, 32, 0.18)';
+                    e.currentTarget.style.borderColor = 'rgba(143, 116, 32, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = isLight ? 'rgba(143, 116, 32, 0.08)' : 'rgba(143, 116, 32, 0.12)';
+                    e.currentTarget.style.borderColor = 'rgba(143, 116, 32, 0.2)';
+                  }}
+                >
+                  {prompt}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -719,6 +785,9 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
           </p>
         </div>
       </div>
-    </div>
+      </div>
+
+      <SiteFooter footerNav={{}} />
+    </>
   );
 }
