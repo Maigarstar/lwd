@@ -81,11 +81,13 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             display: 'inline-flex',
             alignItems: 'center',
             gap: 8,
-            padding: '8px 12px',
-            background: isLight ? '#f5f2ec' : '#2a2a2a',
-            border: `1px solid ${borderColor}`,
-            borderRadius: 6,
+            padding: '12px 16px',
+            background: isLight ? 'rgba(255, 255, 255, 0.6)' : 'rgba(42, 42, 42, 0.6)',
+            border: `1.5px solid #8f7420`,
+            borderRadius: 8,
             marginBottom: 24,
+            boxShadow: isLight ? '0 0 20px rgba(143, 116, 32, 0.15)' : '0 0 20px rgba(143, 116, 32, 0.25)',
+            backdropFilter: 'blur(8px)',
           }}>
             <span style={{
               fontFamily: 'var(--font-body)',
@@ -93,9 +95,9 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
               color: '#8f7420',
               fontWeight: 600,
               textTransform: 'uppercase',
-              letterSpacing: 0.5,
+              letterSpacing: 1,
             }}>
-              ✨ Powered by Aura AI
+              Aura Certified Discovery
             </span>
           </div>
 
@@ -107,7 +109,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             color: textColor,
             lineHeight: 1.2,
           }}>
-            Discover Venues Curated by Intelligence
+            Discover Extraordinary Wedding Venues Curated by Editorial Intelligence
           </h1>
 
           <p style={{
@@ -120,8 +122,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             marginLeft: 'auto',
             marginRight: 'auto',
           }}>
-            Every venue is ranked by editorial quality, approval status, and guest experiences.
-            Only the most vetted, complete properties. No weak content. No filler.
+            Every venue is evaluated by editorial quality, approval status, and real guest experience. Only the most complete and trusted venues appear.
           </p>
         </div>
 
@@ -150,32 +151,39 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
           }}>
             {[
               {
-                title: 'Content Quality Score',
+                title: 'Content Intelligence',
                 description: 'Each venue is scored 0-100 based on editorial completeness, fact-checking, and approval status. Only high-quality content gets featured.',
-                icon: '📊',
               },
               {
-                title: 'Approved Editorial',
+                title: 'Editorial Approval',
                 description: 'Section intros and descriptions are written by our editorial team, fact-checked against verified sources, and approved before display.',
-                icon: '✓',
               },
               {
-                title: 'Guest Intelligence',
+                title: 'Guest Insight',
                 description: 'We analyze thousands of reviews to extract common themes, sentiment patterns, and what couples truly love about each venue.',
-                icon: '⭐',
               },
               {
-                title: 'Intentional Curation',
+                title: 'Curated Selection',
                 description: 'Weak or missing sections are hidden. No filler content. Every section shown is genuinely complete and strong.',
-                icon: '👑',
               },
             ].map((feature, idx) => (
               <div key={idx}>
                 <div style={{
-                  fontSize: 32,
-                  marginBottom: 12,
+                  width: 48,
+                  height: 48,
+                  borderRadius: '50%',
+                  background: 'rgba(143, 116, 32, 0.1)',
+                  border: '1.5px solid #8f7420',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 18,
+                  fontWeight: 600,
+                  color: '#8f7420',
+                  marginBottom: 16,
                 }}>
-                  {feature.icon}
+                  {idx + 1}
                 </div>
                 <h3 style={{
                   margin: '0 0 8px',
@@ -215,7 +223,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             fontWeight: 400,
             color: textColor,
           }}>
-            Understanding Content Scores
+            Editorial Quality Scores
           </h2>
 
           <div style={{
@@ -294,6 +302,24 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
           </div>
         </div>
 
+        {/* Discovery intro line */}
+        <div style={{
+          marginBottom: 32,
+          textAlign: 'center',
+        }}>
+          <p style={{
+            margin: 0,
+            fontFamily: 'var(--font-body)',
+            fontSize: 13,
+            color: subtextColor,
+            textTransform: 'uppercase',
+            letterSpacing: 0.5,
+            fontWeight: 600,
+          }}>
+            Showing venues ranked by editorial quality and guest experience
+          </p>
+        </div>
+
         {/* Main discovery grid */}
         <AuraDiscoveryGrid
           minContentScore={0}
@@ -309,9 +335,134 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
           limit={20}
         />
 
-        {/* Footer explanation */}
+        {/* What Aura Does - Knowledge Layer Section */}
         <div style={{
           marginTop: 64,
+          marginBottom: 64,
+          padding: 32,
+          background: cardBg,
+          border: `1px solid ${borderColor}`,
+          borderRadius: 8,
+        }}>
+          <h2 style={{
+            margin: '0 0 32px',
+            fontFamily: 'var(--font-heading-primary)',
+            fontSize: 24,
+            fontWeight: 400,
+            color: textColor,
+            textAlign: 'center',
+          }}>
+            What Aura Intelligence Analyzes
+          </h2>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: 32,
+            marginBottom: 40,
+          }}>
+            {[
+              {
+                title: 'Editorial Content',
+                description: 'Verified venue narratives, descriptions, and approved section intros written by our editorial team.',
+              },
+              {
+                title: 'Guest Experience',
+                description: 'Thousands of guest insights and review patterns analyzed for common themes and sentiment.',
+              },
+              {
+                title: 'Venue Intelligence',
+                description: 'Structured venue capabilities, location context, pricing, capacity, and event potential.',
+              },
+            ].map((layer, idx) => (
+              <div key={idx} style={{
+                padding: 24,
+                background: isLight ? '#faf9f6' : '#242424',
+                border: `1px solid ${borderColor}`,
+                borderRadius: 6,
+              }}>
+                <h3 style={{
+                  margin: '0 0 12px',
+                  fontFamily: 'var(--font-heading-primary)',
+                  fontSize: 16,
+                  fontWeight: 400,
+                  color: textColor,
+                }}>
+                  {layer.title}
+                </h3>
+                <p style={{
+                  margin: 0,
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 13,
+                  color: subtextColor,
+                  lineHeight: 1.6,
+                }}>
+                  {layer.description}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div style={{
+            borderTop: `1px solid ${borderColor}`,
+            paddingTop: 32,
+            marginTop: 32,
+          }}>
+            <p style={{
+              margin: '0 0 20px',
+              fontFamily: 'var(--font-heading-primary)',
+              fontSize: 16,
+              fontWeight: 400,
+              color: textColor,
+              textAlign: 'center',
+            }}>
+              This enables Aura to answer questions like:
+            </p>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+              gap: 16,
+            }}>
+              {[
+                'Which venues are best for a 120-guest wedding in Tuscany?',
+                'Which venues are known for exceptional food and wine?',
+                'Which venues are best suited for multi-day celebrations?',
+                'Which venues feel most intimate and romantic?',
+              ].map((question, idx) => (
+                <div key={idx} style={{
+                  padding: 16,
+                  background: isLight ? 'rgba(143, 116, 32, 0.05)' : 'rgba(143, 116, 32, 0.1)',
+                  border: `1px solid rgba(143, 116, 32, 0.2)`,
+                  borderRadius: 6,
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 13,
+                  color: textColor,
+                  lineHeight: 1.6,
+                }}>
+                  {question}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <p style={{
+            margin: '32px 0 0',
+            fontFamily: 'var(--font-body)',
+            fontSize: 14,
+            color: subtextColor,
+            textAlign: 'center',
+            lineHeight: 1.8,
+            maxWidth: 700,
+            marginLeft: 'auto',
+            marginRight: 'auto',
+          }}>
+            Aura turns venue discovery from a search experience into a guided conversation. Ask questions. Get intelligent answers backed by data.
+          </p>
+        </div>
+
+        {/* Footer explanation */}
+        <div style={{
+          marginBottom: 0,
           padding: 32,
           background: cardBg,
           border: `1px solid ${borderColor}`,
@@ -319,13 +470,13 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
           textAlign: 'center',
         }}>
           <h2 style={{
-            margin: '0 0 16px',
+            margin: '0 0 24px',
             fontFamily: 'var(--font-heading-primary)',
             fontSize: 20,
             fontWeight: 400,
             color: textColor,
           }}>
-            What Makes This Different
+            Why This Platform Exists
           </h2>
           <p style={{
             margin: 0,
@@ -338,12 +489,10 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             marginRight: 'auto',
           }}>
             Most wedding directories show everything. We show only our best work.
-            Every venue displayed has been carefully edited, verified against sources,
-            and approved by our editorial team. Section intros are written with care.
-            Weak sections are hidden. Guest reviews are analyzed for patterns.
-            Couples see intelligent curation, not volume.
-            This is luxury discovery powered by both human editorial
-            and artificial intelligence.
+            Every venue displayed has been carefully reviewed, verified against sources,
+            and approved by our editorial team. Weak sections are hidden. Incomplete listings
+            are improved before being shown. Couples discover intelligent curation, not volume.
+            This is luxury discovery powered by both human editorial judgement and Aura intelligence.
           </p>
         </div>
       </div>
