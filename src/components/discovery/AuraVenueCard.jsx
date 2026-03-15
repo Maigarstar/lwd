@@ -6,12 +6,19 @@
 import { useEffect, useState } from 'react';
 import { fetchVenueKnowledgeLayer, generateVenueSummary, extractVenueHighlights, analyzeReviewThemes } from '../../services/auraKnowledgeLayerService';
 
-export default function AuraVenueCard({ venueId, slug, onDetailsClick }) {
+export default function AuraVenueCard({ venueId, slug, onDetailsClick, isLight = true }) {
   const [knowledge, setKnowledge] = useState(null);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState(null);
   const [highlights, setHighlights] = useState([]);
   const [themes, setThemes] = useState(null);
+
+  // Theme colors
+  const bgColor = isLight ? '#ffffff' : '#2a2a2a';
+  const textColor = isLight ? '#171717' : '#f5f2ec';
+  const borderColor = isLight ? '#e4e0d8' : '#3a3a3a';
+  const subtextColor = isLight ? '#6b6560' : '#a89f98';
+  const lightBg = isLight ? '#faf9f6' : '#242424';
 
   // Fetch and process venue knowledge on mount
   useEffect(() => {
@@ -67,8 +74,8 @@ export default function AuraVenueCard({ venueId, slug, onDetailsClick }) {
 
   return (
     <div style={{
-      background: '#ffffff',
-      border: '1px solid #e4e0d8',
+      background: bgColor,
+      border: `1px solid ${borderColor}`,
       borderRadius: 8,
       overflow: 'hidden',
       transition: 'all 0.3s ease',
@@ -83,13 +90,13 @@ export default function AuraVenueCard({ venueId, slug, onDetailsClick }) {
       e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.08)';
     }}
     onMouseLeave={(e) => {
-      e.currentTarget.style.borderColor = '#e4e0d8';
+      e.currentTarget.style.borderColor = borderColor;
       e.currentTarget.style.boxShadow = 'none';
     }}
     onClick={() => onDetailsClick?.(slug)}
     >
       {/* Header with venue name and quality badge */}
-      <div style={{ padding: '24px 24px 16px', borderBottom: '1px solid #f0ede5' }}>
+      <div style={{ padding: '24px 24px 16px', borderBottom: `1px solid ${borderColor}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
           <div style={{ flex: 1 }}>
             <h3 style={{
@@ -97,7 +104,7 @@ export default function AuraVenueCard({ venueId, slug, onDetailsClick }) {
               fontFamily: 'var(--font-heading-primary)',
               fontSize: 18,
               fontWeight: 400,
-              color: '#171717',
+              color: textColor,
             }}>
               {venue.name}
             </h3>
@@ -105,7 +112,7 @@ export default function AuraVenueCard({ venueId, slug, onDetailsClick }) {
               margin: '6px 0 0',
               fontFamily: 'var(--font-body)',
               fontSize: 13,
-              color: '#6b6560',
+              color: subtextColor,
             }}>
               {venue.location}
             </p>

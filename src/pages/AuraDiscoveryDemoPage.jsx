@@ -297,6 +297,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
         {/* Main discovery grid */}
         <AuraDiscoveryGrid
           minContentScore={0}
+          isLight={isLight}
           onVenueClick={(slug) => {
             if (onViewVenue) {
               onViewVenue({ slug });

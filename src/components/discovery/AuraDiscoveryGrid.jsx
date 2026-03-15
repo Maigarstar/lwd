@@ -8,10 +8,17 @@ import { supabase } from '../../lib/supabaseClient';
 import { fetchVenueKnowledgeLayer } from '../../services/auraKnowledgeLayerService';
 import AuraVenueCard from './AuraVenueCard';
 
-export default function AuraDiscoveryGrid({ minContentScore = 0, onVenueClick, limit = 12 }) {
+export default function AuraDiscoveryGrid({ minContentScore = 0, onVenueClick, limit = 12, isLight = true }) {
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+
+  // Theme colors
+  const bgColor = isLight ? '#ffffff' : '#2a2a2a';
+  const textColor = isLight ? '#171717' : '#f5f2ec';
+  const borderColor = isLight ? '#e4e0d8' : '#3a3a3a';
+  const subtextColor = isLight ? '#6b6560' : '#a89f98';
+  const lightBg = isLight ? '#faf9f6' : '#242424';
 
   // Load venues with their knowledge layers
   useEffect(() => {
@@ -102,7 +109,7 @@ export default function AuraDiscoveryGrid({ minContentScore = 0, onVenueClick, l
             fontFamily: 'var(--font-heading-primary)',
             fontSize: 32,
             fontWeight: 400,
-            color: '#171717',
+            color: textColor,
           }}>
             Discover Luxury Wedding Venues
           </h2>
@@ -110,7 +117,7 @@ export default function AuraDiscoveryGrid({ minContentScore = 0, onVenueClick, l
             margin: '8px 0 0',
             fontFamily: 'var(--font-body)',
             fontSize: 16,
-            color: '#6b6560',
+            color: subtextColor,
             lineHeight: 1.6,
           }}>
             Curated venues ranked by editorial quality and guest experiences.
@@ -131,9 +138,9 @@ export default function AuraDiscoveryGrid({ minContentScore = 0, onVenueClick, l
               onClick={() => setFilter(filterOption.id)}
               style={{
                 padding: '10px 16px',
-                background: filter === filterOption.id ? '#8f7420' : '#ffffff',
-                color: filter === filterOption.id ? '#ffffff' : '#1a1a18',
-                border: `1px solid ${filter === filterOption.id ? '#8f7420' : '#e4e0d8'}`,
+                background: filter === filterOption.id ? '#8f7420' : bgColor,
+                color: filter === filterOption.id ? '#ffffff' : textColor,
+                border: `1px solid ${filter === filterOption.id ? '#8f7420' : borderColor}`,
                 borderRadius: 6,
                 fontFamily: 'var(--font-body)',
                 fontSize: 13,
@@ -163,8 +170,8 @@ export default function AuraDiscoveryGrid({ minContentScore = 0, onVenueClick, l
               key={idx}
               style={{
                 padding: 16,
-                background: '#faf9f6',
-                border: '1px solid #f0ede5',
+                background: lightBg,
+                border: `1px solid ${borderColor}`,
                 borderRadius: 6,
               }}
             >
@@ -172,7 +179,7 @@ export default function AuraDiscoveryGrid({ minContentScore = 0, onVenueClick, l
                 margin: 0,
                 fontFamily: 'var(--font-body)',
                 fontSize: 11,
-                color: '#6b6560',
+                color: subtextColor,
                 textTransform: 'uppercase',
                 letterSpacing: 0.5,
                 fontWeight: 600,
@@ -185,7 +192,7 @@ export default function AuraDiscoveryGrid({ minContentScore = 0, onVenueClick, l
                 fontFamily: 'var(--font-heading-primary)',
                 fontSize: 22,
                 fontWeight: 400,
-                color: '#171717',
+                color: textColor,
               }}>
                 {stat.value}
               </p>
@@ -199,7 +206,7 @@ export default function AuraDiscoveryGrid({ minContentScore = 0, onVenueClick, l
         <div style={{
           textAlign: 'center',
           padding: 48,
-          color: '#6b6560',
+          color: subtextColor,
           fontFamily: 'var(--font-body)',
         }}>
           Loading venue intelligence...
@@ -218,6 +225,7 @@ export default function AuraDiscoveryGrid({ minContentScore = 0, onVenueClick, l
               key={venue.id}
               venueId={venue.id}
               slug={venue.slug}
+              isLight={isLight}
               onDetailsClick={onVenueClick}
             />
           ))}
@@ -229,15 +237,15 @@ export default function AuraDiscoveryGrid({ minContentScore = 0, onVenueClick, l
         <div style={{
           padding: 48,
           textAlign: 'center',
-          background: '#faf9f6',
+          background: lightBg,
           borderRadius: 8,
-          border: '1px solid #f0ede5',
+          border: `1px solid ${borderColor}`,
         }}>
           <p style={{
             margin: 0,
             fontFamily: 'var(--font-body)',
             fontSize: 16,
-            color: '#6b6560',
+            color: subtextColor,
           }}>
             No venues match your criteria. Try adjusting your filters.
           </p>
