@@ -95,6 +95,13 @@ export default function AuraVenueCard({ venue: venueObj, venueId, slug, onDetail
   // Calculate quality tier for Phase 4 editorial display
   const tier = getQualityTier(content.contentScore || 0);
 
+  // Get primary image from venue object
+  const primaryImage = venueObj?.heroImage || venueObj?.cardImage || (venueObj?.heroImageSet?.[0]) || null;
+
+  // Fallback placeholder image for luxury aesthetic
+  const fallbackImage = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Cdefs%3E%3ClinearGradient id="g1" x1="0%25" y1="0%25" x2="100%25" y2="100%25"%3E%3Cstop offset="0%25" style="stop-color:%23d4af37;stop-opacity:0.1" /%3E%3Cstop offset="100%25" style="stop-color:%238f7420;stop-opacity:0.1" /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill="%232a2a2a" width="400" height="300"/%3E%3Crect fill="url(%23g1)" width="400" height="300"/%3E%3Ctext x="50%25" y="45%25" font-family="Georgia, serif" font-size="24" fill="%23d4af37" text-anchor="middle" opacity="0.6"%3ELuxury Venue%3C/text%3E%3Ctext x="50%25" y="60%25" font-family="Georgia, serif" font-size="14" fill="%23a89f98" text-anchor="middle" opacity="0.5"%3EImage Coming Soon%3C/text%3E%3C/svg%3E';
+  const imageUrl = primaryImage || fallbackImage;
+
   return (
     <div style={{
       background: bgColor,
@@ -103,14 +110,13 @@ export default function AuraVenueCard({ venue: venueObj, venueId, slug, onDetail
       overflow: 'hidden',
       transition: 'all 0.3s ease',
       cursor: 'pointer',
-      ':hover': {
-        borderColor: '#8f7420',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-      },
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100%',
     }}
     onMouseEnter={(e) => {
       e.currentTarget.style.borderColor = '#8f7420';
-      e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.08)';
+      e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)';
     }}
     onMouseLeave={(e) => {
       e.currentTarget.style.borderColor = borderColor;
@@ -118,8 +124,32 @@ export default function AuraVenueCard({ venue: venueObj, venueId, slug, onDetail
     }}
     onClick={() => onClick?.() || onDetailsClick?.(slug)}
     >
+      {/* Hero Image Section */}
+      <div style={{
+        position: 'relative',
+        width: '100%',
+        height: 200,
+        backgroundImage: `url(${imageUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'flex-end',
+        padding: 12,
+      }}>
+        {/* Tier badge overlay - top right */}
+        {editorialEnabled && tier !== 'standard' && (
+          <div style={{
+            zIndex: 10,
+            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
+          }}>
+            <TierBadge tier={tier} showLabel={true} size="sm" />
+          </div>
+        )}
+      </div>
+
       {/* Header with venue name and quality badge */}
-      <div style={{ padding: '24px 24px 16px', borderBottom: `1px solid ${borderColor}` }}>
+      <div style={{ padding: '16px 16px 12px', borderBottom: `1px solid ${borderColor}`, flex: 1 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
           <div style={{ flex: 1 }}>
             <h3 style={{
