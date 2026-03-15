@@ -15,7 +15,7 @@ export default function SaveChatModal({ onClose }) {
     requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
   }, []);
 
-  // Graceful close — glide out then unmount
+  // Graceful close, glide out then unmount
   const handleClose = () => {
     setClosing(true);
     setVisible(false);

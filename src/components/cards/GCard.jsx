@@ -4,12 +4,12 @@ import { useTheme } from "../../theme/ThemeContext";
 import Stars from "../ui/Stars";
 import Pill from "../ui/Pill";
 import { GoldBadge } from "../ui/Badges";
-import TierBadge from "../editorial/TierBadge";
-import ApprovalIndicators from "../editorial/ApprovalIndicators";
-import FreshnessText from "../editorial/FreshnessText";
 import CuratedIndexBadge from "../ui/CuratedIndexBadge";
 import LoginGateModal from "../modals/LoginGateModal";
 import { getQualityTier } from "../../services/listings";
+import TierBadge from "../editorial/TierBadge";
+import ApprovalIndicators from "../editorial/ApprovalIndicators";
+import FreshnessText from "../editorial/FreshnessText";
 
 export default function GCard({ v, saved, onSave, onView, onQuickView }) {
   const C = useTheme();
@@ -18,18 +18,9 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
   const [hovQV,     setHovQV]     = useState(false);
   const [hovChat,   setHovChat]   = useState(false);
   const [loginGate, setLoginGate] = useState(false);
-  const [muted,     setMuted]     = useState(true);
-  const [imgIndex,  setImgIndex]  = useState(0);
-  const imgCount = v.imgs?.length || 1;
 
   return (
     <>
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-      `}</style>
       <article
         aria-label={v.name}
         onMouseEnter={() => setHov(true)}
@@ -48,7 +39,7 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
             : "none",
         }}
       >
-        {/* ── Media (Video or Image) ── */}
+        {/* ── Image ── */}
         <div
           style={{
             height:     295,
@@ -57,42 +48,18 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
             background: "#0a0806",
           }}
         >
-          {v.video ? (
-            <video
-              autoPlay
-              loop
-              muted={muted}
-              playsInline
-              style={{
-                width:      "100%",
-                height:     "100%",
-                objectFit:  "cover",
-                transform:  hov ? "scale(1.03)" : "scale(1)",
-                transition: "transform 0.8s ease",
-              }}
-            >
-              <source
-                src={`https://media.istockphoto.com/id/1173205143/video/cinematic-wedding-footage-of-couple-on-the-beach-and-in-a-luxury-hotel.mp4`}
-                type="video/mp4"
-              />
-            </video>
-          ) : (
-            <img
-              key={`img-${imgIndex}`}
-              src={v.imgs[imgIndex]}
-              alt={`${v.name} in ${v.region} - image ${imgIndex + 1} of ${imgCount}`}
-              loading="lazy"
-              style={{
-                width:      "100%",
-                height:     "100%",
-                objectFit:  "cover",
-                transform:  hov ? "scale(1.03)" : "scale(1)",
-                transition: "opacity 0.5s ease-in-out, transform 0.8s ease",
-                opacity:    1,
-                animation:  "fadeIn 0.5s ease-in-out",
-              }}
-            />
-          )}
+          <img
+            src={v.imgs[0]}
+            alt={`${v.name} in ${v.region}`}
+            loading="lazy"
+            style={{
+              width:      "100%",
+              height:     "100%",
+              objectFit:  "cover",
+              transform:  hov ? "scale(1.03)" : "scale(1)",
+              transition: "transform 0.8s ease",
+            }}
+          />
           <div
             aria-hidden="true"
             style={{
@@ -102,114 +69,13 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
             }}
           />
 
-          {/* Image navigation arrows */}
-          {imgCount > 1 && (
-            <>
-              {/* Left arrow */}
-              <button
-                onClick={(e) => { e.stopPropagation(); setImgIndex((i) => (i - 1 + imgCount) % imgCount); }}
-                aria-label="Previous image"
-                style={{
-                  position:   "absolute",
-                  left:       8,
-                  top:        "50%",
-                  transform:  "translateY(-50%)",
-                  width:      28,
-                  height:     28,
-                  borderRadius: "50%",
-                  background: "rgba(0,0,0,0.5)",
-                  border:     "1px solid rgba(255,255,255,0.3)",
-                  color:      "rgba(255,255,255,0.8)",
-                  cursor:     "pointer",
-                  fontSize:   14,
-                  display:    "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "all 0.2s",
-                  zIndex:     2,
-                  opacity:    hov ? 1 : 0,
-                  pointerEvents: hov ? "auto" : "none",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(0,0,0,0.7)";
-                  e.currentTarget.style.color = "rgba(255,255,255,1)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "rgba(0,0,0,0.5)";
-                  e.currentTarget.style.color = "rgba(255,255,255,0.8)";
-                }}
-              >
-                ‹
-              </button>
-
-              {/* Right arrow */}
-              <button
-                onClick={(e) => { e.stopPropagation(); setImgIndex((i) => (i + 1) % imgCount); }}
-                aria-label="Next image"
-                style={{
-                  position:   "absolute",
-                  right:      8,
-                  top:        "50%",
-                  transform:  "translateY(-50%)",
-                  width:      28,
-                  height:     28,
-                  borderRadius: "50%",
-                  background: "rgba(0,0,0,0.5)",
-                  border:     "1px solid rgba(255,255,255,0.3)",
-                  color:      "rgba(255,255,255,0.8)",
-                  cursor:     "pointer",
-                  fontSize:   14,
-                  display:    "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "all 0.2s",
-                  zIndex:     2,
-                  opacity:    hov ? 1 : 0,
-                  pointerEvents: hov ? "auto" : "none",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(0,0,0,0.7)";
-                  e.currentTarget.style.color = "rgba(255,255,255,1)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "rgba(0,0,0,0.5)";
-                  e.currentTarget.style.color = "rgba(255,255,255,0.8)";
-                }}
-              >
-                ›
-              </button>
-
-              {/* Image counter */}
-              <div
-                style={{
-                  position:   "absolute",
-                  bottom:     8,
-                  right:      8,
-                  background: "rgba(0,0,0,0.5)",
-                  color:      "rgba(255,255,255,0.8)",
-                  padding:    "3px 8px",
-                  borderRadius: 12,
-                  fontSize:   10,
-                  fontFamily: "var(--font-body)",
-                  fontWeight: 500,
-                  opacity:    hov ? 1 : 0,
-                  transition: "all 0.2s",
-                  pointerEvents: "none",
-                }}
-              >
-                {imgIndex + 1} / {imgCount}
-              </div>
-            </>
+          {v.tag && (
+            <div style={{ position: "absolute", bottom: 12, left: 12 }}>
+              <GoldBadge text={v.tag} />
+            </div>
           )}
 
-          <div style={{ position: "absolute", bottom: 12, left: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-            {v.tag && <GoldBadge text={v.tag} />}
-            {v.contentQualityScore !== undefined && (
-              <TierBadge tier={getQualityTier(v.contentQualityScore)} showLabel={true} size="sm" />
-            )}
-          </div>
-
-          {/* Online indicator — top-left */}
+          {/* Online indicator, top-left */}
           <div
             style={{
               position:   "absolute",
@@ -245,41 +111,6 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
               {v.online ? "Online" : "Offline"}
             </span>
           </div>
-
-          {/* Mute button — show only if video, top right */}
-          {v.video && (
-            <button
-              onClick={(e) => { e.stopPropagation(); setMuted(!muted); }}
-              aria-label={muted ? "Unmute video" : "Mute video"}
-              style={{
-                position:   "absolute",
-                top:        10,
-                right:      45,
-                width:      30,
-                height:     30,
-                borderRadius: "50%",
-                background: "rgba(0,0,0,0.5)",
-                border:     "1px solid rgba(255,255,255,0.3)",
-                color:      "rgba(255,255,255,0.9)",
-                cursor:     "pointer",
-                fontSize:   12,
-                fontWeight: 600,
-                display:    "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "all 0.2s",
-                fontFamily: "var(--font-body)",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(0,0,0,0.7)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(0,0,0,0.5)";
-              }}
-            >
-              {muted ? "♪" : "♫"}
-            </button>
-          )}
 
           {/* Save button */}
           <button
@@ -319,6 +150,19 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
             }}
           >
             <div>
+              {v.showcaseUrl && (
+                <a href={v.showcaseUrl} onClick={(e) => e.stopPropagation()} style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  marginBottom: 14, marginTop: -4,
+                  padding: "3px 9px", borderRadius: 20,
+                  background: "rgba(255,255,255,0.12)", backdropFilter: "blur(6px)",
+                  border: "1px solid rgba(255,255,255,0.25)",
+                  textDecoration: "none",
+                }}>
+                  <span style={{ color: "#fff", fontSize: 7, lineHeight: 1 }}>✦</span>
+                  <span style={{ fontFamily: "var(--font-body)", fontSize: 8, fontWeight: 700, letterSpacing: "1.2px", textTransform: "uppercase", color: "#fff" }}>A Showcase Property</span>
+                </a>
+              )}
               <h3
                 style={{
                   fontFamily: "var(--font-heading-primary)",
@@ -367,14 +211,40 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
             </div>
           )}
 
-          {/* Stars */}
+          {/* Stars + Phase 4 Editorial Tier Badge */}
           <div
-            style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}
+            style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, flexWrap: "wrap" }}
             aria-label={`Rating: ${v.rating} out of 5`}
           >
             <Stars r={v.rating} />
             <span style={{ fontSize: 11, color: C.grey }}>({v.reviews})</span>
+            {/* Phase 4a: Quality tier badge */}
+            {v.contentScore !== undefined && (
+              <TierBadge tier={getQualityTier(v.contentScore)} showLabel={true} size="sm" />
+            )}
           </div>
+
+          {/* Phase 4b: Editorial approval indicators */}
+          {(v.editorialApproved || v.editorialFactChecked) && (
+            <div style={{ marginBottom: 8 }}>
+              <ApprovalIndicators
+                approved={v.editorialApproved}
+                factChecked={v.editorialFactChecked}
+                layout="horizontal"
+              />
+            </div>
+          )}
+
+          {/* Phase 4b: Freshness indicator */}
+          {v.editorialApproved && v.editorialLastReviewedAt && (
+            <div style={{ marginBottom: 8 }}>
+              <FreshnessText
+                lastReviewedAt={v.editorialLastReviewedAt}
+                color={C.grey}
+                fontSize={10}
+              />
+            </div>
+          )}
 
           {/* Description */}
           {v.desc && (
@@ -404,26 +274,6 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
               <Pill key={s} text={s} />
             ))}
           </div>
-
-          {/* Editorial Indicators */}
-          {(v.editorial_approved || v.editorial_fact_checked) && (
-            <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: `1px solid ${C.border}` }}>
-              <ApprovalIndicators
-                approved={v.editorial_approved}
-                factChecked={v.editorial_fact_checked}
-                layout="horizontal"
-              />
-              {v.editorial_approved && v.editorial_last_reviewed_at && (
-                <div style={{ marginTop: 6 }}>
-                  <FreshnessText
-                    lastReviewedAt={v.editorial_last_reviewed_at}
-                    color={C.grey}
-                    size="xs"
-                  />
-                </div>
-              )}
-            </div>
-          )}
 
           {/* ── Footer: price + capacity row ── */}
           <div
@@ -491,7 +341,7 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
           {/* ── Three-button row ── */}
           <div style={{ display: "flex", gap: 6 }}>
 
-            {/* View Venue — gold filled primary */}
+            {/* View Venue, gold filled primary */}
             <button
               onClick={(e) => { e.stopPropagation(); onView?.(v); }}
               onMouseEnter={() => setHovView(true)}
@@ -516,7 +366,7 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
               View Venue
             </button>
 
-            {/* Quick View — ghost */}
+            {/* Quick View, ghost */}
             <button
               onClick={(e) => { e.stopPropagation(); onQuickView?.(v); }}
               onMouseEnter={() => setHovQV(true)}
@@ -540,7 +390,7 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
               Quick View
             </button>
 
-            {/* Chat / Message — green if online */}
+            {/* Chat / Message, green if online */}
             <button
               onClick={(e) => { e.stopPropagation(); setLoginGate(true); }}
               onMouseEnter={() => setHovChat(true)}

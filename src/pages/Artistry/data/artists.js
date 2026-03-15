@@ -1,0 +1,258 @@
+export const CATEGORIES = [
+  'All', 'Photography', 'Film', 'Venues', 'Florals',
+  'Planning', 'Styling', 'Cakes', 'Music', 'Hair & Makeup', 'Content Creators',
+];
+
+export const ARTISTS = [
+  {
+    id: 'artist_01',
+    name: 'Marco Battista',
+    category: 'Photography',
+    location: 'Lake Como, Italy',
+    country: 'Italy',
+    quote: 'I photograph the silence between moments.',
+    microPrompts: {
+      different: 'I wait for the light to find the subject. Never the reverse.',
+      momentFor: 'The three seconds after the vows. Nobody knows what to do with their hands yet.',
+      perfectDay: 'When I forget I\'m working.',
+    },
+    image: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1550005809-91ad75fb315f?auto=format&fit=crop&w=800&q=80',
+    ],
+    // YouTube, behind-the-scenes wedding photography film
+    videoUrl: 'https://www.youtube.com/watch?v=2Vv-BfVoq4g',
+    featured: true,
+    type: 'image',
+  },
+  {
+    id: 'artist_02',
+    name: 'Lumière Films',
+    category: 'Film',
+    location: 'Tuscany, Italy',
+    country: 'Italy',
+    quote: 'A wedding film should make you cry on your tenth anniversary.',
+    microPrompts: {
+      different: 'We score every film to the couple\'s first dance song. The music shapes the edit, not the other way.',
+      momentFor: 'The father of the bride walking back to his seat after the dance. Alone. Smiling.',
+      perfectDay: 'When the couple forgets we\'re there.',
+    },
+    image: 'https://images.unsplash.com/photo-1529634597503-139d3726fed5?auto=format&fit=crop&w=900&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1512909006721-3d6018887383?auto=format&fit=crop&w=800&q=80',
+    ],
+    // YouTube, cinematic wedding highlight reel
+    videoUrl: 'https://www.youtube.com/watch?v=JGwWNGJdvx8',
+    featured: false,
+    type: 'video',
+  },
+  {
+    id: 'artist_03',
+    name: 'Villa Balbiano',
+    category: 'Venues',
+    location: 'Lake Como, Italy',
+    country: 'Italy',
+    quote: 'Every room tells three centuries of stories. We simply make space for one more.',
+    microPrompts: {
+      different: 'We don\'t host events. We lend our home.',
+      momentFor: 'The first time a guest steps through the gates and stops walking.',
+      perfectDay: 'When the ceremony ends and no one wants to leave.',
+    },
+    image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=900&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1571624436279-b272aff752b5?auto=format&fit=crop&w=800&q=80',
+    ],
+    // YouTube, venue tour
+    videoUrl: 'https://www.youtube.com/watch?v=tgbNymZ7vqY',
+    featured: false,
+    type: 'image',
+  },
+  {
+    id: 'artist_04',
+    name: 'Fleur de Saison',
+    category: 'Florals',
+    location: 'Paris, France',
+    country: 'France',
+    quote: 'Flowers don\'t decorate a wedding. They remember it.',
+    microPrompts: {
+      different: 'Every arrangement is foraged the morning of. Nothing is held in cold storage.',
+      momentFor: 'When the bride walks past the altar installation and doesn\'t see the flowers, she feels them.',
+      perfectDay: 'When the roses have opened exactly right by ceremony time.',
+    },
+    image: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=900&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1468852831956-6ac5e75fe9a7?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&w=800&q=80',
+    ],
+    // Instagram reel, floral installation process
+    videoUrl: 'https://www.instagram.com/reel/C4example1234/',
+    featured: false,
+    type: 'image',
+  },
+  {
+    id: 'artist_05',
+    name: 'Sophie Laurent',
+    category: 'Planning',
+    location: 'Côte d\'Azur, France',
+    country: 'France',
+    quote: 'The best-planned wedding is one where no one notices the plan.',
+    microPrompts: {
+      different: 'I don\'t use templates. Every couple gets a completely bespoke timeline built from scratch.',
+      momentFor: 'The quiet hour before guests arrive. Everything ready. Nothing happened yet.',
+      perfectDay: 'When I\'m crying at the speeches instead of checking my clipboard.',
+    },
+    image: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?auto=format&fit=crop&w=900&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1537633552985-df8429e8048b?auto=format&fit=crop&w=800&q=80',
+    ],
+    featured: false,
+    type: 'image',
+  },
+  {
+    id: 'artist_06',
+    name: 'Atelier Luna',
+    category: 'Hair & Makeup',
+    location: 'Milan, Italy',
+    country: 'Italy',
+    quote: 'I don\'t change how you look. I reveal who you are on the most important day.',
+    microPrompts: {
+      different: 'I work with the light of the venue, not against it. Every look is designed for the specific hour of the ceremony.',
+      momentFor: 'When she looks in the mirror for the first time and goes quiet.',
+      perfectDay: 'When the photos come back and I can\'t tell I was there at all.',
+    },
+    image: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=900&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1457972729786-0411a3b2b626?auto=format&fit=crop&w=800&q=80',
+    ],
+    // TikTok, bridal transformation reel
+    videoUrl: 'https://www.tiktok.com/@atelierluna/video/7234567890123456789',
+    featured: false,
+    type: 'image',
+  },
+  {
+    id: 'artist_07',
+    name: 'Palazzo Avino',
+    category: 'Venues',
+    location: 'Amalfi Coast, Italy',
+    country: 'Italy',
+    quote: 'The sea has been our backdrop for 900 years. It hasn\'t grown old yet.',
+    microPrompts: {
+      different: 'There are no two identical events here. The coast changes with every season. So do we.',
+      momentFor: 'The moment the couple sees the terrace set for dinner as the sun falls below the sea.',
+      perfectDay: 'When guests arrive as strangers and leave as family.',
+    },
+    image: 'https://images.unsplash.com/photo-1533587851505-d119e13fa0d7?auto=format&fit=crop&w=900&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=800&q=80',
+    ],
+    // YouTube, drone footage of the venue
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    featured: false,
+    type: 'image',
+  },
+  {
+    id: 'artist_08',
+    name: 'Giulia Ferraro',
+    category: 'Content Creators',
+    location: 'Amalfi Coast, Italy',
+    country: 'Italy',
+    quote: 'I\'m not documenting the day. I\'m catching it before it disappears.',
+    microPrompts: {
+      different: 'Every reel has a single emotion at its centre. Not a sequence of moments, a feeling.',
+      momentFor: 'The unscripted 30 seconds between the grand moments.',
+      perfectDay: 'When guests ask if I got a certain moment and I already did.',
+    },
+    image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=900&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=800&q=80',
+    ],
+    // TikTok, viral wedding reel
+    videoUrl: 'https://www.tiktok.com/@giuliaferraro/video/7198765432109876543',
+    featured: false,
+    type: 'video',
+  },
+  {
+    id: 'artist_09',
+    name: 'Dolce by Rosario',
+    category: 'Cakes',
+    location: 'Sicily, Italy',
+    country: 'Italy',
+    quote: 'A sculpture you\'ll only see for a few hours. I design for the photograph and the memory.',
+    microPrompts: {
+      different: 'I taste every flavour combination blind before I agree to make it. If I wouldn\'t eat it at midnight, it doesn\'t make the menu.',
+      momentFor: 'The collective exhale from guests when it rolls into the room.',
+      perfectDay: 'When the cutting knife stops and someone says "I can\'t cut it, it\'s too beautiful."',
+    },
+    image: 'https://images.unsplash.com/photo-1535254973040-607b474cb50d?auto=format&fit=crop&w=900&q=80',
+    gallery: [],
+    // Instagram reel, cake design process
+    videoUrl: 'https://www.instagram.com/reel/CxampleReel567/',
+    featured: false,
+    type: 'image',
+  },
+  {
+    id: 'artist_10',
+    name: 'Quartet del Lago',
+    category: 'Music',
+    location: 'Lake Como, Italy',
+    country: 'Italy',
+    quote: 'Music doesn\'t accompany the ceremony. It is the ceremony.',
+    microPrompts: {
+      different: 'We learn the couple\'s story before we choose a single note. The music should feel inevitable.',
+      momentFor: 'The silence before the first note. Forty people holding their breath.',
+      perfectDay: 'When someone says they didn\'t hear us, they only felt us.',
+    },
+    image: 'https://images.unsplash.com/photo-1415369629372-26f2fe60c467?auto=format&fit=crop&w=900&q=80',
+    gallery: [],
+    // YouTube, live ceremony performance
+    videoUrl: 'https://www.youtube.com/watch?v=ZRtdQ81jPUQ',
+    featured: false,
+    type: 'video',
+  },
+  {
+    id: 'artist_11',
+    name: 'Aria Studio',
+    category: 'Styling',
+    location: 'London, UK',
+    country: 'United Kingdom',
+    quote: 'The dress is found in a boutique. The look is built in our studio.',
+    microPrompts: {
+      different: 'We style the whole party, not just the bride. Cohesion is the luxury.',
+      momentFor: 'The first look reaction. Every time.',
+      perfectDay: 'When every photo tells the same visual story without any of it feeling deliberate.',
+    },
+    image: 'https://images.unsplash.com/photo-1460978812857-470ed1c77af0?auto=format&fit=crop&w=900&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1445633629932-0029acc44e88?auto=format&fit=crop&w=800&q=80',
+    ],
+    // Instagram reel, styling reveal
+    videoUrl: 'https://www.instagram.com/reel/AriaStudio2024xyz/',
+    featured: false,
+    type: 'image',
+  },
+  {
+    id: 'artist_12',
+    name: 'Elena Moretti',
+    category: 'Photography',
+    location: 'Positano, Italy',
+    country: 'Italy',
+    quote: 'I find the shot that hasn\'t happened yet and stand in that place.',
+    microPrompts: {
+      different: 'I walk the venue at dawn on the day of the wedding. Alone. Before anyone arrives.',
+      momentFor: 'The golden hour. Always. Without exception.',
+      perfectDay: 'When the light does something I didn\'t plan for.',
+    },
+    image: 'https://images.unsplash.com/photo-1510076857177-7470076d4098?auto=format&fit=crop&w=900&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1580019542155-247062e19ce4?auto=format&fit=crop&w=800&q=80',
+    ],
+    // YouTube, golden hour shoot behind the scenes
+    videoUrl: 'https://www.youtube.com/watch?v=9bZkp7q19f0',
+    featured: false,
+    type: 'image',
+  },
+];

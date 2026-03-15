@@ -1,5 +1,5 @@
 // ─── src/components/sections/CategoryFooter.jsx ──────────────────────────────
-// Always dark regardless of theme — luxury black footer
+// Always dark regardless of theme, luxury black footer
 import { useState } from "react";
 
 const LINKS = {
@@ -82,7 +82,7 @@ export default function CategoryFooter({ onBack }) {
               marginBottom: 28,
             }}
           >
-            The world's most discerning collection of Italian wedding venues — every property
+            The world's most discerning collection of Italian wedding venues, every property
             personally verified by our editorial team.
           </p>
 

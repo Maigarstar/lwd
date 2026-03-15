@@ -2,6 +2,25 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import LoginGateModal from "./LoginGateModal";
 
+// ── URL helpers ───────────────────────────────────────────────────────────────
+const extractYouTubeId = (url) => {
+  const m = url?.match(
+    /(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/
+  );
+  return m?.[1] || null;
+};
+
+const extractVimeoId = (url) =>
+  url?.match(/vimeo\.com\/(?:video\/)?(\d+)/)?.[1] || null;
+
+// Determine the kind of a media URL
+const mediaKind = (url) => {
+  if (!url) return "unknown";
+  if (extractYouTubeId(url)) return "youtube";
+  if (extractVimeoId(url))   return "vimeo";
+  return "direct"; // direct mp4 / webm etc.
+};
+
 // ── Arrow button style helper ─────────────────────────────────────────────────
 function navBtn(side) {
   return {
@@ -44,20 +63,106 @@ function OnlineDot({ online }) {
   );
 }
 
+// ── VideoSlide, renders YouTube / Vimeo iframe or direct <video> ──────────────
+function VideoSlide({ src, isActive }) {
+  const kind    = mediaKind(src);
+  const ytId    = extractYouTubeId(src);
+  const vimeoId = extractVimeoId(src);
+
+  const sharedIframeStyle = {
+    position: "absolute",
+    inset:    0,
+    width:    "100%",
+    height:   "100%",
+    border:   "none",
+    display:  "block",
+  };
+
+  if (!isActive) return null; // unmount inactive video slides to prevent simultaneous playback
+
+  if (kind === "youtube" && ytId) {
+    return (
+      <iframe
+        key={src}
+        src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=0&rel=0&modestbranding=1&playsinline=1`}
+        allow="autoplay; encrypted-media; fullscreen"
+        allowFullScreen
+        title="Video"
+        style={sharedIframeStyle}
+      />
+    );
+  }
+
+  if (kind === "vimeo" && vimeoId) {
+    return (
+      <iframe
+        key={src}
+        src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&title=0&byline=0&portrait=0`}
+        allow="autoplay; fullscreen; picture-in-picture"
+        allowFullScreen
+        title="Video"
+        style={sharedIframeStyle}
+      />
+    );
+  }
+
+  // Direct video file
+  return (
+    <video
+      key={src}
+      src={src}
+      autoPlay
+      controls
+      playsInline
+      style={{ ...sharedIframeStyle, objectFit: "cover", backgroundColor: "#000" }}
+    />
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function QuickViewModal({ item, onClose, onViewFull }) {
-  const [imgIdx,    setImgIdx]    = useState(0);
+  const [slideIdx,  setSlideIdx]  = useState(0);
   const [loginGate, setLoginGate] = useState(false);
   const [visible,   setVisible]   = useState(false);
   const timerRef                  = useRef(null);
 
-  const imgs     = item?.imgs ?? [];
   const isVendor = item?.type === "vendor";
-  const features = isVendor ? (item?.specialties ?? []) : (item?.includes ?? item?.styles ?? []);
+  const features = isVendor
+    ? (item?.specialties ?? [])
+    : (item?.includes ?? item?.styles ?? []);
 
   const mapUrl = item?.lat && item?.lng
     ? `https://www.openstreetmap.org/export/embed.html?bbox=${item.lng - 0.025},${item.lat - 0.025},${item.lng + 0.025},${item.lat + 0.025}&layer=mapnik&marker=${item.lat},${item.lng}`
     : null;
+
+  // ── Build combined media array: images first, then videos, then reels ────────
+  const mediaItems = (() => {
+    const items = [];
+    // Images, imgs[] may be plain URL strings or rich objects { src, url, alt_text, ... }
+    (item?.imgs || []).forEach(img => {
+      const src = typeof img === "string" ? img : (img?.src || img?.url || "");
+      if (src) items.push({ type: "image", src });
+    });
+    // Single videoUrl (from LuxuryVenueCard / LuxuryVendorCard)
+    if (item?.videoUrl) {
+      items.push({ type: "video", src: item.videoUrl });
+    }
+    // Multiple video_urls (from card overrides, 4 slots)
+    (item?.video_urls || []).forEach(src => {
+      if (src && !items.some(m => m.src === src)) {
+        items.push({ type: "video", src });
+      }
+    });
+    // Reel URLs (4 slots)
+    (item?.reel_urls || []).forEach(src => {
+      if (src) items.push({ type: "reel", src });
+    });
+    return items.length > 0 ? items : [{ type: "image", src: "" }];
+  })();
+
+  const totalSlides  = mediaItems.length;
+  const currentSlide = mediaItems[slideIdx] ?? { type: "image", src: "" };
+  const isVideoSlide = currentSlide.type === "video" || currentSlide.type === "reel";
 
   // Entrance animation
   useEffect(() => {
@@ -65,15 +170,17 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
     return () => setVisible(false);
   }, []);
 
-  // Auto-advance gallery (4 s)
+  // Auto-advance images only, pauses on video/reel slides
   useEffect(() => {
-    if (imgs.length <= 1) return;
+    clearInterval(timerRef.current);
+    if (totalSlides <= 1 || isVideoSlide) return;
     timerRef.current = setInterval(
-      () => setImgIdx((i) => (i + 1) % imgs.length),
+      () => setSlideIdx(i => (i + 1) % totalSlides),
       4000
     );
     return () => clearInterval(timerRef.current);
-  }, [imgs.length]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalSlides, slideIdx]);
 
   // ESC → close
   useEffect(() => {
@@ -82,19 +189,19 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
     return () => document.removeEventListener("keydown", fn);
   }, [onClose, loginGate]);
 
-  const prevImg = useCallback(() => {
+  const prevSlide = useCallback(() => {
     clearInterval(timerRef.current);
-    setImgIdx((i) => (i - 1 + imgs.length) % imgs.length);
-  }, [imgs.length]);
+    setSlideIdx(i => (i - 1 + totalSlides) % totalSlides);
+  }, [totalSlides]);
 
-  const nextImg = useCallback(() => {
+  const nextSlide = useCallback(() => {
     clearInterval(timerRef.current);
-    setImgIdx((i) => (i + 1) % imgs.length);
-  }, [imgs.length]);
+    setSlideIdx(i => (i + 1) % totalSlides);
+  }, [totalSlides]);
 
-  const jumpImg = useCallback((i) => {
+  const jumpSlide = useCallback((i) => {
     clearInterval(timerRef.current);
-    setImgIdx(i);
+    setSlideIdx(i);
   }, []);
 
   if (!item) return null;
@@ -157,48 +264,95 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
               overflow:   "hidden",
             }}
           >
-            {/* Images */}
-            {imgs.map((src, i) => (
-              <img
-                key={i}
-                src={src}
-                alt={i === 0 ? item.name : `${item.name} photo ${i + 1}`}
+            {/* ── Slides ── */}
+            {mediaItems.map((media, i) => {
+              const isActive = i === slideIdx;
+
+              if (media.type === "image") {
+                return (
+                  <img
+                    key={i}
+                    src={media.src}
+                    alt={i === 0 ? item.name : `${item.name} photo ${i + 1}`}
+                    style={{
+                      position:   "absolute",
+                      inset:      0,
+                      width:      "100%",
+                      height:     "100%",
+                      objectFit:  "cover",
+                      opacity:    isActive ? 1 : 0,
+                      transition: "opacity 0.65s ease",
+                    }}
+                  />
+                );
+              }
+
+              // Video / Reel slide
+              return (
+                <div
+                  key={i}
+                  style={{
+                    position:      "absolute",
+                    inset:         0,
+                    opacity:       isActive ? 1 : 0,
+                    transition:    "opacity 0.3s ease",
+                    pointerEvents: isActive ? "auto" : "none",
+                    background:    "#000",
+                  }}
+                >
+                  <VideoSlide src={media.src} isActive={isActive} />
+
+                  {/* ▶ / 📱 type label bottom-right */}
+                  {isActive && (
+                    <div style={{
+                      position:      "absolute",
+                      top:           12,
+                      right:         12,
+                      zIndex:        5,
+                      padding:       "3px 8px",
+                      borderRadius:  20,
+                      background:    "rgba(0,0,0,0.55)",
+                      border:        "1px solid rgba(201,168,76,0.3)",
+                      color:         "#C9A84C",
+                      fontSize:      9,
+                      fontWeight:    700,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                    }}>
+                      {media.type === "reel" ? "📱 Reel" : "▶ Video"}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Bottom gradient (hidden behind video controls on video slides) */}
+            {!isVideoSlide && (
+              <div
+                aria-hidden="true"
                 style={{
                   position:   "absolute",
-                  inset:      0,
-                  width:      "100%",
-                  height:     "100%",
-                  objectFit:  "cover",
-                  opacity:    i === imgIdx ? 1 : 0,
-                  transition: "opacity 0.65s ease",
+                  bottom:     0,
+                  left:       0,
+                  right:      0,
+                  height:     "48%",
+                  background: "linear-gradient(0deg,rgba(0,0,0,0.82) 0%,transparent 100%)",
+                  zIndex:     1,
+                  pointerEvents: "none",
                 }}
               />
-            ))}
-
-            {/* Bottom gradient */}
-            <div
-              aria-hidden="true"
-              style={{
-                position:   "absolute",
-                bottom:     0,
-                left:       0,
-                right:      0,
-                height:     "48%",
-                background: "linear-gradient(0deg,rgba(0,0,0,0.82) 0%,transparent 100%)",
-                zIndex:     1,
-              }}
-            />
+            )}
 
             {/* Prev / Next */}
-            {imgs.length > 1 && (
+            {totalSlides > 1 && (
               <>
-                <button onClick={prevImg} aria-label="Previous image" style={navBtn("left")}>‹</button>
-                <button onClick={nextImg} aria-label="Next image"     style={navBtn("right")}>›</button>
+                <button onClick={prevSlide} aria-label="Previous" style={{ ...navBtn("left"), zIndex: 4 }}>‹</button>
+                <button onClick={nextSlide} aria-label="Next"     style={{ ...navBtn("right"), zIndex: 4 }}>›</button>
               </>
             )}
 
-            {/* Dot indicators */}
-            {imgs.length > 1 && (
+            {/* Slide indicators */}
+            {totalSlides > 1 && (
               <div
                 aria-hidden="true"
                 style={{
@@ -208,65 +362,81 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
                   right:          0,
                   display:        "flex",
                   justifyContent: "center",
+                  alignItems:     "center",
                   gap:            5,
                   zIndex:         2,
+                  pointerEvents:  "none",
                 }}
               >
-                {imgs.map((_, i) => (
-                  <div
-                    key={i}
-                    onClick={() => jumpImg(i)}
-                    style={{
-                      width:      i === imgIdx ? 18 : 5,
-                      height:     2,
-                      background: i === imgIdx ? "#C9A84C" : "rgba(255,255,255,0.38)",
-                      transition: "all 0.3s",
-                      cursor:     "pointer",
-                    }}
-                  />
-                ))}
+                {mediaItems.map((media, i) => {
+                  const isActive = i === slideIdx;
+                  const isVid    = media.type === "video" || media.type === "reel";
+                  return (
+                    <div
+                      key={i}
+                      onClick={() => jumpSlide(i)}
+                      style={{
+                        width:        isActive ? (isVid ? 22 : 18) : 5,
+                        height:       isVid ? 5 : 2,
+                        background:   isActive
+                          ? (isVid ? "#e8c97a" : "#C9A84C")
+                          : "rgba(255,255,255,0.38)",
+                        borderRadius: isVid ? 3 : 1,
+                        transition:   "all 0.3s",
+                        cursor:       "pointer",
+                        pointerEvents: "auto",
+                        display:      "flex",
+                        alignItems:   "center",
+                        justifyContent: "center",
+                        overflow:     "hidden",
+                      }}
+                    />
+                  );
+                })}
               </div>
             )}
 
-            {/* Stats pinned bottom-left */}
-            <div
-              style={{
-                position: "absolute",
-                bottom:   22,
-                left:     22,
-                zIndex:   2,
-              }}
-            >
-              {item.priceFrom && (
-                <div
-                  style={{
-                    fontFamily:   "var(--font-heading-primary)",
-                    fontSize:     22,
-                    fontWeight:   600,
-                    color:        "#C9A84C",
-                    lineHeight:   1,
-                    marginBottom: 4,
-                  }}
-                >
-                  {item.priceFrom}
-                </div>
-              )}
-              {item.capacity && (
-                <div
-                  style={{
-                    fontFamily:    "var(--font-body)",
-                    fontSize:      10,
-                    color:         "rgba(255,255,255,0.6)",
-                    letterSpacing: "1px",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Up to {item.capacity} guests
-                </div>
-              )}
-            </div>
+            {/* Stats pinned bottom-left (images only) */}
+            {!isVideoSlide && (
+              <div
+                style={{
+                  position: "absolute",
+                  bottom:   22,
+                  left:     22,
+                  zIndex:   2,
+                }}
+              >
+                {item.priceFrom && (
+                  <div
+                    style={{
+                      fontFamily:   "var(--font-heading-primary)",
+                      fontSize:     22,
+                      fontWeight:   600,
+                      color:        "#C9A84C",
+                      lineHeight:   1,
+                      marginBottom: 4,
+                    }}
+                  >
+                    {item.priceFrom}
+                  </div>
+                )}
+                {item.capacity && (
+                  <div
+                    style={{
+                      fontFamily:    "var(--font-body)",
+                      fontSize:      10,
+                      color:         "rgba(255,255,255,0.6)",
+                      letterSpacing: "1px",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Up to {item.capacity} guests
+                  </div>
+                )}
+              </div>
+            )}
 
-            {/* Close ×  top-left */}
+            {/* Close × top-left */}
             <button
               onClick={onClose}
               aria-label="Close quick view"
@@ -274,7 +444,7 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
                 position:       "absolute",
                 top:            12,
                 left:           12,
-                zIndex:         4,
+                zIndex:         10,
                 width:          30,
                 height:         30,
                 borderRadius:   "50%",
@@ -383,11 +553,11 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
               >
                 <span aria-hidden="true" style={{ color: "#C9A84C", fontSize: 9 }}>◆</span>
                 {item.city}, {item.region}
-                {!isVendor && " · Italy"}
+                {!isVendor && item.country && ` · ${item.country}`}
               </div>
 
               {/* Rating */}
-              {item.rating && (
+              {item.rating > 0 && (
                 <div
                   style={{
                     display:      "flex",
@@ -519,16 +689,16 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
               ) : (
                 <div
                   style={{
-                    height:      120,
-                    background:  "rgba(255,255,255,0.02)",
-                    border:      "1px solid rgba(255,255,255,0.06)",
-                    borderRadius: "var(--lwd-radius-input)",
-                    display:     "flex",
-                    alignItems:  "center",
+                    height:         120,
+                    background:     "rgba(255,255,255,0.02)",
+                    border:         "1px solid rgba(255,255,255,0.06)",
+                    borderRadius:   "var(--lwd-radius-input)",
+                    display:        "flex",
+                    alignItems:     "center",
                     justifyContent: "center",
-                    fontFamily:  "var(--font-body)",
-                    fontSize:    11,
-                    color:       "rgba(255,255,255,0.2)",
+                    fontFamily:     "var(--font-body)",
+                    fontSize:       11,
+                    color:          "rgba(255,255,255,0.2)",
                   }}
                 >
                   Map unavailable
@@ -545,7 +715,7 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
           style={{
             flexShrink:     0,
             display:        "flex",
-            justifyContent: "flex-end",
+            justifyContent: "space-between",
             alignItems:     "center",
             gap:            12,
             padding:        "14px 24px",
@@ -553,6 +723,27 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
             background:     "#0f0d0a",
           }}
         >
+          {/* Bottom-left: Showcase link (if available) */}
+          {item?.showcaseUrl ? (
+            <a
+              href={item.showcaseUrl}
+              onClick={onClose}
+              style={{
+                fontFamily: "var(--font-body)", fontSize: 11, fontWeight: 700,
+                letterSpacing: "1.2px", textTransform: "uppercase",
+                color: "#0f0d0a", textDecoration: "none",
+                background: "linear-gradient(135deg,#C9A84C,#e8c97a)",
+                border: "none", borderRadius: "var(--lwd-radius-input)",
+                padding: "9px 18px", cursor: "pointer",
+                display: "inline-flex", alignItems: "center", gap: 6,
+              }}
+            >
+              <span style={{ fontSize: 9 }}>✦</span> Showcase
+            </a>
+          ) : (
+            <div />
+          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button
             onClick={onClose}
             style={{
@@ -591,10 +782,11 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
           >
             Full Profile →
           </button>
+          </div>
         </div>
       </div>
 
-      {/* Login gate — stacks on top (z-1300) */}
+      {/* Login gate, stacks on top (z-1300) */}
       {loginGate && (
         <LoginGateModal onClose={() => setLoginGate(false)} />
       )}

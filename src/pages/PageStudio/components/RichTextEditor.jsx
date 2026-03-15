@@ -1,26 +1,44 @@
 /**
- * Simple rich text editor with formatting toolbar
+ * Simple rich text editor with formatting toolbar.
+ * Uses a ref-based approach for contentEditable to prevent cursor jumping
+ * caused by dangerouslySetInnerHTML resetting the DOM on every re-render.
  */
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 const RichTextEditor = ({ value = "", onChange, placeholder = "", C, NU }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const editorRef = useRef(null);
+  const isEditingRef = useRef(false);
 
-  const applyFormat = (command, value = null) => {
-    document.execCommand(command, false, value);
+  // Set initial content on mount only
+  useEffect(() => {
+    if (editorRef.current) {
+      editorRef.current.innerHTML = value;
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync external value changes only when the editor is not focused
+  useEffect(() => {
+    if (editorRef.current && !isEditingRef.current) {
+      editorRef.current.innerHTML = value;
+    }
+  }, [value]);
+
+  const applyFormat = (command, val = null) => {
+    document.execCommand(command, false, val);
   };
 
-  const handleChange = (e) => {
+  const handleInput = (e) => {
     onChange(e.currentTarget.innerHTML);
   };
 
-  const toolbarButton = (label, command, value = null) => (
+  const toolbarButton = (label, command, val = null) => (
     <button
       key={label}
       onMouseDown={(e) => {
         e.preventDefault();
-        applyFormat(command, value);
+        applyFormat(command, val);
       }}
       title={label}
       style={{
@@ -86,13 +104,20 @@ const RichTextEditor = ({ value = "", onChange, placeholder = "", C, NU }) => {
         {toolbarButton("Clear", "removeFormat")}
       </div>
 
-      {/* Editor */}
+      {/* Editor, ref-based, no dangerouslySetInnerHTML to prevent cursor jumps */}
       <div
+        ref={editorRef}
         contentEditable
-        onInput={handleChange}
+        onFocus={() => { isEditingRef.current = true; }}
+        onBlur={() => { isEditingRef.current = false; }}
+        onInput={handleInput}
         suppressContentEditableWarning
-        style={editorStyle}
-        dangerouslySetInnerHTML={{ __html: value }}
+        data-placeholder={placeholder}
+        style={{
+          ...editorStyle,
+          // Show placeholder via CSS when empty
+          ...(value === '' ? { color: C.grey2 } : {})
+        }}
       />
 
       {/* Character count */}

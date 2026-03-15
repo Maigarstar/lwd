@@ -7,8 +7,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { fetchShowcaseBySlug }  from '../services/showcaseService';
 import { fetchListingBySlug }   from '../services/listings';
-import { getQualityTier }       from '../services/listings';
-import TierStrip                from '../components/editorial/TierStrip';
 import HomeNav                  from '../components/nav/HomeNav';
 import SiteFooter               from '../components/sections/SiteFooter';
 import { buildCardImgs }        from '../utils/mediaMappers';
@@ -201,19 +199,6 @@ function SectionLabel({ label }) {
   );
 }
 
-// ── Section: Tier ─────────────────────────────────────────────────────────────
-function TierSection({ listing, isMobile }) {
-  if (!listing?.contentQualityScore) return null;
-  const tier = getQualityTier(listing.contentQualityScore);
-  if (tier === 'standard') return null;
-
-  return (
-    <div style={{ background: C.surface, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: isMobile ? '24px 24px' : '28px 64px' }}>
-      <TierStrip tier={tier} fullText={true} />
-    </div>
-  );
-}
-
 // ── Section: Enquire CTA ──────────────────────────────────────────────────────
 function EnquireSection({ showcase, listing, onEnquire, isMobile }) {
   const title = showcase?.name || listing?.name || '';
@@ -344,8 +329,6 @@ export default function ShowcasePage({ slug, onBack, onGoDestination, onNavigate
     switch (sec) {
       case 'Hero':
         return <HeroSection key="hero" showcase={showcase} listing={listing} onEnquire={() => setEnquireOpen(true)} isMobile={isMobile} />;
-      case 'Tier':
-        return <TierSection key="tier" listing={listing} isMobile={isMobile} />;
       case 'Stats':
         return <StatsSection key="stats" stats={showcase?.stats} isMobile={isMobile} />;
       case 'Overview':
@@ -364,20 +347,11 @@ export default function ShowcasePage({ slug, onBack, onGoDestination, onNavigate
     }
   };
 
-  // Always inject Tier and Stats after Hero if applicable
+  // Always inject Stats after Hero if key_stats exist and Stats not in sections list
   const sectionsToRender = [...sections];
-  const heroIdx = sectionsToRender.indexOf('Hero');
-  if (heroIdx >= 0) {
-    // Insert Tier right after Hero if listing has contentQualityScore
-    if (listing?.contentQualityScore && !sectionsToRender.includes('Tier')) {
-      sectionsToRender.splice(heroIdx + 1, 0, 'Tier');
-    }
-    // Insert Stats after Tier/Hero if key_stats exist
-    if (showcase?.stats?.length > 0 && !sectionsToRender.includes('Stats')) {
-      const tierIdx = sectionsToRender.indexOf('Tier');
-      const insertIdx = tierIdx >= 0 ? tierIdx + 1 : heroIdx + 1;
-      sectionsToRender.splice(insertIdx, 0, 'Stats');
-    }
+  if (showcase?.stats?.length > 0 && !sectionsToRender.includes('Stats')) {
+    const heroIdx = sectionsToRender.indexOf('Hero');
+    if (heroIdx >= 0) sectionsToRender.splice(heroIdx + 1, 0, 'Stats');
   }
 
   return (

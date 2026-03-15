@@ -2,7 +2,6 @@
 import { VENUES } from "../data/italyVenues";
 import { VENDORS } from "../data/vendors";
 import { rankByCuratedIndex } from "../engine/index.js";
-import { isEditorialCurationEnabled } from "../services/platformSettingsService";
 
 // ── Intent maps ───────────────────────────────────────────────────────────────
 const REGION_MAP = {
@@ -58,63 +57,6 @@ const CAP_MAP = {
 
 const CAP_REGEX = /\b(\d+)\s*(?:guests?|people|persons?|pax)\b/i;
 
-// ── Editorial Boost Calculation ───────────────────────────────────────────────
-/**
- * Calculates editorial boost multiplier based on:
- * 1. editorial_approved (30pt boost)
- * 2. editorial_fact_checked (20pt boost)
- * 3. contentQualityScore (0-40pt based on quality)
- * 4. editorial_last_reviewed_at recency (0-10pt for freshness)
- * Returns a multiplier: 1.0 (no boost) to 1.5 (maximum boost for platinum approved venues)
- */
-function calculateEditorialBoost(venue) {
-  let boostPoints = 0;
-  const maxPoints = 100;
-
-  // Priority 1: editorial_enabled check (venues with editorial_enabled=false get no boost)
-  if (venue.editorial_enabled === false) {
-    return 1.0;
-  }
-
-  // Priority 2: editorial_approved status (30pt)
-  if (venue.editorial_approved === true) {
-    boostPoints += 30;
-  }
-
-  // Priority 3: editorial_fact_checked status (20pt)
-  if (venue.editorial_fact_checked === true) {
-    boostPoints += 20;
-  }
-
-  // Priority 4: contentQualityScore (0-40pt)
-  // Map score 0-100 to 0-40 points
-  const qualityScore = venue.contentQualityScore || 0;
-  const qualityPoints = (qualityScore / 100) * 40;
-  boostPoints += qualityPoints;
-
-  // Priority 5: Freshness - recency of editorial review (0-10pt)
-  if (venue.editorial_last_reviewed_at) {
-    const reviewDate = new Date(venue.editorial_last_reviewed_at);
-    const now = new Date();
-    const daysSinceReview = (now - reviewDate) / (1000 * 60 * 60 * 24);
-
-    // 0-90 days: full 10 points
-    // 91-180 days: 5 points
-    // 180+ days: 0 points
-    if (daysSinceReview <= 90) {
-      boostPoints += 10;
-    } else if (daysSinceReview <= 180) {
-      boostPoints += 5;
-    }
-  }
-
-  // Convert points (0-100) to multiplier (1.0-1.5)
-  // 0 points = 1.0x multiplier (no boost)
-  // 100 points = 1.5x multiplier (maximum boost)
-  const multiplier = 1.0 + (boostPoints / maxPoints) * 0.5;
-  return Math.min(multiplier, 1.5);
-}
-
 // ── Extract intent from last N user messages ──────────────────────────────────
 export function extractIntent(messages) {
   const userMsgs = messages
@@ -166,31 +108,8 @@ export function extractIntent(messages) {
 
 // ── Build curated recommendation list ────────────────────────────────────────
 export function getRecommendations(messages, activeContext) {
-  const editorialEnabled = isEditorialCurationEnabled();
-  console.log('[getRecommendations] called with messagesLength:', messages?.length, 'editorialEnabled:', editorialEnabled, 'venuesCount:', VENUES.length);
-
   if (!messages || messages.length === 0) {
-    let defaultVenues;
-
-    if (editorialEnabled) {
-      // Apply editorial boost when feature is enabled
-      VENUES.forEach((venue) => {
-        const boost = calculateEditorialBoost(venue);
-        if (boost > 1.0) {
-          venue._editorialBoost = boost;
-        }
-      });
-      defaultVenues = rankByCuratedIndex([...VENUES]).slice(0, 4);
-      // Mark top recommendations with aura_recommended flag (system-driven)
-      defaultVenues.forEach((v, idx) => {
-        if (idx < 3) v.aura_recommended = true;
-      });
-    } else {
-      // Use standard ranking without editorial boost
-      defaultVenues = rankByCuratedIndex([...VENUES]).slice(0, 4);
-    }
-
-    return { items: defaultVenues, summary: "Popular venues in Italy", intent: {} };
+    return { items: rankByCuratedIndex([...VENUES]).slice(0, 4), summary: "Popular venues in Italy", intent: {} };
   }
 
   const intent = extractIntent(messages);
@@ -205,48 +124,24 @@ export function getRecommendations(messages, activeContext) {
   // ── Venues ──
   if (resultType === "venue" || resultType === "mixed") {
     const limit = resultType === "mixed" ? 3 : 6;
-    const editorialEnabled = isEditorialCurationEnabled();
-
-    // Filter venues by criteria
-    let filteredVenues = VENUES.filter((v) => {
+    venueResults = rankByCuratedIndex(VENUES.filter((v) => {
       if (effectiveRegion && v.region !== effectiveRegion) return false;
       if (style && !v.styles.includes(style)) return false;
       if (maxCapacity && v.capacity > maxCapacity * 1.5) return false;
       return true;
-    });
+    })).slice(0, limit);
 
-    // If no results, try dropping region constraint
-    if (filteredVenues.length === 0) {
-      filteredVenues = VENUES.filter((v) => {
+    // fallback: drop region constraint
+    if (venueResults.length === 0) {
+      venueResults = rankByCuratedIndex(VENUES.filter((v) => {
         if (style && !v.styles.includes(style)) return false;
         if (maxCapacity && v.capacity > maxCapacity * 1.5) return false;
         return true;
-      });
+      })).slice(0, limit);
     }
 
-    // Final fallback: use all venues
-    if (filteredVenues.length === 0) filteredVenues = [...VENUES];
-
-    // Apply editorial boost to scores (only if global toggle enabled)
-    if (editorialEnabled) {
-      filteredVenues.forEach((venue) => {
-        const boost = calculateEditorialBoost(venue);
-        if (boost > 1.0) {
-          // Apply boost to lwdScore (computed by rankByCuratedIndex)
-          venue._editorialBoost = boost;
-        }
-      });
-    }
-
-    // Rank and sort
-    venueResults = rankByCuratedIndex(filteredVenues).slice(0, limit);
-
-    // Mark top recommendations with aura_recommended flag (system-driven, only if editorial enabled)
-    if (editorialEnabled) {
-      venueResults.forEach((v, idx) => {
-        if (idx < 3) v.aura_recommended = true;
-      });
-    }
+    // final fallback
+    if (venueResults.length === 0) venueResults = rankByCuratedIndex([...VENUES]).slice(0, limit);
   }
 
   // ── Vendors ──
@@ -265,15 +160,7 @@ export function getRecommendations(messages, activeContext) {
     if (vendorResults.length === 0) vendorResults = rankByCuratedIndex([...VENDORS]).slice(0, limit);
   }
 
-  let items = [...venueResults, ...vendorResults];
-  console.log('[getRecommendations] returning', items.length, 'items (venues:', venueResults.length, 'vendors:', vendorResults.length, ')');
-
-  // Safety check: if no items returned, provide default venues
-  if (items.length === 0) {
-    console.warn('[getRecommendations] No items found, returning default venues');
-    const defaultVenues = rankByCuratedIndex([...VENUES]).slice(0, 4);
-    items = defaultVenues;
-  }
+  const items = [...venueResults, ...vendorResults];
 
   // ── Summary line ──
   let summary = "Curated for your search";

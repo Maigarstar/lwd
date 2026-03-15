@@ -4,6 +4,10 @@
 // Tap anywhere → onView. Heart icon top-right. Clean editorial feel.
 import { useTheme } from "../../theme/ThemeContext";
 import { GoldBadge } from "../ui/Badges";
+import { getQualityTier } from "../../services/listings";
+import TierBadge from "../editorial/TierBadge";
+import ApprovalIndicators from "../editorial/ApprovalIndicators";
+import FreshnessText from "../editorial/FreshnessText";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -49,7 +53,7 @@ export default function GCardMobile({ v, saved, onSave, onView }) {
         }}
       />
 
-      {/* ── Online badge — top left ── */}
+      {/* ── Online badge, top left ── */}
       <div
         style={{
           position: "absolute",
@@ -91,7 +95,7 @@ export default function GCardMobile({ v, saved, onSave, onView }) {
         </span>
       </div>
 
-      {/* ── Save heart — top right ── */}
+      {/* ── Save heart, top right ── */}
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -141,6 +145,19 @@ export default function GCardMobile({ v, saved, onSave, onView }) {
         }}
       >
         {/* Venue name */}
+        {v.showcaseUrl && (
+          <a href={v.showcaseUrl} onClick={(e) => e.stopPropagation()} style={{
+            display: "inline-flex", alignItems: "center", gap: 5,
+            marginBottom: 14, marginTop: -4,
+            padding: "3px 9px", borderRadius: 20,
+            background: "rgba(255,255,255,0.12)", backdropFilter: "blur(6px)",
+            border: "1px solid rgba(255,255,255,0.25)",
+            textDecoration: "none",
+          }}>
+            <span style={{ color: "#fff", fontSize: 7, lineHeight: 1 }}>✦</span>
+            <span style={{ fontFamily: "var(--font-body)", fontSize: 8, fontWeight: 700, letterSpacing: "1.2px", textTransform: "uppercase", color: "#fff" }}>A Showcase Property</span>
+          </a>
+        )}
         <h3
           style={{
             fontFamily: GD,
@@ -161,6 +178,7 @@ export default function GCardMobile({ v, saved, onSave, onView }) {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            marginBottom: 8,
           }}
         >
           <span
@@ -189,6 +207,31 @@ export default function GCardMobile({ v, saved, onSave, onView }) {
             >
               from {v.priceFrom}
             </span>
+          )}
+        </div>
+
+        {/* Phase 4a: Tier badge + Phase 4b: Editorial indicators */}
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
+            {v.contentScore !== undefined && (
+              <TierBadge tier={getQualityTier(v.contentScore)} showLabel={true} size="sm" />
+            )}
+          </div>
+          {(v.editorialApproved || v.editorialFactChecked) && (
+            <ApprovalIndicators
+              approved={v.editorialApproved}
+              factChecked={v.editorialFactChecked}
+              layout="horizontal"
+            />
+          )}
+          {v.editorialApproved && v.editorialLastReviewedAt && (
+            <div style={{ marginTop: 6 }}>
+              <FreshnessText
+                lastReviewedAt={v.editorialLastReviewedAt}
+                color="rgba(255,255,255,0.6)"
+                fontSize={10}
+              />
+            </div>
           )}
         </div>
 

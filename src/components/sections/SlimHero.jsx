@@ -20,7 +20,7 @@ const NU = "var(--font-body)";
 
 /* ── Clever-search location field (internal) ─────────────────────────────── */
 /* Shows nothing on focus; as the user types, surfaces matching countries &
-   cities in a compact ranked list — no huge mega menu. */
+   cities in a compact ranked list, no huge mega menu. */
 function LocationSearchField({ value, onChange, placeholder, items, ariaLabel, onEnter, containerRef }) {
   const [inputText, setInputText] = useState("");
   const [open, setOpen] = useState(false);
@@ -424,8 +424,28 @@ function PredictiveField({ value, onChange, placeholder, items, ariaLabel, onEnt
   );
 }
 
+/* ── Utility functions ───────────────────────────────────────────────────── */
+function extractYouTubeId(url) {
+  if (!url) return '';
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/,
+    /youtube\.com\/embed\/([a-zA-Z0-9_-]+)/,
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return '';
+}
+
+function extractVimeoId(url) {
+  if (!url) return '';
+  const match = url.match(/vimeo\.com\/(\d+)/);
+  return match ? match[1] : '';
+}
+
 /* ── SlimHero ────────────────────────────────────────────────────────────── */
-export default function SlimHero({ venues = [], onViewRegion, onViewRegionCategory, onViewCategory }) {
+export default function SlimHero({ venues = [], backgroundData = null, onViewRegion, onViewRegionCategory, onViewCategory }) {
   const C = useTheme();
   const [idx, setIdx] = useState(0);
   const [query, setQuery] = useState("");
@@ -441,14 +461,15 @@ export default function SlimHero({ venues = [], onViewRegion, onViewRegionCatego
   // Trigger text-split after mount
   useEffect(() => { const t = setTimeout(() => setHeroLoaded(true), 150); return () => clearTimeout(t); }, []);
 
-  // Auto-advance background image
+  // Auto-advance background image (custom hero images or venues fallback)
   useEffect(() => {
-    if (!venues.length) return;
-    const t = setInterval(() => setIdx((i) => (i + 1) % venues.length), 7000);
+    const images = backgroundData?.backgroundImages || venues;
+    if (!images || !images.length) return;
+    const t = setInterval(() => setIdx((i) => (i + 1) % images.length), 7000);
     return () => clearInterval(t);
-  }, [venues.length]);
+  }, [backgroundData?.backgroundImages, venues]);
 
-  // Subtle parallax — image drifts at 15 % of scroll speed
+  // Subtle parallax, image drifts at 15 % of scroll speed
   useEffect(() => {
     const onScroll = () => {
       const el = sectionRef.current;
@@ -523,38 +544,174 @@ export default function SlimHero({ venues = [], onViewRegion, onViewRegionCatego
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        transition: "height 0.6s ease",
       }}
     >
-      {/* Background container — overflow hidden here to clip parallax images */}
+      {/* Background container, overflow hidden here to clip parallax images */}
       <div aria-hidden="true" style={{ position: "absolute", inset: 0, overflow: "hidden", zIndex: 0 }}>
-        {/* Background images — parallax layer */}
-        {venues.map((v, i) => (
-          <div
-            key={v.id}
-            style={{
-              position: "absolute",
-              inset: "-8% 0",
-              overflow: "hidden",
-              opacity: i === idx ? 1 : 0,
-              transition: "opacity 2s ease",
-              transform: `translateY(${parallaxY}px)`,
-              willChange: "transform",
-            }}
-          >
-            <img
-              src={v.imgs[0]}
-              alt=""
-              loading={i === 0 ? "eager" : "lazy"}
+        {/* Custom background media, only render the ACTIVE backgroundType */}
+        {backgroundData?.backgroundType ? (
+          <>
+            {/* Image carousel, only when type is 'image' */}
+            {backgroundData.backgroundType === 'image' && backgroundData.backgroundImages?.length > 0 && (
+              <>
+                {backgroundData.backgroundImages.map((img, i) => (
+                  <div
+                    key={img.url}
+                    style={{
+                      position: "absolute",
+                      inset: "-8% 0",
+                      overflow: "hidden",
+                      opacity: i === idx ? 1 : 0,
+                      transition: "opacity 2s ease",
+                      transform: `translateY(${parallaxY}px)`,
+                      willChange: "transform",
+                    }}
+                  >
+                    <img
+                      src={img.url}
+                      alt={img.alt || `Hero background ${i + 1}`}
+                      loading={i === 0 ? "eager" : "lazy"}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        transform: i === idx ? "scale(1.05)" : "scale(1)",
+                        transition: "transform 8s ease",
+                      }}
+                    />
+                  </div>
+                ))}
+              </>
+            )}
+
+            {/* Video carousel, only when type is 'video_upload' */}
+            {backgroundData.backgroundType === 'video_upload' && backgroundData.backgroundVideos?.length > 0 && (
+              <>
+                {backgroundData.backgroundVideos.map((vid, i) => (
+                  <div
+                    key={vid.url}
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      overflow: "hidden",
+                      opacity: i === idx ? 1 : 0,
+                      transition: "opacity 2s ease",
+                    }}
+                  >
+                    {vid.isUrl ? (
+                      <iframe
+                        src={vid.url}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          border: "none",
+                        }}
+                        allow="autoplay"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <video
+                        autoPlay={backgroundData.autoplay !== false}
+                        muted={backgroundData.muted !== false}
+                        loop={backgroundData.loop !== false}
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          objectPosition: "center center",
+                        }}
+                      >
+                        <source src={vid.url} type={`video/${vid.type}`} />
+                        Your browser does not support the video tag.
+                      </video>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
+
+            {/* YouTube, only when type is 'youtube' */}
+            {backgroundData.backgroundType === 'youtube' && backgroundData.backgroundVideoUrl && extractYouTubeId(backgroundData.backgroundVideoUrl) && (
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  overflow: "hidden",
+                }}
+              >
+                <iframe
+                  src={`https://www.youtube.com/embed/${extractYouTubeId(backgroundData.backgroundVideoUrl)}?autoplay=1&mute=1&loop=1&controls=0&modestbranding=1&playlist=${extractYouTubeId(backgroundData.backgroundVideoUrl)}`}
+                  style={{
+                    position: "absolute",
+                    width: "100%",
+                    height: "100%",
+                    border: "none",
+                    pointerEvents: "none",
+                  }}
+                  allow="autoplay"
+                  title="YouTube video background"
+                />
+              </div>
+            )}
+
+            {/* Vimeo, only when type is 'vimeo' */}
+            {backgroundData.backgroundType === 'vimeo' && backgroundData.backgroundVideoUrl && extractVimeoId(backgroundData.backgroundVideoUrl) && (
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  overflow: "hidden",
+                }}
+              >
+                <iframe
+                  src={`https://player.vimeo.com/video/${extractVimeoId(backgroundData.backgroundVideoUrl)}?autoplay=1&muted=1&loop=1&controls=0`}
+                  style={{
+                    position: "absolute",
+                    width: "100%",
+                    height: "100%",
+                    border: "none",
+                    pointerEvents: "none",
+                  }}
+                  allow="autoplay"
+                  title="Vimeo video background"
+                />
+              </div>
+            )}
+          </>
+        ) : (
+          /* Fallback: Background images from venues, parallax layer */
+          venues.map((v, i) => (
+            <div
+              key={v.id}
               style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                transform: i === idx ? "scale(1.05)" : "scale(1)",
-                transition: "transform 8s ease",
+                position: "absolute",
+                inset: "-8% 0",
+                overflow: "hidden",
+                opacity: i === idx ? 1 : 0,
+                transition: "opacity 2s ease",
+                transform: `translateY(${parallaxY}px)`,
+                willChange: "transform",
               }}
-            />
-          </div>
-        ))}
+            >
+              <img
+                src={v.imgs[0]}
+                alt=""
+                loading={i === 0 ? "eager" : "lazy"}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  transform: i === idx ? "scale(1.05)" : "scale(1)",
+                  transition: "transform 8s ease",
+                }}
+              />
+            </div>
+          ))
+        )}
 
         {/* Cinematic overlays */}
         <div
@@ -628,7 +785,7 @@ export default function SlimHero({ venues = [], onViewRegion, onViewRegionCatego
           </span>
         </div>
 
-        {/* Headline — word-by-word reveal */}
+        {/* Headline, word-by-word reveal */}
         <h1
           style={{
             fontFamily: GD,
@@ -676,7 +833,7 @@ export default function SlimHero({ venues = [], onViewRegion, onViewRegionCatego
             marginRight: "auto",
           }}
         >
-          Intelligent discovery for modern luxury weddings — search by
+          Intelligent discovery for modern luxury weddings, search by
           destination, style, guest count, and collection.
         </p>
 
@@ -728,7 +885,7 @@ export default function SlimHero({ venues = [], onViewRegion, onViewRegionCatego
           ))}
         </div>
 
-        {/* Search bar — no backdropFilter here to avoid containing-block trap */}
+        {/* Search bar, no backdropFilter here to avoid containing-block trap */}
         <div
           ref={searchBarRef}
           className={`home-hero-search${searchMode === "ai" ? " home-hero-search--ai" : ""}`}
@@ -752,7 +909,7 @@ export default function SlimHero({ venues = [], onViewRegion, onViewRegionCatego
             transition: "border-color 0.4s, box-shadow 0.4s",
           }}
         >
-          {/* Blur layer — separate element so it doesn't create a containing block for dropdowns */}
+          {/* Blur layer, separate element so it doesn't create a containing block for dropdowns */}
           <div aria-hidden="true" style={{ position: "absolute", inset: 0, borderRadius: "var(--lwd-radius-card)", background: "rgba(10,9,6,0.6)", backdropFilter: "blur(24px)", pointerEvents: "none", zIndex: 0 }} />
           {searchMode === "ai" ? (
             <>
@@ -847,7 +1004,7 @@ export default function SlimHero({ venues = [], onViewRegion, onViewRegionCatego
                 containerRef={searchBarRef}
               />
 
-              {/* Soft divider — gradient fade, no hard seam */}
+              {/* Soft divider, gradient fade, no hard seam */}
               <div
                 className="home-hero-browse-divider"
                 style={{
@@ -858,7 +1015,7 @@ export default function SlimHero({ venues = [], onViewRegion, onViewRegionCatego
                 }}
               />
 
-              {/* Field 2: Location — clever search, no mega menu */}
+              {/* Field 2: Location, clever search, no mega menu */}
               <span
                 style={{
                   padding: "0 10px 0 14px",
@@ -938,7 +1095,7 @@ export default function SlimHero({ venues = [], onViewRegion, onViewRegionCatego
           >
             Ask Aura
           </span>{" "}
-          — get personalised venue suggestions instantly.
+         , get personalised venue suggestions instantly.
         </div>
 
         {/* Trust micro-line */}

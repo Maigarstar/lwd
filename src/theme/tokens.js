@@ -1,6 +1,6 @@
 // ─── src/theme/tokens.js ─────────────────────────────────────────────────────
 
-/** Compact (scrolled) nav height in px — sticky filter bar sits at this offset */
+/** Compact (scrolled) nav height in px, sticky filter bar sits at this offset */
 export const NAV_H = 56;
 
 export const DARK_C = {
@@ -58,7 +58,7 @@ export function getLightPalette() {
   return saved?.light ? { ...LIGHT_C, ...saved.light } : LIGHT_C;
 }
 
-/** Saved default mode: "dark" | "light" — respects lightOnly lock */
+/** Saved default mode: "dark" | "light", respects lightOnly lock */
 export function getDefaultMode() {
   const saved = _loadOverrides();
   if (saved?.site?.lightOnly) return "light";

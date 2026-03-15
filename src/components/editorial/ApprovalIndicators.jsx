@@ -1,22 +1,17 @@
-import { isEditorialCurationEnabled } from '../../services/platformSettingsService';
-
 /**
- * ApprovalIndicators - Display editorial approval status badges
- * Shows: ★ Editor Approved (when editorial_approved = true)
- *        ✓ Fact Checked (when editorial_fact_checked = true)
- * Returns null if neither status is true or editorial curation is disabled globally
+ * ApprovalIndicators.jsx
+ * Editorial approval status badges (Editor Approved, Fact Checked)
+ * Displays approval workflow status for editorial curation visibility
+ * Used in: AuraVenueCard, venue pages, editorial dashboards
  */
+
 export default function ApprovalIndicators({
   approved = false,
   factChecked = false,
-  layout = 'horizontal'
+  layout = 'horizontal',
 }) {
-  const editorialEnabled = isEditorialCurationEnabled();
-
-  // Don't show if editorial curation disabled globally or if neither status is true
-  if (!editorialEnabled || (!approved && !factChecked)) {
-    return null;
-  }
+  // Don't show if neither is true
+  if (!approved && !factChecked) return null;
 
   const badges = [];
 
@@ -24,7 +19,8 @@ export default function ApprovalIndicators({
     badges.push({
       icon: '★',
       label: 'Editor Approved',
-      color: '#C9A84C'
+      color: '#C9A84C',
+      bgColor: '#faf7f0',
     });
   }
 
@@ -32,7 +28,8 @@ export default function ApprovalIndicators({
     badges.push({
       icon: '✓',
       label: 'Fact Checked',
-      color: '#10b981'
+      color: '#10b981',
+      bgColor: '#f0f5f0',
     });
   }
 
@@ -43,16 +40,15 @@ export default function ApprovalIndicators({
           <div
             key={idx}
             style={{
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
               fontSize: 12,
               fontWeight: 500,
               color: badge.color,
               letterSpacing: '0.02em',
-              whiteSpace: 'nowrap'
+              fontFamily: 'var(--font-body)',
             }}
-            title={badge.label}
           >
             <span style={{ fontSize: 14 }}>{badge.icon}</span>
             {badge.label}
@@ -62,28 +58,27 @@ export default function ApprovalIndicators({
     );
   }
 
-  // horizontal (default)
+  // horizontal layout
   return (
-    <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
       {badges.map((badge, idx) => (
-        <div
+        <span
           key={idx}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 5,
-            fontSize: 11,
-            fontWeight: 500,
+            gap: 4,
+            padding: '4px 8px',
+            background: badge.bgColor,
             color: badge.color,
-            letterSpacing: '0.5px',
-            textTransform: 'uppercase',
-            whiteSpace: 'nowrap'
+            borderRadius: 4,
+            fontFamily: 'var(--font-body)',
+            fontSize: 11,
+            fontWeight: 600,
           }}
-          title={badge.label}
         >
-          <span style={{ fontSize: 13 }}>{badge.icon}</span>
-          {badge.label}
-        </div>
+          {badge.icon} {badge.label}
+        </span>
       ))}
     </div>
   );

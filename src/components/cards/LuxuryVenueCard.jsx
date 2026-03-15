@@ -1,27 +1,29 @@
 // ─── src/components/cards/LuxuryVenueCard.jsx ─────────────────────────────────
-// Exact copy of PlannerCard GridCard — full-bleed swipeable media, cinematic
+// Exact copy of PlannerCard GridCard, full-bleed swipeable media, cinematic
 // gradient, content overlaid at bottom. Venue data swapped in for planner data.
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useTheme } from "../../theme/ThemeContext";
+import { useShortlist } from "../../shortlist/ShortlistContext";
 import Stars from "../ui/Stars";
 import { GoldBadge, VerifiedBadge } from "../ui/Badges";
+import EnquiryFormModal from "../ui/EnquiryFormModal";
+import ShortlistButton from "../buttons/ShortlistButton";
+import { track } from "../../utils/track";
+import { getQualityTier } from "../../services/listings";
 import TierBadge from "../editorial/TierBadge";
 import ApprovalIndicators from "../editorial/ApprovalIndicators";
 import FreshnessText from "../editorial/FreshnessText";
-import EnquiryFormModal from "../ui/EnquiryFormModal";
-import QuickViewModal from "../modals/QuickViewModal";
-import { getQualityTier } from "../../services/listings";
 
 const GOLD = "#C9A84C";
 const GD   = "var(--font-heading-primary)";
 const NU   = "var(--font-body)";
 
-export default function LuxuryVenueCard({ v, onView, isMobile }) {
+export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, setQuickViewItem }) {
   const C = useTheme();
+  const { isShortlisted, toggleItem } = useShortlist();
   const [hov, setHov]               = useState(false);
   const [showEnquiry, setShowEnquiry] = useState(false);
-  const [quickViewItem, setQuickViewItem] = useState(null);
   const [slideIdx, setSlideIdx]      = useState(0);
   const [muted, setMuted]            = useState(true);
   const cardRef  = useRef(null);
@@ -29,24 +31,46 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
   const videoRefs = useRef({});
 
   // ── Build media array: images first, video last ──
+  // v.imgs may be plain URL strings OR objects { src/url, credit_name, credit_instagram }
   const allMedia = (() => {
     const items = [];
-    (v.imgs || []).forEach((src) => items.push({ type: "image", src }));
-    if (v.videoUrl) items.push({ type: "video", src: v.videoUrl });
-    return items.length > 0 ? items : [{ type: "image", src: "" }];
+    (v.imgs || []).forEach((img) => {
+      if (typeof img === "string") {
+        items.push({ type: "image", src: img, alt_text: "", creditName: null, creditIG: null, showCredit: false });
+      } else {
+        items.push({
+          type:        "image",
+          src:         img.src || img.url || "",
+          alt_text:    img.alt_text || "",
+          creditName:  img.credit_name || null,
+          creditIG:    img.credit_instagram || null,
+          showCredit:  img.show_credit ?? false,
+        });
+      }
+    });
+    if (v.videoUrl) items.push({ type: "video", src: v.videoUrl, creditName: null, creditIG: null, showCredit: false });
+    return items.length > 0 ? items : [{ type: "image", src: "", creditName: null, creditIG: null, showCredit: false }];
   })();
 
   const mediaCount  = allMedia.length;
   const hasMultiple = mediaCount > 1;
   const hasVideo    = allMedia.some((m) => m.type === "video");
 
-  // ── Track visibility to pause video ──
+  // ── Track visibility to pause video and close Quick View ──
   const [isVisible, setIsVisible] = useState(false);
   useEffect(() => {
     const el = cardRef.current;
     if (!el) return;
     const obs = new IntersectionObserver(
-      ([entry]) => setIsVisible(entry.isIntersecting),
+      ([entry]) => {
+        const visible = entry.isIntersecting && entry.intersectionRatio >= 0.3;
+        setIsVisible(visible);
+        // Close Quick View and reset sound when card leaves viewport
+        if (!visible) {
+          setQuickViewItem(null);
+          setMuted(true);
+        }
+      },
       { threshold: 0.3 }
     );
     obs.observe(el);
@@ -115,7 +139,6 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
   }, [goNext]);
 
   return (
-    <>
     <article
       ref={cardRef}
       aria-label={v.name}
@@ -124,17 +147,18 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
       onClick={() => onView?.(v)}
       style={{
         position:        "relative",
-        borderRadius:    "8px",
+        borderRadius:    isMobile ? 0 : "var(--lwd-radius-card)",
         overflow:        "hidden",
         cursor:          "pointer",
         transition:      "all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
-        transform:       hov ? "translateY(-4px)" : "translateY(0)",
-        boxShadow:       hov ? "0 16px 48px rgba(0,0,0,0.25), 0 4px 12px rgba(201,168,76,0.08)" : "0 2px 12px rgba(0,0,0,0.1)",
-        scrollSnapAlign: isMobile ? "start" : undefined,
-        scrollMarginTop: isMobile ? 12 : undefined,
-        height:          540,
-        minHeight:       540,
-        maxHeight:       540,
+        transform:       hov && !isMobile ? "translateY(-4px)" : "translateY(0)",
+        boxShadow:       hov && !isMobile ? "0 16px 48px rgba(0,0,0,0.25), 0 4px 12px rgba(201,168,76,0.08)" : "0 2px 12px rgba(0,0,0,0.1)",
+        scrollSnapAlign: "start",
+        scrollMarginTop: 0,
+        margin:          isMobile ? 0 : undefined,
+        height:          isMobile ? "calc(100dvh - 10px)" : 560,
+        minHeight:       isMobile ? "calc(100dvh - 10px)" : 520,
+        maxHeight:       isMobile ? "calc(100dvh - 10px)" : 580,
       }}
     >
       {/* ── Full-bleed swipeable media ── */}
@@ -174,7 +198,7 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
               {item.type === "image" ? (
                 <img
                   src={item.src}
-                  alt={i === 0 ? `${v.name} – ${v.city}, ${v.region}` : `${v.name} photo ${i + 1}`}
+                  alt={item.alt_text || (i === 0 ? `${v.name} – ${v.city}, ${v.region}` : `${v.name} photo ${i + 1}`)}
                   loading="lazy"
                   style={{
                     width: "100%", height: "100%", objectFit: "cover",
@@ -212,19 +236,19 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
       />
 
       {/* ── Top badges ── */}
-      <div style={{ position: "absolute", top: 12, left: 12, zIndex: 4, display: "flex", flexDirection: "column", gap: 8 }}>
-        {v.tag && <GoldBadge text={v.tag} />}
-        {v.contentQualityScore !== undefined && (
-          <TierBadge tier={getQualityTier(v.contentQualityScore)} showLabel={true} size="sm" />
-        )}
-      </div>
+      {v.tag && (
+        <div style={{ position: "absolute", top: 12, left: 12, zIndex: 4 }}>
+          <GoldBadge text={v.tag} />
+        </div>
+      )}
       {v.verified && (
         <div style={{ position: "absolute", top: 12, right: 12, zIndex: 4 }}>
           <VerifiedBadge />
         </div>
       )}
 
-      {/* ── Swipe hint on hover ── */}
+      {/* ── Right-side overlay column: SWIPE (top:44) → HEART (top:84) ── */}
+      {/* Swipe hint, below verified badge, shows on hover when multiple slides */}
       {hov && hasMultiple && (
         <div
           style={{
@@ -242,33 +266,70 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
         </div>
       )}
 
-      {/* ── Dot indicators ── */}
-      {hasMultiple && (
-        <div
-          aria-hidden="true"
-          style={{
-            position: "absolute", top: 14, left: "50%", transform: "translateX(-50%)",
-            zIndex: 5, display: "flex", alignItems: "center", gap: 5,
-            padding: "4px 8px", borderRadius: 12,
-            background: "rgba(0,0,0,0.35)", backdropFilter: "blur(6px)",
+      {/* Heart, below swipe hint, shows on hover or when saved */}
+      <div
+        style={{
+          position: "absolute", top: v.verified ? 84 : 52, right: 12, zIndex: 4,
+          opacity: isShortlisted(v.id) ? 1 : hov ? 1 : 0,
+          transition: "opacity 200ms ease",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <ShortlistButton
+          item={{ id: v.id, name: v.name, image: v.imgs?.[0], category: "venue", price: v.priceFrom, type: "venue" }}
+          isShortlisted={isShortlisted(v.id)}
+          onToggle={(itemId, newState) => {
+            track(newState ? "shortlist_add" : "shortlist_remove", { itemId, itemName: v.name });
+            toggleItem({ id: itemId, name: v.name, image: v.imgs?.[0], category: "venue", price: v.priceFrom, type: "venue" });
           }}
-        >
-          {allMedia.map((_, i) => (
-            <button
-              key={i}
-              onClick={(e) => { e.stopPropagation(); goTo(i); }}
-              aria-label={`Slide ${i + 1}`}
-              style={{
-                width: slideIdx === i ? 18 : 6, height: 6, borderRadius: 3,
-                background: slideIdx === i ? GOLD : "rgba(255,255,255,0.45)",
-                border: "none", padding: 0, cursor: "pointer", transition: "all 0.3s ease",
-              }}
-            />
-          ))}
-        </div>
-      )}
+          variant="icon"
+          size="medium"
+          strokeColor="#ffffff"
+        />
+      </div>
 
-      {/* ── Prev/Next arrows removed — SliderNav handles left/right nav ── */}
+      {/* ── Slide bar indicators, top-centre, max 3 bars ── */}
+      {hasMultiple && (() => {
+        const barCount = Math.min(mediaCount, 3);
+        // Which of the 3 bars is active: first / middle / last
+        const activeBar = mediaCount <= 3
+          ? slideIdx
+          : slideIdx === 0 ? 0
+          : slideIdx === mediaCount - 1 ? 2
+          : 1;
+        return (
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute", top: 14, left: "50%", transform: "translateX(-50%)",
+              zIndex: 5, display: "flex", alignItems: "center", gap: 3,
+              padding: "5px 8px", borderRadius: 20,
+              background: "rgba(0,0,0,0.45)", backdropFilter: "blur(8px)",
+            }}
+          >
+            {Array.from({ length: barCount }, (_, i) => (
+              <button
+                key={i}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Navigate to the proportional slide for this bar
+                  const target = mediaCount <= 3 ? i : Math.round((i / (barCount - 1)) * (mediaCount - 1));
+                  goTo(target);
+                }}
+                aria-label={`Slide group ${i + 1}`}
+                style={{
+                  width: 16, height: 2, borderRadius: 2,
+                  background: activeBar === i ? GOLD : "rgba(255,255,255,0.35)",
+                  border: "none", padding: 0, cursor: "pointer",
+                  transition: "background 0.3s ease", flexShrink: 0,
+                }}
+              />
+            ))}
+          </div>
+        );
+      })()}
+
+      {/* ── Prev/Next arrows removed, SliderNav handles left/right nav ── */}
       {/* Image navigation via swipe/drag + dot indicators above */}
 
       {/* ── Mute toggle on video slide ── */}
@@ -303,9 +364,59 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
         onClick={(e) => e.stopPropagation()}
         style={{
           position: "absolute", bottom: 0, left: 0, right: 0,
-          zIndex: 2, padding: isMobile ? "0 16px 16px" : "0 18px 18px",
+          zIndex: 2, padding: isMobile ? "20px 14px 16px" : "20px 18px 18px",
         }}
       >
+        {/* Photographer credit, bottom-right of image, above venue name */}
+        {(() => {
+          const cur = allMedia[slideIdx];
+          if (!cur?.showCredit) return null;
+          const label = cur?.creditIG
+            ? `@${cur.creditIG.replace(/^@/, "")}`
+            : cur?.creditName || null;
+          return label ? (
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute", top: 10, right: 12,
+                display: "flex", alignItems: "center", gap: 3,
+                fontSize: 9, fontFamily: NU,
+                color: "rgba(255,255,255,0.48)",
+                pointerEvents: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+              <span>{label}</span>
+            </div>
+          ) : null;
+        })()}
+
+        {/* Showcase indicator, above name */}
+        {v.showcaseUrl && (
+          <a
+            href={v.showcaseUrl}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              marginBottom: 14, marginTop: -4,
+              padding: "3px 9px", borderRadius: 20,
+              background: "rgba(255,255,255,0.12)", backdropFilter: "blur(6px)",
+              border: "1px solid rgba(255,255,255,0.25)",
+              textDecoration: "none", cursor: "pointer",
+            }}
+          >
+            <span style={{ color: "#fff", fontSize: 7, lineHeight: 1 }}>✦</span>
+            <span style={{
+              fontFamily: NU, fontSize: 8, fontWeight: 700, letterSpacing: "1.2px",
+              textTransform: "uppercase", color: "#fff",
+            }}>A Showcase Property</span>
+          </a>
+        )}
+
         {/* Name */}
         <div
           onClick={() => onView?.(v)}
@@ -323,7 +434,7 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
           {v.city}, {v.region}
         </div>
 
-        {/* Style tier + Stars */}
+        {/* Style tier + Stars + Phase 4 Editorial Tier Badge */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
           {v.styles?.[0] && (
             <span
@@ -345,7 +456,33 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
               </span>
             </div>
           )}
+          {/* Phase 4a: Quality tier badge */}
+          {v.contentScore !== undefined && (
+            <TierBadge tier={getQualityTier(v.contentScore)} showLabel={true} size="sm" />
+          )}
         </div>
+
+        {/* Phase 4b: Editorial approval indicators */}
+        {(v.editorialApproved || v.editorialFactChecked) && (
+          <div style={{ marginBottom: 8 }}>
+            <ApprovalIndicators
+              approved={v.editorialApproved}
+              factChecked={v.editorialFactChecked}
+              layout="horizontal"
+            />
+          </div>
+        )}
+
+        {/* Phase 4b: Freshness indicator */}
+        {v.editorialApproved && v.editorialLastReviewedAt && (
+          <div style={{ marginBottom: 8 }}>
+            <FreshnessText
+              lastReviewedAt={v.editorialLastReviewedAt}
+              color="rgba(255,255,255,0.6)"
+              fontSize={10}
+            />
+          </div>
+        )}
 
         {/* Capacity badge (venue-specific, replaces social icons) */}
         {v.capacity && (
@@ -379,50 +516,32 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
           {v.desc}
         </p>
 
-        {/* Editorial Indicators */}
-        {(v.editorial_approved || v.editorial_fact_checked) && (
-          <div style={{ marginBottom: 10, paddingBottom: 10, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-            <ApprovalIndicators
-              approved={v.editorial_approved}
-              factChecked={v.editorial_fact_checked}
-              layout="vertical"
-            />
-            {v.editorial_approved && v.editorial_last_reviewed_at && (
-              <div style={{ marginTop: 6 }}>
-                <FreshnessText
-                  lastReviewedAt={v.editorial_last_reviewed_at}
-                  color="rgba(255,255,255,0.5)"
-                  size="xs"
-                />
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Footer: price + CTAs */}
         <div
           style={{
-            display: "flex", justifyContent: "space-between", alignItems: "center",
+            display: "flex", alignItems: "center",
             paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.1)",
           }}
         >
-          <div style={{ fontFamily: GD, fontSize: 20, fontWeight: 600, color: GOLD, lineHeight: 1 }}>
+          {/* Price, natural block; marginRight:auto creates the gap to buttons */}
+          <div style={{
+            fontFamily: GD, fontSize: 20, fontWeight: 600, color: GOLD, lineHeight: 1,
+            flexShrink: 0, marginRight: "auto",
+          }}>
             <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 400, color: "rgba(255,255,255,0.45)", marginRight: 4, letterSpacing: "0.3px" }}>From</span>
             {v.priceFrom}
           </div>
 
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
             <button
               onClick={(e) => { e.stopPropagation(); setQuickViewItem(v); }}
               style={{
                 fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
                 textTransform: "uppercase", color: GOLD,
                 background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.3)",
-                borderRadius: "4px", padding: "8px 10px",
-                cursor: "pointer", transition: "all 0.25s", whiteSpace: "nowrap", flex: 1, textAlign: "center",
+                borderRadius: "var(--lwd-radius-input)", padding: "8px 10px",
+                cursor: "pointer", transition: "all 0.25s", whiteSpace: "nowrap",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.2)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.12)"; }}
             >
               QV
             </button>
@@ -432,8 +551,8 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
                 fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
                 textTransform: "uppercase", color: "#0f0d0a",
                 background: `linear-gradient(135deg, ${GOLD}, #e8c97a)`,
-                border: "none", borderRadius: "4px",
-                padding: "8px 12px", cursor: "pointer", transition: "opacity 0.25s", whiteSpace: "nowrap", flex: 1,
+                border: "1px solid transparent", borderRadius: "var(--lwd-radius-input)",
+                padding: "8px 12px", cursor: "pointer", transition: "opacity 0.25s", whiteSpace: "nowrap",
               }}
               onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
               onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
@@ -441,41 +560,25 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
               Enquire
             </button>
             <button
-              onClick={(e) => { e.stopPropagation(); onView?.(v); }}
-              style={{
-                fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
-                textTransform: "uppercase", color: GOLD,
-                background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.3)",
-                borderRadius: "4px", padding: "8px 12px",
-                cursor: "pointer", transition: "all 0.25s", whiteSpace: "nowrap", flex: 1,
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.2)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.12)"; }}
-            >
-              Profile
-            </button>
+                onClick={(e) => { e.stopPropagation(); onView?.(v); }}
+                style={{
+                  fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
+                  textTransform: "uppercase", color: GOLD,
+                  background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.3)",
+                  borderRadius: "var(--lwd-radius-input)", padding: "8px 10px",
+                  cursor: "pointer", transition: "all 0.25s", whiteSpace: "nowrap",
+                }}
+              >
+                Profile ›
+              </button>
           </div>
         </div>
       </div>
 
+      {/* ── Enquiry modal ── */}
+      {showEnquiry && (
+        <EnquiryFormModal planner={v} onClose={() => setShowEnquiry(false)} />
+      )}
     </article>
-
-    {/* ── Enquiry modal ── */}
-    {showEnquiry && (
-      <EnquiryFormModal planner={v} onClose={() => setShowEnquiry(false)} />
-    )}
-
-    {/* ── Quick View modal ── */}
-    {quickViewItem && (
-      <QuickViewModal
-        item={quickViewItem}
-        onClose={() => setQuickViewItem(null)}
-        onViewFull={() => {
-          setQuickViewItem(null);
-          onView?.(quickViewItem);
-        }}
-      />
-    )}
-    </>
   );
 }

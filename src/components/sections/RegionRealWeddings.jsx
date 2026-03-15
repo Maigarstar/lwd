@@ -145,7 +145,7 @@ function RealWeddingCard({ wedding, C, isMobile }) {
 
       {/* Content */}
       <div style={{ padding: "16px 18px 18px" }}>
-        {/* Title — serif */}
+        {/* Title, serif */}
         <div
           style={{
             fontFamily: GD,

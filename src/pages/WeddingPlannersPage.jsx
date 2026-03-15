@@ -1,5 +1,5 @@
 // ─── src/pages/WeddingPlannersPage.jsx ────────────────────────────────────────
-// Dedicated template for wedding planners — person-focused, editorial feel.
+// Dedicated template for wedding planners, person-focused, editorial feel.
 // Fundamentally different from RegionCategoryPage (venue/space-focused).
 
 import { useState, useMemo, useEffect } from "react";
@@ -296,7 +296,7 @@ export default function WeddingPlannersPage({
             alignItems: "start",
           }}
         >
-          {/* Left — editorial copy */}
+          {/* Left, editorial copy */}
           <div>
             <div
               style={{
@@ -354,7 +354,7 @@ export default function WeddingPlannersPage({
             </p>
           </div>
 
-          {/* Right — trust cards */}
+          {/* Right, trust cards */}
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {TRUST_POINTS.map((t) => (
               <div
@@ -410,7 +410,7 @@ export default function WeddingPlannersPage({
 
       {/* ── 5. Planner Grid / List ──────────────────────────────────────────────── */}
       <section style={{ background: C.black, padding: isMobile ? "32px 16px 48px" : "40px 0 64px" }}>
-        {/* Section title — stays constrained */}
+        {/* Section title, stays constrained */}
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: isMobile ? 0 : "0 32px", marginBottom: 32 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
             <div style={{ width: 28, height: 1, background: C.gold }} />
@@ -481,7 +481,7 @@ export default function WeddingPlannersPage({
               </div>
             )}
 
-            {/* List + sticky map — map bleeds to right viewport edge (desktop) */}
+            {/* List + sticky map, map bleeds to right viewport edge (desktop) */}
             <div style={{
               ...(isMobile
                 ? { display: "flex", padding: "0 16px" }
@@ -560,7 +560,7 @@ export default function WeddingPlannersPage({
         )}
       </section>
 
-      {/* ── 6. More in {Region} — sibling category cards ────────────────────── */}
+      {/* ── 6. More in {Region}, sibling category cards ────────────────────── */}
       <section
         aria-label="Related categories"
         style={{

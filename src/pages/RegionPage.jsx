@@ -1,5 +1,5 @@
 // ─── src/pages/RegionPage.jsx ──────────────────────────────────────────────────
-// County hub template — renders any region entity as a mini website.
+// County hub template, renders any region entity as a mini website.
 // Data-driven: one template, many counties.
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { ThemeCtx } from "../theme/ThemeContext";
@@ -24,6 +24,8 @@ import DirectoryBrands from "../components/sections/DirectoryBrands";
 import FeaturedSlider from "../components/sections/FeaturedSlider";
 import RegionHero from "../components/sections/RegionHero";
 import RegionFeatured from "../components/sections/RegionFeatured";
+import RegionRealWeddings from "../components/sections/RegionRealWeddings";
+import MapSection from "../components/sections/MapSection";
 import SliderNav from "../components/ui/SliderNav";
 import CountrySearchBar from "../components/filters/CountrySearchBar";
 import { useInView, CountUp, SplitText, revealStyle } from "../components/ui/Animations";
@@ -70,10 +72,9 @@ export default function RegionPage({
   const [qvItem, setQvItem] = useState(null);
   const [visibleCities, setVisibleCities] = useState(4);
   const [visibleRelated, setVisibleRelated] = useState(4);
-  const [mapOpen, setMapOpen] = useState(false);
   const [venueViewMode, setVenueViewMode] = useState("slider"); // slider, grid, list, map
   const [currentPage, setCurrentPage] = useState(0);
-  const [filters, setFilters] = useState(() => ({ ...DEFAULT_FILTERS, region: regionSlug }));
+  const [filters, setFilters] = useState(() => ({ region: regionSlug }));
   const [sortMode, setSortMode] = useState("recommended");
   const isMobile = useIsMobile();
 
@@ -349,8 +350,8 @@ export default function RegionPage({
               aria-label="Key statistics"
             >
               {[
-                { val: regionVenues.length || "—", label: "Curated Venues" },
-                { val: cities.length || "—", label: region.localTerm || "Cities" },
+                { val: regionVenues.length || " - ", label: "Curated Venues" },
+                { val: cities.length || " - ", label: region.localTerm || "Cities" },
                 { val: region.listingCount > 0 ? "100%" : "Coming Soon", label: region.listingCount > 0 ? "Personally Verified" : "Listings", soft: region.listingCount === 0 },
               ].map((s, i) => (
                 <div
@@ -421,7 +422,7 @@ export default function RegionPage({
         </section>
         )}
 
-        {/* ═══ FILTER BAR — Search, filter, view mode, and sort ═══════════════════ */}
+        {/* ═══ FILTER BAR, Search, filter, view mode, and sort ═══════════════════ */}
         <CountrySearchBar
           filters={filters}
           onFiltersChange={handleFiltersChange}
@@ -432,9 +433,20 @@ export default function RegionPage({
           total={regionVenues.length}
           regions={[{ name: region.name, slug: region.slug }]}
           countryFilter={country?.name}
+          mapContent={
+            venueViewMode === "map" ? (
+              <MapSection
+                venues={regionVenues}
+                vendors={[]}
+                headerLabel={`${regionVenues.length} Wedding Venues in ${region.name}`}
+                mapTitle={`◎ ${region.name} Wedding Venues`}
+                countryFilter={country?.name || "Italy"}
+              />
+            ) : null
+          }
         />
 
-        {/* ═══ TRUST SIGNAL STRIP — region-specific authority tags ═══════════ */}
+        {/* ═══ TRUST SIGNAL STRIP, region-specific authority tags ═══════════ */}
         {region.trustSignals && region.trustSignals.length > 0 && (
           <div
             aria-label="Regional credentials"
@@ -575,7 +587,7 @@ export default function RegionPage({
               </h2>
             </div>
 
-            {/* Paginated category carousel — 8 per page */}
+            {/* Paginated category carousel, 8 per page */}
             <CategoryCarousel
               categories={VENDOR_CATEGORIES}
               C={C}
@@ -603,243 +615,7 @@ export default function RegionPage({
               <FeaturedSlider venues={featuredVenues} />
             ) : null}
 
-            {/* ═══ SMART MAP — collapsible, blends into page ═══════════════════ */}
-            <section
-              aria-label="Venue map"
-              className="lwd-region-map-section"
-              style={{
-                maxWidth: 1280,
-                margin: "0 auto",
-                padding: "40px 48px 20px",
-              }}
-            >
-              {/* Map toggle bar */}
-              <button
-                className="lwd-region-map-toggle"
-                onClick={() => setMapOpen((o) => !o)}
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 16,
-                  padding: "20px 28px",
-                  background: mapOpen
-                    ? `linear-gradient(135deg, ${C.dark}, ${C.card})`
-                    : C.dark,
-                  border: `1px solid ${mapOpen ? C.gold : C.border2}`,
-                  borderRadius: mapOpen ? "var(--lwd-radius-card) var(--lwd-radius-card) 0 0" : "var(--lwd-radius-card)",
-                  cursor: "pointer",
-                  transition: "all 0.4s ease",
-                  fontFamily: "inherit",
-                }}
-              >
-                {/* Map pin icon */}
-                <span
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 38,
-                    height: 38,
-                    borderRadius: "50%",
-                    background: mapOpen ? "rgba(201,168,76,0.12)" : "rgba(201,168,76,0.06)",
-                    border: `1px solid ${mapOpen ? C.gold : "rgba(201,168,76,0.15)"}`,
-                    flexShrink: 0,
-                    transition: "all 0.35s",
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={mapOpen ? C.gold : C.grey} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-                    <circle cx="12" cy="10" r="3" />
-                  </svg>
-                </span>
-
-                {/* Text content */}
-                <div style={{ flex: 1, textAlign: "left" }}>
-                  <div
-                    style={{
-                      fontSize: 9,
-                      letterSpacing: "3px",
-                      textTransform: "uppercase",
-                      color: mapOpen ? C.gold : "rgba(201,168,76,0.6)",
-                      fontWeight: 700,
-                      fontFamily: NU,
-                      marginBottom: 2,
-                      transition: "color 0.3s",
-                    }}
-                  >
-                    {region.localTerm ? "Venues by District" : "Interactive Map"}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: GD,
-                      fontSize: 16,
-                      color: mapOpen ? C.off : C.grey,
-                      fontWeight: 400,
-                      transition: "color 0.3s",
-                    }}
-                  >
-                    {regionVenues.length} venues · {region.localTerm ? "Central & Greater London" : region.name}
-                  </div>
-                </div>
-
-                {/* Venue count badge */}
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontFamily: NU,
-                    fontWeight: 700,
-                    letterSpacing: "1.5px",
-                    textTransform: "uppercase",
-                    color: C.grey,
-                    marginRight: 8,
-                  }}
-                >
-                  {mapOpen ? "Close" : "Explore"}
-                </span>
-
-                {/* Chevron */}
-                <span
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 28,
-                    height: 28,
-                    borderRadius: "50%",
-                    border: `1px solid ${mapOpen ? C.gold : C.border2}`,
-                    transition: "all 0.4s",
-                    transform: mapOpen ? "rotate(180deg)" : "rotate(0deg)",
-                    flexShrink: 0,
-                  }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={mapOpen ? C.gold : C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </span>
-              </button>
-
-              {/* Map content — collapses smoothly */}
-              <div
-                style={{
-                  maxHeight: mapOpen ? 640 : 0,
-                  opacity: mapOpen ? 1 : 0,
-                  overflow: "hidden",
-                  transition: "max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease",
-                  border: mapOpen ? `1px solid ${C.border2}` : "none",
-                  borderTop: "none",
-                  borderRadius: "0 0 var(--lwd-radius-card) var(--lwd-radius-card)",
-                }}
-              >
-                <div
-                  className="lwd-region-map-grid"
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 360px",
-                    height: 560,
-                  }}
-                >
-                  {/* Map iframe */}
-                  <div className="lwd-region-map-iframe" style={{ position: "relative", background: "#e8e4df" }}>
-                    {mapOpen && (
-                      <iframe
-                        title={`Interactive map of ${region.name} wedding venues`}
-                        src="https://www.openstreetmap.org/export/embed.html?bbox=-0.5103%2C51.2868%2C0.3340%2C51.6919&layer=mapnik"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          border: "none",
-                          filter: "saturate(0.8) contrast(0.95)",
-                        }}
-                        loading="lazy"
-                      />
-                    )}
-                    {/* Map overlay header */}
-                    <div
-                      aria-hidden="true"
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        background: `linear-gradient(180deg,${C.dark}ee 0%,transparent 100%)`,
-                        padding: "14px 20px",
-                        pointerEvents: "none",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 9,
-                          letterSpacing: "3px",
-                          textTransform: "uppercase",
-                          color: C.gold,
-                          fontWeight: 700,
-                          fontFamily: NU,
-                        }}
-                      >
-                        ◎ {region.localTerm ? `${region.name} · Venues by Borough` : `${region.name} · Venue Locations`}
-                      </div>
-                    </div>
-                    {/* Leaflet notice */}
-                    <div
-                      style={{
-                        position: "absolute",
-                        bottom: 12,
-                        left: 12,
-                        right: 12,
-                        background: "rgba(4,3,2,0.75)",
-                        padding: "8px 14px",
-                        border: "1px solid rgba(201,168,76,0.2)",
-                      }}
-                    >
-                      <p
-                        style={{
-                          fontSize: 11,
-                          color: "rgba(255,255,255,0.6)",
-                          fontFamily: NU,
-                          textAlign: "center",
-                          letterSpacing: "0.5px",
-                          margin: 0,
-                        }}
-                      >
-                        ✦ Leaflet integration ready — venue pins will appear here
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Venue side panel */}
-                  <div
-                    className="lwd-region-map-panel"
-                    style={{
-                      borderLeft: `1px solid ${C.border}`,
-                      display: "flex",
-                      flexDirection: "column",
-                      background: C.card,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div
-                      style={{
-                        padding: "14px 20px",
-                        borderBottom: `1px solid ${C.border}`,
-                        background: C.dark,
-                        flexShrink: 0,
-                      }}
-                    >
-                      <div style={{ fontSize: 10, letterSpacing: "2px", textTransform: "uppercase", color: C.grey, marginBottom: 3, fontFamily: NU }}>
-                        {region.localTerm ? "Across all districts" : "Venues in view"}
-                      </div>
-                      <div style={{ fontFamily: GD, fontSize: 18, color: C.white }}>
-                        {regionVenues.length} Wedding Venues
-                      </div>
-                    </div>
-                    <MapVenueList venues={regionVenues} C={C} />
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* Venue grid — first 6 GCards (horizontal slider) */}
+{/* Venue grid, first 6 GCards (horizontal slider) */}
             <section
               aria-label={`Venues in ${region.name}`}
               className="lwd-region-section"
@@ -887,12 +663,12 @@ export default function RegionPage({
               </div>
             </section>
 
-            {/* ═══ E-E-A-T EDITORIAL — between map & second grid ═════════════ */}
+            {/* ═══ E-E-A-T EDITORIAL, between map & second grid ═════════════ */}
             {region.editorial && (
               <EditorialSection editorial={region.editorial} region={region} C={C} />
             )}
 
-            {/* Venue grid — remaining cards (7+, horizontal slider) */}
+            {/* Venue grid, remaining cards (7+, horizontal slider) */}
             {regionVenues.length > 6 && (
               <section
                 aria-label={`More venues in ${region.name}`}
@@ -1002,7 +778,7 @@ export default function RegionPage({
                 }}
               >
                 Our editorial team is personally visiting and verifying the finest wedding
-                venues in {region.name}. Every listing on LWD is hand-selected — we never
+                venues in {region.name}. Every listing on LWD is hand-selected, we never
                 accept pay-to-play placements. Sign up below to be the first to know when
                 {region.name} venues go live.
               </p>
@@ -1034,6 +810,16 @@ export default function RegionPage({
               </button>
             </div>
           </section>
+        )}
+
+        {/* ═══ REAL WEDDINGS GALLERY ════════════════════════════════════════ */}
+        {pageConfig?.realWeddings?.enabled && (
+          <RegionRealWeddings
+            config={pageConfig.realWeddings}
+            region={region}
+            C={C}
+            isMobile={isMobile}
+          />
         )}
 
         {/* ═══ CITIES BLOCK ═════════════════════════════════════════════════ */}
@@ -1272,7 +1058,7 @@ export default function RegionPage({
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-// ── RegionNav — CatNav-style fixed nav with dynamic breadcrumbs ─────────────
+// ── RegionNav, CatNav-style fixed nav with dynamic breadcrumbs ─────────────
 function RegionNav({ onBack, scrolled, darkMode, onToggleDark, countryName, regionName, C }) {
   const [hovBack, setHovBack] = useState(false);
   const [hovHome, setHovHome] = useState(false);
@@ -1453,7 +1239,7 @@ function RegionNav({ onBack, scrolled, darkMode, onToggleDark, countryName, regi
 
 
 // ── Category Shortcut Card ──────────────────────────────────────────────────
-// ── Luxury SVG icons — matching RegionCategoryPage ──────────────────────────
+// ── Luxury SVG icons, matching RegionCategoryPage ──────────────────────────
 const LUXURY_ICONS = {
   "wedding-venues": (color) => (
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
@@ -1558,7 +1344,7 @@ const LUXURY_ICONS = {
   ),
 };
 
-// ── Category Carousel — show 7 per page with next/prev arrows ───────────
+// ── Category Carousel, show 7 per page with next/prev arrows ───────────
 const CATS_PER_PAGE = 7;
 
 function CategoryCarousel({ categories, C, onSelect }) {
@@ -1619,7 +1405,7 @@ function CategoryCarousel({ categories, C, onSelect }) {
         ))}
       </div>
 
-      {/* Navigation row — arrows + dots */}
+      {/* Navigation row, arrows + dots */}
       {totalPages > 1 && (
         <div
           style={{
@@ -1718,7 +1504,7 @@ function CategoryShortcutCard({ vc, C, onClick }) {
 }
 
 
-// ── Venue Card (minimal — for region listings) ─────────────────────────────
+// ── Venue Card (minimal, for region listings) ─────────────────────────────
 function VenueCard({ v, C, onView }) {
   const [hov, setHov] = useState(false);
   return (
@@ -1970,7 +1756,7 @@ function RelatedRegionCard({ region, C, onClick }) {
 }
 
 
-// ── EditorialSection — E-E-A-T rich content block ───────────────────────────
+// ── EditorialSection, E-E-A-T rich content block ───────────────────────────
 function EditorialSection({ editorial, region, C }) {
   const [expanded, setExpanded] = useState(false);
   const visibleSections = expanded ? editorial.sections : editorial.sections.slice(0, 2);
@@ -2029,7 +1815,7 @@ function EditorialSection({ editorial, region, C }) {
           {editorial.headline}
         </h2>
 
-        {/* Standfirst — the E-E-A-T credibility line */}
+        {/* Standfirst, the E-E-A-T credibility line */}
         <p
           style={{
             fontFamily: NU,
@@ -2115,7 +1901,7 @@ function EditorialSection({ editorial, region, C }) {
           </div>
         )}
 
-        {/* Expert note — the trust signal */}
+        {/* Expert note, the trust signal */}
         {editorial.expertNote && (
           <div
             style={{
@@ -2158,7 +1944,7 @@ function EditorialSection({ editorial, region, C }) {
             </blockquote>
 
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              {/* Avatar placeholder — gold circle with initials */}
+              {/* Avatar placeholder, gold circle with initials */}
               <div
                 style={{
                   width: 36,
@@ -2235,7 +2021,7 @@ function EditorialSection({ editorial, region, C }) {
 }
 
 
-// ── MapVenueList — sidebar venue list for inline map ────────────────────────
+// ── MapVenueList, sidebar venue list for inline map ────────────────────────
 function MapVenueList({ venues, C }) {
   const [active, setActive] = useState(null);
   return (
@@ -2299,7 +2085,7 @@ function MapVenueList({ venues, C }) {
 }
 
 
-// ── SEO Panel — collapsible AI/SEO data blocks ─────────────────────────────
+// ── SEO Panel, collapsible AI/SEO data blocks ─────────────────────────────
 function SEOPanel({ region, C }) {
   const [expanded, setExpanded] = useState(false);
 

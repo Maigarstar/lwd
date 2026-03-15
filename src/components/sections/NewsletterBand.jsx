@@ -109,7 +109,7 @@ export default function NewsletterBand() {
           }}
         >
           Join couples discovering hidden luxury venues, exclusive wedding
-          inspiration, and curated vendor spotlights every week — trusted by
+          inspiration, and curated vendor spotlights every week, trusted by
           52,000+ couples planning across Europe and beyond.
         </p>
 
@@ -123,7 +123,7 @@ export default function NewsletterBand() {
               fontStyle: "italic",
             }}
           >
-            ✦ Welcome to the community — we'll be in touch!
+            ✦ Welcome to the community, we'll be in touch!
           </div>
         ) : (
           <div className="home-newsletter-form" style={{ display: "flex", maxWidth: 440, margin: "0 auto" }}>

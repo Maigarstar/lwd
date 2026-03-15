@@ -2,6 +2,10 @@ import { useState, useEffect, useRef, createContext, useContext } from "react";
 import { getDefaultMode } from "./theme/tokens";
 import GCardMobile from "./components/cards/GCardMobile";
 import SliderNav from "./components/ui/SliderNav";
+import { fetchListingBySlug } from './services/listings';
+import { buildCardImgs, mapMediaItemToGalleryPhoto, buildVenueVideos } from './utils/mediaMappers';
+import ReviewsSection from './components/reviews/ReviewsSection';
+import ReviewSubmitForm from './components/reviews/ReviewSubmitForm';
 
 function useIsMobile(bp = 768) {
   const [mobile, setMobile] = useState(() => window.innerWidth <= bp);
@@ -57,151 +61,136 @@ const DARK = {
 };
 const Theme = createContext(LIGHT);
 const useT = () => useContext(Theme);
-// Font stacks — resolved via CSS custom properties set by ThemeLoader
+// Font stacks, resolved via CSS custom properties set by ThemeLoader
 const FD = "var(--font-heading-primary)"; // display
 const FB = "var(--font-body)";            // body
 
+// ─── COUNTRY → FLAG LOOKUP ────────────────────────────────────────────────────
+const COUNTRY_FLAG = {
+  'Italy': '🇮🇹', 'Austria': '🇦🇹', 'France': '🇫🇷', 'Spain': '🇪🇸',
+  'Portugal': '🇵🇹', 'Greece': '🇬🇷', 'United Kingdom': '🇬🇧', 'UK': '🇬🇧',
+  'United States': '🇺🇸', 'USA': '🇺🇸', 'Switzerland': '🇨🇭', 'Germany': '🇩🇪',
+  'Croatia': '🇭🇷', 'Mexico': '🇲🇽', 'Maldives': '🇲🇻', 'Turkey': '🇹🇷',
+  'Cyprus': '🇨🇾', 'Morocco': '🇲🇦', 'South Africa': '🇿🇦', 'Thailand': '🇹🇭',
+  'Bali': '🇮🇩', 'Indonesia': '🇮🇩', 'Ireland': '🇮🇪', 'Scotland': '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+  'England': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Wales': '🏴󠁧󠁢󠁷󠁬󠁳󠁿',
+};
+
+// ─── PRICE FORMATTER ──────────────────────────────────────────────────────────
+const fmtPrice = (amount, currency) => {
+  if (!amount && amount !== 0) return '';
+  const sym = currency || '';
+  const num = Number(amount);
+  if (isNaN(num)) return `${sym}${amount}`;
+  return `${sym}${num.toLocaleString()}`;
+};
+
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 const VENUE = {
+  // ── MINIMAL FALLBACK: ID ONLY ──
+  // All other fields MUST come from database. Do not add venue-specific defaults.
   id: 1,
-  name: "Villa Rosanova",
-  tagline: "An eighteenth-century Tuscan estate for weddings of extraordinary distinction",
-  location: "San Casciano in Val di Pesa, Tuscany",
-  country: "Italy", flag: "🇮🇹",
-  rating: 4.9, reviews: 127,
-  responseTime: "2 hrs", responseRate: 98,
-  established: 1847, weddingsHosted: 312,
-  priceFrom: "£12,500",
-  capacity: { min: 20, max: 180, ceremony: 200, dinner: 160 },
-  verified: true, featured: true,
-  accommodation: { rooms: 24, suites: 6, maxGuests: 58 },
-  categories: ["Luxury Villa", "Exclusive Use", "Destination Wedding"],
-  awards: ["LWD Best Villa 2025", "Couples' Choice 2024", "Editor's Pick 2025"],
-  press: ["Vogue", "HELLO!", "Tatler", "Harper's Bazaar"],
-  imgs: [
-    "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=1920&q=80",
-    "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?w=1920&q=80",
-    "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=1920&q=80",
-    "https://images.unsplash.com/photo-1464808322410-1a934aab61e5?w=1920&q=80",
-    "https://images.unsplash.com/photo-1533104816931-20fa691ff6ca?w=1920&q=80",
-  ],
-  gallery: [
-    { id: 1,  src: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=800&q=80", alt: "Grand ballroom ceremony setup with chandeliers and floral arch", tags: ["ceremony", "ballroom", "indoor", "chandelier", "floral"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
-    { id: 2,  src: "https://images.unsplash.com/photo-1537633552985-df8429e8048b?w=800&q=80", alt: "Bride and groom first dance under string lights", tags: ["first-dance", "reception", "evening", "string-lights", "couple"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
-    { id: 3,  src: "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&q=80", alt: "Outdoor garden ceremony with cypress tree backdrop", tags: ["ceremony", "garden", "outdoor", "cypress", "tuscan"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
-    { id: 4,  src: "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?w=800&q=80", alt: "Villa grounds at golden hour with rolling hills", tags: ["venue", "exterior", "golden-hour", "landscape", "tuscan-hills"], photographer: { name: "Lucia Conti", area: "Siena & Chianti", website: "luciaconti.com", instagram: "@luciaconti_weddings", camera: "Sony A7IV" } },
-    { id: 5,  src: "https://images.unsplash.com/photo-1514222134-b57cbb8ce073?w=800&q=80", alt: "Elegant table setting with gold details and candles", tags: ["table-setting", "reception", "details", "gold", "candlelight"], photographer: { name: "Lucia Conti", area: "Siena & Chianti", website: "luciaconti.com", instagram: "@luciaconti_weddings", camera: "Sony A7IV" } },
-    { id: 6,  src: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80", alt: "Aerial view of villa estate and surrounding vineyards", tags: ["aerial", "drone", "estate", "vineyards", "landscape"], photographer: { name: "Drone Italia", area: "All Italy", website: "droneitalia.it", instagram: "@droneitalia", camera: "DJI Mavic 3" } },
-    { id: 7,  src: "https://images.unsplash.com/photo-1583418855232-f0d0b13b77c9?w=800&q=80", alt: "Bridal bouquet with white roses and olive branch details", tags: ["bouquet", "flowers", "details", "bridal", "roses"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
-    { id: 8,  src: "https://images.unsplash.com/photo-1533104816931-20fa691ff6ca?w=800&q=80", alt: "Loggia terrace dinner setup overlooking the valley", tags: ["loggia", "dinner", "terrace", "sunset", "al-fresco"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
-    { id: 9,  src: "https://images.unsplash.com/photo-1464808322410-1a934aab61e5?w=800&q=80", alt: "Candlelit salon with frescoed ceiling and parquet floor", tags: ["salon", "indoor", "evening", "frescoes", "candlelight"], photographer: { name: "Lucia Conti", area: "Siena & Chianti", website: "luciaconti.com", instagram: "@luciaconti_weddings", camera: "Sony A7IV" } },
-    { id: 10, src: "https://images.unsplash.com/photo-1539635278303-d4002c07eae3?w=800&q=80", alt: "Wedding party celebration on the grand terrace", tags: ["party", "celebration", "terrace", "group", "evening"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
-    { id: 11, src: "https://images.unsplash.com/photo-1561998338-13ad7883b20f?w=800&q=80", alt: "Wine cellar intimate dinner for the wedding party", tags: ["cellar", "dinner", "intimate", "wine", "underground"], photographer: { name: "Lucia Conti", area: "Siena & Chianti", website: "luciaconti.com", instagram: "@luciaconti_weddings", camera: "Sony A7IV" } },
-    { id: 12, src: "https://images.unsplash.com/photo-1551418320-5fe5f36d2d05?w=800&q=80", alt: "Confetti throw outside the chapel entrance", tags: ["confetti", "chapel", "celebration", "outdoor", "couple"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
-    { id: 13, src: "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&q=80", alt: "Swimming pool area with sun terrace and lounge seating", tags: ["pool", "terrace", "exterior", "relaxation", "luxury"], photographer: { name: "Drone Italia", area: "All Italy", website: "droneitalia.it", instagram: "@droneitalia", camera: "DJI Mavic 3" } },
-    { id: 14, src: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&q=80", alt: "Villa facade at twilight with warm interior glow", tags: ["villa", "exterior", "twilight", "architecture", "facade"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
-    { id: 15, src: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=800&q=80", alt: "Wine cellar archway with barrel room in background", tags: ["cellar", "architecture", "wine", "interior", "historic"], photographer: { name: "Lucia Conti", area: "Siena & Chianti", website: "luciaconti.com", instagram: "@luciaconti_weddings", camera: "Sony A7IV" } },
-    { id: 16, src: "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&q=80", alt: "Bridal couple walking through olive grove at sunset", tags: ["couple", "olive-grove", "sunset", "portrait", "romantic"], photographer: { name: "Marco Bellini", area: "Florence & Tuscany", website: "marcobellini.it", instagram: "@marcobellini_photo", camera: "Canon R5" } },
-  ],
-  videos: [
-    { id: 1, title: "Sofia & James — Tuscan Wedding Film", duration: "4:32", thumb: "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&q=80", type: "wedding", youtubeId: "LXb3EKWsInQ", desc: "A cinematic wedding film capturing Sofia and James's three-day celebration at Villa Rosanova, from the rehearsal dinner in the wine cellar to the sunset ceremony in the Cypress Garden.", tags: ["wedding-film", "ceremony", "reception", "tuscan", "cinematic"], videographer: { name: "Luca Visconti Films", area: "Florence & Tuscany", website: "lucavisconti.it", instagram: "@lucaviscontifilms", camera: "RED Komodo 6K" } },
-    { id: 2, title: "Villa Rosanova — Estate Tour", duration: "2:15", thumb: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&q=80", type: "tour", youtubeId: "LXb3EKWsInQ", desc: "A guided aerial and ground-level tour of the estate — the Grand Salon, Cypress Garden, vineyard terraces, wine cellar and all 30 rooms and suites.", tags: ["estate-tour", "aerial", "drone", "property", "venue"], videographer: { name: "Drone Italia", area: "All Italy", website: "droneitalia.it", instagram: "@droneitalia", camera: "DJI Inspire 3" } },
-    { id: 3, title: "Isabella & Marco — Highlights", duration: "3:48", thumb: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=800&q=80", type: "wedding", youtubeId: "LXb3EKWsInQ", desc: "A highlight reel of Isabella and Marco's intimate summer wedding — 60 guests, an outdoor ceremony under the loggia, and a magical first dance beneath the chandeliers.", tags: ["wedding-film", "highlights", "intimate", "summer", "first-dance"], videographer: { name: "Luca Visconti Films", area: "Florence & Tuscany", website: "lucavisconti.it", instagram: "@lucaviscontifilms", camera: "Sony FX6" } },
-  ],
-  // ── Engagement data for rating/review system ──
-  engagement: {
-    photos: {
-      1:  { likes: 24, avgRating: 4.8, ratingCount: 12, comments: [{ name: "Sarah M.", text: "Absolutely stunning ceremony setup. The chandeliers were magical!", rating: 5, date: "2025-11-14" }, { name: "James L.", text: "Beautiful capture of the ballroom atmosphere.", rating: 5, date: "2025-10-28" }] },
-      2:  { likes: 31, avgRating: 4.9, ratingCount: 18, comments: [{ name: "Emma T.", text: "This first dance photo is everything! The string lights are dreamy.", rating: 5, date: "2025-12-02" }] },
-      3:  { likes: 19, avgRating: 4.7, ratingCount: 9, comments: [{ name: "Rachel K.", text: "The cypress backdrop is incredible for photos.", rating: 5, date: "2025-09-18" }] },
-      4:  { likes: 28, avgRating: 4.6, ratingCount: 14, comments: [{ name: "Michael R.", text: "Golden hour at its finest. Lucia really knows how to capture light.", rating: 4, date: "2025-10-05" }] },
-      5:  { likes: 15, avgRating: 4.5, ratingCount: 7, comments: [] },
-      6:  { likes: 22, avgRating: 4.8, ratingCount: 11, comments: [{ name: "Tom & Alice", text: "The aerial perspective really shows the full beauty of the estate.", rating: 5, date: "2025-11-22" }] },
-      7:  { likes: 17, avgRating: 4.4, ratingCount: 8, comments: [] },
-      8:  { likes: 26, avgRating: 4.9, ratingCount: 15, comments: [{ name: "Clara V.", text: "The terrace dinner setup overlooking the valley — pure magic.", rating: 5, date: "2025-12-10" }] },
-      9:  { likes: 13, avgRating: 4.3, ratingCount: 6, comments: [] },
-      10: { likes: 20, avgRating: 4.5, ratingCount: 10, comments: [] },
-      11: { likes: 11, avgRating: 4.6, ratingCount: 5, comments: [] },
-      12: { likes: 35, avgRating: 4.9, ratingCount: 21, comments: [{ name: "Sophie B.", text: "The confetti moment is everything! So much joy captured perfectly.", rating: 5, date: "2025-11-30" }, { name: "David H.", text: "Marco's timing is impeccable. What a shot!", rating: 5, date: "2025-12-05" }] },
-      13: { likes: 14, avgRating: 4.4, ratingCount: 7, comments: [] },
-      14: { likes: 29, avgRating: 4.8, ratingCount: 16, comments: [{ name: "Olivia N.", text: "The twilight facade shot sold us on this venue instantly.", rating: 5, date: "2025-10-15" }] },
-      15: { likes: 10, avgRating: 4.3, ratingCount: 4, comments: [] },
-      16: { likes: 38, avgRating: 5.0, ratingCount: 24, comments: [{ name: "Lily & George", text: "Walking through the olive grove at sunset — our favourite photo of the entire wedding.", rating: 5, date: "2025-12-15" }, { name: "Kate W.", text: "Marco is a genius. This is the most romantic photo I've ever seen.", rating: 5, date: "2025-12-18" }] },
-    },
-    videos: {
-      1: { likes: 42, avgRating: 4.9, ratingCount: 23, comments: [{ name: "Sofia & James", text: "Luca captured our day perfectly. We cry every time we watch it!", rating: 5, date: "2025-11-20" }, { name: "Marie P.", text: "Absolutely cinematic. The drone shots over the vineyard are breathtaking.", rating: 5, date: "2025-12-01" }] },
-      2: { likes: 18, avgRating: 4.6, ratingCount: 10, comments: [{ name: "Emily R.", text: "This tour really helped us decide on Villa Rosanova for our wedding.", rating: 5, date: "2025-10-12" }] },
-      3: { likes: 36, avgRating: 4.8, ratingCount: 19, comments: [{ name: "Isabella & Marco", text: "The highlight reel is pure perfection. Thank you Luca!", rating: 5, date: "2025-12-08" }, { name: "Anna G.", text: "The first dance sequence gave me goosebumps. Stunning cinematography.", rating: 5, date: "2025-12-12" }] },
-    },
+  name: null,
+  tagline: null,
+  location: null,
+  country: null,
+  flag: null,
+  rating: null,
+  reviews: null,
+  responseTime: null,
+  responseRate: null,
+  established: null,
+  weddingsHosted: null,
+  priceFrom: null,
+  capacity: null,
+  verified: null,
+  featured: null,
+  accommodation: {
+    type: null,
+    totalRooms: null,
+    totalSuites: null,
+    maxOvernightGuests: null,
+    exclusiveUse: null,
+    minNightStay: null,
+    description: null,
+    images: [],
   },
-  notices: [
-    {
-      id: 4,
-      type: "news",
-      badge: "Estate News",
-      title: "New Executive Chef — Lorenzo Conti",
-      detail: "We are delighted to welcome Lorenzo Conti as our new Executive Chef. Lorenzo joins from a Michelin-starred kitchen in Florence, bringing a philosophy rooted in Tuscan terroir, seasonal produce and elegant simplicity.",
-      img: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&q=80",
-      imgCaption: "Lorenzo Conti · Executive Chef, Villa Rosanova",
-      cta: "View sample menus",
-    },
-    {
-      id: 1,
-      type: "open-day",
-      badge: "Open Day",
-      title: "Spring Open Day",
-      detail: "Saturday 22 March 2025 · 11am–4pm · Guided tours of all spaces, seasonal tastings and a chance to meet our full team.",
-      img: "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?w=600&q=80",
-      imgCaption: "The Cypress Garden · Villa Rosanova",
-      cta: "Reserve your place",
-    },
-    {
-      id: 2,
-      type: "offer",
-      badge: "Special Offer",
-      title: "Early 2026 Booking Offer",
-      detail: "10% off venue hire for June–September 2026 bookings confirmed before 31 March 2025. Includes complimentary cellar tour and welcome dinner for the wedding party.",
-      img: "https://images.unsplash.com/photo-1464808322410-1a934aab61e5?w=600&q=80",
-      imgCaption: "The Grand Salon · candlelit dinner setting",
-      cta: "Enquire now",
-      expires: "31 Mar 2025",
-    },
-    {
-      id: 3,
-      type: "availability",
-      badge: "Late Availability",
-      title: "Saturday 14 June 2025",
-      detail: "A rare cancellation has opened this peak-season date. The full estate is available for exclusive use. Contact us to secure it before it is offered publicly.",
-      img: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=600&q=80",
-      imgCaption: "Villa Rosanova · available 14 June 2025",
-      cta: "Enquire About This Date",
-    },
-  ],
+  dining: {
+    style: null,
+    chefName: null,
+    inHouseCatering: null,
+    externalCateringAllowed: null,
+    menuStyles: [],
+    dietaryOptions: [],
+    drinksOptions: [],
+    description: null,
+    menuImages: [],
+  },
+  venueType: {
+    primaryType: null,
+    styles: [],
+    architecture: null,
+    built: null,
+    description: null,
+    features: [],
+  },
+  categories: [],
+  awards: [],
+  press: [],
+  imgs: [],
+  gallery: [],
+  videos: [],
+  // ── Engagement data is removed from fallback. Load from database only. ──
+  engagement: {
+    photos: {},
+    videos: {},
+  },
+  // ── Notices: Load from database only. Do not provide hardcoded fallbacks. ──
+  notices: [],
   exclusiveUse: {
-    from: "£28,000", minNights: 2,
-    includes: ["All 24 rooms & 6 suites", "Private grounds & gardens", "Full catering team", "Event & hospitality staff", "Bar facilities & cellar", "Bridal suite & prep rooms"],
+    enabled: false,
+    title: null,
+    subtitle: null,
+    from: null,
+    subline: null,
+    description: null,
+    ctaText: null,
+    includes: [],
+    minNights: null,
   },
   catering: {
-    inHouse: {
-      available: true,
-      description: "Our culinary team sources produce from the estate and surrounding farms. Seasonal menus designed around your wedding day.",
-    },
-    externalCaterersAllowed: true,
-    corkageFeePerBottle: 18,
-    sommelierService: {
-      available: true,
-      wineCellarLabelsCount: 800,
-      description: "Our sommelier will curate a bespoke wine journey from our private cellar.",
-    },
+    enabled: true,
+    cards: [
+      {
+        id: 'c1',
+        icon: 'dining',
+        title: 'In-house catering',
+        description: 'Our culinary team sources produce from the estate and surrounding farms. Seasonal menus designed around your wedding day.',
+        subtext: '',
+        sortOrder: 0,
+      },
+      {
+        id: 'c2',
+        icon: 'cooking',
+        title: 'External caterers',
+        description: 'External caterers welcome. Corkage fee £18 per bottle.',
+        subtext: '',
+        sortOrder: 1,
+      },
+      {
+        id: 'c3',
+        icon: 'wine',
+        title: 'Sommelier service',
+        description: 'Our sommelier will curate a bespoke wine journey from our private cellar. Private cellar with over 800 labels.',
+        subtext: '',
+        sortOrder: 2,
+      },
+    ],
     styles: ["Fine dining", "Banquet", "Family style", "Food stations", "Late-night snacks"],
     dietary: ["Vegan", "Vegetarian", "Halal", "Kosher", "Gluten-free"],
   },
-  spaces: [
-    { name: "The Grand Salon", desc: "Frescoed 18th-century ballroom with original parquet floors and three Venetian chandeliers.", capacity: 160, img: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=600&q=80" },
-    { name: "The Cypress Garden", desc: "Formal Italian garden framed by century-old cypress trees. Ideal for outdoor ceremonies at sunset.", capacity: 200, img: "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?w=600&q=80" },
-    { name: "The Loggia", desc: "A covered stone terrace overlooking the vineyard — perfect for cocktail receptions as the vines glow at dusk.", capacity: 80, img: "https://images.unsplash.com/photo-1464808322410-1a934aab61e5?w=600&q=80" },
-    { name: "The Wine Cellar", desc: "Intimate vaulted 14th-century cellar for private dinners, tastings and late-night celebrations.", capacity: 40, img: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&q=80" },
-  ],
+  // ── Spaces: Load from database only. Hardcoded spaces (Grand Salon, Cypress Garden, etc.) removed. ──
+  spaces: [],
   experiences: [
     { id: "e1", label: "Private wine cellar tasting",       category: "estate", kind: "wine",    isIncluded: true, season: "all-year" },
     { id: "e2", label: "Full spa and wellness suite",        category: "estate", kind: "spa",     isIncluded: true, season: "all-year" },
@@ -217,63 +206,75 @@ const VENUE = {
     { id: "e12", label: "Private Uffizi after-hours visit",  category: "nearby", kind: "culture", distanceMinutes: 30 },
   ],
   access: {
-    helicopterTransferAvailable: true,
-    helicopterTransferMinutesFromAirport: 20,
-    airports: [
-      { code: "FLR", name: "Florence", driveTimeMinutes: 45, distanceKm: 42 },
-      { code: "PSA", name: "Pisa Galileo Galilei", driveTimeMinutes: 70, distanceKm: 88 },
-      { code: "BLQ", name: "Bologna Marconi", driveTimeMinutes: 90, distanceKm: 115 },
-      { code: "FCO", name: "Rome Fiumicino", driveTimeMinutes: 160, distanceKm: 285 },
-    ],
-    get primaryAirport() { return this.airports.reduce((a, b) => a.driveTimeMinutes < b.driveTimeMinutes ? a : b); },
+    helicopterTransferAvailable: false,
+    helicopterTransferMinutesFromAirport: null,
+    airports: [],
+    primaryAirport: null,
   },
-  testimonials: [
-    { id: 1, names: "Charlotte & Oliver", date: "September 2024", location: "London, UK", rating: 5, text: "Villa Rosanova was everything we dreamed of and more. Our 140 guests flew in from 14 countries — every single one said it was the most beautiful wedding they had ever attended.", avatar: "CO" },
-    { id: 2, names: "Sophia & Marco", date: "June 2024", location: "New York, USA", rating: 5, text: "We hosted a 4-day wedding weekend for 90 guests. The staff anticipated every need. The food was extraordinary — our guests still talk about the truffle risotto and the private cellar dinner on night three.", avatar: "SM" },
-    { id: 3, names: "Amelia & James", date: "May 2024", location: "Dubai, UAE", rating: 5, text: "From the helicopter arrival to the farewell prosecco on the terrace — every moment was flawlessly orchestrated. The Cypress Garden ceremony at sunset is something we will never forget.", avatar: "AJ" },
-  ],
-  similar: [
-    { id: 2, name: "Castello di Velona", location: "Montalcino, Tuscany", price: "£14,500", rating: 4.8, img: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&q=80" },
-    { id: 3, name: "Villa del Balbianello", location: "Lake Como, Lombardy", price: "£18,000", rating: 4.9, img: "https://images.unsplash.com/photo-1539635278303-d4002c07eae3?w=400&q=80" },
-    { id: 4, name: "Convento di Amalfi", location: "Amalfi Coast", price: "£16,500", rating: 4.7, img: "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=400&q=80" },
-  ],
+  // ── Testimonials: Load from database only. Do not provide hardcoded fallbacks. ──
+  testimonials: [],
+  // ── Similar Venues: Load from database only. Do not provide hardcoded fallbacks. ──
+  similar: [],
   contact: {
     address: {
-      line1: "Via Scopeti 19",
-      city: "San Casciano in Val di Pesa",
-      region: "Tuscany",
-      postcode: "50026",
-      country: "Italy",
-      latitude: 43.6567,
-      longitude: 11.1847,
+      line1: null,
+      city: null,
+      region: null,
+      postcode: null,
+      country: null,
+      latitude: null,
+      longitude: null,
     },
-    phone: "+39 055 820 0700",
-    email: "events@villarosanova.it",
-    website: "www.villarosanova.it",
+    phone: null,
+    email: null,
+    website: null,
     responseMetrics: {
-      averageResponseHours: 2,
-      responseRatePercent: 98,
-      sameDayTypical: true,
+      averageResponseHours: null,
+      responseRatePercent: null,
+      sameDayTypical: null,
     },
   },
-  // null type = no video hero (falls back to image slider)
   video: {
-    type: "youtube",  // "youtube" | "vimeo" | null
-    heroId: "LXb3EKWsInQ",
-    filmId: "LXb3EKWsInQ",
+    type: null,
+    heroId: null,
+    filmId: null,
   },
+  // ── Owner: Load from database only. Do not provide hardcoded fallbacks (Isabella Rosanova removed). ──
   owner: {
-    name: "Isabella Rosanova",
-    title: "Estate Director",
-    photo: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=160&q=80",
-    bio: "We have hosted over 300 weddings at Villa Rosanova across four decades. I personally oversee every celebration to ensure it exceeds every expectation.",
-    memberSince: 2019,
+    name: null,
+    title: null,
+    photo: null,
+    bio: null,
+    memberSince: null,
   },
+  // ── Wedding Weekend: Load from database only. Hardcoded Villa descriptions removed. ──
+  weddingWeekend: {
+    enabled: false,
+    subtitle: null,
+    days: [],
+  },
+  estateEnabled: false,
+  nearbyEnabled: false,
+  // ── FAQ: Load from database only. All hardcoded Villa Rosanova FAQs removed. ──
+  faq: {
+    enabled: false,
+    title: null,
+    subtitle: null,
+    ctaEnabled: false,
+    ctaHeadline: null,
+    ctaSubtext: null,
+    ctaButtonText: null,
+    categories: [],
+  },
+  similarVenuesEnabled: true,
+  recentlyViewedEnabled: true,
 };
 
 // ─── COMPUTED BACKWARD-COMPAT FIELDS ─────────────────────────────────────────
 // These derive from structured data so older references (sidebar, chat, etc.) keep working.
-VENUE.responseTime = `${VENUE.contact.responseMetrics.averageResponseHours} hrs`;
+VENUE.responseTime = VENUE.contact.responseMetrics.averageResponseHours
+  ? `${VENUE.contact.responseMetrics.averageResponseHours} hrs`
+  : null;
 VENUE.responseRate = VENUE.contact.responseMetrics.responseRatePercent;
 VENUE.contact.mapQuery = `${VENUE.contact.address.city},+${VENUE.contact.address.region},+${VENUE.contact.address.country}`.replace(/ /g, "+");
 VENUE.contact.addressFormatted = [
@@ -283,12 +284,33 @@ VENUE.contact.addressFormatted = [
   VENUE.contact.address.country,
 ].join(", ");
 
+// ─── RECENTLY VIEWED, localStorage helpers ────────────────────────────────────
+const RV_KEY = 'ldw_recently_viewed';
+const MAX_RV_STORED = 6;
+
+function getRVList() {
+  try { return JSON.parse(localStorage.getItem(RV_KEY) || '[]'); } catch { return []; }
+}
+
+function recordVenueView(v) {
+  try {
+    const entry = {
+      id: v.id, name: v.name, location: v.location,
+      rating: v.rating, price: v.priceFrom,
+      img: v.imgs?.[0] || v.gallery?.[0] || '',
+      viewedAt: Date.now(),
+    };
+    const updated = [entry, ...getRVList().filter(x => x.id !== entry.id)].slice(0, MAX_RV_STORED);
+    localStorage.setItem(RV_KEY, JSON.stringify(updated));
+  } catch { /* localStorage unavailable */ }
+}
+
 // ─── GLOBAL STYLES ────────────────────────────────────────────────────────────
 function GlobalStyles() {
   return (
     <style>{`
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-      html { scroll-behavior: smooth; }
+      html { scroll-behavior: smooth; scrollbar-gutter: stable; }
       body { font-family: ${FB}; -webkit-font-smoothing: antialiased; }
       ::-webkit-scrollbar { width: 6px; }
       ::-webkit-scrollbar-track { background: transparent; }
@@ -401,7 +423,7 @@ function Stars({ rating, size = 13 }) {
 function SectionHeading({ title, subtitle }) {
   const C = useT();
   return (
-    <div style={{ marginBottom: 36 }}>
+    <div style={{ marginBottom: 36, textAlign: 'left', width: '100%' }}>
       <h2 style={{ fontFamily: FD, fontSize: 32, fontWeight: 400, color: C.text, letterSpacing: "-0.3px", lineHeight: 1.15, marginBottom: 10 }}>{title}</h2>
       <div style={{ width: 48, height: 2, backgroundImage: `linear-gradient(90deg, ${C.gold}, ${C.green})` }} />
       {subtitle && <p style={{ fontFamily: FB, fontSize: 15, color: C.textLight, marginTop: 12, lineHeight: 1.6 }}>{subtitle}</p>}
@@ -421,7 +443,7 @@ function Pill({ children, color }) {
 }
 
 // ─── NAV ─────────────────────────────────────────────────────────────────────
-function Nav({ darkMode, setDarkMode, saved, setSaved, compareList, onAddCompare, onBack }) {
+function Nav({ venue, darkMode, setDarkMode, saved, setSaved, compareList, onAddCompare, onBack }) {
   const C = useT();
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -481,7 +503,7 @@ function Nav({ darkMode, setDarkMode, saved, setSaved, compareList, onAddCompare
 
         {/* Breadcrumb */}
         <div className="vp-breadcrumb" style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: FB, fontSize: 12, letterSpacing: "0.2px" }}>
-          {["Venues", "Italy", "Tuscany"].map((crumb) => (
+          {["Venues", venue.country, venue.location?.split(', ').pop()].filter(Boolean).map((crumb) => (
             <span key={crumb} style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span
                 style={{ color: crumbColor, cursor: "pointer", transition: "color 0.2s" }}
@@ -492,7 +514,7 @@ function Nav({ darkMode, setDarkMode, saved, setSaved, compareList, onAddCompare
               <span style={{ color: scrolled ? C.border2 : "rgba(255,255,255,0.25)", fontSize: 10 }}>›</span>
             </span>
           ))}
-          <span style={{ color: crumbActive, fontWeight: 600 }}>Villa Rosanova</span>
+          <span style={{ color: crumbActive, fontWeight: 600 }}>{venue.name}</span>
         </div>
       </div>
 
@@ -591,6 +613,7 @@ function HeroSlider({ imgs, height, children }) {
 // ─── HERO STYLE 1: CINEMATIC ─────────────────────────────────────────────────
 function HeroCinematic({ venue, onEnquire }) {
   const C = useT();
+  const isMobile = useIsMobile();
   return (
     <div style={{ position: "relative" }}>
       <HeroSlider imgs={venue.imgs} height="62vh">
@@ -601,17 +624,20 @@ function HeroCinematic({ venue, onEnquire }) {
               <span style={{ fontFamily: FB, fontSize: 10, color: "#fff", letterSpacing: "1.5px", fontWeight: 700, textTransform: "uppercase" }}>✦ Editor's Pick</span>
             </div>
           )}
-          <h1 style={{ fontFamily: FD, fontSize: "clamp(38px, 5.3vw, 68px)", fontWeight: 400, color: "#fff", letterSpacing: "-0.5px", lineHeight: 1.05, marginBottom: 12 }}>{venue.name}</h1>
+          <h1 style={{ fontFamily: FD, fontSize: "clamp(38px, 5.3vw, 68px)", fontWeight: 400, color: "#fff", letterSpacing: "-0.5px", lineHeight: 1.05, marginBottom: 10 }}>{venue.name}</h1>
+          {venue.tagline && (
+            <p style={{ fontFamily: FB, fontSize: "clamp(13px, 1.4vw, 16px)", color: "rgba(255,255,255,0.72)", lineHeight: 1.6, marginBottom: 14, maxWidth: 560, letterSpacing: "0.1px" }}>{venue.tagline}</p>
+          )}
           <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 22 }}>
             <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.8)" }}>{venue.flag} {venue.location}</span>
-            <span style={{ width: 1, height: 12, background: "rgba(255,255,255,0.3)" }} />
-            <Stars rating={venue.rating} size={13} />
+            {(venue.rating > 0 || venue.verified) && <span style={{ width: 1, height: 12, background: "rgba(255,255,255,0.3)" }} />}
+            {venue.rating != null && venue.rating > 0 && <><Stars rating={venue.rating} size={13} />
             <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.85)", fontWeight: 600 }}>{venue.rating}</span>
-            <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.55)" }}>({venue.reviews} reviews)</span>
+            {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.55)" }}>({venue.reviews} reviews)</span>}</> }
             {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: "#4ade80", fontWeight: 700 }}>✓ LWD Verified</span>}
           </div>
           {/* Hero CTA */}
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
             <button onClick={onEnquire} style={{
               padding: "14px 28px", background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)",
               color: "#0f0d0a", fontFamily: FB, fontSize: 13, fontWeight: 800,
@@ -621,9 +647,40 @@ function HeroCinematic({ venue, onEnquire }) {
               onMouseEnter={e => e.currentTarget.style.opacity = "0.88"}
               onMouseLeave={e => e.currentTarget.style.opacity = "1"}
             >Begin Your Enquiry →</button>
-            <span style={{ fontFamily: FB, fontSize: 12, color: "rgba(255,255,255,0.55)", letterSpacing: "0.3px" }}>
-              From {venue.priceFrom} · Replies in {venue.responseTime}
-            </span>
+            {venue.showcaseUrl && (
+              <a href={venue.showcaseUrl}
+                onClick={e => { e.preventDefault(); window.history.pushState(null, "", venue.showcaseUrl); window.dispatchEvent(new PopStateEvent('popstate')); }}
+                style={{
+                padding: "13px 22px",
+                background: "transparent",
+                border: "1px solid rgba(255,255,255,0.45)",
+                borderRadius: "var(--lwd-radius-input)",
+                color: "rgba(255,255,255,0.9)",
+                fontFamily: FB, fontSize: 13, fontWeight: 700,
+                letterSpacing: "1px", textTransform: "uppercase",
+                textDecoration: "none",
+                display: "inline-flex", alignItems: "center", gap: 6,
+                transition: "all 0.2s",
+              }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.75)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.45)"; }}
+              >✦ Showcase</a>
+            )}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {venue.priceFrom && (
+                <span style={{ fontFamily: FD, fontSize: isMobile ? 20 : 26, fontWeight: 400, color: "#fff", lineHeight: 1 }}>
+                  From {fmtPrice(venue.priceFrom, venue.priceCurrency)}
+                </span>
+              )}
+              {venue.priceFrom && venue.responseTime && (
+                <span style={{ width: 1, height: 11, background: "rgba(255,255,255,0.2)", display: "inline-block" }} />
+              )}
+              {venue.responseTime && (
+                <span style={{ fontFamily: FB, fontSize: 12, color: "rgba(255,255,255,0.6)", letterSpacing: "0.2px" }}>
+                  Replies in {venue.responseTime}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </HeroSlider>
@@ -642,7 +699,7 @@ function HeroSplit({ venue, onEnquire }) {
       height: isMobile ? "auto" : "62vh",
       marginTop: 64,
     }}>
-      {/* Image — top on mobile, left on desktop */}
+      {/* Image, top on mobile, left on desktop */}
       <HeroSlider imgs={venue.imgs} height={isMobile ? "44vh" : "100%"}>
         {venue.featured && (
           <div style={{ position: "absolute", top: 20, left: 20, display: "inline-flex", padding: "4px 12px", border: `1px solid ${C.gold}`, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(8px)" }}>
@@ -650,7 +707,7 @@ function HeroSplit({ venue, onEnquire }) {
           </div>
         )}
       </HeroSlider>
-      {/* Info — below on mobile, right on desktop */}
+      {/* Info, below on mobile, right on desktop */}
       <div style={{
         background: C.surface,
         borderLeft: isMobile ? "none" : `1px solid ${C.border}`,
@@ -664,24 +721,43 @@ function HeroSplit({ venue, onEnquire }) {
         <h1 style={{ fontFamily: FD, fontSize: isMobile ? 32 : "clamp(30px, 3.5vw, 52px)", fontWeight: 400, color: C.text, lineHeight: 1.05, marginBottom: 8 }}>{venue.name}</h1>
         <p style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginBottom: isMobile ? 14 : 20, lineHeight: 1.6 }}>{venue.flag} {venue.location}</p>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: isMobile ? 16 : 24, flexWrap: "wrap" }}>
-          <Stars rating={venue.rating} size={14} />
+          {venue.rating != null && venue.rating > 0 && <><Stars rating={venue.rating} size={14} />
           <span style={{ fontFamily: FB, fontSize: 14, fontWeight: 700, color: C.text }}>{venue.rating}</span>
-          <span style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>· {venue.reviews} reviews</span>
+          {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>· {venue.reviews} reviews</span>}</> }
           {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: C.green, fontWeight: 700 }}>✓ Verified</span>}
         </div>
         <div style={{ height: 1, background: C.border, marginBottom: isMobile ? 16 : 24 }} />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isMobile ? 16 : 24, gap: 12, flexWrap: isMobile ? "wrap" : "nowrap" }}>
-          <div>
-            <div style={{ fontFamily: FD, fontSize: isMobile ? 24 : 28, color: C.gold }}>From {venue.priceFrom}</div>
-            <div style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, marginTop: 2 }}>per event · up to {venue.capacity.ceremony} guests</div>
-          </div>
-          <div style={{ fontFamily: FB, fontSize: 12, color: C.green, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}><Icon name="zap" size={13} color={C.green} /> Replies in {venue.responseTime}</div>
+          {venue.priceFrom && (
+            <div>
+              <div style={{ fontFamily: FD, fontSize: isMobile ? 24 : 28, color: C.gold }}>From {fmtPrice(venue.priceFrom, venue.priceCurrency)}</div>
+              <div style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, marginTop: 2 }}>per event · up to {venue.capacity.ceremony} guests</div>
+            </div>
+          )}
+          {venue.responseTime && (
+            <div style={{ fontFamily: FB, fontSize: 12, color: C.green, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}><Icon name="zap" size={13} color={C.green} /> Replies in {venue.responseTime}</div>
+          )}
         </div>
         <button onClick={onEnquire} style={{ width: "100%", padding: isMobile ? "13px" : "14px", background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)", color: "#0f0d0a", fontFamily: FB, fontSize: 13, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", cursor: "pointer", transition: "opacity 0.2s" }}
           onMouseEnter={e => e.currentTarget.style.opacity = "0.88"}
           onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
           Begin Your Enquiry →
         </button>
+        {venue.showcaseUrl && (
+          <a href={venue.showcaseUrl}
+            onClick={e => { e.preventDefault(); window.history.pushState(null, "", venue.showcaseUrl); window.dispatchEvent(new PopStateEvent('popstate')); }}
+            style={{
+            display: "block", textAlign: "center", marginTop: 10,
+            padding: "11px", border: `1px solid ${C.border2}`,
+            borderRadius: "var(--lwd-radius-input)",
+            color: C.textMid, fontFamily: FB, fontSize: 12, fontWeight: 700,
+            letterSpacing: "0.8px", textTransform: "uppercase",
+            textDecoration: "none", transition: "all 0.2s",
+          }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.textMid; }}
+          >✦ View Showcase</a>
+        )}
       </div>
     </div>
   );
@@ -710,17 +786,33 @@ function HeroMagazine({ venue, onEnquire }) {
             <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               <span style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>{venue.flag} {venue.location}</span>
               <span style={{ width: 1, height: 12, background: C.border2 }} />
-              <Stars rating={venue.rating} size={13} />
+              {venue.rating != null && venue.rating > 0 && <><Stars rating={venue.rating} size={13} />
               <span style={{ fontFamily: FB, fontSize: 13, fontWeight: 700, color: C.text }}>{venue.rating}</span>
-              <span style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>({venue.reviews} reviews)</span>
+              {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>({venue.reviews} reviews)</span>}</> }
               {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: C.green, fontWeight: 700 }}>✓ LWD Verified</span>}
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 24, flexShrink: 0 }}>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontFamily: FD, fontSize: 26, color: C.gold }}>From {venue.priceFrom}</div>
-              <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted }}>per event</div>
-            </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+            {venue.priceFrom && (
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontFamily: FD, fontSize: 26, color: C.gold }}>From {fmtPrice(venue.priceFrom, venue.priceCurrency)}</div>
+                <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted }}>per event</div>
+              </div>
+            )}
+            {venue.showcaseUrl && (
+              <a href={venue.showcaseUrl}
+                onClick={e => { e.preventDefault(); window.history.pushState(null, "", venue.showcaseUrl); window.dispatchEvent(new PopStateEvent('popstate')); }}
+                style={{
+                padding: "12px 18px", border: `1px solid ${C.border2}`,
+                borderRadius: "var(--lwd-radius-input)",
+                color: C.textMid, fontFamily: FB, fontSize: 11, fontWeight: 700,
+                letterSpacing: "0.8px", textTransform: "uppercase",
+                textDecoration: "none", whiteSpace: "nowrap", transition: "all 0.2s",
+              }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.textMid; }}
+              >✦ Showcase</a>
+            )}
             <button onClick={onEnquire} style={{
               padding: "13px 22px", background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)",
               color: "#0f0d0a", fontFamily: FB, fontSize: 12, fontWeight: 800,
@@ -776,7 +868,7 @@ function HeroVideo({ venue, onEnquire }) {
         pointerEvents: "none",
       }} />
 
-      {/* Content — same layout as Cinematic */}
+      {/* Content, same layout as Cinematic */}
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "0 40px 52px", animation: "fadeUp 0.8s ease both" }}>
         {venue.featured && (
           <div style={{ display: "inline-flex", marginBottom: 12, padding: "4px 12px", border: `1px solid ${C.gold}`, background: "rgba(157,135,62,0.18)" }}>
@@ -789,7 +881,7 @@ function HeroVideo({ venue, onEnquire }) {
           <span style={{ width: 1, height: 12, background: "rgba(255,255,255,0.3)" }} />
           <Stars rating={venue.rating} size={13} />
           <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.85)", fontWeight: 600 }}>{venue.rating}</span>
-          <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.5)" }}>({venue.reviews} reviews)</span>
+          {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.5)" }}>({venue.reviews} reviews)</span>}
           {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: "#4ade80", fontWeight: 700 }}>✓ LWD Verified</span>}
         </div>
         {/* Hero CTAs */}
@@ -851,7 +943,150 @@ function HeroVideo({ venue, onEnquire }) {
   );
 }
 
-// ─── HERO WRAPPER — style switcher ───────────────────────────────────────────
+// ─── STICKY TAB NAV ───────────────────────────────────────────────────────────
+const TABS = [
+  { key: 'overview',     label: 'Overview',     show: (v) => true },
+  { key: 'gallery',      label: 'Gallery',      show: (v) => (v.gallery?.length || 0) > 0 },
+  { key: 'reviews',      label: 'Reviews',      show: (v) => (v.testimonials?.length || 0) > 0 },
+  { key: 'capacity',     label: 'Spaces',       show: (v) => (v.spaces?.length || 0) > 0 },
+  { key: 'rooms',        label: 'Rooms',        show: (v) => v.accommodation?.totalRooms > 0 || v.accommodation?.description },
+  { key: 'dining',       label: 'Dining',       show: (v) => v.dining?.description || v.dining?.style },
+  { key: 'pricing',      label: 'Pricing',      show: (v) => (v.exclusiveUse?.enabled !== false && v.exclusiveUse) || v.priceFrom },
+  { key: 'availability', label: 'Availability', show: (v) => (v.notices?.length || 0) > 0 },
+  { key: 'reviews',      label: 'Reviews',      show: (v) => true },
+  { key: 'faqs',         label: 'FAQs',         show: (v) => true },
+  { key: 'venue-type',   label: 'Venue Type',   show: (v) => v.venueType?.primaryType || (v.categories?.length || 0) > 0 },
+  { key: 'things-to-do', label: 'Things to Do', show: (v) => (v.experiences?.length || 0) > 0 },
+];
+
+function StickyTabNav({ venue, activeTab, onTabClick }) {
+  const C = useT();
+  const isMobile = useIsMobile();
+  const visibleTabs = TABS.filter(t => t.show(venue));
+
+  if (isMobile) {
+    return (
+      <div data-tab-nav style={{
+        position: 'sticky', top: 72, zIndex: 50,
+        backgroundColor: C.navBg || C.bg, borderBottom: `1px solid ${C.border}`,
+        padding: '10px 20px',
+        backdropFilter: 'blur(12px)',
+      }}>
+        <select
+          value={activeTab}
+          onChange={e => onTabClick(e.target.value)}
+          style={{
+            width: '100%', padding: '10px 14px',
+            fontSize: 14, fontFamily: 'inherit',
+            border: `1px solid ${C.border}`,
+            borderRadius: 'var(--lwd-radius-input, 3px)',
+            backgroundColor: C.surface,
+            color: C.text,
+            appearance: 'none',
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none'/%3E%3C/svg%3E")`,
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'right 14px center',
+            paddingRight: 40,
+            cursor: 'pointer',
+          }}
+        >
+          {visibleTabs.map(t => (
+            <option key={t.key} value={t.key}>{t.label}</option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
+  return (
+    <div data-tab-nav style={{
+      position: 'sticky', top: 72, zIndex: 50,
+      backgroundColor: C.navBg || C.bg,
+      backdropFilter: 'blur(12px)',
+      borderBottom: `1px solid ${C.border}`,
+    }}>
+      <div style={{
+        maxWidth: 1280, margin: '0 auto', padding: '0 40px',
+        display: 'flex', alignItems: 'stretch',
+        overflowX: 'auto',
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
+      }}>
+        {visibleTabs.map((t, i) => {
+          const active = activeTab === t.key;
+          return (
+            <div key={t.key} style={{ display: 'flex', alignItems: 'stretch' }}>
+              <button
+                onClick={() => onTabClick(t.key)}
+                style={{
+                  flexShrink: 0,
+                  padding: '0 18px',
+                  height: 48,
+                  border: 'none',
+                  borderBottom: `2px solid ${active ? C.gold : 'transparent'}`,
+                  backgroundColor: 'transparent',
+                  color: active ? C.gold : C.textLight,
+                  fontFamily: 'inherit',
+                  fontSize: 13,
+                  fontWeight: active ? 700 : 500,
+                  letterSpacing: '0.01em',
+                  cursor: 'pointer',
+                  transition: 'color 0.15s, border-bottom-color 0.15s',
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.color = C.text; }}
+                onMouseLeave={e => { if (!active) e.currentTarget.style.color = C.textLight; }}
+              >
+                {t.label}
+              </button>
+              {i < visibleTabs.length - 1 && (
+                <div style={{ width: '1px', backgroundColor: `${C.border}`, opacity: 0.5, alignSelf: 'center', height: '20px' }} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── SECTION SIDE IMAGE ──────────────────────────────────────────────────────
+// Consistent 3:4 portrait block, same size for ALL sections. No layout shift.
+function SectionSideImage({ src, alt = '' }) {
+  if (!src) return null;
+  return (
+    <div style={{ width: 240, flexShrink: 0 }}>
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        style={{
+          display: 'block',
+          width: 240,
+          aspectRatio: '3/4',
+          objectFit: 'cover',
+          borderRadius: 2,
+        }}
+      />
+    </div>
+  );
+}
+
+// Wrapper that puts content + side image side by side on desktop
+function SectionLayout({ children, sideImg, isMobile }) {
+  return (
+    <div style={{
+      display: 'flex',
+      gap: 48,
+      alignItems: 'flex-start',
+    }}>
+      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
+      {!isMobile && <SectionSideImage src={sideImg} />}
+    </div>
+  );
+}
+
+// ─── HERO WRAPPER, style switcher ───────────────────────────────────────────
 function Hero({ venue, heroStyle, setHeroStyle, onEnquire }) {
   const C = useT();
   // Only show Video option if the venue has video configured
@@ -867,25 +1102,6 @@ function Hero({ venue, heroStyle, setHeroStyle, onEnquire }) {
       {heroStyle === "split"     && <HeroSplit venue={venue} onEnquire={onEnquire} />}
       {heroStyle === "magazine"  && <HeroMagazine venue={venue} onEnquire={onEnquire} />}
       {heroStyle === "video"     && <HeroVideo venue={venue} onEnquire={onEnquire} />}
-      {/* Style picker — admin/preview tool (vendor backend will replace this) */}
-      <div style={{
-        position: "fixed", bottom: 80, right: 16, zIndex: 800,
-        background: C.surface, border: `1px solid ${C.border}`,
-        boxShadow: C.shadowMd, padding: "10px 12px",
-      }}>
-        <div style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 8 }}>Hero style</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          {styles.map(s => (
-            <button key={s.key} onClick={() => setHeroStyle(s.key)} style={{
-              padding: "5px 10px", border: `1px solid ${heroStyle === s.key ? C.gold : C.border}`,
-              borderRadius: "var(--lwd-radius-input)",
-              background: heroStyle === s.key ? C.goldLight : "none",
-              color: heroStyle === s.key ? C.gold : C.textLight,
-              fontFamily: FB, fontSize: 11, cursor: "pointer", textAlign: "left",
-            }}>{s.label}</button>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
@@ -893,14 +1109,16 @@ function Hero({ venue, heroStyle, setHeroStyle, onEnquire }) {
 // ─── STATS STRIP ─────────────────────────────────────────────────────────────
 function StatsStrip({ venue }) {
   const C = useT();
+  const sleepsValue = venue.accommodation?.maxOvernightGuests ?? venue.accommodation?.maxGuests ?? null;
+  const sleepsSub   = venue.accommodation?.totalRooms ? `${venue.accommodation.totalRooms} rooms` : 'rooms';
   const stats = [
-    { label: "From", value: venue.priceFrom, sub: "per event" },
-    { label: "Ceremony", value: `Up to ${venue.capacity.ceremony}`, sub: "guests" },
-    { label: "Dinner", value: `Up to ${venue.capacity.dinner}`, sub: "guests" },
-    { label: "Sleeps", value: venue.accommodation.maxGuests, sub: `${venue.accommodation.rooms} rooms` },
-    { label: "Responds", value: venue.responseTime, sub: `${venue.responseRate}% response rate` },
-    { label: "Rating", value: `${venue.rating} ★`, sub: `${venue.reviews} reviews` },
-  ];
+    { label: "From",      value: venue.priceFrom ? fmtPrice(venue.priceFrom, venue.priceCurrency) : null, sub: "per event", hide: !venue.priceFrom },
+    { label: "Ceremony",  value: venue.capacity?.ceremony ? `Up to ${venue.capacity.ceremony}` : null, sub: "guests", hide: !venue.capacity?.ceremony },
+    { label: "Dinner",    value: venue.capacity?.dinner   ? `Up to ${venue.capacity.dinner}`   : null, sub: "guests", hide: !venue.capacity?.dinner },
+    { label: "Sleeps",    value: sleepsValue,                                  sub: sleepsSub,                        hide: !sleepsValue },
+    { label: "Responds",  value: venue.responseTime,                           sub: `${venue.responseRate || ''}% response rate`, hide: !venue.responseTime },
+    { label: "Rating",    value: venue.rating ? `${venue.rating} ★` : null,   sub: `${venue.reviews || 0} reviews`,  hide: !venue.rating },
+  ].filter(s => !s.hide);
   return (
     <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "0 40px" }}>
       <div style={{ display: "flex", overflowX: "auto", gap: 0 }}>
@@ -923,6 +1141,10 @@ function StatsStrip({ venue }) {
 // ─── SIDEBAR: OWNER CARD ─────────────────────────────────────────────────────
 function OwnerCard({ owner, venue }) {
   const C = useT();
+
+  // Only render if owner data exists
+  if (!owner || !owner.name) return null;
+
   return (
     <div style={{
       border: `1px solid ${C.border}`,
@@ -963,16 +1185,18 @@ function OwnerCard({ owner, venue }) {
           </div>
         </div>
 
-        {/* Quote */}
-        <div style={{
-          borderLeft: `2px solid ${C.goldBorder}`,
-          paddingLeft: 14, marginBottom: 16,
-        }}>
-          <p style={{
-            fontFamily: FD, fontSize: 13, fontStyle: "italic",
-            color: C.textMid, lineHeight: 1.75, margin: 0,
-          }}>"{owner.bio}"</p>
-        </div>
+        {/* Quote — only render when bio has content */}
+        {owner.bio && (
+          <div style={{
+            borderLeft: `2px solid ${C.goldBorder}`,
+            paddingLeft: 14, marginBottom: 16,
+          }}>
+            <p style={{
+              fontFamily: FD, fontSize: 13, fontStyle: "italic",
+              color: C.textMid, lineHeight: 1.75, margin: 0,
+            }}>"{owner.bio}"</p>
+          </div>
+        )}
 
         {/* Stats grid */}
         <div className="vp-stats-strip" style={{
@@ -981,11 +1205,11 @@ function OwnerCard({ owner, venue }) {
           paddingTop: 14,
         }}>
           {[
-            { label: "Responds in",  value: venue.responseTime },
-            { label: "Response rate", value: `${venue.responseRate}%` },
-            { label: "Weddings held", value: `${venue.weddingsHosted}+` },
-            { label: "Partner since", value: `${owner.memberSince}` },
-          ].map((s, i) => (
+            { label: "Responds in",   value: venue.responseTime                                              },
+            { label: "Response rate", value: venue.responseRate ? `${venue.responseRate}%` : null            },
+            { label: "Weddings held", value: venue.weddingsHosted != null ? `${venue.weddingsHosted}+` : null },
+            { label: "Partner since", value: owner.memberSince || null                                       },
+          ].filter(s => s.value).map((s, i) => (
             <div key={s.label} style={{
               padding: "10px 0",
               borderRight: i % 2 === 0 ? `1px solid ${C.border}` : "none",
@@ -1003,6 +1227,43 @@ function OwnerCard({ owner, venue }) {
 }
 
 // ─── SIDEBAR: MINI CONTACT ───────────────────────────────────────────────────
+// ─── OPENING HOURS WIDGET ─────────────────────────────────────────────────────
+function OpeningHoursWidget({ openingHours }) {
+  const C = useT();
+  if (!openingHours?.enabled || !openingHours?.hours) return null;
+  const DAYS = [
+    { key: 'mon', label: 'Mon' }, { key: 'tue', label: 'Tue' }, { key: 'wed', label: 'Wed' },
+    { key: 'thu', label: 'Thu' }, { key: 'fri', label: 'Fri' }, { key: 'sat', label: 'Sat' },
+    { key: 'sun', label: 'Sun' },
+  ];
+  // Group consecutive days with same hours
+  const rows = DAYS.map(d => ({ ...d, ...(openingHours.hours[d.key] || { type: 'closed' }) }));
+  return (
+    <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 16px' }}>
+      <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 10 }}>Opening Hours</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {rows.map(r => (
+          <div key={r.key} style={{ display: 'flex', justifyContent: 'space-between', fontFamily: FB, fontSize: 12 }}>
+            <span style={{ color: (r.type === 'closed' && !r.from) ? C.textMuted : C.text, width: 32 }}>{r.label}</span>
+            <span style={{ color: r.type === 'closed' ? C.textMuted : (r.type === 'appointment' || r.type === 'by_appointment') ? C.gold : C.text }}>
+              {r.type === 'closed'
+                ? 'Closed'
+                : (r.type === 'appointment' || r.type === 'by_appointment')
+                  ? 'By appt.'
+                  : (r.from && r.to)
+                    ? `${r.from} – ${r.to}`
+                    : 'Open'}
+            </span>
+          </div>
+        ))}
+      </div>
+      {openingHours.note && (
+        <div style={{ marginTop: 8, fontFamily: FB, fontSize: 11, color: C.textLight, lineHeight: 1.5 }}>{openingHours.note}</div>
+      )}
+    </div>
+  );
+}
+
 function SidebarContact({ venue }) {
   const C = useT();
   return (
@@ -1045,6 +1306,8 @@ function SidebarContact({ venue }) {
           ><Icon name="globe" size={12} /> Website</a>
         </div>
       </div>
+      {/* Opening hours */}
+      <OpeningHoursWidget openingHours={venue.openingHours} />
     </div>
   );
 }
@@ -1083,7 +1346,7 @@ const NOTICE_FORM_CONFIG = {
   },
   "availability": {
     heading: "Enquire About This Date",
-    getContext: (n) => `${n.title} — exclusive use`,
+    getContext: (n) => `${n.title} (exclusive use inquiry)`,
     fields: [
       { key: "name",  label: "Full name",    type: "text",  required: true  },
       { key: "email", label: "Email address",type: "email", required: true  },
@@ -1402,7 +1665,7 @@ function SidebarNotices({ notices, venueName }) {
                 <div style={{
                   borderTop: `1px solid ${C.border}`,
                 }}>
-                  {/* Image — only for news type */}
+                  {/* Image, only for news type */}
                   {n.img && (
                     <div style={{ position: "relative", overflow: "hidden" }}>
                       <img
@@ -1467,7 +1730,7 @@ function SidebarNotices({ notices, venueName }) {
 // ─── SIDEBAR: INSTAGRAM TEASER ───────────────────────────────────────────────
 function SidebarInstagram({ venue }) {
   const C = useT();
-  // Placeholder tiles — real impl pulls from Instagram Basic Display API
+  // Placeholder tiles, real impl pulls from Instagram Basic Display API
   const posts = [
     { id: 0, src: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=240&q=75" },
     { id: 1, src: "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=240&q=75" },
@@ -1521,7 +1784,7 @@ function LeadForm({ venue }) {
       content: (
         <div>
           <label style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.6px", textTransform: "uppercase", display: "block", marginBottom: 8 }}>
-            Guests — <span style={{ color: C.gold, fontWeight: 700 }}>{form.guests}</span>
+            Guests, <span style={{ color: C.gold, fontWeight: 700 }}>{form.guests}</span>
           </label>
           <input type="range" min={20} max={200} value={form.guests} onChange={e => setForm(f => ({ ...f, guests: +e.target.value }))}
             style={{ width: "100%", accentColor: C.gold }} />
@@ -1561,17 +1824,21 @@ function LeadForm({ venue }) {
     }}>
       {/* Price + rating */}
       <div style={{ marginBottom: 20 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 6 }}>
-          <span style={{ fontFamily: FD, fontSize: 29, fontWeight: 700, color: C.gold }}>From {venue.priceFrom}</span>
-        </div>
+        {venue.priceFrom && (
+          <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 6 }}>
+            <span style={{ fontFamily: FD, fontSize: 29, fontWeight: 700, color: C.gold }}>From {fmtPrice(venue.priceFrom, venue.priceCurrency)}</span>
+          </div>
+        )}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Stars rating={venue.rating} size={12} />
           <span style={{ fontFamily: FB, fontSize: 13, fontWeight: 700, color: C.text }}>{venue.rating}</span>
-          <span style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>· {venue.reviews} reviews</span>
+          {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>· {venue.reviews} reviews</span>}
         </div>
-        <div style={{ marginTop: 8, fontFamily: FB, fontSize: 12, color: C.green, fontWeight: 600 }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="zap" size={13} color={C.green} /> Responds within {venue.responseTime}</span>
-        </div>
+        {venue.responseTime && (
+          <div style={{ marginTop: 8, fontFamily: FB, fontSize: 12, color: C.green, fontWeight: 600 }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="zap" size={13} color={C.green} /> Responds within {venue.responseTime}</span>
+          </div>
+        )}
       </div>
 
       <div style={{ height: 1, background: C.border, marginBottom: 20 }} />
@@ -1587,13 +1854,28 @@ function LeadForm({ venue }) {
 
       {/* Step content */}
       {step === 0 && (
-        <button onClick={() => setStep(1)} style={{
-          width: "100%", padding: "15px 20px",
-          background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)", color: "#fff",
-          fontFamily: FB, fontSize: 14, fontWeight: 800, letterSpacing: "1.2px",
-          textTransform: "uppercase", cursor: "pointer",
-          transition: "all 0.2s",
-        }}>Begin Your Enquiry →</button>
+        <>
+          <button onClick={() => setStep(1)} style={{
+            width: "100%", padding: "15px 20px",
+            background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)", color: "#fff",
+            fontFamily: FB, fontSize: 14, fontWeight: 800, letterSpacing: "1.2px",
+            textTransform: "uppercase", cursor: "pointer",
+            transition: "all 0.2s",
+          }}>Begin Your Enquiry →</button>
+          {venue.showcaseUrl && (
+            <a href={venue.showcaseUrl}
+              onClick={e => { e.preventDefault(); window.history.pushState(null, "", venue.showcaseUrl); window.dispatchEvent(new PopStateEvent('popstate')); }}
+              style={{
+              display: "block", textAlign: "center", marginTop: 12,
+              fontFamily: FB, fontSize: 12, fontWeight: 600,
+              color: C.textLight, textDecoration: "none",
+              letterSpacing: "0.4px", transition: "color 0.2s",
+            }}
+              onMouseEnter={e => e.currentTarget.style.color = C.gold}
+              onMouseLeave={e => e.currentTarget.style.color = C.textLight}
+            >✦ View Full Showcase →</a>
+          )}
+        </>
       )}
 
       {step > 0 && step < 4 && (
@@ -1629,7 +1911,7 @@ function LeadForm({ venue }) {
           <div style={{ fontSize: 36, marginBottom: 12 }}>✓</div>
           <div style={{ fontFamily: FD, fontSize: 20, color: C.text, marginBottom: 8 }}>Enquiry Sent</div>
           <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight, lineHeight: 1.6 }}>
-            Your message is with Villa Rosanova. They typically reply within {venue.responseTime}.
+            Your message has been sent. The venue typically replies within {venue.responseTime}.
           </div>
           <button onClick={() => setStep(0)} style={{
             marginTop: 16, padding: "9px 20px",
@@ -1660,7 +1942,7 @@ function LeadForm({ venue }) {
   );
 }
 
-// ─── IMAGE GALLERY — Coco-style 3-photo preview ──────────────────────────────
+// ─── IMAGE GALLERY, Coco-style 3-photo preview ──────────────────────────────
 function ImageGallery({ gallery, onOpenLight }) {
   const C = useT();
   const isMobile = useIsMobile();
@@ -1670,11 +1952,8 @@ function ImageGallery({ gallery, onOpenLight }) {
   const remaining = gallery.length - 5;
 
   return (
-    <section style={{ marginBottom: 56 }}>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 16 }}>
-        <SectionHeading title="Gallery" />
-        <span style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.3px" }}>{gallery.length} photographs</span>
-      </div>
+    <section id="gallery" style={{ marginBottom: 56 }}>
+      <SectionHeading title="Gallery" subtitle="16 curated photographs showcasing the venue" />
 
       {/* ── Mobile: horizontal photo slider ── */}
       {isMobile && !allOpen && (
@@ -1727,17 +2006,17 @@ function ImageGallery({ gallery, onOpenLight }) {
             }}
               onMouseEnter={e => e.currentTarget.querySelector("img").style.transform = "scale(1.04)"}
               onMouseLeave={e => e.currentTarget.querySelector("img").style.transform = "scale(1)"}>
-              <img src={gallery[0]?.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.7s ease" }} />
+              <img src={gallery[0]?.src} alt={gallery[0]?.alt || ""} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.7s ease" }} />
             </div>
             <div onClick={() => onOpenLight(1)} style={{ overflow: "hidden", cursor: "pointer", position: "relative", aspectRatio: "4/3" }}
               onMouseEnter={e => e.currentTarget.querySelector("img").style.transform = "scale(1.04)"}
               onMouseLeave={e => e.currentTarget.querySelector("img").style.transform = "scale(1)"}>
-              <img src={gallery[1]?.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.7s ease" }} />
+              <img src={gallery[1]?.src} alt={gallery[1]?.alt || ""} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.7s ease" }} />
             </div>
             <div onClick={() => setAllOpen(true)} style={{ overflow: "hidden", cursor: "pointer", position: "relative", aspectRatio: "4/3" }}
               onMouseEnter={e => e.currentTarget.querySelector("img").style.transform = "scale(1.04)"}
               onMouseLeave={e => e.currentTarget.querySelector("img").style.transform = "scale(1)"}>
-              <img src={gallery[2]?.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.7s ease" }} />
+              <img src={gallery[2]?.src} alt={gallery[2]?.alt || ""} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.7s ease" }} />
               <div style={{
                 position: "absolute", inset: 0, background: "rgba(0,0,0,0.52)",
                 display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 6,
@@ -1762,7 +2041,7 @@ function ImageGallery({ gallery, onOpenLight }) {
         </div>
       )}
 
-      {/* ── Full gallery — masonry ── */}
+      {/* ── Full gallery, masonry ── */}
       {allOpen && (
         <div style={{ animation: "fadeUp 0.4s ease" }}>
           <div style={{ columns: isMobile ? 2 : 3, columnGap: 6, marginBottom: 16 }}>
@@ -1820,19 +2099,31 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
     return () => window.removeEventListener("keydown", fn);
   }, [onClose, onPrev, onNext, viewAll]);
 
-  // Auto-play slideshow
+  // Auto-play slideshow, stop if idx is null (lightbox closed)
   useEffect(() => {
-    if (!autoPlay) return;
+    if (!autoPlay || idx === null) return;
     const timer = setInterval(() => onNext(), 3000);
     return () => clearInterval(timer);
-  }, [autoPlay, onNext]);
+  }, [autoPlay, idx, onNext]);
 
-  // Scroll active thumbnail into view
+  // Reset internal state when lightbox is closed
   useEffect(() => {
-    if (thumbRef.current) {
-      const active = thumbRef.current.children[idx];
-      if (active) active.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    if (idx === null) {
+      setAutoPlay(false);
+      setViewAll(false);
     }
+  }, [idx]);
+
+  // Scroll active thumbnail into view, scroll the strip container, not the page
+  useEffect(() => {
+    if (!thumbRef.current) return;
+    const strip = thumbRef.current;
+    const active = strip.children[idx];
+    if (!active) return;
+    const stripRect  = strip.getBoundingClientRect();
+    const activeRect = active.getBoundingClientRect();
+    const offset = activeRect.left - stripRect.left - (stripRect.width / 2) + (activeRect.width / 2);
+    strip.scrollBy({ left: offset, behavior: "smooth" });
   }, [idx]);
 
   // Copy link to clipboard
@@ -1845,8 +2136,8 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
 
   // Share via email
   const handleEmailShare = () => {
-    const subject = encodeURIComponent(`Villa Rosanova — Photo ${idx + 1}`);
-    const body = encodeURIComponent(`Check out this photo from Villa Rosanova:\n${photo.alt || ""}\n\nPhotographer: ${pg?.name || "Unknown"}\n${window.location.href}#photo-${photo.id}`);
+    const subject = encodeURIComponent(`Photo, ${venue.name || 'Wedding Venue'}`);
+    const body = encodeURIComponent(`Check out this photo:\n${photo.alt || ""}\n\nPhotographer: ${pg?.name || "Unknown"}\n${window.location.href}#photo-${photo.id}`);
     window.open(`mailto:?subject=${subject}&body=${body}`);
   };
 
@@ -1854,7 +2145,7 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
   const handlePinterestShare = () => {
     const url = encodeURIComponent(window.location.href);
     const media = encodeURIComponent(photo.src);
-    const desc = encodeURIComponent(`${photo.alt || "Villa Rosanova"} — Photo by ${pg?.name || ""}`);
+    const desc = encodeURIComponent(`${photo.alt || "Villa Rosanova"}, Photo by ${pg?.name || ""}`);
     window.open(`https://pinterest.com/pin/create/button/?url=${url}&media=${media}&description=${desc}`, "_blank", "width=600,height=400");
   };
 
@@ -1866,7 +2157,7 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
 
   // Share via Instagram (copy link + open Instagram)
   const handleInstagramShare = () => {
-    navigator.clipboard.writeText(`${photo.alt || "Villa Rosanova"} — Photo by ${pg?.name || ""}\n${window.location.href}#photo-${photo.id}`).then(() => {
+    navigator.clipboard.writeText(`${photo.alt || "Villa Rosanova"}, Photo by ${pg?.name || ""}\n${window.location.href}#photo-${photo.id}`).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       window.open("https://www.instagram.com/", "_blank");
@@ -1978,7 +2269,7 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
   }
 
   return (
-    <div onClick={onClose} style={{
+    <div onClick={onClose} onMouseDown={e => { if (e.target.tagName === "BUTTON" || e.target.closest("button")) e.preventDefault(); }} style={{
       position: "fixed", inset: 0, background: "rgba(0,0,0,0.96)", zIndex: 2000,
       display: "flex", flexDirection: "column",
     }}>
@@ -1995,7 +2286,7 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
           {pg && <span style={{ fontFamily: FB, fontSize: 11, color: "rgba(255,255,255,0.35)" }}>📷 {pg.name}</span>}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {/* Auto-play toggle — hidden on mobile */}
+          {/* Auto-play toggle, hidden on mobile */}
           {!isMobile && (
             <button onClick={() => setAutoPlay((a) => !a)}
               style={{
@@ -2010,7 +2301,7 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
               {autoPlay ? "❚❚" : "▶"} {autoPlay ? "Pause" : "Slideshow"}
             </button>
           )}
-          {/* View All — hidden on mobile */}
+          {/* View All, hidden on mobile */}
           {!isMobile && (
             <button onClick={() => setViewAll(true)}
               style={{
@@ -2060,7 +2351,7 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
               animation: "fadeIn 0.3s ease",
             }}
           />
-          {/* Nav arrows — on mobile show smaller inline arrows */}
+          {/* Nav arrows, on mobile show smaller inline arrows */}
           {isMobile ? (
             <>
               <button onClick={(e) => { e.stopPropagation(); onPrev(); }} style={{
@@ -2265,7 +2556,7 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
                         "{c.text}"
                       </div>
                       <div style={{ fontFamily: FB, fontSize: 10, color: "rgba(201,168,76,0.5)", marginTop: 6, fontWeight: 600 }}>
-                        — {c.name}
+                       , {c.name}
                       </div>
                     </div>
                   ))}
@@ -2310,7 +2601,7 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
               onMouseEnter={(e) => { if (i !== idx) e.currentTarget.style.opacity = "0.7"; }}
               onMouseLeave={(e) => { if (i !== idx) e.currentTarget.style.opacity = "0.4"; }}
             >
-              <img src={img.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              <img src={img.src} alt={img.alt || img.title || ""} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
             </div>
           ))}
         </div>
@@ -2320,115 +2611,109 @@ function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLightIdx, engageme
 }
 
 // ─── ABOUT SECTION ────────────────────────────────────────────────────────────
-function AboutSection({ venue }) {
+function AboutSection({ venue, isDbVenue = false }) {
   const C = useT();
   const [expanded, setExpanded] = useState(false);
   const isMobile = useIsMobile();
 
-  const highlights = [
-    { num: "120", label: "Acres" },
-    { num: "1847", label: "Est." },
-    { num: "24", label: "Rooms" },
-    { num: "300+", label: "Weddings" },
-  ];
-
   return (
-    <section style={{ marginBottom: 56 }}>
+    <section id="overview" style={{ marginBottom: 56 }}>
       <SectionHeading title={`About ${venue.name}`} />
 
-      {/* Paragraph 1 */}
-      <p style={{ fontFamily: FB, fontSize: isMobile ? 15 : 16, color: C.textMid, lineHeight: 1.9, marginBottom: 24, maxWidth: 720 }}>
-        Set within 120 acres of rolling Tuscan countryside, Villa Rosanova is one of the finest privately-owned estates in Italy. Built in 1847 for the Marchese di Rosanova, the property has been meticulously restored to its original grandeur while offering every modern comfort a discerning couple could wish for.
-      </p>
-
-      {/* Key stats strip */}
-      <div style={{
-        display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: isMobile ? 0 : 8,
-        marginBottom: 24, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`,
-      }}>
-        {highlights.map((h, i) => (
-          <div key={h.label} style={{
-            padding: isMobile ? "14px 0" : "18px 0",
-            textAlign: "center",
-            borderRight: i < 3 ? `1px solid ${C.border}` : "none",
-          }}>
-            <div style={{ fontFamily: FD, fontSize: isMobile ? 20 : 26, fontWeight: 400, color: C.gold, lineHeight: 1 }}>{h.num}</div>
-            <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "1.2px", textTransform: "uppercase", marginTop: 4 }}>{h.label}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Full-width image pair */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 6, marginBottom: 24 }}>
-        <img src="https://images.unsplash.com/photo-1617806118233-18e1de247200?w=700&q=80" alt="Villa Rosanova interior detail" loading="lazy" style={{ width: "100%", height: isMobile ? 200 : 240, objectFit: "cover", display: "block", borderRadius: 3 }} />
-        <img src="https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=700&q=80" alt="Cypress garden at dusk" loading="lazy" style={{ width: "100%", height: isMobile ? 200 : 240, objectFit: "cover", display: "block", borderRadius: 3 }} />
-      </div>
-
-      {/* Paragraph 2 + expandable */}
-      <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9, marginBottom: 16, maxWidth: 720 }}>
-        From the frescoed Grand Salon — with its original parquet floors and three Venetian chandeliers — to the centuries-old cypress garden, every space has been designed to create moments of extraordinary beauty. With accommodation for 58 guests across 24 rooms and 6 suites, Villa Rosanova is the perfect setting for multi-day wedding celebrations.
-      </p>
-
-      {/* Expandable paragraphs */}
-      <div style={{ overflow: "hidden", maxHeight: expanded ? 500 : 0, transition: "max-height 0.5s ease", maxWidth: 720 }}>
-        <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9, marginBottom: 16 }}>
-          The estate produces its own Chianti Classico wine, cold-pressed extra virgin olive oil, and seasonal truffles — all of which feature on our exclusively crafted wedding menus. Every detail of your celebration is managed by our dedicated events team, who have hosted over 300 weddings across four decades.
-        </p>
-        <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9 }}>
-          Villa Rosanova has been featured in Vogue, Tatler and Harper's Bazaar, and has received the Luxury Wedding Directory's Best Villa award three years in succession. For couples seeking a truly once-in-a-lifetime setting — where privacy, beauty and impeccable service converge — there is simply nowhere quite like it.
-        </p>
-      </div>
-
-      <button
-        onClick={() => setExpanded(e => !e)}
-        style={{
-          display: "inline-flex", alignItems: "center", gap: 6,
-          marginTop: 4, marginBottom: 28,
-          background: "none", border: "none",
-          fontFamily: FB, fontSize: 13, fontWeight: 700,
-          color: C.gold, cursor: "pointer", letterSpacing: "0.3px",
-          padding: 0,
-        }}
-      >
-        {expanded ? "Show less ↑" : "Read the full story →"}
-      </button>
-
-      {/* Awards — horizontal scroll on mobile */}
-      <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20, marginBottom: 16 }}>
-        <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 12 }}>Awards & Recognition</div>
-        <div className="vp-awards-scroll" style={{
-          display: "flex", gap: 8, overflowX: isMobile ? "auto" : "visible",
-          flexWrap: isMobile ? "nowrap" : "wrap",
-          scrollbarWidth: "none", msOverflowStyle: "none",
-          paddingBottom: isMobile ? 4 : 0,
-        }}>
-          {venue.awards.map(a => (
-            <div key={a} style={{
-              flex: "0 0 auto",
-              padding: "8px 14px",
-              border: `1px solid ${C.gold}30`,
-              background: `${C.gold}08`,
-              borderRadius: 3,
-              fontFamily: FB, fontSize: 11, fontWeight: 600,
-              color: C.gold, letterSpacing: "0.3px", whiteSpace: "nowrap",
-            }}>
-              ✦ {a}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Press */}
+      {/* Single-column editorial layout */}
       <div>
-        <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 12 }}>As Seen In</div>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-          {venue.press.map(p => (
-            <span key={p} style={{
-              fontFamily: FD, fontSize: isMobile ? 15 : 17, fontWeight: 400,
-              color: C.textLight, letterSpacing: "0.5px",
-            }}>{p}</span>
-          ))}
+
+        {/* Intro paragraph, uses DB short_description when available */}
+        <p style={{ fontFamily: FB, fontSize: isMobile ? 15 : 16, color: C.textMid, lineHeight: 1.9, marginBottom: 28, maxWidth: 780 }}>
+          {venue.description || venue.tagline || "Set within 120 acres of rolling Tuscan countryside, Villa Rosanova is one of the finest privately-owned estates in Italy. Built in 1847 for the Marchese di Rosanova, the property has been meticulously restored to its original grandeur while offering every modern comfort a discerning couple could wish for."}
+        </p>
+
+        {/* Full description, DB venues: always shown inline, no read more gate */}
+        {isDbVenue && venue.fullDescription && (
+          <div
+            className="ldw-prose-body"
+            style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9, marginBottom: 28, maxWidth: 780 }}
+            dangerouslySetInnerHTML={{ __html: venue.fullDescription }}
+          />
+        )}
+
+        {/* Second paragraph, static Villa Rosanova content, only on /venue */}
+        {!isDbVenue && (
+        <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9, marginBottom: 16, maxWidth: 780 }}>
+          From the frescoed Grand Salon, with its original parquet floors and three Venetian chandeliers, to the centuries-old cypress garden, every space has been designed to create moments of extraordinary beauty. With accommodation for 58 guests across 24 rooms and 6 suites, Villa Rosanova is the perfect setting for multi-day wedding celebrations.
+        </p>
+        )}
+
+        {/* Expandable paragraphs, static Villa Rosanova content, only on /venue */}
+        {!isDbVenue && (
+        <div style={{ overflow: "hidden", maxHeight: expanded ? 500 : 0, transition: "max-height 0.5s ease", maxWidth: 780 }}>
+          <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9, marginBottom: 16 }}>
+            The estate produces its own Chianti Classico wine, cold-pressed extra virgin olive oil, and seasonal truffles, all of which feature on our exclusively crafted wedding menus. Every detail of your celebration is managed by our dedicated events team, who have hosted over 300 weddings across four decades.
+          </p>
+          <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 15, color: C.textLight, lineHeight: 1.9 }}>
+            Villa Rosanova has been featured in Vogue, Tatler and Harper's Bazaar, and has received the Luxury Wedding Directory's Best Villa award three years in succession. For couples seeking a truly once-in-a-lifetime setting, where privacy, beauty and impeccable service converge, there is simply nowhere quite like it.
+          </p>
         </div>
+        )}
+
+        {!isDbVenue && (
+        <button
+          onClick={() => setExpanded(e => !e)}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            marginTop: 4, marginBottom: 32,
+            background: "none", border: "none",
+            fontFamily: FB, fontSize: 13, fontWeight: 700,
+            color: C.gold, cursor: "pointer", letterSpacing: "0.3px",
+            padding: 0,
+          }}
+        >
+          {expanded ? "Show less ↑" : "Read the full story →"}
+        </button>
+        )}
+
+        {/* Awards, horizontal scroll on mobile */}
+        {venue.awards?.length > 0 && (
+        <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20, marginBottom: 16 }}>
+          <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 12 }}>Awards & Recognition</div>
+          <div className="vp-awards-scroll" style={{
+            display: "flex", gap: 8, overflowX: isMobile ? "auto" : "visible",
+            flexWrap: isMobile ? "nowrap" : "wrap",
+            scrollbarWidth: "none", msOverflowStyle: "none",
+            paddingBottom: isMobile ? 4 : 0,
+          }}>
+            {venue.awards.map(a => (
+              <div key={a} style={{
+                flex: "0 0 auto",
+                padding: "8px 14px",
+                border: `1px solid ${C.gold}30`,
+                background: `${C.gold}08`,
+                borderRadius: 3,
+                fontFamily: FB, fontSize: 11, fontWeight: 600,
+                color: C.gold, letterSpacing: "0.3px", whiteSpace: "nowrap",
+              }}>
+                ✦ {a}
+              </div>
+            ))}
+          </div>
+        </div>
+        )}
+
+        {/* Press */}
+        {venue.press?.length > 0 && (
+        <div>
+          <div style={{ fontFamily: FB, fontSize: 9, color: C.textMuted, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 12 }}>As Seen In</div>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+            {venue.press.map(p => (
+              <span key={p} style={{
+                fontFamily: FD, fontSize: isMobile ? 15 : 17, fontWeight: 400,
+                color: C.textLight, letterSpacing: "0.5px",
+              }}>{p}</span>
+            ))}
+          </div>
+        </div>
+        )}
+
       </div>
     </section>
   );
@@ -2438,8 +2723,9 @@ function AboutSection({ venue }) {
 function ContactSection({ venue }) {
   const C = useT();
   const [emailRevealed, setEmailRevealed] = useState(false);
-  const addr = venue.contact.address;
-  const rm = venue.contact.responseMetrics;
+  if (!venue.contact) return null;
+  const addr = venue.contact.address || {};
+  const rm = venue.contact.responseMetrics || {};
 
   const contactRow = (iconName, label, content, props = {}) => {
     const Tag = props.href ? "a" : "div";
@@ -2467,21 +2753,21 @@ function ContactSection({ venue }) {
 
   return (
     <section style={{ marginBottom: 56 }}>
-      <SectionHeading title="Contact & Location" />
+      <SectionHeading title="Contact & Location" subtitle="Find us and plan your journey" />
       <div className="vp-contact-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
 
         {/* Contact details */}
         <div>
           <div style={{ display: "flex", flexDirection: "column", gap: 0, border: `1px solid ${C.border}`, overflow: "hidden" }}>
-            {contactRow("pin", "Address",
+            {addressFormatted && contactRow("pin", "Address",
               <div style={{ fontFamily: FB, fontSize: 14, color: C.textMid, lineHeight: 1.6 }}>{addressFormatted}</div>,
               { topAlign: true }
             )}
-            {contactRow("phone", "Phone",
+            {venue.contact.phone && contactRow("phone", "Phone",
               <div style={{ fontFamily: FB, fontSize: 15, color: C.gold, fontWeight: 600 }}>{venue.contact.phone}</div>,
               { href: `tel:${venue.contact.phone}` }
             )}
-            {contactRow("email", "Email",
+            {venue.contact.email && contactRow("email", "Email",
               emailRevealed
                 ? <a href={`mailto:${venue.contact.email}`} style={{ fontFamily: FB, fontSize: 14, color: C.gold, textDecoration: "none" }}>{venue.contact.email}</a>
                 : <button onClick={() => setEmailRevealed(true)} style={{
@@ -2490,22 +2776,24 @@ function ContactSection({ venue }) {
                     cursor: "pointer", letterSpacing: "0.3px",
                   }}>Click to reveal email</button>
             )}
-            {contactRow("globe", "Website",
+            {venue.contact.website && contactRow("globe", "Website",
               <div style={{ fontFamily: FB, fontSize: 14, color: C.gold, fontWeight: 600 }}>{venue.contact.website}</div>,
               { href: `https://${venue.contact.website}`, target: "_blank", rel: "noopener noreferrer", last: true }
             )}
           </div>
 
-          {/* Response metrics */}
+          {/* Response metrics, only show if data exists */}
+          {rm.averageResponseHours && (
           <div style={{ marginTop: 14, padding: "12px 16px", background: C.goldLight, border: `1px solid ${C.goldBorder}`, display: "flex", alignItems: "flex-start", gap: 10 }}>
             <Icon name="zap" size={14} color={C.gold} style={{ marginTop: 1 }} />
             <div>
               <div style={{ fontFamily: FB, fontSize: 12, color: C.gold, fontWeight: 600, marginBottom: 3 }}>Responds within {rm.averageResponseHours} hrs</div>
               <div style={{ fontFamily: FB, fontSize: 12, color: C.textLight }}>
-                {rm.responseRatePercent}% response rate{rm.sameDayTypical ? " . Typically replies same day" : ""}
+                {rm.responseRatePercent}% response rate{rm.sameDayTypical ? " · Typically replies same day" : ""}
               </div>
             </div>
           </div>
+          )}
         </div>
 
         {/* Google Map */}
@@ -2553,6 +2841,22 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
 
   // Reset paused overlay when video changes
   useEffect(() => { setYtPaused(false); }, [video.id]);
+
+  // Stop video playback on unmount (prevents audio continuing after modal closes)
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    return () => {
+      try {
+        if (iframe) {
+          iframe.contentWindow.postMessage(
+            JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }), '*'
+          );
+          // Clear src as nuclear fallback to guarantee playback stops
+          iframe.src = '';
+        }
+      } catch (_) {}
+    };
+  }, []);
 
   // Keyboard nav
   useEffect(() => {
@@ -2608,8 +2912,8 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
   };
 
   const handleEmailShare = () => {
-    const subject = encodeURIComponent(`Villa Rosanova — ${video.title}`);
-    const body = encodeURIComponent(`Check out this film from Villa Rosanova:\n${video.title}\n\nFilmed by: ${vg?.name || "Unknown"}\n${window.location.href}#film-${video.id}`);
+    const subject = encodeURIComponent(`Video, ${video.title}`);
+    const body = encodeURIComponent(`Check out this film:\n${video.title}\n\nFilmed by: ${vg?.name || "Unknown"}\n${window.location.href}#film-${video.id}`);
     window.open(`mailto:?subject=${subject}&body=${body}`);
   };
 
@@ -2621,7 +2925,7 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
 
   // Share via Instagram (copy link + open Instagram)
   const handleInstagramShare = () => {
-    navigator.clipboard.writeText(`${video.title} — Filmed by ${vg?.name || ""}\n${window.location.href}#film-${video.id}`).then(() => {
+    navigator.clipboard.writeText(`${video.title}, Filmed by ${vg?.name || ""}\n${window.location.href}#film-${video.id}`).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       window.open("https://www.instagram.com/", "_blank");
@@ -2632,7 +2936,7 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
   const handlePinterestShare = () => {
     const url = encodeURIComponent(window.location.href + `#film-${video.id}`);
     const media = encodeURIComponent(video.thumb);
-    const desc = encodeURIComponent(`${video.title} — Filmed by ${vg?.name || ""} at Villa Rosanova`);
+    const desc = encodeURIComponent(`${video.title}, Filmed by ${vg?.name || ""} at Villa Rosanova`);
     window.open(`https://pinterest.com/pin/create/button/?url=${url}&media=${media}&description=${desc}`, "_blank", "width=600,height=400");
   };
 
@@ -2678,6 +2982,7 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
   return (
     <div
       onClick={onClose}
+      onMouseDown={e => { if (e.target.tagName === "BUTTON" || e.target.closest("button")) e.preventDefault(); }}
       role="dialog" aria-modal="true" aria-label={`Play ${video.title}`}
       style={{
         position: "fixed", inset: 0, zIndex: 3000,
@@ -2716,7 +3021,7 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
       }}>
         {/* Video area */}
         <div style={{ flex: isMobile ? "none" : 1, display: "flex", flexDirection: "column", minWidth: 0, position: "relative" }}>
-          {/* Prev / Next arrows — hidden on mobile */}
+          {/* Prev / Next arrows, hidden on mobile */}
           {!isMobile && videos.length > 1 && navBtn("prev", hasPrev, hovPrev, setHovPrev)}
           {!isMobile && videos.length > 1 && navBtn("next", hasNext, hovNext, setHovNext)}
 
@@ -2968,7 +3273,7 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
                         "{c.text}"
                       </div>
                       <div style={{ fontFamily: FB, fontSize: 10, color: "rgba(201,168,76,0.5)", marginTop: 6, fontWeight: 600 }}>
-                        — {c.name}
+                       , {c.name}
                       </div>
                     </div>
                   ))}
@@ -3031,16 +3336,26 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
 }
 
 // ─── VIDEO GALLERY ────────────────────────────────────────────────────────────
-function VideoGallery({ videos }) {
+function VideoGallery({ videos, venue }) {
   const C = useT();
   const isMobile = useIsMobile();
   const [active, setActive] = useState(0);
   const [playing, setPlaying] = useState(null);
+
+  // Reset all state when VideoGallery unmounts (route change / navigation away)
+  useEffect(() => {
+    return () => {
+      setPlaying(null);
+      setActive(0);
+    };
+  }, []);
+  if (!videos || videos.length === 0) return null;
   const vg = videos[active].videographer;
+  const venueName = venue?.name || 'Wedding Venue';
 
   return (
     <section style={{ marginBottom: 56 }}>
-      <SectionHeading title="Films" subtitle="Real weddings, estate tours and highlights from Villa Rosanova" />
+      <SectionHeading title="Films" subtitle={`Real weddings, estate tours and highlights from ${venueName}`} />
 
       {/* Main featured video */}
       <div
@@ -3069,7 +3384,7 @@ function VideoGallery({ videos }) {
         </div>
       </div>
 
-      {/* Video info bar — stacked on mobile */}
+      {/* Video info bar, stacked on mobile */}
       <div className="vp-video-info" style={{
         padding: isMobile ? "14px 0" : "16px 20px", background: isMobile ? "transparent" : C.surface,
         border: isMobile ? "none" : `1px solid ${C.border}`, borderTop: "none",
@@ -3125,7 +3440,7 @@ function VideoGallery({ videos }) {
         )}
       </div>
 
-      {/* Thumbnail strip — slider on mobile, grid on desktop */}
+      {/* Thumbnail strip, slider on mobile, grid on desktop */}
       {isMobile ? (
         <div className="vp-films-slider" style={{
           display: "flex", gap: 10, overflowX: "auto", scrollSnapType: "x mandatory",
@@ -3235,35 +3550,82 @@ function VideoGallery({ videos }) {
 }
 
 // ─── EXCLUSIVE USE ────────────────────────────────────────────────────────────
-function ExclusiveUse({ venue }) {
+function ExclusiveUse({ venue, onEnquire }) {
   const C = useT();
+  const isMobile = useIsMobile();
   const eu = venue.exclusiveUse;
+
+  // Section hidden if disabled or no data
+  if (!eu || eu.enabled === false) return null;
+  // Don't render empty shell
+  if (!eu.from && !eu.description && !(eu.includes?.length)) return null;
+
+  const title    = eu.title    || "Exclusive Use";
+  const subtitle = eu.subtitle || "";
+  const ctaText  = eu.ctaText  || "Enquire About Exclusive Use";
+  const subline  = eu.subline  || (eu.minNights ? `Minimum ${eu.minNights} nights` : "");
+
   return (
-    <section style={{ marginBottom: 56 }}>
-      <SectionHeading title="Exclusive Use" subtitle="Hire the entire estate — just your guests, your celebration, your way" />
-      <div style={{ border: `1px solid ${C.goldBorder}`, background: C.goldLight, padding: 32 }}>
-        <div className="vp-exclusive-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40 }}>
+    <section id="pricing" style={{ marginBottom: 56 }}>
+      <SectionHeading title={title} subtitle={subtitle} />
+      <div style={{ border: `1px solid ${C.goldBorder}`, background: C.goldLight, padding: isMobile ? 24 : 40 }}>
+        <div className="vp-exclusive-grid" style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+          gap: isMobile ? 32 : 48,
+        }}>
+          {/* Left: price + description + CTA */}
           <div>
-            <div style={{ fontFamily: FD, fontSize: 38, color: C.gold, marginBottom: 4 }}>From {eu.from}</div>
-            <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginBottom: 24 }}>Minimum {eu.minNights} nights · Sleeps {venue.accommodation.maxGuests} guests</div>
-            <div style={{ fontFamily: FB, fontSize: 14, color: C.textMid, lineHeight: 1.7, marginBottom: 24 }}>
-              When you book exclusive use of Villa Rosanova, the estate is entirely yours. No other guests. No other events. Just your family and friends in one of Italy's most extraordinary properties.
-            </div>
-            <button style={{
-              padding: "13px 28px", background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)",
-              color: "#fff", fontFamily: FB, fontSize: 13, fontWeight: 700,
-              letterSpacing: "0.8px", textTransform: "uppercase", cursor: "pointer",
-            }}>Enquire About Exclusive Use →</button>
-          </div>
-          <div>
-            <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 14 }}>Exclusive use includes</div>
-            {eu.includes.map(item => (
-              <div key={item} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <span style={{ color: C.gold, fontSize: 13 }}>✓</span>
-                <span style={{ fontFamily: FB, fontSize: 14, color: C.textMid }}>{item}</span>
+            {eu.from && (
+              <div style={{ fontFamily: FD, fontSize: isMobile ? 32 : 40, color: C.gold, marginBottom: 6, lineHeight: 1 }}>
+                From {eu.from}
               </div>
-            ))}
+            )}
+            {subline && (
+              <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginBottom: 24 }}>
+                {subline}
+              </div>
+            )}
+            {eu.description && (
+              <div style={{ fontFamily: FB, fontSize: 14, color: C.textMid, lineHeight: 1.8, marginBottom: 28 }}>
+                {eu.description}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={onEnquire}
+              style={{
+                padding: "13px 28px", background: C.gold, border: "none",
+                borderRadius: "var(--lwd-radius-input)",
+                color: "#fff", fontFamily: FB, fontSize: 12, fontWeight: 800,
+                letterSpacing: "0.9px", textTransform: "uppercase", cursor: "pointer",
+                display: "inline-flex", alignItems: "center", gap: 8,
+                transition: "opacity 0.2s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.opacity = "0.88"}
+              onMouseLeave={e => e.currentTarget.style.opacity = "1"}
+            >
+              {ctaText} →
+            </button>
           </div>
+
+          {/* Right: includes list */}
+          {eu.includes?.length > 0 && (
+            <div>
+              <div style={{
+                fontFamily: FB, fontSize: 9, color: C.textMuted,
+                letterSpacing: "1.4px", textTransform: "uppercase", marginBottom: 16,
+              }}>
+                Exclusive use includes
+              </div>
+              {eu.includes.slice(0, 7).map((item, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                  <span style={{ color: C.gold, fontSize: 14, lineHeight: 1, flexShrink: 0 }}>✓</span>
+                  <span style={{ fontFamily: FB, fontSize: 14, color: C.textMid }}>{typeof item === 'string' ? item : item?.text || ''}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </section>
@@ -3273,102 +3635,656 @@ function ExclusiveUse({ venue }) {
 // ─── CATERING ────────────────────────────────────────────────────────────────
 function CateringSection({ venue }) {
   const C = useT();
+  const isMobile = useIsMobile();
   const cat = venue.catering;
 
-  const cards = [
-    {
-      icon: "dining",
-      title: "In-house catering",
-      body: cat.inHouse.available ? cat.inHouse.description : "In-house catering is not available at this venue.",
-      available: cat.inHouse.available,
-    },
-    {
-      icon: "cooking",
-      title: "External caterers",
-      body: cat.externalCaterersAllowed
-        ? `External caterers welcome.${cat.corkageFeePerBottle ? ` Corkage fee ${cat.corkageFeePerBottle} per bottle.` : ""}`
-        : "In-house catering only.",
-      available: cat.externalCaterersAllowed,
-    },
-    {
-      icon: "wine",
-      title: "Sommelier service",
-      body: cat.sommelierService.available
-        ? `${cat.sommelierService.description}${cat.sommelierService.wineCellarLabelsCount ? ` Private cellar with over ${cat.sommelierService.wineCellarLabelsCount} labels.` : ""}`
-        : "Sommelier service is not available.",
-      available: cat.sommelierService.available,
-    },
-  ];
+  // Hide if disabled or missing
+  if (!cat || cat.enabled === false) return null;
+
+  // Only show cards with content, sorted by sortOrder
+  const cards = (cat.cards || [])
+    .filter(c => c.title || c.description)
+    .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999))
+    .slice(0, 3);
+
+  if (cards.length === 0) return null;
+
+  // Grid cols: 3-up on desktop, adapt to card count on mobile
+  const colCount = isMobile ? 1 : Math.min(cards.length, 3);
 
   return (
     <section style={{ marginBottom: 56 }}>
-      <SectionHeading title="Catering & Dining" />
-      <div className="vp-catering-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20, marginBottom: 28 }}>
+      <SectionHeading title="Catering & Dining" subtitle="Professional catering services and dining options" />
+      <div
+        className="vp-catering-grid"
+        style={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${colCount}, 1fr)`,
+          gap: 20,
+          marginBottom: 28,
+        }}
+      >
         {cards.map(c => (
-          <div key={c.title} style={{ padding: 24, border: `1px solid ${C.border}`, background: C.surface }}>
+          <div
+            key={c.id || c.title}
+            style={{ padding: 24, border: `1px solid ${C.border}`, background: C.surface }}
+          >
             <div style={{ marginBottom: 12 }}>
-              <Icon name={c.icon} size={28} color={c.available ? C.gold : C.textMuted} />
+              <Icon name={c.icon || 'dining'} size={28} color={C.gold} />
             </div>
             <div style={{ fontFamily: FD, fontSize: 18, color: C.text, marginBottom: 8 }}>{c.title}</div>
-            <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight, lineHeight: 1.7 }}>{c.body}</div>
+            <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight, lineHeight: 1.7 }}>{c.description}</div>
+            {c.subtext && (
+              <div style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, marginTop: 8 }}>{c.subtext}</div>
+            )}
           </div>
         ))}
       </div>
+
+      {/* Dining styles + dietary pills */}
       <div style={{ display: "flex", gap: 32, flexWrap: "wrap" }}>
-        <div>
-          <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 10 }}>Dining styles</div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {cat.styles.map(s => <Pill key={s} color="gold">{s}</Pill>)}
+        {cat.styles?.length > 0 && (
+          <div>
+            <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 10 }}>
+              Dining styles
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {cat.styles.map(s => <Pill key={s} color="gold">{s}</Pill>)}
+            </div>
           </div>
-        </div>
-        <div>
-          <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 10 }}>Dietary options</div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {cat.dietary.map(d => <Pill key={d} color="green"><Icon name="check" size={10} color={C.green} /> {d}</Pill>)}
+        )}
+        {cat.dietary?.length > 0 && (
+          <div>
+            <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 10 }}>
+              Dietary options
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {cat.dietary.map(d => (
+                <Pill key={d} color="green"><Icon name="check" size={10} color={C.green} /> {d}</Pill>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </section>
   );
 }
 
 // ─── SPACES ───────────────────────────────────────────────────────────────────
+// ─── VENUE SPACES SECTION ─────────────────────────────────────────────────────
+function SpaceCapacityRow({ space, C }) {
+  const caps = [
+    space.capacityCeremony != null && { label: 'Ceremony', value: space.capacityCeremony },
+    space.capacityReception != null && { label: 'Reception', value: space.capacityReception },
+    space.capacityDining != null && { label: 'Dining', value: space.capacityDining },
+    space.capacityStanding != null && { label: 'Standing', value: space.capacityStanding },
+  ].filter(Boolean);
+
+  if (!caps.length) return null;
+
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 16 }}>
+      {caps.map(({ label, value }) => (
+        <div key={label} style={{ textAlign: 'center', minWidth: 56 }}>
+          <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 400, color: C.text, lineHeight: 1 }}>{value}</div>
+          <div style={{ fontFamily: FB, fontSize: 10, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 3 }}>{label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SpaceAttributeBadges({ space, C }) {
+  const attrs = [];
+  if (space.indoor != null) attrs.push(space.indoor ? '🏛 Indoor' : '🌿 Outdoor');
+  if (space.covered != null && !space.indoor) attrs.push(space.covered ? '⛱ Covered' : '☀️ Open Air');
+  if (space.accessible) attrs.push('♿ Accessible');
+  if (!attrs.length) return null;
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
+      {attrs.map(a => (
+        <span key={a} style={{
+          padding: '3px 10px', fontSize: 11, fontFamily: FB,
+          border: `1px solid ${C.border}`, borderRadius: 20,
+          color: C.textMid, backgroundColor: C.bgAlt || C.surface,
+        }}>{a}</span>
+      ))}
+    </div>
+  );
+}
+
 function SpacesSection({ spaces }) {
   const C = useT();
+  const isMobile = useIsMobile();
+  const [floorPlanModal, setFloorPlanModal] = useState(null); // { url, name }
+
   return (
-    <section style={{ marginBottom: 56 }}>
-      <SectionHeading title="Spaces & Rooms" subtitle="Four distinct event spaces — each with its own character and atmosphere" />
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {spaces.map((s, i) => (
-          <div key={s.name} className="vp-space-card" style={{
-            display: "grid", gridTemplateColumns: i % 2 === 0 ? "40% 60%" : "60% 40%",
-            border: `1px solid ${C.border}`, overflow: "hidden",
-            animation: `fadeUp 0.5s ease ${i * 0.1}s both`,
-          }}>
-            <div style={{ order: i % 2 === 0 ? 0 : 1, overflow: "hidden" }}>
-              <img src={s.img} alt={s.name} className="lwd-img-zoom"
-                style={{ width: "100%", height: "100%", minHeight: 200, objectFit: "cover", display: "block" }} />
-            </div>
-            <div style={{ padding: 32, display: "flex", flexDirection: "column", justifyContent: "center", order: i % 2 === 0 ? 1 : 0 }}>
-              <div style={{ display: "inline-flex", marginBottom: 14 }}>
-                <Pill color="gold">Up to {s.capacity} guests</Pill>
+    <section id="capacity" style={{ marginBottom: 56 }}>
+      <SectionHeading
+        title="Venue Spaces"
+        subtitle={`${spaces.length} distinct event space${spaces.length !== 1 ? 's' : ''}, each with unique character and atmosphere`}
+      />
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 48 : 64 }}>
+        {spaces.map((s, i) => {
+          const isEven = i % 2 === 0;
+          return (
+            <div key={s.id || s.name} className="vp-space-card" style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : (isEven ? '1fr 1fr' : '1fr 1fr'),
+              gap: isMobile ? 0 : 48,
+              animation: `fadeUp 0.5s ease ${i * 0.08}s both`,
+              alignItems: 'center',
+            }}>
+              {/* Image column, full landscape, max 750px height */}
+              {s.img && (
+                <div style={{
+                  order: isMobile ? 0 : (isEven ? 0 : 1),
+                  overflow: 'hidden',
+                  borderRadius: 2,
+                  aspectRatio: '16 / 10',
+                }}>
+                  <img
+                    src={s.img} alt={s.name}
+                    className="lwd-img-zoom"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block',
+                      maxHeight: isMobile ? '380px' : '500px',
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Content column, editorial layout, more open spacing */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 16,
+                order: isMobile ? 1 : (isEven ? 1 : 0),
+              }}>
+                {/* Type pill */}
+                {s.type && (
+                  <div>
+                    <span style={{
+                      display: 'inline-block',
+                      padding: '5px 14px',
+                      fontSize: 10,
+                      fontFamily: FB,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em',
+                      border: `1px solid ${C.gold}`,
+                      borderRadius: 20,
+                      color: C.gold,
+                      fontWeight: 700,
+                    }}>{s.type}</span>
+                  </div>
+                )}
+
+                {/* Space name, serif headline */}
+                <div style={{
+                  fontFamily: FD,
+                  fontSize: isMobile ? 24 : 32,
+                  fontWeight: 400,
+                  color: C.text,
+                  lineHeight: 1.2,
+                }}>
+                  {s.name}
+                </div>
+
+                {/* Capacity numbers, clean row */}
+                <SpaceCapacityRow space={s} C={C} />
+
+                {/* Description, readable paragraph width */}
+                {s.description && (
+                  <p style={{
+                    fontFamily: FB,
+                    fontSize: 13,
+                    color: C.textLight,
+                    lineHeight: 1.8,
+                    margin: 0,
+                    maxWidth: '600px',
+                  }}>
+                    {s.description}
+                  </p>
+                )}
+
+                {/* Attribute badges */}
+                <SpaceAttributeBadges space={s} C={C} />
+
+                {/* Floor plan link */}
+                {s.floorPlanUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setFloorPlanModal({ url: s.floorPlanUrl, name: s.name })}
+                    style={{
+                      alignSelf: 'flex-start',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '9px 18px',
+                      fontSize: 11,
+                      fontFamily: FB,
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      border: `1px solid ${C.textMuted}`,
+                      borderRadius: 2,
+                      backgroundColor: 'transparent',
+                      color: C.textMid,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.backgroundColor = C.bgAlt;
+                      e.currentTarget.style.borderColor = C.textMid;
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.borderColor = C.textMuted;
+                    }}
+                  >
+                    📐 View Floor Plan
+                  </button>
+                )}
               </div>
-              <div style={{ fontFamily: FD, fontSize: 26, fontWeight: 400, color: C.text, marginBottom: 12 }}>{s.name}</div>
-              <p style={{ fontFamily: FB, fontSize: 14, color: C.textLight, lineHeight: 1.75 }}>{s.desc}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Floor Plan Modal */}
+      {floorPlanModal && (
+        <div
+          onClick={() => setFloorPlanModal(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9000,
+            backgroundColor: 'rgba(0,0,0,0.85)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ position: 'relative', maxWidth: 900, width: '100%', backgroundColor: '#fff', borderRadius: 2 }}
+          >
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #e5ddd0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontFamily: FB, fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>Floor Plan, {floorPlanModal.name}</span>
+              <button
+                type="button"
+                onClick={() => setFloorPlanModal(null)}
+                style={{ border: 'none', background: 'none', fontSize: 22, color: '#888', cursor: 'pointer', lineHeight: 1 }}
+              >×</button>
+            </div>
+            <img src={floorPlanModal.url} alt={`Floor plan, ${floorPlanModal.name}`} style={{ width: '100%', display: 'block', borderRadius: '0 0 2px 2px' }} />
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ─── ROOMS & ACCOMMODATION ────────────────────────────────────────────────────
+function RoomsSection({ venue }) {
+  const C = useT();
+  const isMobile = useIsMobile();
+  const acc = venue.accommodation;
+  if (!acc || (!acc.totalRooms && !acc.description)) return null;
+  const [roomsLightboxIdx, setRoomsLightboxIdx] = useState(null);
+
+  return (
+    <section id="rooms" style={{ marginBottom: 56 }}>
+      <SectionHeading title="Rooms & Accommodation" subtitle={acc.totalRooms ? `${acc.totalRooms} rooms${acc.totalSuites ? ` & ${acc.totalSuites} suites` : ''} for your guests` : "Accommodation for your guests"} />
+      <>
+        {/* Stats bar */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
+          {acc.type && (
+            <span style={{ padding: '5px 14px', border: `1px solid ${C.gold}`, borderRadius: 20, fontSize: 12, fontWeight: 600, color: C.gold, fontFamily: 'var(--font-body, inherit)' }}>
+              {acc.type}
+            </span>
+          )}
+          {acc.totalRooms > 0 && (
+            <span style={{ padding: '5px 14px', backgroundColor: C.bgAlt || C.surface, border: `1px solid ${C.border}`, borderRadius: 20, fontSize: 12, color: C.textMid, fontFamily: 'var(--font-body, inherit)' }}>
+              {acc.totalRooms} Rooms
+            </span>
+          )}
+          {acc.totalSuites > 0 && (
+            <span style={{ padding: '5px 14px', backgroundColor: C.bgAlt || C.surface, border: `1px solid ${C.border}`, borderRadius: 20, fontSize: 12, color: C.textMid, fontFamily: 'var(--font-body, inherit)' }}>
+              {acc.totalSuites} Suites
+            </span>
+          )}
+          {acc.maxOvernightGuests > 0 && (
+            <span style={{ padding: '5px 14px', backgroundColor: C.bgAlt || C.surface, border: `1px solid ${C.border}`, borderRadius: 20, fontSize: 12, color: C.textMid, fontFamily: 'var(--font-body, inherit)' }}>
+              Up to {acc.maxOvernightGuests} guests
+            </span>
+          )}
+          {acc.minNightStay > 0 && (
+            <span style={{ padding: '5px 14px', backgroundColor: C.bgAlt || C.surface, border: `1px solid ${C.border}`, borderRadius: 20, fontSize: 12, color: C.textMid, fontFamily: 'var(--font-body, inherit)' }}>
+              Min {acc.minNightStay} nights
+            </span>
+          )}
+          {acc.exclusiveUse && (
+            <span style={{ padding: '5px 14px', backgroundColor: 'rgba(201,168,76,0.1)', border: `1px solid ${C.gold}`, borderRadius: 20, fontSize: 12, fontWeight: 700, color: C.gold, fontFamily: 'var(--font-body, inherit)' }}>
+              ✦ Exclusive Use Available
+            </span>
+          )}
+        </div>
+
+        {/* Description */}
+        {acc.description && (
+          <div
+            className="ldw-prose-body"
+            style={{ marginBottom: 28 }}
+            dangerouslySetInnerHTML={{ __html: acc.description }}
+          />
+        )}
+
+        {/* Room images grid (max 6) */}
+        {acc.images?.length > 0 && (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
+            gap: 8,
+          }}>
+            {acc.images.slice(0, 6).map((src, i) => (
+              <img
+                key={i} src={src} alt={`Room ${i + 1}`}
+                loading="lazy"
+                onClick={() => setRoomsLightboxIdx(i)}
+                style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', borderRadius: 2, cursor: 'pointer' }}
+              />
+            ))}
+          </div>
+        )}
+        {roomsLightboxIdx !== null && (() => {
+          const lightboxImages = (acc.images || []).slice(0, 6).map(src => ({ src, title: '' }));
+          return (
+            <MenuImageModal
+              images={lightboxImages}
+              idx={roomsLightboxIdx}
+              onClose={() => setRoomsLightboxIdx(null)}
+              onPrev={() => setRoomsLightboxIdx(i => Math.max(0, i - 1))}
+              onNext={() => setRoomsLightboxIdx(i => Math.min(lightboxImages.length - 1, i + 1))}
+            />
+          );
+        })()}
+      </>
+    </section>
+  );
+}
+
+// ─── MENU IMAGE MODAL ─────────────────────────────────────────────────────────
+function MenuImageModal({ images, idx, onClose, onPrev, onNext }) {
+  const C = useT();
+  if (idx === null || idx === undefined || !images?.[idx]) return null;
+  const img = images[idx];
+
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowLeft') onPrev();
+      if (e.key === 'ArrowRight') onNext();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [onClose, onPrev, onNext]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1000,
+        backgroundColor: 'rgba(0,0,0,0.88)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 20,
+      }}
+    >
+      <div onClick={e => e.stopPropagation()} style={{ maxWidth: 760, width: '100%', position: 'relative' }}>
+        <img
+          src={img.src} alt={img.title}
+          style={{ width: '100%', maxHeight: '75vh', objectFit: 'contain', borderRadius: 2 }}
+        />
+        {img.title && (
+          <p style={{
+            textAlign: 'center', marginTop: 14,
+            fontFamily: 'var(--font-body, inherit)', fontSize: 14,
+            color: 'rgba(255,255,255,0.85)', letterSpacing: '0.02em',
+          }}>
+            {img.title}
+          </p>
+        )}
+        {/* Close */}
+        <button onClick={onClose} style={{ position: 'absolute', top: -40, right: 0, background: 'none', border: 'none', color: '#fff', fontSize: 24, cursor: 'pointer', lineHeight: 1 }}>×</button>
+        {/* Prev */}
+        {idx > 0 && (
+          <button onClick={onPrev} style={{ position: 'absolute', top: '50%', left: -52, transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: '50%', width: 40, height: 40, color: '#fff', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
+        )}
+        {/* Next */}
+        {idx < images.length - 1 && (
+          <button onClick={onNext} style={{ position: 'absolute', top: '50%', right: -52, transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: '50%', width: 40, height: 40, color: '#fff', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
+        )}
+        {/* Thumbnail strip (max 4) */}
+        {images.length > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
+            {images.map((img, i) => (
+              <img key={i} src={img.src} alt="" onClick={() => { /* handled via onPrev/onNext */ }}
+                style={{
+                  width: 52, height: 36, objectFit: 'cover', borderRadius: 2,
+                  cursor: 'pointer', opacity: i === idx ? 1 : 0.45,
+                  border: i === idx ? '1px solid #C9A84C' : '1px solid transparent',
+                  transition: 'opacity 0.15s',
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── DINING SECTION ───────────────────────────────────────────────────────────
+function DiningSection({ venue }) {
+  const C = useT();
+  const isMobile = useIsMobile();
+  const dining = venue.dining;
+  const [menuImgIdx, setMenuImgIdx] = useState(null);
+
+  if (!dining || (!dining.description && !dining.style)) return null;
+
+  const sideImg = dining.menuImages?.[0]?.src || venue.imgs?.[1] || venue.imgs?.[0];
+
+  const PillGroup = ({ items, color }) => (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+      {items.map(item => (
+        <span key={item} style={{
+          padding: '4px 12px', borderRadius: 20, fontSize: 12,
+          border: color === 'gold' ? `1px solid ${C.gold}` : `1px solid ${C.border}`,
+          color: color === 'gold' ? C.gold : C.textMid,
+          backgroundColor: color === 'gold' ? 'rgba(201,168,76,0.08)' : (C.bgAlt || C.surface),
+          fontFamily: 'var(--font-body, inherit)',
+          fontWeight: color === 'gold' ? 600 : 400,
+        }}>
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+
+  return (
+    <section id="dining" style={{ marginBottom: 56 }}>
+      <SectionHeading title="Dining" subtitle="World-class culinary experiences and menu options" />
+      <SectionLayout sideImg={sideImg} isMobile={isMobile}>
+
+        {/* Style + chef */}
+        {dining.style && (
+          <p style={{ fontFamily: 'var(--font-display, Georgia, serif)', fontSize: isMobile ? 17 : 20, fontWeight: 400, color: C.text, lineHeight: 1.35, marginBottom: 20, letterSpacing: '-0.01em' }}>
+            {dining.style}
+            {dining.chefName && <span style={{ display: 'block', fontFamily: 'var(--font-body, inherit)', fontSize: 13, color: C.textLight, marginTop: 6, fontStyle: 'italic' }}>Chef {dining.chefName}</span>}
+          </p>
+        )}
+
+        {/* Catering badges */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+          {dining.inHouseCatering && (
+            <span style={{ padding: '5px 14px', backgroundColor: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 20, fontSize: 12, fontWeight: 600, color: C.green }}>✓ In-house Catering</span>
+          )}
+          {dining.externalCateringAllowed && (
+            <span style={{ padding: '5px 14px', backgroundColor: C.bgAlt || C.surface, border: `1px solid ${C.border}`, borderRadius: 20, fontSize: 12, color: C.textMid }}>External Caterers Welcome</span>
+          )}
+        </div>
+
+        {/* Menu styles */}
+        {dining.menuStyles?.length > 0 && (
+          <div style={{ marginBottom: 4 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textLight, marginBottom: 8 }}>Menu Style</p>
+            <PillGroup items={dining.menuStyles} color="gold" />
+          </div>
+        )}
+
+        {/* Dietary */}
+        {dining.dietaryOptions?.length > 0 && (
+          <div style={{ marginBottom: 4 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textLight, marginBottom: 8 }}>Dietary</p>
+            <PillGroup items={dining.dietaryOptions} color="neutral" />
+          </div>
+        )}
+
+        {/* Drinks */}
+        {dining.drinksOptions?.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textLight, marginBottom: 8 }}>Drinks</p>
+            <PillGroup items={dining.drinksOptions} color="neutral" />
+          </div>
+        )}
+
+        {/* Description */}
+        {dining.description && (
+          <div
+            className="ldw-prose-body"
+            style={{ marginBottom: 32 }}
+            dangerouslySetInnerHTML={{ __html: dining.description }}
+          />
+        )}
+
+        {/* Menu Highlights */}
+        {dining.menuImages?.length > 0 && (
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textLight, marginBottom: 12 }}>Menu Highlights</p>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(dining.menuImages.length, 4)}, 1fr)`, gap: 8 }}>
+              {dining.menuImages.slice(0, 4).map((img, i) => (
+                <div key={i} style={{ cursor: 'pointer' }} onClick={() => setMenuImgIdx(i)}>
+                  <img
+                    src={img.src} alt={img.title}
+                    loading="lazy"
+                    style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', borderRadius: 2, transition: 'opacity 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+                    onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                  />
+                  {img.title && (
+                    <p style={{ fontSize: 11, color: C.textLight, margin: '5px 0 0', lineHeight: 1.3, fontFamily: 'var(--font-body, inherit)' }}>{img.title}</p>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
-        ))}
-      </div>
+        )}
+      </SectionLayout>
+
+      {/* Menu image lightbox */}
+      <MenuImageModal
+        images={dining.menuImages || []}
+        idx={menuImgIdx}
+        onClose={() => setMenuImgIdx(null)}
+        onPrev={() => setMenuImgIdx(i => Math.max(0, i - 1))}
+        onNext={() => setMenuImgIdx(i => Math.min((dining.menuImages?.length || 1) - 1, i + 1))}
+      />
+    </section>
+  );
+}
+
+// ─── VENUE TYPE SECTION ───────────────────────────────────────────────────────
+function VenueTypeSection({ venue }) {
+  const C = useT();
+  const isMobile = useIsMobile();
+  const vt = venue.venueType;
+  if (!vt?.primaryType && !(venue.categories?.length > 0)) return null;
+
+  const sideImg = venue.imgs?.[3] || venue.imgs?.[0];
+
+  return (
+    <section id="venue-type" style={{ marginBottom: 56 }}>
+      <SectionHeading title="Venue Type" subtitle={vt?.description || "Unique venue with distinctive character and style"} />
+      <SectionLayout sideImg={sideImg} isMobile={isMobile}>
+        {/* Primary type + architecture */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
+          {vt?.primaryType && (
+            <span style={{ padding: '5px 16px', border: `1px solid ${C.gold}`, borderRadius: 20, fontSize: 13, fontWeight: 700, color: C.gold }}>
+              {vt.primaryType}
+            </span>
+          )}
+          {vt?.architecture && (
+            <span style={{ padding: '5px 14px', backgroundColor: C.bgAlt || C.surface, border: `1px solid ${C.border}`, borderRadius: 20, fontSize: 12, color: C.textMid }}>
+              {vt.architecture} Architecture
+            </span>
+          )}
+          {vt?.built && (
+            <span style={{ padding: '5px 14px', backgroundColor: C.bgAlt || C.surface, border: `1px solid ${C.border}`, borderRadius: 20, fontSize: 12, color: C.textMid }}>
+              Built {vt.built}
+            </span>
+          )}
+        </div>
+
+        {vt?.description && (
+          <p style={{ fontFamily: 'var(--font-body, inherit)', fontSize: 14, color: C.textMid, lineHeight: 1.75, marginBottom: 24 }}>
+            {vt.description}
+          </p>
+        )}
+
+        {/* Style tags */}
+        {vt?.styles?.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textLight, marginBottom: 10 }}>Style</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {vt.styles.map(s => (
+                <span key={s} style={{ padding: '4px 12px', border: `1px solid ${C.border}`, borderRadius: 20, fontSize: 12, color: C.textMid, backgroundColor: C.bgAlt || C.surface }}>
+                  {s}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Features checklist */}
+        {Array.isArray(vt?.features) && vt.features.length > 0 && (
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textLight, marginBottom: 10 }}>Features</p>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: 8 }}>
+              {vt.features.map(f => (
+                <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: C.textMid }}>
+                  <span style={{ color: C.gold, fontSize: 11 }}>✦</span>
+                  {f}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </SectionLayout>
     </section>
   );
 }
 
 // ─── WEDDING WEEKEND ─────────────────────────────────────────────────────────
-function WeddingWeekend({ experiences }) {
+function WeddingWeekend({ venue }) {
   const C = useT();
   const isMobile = useIsMobile();
-  const estate  = experiences.filter(e => e.category === "estate").slice(0, 6);
-  const nearby  = experiences.filter(e => e.category === "nearby").slice(0, 6);
+  const ww = venue.weddingWeekend;
+  if (!ww || ww.enabled === false) return null;
+  const experiences = venue.experiences || [];
+  const estate  = venue.estateEnabled !== false ? experiences.filter(e => e.category === "estate").slice(0, 6) : [];
+  const nearby  = venue.nearbyEnabled !== false ? experiences.filter(e => e.category === "nearby").slice(0, 6) : [];
   const formatDistance = (mins) => {
     if (!mins) return null;
     if (mins < 60) return `${mins} min`;
@@ -3400,15 +4316,18 @@ function WeddingWeekend({ experiences }) {
     </div>
   );
 
-  const days = [
-    { day: "Thursday", title: "Arrival Day", desc: "Guests settle in. Welcome drinks on the loggia. Private vineyard tour at golden hour." },
-    { day: "Friday", title: "Welcome Evening", desc: "Rehearsal dinner in the wine cellar. Intimate, candlelit, unforgettable." },
-    { day: "Saturday", title: "The Wedding", desc: "Ceremony in the Cypress Garden. Reception in the Grand Salon. Celebrate until dawn." },
-    { day: "Sunday", title: "Farewell Brunch", desc: "Late breakfast on the terrace. Final toasts. Memories that last a lifetime." },
-  ];
+  const days = (ww.days || [])
+    .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999))
+    .slice(0, 4)
+    .map(d => ({
+      ...d,
+      day:   String(d.day   || '').slice(0, 12),
+      title: String(d.title || '').slice(0, 28),
+      desc:  String(d.desc  || '').slice(0, 110),
+    }));
 
   const dayCard = (d) => (
-    <div key={d.day} style={{ padding: 20, border: `1px solid ${C.border}`, background: C.surface, flex: isMobile ? "0 0 220px" : undefined, scrollSnapAlign: isMobile ? "start" : undefined }}>
+    <div key={d.day} style={{ padding: 20, border: `1px solid ${C.border}`, background: C.surface, flex: isMobile ? "0 0 220px" : undefined, scrollSnapAlign: isMobile ? "start" : undefined, minHeight: isMobile ? undefined : 130, overflow: 'hidden' }}>
       <div style={{ fontFamily: FB, fontSize: 10, color: C.gold, letterSpacing: "1px", textTransform: "uppercase", fontWeight: 700, marginBottom: 6 }}>{d.day}</div>
       <div style={{ fontFamily: FD, fontSize: 18, color: C.text, marginBottom: 8 }}>{d.title}</div>
       <p style={{ fontFamily: FB, fontSize: 12, color: C.textLight, lineHeight: 1.65 }}>{d.desc}</p>
@@ -3416,32 +4335,34 @@ function WeddingWeekend({ experiences }) {
   );
 
   return (
-    <section style={{ marginBottom: 56 }}>
-      <SectionHeading title="Your Wedding Weekend" subtitle="Villa Rosanova is designed for multi-day celebrations — a full wedding weekend experience" />
+    <section id="things-to-do" style={{ marginBottom: 56 }}>
+      <SectionHeading title="Your Wedding Weekend" subtitle={ww.subtitle || ''} />
       {/* Days */}
       {isMobile ? (
         <div style={{ display: "flex", gap: 12, overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", marginBottom: 36, scrollbarWidth: "none", msOverflowStyle: "none" }} className="vp-weekend-slider">
           {days.map(dayCard)}
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 36 }}>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(days.length, 4)}, 1fr)`, gap: 12, marginBottom: 36 }}>
           {days.map(dayCard)}
         </div>
       )}
       {/* Experiences */}
-      <div className="vp-experiences-grid" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 24 : 32 }}>
-        {[
-          { title: "On the Estate", items: estate },
-          { title: "Nearby Experiences", items: nearby },
-        ].map(g => (
-          <div key={g.title}>
-            <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 14 }}>{g.title}</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {g.items.map(experienceRow)}
+      {(estate.length > 0 || nearby.length > 0) && (
+        <div className="vp-experiences-grid" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : (estate.length > 0 && nearby.length > 0 ? "1fr 1fr" : "1fr"), gap: isMobile ? 24 : 32 }}>
+          {[
+            estate.length > 0 && { title: "On the Estate", items: estate },
+            nearby.length > 0 && { title: "Nearby Experiences", items: nearby },
+          ].filter(Boolean).map(g => (
+            <div key={g.title}>
+              <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 14 }}>{g.title}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {g.items.map(experienceRow)}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -3449,6 +4370,10 @@ function WeddingWeekend({ experiences }) {
 // ─── GETTING HERE ─────────────────────────────────────────────────────────────
 function GettingHere({ access }) {
   const C = useT();
+
+  // Only render if access data exists with airports
+  if (!access || !Array.isArray(access.airports) || access.airports.length === 0) return null;
+
   const formatDrive = (mins) => {
     if (mins < 60) return `${mins} min`;
     const h = Math.floor(mins / 60);
@@ -3462,8 +4387,8 @@ function GettingHere({ access }) {
   };
 
   return (
-    <section style={{ marginBottom: 56 }}>
-      <SectionHeading title="Getting Here" subtitle="International airports serving Villa Rosanova, with transfer options for your guests" />
+    <section id="availability" style={{ marginBottom: 56 }}>
+      <SectionHeading title="Getting Here" subtitle="Transportation options and airport proximity for guest convenience" />
 
       {/* Helicopter callout */}
       {access.helicopterTransferAvailable && (
@@ -3524,6 +4449,10 @@ function GettingHere({ access }) {
 function Reviews({ testimonials, venue }) {
   const C = useT();
   const isMobile = useIsMobile();
+
+  // Only render if testimonials data exists
+  if (!testimonials || !Array.isArray(testimonials) || testimonials.length === 0) return null;
+
   const PER_PAGE = 3;
   const pages = Math.ceil(testimonials.length / PER_PAGE);
   const [page, setPage] = useState(0);
@@ -3554,78 +4483,80 @@ function Reviews({ testimonials, venue }) {
   );
 
   return (
-    <section style={{ marginBottom: 56 }}>
-      <SectionHeading title="Reviews" />
+    <section id="reviews" style={{ marginBottom: 56 }}>
+      <SectionHeading title="Reviews" subtitle={`Trusted by ${venue?.reviews || 0} couples who have celebrated at this venue`} />
+      <>
 
-      {/* Summary bar */}
-      <div className="vp-reviews-summary" style={{ display: isMobile ? "flex" : "grid", flexDirection: isMobile ? "column" : undefined, gridTemplateColumns: isMobile ? undefined : "200px 1fr", gap: isMobile ? 20 : 40, marginBottom: 28, padding: isMobile ? 20 : 32, border: `1px solid ${C.border}`, background: C.surface }}>
-        <div style={{ textAlign: "center", borderRight: isMobile ? "none" : `1px solid ${C.border}`, borderBottom: isMobile ? `1px solid ${C.border}` : "none", paddingRight: isMobile ? 0 : 40, paddingBottom: isMobile ? 16 : 0 }}>
-          <div style={{ fontFamily: FD, fontSize: isMobile ? 56 : 78, fontWeight: 400, color: C.gold, lineHeight: 1 }}>{venue.rating}</div>
-          <Stars rating={venue.rating} size={18} />
-          <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginTop: 8 }}>{venue.reviews} verified reviews</div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 8 }}>
-          {[5,4,3,2,1].map(star => (
-            <div key={star} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, width: 16 }}>{star}</span>
-              <span style={{ fontSize: 11, color: C.gold }}>★</span>
-              <div style={{ flex: 1, height: 6, background: C.border, overflow: "hidden" }}>
-                <div style={{ width: star === 5 ? "89%" : star === 4 ? "8%" : "3%", height: "100%", background: C.gold, transition: "width 0.8s ease" }} />
+        {/* Summary bar */}
+        <div className="vp-reviews-summary" style={{ display: isMobile ? "flex" : "grid", flexDirection: isMobile ? "column" : undefined, gridTemplateColumns: isMobile ? undefined : "200px 1fr", gap: isMobile ? 20 : 40, marginBottom: 28, padding: isMobile ? 20 : 32, border: `1px solid ${C.border}`, background: C.surface }}>
+          <div style={{ textAlign: "center", borderRight: isMobile ? "none" : `1px solid ${C.border}`, borderBottom: isMobile ? `1px solid ${C.border}` : "none", paddingRight: isMobile ? 0 : 40, paddingBottom: isMobile ? 16 : 0 }}>
+            <div style={{ fontFamily: FD, fontSize: isMobile ? 56 : 78, fontWeight: 400, color: C.gold, lineHeight: 1 }}>{venue.rating}</div>
+            <Stars rating={venue.rating} size={18} />
+            {venue.reviews != null && <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginTop: 8 }}>{venue.reviews} verified reviews</div>}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 8 }}>
+            {[5,4,3,2,1].map(star => (
+              <div key={star} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, width: 16 }}>{star}</span>
+                <span style={{ fontSize: 11, color: C.gold }}>★</span>
+                <div style={{ flex: 1, height: 6, background: C.border, overflow: "hidden" }}>
+                  <div style={{ width: star === 5 ? "89%" : star === 4 ? "8%" : "3%", height: "100%", background: C.gold, transition: "width 0.8s ease" }} />
+                </div>
+                <span style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, width: 28 }}>{star === 5 ? "113" : star === 4 ? "10" : "4"}</span>
               </div>
-              <span style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, width: 28 }}>{star === 5 ? "113" : star === 4 ? "10" : "4"}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Review cards — slider on mobile, paginated grid on desktop */}
-      {isMobile ? (
-        <div style={{ display: "flex", gap: 12, overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", marginBottom: 20, scrollbarWidth: "none", msOverflowStyle: "none" }} className="vp-reviews-slider">
-          {testimonials.map(reviewCard)}
-        </div>
-      ) : (
-        <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 20 }}>
-            {visible.map(reviewCard)}
+            ))}
           </div>
+        </div>
 
-          {/* Navigation row */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            {/* Dot indicators */}
-            <div style={{ display: "flex", gap: 6 }}>
-              {Array.from({ length: pages }).map((_, i) => (
-                <button key={i} onClick={() => setPage(i)} style={{
-                  width: i === page ? 20 : 8, height: 8, borderRadius: 4,
-                  background: i === page ? C.gold : C.border2,
-                  border: "none", cursor: "pointer", padding: 0,
-                  transition: "all 0.3s ease",
-                }} />
-              ))}
-            </div>
-
-            {/* Prev / count / Next */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontFamily: FB, fontSize: 11, color: C.textMuted }}>
-                {page * PER_PAGE + 1}–{Math.min(page * PER_PAGE + PER_PAGE, testimonials.length)} of {testimonials.length}
-              </span>
-              <button
-                onClick={() => setPage(p => Math.max(0, p - 1))}
-                disabled={page === 0}
-                style={{ ...navBtn(), opacity: page === 0 ? 0.35 : 1 }}
-                onMouseEnter={e => { if (page > 0) { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.textMuted; }}
-              >←</button>
-              <button
-                onClick={() => setPage(p => Math.min(pages - 1, p + 1))}
-                disabled={page === pages - 1}
-                style={{ ...navBtn(), opacity: page === pages - 1 ? 0.35 : 1 }}
-                onMouseEnter={e => { if (page < pages - 1) { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.textMuted; }}
-              >→</button>
-            </div>
+        {/* Review cards, slider on mobile, paginated grid on desktop */}
+        {isMobile ? (
+          <div style={{ display: "flex", gap: 12, overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", marginBottom: 20, scrollbarWidth: "none", msOverflowStyle: "none" }} className="vp-reviews-slider">
+            {testimonials.map(reviewCard)}
           </div>
-        </>
-      )}
+        ) : (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 20 }}>
+              {visible.map(reviewCard)}
+            </div>
+
+            {/* Navigation row */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              {/* Dot indicators */}
+              <div style={{ display: "flex", gap: 6 }}>
+                {Array.from({ length: pages }).map((_, i) => (
+                  <button key={i} onClick={() => setPage(i)} style={{
+                    width: i === page ? 20 : 8, height: 8, borderRadius: 4,
+                    background: i === page ? C.gold : C.border2,
+                    border: "none", cursor: "pointer", padding: 0,
+                    transition: "all 0.3s ease",
+                  }} />
+                ))}
+              </div>
+
+              {/* Prev / count / Next */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontFamily: FB, fontSize: 11, color: C.textMuted }}>
+                  {page * PER_PAGE + 1}–{Math.min(page * PER_PAGE + PER_PAGE, testimonials.length)} of {testimonials.length}
+                </span>
+                <button
+                  onClick={() => setPage(p => Math.max(0, p - 1))}
+                  disabled={page === 0}
+                  style={{ ...navBtn(), opacity: page === 0 ? 0.35 : 1 }}
+                  onMouseEnter={e => { if (page > 0) { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.textMuted; }}
+                >←</button>
+                <button
+                  onClick={() => setPage(p => Math.min(pages - 1, p + 1))}
+                  disabled={page === pages - 1}
+                  style={{ ...navBtn(), opacity: page === pages - 1 ? 0.35 : 1 }}
+                  onMouseEnter={e => { if (page < pages - 1) { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.textMuted; }}
+                >→</button>
+              </div>
+            </div>
+          </>
+        )}
+      </>
     </section>
   );
 }
@@ -3665,7 +4596,7 @@ function EnquiryModal({ venue, onClose }) {
   };
 
   const prefilledMsg = () =>
-    `Hi, we're ${form.name1}${form.name2 ? " & " + form.name2 : ""}. We're planning a ${form.hasDate ? `wedding on ${form.date}` : `${form.season?.split("  ")[0].toLowerCase()} ${form.year} wedding`} for ${form.guests} guests${form.budget ? " with a budget of " + form.budget : ""}. We'd love to learn more about ${venue.name} — could you share availability and pricing?`;
+    `Hi, we're ${form.name1}${form.name2 ? " & " + form.name2 : ""}. We're planning a ${form.hasDate ? `wedding on ${form.date}` : `${form.season?.split("  ")[0].toLowerCase()} ${form.year} wedding`} for ${form.guests} guests${form.budget ? " with a budget of " + form.budget : ""}. We'd love to learn more about ${venue.name}, could you share availability and pricing?`;
 
   const echoSummary = () => {
     const datePart = form.hasDate
@@ -3688,7 +4619,7 @@ function EnquiryModal({ venue, onClose }) {
           <div style={{ position: "absolute", bottom: 14, left: 24, fontFamily: FD, fontSize: 13, color: "rgba(255,255,255,0.8)", letterSpacing: "0.4px" }}>{venue.name} · {venue.location}</div>
         </div>
 
-        {/* Gold ✓ circle — floats on the seam */}
+        {/* Gold ✓ circle, floats on the seam */}
         <div style={{ display: "flex", justifyContent: "center", marginTop: -28 }}>
           <div style={{
             width: 56, height: 56, borderRadius: "50%",
@@ -3706,7 +4637,7 @@ function EnquiryModal({ venue, onClose }) {
             <strong style={{ color: C.text, fontWeight: 600 }}>{venue.responseTime}</strong>.
           </p>
 
-          {/* Echo card — reflects their selections back */}
+          {/* Echo card, reflects their selections back */}
           <div style={{
             background: C.goldLight, border: `1px solid ${C.goldBorder}`,
             borderRadius: "var(--lwd-radius-card)", padding: "14px 18px", marginBottom: 24, textAlign: "left",
@@ -3755,7 +4686,7 @@ function EnquiryModal({ venue, onClose }) {
         {/* Step content */}
         <div style={{ padding: "20px 28px 0" }}>
 
-          {/* Step 1 — Date */}
+          {/* Step 1, Date */}
           {step === 1 && (
             <div>
               <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
@@ -3792,7 +4723,7 @@ function EnquiryModal({ venue, onClose }) {
             </div>
           )}
 
-          {/* Step 2 — Guests + Budget */}
+          {/* Step 2, Guests + Budget */}
           {step === 2 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               <div>
@@ -3810,7 +4741,7 @@ function EnquiryModal({ venue, onClose }) {
             </div>
           )}
 
-          {/* Step 3 — Contact */}
+          {/* Step 3, Contact */}
           {step === 3 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -3869,7 +4800,7 @@ const FAQ_DATA = [
     category: "The Venue",
     icon: "I",
     questions: [
-      { q: "Is Villa Rosanova available for exclusive use?", a: "Yes — Villa Rosanova is available for exclusive hire from Thursday to Sunday. Exclusive use includes all 24 bedrooms and 6 suites, full use of the grounds, gardens, pool pavilion and all venue spaces. Pricing from £28,000 for the full weekend." },
+      { q: "Is Villa Rosanova available for exclusive use?", a: "Yes, Villa Rosanova is available for exclusive hire from Thursday to Sunday. Exclusive use includes all 24 bedrooms and 6 suites, full use of the grounds, gardens, pool pavilion and all venue spaces. Pricing from £28,000 for the full weekend." },
       { q: "What is the maximum guest capacity?", a: "The estate accommodates up to 200 guests for a ceremony, 160 for a seated dinner and 180 for a standing reception. For intimate celebrations, we welcome parties from 20 guests." },
       { q: "Can we hold both the ceremony and reception here?", a: "Absolutely. The Cypress Garden seats 200 for outdoor ceremonies, while the Grand Salon accommodates 160 for indoor ceremonies. All reception spaces are on the same estate." },
     ],
@@ -3879,8 +4810,8 @@ const FAQ_DATA = [
     icon: "II",
     questions: [
       { q: "Do you work with an in-house caterer or can we bring our own?", a: "We have an award-winning in-house culinary team led by Chef Marco Bellini. External caterers are permitted with prior approval and a corkage arrangement. Our sommelier curates a bespoke wine list featuring our own estate Chianti Classico." },
-      { q: "Can you accommodate dietary requirements?", a: "Yes — our kitchen is fully equipped to cater for vegan, vegetarian, halal, kosher and gluten-free guests. Please advise your dedicated event planner of any requirements when confirming your booking." },
-      { q: "Is there a corkage fee if we bring our own wine?", a: "External wine and spirits are welcome at £18 per bottle. We recommend our estate wine list as a first choice — our Chianti Classico is particularly popular with guests." },
+      { q: "Can you accommodate dietary requirements?", a: "Yes, our kitchen is fully equipped to cater for vegan, vegetarian, halal, kosher and gluten-free guests. Please advise your dedicated event planner of any requirements when confirming your booking." },
+      { q: "Is there a corkage fee if we bring our own wine?", a: "External wine and spirits are welcome at £18 per bottle. We recommend our estate wine list as a first choice, our Chianti Classico is particularly popular with guests." },
     ],
   },
   {
@@ -3888,31 +4819,35 @@ const FAQ_DATA = [
     icon: "III",
     questions: [
       { q: "How many guests can stay on the estate overnight?", a: "Villa Rosanova sleeps 58 guests across 24 bedrooms and 6 suites. All rooms are uniquely decorated and include en-suite bathrooms. Bridal and groom suites are available with dedicated dressing areas." },
-      { q: "What are the check-in and check-out times?", a: "Check-in is from 3pm on your arrival day. Check-out is by 11am on your departure day. For exclusive use bookings, we are flexible around your schedule — please discuss timing with your event planner." },
+      { q: "What are the check-in and check-out times?", a: "Check-in is from 3pm on your arrival day. Check-out is by 11am on your departure day. For exclusive use bookings, we are flexible around your schedule, please discuss timing with your event planner." },
     ],
   },
   {
     category: "Getting Here",
     icon: "IV",
     questions: [
-      { q: "What is the closest airport?", a: "Florence Airport (FLR) is 45 minutes by car (42km). We can arrange private transfers and helicopter arrivals from FLR — 20 minutes by helicopter. Pisa (PSA) is 70 minutes and Bologna (BLQ) is 90 minutes." },
-      { q: "Is there parking on the estate?", a: "Yes — complimentary secure parking for up to 60 vehicles within the estate grounds. For larger parties, additional overflow parking is available 200m from the entrance with a complimentary shuttle." },
+      { q: "What is the closest airport?", a: "Please see our Getting Here section for detailed airport information, driving times, and transfer options." },
+      { q: "Is there parking on the estate?", a: "Parking information will be provided during your enquiry consultation." },
     ],
   },
   {
     category: "Planning & Suppliers",
     icon: "V",
     questions: [
-      { q: "Do we need to use your recommended suppliers?", a: "We have a curated list of preferred suppliers — florists, photographers, bands and planners — who know the estate well. However, you are welcome to bring your own suppliers subject to prior approval from our events team." },
+      { q: "Do we need to use your recommended suppliers?", a: "We have a curated list of preferred suppliers, florists, photographers, bands and planners, who know the estate well. However, you are welcome to bring your own suppliers subject to prior approval from our events team." },
       { q: "How far in advance should we book?", a: "Peak summer dates (June–September) book 18–24 months in advance. Spring and autumn dates are often available with 12 months' notice. We recommend securing your date as early as possible to avoid disappointment." },
-      { q: "Is a wedding planner included in the venue hire?", a: "A dedicated Villa Rosanova event coordinator is included and will work with you from enquiry through to your wedding day. For full planning services, we can recommend our preferred wedding planning partners." },
+      { q: "Is a wedding planner included in the venue hire?", a: "Our dedicated event coordinator will support you from enquiry through to your wedding day. For comprehensive planning services, we can recommend preferred planning partners." },
     ],
   },
 ];
 
-function FAQSection({ onAsk }) {
+function FAQSection({ venue, onAsk }) {
   const C = useT();
   const [openItems, setOpenItems] = useState({});
+  const faqData = venue?.faq;
+  if (!faqData || faqData.enabled === false) return null;
+  const categories = (faqData.categories || []).filter(c => c.questions?.length > 0).slice(0, 4);
+  if (categories.length === 0) return null;
 
   const toggle = (catIdx, qIdx) => {
     const key = `${catIdx}-${qIdx}`;
@@ -3920,14 +4855,14 @@ function FAQSection({ onAsk }) {
   };
 
   return (
-    <section style={{ marginBottom: 56 }}>
+    <section id="faqs" style={{ marginBottom: 56 }}>
       <SectionHeading
-        title="Your Guide to Villa Rosanova"
-        subtitle="Curated answers to every question — from your first enquiry to your final farewell toast."
+        title={faqData.title || "FAQs"}
+        subtitle={faqData.subtitle || ""}
       />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
-        {FAQ_DATA.map((cat, catIdx) => (
+        {categories.map((cat, catIdx) => (
           <div key={cat.category} style={{
             background: C.bgAlt,
             border: `1px solid ${C.border}`,
@@ -3985,7 +4920,7 @@ function FAQSection({ onAsk }) {
                       }}>+</span>
                     </button>
 
-                    {/* Answer — smooth height transition */}
+                    {/* Answer, smooth height transition */}
                     <div style={{
                       overflow: "hidden",
                       maxHeight: isOpen ? 300 : 0,
@@ -4005,40 +4940,60 @@ function FAQSection({ onAsk }) {
         ))}
       </div>
 
-      {/* CTA at bottom */}
-      <div style={{
-        marginTop: 32, padding: "20px 24px",
-        background: C.goldLight, border: `1px solid ${C.goldBorder}`,
-        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
-      }}>
-        <div>
-          <div style={{ fontFamily: FD, fontSize: 17, color: C.text, marginBottom: 4 }}>Still have a question?</div>
-          <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>Our team responds within {FAQ_DATA.length > 0 ? "2 hours" : "24 hours"} — we'd love to help.</div>
+      {faqData.ctaEnabled !== false && (
+        <div style={{
+          marginTop: 32, padding: "20px 24px",
+          background: C.goldLight, border: `1px solid ${C.goldBorder}`,
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+        }}>
+          <div>
+            <div style={{ fontFamily: FD, fontSize: 17, color: C.text, marginBottom: 4 }}>{faqData.ctaHeadline || "Still have a question?"}</div>
+            <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>{faqData.ctaSubtext || "Our team is here to help."}</div>
+          </div>
+          <button style={{
+            padding: "11px 24px", background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)",
+            color: "#fff", fontFamily: FB, fontSize: 12, fontWeight: 700,
+            letterSpacing: "0.8px", textTransform: "uppercase", cursor: "pointer",
+            flexShrink: 0, transition: "opacity 0.2s",
+          }}
+            onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
+            onMouseLeave={e => e.currentTarget.style.opacity = "1"}
+          onClick={onAsk}>{faqData.ctaButtonText || "Ask a question"} →</button>
         </div>
-        <button style={{
-          padding: "11px 24px", background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)",
-          color: "#fff", fontFamily: FB, fontSize: 12, fontWeight: 700,
-          letterSpacing: "0.8px", textTransform: "uppercase", cursor: "pointer",
-          flexShrink: 0, transition: "opacity 0.2s",
-        }}
-          onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
-          onMouseLeave={e => e.currentTarget.style.opacity = "1"}
-        onClick={onAsk}>Ask a question →</button>
-      </div>
+      )}
     </section>
   );
 }
 
 // ─── SIMILAR VENUES ───────────────────────────────────────────────────────────
-function SimilarVenues({ venues }) {
+// Recommendation logic (production): query venues WHERE country = venue.country
+// AND region = venue.region AND venueType = venue.venueType, ordered by
+// price proximity and capacity overlap. Max 3 results.
+// Admin can override via venue.similarVenuesManualOverride (array of venue objects).
+function SimilarVenues({ venue }) {
   const C = useT();
   const isMobile = useIsMobile();
+
+  // Admin toggle guard
+  if (venue.similarVenuesEnabled === false) return null;
+
+  // Manual admin override takes priority; fallback to pre-computed similar list
+  const venues = (
+    venue.similarVenuesManualOverride?.length
+      ? venue.similarVenuesManualOverride
+      : venue.similar || []
+  ).slice(0, 3);
+
+  if (venues.length === 0) return null;
+
   return (
-    <section style={{ marginBottom: 56 }}>
+    <section id="you-might-also-love" style={{ marginBottom: 56 }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
         <SectionHeading title="You Might Also Love" />
       </div>
-      <div style={{ fontFamily: FB, fontSize: 12, color: C.gold, marginBottom: 24, marginTop: -20 }}>✦ Curated by Aura based on your browsing</div>
+      <div style={{ fontFamily: FB, fontSize: 12, color: C.gold, marginBottom: 24, marginTop: -20 }}>
+        ✦ Curated based on location, venue type &amp; capacity
+      </div>
       {isMobile ? (
         <SliderNav className="venue-similar-slider" cardWidth={300} gap={12}>
           {venues.map(({ location: loc, ...rest }) => (
@@ -4053,9 +5008,9 @@ function SimilarVenues({ venues }) {
           ))}
         </SliderNav>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${venues.length}, 1fr)`, gap: 16 }}>
           {venues.map(v => (
-            <div key={v.id} style={{ border: `1px solid ${C.border}`, background: C.surface, overflow: "hidden", cursor: "pointer" }}
+            <div key={v.id} style={{ border: `1px solid ${C.border}`, background: C.surface, overflow: "hidden", cursor: "pointer", borderRadius: 2 }}
               onMouseEnter={e => e.currentTarget.style.boxShadow = C.shadowMd}
               onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
               <div style={{ overflow: "hidden", aspectRatio: "1/1" }}>
@@ -4063,7 +5018,9 @@ function SimilarVenues({ venues }) {
               </div>
               <div style={{ padding: 18 }}>
                 <div style={{ fontFamily: FD, fontSize: 18, color: C.text, marginBottom: 4 }}>{v.name}</div>
-                <div style={{ fontFamily: FB, fontSize: 12, color: C.textLight, marginBottom: 10, display: "flex", alignItems: "center", gap: 5 }}><Icon name="pin" size={12} color={C.textLight} /> {v.location}</div>
+                <div style={{ fontFamily: FB, fontSize: 12, color: C.textLight, marginBottom: 10, display: "flex", alignItems: "center", gap: 5 }}>
+                  <Icon name="pin" size={12} color={C.textLight} /> {v.location}
+                </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                     <Stars rating={v.rating} size={11} />
@@ -4081,26 +5038,38 @@ function SimilarVenues({ venues }) {
 }
 
 // ─── RECENTLY VIEWED ──────────────────────────────────────────────────────────
-function RecentlyViewed() {
+// Reads from localStorage (ldw_recently_viewed). Excludes current venue.
+// Max 3 cards shown. Section hidden if empty or admin-disabled.
+function RecentlyViewed({ venue }) {
   const C = useT();
   const isMobile = useIsMobile();
-  const items = [
-    { id: "rv1", name: "Villa d'Este", location: "Lake Como", rating: 5.0, price: "£35,000", img: "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=600&q=80" },
-    { id: "rv2", name: "Claridge's London", location: "London, UK", rating: 4.9, price: "£28,000", img: "https://images.unsplash.com/photo-1544078751-58fee2d8a03b?w=600&q=80" },
-    { id: "rv3", name: "Aman Venice", location: "Venice, Italy", rating: 5.0, price: "£35,000", img: "https://images.unsplash.com/photo-1520854221256-17451cc331bf?w=600&q=80" },
-  ];
+  const [items, setItems] = useState([]);
+
+  useEffect(() => {
+    // Read stored visits, exclude current venue, cap at 3
+    const stored = getRVList()
+      .filter(v => v.id !== venue.id)
+      .slice(0, 3);
+    setItems(stored);
+  }, [venue.id]);
+
+  // Admin toggle guard + empty guard
+  if (venue.recentlyViewedEnabled === false || items.length === 0) return null;
+
   return (
-    <section style={{ marginBottom: 56 }}>
+    <section id="recently-viewed" style={{ marginBottom: 56 }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
         <SectionHeading title="Recently Viewed" />
       </div>
-      <div style={{ fontFamily: FB, fontSize: 12, color: C.gold, marginBottom: 24, marginTop: -20 }}>✦ Based on your browsing history</div>
+      <div style={{ fontFamily: FB, fontSize: 12, color: C.gold, marginBottom: 24, marginTop: -20 }}>
+        ✦ Based on your browsing session
+      </div>
       {isMobile ? (
         <SliderNav className="venue-recent-slider" cardWidth={300} gap={12}>
-          {items.map(({ location: loc, ...rest }) => (
+          {items.map(({ location: loc, img, price, ...rest }) => (
             <div key={rest.id} style={{ flex: "0 0 300px", scrollSnapAlign: "start" }}>
               <GCardMobile
-                v={{ ...rest, region: loc, image: rest.img, priceFrom: rest.price }}
+                v={{ ...rest, region: loc, image: img, priceFrom: price }}
                 saved={false}
                 onSave={() => {}}
                 onView={() => {}}
@@ -4109,9 +5078,9 @@ function RecentlyViewed() {
           ))}
         </SliderNav>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${items.length}, 1fr)`, gap: 16 }}>
           {items.map(v => (
-            <div key={v.name} style={{ border: `1px solid ${C.border}`, background: C.surface, overflow: "hidden", cursor: "pointer" }}
+            <div key={v.id} style={{ border: `1px solid ${C.border}`, background: C.surface, overflow: "hidden", cursor: "pointer", borderRadius: 2 }}
               onMouseEnter={e => e.currentTarget.style.boxShadow = C.shadowMd}
               onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
               <div style={{ overflow: "hidden", aspectRatio: "1/1" }}>
@@ -4119,7 +5088,9 @@ function RecentlyViewed() {
               </div>
               <div style={{ padding: 18 }}>
                 <div style={{ fontFamily: FD, fontSize: 18, color: C.text, marginBottom: 4 }}>{v.name}</div>
-                <div style={{ fontFamily: FB, fontSize: 12, color: C.textLight, marginBottom: 10, display: "flex", alignItems: "center", gap: 5 }}><Icon name="pin" size={12} color={C.textLight} /> {v.location}</div>
+                <div style={{ fontFamily: FB, fontSize: 12, color: C.textLight, marginBottom: 10, display: "flex", alignItems: "center", gap: 5 }}>
+                  <Icon name="pin" size={12} color={C.textLight} /> {v.location}
+                </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                     <Stars rating={v.rating} size={11} />
@@ -4150,10 +5121,10 @@ function MobileLeadBar({ venue }) {
         animation: "slideUp 0.4s ease",
       }}>
         <div>
-          <div style={{ fontFamily: FD, fontSize: 18, color: C.gold }}>From {venue.priceFrom}</div>
+          <div style={{ fontFamily: FD, fontSize: 18, color: C.gold }}>From {fmtPrice(venue.priceFrom, venue.priceCurrency)}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
             <Stars rating={venue.rating} size={11} />
-            <span style={{ fontFamily: FB, fontSize: 11, color: C.textLight }}>{venue.reviews} reviews</span>
+            {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 11, color: C.textLight }}>{venue.reviews} reviews</span>}
           </div>
         </div>
         <button onClick={() => setOpen(true)} style={{
@@ -4215,7 +5186,7 @@ function CompareBar({ items, onRemove, onClear }) {
 
 // ─── FOOTER ──────────────────────────────────────────────────────────────────
 function Footer() {
-  // Always dark — luxury brand standard, independent of light/dark page theme
+  // Always dark, luxury brand standard, independent of light/dark page theme
   const bg      = "#0c0c0a";
   const bgMid   = "#111110";
   const gold    = "#b8a05a";
@@ -4318,7 +5289,7 @@ function Footer() {
       <div style={{ background: bgMid, borderTop: `1px solid ${border}`, borderBottom: `1px solid ${border}` }}>
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 40px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24 }}>
           <div>
-            <div style={{ fontFamily: FD, fontSize: 18, color: text, marginBottom: 4 }}>The LWD Edit — monthly inspiration for couples</div>
+            <div style={{ fontFamily: FD, fontSize: 18, color: text, marginBottom: 4 }}>The LWD Edit, monthly inspiration for couples</div>
             <div style={{ fontFamily: FB, fontSize: 13, color: muted }}>Extraordinary venues, real weddings, and planning guides. No spam.</div>
           </div>
           <div style={{ display: "flex", gap: 0, flexShrink: 0 }}>
@@ -4361,7 +5332,7 @@ function AuraChat({ venue }) {
   // mode: "closed" | "modal" | "full"
   const [mode, setMode] = useState("closed");
   const [msgs, setMsgs] = useState([
-    { from: "aura", text: `Hi! I'm Aura, your LWD assistant. I know everything about ${venue.name} — pricing, spaces, availability and more. What would you like to know?` }
+    { from: "aura", text: `Hi! I'm Aura, your LWD assistant. I know about pricing, spaces, availability and more. What would you like to know?` }
   ]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
@@ -4836,7 +5807,7 @@ function AuraChat({ venue }) {
   );
 }
 
-// ─── COOKIE BANNER (standalone — no ChatContext dependency) ──────────────────
+// ─── COOKIE BANNER (standalone, no ChatContext dependency) ──────────────────
 const COOKIE_KEY = "lwd_cookies_accepted";
 function VenueCookieBanner() {
   const C = useT();
@@ -4923,70 +5894,359 @@ function VenueCookieBanner() {
 }
 
 // ─── MAIN EXPORT ─────────────────────────────────────────────────────────────
-export default function VenueProfile({ onBack = null }) {
+export default function VenueProfile({ onBack = null, slug = null }) {
   const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
   const [saved, setSaved] = useState(false);
   const [lightIdx, setLightIdx] = useState(null);
   const [compareList, setCompareList] = useState([]);
   const [heroStyle, setHeroStyle] = useState("cinematic");
   const [enquiryOpen, setEnquiryOpen] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [dbVenue, setDbVenue] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [notFound, setNotFound] = useState(false);
 
   const C = darkMode ? DARK : LIGHT;
+  const VV = dbVenue ? { ...VENUE, ...dbVenue } : VENUE;
+
+  // Record this venue visit for Recently Viewed tracking
+  useEffect(() => { recordVenueView(VENUE); }, []);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        // Only update active tab from the topmost intersecting section
+        const intersecting = entries.filter(e => e.isIntersecting);
+        if (intersecting.length > 0) {
+          // Pick the section closest to the top of the viewport
+          const topmost = intersecting.reduce((a, b) =>
+            a.boundingClientRect.top < b.boundingClientRect.top ? a : b
+          );
+          setActiveTab(topmost.target.id);
+        }
+      },
+      { rootMargin: '-137px 0px -60% 0px', threshold: 0 }
+    );
+    TABS.forEach(t => {
+      const el = document.getElementById(t.key);
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+    async function loadVenue() {
+      if (!slug) return;
+      setLoading(true);
+      try {
+        const listing = await fetchListingBySlug(slug);
+        if (!listing || ignore) return;
+        const mapped = {
+          id:        listing.id,
+          name:      listing.name || VENUE.name,
+          tagline:   listing.heroTagline || listing.hero_tagline || VENUE.tagline,
+          location:  [listing.city, listing.region].filter(Boolean).join(', ') || VENUE.location,
+          country:   listing.country || VENUE.country,
+          priceFrom: listing.price_from || VENUE.priceFrom,
+          priceCurrency: listing.price_currency || listing.priceCurrency || '£',
+          capacity:  { ...VENUE.capacity, max: listing.capacity_max || VENUE.capacity?.max },
+          imgs:      buildCardImgs(listing.media_items || []).map(i => i.src).filter(Boolean).slice(0, 10),
+          verified:  !!listing.is_verified,
+          venueType: { ...(VENUE.venueType || {}), features: listing.amenities || [], styles: listing.styles || [] },
+          description: listing.short_description || listing.card_summary || null,
+          gallery: (listing.media_items || [])
+            .filter(i => i.type !== 'video' && i.type !== 'virtual_tour' && i.visibility !== 'private')
+            .sort((a, b) => {
+              if (a.is_featured && !b.is_featured) return -1;
+              if (!a.is_featured && b.is_featured) return 1;
+              return (a.sort_order ?? 999) - (b.sort_order ?? 999);
+            })
+            .map(item => mapMediaItemToGalleryPhoto(item))
+            .filter(item => item.src) || VENUE.gallery,
+          rating:  listing.rating       ?? VENUE.rating,
+          reviews: listing.review_count ?? listing.reviewCount ?? VENUE.reviews,
+          flag:    COUNTRY_FLAG[listing.country] || VENUE.flag,
+          awards:  Array.isArray(listing.awards)
+            ? listing.awards.map(a => typeof a === 'string' ? a : (a.award || a.title || a.issuer || '')).filter(Boolean)
+            : [],
+          press:   Array.isArray(listing.press_features)
+            ? listing.press_features.map(p => typeof p === 'string' ? p : (p.outlet || p.title || '')).filter(Boolean)
+            : [],
+          videos:  Array.isArray(listing.media_items) ? buildVenueVideos(listing.media_items) : [],
+          accommodation: (listing.rooms_max_guests || listing.rooms_total || listing.rooms_description)
+            ? {
+                type:              listing.rooms_accommodation_type || null,
+                totalRooms:        listing.rooms_total              || null,
+                totalSuites:       listing.rooms_suites             || null,
+                maxOvernightGuests:listing.rooms_max_guests         || null,
+                maxGuests:         listing.rooms_max_guests         || null,
+                minNightStay:      listing.rooms_min_stay           || null,
+                exclusiveUse:      !!listing.rooms_exclusive_use,
+                description:       listing.rooms_description        || null,
+                images:            Array.isArray(listing.rooms_images)
+                  ? listing.rooms_images
+                      .map(img => typeof img === 'string' ? img : (img.url || img.src || ''))
+                      .filter(Boolean)
+                  : [],
+              }
+            : null,
+          exclusiveUse: (listing.exclusive_use_price || listing.exclusive_use_description || listing.exclusive_use_enabled != null)
+            ? {
+                enabled:     listing.exclusive_use_enabled !== false,
+                title:       listing.exclusive_use_title       || 'Exclusive Use',
+                subtitle:    listing.exclusive_use_subtitle    || '',
+                from:        listing.exclusive_use_price       || null,
+                subline:     listing.exclusive_use_subline     || null,
+                description: listing.exclusive_use_description || null,
+                ctaText:     listing.exclusive_use_cta_text    || 'Enquire About Exclusive Use',
+                includes:    Array.isArray(listing.exclusive_use_includes) ? listing.exclusive_use_includes : [],
+              }
+            : null,
+          showcaseUrl:      `/showcase/${slug}`,
+          fullDescription:  listing.description || null,
+          readmoreEnabled:  !!listing.readmore_enabled,
+          openingHours: listing.opening_hours_enabled
+            ? {
+                enabled: true,
+                hours:   listing.opening_hours || {},
+                note:    listing.opening_hours_note || null,
+              }
+            : null,
+          responseTime: listing.contact_profile?.response_time || null,
+          responseRate: listing.contact_profile?.response_rate
+            ? String(listing.contact_profile.response_rate).replace('%', '')
+            : null,
+          weddingsHosted: listing.weddings_hosted ?? listing.weddingsHosted ?? null,
+          owner: (listing.contact_profile?.name) ? {
+            name:        listing.contact_profile.name  || null,
+            title:       listing.contact_profile.title || null,
+            bio:         listing.contact_profile.bio || listing.contact_profile.about || null,
+            photo:       listing.contact_profile.photo_url || listing.contact_profile.photo || null,
+            memberSince: listing.member_since || listing.memberSince || null,
+          } : null,
+          contact: {
+            address: {
+              line1:   listing.address  || '',
+              city:    listing.city     || '',
+              region:  listing.region   || '',
+              postcode:listing.postcode || '',
+              country: listing.country  || '',
+            },
+            phone:   listing.phone   || listing.contact_profile?.phone   || null,
+            email:   listing.email   || listing.contact_profile?.email   || null,
+            website: listing.website || listing.contact_profile?.website || null,
+            responseMetrics: {
+              averageResponseHours: null,
+              responseRatePercent:  null,
+              sameDayTypical: false,
+            },
+            addressFormatted: [listing.address, listing.city, [listing.postcode, listing.region].filter(Boolean).join(' '), listing.country].filter(Boolean).join(', '),
+            mapQuery: [listing.city, listing.region, listing.country].filter(Boolean).join(',+').replace(/ /g, '+'),
+          },
+          catering: (() => {
+            const hasCards = Array.isArray(listing.catering_cards) && listing.catering_cards.length > 0;
+            if (!hasCards && listing.catering_enabled == null) return null;
+            if (listing.catering_enabled === false) return null;
+            return {
+              enabled: true,
+              cards:   Array.isArray(listing.catering_cards)      ? listing.catering_cards      : [],
+              styles:  Array.isArray(listing.dining_menu_styles)  ? listing.dining_menu_styles  : [],
+              dietary: Array.isArray(listing.dining_dietary)      ? listing.dining_dietary       : [],
+            };
+          })(),
+          dining: (listing.dining_style || listing.dining_description || listing.dining_chef_name)
+            ? {
+                style:                  listing.dining_style         || null,
+                chefName:               listing.dining_chef_name     || null,
+                inHouseCatering:        !!listing.dining_in_house,
+                externalCateringAllowed:!!listing.dining_external,
+                menuStyles:             Array.isArray(listing.dining_menu_styles)  ? listing.dining_menu_styles  : [],
+                dietaryOptions:         Array.isArray(listing.dining_dietary)      ? listing.dining_dietary      : [],
+                drinksOptions:          Array.isArray(listing.dining_drinks)       ? listing.dining_drinks       : [],
+                description:            listing.dining_description   || null,
+                menuImages:             Array.isArray(listing.dining_menu_images)
+                  ? listing.dining_menu_images.map(img =>
+                      typeof img === 'string'
+                        ? { src: img, title: '' }
+                        : { src: img.url || img.src || '', title: img.title || '' }
+                    ).filter(img => img.src)
+                  : [],
+              }
+            : null,
+          spaces: Array.isArray(listing.spaces) && listing.spaces.length > 0
+            ? listing.spaces.map(s => ({
+                id:          s.id          || s.name,
+                name:        s.name        || '',
+                type:        s.type        || '',
+                description: s.description || '',
+                img:         s.img         ? (s.img.startsWith('/') || s.img.startsWith('http') ? s.img : '/' + s.img) : null,
+                capacityCeremony: s.capacityCeremony || null,
+                capacityReception: s.capacityReception || null,
+                capacityDining:   s.capacityDining   || null,
+                capacityStanding: s.capacityStanding || null,
+                indoor:     s.indoor    ?? false,
+                covered:    s.covered   ?? false,
+                accessible: s.accessible ?? false,
+                floorPlanUrl: s.floorPlanUrl || null,
+              }))
+            : null,
+          faq: (listing.faq_categories && Array.isArray(listing.faq_categories) && listing.faq_categories.length > 0)
+            ? {
+                enabled:       listing.faq_enabled !== false,
+                title:         listing.faq_title    || 'FAQs',
+                subtitle:      listing.faq_subtitle || '',
+                ctaEnabled:    listing.faq_cta_enabled !== false,
+                ctaHeadline:   listing.faq_cta_headline   || null,
+                ctaSubtext:    listing.faq_cta_subtext     || null,
+                ctaButtonText: listing.faq_cta_button_text || null,
+                categories:    listing.faq_categories,
+              }
+            : null,
+        };
+        if (!ignore) setDbVenue(mapped);
+      } catch (err) {
+        console.error('Failed to load venue by slug', err);
+        if (!ignore) setNotFound(true);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    }
+    loadVenue();
+    return () => { ignore = true; };
+  }, [slug]);
+
+  const scrollToSection = (key) => {
+    setActiveTab(key);
+    const el = document.getElementById(key);
+    if (!el) return;
+    // Measure the tab nav bar height directly (it carries the combined sticky offset)
+    // The tab nav sits at top:56, so its bottom = 56 + its own height
+    const tabNavEl = document.querySelector('[data-tab-nav]');
+    const tabNavBottom = tabNavEl ? tabNavEl.getBoundingClientRect().bottom : 116;
+    const offset = Math.max(tabNavBottom, 137) + 16;
+    const top = el.getBoundingClientRect().top + window.scrollY - offset;
+    window.scrollTo({ top, behavior: 'smooth' });
+  };
 
   const addCompare = () => {
-    if (!compareList.find(v => v.id === VENUE.id)) {
-      setCompareList(l => [...l, { id: VENUE.id, name: VENUE.name }]);
+    if (!compareList.find(v => v.id === VV.id)) {
+      setCompareList(l => [...l, { id: VV.id, name: VV.name }]);
     }
   };
+
+  if (slug && loading) return (
+    <Theme.Provider value={C}>
+      <GlobalStyles />
+      <div style={{ background: C.bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.textMuted, fontFamily: FB, fontSize: 14 }}>
+        Loading venue…
+      </div>
+    </Theme.Provider>
+  );
+
+  if (slug && notFound) return (
+    <Theme.Provider value={C}>
+      <GlobalStyles />
+      <div style={{ background: C.bg, minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, color: C.text, fontFamily: FB }}>
+        <div style={{ fontSize: 22, fontFamily: FD }}>Venue Not Found</div>
+        {onBack && <button onClick={onBack} style={{ border: 'none', background: 'none', color: C.gold, cursor: 'pointer', fontSize: 13, textDecoration: 'underline' }}>← Back</button>}
+      </div>
+    </Theme.Provider>
+  );
 
   return (
     <Theme.Provider value={C}>
       <GlobalStyles />
       <div className="vp-root" style={{ background: C.bg, minHeight: "100vh", color: C.text }}>
-        <Nav darkMode={darkMode} setDarkMode={setDarkMode} saved={saved} setSaved={setSaved} compareList={compareList} onAddCompare={addCompare} onBack={onBack} />
-        <Hero venue={VENUE} heroStyle={heroStyle} setHeroStyle={setHeroStyle} onEnquire={() => setEnquiryOpen(true)} />
-        <StatsStrip venue={VENUE} />
+        <Nav venue={VV} darkMode={darkMode} setDarkMode={setDarkMode} saved={saved} setSaved={setSaved} compareList={compareList} onAddCompare={addCompare} onBack={onBack} />
+        <Hero venue={VV} heroStyle={heroStyle} setHeroStyle={setHeroStyle} onEnquire={() => setEnquiryOpen(true)} />
+        <StatsStrip venue={VV} />
+        <StickyTabNav venue={VV} activeTab={activeTab} onTabClick={scrollToSection} />
 
         {/* Main layout */}
         <div className="vp-main-wrapper" style={{ maxWidth: 1280, margin: "0 auto", padding: "48px 40px 120px" }}>
           <div className="vp-main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 56, alignItems: "start" }}>
             {/* Content */}
             <div>
-              <AboutSection venue={VENUE} />
-              <ImageGallery gallery={VENUE.gallery} onOpenLight={i => setLightIdx(i)} />
-              <VideoGallery videos={VENUE.videos} />
-              <ExclusiveUse venue={VENUE} />
-              <CateringSection venue={VENUE} />
-              <SpacesSection spaces={VENUE.spaces} />
-              <WeddingWeekend experiences={VENUE.experiences} />
-              <ContactSection venue={VENUE} />
-              <GettingHere access={VENUE.access} />
-              <Reviews testimonials={VENUE.testimonials} venue={VENUE} />
-              <FAQSection onAsk={() => setEnquiryOpen(true)} />
-              <SimilarVenues venues={VENUE.similar} />
-              <RecentlyViewed />
+              <AboutSection venue={VV} isDbVenue={!!slug} />
+              <ImageGallery gallery={VV.gallery} onOpenLight={i => setLightIdx(i)} />
+              {VV.videos && VV.videos.length > 0 && <VideoGallery videos={VV.videos} venue={VV} />}
+              <ExclusiveUse venue={VV} onEnquire={() => setEnquiryOpen(true)} />
+              <CateringSection venue={VV} />
+              {VV.spaces && <SpacesSection spaces={VV.spaces} />}
+              <RoomsSection venue={VV} />
+              {VV.dining && <DiningSection venue={VV} />}
+              <VenueTypeSection venue={VV} />
+              <WeddingWeekend venue={VV} />
+              <ContactSection venue={VV} />
+              {VV.access && Array.isArray(VV.access.airports) && VV.access.airports.length > 0 && <GettingHere access={VV.access} />}
+              {VV.testimonials && Array.isArray(VV.testimonials) && VV.testimonials.length > 0 && <Reviews testimonials={VV.testimonials} venue={VV} />}
+              {dbVenue && dbVenue.id && <ReviewsSection entityType="venue" entityId={dbVenue.id} onOpenReviewForm={() => setShowReviewForm(true)} />}
+              <FAQSection venue={VV} onAsk={() => setEnquiryOpen(true)} />
+              <SimilarVenues venue={VV} />
+              <RecentlyViewed venue={VV} />
             </div>
-            {/* Sidebar — 4 zones, sticky on desktop */}
-            <div className="lwd-sidebar" style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 56, alignSelf: "start" }}>
-              {/* Zone 1 — Owner card */}
-              <OwnerCard owner={VENUE.owner} venue={VENUE} />
-              {/* Zone 2 — Lead form (scrolls naturally) */}
-              <LeadForm venue={VENUE} />
-              {/* Zone 3 — Mini map + quick contact */}
-              <SidebarContact venue={VENUE} />
-              {/* Zone 4 — Venue notices (open days, offers, late availability, news) */}
-              <SidebarNotices notices={VENUE.notices} venueName={VENUE.name} />
-              {/* Zone 5 — Instagram teaser (placeholder — to be connected to live feed) */}
-              {/* <SidebarInstagram venue={VENUE} /> */}
+            {/* Sidebar, 4 zones, sticky on desktop */}
+            <div className="lwd-sidebar" style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 137, alignSelf: "start" }}>
+              {/* Zone 1, Owner card (only if owner data available) */}
+              {VV.owner && VV.owner.name && <OwnerCard owner={VV.owner} venue={VV} />}
+              {/* Zone 2, Lead form (scrolls naturally) */}
+              <LeadForm venue={VV} />
+              {/* Zone 3, Mini map + quick contact */}
+              <SidebarContact venue={VV} />
+              {/* Zone 4, Venue notices (open days, offers, late availability, news) */}
+              <SidebarNotices notices={VV.notices} venueName={VV.name} />
+              {/* Zone 5, Instagram teaser (placeholder, to be connected to live feed) */}
+              {/* <SidebarInstagram venue={VV} /> */}
             </div>
           </div>
         </div>
 
         <Footer />
-        <MobileLeadBar venue={VENUE} />
+        <MobileLeadBar venue={VV} />
         <CompareBar items={compareList} onRemove={id => setCompareList(l => l.filter(v => v.id !== id))} onClear={() => setCompareList([])} />
-        <Lightbox gallery={VENUE.gallery} idx={lightIdx} setLightIdx={setLightIdx} onClose={() => setLightIdx(null)} onPrev={() => setLightIdx(i => (i - 1 + VENUE.gallery.length) % VENUE.gallery.length)} onNext={() => setLightIdx(i => (i + 1) % VENUE.gallery.length)} engagement={VENUE.engagement?.photos} />
-        {enquiryOpen && <EnquiryModal venue={VENUE} onClose={() => setEnquiryOpen(false)} />}
+        <Lightbox gallery={VV.gallery} idx={lightIdx} setLightIdx={setLightIdx} onClose={() => setLightIdx(null)} onPrev={() => setLightIdx(i => (i - 1 + (VV.gallery?.length || 1)) % (VV.gallery?.length || 1))} onNext={() => setLightIdx(i => (i + 1) % (VV.gallery?.length || 1))} engagement={VV.engagement?.photos} />
+        {enquiryOpen && <EnquiryModal venue={VV} onClose={() => setEnquiryOpen(false)} />}
+        {showReviewForm && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              padding: 20,
+            }}
+            onClick={() => setShowReviewForm(false)}
+          >
+            <div
+              style={{
+                background: C.bg,
+                borderRadius: 8,
+                padding: 40,
+                maxWidth: 600,
+                maxHeight: '90vh',
+                overflow: 'auto',
+                position: 'relative',
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              {dbVenue && dbVenue.id && (
+                <ReviewSubmitForm
+                  entityType="venue"
+                  entityId={dbVenue.id}
+                  onSubmitSuccess={() => {
+                    setShowReviewForm(false);
+                  }}
+                  onCancel={() => setShowReviewForm(false)}
+                />
+              )}
+            </div>
+          </div>
+        )}
         <VenueCookieBanner />
       </div>
     </Theme.Provider>

@@ -45,7 +45,7 @@ function useDropClose(ref, open, setOpen) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// FinderSelect — luxury styled dropdown (replaces native <select>)
+// FinderSelect, luxury styled dropdown (replaces native <select>)
 // ═══════════════════════════════════════════════════════════════════════════
 function FinderSelect({ value, onChange, options, label }) {
   const [open, setOpen] = useState(false);
@@ -154,7 +154,7 @@ function FinderSelect({ value, onChange, options, label }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// LocationMegaMenu — grouped multi-column location picker
+// LocationMegaMenu, grouped multi-column location picker
 // ═══════════════════════════════════════════════════════════════════════════
 function LocationMegaMenu({ value, onChange, label }) {
   const [open, setOpen] = useState(false);
@@ -223,7 +223,7 @@ function LocationMegaMenu({ value, onChange, label }) {
             scrollbarColor: "#C9A84C transparent",
           }}
         >
-          {/* "Worldwide" — mode pill, visually distinct from list */}
+          {/* "Worldwide", mode pill, visually distinct from list */}
           <div style={{ padding: "0 16px 14px" }}>
             <button
               role="option"
@@ -248,7 +248,7 @@ function LocationMegaMenu({ value, onChange, label }) {
 
           {GROUPED_LOCATIONS.map((group, gi) => (
             <div key={group.group}>
-              {/* Gold gradient divider — uses space instead of hard line */}
+              {/* Gold gradient divider, uses space instead of hard line */}
               <div style={{ height: 1, background: "linear-gradient(to right, transparent, rgba(201,168,76,0.12) 20%, rgba(201,168,76,0.12) 80%, transparent)", margin: "4px 16px 14px" }} />
               <div style={{ padding: "0 16px 12px" }}>
                 <div style={{ fontSize: 8, letterSpacing: "2.5px", textTransform: "uppercase", color: "rgba(201,168,76,0.45)", fontFamily: NU, fontWeight: 600, paddingLeft: 14, marginBottom: 8 }}>

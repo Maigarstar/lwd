@@ -1,5 +1,5 @@
 // ─── src/components/CookieBanner.jsx ─────────────────────────────────────────
-// GDPR-compliant cookie acceptance banner — fixed bottom strip.
+// GDPR-compliant cookie acceptance banner, fixed bottom strip.
 // Saves acceptance to localStorage so it only shows once.
 // Hides automatically when the Aura full workspace is open.
 import { useState, useEffect } from "react";

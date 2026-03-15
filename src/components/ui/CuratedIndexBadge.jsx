@@ -1,10 +1,10 @@
 // ─── src/components/ui/CuratedIndexBadge.jsx ─────────────────────────────────
 // LWD Index hallmark badge.
 //
-// Public variant (default): luxury hallmark — "LWD INDEX" only, no numeric score.
+// Public variant (default): luxury hallmark, "LWD INDEX" only, no numeric score.
 // Dashboard variant (size="large"): full numeric display for vendor portal.
 //
-// Aesthetic reference: Michelin Guide, Forbes Travel Guide — understated hallmark.
+// Aesthetic reference: Michelin Guide, Forbes Travel Guide, understated hallmark.
 // Score engine remains fully operational; this is a presentation-layer decision.
 
 import { useState } from "react";
@@ -20,7 +20,7 @@ export default function CuratedIndexBadge({ score, size = "default" }) {
 
   const isLarge = size === "large";
 
-  /* ── Large variant — VendorDashboard prominent numeric display ── */
+  /* ── Large variant, VendorDashboard prominent numeric display ── */
   if (isLarge) {
     const display = (score / 10).toFixed(1);
     return (
@@ -44,7 +44,7 @@ export default function CuratedIndexBadge({ score, size = "default" }) {
     );
   }
 
-  /* ── Default variant — luxury hallmark badge (no numeric score) ── */
+  /* ── Default variant, luxury hallmark badge (no numeric score) ── */
   return (
     <span
       style={{ position: "relative", display: "inline-block" }}
@@ -74,7 +74,7 @@ export default function CuratedIndexBadge({ score, size = "default" }) {
         </span>
       </span>
 
-      {/* Hover tooltip — no numbers, just principle */}
+      {/* Hover tooltip, no numbers, just principle */}
       {hovered && (
         <span
           style={{

@@ -41,7 +41,9 @@
       "Bash(/tmp/update_showcase_scores.sql:*)",
       "Bash(find /Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan/src -name *discovery* -o -name *Aura*)",
       "Bash(grep -i \"\\\\.jsx\\\\|\\\\.ts\\\\|\\\\.js$\")",
-      "Bash(node -e \":*)"
+      "Bash(node -e \":*)",
+      "Bash(xargs kill:*)",
+      "Bash(ls -la /Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan/src/utils/mediaMappers*)"
     ]
   }
 }

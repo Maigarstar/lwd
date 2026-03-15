@@ -16,7 +16,7 @@ const PILLARS = [
   {
     icon: "💌",
     title: "Direct Enquiries",
-    body: "Every lead lands straight in your inbox with full couple details — name, date, budget, vision.",
+    body: "Every lead lands straight in your inbox with full couple details, name, date, budget, vision.",
   },
   {
     icon: "🌍",
@@ -26,7 +26,7 @@ const PILLARS = [
   {
     icon: "✦",
     title: "Aura AI Profile",
-    body: "Our AI writes and optimises your listing copy automatically — couples find you through natural-language search.",
+    body: "Our AI writes and optimises your listing copy automatically, couples find you through natural-language search.",
   },
   {
     icon: "⭐",

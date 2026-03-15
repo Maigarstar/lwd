@@ -4,6 +4,7 @@ import { useTheme } from "../../theme/ThemeContext";
 import { track } from "../../utils/track";
 import LuxuryVenueCard from "../cards/LuxuryVenueCard";
 import SliderNav from "../ui/SliderNav";
+import QuickViewModal from "../modals/QuickViewModal";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -22,168 +23,209 @@ function useIsMobile(bp = 768) {
 export default function VenueGrid({ venues = [], onViewVenue }) {
   const C = useTheme();
   const isMobile = useIsMobile();
+  const [quickViewItem, setQuickViewItem] = useState(null);
   const display = venues.slice(0, 12);
 
-  return (
-    <section
-      aria-label="Featured wedding venues"
-      className="home-venue-grid-section"
-      style={{
-        position: "relative",
-        background: C.black,
-        padding: isMobile ? "80px 0 100px" : "80px 60px 100px",
-        overflow: "hidden",
-      }}
-    >
-      <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0" }}>
-        {/* Heading — mirrors VendorPreview style */}
-        <div style={{ marginBottom: 48, paddingLeft: isMobile ? "16px" : "0", paddingRight: isMobile ? "16px" : "0" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              marginBottom: 16,
-            }}
-          >
+  // Mobile: vertical feed. Desktop: horizontal carousel via SliderNav
+  if (isMobile) {
+    return (
+      <>
+        <div
+          aria-label="Featured wedding venues – Mobile feed"
+          className="home-venue-grid-mobile"
+          style={{
+            position: "relative",
+            background: C.black,
+            width: "100vw",
+            overflowX: "hidden",
+            overflowY: "auto",
+            scrollSnapType: "y mandatory",
+            display: "flex",
+            flexDirection: "column",
+            margin: 0,
+            padding: 0,
+            gap: "3px",
+          }}
+        >
+          {display.map((v) => (
             <div
-              style={{ width: 28, height: 1, background: "rgba(201,168,76,0.5)" }}
-            />
-            <span
+              key={v.id}
+              className="home-venue-card"
               style={{
-                fontFamily: NU,
-                fontSize: 10,
-                letterSpacing: "0.28em",
-                textTransform: "uppercase",
-                color: C.gold,
-                fontWeight: 600,
+                width: "100vw",
+                flex: "0 0 calc(100dvh - 10px)",
+                scrollSnapAlign: "start",
+                scrollMarginTop: 0,
+                borderRadius: 0,
+                margin: 0,
+                padding: 0,
               }}
             >
-              The Edit
-            </span>
-          </div>
-          <h2
-            style={{
-              fontFamily: GD,
-              fontSize: "clamp(32px, 3.5vw, 52px)",
-              color: C.off,
-              fontWeight: 400,
-              lineHeight: 1.1,
-            }}
-          >
-            Venues Beyond{" "}
-            <span style={{ fontStyle: "italic", color: C.gold }}>
-              Compare
-            </span>
-          </h2>
-          <p
-            style={{
-              fontFamily: NU,
-              fontSize: 14,
-              color: C.grey,
-              lineHeight: 1.7,
-              maxWidth: 560,
-              marginTop: 14,
-              fontWeight: 300,
-            }}
-          >
-            Explore our hand-picked selection of the world's most extraordinary
-            wedding venues — filtered by location, capacity, style, and features.
-          </p>
+              <LuxuryVenueCard
+                v={v}
+                isMobile={true}
+                onView={() => {
+                  track("venue_card_click", { id: v.id, name: v.name });
+                  onViewVenue?.(v);
+                }}
+                quickViewItem={quickViewItem}
+                setQuickViewItem={setQuickViewItem}
+              />
+            </div>
+          ))}
         </div>
+        {/* Quick View modal - outside overflow clip */}
+        {quickViewItem && (
+          <QuickViewModal
+            item={quickViewItem}
+            onClose={() => setQuickViewItem(null)}
+            onViewFull={() => {
+              const raw = display.find((f) => f.id === quickViewItem.id);
+              setQuickViewItem(null);
+              onViewVenue?.(raw ?? quickViewItem);
+            }}
+          />
+        )}
+      </>
+    );
+  }
 
-        {/* Card slider — horizontal on desktop, vertical on mobile */}
-        <div style={{ marginBottom: 48 }}>
-          {isMobile ? (
-            /* Mobile: vertical scroll, full width cards */
+  // Desktop: Section with heading + carousel + CTA
+  return (
+    <>
+      <section
+        aria-label="Featured wedding venues"
+        className="home-venue-grid-section"
+        style={{
+          position: "relative",
+          background: C.black,
+          padding: "80px 60px 100px",
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ maxWidth: 1320, margin: "0 auto", position: "relative" }}>
+          {/* Heading, mirrors VendorPreview style */}
+          <div style={{ marginBottom: 48 }}>
             <div
               style={{
                 display: "flex",
-                flexDirection: "column",
-                gap: "16px",
+                alignItems: "center",
+                gap: 14,
+                marginBottom: 16,
               }}
             >
-              {display.map((v) => (
-                <div
-                  key={v.id}
-                  className="home-venue-card-mobile"
-                  style={{
-                    flex: "0 0 520px",
-                    width: "100%",
-                    paddingLeft: "0",
-                    paddingRight: "0",
-                  }}
-                >
-                  <LuxuryVenueCard
-                    v={v}
-                    isMobile={isMobile}
-                    onView={() => {
-                      track("venue_card_click", { id: v.id, name: v.name });
-                      onViewVenue?.(v);
-                    }}
-                  />
-                </div>
-              ))}
+              <div
+                style={{ width: 28, height: 1, background: "rgba(201,168,76,0.5)" }}
+              />
+              <span
+                style={{
+                  fontFamily: NU,
+                  fontSize: 10,
+                  letterSpacing: "0.28em",
+                  textTransform: "uppercase",
+                  color: C.gold,
+                  fontWeight: 600,
+                }}
+              >
+                The Edit
+              </span>
             </div>
-          ) : (
-            /* Desktop: horizontal carousel */
+            <h2
+              style={{
+                fontFamily: GD,
+                fontSize: "clamp(32px, 3.5vw, 52px)",
+                color: C.off,
+                fontWeight: 400,
+                lineHeight: 1.1,
+              }}
+            >
+              Venues Beyond{" "}
+              <span style={{ fontStyle: "italic", color: C.gold }}>
+                Compare
+              </span>
+            </h2>
+            <p
+              style={{
+                fontFamily: NU,
+                fontSize: 14,
+                color: C.grey,
+                lineHeight: 1.7,
+                maxWidth: 560,
+                marginTop: 14,
+                fontWeight: 300,
+              }}
+            >
+              Explore our hand-picked selection of the world's most extraordinary
+              wedding venues, filtered by location, capacity, style, and features.
+            </p>
+          </div>
+
+          {/* Card slider */}
+          <div style={{ marginBottom: 48 }}>
             <SliderNav className="home-venue-grid" cardWidth={360} gap={24}>
               {display.map((v) => (
-                <div
-                  key={v.id}
-                  className="home-venue-card"
-                  style={{
-                    flex: "0 0 360px",
-                    scrollSnapAlign: "start",
-                  }}
-                >
+                <div key={v.id} className="home-venue-card" style={{ flex: "0 0 360px", scrollSnapAlign: "start" }}>
                   <LuxuryVenueCard
                     v={v}
-                    isMobile={isMobile}
+                    isMobile={false}
                     onView={() => {
                       track("venue_card_click", { id: v.id, name: v.name });
                       onViewVenue?.(v);
                     }}
+                    quickViewItem={quickViewItem}
+                    setQuickViewItem={setQuickViewItem}
                   />
                 </div>
               ))}
             </SliderNav>
-          )}
-        </div>
+          </div>
 
-        {/* View all CTA */}
-        <div style={{ textAlign: "center" }}>
-          <button
-            style={{
-              background: "transparent",
-              color: C.gold,
-              border: "1px solid rgba(201,168,76,0.4)",
-              borderRadius: "var(--lwd-radius-input)",
-              padding: "14px 40px",
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: "0.2em",
-              textTransform: "uppercase",
-              cursor: "pointer",
-              fontFamily: NU,
-              transition: "all 0.25s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = C.gold;
-              e.currentTarget.style.color = "#0a0906";
-              e.currentTarget.style.borderColor = C.gold;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = C.gold;
-              e.currentTarget.style.borderColor = "rgba(201,168,76,0.4)";
-            }}
-          >
-            View All Venues →
-          </button>
+          {/* View all CTA */}
+          <div style={{ textAlign: "center" }}>
+            <button
+              style={{
+                background: "transparent",
+                color: C.gold,
+                border: "1px solid rgba(201,168,76,0.4)",
+                borderRadius: "var(--lwd-radius-input)",
+                padding: "14px 40px",
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: "0.2em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+                fontFamily: NU,
+                transition: "all 0.25s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = C.gold;
+                e.currentTarget.style.color = "#0a0906";
+                e.currentTarget.style.borderColor = C.gold;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = C.gold;
+                e.currentTarget.style.borderColor = "rgba(201,168,76,0.4)";
+              }}
+            >
+              View All Venues →
+            </button>
+          </div>
         </div>
-      </div>
+      </section>
 
-    </section>
+      {/* Quick View modal - outside overflow clip */}
+      {quickViewItem && (
+        <QuickViewModal
+          item={quickViewItem}
+          onClose={() => setQuickViewItem(null)}
+          onViewFull={() => {
+            const raw = display.find((f) => f.id === quickViewItem.id);
+            setQuickViewItem(null);
+            onViewVenue?.(raw ?? quickViewItem);
+          }}
+        />
+      )}
+    </>
   );
 }

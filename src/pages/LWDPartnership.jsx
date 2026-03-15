@@ -1,5 +1,5 @@
 // ─── src/pages/LWDPartnership.jsx ───────────────────────────────────────────
-// The LWD Partnership — institutional access page.
+// The LWD Partnership, institutional access page.
 // Not a pricing page. Not a sales page. A definition of access.
 // Dark mode locked. No revenue modelling. No comparison tables.
 // No "join today." No "we are excited." No emotional adjectives.
@@ -106,7 +106,7 @@ export default function LWDPartnership({ onBack, onViewCategory, onViewStandard,
 
         <main>
           {/* ──────────────────────────────────────────────────────────────────
-              SECTION 1: Hero — Selective Inclusion
+              SECTION 1: Hero, Selective Inclusion
           ────────────────────────────────────────────────────────────────── */}
           <section
             className="lwd-standard-section lwd-standard-hero"

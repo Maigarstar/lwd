@@ -14,7 +14,17 @@ export default function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLig
   const thumbRef = useRef(null);
 
   const photo = gallery[idx];
-  const pg = photo?.photographer;
+  // Support both nested photographer object (legacy) and flat credit fields
+  // (new media_items shape from Listing Studio / mediaMappers.js).
+  const pg = photo?.photographer?.name
+    ? photo.photographer
+    : (photo?.credit_name ? {
+        name:      photo.credit_name,
+        instagram: photo.credit_instagram || '',
+        website:   photo.credit_website   || '',
+        camera:    photo.credit_camera    || '',
+        area:      photo.location         || '',
+      } : null);
   const eng = engagement?.[photo?.id] || { likes: 0, comments: [] };
   const isLiked = likedMap[photo?.id] || false;
   const likeCount = eng.likes + (isLiked ? 1 : 0);
@@ -60,7 +70,7 @@ export default function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLig
   const handlePinterestShare = () => {
     const url = encodeURIComponent(window.location.href);
     const media = encodeURIComponent(photo.src);
-    const desc = encodeURIComponent(`${photo.alt || "Photo"} — Photo by ${pg?.name || ""}`);
+    const desc = encodeURIComponent(`${photo.alt || "Photo"}, Photo by ${pg?.name || ""}`);
     window.open(`https://pinterest.com/pin/create/button/?url=${url}&media=${media}&description=${desc}`, "_blank", "width=600,height=400");
   };
 
@@ -70,7 +80,7 @@ export default function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLig
   };
 
   const handleInstagramShare = () => {
-    navigator.clipboard.writeText(`${photo.alt || "Photo"} — Photo by ${pg?.name || ""}\n${window.location.href}#photo-${photo.id}`).then(() => {
+    navigator.clipboard.writeText(`${photo.alt || "Photo"}, Photo by ${pg?.name || ""}\n${window.location.href}#photo-${photo.id}`).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       window.open("https://www.instagram.com/", "_blank");

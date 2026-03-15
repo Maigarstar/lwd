@@ -1,6 +1,6 @@
 // ─── src/engine/queryEngine.js ────────────────────────────────────────────────
 // Filter, sort, and search helpers for the LWD platform.
-// Pure functions — no React dependencies, no imports from src/data.
+// Pure functions, no React dependencies, no imports from src/data.
 
 import { hydrateScores } from "./curatedIndex.js";
 import {
@@ -47,7 +47,7 @@ export function filterByAirportProximity(venues, maxMinutes) {
 /**
  * Returns venues where experiences contains at least one matching kind.
  * @param {Object[]} venues
- * @param {string[]} kinds — array of ExperienceKind values
+ * @param {string[]} kinds, array of ExperienceKind values
  * @returns {Object[]}
  */
 export function filterByExperienceKinds(venues, kinds) {
@@ -115,21 +115,12 @@ export function filterByResponseTime(venues, maxHours) {
 
 // ── rankByCuratedIndex ───────────────────────────────────────────────────────
 /**
- * Hydrates scores, applies editorial boost if present, then returns a new array sorted by item.lwdScore descending.
- * Checks for _editorialBoost flag (set by recommendation engine for editorial prioritization).
+ * Hydrates scores, then returns a new array sorted by item.lwdScore descending.
  * @param {Object[]} venues
  * @returns {Object[]}
  */
 export function rankByCuratedIndex(venues) {
   hydrateScores(venues);
-
-  // Apply editorial boost if present (from Aura prioritization)
-  for (const venue of venues) {
-    if (venue._editorialBoost && typeof venue._editorialBoost === 'number') {
-      venue.lwdScore = (venue.lwdScore || 0) * venue._editorialBoost;
-    }
-  }
-
   return [...venues].sort((a, b) => (b.lwdScore || 0) - (a.lwdScore || 0));
 }
 
@@ -164,7 +155,7 @@ export function searchIndexVenue(venue) {
   if (venue.priceLabel)  parts.push(venue.priceLabel);
   if (venue.priceFrom)   parts.push(venue.priceFrom);
 
-  // Experiences — both raw kind values and human labels
+  // Experiences, both raw kind values and human labels
   if (venue.experiences) {
     for (const exp of venue.experiences) {
       if (exp.label)  parts.push(exp.label);
@@ -176,7 +167,7 @@ export function searchIndexVenue(venue) {
     }
   }
 
-  // Catering — raw values and human labels
+  // Catering, raw values and human labels
   if (venue.catering) {
     const cat = venue.catering;
     if (cat.styles) {
@@ -195,7 +186,7 @@ export function searchIndexVenue(venue) {
     }
   }
 
-  // Airports — names and IATA codes
+  // Airports, names and IATA codes
   if (venue.access?.airports) {
     for (const ap of venue.access.airports) {
       if (ap.name) parts.push(ap.name);
@@ -203,7 +194,7 @@ export function searchIndexVenue(venue) {
     }
   }
 
-  // Spaces — names and capacities
+  // Spaces, names and capacities
   if (venue.spaces) {
     for (const sp of venue.spaces) {
       if (sp.name) parts.push(sp.name);

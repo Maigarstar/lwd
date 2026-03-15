@@ -1,7 +1,7 @@
 // ─── src/theme/ThemeLoader.js ──────────────────────────────────────────────────
 // Bridge layer: reads the saved theme from localStorage (written by the admin
 // Style Editor) and applies CSS custom properties to document.documentElement
-// so that every page — public and admin — picks up customisations automatically.
+// so that every page, public and admin, picks up customisations automatically.
 //
 // Called once at app boot (main.jsx), before any React render.
 // ──────────────────────────────────────────────────────────────────────────────
@@ -40,7 +40,7 @@ function _load() {
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-/** Returns "dark" | "light" — respects lightOnly lock. */
+/** Returns "dark" | "light", respects lightOnly lock. */
 export function getDefaultMode() {
   const saved = _load();
   if (saved?.site?.lightOnly) return "light";
@@ -179,7 +179,9 @@ export function applyThemeToDocument() {
 
   // ── Default mode + light-only lock ─────────────────────────────────────────
   const lightOnly = site.lightOnly || false;
-  const mode = lightOnly ? "light" : (site.defaultMode || DEFAULT_SITE_SETTINGS.defaultMode);
+  // Check for user theme preference first, then fall back to admin setting
+  const userTheme = typeof localStorage !== "undefined" ? localStorage.getItem("lwd_user_theme") : null;
+  const mode = lightOnly ? "light" : (userTheme || site.defaultMode || DEFAULT_SITE_SETTINGS.defaultMode);
   root.setAttribute("data-lwd-mode", mode);
   if (lightOnly) root.setAttribute("data-lwd-light-only", "true");
   else root.removeAttribute("data-lwd-light-only");

@@ -3,11 +3,6 @@ import { useState } from "react";
 import { useShortlist } from "../shortlist/ShortlistContext";
 import Icon, { StarRating } from "./Icons";
 import CuratedIndexBadge from "../components/ui/CuratedIndexBadge";
-import CollectionBadge from "../components/editorial/CollectionBadge";
-import TierBadge from "../components/editorial/TierBadge";
-import ApprovalIndicators from "../components/editorial/ApprovalIndicators";
-import FreshnessText from "../components/editorial/FreshnessText";
-import { AURA_RECOMMENDED_COLLECTION, getQualityTier } from "../services/listings";
 
 const GOLD = "#C9A84C";
 
@@ -68,7 +63,7 @@ export default function RecommendationCard({ item, darkMode = true, onQuickView,
         marginBottom: 14,
       }}
     >
-      {/* ── Image — clicking opens Quick View ── */}
+      {/* ── Image, clicking opens Quick View ── */}
       <div
         onClick={() => onQuickView?.(item)}
         style={{
@@ -101,7 +96,7 @@ export default function RecommendationCard({ item, darkMode = true, onQuickView,
           }}
         />
 
-        {/* Online dot — top-left */}
+        {/* Online dot, top-left */}
         <div
           style={{
             position:   "absolute",
@@ -122,7 +117,7 @@ export default function RecommendationCard({ item, darkMode = true, onQuickView,
               height:       5,
               borderRadius: "50%",
               background:   item.online ? "#22c55e" : "#6b7280",
-              /* solid dot — no pulse */
+              /* solid dot, no pulse */
               flexShrink:   0,
             }}
           />
@@ -155,20 +150,6 @@ export default function RecommendationCard({ item, darkMode = true, onQuickView,
             }}
           >
             {item.tag ?? item.category}
-          </div>
-        )}
-
-        {/* Editorial Tier Badge (top-right) */}
-        {item.contentQualityScore !== undefined && (
-          <div
-            style={{
-              position:   "absolute",
-              top:        8,
-              right:      40,
-              zIndex:     5,
-            }}
-          >
-            <TierBadge tier={getQualityTier(item.contentQualityScore)} showLabel={true} size="sm" />
           </div>
         )}
 
@@ -255,17 +236,6 @@ export default function RecommendationCard({ item, darkMode = true, onQuickView,
           {item.city}, {item.region}
         </div>
 
-        {/* Editorial Indicators: Approval Status (below name/location) */}
-        {(item.editorial_approved || item.editorial_fact_checked) && (
-          <div style={{ marginBottom: 7 }}>
-            <ApprovalIndicators
-              approved={item.editorial_approved}
-              factChecked={item.editorial_fact_checked}
-              layout="horizontal"
-            />
-          </div>
-        )}
-
         {/* Rating */}
         {item.lwdScore && (
           <div style={{ marginBottom: 5 }}>
@@ -309,24 +279,6 @@ export default function RecommendationCard({ item, darkMode = true, onQuickView,
                 {f}
               </span>
             ))}
-          </div>
-        )}
-
-        {/* Aura Recommended collection badge */}
-        {item.aura_recommended && (
-          <div style={{ marginBottom: 10 }}>
-            <CollectionBadge collection={AURA_RECOMMENDED_COLLECTION} size="sm" />
-          </div>
-        )}
-
-        {/* Editorial Freshness Text (bottom of card, before footer) */}
-        {item.editorial_last_reviewed_at && (
-          <div style={{ marginBottom: 8 }}>
-            <FreshnessText
-              lastReviewedAt={item.editorial_last_reviewed_at}
-              color={T.locColor}
-              size="xs"
-            />
           </div>
         )}
 

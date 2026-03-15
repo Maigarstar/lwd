@@ -22,23 +22,22 @@ export default function DestinationGrid({ onDestinationClick }) {
       style={{
         position: "relative",
         background: C.card,
-        padding: "100px 60px 100px",
+        padding: "100px 60px",
         overflow: "hidden",
         borderTop: `1px solid ${C.border}`,
       }}
     >
-      <div style={{ maxWidth: 1320, margin: "0 auto", position: "relative" }}>
-        {/* Header row */}
-        <div
-          className="home-dest-header"
-          style={{
-            marginBottom: 48,
-            display: "flex",
-            alignItems: "flex-end",
-            justifyContent: "space-between",
-          }}
-        >
-          <div>
+      {/* Header row */}
+      <div
+        className="home-dest-header"
+        style={{
+          marginBottom: 48,
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+        }}
+      >
+        <div>
           <div
             style={{
               display: "flex",
@@ -95,7 +94,7 @@ export default function DestinationGrid({ onDestinationClick }) {
           >
             From coastal escapes to castle retreats, explore iconic venues that
             define elegance, romance, and grandeur by destination. Discover
-            trend-led destinations where style meets celebration — curated for
+            trend-led destinations where style meets celebration, curated for
             the modern couple with an eye for elegance.
           </p>
         </div>
@@ -153,20 +152,21 @@ export default function DestinationGrid({ onDestinationClick }) {
         </div>
       </div>
 
-        {/* Horizontal scroll track */}
-        <div
-          ref={scrollRef}
-          className="home-dest-scroll"
-          style={{
-            display: "flex",
-            gap: 20,
-            overflowX: "auto",
-            scrollSnapType: "x mandatory",
-            paddingBottom: 8,
-            scrollbarWidth: "none",
-            msOverflowStyle: "none",
-          }}
-        >
+      {/* Horizontal scroll track */}
+      <div
+        ref={scrollRef}
+        className="home-dest-scroll"
+        style={{
+          display: "flex",
+          gap: 20,
+          overflowX: "auto",
+          scrollSnapType: "x mandatory",
+          paddingRight: 60,
+          paddingBottom: 8,
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+        }}
+      >
         <style>{`
           .dest-scroll::-webkit-scrollbar { display: none; }
         `}</style>
@@ -175,7 +175,7 @@ export default function DestinationGrid({ onDestinationClick }) {
             key={d.name}
             role="button"
             tabIndex={0}
-            aria-label={`Explore ${d.name} — ${d.venues} venues`}
+            aria-label={`Explore ${d.name}, ${d.venues} venues`}
             onClick={() => {
               track("destination_click", { destination: d.name });
               onDestinationClick?.(d);
@@ -189,7 +189,7 @@ export default function DestinationGrid({ onDestinationClick }) {
             className="home-dest-card"
             style={{
               flexShrink: 0,
-              width: 220,
+              width: 232,
               scrollSnapAlign: "start",
               cursor: "pointer",
             }}
@@ -263,7 +263,6 @@ export default function DestinationGrid({ onDestinationClick }) {
             </div>
           </div>
         ))}
-        </div>
       </div>
     </section>
   );

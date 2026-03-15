@@ -87,7 +87,7 @@ export default function VendorMobileBar({ vendor, C, onChat }) {
             </div>
 
             {/* Embedded form */}
-            <VendorContactForm vendor={vendor} C={C} />
+            <VendorContactForm vendor={vendor} C={C} leadSource="Venue Profile" />
           </div>
         </div>
       )}

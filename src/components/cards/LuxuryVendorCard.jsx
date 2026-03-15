@@ -1,0 +1,640 @@
+// ─── src/components/cards/LuxuryVendorCard.jsx ──────────────────────────────
+// Premium vendor card with full-bleed media, image gallery controls, video support
+// Mirrors LuxuryVenueCard but adapted for vendor data structure
+
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useTheme } from "../../theme/ThemeContext";
+import { useShortlist } from "../../shortlist/ShortlistContext";
+import Stars from "../ui/Stars";
+import { GoldBadge, VerifiedBadge } from "../ui/Badges";
+import EnquiryFormModal from "../ui/EnquiryFormModal";
+import ShortlistButton from "../buttons/ShortlistButton";
+import { track } from "../../utils/track";
+import { getQualityTier } from "../../services/listings";
+import TierBadge from "../editorial/TierBadge";
+import ApprovalIndicators from "../editorial/ApprovalIndicators";
+import FreshnessText from "../editorial/FreshnessText";
+
+const GOLD = "#C9A84C";
+const GD   = "var(--font-heading-primary)";
+const NU   = "var(--font-body)";
+
+export default function LuxuryVendorCard({ v, onView, isMobile, onSave, saved, onQuickView, quickViewItem, setQuickViewItem }) {
+  const C = useTheme();
+  const { isShortlisted, toggleItem } = useShortlist();
+  const [hov, setHov] = useState(false);
+  const [slideIdx, setSlideIdx] = useState(0);
+  const [muted, setMuted] = useState(true);
+  const [showEnquiry, setShowEnquiry] = useState(false);
+  const cardRef = useRef(null);
+  const touchRef = useRef({ startX: 0, startY: 0, swiping: false });
+  const videoRefs = useRef({});
+
+  // ── Build media array: images first, video last ──
+  // v.imgs may be plain URL strings OR objects { src/url, credit_name, credit_instagram }
+  const allMedia = (() => {
+    const items = [];
+    (v.imgs || []).forEach((img) => {
+      if (typeof img === "string") {
+        items.push({ type: "image", src: img, alt_text: "", creditName: null, creditIG: null, showCredit: false });
+      } else {
+        items.push({
+          type:        "image",
+          src:         img.src || img.url || "",
+          alt_text:    img.alt_text || "",
+          creditName:  img.credit_name || null,
+          creditIG:    img.credit_instagram || null,
+          showCredit:  img.show_credit ?? false,
+        });
+      }
+    });
+    if (v.videoUrl) items.push({ type: "video", src: v.videoUrl, creditName: null, creditIG: null, showCredit: false });
+    return items.length > 0 ? items : [{ type: "image", src: "", creditName: null, creditIG: null, showCredit: false }];
+  })();
+
+  const mediaCount = allMedia.length;
+  const hasMultiple = mediaCount > 1;
+  const hasVideo = allMedia.some((m) => m.type === "video");
+
+  // ── Track visibility to pause video and close Quick View ──
+  const [isVisible, setIsVisible] = useState(false);
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        const visible = entry.isIntersecting && entry.intersectionRatio >= 0.3;
+        setIsVisible(visible);
+        // Close Quick View and reset sound when card leaves viewport
+        if (!visible) {
+          setQuickViewItem(null);
+          setMuted(true);
+        }
+      },
+      { threshold: 0.3 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    Object.entries(videoRefs.current).forEach(([idx, vid]) => {
+      if (!vid) return;
+      vid.muted = muted;
+      if (parseInt(idx) === slideIdx && isVisible) {
+        vid.currentTime = 0;
+        vid.play().catch(() => {});
+      } else {
+        vid.pause();
+      }
+    });
+  }, [slideIdx, isVisible, muted]);
+
+  // ── Navigation ──
+  const goTo = useCallback((idx) => setSlideIdx(Math.max(0, Math.min(idx, mediaCount - 1))), [mediaCount]);
+  const goNext = useCallback(() => goTo(slideIdx < mediaCount - 1 ? slideIdx + 1 : 0), [slideIdx, mediaCount, goTo]);
+  const goPrev = useCallback(() => goTo(slideIdx > 0 ? slideIdx - 1 : mediaCount - 1), [slideIdx, mediaCount, goTo]);
+
+  // ── Touch ──
+  const onTouchStart = useCallback((e) => {
+    touchRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, swiping: false, isDrag: false };
+  }, []);
+  const onTouchMove = useCallback((e) => {
+    if (!touchRef.current.startX) return;
+    const dx = Math.abs(e.touches[0].clientX - touchRef.current.startX);
+    const dy = Math.abs(e.touches[0].clientY - touchRef.current.startY);
+    if (dx > dy && dx > 10) { touchRef.current.swiping = true; e.preventDefault(); }
+  }, []);
+  const onTouchEnd = useCallback((e) => {
+    if (!touchRef.current.swiping) return;
+    const diff = touchRef.current.startX - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 40) { diff > 0 ? goNext() : goPrev(); }
+    touchRef.current = { startX: 0, startY: 0, swiping: false, isDrag: false };
+  }, [goNext, goPrev]);
+
+  // ── Mouse drag ──
+  const onMouseDown = useCallback((e) => {
+    if (e.button !== 0) return;
+    touchRef.current = { startX: e.clientX, startY: e.clientY, swiping: false, isDrag: true };
+    e.preventDefault();
+  }, []);
+  const onMouseMove = useCallback((e) => {
+    if (!touchRef.current.isDrag) return;
+    if (Math.abs(e.clientX - touchRef.current.startX) > 8) touchRef.current.swiping = true;
+  }, []);
+  const onMouseUp = useCallback((e) => {
+    if (!touchRef.current.isDrag) return;
+    const diff = touchRef.current.startX - e.clientX;
+    if (touchRef.current.swiping && Math.abs(diff) > 40) { diff > 0 ? goNext() : goPrev(); }
+    touchRef.current = { startX: 0, startY: 0, swiping: false, isDrag: false };
+  }, [goNext, goPrev]);
+  const onMouseLeaveMedia = useCallback(() => {
+    if (touchRef.current.isDrag) touchRef.current = { startX: 0, startY: 0, swiping: false, isDrag: false };
+  }, []);
+
+  const handleImageClick = useCallback((e) => {
+    e.stopPropagation();
+    if (touchRef.current.swiping) return;
+    goNext();
+  }, [goNext]);
+
+  return (
+    <article
+      ref={cardRef}
+      aria-label={v.name}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      onClick={() => onView?.(v)}
+      style={{
+        position: "relative",
+        borderRadius: isMobile ? 0 : "var(--lwd-radius-card)",
+        overflow: "hidden",
+        cursor: "pointer",
+        transition: "all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+        transform: hov && !isMobile ? "translateY(-4px)" : "translateY(0)",
+        boxShadow: hov && !isMobile ? "0 16px 48px rgba(0,0,0,0.25), 0 4px 12px rgba(201,168,76,0.08)" : "0 2px 12px rgba(0,0,0,0.1)",
+        scrollSnapAlign: "start",
+        scrollMarginTop: 0,
+        margin: isMobile ? 0 : undefined,
+        height: isMobile ? "calc(100dvh - 10px)" : 560,
+        minHeight: isMobile ? "calc(100dvh - 10px)" : 520,
+        maxHeight: isMobile ? "calc(100dvh - 10px)" : 580,
+      }}
+    >
+      {/* ── Full-bleed swipeable media ── */}
+      <div
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={onMouseUp}
+        onMouseLeave={onMouseLeaveMedia}
+        onClick={handleImageClick}
+        style={{
+          position: "absolute",
+          inset: 0,
+          overflow: "hidden",
+          background: "#0a0806",
+          cursor: hasMultiple ? "grab" : "default",
+          userSelect: "none",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            width: `${mediaCount * 100}%`,
+            height: "100%",
+            transform: `translateX(-${(slideIdx * 100) / mediaCount}%)`,
+            transition: "transform 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+            willChange: "transform",
+          }}
+        >
+          {allMedia.map((item, i) => (
+            <div key={`${item.type}-${i}`} style={{ width: `${100 / mediaCount}%`, height: "100%", flexShrink: 0, position: "relative", overflow: "hidden" }}>
+              {item.type === "image" ? (
+                <img
+                  src={item.src}
+                  alt={item.alt_text || (i === 0 ? `${v.name}` : `${v.name} photo ${i + 1}`)}
+                  loading="lazy"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    transform: hov && i === slideIdx ? "scale(1.03)" : "scale(1)",
+                    transition: "transform 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+                  }}
+                />
+              ) : (
+                <>
+                  {v.imgs?.[0] && (
+                    <img src={v.imgs[0]} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+                  )}
+                  <video
+                    ref={(el) => { videoRefs.current[i] = el; }}
+                    src={item.src}
+                    muted={muted}
+                    loop
+                    playsInline
+                    preload="metadata"
+                    style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: slideIdx === i ? 1 : 0, transition: "opacity 0.6s ease" }}
+                  />
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Cinematic gradient ── */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "linear-gradient(180deg, rgba(0,0,0,0.2) 0%, transparent 25%, transparent 35%, rgba(0,0,0,0.65) 65%, rgba(0,0,0,0.88) 100%)",
+          pointerEvents: "none",
+          zIndex: 1,
+        }}
+      />
+
+      {/* ── Image gallery navigation arrows ── */}
+      {hasMultiple && (
+        <>
+          {/* Left arrow */}
+          <button
+            onClick={(e) => { e.stopPropagation(); goPrev(); }}
+            aria-label="Previous image"
+            style={{
+              position: "absolute",
+              left: 12,
+              top: "50%",
+              transform: "translateY(-50%)",
+              zIndex: 4,
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              background: "rgba(0,0,0,0.2)",
+              backdropFilter: "blur(4px)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: "rgba(255,255,255,0.4)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.3s",
+              opacity: hov ? 1 : 0.3,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.6)"; e.currentTarget.style.color = "#fff"; e.currentTarget.style.opacity = "1"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.2)"; e.currentTarget.style.color = "rgba(255,255,255,0.4)"; e.currentTarget.style.opacity = hov ? "1" : "0.3"; }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+
+          {/* Right arrow */}
+          <button
+            onClick={(e) => { e.stopPropagation(); goNext(); }}
+            aria-label="Next image"
+            style={{
+              position: "absolute",
+              right: 12,
+              top: "50%",
+              transform: "translateY(-50%)",
+              zIndex: 4,
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              background: "rgba(0,0,0,0.2)",
+              backdropFilter: "blur(4px)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: "rgba(255,255,255,0.4)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.3s",
+              opacity: hov ? 1 : 0.3,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.6)"; e.currentTarget.style.color = "#fff"; e.currentTarget.style.opacity = "1"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.2)"; e.currentTarget.style.color = "rgba(255,255,255,0.4)"; e.currentTarget.style.opacity = hov ? "1" : "0.3"; }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+        </>
+      )}
+
+      {/* ── Top badges ── */}
+      {v.tag && (
+        <div style={{ position: "absolute", top: 12, left: 12, zIndex: 4 }}>
+          <GoldBadge text={v.tag} />
+        </div>
+      )}
+      {v.verified && (
+        <div style={{ position: "absolute", top: 12, right: 12, zIndex: 4 }}>
+          <VerifiedBadge />
+        </div>
+      )}
+
+      {/* ── Right-side overlay column: SWIPE (top:44) → HEART (top:84) ── */}
+      {/* Swipe hint, shows on hover when multiple slides */}
+      {hov && hasMultiple && (
+        <div
+          style={{
+            position: "absolute", top: v.verified ? 44 : 12, right: 12, zIndex: 4,
+            padding: "5px 10px", borderRadius: 12, background: "rgba(0,0,0,0.55)",
+            backdropFilter: "blur(4px)", color: "#fff", fontSize: 9, fontFamily: NU,
+            fontWeight: 600, letterSpacing: "0.8px", textTransform: "uppercase",
+            display: "flex", alignItems: "center", gap: 5,
+          }}
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+          Swipe
+        </div>
+      )}
+
+      {/* Heart, shows on hover or when saved */}
+      <div
+        style={{
+          position: "absolute", top: v.verified ? 84 : 52, right: 12, zIndex: 4,
+          opacity: isShortlisted(v.id) ? 1 : hov ? 1 : 0,
+          transition: "opacity 200ms ease",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <ShortlistButton
+          item={{ id: v.id, name: v.name, image: v.imgs?.[0], category: v.cat, price: v.priceFrom, type: "vendor" }}
+          isShortlisted={isShortlisted(v.id)}
+          onToggle={(itemId, newState) => {
+            track(newState ? "shortlist_add" : "shortlist_remove", { itemId, itemName: v.name });
+            toggleItem({ id: itemId, name: v.name, image: v.imgs?.[0], category: v.cat, price: v.priceFrom, type: "vendor" });
+          }}
+          variant="icon"
+          size="medium"
+          strokeColor="#ffffff"
+        />
+      </div>
+
+      {/* ── Slide bar indicators, top-centre, max 3 bars ── */}
+      {hasMultiple && (() => {
+        const barCount = Math.min(mediaCount, 3);
+        const activeBar = mediaCount <= 3
+          ? slideIdx
+          : slideIdx === 0 ? 0
+          : slideIdx === mediaCount - 1 ? 2
+          : 1;
+        return (
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute", top: 14, left: "50%", transform: "translateX(-50%)",
+              zIndex: 5, display: "flex", alignItems: "center", gap: 3,
+              padding: "5px 8px", borderRadius: 20,
+              background: "rgba(0,0,0,0.45)", backdropFilter: "blur(8px)",
+            }}
+          >
+            {Array.from({ length: barCount }, (_, i) => (
+              <button
+                key={i}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const target = mediaCount <= 3 ? i : Math.round((i / (barCount - 1)) * (mediaCount - 1));
+                  goTo(target);
+                }}
+                aria-label={`Slide group ${i + 1}`}
+                style={{
+                  width: 16, height: 2, borderRadius: 2,
+                  background: activeBar === i ? GOLD : "rgba(255,255,255,0.35)",
+                  border: "none", padding: 0, cursor: "pointer",
+                  transition: "background 0.3s ease", flexShrink: 0,
+                }}
+              />
+            ))}
+          </div>
+        );
+      })()}
+
+      {/* ── Sound toggle on video ── */}
+      {hasVideo && allMedia[slideIdx]?.type === "video" && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
+          aria-label={muted ? "Unmute" : "Mute"}
+          style={{
+            position: "absolute",
+            top: isMobile ? 56 : 48,
+            right: 12,
+            zIndex: 5,
+            width: 34,
+            height: 34,
+            borderRadius: "50%",
+            background: "rgba(0,0,0,0.5)",
+            backdropFilter: "blur(4px)",
+            border: "1px solid rgba(255,255,255,0.2)",
+            color: muted ? "rgba(255,255,255,0.5)" : "#fff",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "all 0.2s",
+          }}
+        >
+          {muted ? (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" />
+            </svg>
+          ) : (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+            </svg>
+          )}
+        </button>
+      )}
+
+      {/* ── Content overlaid at bottom ── */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 2,
+          padding: isMobile ? "20px 16px 16px" : "20px 18px 18px",
+        }}
+      >
+        {/* Photographer credit, bottom-right of image, above vendor name */}
+        {(() => {
+          const cur = allMedia[slideIdx];
+          if (!cur?.showCredit) return null;
+          const label = cur?.creditIG
+            ? `@${cur.creditIG.replace(/^@/, "")}`
+            : cur?.creditName || null;
+          return label ? (
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute", top: 10, right: 12,
+                display: "flex", alignItems: "center", gap: 3,
+                fontSize: 9, fontFamily: NU,
+                color: "rgba(255,255,255,0.48)",
+                pointerEvents: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+              <span>{label}</span>
+            </div>
+          ) : null;
+        })()}
+
+        {/* Name */}
+        <div
+          onClick={() => onView?.(v)}
+          style={{
+            fontFamily: GD,
+            fontSize: isMobile ? 22 : 20,
+            fontWeight: 500,
+            fontStyle: "italic",
+            color: "#ffffff",
+            lineHeight: 1.2,
+            marginBottom: 3,
+            textShadow: "0 1px 4px rgba(0,0,0,0.3)",
+            cursor: "pointer",
+          }}
+        >
+          {v.name}
+        </div>
+
+        {/* Location/Category */}
+        <div style={{ fontFamily: NU, fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>
+          {v.country || v.region}
+        </div>
+
+        {/* Specialties + Stars + Phase 4 Editorial Tier Badge */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+          {v.specialties?.[0] && (
+            <span
+              style={{
+                fontFamily: NU,
+                fontSize: 8,
+                fontWeight: 700,
+                letterSpacing: "1.2px",
+                textTransform: "uppercase",
+                color: GOLD,
+                background: "rgba(201,168,76,0.15)",
+                border: "1px solid rgba(201,168,76,0.3)",
+                borderRadius: 20,
+                padding: "3px 10px",
+              }}
+            >
+              {v.specialties[0]}
+            </span>
+          )}
+          {v.rating && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <Stars r={v.rating} />
+              <span style={{ fontFamily: NU, fontSize: 10, color: "rgba(255,255,255,0.6)" }}>
+                {v.rating.toFixed(1)} ({v.reviews || 0})
+              </span>
+            </div>
+          )}
+          {/* Phase 4a: Quality tier badge */}
+          {v.contentScore !== undefined && (
+            <TierBadge tier={getQualityTier(v.contentScore)} showLabel={true} size="sm" />
+          )}
+        </div>
+
+        {/* Phase 4b: Editorial approval indicators */}
+        {(v.editorialApproved || v.editorialFactChecked) && (
+          <div style={{ marginBottom: 8 }}>
+            <ApprovalIndicators
+              approved={v.editorialApproved}
+              factChecked={v.editorialFactChecked}
+              layout="horizontal"
+            />
+          </div>
+        )}
+
+        {/* Phase 4b: Freshness indicator */}
+        {v.editorialApproved && v.editorialLastReviewedAt && (
+          <div style={{ marginBottom: 8 }}>
+            <FreshnessText
+              lastReviewedAt={v.editorialLastReviewedAt}
+              color="rgba(255,255,255,0.6)"
+              fontSize={10}
+            />
+          </div>
+        )}
+
+        {/* Description */}
+        <p
+          style={{
+            fontFamily: NU,
+            fontSize: 12,
+            color: "rgba(255,255,255,0.6)",
+            lineHeight: 1.5,
+            margin: "0 0 10px",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
+          {v.desc || v.description}
+        </p>
+
+        {/* Footer: price + CTAs */}
+        <div
+          style={{
+            display: "flex", alignItems: "center",
+            paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.1)",
+          }}
+        >
+          {/* Price, natural block; marginRight:auto creates gap to buttons */}
+          {v.priceFrom && (
+            <div style={{ fontFamily: GD, fontSize: 20, fontWeight: 600, color: GOLD, lineHeight: 1, flexShrink: 0, marginRight: "auto" }}>
+              <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 400, color: "rgba(255,255,255,0.45)", marginRight: 4, letterSpacing: "0.3px" }}>From</span>
+              {v.priceFrom}
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); setQuickViewItem(v); onQuickView?.(); }}
+              style={{
+                fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
+                textTransform: "uppercase", color: GOLD,
+                background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.3)",
+                borderRadius: "var(--lwd-radius-input)", padding: "8px 10px",
+                cursor: "pointer", transition: "all 0.25s", whiteSpace: "nowrap",
+              }}
+            >
+              QV
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowEnquiry(true); }}
+              style={{
+                fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
+                textTransform: "uppercase", color: "#0f0d0a",
+                background: `linear-gradient(135deg, ${GOLD}, #e8c97a)`,
+                border: "1px solid transparent", borderRadius: "var(--lwd-radius-input)",
+                padding: "8px 12px", cursor: "pointer", transition: "opacity 0.25s", whiteSpace: "nowrap",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+            >
+              Enquire
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onView?.(v); }}
+              style={{
+                fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
+                textTransform: "uppercase", color: GOLD,
+                background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.3)",
+                borderRadius: "var(--lwd-radius-input)", padding: "8px 10px",
+                cursor: "pointer", transition: "all 0.25s", whiteSpace: "nowrap",
+              }}
+            >
+              Profile ›
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Enquiry modal ── */}
+      {showEnquiry && (
+        <EnquiryFormModal vendor={v} onClose={() => setShowEnquiry(false)} />
+      )}
+    </article>
+  );
+}

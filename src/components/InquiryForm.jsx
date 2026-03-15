@@ -6,10 +6,6 @@
 
 import { useState } from "react";
 import { saveInquiry } from "../services/inquiryService";
-import {
-  sendInquiryNotificationToVendor,
-  sendInquiryReceivedToCouple,
-} from "../utils/emailService";
 
 const InquiryForm = ({ vendorName, vendorId, onSuccess, onClose }) => {
   const [formData, setFormData] = useState({
@@ -69,24 +65,6 @@ const InquiryForm = ({ vendorName, vendorId, onSuccess, onClose }) => {
       });
 
       if (error) throw error;
-
-      // Send emails (non-blocking - don't wait for SendGrid response)
-      // These will fail gracefully if SendGrid is not configured
-      sendInquiryNotificationToVendor(vendorEmail, vendorName, {
-        coupleName: formData.coupleName,
-        coupleEmail: formData.coupleEmail,
-        couplePhone: formData.couplePhone,
-        weddingDate: formData.weddingDate,
-        guestCount: formData.guestCount,
-        budget: formData.budget,
-        message: formData.message,
-      }).catch((err) => console.error("Failed to send vendor email:", err));
-
-      sendInquiryReceivedToCouple(
-        formData.coupleEmail,
-        formData.coupleName,
-        vendorName
-      ).catch((err) => console.error("Failed to send couple confirmation:", err));
 
       setStatus("success");
       if (onSuccess) onSuccess(data);

@@ -57,7 +57,7 @@ function WeddingCard({ wedding }) {
 
       {/* Content */}
       <div style={{ padding: "14px 16px 16px" }}>
-        {/* Title — italic serif */}
+        {/* Title, italic serif */}
         <div
           style={{
             fontFamily: GD,

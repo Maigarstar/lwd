@@ -39,7 +39,7 @@ function shuffleArray(arr) {
   return a;
 }
 
-// ── Featured Reel Card — matches GridCard design exactly ────────────────────
+// ── Featured Reel Card, matches GridCard design exactly ────────────────────
 function FeaturedReelCard({ v, isMobile, onView }) {
   const [hov, setHov]             = useState(false);
   const [showEnquiry, setShowEnquiry] = useState(false);
@@ -324,7 +324,7 @@ function FeaturedReelCard({ v, isMobile, onView }) {
         {/* Social + contact icons */}
         <SocialRow socials={v.socials} color="rgba(255,255,255,0.5)" phone={v.phone} whatsapp={v.whatsapp} email={v.email} darkMode />
 
-        {/* Description — 2-line clamp */}
+        {/* Description, 2-line clamp */}
         <p
           style={{
             fontFamily:      NU,
@@ -393,7 +393,7 @@ export default function FeaturedPlannersCarousel({ featured, isMobile, onView })
   // Shuffle once on mount, pick first 3
   const displayPlanners = useMemo(
     () => shuffleArray(featured).slice(0, 3),
-    [] // intentionally empty — shuffle once per mount
+    [] // intentionally empty, shuffle once per mount
   );
 
   return (

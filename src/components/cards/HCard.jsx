@@ -4,12 +4,12 @@ import { useTheme } from "../../theme/ThemeContext";
 import Stars from "../ui/Stars";
 import Pill from "../ui/Pill";
 import { GoldBadge, VerifiedBadge } from "../ui/Badges";
-import TierBadge from "../editorial/TierBadge";
-import ApprovalIndicators from "../editorial/ApprovalIndicators";
-import FreshnessText from "../editorial/FreshnessText";
 import CuratedIndexBadge from "../ui/CuratedIndexBadge";
 import LoginGateModal from "../modals/LoginGateModal";
 import { getQualityTier } from "../../services/listings";
+import TierBadge from "../editorial/TierBadge";
+import ApprovalIndicators from "../editorial/ApprovalIndicators";
+import FreshnessText from "../editorial/FreshnessText";
 
 export default function HCard({ v, saved, onSave, onView, onQuickView }) {
   const C = useTheme();
@@ -57,7 +57,7 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
           boxShadow:  hov ? "0 12px 40px rgba(0,0,0,0.12)" : "none",
         }}
       >
-        {/* ── Image panel — 40% flex, max 500px ── */}
+        {/* ── Image panel, 40% flex, max 500px ── */}
         <div
           className="lwd-hcard-image"
           style={{
@@ -180,7 +180,7 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
             minWidth: 0,
           }}
         >
-          {/* Badges row (tag + verified + tier + featured + online status) */}
+          {/* Badges row (tag + verified + featured + online status) */}
           <div
             style={{
               display: "flex",
@@ -192,9 +192,6 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
           >
             {v.tag && <GoldBadge text={v.tag} />}
             {v.verified && <VerifiedBadge />}
-            {v.contentQualityScore !== undefined && (
-              <TierBadge tier={getQualityTier(v.contentQualityScore)} showLabel={true} size="sm" />
-            )}
             {v.lwdScore && <CuratedIndexBadge score={v.lwdScore} />}
             {v.featured && (
               <span
@@ -211,7 +208,7 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
               </span>
             )}
 
-            {/* Online indicator — pushed right */}
+            {/* Online indicator, pushed right */}
             <div
               style={{
                 display:    "flex",
@@ -246,6 +243,19 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
           </div>
 
           {/* Name */}
+          {v.showcaseUrl && (
+            <a href={v.showcaseUrl} onClick={(e) => e.stopPropagation()} style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              marginBottom: 14, marginTop: -4,
+              padding: "3px 9px", borderRadius: 20,
+              background: "rgba(255,255,255,0.12)", backdropFilter: "blur(6px)",
+              border: "1px solid rgba(255,255,255,0.25)",
+              textDecoration: "none",
+            }}>
+              <span style={{ color: "#fff", fontSize: 7, lineHeight: 1 }}>✦</span>
+              <span style={{ fontFamily: "var(--font-body)", fontSize: 8, fontWeight: 700, letterSpacing: "1.2px", textTransform: "uppercase", color: "#fff" }}>A Showcase Property</span>
+            </a>
+          )}
           <h3
             style={{
               fontFamily: "var(--font-heading-primary)",
@@ -276,15 +286,41 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
             {v.city}, {v.region} · Italy
           </div>
 
-          {/* Stars + reviews */}
+          {/* Stars + reviews + Phase 4 Editorial Tier Badge */}
           <div
-            style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}
+            style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}
             aria-label={`Rating: ${v.rating} out of 5, ${v.reviews} reviews`}
           >
             <Stars r={v.rating} />
             <span style={{ fontSize: 12, color: C.gold, fontWeight: 700 }}>{v.rating}</span>
             <span style={{ fontSize: 11, color: C.grey }}>({v.reviews} reviews)</span>
+            {/* Phase 4a: Quality tier badge */}
+            {v.contentScore !== undefined && (
+              <TierBadge tier={getQualityTier(v.contentScore)} showLabel={true} size="sm" />
+            )}
           </div>
+
+          {/* Phase 4b: Editorial approval indicators */}
+          {(v.editorialApproved || v.editorialFactChecked) && (
+            <div style={{ marginBottom: 8 }}>
+              <ApprovalIndicators
+                approved={v.editorialApproved}
+                factChecked={v.editorialFactChecked}
+                layout="horizontal"
+              />
+            </div>
+          )}
+
+          {/* Phase 4b: Freshness indicator */}
+          {v.editorialApproved && v.editorialLastReviewedAt && (
+            <div style={{ marginBottom: 8 }}>
+              <FreshnessText
+                lastReviewedAt={v.editorialLastReviewedAt}
+                color={C.grey}
+                fontSize={11}
+              />
+            </div>
+          )}
 
           {/* Description */}
           <p
@@ -333,26 +369,6 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
               </span>
             ))}
           </div>
-
-          {/* Editorial Indicators */}
-          {(v.editorial_approved || v.editorial_fact_checked) && (
-            <div style={{ marginBottom: 14, paddingBottom: 14, borderBottom: `1px solid ${C.border}` }}>
-              <ApprovalIndicators
-                approved={v.editorial_approved}
-                factChecked={v.editorial_fact_checked}
-                layout="horizontal"
-              />
-              {v.editorial_approved && v.editorial_last_reviewed_at && (
-                <div style={{ marginTop: 6 }}>
-                  <FreshnessText
-                    lastReviewedAt={v.editorial_last_reviewed_at}
-                    color={C.grey}
-                    size="xs"
-                  />
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Footer: capacity + price + CTAs */}
           <div
@@ -414,7 +430,7 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
 
             {/* Action buttons */}
             <div className="lwd-hcard-btns" style={{ display: "flex", gap: 8 }}>
-              {/* View Venue — primary */}
+              {/* View Venue, primary */}
               <button
                 onClick={() => onView(v)}
                 onMouseEnter={() => setHovView(true)}
@@ -438,7 +454,7 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
                 View Venue
               </button>
 
-              {/* Quick View — secondary */}
+              {/* Quick View, secondary */}
               <button
                 onClick={() => onQuickView?.(v)}
                 onMouseEnter={() => setHovQV(true)}
@@ -461,7 +477,7 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
                 Quick View
               </button>
 
-              {/* Chat — online-aware */}
+              {/* Chat, online-aware */}
               <button
                 onClick={() => setLoginGate(true)}
                 onMouseEnter={() => setHovChat(true)}

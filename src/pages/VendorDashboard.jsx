@@ -8,7 +8,12 @@ import { MField, Btn } from "../components/ui/FormHelpers";
 import { GLOBAL_VENDORS } from "../data/globalVendors";
 import CuratedIndexBadge from "../components/ui/CuratedIndexBadge";
 import { computeCuratedIndex, FACTOR_LABELS } from "../engine/index.js";
-import VendorInquiryManager from "../components/VendorInquiryManager.jsx";
+import FooterForVendors from "../components/sections/FooterForVendors";
+import { getVendorMetrics, subscribeToVendorMetrics, getVendorEnquiries } from "../services/vendorMetricsService";
+import VendorLeadInbox from "../components/VendorLeadInbox";
+import { useVendorAuth } from "../context/VendorAuthContext";
+import { exitAdminPreview } from "../context/AdminPreviewContext";
+import { getMySubmission, upsertSubmission } from "../services/artistryService";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -237,7 +242,7 @@ function LeadRow({ lead, expanded }) {
   );
 }
 
-// ── Notification chime (Web Audio API — no external files) ──────────────────
+// ── Notification chime (Web Audio API, no external files) ──────────────────
 function playChime() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -261,8 +266,8 @@ function playChime() {
 
 // ── Simulated incoming chat requests ────────────────────────────────────────
 const INCOMING_CHATS = [
-  { id: 1, name: "Sophie & James",  page: "Your Venue Profile",         msg: "Hi! We love your venue — is June 2026 available?", guests: "80–150" },
-  { id: 2, name: "Aisha & Tom",     page: "Lake Como — Venues",         msg: "We're comparing a few venues. Can you tell us about packages?", guests: "30–80" },
+  { id: 1, name: "Sophie & James",  page: "Your Venue Profile",         msg: "Hi! We love your venue, is June 2026 available?", guests: "80–150" },
+  { id: 2, name: "Aisha & Tom",     page: "Lake Como, Venues",         msg: "We're comparing a few venues. Can you tell us about packages?", guests: "30–80" },
   { id: 3, name: "Elena & Marco",   page: "Your Photo Gallery",         msg: "The ballroom looks stunning! Do you offer winter weddings?", guests: "30–80" },
   { id: 4, name: "Priya & Daniel",  page: "Wedding Venue Search",       msg: "We need space for 200+ guests. Is that possible?", guests: "150–300" },
   { id: 5, name: "Charlotte & Will", page: "Your Catering Menu",        msg: "Do you accommodate fully vegan menus?", guests: "150–300" },
@@ -371,15 +376,67 @@ function ChatNotification({ notification, C, onAccept, onDismiss, isMobile }) {
 }
 
 // ── Main dashboard ───────────────────────────────────────────────────────────
-export default function VendorDashboard({ onBack }) {
-  const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
-  const C = darkMode ? getDarkPalette() : getLightPalette();
-  const vendor = GLOBAL_VENDORS[0];
+export default function VendorDashboard({ onBack, onVendorLogin }) {
+  const { vendor: _contextVendor, isAuthenticated, loading, logout } = useVendorAuth();
+
+  // ── Admin Preview Mode ─────────────────────────────────────────────────────
+  // Synchronous sessionStorage read, no async, no Supabase race conditions.
+  // The admin sidebar sets "lwd_admin_preview" before navigating here.
+  // To remove later: delete this block + the exitAdminPreview import above.
+  const _adminPreviewData = (() => {
+    try { return JSON.parse(sessionStorage.getItem("lwd_admin_preview") || "null"); } catch { return null; }
+  })();
+  const isAdminPreview = _adminPreviewData?.type === "vendor";
+  // If in preview mode, use a mock vendor object; otherwise use the real context vendor.
+  const vendor = isAdminPreview
+    ? { id: _adminPreviewData.id || "vdr-13", name: _adminPreviewData.name || "The Grand Pavilion", email: _adminPreviewData.email || "contact@grandpavilion.com", isAdminPreview: true }
+    : _contextVendor;
+  // ─────────────────────────────────────────────────────────────────────────
+  const [currentTheme, setCurrentTheme] = useState(
+    document.documentElement.getAttribute("data-lwd-mode") || "light"
+  );
+  const C = currentTheme === "dark" ? getDarkPalette() : getLightPalette();
+
+  // ── All useState/useRef calls MUST be before any conditional returns ──────
   const [dashTab, setDashTab] = useState("overview");
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isTablet, setIsTablet] = useState(window.innerWidth < 1024);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // Real-time metrics from Supabase
+  const [metrics, setMetrics] = useState(null);
+  const [metricsLoading, setMetricsLoading] = useState(true);
+  const [enquiries, setEnquiries] = useState([]);
+  const unsubscribeRef = useRef(null);
+
+  // ── Authentication Guard ──────────────────────────────────────────────────
+  // Admin preview bypasses all auth checks (vendor comes from sessionStorage above).
+  if (!isAdminPreview) {
+    if (loading) {
+      return (
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.bg }}>
+          <p style={{ fontFamily: "var(--font-body)", fontSize: 14, color: C.grey }}>Loading...</p>
+        </div>
+      );
+    }
+    if (!isAuthenticated || !vendor) {
+      window.location.href = "/vendor/login";
+      return null;
+    }
+  }
+
+  // Track theme changes
+  useEffect(() => {
+    const handleThemeChange = () => {
+      const mode = document.documentElement.getAttribute("data-lwd-mode") || "light";
+      setCurrentTheme(mode);
+    };
+    const observer = new MutationObserver(handleThemeChange);
+    observer.observe(document.documentElement, { attributes: true });
+    return () => observer.disconnect();
+  }, []);
+
+  // Track window resize
   useEffect(() => {
     const onResize = () => {
       setIsMobile(window.innerWidth < 768);
@@ -388,6 +445,52 @@ export default function VendorDashboard({ onBack }) {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  // Load real metrics from Supabase and subscribe to changes
+  useEffect(() => {
+    const loadData = async () => {
+      // Safety check: ensure vendor exists
+      if (!vendor?.id) {
+        console.error("Vendor ID not found");
+        setMetricsLoading(false);
+        return;
+      }
+
+      setMetricsLoading(true);
+
+      // Load metrics
+      const metricsResult = await getVendorMetrics(vendor.id);
+      if (metricsResult.error) {
+        console.error("Error loading vendor metrics:", metricsResult.error);
+        setMetrics(null);
+      } else {
+        setMetrics(metricsResult.data);
+      }
+
+      // Load enquiries
+      const enquiriesResult = await getVendorEnquiries(vendor.id, 5);
+      if (!enquiriesResult.error) {
+        setEnquiries(enquiriesResult.data);
+      }
+
+      setMetricsLoading(false);
+    };
+
+    loadData();
+
+    // Subscribe to real-time updates
+    const unsubscribe = subscribeToVendorMetrics(vendor.id, (updatedMetrics) => {
+      setMetrics(updatedMetrics);
+    });
+
+    unsubscribeRef.current = unsubscribe;
+
+    return () => {
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+      }
+    };
+  }, [vendor.id]);
 
   const [aiBio, setAiBio] = useState("");
   const [genBio, setGenBio] = useState(false);
@@ -434,7 +537,7 @@ export default function VendorDashboard({ onBack }) {
   const [takenOverChats, setTakenOverChats] = useState(new Set()); // AI handles by default; vendor takes over on request
   const [engagementTooltip, setEngagementTooltip] = useState(false);
 
-  // Chat sources — where each enquiry came from
+  // Chat sources, where each enquiry came from
   const CHAT_SOURCES = {
     "Sophie & James": { source: "Venue Listing", icon: "⊙" },
     "Aisha & Tom": { source: "Contact Form", icon: "✉" },
@@ -444,26 +547,26 @@ export default function VendorDashboard({ onBack }) {
 
   const AURA_COACHING = {
     "Sophie & James": {
-      strategies: ["Confirm June 2026 availability quickly — scarcity creates urgency", "Offer a private virtual walkthrough of the Walled Garden", "Send personalised mood board based on garden ceremony preference"],
-      reasoning: "High-intent couple with specific date and guest count — fast, personalised response converts at 3.2× rate",
+      strategies: ["Confirm June 2026 availability quickly, scarcity creates urgency", "Offer a private virtual walkthrough of the Walled Garden", "Send personalised mood board based on garden ceremony preference"],
+      reasoning: "High-intent couple with specific date and guest count, fast, personalised response converts at 3.2× rate",
     },
     "Aisha & Tom": {
-      strategies: ["Lead with social proof — share recent 5-star reviews", "Offer a downloadable brochure with package pricing"],
-      reasoning: "Comparison stage — they need differentiation, not pressure. Build trust with transparency.",
+      strategies: ["Lead with social proof, share recent 5-star reviews", "Offer a downloadable brochure with package pricing"],
+      reasoning: "Comparison stage, they need differentiation, not pressure. Build trust with transparency.",
     },
     "Elena & Marco": {
       strategies: ["Send a follow-up with exclusive availability hold offer", "Share a short video tour from a recent wedding", "Suggest a no-obligation callback at their convenience"],
-      reasoning: "Warm but not committed — re-engage with value, not sales pressure. Follow-up within 24h converts 68% of warm leads.",
+      reasoning: "Warm but not committed, re-engage with value, not sales pressure. Follow-up within 24h converts 68% of warm leads.",
     },
     "Mark & Lisa": {
       strategies: ["Provide clear payment plan breakdown with deposit options", "Highlight flexible cancellation policy to reduce friction", "Offer to schedule a call with the events coordinator"],
-      reasoning: "High budget, high intent — financial clarity removes the last barrier. Payment flexibility increases conversion by 41%.",
+      reasoning: "High budget, high intent, financial clarity removes the last barrier. Payment flexibility increases conversion by 41%.",
     },
   };
 
   const CHAT_THREADS = {
     "Sophie & James": [
-      { from: "couple", text: "Hi! We love your venue — is June 2026 available?", time: "2:14 PM" },
+      { from: "couple", text: "Hi! We love your venue, is June 2026 available?", time: "2:14 PM" },
       { from: "couple", text: "We're planning for around 120 guests, garden ceremony ideally.", time: "2:14 PM" },
       { from: "aura", text: "Thank you for your enquiry, Sophie & James! June 2026 has limited availability at The Grand Pavilion. For 120 guests with a garden ceremony, we'd recommend our Walled Garden setting. A member of the team will be with you shortly to discuss your vision in detail.", time: "2:14 PM" },
     ],
@@ -521,15 +624,15 @@ export default function VendorDashboard({ onBack }) {
 
   const EMAIL_TEMPLATES = [
     { id: "custom", label: "Custom Email", subject: "", body: "" },
-    { id: "thankyou", label: "Thank You for Your Enquiry", subject: "Thank you for your enquiry — The Grand Pavilion",
+    { id: "thankyou", label: "Thank You for Your Enquiry", subject: "Thank you for your enquiry, The Grand Pavilion",
       body: "Dear {name},\n\nThank you so much for reaching out to The Grand Pavilion. We're delighted that you're considering us for your special day.\n\nWe'd love to learn more about your vision and discuss how we can make it a reality. Would you be available for a call or a venue visit this week?\n\nWarm regards,\nThe Grand Pavilion Team" },
-    { id: "availability", label: "Availability Confirmation", subject: "Your date availability — The Grand Pavilion",
-      body: "Dear {name},\n\nGreat news — we have availability on your requested date.\n\nI'd love to schedule a showround so you can experience the venue in person. We have slots available this week and next.\n\nShall I reserve a time for you?\n\nWarm regards,\nThe Grand Pavilion Team" },
-    { id: "pricing", label: "Pricing & Packages", subject: "Your bespoke wedding package — The Grand Pavilion",
+    { id: "availability", label: "Availability Confirmation", subject: "Your date availability, The Grand Pavilion",
+      body: "Dear {name},\n\nGreat news, we have availability on your requested date.\n\nI'd love to schedule a showround so you can experience the venue in person. We have slots available this week and next.\n\nShall I reserve a time for you?\n\nWarm regards,\nThe Grand Pavilion Team" },
+    { id: "pricing", label: "Pricing & Packages", subject: "Your bespoke wedding package, The Grand Pavilion",
       body: "Dear {name},\n\nThank you for your interest in our wedding packages. I've attached our brochure with full pricing details.\n\nOur packages start from £12,500 and include exclusive venue hire, catering for up to 300 guests, a dedicated wedding coordinator, and complimentary bridal suite.\n\nI'd be happy to put together a bespoke quote tailored to your vision. Would you like to discuss further?\n\nWarm regards,\nThe Grand Pavilion Team" },
-    { id: "followup", label: "Post-Showround Follow Up", subject: "Lovely to meet you — The Grand Pavilion",
+    { id: "followup", label: "Post-Showround Follow Up", subject: "Lovely to meet you, The Grand Pavilion",
       body: "Dear {name},\n\nIt was an absolute pleasure showing you around The Grand Pavilion today. I hope you could feel the magic of the space.\n\nAs discussed, I've reserved your preferred date provisionally for 14 days. To confirm, we'd need a £2,500 deposit.\n\nPlease don't hesitate to reach out with any questions. We'd be honoured to host your celebration.\n\nWarm regards,\nThe Grand Pavilion Team" },
-    { id: "review", label: "Review Request", subject: "How was your experience? — The Grand Pavilion",
+    { id: "review", label: "Review Request", subject: "How was your experience?, The Grand Pavilion",
       body: "Dear {name},\n\nCongratulations once again on your beautiful wedding! It was a privilege to be part of your special day.\n\nWe'd be incredibly grateful if you could spare a moment to share your experience. Your feedback helps other couples discover their perfect venue.\n\nYou can leave a review here: [Review Link]\n\nWith warmest wishes,\nThe Grand Pavilion Team" },
   ];
 
@@ -588,7 +691,7 @@ export default function VendorDashboard({ onBack }) {
     setChatMessages(prev => ({
       ...prev,
       [chatName]: [...(prev[chatName] || CHAT_THREADS[chatName] || []),
-        { from: "vendor", text: `Thanks for reaching out! We're currently helping another couple — we'll be with you in approximately ${waitMins} minutes. ✦`, time, auto: true }
+        { from: "vendor", text: `Thanks for reaching out! We're currently helping another couple, we'll be with you in approximately ${waitMins} minutes. ✦`, time, auto: true }
       ],
     }));
   }, []);
@@ -663,12 +766,23 @@ export default function VendorDashboard({ onBack }) {
     transition: "border-color 0.2s",
   };
 
-  const leads = [
+  // Use real enquiries from Supabase if available, otherwise use mock data
+  const leads = enquiries.length > 0 ? enquiries.map(e => ({
+    id: e.id,
+    name: e.couple_name || "Unknown Couple",
+    email: e.couple_email || "no-email@example.com",
+    date: e.event_date || "TBA",
+    guests: e.guest_count || "TBA",
+    budget: e.budget || "TBA",
+    msg: e.message || "No message provided",
+    status: e.status || "new",
+    time: e.created_at ? new Date(e.created_at).toLocaleDateString() : "Recently",
+  })) : [
     { id: 1, name: "Sophie & James", email: "sophie@email.com", date: "12 Jun 2025", guests: "80–150", budget: "£25–50k", msg: "We love your venue and would love to discuss availability for June 2025...", status: "new", time: "2 hrs ago" },
     { id: 2, name: "Priya & Daniel", email: "priya@email.com", date: "18 Sep 2025", guests: "150–300", budget: "£50–100k", msg: "We're planning a large Asian fusion celebration and your ballroom looks perfect...", status: "replied", time: "1 day ago" },
     { id: 3, name: "Elena & Marco", email: "elena@email.com", date: "3 Mar 2026", guests: "30–80", budget: "£10–25k", msg: "Looking for an intimate winter wedding venue in London...", status: "new", time: "3 hrs ago" },
     { id: 4, name: "Charlotte & Will", email: "charlotte@email.com", date: "21 Aug 2025", guests: "150–300", budget: "£50–100k", msg: "We saw your venue on Vogue Weddings and have been dreaming about it ever since...", status: "booked", time: "5 days ago" },
-    { id: 5, name: "Aisha & Tom", email: "aisha@email.com", date: "14 Feb 2026", guests: "30–80", budget: "£25–50k", msg: "Valentine's Day wedding — is this something you'd consider?", status: "new", time: "6 hrs ago" },
+    { id: 5, name: "Aisha & Tom", email: "aisha@email.com", date: "14 Feb 2026", guests: "30–80", budget: "£25–50k", msg: "Valentine's Day wedding, is this something you'd consider?", status: "new", time: "6 hrs ago" },
   ];
 
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -678,7 +792,7 @@ export default function VendorDashboard({ onBack }) {
   const handleGenBio = () => {
     setGenBio(true);
     setAiBio("");
-    const text = `The Grand Pavilion stands as London's most iconic wedding venue — a breathtaking Victorian ballroom where crystal chandeliers cast a golden glow across hand-carved marble floors. Exclusively yours for your wedding day, this legendary space accommodates up to 320 seated guests or 500 for a standing celebration.\n\nOur award-winning in-house culinary team craft bespoke menus for every couple, while our dedicated wedding concierge ensures every detail is flawlessly executed. With 60 luxurious guest bedrooms and an exquisite bridal suite, your entire wedding party can celebrate and stay in one magnificent location.\n\nWinner of the Hitched 2025 Award and featured in Vogue Weddings, The Grand Pavilion is where London's most extraordinary love stories begin.`;
+    const text = `The Grand Pavilion stands as London's most iconic wedding venue, a breathtaking Victorian ballroom where crystal chandeliers cast a golden glow across hand-carved marble floors. Exclusively yours for your wedding day, this legendary space accommodates up to 320 seated guests or 500 for a standing celebration.\n\nOur award-winning in-house culinary team craft bespoke menus for every couple, while our dedicated wedding concierge ensures every detail is flawlessly executed. With 60 luxurious guest bedrooms and an exquisite bridal suite, your entire wedding party can celebrate and stay in one magnificent location.\n\nWinner of the Hitched 2025 Award and featured in Vogue Weddings, The Grand Pavilion is where London's most extraordinary love stories begin.`;
     let i = 0;
     const interval = setInterval(() => {
       i += 2;
@@ -701,16 +815,17 @@ export default function VendorDashboard({ onBack }) {
         borderBottom: 0,
         borderLeft: dashTab === id ? `2px solid ${C.gold}` : "2px solid transparent",
         color: dashTab === id ? C.gold : C.grey,
-        padding: "12px 20px",
+        padding: sidebarOpen ? "12px 20px" : "12px 14px",
         fontSize: 13,
         fontWeight: dashTab === id ? 700 : 400,
         cursor: "pointer",
         fontFamily: NU,
         textAlign: "left",
         transition: "all 0.2s",
+        justifyContent: sidebarOpen ? "flex-start" : "center",
       }}
     >
-      {icon} {label}
+      {icon} {sidebarOpen && label}
     </button>
   );
 
@@ -724,8 +839,88 @@ export default function VendorDashboard({ onBack }) {
     </div>
   );
 
+  // Check authentication status
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5f5f5" }}>
+        <p style={{ fontFamily: NU, fontSize: 13, color: "#666" }}>Loading...</p>
+      </div>
+    );
+  }
+
+  // Dev mode: Allow access without authentication
+  // TODO: Re-enable authentication check in production
+
   return (
     <ThemeCtx.Provider value={C}>
+
+    {/* ── Admin Access Mode Banner ──────────────────────────────────────────── */}
+    {/* Shown only when admin is accessing this vendor dashboard directly.       */}
+    {/* Click "Return to Admin" to exit and go back to /admin.                  */}
+    {vendor?.isAdminPreview && (
+      <div style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 99999,
+        background: "linear-gradient(90deg, #1a0a00, #2a1200)",
+        borderBottom: "2px solid #c9a84c",
+        padding: "8px 20px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+        fontFamily: "var(--font-body)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{
+            fontSize: 8,
+            fontWeight: 700,
+            letterSpacing: "2px",
+            textTransform: "uppercase",
+            background: "#c9a84c",
+            color: "#0f0d0a",
+            padding: "3px 8px",
+            borderRadius: 2,
+          }}>
+            Admin Access Mode
+          </span>
+          <span style={{ fontSize: 12, color: "#c9a84c", fontWeight: 500 }}>
+            Viewing as vendor: <strong>{vendor?.name || vendor?.id}</strong>
+          </span>
+          <span style={{ fontSize: 11, color: "rgba(201,168,76,0.5)" }}>
+           , changes here are real
+          </span>
+        </div>
+        <button
+          onClick={exitAdminPreview}
+          style={{
+            background: "none",
+            border: "1px solid rgba(201,168,76,0.5)",
+            borderRadius: 3,
+            color: "#c9a84c",
+            fontSize: 10,
+            fontFamily: "var(--font-body)",
+            fontWeight: 600,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            padding: "5px 14px",
+            cursor: "pointer",
+            transition: "all 0.2s",
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.15)"; e.currentTarget.style.borderColor = "#c9a84c"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.borderColor = "rgba(201,168,76,0.5)"; }}
+        >
+          ← Return to Admin
+        </button>
+      </div>
+    )}
+    {/* Spacer so content doesn't sit under the fixed banner */}
+    {vendor?.isAdminPreview && <div style={{ height: 42 }} />}
+    {/* ── End Admin Access Mode Banner ─────────────────────────────────────── */}
+
     {/* Notification slide-in animation */}
     <style>{`
       @keyframes chatNotifSlideIn {
@@ -906,7 +1101,7 @@ export default function VendorDashboard({ onBack }) {
       </div>
     )}
 
-    <div style={{ minHeight: "100vh", background: C.black, display: "flex", flexDirection: "column" }}>
+    <div style={{ height: "100vh", background: C.dark, display: "flex", flexDirection: "column" }}>
       {/* Dashboard nav */}
       <div
         style={{
@@ -951,9 +1146,16 @@ export default function VendorDashboard({ onBack }) {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12 }}>
           <button
-            onClick={() => setDarkMode((d) => !d)}
+            onClick={() => {
+              const root = document.documentElement;
+              const currentMode = root.getAttribute("data-lwd-mode") || "light";
+              const newMode = currentMode === "dark" ? "light" : "dark";
+              root.setAttribute("data-lwd-mode", newMode);
+              localStorage.setItem("lwd_user_theme", newMode);
+              setTimeout(() => { window.location.reload(); }, 50);
+            }}
             style={{
-              background: darkMode ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+              background: currentTheme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
               border: `1px solid ${C.border2}`,
               borderRadius: "var(--lwd-radius-input)",
               color: C.gold,
@@ -966,9 +1168,9 @@ export default function VendorDashboard({ onBack }) {
               fontSize: 14,
               transition: "all 0.25s ease",
             }}
-            title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+            title={currentTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
           >
-            {darkMode ? "\u2600" : "\u263E"}
+            {currentTheme === "dark" ? "\u2600" : "\u263E"}
           </button>
           <div
             style={{
@@ -997,39 +1199,101 @@ export default function VendorDashboard({ onBack }) {
           >
             GP
           </div>
+          {/* Logout Button */}
+          <button
+            onClick={async () => {
+              await logout();
+              // Redirect to login using custom router history
+              if (onVendorLogin) {
+                onVendorLogin();
+              } else {
+                window.history.pushState(null, "", "/vendor/login");
+                window.location.href = "/vendor/login";
+              }
+            }}
+            style={{
+              background: "rgba(220,38,38,0.1)",
+              border: `1px solid ${C.border2}`,
+              borderRadius: "var(--lwd-radius-input)",
+              color: "#dc2626",
+              padding: "6px 12px",
+              fontFamily: NU,
+              fontSize: 11,
+              fontWeight: 600,
+              textTransform: "uppercase",
+              cursor: "pointer",
+              transition: "all 0.25s ease",
+            }}
+            title="Logout"
+          >
+            Logout
+          </button>
         </div>
       </div>
 
-      <div style={{ display: "flex", flex: 1 }}>
+      <div style={{ display: "flex", flex: 1, alignItems: "stretch", overflow: "auto" }}>
         {/* Mobile overlay */}
         {isMobile && sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 7999 }} />}
         {/* Sidebar */}
         <div style={{
           ...(isMobile ? {
-            position: "fixed", top: 0, left: 0, bottom: 0, width: 260, zIndex: 8000,
+            position: "fixed", top: 0, left: 0, bottom: 0, width: 280, zIndex: 8000,
             transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
             transition: "transform 0.3s cubic-bezier(0.16,1,0.3,1)",
           } : {
-            width: isTablet ? 180 : 220,
+            width: sidebarOpen ? 280 : 70,
             flexShrink: 0,
+            transition: "width 0.3s cubic-bezier(0.16,1,0.3,1)",
+            display: "flex",
+            flexDirection: "column",
           }),
           background: C.dark, borderRight: `1px solid ${C.border}`, paddingTop: 24,
+          boxShadow: "2px 0 8px rgba(0,0,0,0.3)",
+          overflow: "hidden",
         }}>
-          {isMobile && <button onClick={() => setSidebarOpen(false)} style={{ position: "absolute", top: 12, right: 12, background: "none", border: "none", color: C.grey, fontSize: 18, cursor: "pointer" }}>✕</button>}
-          <div style={{ padding: "0 20px 20px", borderBottom: `1px solid ${C.border}` }}>
-            <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 4 }}>
-              Your Listing
-            </div>
-            <div style={{ fontFamily: NU, fontSize: 14, color: C.white, fontWeight: 600 }}>{vendor.name}</div>
-            <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-              <Badge text="Featured" />
-              <Badge text="Verified" color={C.green} bg="rgba(34,197,94,0.08)" border="rgba(34,197,94,0.2)" />
-            </div>
+          {/* Close button on mobile only */}
+          {isMobile && <button onClick={() => setSidebarOpen(false)} style={{ position: "absolute", top: 12, right: 12, background: "none", border: "none", color: C.grey, fontSize: 18, cursor: "pointer", zIndex: 10 }}>✕</button>}
+
+          {/* Collapse button on desktop */}
+          {!isMobile && (
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              style={{
+                position: "absolute",
+                top: 24,
+                right: 8,
+                background: "none",
+                border: "none",
+                color: C.grey,
+                fontSize: 18,
+                cursor: "pointer",
+                padding: "4px 8px",
+                transition: "color 0.2s",
+              }}
+              onMouseEnter={e => e.target.style.color = C.gold}
+              onMouseLeave={e => e.target.style.color = C.grey}
+            >
+              ›
+            </button>
+          )}
+
+          <div style={{ padding: sidebarOpen ? "0 20px 20px" : "0 12px 20px", borderBottom: `1px solid ${C.border}`, minWidth: 0 }}>
+            {sidebarOpen && (
+              <>
+                <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 4 }}>
+                  Your Listing
+                </div>
+                <div style={{ fontFamily: NU, fontSize: 14, color: C.white, fontWeight: 600 }}>{vendor.name}</div>
+                <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                  <Badge text="Featured" />
+                  <Badge text="Verified" color={C.green} bg="rgba(34,197,94,0.08)" border="rgba(34,197,94,0.2)" />
+                </div>
+              </>
+            )}
           </div>
           <div style={{ paddingTop: 8 }}>
             <DTab id="overview" icon="◈" label="Overview" />
             <DTab id="leads" icon="◇" label="Lead Inbox" />
-            <DTab id="inquiries" icon="✉" label="Inquiries" />
             <DTab id="livechat" icon="◉" label="Live Conversations" />
             <DTab id="analytics" icon="◎" label="Analytics" />
             <DTab id="ai" icon="✧" label="AI Insights" />
@@ -1037,36 +1301,157 @@ export default function VendorDashboard({ onBack }) {
             <DTab id="seo" icon="⊡" label="SEO Tools" />
             <DTab id="billing" icon="◆" label="Billing" />
             <DTab id="calendar" icon="▦" label="Calendar" />
+            <DTab id="awards" icon="✦" label="Artistry Awards" />
           </div>
-          <div
-            style={{
-              margin: "24px 16px 0",
-              padding: 16,
-              background: "rgba(201,168,76,0.06)",
-              border: "1px solid rgba(201,168,76,0.15)",
-              borderRadius: "var(--lwd-radius-card)",
-            }}
-          >
-            <div style={{ fontFamily: NU, fontSize: 11, color: C.gold, fontWeight: 700, marginBottom: 4 }}>{"\u2726"} FEATURED PLAN</div>
-            <div style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.6 }}>Unlimited leads {"\u00b7"} Top placement {"\u00b7"} Analytics</div>
-            <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, marginTop: 8 }}>Renews 1 Mar 2026</div>
-          </div>
+          {sidebarOpen && (
+            <div
+              style={{
+                margin: "24px 16px 0",
+                padding: 16,
+                background: "rgba(201,168,76,0.06)",
+                border: "1px solid rgba(201,168,76,0.15)",
+                borderRadius: "var(--lwd-radius-card)",
+              }}
+            >
+              <div style={{ fontFamily: NU, fontSize: 11, color: C.gold, fontWeight: 700, marginBottom: 4 }}>{"\u2726"} FEATURED PLAN</div>
+              <div style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.6 }}>Unlimited leads {"\u00b7"} Top placement {"\u00b7"} Analytics</div>
+              <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, marginTop: 8 }}>Renews 1 Mar 2026</div>
+            </div>
+          )}
         </div>
 
         {/* Main content */}
-        <div style={{ flex: 1, padding: isMobile ? 16 : isTablet ? 20 : 32, overflowY: "auto" }}>
+        <div style={{
+          flex: 1,
+          padding: isMobile ? 16 : isTablet ? 20 : 32,
+          overflowY: "auto",
+          marginLeft: !isMobile && !sidebarOpen ? "auto" : 0,
+          marginRight: !isMobile && !sidebarOpen ? "auto" : 0,
+          maxWidth: !isMobile && !sidebarOpen ? "900px" : "100%",
+        }}>
           {/* OVERVIEW */}
           {dashTab === "overview" && (
             <div>
               <div style={{ marginBottom: 28 }}>
                 <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: "3px", textTransform: "uppercase", color: C.gold, marginBottom: 8 }}>Dashboard Overview</div>
-                <h2 style={{ fontFamily: GD, fontSize: isMobile ? 24 : 32, color: C.white, fontWeight: 600 }}>Good morning, Grand Pavilion {"\u2726"}</h2>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 20 }}>
+                  <h2 style={{ fontFamily: GD, fontSize: isMobile ? 24 : 32, color: C.white, fontWeight: 600, margin: 0 }}>Good morning, Grand Pavilion {"\u2726"}</h2>
+                  <button
+                    onClick={() => {
+                      const slug = vendor.name.toLowerCase().replace(/\s+/g, "-");
+                      window.open(`/listing/${slug}`, "_blank");
+                    }}
+                    style={{
+                      background: "none",
+                      border: `1px solid ${C.gold}`,
+                      color: C.gold,
+                      fontFamily: NU,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      letterSpacing: "1px",
+                      textTransform: "uppercase",
+                      padding: "10px 24px",
+                      borderRadius: "var(--lwd-radius-input)",
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = C.gold;
+                      e.currentTarget.style.color = "#0a0906";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "none";
+                      e.currentTarget.style.color = C.gold;
+                    }}
+                  >
+                    ◆ View Public Listing
+                  </button>
+                </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: isMobile ? 10 : 16, marginBottom: 32 }}>
-                <StatCard label="Leads This Month" val={vendor.leads} change="31%" icon="◇" />
-                <StatCard label="Profile Views" val={vendor.views.toLocaleString()} change="18%" icon="⊙" color={C.blue} />
-                <StatCard label="Conversion Rate" val={`${vendor.conv}%`} change="2.4%" icon="△" color={C.green} />
-                <StatCard label="Avg Response" val={vendor.response} icon="⟡" color="#a78bfa" />
+                <StatCard label="New Enquiries" val={metricsLoading ? " - " : metrics?.newEnquiries || 0} change="Real-time" icon="◇" />
+                <StatCard label="Profile Views" val={metricsLoading ? " - " : (metrics?.profileViews || 0).toLocaleString()} change="Real-time" icon="⊙" color={C.blue} />
+                <StatCard label="Conversion Rate" val={metricsLoading ? " - " : `${metrics?.conversionRate || 0}%`} icon="△" color={C.green} />
+                <StatCard label="Avg Response Time" val={metricsLoading ? " - " : `${metrics?.responseTimeHours || 0}h`} icon="⟡" color="#a78bfa" />
+              </div>
+
+              {/* ── Shortlist/Favorites (B2B) ──────────────────────────────────── */}
+              <div
+                style={{
+                  background: C.card,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: "var(--lwd-radius-card)",
+                  padding: 20,
+                  marginBottom: 28,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+                  <div
+                    style={{
+                      width: 60,
+                      height: 60,
+                      background: `linear-gradient(135deg, ${C.gold}20, ${C.gold}10)`,
+                      borderRadius: "var(--lwd-radius-card)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 32,
+                    }}
+                  >
+                    ♥
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p
+                      style={{
+                        fontFamily: NU,
+                        fontSize: 11,
+                        color: C.grey,
+                        margin: 0,
+                        textTransform: "uppercase",
+                        letterSpacing: "1px",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Saved by Couples
+                    </p>
+                    <p
+                      style={{
+                        fontFamily: GD,
+                        fontSize: 24,
+                        color: C.gold,
+                        margin: "4px 0 0 0",
+                        fontWeight: 400,
+                      }}
+                    >
+                      {metricsLoading ? " - " : metrics?.savedByCouples || 0}
+                    </p>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <p
+                      style={{
+                        fontFamily: NU,
+                        fontSize: 12,
+                        color: C.green,
+                        margin: 0,
+                        fontWeight: 600,
+                      }}
+                    >
+                      ↑ +12%
+                    </p>
+                    <p
+                      style={{
+                        fontFamily: NU,
+                        fontSize: 10,
+                        color: C.grey,
+                        margin: "2px 0 0 0",
+                      }}
+                    >
+                      This month
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {/* ── LWD Curated Index ──────────────────────────────────── */}
@@ -1246,7 +1631,7 @@ export default function VendorDashboard({ onBack }) {
                 ))}
               </div>
               <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "var(--lwd-radius-card)", padding: 24 }}>
-                <div style={{ fontFamily: NU, fontSize: 13, fontWeight: 700, color: C.white, marginBottom: 20 }}>Lead Volume — Last 12 Months</div>
+                <div style={{ fontFamily: NU, fontSize: 13, fontWeight: 700, color: C.white, marginBottom: 20 }}>Lead Volume, Last 12 Months</div>
                 <MiniChart data={leadsData} labels={months} color={C.gold} />
               </div>
             </div>
@@ -1289,12 +1674,17 @@ export default function VendorDashboard({ onBack }) {
             </div>
           )}
 
+          {/* LEAD INBOX, Mini CRM Pipeline */}
+          {dashTab === "leads" && (
+            <VendorLeadInbox vendorId={vendor.id} C={C} isMobile={isMobile} />
+          )}
+
           {/* INQUIRIES */}
           {dashTab === "inquiries" && (
             <VendorInquiryManager vendorId={vendor.id} />
           )}
 
-          {/* LIVE CONVERSATIONS — Client Intelligence System */}
+          {/* LIVE CONVERSATIONS, Client Intelligence System */}
           {dashTab === "livechat" && (
             <div>
               <div style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "flex-end" }}>
@@ -1348,7 +1738,7 @@ export default function VendorDashboard({ onBack }) {
                 </div>
               </div>
 
-              {/* Revenue Opportunity Missed — luxury urgency banner */}
+              {/* Revenue Opportunity Missed, luxury urgency banner */}
               <div style={{
                 display: "flex", alignItems: isMobile ? "flex-start" : "center",
                 flexDirection: isMobile ? "column" : "row",
@@ -1424,10 +1814,10 @@ export default function VendorDashboard({ onBack }) {
               {/* Gold divider */}
               <div style={{ height: 1, background: `linear-gradient(90deg, transparent, ${C.gold}40, transparent)`, marginBottom: 20 }} />
 
-              {/* Split: conversation list + chat window — ALWAYS DARK luxury treatment */}
+              {/* Split: conversation list + chat window, ALWAYS DARK luxury treatment */}
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : (activeChat ? (isTablet ? "280px 1fr" : "320px 1fr") : "1fr"), gap: 0, border: "none", borderRadius: 4, overflow: "hidden", height: isMobile ? "calc(100vh - 280px)" : isTablet ? 480 : 520, boxShadow: "0 4px 24px rgba(0,0,0,0.4)" }}>
 
-                {/* ─── Conversation list (left panel) — dark layered ─── */}
+                {/* ─── Conversation list (left panel), dark layered ─── */}
                 <div style={{ background: "#141517", borderRight: activeChat ? "1px solid #2a2b2f" : "none", display: isMobile && activeChat ? "none" : "flex", flexDirection: "column", overflow: "hidden" }}>
                   <div style={{ padding: "12px 18px", borderBottom: "1px solid #2a2b2f", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0, minHeight: 58, boxSizing: "border-box" }}>
                     <span style={{ fontFamily: NU, fontSize: 12, fontWeight: 700, color: "#ffffff" }}>Client Enquiries</span>
@@ -1435,7 +1825,7 @@ export default function VendorDashboard({ onBack }) {
                   </div>
                   <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
                   {[
-                    { name: "Sophie & James", msg: "Hi! We love your venue — is June 2026 available?", time: "Just now", status: "active", unread: 2, value: "£65–120k", intent: "high" },
+                    { name: "Sophie & James", msg: "Hi! We love your venue, is June 2026 available?", time: "Just now", status: "active", unread: 2, value: "£65–120k", intent: "high" },
                     { name: "Aisha & Tom", msg: "We're comparing a few venues. Can you tell us about packages?", time: "3m ago", status: "active", unread: 1, value: "£45–80k", intent: "medium" },
                     { name: "Elena & Marco", msg: "Thanks so much! We'll be in touch soon.", time: "18m ago", status: "ended", unread: 0, value: "£25–50k", intent: "high" },
                     { name: "Mark & Lisa", msg: "Do you offer a payment plan for the deposit?", time: "1h ago", status: "ended", unread: 0, value: "£80–150k", intent: "high" },
@@ -1714,7 +2104,7 @@ export default function VendorDashboard({ onBack }) {
                       <div ref={chatEndRef} />
                     </div>
 
-                    {/* ── AI Coaching Bar — only when vendor has taken over ── */}
+                    {/* ── AI Coaching Bar, only when vendor has taken over ── */}
                     {takenOverChats.has(activeChat) && <div style={{
                       padding: "10px 20px", borderTop: "1px solid #2a2b2f",
                       background: "rgba(201,168,76,0.06)",
@@ -1757,7 +2147,7 @@ export default function VendorDashboard({ onBack }) {
                       })()}
                     </div>}
 
-                    {/* Compose bar — only when vendor has taken over, otherwise show AI status */}
+                    {/* Compose bar, only when vendor has taken over, otherwise show AI status */}
                     {!takenOverChats.has(activeChat) ? (
                       <div style={{
                         padding: "16px 20px", borderTop: "1px solid #2a2b2f",
@@ -1937,7 +2327,7 @@ export default function VendorDashboard({ onBack }) {
               {/* Gold divider */}
               <div style={{ height: 1, background: `linear-gradient(90deg, transparent, ${C.gold}40, transparent)`, marginTop: 20, marginBottom: 20 }} />
 
-              {/* Intelligence panels — 3 columns */}
+              {/* Intelligence panels, 3 columns */}
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr", gap: 16 }}>
                 {/* AI Assisted Messaging */}
                 <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "var(--lwd-radius-card)", padding: 20 }}>
@@ -2390,7 +2780,7 @@ export default function VendorDashboard({ onBack }) {
                   lineHeight: 1.7,
                 }}
               >
-                Current plan: <span style={{ color: C.gold, fontWeight: 700 }}>Featured — £149/month</span> · Next billing date:{" "}
+                Current plan: <span style={{ color: C.gold, fontWeight: 700 }}>Featured, £149/month</span> · Next billing date:{" "}
                 <span style={{ color: C.white }}>1 March 2026</span> · All prices exclude VAT
               </div>
             </div>
@@ -2475,9 +2865,331 @@ export default function VendorDashboard({ onBack }) {
               </div>
             </div>
           )}
+
+          {/* ── Artistry Awards Tab ─────────────────────────────────────────── */}
+          {dashTab === "awards" && (
+            <AwardsSubmissionTab vendor={vendor} C={C} GD={GD} NU={NU} isMobile={isMobile} />
+          )}
         </div>
       </div>
     </div>
+
+    {/* Footer */}
+    <FooterForVendors />
+
     </ThemeCtx.Provider>
+  );
+}
+
+// ── Awards Submission Tab ─────────────────────────────────────────────────────
+const AWARD_CATEGORIES = [
+  'Photography', 'Film', 'Venues', 'Florals', 'Planning',
+  'Styling', 'Cakes', 'Music', 'Hair & Makeup', 'Content Creators',
+];
+
+function AwardsSubmissionTab({ vendor, C, GD, NU, isMobile }) {
+  const [submission, setSubmission] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState(null);
+  const [imageUrls, setImageUrls] = useState(['', '', '', '', '']);
+
+  const [form, setForm] = useState({
+    vendor_name:     '',
+    category:        '',
+    location:        '',
+    country:         '',
+    quote:           '',
+    micro_different: '',
+    micro_moment:    '',
+    micro_perfect:   '',
+    video_url:       '',
+  });
+
+  const vendorId = vendor?.id || vendor?.legacy_vendor_id || 'unknown';
+
+  useEffect(() => {
+    if (!vendorId || vendorId === 'unknown') { setLoading(false); return; }
+    getMySubmission(vendorId).then(({ data }) => {
+      if (data) {
+        setSubmission(data);
+        setForm({
+          vendor_name:     data.vendor_name     || vendor?.name || '',
+          category:        data.category        || '',
+          location:        data.location        || '',
+          country:         data.country         || '',
+          quote:           data.quote           || '',
+          micro_different: data.micro_different || '',
+          micro_moment:    data.micro_moment    || '',
+          micro_perfect:   data.micro_perfect   || '',
+          video_url:       data.video_url       || '',
+        });
+        const imgs = data.images || [];
+        setImageUrls([...imgs, '', '', '', '', ''].slice(0, 5));
+      } else {
+        setForm(f => ({ ...f, vendor_name: vendor?.name || '' }));
+      }
+      setLoading(false);
+    });
+  }, [vendorId]);
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSubmit = async () => {
+    if (!form.vendor_name || !form.category || !form.location || !form.country || !form.quote) {
+      setSaveMsg({ ok: false, text: 'Please fill in all required fields.' });
+      return;
+    }
+    const images = imageUrls.filter(u => u.trim());
+    if (images.length === 0) {
+      setSaveMsg({ ok: false, text: 'Please add at least one image URL.' });
+      return;
+    }
+    setSaving(true);
+    setSaveMsg(null);
+    const { data, error, alreadyApproved } = await upsertSubmission(vendorId, { ...form, images });
+    setSaving(false);
+    if (alreadyApproved) {
+      setSaveMsg({ ok: false, text: 'Your entry is already approved and live on the awards page.' });
+      return;
+    }
+    if (error) {
+      setSaveMsg({ ok: false, text: 'Something went wrong. Please try again.' });
+      return;
+    }
+    setSubmission(data);
+    setSaveMsg({ ok: true, text: submission ? 'Entry updated and resubmitted for review.' : 'Entry submitted! Our team will review it shortly.' });
+  };
+
+  const statusColors = { pending: '#f59e0b', approved: '#10b981', rejected: '#ef4444' };
+  const statusLabels = { pending: '⏳ Under Review', approved: '✓ Approved', rejected: '✗ Not Selected' };
+
+  if (loading) return (
+    <div style={{ padding: 40, textAlign: 'center', fontFamily: NU, fontSize: 13, color: C.grey }}>Loading…</div>
+  );
+
+  return (
+    <div style={{ maxWidth: 720 }}>
+      {/* Header */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '3px', textTransform: 'uppercase', color: C.gold, marginBottom: 8 }}>
+          ✦ Wedding Artistry Awards
+        </div>
+        <h2 style={{ fontFamily: GD, fontSize: isMobile ? 24 : 32, color: C.white, fontWeight: 600, margin: '0 0 10px' }}>
+          The Wedding Artistry Awards 2026
+        </h2>
+        <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, lineHeight: 1.6, margin: 0 }}>
+          Submit your work for consideration. Approved entries appear on the public awards page at{' '}
+          <span style={{ color: C.gold }}>/artistry-awards</span>. One submission per vendor.
+        </p>
+      </div>
+
+      {/* Status badge (if already submitted) */}
+      {submission && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          padding: '12px 18px', marginBottom: 28,
+          background: `${statusColors[submission.status]}12`,
+          border: `1px solid ${statusColors[submission.status]}40`,
+          borderRadius: 8,
+        }}>
+          <span style={{
+            fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
+            textTransform: 'uppercase', color: statusColors[submission.status],
+          }}>
+            {statusLabels[submission.status]}
+          </span>
+          {submission.admin_note && (
+            <span style={{ fontFamily: NU, fontSize: 12, color: C.grey, marginLeft: 8 }}>
+             , {submission.admin_note}
+            </span>
+          )}
+          {submission.status === 'rejected' && (
+            <span style={{ fontFamily: NU, fontSize: 11, color: C.grey, marginLeft: 'auto' }}>
+              You can edit and resubmit below.
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Form */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+        {/* Row 1: Name + Category */}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
+          <div>
+            <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+              Business / Artist Name *
+            </label>
+            <input
+              value={form.vendor_name}
+              onChange={e => set('vendor_name', e.target.value)}
+              placeholder="e.g. Marco Battista Photography"
+              style={{ width: '100%', boxSizing: 'border-box', background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '10px 14px', fontFamily: NU, fontSize: 13, color: C.white, outline: 'none' }}
+            />
+          </div>
+          <div>
+            <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+              Category *
+            </label>
+            <select
+              value={form.category}
+              onChange={e => set('category', e.target.value)}
+              style={{ width: '100%', boxSizing: 'border-box', background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '10px 14px', fontFamily: NU, fontSize: 13, color: form.category ? C.white : C.grey, outline: 'none' }}
+            >
+              <option value="">Select category…</option>
+              {AWARD_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* Row 2: Location + Country */}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
+          <div>
+            <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+              Location *
+            </label>
+            <input
+              value={form.location}
+              onChange={e => set('location', e.target.value)}
+              placeholder="e.g. Lake Como, Italy"
+              style={{ width: '100%', boxSizing: 'border-box', background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '10px 14px', fontFamily: NU, fontSize: 13, color: C.white, outline: 'none' }}
+            />
+          </div>
+          <div>
+            <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+              Country *
+            </label>
+            <input
+              value={form.country}
+              onChange={e => set('country', e.target.value)}
+              placeholder="e.g. Italy"
+              style={{ width: '100%', boxSizing: 'border-box', background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '10px 14px', fontFamily: NU, fontSize: 13, color: C.white, outline: 'none' }}
+            />
+          </div>
+        </div>
+
+        {/* Quote */}
+        <div>
+          <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+            Your Signature Quote * <span style={{ color: C.grey, fontSize: 10, textTransform: 'none', letterSpacing: 0 }}>(shown on your award card)</span>
+          </label>
+          <textarea
+            value={form.quote}
+            onChange={e => set('quote', e.target.value)}
+            rows={2}
+            maxLength={160}
+            placeholder="A short, memorable line that defines your work…"
+            style={{ width: '100%', boxSizing: 'border-box', background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '10px 14px', fontFamily: NU, fontSize: 13, color: C.white, outline: 'none', resize: 'vertical', lineHeight: 1.6 }}
+          />
+          <div style={{ textAlign: 'right', fontFamily: NU, fontSize: 10, color: C.grey, marginTop: 4 }}>{form.quote.length}/160</div>
+        </div>
+
+        {/* Micro-prompts */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: isMobile ? 16 : 22 }}>
+          <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '2px', textTransform: 'uppercase', color: C.gold, marginBottom: 18 }}>
+            3 Questions, Shown in your profile panel
+          </div>
+          {[
+            { key: 'micro_different', label: 'What makes you different?' },
+            { key: 'micro_moment',    label: 'The moment you live for?' },
+            { key: 'micro_perfect',   label: 'Your perfect day?' },
+          ].map(({ key, label }) => (
+            <div key={key} style={{ marginBottom: 16 }}>
+              <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, display: 'block', marginBottom: 6 }}>{label}</label>
+              <textarea
+                value={form[key]}
+                onChange={e => set(key, e.target.value)}
+                rows={2}
+                maxLength={200}
+                style={{ width: '100%', boxSizing: 'border-box', background: '#1a1a1a', border: `1px solid ${C.border}`, borderRadius: 6, padding: '9px 12px', fontFamily: NU, fontSize: 12, color: C.white, outline: 'none', resize: 'vertical', lineHeight: 1.5 }}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Images */}
+        <div>
+          <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+            Images for Judging * <span style={{ color: C.grey, fontSize: 10, textTransform: 'none', letterSpacing: 0 }}>(up to 5, paste public image URLs)</span>
+          </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {imageUrls.map((url, i) => (
+              <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <span style={{ fontFamily: NU, fontSize: 11, color: C.grey, minWidth: 16 }}>{i + 1}.</span>
+                <input
+                  value={url}
+                  onChange={e => {
+                    const next = [...imageUrls];
+                    next[i] = e.target.value;
+                    setImageUrls(next);
+                  }}
+                  placeholder={i === 0 ? 'Primary image URL (required)' : `Image ${i + 1} URL (optional)`}
+                  style={{ flex: 1, background: C.card, border: `1px solid ${i === 0 ? C.border : C.border}`, borderRadius: 6, padding: '9px 12px', fontFamily: NU, fontSize: 12, color: C.white, outline: 'none' }}
+                />
+                {url && (
+                  <img src={url} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, flexShrink: 0, border: `1px solid ${C.border}` }} onError={e => { e.target.style.display = 'none'; }} />
+                )}
+              </div>
+            ))}
+          </div>
+          <p style={{ fontFamily: NU, fontSize: 11, color: C.grey, marginTop: 8, lineHeight: 1.5 }}>
+            Tip: use Unsplash, your CDN, or any publicly accessible image URL. Images must be portrait or square for best display.
+          </p>
+        </div>
+
+        {/* Video URL */}
+        <div>
+          <label style={{ fontFamily: NU, fontSize: 11, color: C.grey, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+            Video URL <span style={{ color: C.grey, fontSize: 10, textTransform: 'none', letterSpacing: 0 }}>(optional, YouTube, TikTok or Instagram Reel)</span>
+          </label>
+          <input
+            value={form.video_url}
+            onChange={e => set('video_url', e.target.value)}
+            placeholder="https://www.youtube.com/watch?v=..."
+            style={{ width: '100%', boxSizing: 'border-box', background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '10px 14px', fontFamily: NU, fontSize: 13, color: C.white, outline: 'none' }}
+          />
+        </div>
+
+        {/* Save message */}
+        {saveMsg && (
+          <div style={{
+            padding: '11px 16px', borderRadius: 6,
+            background: saveMsg.ok ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+            border: `1px solid ${saveMsg.ok ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+            fontFamily: NU, fontSize: 13,
+            color: saveMsg.ok ? '#10b981' : '#ef4444',
+          }}>
+            {saveMsg.text}
+          </div>
+        )}
+
+        {/* Submit button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <button
+            onClick={handleSubmit}
+            disabled={saving || submission?.status === 'approved'}
+            style={{
+              background: submission?.status === 'approved' ? C.border : C.gold,
+              color: submission?.status === 'approved' ? C.grey : '#0a0a0a',
+              border: 'none', borderRadius: 6,
+              padding: '12px 28px',
+              fontFamily: NU, fontSize: 13, fontWeight: 700,
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              cursor: saving || submission?.status === 'approved' ? 'not-allowed' : 'pointer',
+              transition: 'opacity 0.2s',
+              opacity: saving ? 0.6 : 1,
+            }}
+          >
+            {saving ? 'Submitting…' : submission ? (submission.status === 'approved' ? 'Entry Approved ✓' : 'Update & Resubmit') : 'Submit Entry'}
+          </button>
+          {submission && submission.status !== 'approved' && (
+            <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>
+              Last submitted: {new Date(submission.submitted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

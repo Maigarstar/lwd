@@ -10,6 +10,7 @@ import SEOPanel from "./components/SEOPanel";
 import PreviewModal from "./components/PreviewModal";
 import ReusableBlocksBrowser from "./components/ReusableBlocksBrowser";
 import PageStatusBadge from "./components/PageStatusBadge";
+import AIPageImportPanel from "./components/AIPageImportPanel";
 import { MOCK_PAGES, getPageById } from "./data/mockPages";
 import { savePages, loadPages } from "./utils/pageStorage";
 import {
@@ -31,7 +32,9 @@ const PageEditorModule = ({ pageId, C, NU, GD, onNavigate }) => {
   const [mobileEditorTab, setMobileEditorTab] = useState("library"); // library, canvas, or settings (mobile only)
   const [showPreview, setShowPreview] = useState(false);
   const [showBlocksBrowser, setShowBlocksBrowser] = useState(false);
+  const [showAIImport, setShowAIImport] = useState(false);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
+  const [viewMode, setViewMode] = useState('split'); // split | editor | preview
 
   // Load page on mount
   useEffect(() => {
@@ -168,19 +171,14 @@ const PageEditorModule = ({ pageId, C, NU, GD, onNavigate }) => {
 
   const selectedSection = page?.sections?.find((s) => s.id === selectedSectionId);
 
+  // Compute grid layout based on viewMode, matches Listing Studio pattern exactly
+  const gridCols = viewMode === 'editor' ? '1fr' : viewMode === 'preview' ? '1fr' : '1fr 1fr';
+  const showLeftPanel = viewMode !== 'preview';
+  const showRightPanel = viewMode !== 'editor';
+
   if (!page) {
     return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100%",
-          fontFamily: NU,
-          fontSize: 12,
-          color: C.grey2
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontFamily: NU, fontSize: 12, color: C.grey2 }}>
         Loading page...
       </div>
     );
@@ -203,218 +201,296 @@ const PageEditorModule = ({ pageId, C, NU, GD, onNavigate }) => {
         }
       `}</style>
 
-      {/* Top Bar */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "12px 20px",
-          borderBottom: `1px solid ${C.border}`,
-          backgroundColor: C.dark
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+      {/* ═══════════════════════════════════════════════════════
+          FULL-WIDTH ACTION BAR, matches Listing Studio exactly
+      ═══════════════════════════════════════════════════════ */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '10px 24px',
+        borderBottom: `1px solid ${C.border}`,
+        backgroundColor: C.dark,
+        position: 'sticky',
+        top: 0,
+        zIndex: 30,
+        gap: 8,
+        flexShrink: 0,
+      }}>
+        {/* Left: AI tools */}
+        <div style={{ display: 'flex', gap: 8 }}>
           <button
-            onClick={() => onNavigate("all-pages")}
+            type="button"
+            onClick={() => setShowAIImport(true)}
             style={{
+              fontSize: 13, fontWeight: 600, padding: '7px 14px',
+              backgroundColor: C.white, color: C.dark,
+              border: 'none', borderRadius: 6, cursor: 'pointer',
               fontFamily: NU,
-              fontSize: 10,
-              color: C.gold,
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              textTransform: "uppercase"
             }}
           >
-            ← Pages
+            Magic AI
           </button>
-          <div style={{ borderLeft: `1px solid ${C.border}`, paddingLeft: 16 }}>
-            <h3 style={{ fontFamily: GD, fontSize: 16, color: C.white, margin: 0 }}>
-              {page.title}
-            </h3>
+          <button
+            type="button"
+            onClick={() => setShowAIImport(true)}
+            style={{
+              fontSize: 13, fontWeight: 500, padding: '7px 14px',
+              backgroundColor: 'transparent', color: C.white,
+              border: `1px solid ${C.border}`, borderRadius: 6, cursor: 'pointer',
+              fontFamily: NU,
+            }}
+          >
+            Fill with AI
+          </button>
+        </div>
+
+        {/* Right: view mode links + save actions */}
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+          {/* View mode text links */}
+          {['split', 'editor', 'preview'].map((mode) => {
+            const isActive = viewMode === mode;
+            return (
+              <span
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                style={{
+                  fontSize: 11, fontWeight: isActive ? 700 : 500,
+                  letterSpacing: '0.08em', textTransform: 'uppercase',
+                  color: isActive ? C.white : C.grey2,
+                  cursor: 'pointer',
+                  borderBottom: isActive ? `1px solid ${C.white}` : '1px solid transparent',
+                  paddingBottom: 1,
+                  fontFamily: NU,
+                }}
+              >
+                {mode.charAt(0).toUpperCase() + mode.slice(1)}
+              </span>
+            );
+          })}
+
+          {/* Divider */}
+          <span style={{ width: 1, height: 16, backgroundColor: C.border, display: 'inline-block' }} />
+
+          {/* Save actions */}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => onNavigate('all-pages')}
+              style={{
+                fontSize: 13, fontWeight: 500, padding: '7px 14px',
+                backgroundColor: 'transparent', color: C.grey2,
+                border: `1px solid ${C.border}`, borderRadius: 6, cursor: 'pointer',
+                fontFamily: NU,
+              }}
+            >
+              Discard
+            </button>
+            <button
+              type="button"
+              onClick={() => { handleSavePage({ ...page, updatedAt: new Date().toISOString() }); setUnsavedChanges(false); }}
+              style={{
+                fontSize: 13, fontWeight: 600, padding: '7px 14px',
+                backgroundColor: C.white, color: C.dark,
+                border: 'none', borderRadius: 6,
+                cursor: unsavedChanges ? 'pointer' : 'not-allowed',
+                opacity: unsavedChanges ? 1 : 0.35,
+                fontFamily: NU,
+              }}
+            >
+              Save Draft
+            </button>
+            <button
+              type="button"
+              onClick={() => { handleSavePage({ ...page, status: 'published', publishedAt: new Date().toISOString() }); setUnsavedChanges(false); }}
+              style={{
+                fontSize: 13, fontWeight: 600, padding: '7px 14px',
+                backgroundColor: C.white, color: C.dark,
+                border: 'none', borderRadius: 6, cursor: 'pointer',
+                fontFamily: NU,
+              }}
+            >
+              Publish
+            </button>
           </div>
         </div>
+      </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {unsavedChanges && (
-            <span style={{ fontFamily: NU, fontSize: 9, color: C.rose }}>
-              UNSAVED
-            </span>
-          )}
-          <button
-            onClick={() => setShowPreview(true)}
-            style={{
-              fontFamily: NU,
-              fontSize: 9,
-              padding: "6px 12px",
+      {/* ═══════════════════════════════════════════════════════
+          SPLIT PANELS GRID, matches Listing Studio pattern
+      ═══════════════════════════════════════════════════════ */}
+      <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 0, flex: 1, overflow: 'hidden' }}>
+
+        {/* LEFT PANEL: Editor */}
+        {showLeftPanel && (
+          <div style={{
+            display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            borderRight: viewMode === 'split' ? `1px solid ${C.border}` : 'none',
+          }}>
+
+            {/* Tab Navigation (Page Builder | SEO) */}
+            <div style={{
+              display: 'flex', gap: 0, flexShrink: 0,
+              borderBottom: `1px solid ${C.border}`,
               backgroundColor: C.dark,
-              border: `1px solid ${C.border}`,
-              borderRadius: 3,
-              color: C.white,
-              cursor: "pointer",
-              textTransform: "uppercase"
-            }}
-          >
-            Preview
-          </button>
-          <button
-            onClick={() => {
-              handleSavePage({ ...page, status: "published", publishedAt: new Date().toISOString() });
-            }}
-            style={{
-              fontFamily: NU,
-              fontSize: 9,
-              padding: "6px 12px",
-              backgroundColor: C.green,
-              border: "none",
-              borderRadius: 3,
-              color: "#fff",
-              cursor: "pointer",
-              textTransform: "uppercase"
-            }}
-          >
-            Publish
-          </button>
-        </div>
-      </div>
-
-      {/* Tab Navigation */}
-      <div
-        style={{
-          display: "flex",
-          gap: 0,
-          borderBottom: `1px solid ${C.border}`,
-          backgroundColor: C.dark,
-          paddingLeft: 20
-        }}
-      >
-        <button
-          onClick={() => setActiveTab("canvas")}
-          style={{
-            fontFamily: NU,
-            fontSize: 10,
-            padding: "12px 16px",
-            backgroundColor: activeTab === "canvas" ? C.card : "transparent",
-            border: "none",
-            borderBottom: activeTab === "canvas" ? `3px solid ${C.gold}` : "none",
-            color: activeTab === "canvas" ? C.white : C.grey2,
-            cursor: "pointer",
-            textTransform: "uppercase",
-            fontWeight: 600
-          }}
-        >
-          Page Builder
-        </button>
-        <button
-          onClick={() => setActiveTab("seo")}
-          style={{
-            fontFamily: NU,
-            fontSize: 10,
-            padding: "12px 16px",
-            backgroundColor: activeTab === "seo" ? C.card : "transparent",
-            border: "none",
-            borderBottom: activeTab === "seo" ? `3px solid ${C.gold}` : "none",
-            color: activeTab === "seo" ? C.white : C.grey2,
-            cursor: "pointer",
-            textTransform: "uppercase",
-            fontWeight: 600
-          }}
-        >
-          SEO
-        </button>
-      </div>
-
-      {/* Mobile Tab Navigation (hidden on desktop) */}
-      <div style={{ display: "none" }} className="page-editor-mobile-tabs">
-        <div
-          style={{
-            display: "flex",
-            gap: 0,
-            borderBottom: `1px solid ${C.border}`,
-            backgroundColor: C.dark,
-            paddingLeft: 0,
-            overflowX: "auto",
-            WebkitOverflowScrolling: "touch"
-          }}
-        >
-          <button
-            onClick={() => setMobileEditorTab("library")}
-            style={{
-              fontFamily: NU,
-              fontSize: 9,
-              padding: "10px 12px",
-              backgroundColor: mobileEditorTab === "library" ? C.card : "transparent",
-              border: "none",
-              borderBottom: mobileEditorTab === "library" ? `3px solid ${C.gold}` : "none",
-              color: mobileEditorTab === "library" ? C.white : C.grey2,
-              cursor: "pointer",
-              textTransform: "uppercase",
-              fontWeight: 600,
-              flex: "0 0 auto",
-              whiteSpace: "nowrap"
-            }}
-          >
-            Sections
-          </button>
-          <button
-            onClick={() => setMobileEditorTab("canvas")}
-            style={{
-              fontFamily: NU,
-              fontSize: 9,
-              padding: "10px 12px",
-              backgroundColor: mobileEditorTab === "canvas" ? C.card : "transparent",
-              border: "none",
-              borderBottom: mobileEditorTab === "canvas" ? `3px solid ${C.gold}` : "none",
-              color: mobileEditorTab === "canvas" ? C.white : C.grey2,
-              cursor: "pointer",
-              textTransform: "uppercase",
-              fontWeight: 600,
-              flex: "0 0 auto",
-              whiteSpace: "nowrap"
-            }}
-          >
-            Canvas
-          </button>
-          <button
-            onClick={() => setMobileEditorTab("settings")}
-            style={{
-              fontFamily: NU,
-              fontSize: 9,
-              padding: "10px 12px",
-              backgroundColor: mobileEditorTab === "settings" ? C.card : "transparent",
-              border: "none",
-              borderBottom: mobileEditorTab === "settings" ? `3px solid ${C.gold}` : "none",
-              color: mobileEditorTab === "settings" ? C.white : C.grey2,
-              cursor: "pointer",
-              textTransform: "uppercase",
-              fontWeight: 600,
-              flex: "0 0 auto",
-              whiteSpace: "nowrap"
-            }}
-          >
-            Settings
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content Area */}
-      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-        {activeTab === "canvas" && (
-          <>
-            {/* Left Sidebar - Section Library */}
-            <div className="page-editor-library" style={{ display: mobileEditorTab === "library" ? "block" : "none" }}>
-              <SectionLibrary
-                onAddSection={handleAddSection}
-                onBrowseBlocks={() => setShowBlocksBrowser(true)}
-                C={C}
-                NU={NU}
-                GD={GD}
-              />
+              paddingLeft: 20,
+            }}>
+              <button
+                onClick={() => setActiveTab('canvas')}
+                style={{
+                  fontFamily: NU, fontSize: 10, padding: '12px 16px',
+                  backgroundColor: activeTab === 'canvas' ? C.card : 'transparent',
+                  border: 'none',
+                  borderBottom: activeTab === 'canvas' ? `3px solid ${C.gold}` : 'none',
+                  color: activeTab === 'canvas' ? C.white : C.grey2,
+                  cursor: 'pointer', textTransform: 'uppercase', fontWeight: 600,
+                }}
+              >
+                Page Builder
+              </button>
+              <button
+                onClick={() => setActiveTab('seo')}
+                style={{
+                  fontFamily: NU, fontSize: 10, padding: '12px 16px',
+                  backgroundColor: activeTab === 'seo' ? C.card : 'transparent',
+                  border: 'none',
+                  borderBottom: activeTab === 'seo' ? `3px solid ${C.gold}` : 'none',
+                  color: activeTab === 'seo' ? C.white : C.grey2,
+                  cursor: 'pointer', textTransform: 'uppercase', fontWeight: 600,
+                }}
+              >
+                SEO
+              </button>
             </div>
 
-            {/* Center Canvas */}
-            <div className="page-editor-canvas" style={{ display: mobileEditorTab === "canvas" ? "block" : "none", flex: 1, overflow: "auto" }}>
+            {/* Mobile Tab Navigation (hidden on desktop) */}
+            <div style={{ display: 'none' }} className="page-editor-mobile-tabs">
+              <div style={{
+                display: 'flex', gap: 0,
+                borderBottom: `1px solid ${C.border}`,
+                backgroundColor: C.dark,
+                overflowX: 'auto', WebkitOverflowScrolling: 'touch',
+              }}>
+                {['library', 'canvas', 'settings'].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setMobileEditorTab(tab)}
+                    style={{
+                      fontFamily: NU, fontSize: 9, padding: '10px 12px',
+                      backgroundColor: mobileEditorTab === tab ? C.card : 'transparent',
+                      border: 'none',
+                      borderBottom: mobileEditorTab === tab ? `3px solid ${C.gold}` : 'none',
+                      color: mobileEditorTab === tab ? C.white : C.grey2,
+                      cursor: 'pointer', textTransform: 'uppercase', fontWeight: 600,
+                      flex: '0 0 auto', whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {tab === 'library' ? 'Sections' : tab === 'canvas' ? 'Canvas' : 'Settings'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Main Content */}
+            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+              {activeTab === 'canvas' && (
+                <>
+                  {/* Section Library */}
+                  <div className="page-editor-library" style={{ display: mobileEditorTab === 'library' ? 'block' : 'none' }}>
+                    <SectionLibrary
+                      onAddSection={handleAddSection}
+                      onBrowseBlocks={() => setShowBlocksBrowser(true)}
+                      C={C} NU={NU} GD={GD}
+                    />
+                  </div>
+
+                  {/* Canvas */}
+                  <div className="page-editor-canvas" style={{ display: mobileEditorTab === 'canvas' ? 'block' : 'none', flex: 1, overflow: 'auto' }}>
+                    <SectionCanvas
+                      sections={page.sections || []}
+                      onSelectSection={setSelectedSectionId}
+                      onDeleteSection={handleDeleteSection}
+                      onDuplicateSection={handleDuplicateSection}
+                      onMoveUp={handleMoveSectionUp}
+                      onMoveDown={handleMoveSectionDown}
+                      onToggleVisibility={handleToggleVisibility}
+                      selectedSectionId={selectedSectionId}
+                      C={C} NU={NU} GD={GD}
+                    />
+                  </div>
+
+                  {/* Settings Panel */}
+                  <div className="page-editor-settings" style={{ display: mobileEditorTab === 'settings' ? 'block' : 'none' }}>
+                    {selectedSection ? (
+                      <RightSettingsPanel
+                        section={selectedSection}
+                        onUpdate={(updated) => {
+                          handleUpdateSection(updated.id, updated);
+                          setSelectedSectionId(updated.id);
+                        }}
+                        C={C} NU={NU} GD={GD}
+                      />
+                    ) : (
+                      <div style={{
+                        width: 320, backgroundColor: C.dark,
+                        borderLeft: `1px solid ${C.border}`,
+                        padding: '16px', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center',
+                        color: C.grey2, fontFamily: NU, fontSize: 12, textAlign: 'center',
+                      }}>
+                        Select a section to edit
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'seo' && (
+                <SEOPanel
+                  page={page}
+                  onUpdate={(updated) => handleSavePage(updated)}
+                  C={C} NU={NU} GD={GD}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* RIGHT PANEL: Live Preview */}
+        {showRightPanel && (
+          <div style={{
+            display: 'flex', flexDirection: 'column',
+            height: '100%', overflow: 'hidden',
+            backgroundColor: C.dark,
+            order: viewMode === 'preview' ? 1 : 2,
+          }}>
+            {/* Preview Header */}
+            <div style={{
+              padding: '12px 16px',
+              borderBottom: `1px solid ${C.border}`,
+              backgroundColor: C.card,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              flexShrink: 0,
+            }}>
+              <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', color: C.grey2, textTransform: 'uppercase', fontFamily: NU }}>
+                Live Preview
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowPreview(true)}
+                style={{
+                  fontSize: 11, fontWeight: 600, padding: '4px 10px',
+                  backgroundColor: 'transparent', color: C.grey2,
+                  border: `1px solid ${C.border}`, borderRadius: 4, cursor: 'pointer',
+                  fontFamily: NU, textTransform: 'uppercase', letterSpacing: '0.06em',
+                }}
+              >
+                Full Preview
+              </button>
+            </div>
+
+            {/* Preview Content */}
+            <div style={{ flex: 1, overflow: 'auto' }}>
               <SectionCanvas
                 sections={page.sections || []}
                 onSelectSection={setSelectedSectionId}
@@ -424,80 +500,25 @@ const PageEditorModule = ({ pageId, C, NU, GD, onNavigate }) => {
                 onMoveDown={handleMoveSectionDown}
                 onToggleVisibility={handleToggleVisibility}
                 selectedSectionId={selectedSectionId}
-                C={C}
-                NU={NU}
-                GD={GD}
+                C={C} NU={NU} GD={GD}
               />
             </div>
-
-            {/* Right Settings Panel */}
-            <div className="page-editor-settings" style={{ display: mobileEditorTab === "settings" ? "block" : "none" }}>
-              {selectedSection ? (
-                <RightSettingsPanel
-                  section={selectedSection}
-                  onUpdate={(updated) => {
-                    handleUpdateSection(updated.id, updated);
-                    setSelectedSectionId(updated.id);
-                  }}
-                  C={C}
-                  NU={NU}
-                  GD={GD}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: 320,
-                    backgroundColor: C.dark,
-                    borderLeft: `1px solid ${C.border}`,
-                    padding: "16px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: C.grey2,
-                    fontFamily: NU,
-                    fontSize: 12,
-                    textAlign: "center"
-                  }}
-                >
-                  Select a section to edit
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
-        {activeTab === "seo" && (
-          <SEOPanel
-            page={page}
-            onUpdate={(updated) => {
-              handleSavePage(updated);
-            }}
-            C={C}
-            NU={NU}
-            GD={GD}
-          />
+          </div>
         )}
       </div>
 
-      {/* Preview Modal */}
+      {/* Modals */}
       {showPreview && (
-        <PreviewModal
-          page={page}
-          onClose={() => setShowPreview(false)}
-          C={C}
-          NU={NU}
-          GD={GD}
-        />
+        <PreviewModal page={page} onClose={() => setShowPreview(false)} C={C} NU={NU} GD={GD} />
       )}
-
-      {/* Reusable Blocks Browser Modal */}
       {showBlocksBrowser && (
-        <ReusableBlocksBrowser
-          onInsertBlock={handleInsertBlock}
-          onClose={() => setShowBlocksBrowser(false)}
-          C={C}
-          NU={NU}
-          GD={GD}
+        <ReusableBlocksBrowser onInsertBlock={handleInsertBlock} onClose={() => setShowBlocksBrowser(false)} C={C} NU={NU} GD={GD} />
+      )}
+      {showAIImport && (
+        <AIPageImportPanel
+          page={page}
+          onSavePage={(updatedPage) => { handleSavePage(updatedPage); setUnsavedChanges(false); }}
+          onClose={() => setShowAIImport(false)}
         />
       )}
     </div>

@@ -79,7 +79,7 @@ export default function MapSection({
       });
       mapRef.current = map;
 
-      // Tile layer — elegant desaturated style
+      // Tile layer, elegant desaturated style
       L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
         attribution: '&copy; <a href="https://carto.com">CARTO</a> &copy; <a href="https://osm.org/copyright">OSM</a>',
         maxZoom: 18,
@@ -208,7 +208,6 @@ export default function MapSection({
             aria-hidden="true"
             style={{
               position: "absolute", top: 0, left: 0, right: 0, zIndex: 400,
-              background: `linear-gradient(180deg, rgba(10,8,6,0.7) 0%, transparent 100%)`,
               padding: "14px 20px", pointerEvents: "none",
             }}
           >

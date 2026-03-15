@@ -351,7 +351,7 @@ export default function VendorProfileTemplate({
                   Send an enquiry
                 </h3>
                 <div style={{ background: C.card, border: `1px solid ${C.border2}`, borderRadius: "var(--lwd-radius-card)", padding: 22 }}>
-                  <VendorContactForm vendor={enrichedVendor} C={C} />
+                  <VendorContactForm vendor={enrichedVendor} C={C} leadSource="Venue Profile" />
                 </div>
               </div>
 

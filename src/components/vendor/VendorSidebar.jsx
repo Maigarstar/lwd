@@ -14,7 +14,7 @@ function stars(r = 0) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
-   Card 1 — Contact Person (clones venue OwnerCard)
+   Card 1, Contact Person (clones venue OwnerCard)
    ═══════════════════════════════════════════════════════════════════════════════ */
 function ContactPersonCard({ vendor, C }) {
   const owner = vendor.owner || {};
@@ -132,7 +132,7 @@ function ConversionSignals({ vendor, C }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
-   Card 2 — Conversion (price, stars, CTAs)
+   Card 2, Conversion (price, stars, CTAs)
    ═══════════════════════════════════════════════════════════════════════════════ */
 function ConversionCard({ vendor, C, onChat, onSave, isSaved }) {
   return (
@@ -203,7 +203,7 @@ function ConversionCard({ vendor, C, onChat, onSave, isSaved }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
-   Card 3 — Quick Facts
+   Card 3, Quick Facts
    ═══════════════════════════════════════════════════════════════════════════════ */
 function QuickFactsCard({ vendor, C }) {
   const rows = [
@@ -237,7 +237,7 @@ function QuickFactsCard({ vendor, C }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
-   Card 4 — Social Links
+   Card 4, Social Links
    ═══════════════════════════════════════════════════════════════════════════════ */
 function SocialLinksCard({ vendor, C }) {
   const s = vendor.socials || {};
@@ -271,7 +271,7 @@ function SocialLinksCard({ vendor, C }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
-   Main export — stacks all 5 cards
+   Main export, stacks all 5 cards
    ═══════════════════════════════════════════════════════════════════════════════ */
 export default function VendorSidebar({ vendor, vendorType, C, onChat, onSave, isSaved }) {
   if (!vendor || !C) return null;
@@ -287,7 +287,7 @@ export default function VendorSidebar({ vendor, vendorType, C, onChat, onSave, i
           <div style={{ fontFamily: FB, fontSize: 10, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: C.gold, marginBottom: 16 }}>
             Send an enquiry
           </div>
-          <VendorContactForm vendor={vendor} C={C} />
+          <VendorContactForm vendor={vendor} C={C} leadSource="Venue Profile" />
         </div>
       </div>
     </>

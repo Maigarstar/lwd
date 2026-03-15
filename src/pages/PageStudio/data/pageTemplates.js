@@ -105,7 +105,7 @@ export const PAGE_TEMPLATES = {
         sectionType: "rich_text",
         sectionName: "Inspirational Quote",
         content: {
-          heading: "{destination} — where every moment becomes a memory",
+          heading: "{destination}, where every moment becomes a memory",
           body: "Create unforgettable wedding experiences"
         },
         order: 5

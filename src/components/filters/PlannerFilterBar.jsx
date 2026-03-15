@@ -2,7 +2,7 @@
 // Lightweight filter bar for wedding planners.
 // [Service Tier ▾] [Region ▾] [Sort ▾]  {n} planners  [Grid / List]
 // Warm stone palette, sticky, backdrop-blur.
-// Location-only + tier + sort — no capacity/style/price.
+// Location-only + tier + sort, no capacity/style/price.
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useTheme } from "../../theme/ThemeContext";

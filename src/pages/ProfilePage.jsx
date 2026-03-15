@@ -11,7 +11,7 @@ import { getDarkPalette, getLightPalette, getDefaultMode } from "../theme/tokens
 
 import { useChat } from "../chat/ChatContext";
 
-import VendorSidebar from "../components/vendor/VendorSidebar";
+import { ListingSidebar } from "../components/listing-sidebar";
 import VendorMobileBar from "../components/vendor/VendorMobileBar";
 import VendorContactForm from "../components/vendor/VendorContactForm";
 
@@ -180,22 +180,25 @@ export default function ProfilePage({
               <BottomQuestionCta entity={enriched} />
             </div>
 
-            {/* Right rail sticky sidebar, same conversion mechanics */}
+            {/* Right rail sticky sidebar, modular ListingSidebar */}
             <div
               className="vpt-sidebar"
               style={{
                 position: "sticky",
                 top: 56,
                 alignSelf: "start",
-                display: "flex",
-                flexDirection: "column",
-                gap: 16,
               }}
             >
-              <VendorSidebar
-                vendor={enriched}
-                vendorType={entityType}
+              <ListingSidebar
+                entity={enriched}
+                entityType={entityType}
                 C={C}
+                onEnquire={() => {
+                  // TODO (future phase): open enquiry modal / scroll to full form
+                  // For now, scroll to mobile form or bottom CTA
+                  const anchor = document.querySelector(".lwd-enquiry-anchor");
+                  if (anchor) anchor.scrollIntoView({ behavior: "smooth", block: "center" });
+                }}
               />
             </div>
           </div>

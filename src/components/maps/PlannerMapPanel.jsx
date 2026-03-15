@@ -124,7 +124,7 @@ export default function PlannerMapPanel({
     planners.forEach((p) => {
       if (!p.lat || !p.lng) {
         if (process.env.NODE_ENV === "development") {
-          console.warn(`[PlannerMapPanel] Planner "${p.name}" (${p.id}) missing lat/lng — skipped.`);
+          console.warn(`[PlannerMapPanel] Planner "${p.name}" (${p.id}) missing lat/lng, skipped.`);
         }
         return;
       }

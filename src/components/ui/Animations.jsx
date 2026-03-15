@@ -3,7 +3,7 @@
 // All effects are subtle, performant (GPU-accelerated), and trigger once on scroll.
 import { useState, useEffect, useRef } from "react";
 
-// ── useInView — IntersectionObserver hook ────────────────────────────────────
+// ── useInView, IntersectionObserver hook ────────────────────────────────────
 // Returns [ref, inView]. Attach ref to element; inView flips true once visible.
 export function useInView({ threshold = 0.15, once = true, rootMargin = "0px" } = {}) {
   const ref = useRef(null);
@@ -28,7 +28,7 @@ export function useInView({ threshold = 0.15, once = true, rootMargin = "0px" } 
   return [ref, inView];
 }
 
-// ── CountUp — animated number counter ────────────────────────────────────────
+// ── CountUp, animated number counter ────────────────────────────────────────
 // Counts from 0 → end with easeOutCubic. Triggers when element enters viewport.
 export function CountUp({ end, duration = 1600, suffix = "", prefix = "", style }) {
   const [ref, inView] = useInView({ threshold: 0.3 });
@@ -53,7 +53,7 @@ export function CountUp({ end, duration = 1600, suffix = "", prefix = "", style 
   return <span ref={ref} style={style}>{prefix}{count}{suffix}</span>;
 }
 
-// ── SplitText — word-by-word reveal ──────────────────────────────────────────
+// ── SplitText, word-by-word reveal ──────────────────────────────────────────
 // Each word fades in + slides up with a stagger delay.
 // `trigger` prop: pass true to start animation (e.g. from parent's loaded state).
 export function SplitText({ children, trigger = true, delay = 0, stagger = 70, style = {} }) {
@@ -84,7 +84,7 @@ export function SplitText({ children, trigger = true, delay = 0, stagger = 70, s
   );
 }
 
-// ── revealStyle — inline stagger style for grid children ─────────────────────
+// ── revealStyle, inline stagger style for grid children ─────────────────────
 // Use: style={{ ...revealStyle(inView, index) }} on each grid child.
 export function revealStyle(visible, index, stagger = 100) {
   return {

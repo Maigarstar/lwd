@@ -5,7 +5,7 @@ import { useTheme } from "../../theme/ThemeContext";
 const FAQS = [
   {
     q: "When is the best time to get married in Italy?",
-    a: "Late April through June and September through October offer the finest weather — warm, dry days with a golden light that photographers love. August can be intensely hot, particularly in Tuscany and Puglia, so consider early morning or late evening ceremonies.",
+    a: "Late April through June and September through October offer the finest weather, warm, dry days with a golden light that photographers love. August can be intensely hot, particularly in Tuscany and Puglia, so consider early morning or late evening ceremonies.",
   },
   {
     q: "Do I need a civil or religious ceremony in Italy?",

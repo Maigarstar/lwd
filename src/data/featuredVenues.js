@@ -90,7 +90,7 @@ export const FEATURED_VENUES = [
     rating: 5.0,
     reviews: 189,
     tag: "Editor's Choice",
-    desc: "A Renaissance villa overlooking the sapphire waters of Lake Como — one of the most romantic wedding settings in the world.",
+    desc: "A Renaissance villa overlooking the sapphire waters of Lake Como, one of the most romantic wedding settings in the world.",
     imgs: [
       "https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=1920&q=80",
       "https://images.unsplash.com/photo-1519225421980-715cb0215aed?auto=format&fit=crop&w=1920&q=80",
@@ -140,7 +140,7 @@ export const FEATURED_VENUES = [
     rating: 4.9,
     reviews: 118,
     tag: "Cliffside Favourite",
-    desc: "Perched above the Tyrrhenian Sea with panoramic views across the coast — intimate, spectacular and forever unforgettable.",
+    desc: "Perched above the Tyrrhenian Sea with panoramic views across the coast, intimate, spectacular and forever unforgettable.",
     imgs: [
       "https://images.unsplash.com/photo-1544078751-58fee2d8a03b?auto=format&fit=crop&w=1920&q=80",
       "https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&w=1920&q=80",
@@ -215,7 +215,7 @@ export const FEATURED_VENUES = [
     rating: 5.0,
     reviews: 145,
     tag: "Most Romantic",
-    desc: "A sixteenth-century palazzo on Venice's Grand Canal — arrive by gondola, celebrate in frescoed halls, utterly unmatched.",
+    desc: "A sixteenth-century palazzo on Venice's Grand Canal, arrive by gondola, celebrate in frescoed halls, utterly unmatched.",
     imgs: [
       "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=1920&q=80",
       "https://images.unsplash.com/photo-1544078751-58fee2d8a03b?auto=format&fit=crop&w=1920&q=80",
@@ -240,7 +240,7 @@ export const FEATURED_VENUES = [
     rating: 4.9,
     reviews: 132,
     tag: "Alpine Luxury",
-    desc: "A Michelin-starred domaine with Jura mountain panoramas and private vineyards — culinary excellence meets alpine grandeur.",
+    desc: "A Michelin-starred domaine with Jura mountain panoramas and private vineyards, culinary excellence meets alpine grandeur.",
     imgs: [
       "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=1920&q=80",
       "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1920&q=80",

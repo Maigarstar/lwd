@@ -1,6 +1,6 @@
 // ─── src/engine/curatedIndex.js ───────────────────────────────────────────────
 // Deterministic scoring engine for the LWD Curated Index.
-// Pure JS — no React dependencies, no imports from src/data.
+// Pure JS, no React dependencies, no imports from src/data.
 // Computes lwdScore from structured venue/vendor data using 5 weighted factors.
 // Missing data excludes the factor entirely and redistributes weight.
 
@@ -47,7 +47,7 @@ function parseResponseString(str) {
   return null;
 }
 
-// ── Factor A: Presentation (0–10) — always available ─────────────────────────
+// ── Factor A: Presentation (0–10), always available ─────────────────────────
 function scorePresentation(venue) {
   const imageCount = venue.gallery?.length || venue.imgs?.length || 0;
   const videoCount = venue.videos?.length || 0;
@@ -61,12 +61,12 @@ function scorePresentation(venue) {
   return { score: Math.min(raw, 1) * 10, available: true };
 }
 
-// ── Factor B: Experience Depth (0–10) — excluded if no experiences[] ─────────
+// ── Factor B: Experience Depth (0–10), excluded if no experiences[] ─────────
 function scoreExperienceDepth(venue) {
   const experiences = venue.experiences || [];
   if (experiences.length === 0) return { score: 0, available: false };
 
-  // Distinct kinds from ALL experiences — order-independent, cap at 12
+  // Distinct kinds from ALL experiences, order-independent, cap at 12
   const distinctKinds = new Set(
     experiences.map((e) => e.kind).filter((k) => EXPERIENCE_KIND_SET.has(k))
   );
@@ -82,7 +82,7 @@ function scoreExperienceDepth(venue) {
   return { score: Math.min(variety + bonus, 1) * 10, available: true };
 }
 
-// ── Factor C: Responsiveness (0–10) — excluded if either metric missing ──────
+// ── Factor C: Responsiveness (0–10), excluded if either metric missing ──────
 function scoreResponsiveness(venue) {
   const metrics     = venue.contact?.responseMetrics;
   const responseStr = venue.response; // fallback for flat data
@@ -102,7 +102,7 @@ function scoreResponsiveness(venue) {
   return { score: ((rateScore * 0.6) + (timeScore * 0.4)) * 10, available: true };
 }
 
-// ── Factor D: Catering Quality (0–10) — excluded if no catering object ───────
+// ── Factor D: Catering Quality (0–10), excluded if no catering object ───────
 function scoreCateringQuality(venue) {
   const cat = venue.catering;
   if (!cat) return { score: 0, available: false };
@@ -117,7 +117,7 @@ function scoreCateringQuality(venue) {
   return { score: Math.min(raw, 1) * 10, available: true };
 }
 
-// ── Factor E: Completeness (0–10) — always available ─────────────────────────
+// ── Factor E: Completeness (0–10), always available ─────────────────────────
 function scoreCompleteness(venue) {
   const sections = [
     !!(venue.contact || venue.phone || venue.email),      // contact present
@@ -132,7 +132,7 @@ function scoreCompleteness(venue) {
 // ── Main: computeCuratedIndex(venue) ─────────────────────────────────────────
 /**
  * Compute the LWD Curated Index for a venue or vendor entity.
- * @param {Object} venue — venue or vendor data object
+ * @param {Object} venue, venue or vendor data object
  * @returns {CuratedIndexResult}
  */
 export function computeCuratedIndex(venue) {
@@ -168,13 +168,13 @@ export function computeCuratedIndex(venue) {
     totalEffWeight += w;
   }
 
-  // Guard: if no factors available (shouldn't happen — presentation + completeness always are)
+  // Guard: if no factors available (shouldn't happen, presentation + completeness always are)
   const lwdScore10  = totalEffWeight > 0
     ? Math.round((totalWeighted / totalEffWeight) * 10 * 10) / 10  // one decimal
     : 0;
   const lwdScore100 = Math.round(lwdScore10 * 10);
 
-  // 4. Breakdown — 0–10 per factor, null if excluded
+  // 4. Breakdown, 0–10 per factor, null if excluded
   const breakdown = {};
   for (const key of Object.keys(factors)) {
     breakdown[key] = factors[key].available
@@ -198,7 +198,7 @@ export function computeCuratedIndex(venue) {
   return { lwdScore10, lwdScore100, confidence, breakdown, weights };
 }
 
-// ── hydrateScores(items) — attach _curatedIndex to every item ────────────────
+// ── hydrateScores(items), attach _curatedIndex to every item ────────────────
 /**
  * Compute and attach _curatedIndex to each item. Only overrides item.lwdScore
  * when confidence is "high" OR item.forceComputedScore is true.
@@ -207,7 +207,7 @@ export function computeCuratedIndex(venue) {
  */
 export function hydrateScores(items) {
   for (const item of items) {
-    if (item._curatedIndex) continue; // idempotent — use continue, not return
+    if (item._curatedIndex) continue; // idempotent, use continue, not return
 
     const result = computeCuratedIndex(item);
     item._curatedIndex = result;

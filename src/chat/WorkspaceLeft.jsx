@@ -225,7 +225,7 @@ export default function WorkspaceLeft({ collapsed, onBack, darkMode }) {
         </div>
       </Section>
 
-      {/* ── Quick Asks — elegant suggestion chips ─────────────────────────── */}
+      {/* ── Quick Asks, elegant suggestion chips ─────────────────────────── */}
       <Section label="Suggested" T={T}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           {QUICK_ASKS.map((q) => (

@@ -1,71 +1,49 @@
-import { getTierProperties } from '../../services/listings';
-import { isEditorialCurationEnabled } from '../../services/platformSettingsService';
-
 /**
- * TierBadge - Displays editorial quality tier (Platinum, Signature, Approved)
- * Compact badge format for use on venue cards (top-right, top-left, etc.)
- * Does not display Standard tier (returns null)
+ * TierBadge.jsx
+ * Compact tier indicator badge for discovery cards
+ * Displays quality tier with icon and label
+ * Used in: AuraVenueCard, ListingCards, search results
  */
-export default function TierBadge({ tier = 'standard', showLabel = true, size = 'sm' }) {
-  const tierProps = getTierProperties(tier);
-  const editorialEnabled = isEditorialCurationEnabled();
 
-  // Don't show badge if editorial curation is disabled globally or tier is standard
-  if (!editorialEnabled || tier === 'standard' || !tierProps) {
-    return null;
-  }
+import { getTierProperties } from '../../services/listings';
+
+export default function TierBadge({ tier = 'standard', showLabel = true, size = 'md' }) {
+  const tierProps = getTierProperties(tier);
+
+  // Don't show badge for standard tier
+  if (tier === 'standard') return null;
 
   const sizeMap = {
-    sm: {
-      icon: 11,
-      label: 9,
-      padding: '3px 8px',
-      fontSize: 9,
-      fontWeight: 700
-    },
-    md: {
-      icon: 14,
-      label: 11,
-      padding: '5px 12px',
-      fontSize: 11,
-      fontWeight: 600
-    },
-    lg: {
-      icon: 16,
-      label: 12,
-      padding: '6px 14px',
-      fontSize: 12,
-      fontWeight: 600
-    }
+    sm: { icon: 12, label: 10, padding: '4px 8px' },
+    md: { icon: 16, label: 12, padding: '6px 12px' },
+    lg: { icon: 20, label: 14, padding: '8px 16px' },
   };
 
-  const s = sizeMap[size] || sizeMap.sm;
+  const s = sizeMap[size];
 
   return (
     <div
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 5,
+        gap: 6,
         padding: s.padding,
         background: tierProps.bgColor,
-        border: `1px solid ${tierProps.color}60`,
-        borderRadius: 3,
-        fontSize: s.fontSize,
-        fontWeight: s.fontWeight,
+        border: `1px solid ${tierProps.color}40`,
+        borderRadius: 4,
+        fontSize: s.label,
+        fontWeight: 600,
         color: tierProps.color,
-        letterSpacing: '0.5px',
-        textTransform: 'uppercase',
-        whiteSpace: 'nowrap'
+        letterSpacing: '0.02em',
+        fontFamily: 'var(--font-body)',
       }}
-      title={tierProps.description}
     >
       {tierProps.icon && (
         <span style={{ fontSize: s.icon, lineHeight: 1 }}>
           {tierProps.icon}
         </span>
       )}
-      {showLabel && tierProps.label}
+      {showLabel && <span>{tierProps.label}</span>}
     </div>
   );
 }

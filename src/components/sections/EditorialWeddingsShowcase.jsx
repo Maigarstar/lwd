@@ -1,6 +1,6 @@
 // ─── src/components/sections/EditorialWeddingsShowcase.jsx ──────────────────────
 // Horizontal slider of real weddings from multiple planners.
-// "The Latest Masterpieces" — single row, scrollable with SliderNav arrows.
+// "The Latest Masterpieces", single row, scrollable with SliderNav arrows.
 
 import { useState } from "react";
 import { useTheme } from "../../theme/ThemeContext";

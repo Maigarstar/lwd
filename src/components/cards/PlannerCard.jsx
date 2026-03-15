@@ -13,6 +13,10 @@ import { GoldBadge, VerifiedBadge } from "../ui/Badges";
 import CuratedIndexBadge from "../ui/CuratedIndexBadge";
 import MediaGalleryModal from "../ui/MediaGalleryModal";
 import EnquiryFormModal from "../ui/EnquiryFormModal";
+import { getQualityTier } from "../../services/listings";
+import TierBadge from "../editorial/TierBadge";
+import ApprovalIndicators from "../editorial/ApprovalIndicators";
+import FreshnessText from "../editorial/FreshnessText";
 
 const GOLD = "#C9A84C";
 const GD   = "var(--font-heading-primary)";
@@ -115,7 +119,7 @@ export function SocialRow({ socials, color, phone, whatsapp, email, darkMode }) 
         </a>
       )}
 
-      {/* Phone icon — reveals number on click */}
+      {/* Phone icon, reveals number on click */}
       {phone && (
         showPhone ? (
           <a
@@ -163,7 +167,7 @@ export function SocialRow({ socials, color, phone, whatsapp, email, darkMode }) 
         )
       )}
 
-      {/* WhatsApp icon — reveals link on click */}
+      {/* WhatsApp icon, reveals link on click */}
       {whatsapp && (
         showWa ? (
           <a
@@ -367,7 +371,7 @@ export function HoverMedia({ src, videoUrl, alt, hov }) {
 
   return (
     <>
-      {/* Static image — always present */}
+      {/* Static image, always present */}
       <img
         src={src}
         alt={alt}
@@ -380,7 +384,7 @@ export function HoverMedia({ src, videoUrl, alt, hov }) {
           transition: "transform 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
         }}
       />
-      {/* Video overlay — fades in on hover */}
+      {/* Video overlay, fades in on hover */}
       {videoUrl && (
         <video
           ref={vidRef}
@@ -518,7 +522,7 @@ function ScrollNextChevron({ cardRef }) {
     if (next) {
       next.scrollIntoView({ behavior: "smooth", block: "start" });
     } else {
-      // Last card — scroll to next section
+      // Last card, scroll to next section
       const parent = cardRef.current.parentElement;
       const nextSection = parent?.nextElementSibling;
       if (nextSection) nextSection.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -560,7 +564,7 @@ function ScrollNextChevron({ cardRef }) {
   );
 }
 
-// ── Grid Card (default) — full-bleed reel style with swipeable media ────────
+// ── Grid Card (default), full-bleed reel style with swipeable media ────────
 function GridCard({ v, onView, isMobile }) {
   const C = useTheme();
   const [hov, setHov] = useState(false);
@@ -730,7 +734,7 @@ function GridCard({ v, onView, isMobile }) {
           userSelect: "none",
         }}
       >
-        {/* Slide strip — translateX for slide transitions */}
+        {/* Slide strip, translateX for slide transitions */}
         <div
           style={{
             display:    "flex",
@@ -831,7 +835,7 @@ function GridCard({ v, onView, isMobile }) {
         </div>
       </div>
 
-      {/* ── Cinematic gradient — stronger at bottom for text readability ── */}
+      {/* ── Cinematic gradient, stronger at bottom for text readability ── */}
       <div
         aria-hidden="true"
         style={{
@@ -855,7 +859,7 @@ function GridCard({ v, onView, isMobile }) {
         </div>
       )}
 
-      {/* Swipe hint — top right area on hover */}
+      {/* Swipe hint, top right area on hover */}
       {hov && hasMultiple && (
         <div
           style={{
@@ -1078,7 +1082,7 @@ function GridCard({ v, onView, isMobile }) {
           {v.city}, {v.region}
         </div>
 
-        {/* Service tier + Stars row */}
+        {/* Service tier + Stars row + Phase 4 Editorial Tier Badge */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
           {v.serviceTier && (
             <span
@@ -1106,12 +1110,38 @@ function GridCard({ v, onView, isMobile }) {
               </span>
             </div>
           )}
+          {/* Phase 4a: Quality tier badge */}
+          {v.contentScore !== undefined && (
+            <TierBadge tier={getQualityTier(v.contentScore)} showLabel={true} size="sm" />
+          )}
         </div>
+
+        {/* Phase 4b: Editorial approval indicators */}
+        {(v.editorialApproved || v.editorialFactChecked) && (
+          <div style={{ marginBottom: 8 }}>
+            <ApprovalIndicators
+              approved={v.editorialApproved}
+              factChecked={v.editorialFactChecked}
+              layout="horizontal"
+            />
+          </div>
+        )}
+
+        {/* Phase 4b: Freshness indicator */}
+        {v.editorialApproved && v.editorialLastReviewedAt && (
+          <div style={{ marginBottom: 8 }}>
+            <FreshnessText
+              lastReviewedAt={v.editorialLastReviewedAt}
+              color="rgba(255,255,255,0.6)"
+              fontSize={10}
+            />
+          </div>
+        )}
 
         {/* Social + contact icons */}
         <SocialRow socials={v.socials} color="rgba(255,255,255,0.5)" phone={v.phone} whatsapp={v.whatsapp} email={v.email} darkMode />
 
-        {/* Description — 2-line clamp */}
+        {/* Description, 2-line clamp */}
         <p
           style={{
             fontFamily:        NU,

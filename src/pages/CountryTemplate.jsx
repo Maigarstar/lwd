@@ -1,5 +1,5 @@
 // ─── src/pages/CountryTemplate.jsx ───────────────────────────────────────────
-// Legacy template route at /category — noindexed, canonical → /italy.
+// Legacy template route at /category, noindexed, canonical → /italy.
 // Each country now has its own dedicated page (ItalyPage, USAPage, etc.)
 import "../category.css";
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -38,7 +38,7 @@ import { VENDORS as ALL_VENDORS } from "../data/vendors";
 
 // ── Italy-only subset (template defaults to Italy) ──────────────────────────
 const ITALY_VENUES = VENUES.filter((v) => v.countrySlug === "italy");
-// Featured venues (static — never changes)
+// Featured venues (static, never changes)
 const FEATURED = ITALY_VENUES.filter((v) => v.featured);
 // Latest 5 venues for the editorial split section
 const LATEST_5 = ITALY_VENUES.slice(0, 5);
@@ -97,7 +97,7 @@ export default function CountryTemplate({
   // CountryTemplate is a rendering template only. The indexable entity is /italy.
   // Prevents /category from competing with /italy, /italy/tuscany, etc.
   useEffect(() => {
-    // robots — noindex, follow
+    // robots, noindex, follow
     let robots = document.querySelector('meta[name="robots"]');
     if (!robots) {
       robots = document.createElement("meta");
@@ -106,7 +106,7 @@ export default function CountryTemplate({
     }
     robots.setAttribute("content", "noindex, follow");
 
-    // canonical — point to /italy (the SEO entity)
+    // canonical, point to /italy (the SEO entity)
     let canon = document.querySelector('link[rel="canonical"]');
     if (!canon) {
       canon = document.createElement("link");
@@ -149,7 +149,7 @@ export default function CountryTemplate({
     root.style.setProperty("--lwd-white", C.white);
   }, [C.dark, C.gold, C.white]);
 
-  // ── Filtered + sorted venue list — memoised ─────────────────────────────
+  // ── Filtered + sorted venue list, memoised ─────────────────────────────
   const filtered = useMemo(() => {
     const parsePrice = (s) => parseInt(String(s).replace(/[^0-9]/g, ""), 10) || 0;
     const q = searchQuery.trim().toLowerCase();
@@ -292,7 +292,7 @@ export default function CountryTemplate({
                   maxWidth: 520,
                   margin: 0,
                 }}>
-                  Newly added villas, palazzi, and estates — each personally vetted by our editorial team.
+                  Newly added villas, palazzi, and estates, each personally vetted by our editorial team.
                 </p>
               </div>
             )}
@@ -300,7 +300,7 @@ export default function CountryTemplate({
             {/* Batch 1 (first 6) */}
             <div className="lwd-venue-list-wrap" style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 0" }}>
               {filtered.length === 0 ? (
-                /* Empty state — brand-aligned tone */
+                /* Empty state, brand-aligned tone */
                 <div style={{ textAlign: "center", padding: "100px 0" }}>
                   <div
                     style={{
@@ -312,7 +312,7 @@ export default function CountryTemplate({
                       fontFamily: "var(--font-body)",
                     }}
                   >
-                    Nothing here — yet
+                    Nothing here, yet
                   </div>
                   <div
                     style={{
@@ -334,7 +334,7 @@ export default function CountryTemplate({
                     fontWeight: 300,
                     marginBottom: 28,
                   }}>
-                    Try broadening your filters — or let us surprise you.
+                    Try broadening your filters, or let us surprise you.
                   </p>
                   <button
                     onClick={() => setFilters(DEFAULT_FILTERS)}
@@ -395,7 +395,7 @@ export default function CountryTemplate({
               )}
             </div>
 
-            {/* ── Signature Collection — premium tier ── */}
+            {/* ── Signature Collection, premium tier ── */}
             {showSlider && (
               <div style={{ marginTop: 72 }}>
                 {/* Thin gold divider */}
@@ -475,7 +475,7 @@ export default function CountryTemplate({
                     maxWidth: 520,
                     margin: 0,
                   }}>
-                    Planners, photographers, florists, and culinary artists — the professionals behind Italy's finest celebrations.
+                    Planners, photographers, florists, and culinary artists, the professionals behind Italy's finest celebrations.
                   </p>
                 </div>
                 <div style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 0" }}>
@@ -525,7 +525,7 @@ export default function CountryTemplate({
         {/* ── Black footer ── */}
         <SiteFooter {...footerNav} />
 
-        {/* Aura chat is now global — rendered by AuraChat in main.jsx */}
+        {/* Aura chat is now global, rendered by AuraChat in main.jsx */}
 
         {/* ── Quick View modal (page-level) ── */}
         {qvItem && (
@@ -540,7 +540,7 @@ export default function CountryTemplate({
   );
 }
 
-// ── Tiny helper — Load More button with state-driven hover ────────────────────
+// ── Tiny helper, Load More button with state-driven hover ────────────────────
 function LoadMoreBtn({ C, onClick }) {
   const [hov, setHov] = useState(false);
   return (

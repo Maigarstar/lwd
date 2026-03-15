@@ -66,7 +66,7 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
           Luxury <span style={{ color: C.gold }}>Wedding</span> Directory
         </div>
 
-        {/* Right side — desktop */}
+        {/* Right side, desktop */}
         <div className="home-nav-right-desktop" style={{ display: "flex", gap: 28, alignItems: "center" }}>
           {navLinks.map((t) => {
             const linkColor =
@@ -193,7 +193,7 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
           </button>
         </div>
 
-        {/* Hamburger — mobile only */}
+        {/* Hamburger, mobile only */}
         <button
           className="home-nav-hamburger"
           onClick={() => setDrawerOpen(true)}

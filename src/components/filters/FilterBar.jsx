@@ -100,7 +100,7 @@ function Chevron({ open, cl }) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// LuxSelect — custom styled dropdown for Style / Capacity / Price / Sort
+// LuxSelect, custom styled dropdown for Style / Capacity / Price / Sort
 // ═════════════════════════════════════════════════════════════════════════════
 function LuxSelect({ value, options, label, onChange, minWidth = 120, C }) {
   const cl = colors(C);
@@ -217,7 +217,7 @@ function LuxSelect({ value, options, label, onChange, minWidth = 120, C }) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// RegionMegaMenu — multi-column grouped region picker
+// RegionMegaMenu, multi-column grouped region picker
 // ═════════════════════════════════════════════════════════════════════════════
 function RegionMegaMenu({ value, regions, onChange, C }) {
   const cl = colors(C);
@@ -442,7 +442,7 @@ const SORT_OPTIONS = [
 ];
 
 // ═════════════════════════════════════════════════════════════════════════════
-// FilterBar — main export
+// FilterBar, main export
 // ═════════════════════════════════════════════════════════════════════════════
 export default function FilterBar({ filters, onChange, viewMode, onViewMode, sortMode, onSortChange, total, regions }) {
   const C = useTheme();
@@ -516,7 +516,7 @@ export default function FilterBar({ filters, onChange, viewMode, onViewMode, sor
             Filter
           </span>
 
-          {/* Region — Mega Menu */}
+          {/* Region, Mega Menu */}
           <RegionMegaMenu
             value={filters.region}
             regions={regionOptions}
@@ -524,7 +524,7 @@ export default function FilterBar({ filters, onChange, viewMode, onViewMode, sor
             C={C}
           />
 
-          {/* Style / Capacity / Price — LuxSelect */}
+          {/* Style / Capacity / Price, LuxSelect */}
           <LuxSelect value={filters.style}    options={STYLES} label="Style"      onChange={(val) => handleChange("style", val)}    C={C} />
           <LuxSelect value={filters.capacity} options={CAPS}   label="Capacity"   onChange={(val) => handleChange("capacity", val)} C={C} />
           <LuxSelect value={filters.price}    options={PRICES} label="Price tier"  onChange={(val) => handleChange("price", val)}    C={C} />

@@ -1,5 +1,5 @@
 // ─── src/pages/LWDStandard.jsx ────────────────────────────────────────────────
-// "The LWD Standard" — strategic positioning page.
+// "The LWD Standard", strategic positioning page.
 // Not a help page. A statement of authority.
 // Two audiences: couples see trust, venues see opportunity.
 // No numeric scores displayed publicly.
@@ -26,7 +26,7 @@ const STEPS = [
 
 const PILLARS = [
   { icon: "camera",      title: "Presentation Quality",   body: "Depth of media, clarity of information, and narrative strength." },
-  { icon: "star",        title: "Guest Experience Depth",  body: "The variety and richness of experiences offered — from vineyard tastings to private boat charters." },
+  { icon: "star",        title: "Guest Experience Depth",  body: "The variety and richness of experiences offered, from vineyard tastings to private boat charters." },
   { icon: "clock",       title: "Response Performance",    body: "How consistently and quickly a venue replies to enquiries." },
   { icon: "sparkle",     title: "Catering Quality",        body: "Dining flexibility, sommelier services, dietary accommodation, and structured culinary detail." },
   { icon: "checkCircle", title: "Profile Completeness",    body: "A fully transparent, detailed venue profile." },
@@ -96,7 +96,7 @@ export default function LWDStandard({ onBack, onViewCategory, onViewAbout, onVie
 
         <main>
           {/* ──────────────────────────────────────────────────────────────────
-              SECTION 1: Hero — The LWD Standard
+              SECTION 1: Hero, The LWD Standard
           ────────────────────────────────────────────────────────────────── */}
           <section
             className="lwd-standard-section lwd-standard-hero"
@@ -145,14 +145,14 @@ export default function LWDStandard({ onBack, onViewCategory, onViewAbout, onVie
                   Every venue on our platform is presented through a structured evaluation
                   system we call the{" "}
                   <span style={{ color: C.gold, fontWeight: 600 }}>Curated Index</span>.
-                  It ensures that discovery is guided by quality, depth, and reliability — not noise.
+                  It ensures that discovery is guided by quality, depth, and reliability, not noise.
                 </p>
               </div>
             </div>
           </section>
 
           {/* ──────────────────────────────────────────────────────────────────
-              SECTION 2: For Couples — 4 Steps
+              SECTION 2: For Couples, 4 Steps
           ────────────────────────────────────────────────────────────────── */}
           <section
             className="lwd-standard-section"
@@ -172,7 +172,7 @@ export default function LWDStandard({ onBack, onViewCategory, onViewAbout, onVie
                   fontFamily: NU, fontSize: 14, color: C.grey, lineHeight: 1.8,
                   maxWidth: 520, margin: "16px auto 0", fontWeight: 300,
                 }}>
-                  Search, compare, save, and enquire — guided by substance, not sponsorship.
+                  Search, compare, save, and enquire, guided by substance, not sponsorship.
                 </p>
               </div>
 
@@ -221,7 +221,7 @@ export default function LWDStandard({ onBack, onViewCategory, onViewAbout, onVie
           </section>
 
           {/* ──────────────────────────────────────────────────────────────────
-              SECTION 3: The Curated Index — 5 Pillars
+              SECTION 3: The Curated Index, 5 Pillars
           ────────────────────────────────────────────────────────────────── */}
           <section
             className="lwd-standard-section"
@@ -357,7 +357,7 @@ export default function LWDStandard({ onBack, onViewCategory, onViewAbout, onVie
                 </p>
               </div>
 
-              {/* Right column — improvement checklist */}
+              {/* Right column, improvement checklist */}
               <div style={{ paddingTop: 48 }}>
                 {IMPROVEMENTS.map((item, i) => (
                   <div
@@ -450,7 +450,7 @@ export default function LWDStandard({ onBack, onViewCategory, onViewAbout, onVie
                 className="lwd-standard-ctas"
                 style={{ display: "flex", gap: 16, justifyContent: "center" }}
               >
-                {/* Primary — Discover Venues */}
+                {/* Primary, Discover Venues */}
                 <button
                   onClick={onViewCategory}
                   style={{
@@ -466,7 +466,7 @@ export default function LWDStandard({ onBack, onViewCategory, onViewAbout, onVie
                   Discover Venues
                 </button>
 
-                {/* Secondary — List Your Venue */}
+                {/* Secondary, List Your Venue */}
                 <button
                   onClick={onBack}
                   style={{

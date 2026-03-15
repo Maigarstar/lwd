@@ -1,78 +1,154 @@
-/**
- * platformSettingsService.ts
- * Manages global platform settings (editorial curation feature toggle, etc.)
- * Uses localStorage for persistence (can be upgraded to Supabase in future)
- */
+import { supabase } from '../lib/supabaseClient';
 
-export interface PlatformSettings {
-  editorial_curation_enabled: boolean;
-}
-
-const STORAGE_KEY = 'lwd_platform_settings';
-
-// Default settings
-const DEFAULT_SETTINGS: PlatformSettings = {
-  editorial_curation_enabled: true,
-};
+// ─────────────────────────────────────────────────────────────────────────────
+// Platform Settings Service
+// Manages global feature toggles stored in platform_settings table
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Get all platform settings
+ * Fetch a platform setting by key
+ * Returns null if setting not found
  */
-export function getPlatformSettings(): PlatformSettings {
+export async function getPlatformSetting(settingKey: string) {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      return { ...DEFAULT_SETTINGS, ...parsed };
+    const { data, error } = await supabase
+      .from('platform_settings')
+      .select('value')
+      .eq('key', settingKey)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // Row not found - return null
+        return null;
+      }
+      console.error(`getPlatformSetting error for ${settingKey}:`, error);
+      return null;
     }
-  } catch (e) {
-    console.error('Error reading platform settings:', e);
+
+    return data?.value;
+  } catch (err) {
+    console.error(`getPlatformSetting exception for ${settingKey}:`, err);
+    return null;
   }
-  return DEFAULT_SETTINGS;
 }
 
 /**
- * Get a specific platform setting
+ * Update a platform setting by key
+ * Creates the setting if it doesn't exist
  */
-export function getPlatformSetting(key: keyof PlatformSettings): boolean {
-  const settings = getPlatformSettings();
-  return settings[key] ?? DEFAULT_SETTINGS[key];
-}
-
-/**
- * Update platform settings
- */
-export function setPlatformSettings(updates: Partial<PlatformSettings>): PlatformSettings {
+export async function updatePlatformSetting(settingKey: string, settingValue: any) {
   try {
-    const current = getPlatformSettings();
-    const updated = { ...current, ...updates };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    return updated;
-  } catch (e) {
-    console.error('Error saving platform settings:', e);
-    return getPlatformSettings();
+    const { data, error } = await supabase
+      .from('platform_settings')
+      .upsert(
+        { key: settingKey, value: settingValue },
+        { onConflict: 'key' }
+      )
+      .select();
+
+    if (error) {
+      console.error(`updatePlatformSetting error for ${settingKey}:`, error);
+      return null;
+    }
+
+    return data?.[0];
+  } catch (err) {
+    console.error(`updatePlatformSetting exception for ${settingKey}:`, err);
+    return null;
   }
 }
 
 /**
- * Update a specific platform setting
+ * Check if editorial curation feature is enabled globally
+ * Default: true (feature is enabled)
  */
-export function setPlatformSetting(key: keyof PlatformSettings, value: boolean): PlatformSettings {
-  return setPlatformSettings({ [key]: value });
+export async function isEditorialCurationEnabled(): Promise<boolean> {
+  try {
+    const setting = await getPlatformSetting('editorial_curation_enabled');
+    if (!setting) {
+      // Default to true if not set
+      return true;
+    }
+    // Setting is stored as JSON string 'true' or 'false', or as boolean
+    if (typeof setting === 'string') {
+      return setting === 'true';
+    }
+    return setting === true;
+  } catch (err) {
+    console.error('isEditorialCurationEnabled exception:', err);
+    return true; // Default to enabled on error
+  }
 }
 
 /**
- * Check if editorial curation is enabled globally
+ * Toggle editorial curation feature globally
  */
-export function isEditorialCurationEnabled(): boolean {
-  return getPlatformSetting('editorial_curation_enabled');
+export async function setEditorialCurationEnabled(enabled: boolean) {
+  return updatePlatformSetting('editorial_curation_enabled', enabled);
 }
 
 /**
- * Toggle editorial curation feature
+ * Cache for global settings (avoid repeated DB queries)
+ * Invalidate after ~5 minutes
  */
-export function toggleEditorialCuration(): boolean {
-  const current = isEditorialCurationEnabled();
-  setPlatformSetting('editorial_curation_enabled', !current);
-  return !current;
+const settingsCache: {
+  [key: string]: { value: any; timestamp: number };
+} = {};
+
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Fetch editorial curation enabled status with caching
+ * Avoids hitting database on every page render
+ */
+export async function isEditorialCurationEnabledCached(): Promise<boolean> {
+  const key = 'editorial_curation_enabled';
+  const now = Date.now();
+
+  // Return cached value if fresh
+  if (settingsCache[key] && now - settingsCache[key].timestamp < CACHE_TTL) {
+    return settingsCache[key].value === true;
+  }
+
+  // Fetch fresh value
+  const enabled = await isEditorialCurationEnabled();
+
+  // Cache the result
+  settingsCache[key] = { value: enabled, timestamp: now };
+
+  return enabled;
+}
+
+/**
+ * Invalidate settings cache
+ * Call after updating any platform settings
+ */
+export function invalidateSettingsCache() {
+  for (const key in settingsCache) {
+    delete settingsCache[key];
+  }
+}
+
+/**
+ * Retrieve all platform settings at once
+ * Useful for admin dashboards
+ */
+export async function getAllPlatformSettings() {
+  try {
+    const { data, error } = await supabase
+      .from('platform_settings')
+      .select('*')
+      .order('setting_key');
+
+    if (error) {
+      console.error('getAllPlatformSettings error:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error('getAllPlatformSettings exception:', err);
+    return [];
+  }
 }

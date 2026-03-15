@@ -73,7 +73,7 @@ const VENUES = [
     styles:["Garden","Romantic","Historic"], capacity:100,
     priceLabel:"££££", priceFrom:"£24,000", rating:5.0, reviews:74,
     featured:false, verified:true, tag:null,
-    desc:"The legendary Villa Cimbrone in Ravello. Its famous Terrace of Infinity overlooks the Mediterranean — a view Greta Garbo once called the most beautiful in the world.",
+    desc:"The legendary Villa Cimbrone in Ravello. Its famous Terrace of Infinity overlooks the Mediterranean, a view Greta Garbo once called the most beautiful in the world.",
     includes:["Terrace of Infinity","Historic Gardens","Private Access","Luxury Rooms","Bespoke Florals"],
     imgs:["https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=900&q=80"] },
@@ -276,7 +276,7 @@ function Hero({ count }) {
         {/* Tagline */}
         <p style={{fontSize:16,color:"rgba(255,255,255,0.65)",fontFamily:"var(--font-body)",
           fontWeight:300,lineHeight:1.6,maxWidth:520,marginBottom:36}}>
-          Discover {count} extraordinary venues — from Tuscan vineyards and Venetian palazzos to cliffside estates on the Amalfi Coast.
+          Discover {count} extraordinary venues, from Tuscan vineyards and Venetian palazzos to cliffside estates on the Amalfi Coast.
         </p>
 
         {/* Stats row */}
@@ -352,7 +352,7 @@ function InfoStrip() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// LATEST VENUES SPLIT — 5 images LEFT · SEO text RIGHT
+// LATEST VENUES SPLIT, 5 images LEFT · SEO text RIGHT
 // ═══════════════════════════════════════════════════════════════
 function LatestSplit({ venues }) {
   const C = useContext(Ctx);
@@ -362,7 +362,7 @@ function LatestSplit({ venues }) {
     <div style={{maxWidth:1280,margin:"0 auto",padding:"80px 48px",
       display:"grid",gridTemplateColumns:"55% 45%",gap:64,alignItems:"center"}}>
 
-      {/* LEFT — magazine image grid */}
+      {/* LEFT, magazine image grid */}
       <div style={{
         display:"grid",
         gridTemplateAreas:'"one two" "one three" "four five"',
@@ -409,7 +409,7 @@ function LatestSplit({ venues }) {
         ))}
       </div>
 
-      {/* RIGHT — SEO editorial text */}
+      {/* RIGHT, SEO editorial text */}
       <div style={{padding:"0 8px"}}>
         {/* Ornament */}
         <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:24}}>
@@ -429,11 +429,11 @@ function LatestSplit({ venues }) {
 
         <p style={{fontSize:14,color:C.grey,lineHeight:1.85,fontFamily:"var(--font-body)",
           fontWeight:300,marginBottom:20}}>
-          Italy has long been regarded as the world's most romantic wedding destination — a country where centuries of art, architecture and culinary mastery converge to create celebrations of extraordinary distinction.
+          Italy has long been regarded as the world's most romantic wedding destination, a country where centuries of art, architecture and culinary mastery converge to create celebrations of extraordinary distinction.
         </p>
         <p style={{fontSize:14,color:C.grey,lineHeight:1.85,fontFamily:"var(--font-body)",
           fontWeight:300,marginBottom:32}}>
-          From the sun-drenched terraces of Tuscany to the sapphire shores of Lake Como, each region offers a distinct character and depth of beauty unmatched anywhere on earth. Our curated collection represents only the finest estates, villas, palazzi and masserie — each personally visited by our editorial team.
+          From the sun-drenched terraces of Tuscany to the sapphire shores of Lake Como, each region offers a distinct character and depth of beauty unmatched anywhere on earth. Our curated collection represents only the finest estates, villas, palazzi and masserie, each personally visited by our editorial team.
         </p>
 
         {/* Key facts */}
@@ -824,7 +824,7 @@ function GCard({ v, saved, onSave, onView }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// FEATURED SLIDER — full-width break
+// FEATURED SLIDER, full-width break
 // ═══════════════════════════════════════════════════════════════
 function FeaturedSlider({ venues }) {
   const [idx, setIdx] = useState(0);
@@ -968,7 +968,7 @@ function FeaturedSlider({ venues }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// EDITORIAL VISUAL BANNER — second break
+// EDITORIAL VISUAL BANNER, second break
 // ═══════════════════════════════════════════════════════════════
 function EditorialBanner() {
   const C = useContext(Ctx);
@@ -998,7 +998,7 @@ function EditorialBanner() {
         <h2 style={{fontFamily:"var(--font-heading-primary)",fontSize:"clamp(32px,4vw,54px)",
           fontWeight:300,color:"#ffffff",lineHeight:1.15,marginBottom:16,maxWidth:760,
           letterSpacing:"-0.5px"}}>
-          Italy — where every moment becomes a memory<br/>
+          Italy, where every moment becomes a memory<br/>
           <em style={{fontStyle:"italic",color:"rgba(201,168,76,0.9)"}}>
             worth keeping forever.
           </em>
@@ -1068,7 +1068,7 @@ function MapSection({ venues }) {
             border:"1px solid rgba(201,168,76,0.2)"}}>
             <p style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontFamily:"var(--font-body)",
               textAlign:"center",letterSpacing:"0.5px"}}>
-              ✦ Leaflet integration ready — venue pins will appear here
+              ✦ Leaflet integration ready, venue pins will appear here
             </p>
           </div>
         </div>
@@ -1134,7 +1134,7 @@ function SEOBlock() {
   const C = useContext(Ctx);
   const [openFaq, setOpenFaq] = useState(null);
   const faqs = [
-    { q:"When is the best time to get married in Italy?", a:"Late April through June and September through October offer the finest weather — warm, dry days with a golden light that photographers love. August can be intensely hot, particularly in Tuscany and Puglia, so consider early morning or late evening ceremonies." },
+    { q:"When is the best time to get married in Italy?", a:"Late April through June and September through October offer the finest weather, warm, dry days with a golden light that photographers love. August can be intensely hot, particularly in Tuscany and Puglia, so consider early morning or late evening ceremonies." },
     { q:"Do I need a civil or religious ceremony in Italy?", a:"Both options are available. Civil ceremonies at the Comune (town hall) are legally binding in Italy. Religious ceremonies require additional legal paperwork. Many couples opt for a symbolic ceremony abroad followed by a legal ceremony at home." },
     { q:"How far in advance should I book an Italian venue?", a:"Our top venues, particularly those in Tuscany, Lake Como and the Amalfi Coast, book 18–24 months in advance for peak season dates. We recommend beginning your venue search at least 18 months before your intended wedding date." },
     { q:"What is the average cost of an Italian wedding venue?", a:"Premium exclusive-use villa estates typically range from £12,000 to £35,000 for venue hire alone, excluding catering, florals and accommodation. Intimate properties in Puglia and Umbria can be more accessible from £8,000." },

@@ -38,7 +38,7 @@ function useDropClose(ref, open, setOpen) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// FinderSelect — luxury styled dropdown (replaces native <select>)
+// FinderSelect, luxury styled dropdown (replaces native <select>)
 // ═══════════════════════════════════════════════════════════════════════════
 function FinderSelect({ value, onChange, options, label }) {
   const [open, setOpen] = useState(false);
@@ -147,7 +147,7 @@ function FinderSelect({ value, onChange, options, label }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// LocationMegaMenu — grouped multi-column location picker
+// LocationMegaMenu, grouped multi-column location picker
 // When countryFilter is set, shows ONLY that country's cities/regions.
 // When unset, shows the full global mega menu.
 // ═══════════════════════════════════════════════════════════════════════════
