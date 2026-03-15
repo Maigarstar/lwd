@@ -128,10 +128,10 @@ function stateToPath(pg, opts = {}) {
     case "couple-forgot-password": return "/getting-married/forgot-password";
     case "couple-reset-password":  return "/getting-married/reset-password";
     case "join":             return "/join";
+    case "partner-enquiry":  return "/partner-enquiry";
     case "getting-married":  return "/getting-married";
     case "shortlist":        return "/shortlist";
     case "artistry-awards":  return "/artistry-awards";
-    case "partner-enquiry":  return "/partner-enquiry";
     case "magazine":         return "/magazine";
     case "magazine-category": return `/magazine/category/${opts.magazineCategoryId || ''}`;
     case "magazine-fashion": return "/magazine/fashion";
@@ -355,6 +355,7 @@ function App() {
   const goAbout    = () => setPage("about");
   const goContact     = () => setPage("contact");
   const goPartnership = () => setPage("partnership");
+  const goPartnerEnquiry = () => setPage("partner-enquiry");
   const goUSA         = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("usa"); };
   const goItaly       = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("italy"); };
   const goAdmin       = () => setPage("admin");
@@ -388,7 +389,6 @@ function App() {
   const goGettingMarried = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("getting-married"); };
   const goArtistryAwards = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("artistry-awards"); };
   const goJoin = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("join"); };
-  const goPartnerEnquiry = () => setPage("partner-enquiry");
   const goMagazine = () => { setActiveMagazineCategoryId(null); setActiveMagazineSlug(null); setPage("magazine"); };
   const goMagazineCategory = (categoryId) => { setActiveMagazineCategoryId(categoryId); setActiveMagazineSlug(null); setPage("magazine-category"); };
   const goMagazineArticle = (slug) => { setActiveMagazineSlug(slug); setActiveMagazineCategoryId(null); setPage("magazine-article"); };
