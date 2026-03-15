@@ -229,6 +229,7 @@ const NAV_SECTIONS = [
   {
     group: "Growth",
     items: [
+      { key: "leads",        label: "Leads",             icon: "⊛" },
       { key: "marketing",    label: "Marketing",         icon: "◆" },
       { key: "seo",          label: "SEO",               icon: "⊡" },
       { key: "crm",          label: "CRM",               icon: "⊕" },
@@ -5904,6 +5905,457 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
   );
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// Leads Module - Lead Engine Control Centre
+// Displays all leads from the lead engine with filters, scoring, and detail view
+// ═════════════════════════════════════════════════════════════════════════════
+
+function LeadsModule({ C }) {
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [selectedLead, setSelectedLead] = useState(null);
+  const [sortKey, setSortKey] = useState('created_at');
+  const [sortDir, setSortDir] = useState('desc');
+
+  const LEAD_TYPES = [
+    { key: 'all',            label: 'All Leads' },
+    { key: 'venue_enquiry',  label: 'Venue' },
+    { key: 'vendor_enquiry', label: 'Vendor' },
+    { key: 'aura_chat',      label: 'Aura' },
+  ];
+
+  const STATUSES = [
+    'all', 'new', 'qualified', 'sent_to_partner', 'partner_opened',
+    'partner_replied', 'in_conversation', 'proposal_sent', 'booked', 'lost', 'spam',
+  ];
+
+  const PRIORITIES = ['all', 'urgent', 'high', 'normal', 'low'];
+
+  const STATUS_COLORS = {
+    new:              { bg: '#dbeafe', text: '#1d4ed8' },
+    qualified:        { bg: '#d1fae5', text: '#065f46' },
+    sent_to_partner:  { bg: '#fef3c7', text: '#92400e' },
+    partner_opened:   { bg: '#ede9fe', text: '#4c1d95' },
+    partner_replied:  { bg: '#d1fae5', text: '#065f46' },
+    in_conversation:  { bg: '#cffafe', text: '#164e63' },
+    proposal_sent:    { bg: '#fce7f3', text: '#9d174d' },
+    booked:           { bg: '#d1fae5', text: '#14532d' },
+    lost:             { bg: '#fee2e2', text: '#991b1b' },
+    spam:             { bg: '#f3f4f6', text: '#6b7280' },
+  };
+
+  const PRIORITY_COLORS = {
+    urgent: { bg: '#fee2e2', text: '#991b1b' },
+    high:   { bg: '#fef3c7', text: '#92400e' },
+    normal: { bg: '#dbeafe', text: '#1d4ed8' },
+    low:    { bg: '#f3f4f6', text: '#6b7280' },
+  };
+
+  useEffect(() => {
+    loadLeads();
+  }, []);
+
+  const loadLeads = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { listLeads } = await import('../services/leadEngineService');
+      const result = await listLeads({ limit: 200 });
+      if (result.error && !result.data?.length) {
+        setError('Could not load leads. Check Supabase connection.');
+      }
+      setLeads(result.data || []);
+    } catch (err) {
+      console.error('LeadsModule: failed to load:', err);
+      setError('Failed to load leads.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filtered = leads.filter(l => {
+    if (typeFilter !== 'all' && l.lead_type !== typeFilter) return false;
+    if (statusFilter !== 'all' && l.status !== statusFilter) return false;
+    if (priorityFilter !== 'all' && l.priority !== priorityFilter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const name = (l.full_name || l.first_name || '').toLowerCase();
+      const email = (l.email || '').toLowerCase();
+      const venue = (l.venue_id || '').toLowerCase();
+      if (!name.includes(q) && !email.includes(q) && !venue.includes(q)) return false;
+    }
+    return true;
+  }).sort((a, b) => {
+    let av = a[sortKey] ?? '';
+    let bv = b[sortKey] ?? '';
+    if (sortKey === 'score') { av = Number(av); bv = Number(bv); }
+    if (av < bv) return sortDir === 'asc' ? -1 : 1;
+    if (av > bv) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const handleSort = (key) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir('desc'); }
+  };
+
+  const sortIcon = (key) => sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+
+  const fmtDate = (iso) => {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+  };
+
+  const fmtType = (t) => {
+    if (t === 'venue_enquiry')  return 'Venue';
+    if (t === 'vendor_enquiry') return 'Vendor';
+    if (t === 'aura_chat')      return 'Aura';
+    return t || '-';
+  };
+
+  const stats = {
+    total: leads.length,
+    new: leads.filter(l => l.status === 'new').length,
+    booked: leads.filter(l => l.status === 'booked').length,
+    urgent: leads.filter(l => l.priority === 'urgent').length,
+  };
+
+  // ── Styles ──────────────────────────────────────────────────────────────────
+
+  const pill = (active) => ({
+    padding: '5px 12px', borderRadius: 2, border: `1px solid ${active ? C.gold : C.border}`,
+    background: active ? C.gold : 'transparent', color: active ? '#fff' : C.grey,
+    fontFamily: NU, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+    letterSpacing: '0.04em', transition: 'all 140ms ease',
+  });
+
+  const thStyle = (key) => ({
+    padding: '10px 14px', fontFamily: NU, fontSize: 10, fontWeight: 700,
+    color: sortKey === key ? C.gold : C.grey2, textTransform: 'uppercase',
+    letterSpacing: '0.06em', textAlign: 'left', cursor: 'pointer',
+    borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap',
+    userSelect: 'none',
+  });
+
+  const tdStyle = {
+    padding: '11px 14px', fontFamily: NU, fontSize: 12, color: C.off,
+    borderBottom: `1px solid ${C.border}`, verticalAlign: 'middle',
+  };
+
+  const badge = (colors, text) => (
+    <span style={{
+      display: 'inline-block', padding: '2px 8px', borderRadius: 2,
+      background: colors?.bg || '#f3f4f6', color: colors?.text || '#666',
+      fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.05em',
+      textTransform: 'uppercase',
+    }}>{text}</span>
+  );
+
+  const scoreBar = (score) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{
+        width: 48, height: 4, borderRadius: 2, background: C.border, overflow: 'hidden',
+      }}>
+        <div style={{
+          width: `${score || 0}%`, height: '100%', borderRadius: 2,
+          background: score >= 80 ? '#15803d' : score >= 60 ? C.gold : score >= 30 ? '#1d4ed8' : '#6b7280',
+        }} />
+      </div>
+      <span style={{ fontFamily: NU, fontSize: 11, color: C.grey, fontWeight: 600 }}>{score || 0}</span>
+    </div>
+  );
+
+  // ── Detail Panel ────────────────────────────────────────────────────────────
+
+  if (selectedLead) {
+    const l = selectedLead;
+    const sc = STATUS_COLORS[l.status] || { bg: '#f3f4f6', text: '#666' };
+    const pc = PRIORITY_COLORS[l.priority] || { bg: '#f3f4f6', text: '#666' };
+    const detailRow = (label, val) => val ? (
+      <div style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
+        <span style={{ fontFamily: NU, fontSize: 11, color: C.grey2, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: 120 }}>{label}</span>
+        <span style={{ fontFamily: NU, fontSize: 13, color: C.off }}>{val}</span>
+      </div>
+    ) : null;
+
+    return (
+      <div>
+        {/* Back bar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+          <button onClick={() => setSelectedLead(null)} style={{
+            background: 'transparent', border: `1px solid ${C.border}`, color: C.grey,
+            fontFamily: NU, fontSize: 12, fontWeight: 600, padding: '7px 14px',
+            borderRadius: 2, cursor: 'pointer', letterSpacing: '0.04em',
+          }}>
+            ← Back to Leads
+          </button>
+          <span style={{ fontFamily: GD, fontSize: 18, color: C.off, fontWeight: 400 }}>
+            {l.full_name || l.first_name || 'Unknown Lead'}
+          </span>
+          {badge(sc, l.status?.replace(/_/g, ' ') || 'new')}
+          {badge(pc, l.priority || 'normal')}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24 }}>
+          {/* Main detail card */}
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: 28 }}>
+            <p style={{ fontFamily: GD, fontSize: 16, color: C.gold, fontWeight: 400, margin: '0 0 16px', textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 11 }}>Contact Details</p>
+            {detailRow('Name', l.full_name || l.first_name)}
+            {detailRow('Email', l.email)}
+            {detailRow('Phone', l.phone)}
+            {detailRow('Preferred Contact', l.preferred_contact_method)}
+
+            <p style={{ fontFamily: GD, fontSize: 11, color: C.gold, fontWeight: 400, margin: '20px 0 12px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Wedding Details</p>
+            {detailRow('Date', l.wedding_month ? `${l.wedding_month}${l.wedding_year ? ' ' + l.wedding_year : ''}` : null)}
+            {detailRow('Exact Date', l.exact_date_known ? 'Yes - confirmed date' : null)}
+            {detailRow('Guest Count', l.guest_count)}
+            {detailRow('Budget Range', l.budget_range)}
+            {detailRow('Location', l.location_preference)}
+
+            {l.message && (
+              <>
+                <p style={{ fontFamily: GD, fontSize: 11, color: C.gold, fontWeight: 400, margin: '20px 0 12px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Message</p>
+                <div style={{
+                  background: C.dark, border: `1px solid ${C.border}`, borderRadius: 4,
+                  padding: 16, fontFamily: NU, fontSize: 13, color: C.off, lineHeight: 1.6,
+                }}>
+                  {l.message}
+                </div>
+              </>
+            )}
+
+            {l.intent_summary && (
+              <>
+                <p style={{ fontFamily: GD, fontSize: 11, color: C.gold, fontWeight: 400, margin: '20px 0 12px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Intent Summary</p>
+                <div style={{
+                  background: C.dark, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.gold}`,
+                  borderRadius: 4, padding: 16, fontFamily: NU, fontSize: 13, color: C.off, lineHeight: 1.6,
+                }}>
+                  {l.intent_summary}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Sidebar meta card */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Score card */}
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: 20 }}>
+              <p style={{ fontFamily: NU, fontSize: 10, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 12px' }}>Lead Score</p>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 8 }}>
+                <span style={{ fontFamily: GD, fontSize: 36, color: C.off, fontWeight: 400, lineHeight: 1 }}>{l.score || 0}</span>
+                <span style={{ fontFamily: NU, fontSize: 12, color: C.grey2 }}>/100</span>
+              </div>
+              <div style={{ width: '100%', height: 6, borderRadius: 3, background: C.border, overflow: 'hidden', marginBottom: 8 }}>
+                <div style={{
+                  width: `${l.score || 0}%`, height: '100%', borderRadius: 3,
+                  background: (l.score || 0) >= 80 ? '#15803d' : (l.score || 0) >= 60 ? C.gold : (l.score || 0) >= 30 ? '#1d4ed8' : '#6b7280',
+                  transition: 'width 600ms ease',
+                }} />
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {badge(pc, l.priority || 'normal')}
+                {badge(sc, l.status?.replace(/_/g, ' ') || 'new')}
+              </div>
+            </div>
+
+            {/* Source card */}
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: 20 }}>
+              <p style={{ fontFamily: NU, fontSize: 10, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 12px' }}>Source</p>
+              {[
+                ['Lead Type', fmtType(l.lead_type)],
+                ['Channel', l.lead_channel],
+                ['Source', l.lead_source],
+                ['Listing ID', l.listing_id || l.venue_id || l.vendor_id],
+                ['Received', fmtDate(l.created_at)],
+              ].map(([k, v]) => v ? (
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: `1px solid ${C.border}` }}>
+                  <span style={{ fontFamily: NU, fontSize: 11, color: C.grey2, fontWeight: 600 }}>{k}</span>
+                  <span style={{ fontFamily: NU, fontSize: 11, color: C.off }}>{v}</span>
+                </div>
+              ) : null)}
+            </div>
+
+            {/* Value band card */}
+            {l.lead_value_band && (
+              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: 20 }}>
+                <p style={{ fontFamily: NU, fontSize: 10, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 8px' }}>Value Band</p>
+                <span style={{ fontFamily: GD, fontSize: 16, color: C.gold, fontWeight: 400, textTransform: 'capitalize' }}>
+                  {l.lead_value_band.replace(/_/g, ' ')}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── List View ───────────────────────────────────────────────────────────────
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div>
+          <h2 style={{ fontFamily: GD, fontSize: 24, fontWeight: 400, color: C.off, margin: '0 0 4px' }}>Leads</h2>
+          <p style={{ fontFamily: NU, fontSize: 13, color: C.grey2, margin: 0 }}>All enquiries captured through the lead engine</p>
+        </div>
+        <button onClick={loadLeads} style={{
+          background: 'transparent', border: `1px solid ${C.border}`, color: C.grey,
+          fontFamily: NU, fontSize: 11, fontWeight: 600, padding: '7px 14px',
+          borderRadius: 2, cursor: 'pointer', letterSpacing: '0.04em',
+        }}>
+          Refresh
+        </button>
+      </div>
+
+      {/* Stat strip */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
+        {[
+          { label: 'Total Leads', value: stats.total },
+          { label: 'New', value: stats.new },
+          { label: 'Booked', value: stats.booked },
+          { label: 'Urgent', value: stats.urgent },
+        ].map(({ label, value }) => (
+          <div key={label} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '18px 20px' }}>
+            <p style={{ fontFamily: NU, fontSize: 10, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 6px' }}>{label}</p>
+            <p style={{ fontFamily: GD, fontSize: 28, color: C.off, fontWeight: 400, margin: 0, lineHeight: 1 }}>{value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '16px 20px', marginBottom: 16 }}>
+        {/* Type pills */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+          {LEAD_TYPES.map(({ key, label }) => (
+            <button key={key} style={pill(typeFilter === key)} onClick={() => setTypeFilter(key)}>{label}</button>
+          ))}
+          <div style={{ flex: 1 }} />
+          {/* Search */}
+          <input
+            placeholder="Search name or email..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{
+              background: C.dark, border: `1px solid ${C.border}`, borderRadius: 2,
+              padding: '6px 12px', fontFamily: NU, fontSize: 12, color: C.off,
+              outline: 'none', width: 200,
+            }}
+          />
+        </div>
+        {/* Status + Priority */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status:</span>
+          {STATUSES.map(s => (
+            <button key={s} style={pill(statusFilter === s)} onClick={() => setStatusFilter(s)}>
+              {s === 'all' ? 'All' : s.replace(/_/g, ' ')}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
+          <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Priority:</span>
+          {PRIORITIES.map(p => (
+            <button key={p} style={pill(priorityFilter === p)} onClick={() => setPriorityFilter(p)}>
+              {p === 'all' ? 'All' : p}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Table */}
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, overflow: 'hidden' }}>
+        {loading ? (
+          <div style={{ padding: '48px 24px', textAlign: 'center', fontFamily: NU, fontSize: 13, color: C.grey2 }}>
+            Loading leads...
+          </div>
+        ) : error ? (
+          <div style={{ padding: '48px 24px', textAlign: 'center' }}>
+            <p style={{ fontFamily: NU, fontSize: 13, color: '#991b1b', marginBottom: 12 }}>{error}</p>
+            <p style={{ fontFamily: NU, fontSize: 11, color: C.grey2 }}>
+              Run the migration <code>20260315_create_lead_engine.sql</code> in Supabase to enable the leads table.
+            </p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ padding: '48px 24px', textAlign: 'center', fontFamily: NU, fontSize: 13, color: C.grey2 }}>
+            {leads.length === 0 ? 'No leads yet. Submit an enquiry form to see leads appear here.' : 'No leads match the current filters.'}
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: C.dark }}>
+                  <th style={thStyle('full_name')} onClick={() => handleSort('full_name')}>Name{sortIcon('full_name')}</th>
+                  <th style={thStyle('email')} onClick={() => handleSort('email')}>Email{sortIcon('email')}</th>
+                  <th style={thStyle('lead_type')} onClick={() => handleSort('lead_type')}>Type{sortIcon('lead_type')}</th>
+                  <th style={thStyle('status')} onClick={() => handleSort('status')}>Status{sortIcon('status')}</th>
+                  <th style={thStyle('priority')} onClick={() => handleSort('priority')}>Priority{sortIcon('priority')}</th>
+                  <th style={thStyle('score')} onClick={() => handleSort('score')}>Score{sortIcon('score')}</th>
+                  <th style={thStyle('wedding_month')} onClick={() => handleSort('wedding_month')}>Event{sortIcon('wedding_month')}</th>
+                  <th style={thStyle('created_at')} onClick={() => handleSort('created_at')}>Received{sortIcon('created_at')}</th>
+                  <th style={{ ...thStyle('_'), cursor: 'default' }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((l, i) => {
+                  const sc = STATUS_COLORS[l.status] || { bg: '#f3f4f6', text: '#666' };
+                  const pc = PRIORITY_COLORS[l.priority] || { bg: '#f3f4f6', text: '#666' };
+                  return (
+                    <tr
+                      key={l.id || i}
+                      style={{ background: i % 2 === 0 ? C.card : C.dark, cursor: 'pointer', transition: 'background 120ms' }}
+                      onMouseEnter={e => e.currentTarget.style.background = C.goldDim}
+                      onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? C.card : C.dark}
+                      onClick={() => setSelectedLead(l)}
+                    >
+                      <td style={tdStyle}>
+                        <span style={{ fontWeight: 600, color: C.off }}>{l.full_name || l.first_name || '-'}</span>
+                        {l.phone && <div style={{ fontSize: 10, color: C.grey2, marginTop: 2 }}>{l.phone}</div>}
+                      </td>
+                      <td style={{ ...tdStyle, color: C.grey }}>{l.email || '-'}</td>
+                      <td style={tdStyle}>
+                        <span style={{
+                          display: 'inline-block', padding: '2px 8px', borderRadius: 2,
+                          background: l.lead_type === 'venue_enquiry' ? '#ede9fe' : l.lead_type === 'vendor_enquiry' ? '#cffafe' : '#fef3c7',
+                          color: l.lead_type === 'venue_enquiry' ? '#4c1d95' : l.lead_type === 'vendor_enquiry' ? '#164e63' : '#92400e',
+                          fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
+                        }}>{fmtType(l.lead_type)}</span>
+                      </td>
+                      <td style={tdStyle}>{badge(sc, l.status?.replace(/_/g, ' ') || 'new')}</td>
+                      <td style={tdStyle}>{badge(pc, l.priority || 'normal')}</td>
+                      <td style={tdStyle}>{scoreBar(l.score)}</td>
+                      <td style={{ ...tdStyle, color: C.grey }}>
+                        {l.wedding_month ? `${l.wedding_month}${l.wedding_year ? ' ' + l.wedding_year : ''}` : '-'}
+                      </td>
+                      <td style={{ ...tdStyle, color: C.grey2, fontSize: 11 }}>{fmtDate(l.created_at)}</td>
+                      <td style={{ ...tdStyle, textAlign: 'right' }}>
+                        <span style={{ color: C.gold, fontSize: 11, fontWeight: 600, fontFamily: NU }}>View →</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {/* Footer count */}
+        {!loading && !error && filtered.length > 0 && (
+          <div style={{ padding: '10px 16px', borderTop: `1px solid ${C.border}`, fontFamily: NU, fontSize: 11, color: C.grey2 }}>
+            Showing {filtered.length} of {leads.length} leads
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function PlaceholderModule({ title, C }) {
   return (
     <div style={{
@@ -7528,6 +7980,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "enquiries":     return <AdminAllLeads C={C} />;
       case "countries":     return <CountriesModule C={C} />;
       case "regions":       return <RegionsModule C={C} />;
+      case "leads":         return <LeadsModule C={C} />;
       case "marketing":     return <PlaceholderModule title="Marketing Intelligence" C={C} />;
       case "seo":           return <PlaceholderModule title="SEO Command Centre" C={C} />;
       case "crm":           return <PlaceholderModule title="CRM & Lead Management" C={C} />;
