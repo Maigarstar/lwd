@@ -15,12 +15,17 @@
       "Bash(bash -c ':*)",
       "Bash(kill 13228)",
       "Bash(lsof -i :5173)",
-      "Bash(git add src/components/sections/VenueGrid.jsx src/components/cards/LuxuryVenueCard.jsx)",
-      "Bash(git commit -m \"refactor: stabilize card layout per specs — mobile vertical scroll, desktop horizontal carousel:*)",
-      "Bash(curl -s http://localhost:5174)",
+      "Bash(git cherry-pick 2acab39)",
       "Bash(git add -A)",
-      "Bash(git commit -m \"docs: Update Phase 2 status - Phase 2.3 infrastructure complete:*)",
-      "Bash(xargs kill -9)"
+      "Bash(git commit -m \"feat: Restore full extended AdminDashboard \\(7,130 lines\\) with all 14 modules:*)",
+      "Bash(git checkout main -- src/data/homepageDefaults.js)",
+      "Bash(git checkout main -- src/components/admin/sections/)",
+      "Bash(curl -s http://localhost:5178/)",
+      "Bash(xargs ls:*)",
+      "Bash(curl -s http://localhost:5176)",
+      "Bash(grep -r \"listings\\\\|venues\" /Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan/src/data --include=*.js --include=*.ts)",
+      "Bash(grep -E \"\\\\.\\(js|ts\\)$\")",
+      "Bash(grep -r \"lwdScore\\\\|LWD Score\" /Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan/src --include=*.jsx --include=*.js)"
     ]
   }
 }

@@ -6,8 +6,10 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useTheme } from "../../theme/ThemeContext";
 import Stars from "../ui/Stars";
 import { GoldBadge, VerifiedBadge } from "../ui/Badges";
+import TierBadge from "../editorial/TierBadge";
 import EnquiryFormModal from "../ui/EnquiryFormModal";
 import QuickViewModal from "../modals/QuickViewModal";
+import { getQualityTier } from "../../services/listings";
 
 const GOLD = "#C9A84C";
 const GD   = "var(--font-heading-primary)";
@@ -208,11 +210,12 @@ export default function LuxuryVenueCard({ v, onView, isMobile }) {
       />
 
       {/* ── Top badges ── */}
-      {v.tag && (
-        <div style={{ position: "absolute", top: 12, left: 12, zIndex: 4 }}>
-          <GoldBadge text={v.tag} />
-        </div>
-      )}
+      <div style={{ position: "absolute", top: 12, left: 12, zIndex: 4, display: "flex", flexDirection: "column", gap: 8 }}>
+        {v.tag && <GoldBadge text={v.tag} />}
+        {v.contentQualityScore !== undefined && (
+          <TierBadge tier={getQualityTier(v.contentQualityScore)} showLabel={true} size="sm" />
+        )}
+      </div>
       {v.verified && (
         <div style={{ position: "absolute", top: 12, right: 12, zIndex: 4 }}>
           <VerifiedBadge />

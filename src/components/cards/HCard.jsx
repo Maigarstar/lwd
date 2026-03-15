@@ -4,8 +4,10 @@ import { useTheme } from "../../theme/ThemeContext";
 import Stars from "../ui/Stars";
 import Pill from "../ui/Pill";
 import { GoldBadge, VerifiedBadge } from "../ui/Badges";
+import TierBadge from "../editorial/TierBadge";
 import CuratedIndexBadge from "../ui/CuratedIndexBadge";
 import LoginGateModal from "../modals/LoginGateModal";
+import { getQualityTier } from "../../services/listings";
 
 export default function HCard({ v, saved, onSave, onView, onQuickView }) {
   const C = useTheme();
@@ -176,7 +178,7 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
             minWidth: 0,
           }}
         >
-          {/* Badges row (tag + verified + featured + online status) */}
+          {/* Badges row (tag + verified + tier + featured + online status) */}
           <div
             style={{
               display: "flex",
@@ -188,6 +190,9 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
           >
             {v.tag && <GoldBadge text={v.tag} />}
             {v.verified && <VerifiedBadge />}
+            {v.contentQualityScore !== undefined && (
+              <TierBadge tier={getQualityTier(v.contentQualityScore)} showLabel={true} size="sm" />
+            )}
             {v.lwdScore && <CuratedIndexBadge score={v.lwdScore} />}
             {v.featured && (
               <span

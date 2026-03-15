@@ -4,8 +4,10 @@ import { useTheme } from "../../theme/ThemeContext";
 import Stars from "../ui/Stars";
 import Pill from "../ui/Pill";
 import { GoldBadge } from "../ui/Badges";
+import TierBadge from "../editorial/TierBadge";
 import CuratedIndexBadge from "../ui/CuratedIndexBadge";
 import LoginGateModal from "../modals/LoginGateModal";
+import { getQualityTier } from "../../services/listings";
 
 export default function GCard({ v, saved, onSave, onView, onQuickView }) {
   const C = useTheme();
@@ -198,11 +200,12 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
             </>
           )}
 
-          {v.tag && (
-            <div style={{ position: "absolute", bottom: 12, left: 12 }}>
-              <GoldBadge text={v.tag} />
-            </div>
-          )}
+          <div style={{ position: "absolute", bottom: 12, left: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+            {v.tag && <GoldBadge text={v.tag} />}
+            {v.contentQualityScore !== undefined && (
+              <TierBadge tier={getQualityTier(v.contentQualityScore)} showLabel={true} size="sm" />
+            )}
+          </div>
 
           {/* Online indicator — top-left */}
           <div
