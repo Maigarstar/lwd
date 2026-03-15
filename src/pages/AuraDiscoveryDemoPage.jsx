@@ -384,6 +384,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
             gap: 24,
+            marginBottom: 40,
           }}>
             {[
               {
@@ -405,10 +406,6 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
               {
                 title: 'Quality Visibility',
                 description: 'Higher editorial quality scores receive stronger visibility across discovery pages and featured positions.',
-              },
-              {
-                title: 'Motivated Partners',
-                description: 'The platform encourages venues to improve listings continuously to maintain and increase visibility.',
               },
             ].map((benefit, idx) => (
               <div key={idx} style={{
@@ -438,6 +435,34 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
                 </p>
               </div>
             ))}
+          </div>
+
+          <div style={{
+            textAlign: 'center',
+            paddingTop: 32,
+            borderTop: `1px solid ${isLight ? 'rgba(228, 224, 216, 0.5)' : 'rgba(58, 58, 58, 0.4)'}`,
+          }}>
+            <h3 style={{
+              margin: '0 0 12px',
+              fontFamily: 'var(--font-heading-primary)',
+              fontSize: 16,
+              fontWeight: 400,
+              color: textColor,
+            }}>
+              A Platform That Rewards Quality
+            </h3>
+            <p style={{
+              margin: 0,
+              fontFamily: 'var(--font-body)',
+              fontSize: 13,
+              color: subtextColor,
+              lineHeight: 1.7,
+              maxWidth: 600,
+              marginLeft: 'auto',
+              marginRight: 'auto',
+            }}>
+              The platform encourages venues to improve listings continuously to maintain and increase visibility.
+            </p>
           </div>
         </div>
 
@@ -632,8 +657,9 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             marginTop: 40,
             paddingTop: 32,
             borderTop: `1px solid ${borderColor}`,
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
             gap: 16,
           }}>
             <p style={{
@@ -644,41 +670,47 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
               textTransform: 'uppercase',
               letterSpacing: 0.5,
               fontWeight: 600,
-              gridColumn: '1 / -1',
             }}>
               Try asking about
             </p>
-            {[
-              'Lake Como weddings',
-              'Venues with gardens',
-              'Multi-day celebrations',
-              'Intimate settings',
-            ].map((prompt, idx) => (
-              <div
-                key={idx}
-                style={{
-                  padding: 12,
-                  background: isLight ? 'rgba(143, 116, 32, 0.08)' : 'rgba(143, 116, 32, 0.12)',
-                  border: `1px solid rgba(143, 116, 32, 0.2)`,
-                  borderRadius: 6,
-                  fontFamily: 'var(--font-body)',
-                  fontSize: 13,
-                  color: textColor,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = isLight ? 'rgba(143, 116, 32, 0.12)' : 'rgba(143, 116, 32, 0.18)';
-                  e.currentTarget.style.borderColor = 'rgba(143, 116, 32, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = isLight ? 'rgba(143, 116, 32, 0.08)' : 'rgba(143, 116, 32, 0.12)';
-                  e.currentTarget.style.borderColor = 'rgba(143, 116, 32, 0.2)';
-                }}
-              >
-                {prompt}
-              </div>
-            ))}
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              gap: 16,
+            }}>
+              {[
+                'Lake Como weddings',
+                'Venues with gardens',
+                'Multi-day celebrations',
+                'Intimate settings',
+              ].map((prompt, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    padding: 12,
+                    background: isLight ? 'rgba(143, 116, 32, 0.08)' : 'rgba(143, 116, 32, 0.12)',
+                    border: `1px solid rgba(143, 116, 32, 0.2)`,
+                    borderRadius: 6,
+                    fontFamily: 'var(--font-body)',
+                    fontSize: 13,
+                    color: textColor,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = isLight ? 'rgba(143, 116, 32, 0.12)' : 'rgba(143, 116, 32, 0.18)';
+                    e.currentTarget.style.borderColor = 'rgba(143, 116, 32, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = isLight ? 'rgba(143, 116, 32, 0.08)' : 'rgba(143, 116, 32, 0.12)';
+                    e.currentTarget.style.borderColor = 'rgba(143, 116, 32, 0.2)';
+                  }}
+                >
+                  {prompt}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
