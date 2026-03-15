@@ -11,20 +11,67 @@
 //
 // Route: /discovery/aura (or customize as needed)
 
+import { useState, useEffect } from 'react';
 import AuraDiscoveryGrid from '../components/discovery/AuraDiscoveryGrid';
 
 export default function AuraDiscoveryDemoPage({ onViewVenue }) {
+  const [isLight, setIsLight] = useState(() => {
+    const saved = localStorage.getItem('aura-discovery-light-mode');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('aura-discovery-light-mode', JSON.stringify(isLight));
+  }, [isLight]);
+
+  const bgColor = isLight ? '#fbf7f4' : '#1a1a1a';
+  const textColor = isLight ? '#171717' : '#f5f2ec';
+  const cardBg = isLight ? '#ffffff' : '#2a2a2a';
+  const borderColor = isLight ? '#e4e0d8' : '#3a3a3a';
+  const subtextColor = isLight ? '#6b6560' : '#a89f98';
 
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#fbf7f4',
+      background: bgColor,
       padding: '64px 24px',
+      transition: 'background 0.3s ease, color 0.3s ease',
     }}>
       <div style={{
         maxWidth: 1400,
         margin: '0 auto',
       }}>
+        {/* Dark mode toggle */}
+        <div style={{
+          position: 'fixed',
+          top: 24,
+          right: 24,
+          zIndex: 1000,
+        }}>
+          <button
+            onClick={() => setIsLight(!isLight)}
+            style={{
+              padding: '8px 12px',
+              background: isLight ? '#ffffff' : '#2a2a2a',
+              border: `1px solid ${borderColor}`,
+              borderRadius: 6,
+              fontFamily: 'var(--font-body)',
+              fontSize: 13,
+              color: textColor,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = isLight ? '#f5f2ec' : '#3a3a3a';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = isLight ? '#ffffff' : '#2a2a2a';
+            }}
+          >
+            {isLight ? '🌙 Dark' : '☀️ Light'}
+          </button>
+        </div>
+
         {/* Hero section */}
         <div style={{
           marginBottom: 64,
@@ -35,8 +82,8 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             alignItems: 'center',
             gap: 8,
             padding: '8px 12px',
-            background: '#f5f2ec',
-            border: '1px solid #e4e0d8',
+            background: isLight ? '#f5f2ec' : '#2a2a2a',
+            border: `1px solid ${borderColor}`,
             borderRadius: 6,
             marginBottom: 24,
           }}>
@@ -57,7 +104,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             fontFamily: 'var(--font-heading-primary)',
             fontSize: 48,
             fontWeight: 400,
-            color: '#171717',
+            color: textColor,
             lineHeight: 1.2,
           }}>
             Discover Venues Curated by Intelligence
@@ -67,7 +114,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             margin: 0,
             fontFamily: 'var(--font-body)',
             fontSize: 18,
-            color: '#6b6560',
+            color: subtextColor,
             lineHeight: 1.6,
             maxWidth: 600,
             marginLeft: 'auto',
@@ -82,8 +129,8 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
         <div style={{
           marginBottom: 64,
           padding: 32,
-          background: '#ffffff',
-          border: '1px solid #e4e0d8',
+          background: cardBg,
+          border: `1px solid ${borderColor}`,
           borderRadius: 8,
         }}>
           <h2 style={{
@@ -91,7 +138,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             fontFamily: 'var(--font-heading-primary)',
             fontSize: 24,
             fontWeight: 400,
-            color: '#171717',
+            color: textColor,
           }}>
             How Editorial Intelligence Works
           </h2>
@@ -135,7 +182,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
                   fontFamily: 'var(--font-heading-primary)',
                   fontSize: 16,
                   fontWeight: 400,
-                  color: '#171717',
+                  color: textColor,
                 }}>
                   {feature.title}
                 </h3>
@@ -143,7 +190,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
                   margin: 0,
                   fontFamily: 'var(--font-body)',
                   fontSize: 13,
-                  color: '#6b6560',
+                  color: subtextColor,
                   lineHeight: 1.6,
                 }}>
                   {feature.description}
@@ -157,8 +204,8 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
         <div style={{
           marginBottom: 64,
           padding: 32,
-          background: '#faf9f6',
-          border: '1px solid #f0ede5',
+          background: isLight ? '#faf9f6' : '#242424',
+          border: `1px solid ${borderColor}`,
           borderRadius: 8,
         }}>
           <h2 style={{
@@ -166,7 +213,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             fontFamily: 'var(--font-heading-primary)',
             fontSize: 24,
             fontWeight: 400,
-            color: '#171717',
+            color: textColor,
           }}>
             Understanding Content Scores
           </h2>
@@ -204,7 +251,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             ].map((tier, idx) => (
               <div key={idx} style={{
                 padding: 16,
-                background: '#ffffff',
+                background: cardBg,
                 border: `2px solid ${tier.color}`,
                 borderRadius: 6,
               }}>
@@ -229,7 +276,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
                   fontFamily: 'var(--font-heading-primary)',
                   fontSize: 14,
                   fontWeight: 400,
-                  color: '#171717',
+                  color: textColor,
                 }}>
                   {tier.label}
                 </h3>
@@ -237,7 +284,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
                   margin: 0,
                   fontFamily: 'var(--font-body)',
                   fontSize: 12,
-                  color: '#6b6560',
+                  color: subtextColor,
                   lineHeight: 1.5,
                 }}>
                   {tier.description}
@@ -265,8 +312,8 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
         <div style={{
           marginTop: 64,
           padding: 32,
-          background: '#ffffff',
-          border: '1px solid #e4e0d8',
+          background: cardBg,
+          border: `1px solid ${borderColor}`,
           borderRadius: 8,
           textAlign: 'center',
         }}>
@@ -275,7 +322,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             fontFamily: 'var(--font-heading-primary)',
             fontSize: 20,
             fontWeight: 400,
-            color: '#171717',
+            color: textColor,
           }}>
             What Makes This Different
           </h2>
@@ -283,7 +330,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             margin: 0,
             fontFamily: 'var(--font-body)',
             fontSize: 14,
-            color: '#6b6560',
+            color: subtextColor,
             lineHeight: 1.8,
             maxWidth: 700,
             marginLeft: 'auto',
