@@ -82,11 +82,13 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             alignItems: 'center',
             gap: 8,
             padding: '12px 16px',
-            background: isLight ? 'rgba(255, 255, 255, 0.6)' : 'rgba(42, 42, 42, 0.6)',
+            background: isLight ? 'rgba(255, 255, 255, 0.6)' : 'rgba(42, 42, 42, 0.5)',
             border: `2px solid #8f7420`,
             borderRadius: 8,
             marginBottom: 24,
-            boxShadow: isLight ? '0 0 30px rgba(143, 116, 32, 0.2), inset 0 0 20px rgba(143, 116, 32, 0.05)' : '0 0 30px rgba(143, 116, 32, 0.35), inset 0 0 20px rgba(143, 116, 32, 0.1)',
+            boxShadow: isLight
+              ? '0 0 30px rgba(143, 116, 32, 0.2), inset 0 0 20px rgba(143, 116, 32, 0.05)'
+              : '0 0 40px rgba(143, 116, 32, 0.4), 0 0 80px rgba(143, 116, 32, 0.15), inset 0 0 20px rgba(143, 116, 32, 0.15)',
             backdropFilter: 'blur(12px)',
           }}>
             <span style={{
@@ -184,6 +186,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
                   fontWeight: 600,
                   color: '#8f7420',
                   marginBottom: 16,
+                  boxShadow: '0 0 20px rgba(143, 116, 32, 0.25)',
                 }}>
                   {idx + 1}
                 </div>
@@ -338,7 +341,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             marginLeft: 'auto',
             marginRight: 'auto',
           }}>
-            This is not an open directory. Only venues with strong editorial quality and verified information are featured. That creates value for everyone.
+            This is not an open directory. Only venues with strong editorial quality, verified information, and complete listings are featured. That creates value for everyone.
           </p>
 
           <div style={{
@@ -562,6 +565,118 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
           </p>
         </div>
 
+        {/* Ask Aura CTA Section */}
+        <div style={{
+          marginBottom: 64,
+          padding: 48,
+          background: isLight ? 'rgba(255, 255, 255, 0.5)' : 'rgba(42, 42, 42, 0.4)',
+          border: `1px solid ${isLight ? 'rgba(228, 224, 216, 0.8)' : 'rgba(58, 58, 58, 0.6)'}`,
+          borderRadius: 8,
+          backdropFilter: 'blur(10px)',
+          boxShadow: isLight ? '0 8px 32px rgba(0, 0, 0, 0.05)' : '0 8px 32px rgba(0, 0, 0, 0.3)',
+          textAlign: 'center',
+        }}>
+          <h2 style={{
+            margin: '0 0 16px',
+            fontFamily: 'var(--font-heading-primary)',
+            fontSize: 28,
+            fontWeight: 400,
+            color: textColor,
+          }}>
+            Ready to Discover?
+          </h2>
+          <p style={{
+            margin: '0 0 32px',
+            fontFamily: 'var(--font-body)',
+            fontSize: 16,
+            color: subtextColor,
+            lineHeight: 1.8,
+            maxWidth: 600,
+            marginLeft: 'auto',
+            marginRight: 'auto',
+          }}>
+            Start by telling Aura what you're looking for. It will guide you to the right venue.
+          </p>
+
+          <button style={{
+            padding: '14px 32px',
+            background: '#8f7420',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: 6,
+            fontFamily: 'var(--font-heading-primary)',
+            fontSize: 16,
+            fontWeight: 400,
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            boxShadow: '0 8px 24px rgba(143, 116, 32, 0.25)',
+          }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = '0.9';
+              e.currentTarget.style.boxShadow = '0 12px 32px rgba(143, 116, 32, 0.35)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = '1';
+              e.currentTarget.style.boxShadow = '0 8px 24px rgba(143, 116, 32, 0.25)';
+            }}
+          >
+            Ask Aura
+          </button>
+
+          <div style={{
+            marginTop: 40,
+            paddingTop: 32,
+            borderTop: `1px solid ${borderColor}`,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: 16,
+          }}>
+            <p style={{
+              margin: 0,
+              fontFamily: 'var(--font-body)',
+              fontSize: 12,
+              color: subtextColor,
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+              fontWeight: 600,
+              gridColumn: '1 / -1',
+            }}>
+              Try asking about
+            </p>
+            {[
+              'Lake Como weddings',
+              'Venues with gardens',
+              'Multi-day celebrations',
+              'Intimate settings',
+            ].map((prompt, idx) => (
+              <div
+                key={idx}
+                style={{
+                  padding: 12,
+                  background: isLight ? 'rgba(143, 116, 32, 0.08)' : 'rgba(143, 116, 32, 0.12)',
+                  border: `1px solid rgba(143, 116, 32, 0.2)`,
+                  borderRadius: 6,
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 13,
+                  color: textColor,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = isLight ? 'rgba(143, 116, 32, 0.12)' : 'rgba(143, 116, 32, 0.18)';
+                  e.currentTarget.style.borderColor = 'rgba(143, 116, 32, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = isLight ? 'rgba(143, 116, 32, 0.08)' : 'rgba(143, 116, 32, 0.12)';
+                  e.currentTarget.style.borderColor = 'rgba(143, 116, 32, 0.2)';
+                }}
+              >
+                {prompt}
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Footer explanation */}
         <div style={{
           marginBottom: 0,
@@ -587,15 +702,19 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
             fontFamily: 'var(--font-body)',
             fontSize: 14,
             color: subtextColor,
-            lineHeight: 1.8,
+            lineHeight: 2,
             maxWidth: 700,
             marginLeft: 'auto',
             marginRight: 'auto',
           }}>
             Most wedding directories show everything. We show only our best work.
+            <br /><br />
             Every venue displayed has been carefully reviewed, verified against sources,
             and approved by our editorial team. Weak sections are hidden. Incomplete listings
-            are improved before being shown. Couples discover intelligent curation, not volume.
+            are improved before being shown.
+            <br /><br />
+            Couples discover intelligent curation, not volume.
+            <br /><br />
             This is luxury discovery powered by both human editorial judgement and Aura intelligence.
           </p>
         </div>
