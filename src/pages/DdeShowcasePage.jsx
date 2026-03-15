@@ -40,7 +40,7 @@ const I = (filename) => `/Domaine-des-Etangs-Auberge-Collection/${filename}`;
 // ── Venue data ─────────────────────────────────────────────────────────────────
 const DDE_VENUE = {
   name:     'Domaine des Etangs',
-  tagline:  'Where art, nature and French country elegance converge',
+  heroSummary: 'Where art, nature and French country elegance converge',
   logo:     null,
   location: {
     town:    'Massignac',
@@ -502,7 +502,7 @@ function HeroSection({ venue }) {
           color: 'rgba(255,255,255,0.75)',
           margin: '0 0 32px', maxWidth: 520, lineHeight: 1.6,
         }}>
-          {venue.tagline}
+          {venue.heroSummary || 'Where art, nature and French country elegance converge'}
         </p>
 
         {/* ── Approval & Last Updated Display ────────────────────────────── */}
@@ -556,6 +556,7 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
   const venue = venueContent
     ? {
         ...DDE_VENUE,
+        heroSummary: venueContent.heroSummary || DDE_VENUE.heroSummary,
         sectionIntros: { ...DDE_VENUE.sectionIntros, ...venueContent.sectionIntros },
         sectionVisibility: { ...DDE_VENUE.sectionVisibility, ...venueContent.sectionVisibility },
         factChecked: venueContent.factChecked,

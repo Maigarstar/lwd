@@ -314,7 +314,7 @@ function HeroSection({ venue }) {
           color: 'rgba(255,255,255,0.75)',
           margin: '0 0 32px', maxWidth: 560, lineHeight: 1.6,
         }}>
-          {venue.tagline}
+          {venue.heroSummary || "Europe's most celebrated Alpine wedding estate, where the mountains are not a backdrop, they are part of the ceremony."}
         </p>
 
         {/* ── Approval & Last Updated Display ────────────────────────────── */}
@@ -396,6 +396,7 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
   const venue = venueContent
     ? {
         ...basevenue,
+        heroSummary: venueContent.heroSummary || basevenue.heroSummary,
         sectionIntros: { ...basevenue.sectionIntros, ...venueContent.sectionIntros },
         sectionVisibility: { ...basevenue.sectionVisibility, ...venueContent.sectionVisibility },
         factChecked: venueContent.factChecked,
@@ -835,7 +836,7 @@ export const GT_VENUE = {
     country: 'Austria',
     flag:    '🇦🇹',
   },
-  tagline: "Europe's most celebrated Alpine wedding estate, where the mountains are not a backdrop, they are part of the ceremony.",
+  heroSummary: "Europe's most celebrated Alpine wedding estate, where the mountains are not a backdrop, they are part of the ceremony.",
 
   // Hero
   heroImage: GT.heroAerial,
