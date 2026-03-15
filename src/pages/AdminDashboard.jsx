@@ -8392,8 +8392,8 @@ export default function AdminDashboard({ onBack, onNavigate }) {
           <div style={{
             width: 56, flexShrink: 0,
             display: 'flex', flexDirection: 'column',
-            background: '#111111',
-            borderRight: sidebarCollapsed ? 'none' : '1px solid rgba(255,255,255,0.06)',
+            background: '#000000',
+            borderRight: 'none',
           }}>
             {/* Brand */}
             <div style={{ padding: '18px 0 12px', textAlign: 'center' }}>
