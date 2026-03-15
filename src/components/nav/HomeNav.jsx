@@ -22,7 +22,7 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
     return () => { document.body.style.overflow = ""; };
   }, [drawerOpen]);
 
-  const navLinks = ["Browse", "Real Weddings", "Planning", "About", "Blog"];
+  const navLinks = ["Browse", "Aura Discovery", "Real Weddings", "Planning", "About", "Blog"];
 
   return (
     <>
@@ -75,7 +75,7 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
               <button
                 key={t}
                 className="home-nav-links"
-                onClick={() => { if (t === "Planning") onNavigateStandard?.(); if (t === "About") onNavigateAbout?.(); }}
+                onClick={() => { if (t === "Aura Discovery") window.location.href = "/discovery/aura"; if (t === "Planning") onNavigateStandard?.(); if (t === "About") onNavigateAbout?.(); }}
                 style={{
                   background: "none",
                   border: "none",
@@ -278,7 +278,7 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
           {navLinks.map((t) => (
             <button
               key={t}
-              onClick={() => { setDrawerOpen(false); if (t === "Planning") onNavigateStandard?.(); if (t === "About") onNavigateAbout?.(); }}
+              onClick={() => { setDrawerOpen(false); if (t === "Aura Discovery") window.location.href = "/discovery/aura"; if (t === "Planning") onNavigateStandard?.(); if (t === "About") onNavigateAbout?.(); }}
               style={{
                 display: "block",
                 width: "100%",
