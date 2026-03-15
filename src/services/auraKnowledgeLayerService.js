@@ -28,32 +28,32 @@ export async function fetchVenueKnowledgeLayer(venueId) {
   }
 
   try {
-    // Parallel fetch: listings, venue_content, reviews
-    const [listingRes, contentRes, reviewsRes] = await Promise.all([
+    // Parallel fetch: listings and reviews
+    // Note: venue_content table not queried as all needed data is in listings table
+    const [listingRes, reviewsRes] = await Promise.all([
       supabase
         .from('listings')
         .select('*')
         .eq('id', venueId)
         .single(),
       supabase
-        .from('venue_content')
-        .select('*')
-        .eq('venue_id', venueId)
-        .single(),
-      supabase
         .from('reviews')
-        .select('rating, content, created_at')
-        .eq('listing_id', venueId)
-        .is('deleted_at', null) // Exclude soft-deleted reviews
+        .select('overall_rating, review_text, created_at')
+        .eq('entity_id', venueId)
+        .eq('entity_type', 'listing')
         .order('created_at', { ascending: false })
     ]);
+
+    // contentRes is no longer needed since all data comes from listings
+    const contentRes = { data: null, error: null };
 
     // Build knowledge layer structure
     return {
       venue: listingRes.data ? {
         id: listingRes.data.id,
         name: listingRes.data.name,
-        location: listingRes.data.location,
+        city: listingRes.data.city,
+        region: listingRes.data.region,
         country: listingRes.data.country,
         style: listingRes.data.style,
         capacity: listingRes.data.capacity,
@@ -87,12 +87,12 @@ export async function fetchVenueKnowledgeLayer(venueId) {
       reviews: reviewsRes.data ? {
         total: reviewsRes.data.length,
         items: reviewsRes.data.map(r => ({
-          rating: r.rating,
-          content: r.content,
+          rating: r.overall_rating,
+          content: r.review_text,
           createdAt: r.created_at,
         })),
         averageRating: reviewsRes.data.length > 0
-          ? (reviewsRes.data.reduce((sum, r) => sum + (r.rating || 0), 0) / reviewsRes.data.length).toFixed(1)
+          ? (reviewsRes.data.reduce((sum, r) => sum + (r.overall_rating || 0), 0) / reviewsRes.data.length).toFixed(1)
           : null,
         ratingDistribution: calculateRatingDistribution(reviewsRes.data),
       } : {
@@ -489,7 +489,7 @@ export async function fetchRankedVenuesForDiscovery(options = {}) {
     // Note: editorial_enabled column may not exist yet on older databases
     let query = supabase
       .from('listings')
-      .select('id, name, slug, location, content_quality_score, editorial_approved, editorial_fact_checked, editorial_last_reviewed_at')
+      .select('id, name, slug, city, region, content_quality_score, editorial_approved, editorial_fact_checked, editorial_last_reviewed_at')
       .limit(limit * 2); // Fetch extra to account for filtering
 
     // Filter by editorial_enabled if requested (Phase 4d: control toggles)
