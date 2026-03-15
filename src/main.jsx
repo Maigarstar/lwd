@@ -59,6 +59,7 @@ import ShowcasePage         from "./pages/ShowcasePage.jsx";
 import DdeShowcasePage          from "./pages/DdeShowcasePage.jsx";
 import SixSensesShowcasePage    from "./pages/SixSensesShowcasePage.jsx";
 import VenueProfilePage         from "./pages/VenueProfilePage.jsx";
+import AuraDiscoveryDemoPage    from "./pages/AuraDiscoveryDemoPage.jsx";
 import NotFoundPage         from "./pages/NotFoundPage.jsx";
 import { VENDORS }            from "./data/vendors.js";
 
@@ -140,6 +141,7 @@ function stateToPath(pg, opts = {}) {
     case "gt-showcase":       return "/showcase/grand-tirolia-kitzbuehel";
     case "sskrabey-showcase": return "/showcase/six-senses-krabey-island";
     case "showcase":         return `/showcase/${opts.showcaseSlug || ''}`;
+    case "aura-discovery":   return "/discovery/aura";
     default:                 return "/";
   }
 }
@@ -176,6 +178,8 @@ function pathToState(pathname) {
   // Handle real-weddings special routes
   if (parts[0] === "real-weddings" && parts.length === 1) return { page: "real-weddings" };
   if (parts[0] === "real-weddings" && parts.length === 2) return { page: "real-wedding-detail", weddingSlug: parts[1] };
+  // Handle Aura Discovery
+  if (parts[0] === "discovery" && parts[1] === "aura" && parts.length === 2) return { page: "aura-discovery" };
   // Handle Puglia premium page (Phase 3.1 demo)
   if (parts[0] === "italy" && parts[1] === "puglia" && parts.length === 2) return { page: "puglia" };
   // Magazine routes
@@ -365,7 +369,8 @@ function App() {
   const goCoupleForgotPassword = () => setPage("couple-forgot-password");
   const goCoupleResetPassword  = () => setPage("couple-reset-password");
   const goAdminLogin  = () => setPage("admin-login");
-  const goPuglia      = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("puglia"); };
+  const goPuglia           = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("puglia"); };
+  const goAuraDiscovery    = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("aura-discovery"); };
 
   // Store couple/vendor nav functions on window for use in auth components
   useEffect(() => {
@@ -557,6 +562,9 @@ function App() {
         )}
         {page === "puglia" && (
           <PugliaPage onBack={goHome} onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewStandard={goStandard} onViewAbout={goAbout} footerNav={footerNav} />
+        )}
+        {page === "aura-discovery" && (
+          <AuraDiscoveryDemoPage />
         )}
         {page === "region-category" && activeCategorySlug !== "wedding-planners" && (
           <RegionCategoryPage
