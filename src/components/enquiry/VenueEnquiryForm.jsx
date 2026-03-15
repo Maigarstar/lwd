@@ -302,7 +302,16 @@ export default function VenueEnquiryForm({
 
   const containerStyle = {
     ...S.container,
-    ...(sticky ? { position: 'sticky', top: '140px', alignSelf: 'start', zIndex: 10 } : {}),
+    ...(sticky ? {
+      position: 'sticky',
+      top: '140px',
+      alignSelf: 'start',
+      zIndex: 10,
+      maxHeight: 'calc(100vh - 160px)',
+      overflowY: 'auto',
+      scrollbarWidth: 'thin',
+      scrollbarColor: 'rgba(143,116,32,0.3) transparent',
+    } : {}),
   };
 
   // ── Success state ──────────────────────────────────────────────────────────

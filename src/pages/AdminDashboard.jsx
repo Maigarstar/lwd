@@ -270,6 +270,27 @@ const NAV_SECTIONS = [
 
 const ALL_NAV_ITEMS = NAV_SECTIONS.flatMap((s) => s.items);
 
+// ── SVG icon paths (24x24, stroke-based, no fill) ──────────────────────────
+const GROUP_ICON_PATHS = {
+  Platform:     'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
+  Growth:       'M23 6l-9.5 9.5-5-5L1 18M17 6h6v6',
+  Engagement:   'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z',
+  Intelligence: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
+  Design:       'M12 20h9M16.5 3.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z',
+  Content:      'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6',
+};
+
+function NavIcon({ path, size = 18, color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+      style={{ display: 'block', flexShrink: 0 }}
+    >
+      <path d={path} />
+    </svg>
+  );
+}
+
 // ── Mock data ──────────────────────────────────────────────────────────────
 const STATS = [
   { label: "Active Venues",      value: "47",    sub: "+3 this month" },
@@ -5921,53 +5942,93 @@ function LeadsModule({ C }) {
   const [selectedLead, setSelectedLead] = useState(null);
   const [sortKey, setSortKey] = useState('created_at');
   const [sortDir, setSortDir] = useState('desc');
+  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [statusSuccess, setStatusSuccess] = useState(null);
+  const [lossReason, setLossReason] = useState('');
+  const [showLossInput, setShowLossInput] = useState(false);
+  const [notes, setNotes] = useState([]);
+  const [noteText, setNoteText] = useState('');
+  const [noteSubmitting, setNoteSubmitting] = useState(false);
 
   const LEAD_TYPES = [
-    { key: 'all',            label: 'All Leads' },
+    { key: 'all',            label: 'All' },
     { key: 'venue_enquiry',  label: 'Venue' },
     { key: 'vendor_enquiry', label: 'Vendor' },
     { key: 'aura_chat',      label: 'Aura' },
   ];
 
   const STATUSES = [
-    'all', 'new', 'qualified', 'sent_to_partner', 'partner_opened',
-    'partner_replied', 'in_conversation', 'proposal_sent', 'booked', 'lost', 'spam',
+    { key: 'all',              label: 'All' },
+    { key: 'new',              label: 'New' },
+    { key: 'qualified',        label: 'Qualified' },
+    { key: 'sent_to_partner',  label: 'Sent' },
+    { key: 'partner_replied',  label: 'Replied' },
+    { key: 'in_conversation',  label: 'Talking' },
+    { key: 'proposal_sent',    label: 'Proposal' },
+    { key: 'booked',           label: 'Booked' },
+    { key: 'lost',             label: 'Lost' },
+    { key: 'spam',             label: 'Spam' },
   ];
 
-  const PRIORITIES = ['all', 'urgent', 'high', 'normal', 'low'];
+  const PRIORITIES = [
+    { key: 'all',    label: 'All' },
+    { key: 'urgent', label: 'Urgent' },
+    { key: 'high',   label: 'High' },
+    { key: 'normal', label: 'Normal' },
+    { key: 'low',    label: 'Low' },
+  ];
 
-  const STATUS_COLORS = {
-    new:              { bg: '#dbeafe', text: '#1d4ed8' },
-    qualified:        { bg: '#d1fae5', text: '#065f46' },
-    sent_to_partner:  { bg: '#fef3c7', text: '#92400e' },
-    partner_opened:   { bg: '#ede9fe', text: '#4c1d95' },
-    partner_replied:  { bg: '#d1fae5', text: '#065f46' },
-    in_conversation:  { bg: '#cffafe', text: '#164e63' },
-    proposal_sent:    { bg: '#fce7f3', text: '#9d174d' },
-    booked:           { bg: '#d1fae5', text: '#14532d' },
-    lost:             { bg: '#fee2e2', text: '#991b1b' },
-    spam:             { bg: '#f3f4f6', text: '#6b7280' },
+  // Status dot colours (used in table rows)
+  const STATUS_DOT = {
+    new:             '#3b82f6',
+    qualified:       '#10b981',
+    sent_to_partner: '#f59e0b',
+    partner_opened:  '#8b5cf6',
+    partner_replied: '#10b981',
+    in_conversation: '#06b6d4',
+    proposal_sent:   '#ec4899',
+    booked:          '#16a34a',
+    lost:            '#ef4444',
+    spam:            '#9ca3af',
   };
 
-  const PRIORITY_COLORS = {
-    urgent: { bg: '#fee2e2', text: '#991b1b' },
-    high:   { bg: '#fef3c7', text: '#92400e' },
-    normal: { bg: '#dbeafe', text: '#1d4ed8' },
-    low:    { bg: '#f3f4f6', text: '#6b7280' },
+  // Status badge styles (chip in detail view)
+  const STATUS_CHIP = {
+    new:             { bg: 'rgba(59,130,246,0.12)',  text: '#3b82f6',  border: 'rgba(59,130,246,0.25)' },
+    qualified:       { bg: 'rgba(16,185,129,0.12)', text: '#10b981',  border: 'rgba(16,185,129,0.25)' },
+    sent_to_partner: { bg: 'rgba(245,158,11,0.12)', text: '#d97706',  border: 'rgba(245,158,11,0.25)' },
+    partner_opened:  { bg: 'rgba(139,92,246,0.12)', text: '#7c3aed',  border: 'rgba(139,92,246,0.25)' },
+    partner_replied: { bg: 'rgba(16,185,129,0.12)', text: '#10b981',  border: 'rgba(16,185,129,0.25)' },
+    in_conversation: { bg: 'rgba(6,182,212,0.12)',  text: '#0891b2',  border: 'rgba(6,182,212,0.25)' },
+    proposal_sent:   { bg: 'rgba(236,72,153,0.12)', text: '#db2777',  border: 'rgba(236,72,153,0.25)' },
+    booked:          { bg: 'rgba(22,163,74,0.12)',  text: '#16a34a',  border: 'rgba(22,163,74,0.25)' },
+    lost:            { bg: 'rgba(239,68,68,0.12)',  text: '#dc2626',  border: 'rgba(239,68,68,0.25)' },
+    spam:            { bg: 'rgba(156,163,175,0.12)',text: '#6b7280',  border: 'rgba(156,163,175,0.25)' },
   };
 
-  useEffect(() => {
-    loadLeads();
-  }, []);
+  const PRIORITY_CHIP = {
+    urgent: { bg: 'rgba(239,68,68,0.12)',  text: '#dc2626',  border: 'rgba(239,68,68,0.25)' },
+    high:   { bg: 'rgba(245,158,11,0.12)', text: '#d97706',  border: 'rgba(245,158,11,0.25)' },
+    normal: { bg: 'rgba(59,130,246,0.10)', text: '#3b82f6',  border: 'rgba(59,130,246,0.20)' },
+    low:    { bg: 'rgba(156,163,175,0.10)',text: '#9ca3af',  border: 'rgba(156,163,175,0.20)' },
+  };
+
+  const TYPE_CHIP = {
+    venue_enquiry:  { bg: 'rgba(139,92,246,0.10)', text: '#7c3aed', border: 'rgba(139,92,246,0.20)', label: 'Venue' },
+    vendor_enquiry: { bg: 'rgba(6,182,212,0.10)',  text: '#0891b2', border: 'rgba(6,182,212,0.20)',  label: 'Vendor' },
+    aura_chat:      { bg: 'rgba(245,158,11,0.10)', text: '#d97706', border: 'rgba(245,158,11,0.20)', label: 'Aura' },
+  };
+
+  useEffect(() => { loadLeads(); }, []);
 
   const loadLeads = async () => {
     setLoading(true);
     setError(null);
     try {
-      const { listLeads } = await import('../services/leadEngineService');
-      const result = await listLeads({ limit: 200 });
+      const { adminListLeads } = await import('../services/adminLeadsService');
+      const result = await adminListLeads({ limit: 200 });
       if (result.error && !result.data?.length) {
-        setError('Could not load leads. Check Supabase connection.');
+        setError('Could not load leads. Ensure the admin client is configured.');
       }
       setLeads(result.data || []);
     } catch (err) {
@@ -5975,6 +6036,70 @@ function LeadsModule({ C }) {
       setError('Failed to load leads.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStatusUpdate = async (newStatus) => {
+    if (!selectedLead) return;
+    if (newStatus === 'lost' && !lossReason && showLossInput) return;
+    if (newStatus === 'lost' && !showLossInput) {
+      setShowLossInput(true);
+      return;
+    }
+    setStatusUpdating(true);
+    setStatusSuccess(null);
+    try {
+      const { adminUpdateLeadStatus } = await import('../services/adminLeadsService');
+      const result = await adminUpdateLeadStatus(selectedLead.id, newStatus, { lossReason: lossReason || undefined });
+      if (!result.error && result.data) {
+        const updated = result.data;
+        setSelectedLead(updated);
+        setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
+        setStatusSuccess(`Status updated to ${newStatus.replace(/_/g, ' ')}`);
+        setShowLossInput(false);
+        setLossReason('');
+        setTimeout(() => setStatusSuccess(null), 3000);
+      }
+    } catch (err) {
+      console.error('Status update failed:', err);
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
+  const loadNotes = async (leadId) => {
+    try {
+      const { supabase } = await import('../lib/supabaseClient');
+      const { data } = await supabase
+        .from('lead_messages')
+        .select('id, body, created_at')
+        .eq('lead_id', leadId)
+        .eq('message_type', 'internal_note')
+        .order('created_at', { ascending: true });
+      setNotes(data || []);
+    } catch (err) {
+      console.warn('loadNotes failed:', err);
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!noteText.trim() || !selectedLead) return;
+    setNoteSubmitting(true);
+    try {
+      const { supabase } = await import('../lib/supabaseClient');
+      const { data, error } = await supabase
+        .from('lead_messages')
+        .insert({ lead_id: selectedLead.id, message_type: 'internal_note', body: noteText.trim() })
+        .select('id, body, created_at')
+        .single();
+      if (!error && data) {
+        setNotes(prev => [...prev, data]);
+        setNoteText('');
+      }
+    } catch (err) {
+      console.warn('addNote failed:', err);
+    } finally {
+      setNoteSubmitting(false);
     }
   };
 
@@ -5986,8 +6111,7 @@ function LeadsModule({ C }) {
       const q = search.toLowerCase();
       const name = (l.full_name || l.first_name || '').toLowerCase();
       const email = (l.email || '').toLowerCase();
-      const venue = (l.venue_id || '').toLowerCase();
-      if (!name.includes(q) && !email.includes(q) && !venue.includes(q)) return false;
+      if (!name.includes(q) && !email.includes(q)) return false;
     }
     return true;
   }).sort((a, b) => {
@@ -6012,185 +6136,372 @@ function LeadsModule({ C }) {
     return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
   };
 
-  const fmtType = (t) => {
-    if (t === 'venue_enquiry')  return 'Venue';
-    if (t === 'vendor_enquiry') return 'Vendor';
-    if (t === 'aura_chat')      return 'Aura';
-    return t || '-';
+  const fmtType = (t) => TYPE_CHIP[t]?.label || t || '-';
+
+  const stats = useMemo(() => ({
+    total:     leads.length,
+    newCount:  leads.filter(l => l.status === 'new').length,
+    booked:    leads.filter(l => l.status === 'booked').length,
+    urgent:    leads.filter(l => l.priority === 'urgent').length,
+    qualified: leads.filter(l => l.status === 'qualified' || l.status === 'in_conversation').length,
+  }), [leads]);
+
+  // ── Shared sub-components ──────────────────────────────────────────────────
+
+  const Chip = ({ type, value }) => {
+    const map = type === 'status' ? STATUS_CHIP : type === 'priority' ? PRIORITY_CHIP : TYPE_CHIP;
+    const cfg = map[value] || { bg: 'rgba(0,0,0,0.06)', text: C.grey, border: C.border };
+    const label = type === 'type' ? cfg.label : value?.replace(/_/g, ' ') || '-';
+    return (
+      <span style={{
+        display: 'inline-block', padding: '2px 9px', borderRadius: 20,
+        background: cfg.bg, color: cfg.text, border: `1px solid ${cfg.border}`,
+        fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+        textTransform: 'uppercase', whiteSpace: 'nowrap',
+      }}>{label}</span>
+    );
   };
 
-  const stats = {
-    total: leads.length,
-    new: leads.filter(l => l.status === 'new').length,
-    booked: leads.filter(l => l.status === 'booked').length,
-    urgent: leads.filter(l => l.priority === 'urgent').length,
-  };
-
-  // ── Styles ──────────────────────────────────────────────────────────────────
-
-  const pill = (active) => ({
-    padding: '5px 12px', borderRadius: 2, border: `1px solid ${active ? C.gold : C.border}`,
-    background: active ? C.gold : 'transparent', color: active ? '#fff' : C.grey,
-    fontFamily: NU, fontSize: 11, fontWeight: 600, cursor: 'pointer',
-    letterSpacing: '0.04em', transition: 'all 140ms ease',
-  });
-
-  const thStyle = (key) => ({
-    padding: '10px 14px', fontFamily: NU, fontSize: 10, fontWeight: 700,
-    color: sortKey === key ? C.gold : C.grey2, textTransform: 'uppercase',
-    letterSpacing: '0.06em', textAlign: 'left', cursor: 'pointer',
-    borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap',
-    userSelect: 'none',
-  });
-
-  const tdStyle = {
-    padding: '11px 14px', fontFamily: NU, fontSize: 12, color: C.off,
-    borderBottom: `1px solid ${C.border}`, verticalAlign: 'middle',
-  };
-
-  const badge = (colors, text) => (
-    <span style={{
-      display: 'inline-block', padding: '2px 8px', borderRadius: 2,
-      background: colors?.bg || '#f3f4f6', color: colors?.text || '#666',
-      fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.05em',
-      textTransform: 'uppercase',
-    }}>{text}</span>
-  );
-
-  const scoreBar = (score) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <div style={{
-        width: 48, height: 4, borderRadius: 2, background: C.border, overflow: 'hidden',
-      }}>
-        <div style={{
-          width: `${score || 0}%`, height: '100%', borderRadius: 2,
-          background: score >= 80 ? '#15803d' : score >= 60 ? C.gold : score >= 30 ? '#1d4ed8' : '#6b7280',
-        }} />
+  const ScoreRing = ({ score }) => {
+    const s = score || 0;
+    const colour = s >= 80 ? '#16a34a' : s >= 60 ? C.gold : s >= 30 ? '#3b82f6' : '#9ca3af';
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+        <div style={{ position: 'relative', width: 28, height: 28, flexShrink: 0 }}>
+          <svg width="28" height="28" viewBox="0 0 28 28">
+            <circle cx="14" cy="14" r="11" fill="none" stroke={C.border} strokeWidth="2.5" />
+            <circle cx="14" cy="14" r="11" fill="none" stroke={colour} strokeWidth="2.5"
+              strokeDasharray={`${2 * Math.PI * 11}`}
+              strokeDashoffset={`${2 * Math.PI * 11 * (1 - s / 100)}`}
+              strokeLinecap="round"
+              transform="rotate(-90 14 14)"
+            />
+          </svg>
+          <span style={{
+            position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
+            justifyContent: 'center', fontFamily: NU, fontSize: 8, fontWeight: 700, color: C.off,
+          }}>{s}</span>
+        </div>
       </div>
-      <span style={{ fontFamily: NU, fontSize: 11, color: C.grey, fontWeight: 600 }}>{score || 0}</span>
-    </div>
-  );
+    );
+  };
+
+  const filterTab = (active) => ({
+    padding: '5px 13px', borderRadius: 2, cursor: 'pointer', transition: 'all 130ms',
+    fontFamily: NU, fontSize: 11, fontWeight: 600, letterSpacing: '0.04em',
+    background: active ? C.gold : 'transparent',
+    color: active ? '#fff' : C.grey,
+    border: `1px solid ${active ? C.gold : 'transparent'}`,
+  });
+
+  const statusTab = (active) => ({
+    padding: '4px 11px', borderRadius: 2, cursor: 'pointer', transition: 'all 130ms',
+    fontFamily: NU, fontSize: 10, fontWeight: 600, letterSpacing: '0.04em',
+    background: active ? C.goldDim : 'transparent',
+    color: active ? C.gold : C.grey2,
+    border: `1px solid ${active ? C.gold : 'transparent'}`,
+  });
 
   // ── Detail Panel ────────────────────────────────────────────────────────────
 
   if (selectedLead) {
     const l = selectedLead;
-    const sc = STATUS_COLORS[l.status] || { bg: '#f3f4f6', text: '#666' };
-    const pc = PRIORITY_COLORS[l.priority] || { bg: '#f3f4f6', text: '#666' };
-    const detailRow = (label, val) => val ? (
-      <div style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
-        <span style={{ fontFamily: NU, fontSize: 11, color: C.grey2, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: 120 }}>{label}</span>
-        <span style={{ fontFamily: NU, fontSize: 13, color: C.off }}>{val}</span>
+    const sc = STATUS_CHIP[l.status];
+    const pc = PRIORITY_CHIP[l.priority];
+
+    const DetailRow = ({ label, val }) => !val ? null : (
+      <div style={{ display: 'flex', gap: 16, padding: '9px 0', borderBottom: `1px solid ${C.border}` }}>
+        <span style={{
+          fontFamily: NU, fontSize: 10, color: C.grey2, fontWeight: 700,
+          textTransform: 'uppercase', letterSpacing: '0.07em', minWidth: 108, paddingTop: 1,
+        }}>{label}</span>
+        <span style={{ fontFamily: NU, fontSize: 13, color: C.off, lineHeight: 1.45 }}>{val}</span>
       </div>
-    ) : null;
+    );
+
+    const SectionLabel = ({ children }) => (
+      <p style={{
+        fontFamily: NU, fontSize: 9, color: C.gold, fontWeight: 700, margin: '24px 0 4px',
+        textTransform: 'uppercase', letterSpacing: '0.12em',
+      }}>{children}</p>
+    );
+
+    const ActionButton = ({ label, status, variant = 'ghost' }) => {
+      const isActive = l.status === status;
+      const isPrimary = variant === 'primary';
+      return (
+        <button
+          disabled={statusUpdating || isActive}
+          onClick={() => handleStatusUpdate(status)}
+          style={{
+            padding: '7px 14px', borderRadius: 2, cursor: isActive ? 'default' : 'pointer',
+            fontFamily: NU, fontSize: 11, fontWeight: 600, letterSpacing: '0.04em',
+            transition: 'all 130ms', opacity: isActive ? 0.5 : 1,
+            background: isActive ? C.goldDim : isPrimary ? C.gold : 'transparent',
+            color: isActive ? C.gold : isPrimary ? '#fff' : C.grey,
+            border: `1px solid ${isActive ? C.gold : isPrimary ? C.gold : C.border}`,
+          }}
+        >{isActive ? `${label} (current)` : label}</button>
+      );
+    };
 
     return (
       <div>
-        {/* Back bar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-          <button onClick={() => setSelectedLead(null)} style={{
-            background: 'transparent', border: `1px solid ${C.border}`, color: C.grey,
-            fontFamily: NU, fontSize: 12, fontWeight: 600, padding: '7px 14px',
-            borderRadius: 2, cursor: 'pointer', letterSpacing: '0.04em',
+        {/* Top bar */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28,
+          paddingBottom: 20, borderBottom: `1px solid ${C.border}`,
+        }}>
+          <button onClick={() => { setSelectedLead(null); setShowLossInput(false); setLossReason(''); }} style={{
+            background: 'transparent', border: `1px solid ${C.border}`, color: C.grey2,
+            fontFamily: NU, fontSize: 11, fontWeight: 600, padding: '6px 13px',
+            borderRadius: 2, cursor: 'pointer', letterSpacing: '0.05em',
           }}>
-            ← Back to Leads
+            ← All Leads
           </button>
-          <span style={{ fontFamily: GD, fontSize: 18, color: C.off, fontWeight: 400 }}>
-            {l.full_name || l.first_name || 'Unknown Lead'}
-          </span>
-          {badge(sc, l.status?.replace(/_/g, ' ') || 'new')}
-          {badge(pc, l.priority || 'normal')}
+          <div style={{ flex: 1 }}>
+            <h2 style={{ fontFamily: GD, fontSize: 22, fontWeight: 400, color: C.off, margin: 0, lineHeight: 1.2 }}>
+              {l.full_name || l.first_name || 'Unknown Lead'}
+            </h2>
+            {l.email && <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, margin: '3px 0 0' }}>{l.email}</p>}
+          </div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <Chip type="type" value={l.lead_type} />
+            <Chip type="priority" value={l.priority} />
+            <Chip type="status" value={l.status} />
+          </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24 }}>
-          {/* Main detail card */}
-          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: 28 }}>
-            <p style={{ fontFamily: GD, fontSize: 16, color: C.gold, fontWeight: 400, margin: '0 0 16px', textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 11 }}>Contact Details</p>
-            {detailRow('Name', l.full_name || l.first_name)}
-            {detailRow('Email', l.email)}
-            {detailRow('Phone', l.phone)}
-            {detailRow('Preferred Contact', l.preferred_contact_method)}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, alignItems: 'start' }}>
 
-            <p style={{ fontFamily: GD, fontSize: 11, color: C.gold, fontWeight: 400, margin: '20px 0 12px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Wedding Details</p>
-            {detailRow('Date', l.wedding_month ? `${l.wedding_month}${l.wedding_year ? ' ' + l.wedding_year : ''}` : null)}
-            {detailRow('Exact Date', l.exact_date_known ? 'Yes - confirmed date' : null)}
-            {detailRow('Guest Count', l.guest_count)}
-            {detailRow('Budget Range', l.budget_range)}
-            {detailRow('Location', l.location_preference)}
+          {/* Left - main content */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
+            {/* Contact + Wedding */}
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '20px 24px' }}>
+              <SectionLabel>Contact</SectionLabel>
+              <DetailRow label="Name"       val={l.full_name || l.first_name} />
+              <DetailRow label="Email"      val={l.email} />
+              <DetailRow label="Phone"      val={l.phone} />
+              <DetailRow label="Prefers"    val={l.preferred_contact_method} />
+
+              <SectionLabel>Wedding</SectionLabel>
+              <DetailRow label="Date"       val={l.wedding_month ? `${l.wedding_month}${l.wedding_year ? ' ' + l.wedding_year : ''}` : null} />
+              <DetailRow label="Confirmed"  val={l.exact_date_known ? 'Yes' : null} />
+              <DetailRow label="Guests"     val={l.guest_count} />
+              <DetailRow label="Budget"     val={l.budget_range} />
+              <DetailRow label="Location"   val={l.location_preference} />
+            </div>
+
+            {/* Message */}
             {l.message && (
-              <>
-                <p style={{ fontFamily: GD, fontSize: 11, color: C.gold, fontWeight: 400, margin: '20px 0 12px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Message</p>
-                <div style={{
-                  background: C.dark, border: `1px solid ${C.border}`, borderRadius: 4,
-                  padding: 16, fontFamily: NU, fontSize: 13, color: C.off, lineHeight: 1.6,
-                }}>
-                  {l.message}
-                </div>
-              </>
+              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '20px 24px' }}>
+                <SectionLabel>Message</SectionLabel>
+                <p style={{
+                  fontFamily: NU, fontSize: 14, color: C.off, lineHeight: 1.7,
+                  margin: '12px 0 0', padding: '14px 16px',
+                  background: C.dark, borderRadius: 3, borderLeft: `3px solid ${C.gold}`,
+                }}>{l.message}</p>
+              </div>
             )}
 
+            {/* Intent summary */}
             {l.intent_summary && (
-              <>
-                <p style={{ fontFamily: GD, fontSize: 11, color: C.gold, fontWeight: 400, margin: '20px 0 12px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Intent Summary</p>
-                <div style={{
-                  background: C.dark, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.gold}`,
-                  borderRadius: 4, padding: 16, fontFamily: NU, fontSize: 13, color: C.off, lineHeight: 1.6,
-                }}>
-                  {l.intent_summary}
-                </div>
-              </>
+              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '20px 24px' }}>
+                <SectionLabel>Aura Intent Summary</SectionLabel>
+                <p style={{
+                  fontFamily: NU, fontSize: 13, color: C.off, lineHeight: 1.7,
+                  margin: '12px 0 0', padding: '14px 16px',
+                  background: C.goldDim, borderRadius: 3, borderLeft: `3px solid ${C.gold}`,
+                }}>{l.intent_summary}</p>
+              </div>
             )}
           </div>
 
-          {/* Sidebar meta card */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Right - sidebar */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
             {/* Score card */}
-            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: 20 }}>
-              <p style={{ fontFamily: NU, fontSize: 10, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 12px' }}>Lead Score</p>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 8 }}>
-                <span style={{ fontFamily: GD, fontSize: 36, color: C.off, fontWeight: 400, lineHeight: 1 }}>{l.score || 0}</span>
-                <span style={{ fontFamily: NU, fontSize: 12, color: C.grey2 }}>/100</span>
+            <div style={{
+              background: C.card, border: `1px solid ${C.border}`, borderRadius: 4,
+              padding: '18px 20px', borderTop: `3px solid ${
+                (l.score || 0) >= 80 ? '#16a34a' : (l.score || 0) >= 60 ? C.gold : (l.score || 0) >= 30 ? '#3b82f6' : '#9ca3af'
+              }`,
+            }}>
+              <p style={{ fontFamily: NU, fontSize: 9, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', margin: '0 0 10px' }}>Lead Score</p>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 10 }}>
+                <span style={{ fontFamily: GD, fontSize: 42, color: C.off, fontWeight: 400, lineHeight: 1 }}>{l.score || 0}</span>
+                <span style={{ fontFamily: NU, fontSize: 13, color: C.grey2 }}>/100</span>
               </div>
-              <div style={{ width: '100%', height: 6, borderRadius: 3, background: C.border, overflow: 'hidden', marginBottom: 8 }}>
+              <div style={{ width: '100%', height: 5, borderRadius: 3, background: C.border, overflow: 'hidden', marginBottom: 12 }}>
                 <div style={{
                   width: `${l.score || 0}%`, height: '100%', borderRadius: 3,
-                  background: (l.score || 0) >= 80 ? '#15803d' : (l.score || 0) >= 60 ? C.gold : (l.score || 0) >= 30 ? '#1d4ed8' : '#6b7280',
-                  transition: 'width 600ms ease',
+                  background: (l.score || 0) >= 80 ? '#16a34a' : (l.score || 0) >= 60 ? C.gold : (l.score || 0) >= 30 ? '#3b82f6' : '#9ca3af',
+                  transition: 'width 700ms ease',
                 }} />
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {badge(pc, l.priority || 'normal')}
-                {badge(sc, l.status?.replace(/_/g, ' ') || 'new')}
-              </div>
+              {l.lead_value_band && (
+                <span style={{
+                  fontFamily: NU, fontSize: 10, color: C.gold, fontWeight: 700,
+                  letterSpacing: '0.08em', textTransform: 'uppercase',
+                }}>{l.lead_value_band.replace(/_/g, ' ')}</span>
+              )}
             </div>
 
-            {/* Source card */}
-            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: 20 }}>
-              <p style={{ fontFamily: NU, fontSize: 10, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 12px' }}>Source</p>
+            {/* Source metadata */}
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '18px 20px' }}>
+              <p style={{ fontFamily: NU, fontSize: 9, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', margin: '0 0 10px' }}>Source</p>
               {[
-                ['Lead Type', fmtType(l.lead_type)],
-                ['Channel', l.lead_channel],
-                ['Source', l.lead_source],
-                ['Listing ID', l.listing_id || l.venue_id || l.vendor_id],
+                ['Type',     fmtType(l.lead_type)],
+                ['Channel',  l.lead_channel],
+                ['Source',   l.lead_source],
+                ['Listing',  l.listing_id || l.venue_id || l.vendor_id],
                 ['Received', fmtDate(l.created_at)],
-              ].map(([k, v]) => v ? (
-                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: `1px solid ${C.border}` }}>
-                  <span style={{ fontFamily: NU, fontSize: 11, color: C.grey2, fontWeight: 600 }}>{k}</span>
-                  <span style={{ fontFamily: NU, fontSize: 11, color: C.off }}>{v}</span>
+                ['Updated',  fmtDate(l.updated_at)],
+              ].filter(([, v]) => v && v !== '-').map(([k, v]) => (
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: `1px solid ${C.border}` }}>
+                  <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k}</span>
+                  <span style={{ fontFamily: NU, fontSize: 11, color: C.off, maxWidth: 140, textAlign: 'right', wordBreak: 'break-all' }}>{v}</span>
                 </div>
-              ) : null)}
+              ))}
             </div>
 
-            {/* Value band card */}
-            {l.lead_value_band && (
-              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: 20 }}>
-                <p style={{ fontFamily: NU, fontSize: 10, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 8px' }}>Value Band</p>
-                <span style={{ fontFamily: GD, fontSize: 16, color: C.gold, fontWeight: 400, textTransform: 'capitalize' }}>
-                  {l.lead_value_band.replace(/_/g, ' ')}
-                </span>
+            {/* Status update controls */}
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '18px 20px' }}>
+              <p style={{ fontFamily: NU, fontSize: 9, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', margin: '0 0 12px' }}>Update Status</p>
+
+              {statusSuccess && (
+                <div style={{
+                  background: 'rgba(22,163,74,0.10)', border: '1px solid rgba(22,163,74,0.25)',
+                  borderRadius: 3, padding: '7px 10px', marginBottom: 10,
+                  fontFamily: NU, fontSize: 11, color: '#16a34a', fontWeight: 600,
+                }}>
+                  {statusSuccess}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <ActionButton label="Mark Qualified"    status="qualified"       variant="ghost" />
+                <ActionButton label="Sent to Partner"   status="sent_to_partner" variant="ghost" />
+                <ActionButton label="Partner Replied"   status="partner_replied" variant="ghost" />
+                <ActionButton label="In Conversation"   status="in_conversation" variant="ghost" />
+                <ActionButton label="Proposal Sent"     status="proposal_sent"   variant="ghost" />
+                <ActionButton label="Mark Booked"       status="booked"          variant="primary" />
+
+                {showLossInput ? (
+                  <div style={{ marginTop: 4 }}>
+                    <textarea
+                      placeholder="Loss reason (required)"
+                      value={lossReason}
+                      onChange={e => setLossReason(e.target.value)}
+                      rows={2}
+                      style={{
+                        width: '100%', padding: '7px 10px', borderRadius: 2,
+                        border: `1px solid ${C.border}`, background: C.dark,
+                        fontFamily: NU, fontSize: 11, color: C.off, resize: 'vertical',
+                        outline: 'none', boxSizing: 'border-box', marginBottom: 6,
+                      }}
+                    />
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        disabled={!lossReason || statusUpdating}
+                        onClick={() => handleStatusUpdate('lost')}
+                        style={{
+                          flex: 1, padding: '6px 0', borderRadius: 2, cursor: lossReason ? 'pointer' : 'not-allowed',
+                          fontFamily: NU, fontSize: 11, fontWeight: 600, opacity: lossReason ? 1 : 0.5,
+                          background: 'rgba(239,68,68,0.10)', color: '#dc2626',
+                          border: '1px solid rgba(239,68,68,0.30)', transition: 'all 130ms',
+                        }}
+                      >Confirm Lost</button>
+                      <button
+                        onClick={() => { setShowLossInput(false); setLossReason(''); }}
+                        style={{
+                          padding: '6px 12px', borderRadius: 2, cursor: 'pointer',
+                          fontFamily: NU, fontSize: 11, fontWeight: 600,
+                          background: 'transparent', color: C.grey2, border: `1px solid ${C.border}`,
+                        }}
+                      >Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    disabled={statusUpdating}
+                    onClick={() => setShowLossInput(true)}
+                    style={{
+                      padding: '7px 14px', borderRadius: 2, cursor: 'pointer',
+                      fontFamily: NU, fontSize: 11, fontWeight: 600, letterSpacing: '0.04em',
+                      background: 'transparent', color: '#dc2626',
+                      border: '1px solid rgba(239,68,68,0.30)', transition: 'all 130ms',
+                    }}
+                  >Mark Lost</button>
+                )}
               </div>
-            )}
+            </div>
+
+            {/* ── Notes / Comments ─────────────────────────────────────── */}
+            <div style={{
+              background: C.card, border: `1px solid ${C.border}`,
+              borderRadius: 2, padding: '18px 20px',
+            }}>
+              <div style={{
+                fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+                textTransform: 'uppercase', color: C.grey2, marginBottom: 14,
+              }}>Notes</div>
+
+              {/* existing notes */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+                {notes.length === 0 && (
+                  <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, fontStyle: 'italic' }}>
+                    No notes yet.
+                  </div>
+                )}
+                {notes.map(n => (
+                  <div key={n.id} style={{
+                    background: C.dark, borderRadius: 2, padding: '9px 12px',
+                    borderLeft: `2px solid ${C.gold}`,
+                  }}>
+                    <div style={{ fontFamily: NU, fontSize: 12, color: C.off, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+                      {n.body}
+                    </div>
+                    <div style={{ fontFamily: NU, fontSize: 10, color: C.grey2, marginTop: 5 }}>
+                      {new Date(n.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* add note */}
+              <textarea
+                placeholder="Add a note..."
+                value={noteText}
+                onChange={e => setNoteText(e.target.value)}
+                rows={3}
+                onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleAddNote(); }}
+                style={{
+                  width: '100%', padding: '8px 10px', borderRadius: 2,
+                  border: `1px solid ${C.border}`, background: C.dark,
+                  fontFamily: NU, fontSize: 12, color: C.off, resize: 'vertical',
+                  outline: 'none', boxSizing: 'border-box', lineHeight: 1.5,
+                  transition: 'border 150ms',
+                }}
+                onFocus={e => e.target.style.borderColor = C.gold}
+                onBlur={e => e.target.style.borderColor = C.border}
+              />
+              <button
+                disabled={!noteText.trim() || noteSubmitting}
+                onClick={handleAddNote}
+                style={{
+                  marginTop: 8, width: '100%', padding: '8px 0', borderRadius: 2,
+                  fontFamily: NU, fontSize: 11, fontWeight: 600, letterSpacing: '0.06em',
+                  background: noteText.trim() ? C.gold : 'transparent',
+                  color: noteText.trim() ? '#fff' : C.grey2,
+                  border: `1px solid ${noteText.trim() ? C.gold : C.border}`,
+                  cursor: noteText.trim() ? 'pointer' : 'not-allowed',
+                  transition: 'all 150ms', opacity: noteSubmitting ? 0.6 : 1,
+                }}
+              >{noteSubmitting ? 'Saving...' : 'Add Note'}</button>
+            </div>
+
           </div>
         </div>
       </div>
@@ -6199,156 +6510,214 @@ function LeadsModule({ C }) {
 
   // ── List View ───────────────────────────────────────────────────────────────
 
+  const thSt = (key) => ({
+    padding: '9px 14px', fontFamily: NU, fontSize: 9, fontWeight: 700,
+    color: sortKey === key ? C.gold : C.grey2, textTransform: 'uppercase',
+    letterSpacing: '0.08em', textAlign: 'left', cursor: 'pointer',
+    background: C.dark, borderBottom: `2px solid ${C.border}`, whiteSpace: 'nowrap',
+    userSelect: 'none',
+  });
+
+  const tdSt = {
+    padding: '10px 14px', fontFamily: NU, fontSize: 12, color: C.off,
+    borderBottom: `1px solid ${C.border}`, verticalAlign: 'middle',
+  };
+
   return (
     <div>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <h2 style={{ fontFamily: GD, fontSize: 24, fontWeight: 400, color: C.off, margin: '0 0 4px' }}>Leads</h2>
-          <p style={{ fontFamily: NU, fontSize: 13, color: C.grey2, margin: 0 }}>All enquiries captured through the lead engine</p>
+          <h2 style={{ fontFamily: GD, fontSize: 26, fontWeight: 400, color: C.off, margin: '0 0 3px' }}>Lead Engine</h2>
+          <p style={{ fontFamily: NU, fontSize: 12, color: C.grey2, margin: 0, letterSpacing: '0.01em' }}>
+            All enquiries captured across venue, vendor and Aura channels
+          </p>
         </div>
         <button onClick={loadLeads} style={{
-          background: 'transparent', border: `1px solid ${C.border}`, color: C.grey,
-          fontFamily: NU, fontSize: 11, fontWeight: 600, padding: '7px 14px',
-          borderRadius: 2, cursor: 'pointer', letterSpacing: '0.04em',
+          background: 'transparent', border: `1px solid ${C.border}`, color: C.grey2,
+          fontFamily: NU, fontSize: 10, fontWeight: 700, padding: '6px 14px',
+          borderRadius: 2, cursor: 'pointer', letterSpacing: '0.07em', textTransform: 'uppercase',
+          transition: 'all 130ms',
         }}>
           Refresh
         </button>
       </div>
 
-      {/* Stat strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
+      {/* Stat strip - borderless editorial style */}
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 0,
+        marginBottom: 28, background: C.card, border: `1px solid ${C.border}`, borderRadius: 4,
+        overflow: 'hidden',
+      }}>
         {[
-          { label: 'Total Leads', value: stats.total },
-          { label: 'New', value: stats.new },
-          { label: 'Booked', value: stats.booked },
-          { label: 'Urgent', value: stats.urgent },
-        ].map(({ label, value }) => (
-          <div key={label} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '18px 20px' }}>
-            <p style={{ fontFamily: NU, fontSize: 10, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 6px' }}>{label}</p>
-            <p style={{ fontFamily: GD, fontSize: 28, color: C.off, fontWeight: 400, margin: 0, lineHeight: 1 }}>{value}</p>
+          { label: 'Total', value: stats.total, accent: C.gold },
+          { label: 'New',   value: stats.newCount, accent: '#3b82f6' },
+          { label: 'Active',value: stats.qualified, accent: '#06b6d4' },
+          { label: 'Booked',value: stats.booked, accent: '#16a34a' },
+          { label: 'Urgent',value: stats.urgent, accent: '#ef4444' },
+        ].map(({ label, value, accent }, i) => (
+          <div key={label} style={{
+            padding: '20px 22px',
+            borderLeft: i > 0 ? `1px solid ${C.border}` : 'none',
+            borderTop: `3px solid ${value > 0 ? accent : C.border}`,
+          }}>
+            <p style={{ fontFamily: NU, fontSize: 9, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', margin: '0 0 7px' }}>{label}</p>
+            <p style={{ fontFamily: GD, fontSize: 30, color: value > 0 ? C.off : C.grey2, fontWeight: 400, margin: 0, lineHeight: 1 }}>{value}</p>
           </div>
         ))}
       </div>
 
-      {/* Filters */}
-      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '16px 20px', marginBottom: 16 }}>
-        {/* Type pills */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-          {LEAD_TYPES.map(({ key, label }) => (
-            <button key={key} style={pill(typeFilter === key)} onClick={() => setTypeFilter(key)}>{label}</button>
-          ))}
+      {/* Filter bar */}
+      <div style={{
+        background: C.card, border: `1px solid ${C.border}`, borderRadius: 4,
+        padding: '14px 18px', marginBottom: 12,
+      }}>
+        {/* Row 1: Type tabs + search */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+          <div style={{ display: 'flex', gap: 4, background: C.dark, borderRadius: 3, padding: 3 }}>
+            {LEAD_TYPES.map(({ key, label }) => (
+              <button key={key} style={filterTab(typeFilter === key)} onClick={() => setTypeFilter(key)}>{label}</button>
+            ))}
+          </div>
           <div style={{ flex: 1 }} />
-          {/* Search */}
-          <input
-            placeholder="Search name or email..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{
-              background: C.dark, border: `1px solid ${C.border}`, borderRadius: 2,
-              padding: '6px 12px', fontFamily: NU, fontSize: 12, color: C.off,
-              outline: 'none', width: 200,
-            }}
-          />
+          <div style={{ position: 'relative' }}>
+            <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: C.grey2, fontSize: 11 }}>&#9906;</span>
+            <input
+              placeholder="Search name or email..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{
+                background: C.dark, border: `1px solid ${C.border}`, borderRadius: 2,
+                padding: '6px 10px 6px 26px', fontFamily: NU, fontSize: 11, color: C.off,
+                outline: 'none', width: 200,
+              }}
+            />
+          </div>
         </div>
-        {/* Status + Priority */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status:</span>
-          {STATUSES.map(s => (
-            <button key={s} style={pill(statusFilter === s)} onClick={() => setStatusFilter(s)}>
-              {s === 'all' ? 'All' : s.replace(/_/g, ' ')}
-            </button>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
-          <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Priority:</span>
-          {PRIORITIES.map(p => (
-            <button key={p} style={pill(priorityFilter === p)} onClick={() => setPriorityFilter(p)}>
-              {p === 'all' ? 'All' : p}
-            </button>
-          ))}
+        {/* Row 2: Status + Priority */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: NU, fontSize: 9, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', marginRight: 4 }}>Status</span>
+            {STATUSES.map(({ key, label }) => (
+              <button key={key} style={statusTab(statusFilter === key)} onClick={() => setStatusFilter(key)}>{label}</button>
+            ))}
+          </div>
+          <div style={{ width: 1, height: 20, background: C.border }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontFamily: NU, fontSize: 9, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', marginRight: 4 }}>Priority</span>
+            {PRIORITIES.map(({ key, label }) => (
+              <button key={key} style={statusTab(priorityFilter === key)} onClick={() => setPriorityFilter(key)}>{label}</button>
+            ))}
+          </div>
         </div>
       </div>
+
+      {/* Results count */}
+      {!loading && !error && (
+        <p style={{ fontFamily: NU, fontSize: 11, color: C.grey2, margin: '0 0 8px', letterSpacing: '0.02em' }}>
+          {filtered.length === leads.length
+            ? `${leads.length} lead${leads.length !== 1 ? 's' : ''}`
+            : `${filtered.length} of ${leads.length} leads`}
+        </p>
+      )}
 
       {/* Table */}
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, overflow: 'hidden' }}>
         {loading ? (
-          <div style={{ padding: '48px 24px', textAlign: 'center', fontFamily: NU, fontSize: 13, color: C.grey2 }}>
-            Loading leads...
+          <div style={{ padding: '64px 24px', textAlign: 'center' }}>
+            <p style={{ fontFamily: GD, fontSize: 18, color: C.grey2, fontWeight: 400, margin: '0 0 6px' }}>Loading leads</p>
+            <p style={{ fontFamily: NU, fontSize: 12, color: C.grey2, margin: 0 }}>Connecting to lead engine...</p>
           </div>
         ) : error ? (
-          <div style={{ padding: '48px 24px', textAlign: 'center' }}>
-            <p style={{ fontFamily: NU, fontSize: 13, color: '#991b1b', marginBottom: 12 }}>{error}</p>
-            <p style={{ fontFamily: NU, fontSize: 11, color: C.grey2 }}>
-              Run the migration <code>20260315_create_lead_engine.sql</code> in Supabase to enable the leads table.
-            </p>
+          <div style={{ padding: '64px 24px', textAlign: 'center' }}>
+            <p style={{ fontFamily: GD, fontSize: 18, color: '#dc2626', fontWeight: 400, margin: '0 0 8px' }}>Connection Error</p>
+            <p style={{ fontFamily: NU, fontSize: 12, color: C.grey2, margin: 0 }}>{error}</p>
           </div>
         ) : filtered.length === 0 ? (
-          <div style={{ padding: '48px 24px', textAlign: 'center', fontFamily: NU, fontSize: 13, color: C.grey2 }}>
-            {leads.length === 0 ? 'No leads yet. Submit an enquiry form to see leads appear here.' : 'No leads match the current filters.'}
+          <div style={{ padding: '64px 24px', textAlign: 'center' }}>
+            <p style={{ fontFamily: GD, fontSize: 20, color: C.grey2, fontWeight: 400, margin: '0 0 6px' }}>
+              {leads.length === 0 ? 'No leads yet' : 'No matches'}
+            </p>
+            <p style={{ fontFamily: NU, fontSize: 12, color: C.grey2, margin: 0 }}>
+              {leads.length === 0
+                ? 'Submit a venue or vendor enquiry form to see leads appear here.'
+                : 'Try adjusting the filters or search term.'}
+            </p>
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: C.dark }}>
-                  <th style={thStyle('full_name')} onClick={() => handleSort('full_name')}>Name{sortIcon('full_name')}</th>
-                  <th style={thStyle('email')} onClick={() => handleSort('email')}>Email{sortIcon('email')}</th>
-                  <th style={thStyle('lead_type')} onClick={() => handleSort('lead_type')}>Type{sortIcon('lead_type')}</th>
-                  <th style={thStyle('status')} onClick={() => handleSort('status')}>Status{sortIcon('status')}</th>
-                  <th style={thStyle('priority')} onClick={() => handleSort('priority')}>Priority{sortIcon('priority')}</th>
-                  <th style={thStyle('score')} onClick={() => handleSort('score')}>Score{sortIcon('score')}</th>
-                  <th style={thStyle('wedding_month')} onClick={() => handleSort('wedding_month')}>Event{sortIcon('wedding_month')}</th>
-                  <th style={thStyle('created_at')} onClick={() => handleSort('created_at')}>Received{sortIcon('created_at')}</th>
-                  <th style={{ ...thStyle('_'), cursor: 'default' }}></th>
+                <tr>
+                  <th style={thSt('full_name')} onClick={() => handleSort('full_name')}>Name{sortIcon('full_name')}</th>
+                  <th style={thSt('lead_type')} onClick={() => handleSort('lead_type')}>Type{sortIcon('lead_type')}</th>
+                  <th style={thSt('status')} onClick={() => handleSort('status')}>Status{sortIcon('status')}</th>
+                  <th style={thSt('priority')} onClick={() => handleSort('priority')}>Priority{sortIcon('priority')}</th>
+                  <th style={thSt('score')} onClick={() => handleSort('score')}>Score{sortIcon('score')}</th>
+                  <th style={thSt('wedding_month')} onClick={() => handleSort('wedding_month')}>Event{sortIcon('wedding_month')}</th>
+                  <th style={thSt('created_at')} onClick={() => handleSort('created_at')}>Received{sortIcon('created_at')}</th>
+                  <th style={{ ...thSt('_'), cursor: 'default' }}></th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((l, i) => {
-                  const sc = STATUS_COLORS[l.status] || { bg: '#f3f4f6', text: '#666' };
-                  const pc = PRIORITY_COLORS[l.priority] || { bg: '#f3f4f6', text: '#666' };
+                  const dotColour = STATUS_DOT[l.status] || '#9ca3af';
+                  const tc = TYPE_CHIP[l.lead_type];
                   return (
                     <tr
                       key={l.id || i}
-                      style={{ background: i % 2 === 0 ? C.card : C.dark, cursor: 'pointer', transition: 'background 120ms' }}
+                      style={{ cursor: 'pointer', transition: 'background 100ms' }}
                       onMouseEnter={e => e.currentTarget.style.background = C.goldDim}
-                      onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? C.card : C.dark}
-                      onClick={() => setSelectedLead(l)}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      onClick={() => { setSelectedLead(l); setNotes([]); loadNotes(l.id); }}
                     >
-                      <td style={tdStyle}>
-                        <span style={{ fontWeight: 600, color: C.off }}>{l.full_name || l.first_name || '-'}</span>
-                        {l.phone && <div style={{ fontSize: 10, color: C.grey2, marginTop: 2 }}>{l.phone}</div>}
+                      <td style={tdSt}>
+                        <span style={{ fontWeight: 600, color: C.off, fontSize: 13 }}>{l.full_name || l.first_name || '-'}</span>
+                        {l.email && <div style={{ fontSize: 10, color: C.grey2, marginTop: 2 }}>{l.email}</div>}
                       </td>
-                      <td style={{ ...tdStyle, color: C.grey }}>{l.email || '-'}</td>
-                      <td style={tdStyle}>
-                        <span style={{
-                          display: 'inline-block', padding: '2px 8px', borderRadius: 2,
-                          background: l.lead_type === 'venue_enquiry' ? '#ede9fe' : l.lead_type === 'vendor_enquiry' ? '#cffafe' : '#fef3c7',
-                          color: l.lead_type === 'venue_enquiry' ? '#4c1d95' : l.lead_type === 'vendor_enquiry' ? '#164e63' : '#92400e',
-                          fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
-                        }}>{fmtType(l.lead_type)}</span>
+                      <td style={tdSt}>
+                        {tc ? (
+                          <span style={{
+                            display: 'inline-block', padding: '2px 8px', borderRadius: 20,
+                            background: tc.bg, color: tc.text, border: `1px solid ${tc.border}`,
+                            fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+                          }}>{tc.label}</span>
+                        ) : <span style={{ color: C.grey2, fontSize: 11 }}>{fmtType(l.lead_type)}</span>}
                       </td>
-                      <td style={tdStyle}>{badge(sc, l.status?.replace(/_/g, ' ') || 'new')}</td>
-                      <td style={tdStyle}>{badge(pc, l.priority || 'normal')}</td>
-                      <td style={tdStyle}>{scoreBar(l.score)}</td>
-                      <td style={{ ...tdStyle, color: C.grey }}>
+                      <td style={tdSt}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: dotColour, flexShrink: 0, display: 'inline-block' }} />
+                          <span style={{ fontFamily: NU, fontSize: 11, color: C.off, textTransform: 'capitalize' }}>
+                            {l.status?.replace(/_/g, ' ') || 'new'}
+                          </span>
+                        </div>
+                      </td>
+                      <td style={tdSt}>
+                        <Chip type="priority" value={l.priority || 'normal'} />
+                      </td>
+                      <td style={tdSt}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                          <div style={{ width: 44, height: 3, borderRadius: 2, background: C.border, overflow: 'hidden' }}>
+                            <div style={{
+                              width: `${l.score || 0}%`, height: '100%', borderRadius: 2,
+                              background: (l.score||0) >= 80 ? '#16a34a' : (l.score||0) >= 60 ? C.gold : (l.score||0) >= 30 ? '#3b82f6' : '#9ca3af',
+                            }} />
+                          </div>
+                          <span style={{ fontFamily: NU, fontSize: 11, color: C.grey, fontWeight: 600, minWidth: 18 }}>{l.score || 0}</span>
+                        </div>
+                      </td>
+                      <td style={{ ...tdSt, color: C.grey, fontSize: 11 }}>
                         {l.wedding_month ? `${l.wedding_month}${l.wedding_year ? ' ' + l.wedding_year : ''}` : '-'}
                       </td>
-                      <td style={{ ...tdStyle, color: C.grey2, fontSize: 11 }}>{fmtDate(l.created_at)}</td>
-                      <td style={{ ...tdStyle, textAlign: 'right' }}>
-                        <span style={{ color: C.gold, fontSize: 11, fontWeight: 600, fontFamily: NU }}>View →</span>
+                      <td style={{ ...tdSt, color: C.grey2, fontSize: 10, whiteSpace: 'nowrap' }}>{fmtDate(l.created_at)}</td>
+                      <td style={{ ...tdSt, textAlign: 'right', paddingRight: 18 }}>
+                        <span style={{ color: C.gold, fontSize: 10, fontWeight: 700, fontFamily: NU, letterSpacing: '0.04em' }}>VIEW</span>
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
-          </div>
-        )}
-        {/* Footer count */}
-        {!loading && !error && filtered.length > 0 && (
-          <div style={{ padding: '10px 16px', borderTop: `1px solid ${C.border}`, fontFamily: NU, fontSize: 11, color: C.grey2 }}>
-            Showing {filtered.length} of {leads.length} leads
           </div>
         )}
       </div>
@@ -7305,21 +7674,61 @@ function StyleEditorModule({ C, darkPalette, lightPalette, fonts, customCss, sit
   );
 }
 
-// Collapsible Sidebar Group
-// ═════════════════════════════════════════════════════════════════════════════
-function SidebarGroup({ section, activeTab, setActiveTab, darkMode, C, expandedGroups, toggleGroup, collapsed }) {
-  const isOpen = expandedGroups.has(section.group);
-  const contentRef = useRef(null);
-  const [contentHeight, setContentHeight] = useState(0);
+// ── Two-panel sidebar: right panel items list ─────────────────────────────
+function SidebarNavItems({ section, activeTab, setActiveTab }) {
+  if (!section) return null;
+  return (
+    <div style={{ paddingTop: 8 }}>
+      <div style={{
+        padding: '14px 16px 6px',
+        fontFamily: 'var(--font-body)', fontSize: 9, fontWeight: 700,
+        letterSpacing: '0.22em', textTransform: 'uppercase',
+        color: 'rgba(255,255,255,0.28)',
+      }}>
+        {section.group}
+      </div>
+      {section.items.map(item => {
+        const active = activeTab === item.key;
+        return (
+          <button
+            key={item.key}
+            onClick={() => setActiveTab(item.key)}
+            onMouseDown={(e) => { if (e.button === 0) { e.preventDefault(); setActiveTab(item.key); } }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              width: '100%', padding: '10px 16px',
+              background: active ? 'rgba(201,168,76,0.1)' : 'transparent',
+              border: 'none',
+              borderLeft: active ? '2px solid #c9a84c' : '2px solid transparent',
+              cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s',
+            }}
+            onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+            onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+          >
+            <span style={{
+              fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: active ? 500 : 400,
+              color: active ? '#ffffff' : 'rgba(255,255,255,0.65)',
+              letterSpacing: '0.02em', transition: 'color 0.15s',
+            }}>
+              {item.label}
+            </span>
+            {item.key === 'livechat' && (
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: '#22c55e', marginLeft: 'auto',
+                boxShadow: '0 0 4px #22c55e',
+                animation: 'lwd-status-pulse 2s infinite',
+              }} />
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
-  // Measure the natural height of the items list
-  useEffect(() => {
-    if (contentRef.current) {
-      setContentHeight(contentRef.current.scrollHeight);
-    }
-  }, [section.items.length]);
-
-  // Does this group contain the active tab?
+// Legacy SidebarGroup kept as no-op to avoid breaking references during transition
+function SidebarGroup({ section, activeTab, setActiveTab }) {
   const hasActive = section.items.some((it) => it.key === activeTab);
 
   // ── Collapsed mode: icon-only ──
@@ -7520,6 +7929,10 @@ export default function AdminDashboard({ onBack, onNavigate }) {
   };
 
   const [darkMode, setDarkMode] = useState(() => {
+    try {
+      const persisted = localStorage.getItem('lwd_admin_dark_mode');
+      if (persisted !== null) return persisted === 'true';
+    } catch {}
     const saved = _loadTheme();
     const adminDefault = saved?.site?.adminDefaultMode || DEFAULT_SITE_SETTINGS.adminDefaultMode;
     return adminDefault === "dark";
@@ -7711,41 +8124,24 @@ export default function AdminDashboard({ onBack, onNavigate }) {
   }, [logThemeChange]);
 
 
-  // Collapsible sidebar, track which groups are expanded
-  // Default: expand the group that contains the active tab
-  const [expandedGroups, setExpandedGroups] = useState(() => {
-    const initial = new Set();
+  // Two-panel sidebar: which group is shown in the right panel
+  const [activeGroup, setActiveGroup] = useState(() => {
+    const tab = window.location.hash.slice(1) || 'overview';
     for (const section of NAV_SECTIONS) {
-      if (section.items.some((it) => it.key === "overview")) {
-        initial.add(section.group);
-      }
+      if (section.items.some((it) => it.key === tab)) return section.group;
     }
-    return initial;
+    return NAV_SECTIONS[0].group;
   });
 
-  // Auto-expand group when active tab changes (e.g. via direct setActiveTab)
+  // Auto-sync activeGroup when tab changes
   useEffect(() => {
     for (const section of NAV_SECTIONS) {
       if (section.items.some((it) => it.key === activeTab)) {
-        setExpandedGroups((prev) => {
-          if (prev.has(section.group)) return prev;
-          const next = new Set(prev);
-          next.add(section.group);
-          return next;
-        });
+        setActiveGroup(section.group);
         break;
       }
     }
   }, [activeTab]);
-
-  const toggleGroup = useCallback((group) => {
-    setExpandedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(group)) next.delete(group);
-      else next.add(group);
-      return next;
-    });
-  }, []);
 
   const C = darkMode ? customDark : customLight;
 
@@ -8078,247 +8474,166 @@ export default function AdminDashboard({ onBack, onNavigate }) {
           }}
         >{sidebarOpen ? "✕" : "☰"}</button>
 
-        {/* ── Sidebar ── */}
+        {/* ── Sidebar: two-panel (icon rail + sub-menu) ── */}
         <aside
           className="admin-sidebar"
           style={{
-            width: sidebarCollapsed ? 56 : 220,
-            background: DARK_C.dark,
-            borderRight: `1px solid ${DARK_C.border}`,
-            padding: "28px 0",
+            width: sidebarCollapsed ? 56 : 224,
+            background: '#0d0d0d',
+            borderRight: '1px solid rgba(255,255,255,0.06)',
             flexShrink: 0,
-            position: "sticky",
+            position: 'sticky',
             top: 0,
-            height: "100dvh",
-            display: ['magazine-studio', 'listing-studio', 'page-editor'].includes(activeTab) || listingStudioMode ? "none" : "flex",
-            flexDirection: "column",
-            transition: "width 0.25s ease, background 0.3s, border-color 0.3s",
-            overflowY: "auto",
-            overflowX: "hidden",
+            height: '100dvh',
+            display: activeTab === 'page-editor' ? 'none' : 'flex',
+            flexDirection: 'row',
+            overflow: 'hidden',
+            transition: 'width 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         >
-          {/* Brand */}
-          <div style={{ padding: sidebarCollapsed ? "0 8px" : "0 20px", marginBottom: sidebarCollapsed ? 16 : 32, transition: "all 0.25s", overflow: "hidden", whiteSpace: "nowrap" }}>
-            {sidebarCollapsed ? (
-              <div style={{ fontFamily: GD, fontSize: 13, color: DARK_C.gold, textAlign: "center", letterSpacing: "0.1em" }}>LWD</div>
-            ) : (
-              <>
-                <div style={{
-                  fontFamily: GD, fontSize: 10, color: DARK_C.gold,
-                  letterSpacing: "0.22em", textTransform: "uppercase",
-                  lineHeight: 1.7, marginBottom: 4,
-                }}>
-                  Luxury Wedding
-                  <br />
-                  Directory
-                </div>
-                <div style={{
-                  fontFamily: NU, fontSize: 8, letterSpacing: "0.25em",
-                  textTransform: "uppercase", color: DARK_C.grey2, fontWeight: 600,
-                }}>
-                  Control Room
-                </div>
-              </>
-            )}
-          </div>
+          {/* LEFT RAIL: icon-only column */}
+          <div style={{
+            width: 56, flexShrink: 0,
+            display: 'flex', flexDirection: 'column',
+            background: '#000000',
+            borderRight: 'none',
+          }}>
+            {/* Brand */}
+            <div style={{ padding: '18px 0 12px', textAlign: 'center' }}>
+              <div style={{
+                fontFamily: GD, fontSize: 9, color: '#c9a84c',
+                letterSpacing: '0.12em', textTransform: 'uppercase', lineHeight: 1.5,
+              }}>LWD</div>
+            </div>
 
-          {/* Nav groups, collapsible */}
-          <nav style={{ flex: 1 }}
-            onClick={(e) => {
-              // Close sidebar on mobile when a nav item is clicked
-              if (window.innerWidth <= 768 && e.target.closest("button")) setSidebarOpen(false);
-            }}
-            role="navigation"
-            aria-label="Admin navigation"
-          >
-            {NAV_SECTIONS.map((section) => (
-              <SidebarGroup
-                key={section.group}
-                section={section}
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
-                darkMode={true}
-                C={DARK_C}
-                expandedGroups={expandedGroups}
-                toggleGroup={toggleGroup}
-                collapsed={sidebarCollapsed}
-              />
-            ))}
-          </nav>
+            {/* Group icons */}
+            <nav style={{ flex: 1, display: 'flex', flexDirection: 'column' }} role="navigation" aria-label="Admin navigation sections">
+              {NAV_SECTIONS.map(section => {
+                const isActiveGroup = activeGroup === section.group;
+                const hasActiveTab = section.items.some(it => it.key === activeTab);
+                const iconPath = GROUP_ICON_PATHS[section.group] || 'M3 3h7v7H3zM14 3h7v7h-7z';
+                return (
+                  <button
+                    key={section.group}
+                    onClick={() => {
+                      setActiveGroup(section.group);
+                      if (window.innerWidth <= 768) setSidebarOpen(false);
+                    }}
+                    title={section.group}
+                    style={{
+                      width: '100%', padding: '13px 0',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+                      background: isActiveGroup ? 'rgba(201,168,76,0.09)' : 'transparent',
+                      border: 'none',
+                      borderLeft: isActiveGroup ? '2px solid #c9a84c' : '2px solid transparent',
+                      cursor: 'pointer', transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={(e) => { if (!isActiveGroup) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                    onMouseLeave={(e) => { if (!isActiveGroup) e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <NavIcon
+                      path={iconPath}
+                      size={18}
+                      color={isActiveGroup ? '#c9a84c' : hasActiveTab ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.35)'}
+                    />
+                    {hasActiveTab && !isActiveGroup && (
+                      <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#c9a84c', opacity: 0.8 }} />
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
 
-          {/* Bottom controls */}
-          <div style={{ padding: sidebarCollapsed ? "0 8px" : "0 20px", display: "flex", flexDirection: "column", gap: 10, transition: "padding 0.25s" }}>
-            {/* Collapse/expand toggle */}
-            <button
-              className="admin-collapse-btn"
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              style={{
-                background: "none", border: `1px solid ${DARK_C.border}`, borderRadius: 3,
-                cursor: "pointer", padding: "8px 12px",
-                fontFamily: NU, fontSize: 10, color: DARK_C.grey,
-                fontWeight: 400, letterSpacing: "0.08em",
-                transition: "all 0.2s", display: "flex", alignItems: "center",
-                justifyContent: sidebarCollapsed ? "center" : "flex-start", gap: 8,
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = DARK_C.gold; e.currentTarget.style.color = DARK_C.gold; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = DARK_C.border; e.currentTarget.style.color = DARK_C.grey; }}
-            >
-              <span style={{ fontSize: 12, transform: sidebarCollapsed ? "rotate(0deg)" : "rotate(180deg)", transition: "transform 0.25s", display: "inline-block" }}>»</span>
-              {!sidebarCollapsed && "Collapse"}
-            </button>
-
-            {/* Dark/Light toggle */}
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              style={{
-                background: "none", border: `1px solid ${DARK_C.border}`, borderRadius: 3,
-                cursor: "pointer", padding: "8px 12px",
-                fontFamily: NU, fontSize: 10, color: DARK_C.grey,
-                fontWeight: 400, letterSpacing: "0.08em",
-                transition: "all 0.2s", display: "flex", alignItems: "center",
-                justifyContent: sidebarCollapsed ? "center" : "flex-start", gap: 8,
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = DARK_C.gold; e.currentTarget.style.color = DARK_C.gold; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = DARK_C.border; e.currentTarget.style.color = DARK_C.grey; }}
-            >
-              <span style={{ fontSize: 14 }}>{darkMode ? "☀" : "☽"}</span>
-              {!sidebarCollapsed && (darkMode ? "Light Mode" : "Dark Mode")}
-            </button>
-
-            {/* ── Admin Preview Portals ─────────────────────────────── */}
-            {/* Open vendor/couple dashboards without separate login    */}
+            {/* Bottom rail controls */}
             <div style={{
-              borderTop: `1px solid ${DARK_C.border}`,
-              paddingTop: 10,
-              marginTop: 2,
-              display: "flex",
-              flexDirection: "column",
-              gap: 6,
+              padding: '10px 0 14px',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+              borderTop: '1px solid rgba(255,255,255,0.06)',
             }}>
-              {!sidebarCollapsed && (
-                <div style={{
-                  fontSize: 8,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  color: DARK_C.grey2,
-                  fontFamily: NU,
-                  fontWeight: 600,
-                  marginBottom: 2,
-                }}>
-                  Preview Portals
-                </div>
-              )}
-
-              {/* Open Vendor Portal */}
+              {/* Collapse/expand */}
               <button
-                title="Open Vendor Portal (Admin Preview)"
-                onClick={() => {
-                  sessionStorage.setItem("lwd_admin_preview", JSON.stringify({ type: "vendor", id: "vdr-13" }));
-                  window.location.href = "/vendor";
-                }}
-                style={{
-                  background: "none",
-                  border: `1px solid ${DARK_C.border}`,
-                  borderRadius: 3,
-                  cursor: "pointer",
-                  padding: sidebarCollapsed ? "8px 0" : "8px 12px",
-                  fontFamily: NU,
-                  fontSize: 10,
-                  color: DARK_C.grey,
-                  fontWeight: 400,
-                  letterSpacing: "0.08em",
-                  transition: "all 0.2s",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: sidebarCollapsed ? "center" : "flex-start",
-                  gap: 8,
-                  width: "100%",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#c9a84c"; e.currentTarget.style.color = "#c9a84c"; e.currentTarget.style.background = "rgba(201,168,76,0.07)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = DARK_C.border; e.currentTarget.style.color = DARK_C.grey; e.currentTarget.style.background = "none"; }}
+                className="admin-collapse-btn"
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                title={sidebarCollapsed ? 'Expand' : 'Collapse'}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '7px', color: 'rgba(255,255,255,0.3)', transition: 'color 0.15s', lineHeight: 1 }}
+                onMouseEnter={(e) => e.currentTarget.style.color = '#c9a84c'}
+                onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255,255,255,0.3)'}
               >
-                <span style={{ fontSize: 12, flexShrink: 0 }}>⊞</span>
-                {!sidebarCollapsed && "Vendor Portal"}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points={sidebarCollapsed ? "9 18 15 12 9 6" : "15 18 9 12 15 6"} />
+                </svg>
               </button>
-
-              {/* Open Getting Married Portal */}
+              {/* Dark/light toggle */}
               <button
-                title="Open Getting Married Portal (Admin Preview)"
-                onClick={() => {
-                  sessionStorage.setItem("lwd_admin_preview", JSON.stringify({ type: "couple", id: "couple-1" }));
-                  window.location.href = "/getting-married";
-                }}
-                style={{
-                  background: "none",
-                  border: `1px solid ${DARK_C.border}`,
-                  borderRadius: 3,
-                  cursor: "pointer",
-                  padding: sidebarCollapsed ? "8px 0" : "8px 12px",
-                  fontFamily: NU,
-                  fontSize: 10,
-                  color: DARK_C.grey,
-                  fontWeight: 400,
-                  letterSpacing: "0.08em",
-                  transition: "all 0.2s",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: sidebarCollapsed ? "center" : "flex-start",
-                  gap: 8,
-                  width: "100%",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#c9a84c"; e.currentTarget.style.color = "#c9a84c"; e.currentTarget.style.background = "rgba(201,168,76,0.07)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = DARK_C.border; e.currentTarget.style.color = DARK_C.grey; e.currentTarget.style.background = "none"; }}
+                onClick={() => { const next = !darkMode; setDarkMode(next); try { localStorage.setItem('lwd_admin_dark_mode', String(next)); } catch {} }}
+                title={darkMode ? 'Light mode' : 'Dark mode'}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '7px', color: 'rgba(255,255,255,0.3)', fontSize: 13, transition: 'color 0.15s', lineHeight: 1 }}
+                onMouseEnter={(e) => e.currentTarget.style.color = '#c9a84c'}
+                onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255,255,255,0.3)'}
               >
-                <span style={{ fontSize: 12, flexShrink: 0 }}>♡</span>
-                {!sidebarCollapsed && "Getting Married"}
+                {darkMode ? '☀' : '☽'}
               </button>
-
-              {/* View Live Site */}
+              {/* Exit */}
               <button
-                title="View live site"
-                onClick={() => window.open(import.meta.env.VITE_LIVE_SITE_URL || "https://luxuryweddingdirectory.com", "_blank")}
-                style={{
-                  background: "none",
-                  border: `1px solid ${DARK_C.gold}`,
-                  borderRadius: 3,
-                  cursor: "pointer",
-                  padding: sidebarCollapsed ? "8px 0" : "8px 12px",
-                  fontFamily: NU,
-                  fontSize: 10,
-                  color: DARK_C.gold,
-                  fontWeight: 600,
-                  letterSpacing: "0.1em",
-                  transition: "all 0.2s",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: sidebarCollapsed ? "center" : "flex-start",
-                  gap: 8,
-                  width: "100%",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.12)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+                onClick={onBack}
+                title="Exit to site"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '7px', color: 'rgba(255,255,255,0.25)', fontSize: 12, transition: 'color 0.15s', lineHeight: 1 }}
+                onMouseEnter={(e) => e.currentTarget.style.color = '#c9a84c'}
+                onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255,255,255,0.25)'}
               >
-                <span style={{ fontSize: 11, flexShrink: 0 }}>↗</span>
-                {!sidebarCollapsed && "View Live Site"}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 12H5M12 5l-7 7 7 7" />
+                </svg>
               </button>
             </div>
-            {/* ── End Preview Portals ───────────────────────────────── */}
-
-            {/* Exit */}
-            <button
-              onClick={onBack}
-              style={{
-                background: "none", border: "none", cursor: "pointer",
-                fontFamily: NU, fontSize: 11, color: DARK_C.grey2,
-                fontWeight: 300, letterSpacing: "0.06em",
-                padding: 0, transition: "color 0.2s", textAlign: sidebarCollapsed ? "center" : "left",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = DARK_C.gold)}
-              onMouseLeave={(e) => (e.currentTarget.style.color = DARK_C.grey2)}
-            >
-              {sidebarCollapsed ? "←" : "← Exit to site"}
-            </button>
           </div>
+
+          {/* RIGHT PANEL: sub-menu items */}
+          {!sidebarCollapsed && (
+            <div style={{
+              flex: 1, display: 'flex', flexDirection: 'column',
+              background: '#0d0d0d', overflowY: 'auto', overflowX: 'hidden',
+            }}>
+              {/* Active group nav items */}
+              <div style={{ flex: 1 }}>
+                {NAV_SECTIONS.filter(s => s.group === activeGroup).map(section => (
+                  <SidebarNavItems
+                    key={section.group}
+                    section={section}
+                    activeTab={activeTab}
+                    setActiveTab={setActiveTab}
+                  />
+                ))}
+              </div>
+
+              {/* Portal shortcuts at bottom */}
+              <div style={{ padding: '12px 12px 16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ fontSize: 8, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)', fontFamily: NU, fontWeight: 600, marginBottom: 7 }}>
+                  Portals
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <button
+                    onClick={() => { sessionStorage.setItem("lwd_admin_preview", JSON.stringify({ type: "vendor", id: "vdr-13" })); window.location.href = "/vendor"; }}
+                    style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 3, cursor: 'pointer', padding: '6px 10px', fontFamily: NU, fontSize: 10, color: 'rgba(255,255,255,0.45)', textAlign: 'left', transition: 'all 0.15s', letterSpacing: '0.04em' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#c9a84c'; e.currentTarget.style.color = '#c9a84c'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; }}
+                  >Vendor Portal</button>
+                  <button
+                    onClick={() => { sessionStorage.setItem("lwd_admin_preview", JSON.stringify({ type: "couple", id: "couple-1" })); window.location.href = "/getting-married"; }}
+                    style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 3, cursor: 'pointer', padding: '6px 10px', fontFamily: NU, fontSize: 10, color: 'rgba(255,255,255,0.45)', textAlign: 'left', transition: 'all 0.15s', letterSpacing: '0.04em' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#c9a84c'; e.currentTarget.style.color = '#c9a84c'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; }}
+                  >Getting Married</button>
+                  <button
+                    onClick={() => window.open(import.meta.env.VITE_LIVE_SITE_URL || "https://luxuryweddingdirectory.com", "_blank")}
+                    style={{ background: 'none', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 3, cursor: 'pointer', padding: '6px 10px', fontFamily: NU, fontSize: 10, color: '#c9a84c', fontWeight: 600, letterSpacing: '0.06em', textAlign: 'left', transition: 'all 0.15s' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(201,168,76,0.08)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                  >↗ Live Site</button>
+                </div>
+              </div>
+            </div>
+          )}
         </aside>
 
         {/* ── Main content ── */}
