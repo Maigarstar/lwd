@@ -5069,9 +5069,9 @@ function RecentlyViewed({ venue }) {
   const [items, setItems] = useState([]);
 
   useEffect(() => {
-    // Read stored visits, exclude current venue, cap at 3
+    // Read stored visits, exclude current venue, filter out invalid entries, cap at 3
     const stored = getRVList()
-      .filter(v => v.id !== venue.id)
+      .filter(v => v.id !== venue.id && v.name && v.location)
       .slice(0, 3);
     setItems(stored);
   }, [venue.id]);

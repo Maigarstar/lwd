@@ -739,7 +739,8 @@ export async function createListing(data: Listing) {
     // Fire-and-forget: sync rich media metadata into AI search index
     syncMediaAIIndex(listing.id, data)
 
-    return listing as Listing
+    // Convert snake_case database response back to camelCase for frontend
+    return snakeToCamel(listing) as Listing
   } catch (error) {
     console.error('Error creating listing:', error)
     throw error
@@ -808,7 +809,8 @@ export async function updateListing(id: string, data: Partial<Listing>) {
     // Fire-and-forget: sync rich media metadata into AI search index
     syncMediaAIIndex(listing.id, data)
 
-    return listing as Listing
+    // Convert snake_case database response back to camelCase for frontend
+    return snakeToCamel(listing) as Listing
   } catch (error) {
     console.error('Error updating listing:', error)
     console.error('Error stack:', error instanceof Error ? error.stack : 'N/A')
@@ -833,7 +835,8 @@ export async function fetchListingById(id: string) {
       .single()
 
     if (error) throw error
-    return listing as Listing
+    // Convert snake_case database response back to camelCase for frontend
+    return snakeToCamel(listing) as Listing
   } catch (error) {
     console.error('Error fetching listing:', error)
     throw error
@@ -857,7 +860,8 @@ export async function fetchListingBySlug(slug: string) {
       .single()
 
     if (error) throw error
-    return listing as Listing
+    // Convert snake_case database response back to camelCase for frontend
+    return snakeToCamel(listing) as Listing
   } catch (error) {
     console.error('Error fetching listing by slug:', error)
     throw error

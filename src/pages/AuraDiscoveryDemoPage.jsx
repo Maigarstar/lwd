@@ -60,14 +60,15 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
         onNavigateAbout={() => window.location.href = '/'}
       />
       <div style={{
-        minHeight: '100vh',
         background: bgColor,
-        padding: '110px 24px',
         transition: 'background 0.3s ease, color 0.3s ease',
+        paddingTop: '110px',
+        paddingBottom: '0',
       }}>
       <div style={{
         maxWidth: 1400,
         margin: '0 auto',
+        padding: '0 24px 24px 24px',
       }}>
         {/* Dark mode toggle */}
         <div style={{
@@ -784,9 +785,9 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
           </p>
         </div>
       </div>
+      </div>
 
       <SiteFooter footerNav={{}} />
-    </div>
     </>
   );
 }
