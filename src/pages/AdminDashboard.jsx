@@ -8382,7 +8382,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
             position: 'sticky',
             top: 0,
             height: '100dvh',
-            display: ['magazine-studio', 'page-editor'].includes(activeTab) ? 'none' : 'flex',
+            display: activeTab === 'page-editor' ? 'none' : 'flex',
             flexDirection: 'row',
             overflow: 'hidden',
             transition: 'width 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
