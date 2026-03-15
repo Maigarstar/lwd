@@ -564,7 +564,7 @@ function App() {
           <PugliaPage onBack={goHome} onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewStandard={goStandard} onViewAbout={goAbout} footerNav={footerNav} />
         )}
         {page === "aura-discovery" && (
-          <AuraDiscoveryDemoPage />
+          <AuraDiscoveryDemoPage onViewVenue={goVenue} />
         )}
         {page === "region-category" && activeCategorySlug !== "wedding-planners" && (
           <RegionCategoryPage

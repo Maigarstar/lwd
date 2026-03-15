@@ -11,11 +11,9 @@
 //
 // Route: /discovery/aura (or customize as needed)
 
-import { useNavigate } from 'react-router-dom';
 import AuraDiscoveryGrid from '../components/discovery/AuraDiscoveryGrid';
 
-export default function AuraDiscoveryDemoPage() {
-  const navigate = useNavigate();
+export default function AuraDiscoveryDemoPage({ onViewVenue }) {
 
   return (
     <div style={{
@@ -252,7 +250,14 @@ export default function AuraDiscoveryDemoPage() {
         {/* Main discovery grid */}
         <AuraDiscoveryGrid
           minContentScore={0}
-          onVenueClick={(slug) => navigate(`/showcase/${slug}`)}
+          onVenueClick={(slug) => {
+            if (onViewVenue) {
+              onViewVenue({ slug });
+            } else {
+              // Fallback: navigate directly
+              window.location.href = `/showcase/${slug}`;
+            }
+          }}
           limit={20}
         />
 
