@@ -39,6 +39,8 @@ import EmailMarketingModule from "./AdminModules/EmailMarketingModule";
 import EmailBuilderModule from "./AdminModules/EmailBuilderModule";
 import SalesPipelineModule from "./AdminModules/SalesPipelineModule";
 import PipelineBuilderModule from "./AdminModules/PipelineBuilderModule";
+import PlatformSettingsModule from "./AdminModules/PlatformSettingsModule";
+import TeamModule from "./AdminModules/TeamModule";
 import { POSTS } from "./Magazine/data/posts";
 import { PRODUCTS, COLLECTIONS, formatPrice } from "./Magazine/data/products";
 import { CATEGORIES } from "./Magazine/data/categories";
@@ -254,6 +256,8 @@ const NAV_SECTIONS = [
       { key: "sales-pipeline",     label: "Sales Pipeline",    icon: "◆" },
       { key: "pipeline-builder",   label: "Pipeline Builder",  icon: "⊞" },
       { key: "advertise-leads",    label: "Advertise Leads",   icon: "⊡" },
+      { key: "team",               label: "Team Seats",        icon: "⊕" },
+      { key: "platform-settings",  label: "Platform Settings", icon: "⚙" },
     ],
   },
   {
@@ -8679,6 +8683,8 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "partner-enquiries": return <PartnerEnquiriesModule C={C} />;
       case "sales-pipeline":    return <SalesPipelineModule C={C} />;
       case "pipeline-builder":  return <PipelineBuilderModule C={C} />;
+      case "platform-settings": return <PlatformSettingsModule C={C} />;
+      case "team":              return <TeamModule C={C} />;
       case "advertise-leads":   return <PartnerEnquiriesModule C={C} filterType="advertise" />;
       case "aura":          return <AuraAnalyticsModule C={C} />;
       case "api":           return <APIManagementModule C={C} />;

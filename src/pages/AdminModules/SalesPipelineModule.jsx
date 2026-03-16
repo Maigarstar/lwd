@@ -182,6 +182,35 @@ function fmtDate(iso) {
 function isOverdue(iso) { return iso && new Date(iso) < new Date(); }
 function formatValue(v) { if (!v) return null; return `${Number(v).toLocaleString()}`; }
 
+function exportProspectsCSV(prospects) {
+  const headers = ['Company', 'Contact', 'Email', 'Phone', 'Website', 'Stage', 'Type', 'Source', 'Status', 'Lead Score', 'Deal Value', 'Contract', 'Last Contacted', 'Next Follow-up', 'Notes'];
+  const rows = prospects.map(p => [
+    p.company_name || '',
+    p.contact_name || '',
+    p.email || '',
+    p.phone || '',
+    p.website || '',
+    p.pipeline_stage || '',
+    p.venue_type || '',
+    p.source || '',
+    p.status || '',
+    p.lead_score ?? '',
+    p.deal_value ? `${p.deal_currency || 'GBP'} ${p.deal_value}` : '',
+    p.contract_status || 'none',
+    p.last_contacted_at ? new Date(p.last_contacted_at).toLocaleDateString('en-GB') : '',
+    p.next_follow_up_at ? new Date(p.next_follow_up_at).toLocaleDateString('en-GB') : '',
+    (p.notes || '').replace(/\n/g, ' '),
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `prospects-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function ScorePill({ score }) {
   if (score == null) return null;
   const color = scoreColor(score);
@@ -452,6 +481,16 @@ function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onC
   const [closeProb,    setCloseProb]    = useState(null);
   const [onboardingTask, setOnboardingTask] = useState(null);
   const [onboardingLoading, setOnboardingLoading] = useState(false);
+  const [contractStatus, setContractStatus] = useState(prospect.contract_status || 'none');
+
+  async function updateContract(status) {
+    const updates = { contract_status: status };
+    if (status === 'sent') updates.contract_sent_at = new Date().toISOString();
+    if (status === 'signed') updates.contract_signed_at = new Date().toISOString();
+    await updateProspect(prospect.id, updates);
+    setContractStatus(status);
+    onProspectUpdated?.({ ...prospect, ...updates });
+  }
 
   useEffect(() => {
     setHistLoading(true);
@@ -562,6 +601,17 @@ function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onC
       <div style={S.panelHead}>
         <div style={S.panelTitle}>{prospect.company_name}</div>
         <button style={S.goldBtn} onClick={onEdit}>Edit</button>
+        <button
+          style={{ ...S.iconBtn, color: prospect.status === 'archived' ? '#22c55e' : '#dc2626', fontSize: 11, marginLeft: 'auto' }}
+          onClick={async () => {
+            const newStatus = prospect.status === 'archived' ? 'active' : 'archived';
+            await updateProspect(prospect.id, { status: newStatus });
+            onProspectUpdated?.({ ...prospect, status: newStatus });
+            onClose();
+          }}
+        >
+          {prospect.status === 'archived' ? 'Unarchive' : 'Archive'}
+        </button>
         <button style={S.panelClose} onClick={onClose}>x</button>
       </div>
       <div style={S.panelBody}>
@@ -600,6 +650,30 @@ function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onC
           <option value="">No stage</option>
           {stages.filter(s => s.pipeline_id === prospect.pipeline_id).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
+
+        {/* Contract tracking */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={S.fieldLabel}>Contract</div>
+          <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+            {(['none','sent','signed','declined']).map(cs => {
+              const colors = { none: '#aaa', sent: '#f59e0b', signed: '#22c55e', declined: '#ef4444' };
+              const active = contractStatus === cs;
+              return (
+                <button key={cs} onClick={() => updateContract(cs)} style={{
+                  padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                  cursor: 'pointer', border: `1px solid ${active ? colors[cs] : '#ddd'}`,
+                  background: active ? colors[cs] + '22' : 'transparent',
+                  color: active ? colors[cs] : '#888',
+                  transition: 'all 0.15s',
+                }}>
+                  {cs.charAt(0).toUpperCase() + cs.slice(1)}
+                </button>
+              );
+            })}
+          </div>
+          {prospect.contract_sent_at && <div style={{ fontSize: 10, color: '#aaa', marginTop: 4 }}>Sent: {fmtDate(prospect.contract_sent_at)}</div>}
+          {prospect.contract_signed_at && <div style={{ fontSize: 10, color: '#22c55e', marginTop: 2 }}>Signed: {fmtDate(prospect.contract_signed_at)}</div>}
+        </div>
 
         {/* Email button */}
         <button style={{ ...S.goldBtn, marginBottom: 14, fontSize: 12, padding: '6px 14px' }} onClick={() => { setPrefilledEmail(null); setShowEmail(true); }}>Send Email</button>
@@ -821,20 +895,60 @@ function KanbanBoard({ prospects, stages, onMoveToStage, onOpenPanel, onAddProsp
 
 // ── List View ─────────────────────────────────────────────────────────────────
 
-function ListView({ prospects, stages, onOpenPanel, sortKey, sortDir, onSort }) {
+function ListView({ prospects, stages, S, onOpenPanel, onBulkUpdate, sortKey, sortDir, onSort }) {
+  const [selected, setSelected] = React.useState(new Set());
+  const [bulkStatus, setBulkStatus] = React.useState('');
+  const [bulkApplying, setBulkApplying] = React.useState(false);
+  const allChecked = selected.size === prospects.length && prospects.length > 0;
+  function toggleAll() {
+    if (allChecked) setSelected(new Set());
+    else setSelected(new Set(prospects.map(p => p.id)));
+  }
+  function toggle(id) {
+    setSelected(prev => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  }
+  async function applyBulk() {
+    if (!bulkStatus || selected.size === 0) return;
+    setBulkApplying(true);
+    try {
+      await onBulkUpdate(Array.from(selected), { status: bulkStatus });
+      setSelected(new Set());
+      setBulkStatus('');
+    } finally { setBulkApplying(false); }
+  }
   function col(key, label) {
-    return <th style={S.th} onClick={() => onSort(key)}>{label} {sortKey === key ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>;
+    return <th style={S.th} onClick={() => onSort(key)}>{label} {sortKey === key ? (sortDir === 'asc' ? '\u25b2' : '\u25bc') : ''}</th>;
   }
   return (
     <div style={S.tableWrap}>
+      {selected.size > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', background: '#fffdf8', borderBottom: '1px solid #ede8de', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#555' }}>{selected.size} selected</span>
+          <select style={{ padding: '6px 10px', border: '1px solid #ddd', borderRadius: 5, fontSize: 12 }} value={bulkStatus} onChange={e => setBulkStatus(e.target.value)}>
+            <option value="">Change status...</option>
+            <option value="active">Active</option>
+            <option value="converted">Converted</option>
+            <option value="lost">Lost</option>
+            <option value="archived">Archived</option>
+          </select>
+          <button style={{ padding: '6px 14px', background: '#8f7420', color: '#fff', border: 'none', borderRadius: 5, fontSize: 12, cursor: 'pointer', opacity: bulkApplying || !bulkStatus ? 0.6 : 1 }} onClick={applyBulk} disabled={!bulkStatus || bulkApplying}>{bulkApplying ? 'Applying...' : 'Apply'}</button>
+          <button style={{ padding: '6px 10px', background: 'transparent', border: '1px solid #ddd', borderRadius: 5, fontSize: 12, cursor: 'pointer' }} onClick={() => setSelected(new Set())}>Clear</button>
+        </div>
+      )}
       <table style={S.table}>
         <thead><tr>
+          <th style={{ ...S.th, width: 36 }}><input type="checkbox" checked={allChecked} onChange={toggleAll} /></th>
           {col('lead_score','Score')}
           {col('company_name','Company')}
           {col('contact_name','Contact')}
           <th style={S.th}>Stage</th>
           <th style={S.th}>Type</th>
-          {col('proposal_value','Value')}
+          {col('deal_value','Value')}
+          <th style={S.th}>Contract</th>
           {col('next_follow_up_at','Follow-Up')}
           {col('last_contacted_at','Last Contact')}
         </tr></thead>
@@ -842,20 +956,23 @@ function ListView({ prospects, stages, onOpenPanel, sortKey, sortDir, onSort }) 
           {prospects.map(p => {
             const stage = stages.find(s => s.id === p.stage_id);
             const overdue = isOverdue(p.next_follow_up_at) && !stage?.is_won && !stage?.is_lost;
+            const contractColors = { none: '#aaa', sent: '#f59e0b', signed: '#22c55e', declined: '#ef4444' };
             return (
-              <tr key={p.id} style={{ background: overdue ? '#fff8f6' : undefined, cursor: 'pointer' }} onClick={() => onOpenPanel(p)}>
-                <td style={S.td}><ScorePill score={p.lead_score} /></td>
-                <td style={S.td}><strong>{p.company_name}</strong></td>
-                <td style={S.td}>{p.contact_name || '--'}</td>
-                <td style={S.td}>{stage ? <span style={S.badge(stage.color)}>{stage.name}</span> : '--'}</td>
-                <td style={S.td}>{p.venue_type || '--'}</td>
-                <td style={S.td}>{p.proposal_value ? `GBP ${formatValue(p.proposal_value)}` : '--'}</td>
-                <td style={{ ...S.td, color: overdue ? '#dc2626' : undefined }}>{fmtDate(p.next_follow_up_at)}{overdue ? ' !' : ''}</td>
-                <td style={S.td}>{fmtDate(p.last_contacted_at)}</td>
+              <tr key={p.id} style={{ background: selected.has(p.id) ? 'rgba(143,116,32,0.07)' : (overdue ? '#fff8f6' : undefined), cursor: 'pointer' }}>
+                <td style={S.td} onClick={e => e.stopPropagation()}><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} /></td>
+                <td style={S.td} onClick={() => onOpenPanel(p)}><ScorePill score={p.lead_score} /></td>
+                <td style={S.td} onClick={() => onOpenPanel(p)}><strong>{p.company_name}</strong></td>
+                <td style={S.td} onClick={() => onOpenPanel(p)}>{p.contact_name || '--'}</td>
+                <td style={S.td} onClick={() => onOpenPanel(p)}>{stage ? <span style={S.badge(stage.color)}>{stage.name}</span> : '--'}</td>
+                <td style={S.td} onClick={() => onOpenPanel(p)}>{p.venue_type || '--'}</td>
+                <td style={S.td} onClick={() => onOpenPanel(p)}>{p.deal_value ? `${p.deal_currency || 'GBP'} ${Number(p.deal_value).toLocaleString()}` : '--'}</td>
+                <td style={S.td} onClick={() => onOpenPanel(p)}><span style={{ fontSize: 11, color: contractColors[p.contract_status] || '#aaa', fontWeight: 600 }}>{(p.contract_status || 'none').charAt(0).toUpperCase() + (p.contract_status || 'none').slice(1)}</span></td>
+                <td style={{ ...S.td, color: overdue ? '#dc2626' : undefined }} onClick={() => onOpenPanel(p)}>{fmtDate(p.next_follow_up_at)}{overdue ? ' !' : ''}</td>
+                <td style={S.td} onClick={() => onOpenPanel(p)}>{fmtDate(p.last_contacted_at)}</td>
               </tr>
             );
           })}
-          {prospects.length === 0 && <tr><td colSpan={8} style={{ ...S.td, textAlign: 'center', color: '#aaa', padding: '32px 0' }}>No prospects found.</td></tr>}
+          {prospects.length === 0 && <tr><td colSpan={10} style={{ ...S.td, textAlign: 'center', color: '#aaa', padding: '32px 0' }}>No prospects found.</td></tr>}
         </tbody>
       </table>
     </div>
@@ -864,8 +981,21 @@ function ListView({ prospects, stages, onOpenPanel, sortKey, sortDir, onSort }) 
 
 // ── Dashboard View ────────────────────────────────────────────────────────────
 
-function DashboardView({ stats, stages, overdueFU, onRunFollowUps, followUpRunning, onRecalcScores, scoresRefreshing, intelligence, analytics }) {
+function DashboardView({ stats, stages, overdueFU, onRunFollowUps, followUpRunning, onRecalcScores, scoresRefreshing, intelligence, analytics, allProspects }) {
   const maxCount = Math.max(...stages.map(s => stats.stageCounts?.[s.name] || 0), 1);
+
+  const sourceBreakdown = React.useMemo(() => {
+    if (!allProspects?.length) return [];
+    const counts = {};
+    allProspects.forEach(p => {
+      const s = p.source || 'Unknown';
+      if (!counts[s]) counts[s] = { source: s, total: 0, converted: 0, active: 0 };
+      counts[s].total++;
+      if (p.status === 'converted') counts[s].converted++;
+      if (p.status === 'active') counts[s].active++;
+    });
+    return Object.values(counts).sort((a, b) => b.total - a.total);
+  }, [allProspects]);
   const kpis = [
     { label: 'Total Prospects',   value: stats.totalProspects   || 0 },
     { label: 'Active',            value: stats.activeProspects  || 0 },
@@ -1050,6 +1180,28 @@ function DashboardView({ stats, stages, overdueFU, onRunFollowUps, followUpRunni
                 })}
               </div>
               <div style={{ fontSize: 10, color: '#aaa', marginTop: 8 }}>Darker = higher reply rate. Hover for details.</div>
+            </div>
+          )}
+
+          {sourceBreakdown.length > 0 && (
+            <div style={{ background: S.kpiCard.background, border: S.kpiCard.border, borderRadius: 8, padding: '18px 20px', marginTop: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#888', marginBottom: 14 }}>Source Breakdown</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {sourceBreakdown.map(({ source, total, converted, active }) => {
+                  const convRate = total > 0 ? Math.round((converted / total) * 100) : 0;
+                  const barW = `${Math.round((total / (sourceBreakdown[0]?.total || 1)) * 100)}%`;
+                  return (
+                    <div key={source} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 60px 60px', gap: 10, alignItems: 'center' }}>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: '#555', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{source}</div>
+                      <div style={{ height: 8, background: '#f3f0ea', borderRadius: 4, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: barW, background: '#8f7420', borderRadius: 4, transition: 'width 0.4s' }} />
+                      </div>
+                      <div style={{ fontSize: 11, color: '#888', textAlign: 'right' }}>{total} total</div>
+                      <div style={{ fontSize: 11, color: convRate > 30 ? '#22c55e' : '#888', textAlign: 'right', fontWeight: convRate > 30 ? 700 : 400 }}>{convRate}% conv.</div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -1589,11 +1741,13 @@ export default function SalesPipelineModule() {
   const [showDiscovery, setShowDiscovery] = useState(false);
   const [emailAnalytics, setEmailAnalytics] = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   const currentStages    = allStages.filter(s => s.pipeline_id === selectedPipeline);
   const currentTemplates = allTemplates.filter(t => t.pipeline_id === selectedPipeline);
 
   const filtered = prospects
+    .filter(p => showArchived ? p.status === 'archived' : p.status !== 'archived')
     .filter(p => {
       if (selectedPipeline && p.pipeline_id !== selectedPipeline) return false;
       if (search) {
@@ -1748,6 +1902,13 @@ export default function SalesPipelineModule() {
     else { setSortKey(key); setSortDir('asc'); }
   }
 
+  async function handleBulkUpdate(ids, updates) {
+    await Promise.all(ids.map(id => updateProspect(id, updates)));
+    const fresh = await fetchProspects();
+    setProspects(fresh);
+    notify(`Updated ${ids.length} prospects`);
+  }
+
   function notify(msg) { setToast(msg); setTimeout(() => setToast(null), 5500); }
 
   if (loading) return <div style={{ padding: 40, color: '#888', textAlign: 'center' }}>Loading pipeline...</div>;
@@ -1768,6 +1929,10 @@ export default function SalesPipelineModule() {
           {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
         <input style={S.searchBox} placeholder="Search prospects..." value={search} onChange={e => setSearch(e.target.value)} />
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: S.fieldLabel?.color || '#888', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+          <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} />
+          Show Archived
+        </label>
         {overdueFU.length > 0 && view !== 'dashboard' && (
           <span style={{ ...S.fuBadge, cursor: 'pointer' }} onClick={() => setView('dashboard')}>{overdueFU.length} due</span>
         )}
@@ -1779,6 +1944,7 @@ export default function SalesPipelineModule() {
           <button style={S.viewBtn(view === 'campaigns')} onClick={() => setView('campaigns')}>Campaigns</button>
         </div>
         <button style={{ ...S.outlineBtn, fontSize: 12, padding: '7px 14px' }} onClick={() => setShowDiscovery(true)}>&#9740; Discover</button>
+        <button style={{ ...S.outlineBtn, fontSize: 12, padding: '7px 14px' }} onClick={() => exportProspectsCSV(filtered)}>&#8595; Export CSV</button>
         <button style={S.goldBtn} onClick={() => handleAddProspect()}>+ Add Prospect</button>
       </div>
 
@@ -1798,7 +1964,9 @@ export default function SalesPipelineModule() {
             <ListView
               prospects={filtered}
               stages={allStages}
+              S={S}
               onOpenPanel={p => setOpenPanel(p)}
+              onBulkUpdate={handleBulkUpdate}
               sortKey={sortKey}
               sortDir={sortDir}
               onSort={handleSort}
@@ -1815,6 +1983,7 @@ export default function SalesPipelineModule() {
               scoresRefreshing={scoresRefreshing}
               intelligence={pipelineIntel}
               analytics={analyticsLoading ? null : emailAnalytics}
+              allProspects={prospects}
             />
           )}
           {view === 'campaigns' && (
