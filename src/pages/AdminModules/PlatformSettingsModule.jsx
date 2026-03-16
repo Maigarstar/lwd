@@ -57,6 +57,12 @@ export default function PlatformSettingsModule({ C }) {
     });
   }, []);
 
+  // Keep localStorage in sync so pipeline email send can read fromEmail/fromName
+  function syncEmailLocals(vals) {
+    if (vals.from_email) localStorage.setItem('emailFromAddress', vals.from_email);
+    if (vals.from_name)  localStorage.setItem('emailFromName',    vals.from_name);
+  }
+
   useEffect(() => {
     setLoading(true);
     supabase.from('platform_settings').select('*').order('category').order('key')
@@ -65,6 +71,7 @@ export default function PlatformSettingsModule({ C }) {
         const vals = {};
         (data || []).forEach(s => { vals[s.key] = s.value; });
         setEdited(vals);
+        syncEmailLocals(vals);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -78,6 +85,8 @@ export default function PlatformSettingsModule({ C }) {
         .eq('key', key);
       if (error) throw error;
       setSettings(prev => prev.map(s => s.key === key ? { ...s, value: edited[key] || '' } : s));
+      // Keep localStorage in sync for pipeline email sends
+      syncEmailLocals({ [key]: edited[key] || '' });
       setToast({ msg: 'Saved', type: 'success' });
       setTimeout(() => setToast(null), 2500);
     } catch (e) {

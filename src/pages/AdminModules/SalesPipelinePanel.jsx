@@ -125,11 +125,24 @@ function OutreachModal({ prospect, templates, prefilled, onSent, onClose, S, G }
     try {
       const fromEmail = localStorage.getItem('emailFromAddress') || '';
       const fromName  = localStorage.getItem('emailFromName') || 'Luxury Wedding Directory';
-      if (prospect.email) {
-        await sendEmail({ to: prospect.email, toName: prospect.contact_name, subject, text: body, fromEmail, fromName });
-      }
       const tpl = templates.find(t => t.id === tplId);
-      await logOutreachEmail({ prospectId: prospect.id, emailType: tpl?.email_type || 'custom', subject, body });
+
+      // Log first so we get the row id for the pixel URL
+      const emailRow = await logOutreachEmail({ prospectId: prospect.id, emailType: tpl?.email_type || 'custom', subject, body });
+
+      if (prospect.email && fromEmail) {
+        const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+        const pixelHtml = `<img src="${SUPABASE_URL}/functions/v1/track-email-open?id=${emailRow.id}" width="1" height="1" style="display:none;border:0" alt="" />`;
+        const htmlBody = `<div style="font-family:Inter,sans-serif;font-size:15px;line-height:1.7;color:#222">${body.replace(/\n/g, '<br/>')}</div>${pixelHtml}`;
+        await sendEmail({
+          recipients: [{ email: prospect.email, name: prospect.contact_name || prospect.company_name }],
+          html: htmlBody,
+          subject,
+          fromEmail,
+          fromName,
+          type: 'campaign',
+        });
+      }
       onSent({ subject, body });
     } finally { setSending(false); }
   }
