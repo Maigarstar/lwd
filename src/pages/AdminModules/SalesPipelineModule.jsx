@@ -1,7 +1,8 @@
 /**
  * SalesPipelineModule.jsx
  * Full sales pipeline CRM with dynamic pipelines, DnD kanban,
- * outreach engine, auto follow-ups, closed won automation, and metrics.
+ * outreach engine, auto follow-ups, closed won automation, lead scoring,
+ * AI assistance, and reply detection.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -12,6 +13,7 @@ import {
   deleteProspect,
   fetchOutreachHistory,
   logOutreachEmail,
+  markReplied,
   fetchSalesStats,
   fetchFollowUpsDue,
 } from '../../services/salesPipelineService';
@@ -24,6 +26,18 @@ import {
   runAutoFollowUps,
   mergeTags,
 } from '../../services/pipelineBuilderService';
+import {
+  calculateLeadScore,
+  scoreColor,
+  scoreLabel,
+  batchRefreshScores,
+} from '../../services/leadScoringService';
+import {
+  generateFollowUpEmail,
+  generateProposalEmail,
+  generateNextStepAdvice,
+  generateColdEmail,
+} from '../../services/salesPipelineAiService';
 import { sendEmail } from '../../services/emailSendService';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -49,6 +63,11 @@ const S = {
   outlineBtn:  { padding: '7px 18px', background: 'transparent', color: G, border: `1px solid ${G}`, borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
   badge:       (color) => ({ display: 'inline-block', padding: '2px 9px', borderRadius: 100, background: color + '22', color: color, fontSize: 10, fontWeight: 600 }),
   fuBadge:     { background: '#fee2e2', color: '#dc2626', borderRadius: 100, padding: '2px 8px', fontSize: 11, fontWeight: 600 },
+  scorePill:   (color) => ({ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 26, height: 18, borderRadius: 9, background: color + '22', color: color, fontSize: 10, fontWeight: 700, padding: '0 5px', letterSpacing: '0.02em' }),
+  aiSection:   { borderTop: '1px solid #f3f0ea', paddingTop: 14, marginTop: 8 },
+  aiBtn:       { padding: '6px 12px', background: 'rgba(143,116,32,0.08)', color: G, border: `1px solid rgba(143,116,32,0.3)`, borderRadius: 5, fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 },
+  aiResult:    { background: '#fffdf8', border: '1px solid rgba(143,116,32,0.2)', borderRadius: 6, padding: '10px 12px', fontSize: 13, lineHeight: 1.7, color: '#333', marginTop: 10, whiteSpace: 'pre-wrap' },
+  replyBtn:    { padding: '3px 9px', background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer', flexShrink: 0 },
 
   // Kanban
   kanban:      { display: 'flex', gap: 0, overflowX: 'auto', flex: 1, padding: '16px 0', alignItems: 'flex-start' },
@@ -112,6 +131,12 @@ function fmtDate(iso) {
 }
 function isOverdue(iso) { return iso && new Date(iso) < new Date(); }
 function formatValue(v) { if (!v) return null; return `${Number(v).toLocaleString()}`; }
+
+function ScorePill({ score }) {
+  if (score == null) return null;
+  const color = scoreColor(score);
+  return <span style={S.scorePill(color)} title={`Lead score: ${score}/100 (${scoreLabel(score)})`}>{score}</span>;
+}
 
 // ── Prospect Modal ────────────────────────────────────────────────────────────
 
@@ -199,11 +224,17 @@ function ProspectModal({ prospect, pipelines, stages, defaultStage, onSave, onCl
 
 // ── Outreach Modal ────────────────────────────────────────────────────────────
 
-function OutreachModal({ prospect, templates, onSent, onClose }) {
-  const [subject, setSubject] = useState('');
-  const [body, setBody]       = useState('');
+function OutreachModal({ prospect, templates, prefilled, onSent, onClose }) {
+  const [subject, setSubject] = useState(prefilled?.subject || '');
+  const [body, setBody]       = useState(prefilled?.body || '');
   const [sending, setSending] = useState(false);
   const [tplId, setTplId]     = useState('');
+
+  // Apply pre-filled AI content on mount
+  useEffect(() => {
+    if (prefilled?.subject) setSubject(prefilled.subject);
+    if (prefilled?.body)    setBody(prefilled.body);
+  }, []);
 
   useEffect(() => {
     if (!tplId) return;
@@ -266,20 +297,82 @@ function OutreachModal({ prospect, templates, onSent, onClose }) {
 
 // ── Prospect Panel ────────────────────────────────────────────────────────────
 
-function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onClose }) {
-  const [history, setHistory]       = useState([]);
-  const [histLoading, setHistLoading]= useState(true);
-  const [showEmail, setShowEmail]   = useState(false);
+function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onClose, onProspectUpdated }) {
+  const [history,      setHistory]      = useState([]);
+  const [histLoading,  setHistLoading]  = useState(true);
+  const [showEmail,    setShowEmail]    = useState(false);
+  const [aiLoading,    setAiLoading]    = useState(false);
+  const [aiResult,     setAiResult]     = useState(null);   // { type, text } or { type: 'email', subject, body }
+  const [prefilledEmail, setPrefilledEmail] = useState(null);
+  const [localScore,   setLocalScore]   = useState(prospect.lead_score ?? null);
 
   useEffect(() => {
     setHistLoading(true);
-    fetchOutreachHistory(prospect.id).then(setHistory).finally(() => setHistLoading(false));
+    fetchOutreachHistory(prospect.id)
+      .then(h => {
+        setHistory(h);
+        // Recalculate score with full history
+        const fresh = calculateLeadScore(prospect, h);
+        setLocalScore(fresh);
+      })
+      .finally(() => setHistLoading(false));
   }, [prospect.id]);
 
   function handleEmailSent(data) {
-    setHistory(h => [{ subject: data.subject, body: data.body, sent_at: new Date().toISOString(), status: 'sent', email_type: 'custom' }, ...h]);
+    const entry = { subject: data.subject, body: data.body, sent_at: new Date().toISOString(), status: 'sent', email_type: 'custom' };
+    setHistory(h => [entry, ...h]);
     setShowEmail(false);
+    setPrefilledEmail(null);
+    setAiResult(null);
   }
+
+  async function handleMarkReplied(emailId, idx) {
+    try {
+      await markReplied(emailId);
+      setHistory(h => h.map((e, i) => i === idx ? { ...e, status: 'replied', replied_at: new Date().toISOString() } : e));
+      // Move to Conversation stage and clear follow-up
+      const convStage = stages.find(s =>
+        s.pipeline_id === prospect.pipeline_id &&
+        s.name.toLowerCase().includes('conversation')
+      );
+      if (convStage) await onStageChange(prospect, convStage);
+      await updateProspect(prospect.id, { next_follow_up_at: null });
+      onProspectUpdated?.({ ...prospect, next_follow_up_at: null });
+      const fresh = calculateLeadScore(prospect, history.map((e, i) => i === idx ? { ...e, status: 'replied' } : e));
+      setLocalScore(fresh);
+    } catch (e) { console.error(e); }
+  }
+
+  async function handleAiAction(type) {
+    setAiLoading(true);
+    setAiResult(null);
+    try {
+      const currentStage = stages.find(s => s.id === prospect.stage_id);
+      if (type === 'follow_up') {
+        const result = await generateFollowUpEmail({ prospect, history, stageName: currentStage?.name });
+        setPrefilledEmail(result);
+        setShowEmail(true);
+      } else if (type === 'proposal') {
+        const result = await generateProposalEmail({ prospect, history });
+        setPrefilledEmail(result);
+        setShowEmail(true);
+      } else if (type === 'cold') {
+        const result = await generateColdEmail({ prospect });
+        setPrefilledEmail(result);
+        setShowEmail(true);
+      } else if (type === 'next_step') {
+        const text = await generateNextStepAdvice({ prospect, stage: currentStage, history });
+        setAiResult({ type: 'next_step', text });
+      }
+    } catch (e) {
+      setAiResult({ type: 'error', text: e.message || 'AI generation failed.' });
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  const scoreVal = localScore ?? prospect.lead_score;
+  const scoreC   = scoreVal != null ? scoreColor(scoreVal) : '#aaa';
 
   return (
     <div style={S.panel}>
@@ -289,6 +382,18 @@ function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onC
         <button style={S.panelClose} onClick={onClose}>x</button>
       </div>
       <div style={S.panelBody}>
+
+        {/* Score display */}
+        {scoreVal != null && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, padding: '10px 14px', background: scoreC + '12', borderRadius: 8, border: `1px solid ${scoreC}30` }}>
+            <div style={{ width: 38, height: 38, borderRadius: '50%', background: scoreC + '22', border: `2px solid ${scoreC}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: scoreC }}>{scoreVal}</div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: scoreC }}>{scoreLabel(scoreVal)}</div>
+              <div style={{ fontSize: 11, color: '#888' }}>Lead score / 100</div>
+            </div>
+          </div>
+        )}
+
         {/* Stage selector */}
         <div style={S.fieldLabel}>Stage</div>
         <select style={S.stageSelect} value={prospect.stage_id || ''} onChange={e => onStageChange(prospect, stages.find(s => s.id === e.target.value))}>
@@ -296,8 +401,10 @@ function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onC
           {stages.filter(s => s.pipeline_id === prospect.pipeline_id).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
 
-        <button style={{ ...S.goldBtn, marginBottom: 16, fontSize: 12, padding: '6px 14px' }} onClick={() => setShowEmail(true)}>Send Email</button>
+        {/* Email button */}
+        <button style={{ ...S.goldBtn, marginBottom: 14, fontSize: 12, padding: '6px 14px' }} onClick={() => { setPrefilledEmail(null); setShowEmail(true); }}>Send Email</button>
 
+        {/* Details */}
         {prospect.contact_name && <><div style={S.fieldLabel}>Contact</div><div style={S.fieldValue}>{prospect.contact_name}</div></>}
         {prospect.email && <><div style={S.fieldLabel}>Email</div><div style={S.fieldValue}><a href={`mailto:${prospect.email}`} style={{ color: G }}>{prospect.email}</a></div></>}
         {prospect.phone && <><div style={S.fieldLabel}>Phone</div><div style={S.fieldValue}>{prospect.phone}</div></>}
@@ -308,14 +415,62 @@ function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onC
         {prospect.notes && <><div style={S.fieldLabel}>Notes</div><div style={{ ...S.fieldValue, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{prospect.notes}</div></>}
         <div style={S.fieldLabel}>Added</div><div style={S.fieldValue}>{fmtDate(prospect.created_at)}</div>
 
-        <div style={{ borderTop: '1px solid #f3f0ea', paddingTop: 14, marginTop: 4 }}>
+        {/* ── AI Assistant ── */}
+        <div style={S.aiSection}>
+          <div style={{ ...S.fieldLabel, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ color: G }}>✦</span> AI Assistant
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+            <button style={S.aiBtn} onClick={() => handleAiAction('cold')} disabled={aiLoading}>
+              {aiLoading ? '...' : '✦'} Cold Email
+            </button>
+            <button style={S.aiBtn} onClick={() => handleAiAction('follow_up')} disabled={aiLoading}>
+              {aiLoading ? '...' : '✦'} Follow-Up
+            </button>
+            <button style={S.aiBtn} onClick={() => handleAiAction('proposal')} disabled={aiLoading}>
+              {aiLoading ? '...' : '✦'} Proposal
+            </button>
+            <button style={{ ...S.aiBtn, background: 'rgba(59,130,246,0.08)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.3)' }} onClick={() => handleAiAction('next_step')} disabled={aiLoading}>
+              {aiLoading ? '...' : '?'} Next Step
+            </button>
+          </div>
+          {aiLoading && <div style={{ fontSize: 12, color: '#8f7420', padding: '8px 0' }}>Generating with AI...</div>}
+          {aiResult?.type === 'next_step' && (
+            <div style={S.aiResult}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#3b82f6', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Next Step Advice</div>
+              {aiResult.text}
+              <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
+                <button style={{ ...S.iconBtn, fontSize: 11 }} onClick={() => setAiResult(null)}>Dismiss</button>
+              </div>
+            </div>
+          )}
+          {aiResult?.type === 'error' && (
+            <div style={{ ...S.aiResult, background: '#fff5f5', border: '1px solid #fca5a5', color: '#dc2626' }}>{aiResult.text}</div>
+          )}
+        </div>
+
+        {/* ── Activity ── */}
+        <div style={{ borderTop: '1px solid #f3f0ea', paddingTop: 14, marginTop: 14 }}>
           <div style={{ ...S.fieldLabel, marginBottom: 8 }}>Activity ({history.length})</div>
           {histLoading ? <div style={{ fontSize: 12, color: '#aaa' }}>Loading...</div>
             : history.length === 0 ? <div style={{ fontSize: 12, color: '#aaa' }}>No activity yet.</div>
             : history.map((h, i) => (
-              <div key={i} style={S.histItem}>
-                <div>{h.subject}</div>
-                <div style={S.histTime}>{fmtDate(h.sent_at)} - {h.status}</div>
+              <div key={h.id || i} style={{ ...S.histItem, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.subject}</div>
+                  <div style={S.histTime}>
+                    {fmtDate(h.sent_at)}
+                    {' - '}
+                    <span style={{ color: h.status === 'replied' ? '#22c55e' : h.status === 'bounced' ? '#dc2626' : '#888', fontWeight: h.status === 'replied' ? 600 : 400 }}>
+                      {h.status}
+                    </span>
+                  </div>
+                </div>
+                {h.status === 'sent' && h.id && (
+                  <button style={S.replyBtn} onClick={() => handleMarkReplied(h.id, i)} title="Mark this email as replied - stops follow-up sequence and moves to Conversation">
+                    Replied
+                  </button>
+                )}
               </div>
             ))}
         </div>
@@ -325,8 +480,9 @@ function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onC
         <OutreachModal
           prospect={prospect}
           templates={templates.filter(t => t.pipeline_id === prospect.pipeline_id)}
+          prefilled={prefilledEmail}
           onSent={handleEmailSent}
-          onClose={() => setShowEmail(false)}
+          onClose={() => { setShowEmail(false); setPrefilledEmail(null); }}
         />
       )}
     </div>
@@ -379,7 +535,10 @@ function KanbanBoard({ prospects, stages, onMoveToStage, onOpenPanel, onAddProsp
                     onDragEnd={handleDragEnd}
                     onClick={() => onOpenPanel(p)}
                   >
-                    <div style={S.cardCompany}>{p.company_name}</div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 4, marginBottom: 3 }}>
+                      <div style={S.cardCompany}>{p.company_name}</div>
+                      <ScorePill score={p.lead_score} />
+                    </div>
                     {p.contact_name && <div style={S.cardContact}>{p.contact_name}</div>}
                     <div style={S.cardFooter}>
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -410,6 +569,7 @@ function ListView({ prospects, stages, onOpenPanel, sortKey, sortDir, onSort }) 
     <div style={S.tableWrap}>
       <table style={S.table}>
         <thead><tr>
+          {col('lead_score','Score')}
           {col('company_name','Company')}
           {col('contact_name','Contact')}
           <th style={S.th}>Stage</th>
@@ -424,6 +584,7 @@ function ListView({ prospects, stages, onOpenPanel, sortKey, sortDir, onSort }) 
             const overdue = isOverdue(p.next_follow_up_at) && !stage?.is_won && !stage?.is_lost;
             return (
               <tr key={p.id} style={{ background: overdue ? '#fff8f6' : undefined, cursor: 'pointer' }} onClick={() => onOpenPanel(p)}>
+                <td style={S.td}><ScorePill score={p.lead_score} /></td>
                 <td style={S.td}><strong>{p.company_name}</strong></td>
                 <td style={S.td}>{p.contact_name || '--'}</td>
                 <td style={S.td}>{stage ? <span style={S.badge(stage.color)}>{stage.name}</span> : '--'}</td>
@@ -434,7 +595,7 @@ function ListView({ prospects, stages, onOpenPanel, sortKey, sortDir, onSort }) 
               </tr>
             );
           })}
-          {prospects.length === 0 && <tr><td colSpan={7} style={{ ...S.td, textAlign: 'center', color: '#aaa', padding: '32px 0' }}>No prospects found.</td></tr>}
+          {prospects.length === 0 && <tr><td colSpan={8} style={{ ...S.td, textAlign: 'center', color: '#aaa', padding: '32px 0' }}>No prospects found.</td></tr>}
         </tbody>
       </table>
     </div>
@@ -443,7 +604,7 @@ function ListView({ prospects, stages, onOpenPanel, sortKey, sortDir, onSort }) 
 
 // ── Dashboard View ────────────────────────────────────────────────────────────
 
-function DashboardView({ stats, stages, overdueFU, onRunFollowUps, followUpRunning }) {
+function DashboardView({ stats, stages, overdueFU, onRunFollowUps, followUpRunning, onRecalcScores, scoresRefreshing }) {
   const maxCount = Math.max(...stages.map(s => stats.stageCounts?.[s.name] || 0), 1);
   const kpis = [
     { label: 'Total Prospects',   value: stats.totalProspects   || 0 },
@@ -473,6 +634,16 @@ function DashboardView({ stats, stages, overdueFU, onRunFollowUps, followUpRunni
             <div style={S.kpiLabel}>{k.label}</div>
           </div>
         ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+        <button
+          style={{ ...S.outlineBtn, fontSize: 12, padding: '6px 14px', display: 'flex', alignItems: 'center', gap: 5, opacity: scoresRefreshing ? 0.6 : 1 }}
+          onClick={onRecalcScores}
+          disabled={scoresRefreshing}
+        >
+          {scoresRefreshing ? 'Recalculating...' : '↻ Recalculate Lead Scores'}
+        </button>
       </div>
 
       <div style={{ background: '#fff', border: '1px solid #ede8de', borderRadius: 8, padding: '18px 20px', marginBottom: 20 }}>
@@ -529,6 +700,7 @@ export default function SalesPipelineModule() {
   const [sortKey,       setSortKey]       = useState('company_name');
   const [sortDir,       setSortDir]       = useState('asc');
   const [fuRunning,     setFuRunning]     = useState(false);
+  const [scoresRefreshing, setScoresRefreshing] = useState(false);
   const [toast,         setToast]         = useState(null);
 
   const currentStages    = allStages.filter(s => s.pipeline_id === selectedPipeline);
@@ -557,7 +729,12 @@ export default function SalesPipelineModule() {
           fetchPipelines(), fetchProspects(), fetchFollowUpsDue(), fetchSalesStats(),
         ]);
         setPipelines(pipeList);
-        setProspects(pList);
+        // Seed lead scores client-side for any prospects with score = 0 or null
+        const scoredList = pList.map(p => ({
+          ...p,
+          lead_score: (p.lead_score != null && p.lead_score > 0) ? p.lead_score : calculateLeadScore(p, []),
+        }));
+        setProspects(scoredList);
         setOverdueFU(fu);
         setStats(s);
         if (pipeList.length) {
@@ -631,6 +808,18 @@ export default function SalesPipelineModule() {
     finally { setFuRunning(false); }
   }
 
+  async function handleRecalcScores() {
+    setScoresRefreshing(true);
+    try {
+      const count = await batchRefreshScores();
+      // Reload prospects with fresh scores
+      const fresh = await fetchProspects();
+      setProspects(fresh);
+      notify(`Lead scores updated for ${count} prospects.`);
+    } catch (e) { notify('Score update failed: ' + e.message); }
+    finally { setScoresRefreshing(false); }
+  }
+
   function handleSort(key) {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortKey(key); setSortDir('asc'); }
@@ -697,6 +886,8 @@ export default function SalesPipelineModule() {
               overdueFU={overdueFU}
               onRunFollowUps={handleRunFollowUps}
               followUpRunning={fuRunning}
+              onRecalcScores={handleRecalcScores}
+              scoresRefreshing={scoresRefreshing}
             />
           )}
         </div>
@@ -709,6 +900,10 @@ export default function SalesPipelineModule() {
             onEdit={() => setEditModal(openPanel)}
             onStageChange={async (p, stage) => { if (stage) await handleMoveToStage(p.id, stage); }}
             onClose={() => setOpenPanel(null)}
+            onProspectUpdated={updated => {
+              setProspects(list => list.map(p => p.id === updated.id ? { ...p, ...updated } : p));
+              setOpenPanel(prev => ({ ...prev, ...updated }));
+            }}
           />
         )}
       </div>
