@@ -13,9 +13,6 @@ import { supabase } from "../lib/supabaseClient";
  */
 export const saveInquiry = async (enquiryData) => {
   try {
-    console.log("saveInquiry: Received enquiryData:", enquiryData);
-    console.log("saveInquiry: vendorId value:", enquiryData.vendorId, "type:", typeof enquiryData.vendorId);
-
     const insertData = {
       vendor_id: enquiryData.vendorId,
       couple_id: enquiryData.couple_id || enquiryData.coupleEmail,
@@ -30,14 +27,11 @@ export const saveInquiry = async (enquiryData) => {
       lead_source: enquiryData.leadSource || "Venue Profile",
       status: "new",
     };
-    console.log("saveInquiry: Inserting data to vendor_enquiries:", insertData);
 
     const { data, error } = await supabase
       .from("vendor_enquiries")
       .insert([insertData])
       .select();
-
-    console.log("saveInquiry: Insert result:", { data, error });
 
     if (error) throw error;
     return { data: data?.[0], error: null };

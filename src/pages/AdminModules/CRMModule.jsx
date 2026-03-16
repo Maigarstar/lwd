@@ -1032,7 +1032,7 @@ function NewContactModal({ C, onClose, onSave }) {
       const { createLead } = await import('../../services/leadEngineService');
       await createLead({ firstName:form.firstName, lastName:form.lastName, email:form.email, phone:form.phone||undefined, leadType:form.leadType, leadSource:form.leadSource, leadChannel:'manual', message:form.notes||undefined, consentDataProcessing:true });
       onSave();
-    } catch(err) { console.warn(err); }
+    } catch(err) { /* save failed */ }
     finally { setSaving(false); }
   };
 
@@ -1102,7 +1102,7 @@ export default function CRMModule({ C }) {
       const msgs = msgsData || [];
       setNotes(msgs.filter(m => m.message_type === 'internal_note'));
       setTasks(msgs.filter(m => m.message_type === 'task').map(parseTask));
-    } catch (err) { console.warn('CRM load failed:', err); }
+    } catch (err) { /* load failed */ }
     finally { setLoading(false); }
   }, []);
 
@@ -1129,7 +1129,7 @@ export default function CRMModule({ C }) {
       await supabase.from('leads').update({ status: newStatus }).eq('id', leadId);
       setLeads(prev => prev.map(l => l.id===leadId ? {...l, status:newStatus} : l));
       if (selectedLead?.id===leadId) setSelectedLead(prev => ({...prev, status:newStatus}));
-    } catch (err) { console.warn(err); }
+    } catch (err) { /* status update failed */ }
   };
 
   const handleDealValueChange = async (leadId, value) => {
@@ -1140,7 +1140,7 @@ export default function CRMModule({ C }) {
       await supabase.from('leads').update({ requirements_json: req }).eq('id', leadId);
       setLeads(prev => prev.map(l => l.id===leadId ? {...l, requirements_json:req} : l));
       if (selectedLead?.id===leadId) setSelectedLead(prev => ({...prev, requirements_json:req}));
-    } catch (err) { console.warn(err); }
+    } catch (err) { /* deal value update failed */ }
   };
 
   const handleAddNote = async () => {
@@ -1168,7 +1168,7 @@ export default function CRMModule({ C }) {
         .insert({ lead_id: leadId, message_type: 'task', body })
         .select('id,lead_id,body,created_at').single();
       if (data) setTasks(prev => [...prev, parseTask(data)]);
-    } catch (err) { console.warn(err); }
+    } catch (err) { /* task create failed */ }
   };
 
   const handleCompleteTask = async (task) => {
@@ -1178,7 +1178,7 @@ export default function CRMModule({ C }) {
       const body = JSON.stringify({ text: task.text, dueDate: task.dueDate, completed: newCompleted, completedAt: newCompleted ? new Date().toISOString() : null });
       await supabase.from('lead_messages').update({ body }).eq('id', task.id);
       setTasks(prev => prev.map(t => t.id===task.id ? {...t, completed:newCompleted, completedAt:newCompleted?new Date().toISOString():null} : t));
-    } catch (err) { console.warn(err); }
+    } catch (err) { /* task complete failed */ }
   };
 
   const handleDeleteTask = async (task) => {
@@ -1186,7 +1186,7 @@ export default function CRMModule({ C }) {
       const { supabase } = await import('../../lib/supabaseClient');
       await supabase.from('lead_messages').delete().eq('id', task.id);
       setTasks(prev => prev.filter(t => t.id !== task.id));
-    } catch (err) { console.warn(err); }
+    } catch (err) { /* task delete failed */ }
   };
 
   const overdueTasks = tasks.filter(t => isOverdue(t)).length;

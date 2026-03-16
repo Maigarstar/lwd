@@ -44,16 +44,6 @@ export async function fetchVenueKnowledgeLayer(venueId) {
         .order('created_at', { ascending: false })
     ]);
 
-    // TRACE: Log query results
-    console.log(`[fetchVenueKnowledgeLayer] Query results for ${venueId}:`, {
-      listingHasError: !!listingRes.error,
-      listingError: listingRes.error?.message,
-      listingData: !!listingRes.data,
-      listingDataKeys: listingRes.data ? Object.keys(listingRes.data).slice(0, 5) : null,
-      reviewsHasError: !!reviewsRes.error,
-      reviewsCount: reviewsRes.data?.length || 0
-    });
-
     // Check for query errors - log them but don't fail
     if (listingRes.error) {
       console.error(`[fetchVenueKnowledgeLayer] Listing query error for ${venueId}:`, {
@@ -64,13 +54,7 @@ export async function fetchVenueKnowledgeLayer(venueId) {
       // Continue with null data - will build empty knowledge object below
     }
 
-    if (!listingRes.data && !listingRes.error) {
-      console.warn(`[fetchVenueKnowledgeLayer] No listing found for ${venueId}`);
-      // Continue with null data - will build empty knowledge object below
-    }
-
     if (reviewsRes.error) {
-      console.warn(`fetchVenueKnowledgeLayer: Error fetching reviews for ${venueId}:`, reviewsRes.error);
       // Don't return null - reviews are optional, continue with empty reviews
     }
 
@@ -507,13 +491,6 @@ export function calculateRecommendationScore(venue, knowledge) {
  * @returns {Array} Venues ranked for Aura discovery, with recommendation scores
  */
 export async function fetchRankedVenuesForDiscovery(options = {}) {
-  // Mark that service was called
-  if (typeof globalThis !== 'undefined') {
-    globalThis._serviceWasCalled = true;
-    globalThis._serviceCallTime = new Date().toISOString();
-  }
-  console.log('[SERVICE] fetchRankedVenuesForDiscovery called with:', options);
-
   const {
     limit = 12,
     minScore = 0,
@@ -522,13 +499,6 @@ export async function fetchRankedVenuesForDiscovery(options = {}) {
   } = options;
 
   try {
-    // Fetch all listings with basic columns (Phase 3 editorial columns added later)
-    if (typeof window !== 'undefined') {
-      window._auraLogs = window._auraLogs || [];
-      window._auraLogs.push('QUERY: Starting Supabase query for listings table');
-      window._auraLogs.push('QUERY_PARAMS: limit=' + (limit * 2) + ', columns=id,name,slug,city,region');
-    }
-
     let query = supabase
       .from('listings')
       .select('*')
@@ -536,43 +506,16 @@ export async function fetchRankedVenuesForDiscovery(options = {}) {
 
     const { data: listings, error } = await query;
 
-    const stage1Result = {
-      listedCount: listings?.length || 0,
-      dataType: typeof listings,
-      isArray: Array.isArray(listings),
-      error: error ? {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
-      } : null,
-      venueNames: listings?.map(l => l.name) || [],
-      fullListingsData: listings
-    };
-    console.log('[AURA] STAGE 1 - Supabase query complete:', stage1Result);
-    if (typeof window !== 'undefined') {
-      window._auraLogs.push('STAGE 1: ' + JSON.stringify(stage1Result));
-      localStorage.setItem('_auraDebug', JSON.stringify(window._auraLogs));
-    }
-
     if (error) {
-      console.error('[AURA] Query error at STAGE 1:', error);
-      if (typeof window !== 'undefined') {
-        window._auraLogs.push('ERROR_FULL: ' + JSON.stringify(error));
-        localStorage.setItem('_auraDebug', JSON.stringify(window._auraLogs));
-      }
+      console.error('[AURA] Query error:', error);
       return [];
     }
 
     if (!listings || listings.length === 0) {
-      console.log('[AURA] STAGE 1 - No listings found in database');
       return [];
     }
 
-    console.log(`[AURA] STAGE 2 - Starting knowledge layer enrichment for ${listings.length} venues`);
-
     // Enrich with knowledge layers and calculate recommendation scores
-    const enrichmentResults = [];
     const rankedVenues = await Promise.all(
       listings.map(async (venue) => {
         try {
@@ -618,14 +561,6 @@ export async function fetchRankedVenuesForDiscovery(options = {}) {
             approved: venue.editorial_approved || false,
           };
 
-          enrichmentResults.push({
-            venueId: venue.id,
-            name: venue.name,
-            success: !!knowledge,
-            hasKnowledge: !!knowledgeOrFallback,
-            usedFallback: !knowledge
-          });
-
           return enrichedVenue;
         } catch (err) {
           console.error(`[ENRICHMENT ERROR] venue ${venue.id}: ${err.message}`);
@@ -645,43 +580,13 @@ export async function fetchRankedVenuesForDiscovery(options = {}) {
             approved: false,
           };
 
-          enrichmentResults.push({
-            venueId: venue.id,
-            name: venue.name,
-            success: false,
-            hasKnowledge: true,
-            usedFallback: true,
-            error: err.message
-          });
-
           return fallbackVenue;
         }
       })
     );
 
-    const stage2Result = {
-      inputCount: listings.length,
-      outputCount: rankedVenues.length,
-      allEnriched: rankedVenues.length === listings.length,
-      venueNames: rankedVenues.map(v => v.name)
-    };
-    console.log('[AURA] STAGE 2 - After Promise.all enrichment:', stage2Result);
-    if (typeof window !== 'undefined') {
-      window._auraLogs.push('STAGE 2: ' + JSON.stringify(stage2Result));
-    }
-
     // Filter out null entries and invalid knowledge (minScore filtering disabled for testing)
     let filtered = rankedVenues.filter(v => v && v.knowledge);
-    const stage3Result = {
-      beforeFilterCount: rankedVenues.length,
-      afterFilterCount: filtered.length,
-      removedCount: rankedVenues.length - filtered.length,
-      remainingVenueNames: filtered.map(v => v.name)
-    };
-    console.log('[AURA] STAGE 3 - After filtering (nulls + knowledge):', stage3Result);
-    if (typeof window !== 'undefined') {
-      window._auraLogs.push('STAGE 3: ' + JSON.stringify(stage3Result));
-    }
 
     // Sort based on strategy
     if (sort === 'tier') {
@@ -721,28 +626,6 @@ export async function fetchRankedVenuesForDiscovery(options = {}) {
 
     // Sort and slice to limit
     const final = filtered.slice(0, limit);
-    const stage4Result = {
-      afterSortCount: filtered.length,
-      afterLimitCount: final.length,
-      requestedLimit: limit,
-      finalVenueNames: final.map(v => v.name)
-    };
-    console.log('[AURA] STAGE 4 - Final return from fetchRankedVenuesForDiscovery:', stage4Result);
-    if (typeof window !== 'undefined') {
-      window._auraLogs.push('STAGE 4: ' + JSON.stringify(stage4Result));
-    }
-
-    const journeyResult = {
-      stage1_listings: listings.length,
-      stage2_enriched: rankedVenues.length,
-      stage3_filtered: filtered.length,
-      stage4_final: final.length
-    };
-    console.log('[AURA] JOURNEY SUMMARY - listings → enrichment → filter → sort → final:', journeyResult);
-    if (typeof window !== 'undefined') {
-      window._auraLogs.push('JOURNEY: ' + JSON.stringify(journeyResult));
-      localStorage.setItem('_auraDebug', JSON.stringify(window._auraLogs));
-    }
     return final;
   } catch (err) {
     console.error('fetchRankedVenuesForDiscovery exception:', err);

@@ -745,8 +745,6 @@ function syncMediaAIIndex(listingId: string, data: any): void {
     .then(({ error }) => {
       if (error) {
         console.warn('[AI sync] media_ai_index sync failed (non-blocking):', error);
-      } else {
-        console.log(`[AI sync] media_ai_index synced for listing ${listingId}`);
       }
     })
     .catch((err) =>
@@ -773,8 +771,6 @@ export async function createListing(data: Listing) {
     // Sanitize payload: convert empty strings to null for numeric/date fields
     const dbData = sanitizeListingPayload(mapped)
 
-    console.log('Sanitized payload sending to Supabase:', dbData)
-
     const { data: listing, error } = await supabase!
       .from('listings')
       .insert([dbData])
@@ -798,13 +794,6 @@ export async function createListing(data: Listing) {
  * Update an existing listing
  */
 export async function updateListing(id: string, data: Partial<Listing>) {
-  console.log("═══════════════════════════════════════════════════════════");
-  console.log("updateListing() START");
-  console.log("Listing ID to update:", id);
-  console.log("ID is truthy?", !!id);
-  console.log("ID type:", typeof id);
-  console.log("═══════════════════════════════════════════════════════════");
-
   if (!isSupabaseAvailable()) {
     console.error('Supabase not configured')
     throw new Error('Supabase not configured')
@@ -813,28 +802,15 @@ export async function updateListing(id: string, data: Partial<Listing>) {
   try {
     // Prepare data (auto-generate slug if needed)
     const prepared = prepareListingData({ ...data } as Listing)
-    console.log("After prepareListingData:", prepared.name, prepared.slug);
 
     // Map form field names to database field names
     const mapped = mapFormToDatabaseFields({
       ...prepared,
       updatedAt: new Date().toISOString(), // Use camelCase so it gets mapped correctly to updated_at
     })
-    console.log("After mapFormToDatabaseFields - mapped keys:", Object.keys(mapped));
-    console.log("updated_at in mapped?", 'updated_at' in mapped);
 
     // Sanitize payload: convert empty strings to null for numeric/date fields
     const updateData = sanitizeListingPayload(mapped)
-    console.log("═══════════════════════════════════════════════════════════");
-    console.log("FINAL UPDATE PAYLOAD - Keys:", Object.keys(updateData));
-    console.log("FINAL UPDATE PAYLOAD - Full:", JSON.stringify(updateData, null, 2));
-    console.log("═══════════════════════════════════════════════════════════");
-
-    // Log the query parameters
-    console.log("Supabase UPDATE query:");
-    console.log("  Table: 'listings'");
-    console.log("  ID filter: .eq('id', '" + id + "')");
-    console.log("  Update data fields:", Object.keys(updateData).length);
 
     const { data: listing, error } = await supabase!
       .from('listings')
@@ -850,8 +826,6 @@ export async function updateListing(id: string, data: Partial<Listing>) {
       console.error("Error details:", error);
       throw error
     }
-
-    console.log("Supabase UPDATE success - returned listing:", listing);
 
     // Fire-and-forget: sync rich media metadata into AI search index
     syncMediaAIIndex(listing.id, data)
@@ -949,8 +923,6 @@ export async function fetchListings(filters?: {
     // Transform to match UI expectations (status formatting, display fields, etc.)
     const uiListings = camelListings.map(listing => transformSupabaseListingForUI(listing))
 
-    console.log('Transformed listings for UI:', uiListings)
-
     return uiListings as Listing[]
   } catch (error) {
     console.error('Error fetching listings:', error)
@@ -962,19 +934,14 @@ export async function fetchListings(filters?: {
  * Save a listing as draft (status = 'draft')
  */
 export async function saveDraft(id: string | undefined, data: Listing) {
-  console.log("saveDraft() called with ID:", id);
-  console.log("saveDraft() data keys:", Object.keys(data));
-
   const draftData = {
     ...data,
     status: 'draft' as const,
   }
 
   if (id) {
-    console.log("saveDraft() - UPDATING existing listing with ID:", id);
     return updateListing(id, draftData)
   } else {
-    console.log("saveDraft() - CREATING new listing (no ID provided)");
     return createListing(draftData)
   }
 }
@@ -983,9 +950,6 @@ export async function saveDraft(id: string | undefined, data: Listing) {
  * Publish a listing (status = 'published')
  */
 export async function publishListing(id: string | undefined, data: Listing) {
-  console.log("publishListing() called with ID:", id);
-  console.log("publishListing() data keys:", Object.keys(data));
-
   const publishData = {
     ...data,
     status: 'published' as const,
@@ -993,10 +957,8 @@ export async function publishListing(id: string | undefined, data: Listing) {
   }
 
   if (id) {
-    console.log("publishListing() - UPDATING existing listing with ID:", id);
     return updateListing(id, publishData)
   } else {
-    console.log("publishListing() - CREATING new listing (no ID provided)");
     return createListing(publishData)
   }
 }
