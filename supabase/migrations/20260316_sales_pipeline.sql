@@ -22,13 +22,8 @@ CREATE TABLE IF NOT EXISTS prospects (
   source              TEXT,         -- 'referral' | 'linkedin' | 'google' | 'directory' | 'event' | 'other'
   package             TEXT,         -- 'standard' | 'premium' | 'elite'
 
-  -- Pipeline
-  pipeline_stage      TEXT        NOT NULL DEFAULT 'prospect'
-                        CHECK (pipeline_stage IN (
-                          'prospect','cold_email_sent','follow_up_sent',
-                          'conversation','meeting_booked','proposal_sent',
-                          'negotiation','closed_won','closed_lost'
-                        )),
+  -- Pipeline (free-text; pipeline_id + stage_id are the canonical references)
+  pipeline_stage      TEXT        NOT NULL DEFAULT 'Prospect',
   status              TEXT        NOT NULL DEFAULT 'active'
                         CHECK (status IN ('active','converted','lost','paused')),
 

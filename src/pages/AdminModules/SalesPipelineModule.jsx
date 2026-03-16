@@ -39,6 +39,11 @@ import {
   generateColdEmail,
 } from '../../services/salesPipelineAiService';
 import { sendEmail } from '../../services/emailSendService';
+import {
+  assignProspectPipeline,
+  fetchAssignmentRules,
+  fetchAssignmentSettings,
+} from '../../services/pipelineAssignmentService';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -140,34 +145,54 @@ function ScorePill({ score }) {
 
 // ── Prospect Modal ────────────────────────────────────────────────────────────
 
-function ProspectModal({ prospect, pipelines, stages, defaultStage, onSave, onClose }) {
+function ProspectModal({ prospect, pipelines, stages, defaultStage, assignRules, assignSettings, onSave, onClose }) {
   const init = prospect || {
     company_name: '', contact_name: '', email: '', phone: '', website: '',
     country: 'United Kingdom', venue_type: 'Venue', source: 'LinkedIn',
     package: 'Standard', notes: '', proposal_value: '', next_follow_up_at: '',
-    pipeline_id: defaultStage?.pipeline_id || pipelines[0]?.id || '',
+    pipeline_id: defaultStage?.pipeline_id || '',
     stage_id: defaultStage?.id || '',
   };
-  const [form, setForm]     = useState(init);
-  const [saving, setSaving] = useState(false);
+  const [form, setForm]         = useState(init);
+  const [saving, setSaving]     = useState(false);
+  const [assignInfo, setAssignInfo] = useState(null); // { pipeline_id, method, confidence }
   function f(k, v) { setForm(p => ({ ...p, [k]: v })); }
-  const pipelineStages = stages.filter(s => s.pipeline_id === form.pipeline_id);
+  const pipelineStages = stages.filter(s => s.pipeline_id === (assignInfo?.pipeline_id || form.pipeline_id));
 
   async function save() {
     if (!form.company_name.trim()) return;
     setSaving(true);
     try {
-      const selectedStage = pipelineStages.find(s => s.id === form.stage_id);
+      let resolvedPipelineId = form.pipeline_id;
+      let resolvedStageId    = form.stage_id;
+      let assignment         = null;
+
+      // Auto-assign only on create and only if user left pipeline blank
+      if (!form.id && !form.pipeline_id) {
+        assignment = await assignProspectPipeline(form, {
+          rules:     assignRules,
+          settings:  assignSettings,
+          pipelines,
+        });
+        resolvedPipelineId = assignment.pipeline_id;
+        // Default to position=0 stage of the assigned pipeline
+        const firstStage = stages
+          .filter(s => s.pipeline_id === resolvedPipelineId)
+          .sort((a, b) => a.position - b.position)[0];
+        resolvedStageId = firstStage?.id || null;
+      }
+
+      const selectedStage = stages.find(s => s.id === (resolvedStageId || form.stage_id));
       const payload = {
         ...form,
-        pipeline_stage: selectedStage?.name || 'prospect',
-        proposal_value: form.proposal_value ? parseFloat(form.proposal_value) : null,
+        pipeline_id:       resolvedPipelineId || null,
+        stage_id:          resolvedStageId || null,
+        pipeline_stage:    selectedStage?.name || 'Prospect',
+        proposal_value:    form.proposal_value ? parseFloat(form.proposal_value) : null,
         next_follow_up_at: form.next_follow_up_at || null,
-        stage_id: form.stage_id || null,
-        pipeline_id: form.pipeline_id || null,
       };
       const saved = form.id ? await updateProspect(form.id, payload) : await createProspect(payload);
-      onSave(saved);
+      onSave(saved, assignment);
     } finally { setSaving(false); }
   }
 
@@ -184,15 +209,21 @@ function ProspectModal({ prospect, pipelines, stages, defaultStage, onSave, onCl
           <div style={S.formCol}><div style={S.formLabel}>Phone</div><input style={S.formInput} value={form.phone || ''} onChange={e => f('phone', e.target.value)} /></div>
         </div>
         <div style={S.formRow}>
-          <div style={S.formCol}><div style={S.formLabel}>Pipeline</div>
+          <div style={S.formCol}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
+              <div style={S.formLabel}>Pipeline</div>
+              {!form.id && !form.pipeline_id && (
+                <span style={{ fontSize: 10, color: '#8f7420', fontStyle: 'italic' }}>auto-assigned on save</span>
+              )}
+            </div>
             <select style={S.formSelect} value={form.pipeline_id || ''} onChange={e => { f('pipeline_id', e.target.value); f('stage_id', ''); }}>
-              <option value="">No pipeline</option>
+              <option value="">Auto-assign</option>
               {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
           <div style={S.formCol}><div style={S.formLabel}>Stage</div>
             <select style={S.formSelect} value={form.stage_id || ''} onChange={e => f('stage_id', e.target.value)}>
-              <option value="">Select stage</option>
+              <option value="">{!form.pipeline_id ? 'Auto (first stage)' : 'Select stage'}</option>
               {pipelineStages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
@@ -702,6 +733,8 @@ export default function SalesPipelineModule() {
   const [fuRunning,     setFuRunning]     = useState(false);
   const [scoresRefreshing, setScoresRefreshing] = useState(false);
   const [toast,         setToast]         = useState(null);
+  const [assignRules,   setAssignRules]   = useState([]);
+  const [assignSettings,setAssignSettings] = useState({ ai_fallback_enabled: true, fallback_pipeline_id: null });
 
   const currentStages    = allStages.filter(s => s.pipeline_id === selectedPipeline);
   const currentTemplates = allTemplates.filter(t => t.pipeline_id === selectedPipeline);
@@ -725,9 +758,12 @@ export default function SalesPipelineModule() {
   useEffect(() => {
     (async () => {
       try {
-        const [pipeList, pList, fu, s] = await Promise.all([
+        const [pipeList, pList, fu, s, rules, aSettings] = await Promise.all([
           fetchPipelines(), fetchProspects(), fetchFollowUpsDue(), fetchSalesStats(),
+          fetchAssignmentRules(), fetchAssignmentSettings(),
         ]);
+        setAssignRules(rules);
+        setAssignSettings(aSettings);
         setPipelines(pipeList);
         // Seed lead scores client-side for any prospects with score = 0 or null
         const scoredList = pList.map(p => ({
@@ -786,14 +822,25 @@ export default function SalesPipelineModule() {
 
   function handleAddProspect(stage = null) { setDefaultStage(stage); setEditModal(false); }
 
-  function handleProspectSaved(saved) {
+  function handleProspectSaved(saved, assignment) {
+    // Seed lead score immediately on create
+    const withScore = {
+      ...saved,
+      lead_score: saved.lead_score > 0 ? saved.lead_score : calculateLeadScore(saved, []),
+    };
     setProspects(list => {
-      const idx = list.findIndex(p => p.id === saved.id);
-      return idx >= 0 ? list.map(p => p.id === saved.id ? saved : p) : [saved, ...list];
+      const idx = list.findIndex(p => p.id === withScore.id);
+      return idx >= 0 ? list.map(p => p.id === withScore.id ? withScore : p) : [withScore, ...list];
     });
     setEditModal(null);
     setDefaultStage(null);
-    if (openPanel?.id === saved.id) setOpenPanel(saved);
+    if (openPanel?.id === withScore.id) setOpenPanel(withScore);
+    // Show auto-assign toast for new prospects
+    if (assignment) {
+      const pipeName = pipelines.find(p => p.id === assignment.pipeline_id)?.name || 'pipeline';
+      const via = assignment.method === 'rule' ? 'matched rule' : assignment.method === 'ai' ? 'AI classification' : 'default fallback';
+      notify(`Auto-assigned to ${pipeName} via ${via}.`);
+    }
   }
 
   async function handleRunFollowUps() {
@@ -914,6 +961,8 @@ export default function SalesPipelineModule() {
           pipelines={pipelines}
           stages={allStages}
           defaultStage={defaultStage}
+          assignRules={assignRules}
+          assignSettings={assignSettings}
           onSave={handleProspectSaved}
           onClose={() => { setEditModal(null); setDefaultStage(null); }}
         />

@@ -20,6 +20,15 @@ import {
   updateTemplate,
   deleteTemplate,
 } from '../../services/pipelineBuilderService';
+import {
+  fetchAssignmentRules,
+  fetchAssignmentSettings,
+  saveAssignmentRule,
+  deleteAssignmentRule,
+  updateAssignmentSettings,
+  testAssignmentRules,
+  testCondition,
+} from '../../services/pipelineAssignmentService';
 
 // ── Shared constants ──────────────────────────────────────────────────────────
 
@@ -53,6 +62,24 @@ const EMAIL_TYPES = [
 ];
 
 const MERGE_TAGS = ['{{contact_name}}', '{{company_name}}', '{{sender_name}}', '{{proposal_value}}'];
+
+const RULE_FIELDS = [
+  { value: 'venue_type',   label: 'Type'        },
+  { value: 'source',       label: 'Source'      },
+  { value: 'company_name', label: 'Company name'},
+  { value: 'country',      label: 'Country'     },
+  { value: 'notes',        label: 'Notes'       },
+  { value: 'email',        label: 'Email'       },
+];
+
+const RULE_CONDITIONS = [
+  { value: 'contains',     label: 'contains'         },
+  { value: 'equals',       label: 'equals'           },
+  { value: 'starts_with',  label: 'starts with'      },
+  { value: 'not_contains', label: 'does not contain' },
+];
+
+const METHOD_COLORS = { rule: '#22c55e', ai: '#3b82f6', fallback: '#f59e0b', error: '#ef4444' };
 
 const CLOSED_WON_ACTION_LABELS = {
   activate_profile:      'Activate vendor profile',
@@ -352,6 +379,17 @@ export default function PipelineBuilderModule() {
   const [confirmDelete,   setConfirmDelete]   = useState(null); // pipeline id to delete
   const [pipelineForm,    setPipelineForm]    = useState({});
 
+  // Auto-assign state
+  const [rules,          setRules]          = useState([]);
+  const [assignSettings, setAssignSettings] = useState({ ai_fallback_enabled: true, fallback_pipeline_id: null });
+  const [rulesLoaded,    setRulesLoaded]    = useState(false);
+  const [rulesLoading,   setRulesLoading]   = useState(false);
+  const [newRule,        setNewRule]        = useState({ rule_field: 'venue_type', rule_condition: 'contains', rule_value: '', priority: 50, pipeline_id: '' });
+  const [addingRule,     setAddingRule]     = useState(false);
+  const [testInput,      setTestInput]      = useState({ company_name: '', venue_type: '', source: '', notes: '', website: '', country: '' });
+  const [testResult,     setTestResult]     = useState(null);
+  const [testRunning,    setTestRunning]    = useState(false);
+
   const selected = pipelines.find(p => p.id === selectedId) || null;
 
   // Load pipelines
@@ -460,6 +498,65 @@ export default function PipelineBuilderModule() {
     setConfirmDelete(null);
   }
 
+  // Auto-assign tab: lazy-load rules on first open
+  async function handleAutoAssignTab() {
+    setActiveTab('auto_assign');
+    if (rulesLoaded) return;
+    setRulesLoading(true);
+    try {
+      const [r, s] = await Promise.all([fetchAssignmentRules(), fetchAssignmentSettings()]);
+      setRules(r);
+      setAssignSettings(s);
+      setRulesLoaded(true);
+      setNewRule(prev => ({ ...prev, pipeline_id: pipelines[0]?.id || '' }));
+    } catch (e) {
+      console.error('[AutoAssign] load failed', e);
+    } finally {
+      setRulesLoading(false);
+    }
+  }
+
+  async function handleAddRule() {
+    if (!newRule.rule_value.trim() || !newRule.pipeline_id) return;
+    setAddingRule(true);
+    try {
+      const saved = await saveAssignmentRule(newRule);
+      setRules(prev => [...prev, saved].sort((a, b) => b.priority - a.priority));
+      setNewRule(prev => ({ ...prev, rule_value: '' }));
+    } finally {
+      setAddingRule(false); }
+  }
+
+  async function handleToggleRule(rule) {
+    const updated = await saveAssignmentRule({ ...rule, is_active: !rule.is_active });
+    setRules(prev => prev.map(r => r.id === updated.id ? updated : r));
+  }
+
+  async function handleDeleteRule(id) {
+    if (!window.confirm('Delete this rule?')) return;
+    await deleteAssignmentRule(id);
+    setRules(prev => prev.filter(r => r.id !== id));
+  }
+
+  async function handleSettingChange(field, value) {
+    const next = { ...assignSettings, [field]: value };
+    setAssignSettings(next);
+    await updateAssignmentSettings(next);
+  }
+
+  async function handleTestRules() {
+    setTestRunning(true);
+    setTestResult(null);
+    try {
+      const result = await testAssignmentRules(testInput, rules, assignSettings, pipelines);
+      setTestResult(result);
+    } catch (e) {
+      setTestResult({ assigned_pipeline: 'Error', method: 'error', confidence: 'low', explanation: e.message });
+    } finally {
+      setTestRunning(false);
+    }
+  }
+
   if (loading) return <div style={{ padding: 40, color: '#888', textAlign: 'center' }}>Loading pipelines...</div>;
 
   return (
@@ -551,6 +648,9 @@ export default function PipelineBuilderModule() {
               </button>
               <button style={S.tab(activeTab === 'automation')} onClick={() => setActiveTab('automation')}>
                 Automation
+              </button>
+              <button style={S.tab(activeTab === 'auto_assign')} onClick={handleAutoAssignTab}>
+                Auto-Assign Rules
               </button>
             </div>
 
@@ -678,6 +778,169 @@ export default function PipelineBuilderModule() {
                     <div style={{ color: '#aaa', fontSize: 13 }}>
                       No Won stages configured yet. Mark a stage as Won in the Stages tab to set automation actions.
                     </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── AUTO-ASSIGN RULES ── */}
+              {activeTab === 'auto_assign' && (
+                <div>
+                  <div style={{ fontSize: 12, color: '#888', marginBottom: 18, lineHeight: 1.7 }}>
+                    Rules are evaluated in priority order (highest first). The first match wins.
+                    When no rule matches, the AI classifier runs, then falls back to the default pipeline.
+                    Rules apply globally across all pipelines.
+                  </div>
+
+                  {rulesLoading ? (
+                    <div style={{ color: '#aaa', fontSize: 13, padding: '20px 0' }}>Loading rules...</div>
+                  ) : (
+                    <>
+                      {/* Rules table */}
+                      <div style={S.card}>
+                        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14, color: '#555', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>Assignment Rules ({rules.length})</span>
+                        </div>
+
+                        {rules.length === 0 && (
+                          <div style={{ color: '#aaa', fontSize: 13, marginBottom: 14 }}>No rules yet. Add one below.</div>
+                        )}
+
+                        {rules.map(rule => {
+                          const pipe = pipelines.find(p => p.id === rule.pipeline_id);
+                          return (
+                            <div key={rule.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: rule.is_active ? '#fafaf8' : '#f5f5f5', border: '1px solid #ede8de', borderRadius: 6, marginBottom: 6, opacity: rule.is_active ? 1 : 0.55 }}>
+                              {/* Pipeline badge */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 140 }}>
+                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: pipe?.color || '#8f7420', flexShrink: 0 }} />
+                                <span style={{ fontSize: 11, fontWeight: 600, color: pipe?.color || '#8f7420', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pipe?.name || 'Unknown'}</span>
+                              </div>
+                              {/* Rule */}
+                              <span style={{ fontSize: 12, color: '#555', flex: 1 }}>
+                                <span style={{ fontWeight: 600, color: '#333' }}>{RULE_FIELDS.find(f => f.value === rule.rule_field)?.label || rule.rule_field}</span>
+                                {' '}{RULE_CONDITIONS.find(c => c.value === rule.rule_condition)?.label || rule.rule_condition}{' '}
+                                <span style={{ fontWeight: 600, color: '#8f7420' }}>"{rule.rule_value}"</span>
+                              </span>
+                              {/* Priority */}
+                              <span style={{ fontSize: 11, color: '#aaa', minWidth: 55, textAlign: 'right' }}>P{rule.priority}</span>
+                              {/* Active toggle */}
+                              <button style={{ ...S.smallBtn, fontSize: 10, padding: '3px 8px', color: rule.is_active ? '#22c55e' : '#aaa', borderColor: rule.is_active ? '#bbf7d0' : '#e0e0e0' }} onClick={() => handleToggleRule(rule)}>
+                                {rule.is_active ? 'Active' : 'Off'}
+                              </button>
+                              {/* Delete */}
+                              <button style={{ ...S.smallBtn, color: '#dc2626', borderColor: '#dc2626', padding: '3px 8px', fontSize: 11 }} onClick={() => handleDeleteRule(rule.id)}>✕</button>
+                            </div>
+                          );
+                        })}
+
+                        {/* Add rule form */}
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 14, flexWrap: 'wrap' }}>
+                          <select style={{ ...S.select, width: 130, padding: '7px 10px', fontSize: 12 }}
+                            value={newRule.pipeline_id}
+                            onChange={e => setNewRule(r => ({ ...r, pipeline_id: e.target.value }))}>
+                            <option value="">Pipeline...</option>
+                            {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          </select>
+                          <select style={{ ...S.select, width: 120, padding: '7px 10px', fontSize: 12 }}
+                            value={newRule.rule_field}
+                            onChange={e => setNewRule(r => ({ ...r, rule_field: e.target.value }))}>
+                            {RULE_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                          </select>
+                          <select style={{ ...S.select, width: 140, padding: '7px 10px', fontSize: 12 }}
+                            value={newRule.rule_condition}
+                            onChange={e => setNewRule(r => ({ ...r, rule_condition: e.target.value }))}>
+                            {RULE_CONDITIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                          </select>
+                          <input style={{ ...S.input, width: 130, padding: '7px 10px', fontSize: 12 }}
+                            placeholder='value...'
+                            value={newRule.rule_value}
+                            onChange={e => setNewRule(r => ({ ...r, rule_value: e.target.value }))}
+                            onKeyDown={e => e.key === 'Enter' && handleAddRule()}
+                          />
+                          <input style={{ ...S.input, width: 60, padding: '7px 10px', fontSize: 12, textAlign: 'center' }}
+                            type="number" min="0" max="999" placeholder="P50"
+                            value={newRule.priority}
+                            onChange={e => setNewRule(r => ({ ...r, priority: parseInt(e.target.value) || 50 }))}
+                          />
+                          <button style={{ ...S.goldBtn, padding: '7px 16px', opacity: addingRule || !newRule.rule_value.trim() || !newRule.pipeline_id ? 0.6 : 1 }}
+                            onClick={handleAddRule} disabled={addingRule || !newRule.rule_value.trim() || !newRule.pipeline_id}>
+                            {addingRule ? 'Adding...' : '+ Add Rule'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* AI Fallback settings */}
+                      <div style={S.card}>
+                        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14, color: '#555' }}>AI Fallback Classification</div>
+                        <div style={{ fontSize: 12, color: '#888', marginBottom: 14, lineHeight: 1.6 }}>
+                          When no rule matches, AI reads the company name, type, and notes to determine the correct pipeline.
+                          Adds 1-2 seconds to prospect creation but handles edge cases rules cannot anticipate.
+                        </div>
+                        <label style={{ ...S.checkRow, marginBottom: 16, cursor: 'pointer' }}>
+                          <input type="checkbox"
+                            checked={assignSettings.ai_fallback_enabled}
+                            onChange={e => handleSettingChange('ai_fallback_enabled', e.target.checked)}
+                          />
+                          <span style={{ fontSize: 13 }}>Enable AI classification when no rule matches</span>
+                        </label>
+                        <div style={S.col}>
+                          <div style={S.label}>Default pipeline (if both rule and AI fail)</div>
+                          <select style={{ ...S.select, maxWidth: 280 }}
+                            value={assignSettings.fallback_pipeline_id || ''}
+                            onChange={e => handleSettingChange('fallback_pipeline_id', e.target.value || null)}>
+                            <option value="">System default (first pipeline)</option>
+                            {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Test tool */}
+                      <div style={S.card}>
+                        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6, color: '#555' }}>Test Assignment</div>
+                        <div style={{ fontSize: 12, color: '#888', marginBottom: 14 }}>
+                          Enter a prospect description to preview which pipeline it would be assigned to.
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                          <div style={S.col}>
+                            <div style={S.label}>Company name</div>
+                            <input style={S.input} placeholder="e.g. Château de Lumiere" value={testInput.company_name} onChange={e => setTestInput(p => ({ ...p, company_name: e.target.value }))} />
+                          </div>
+                          <div style={S.col}>
+                            <div style={S.label}>Type</div>
+                            <input style={S.input} placeholder="e.g. Country House Venue" value={testInput.venue_type} onChange={e => setTestInput(p => ({ ...p, venue_type: e.target.value }))} />
+                          </div>
+                          <div style={S.col}>
+                            <div style={S.label}>Source</div>
+                            <input style={S.input} placeholder="e.g. LinkedIn" value={testInput.source} onChange={e => setTestInput(p => ({ ...p, source: e.target.value }))} />
+                          </div>
+                          <div style={S.col}>
+                            <div style={S.label}>Country</div>
+                            <input style={S.input} placeholder="e.g. United Kingdom" value={testInput.country} onChange={e => setTestInput(p => ({ ...p, country: e.target.value }))} />
+                          </div>
+                        </div>
+                        <div style={{ ...S.col, marginBottom: 14 }}>
+                          <div style={S.label}>Notes (optional)</div>
+                          <textarea style={{ ...S.textarea, minHeight: 56 }} placeholder="Paste enquiry message or any notes..." value={testInput.notes} onChange={e => setTestInput(p => ({ ...p, notes: e.target.value }))} />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                          <button
+                            style={{ ...S.goldBtn, opacity: testRunning || !testInput.company_name.trim() ? 0.6 : 1 }}
+                            onClick={handleTestRules}
+                            disabled={testRunning || !testInput.company_name.trim()}
+                          >
+                            {testRunning ? 'Testing...' : 'Test Assignment'}
+                          </button>
+                          {testResult && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: METHOD_COLORS[testResult.method] }}>
+                                {testResult.method === 'rule' ? '✓' : testResult.method === 'ai' ? '◆' : '→'} {testResult.assigned_pipeline}
+                                <span style={{ fontSize: 11, fontWeight: 400, color: '#888', marginLeft: 8 }}>via {testResult.method}</span>
+                              </div>
+                              <div style={{ fontSize: 11, color: '#888' }}>{testResult.explanation}</div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
               )}
