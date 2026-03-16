@@ -61,6 +61,7 @@ import {
   deleteCampaign,
   filterProspectsForCampaign,
   sendCampaign,
+  sendSequenceStep,
   fetchCampaignStats,
 } from '../../services/campaignService';
 import {
@@ -635,12 +636,124 @@ function ListView({ prospects, stages, S, onOpenPanel, onBulkUpdate, sortKey, so
 // and SalesPipelineDiscoveryModal.jsx respectively.
 // They receive S, G, C as props from SalesPipelineModule at render time.
 
-// ── Campaigns View ────────────────────────────────────────────────────────────
+// ── Campaign Launch Modal ──────────────────────────────────────────────────────
 
-function CampaignsView({ campaigns, onNewCampaign, onRefresh }) {
-  const [statsCache, setStatsCache] = useState({});
+function CampaignLaunchModal({ campaign, allProspects, onClose, onDone }) {
+  const stepIndex = campaign.step_sent || 0;
+
+  function parseArr(val) { try { return (typeof val === 'string' ? JSON.parse(val) : val) || []; } catch { return []; } }
+  function parseObj(val) { try { return (typeof val === 'string' ? JSON.parse(val) : val) || {}; } catch { return {}; } }
+
+  const steps    = parseArr(campaign.sequence_steps);
+  const step     = steps[stepIndex] || {};
+  const audience = filterProspectsForCampaign(allProspects, parseObj(campaign.filters));
+
+  const [launching, setLaunching] = useState(false);
+  const [progress,  setProgress]  = useState({ sent: 0, total: 0 });
+  const [done,      setDone]      = useState(false);
+
+  async function handleLaunch() {
+    if (launching || done || audience.length === 0) return;
+    setLaunching(true);
+    setProgress({ sent: 0, total: audience.length });
+    const fromEmail = localStorage.getItem('emailFromAddress') || '';
+    const fromName  = localStorage.getItem('emailFromName')  || 'Luxury Wedding Directory';
+    try {
+      await sendSequenceStep({
+        campaign,
+        stepIndex,
+        allProspects,
+        fromEmail,
+        fromName,
+        onProgress: (sent) => setProgress(p => ({ ...p, sent })),
+      });
+      setDone(true);
+      setTimeout(() => onDone(), 2200);
+    } catch (e) {
+      console.error('Launch failed:', e);
+      setLaunching(false);
+    }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.48)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      onClick={e => { if (e.target === e.currentTarget && !launching) onClose(); }}>
+      <div style={{ width: 460, background: '#fff', borderRadius: 12, boxShadow: '0 24px 64px rgba(0,0,0,0.22)', overflow: 'hidden' }}>
+
+        {/* Header */}
+        <div style={{ padding: '20px 24px 15px', borderBottom: '1px solid #f0ece4', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ flex: 1, fontSize: 17, fontWeight: 600, fontFamily: 'Cormorant Garamond, Georgia, serif', color: '#171717' }}>{campaign.name}</div>
+          {!launching && !done && <button style={{ background: 'none', border: 'none', fontSize: 20, color: '#bbb', cursor: 'pointer', padding: '0 4px', lineHeight: 1 }} onClick={onClose}>&#215;</button>}
+        </div>
+
+        <div style={{ padding: '20px 24px' }}>
+
+          {/* Step badge */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '11px 14px', background: '#fffdf5', border: `1px solid ${G}30`, borderRadius: 8 }}>
+            <div style={{ width: 30, height: 30, borderRadius: '50%', background: G, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>{stepIndex + 1}</div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#333' }}>{step.label || `Step ${stepIndex + 1}`} of {steps.length}</div>
+              <div style={{ fontSize: 11, color: '#888', marginTop: 1 }}>
+                {stepIndex === 0 ? 'Initial outreach email' : `Sends ${step.delay_days || 0} day${(step.delay_days || 0) !== 1 ? 's' : ''} after Step ${stepIndex}`}
+              </div>
+            </div>
+          </div>
+
+          {/* Subject preview */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Subject</div>
+            <div style={{ fontSize: 13, color: '#333', padding: '9px 12px', background: '#f9f9f7', borderRadius: 6, border: '1px solid #ede8de' }}>{step.subject || '(no subject set)'}</div>
+          </div>
+
+          {/* Audience pill */}
+          <div style={{ marginBottom: 18, padding: '10px 14px', background: audience.length > 0 ? '#f0fdf4' : '#fef2f2', borderRadius: 8, border: `1px solid ${audience.length > 0 ? '#bbf7d0' : '#fca5a5'}` }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: audience.length > 0 ? '#166534' : '#dc2626' }}>{audience.length} prospect{audience.length !== 1 ? 's' : ''}</div>
+            <div style={{ fontSize: 11, color: '#888', marginTop: 1 }}>will receive this email</div>
+          </div>
+
+          {/* Progress bar */}
+          {launching && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 12, color: '#555', marginBottom: 6 }}>
+                {done ? `Sent ${progress.sent} email${progress.sent !== 1 ? 's' : ''}` : `Sending ${progress.sent} of ${progress.total}...`}
+              </div>
+              <div style={{ height: 6, background: '#f3f0ea', borderRadius: 100 }}>
+                <div style={{ height: '100%', background: done ? '#16a34a' : G, borderRadius: 100, width: `${progress.total > 0 ? (progress.sent / progress.total) * 100 : 0}%`, transition: 'width 0.3s' }} />
+              </div>
+            </div>
+          )}
+
+          {done ? (
+            <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
+              <div style={{ fontSize: 22, marginBottom: 6 }}>&#9989;</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#166534', marginBottom: 4 }}>Step {stepIndex + 1} sent</div>
+              <div style={{ fontSize: 12, color: '#888' }}>{stepIndex + 1 < steps.length ? `Return to Campaigns to launch Step ${stepIndex + 2} when ready.` : 'All sequence steps complete!'}</div>
+            </div>
+          ) : (
+            <button
+              style={{ width: '100%', padding: '13px 0', borderRadius: 8, background: (launching || audience.length === 0) ? '#ccc' : G, color: '#fff', border: 'none', cursor: (launching || audience.length === 0) ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 600 }}
+              onClick={handleLaunch}
+              disabled={launching || audience.length === 0}
+            >
+              {launching ? 'Sending...' : `Send Step ${stepIndex + 1} to ${audience.length} Prospect${audience.length !== 1 ? 's' : ''}`}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Campaigns View ─────────────────────────────────────────────────────────────
+
+function CampaignsView({ campaigns, prospects, pipelines, onNewCampaign, onRefresh }) {
+  const [statsCache,   setStatsCache]   = useState({});
+  const [launching,    setLaunching]    = useState(null);  // campaign object
+  const [deleteTarget, setDeleteTarget] = useState(null);  // campaign id
+
   useEffect(() => {
-    campaigns.filter(c => c.status === 'sent').forEach(async c => {
+    campaigns.forEach(async c => {
+      if (c.status !== 'sent' && c.sent_count === 0) return;
       try {
         const s = await fetchCampaignStats(c.id);
         setStatsCache(prev => ({ ...prev, [c.id]: s }));
@@ -648,54 +761,176 @@ function CampaignsView({ campaigns, onNewCampaign, onRefresh }) {
     });
   }, [campaigns.length]);
 
-  const STATUS_COLOR = { draft: '#aaa', sending: '#f59e0b', sent: '#22c55e', paused: '#f97316' };
+  function parseArr(val) { try { return (typeof val === 'string' ? JSON.parse(val) : val) || []; } catch { return []; } }
+  function parseObj(val) { try { return (typeof val === 'string' ? JSON.parse(val) : val) || {}; } catch { return {}; } }
+
+  const STATUS_COLOR  = { draft: '#6b7280', sending: '#d97706', sent: '#16a34a', paused: '#ea580c' };
+  const STATUS_LABEL  = { draft: 'Draft',   sending: 'Sending', sent: 'Complete', paused: 'Paused' };
+
+  async function handleDeleteConfirm() {
+    if (!deleteTarget) return;
+    try { await deleteCampaign(deleteTarget); onRefresh(); } catch (e) { console.error(e); }
+    setDeleteTarget(null);
+  }
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 24px' }}>
-      <div style={{ padding: '16px 24px 12px', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#555' }}>Outreach Campaigns</div>
+    <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 32px' }}>
+
+      {/* Header */}
+      <div style={{ padding: '16px 24px 14px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid #f0ece4' }}>
+        <div style={{ fontSize: 15, fontWeight: 600, color: '#333', fontFamily: 'Cormorant Garamond, Georgia, serif' }}>Outreach Campaigns</div>
+        <div style={{ fontSize: 12, color: '#aaa', marginTop: 1 }}>{campaigns.length} campaign{campaigns.length !== 1 ? 's' : ''}</div>
         <div style={{ flex: 1 }} />
         <button style={S.goldBtn} onClick={onNewCampaign}>+ New Campaign</button>
       </div>
-      <div style={{ padding: '0 24px' }}>
-        {campaigns.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 0', color: '#aaa' }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>&#9993;</div>
-            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6 }}>No campaigns yet</div>
-            <div style={{ fontSize: 12 }}>Create your first campaign to send personalised outreach to a filtered group of prospects.</div>
+
+      {campaigns.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '72px 0', color: '#aaa' }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>\u2709</div>
+          <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6, color: '#666' }}>No campaigns yet</div>
+          <div style={{ fontSize: 12, maxWidth: 320, margin: '0 auto', lineHeight: 1.7 }}>Create your first campaign to send personalised outreach to a filtered group of prospects.</div>
+        </div>
+      ) : (
+        <div style={{ padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {campaigns.map(campaign => {
+            const steps    = parseArr(campaign.sequence_steps);
+            const settings = parseObj(campaign.settings);
+            const filters  = parseObj(campaign.filters);
+            const stats    = statsCache[campaign.id];
+            const stepSent = campaign.step_sent || 0;
+            const allDone  = steps.length > 0 && stepSent >= steps.length;
+            const canLaunch = (campaign.status === 'draft' || campaign.status === 'paused') && !allDone;
+            const audience  = filterProspectsForCampaign(prospects, filters);
+            const pipe      = pipelines.find(p => p.id === filters.pipeline_id);
+            const statusClr = STATUS_COLOR[campaign.status] || '#aaa';
+
+            return (
+              <div key={campaign.id} style={{ background: '#fff', border: '1px solid #ede8de', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+
+                {/* Top row: name + status + delete */}
+                <div style={{ padding: '14px 18px 12px', borderBottom: '1px solid #f3f0ea', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: '#171717', marginBottom: 3 }}>{campaign.name}</div>
+                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
+                      {pipe && <span style={{ fontSize: 11, color: '#888' }}>{pipe.name}</span>}
+                      {pipe && (filters.country || filters.keywords?.length) && <span style={{ color: '#ddd', fontSize: 11 }}>&#183;</span>}
+                      {filters.country && <span style={{ fontSize: 11, color: '#888' }}>{filters.country}</span>}
+                      {filters.country && filters.keywords?.length > 0 && <span style={{ color: '#ddd', fontSize: 11 }}>&#183;</span>}
+                      {filters.keywords?.length > 0 && <span style={{ fontSize: 11, color: '#888' }}>{filters.keywords.slice(0, 3).join(', ')}{filters.keywords.length > 3 ? '+' + (filters.keywords.length - 3) + ' more' : ''}</span>}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: 4, background: statusClr + '18', color: statusClr }}>
+                      {STATUS_LABEL[campaign.status] || campaign.status}
+                    </span>
+                    <button style={{ background: 'none', border: 'none', color: '#d1d5db', cursor: 'pointer', fontSize: 17, padding: '0 2px', lineHeight: 1 }} onClick={() => setDeleteTarget(campaign.id)} title="Delete campaign">&#215;</button>
+                  </div>
+                </div>
+
+                {/* Sequence timeline */}
+                {steps.length > 0 && (
+                  <div style={{ padding: '12px 18px 10px', borderBottom: '1px solid #f3f0ea', overflowX: 'auto' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'flex-start', gap: 0 }}>
+                      {steps.map((st, idx) => {
+                        const isSent    = idx < stepSent;
+                        const isCurrent = idx === stepSent && !allDone;
+                        const circleColor  = (isSent || isCurrent) ? G : '#d1d5db';
+                        const circleBg     = isSent ? G : 'transparent';
+                        const circleTextCl = isSent ? '#fff' : isCurrent ? G : '#9ca3af';
+                        const labelColor   = isSent ? '#16a34a' : isCurrent ? G : '#9ca3af';
+                        return (
+                          <React.Fragment key={idx}>
+                            {idx > 0 && (
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '0 2px', paddingTop: 4 }}>
+                                <div style={{ height: 2, width: 36, background: idx <= stepSent ? G : '#e5e7eb', borderRadius: 1, marginTop: 11 }} />
+                                <div style={{ fontSize: 9, color: '#aaa', marginTop: 3, textAlign: 'center', letterSpacing: '0.02em' }}>{st.delay_days}d</div>
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                              <div style={{ width: 28, height: 28, borderRadius: '50%', border: `2px solid ${circleColor}`, background: circleBg, color: circleTextCl, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                                {isSent ? '\u2713' : idx + 1}
+                              </div>
+                              <div style={{ fontSize: 10, color: labelColor, fontWeight: isCurrent ? 600 : 400, maxWidth: 60, textAlign: 'center', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {st.label || `Step ${idx + 1}`}
+                              </div>
+                            </div>
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Footer: settings chips + stats + action */}
+                <div style={{ padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', flex: 1 }}>
+                    {settings.ai_personalisation && (
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 100, background: G + '18', color: G, border: `1px solid ${G}30` }}>AI On</span>
+                    )}
+                    {settings.stop_on_reply !== false && (
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 100, background: '#f3f0ea', color: '#888' }}>Stop Reply</span>
+                    )}
+                    {settings.max_per_send && (
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 100, background: '#f3f0ea', color: '#888' }}>Max {settings.max_per_send}</span>
+                    )}
+                    {stats ? (
+                      <span style={{ fontSize: 11, color: '#888', marginLeft: 4 }}>
+                        Opens: {stats.opens} ({stats.openRate}%)&nbsp;&nbsp;Replies: {stats.replies} ({stats.replyRate}%)
+                      </span>
+                    ) : (campaign.sent_count > 0 && (
+                      <span style={{ fontSize: 11, color: '#888', marginLeft: 4 }}>{campaign.sent_count} sent</span>
+                    ))}
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                    <span style={{ fontSize: 11, color: '#aaa' }}>{audience.length} prospect{audience.length !== 1 ? 's' : ''}</span>
+                    {canLaunch && (
+                      <button
+                        style={{ padding: '6px 14px', borderRadius: 6, background: G, color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+                        onClick={() => setLaunching(campaign)}
+                      >
+                        Launch Step {stepSent + 1} \u2192
+                      </button>
+                    )}
+                    {campaign.status === 'sending' && (
+                      <span style={{ fontSize: 11, color: '#d97706', fontWeight: 600 }}>Sending...</span>
+                    )}
+                    {allDone && (
+                      <span style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>\u2713 All {steps.length} step{steps.length !== 1 ? 's' : ''} sent</span>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Launch Modal */}
+      {launching && (
+        <CampaignLaunchModal
+          campaign={launching}
+          allProspects={prospects}
+          onClose={() => setLaunching(null)}
+          onDone={() => { setLaunching(null); onRefresh(); }}
+        />
+      )}
+
+      {/* Delete confirmation */}
+      {deleteTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.38)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: 10, padding: '24px 28px', width: 340, boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8, color: '#333' }}>Delete campaign?</div>
+            <div style={{ fontSize: 13, color: '#888', marginBottom: 20, lineHeight: 1.6 }}>This will permanently remove the campaign record. Outreach emails already sent will not be affected.</div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button style={{ flex: 1, padding: '9px 0', borderRadius: 6, background: '#dc2626', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13 }} onClick={handleDeleteConfirm}>Delete</button>
+              <button style={{ flex: 1, padding: '9px 0', borderRadius: 6, background: '#f3f0ea', color: '#555', border: 'none', cursor: 'pointer', fontSize: 13 }} onClick={() => setDeleteTarget(null)}>Cancel</button>
+            </div>
           </div>
-        ) : (
-          <table style={S.campTable}>
-            <thead><tr>
-              <th style={S.campTh}>Campaign</th>
-              <th style={S.campTh}>Status</th>
-              <th style={S.campTh}>Recipients</th>
-              <th style={S.campTh}>Opens</th>
-              <th style={S.campTh}>Replies</th>
-              <th style={S.campTh}>Sent</th>
-            </tr></thead>
-            <tbody>
-              {campaigns.map(c => {
-                const stats = statsCache[c.id];
-                const statusColor = STATUS_COLOR[c.status] || '#aaa';
-                return (
-                  <tr key={c.id}>
-                    <td style={S.campTd}>
-                      <div style={{ fontWeight: 600, fontSize: 13 }}>{c.name}</div>
-                      <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{c.personalisation_mode === 'ai_assisted' ? 'AI Personalised' : 'Template'}</div>
-                    </td>
-                    <td style={S.campTd}><span style={{ ...S.badge(statusColor), textTransform: 'capitalize' }}>{c.status}</span></td>
-                    <td style={S.campTd}>{c.sent_count} / {c.total_recipients}</td>
-                    <td style={S.campTd}>{stats ? `${stats.opens} (${stats.openRate}%)` : (c.status === 'sent' ? '--' : '--')}</td>
-                    <td style={S.campTd}>{stats ? `${stats.replies} (${stats.replyRate}%)` : (c.status === 'sent' ? '--' : '--')}</td>
-                    <td style={S.campTd}>{c.sent_at ? new Date(c.sent_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '--'}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -1005,6 +1240,8 @@ export default function SalesPipelineModule() {
           {view === 'campaigns' && (
             <CampaignsView
               campaigns={campaigns}
+              prospects={prospects}
+              pipelines={pipelines}
               onNewCampaign={() => setShowCampaignBuilder(true)}
               onRefresh={() => fetchCampaigns().then(setCampaigns).catch(() => {})}
             />
@@ -1060,7 +1297,7 @@ export default function SalesPipelineModule() {
           onSaved={() => {
             setShowCampaignBuilder(false);
             fetchCampaigns().then(setCampaigns).catch(() => {});
-            notify('Campaign sent successfully.');
+            notify('Campaign saved as draft. Launch it from the Campaigns tab when ready.');
           }}
           onClose={() => setShowCampaignBuilder(false)}
           S={S} G={G} C={C}
