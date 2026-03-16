@@ -44,6 +44,15 @@ import {
   fetchAssignmentRules,
   fetchAssignmentSettings,
 } from '../../services/pipelineAssignmentService';
+import {
+  calculateDealHealth,
+  calculateCloseProbability,
+  dealHealthColor,
+  dealHealthBgColor,
+  dealHealthLabel,
+  generateNextAction,
+  getPipelineIntelligence,
+} from '../../services/dealIntelligenceService';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -141,6 +150,45 @@ function ScorePill({ score }) {
   if (score == null) return null;
   const color = scoreColor(score);
   return <span style={S.scorePill(color)} title={`Lead score: ${score}/100 (${scoreLabel(score)})`}>{score}</span>;
+}
+
+function DealHealthBadge({ health }) {
+  if (!health) return null;
+  const color = dealHealthColor(health.status);
+  const bg    = dealHealthBgColor(health.status);
+  return (
+    <span title={health.reasons?.join(' | ')} style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      padding: '2px 8px', borderRadius: 100,
+      background: bg, color, fontSize: 10, fontWeight: 700,
+      letterSpacing: '0.04em', whiteSpace: 'nowrap',
+    }}>
+      <span style={{ fontSize: 8 }}>&#9679;</span>
+      {health.label}
+    </span>
+  );
+}
+
+function CloseProbRing({ prob }) {
+  if (prob == null) return null;
+  const r     = 18;
+  const circ  = 2 * Math.PI * r;
+  const fill  = (prob / 100) * circ;
+  const color = prob >= 65 ? '#22c55e' : prob >= 40 ? '#f59e0b' : '#ef4444';
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+      <svg width={44} height={44} style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx={22} cy={22} r={r} fill="none" stroke="#f3f0ea" strokeWidth={4} />
+        <circle cx={22} cy={22} r={r} fill="none" stroke={color} strokeWidth={4}
+          strokeDasharray={`${fill} ${circ - fill}`} strokeLinecap="round" />
+        <text x={22} y={22} textAnchor="middle" dominantBaseline="central"
+          style={{ fontSize: 10, fontWeight: 700, fill: color, transform: 'rotate(90deg)', transformOrigin: '22px 22px', fontFamily: 'Inter, sans-serif' }}>
+          {prob}%
+        </text>
+      </svg>
+      <div style={{ fontSize: 9, color: '#aaa', textAlign: 'center', lineHeight: 1.2 }}>Close<br/>Prob.</div>
+    </div>
+  );
 }
 
 // ── Prospect Modal ────────────────────────────────────────────────────────────
@@ -333,18 +381,23 @@ function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onC
   const [histLoading,  setHistLoading]  = useState(true);
   const [showEmail,    setShowEmail]    = useState(false);
   const [aiLoading,    setAiLoading]    = useState(false);
-  const [aiResult,     setAiResult]     = useState(null);   // { type, text } or { type: 'email', subject, body }
+  const [aiResult,     setAiResult]     = useState(null);
   const [prefilledEmail, setPrefilledEmail] = useState(null);
   const [localScore,   setLocalScore]   = useState(prospect.lead_score ?? null);
+  const [dealHealth,   setDealHealth]   = useState(null);
+  const [closeProb,    setCloseProb]    = useState(null);
 
   useEffect(() => {
     setHistLoading(true);
     fetchOutreachHistory(prospect.id)
       .then(h => {
         setHistory(h);
-        // Recalculate score with full history
         const fresh = calculateLeadScore(prospect, h);
         setLocalScore(fresh);
+        // Compute deal health + close probability
+        const currentStage = stages.find(s => s.id === prospect.stage_id) || null;
+        setDealHealth(calculateDealHealth({ ...prospect, lead_score: fresh }, h, currentStage));
+        setCloseProb(calculateCloseProbability({ ...prospect, lead_score: fresh }, h, currentStage));
       })
       .finally(() => setHistLoading(false));
   }, [prospect.id]);
@@ -394,6 +447,9 @@ function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onC
       } else if (type === 'next_step') {
         const text = await generateNextStepAdvice({ prospect, stage: currentStage, history });
         setAiResult({ type: 'next_step', text });
+      } else if (type === 'next_action') {
+        const text = await generateNextAction({ prospect, stage: currentStage, history });
+        setAiResult({ type: 'next_action', text });
       }
     } catch (e) {
       setAiResult({ type: 'error', text: e.message || 'AI generation failed.' });
@@ -414,16 +470,33 @@ function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onC
       </div>
       <div style={S.panelBody}>
 
-        {/* Score display */}
-        {scoreVal != null && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, padding: '10px 14px', background: scoreC + '12', borderRadius: 8, border: `1px solid ${scoreC}30` }}>
-            <div style={{ width: 38, height: 38, borderRadius: '50%', background: scoreC + '22', border: `2px solid ${scoreC}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: scoreC }}>{scoreVal}</div>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: scoreC }}>{scoreLabel(scoreVal)}</div>
-              <div style={{ fontSize: 11, color: '#888' }}>Lead score / 100</div>
+        {/* Deal Intelligence row: health + score + close probability */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 14, alignItems: 'stretch', flexWrap: 'wrap' }}>
+          {dealHealth && (
+            <div style={{
+              flex: 1, minWidth: 120, padding: '10px 12px', borderRadius: 8,
+              background: dealHealthBgColor(dealHealth.status),
+              border: `1px solid ${dealHealthColor(dealHealth.status)}30`,
+              display: 'flex', flexDirection: 'column', gap: 4,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: dealHealthColor(dealHealth.status), flexShrink: 0 }} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: dealHealthColor(dealHealth.status) }}>{dealHealth.label}</span>
+              </div>
+              <div style={{ fontSize: 10, color: '#888', lineHeight: 1.4 }}>{dealHealth.reasons?.[0] || 'Deal health'}</div>
             </div>
-          </div>
-        )}
+          )}
+          {scoreVal != null && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: scoreC + '12', borderRadius: 8, border: `1px solid ${scoreC}30` }}>
+              <div style={{ width: 34, height: 34, borderRadius: '50%', background: scoreC + '22', border: `2px solid ${scoreC}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: scoreC }}>{scoreVal}</div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: scoreC }}>{scoreLabel(scoreVal)}</div>
+                <div style={{ fontSize: 10, color: '#888' }}>Lead score</div>
+              </div>
+            </div>
+          )}
+          {closeProb != null && <CloseProbRing prob={closeProb} />}
+        </div>
 
         {/* Stage selector */}
         <div style={S.fieldLabel}>Stage</div>
@@ -464,11 +537,23 @@ function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onC
             <button style={{ ...S.aiBtn, background: 'rgba(59,130,246,0.08)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.3)' }} onClick={() => handleAiAction('next_step')} disabled={aiLoading}>
               {aiLoading ? '...' : '?'} Next Step
             </button>
+            <button style={{ ...S.aiBtn, background: 'rgba(249,115,22,0.08)', color: '#f97316', border: '1px solid rgba(249,115,22,0.3)', width: '100%', justifyContent: 'center' }} onClick={() => handleAiAction('next_action')} disabled={aiLoading}>
+              {aiLoading ? '...' : '&#9654;'} AI Next Action
+            </button>
           </div>
           {aiLoading && <div style={{ fontSize: 12, color: '#8f7420', padding: '8px 0' }}>Generating with AI...</div>}
           {aiResult?.type === 'next_step' && (
             <div style={S.aiResult}>
               <div style={{ fontSize: 11, fontWeight: 600, color: '#3b82f6', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Next Step Advice</div>
+              {aiResult.text}
+              <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
+                <button style={{ ...S.iconBtn, fontSize: 11 }} onClick={() => setAiResult(null)}>Dismiss</button>
+              </div>
+            </div>
+          )}
+          {aiResult?.type === 'next_action' && (
+            <div style={{ ...S.aiResult, borderLeft: '3px solid #f97316', background: 'rgba(249,115,22,0.04)' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#f97316', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' }}>AI Next Action</div>
               {aiResult.text}
               <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
                 <button style={{ ...S.iconBtn, fontSize: 11 }} onClick={() => setAiResult(null)}>Dismiss</button>
@@ -560,6 +645,7 @@ function KanbanBoard({ prospects, stages, onMoveToStage, onOpenPanel, onAddProsp
             <div style={S.colBody}>
               {cards.map(p => {
                 const overdue = isOverdue(p.next_follow_up_at) && !stage.is_won && !stage.is_lost;
+                const health  = calculateDealHealth(p, [], stage);
                 return (
                   <div key={p.id} draggable style={S.card(draggingId === p.id)}
                     onDragStart={e => handleDragStart(e, p.id)}
@@ -571,6 +657,9 @@ function KanbanBoard({ prospects, stages, onMoveToStage, onOpenPanel, onAddProsp
                       <ScorePill score={p.lead_score} />
                     </div>
                     {p.contact_name && <div style={S.cardContact}>{p.contact_name}</div>}
+                    <div style={{ marginBottom: 4 }}>
+                      <DealHealthBadge health={health} />
+                    </div>
                     <div style={S.cardFooter}>
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                         {overdue && <span style={S.overdueTag}>Overdue</span>}
@@ -635,7 +724,7 @@ function ListView({ prospects, stages, onOpenPanel, sortKey, sortDir, onSort }) 
 
 // ── Dashboard View ────────────────────────────────────────────────────────────
 
-function DashboardView({ stats, stages, overdueFU, onRunFollowUps, followUpRunning, onRecalcScores, scoresRefreshing }) {
+function DashboardView({ stats, stages, overdueFU, onRunFollowUps, followUpRunning, onRecalcScores, scoresRefreshing, intelligence }) {
   const maxCount = Math.max(...stages.map(s => stats.stageCounts?.[s.name] || 0), 1);
   const kpis = [
     { label: 'Total Prospects',   value: stats.totalProspects   || 0 },
@@ -673,9 +762,79 @@ function DashboardView({ stats, stages, overdueFU, onRunFollowUps, followUpRunni
           onClick={onRecalcScores}
           disabled={scoresRefreshing}
         >
-          {scoresRefreshing ? 'Recalculating...' : '↻ Recalculate Lead Scores'}
+          {scoresRefreshing ? 'Recalculating...' : '&#8635; Recalculate Lead Scores'}
         </button>
       </div>
+
+      {/* Pipeline Intelligence */}
+      {intelligence && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, marginBottom: 20 }}>
+
+          {/* Deals at risk */}
+          <div style={{ background: '#fff', border: '1px solid rgba(245,158,11,0.35)', borderRadius: 8, padding: '16px 18px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b', flexShrink: 0 }} />
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#92400e' }}>Deals at Risk</div>
+              <span style={{ marginLeft: 'auto', fontSize: 11, background: '#fef3c7', color: '#92400e', borderRadius: 100, padding: '1px 8px', fontWeight: 700 }}>{intelligence.dealsAtRisk.length}</span>
+            </div>
+            {intelligence.dealsAtRisk.length === 0
+              ? <div style={{ fontSize: 12, color: '#aaa' }}>No deals at risk.</div>
+              : intelligence.dealsAtRisk.slice(0, 4).map(p => (
+                  <div key={p.id} style={{ fontSize: 12, color: '#555', padding: '5px 0', borderBottom: '1px solid #fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontWeight: 500 }}>{p.company_name}</span>
+                    {p.proposal_value ? <span style={{ color: '#f59e0b', fontSize: 11 }}>GBP {formatValue(p.proposal_value)}</span> : null}
+                  </div>
+                ))
+            }
+          </div>
+
+          {/* High probability deals */}
+          <div style={{ background: '#fff', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 8, padding: '16px 18px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#166534' }}>High Probability</div>
+              <span style={{ marginLeft: 'auto', fontSize: 11, background: '#dcfce7', color: '#166534', borderRadius: 100, padding: '1px 8px', fontWeight: 700 }}>{intelligence.highProbDeals.length}</span>
+            </div>
+            {intelligence.highProbDeals.length === 0
+              ? <div style={{ fontSize: 12, color: '#aaa' }}>No high probability deals yet.</div>
+              : intelligence.highProbDeals.slice(0, 4).map(p => (
+                  <div key={p.id} style={{ fontSize: 12, color: '#555', padding: '5px 0', borderBottom: '1px solid #dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontWeight: 500 }}>{p.company_name}</span>
+                    {p.proposal_value ? <span style={{ color: '#22c55e', fontSize: 11, fontWeight: 600 }}>GBP {formatValue(p.proposal_value)}</span> : null}
+                  </div>
+                ))
+            }
+          </div>
+
+          {/* Revenue potential + pipeline metrics */}
+          <div style={{ background: '#fff', border: '1px solid #ede8de', borderRadius: 8, padding: '16px 18px' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 12 }}>Revenue Intelligence</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div>
+                <div style={{ fontSize: 10, color: '#aaa', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 2 }}>Weighted Revenue Potential</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: '#171717', fontFamily: 'Cormorant Garamond, Georgia, serif' }}>
+                  GBP {intelligence.revenuePotential.toLocaleString()}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: '#aaa', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 2 }}>Total Pipeline Value</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#333' }}>GBP {intelligence.totalPipelineValue.toLocaleString()}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div>
+                  <div style={{ fontSize: 10, color: '#aaa', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 2 }}>Avg Time in Pipeline</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#333' }}>{intelligence.avgDaysInPipeline} days</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: '#aaa', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 2 }}>Won This Month</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#22c55e' }}>{intelligence.wonThisMonth}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      )}
 
       <div style={{ background: '#fff', border: '1px solid #ede8de', borderRadius: 8, padding: '18px 20px', marginBottom: 20 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 16 }}>Stage Distribution</div>
@@ -735,6 +894,7 @@ export default function SalesPipelineModule() {
   const [toast,         setToast]         = useState(null);
   const [assignRules,   setAssignRules]   = useState([]);
   const [assignSettings,setAssignSettings] = useState({ ai_fallback_enabled: true, fallback_pipeline_id: null });
+  const [pipelineIntel, setPipelineIntel] = useState(null);
 
   const currentStages    = allStages.filter(s => s.pipeline_id === selectedPipeline);
   const currentTemplates = allTemplates.filter(t => t.pipeline_id === selectedPipeline);
@@ -782,6 +942,17 @@ export default function SalesPipelineModule() {
           ]);
           setAllStages(stages);
           setAllTemplates(templates);
+
+          // Compute pipeline intelligence with health + prob maps
+          const healthMap = {};
+          const probMap   = {};
+          for (const p of scoredList) {
+            const st = stages.find(s => s.id === p.stage_id) || null;
+            const h  = calculateDealHealth(p, [], st);
+            healthMap[p.id] = h;
+            probMap[p.id]   = calculateCloseProbability(p, [], st);
+          }
+          setPipelineIntel(getPipelineIntelligence(scoredList, stages, healthMap, probMap));
         }
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
@@ -935,6 +1106,7 @@ export default function SalesPipelineModule() {
               followUpRunning={fuRunning}
               onRecalcScores={handleRecalcScores}
               scoresRefreshing={scoresRefreshing}
+              intelligence={pipelineIntel}
             />
           )}
         </div>
