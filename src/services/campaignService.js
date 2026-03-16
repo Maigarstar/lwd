@@ -185,22 +185,27 @@ export async function sendCampaign({
   personaliseWithAI = false,
   onProgress,
 }) {
-  // Idempotency guard: never resend a sent campaign
-  if (campaign.status === 'sent') {
-    throw new Error('This campaign has already been sent. Use "Send Again" to create a new campaign.');
-  }
-
   const campaignId = campaign.id;
   const total      = prospects.length;
   let   sent       = 0;
   let   failed     = 0;
 
-  // Lock the campaign into 'sending' state
-  await updateCampaign(campaignId, {
-    status:           'sending',
-    total_recipients: total,
-    sent_count:       0,
-  });
+  // Atomic claim: compare-and-swap draft/paused -> sending in one DB round-trip.
+  // If two simultaneous sends race, only one will get a row back; the other throws.
+  // This replaces the client-side status check which had a race window.
+  const { data: claimed, error: claimErr } = await supabase
+    .from('prospect_campaigns')
+    .update({ status: 'sending', total_recipients: total, sent_count: 0 })
+    .eq('id', campaignId)
+    .in('status', ['draft', 'paused'])
+    .select('id')
+    .single();
+
+  if (claimErr || !claimed) {
+    throw new Error(
+      'Campaign is already sending or has been sent. Refresh the page and try again.'
+    );
+  }
 
   // Track personalisation mode for A/B analysis
   if (personaliseWithAI) {
