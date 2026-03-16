@@ -24,6 +24,16 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 const PIXEL_BASE   = `${SUPABASE_URL}/functions/v1/track-email-open`;
 const SEND_DELAY_MS = 300;
 
+async function isEmailSuppressed(email) {
+  if (!email) return false;
+  const { data } = await supabase
+    .from('email_suppressions')
+    .select('id')
+    .eq('email', email.toLowerCase().trim())
+    .maybeSingle();
+  return !!data;
+}
+
 // ── Body conversion ────────────────────────────────────────────────────────────
 
 /**
@@ -62,16 +72,17 @@ function buildPixelHtml(emailId) {
 
 // ── Unsubscribe footer ─────────────────────────────────────────────────────────
 
-function buildUnsubscribeFooter(fromName = 'Luxury Wedding Directory') {
+function buildUnsubscribeFooter(fromName = 'Luxury Wedding Directory', prospectEmail = '') {
+  const encoded = prospectEmail ? btoa(prospectEmail.toLowerCase().trim()) : '';
+  const unsubUrl = encoded
+    ? `${SUPABASE_URL}/functions/v1/handle-unsubscribe?e=${encoded}`
+    : `${SUPABASE_URL}/functions/v1/handle-unsubscribe?e=`;
   return `
-
----
-This email was sent by ${fromName} as part of a sales outreach campaign.
-
-If you no longer wish to receive emails from us, please reply with "Unsubscribe" in the subject line and we will remove you promptly.
-
-Luxury Wedding Directory
-hello@luxuryweddingdirectory.co.uk`;
+<div style="margin-top:32px;padding-top:20px;border-top:1px solid #e5e5e5;font-family:sans-serif;font-size:12px;color:#999;line-height:1.8">
+  <p>This email was sent by <strong style="color:#666">${fromName}</strong> as part of a sales outreach campaign.</p>
+  <p>If you no longer wish to receive emails from us, <a href="${unsubUrl}" style="color:#8f7420;text-decoration:underline">click here to unsubscribe</a>.</p>
+  <p>Luxury Wedding Directory &bull; hello@luxuryweddingdirectory.co.uk</p>
+</div>`;
 }
 
 // ── CRUD ───────────────────────────────────────────────────────────────────────
@@ -191,6 +202,11 @@ export async function sendCampaign({
     sent_count:       0,
   });
 
+  // Track personalisation mode for A/B analysis
+  if (personaliseWithAI) {
+    await updateCampaign(campaignId, { personalisation_mode: 'ai_assisted' }).catch(() => {});
+  }
+
   try {
     for (let i = 0; i < prospects.length; i++) {
       const prospect = prospects[i];
@@ -223,7 +239,7 @@ export async function sendCampaign({
         }
 
         // 3. Append unsubscribe footer
-        body = body + buildUnsubscribeFooter(fromName);
+        body = body + buildUnsubscribeFooter(fromName, prospect.email);
 
         // 4. Log to outreach_emails first (to get the id for the pixel)
         const emailRow = await logOutreachEmail({
@@ -238,8 +254,9 @@ export async function sendCampaign({
         const pixelHtml = buildPixelHtml(emailRow.id);
         const bodyWithPixel = body + pixelHtml;
 
-        // 6. Send via Resend - edge function expects html + recipients[]
-        if (prospect.email) {
+        // 6. Send via Resend (skip if suppressed)
+        const suppressed = await isEmailSuppressed(prospect.email);
+        if (prospect.email && !suppressed) {
           await sendEmail({
             subject,
             fromEmail,

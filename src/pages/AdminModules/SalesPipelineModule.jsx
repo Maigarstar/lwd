@@ -5,7 +5,7 @@
  * AI assistance, and reply detection.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useContext } from 'react';
 import {
   fetchProspects,
   createProspect,
@@ -16,6 +16,7 @@ import {
   markReplied,
   fetchSalesStats,
   fetchFollowUpsDue,
+  findDuplicateProspects,
 } from '../../services/salesPipelineService';
 import {
   fetchPipelines,
@@ -76,6 +77,7 @@ import {
 import {
   fetchEmailAnalytics,
 } from '../../services/emailAnalyticsService';
+import { ThemeCtx } from '../../theme/ThemeContext';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -86,89 +88,90 @@ const COUNTRIES    = ['United Kingdom', 'Ireland', 'France', 'Italy', 'Spain', '
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const G = '#8f7420';
+function makeS(C, G) {
+  const isDark = C.card === '#141414';
+  return {
+    wrap:        { display: 'flex', flexDirection: 'column', height: '100%', background: C.black, fontFamily: 'Inter, sans-serif' },
+    topBar:      { display: 'flex', alignItems: 'center', gap: 12, padding: '14px 24px', background: C.card, borderBottom: `1px solid ${C.border}`, flexShrink: 0, flexWrap: 'wrap' },
+    heading:     { fontSize: 18, fontWeight: 600, fontFamily: 'Cormorant Garamond, Georgia, serif', color: C.white, marginRight: 4 },
+    pipeSelect:  { padding: '7px 12px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, background: C.dark, color: C.white, outline: 'none', maxWidth: 220 },
+    searchBox:   { padding: '7px 12px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, width: 200, outline: 'none', background: C.dark, color: C.white },
+    viewBtns:    { display: 'flex', border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden' },
+    viewBtn:     (active) => ({ padding: '7px 14px', background: active ? G : 'transparent', color: active ? '#fff' : C.grey, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500 }),
+    goldBtn:     { padding: '7px 18px', background: G, color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
+    outlineBtn:  { padding: '7px 18px', background: 'transparent', color: G, border: `1px solid ${G}`, borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
+    badge:       (color) => ({ display: 'inline-block', padding: '2px 9px', borderRadius: 100, background: color + '22', color: color, fontSize: 10, fontWeight: 600 }),
+    fuBadge:     { background: '#fee2e2', color: '#dc2626', borderRadius: 100, padding: '2px 8px', fontSize: 11, fontWeight: 600 },
+    scorePill:   (color) => ({ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 26, height: 18, borderRadius: 9, background: color + '22', color: color, fontSize: 10, fontWeight: 700, padding: '0 5px', letterSpacing: '0.02em' }),
+    aiSection:   { borderTop: `1px solid ${C.border}`, paddingTop: 14, marginTop: 8 },
+    aiBtn:       { padding: '6px 12px', background: isDark ? 'rgba(168,132,38,0.12)' : 'rgba(143,116,32,0.08)', color: G, border: `1px solid rgba(143,116,32,0.3)`, borderRadius: 5, fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 },
+    aiResult:    { background: isDark ? '#1a1a0e' : '#fffdf8', border: `1px solid rgba(143,116,32,0.2)`, borderRadius: 6, padding: '10px 12px', fontSize: 13, lineHeight: 1.7, color: C.white, marginTop: 10, whiteSpace: 'pre-wrap' },
+    replyBtn:    { padding: '3px 9px', background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer', flexShrink: 0 },
 
-const S = {
-  wrap:        { display: 'flex', flexDirection: 'column', height: '100%', background: '#fafaf8', fontFamily: 'Inter, sans-serif' },
-  topBar:      { display: 'flex', alignItems: 'center', gap: 12, padding: '14px 24px', background: '#fff', borderBottom: '1px solid #ede8de', flexShrink: 0, flexWrap: 'wrap' },
-  heading:     { fontSize: 18, fontWeight: 600, fontFamily: 'Cormorant Garamond, Georgia, serif', color: '#171717', marginRight: 4 },
-  pipeSelect:  { padding: '7px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, background: '#fafaf8', color: '#171717', outline: 'none', maxWidth: 220 },
-  searchBox:   { padding: '7px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, width: 200, outline: 'none' },
-  viewBtns:    { display: 'flex', border: '1px solid #ddd', borderRadius: 6, overflow: 'hidden' },
-  viewBtn:     (active) => ({ padding: '7px 14px', background: active ? G : 'transparent', color: active ? '#fff' : '#666', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500 }),
-  goldBtn:     { padding: '7px 18px', background: G, color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
-  outlineBtn:  { padding: '7px 18px', background: 'transparent', color: G, border: `1px solid ${G}`, borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
-  badge:       (color) => ({ display: 'inline-block', padding: '2px 9px', borderRadius: 100, background: color + '22', color: color, fontSize: 10, fontWeight: 600 }),
-  fuBadge:     { background: '#fee2e2', color: '#dc2626', borderRadius: 100, padding: '2px 8px', fontSize: 11, fontWeight: 600 },
-  scorePill:   (color) => ({ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 26, height: 18, borderRadius: 9, background: color + '22', color: color, fontSize: 10, fontWeight: 700, padding: '0 5px', letterSpacing: '0.02em' }),
-  aiSection:   { borderTop: '1px solid #f3f0ea', paddingTop: 14, marginTop: 8 },
-  aiBtn:       { padding: '6px 12px', background: 'rgba(143,116,32,0.08)', color: G, border: `1px solid rgba(143,116,32,0.3)`, borderRadius: 5, fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 },
-  aiResult:    { background: '#fffdf8', border: '1px solid rgba(143,116,32,0.2)', borderRadius: 6, padding: '10px 12px', fontSize: 13, lineHeight: 1.7, color: '#333', marginTop: 10, whiteSpace: 'pre-wrap' },
-  replyBtn:    { padding: '3px 9px', background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer', flexShrink: 0 },
+    // Kanban
+    kanban:      { display: 'flex', gap: 0, overflowX: 'auto', flex: 1, padding: '16px 0', alignItems: 'flex-start' },
+    col:         (isOver) => ({ minWidth: 220, maxWidth: 220, flexShrink: 0, background: isOver ? (isDark ? 'rgba(168,132,38,0.1)' : 'rgba(143,116,32,0.07)') : C.dark, borderRadius: 8, margin: '0 6px', transition: 'background 0.15s', display: 'flex', flexDirection: 'column', maxHeight: 'calc(100vh - 180px)', border: isOver ? `1px dashed ${G}` : `1px solid ${C.border}` }),
+    colHead:     { padding: '10px 12px 8px', display: 'flex', alignItems: 'center', gap: 6 },
+    colDot:      (color) => ({ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }),
+    colName:     { fontSize: 12, fontWeight: 600, color: C.grey, flex: 1, textTransform: 'uppercase', letterSpacing: '0.05em' },
+    colCount:    { fontSize: 11, color: C.grey2, background: C.card, borderRadius: 100, padding: '1px 7px' },
+    colBody:     { flex: 1, overflowY: 'auto', padding: '0 8px 8px' },
+    card:        (isDragging) => ({ background: C.card, borderRadius: 7, padding: '11px 12px', marginBottom: 8, border: `1px solid ${C.border}`, cursor: 'grab', opacity: isDragging ? 0.35 : 1, boxShadow: isDragging ? 'none' : '0 1px 3px rgba(0,0,0,0.06)', transition: 'opacity 0.12s', userSelect: 'none' }),
+    cardCompany: { fontSize: 13, fontWeight: 600, color: C.white, marginBottom: 3 },
+    cardContact: { fontSize: 11, color: C.grey, marginBottom: 6 },
+    cardFooter:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
+    iconBtn:     { padding: '3px 8px', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 4, fontSize: 11, cursor: 'pointer', color: C.grey },
+    addCardBtn:  { margin: '0 8px 8px', padding: '7px 0', background: 'transparent', border: `1px dashed rgba(143,116,32,0.35)`, borderRadius: 6, color: G, fontSize: 12, cursor: 'pointer', width: 'calc(100% - 16px)' },
+    overdueTag:  { fontSize: 10, color: '#dc2626', background: '#fee2e2', padding: '1px 6px', borderRadius: 100 },
+    valueBadge:  { fontSize: 10, color: '#22c55e', background: '#dcfce7', padding: '1px 6px', borderRadius: 100 },
 
-  // Kanban
-  kanban:      { display: 'flex', gap: 0, overflowX: 'auto', flex: 1, padding: '16px 0', alignItems: 'flex-start' },
-  col:         (isOver) => ({ minWidth: 220, maxWidth: 220, flexShrink: 0, background: isOver ? 'rgba(143,116,32,0.07)' : '#f3f0ea', borderRadius: 8, margin: '0 6px', transition: 'background 0.15s', display: 'flex', flexDirection: 'column', maxHeight: 'calc(100vh - 180px)', border: isOver ? `1px dashed ${G}` : '1px solid transparent' }),
-  colHead:     { padding: '10px 12px 8px', display: 'flex', alignItems: 'center', gap: 6 },
-  colDot:      (color) => ({ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }),
-  colName:     { fontSize: 12, fontWeight: 600, color: '#555', flex: 1, textTransform: 'uppercase', letterSpacing: '0.05em' },
-  colCount:    { fontSize: 11, color: '#aaa', background: '#fff', borderRadius: 100, padding: '1px 7px' },
-  colBody:     { flex: 1, overflowY: 'auto', padding: '0 8px 8px' },
-  card:        (isDragging) => ({ background: '#fff', borderRadius: 7, padding: '11px 12px', marginBottom: 8, border: '1px solid #ede8de', cursor: 'grab', opacity: isDragging ? 0.35 : 1, boxShadow: isDragging ? 'none' : '0 1px 3px rgba(0,0,0,0.06)', transition: 'opacity 0.12s', userSelect: 'none' }),
-  cardCompany: { fontSize: 13, fontWeight: 600, color: '#171717', marginBottom: 3 },
-  cardContact: { fontSize: 11, color: '#888', marginBottom: 6 },
-  cardFooter:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
-  iconBtn:     { padding: '3px 8px', background: 'transparent', border: '1px solid #e0d8cc', borderRadius: 4, fontSize: 11, cursor: 'pointer', color: '#666' },
-  addCardBtn:  { margin: '0 8px 8px', padding: '7px 0', background: 'transparent', border: '1px dashed rgba(143,116,32,0.35)', borderRadius: 6, color: G, fontSize: 12, cursor: 'pointer', width: 'calc(100% - 16px)' },
-  overdueTag:  { fontSize: 10, color: '#dc2626', background: '#fee2e2', padding: '1px 6px', borderRadius: 100 },
-  valueBadge:  { fontSize: 10, color: '#22c55e', background: '#dcfce7', padding: '1px 6px', borderRadius: 100 },
+    // List
+    tableWrap:   { flex: 1, overflowY: 'auto' },
+    table:       { width: '100%', borderCollapse: 'collapse', background: C.card },
+    th:          { padding: '10px 14px', fontSize: 11, fontWeight: 600, letterSpacing: '0.07em', color: C.grey, textAlign: 'left', borderBottom: `2px solid ${C.border}`, textTransform: 'uppercase', background: C.dark, cursor: 'pointer', whiteSpace: 'nowrap' },
+    td:          { padding: '10px 14px', fontSize: 13, borderBottom: `1px solid ${C.border}`, verticalAlign: 'middle', color: C.white },
 
-  // List
-  tableWrap:   { flex: 1, overflowY: 'auto' },
-  table:       { width: '100%', borderCollapse: 'collapse', background: '#fff' },
-  th:          { padding: '10px 14px', fontSize: 11, fontWeight: 600, letterSpacing: '0.07em', color: '#888', textAlign: 'left', borderBottom: '2px solid #f0ece4', textTransform: 'uppercase', background: '#fafaf8', cursor: 'pointer', whiteSpace: 'nowrap' },
-  td:          { padding: '10px 14px', fontSize: 13, borderBottom: '1px solid #f3f0ea', verticalAlign: 'middle' },
+    // Panel
+    panel:       { width: 340, borderLeft: `1px solid ${C.border}`, background: C.card, display: 'flex', flexDirection: 'column', flexShrink: 0, overflowY: 'auto' },
+    panelHead:   { padding: '16px 18px 12px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 8 },
+    panelTitle:  { flex: 1, fontSize: 15, fontWeight: 600, color: C.white, fontFamily: 'Cormorant Garamond, Georgia, serif' },
+    panelClose:  { background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: C.grey, padding: '0 4px' },
+    panelBody:   { padding: '14px 18px', flex: 1, overflowY: 'auto' },
+    fieldLabel:  { fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', color: C.grey, textTransform: 'uppercase', marginBottom: 3 },
+    fieldValue:  { fontSize: 13, color: C.white, marginBottom: 12 },
+    stageSelect: { padding: '8px 12px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, width: '100%', outline: 'none', marginBottom: 12, background: C.dark, color: C.white },
+    histItem:    { fontSize: 12, color: C.grey, padding: '8px 0', borderBottom: `1px solid ${C.border}`, lineHeight: 1.5 },
+    histTime:    { fontSize: 10, color: C.grey2, marginTop: 2 },
 
-  // Panel
-  panel:       { width: 340, borderLeft: '1px solid #ede8de', background: '#fff', display: 'flex', flexDirection: 'column', flexShrink: 0, overflowY: 'auto' },
-  panelHead:   { padding: '16px 18px 12px', borderBottom: '1px solid #f0ece4', display: 'flex', alignItems: 'center', gap: 8 },
-  panelTitle:  { flex: 1, fontSize: 15, fontWeight: 600, color: '#171717', fontFamily: 'Cormorant Garamond, Georgia, serif' },
-  panelClose:  { background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#aaa', padding: '0 4px' },
-  panelBody:   { padding: '14px 18px', flex: 1, overflowY: 'auto' },
-  fieldLabel:  { fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', color: '#888', textTransform: 'uppercase', marginBottom: 3 },
-  fieldValue:  { fontSize: 13, color: '#333', marginBottom: 12 },
-  stageSelect: { padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, width: '100%', outline: 'none', marginBottom: 12 },
-  histItem:    { fontSize: 12, color: '#555', padding: '8px 0', borderBottom: '1px solid #f3f0ea', lineHeight: 1.5 },
-  histTime:    { fontSize: 10, color: '#aaa', marginTop: 2 },
+    // Dashboard
+    dash:        { padding: 24, overflowY: 'auto', flex: 1 },
+    kpiGrid:     { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 14, marginBottom: 24 },
+    kpiCard:     { background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: '16px 18px' },
+    kpiVal:      { fontSize: 28, fontWeight: 700, color: C.white, fontFamily: 'Cormorant Garamond, Georgia, serif' },
+    kpiLabel:    { fontSize: 11, color: C.grey, marginTop: 3, letterSpacing: '0.05em' },
 
-  // Dashboard
-  dash:        { padding: 24, overflowY: 'auto', flex: 1 },
-  kpiGrid:     { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 14, marginBottom: 24 },
-  kpiCard:     { background: '#fff', border: '1px solid #ede8de', borderRadius: 8, padding: '16px 18px' },
-  kpiVal:      { fontSize: 28, fontWeight: 700, color: '#171717', fontFamily: 'Cormorant Garamond, Georgia, serif' },
-  kpiLabel:    { fontSize: 11, color: '#888', marginTop: 3, letterSpacing: '0.05em' },
+    // Modal
+    overlay:     { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    modal:       { background: C.card, borderRadius: 10, padding: 28, width: '90vw', maxWidth: 600, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', border: `1px solid ${C.border}` },
+    modalHead:   { fontSize: 18, fontWeight: 600, fontFamily: 'Cormorant Garamond, Georgia, serif', color: C.white, marginBottom: 20 },
+    formRow:     { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 },
+    formCol:     { display: 'flex', flexDirection: 'column', gap: 5 },
+    formLabel:   { fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', color: C.grey, textTransform: 'uppercase' },
+    formInput:   { padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, color: C.white, outline: 'none', background: C.dark },
+    formSelect:  { padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, color: C.white, background: C.dark, outline: 'none' },
+    formTextarea:{ padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, color: C.white, outline: 'none', background: C.dark, minHeight: 80, resize: 'vertical', fontFamily: 'Inter, sans-serif' },
 
-  // Modal
-  overlay:     { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  modal:       { background: '#fff', borderRadius: 10, padding: 28, width: '90vw', maxWidth: 600, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' },
-  modalHead:   { fontSize: 18, fontWeight: 600, fontFamily: 'Cormorant Garamond, Georgia, serif', color: '#171717', marginBottom: 20 },
-  formRow:     { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 },
-  formCol:     { display: 'flex', flexDirection: 'column', gap: 5 },
-  formLabel:   { fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', color: '#888', textTransform: 'uppercase' },
-  formInput:   { padding: '9px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, color: '#171717', outline: 'none', background: '#fafaf8' },
-  formSelect:  { padding: '9px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, color: '#171717', background: '#fafaf8', outline: 'none' },
-  formTextarea:{ padding: '9px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, color: '#171717', outline: 'none', background: '#fafaf8', minHeight: 80, resize: 'vertical', fontFamily: 'Inter, sans-serif' },
-
-  // Campaigns view
-  campTable:   { width: '100%', borderCollapse: 'collapse', background: '#fff' },
-  campTh:      { padding: '10px 14px', fontSize: 11, fontWeight: 600, letterSpacing: '0.07em', color: '#888', textAlign: 'left', borderBottom: '2px solid #f0ece4', background: '#fafaf8', textTransform: 'uppercase' },
-  campTd:      { padding: '10px 14px', fontSize: 13, borderBottom: '1px solid #f3f0ea', verticalAlign: 'middle' },
-  // Analytics
-  analyticsKpi: { background: '#fff', border: '1px solid #ede8de', borderRadius: 8, padding: '14px 16px', flex: 1, minWidth: 120 },
-  analyticsKpiVal: { fontSize: 24, fontWeight: 700, color: '#171717', fontFamily: 'Cormorant Garamond, Georgia, serif' },
-  analyticsKpiLabel: { fontSize: 11, color: '#888', marginTop: 2, letterSpacing: '0.05em' },
-  analyticsNote: { fontSize: 11, color: '#aaa', fontStyle: 'italic', marginBottom: 12 },
-};
+    // Campaigns view
+    campTable:   { width: '100%', borderCollapse: 'collapse', background: C.card },
+    campTh:      { padding: '10px 14px', fontSize: 11, fontWeight: 600, letterSpacing: '0.07em', color: C.grey, textAlign: 'left', borderBottom: `2px solid ${C.border}`, background: C.dark, textTransform: 'uppercase' },
+    campTd:      { padding: '10px 14px', fontSize: 13, borderBottom: `1px solid ${C.border}`, verticalAlign: 'middle', color: C.white },
+    // Analytics
+    analyticsKpi: { background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: '14px 16px', flex: 1, minWidth: 120 },
+    analyticsKpiVal: { fontSize: 24, fontWeight: 700, color: C.white, fontFamily: 'Cormorant Garamond, Georgia, serif' },
+    analyticsKpiLabel: { fontSize: 11, color: C.grey, marginTop: 2, letterSpacing: '0.05em' },
+    analyticsNote: { fontSize: 11, color: C.grey2, fontStyle: 'italic', marginBottom: 12 },
+  };
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -233,11 +236,19 @@ function ProspectModal({ prospect, pipelines, stages, defaultStage, assignRules,
     package: 'Standard', notes: '', proposal_value: '', next_follow_up_at: '',
     pipeline_id: defaultStage?.pipeline_id || '',
     stage_id: defaultStage?.id || '',
+    deal_value: '', deal_currency: 'GBP',
   };
   const [form, setForm]         = useState(init);
   const [saving, setSaving]     = useState(false);
   const [assignInfo, setAssignInfo] = useState(null); // { pipeline_id, method, confidence }
+  const [dupWarning, setDupWarning] = useState([]);
   function f(k, v) { setForm(p => ({ ...p, [k]: v })); }
+  async function checkDupes(email, website) {
+    if (!email && !website) return;
+    const dupes = await findDuplicateProspects({ email, website }).catch(() => []);
+    const filtered = prospect ? dupes.filter(d => d.id !== prospect.id) : dupes;
+    setDupWarning(filtered);
+  }
   const pipelineStages = stages.filter(s => s.pipeline_id === (assignInfo?.pipeline_id || form.pipeline_id));
 
   async function save() {
@@ -286,7 +297,7 @@ function ProspectModal({ prospect, pipelines, stages, defaultStage, assignRules,
           <div style={S.formCol}><div style={S.formLabel}>Contact Name</div><input style={S.formInput} value={form.contact_name || ''} onChange={e => f('contact_name', e.target.value)} /></div>
         </div>
         <div style={S.formRow}>
-          <div style={S.formCol}><div style={S.formLabel}>Email</div><input style={S.formInput} type="email" value={form.email || ''} onChange={e => f('email', e.target.value)} /></div>
+          <div style={S.formCol}><div style={S.formLabel}>Email</div><input style={S.formInput} type="email" value={form.email || ''} onChange={e => f('email', e.target.value)} onBlur={() => checkDupes(form.email, form.website)} /></div>
           <div style={S.formCol}><div style={S.formLabel}>Phone</div><input style={S.formInput} value={form.phone || ''} onChange={e => f('phone', e.target.value)} /></div>
         </div>
         <div style={S.formRow}>
@@ -323,8 +334,28 @@ function ProspectModal({ prospect, pipelines, stages, defaultStage, assignRules,
           </div>
           <div style={S.formCol}><div style={S.formLabel}>Proposal Value (GBP)</div><input style={S.formInput} type="number" value={form.proposal_value || ''} onChange={e => f('proposal_value', e.target.value)} placeholder="0" /></div>
         </div>
+        <div style={S.formRow}>
+          <div style={S.formCol}>
+            <label style={S.formLabel}>Deal Value</label>
+            <input style={S.formInput} type="number" placeholder="e.g. 2500" value={form.deal_value || ''} onChange={e => f('deal_value', e.target.value)} />
+          </div>
+          <div style={S.formCol}>
+            <label style={S.formLabel}>Currency</label>
+            <select style={S.formSelect} value={form.deal_currency || 'GBP'} onChange={e => f('deal_currency', e.target.value)}>
+              <option value="GBP">GBP</option>
+              <option value="EUR">EUR</option>
+              <option value="USD">USD</option>
+            </select>
+          </div>
+        </div>
         <div style={{ marginBottom: 14 }}><div style={S.formLabel}>Next Follow-Up Date</div><input style={{ ...S.formInput, marginTop: 4 }} type="date" value={form.next_follow_up_at ? form.next_follow_up_at.slice(0, 10) : ''} onChange={e => f('next_follow_up_at', e.target.value)} /></div>
         <div style={{ marginBottom: 20 }}><div style={S.formLabel}>Notes</div><textarea style={{ ...S.formTextarea, marginTop: 4, width: '100%', boxSizing: 'border-box' }} value={form.notes || ''} onChange={e => f('notes', e.target.value)} placeholder="Internal notes..." /></div>
+        {dupWarning.length > 0 && (
+          <div style={{ background: '#fef9ec', border: '1px solid #f59e0b', borderRadius: 6, padding: '10px 14px', marginBottom: 14, fontSize: 12 }}>
+            <strong style={{ color: '#92400e' }}>Possible duplicate detected:</strong>{' '}
+            {dupWarning.map(d => d.company_name).join(', ')} already in pipeline. Check before saving.
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <button style={S.outlineBtn} onClick={onClose}>Cancel</button>
           <button style={{ ...S.goldBtn, opacity: saving ? 0.6 : 1 }} onClick={save} disabled={saving || !form.company_name.trim()}>{saving ? 'Saving...' : prospect?.id ? 'Save Changes' : 'Add Prospect'}</button>
@@ -770,6 +801,9 @@ function KanbanBoard({ prospects, stages, onMoveToStage, onOpenPanel, onAddProsp
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                         {overdue && <span style={S.overdueTag}>Overdue</span>}
                         {p.proposal_value && <span style={S.valueBadge}>GBP {formatValue(p.proposal_value)}</span>}
+                        {p.deal_value && (
+                          <span style={S.valueBadge}>{p.deal_currency || 'GBP'} {Number(p.deal_value).toLocaleString()}</span>
+                        )}
                       </div>
                       <button style={S.iconBtn} onClick={e => { e.stopPropagation(); onOpenPanel(p); }}>Open</button>
                     </div>
@@ -852,6 +886,12 @@ function DashboardView({ stats, stages, overdueFU, onRunFollowUps, followUpRunni
           <button style={{ ...S.goldBtn, opacity: followUpRunning ? 0.6 : 1 }} onClick={onRunFollowUps} disabled={followUpRunning}>{followUpRunning ? 'Sending...' : 'Send Follow-Ups Now'}</button>
         </div>
       )}
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <button style={S.outlineBtn} onClick={onRunFollowUps} disabled={!!followUpRunning}>
+          {followUpRunning ? 'Running...' : 'Run Follow-ups Now'}
+        </button>
+      </div>
 
       <div style={S.kpiGrid}>
         {kpis.map(k => (
@@ -1516,6 +1556,13 @@ function CampaignsView({ campaigns, onNewCampaign, onRefresh }) {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function SalesPipelineModule() {
+  const { C } = useContext(ThemeCtx);
+  const G = C?.gold || '#8f7420';
+  const S = makeS(C || {
+    black: '#fafaf8', card: '#fff', dark: '#fafaf8', white: '#171717',
+    grey: '#888', grey2: '#aaa', border: '#ede8de', gold: '#8f7420',
+  }, G);
+
   const [pipelines,     setPipelines]     = useState([]);
   const [allStages,     setAllStages]     = useState([]);
   const [allTemplates,  setAllTemplates]  = useState([]);

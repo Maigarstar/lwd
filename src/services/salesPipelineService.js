@@ -192,3 +192,44 @@ export async function triggerClosedWonFlow(prospectId) {
   // Additional onboarding flows can be added here
   // e.g. create vendor listing, send welcome email, etc.
 }
+
+// ── Prospect deduplication ─────────────────────────────────────────────────
+
+/**
+ * Check if a prospect with the same email or website domain already exists.
+ * Used to warn before saving discovered or manually entered prospects.
+ *
+ * @param {object} opts
+ * @param {string} [opts.email]
+ * @param {string} [opts.website]
+ * @returns {Promise<Array<{id, company_name, email, website, status}>>} Matching prospects
+ */
+export async function findDuplicateProspects({ email, website } = {}) {
+  const conditions = [];
+
+  if (email?.trim()) {
+    conditions.push(`email.ilike.${email.trim()}`);
+  }
+
+  if (website?.trim()) {
+    try {
+      // Extract domain for fuzzy match: "https://www.villabalbiano.com/about" -> "villabalbiano.com"
+      const domain = new URL(website.trim().startsWith('http') ? website.trim() : `https://${website.trim()}`).hostname
+        .replace(/^www\./, '');
+      if (domain) conditions.push(`website.ilike.%${domain}%`);
+    } catch {
+      // Invalid URL - skip website check
+    }
+  }
+
+  if (conditions.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('prospects')
+    .select('id, company_name, email, website, status')
+    .or(conditions.join(','))
+    .limit(5);
+
+  if (error) return [];
+  return data || [];
+}

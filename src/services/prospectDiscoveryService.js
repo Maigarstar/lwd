@@ -17,7 +17,7 @@
  */
 
 import { supabase }                 from '../lib/supabaseClient';
-import { createProspect }           from './salesPipelineService';
+import { createProspect, findDuplicateProspects } from './salesPipelineService';
 import { assignProspectPipeline }   from './pipelineAssignmentService';
 import { calculateLeadScore }       from './leadScoringService';
 import { fetchStages }              from './pipelineBuilderService';
@@ -169,6 +169,17 @@ export async function importDiscoveredProspects(items, { pipelines, rules, setti
     };
 
     try {
+      // Dedup check: skip if website/email already in pipeline
+      const existing = await findDuplicateProspects({
+        email:   prospectData.email,
+        website: prospectData.website,
+      });
+      if (existing.length > 0) {
+        console.info(`[DiscoveryEngine] Skipping duplicate: ${item.company_name} (matches ${existing[0].company_name})`);
+        created.push({ _duplicate: true, _matched: existing[0], company_name: item.company_name });
+        continue;
+      }
+
       // 1. Auto-assign pipeline
       const assignment = await assignProspectPipeline(prospectData, { rules, settings, pipelines });
       const pipeline_id = assignment.pipeline_id;
