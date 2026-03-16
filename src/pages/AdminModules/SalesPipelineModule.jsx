@@ -77,6 +77,13 @@ import {
 import {
   fetchEmailAnalytics,
 } from '../../services/emailAnalyticsService';
+import {
+  computeEngagement,
+  engagementDotColor,
+  ENGAGEMENT_STATUS_CONFIG,
+  fmtLastContact,
+  fmtDaysInPipeline,
+} from '../../services/engagementService';
 import { ThemeCtx } from '../../theme/ThemeContext';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -92,6 +99,10 @@ const COUNTRIES    = ['United Kingdom', 'Ireland', 'France', 'Italy', 'Spain', '
 // SalesPipelineModule overrides this with a themed version via makeS(C, G).
 const LIGHT_C = { black: '#fafaf8', card: '#fff', dark: '#fafaf8', white: '#171717', grey: '#888', grey2: '#aaa', border: '#ede8de', gold: '#8f7420' };
 const LIGHT_G = '#8f7420';
+// Module-level alias so standalone component functions (ProspectPanel, etc.)
+// can reference G without it being in scope of SalesPipelineModule closure.
+// SalesPipelineModule re-assigns this via its own const G = C?.gold || LIGHT_G.
+let G = LIGHT_G;
 
 function makeS(C, G) {
   const isDark = C.card === '#141414';
@@ -579,6 +590,7 @@ function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onC
   const [onboardingTask, setOnboardingTask] = useState(null);
   const [onboardingLoading, setOnboardingLoading] = useState(false);
   const [contractStatus, setContractStatus] = useState(prospect.contract_status || 'none');
+  const [engagement, setEngagement] = useState(null);
 
   async function updateContract(status) {
     const updates = { contract_status: status };
@@ -600,6 +612,8 @@ function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onC
         const currentStage = stages.find(s => s.id === prospect.stage_id) || null;
         setDealHealth(calculateDealHealth({ ...prospect, lead_score: fresh }, h, currentStage));
         setCloseProb(calculateCloseProbability({ ...prospect, lead_score: fresh }, h, currentStage));
+        // Compute engagement intelligence (pure - no extra query)
+        setEngagement(computeEngagement(prospect, h));
       })
       .finally(() => setHistLoading(false));
   }, [prospect.id]);
@@ -797,6 +811,43 @@ function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onC
         {prospect.next_follow_up_at && <><div style={S.fieldLabel}>Next Follow-Up</div><div style={{ ...S.fieldValue, color: isOverdue(prospect.next_follow_up_at) ? '#dc2626' : '#333' }}>{fmtDate(prospect.next_follow_up_at)}{isOverdue(prospect.next_follow_up_at) ? ' (Overdue)' : ''}</div></>}
         {prospect.notes && <><div style={S.fieldLabel}>Notes</div><div style={{ ...S.fieldValue, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{prospect.notes}</div></>}
         <div style={S.fieldLabel}>Added</div><div style={S.fieldValue}>{fmtDate(prospect.created_at)}</div>
+
+        {/* ── Engagement Intelligence ── */}
+        {engagement && (() => {
+          const cfg = ENGAGEMENT_STATUS_CONFIG[engagement.engagementStatus] || ENGAGEMENT_STATUS_CONFIG['Active'];
+          return (
+            <div style={{ ...S.aiSection }}>
+              <div style={{ ...S.fieldLabel, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>Engagement</span>
+                <span style={{ padding: '2px 10px', borderRadius: 100, background: cfg.bg, color: cfg.color, fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'none' }}>
+                  {engagement.engagementStatus}
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 2 }}>
+                {[
+                  { label: 'Sent',    value: engagement.emailsSent },
+                  { label: 'Opens',   value: engagement.opens },
+                  { label: 'Replies', value: engagement.replies },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ background: 'rgba(143,116,32,0.05)', border: `1px solid rgba(143,116,32,0.12)`, borderRadius: 6, padding: '8px 10px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: LIGHT_G, fontFamily: 'Cormorant Garamond, Georgia, serif' }}>{value}</div>
+                    <div style={{ fontSize: 10, color: S.fieldLabel.color, letterSpacing: '0.06em', textTransform: 'uppercase', marginTop: 1 }}>{label}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 100 }}>
+                  <div style={{ ...S.fieldLabel, marginBottom: 2 }}>Last Contact</div>
+                  <div style={{ fontSize: 12, color: S.fieldValue.color, fontWeight: 500 }}>{fmtLastContact(engagement.lastContacted)}</div>
+                </div>
+                <div style={{ flex: 1, minWidth: 100 }}>
+                  <div style={{ ...S.fieldLabel, marginBottom: 2 }}>In Pipeline</div>
+                  <div style={{ fontSize: 12, color: S.fieldValue.color, fontWeight: 500 }}>{fmtDaysInPipeline(engagement.daysInPipeline)}</div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── AI Assistant ── */}
         <div style={S.aiSection}>
@@ -1005,14 +1056,20 @@ function KanbanBoard({ prospects, stages, S, onMoveToStage, onOpenPanel, onAddPr
                       <DealHealthBadge health={health} />
                     </div>
                     <div style={S.cardFooter}>
-                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
                         {overdue && <span style={S.overdueTag}>Overdue</span>}
                         {p.proposal_value && <span style={S.valueBadge}>GBP {formatValue(p.proposal_value)}</span>}
                         {p.deal_value && (
                           <span style={S.valueBadge}>{p.deal_currency || 'GBP'} {Number(p.deal_value).toLocaleString()}</span>
                         )}
                       </div>
-                      <button style={S.iconBtn} onClick={e => { e.stopPropagation(); onOpenPanel(p); }}>Open</button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div
+                          title={p.last_contacted_at ? `Last contact: ${fmtLastContact(p.last_contacted_at)}` : 'Never contacted'}
+                          style={{ width: 8, height: 8, borderRadius: '50%', background: engagementDotColor(p), flexShrink: 0, cursor: 'default' }}
+                        />
+                        <button style={S.iconBtn} onClick={e => { e.stopPropagation(); onOpenPanel(p); }}>Open</button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -1842,8 +1899,8 @@ function CampaignsView({ campaigns, onNewCampaign, onRefresh }) {
 
 export default function SalesPipelineModule() {
   const C = useContext(ThemeCtx);
-  const G = C?.gold || '#8f7420';
-  // Update module-level S so all sub-components automatically use themed styles
+  // Update module-level G + S so all standalone sub-components see themed values
+  G = C?.gold || LIGHT_G;
   S = makeS(C || LIGHT_C, G);
 
   const [pipelines,     setPipelines]     = useState([]);
