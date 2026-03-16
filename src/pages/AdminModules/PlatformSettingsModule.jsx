@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -20,8 +20,42 @@ export default function PlatformSettingsModule({ C }) {
   const [revealed, setRevealed] = useState({});
   const [edited,   setEdited]   = useState({});
   const [toast,    setToast]    = useState(null);
+  const [copied,   setCopied]   = useState({});
 
   const G = C?.gold || '#8f7420';
+
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+  const SUPABASE_REF = SUPABASE_URL.replace('https://', '').replace('.supabase.co', '').split('.')[0] || 'your-project-ref';
+
+  const WEBHOOK_ENDPOINTS = [
+    {
+      label:       'Reply Webhook (Resend inbound)',
+      description: 'Paste into Resend Dashboard under Webhooks - email.replied',
+      url:         `${SUPABASE_URL}/functions/v1/handle-reply-webhook`,
+    },
+    {
+      label:       'Bounce Webhook (Resend)',
+      description: 'Paste into Resend Dashboard under Webhooks - email.bounced + email.complained',
+      url:         `${SUPABASE_URL}/functions/v1/handle-bounce-webhook`,
+    },
+    {
+      label:       'Unsubscribe Endpoint',
+      description: 'Appended automatically to campaign footers - no action needed',
+      url:         `${SUPABASE_URL}/functions/v1/handle-unsubscribe?e=<base64(email)>`,
+    },
+    {
+      label:       'Open Tracking Pixel',
+      description: 'Injected automatically into campaign emails - no action needed',
+      url:         `${SUPABASE_URL}/functions/v1/track-email-open?id=<email_id>`,
+    },
+  ];
+
+  const copyToClipboard = useCallback((url, key) => {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(p => ({ ...p, [key]: true }));
+      setTimeout(() => setCopied(p => ({ ...p, [key]: false })), 1800);
+    });
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -118,6 +152,37 @@ export default function PlatformSettingsModule({ C }) {
           </div>
         );
       })}
+
+      {/* ── Webhook Endpoints (read-only reference) ── */}
+      <div style={{ background: C?.card || '#fff', border: `1px solid ${C?.border || '#ede8de'}`, borderRadius: 8, marginBottom: 20, overflow: 'hidden' }}>
+        <div style={{ padding: '12px 18px', background: C?.dark || '#fafaf8', borderBottom: `1px solid ${C?.border || '#ede8de'}` }}>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: G }}>Webhook Endpoints</span>
+        </div>
+        <div style={{ padding: '8px 0' }}>
+          {WEBHOOK_ENDPOINTS.map((ep, i) => (
+            <div key={ep.label} style={{ padding: '12px 18px', borderBottom: i < WEBHOOK_ENDPOINTS.length - 1 ? `1px solid ${C?.border || '#ede8de'}` : 'none' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, gap: 8 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: C?.white || '#171717' }}>{ep.label}</div>
+                <button
+                  onClick={() => copyToClipboard(ep.url, ep.label)}
+                  style={{ padding: '4px 12px', background: copied[ep.label] ? '#dcfce7' : 'transparent', color: copied[ep.label] ? '#166534' : G, border: `1px solid ${copied[ep.label] ? '#86efac' : G}`, borderRadius: 4, fontSize: 11, cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap', transition: 'all 0.15s', flexShrink: 0 }}
+                >
+                  {copied[ep.label] ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+              <div style={{ fontSize: 10, color: C?.grey2 || '#aaa', marginBottom: 6 }}>{ep.description}</div>
+              <div style={{ fontSize: 11, fontFamily: 'monospace', color: C?.grey || '#666', background: C?.dark || '#fafaf8', padding: '6px 10px', borderRadius: 4, border: `1px solid ${C?.border || '#ede8de'}`, wordBreak: 'break-all', lineHeight: 1.5 }}>
+                {ep.url}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: '10px 18px', borderTop: `1px solid ${C?.border || '#ede8de'}`, background: C?.dark || '#fafaf8' }}>
+          <div style={{ fontSize: 11, color: C?.grey2 || '#aaa' }}>
+            Supabase project ref: <span style={{ fontFamily: 'monospace', color: C?.grey || '#666' }}>{SUPABASE_REF}</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -203,3 +203,8 @@ export async function batchRefreshScores() {
 
   return updates.length;
 }
+
+// ── Compatibility aliases for leadEngineService ────────────────────────────
+export const scoreLead        = calculateLeadScore;
+export const getLeadPriority  = (score) => score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low';
+export const getLeadValueBand = (score) => score >= 80 ? 'A' : score >= 60 ? 'B' : score >= 40 ? 'C' : 'D';

@@ -467,12 +467,101 @@ function OutreachModal({ prospect, templates, prefilled, onSent, onClose }) {
   );
 }
 
+// ── Note Modal ────────────────────────────────────────────────────────────────
+
+function NoteModal({ prospect, onSaved, onClose }) {
+  const [text, setText]     = useState('');
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    if (!text.trim()) return;
+    setSaving(true);
+    try {
+      await logOutreachEmail({
+        prospectId: prospect.id,
+        emailType:  'custom',
+        subject:    'Note',
+        body:       text.trim(),
+        direction:  'internal',
+      });
+      onSaved();
+    } catch (e) {
+      console.error('Note save failed:', e);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 3500, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ background: '#fff', borderRadius: 10, padding: 28, width: 460, maxWidth: '94vw', boxShadow: '0 8px 40px rgba(0,0,0,0.18)' }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: '#171717', marginBottom: 4 }}>Add Note</div>
+        <div style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>{prospect.company_name}</div>
+        <textarea
+          autoFocus
+          value={text}
+          onChange={e => setText(e.target.value)}
+          placeholder="e.g. Called today, left voicemail. Agreed to follow up next Thursday."
+          style={{ width: '100%', minHeight: 110, border: '1px solid #ddd', borderRadius: 6, padding: '10px 12px', fontSize: 13, fontFamily: 'Inter, sans-serif', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6 }}
+        />
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 14 }}>
+          <button onClick={onClose} style={{ padding: '8px 16px', border: '1px solid #ddd', borderRadius: 5, fontSize: 13, cursor: 'pointer', background: 'transparent', color: '#555' }}>Cancel</button>
+          <button onClick={save} disabled={!text.trim() || saving} style={{ padding: '8px 18px', background: '#8f7420', color: '#fff', border: 'none', borderRadius: 5, fontSize: 13, cursor: 'pointer', opacity: !text.trim() || saving ? 0.55 : 1, fontWeight: 600 }}>
+            {saving ? 'Saving...' : 'Save Note'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Lost Reason Modal ─────────────────────────────────────────────────────────
+
+function LostReasonModal({ prospect, onSave, onSkip }) {
+  const [reason, setReason] = useState('');
+  const [notes,  setNotes]  = useState('');
+  const reasons = ['Price', 'Timing', 'Competitor', 'No Response', 'Not a Fit', 'Other'];
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 4000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ background: '#fff', borderRadius: 10, padding: 28, width: 460, maxWidth: '94vw', boxShadow: '0 8px 40px rgba(0,0,0,0.18)' }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: '#171717', marginBottom: 4 }}>Why was this deal lost?</div>
+        <div style={{ fontSize: 12, color: '#888', marginBottom: 18 }}>{prospect?.company_name} - capturing this improves your win rate over time.</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+          {reasons.map(r => (
+            <button key={r} onClick={() => setReason(r)} style={{
+              padding: '7px 16px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              border: `1px solid ${reason === r ? '#dc2626' : '#e5e7eb'}`,
+              background: reason === r ? '#fef2f2' : '#fafafa',
+              color: reason === r ? '#dc2626' : '#555',
+              transition: 'all 0.12s',
+            }}>{r}</button>
+          ))}
+        </div>
+        <textarea
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          placeholder="Additional context (optional)"
+          style={{ width: '100%', height: 72, border: '1px solid #ddd', borderRadius: 6, padding: '8px 12px', fontSize: 13, resize: 'none', boxSizing: 'border-box', fontFamily: 'Inter, sans-serif' }}
+        />
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 14 }}>
+          <button onClick={onSkip} style={{ padding: '8px 16px', border: '1px solid #ddd', borderRadius: 5, fontSize: 13, cursor: 'pointer', background: 'transparent', color: '#888' }}>Skip</button>
+          <button onClick={() => onSave(reason, notes)} disabled={!reason} style={{ padding: '8px 18px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 5, fontSize: 13, cursor: 'pointer', opacity: !reason ? 0.5 : 1, fontWeight: 600 }}>
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Prospect Panel ────────────────────────────────────────────────────────────
 
 function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onClose, onProspectUpdated }) {
   const [history,      setHistory]      = useState([]);
   const [histLoading,  setHistLoading]  = useState(true);
   const [showEmail,    setShowEmail]    = useState(false);
+  const [showNote,     setShowNote]     = useState(false);
   const [aiLoading,    setAiLoading]    = useState(false);
   const [aiResult,     setAiResult]     = useState(null);
   const [prefilledEmail, setPrefilledEmail] = useState(null);
@@ -675,8 +764,20 @@ function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onC
           {prospect.contract_signed_at && <div style={{ fontSize: 10, color: '#22c55e', marginTop: 2 }}>Signed: {fmtDate(prospect.contract_signed_at)}</div>}
         </div>
 
-        {/* Email button */}
-        <button style={{ ...S.goldBtn, marginBottom: 14, fontSize: 12, padding: '6px 14px' }} onClick={() => { setPrefilledEmail(null); setShowEmail(true); }}>Send Email</button>
+        {/* Action buttons */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+          <button style={{ ...S.goldBtn, fontSize: 12, padding: '6px 14px' }} onClick={() => { setPrefilledEmail(null); setShowEmail(true); }}>Send Email</button>
+          <button style={{ fontSize: 12, padding: '6px 14px', border: '1px solid #ddd', borderRadius: 5, background: 'transparent', color: '#555', cursor: 'pointer', fontFamily: 'Inter, sans-serif' }} onClick={() => setShowNote(true)}>+ Note</button>
+        </div>
+
+        {/* Lost reason banner */}
+        {prospect.status === 'lost' && prospect.lost_reason && (
+          <div style={{ marginBottom: 14, padding: '10px 14px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 6 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#dc2626', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Lost - {prospect.lost_reason}</div>
+            {prospect.lost_notes && <div style={{ fontSize: 12, color: '#555', lineHeight: 1.5 }}>{prospect.lost_notes}</div>}
+            {prospect.lost_at && <div style={{ fontSize: 10, color: '#aaa', marginTop: 4 }}>{fmtDate(prospect.lost_at)}</div>}
+          </div>
+        )}
 
         {/* Details */}
         {prospect.contact_name && <><div style={S.fieldLabel}>Contact</div><div style={S.fieldValue}>{prospect.contact_name}</div></>}
@@ -740,25 +841,38 @@ function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onC
           <div style={{ ...S.fieldLabel, marginBottom: 8 }}>Activity ({history.length})</div>
           {histLoading ? <div style={{ fontSize: 12, color: '#aaa' }}>Loading...</div>
             : history.length === 0 ? <div style={{ fontSize: 12, color: '#aaa' }}>No activity yet.</div>
-            : history.map((h, i) => (
-              <div key={h.id || i} style={{ ...S.histItem, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.subject}</div>
-                  <div style={S.histTime}>
-                    {fmtDate(h.sent_at)}
-                    {' - '}
-                    <span style={{ color: h.status === 'replied' ? '#22c55e' : h.status === 'bounced' ? '#dc2626' : '#888', fontWeight: h.status === 'replied' ? 600 : 400 }}>
-                      {h.status}
-                    </span>
+            : history.map((h, i) => {
+              const isNote = h.direction === 'internal';
+              return (
+                <div key={h.id || i} style={{ ...S.histItem, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, background: isNote ? '#fffbf0' : undefined, borderLeft: isNote ? '2px solid #f59e0b' : undefined, paddingLeft: isNote ? 8 : undefined }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      {isNote && <span style={{ fontSize: 10 }}>&#9998;</span>}
+                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: isNote ? '#555' : undefined, fontStyle: isNote ? 'italic' : undefined }}>
+                        {isNote ? h.body : h.subject}
+                      </div>
+                    </div>
+                    <div style={S.histTime}>
+                      {fmtDate(h.sent_at)}
+                      {!isNote && (
+                        <>
+                          {' - '}
+                          <span style={{ color: h.status === 'replied' ? '#22c55e' : h.status === 'bounced' ? '#dc2626' : '#888', fontWeight: h.status === 'replied' ? 600 : 400 }}>
+                            {h.status}
+                          </span>
+                        </>
+                      )}
+                      {isNote && <span style={{ marginLeft: 4, color: '#f59e0b', fontWeight: 600 }}>note</span>}
+                    </div>
                   </div>
+                  {!isNote && h.status === 'sent' && h.id && (
+                    <button style={S.replyBtn} onClick={() => handleMarkReplied(h.id, i)} title="Mark this email as replied">
+                      Replied
+                    </button>
+                  )}
                 </div>
-                {h.status === 'sent' && h.id && (
-                  <button style={S.replyBtn} onClick={() => handleMarkReplied(h.id, i)} title="Mark this email as replied - stops follow-up sequence and moves to Conversation">
-                    Replied
-                  </button>
-                )}
-              </div>
-            ))}
+              );
+            })}
         </div>
 
         {/* Onboarding Checklist - shown for Closed Won prospects */}
@@ -810,6 +924,17 @@ function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onC
           prefilled={prefilledEmail}
           onSent={handleEmailSent}
           onClose={() => { setShowEmail(false); setPrefilledEmail(null); }}
+        />
+      )}
+
+      {showNote && (
+        <NoteModal
+          prospect={prospect}
+          onSaved={() => {
+            setShowNote(false);
+            fetchOutreachHistory(prospect.id).then(setHistory);
+          }}
+          onClose={() => setShowNote(false)}
         />
       )}
     </div>
@@ -1730,9 +1855,10 @@ export default function SalesPipelineModule() {
   const [loading,       setLoading]       = useState(true);
   const [sortKey,       setSortKey]       = useState('company_name');
   const [sortDir,       setSortDir]       = useState('asc');
-  const [fuRunning,     setFuRunning]     = useState(false);
-  const [scoresRefreshing, setScoresRefreshing] = useState(false);
-  const [toast,         setToast]         = useState(null);
+  const [fuRunning,         setFuRunning]         = useState(false);
+  const [scoresRefreshing,  setScoresRefreshing]  = useState(false);
+  const [toast,             setToast]             = useState(null);
+  const [lostReasonQueue,   setLostReasonQueue]   = useState(null); // { prospect, stage }
   const [assignRules,   setAssignRules]   = useState([]);
   const [assignSettings,setAssignSettings] = useState({ ai_fallback_enabled: true, fallback_pipeline_id: null });
   const [pipelineIntel, setPipelineIntel] = useState(null);
@@ -1846,8 +1972,28 @@ export default function SalesPipelineModule() {
         notify(`Closed Won - ${[result.welcomeSent && 'welcome email sent', result.newsletterAdded && 'added to newsletter', result.activated && 'profile activated', result.taskCreated && 'task created'].filter(Boolean).join(', ') || 'deal recorded'}.`);
         setStats(prev => ({ ...prev, closedWon: (prev.closedWon || 0) + 1 }));
       }
-      if (stage.is_lost) await updateProspect(prospectId, { status: 'lost' });
+      if (stage.is_lost) {
+        // Show lost reason modal before marking status lost
+        setLostReasonQueue({ prospect, stage });
+        // Status will be applied after user completes/skips modal
+      }
     } catch (e) { console.error('Move failed:', e); }
+  }
+
+  async function applyLostReason(reason, notes) {
+    if (!lostReasonQueue) return;
+    const { prospect } = lostReasonQueue;
+    setLostReasonQueue(null);
+    const updates = {
+      status:    'lost',
+      lost_at:   new Date().toISOString(),
+      lost_reason: reason || null,
+      lost_notes:  notes  || null,
+    };
+    await updateProspect(prospect.id, updates).catch(e => console.error('Lost reason save failed:', e));
+    setProspects(prev => prev.map(p => p.id === prospect.id ? { ...p, ...updates } : p));
+    if (openPanel?.id === prospect.id) setOpenPanel(prev => ({ ...prev, ...updates }));
+    notify(`Marked as lost${reason ? ` - ${reason}` : ''}.`);
   }
 
   function handleAddProspect(stage = null) { setDefaultStage(stage); setEditModal(false); }
@@ -2010,6 +2156,14 @@ export default function SalesPipelineModule() {
           />
         )}
       </div>
+
+      {lostReasonQueue && (
+        <LostReasonModal
+          prospect={lostReasonQueue.prospect}
+          onSave={applyLostReason}
+          onSkip={() => applyLostReason(null, null)}
+        />
+      )}
 
       {editModal !== null && (
         <ProspectModal

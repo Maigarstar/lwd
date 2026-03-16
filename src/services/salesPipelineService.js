@@ -100,14 +100,15 @@ export async function deleteProspect(id) {
  * @param {string} [opts.campaignId]  - Optional: link to a prospect_campaigns row
  * @returns {Promise<object>} Created outreach_emails row with id
  */
-export async function logOutreachEmail({ prospectId, emailType, subject, body, campaignId }) {
+export async function logOutreachEmail({ prospectId, emailType, subject, body, campaignId, direction }) {
   const row = {
     prospect_id: prospectId,
     email_type:  emailType,
     subject,
     body,
-    sent_at: new Date().toISOString(),
-    status:  'sent',
+    sent_at:   new Date().toISOString(),
+    status:    'sent',
+    direction: direction || 'outbound',
   };
   if (campaignId) row.campaign_id = campaignId;
 
