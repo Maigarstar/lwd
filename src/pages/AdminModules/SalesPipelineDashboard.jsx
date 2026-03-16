@@ -69,7 +69,7 @@ export default function DashboardView({ stats, stages, overdueFU, onRunFollowUps
           onClick={onRecalcScores}
           disabled={scoresRefreshing}
         >
-          {scoresRefreshing ? 'Recalculating...' : '&#8635; Recalculate Lead Scores'}
+          {scoresRefreshing ? 'Recalculating...' : '\u21BB Recalculate Lead Scores'}
         </button>
       </div>
 
