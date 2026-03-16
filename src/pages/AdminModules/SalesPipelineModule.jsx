@@ -87,6 +87,7 @@ import {
 } from '../../services/engagementService';
 import { ThemeCtx } from '../../theme/ThemeContext';
 import ProspectPanel from './SalesPipelinePanel';
+import UrlToLeadModal from '../../components/crm/UrlToLeadModal';
 import DashboardView from './SalesPipelineDashboard';
 import CampaignBuilderDrawer from './SalesPipelineCampaignDrawer';
 import DiscoveryModal from './SalesPipelineDiscoveryModal';
@@ -954,6 +955,7 @@ export default function SalesPipelineModule() {
   const [search,        setSearch]        = useState('');
   const [openPanel,     setOpenPanel]     = useState(null);
   const [editModal,     setEditModal]     = useState(null);
+  const [showUrlModal,  setShowUrlModal]  = useState(false);
   const [defaultStage,  setDefaultStage]  = useState(null);
   const [loading,       setLoading]       = useState(true);
   const [sortKey,       setSortKey]       = useState('company_name');
@@ -1194,6 +1196,7 @@ export default function SalesPipelineModule() {
         </div>
         <button style={{ ...S.outlineBtn, fontSize: 12, padding: '7px 14px' }} onClick={() => setShowDiscovery(true)}>&#9740; Discover</button>
         <button style={{ ...S.outlineBtn, fontSize: 12, padding: '7px 14px' }} onClick={() => exportProspectsCSV(filtered)}>&#8595; Export CSV</button>
+        <button style={{ ...S.outlineBtn, fontSize: 12, padding: '7px 14px', borderColor: 'rgba(201,168,76,0.5)', color: '#c9a84c' }} onClick={() => setShowUrlModal(true)}>+ Add by URL</button>
         <button style={S.goldBtn} onClick={() => handleAddProspect()}>+ Add Prospect</button>
       </div>
 
@@ -1317,6 +1320,18 @@ export default function SalesPipelineModule() {
           }}
           onClose={() => setShowDiscovery(false)}
           S={S} G={G} C={C}
+        />
+      )}
+
+      {showUrlModal && (
+        <UrlToLeadModal
+          C={C}
+          onClose={() => setShowUrlModal(false)}
+          onSaved={(prospect) => {
+            setProspects(list => [prospect, ...list]);
+            setShowUrlModal(false);
+            notify(`${prospect.company_name} added from URL audit.`);
+          }}
         />
       )}
     </div>

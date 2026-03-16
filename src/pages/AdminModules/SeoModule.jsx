@@ -8,6 +8,7 @@ import { ThemeCtx } from '../../theme/ThemeContext';
 import { fetchListingsSeoStatus, generateListingSeo, bulkGenerateSeo } from '../../services/seoService';
 import { fetchAllAudits, runAudit, getTopIssues, scoreLabel, scoreColor } from '../../services/websiteAuditService';
 import AuditScoreRing from '../../components/seo/AuditScoreRing';
+import UrlToLeadModal from '../../components/crm/UrlToLeadModal';
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -127,6 +128,7 @@ export default function SeoModule() {
   const [audits,        setAudits]       = useState([]);
   const [auditsLoading, setAuditsLoading] = useState(false);
   const [reauditingId,  setReauditingId] = useState(null);
+  const [showUrlModal,  setShowUrlModal]  = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -574,9 +576,14 @@ export default function SeoModule() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
             <h2 style={{ fontFamily: GD, fontSize: 20, fontWeight: 400, color: C.off, margin: 0 }}>Website Audits</h2>
-            <button onClick={loadAudits} disabled={auditsLoading} style={{ padding: '7px 16px', background: 'transparent', border: `1px solid ${C.border2}`, color: C.grey, borderRadius: 5, fontFamily: NU, fontSize: 12, cursor: 'pointer' }}>
-              {auditsLoading ? 'Loading...' : 'Refresh'}
-            </button>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setShowUrlModal(true)} style={{ padding: '7px 16px', background: 'transparent', border: `1px solid ${G}`, color: G, borderRadius: 5, fontFamily: NU, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
+                + Add Website URL
+              </button>
+              <button onClick={loadAudits} disabled={auditsLoading} style={{ padding: '7px 16px', background: 'transparent', border: `1px solid ${C.border2}`, color: C.grey, borderRadius: 5, fontFamily: NU, fontSize: 12, cursor: 'pointer' }}>
+                {auditsLoading ? 'Loading...' : 'Refresh'}
+              </button>
+            </div>
           </div>
           {auditsLoading ? (
             <div style={{ padding: 40, textAlign: 'center', color: C.grey, fontSize: 13 }}>Loading audits...</div>
@@ -774,6 +781,15 @@ export default function SeoModule() {
 
       {/* ── Toast ───────────────────────────────────────────────────────── */}
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+
+      {/* ── URL to Lead Modal ────────────────────────────────────────────── */}
+      {showUrlModal && (
+        <UrlToLeadModal
+          C={C}
+          onClose={() => setShowUrlModal(false)}
+          onSaved={() => { loadAudits(); setShowUrlModal(false); }}
+        />
+      )}
     </div>
   );
 }

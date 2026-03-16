@@ -141,6 +141,93 @@ async function callAI(feature, userPrompt) {
   return (data.text || '').trim();
 }
 
+// ── extractContactFromUrl ─────────────────────────────────────────────────────
+
+const CONTACT_SYSTEM = `You are a B2B research assistant for a luxury wedding directory sales team.
+Given a website URL and its page metadata, extract real business contact details.
+Rules:
+- Only report email or phone if you can actually see them in the provided metadata.
+- For contact_name: use 'inferred' if you know the business owner from public knowledge, otherwise 'not_found'.
+- For company_name: use 'found' if it is in og.title or page title, otherwise 'inferred'.
+- Never invent email addresses, phone numbers, or personal names.
+- location should be a city or region if inferable, otherwise empty string.
+- business_type should be one of: Venue, Photographer, Florist, Caterer, Planner, Musician, Hair and Makeup, Cake Designer, Stationery, Jewellery, Transport, Vendor
+- Return ONLY valid JSON, no markdown.`;
+
+/**
+ * Uses AI to extract contact details from a website URL + its audit findings.
+ * Each field carries a confidence label: 'found' | 'inferred' | 'not_found'.
+ *
+ * @param {string}  url      - Website URL
+ * @param {object}  findings - findings object from runAudit (title, og, h1, schema)
+ * @returns {Promise<{
+ *   company_name, contact_name, phone, email, location, business_type, notes,
+ *   confidence: { company_name, contact_name, phone, email, location }
+ * }>}
+ */
+export async function extractContactFromUrl(url, findings = {}) {
+  const meta = {
+    title:          findings.title?.value       || '',
+    og_title:       findings.og?.title          || '',
+    og_description: findings.og?.description    || '',
+    h1:             findings.h1?.firstValue      || '',
+    schema_types:   (findings.schema?.types || []).join(', '),
+  };
+
+  const userPrompt = `Website URL: ${url}
+Page title: "${meta.title}"
+OG title: "${meta.og_title}"
+OG description: "${meta.og_description}"
+H1: "${meta.h1}"
+Schema types: "${meta.schema_types}"
+
+Extract business contact details. Return JSON only:
+{
+  "company_name": "",
+  "contact_name": "",
+  "email": "",
+  "phone": "",
+  "location": "",
+  "business_type": "",
+  "notes": "",
+  "confidence": {
+    "company_name": "found|inferred|not_found",
+    "contact_name": "found|inferred|not_found",
+    "email": "found|not_found",
+    "phone": "found|not_found",
+    "location": "found|inferred|not_found"
+  }
+}`;
+
+  const { data, error } = await supabase.functions.invoke('ai-generate', {
+    body: { feature: 'url_contact_extract', systemPrompt: CONTACT_SYSTEM, userPrompt },
+  });
+
+  const raw = data?.text || '';
+  const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+
+  let result = {};
+  try { result = JSON.parse(cleaned); } catch { result = {}; }
+
+  // Safe defaults - never invent missing data
+  return {
+    company_name:  result.company_name  || '',
+    contact_name:  result.contact_name  || '',
+    email:         result.email         || '',
+    phone:         result.phone         || '',
+    location:      result.location      || '',
+    business_type: result.business_type || 'Venue',
+    notes:         result.notes         || '',
+    confidence: {
+      company_name:  result.confidence?.company_name  || 'not_found',
+      contact_name:  result.confidence?.contact_name  || 'not_found',
+      email:         result.confidence?.email         || 'not_found',
+      phone:         result.confidence?.phone         || 'not_found',
+      location:      result.confidence?.location      || 'not_found',
+    },
+  };
+}
+
 // ── runAudit ─────────────────────────────────────────────────────────────────
 
 /**
