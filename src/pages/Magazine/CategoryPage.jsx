@@ -21,6 +21,9 @@ import MagazineNav from './components/MagazineNav';
 import NewsletterCapture from './components/NewsletterCapture';
 import SiteFooter from '../../components/sections/SiteFooter';
 import { getMagTheme, FD, FU, GOLD_CONST as GOLD } from './magazineTheme';
+import SeoHead from '../../components/seo/SeoHead';
+
+const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://www.luxuryweddingdirectory.co.uk';
 
 import CategoryLayoutCurated    from './categoryLayouts/CategoryLayoutCurated';
 import CategoryLayoutEditorial  from './categoryLayouts/CategoryLayoutEditorial';
@@ -122,28 +125,6 @@ export default function CategoryPage({
     ? { ...staticCategory, ...dbCategory, id: categoryId }
     : staticCategory;
 
-  // SEO
-  useEffect(() => {
-    if (!category) return;
-    const prev = document.title;
-    document.title = `${category.seoTitle || category.label || categoryId} | LDW Magazine`;
-    const setMeta = (sel, content) => {
-      if (!content) return;
-      let el = document.querySelector(sel);
-      if (!el) { el = document.createElement('meta'); document.head.appendChild(el); }
-      const attr = sel.includes('[name') ? 'name' : 'property';
-      const key  = sel.match(/["']([^"']+)['"]/)?.[1];
-      if (key) el.setAttribute(attr, key);
-      el.setAttribute('content', content);
-    };
-    setMeta('[name="description"]',       category.seoDescription || category.description || '');
-    setMeta('[property="og:title"]',       category.seoTitle || category.label || '');
-    setMeta('[property="og:description"]', category.seoDescription || category.description || '');
-    setMeta('[property="og:image"]',       category.heroImage || '');
-    setMeta('[property="og:type"]',        'website');
-    return () => { document.title = prev; };
-  }, [category]);
-
   // Merge DB + static posts, sort
   const allPosts = dbPosts.length > 0 ? dbPosts : getPostsByCategory(categoryId);
 
@@ -186,6 +167,12 @@ export default function CategoryPage({
 
   return (
     <div style={{ background: T.bg, minHeight: '100vh', transition: 'background 0.35s' }}>
+      <SeoHead
+        title={`${category.seoTitle || category.name || category.label || categoryId} | Luxury Wedding Magazine`}
+        description={category.seoDescription || category.description || `Explore ${category.name || category.label} features and inspiration.`}
+        canonicalUrl={`${SITE_URL}/magazine/${categoryId}`}
+        ogImage={category.heroImage || category.hero_image}
+      />
 
       {/* ── Navigation ────────────────────────────────────────────────────── */}
       <MagazineNav

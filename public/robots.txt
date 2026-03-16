@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# Private and admin areas
+Disallow: /admin
+Disallow: /vendor
+Disallow: /listing-studio
+Disallow: /magazine-studio
+Disallow: /getting-married
+
+# Crawl delay to be polite
+Crawl-delay: 2
+
+Sitemap: https://www.luxuryweddingdirectory.co.uk/sitemap.xml

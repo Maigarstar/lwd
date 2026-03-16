@@ -41,6 +41,7 @@ import SalesPipelineModule from "./AdminModules/SalesPipelineModule";
 import PipelineBuilderModule from "./AdminModules/PipelineBuilderModule";
 import PlatformSettingsModule from "./AdminModules/PlatformSettingsModule";
 import TeamModule from "./AdminModules/TeamModule";
+import SeoModule from "./AdminModules/SeoModule";
 import { POSTS } from "./Magazine/data/posts";
 import { PRODUCTS, COLLECTIONS, formatPrice } from "./Magazine/data/products";
 import { CATEGORIES } from "./Magazine/data/categories";
@@ -8678,7 +8679,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "newsletter":     return <EmailMarketingModule C={C} defaultTab="newsletter" onNavigate={setActiveTab} />;
       case "email-builder":      return <EmailBuilderModule C={C} onBack={() => setActiveTab('email-marketing')} />;
       case "newsletter-builder": return <EmailBuilderModule C={C} mode="newsletter" onBack={() => setActiveTab('newsletter')} />;
-      case "seo":           return <PlaceholderModule title="SEO Command Centre" C={C} />;
+      case "seo":           return <SeoModule C={C} />;
       case "crm":           return <CRMModule C={C} />;
       case "partner-enquiries": return <PartnerEnquiriesModule C={C} />;
       case "sales-pipeline":    return <SalesPipelineModule C={C} />;

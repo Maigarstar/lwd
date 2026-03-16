@@ -7,6 +7,11 @@ import { buildCardImgs, mapMediaItemToGalleryPhoto, buildVenueVideos } from './u
 import ReviewsSection from './components/reviews/ReviewsSection';
 import ReviewSubmitForm from './components/reviews/ReviewSubmitForm';
 import VenueEnquiryForm from './components/enquiry/VenueEnquiryForm';
+import SeoHead from './components/seo/SeoHead';
+import JsonLd from './components/seo/JsonLd';
+import { buildVenueSchema, buildBreadcrumbSchema, buildFaqSchema } from './utils/structuredData';
+
+const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://www.luxuryweddingdirectory.co.uk';
 
 function useIsMobile(bp = 768) {
   const [mobile, setMobile] = useState(() => window.innerWidth <= bp);
@@ -5933,6 +5938,7 @@ export default function VenueProfile({ onBack = null, slug = null }) {
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [dbVenue, setDbVenue] = useState(null);
+  const [rawListing, setRawListing] = useState(null);
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
@@ -6143,7 +6149,10 @@ export default function VenueProfile({ onBack = null, slug = null }) {
               }
             : null,
         };
-        if (!ignore) setDbVenue(mapped);
+        if (!ignore) {
+          setDbVenue(mapped);
+          setRawListing(listing);
+        }
       } catch (err) {
         console.error('Failed to load venue by slug', err);
         if (!ignore) setNotFound(true);
@@ -6196,6 +6205,27 @@ export default function VenueProfile({ onBack = null, slug = null }) {
   return (
     <Theme.Provider value={C}>
       <GlobalStyles />
+      {/* SEO head - only when real listing data is loaded */}
+      {rawListing && (
+        <>
+          <SeoHead
+            title={rawListing.seoTitle || rawListing.name}
+            description={rawListing.seoDescription || rawListing.shortDescription || rawListing.cardSummary}
+            keywords={rawListing.seoKeywords}
+            canonicalUrl={`${SITE_URL}/wedding-venues/${slug}`}
+            ogImage={rawListing.heroImage || rawListing.imgs?.[0]?.src || rawListing.imgs?.[0]}
+          />
+          <JsonLd schema={buildVenueSchema(rawListing)} />
+          <JsonLd schema={buildBreadcrumbSchema([
+            { name: 'Home', url: '/' },
+            { name: rawListing.country || 'Venues', url: '/' },
+            { name: rawListing.name, url: `/wedding-venues/${slug}` },
+          ])} />
+          {rawListing.faqEnabled !== false && rawListing.faqCategories && rawListing.faqCategories.length > 0 && (
+            <JsonLd schema={buildFaqSchema(rawListing.faqCategories)} />
+          )}
+        </>
+      )}
       <div className="vp-root" style={{ background: C.bg, minHeight: "100vh", color: C.text }}>
         <Nav venue={VV} darkMode={darkMode} setDarkMode={setDarkMode} saved={saved} setSaved={setSaved} compareList={compareList} onAddCompare={addCompare} onBack={onBack} />
         <Hero venue={VV} heroStyle={heroStyle} setHeroStyle={setHeroStyle} onEnquire={() => setEnquiryOpen(true)} />

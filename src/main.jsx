@@ -1,6 +1,7 @@
 // ─── src/main.jsx ─────────────────────────────────────────────────────────────
 import { useState, useEffect, useRef, StrictMode, lazy, Suspense } from "react";
 import { createRoot }           from "react-dom/client";
+import { HelmetProvider }       from "react-helmet-async";
 
 import { applyThemeToDocument } from "./theme/ThemeLoader";
 import { ShortlistProvider } from "./shortlist/ShortlistContext";
@@ -714,6 +715,8 @@ function App() {
 // ── Root ──────────────────────────────────────────────────────────────────────
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <App />
+    <HelmetProvider>
+      <App />
+    </HelmetProvider>
   </StrictMode>
 );

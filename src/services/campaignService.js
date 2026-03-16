@@ -147,6 +147,8 @@ export function filterProspectsForCampaign(prospects, filters = {}) {
     venue_types,
     min_score,
     statuses = ['active'],
+    country,
+    keywords,
   } = filters;
 
   return prospects.filter(p => {
@@ -156,6 +158,15 @@ export function filterProspectsForCampaign(prospects, filters = {}) {
     if (stage_ids?.length && !stage_ids.includes(p.stage_id)) return false;
     if (venue_types?.length && !venue_types.includes(p.venue_type)) return false;
     if (min_score != null && (p.lead_score ?? 0) < min_score) return false;
+    // Country filter: case-insensitive match
+    if (country) {
+      if (!p.country?.toLowerCase().includes(country.toLowerCase())) return false;
+    }
+    // Keywords: any keyword in company_name, notes, website, country, or venue_type
+    if (keywords?.length) {
+      const haystack = `${p.company_name || ''} ${p.notes || ''} ${p.website || ''} ${p.country || ''} ${p.venue_type || ''}`.toLowerCase();
+      if (!keywords.some(k => haystack.includes(k.toLowerCase()))) return false;
+    }
     return true;
   });
 }
@@ -328,4 +339,145 @@ export async function fetchCampaignStats(campaignId) {
   const openToReplyRate = opens     > 0 ? Math.round((openAndReplied / opens) * 100) : 0;
 
   return { sent: totalSent, opens, openRate, replies, replyRate, openToReplyRate };
+}
+
+// ── Sequence step sender ───────────────────────────────────────────────────────
+
+/**
+ * Send one step of a multi-step sequence campaign.
+ *
+ * Handles stop-on-reply filtering, max-per-send throttling, AI personalisation
+ * for step 1, and tracks step_sent progress on the campaign record.
+ *
+ * @param {object} opts
+ *   @param {object}   opts.campaign        - Full campaign row (must have sequence_steps + settings)
+ *   @param {number}   opts.stepIndex       - 0-based index into campaign.sequence_steps
+ *   @param {Array}    opts.allProspects    - Full prospect list (filtering applied inside)
+ *   @param {string}   opts.fromEmail
+ *   @param {string}   opts.fromName
+ *   @param {Function} [opts.onProgress]   - (sent, total) => void
+ * @returns {Promise<{ sent, failed, skipped, campaignId }>}
+ */
+export async function sendSequenceStep({
+  campaign,
+  stepIndex,
+  allProspects,
+  fromEmail,
+  fromName,
+  onProgress,
+}) {
+  const sequenceSteps = campaign.sequence_steps || [];
+  const step          = sequenceSteps[stepIndex];
+  if (!step) throw new Error(`Sequence step ${stepIndex} not found on campaign ${campaign.id}`);
+
+  const settings   = campaign.settings || {};
+  const campaignId = campaign.id;
+
+  // ── 1. Filter prospects by campaign filters ──────────────────────────────────
+  let prospects = filterProspectsForCampaign(allProspects, campaign.filters || {});
+
+  // ── 2. Stop-on-reply: exclude anyone who replied to a previous step ──────────
+  if (settings.stop_on_reply !== false) {
+    const { data: replied } = await supabase
+      .from('outreach_emails')
+      .select('prospect_id')
+      .eq('campaign_id', campaignId)
+      .eq('status', 'replied');
+    if (replied?.length) {
+      const repliedIds = new Set(replied.map(r => r.prospect_id));
+      prospects = prospects.filter(p => !repliedIds.has(p.id));
+    }
+  }
+
+  // ── 3. Cap at max_per_send ───────────────────────────────────────────────────
+  const maxPerSend = settings.max_per_send;
+  if (maxPerSend && maxPerSend > 0) {
+    prospects = prospects.slice(0, maxPerSend);
+  }
+
+  const total   = prospects.length;
+  let   sent    = 0;
+  let   failed  = 0;
+  let   skipped = 0;
+
+  // Mark as sending
+  await updateCampaign(campaignId, { status: 'sending', total_recipients: total });
+
+  try {
+    for (let i = 0; i < prospects.length; i++) {
+      const prospect = prospects[i];
+      try {
+        // Resolve subject + body from step config
+        let subject = mergeTags(step.subject || '', prospect);
+        let body    = mergeTags(step.body    || '', prospect);
+
+        // AI personalise only for step 1 (cold outreach)
+        if (settings.ai_personalisation && stepIndex === 0) {
+          try {
+            const generated = await generateColdEmail({ prospect });
+            if (generated?.subject) subject = generated.subject;
+            if (generated?.body)    body    = generated.body;
+          } catch (aiErr) {
+            console.warn('[Sequence] AI personalisation failed for', prospect.company_name, aiErr.message);
+          }
+        }
+
+        // Append unsubscribe footer
+        body = body + buildUnsubscribeFooter(fromName, prospect.email);
+
+        // Log to outreach_emails (returns row with id for pixel)
+        const emailRow = await logOutreachEmail({
+          prospectId: prospect.id,
+          emailType:  'campaign',
+          subject,
+          body,
+          campaignId,
+        });
+
+        // Append tracking pixel
+        const bodyWithPixel = body + buildPixelHtml(emailRow.id);
+
+        // Deliver via Resend (skip suppressed addresses)
+        const suppressed = await isEmailSuppressed(prospect.email);
+        if (prospect.email && !suppressed) {
+          await sendEmail({
+            subject,
+            fromEmail,
+            fromName,
+            html:       bodyToHtml(bodyWithPixel),
+            recipients: [{ email: prospect.email, name: prospect.contact_name || prospect.company_name }],
+          });
+        } else {
+          skipped++;
+        }
+
+        sent++;
+        onProgress?.(sent, total);
+
+      } catch (prospectErr) {
+        failed++;
+        console.warn('[Sequence] Failed to send to', prospect.company_name, prospectErr.message);
+      }
+
+      // Rate limit
+      if (i < prospects.length - 1) await new Promise(r => setTimeout(r, SEND_DELAY_MS));
+    }
+
+    // ── Update step progress ──────────────────────────────────────────────────
+    const newStepSent   = stepIndex + 1;
+    const allStepsDone  = newStepSent >= sequenceSteps.length;
+
+    await updateCampaign(campaignId, {
+      status:     allStepsDone ? 'sent' : 'draft',   // 'draft' allows re-claiming for next step
+      step_sent:  newStepSent,
+      sent_count: (campaign.sent_count || 0) + sent,
+      ...(allStepsDone ? { sent_at: new Date().toISOString() } : {}),
+    });
+
+  } catch (fatalErr) {
+    await updateCampaign(campaignId, { status: 'paused' }).catch(() => {});
+    throw fatalErr;
+  }
+
+  return { sent, failed, skipped, campaignId };
 }

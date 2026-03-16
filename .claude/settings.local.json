@@ -20,7 +20,17 @@
       "Bash(git commit -m \"feat: Restore full extended AdminDashboard \\(7,130 lines\\) with all 14 modules:*)",
       "Bash(git checkout main -- src/data/homepageDefaults.js)",
       "Bash(git checkout main -- src/components/admin/sections/)",
-      "Bash(curl -s http://localhost:5178/)"
+      "Bash(curl -s http://localhost:5178/)",
+      "Read(//Users/taiwoadedayo/.supabase/**)",
+      "Bash(supabase access-token:*)",
+      "Read(//Users/taiwoadedayo/.config/supabase/**)",
+      "Bash(psql --version)",
+      "Read(//Users/taiwoadedayo/LDW-01/**)",
+      "Bash(supabase projects:*)",
+      "Bash(supabase functions:*)",
+      "Bash(curl -s -X POST \"https://api.supabase.com/v1/projects/qpkggfibwreznussudfh/database/query\" -H \"Authorization: Bearer sbp_e746521036dbf368b2bfd943c82999377add0b6d\" -H \"Content-Type: application/json\" -d '{\"\"query\"\": \"\"SELECT COUNT\\(*\\) as rule_count FROM pipeline_assignment_rules WHERE is_active = true;\"\"}')",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
