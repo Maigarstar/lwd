@@ -1,5 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { sendEmail, fetchNewsletterSubscribers } from '../../services/emailSendService';
+import {
+  generateSubjectLines,
+  rewriteBlockCopy,
+  generateSpotlightSummary,
+  generateNewsletterDraft,
+  generateAiTemplate,
+} from '../../services/emailAiService';
 
 const GOLD      = '#8f7420';
 const GOLD_DIM  = 'rgba(143,116,32,0.09)';
@@ -26,6 +33,66 @@ const BLOCK_DEFS = [
   { type:'destination', label:'Destination',      icon:'⊙',  cat:'Platform',  desc:'Venues by region' },
 ];
 const CATS = ['Content','Media','Layout','Structure','Platform'];
+
+// ── AI constants ──────────────────────────────────────────────────────────────
+const TONE_PRESETS = [
+  { key:'luxury',   label:'Luxury Editorial',    desc:'Refined, elevated, aspirational' },
+  { key:'romantic', label:'Warm & Romantic',      desc:'Heartfelt and celebratory' },
+  { key:'travel',   label:'High-End Travel',      desc:'Evocative of place and atmosphere' },
+  { key:'concise',  label:'Elegant & Concise',    desc:'Minimal, precise, authoritative' },
+  { key:'launch',   label:'Launch Announcement',  desc:'Exciting, newsworthy, urgent' },
+];
+
+const AI_REWRITE_ACTIONS = [
+  { key:'rewrite',   label:'Rewrite' },
+  { key:'shorten',   label:'Shorten' },
+  { key:'expand',    label:'Expand' },
+  { key:'luxury',    label:'Luxury' },
+  { key:'editorial', label:'Editorial' },
+  { key:'concise',   label:'Concise' },
+];
+
+// Blocks that support per-block AI text rewrite
+const AI_REWRITE_BLOCKS = new Set(['heading','text','hero']);
+// Blocks that support AI summary/spotlight generation
+const AI_SUMMARY_BLOCKS = new Set(['article','venue_spot','vendor_spot']);
+
+// ── AI helper functions ───────────────────────────────────────────────────────
+function getMainTextFromBlock(block) {
+  const p = block.props;
+  switch(block.type) {
+    case 'heading': return p.text || '';
+    case 'text':    return p.content || '';
+    case 'hero':    return [p.headline, p.subtext].filter(Boolean).join('\n');
+    default:        return '';
+  }
+}
+
+function applyAiTextToBlock(block, aiText) {
+  const p = block.props;
+  switch(block.type) {
+    case 'heading': return { ...p, text: aiText };
+    case 'text':    return { ...p, content: aiText };
+    case 'hero': {
+      const lines = aiText.split(/\n+/).map(l => l.trim()).filter(Boolean);
+      return { ...p, headline: lines[0] || p.headline, subtext: lines.slice(1).join(' ') || p.subtext };
+    }
+    default: return p;
+  }
+}
+
+function getBlockContextString(block) {
+  const p = block.props;
+  if (block.type === 'article')     return `Article titled "${p.headline}" - ${p.excerpt}`;
+  if (block.type === 'venue_spot')  return `Venue named "${p.venueName}" - ${p.summary}`;
+  if (block.type === 'vendor_spot') return `Vendor named "${p.vendorName}" - ${p.description}`;
+  return '';
+}
+
+function getDestinationFromBlocks(blocks) {
+  const d = blocks.find(b => b.type === 'destination');
+  return d?.props?.destination || '';
+}
 
 let _uid = Date.now();
 const nextId = () => `b${++_uid}`;
@@ -315,6 +382,28 @@ function BlockPreview({ block }) {
 }
 
 // ── Properties panel ──────────────────────────────────────────────────────────
+
+// Reusable AI actions strip for text-type blocks
+function AiActionsBar({ actions, loading, onAction }) {
+  return (
+    <div style={{ background:'rgba(143,116,32,0.07)', border:`1px solid rgba(143,116,32,0.2)`, borderRadius:4, padding:'10px 12px', marginBottom:16 }}>
+      <div style={{ fontFamily:'var(--font-body)', fontSize:9, fontWeight:700, color:GOLD, letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8 }}>
+        {loading ? '✦ Writing with AI...' : '✦ AI Assist'}
+      </div>
+      <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
+        {actions.map(a => (
+          <button key={a.key} onClick={() => onAction(a.key)} disabled={loading}
+            style={{ padding:'4px 10px', background: loading ? 'transparent' : 'rgba(143,116,32,0.1)', border:`1px solid rgba(143,116,32,0.3)`, borderRadius:20, fontFamily:'var(--font-body)', fontSize:10, color: loading ? '#666' : GOLD, cursor: loading ? 'not-allowed' : 'pointer', transition:'all 0.12s' }}
+            onMouseEnter={e => { if (!loading) e.currentTarget.style.background=GOLD; if (!loading) e.currentTarget.style.color='#000'; }}
+            onMouseLeave={e => { e.currentTarget.style.background='rgba(143,116,32,0.1)'; e.currentTarget.style.color=loading?'#666':GOLD; }}>
+            {a.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function PropRow({ label, children }) {
   return (
     <div style={{ marginBottom:16 }}>
@@ -391,7 +480,7 @@ function PToggle({ value, onChange, label }) {
   );
 }
 
-function PropertiesPanel({ block, onChange, C, onPickContent, onLoadLatestArticles, onLoadDestinationVenues }) {
+function PropertiesPanel({ block, onChange, C, onPickContent, onLoadLatestArticles, onLoadDestinationVenues, onAiAction, onAiSummary, aiBlockLoading }) {
   if (!block) return (
     <div style={{ padding:'40px 20px', textAlign:'center' }}>
       <div style={{ fontSize:32, opacity:0.2, marginBottom:12 }}>←</div>
@@ -418,6 +507,7 @@ function PropertiesPanel({ block, onChange, C, onPickContent, onLoadLatestArticl
 
       {/* HERO */}
       {block.type==='hero' && <>
+        <AiActionsBar actions={[{key:'rewrite',label:'Rewrite'},{key:'luxury',label:'Luxury'},{key:'concise',label:'Concise'}]} loading={aiBlockLoading} onAction={onAiAction} />
         <PropRow label="Image URL"><PImageInput value={p.imageUrl} onChange={v=>s('imageUrl',v)} /></PropRow>
         <PropRow label="Headline"><PInput value={p.headline} onChange={v=>s('headline',v)} /></PropRow>
         <PropRow label="Subtext"><PInput value={p.subtext} onChange={v=>s('subtext',v)} rows={2} /></PropRow>
@@ -434,6 +524,7 @@ function PropertiesPanel({ block, onChange, C, onPickContent, onLoadLatestArticl
 
       {/* HEADING */}
       {block.type==='heading' && <>
+        <AiActionsBar actions={[{key:'rewrite',label:'Rewrite'},{key:'luxury',label:'Luxury'},{key:'editorial',label:'Editorial'},{key:'concise',label:'Concise'}]} loading={aiBlockLoading} onAction={onAiAction} />
         <PropRow label="Text"><PInput value={p.text} onChange={v=>s('text',v)} /></PropRow>
         <PropRow label="Font Size (px)"><PInput type="number" value={p.fontSize} onChange={v=>s('fontSize',v)} min={12} max={60} /></PropRow>
         <PropRow label="Color"><PInput type="color" value={p.color} onChange={v=>s('color',v)} /></PropRow>
@@ -443,6 +534,7 @@ function PropertiesPanel({ block, onChange, C, onPickContent, onLoadLatestArticl
 
       {/* TEXT */}
       {block.type==='text' && <>
+        <AiActionsBar actions={AI_REWRITE_ACTIONS} loading={aiBlockLoading} onAction={onAiAction} />
         <PropRow label="Content"><PInput value={p.content} onChange={v=>s('content',v)} rows={5} /></PropRow>
         <PropRow label="Font Size (px)"><PInput type="number" value={p.fontSize} onChange={v=>s('fontSize',v)} min={11} max={24} /></PropRow>
         <PropRow label="Color"><PInput type="color" value={p.color} onChange={v=>s('color',v)} /></PropRow>
@@ -521,6 +613,12 @@ function PropertiesPanel({ block, onChange, C, onPickContent, onLoadLatestArticl
 
       {/* ARTICLE */}
       {block.type==='article' && <>
+        {p.headline && (
+          <button onClick={() => onAiSummary && onAiSummary('article')} disabled={aiBlockLoading}
+            style={{ width:'100%', padding:'8px 0', background:'transparent', border:`1px solid ${GOLD}`, borderRadius:3, fontFamily:'var(--font-body)', fontSize:11, fontWeight:700, color:GOLD, letterSpacing:'0.07em', textTransform:'uppercase', cursor: aiBlockLoading ? 'not-allowed' : 'pointer', marginBottom:10, opacity: aiBlockLoading ? 0.5 : 1 }}>
+            {aiBlockLoading ? '✦ Writing...' : '✦ Generate AI Summary + CTA'}
+          </button>
+        )}
         <button onClick={() => onPickContent && onPickContent('article')}
           style={{ width:'100%', padding:'9px 0', background:GOLD, border:'none', borderRadius:3, fontFamily:'var(--font-body)', fontSize:11, fontWeight:700, color:'#000', letterSpacing:'0.07em', textTransform:'uppercase', cursor:'pointer', marginBottom:18 }}>
           Pick from Magazine
@@ -538,6 +636,12 @@ function PropertiesPanel({ block, onChange, C, onPickContent, onLoadLatestArticl
 
       {/* VENUE SPOTLIGHT */}
       {block.type==='venue_spot' && <>
+        {p.venueName && (
+          <button onClick={() => onAiSummary && onAiSummary('venue_spot')} disabled={aiBlockLoading}
+            style={{ width:'100%', padding:'8px 0', background:'transparent', border:`1px solid ${GOLD}`, borderRadius:3, fontFamily:'var(--font-body)', fontSize:11, fontWeight:700, color:GOLD, letterSpacing:'0.07em', textTransform:'uppercase', cursor: aiBlockLoading ? 'not-allowed' : 'pointer', marginBottom:10, opacity: aiBlockLoading ? 0.5 : 1 }}>
+            {aiBlockLoading ? '✦ Writing...' : '✦ Generate Spotlight Copy'}
+          </button>
+        )}
         <button onClick={() => onPickContent && onPickContent('venue_spot')}
           style={{ width:'100%', padding:'9px 0', background:GOLD, border:'none', borderRadius:3, fontFamily:'var(--font-body)', fontSize:11, fontWeight:700, color:'#000', letterSpacing:'0.07em', textTransform:'uppercase', cursor:'pointer', marginBottom:18 }}>
           Pick from Listings
@@ -554,6 +658,12 @@ function PropertiesPanel({ block, onChange, C, onPickContent, onLoadLatestArticl
 
       {/* VENDOR SPOTLIGHT */}
       {block.type==='vendor_spot' && <>
+        {p.vendorName && (
+          <button onClick={() => onAiSummary && onAiSummary('vendor_spot')} disabled={aiBlockLoading}
+            style={{ width:'100%', padding:'8px 0', background:'transparent', border:`1px solid ${GOLD}`, borderRadius:3, fontFamily:'var(--font-body)', fontSize:11, fontWeight:700, color:GOLD, letterSpacing:'0.07em', textTransform:'uppercase', cursor: aiBlockLoading ? 'not-allowed' : 'pointer', marginBottom:10, opacity: aiBlockLoading ? 0.5 : 1 }}>
+            {aiBlockLoading ? '✦ Writing...' : '✦ Generate Vendor Description'}
+          </button>
+        )}
         <button onClick={() => onPickContent && onPickContent('vendor_spot')}
           style={{ width:'100%', padding:'9px 0', background:GOLD, border:'none', borderRadius:3, fontFamily:'var(--font-body)', fontSize:11, fontWeight:700, color:'#000', letterSpacing:'0.07em', textTransform:'uppercase', cursor:'pointer', marginBottom:18 }}>
           Pick from Vendors
@@ -781,6 +891,237 @@ function generateHTML(blocks, subject) {
 </html>`;
 }
 
+// ── AI Subject Lines Panel ────────────────────────────────────────────────────
+function AiSubjectPanel({ data, loading, onApply, onApplyPreview, onClose, onRegenerate }) {
+  return (
+    <div style={{ position:'absolute', top:'100%', left:0, right:0, zIndex:500, background:'#1a1a1a', border:`1px solid ${GOLD_BDR}`, borderRadius:4, boxShadow:'0 8px 32px rgba(0,0,0,0.4)', marginTop:4, maxWidth:560 }}>
+      <div style={{ padding:'14px 16px', borderBottom:'1px solid rgba(255,255,255,0.08)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ fontFamily:'var(--font-body)', fontSize:10, fontWeight:700, color:GOLD, letterSpacing:'0.1em', textTransform:'uppercase' }}>AI Subject Lines</div>
+        <button onClick={onClose} style={{ background:'transparent', border:'none', color:'#888', fontSize:14, cursor:'pointer', lineHeight:1 }}>x</button>
+      </div>
+      {loading ? (
+        <div style={{ padding:'28px 16px', textAlign:'center', fontFamily:'var(--font-body)', fontSize:12, color:'#888' }}>
+          <div style={{ fontSize:18, marginBottom:8 }}>✦</div>
+          Generating subject lines...
+        </div>
+      ) : data ? (
+        <div style={{ padding:'12px 0', maxHeight:340, overflowY:'auto' }}>
+          {data.subjects?.length > 0 && (
+            <>
+              <div style={{ padding:'0 16px 8px', fontFamily:'var(--font-body)', fontSize:9, fontWeight:700, color:'#888', letterSpacing:'0.1em', textTransform:'uppercase' }}>Subject Lines</div>
+              {data.subjects.map((s, i) => (
+                <div key={i}
+                  style={{ padding:'8px 16px', cursor:'pointer', borderBottom:'1px solid rgba(255,255,255,0.04)', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}
+                  onMouseEnter={e => e.currentTarget.style.background='rgba(143,116,32,0.08)'}
+                  onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                  <span style={{ fontFamily:'var(--font-body)', fontSize:13, color:'#eee', flex:1 }}>{s}</span>
+                  <button onClick={() => onApply(s)}
+                    style={{ padding:'3px 12px', background:GOLD, border:'none', borderRadius:2, fontFamily:'var(--font-body)', fontSize:10, fontWeight:700, color:'#000', cursor:'pointer', flexShrink:0 }}>
+                    Use
+                  </button>
+                </div>
+              ))}
+            </>
+          )}
+          {data.previews?.length > 0 && (
+            <>
+              <div style={{ padding:'12px 16px 8px', fontFamily:'var(--font-body)', fontSize:9, fontWeight:700, color:'#888', letterSpacing:'0.1em', textTransform:'uppercase' }}>Preview Text</div>
+              {data.previews.map((p, i) => (
+                <div key={i}
+                  style={{ padding:'8px 16px', cursor:'pointer', borderBottom:'1px solid rgba(255,255,255,0.04)', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}
+                  onMouseEnter={e => e.currentTarget.style.background='rgba(143,116,32,0.08)'}
+                  onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                  <span style={{ fontFamily:'var(--font-body)', fontSize:12, color:'#bbb', flex:1, fontStyle:'italic' }}>{p}</span>
+                  <button onClick={() => onApplyPreview(p)}
+                    style={{ padding:'3px 12px', background:'transparent', border:`1px solid ${GOLD_BDR}`, borderRadius:2, fontFamily:'var(--font-body)', fontSize:10, color:GOLD, cursor:'pointer', flexShrink:0 }}>
+                    Use
+                  </button>
+                </div>
+              ))}
+            </>
+          )}
+          <div style={{ padding:'10px 16px 4px', textAlign:'center' }}>
+            <button onClick={onRegenerate}
+              style={{ padding:'5px 16px', background:'transparent', border:`1px solid ${GOLD_BDR}`, borderRadius:2, fontFamily:'var(--font-body)', fontSize:11, color:GOLD, cursor:'pointer' }}>
+              Generate Again
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+// ── AI Compose Modal ──────────────────────────────────────────────────────────
+function AiComposeModal({ blocks, tone, C, onApply, onClose }) {
+  const [loading, setLoading] = useState(false);
+  const [draft, setDraft]     = useState(null);
+  const [error, setError]     = useState('');
+  const [topic, setTopic]     = useState('');
+
+  const handleGenerate = async () => {
+    setLoading(true); setError('');
+    try {
+      const result = await generateNewsletterDraft({ blocks, topic: topic.trim() || undefined, tone });
+      setDraft(result);
+    } catch (err) {
+      setError(err.message || 'AI unavailable');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.72)', backdropFilter:'blur(4px)', zIndex:9500, display:'flex', alignItems:'center', justifyContent:'center' }}
+      onClick={onClose}>
+      <div style={{ background:'#1a1a1a', border:`1px solid ${GOLD_BDR}`, borderRadius:6, width:580, maxHeight:'80vh', display:'flex', flexDirection:'column', overflow:'hidden' }}
+        onClick={e => e.stopPropagation()}>
+
+        <div style={{ padding:'18px 24px', borderBottom:'1px solid rgba(255,255,255,0.08)', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
+          <div>
+            <div style={{ fontFamily:'var(--font-heading)', fontSize:18, color:'#fff', fontWeight:700 }}>AI Newsletter Composer</div>
+            <div style={{ fontFamily:'var(--font-body)', fontSize:11, color:'#888', marginTop:2 }}>Generate intro, transitions and closing copy</div>
+          </div>
+          <button onClick={onClose} style={{ background:'transparent', border:'none', color:'#888', fontSize:20, cursor:'pointer', lineHeight:1 }}>x</button>
+        </div>
+
+        <div style={{ padding:'20px 24px', overflowY:'auto', flex:1 }}>
+          {!draft ? (
+            <>
+              <div style={{ marginBottom:16 }}>
+                <label style={{ fontFamily:'var(--font-body)', fontSize:10, fontWeight:700, color:'#888', letterSpacing:'0.1em', textTransform:'uppercase', display:'block', marginBottom:6 }}>Newsletter theme (optional)</label>
+                <input value={topic} onChange={e=>setTopic(e.target.value)}
+                  placeholder="e.g. Italian destination weddings, Spring inspiration..."
+                  style={{ width:'100%', background:'rgba(255,255,255,0.05)', border:`1px solid ${GOLD_BDR}`, borderRadius:3, padding:'8px 12px', fontFamily:'var(--font-body)', fontSize:13, color:'#fff', outline:'none', boxSizing:'border-box' }} />
+              </div>
+              <div style={{ background:'rgba(143,116,32,0.05)', border:`1px solid ${GOLD_BDR}`, borderRadius:4, padding:'12px 14px', marginBottom:20 }}>
+                <div style={{ fontFamily:'var(--font-body)', fontSize:11, color:GOLD, fontWeight:600, marginBottom:6 }}>AI will read {blocks.length} block{blocks.length !== 1 ? 's' : ''} and write:</div>
+                <ul style={{ fontFamily:'var(--font-body)', fontSize:12, color:'#999', margin:0, paddingLeft:16, lineHeight:1.8 }}>
+                  <li>Opening intro paragraph (2-3 sentences)</li>
+                  <li>Closing CTA paragraph (2 sentences)</li>
+                  <li>Content based on your platform blocks</li>
+                </ul>
+              </div>
+              {error && <div style={{ fontFamily:'var(--font-body)', fontSize:12, color:'#f87171', marginBottom:14 }}>{error}</div>}
+              <button onClick={handleGenerate} disabled={loading}
+                style={{ width:'100%', padding:'11px 0', background: loading ? '#333' : GOLD, border:'none', borderRadius:3, fontFamily:'var(--font-body)', fontSize:12, fontWeight:700, color: loading ? '#888' : '#000', cursor: loading ? 'not-allowed' : 'pointer', letterSpacing:'0.07em', textTransform:'uppercase' }}>
+                {loading ? 'Writing with AI...' : 'Generate Draft'}
+              </button>
+            </>
+          ) : (
+            <>
+              <div style={{ marginBottom:20 }}>
+                <div style={{ fontFamily:'var(--font-body)', fontSize:10, fontWeight:700, color:GOLD, letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8 }}>Opening Paragraph</div>
+                <div style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:4, padding:'12px 14px', fontFamily:'var(--font-body)', fontSize:13, color:'#ddd', lineHeight:1.7 }}>
+                  {draft.intro}
+                </div>
+              </div>
+              <div style={{ marginBottom:24 }}>
+                <div style={{ fontFamily:'var(--font-body)', fontSize:10, fontWeight:700, color:GOLD, letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8 }}>Closing CTA</div>
+                <div style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:4, padding:'12px 14px', fontFamily:'var(--font-body)', fontSize:13, color:'#ddd', lineHeight:1.7 }}>
+                  {draft.closing}
+                </div>
+              </div>
+              <div style={{ display:'flex', gap:10 }}>
+                <button onClick={() => onApply(draft)}
+                  style={{ flex:1, padding:'10px 0', background:GOLD, border:'none', borderRadius:3, fontFamily:'var(--font-body)', fontSize:12, fontWeight:700, color:'#000', cursor:'pointer' }}>
+                  Insert into Email
+                </button>
+                <button onClick={() => { setDraft(null); setError(''); }}
+                  style={{ padding:'10px 20px', background:'transparent', border:`1px solid ${GOLD_BDR}`, borderRadius:3, fontFamily:'var(--font-body)', fontSize:12, color:GOLD, cursor:'pointer' }}>
+                  Try Again
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── AI Template Modal ─────────────────────────────────────────────────────────
+function AiTemplateModal({ tone, C, onApply, onClose }) {
+  const [topic,       setTopic]       = useState('');
+  const [audience,    setAudience]    = useState('luxury couples');
+  const [destination, setDestination] = useState('');
+  const [sections,    setSections]    = useState(3);
+  const [loading,     setLoading]     = useState(false);
+  const [error,       setError]       = useState('');
+
+  const handleGenerate = async () => {
+    if (!topic.trim()) { setError('Please enter a topic or goal'); return; }
+    setLoading(true); setError('');
+    try {
+      const result = await generateAiTemplate({ topic: topic.trim(), audience, destination, sections, tone });
+      onApply(result);
+    } catch (err) {
+      setError(err.message || 'AI unavailable');
+    } finally { setLoading(false); }
+  };
+
+  const inputStyle = { width:'100%', background:'rgba(255,255,255,0.05)', border:`1px solid ${GOLD_BDR}`, borderRadius:3, padding:'8px 12px', fontFamily:'var(--font-body)', fontSize:13, color:'#fff', outline:'none', boxSizing:'border-box' };
+  const labelStyle = { fontFamily:'var(--font-body)', fontSize:10, fontWeight:700, color:'#888', letterSpacing:'0.1em', textTransform:'uppercase', display:'block', marginBottom:6 };
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.72)', backdropFilter:'blur(4px)', zIndex:9500, display:'flex', alignItems:'center', justifyContent:'center' }}
+      onClick={onClose}>
+      <div style={{ background:'#1a1a1a', border:`1px solid ${GOLD_BDR}`, borderRadius:6, width:520, overflow:'hidden' }}
+        onClick={e => e.stopPropagation()}>
+
+        <div style={{ padding:'18px 24px', borderBottom:'1px solid rgba(255,255,255,0.08)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <div>
+            <div style={{ fontFamily:'var(--font-heading)', fontSize:18, color:'#fff', fontWeight:700 }}>Create with AI</div>
+            <div style={{ fontFamily:'var(--font-body)', fontSize:11, color:'#888', marginTop:2 }}>AI builds your first draft layout</div>
+          </div>
+          <button onClick={onClose} style={{ background:'transparent', border:'none', color:'#888', fontSize:20, cursor:'pointer', lineHeight:1 }}>x</button>
+        </div>
+
+        <div style={{ padding:'22px 24px' }}>
+          <div style={{ marginBottom:16 }}>
+            <label style={labelStyle}>Newsletter goal or topic *</label>
+            <input value={topic} onChange={e=>setTopic(e.target.value)} placeholder="e.g. Showcase Lake Como venues, Spring wedding inspiration..."
+              style={inputStyle} autoFocus />
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
+            <div>
+              <label style={labelStyle}>Audience</label>
+              <select value={audience} onChange={e=>setAudience(e.target.value)}
+                style={{ ...inputStyle, appearance:'none', cursor:'pointer' }}>
+                <option value="luxury couples">Luxury couples</option>
+                <option value="engaged couples planning weddings">Engaged couples</option>
+                <option value="destination wedding planners">Destination planners</option>
+                <option value="wedding industry professionals">Industry professionals</option>
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Number of sections</label>
+              <select value={sections} onChange={e=>setSections(Number(e.target.value))}
+                style={{ ...inputStyle, appearance:'none', cursor:'pointer' }}>
+                {[2,3,4,5].map(n => <option key={n} value={n}>{n} sections</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{ marginBottom:20 }}>
+            <label style={labelStyle}>Destination (optional)</label>
+            <input value={destination} onChange={e=>setDestination(e.target.value)} placeholder="e.g. Italy, Lake Como, Tuscany..."
+              style={inputStyle} />
+          </div>
+          {error && <div style={{ fontFamily:'var(--font-body)', fontSize:12, color:'#f87171', marginBottom:14 }}>{error}</div>}
+          <div style={{ display:'flex', gap:10 }}>
+            <button onClick={handleGenerate} disabled={loading}
+              style={{ flex:1, padding:'11px 0', background: loading ? '#333' : GOLD, border:'none', borderRadius:3, fontFamily:'var(--font-body)', fontSize:12, fontWeight:700, color: loading ? '#888' : '#000', cursor: loading ? 'not-allowed' : 'pointer', letterSpacing:'0.07em', textTransform:'uppercase' }}>
+              {loading ? 'Building layout...' : 'Generate Layout'}
+            </button>
+            <button onClick={onClose}
+              style={{ padding:'11px 20px', background:'transparent', border:`1px solid rgba(255,255,255,0.12)`, borderRadius:3, fontFamily:'var(--font-body)', fontSize:12, color:'#888', cursor:'pointer' }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Content Picker Modal (Magazine / Venues / Vendors) ─────────────────────────
 const PICKER_SOURCES = {
   article:    { label:'Magazine Articles', table:'magazine_articles',  cols:'id,title,slug,excerpt,featured_image,category,published_at', nameField:'title',   imgField:'featured_image', urlBase:'https://luxuryweddingdirectory.co.uk/magazine' },
@@ -893,13 +1234,13 @@ function ContentPickerModal({ type, C, onPick, onClose }) {
 }
 
 // ── Template picker modal ─────────────────────────────────────────────────────
-function TemplatePicker({ onSelect, C }) {
+function TemplatePicker({ onSelect, onCreateWithAI, C }) {
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', backdropFilter:'blur(4px)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center' }}>
-      <div style={{ background:C.bg, border:`1px solid ${C.border}`, borderRadius:6, padding:'40px 36px', width:580, maxWidth:'92vw' }}>
+      <div style={{ background:C.bg, border:`1px solid ${C.border}`, borderRadius:6, padding:'40px 36px', width:640, maxWidth:'92vw' }}>
         <h2 style={{ fontFamily:'var(--font-heading)', fontSize:24, fontWeight:700, color:C.white, margin:'0 0 4px' }}>Start a new email</h2>
         <p style={{ fontFamily:'var(--font-body)', fontSize:13, color:C.grey, margin:'0 0 28px' }}>Choose a starting point or begin with a blank canvas</p>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:12 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:12 }}>
           {STARTERS.map(t => (
             <button key={t.name} onClick={() => onSelect(t.factory())}
               style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:4, padding:'18px 10px 14px', cursor:'pointer', textAlign:'center', transition:'border-color 0.15s' }}
@@ -910,6 +1251,15 @@ function TemplatePicker({ onSelect, C }) {
               <div style={{ fontFamily:'var(--font-body)', fontSize:10, color:C.grey, lineHeight:1.4 }}>{t.desc}</div>
             </button>
           ))}
+          {/* Create with AI */}
+          <button onClick={onCreateWithAI}
+            style={{ background:`rgba(143,116,32,0.12)`, border:`1px solid ${GOLD}`, borderRadius:4, padding:'18px 10px 14px', cursor:'pointer', textAlign:'center', transition:'all 0.15s' }}
+            onMouseEnter={e=>{ e.currentTarget.style.background=GOLD; e.currentTarget.style.color='#000'; }}
+            onMouseLeave={e=>{ e.currentTarget.style.background='rgba(143,116,32,0.12)'; e.currentTarget.style.color=''; }}>
+            <div style={{ fontSize:22, marginBottom:8 }}>✦</div>
+            <div style={{ fontFamily:'var(--font-body)', fontSize:12, fontWeight:700, color:GOLD, marginBottom:4 }}>Create with AI</div>
+            <div style={{ fontFamily:'var(--font-body)', fontSize:10, color:GOLD, lineHeight:1.4, opacity:0.8 }}>AI builds your first draft</div>
+          </button>
         </div>
       </div>
     </div>
@@ -1254,6 +1604,15 @@ export default function EmailBuilderModule({ C, mode, onBack }) {
   const [showSendModal,  setShowSendModal]  = useState(false);
   const [showDrafts,     setShowDrafts]     = useState(false);
   const [contentPicker,  setContentPicker]  = useState(null); // { blockId, type }
+  // AI state
+  const [tone,           setTone]           = useState('luxury');
+  const [showAiSubjects, setShowAiSubjects] = useState(false);
+  const [aiSubjectData,  setAiSubjectData]  = useState(null);
+  const [aiSubjectLoading, setAiSubjectLoading] = useState(false);
+  const [previewText,    setPreviewText]    = useState('');
+  const [aiBlockLoading, setAiBlockLoading] = useState(false);
+  const [showAiCompose,  setShowAiCompose]  = useState(false);
+  const [showAiTemplate, setShowAiTemplate] = useState(false);
 
   const showToast = msg => setToast(msg);
 
@@ -1332,6 +1691,103 @@ export default function EmailBuilderModule({ C, mode, onBack }) {
     }
   };
 
+  // ── AI handlers ───────────────────────────────────────────────────────────
+  const handleAiSubjects = async () => {
+    setAiSubjectLoading(true);
+    setShowAiSubjects(true);
+    try {
+      const result = await generateSubjectLines({ newsletterType: builderMode, tone, blocks, destination: getDestinationFromBlocks(blocks) });
+      setAiSubjectData(result);
+    } catch (err) {
+      showToast(err.message || 'AI unavailable - configure a provider in Admin > AI Settings');
+      setShowAiSubjects(false);
+    } finally { setAiSubjectLoading(false); }
+  };
+
+  const handleAiBlockAction = async (action) => {
+    if (!selectedId) return;
+    const block = blocks.find(b => b.id === selectedId);
+    if (!block) return;
+    const text = getMainTextFromBlock(block);
+    if (!text.trim()) { showToast('Add some text first before using AI'); return; }
+    setAiBlockLoading(true);
+    try {
+      const result = await rewriteBlockCopy({ text, action, tone, context: getBlockContextString(block) });
+      updateBlock(selectedId, applyAiTextToBlock(block, result.trim()));
+      showToast('AI applied');
+    } catch (err) {
+      showToast(err.message || 'AI unavailable');
+    } finally { setAiBlockLoading(false); }
+  };
+
+  const handleAiSummary = async (blockType) => {
+    if (!selectedId) return;
+    const block = blocks.find(b => b.id === selectedId);
+    if (!block) return;
+    const p = block.props;
+    setAiBlockLoading(true);
+    try {
+      let params;
+      if (blockType === 'article')     params = { type:'article', name: p.headline||'', description: p.excerpt||'', category: p.category||'', tone };
+      else if (blockType === 'venue_spot') params = { type:'venue', name: p.venueName||'', description: p.summary||'', location:'', tone };
+      else                             params = { type:'vendor', name: p.vendorName||'', description: p.description||'', tone };
+      const result = await generateSpotlightSummary(params);
+      if (blockType === 'article')     updateBlock(selectedId, { ...p, excerpt: result.summary || p.excerpt, ctaLabel: result.cta || p.ctaLabel });
+      else if (blockType === 'venue_spot') updateBlock(selectedId, { ...p, summary: result.summary || p.summary, ctaLabel: result.cta || p.ctaLabel });
+      else                             updateBlock(selectedId, { ...p, description: result.summary || p.description, ctaLabel: result.cta || p.ctaLabel });
+      showToast('AI summary applied');
+    } catch (err) {
+      showToast(err.message || 'AI unavailable');
+    } finally { setAiBlockLoading(false); }
+  };
+
+  const handleAiComposeApply = (draft) => {
+    // Insert intro as a new text block at the start (after header if present)
+    if (draft.intro) {
+      const introBlock = makeBlock('text');
+      introBlock.props = { ...introBlock.props, content: draft.intro };
+      const headerIdx = blocks.findIndex(b => b.type === 'header');
+      const insertAt = headerIdx >= 0 ? headerIdx + 1 : 0;
+      setBlocks(prev => {
+        const next = [...prev];
+        next.splice(insertAt, 0, introBlock);
+        return next;
+      });
+    }
+    // Insert closing as a text block before footer
+    if (draft.closing) {
+      const closingBlock = makeBlock('text');
+      closingBlock.props = { ...closingBlock.props, content: draft.closing };
+      setBlocks(prev => {
+        const footerIdx = prev.findIndex(b => b.type === 'footer');
+        const insertAt = footerIdx >= 0 ? footerIdx : prev.length;
+        const next = [...prev];
+        next.splice(insertAt, 0, closingBlock);
+        return next;
+      });
+    }
+    setShowAiCompose(false);
+    showToast('AI draft inserted');
+  };
+
+  const handleAiTemplateApply = (result) => {
+    // Build blocks from AI-suggested blockTypes
+    const newBlocks = (result.blockTypes || []).map(type => {
+      const b = makeBlock(type);
+      if (type === 'heading' && result.heading) b.props = { ...b.props, text: result.heading };
+      return b;
+    });
+    // Insert intro copy into first text block
+    if (result.intro) {
+      const textIdx = newBlocks.findIndex(b => b.type === 'text');
+      if (textIdx >= 0) newBlocks[textIdx].props = { ...newBlocks[textIdx].props, content: result.intro };
+    }
+    setBlocks(newBlocks);
+    setShowAiTemplate(false);
+    setShowPicker(false);
+    showToast('AI template created');
+  };
+
   const selectedBlock = blocks.find(b => b.id === selectedId) || null;
 
   const addBlock = useCallback(type => {
@@ -1394,7 +1850,11 @@ export default function EmailBuilderModule({ C, mode, onBack }) {
     <div style={{ display:'flex', flexDirection:'column', height:'100%', minHeight:0, background:C.bg }}>
 
       {showPicker && (
-        <TemplatePicker C={C} onSelect={factory => { setBlocks(factory); setShowPicker(false); }} />
+        <TemplatePicker
+          C={C}
+          onSelect={factory => { setBlocks(factory); setShowPicker(false); }}
+          onCreateWithAI={() => { setShowAiTemplate(true); }}
+        />
       )}
 
       {showSendModal && (
@@ -1424,6 +1884,25 @@ export default function EmailBuilderModule({ C, mode, onBack }) {
         />
       )}
 
+      {showAiCompose && (
+        <AiComposeModal
+          blocks={blocks}
+          tone={tone}
+          C={C}
+          onApply={handleAiComposeApply}
+          onClose={() => setShowAiCompose(false)}
+        />
+      )}
+
+      {showAiTemplate && (
+        <AiTemplateModal
+          tone={tone}
+          C={C}
+          onApply={handleAiTemplateApply}
+          onClose={() => setShowAiTemplate(false)}
+        />
+      )}
+
       {toast && <Toast msg={toast} onDone={() => setToast(null)} />}
 
       {/* ── Top bar ── */}
@@ -1439,13 +1918,29 @@ export default function EmailBuilderModule({ C, mode, onBack }) {
           ))}
         </div>
 
-        {/* Subject line */}
-        <input
-          value={subject}
-          onChange={e => setSubject(e.target.value)}
-          placeholder={builderMode==='newsletter' ? 'Newsletter edition name...' : 'Email subject line...'}
-          style={{ flex:1, background:'transparent', border:'none', borderBottom:`1px solid ${C.border}`, fontFamily:'var(--font-body)', fontSize:13, color:C.white, padding:'3px 0', outline:'none', minWidth:0 }}
-        />
+        {/* Subject line + AI button */}
+        <div style={{ flex:1, position:'relative', display:'flex', alignItems:'center', gap:6, minWidth:0 }}>
+          <input
+            value={subject}
+            onChange={e => setSubject(e.target.value)}
+            placeholder={builderMode==='newsletter' ? 'Newsletter edition name...' : 'Email subject line...'}
+            style={{ flex:1, background:'transparent', border:'none', borderBottom:`1px solid ${C.border}`, fontFamily:'var(--font-body)', fontSize:13, color:C.white, padding:'3px 0', outline:'none', minWidth:0 }}
+          />
+          <button onClick={handleAiSubjects} title="Generate subject lines with AI"
+            style={{ flexShrink:0, padding:'3px 10px', background: showAiSubjects ? GOLD : 'transparent', border:`1px solid ${showAiSubjects ? GOLD : GOLD_BDR}`, borderRadius:2, fontFamily:'var(--font-body)', fontSize:10, fontWeight:700, color: showAiSubjects ? '#000' : GOLD, cursor:'pointer', letterSpacing:'0.06em', whiteSpace:'nowrap' }}>
+            ✦ AI
+          </button>
+          {(showAiSubjects || aiSubjectData) && (
+            <AiSubjectPanel
+              data={aiSubjectData}
+              loading={aiSubjectLoading}
+              onApply={v => { setSubject(v); setShowAiSubjects(false); setAiSubjectData(null); }}
+              onApplyPreview={v => { setPreviewText(v); showToast('Preview text saved'); setShowAiSubjects(false); setAiSubjectData(null); }}
+              onClose={() => { setShowAiSubjects(false); setAiSubjectData(null); }}
+              onRegenerate={handleAiSubjects}
+            />
+          )}
+        </div>
 
         {/* Preview toggle */}
         <div style={{ display:'flex', background:C.bg, borderRadius:3, border:`1px solid ${C.border}`, overflow:'hidden', flexShrink:0 }}>
@@ -1456,6 +1951,19 @@ export default function EmailBuilderModule({ C, mode, onBack }) {
             </button>
           ))}
         </div>
+
+        {/* Tone dropdown */}
+        <select value={tone} onChange={e=>setTone(e.target.value)}
+          title="AI tone preset"
+          style={{ padding:'5px 8px', background:C.bg, border:`1px solid ${GOLD_BDR}`, borderRadius:3, fontFamily:'var(--font-body)', fontSize:10, color:GOLD, cursor:'pointer', outline:'none', appearance:'none', flexShrink:0, maxWidth:120 }}>
+          {TONE_PRESETS.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+        </select>
+
+        {/* AI Draft */}
+        <button onClick={() => setShowAiCompose(true)} disabled={blocks.length === 0}
+          style={{ padding:'6px 14px', background: blocks.length > 0 ? 'rgba(143,116,32,0.15)' : 'transparent', border:`1px solid ${blocks.length > 0 ? GOLD : C.border}`, borderRadius:3, fontFamily:'var(--font-body)', fontSize:11, fontWeight:700, color: blocks.length > 0 ? GOLD : C.grey, cursor: blocks.length > 0 ? 'pointer' : 'not-allowed', flexShrink:0 }}>
+          ✦ AI Draft
+        </button>
 
         {/* Actions */}
         <button onClick={() => setShowPicker(true)}
@@ -1590,6 +2098,9 @@ export default function EmailBuilderModule({ C, mode, onBack }) {
             onPickContent={handlePickContent}
             onLoadLatestArticles={handleLoadLatestArticles}
             onLoadDestinationVenues={handleLoadDestinationVenues}
+            onAiAction={handleAiBlockAction}
+            onAiSummary={handleAiSummary}
+            aiBlockLoading={aiBlockLoading}
           />
         </div>
 
