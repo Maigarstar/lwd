@@ -4,7 +4,8 @@
  * Under Admin > Sales > Pipeline Builder.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useContext } from 'react';
+import { ThemeCtx } from '../../theme/ThemeContext';
 import {
   fetchPipelines,
   createPipeline,
@@ -90,47 +91,54 @@ const CLOSED_WON_ACTION_LABELS = {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const S = {
-  wrap:       { display: 'flex', height: '100%', gap: 0, fontFamily: 'Inter, sans-serif', background: '#fafaf8' },
-  sidebar:    { width: 260, borderRight: '1px solid #e8e0d0', background: '#fff', display: 'flex', flexDirection: 'column', flexShrink: 0 },
-  sideHead:   { padding: '20px 18px 12px', borderBottom: '1px solid #f0ece4', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', color: '#8f7420', textTransform: 'uppercase' },
-  pipeList:   { flex: 1, overflowY: 'auto', padding: '8px 0' },
-  pipeItem:   (active) => ({ padding: '10px 18px', cursor: 'pointer', background: active ? 'rgba(143,116,32,0.08)' : 'transparent', borderLeft: active ? '3px solid #8f7420' : '3px solid transparent', fontSize: 13, fontWeight: active ? 600 : 400, color: active ? '#8f7420' : '#333', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.15s' }),
-  pipeDot:    (color) => ({ width: 9, height: 9, borderRadius: '50%', background: color || '#8f7420', flexShrink: 0 }),
-  newBtn:     { margin: '12px 16px', padding: '9px 0', border: '1px dashed rgba(143,116,32,0.4)', borderRadius: 6, background: 'transparent', color: '#8f7420', fontSize: 13, fontWeight: 500, cursor: 'pointer', width: 'calc(100% - 32px)', textAlign: 'center', transition: 'all 0.15s' },
-  main:       { flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' },
-  empty:      { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#999', gap: 10 },
-  emptyIcon:  { fontSize: 40, opacity: 0.3 },
-  topBar:     { padding: '20px 28px 16px', borderBottom: '1px solid #f0ece4', display: 'flex', alignItems: 'center', gap: 12, background: '#fff' },
-  pName:      { flex: 1, fontSize: 18, fontWeight: 600, color: '#171717', fontFamily: 'Cormorant Garamond, Georgia, serif' },
-  tabBar:     { display: 'flex', gap: 0, borderBottom: '1px solid #f0ece4', background: '#fff', padding: '0 28px' },
-  tab:        (active) => ({ padding: '12px 20px', fontSize: 13, fontWeight: 500, cursor: 'pointer', borderBottom: active ? '2px solid #8f7420' : '2px solid transparent', color: active ? '#8f7420' : '#888', transition: 'all 0.15s', background: 'none', border: 'none', borderBottom: active ? '2px solid #8f7420' : '2px solid transparent' }),
-  body:       { padding: 28, display: 'flex', flexDirection: 'column', gap: 24 },
-  card:       { background: '#fff', border: '1px solid #ede8de', borderRadius: 8, padding: 20 },
-  row:        { display: 'flex', gap: 16, alignItems: 'flex-start' },
-  col:        { flex: 1, display: 'flex', flexDirection: 'column', gap: 6 },
-  label:      { fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', color: '#888', textTransform: 'uppercase' },
-  input:      { padding: '9px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, color: '#171717', outline: 'none', background: '#fafaf8', width: '100%', boxSizing: 'border-box' },
-  textarea:   { padding: '9px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, color: '#171717', outline: 'none', background: '#fafaf8', width: '100%', boxSizing: 'border-box', minHeight: 80, resize: 'vertical', fontFamily: 'Inter, sans-serif' },
-  select:     { padding: '9px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, color: '#171717', background: '#fafaf8', width: '100%', outline: 'none' },
-  goldBtn:    { padding: '9px 20px', background: '#8f7420', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: 'opacity 0.15s' },
-  outlineBtn: { padding: '9px 20px', background: 'transparent', color: '#8f7420', border: '1px solid #8f7420', borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' },
-  dangerBtn:  { padding: '7px 14px', background: 'transparent', color: '#dc2626', border: '1px solid #dc2626', borderRadius: 6, fontSize: 12, cursor: 'pointer' },
-  smallBtn:   { padding: '5px 12px', background: 'transparent', border: '1px solid #ddd', borderRadius: 5, fontSize: 12, cursor: 'pointer', color: '#555' },
-  stageRow:   { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: '#fafaf8', border: '1px solid #ede8de', borderRadius: 7, marginBottom: 8 },
-  dragHandle: { color: '#bbb', cursor: 'grab', fontSize: 16, flexShrink: 0, userSelect: 'none' },
-  colorDot:   (color) => ({ width: 20, height: 20, borderRadius: '50%', background: color, border: '2px solid #fff', cursor: 'pointer', flexShrink: 0, boxShadow: '0 0 0 1px #ddd' }),
-  colorSwatch:(color, active) => ({ width: 22, height: 22, borderRadius: '50%', background: color, cursor: 'pointer', boxShadow: active ? `0 0 0 2px #fff, 0 0 0 4px ${color}` : 'none', flexShrink: 0 }),
-  colorPicker:{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '8px 0' },
-  tplCard:    { background: '#fafaf8', border: '1px solid #ede8de', borderRadius: 7, padding: '14px 16px', marginBottom: 8 },
-  tplTitle:   { fontSize: 13, fontWeight: 600, color: '#333', marginBottom: 4 },
-  tplSub:     { fontSize: 11, color: '#888' },
-  badge:      (color) => ({ display: 'inline-block', padding: '2px 8px', borderRadius: 100, background: color + '22', color: color, fontSize: 11, fontWeight: 600 }),
-  checkRow:   { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 },
-  overlay:    { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  modal:      { background: '#fff', borderRadius: 10, padding: 28, width: '90vw', maxWidth: 640, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' },
-  modalHead:  { fontSize: 17, fontWeight: 600, color: '#171717', fontFamily: 'Cormorant Garamond, Georgia, serif', marginBottom: 20 },
-};
+const PB_LIGHT = { black: '#fafaf8', dark: '#f3ede6', card: '#ffffff', border: '#e8e0d0', border2: '#f0ece4', white: '#171717', grey: '#888', grey2: '#aaa', gold: '#8f7420' };
+
+function makeS(C, G) {
+  return {
+    wrap:       { display: 'flex', height: '100%', gap: 0, fontFamily: 'Inter, sans-serif', background: C.dark },
+    sidebar:    { width: 260, borderRight: `1px solid ${C.border}`, background: C.card, display: 'flex', flexDirection: 'column', flexShrink: 0 },
+    sideHead:   { padding: '20px 18px 12px', borderBottom: `1px solid ${C.border}`, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', color: G, textTransform: 'uppercase' },
+    pipeList:   { flex: 1, overflowY: 'auto', padding: '8px 0' },
+    pipeItem:   (active) => ({ padding: '10px 18px', cursor: 'pointer', background: active ? `${G}18` : 'transparent', borderLeft: active ? `3px solid ${G}` : '3px solid transparent', fontSize: 13, fontWeight: active ? 600 : 400, color: active ? G : C.white, display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.15s' }),
+    pipeDot:    (color) => ({ width: 9, height: 9, borderRadius: '50%', background: color || G, flexShrink: 0 }),
+    newBtn:     { margin: '12px 16px', padding: '9px 0', border: `1px dashed ${G}60`, borderRadius: 6, background: 'transparent', color: G, fontSize: 13, fontWeight: 500, cursor: 'pointer', width: 'calc(100% - 32px)', textAlign: 'center', transition: 'all 0.15s' },
+    main:       { flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' },
+    empty:      { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.grey, gap: 10 },
+    emptyIcon:  { fontSize: 40, opacity: 0.3 },
+    topBar:     { padding: '20px 28px 16px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 12, background: C.card },
+    pName:      { flex: 1, fontSize: 18, fontWeight: 600, color: C.white, fontFamily: 'Cormorant Garamond, Georgia, serif' },
+    tabBar:     { display: 'flex', gap: 0, borderBottom: `1px solid ${C.border}`, background: C.card, padding: '0 28px' },
+    tab:        (active) => ({ padding: '12px 20px', fontSize: 13, fontWeight: 500, cursor: 'pointer', borderBottom: active ? `2px solid ${G}` : '2px solid transparent', color: active ? G : C.grey, transition: 'all 0.15s', background: 'none', border: 'none' }),
+    body:       { padding: 28, display: 'flex', flexDirection: 'column', gap: 24 },
+    card:       { background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: 20 },
+    row:        { display: 'flex', gap: 16, alignItems: 'flex-start' },
+    col:        { flex: 1, display: 'flex', flexDirection: 'column', gap: 6 },
+    label:      { fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', color: C.grey, textTransform: 'uppercase' },
+    input:      { padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, color: C.white, outline: 'none', background: C.dark, width: '100%', boxSizing: 'border-box' },
+    textarea:   { padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, color: C.white, outline: 'none', background: C.dark, width: '100%', boxSizing: 'border-box', minHeight: 80, resize: 'vertical', fontFamily: 'Inter, sans-serif' },
+    select:     { padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, color: C.white, background: C.dark, width: '100%', outline: 'none' },
+    goldBtn:    { padding: '9px 20px', background: G, color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: 'opacity 0.15s' },
+    outlineBtn: { padding: '9px 20px', background: 'transparent', color: G, border: `1px solid ${G}`, borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' },
+    dangerBtn:  { padding: '7px 14px', background: 'transparent', color: '#dc2626', border: '1px solid #dc2626', borderRadius: 6, fontSize: 12, cursor: 'pointer' },
+    smallBtn:   { padding: '5px 12px', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 5, fontSize: 12, cursor: 'pointer', color: C.white },
+    stageRow:   { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: C.dark, border: `1px solid ${C.border}`, borderRadius: 7, marginBottom: 8 },
+    dragHandle: { color: C.grey, cursor: 'grab', fontSize: 16, flexShrink: 0, userSelect: 'none' },
+    colorDot:   (color) => ({ width: 20, height: 20, borderRadius: '50%', background: color, border: `2px solid ${C.card}`, cursor: 'pointer', flexShrink: 0, boxShadow: `0 0 0 1px ${C.border}` }),
+    colorSwatch:(color, active) => ({ width: 22, height: 22, borderRadius: '50%', background: color, cursor: 'pointer', boxShadow: active ? `0 0 0 2px ${C.card}, 0 0 0 4px ${color}` : 'none', flexShrink: 0 }),
+    colorPicker:{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '8px 0' },
+    tplCard:    { background: C.dark, border: `1px solid ${C.border}`, borderRadius: 7, padding: '14px 16px', marginBottom: 8 },
+    tplTitle:   { fontSize: 13, fontWeight: 600, color: C.white, marginBottom: 4 },
+    tplSub:     { fontSize: 11, color: C.grey },
+    badge:      (color) => ({ display: 'inline-block', padding: '2px 8px', borderRadius: 100, background: color + '22', color: color, fontSize: 11, fontWeight: 600 }),
+    checkRow:   { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: C.white },
+    overlay:    { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    modal:      { background: C.card, borderRadius: 10, padding: 28, width: '90vw', maxWidth: 640, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', color: C.white },
+    modalHead:  { fontSize: 17, fontWeight: 600, color: C.white, fontFamily: 'Cormorant Garamond, Georgia, serif', marginBottom: 20 },
+  };
+}
+
+// Module-level S - updated by PipelineBuilderModule before each render
+let S = makeS(PB_LIGHT, PB_LIGHT.gold);
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -162,7 +170,7 @@ function StageRowItem({ stage, stages, templates, onUpdate, onDelete, onMoveUp, 
       <div style={{ position: 'relative' }}>
         <div style={S.colorDot(stage.color)} onClick={() => setShowColors(v => !v)} title="Change colour" />
         {showColors && (
-          <div style={{ position: 'absolute', top: 28, left: 0, background: '#fff', border: '1px solid #ddd', borderRadius: 8, padding: '10px 12px', zIndex: 100, boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}>
+          <div style={{ ...S.card, position: 'absolute', top: 28, left: 0, borderRadius: 8, padding: '10px 12px', zIndex: 100, boxShadow: '0 4px 16px rgba(0,0,0,0.18)' }}>
             <ColorPicker value={stage.color} onChange={c => { field('color', c); setShowColors(false); }} />
           </div>
         )}
@@ -367,6 +375,10 @@ function NewPipelineModal({ onSave, onClose }) {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function PipelineBuilderModule() {
+  const C = useContext(ThemeCtx);
+  const G = C?.gold || PB_LIGHT.gold;
+  S = makeS(C || PB_LIGHT, G);
+
   const [pipelines,       setPipelines]       = useState([]);
   const [selectedId,      setSelectedId]      = useState(null);
   const [stages,          setStages]          = useState([]);
