@@ -26,9 +26,9 @@ import ContactLWD             from "./pages/ContactLWD.jsx";
 import LWDPartnership         from "./pages/LWDPartnership.jsx";
 import USAPage                from "./pages/USAPage.jsx";
 import ItalyPage              from "./pages/ItalyPage.jsx";
-import AdminDashboard         from "./pages/AdminDashboard.jsx";
+const AdminDashboard         = lazy(() => import("./pages/AdminDashboard.jsx"));
 import AdminLogin             from "./pages/AdminLogin.jsx";
-import VendorDashboard        from "./pages/VendorDashboard.jsx";
+const VendorDashboard        = lazy(() => import("./pages/VendorDashboard.jsx"));
 import VendorLogin            from "./pages/VendorLogin.jsx";
 import VendorSignup           from "./pages/VendorSignup.jsx";
 import VendorActivate         from "./pages/VendorActivate.jsx";
@@ -46,7 +46,7 @@ import PugliaPage             from "./pages/PugliaPage.jsx";
 import ShortlistPage          from "./pages/ShortlistPage.jsx";
 import RealWeddingsPage       from "./pages/RealWeddingsPage.jsx";
 import RealWeddingDetailPage  from "./pages/RealWeddingDetailPage.jsx";
-import GettingMarriedDashboard from "./pages/GettingMarriedDashboard.jsx";
+const GettingMarriedDashboard = lazy(() => import("./pages/GettingMarriedDashboard.jsx"));
 import JoinPage from "./pages/JoinPage.jsx";
 import PartnerEnquiryPage from "./pages/PartnerEnquiryPage.jsx";
 import ArtistryPage from "./pages/Artistry/ArtistryPage.jsx";
@@ -54,7 +54,7 @@ import MagazineHomePage     from "./pages/Magazine/MagazineHomePage.jsx";
 import CategoryPage          from "./pages/Magazine/CategoryPage.jsx";
 import MagazineArticlePage  from "./pages/Magazine/MagazineArticlePage.jsx";
 import FashionLandingPage   from "./pages/Magazine/FashionLandingPage.jsx";
-import MagazineStudio       from "./pages/MagazineStudio/index.jsx";
+const MagazineStudio         = lazy(() => import("./pages/MagazineStudio/index.jsx"));
 import EditorialShowcase    from "./pages/EditorialShowcase.jsx";
 import ShowcasePage         from "./pages/ShowcasePage.jsx";
 import DdeShowcasePage          from "./pages/DdeShowcasePage.jsx";
@@ -231,7 +231,11 @@ function AdminRoute({ onBack, onNavigate }) {
     return null;
   }
 
-  return <AdminDashboard onBack={onBack} onNavigate={onNavigate} />;
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', fontFamily: 'inherit' }}>Loading...</div>}>
+      <AdminDashboard onBack={onBack} onNavigate={onNavigate} />
+    </Suspense>
+  );
 }
 
 // ── App (router + providers in one place) ────────────────────────────────────
@@ -563,10 +567,12 @@ function App() {
           />
         )}
         {page === "magazine-studio" && (
-          <MagazineStudio
-            onNavigateMagazine={goMagazine}
-            onNavigateHome={goHome}
-          />
+          <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>}>
+            <MagazineStudio
+              onNavigateMagazine={goMagazine}
+              onNavigateHome={goHome}
+            />
+          </Suspense>
         )}
         {page === "puglia" && (
           <PugliaPage onBack={goHome} onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewStandard={goStandard} onViewAbout={goAbout} footerNav={footerNav} />
@@ -641,7 +647,9 @@ function App() {
           <VendorResetPassword />
         )}
         {page === "vendor" && (
-          <VendorDashboard onBack={goHome} onVendorLogin={goVendorLogin} />
+          <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>}>
+            <VendorDashboard onBack={goHome} onVendorLogin={goVendorLogin} />
+          </Suspense>
         )}
         {page === "real-weddings" && (
           <RealWeddingsPage C={COLORS} NU={FONTS.normal} GD={FONTS.display} onNavigate={(type, data) => { if (type === "real-wedding-detail") goRealWeddingDetail(data.realWeddingSlug); }} />
@@ -668,9 +676,11 @@ function App() {
           <CoupleResetPassword />
         )}
         {page === "getting-married" && (
-          <ProtectedCoupleRoute>
-            <GettingMarriedDashboard onBack={goHome} footerNav={footerNav} />
-          </ProtectedCoupleRoute>
+          <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>}>
+            <ProtectedCoupleRoute>
+              <GettingMarriedDashboard onBack={goHome} footerNav={footerNav} />
+            </ProtectedCoupleRoute>
+          </Suspense>
         )}
         {page === "join" && (
           <JoinPage />
