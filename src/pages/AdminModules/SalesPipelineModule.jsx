@@ -88,6 +88,11 @@ const COUNTRIES    = ['United Kingdom', 'Ireland', 'France', 'Italy', 'Spain', '
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
+// Module-level S used by sub-components (light mode defaults).
+// SalesPipelineModule overrides this with a themed version via makeS(C, G).
+const LIGHT_C = { black: '#fafaf8', card: '#fff', dark: '#fafaf8', white: '#171717', grey: '#888', grey2: '#aaa', border: '#ede8de', gold: '#8f7420' };
+const LIGHT_G = '#8f7420';
+
 function makeS(C, G) {
   const isDark = C.card === '#141414';
   return {
@@ -172,6 +177,9 @@ function makeS(C, G) {
     analyticsNote: { fontSize: 11, color: C.grey2, fontStyle: 'italic', marginBottom: 12 },
   };
 }
+
+// Module-level fallback (light mode) - overridden inside SalesPipelineModule
+let S = makeS(LIGHT_C, LIGHT_G);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -943,7 +951,7 @@ function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onC
 
 // ── Kanban Board ──────────────────────────────────────────────────────────────
 
-function KanbanBoard({ prospects, stages, onMoveToStage, onOpenPanel, onAddProspect }) {
+function KanbanBoard({ prospects, stages, S, onMoveToStage, onOpenPanel, onAddProspect }) {
   const [draggingId, setDraggingId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
 
@@ -1833,12 +1841,10 @@ function CampaignsView({ campaigns, onNewCampaign, onRefresh }) {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function SalesPipelineModule() {
-  const { C } = useContext(ThemeCtx);
+  const C = useContext(ThemeCtx);
   const G = C?.gold || '#8f7420';
-  const S = makeS(C || {
-    black: '#fafaf8', card: '#fff', dark: '#fafaf8', white: '#171717',
-    grey: '#888', grey2: '#aaa', border: '#ede8de', gold: '#8f7420',
-  }, G);
+  // Update module-level S so all sub-components automatically use themed styles
+  S = makeS(C || LIGHT_C, G);
 
   const [pipelines,     setPipelines]     = useState([]);
   const [allStages,     setAllStages]     = useState([]);
@@ -2101,6 +2107,7 @@ export default function SalesPipelineModule() {
             <KanbanBoard
               prospects={filtered}
               stages={currentStages}
+              S={S}
               onMoveToStage={handleMoveToStage}
               onOpenPanel={p => setOpenPanel(p)}
               onAddProspect={stage => handleAddProspect(stage)}
