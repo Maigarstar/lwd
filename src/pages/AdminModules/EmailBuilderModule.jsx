@@ -1234,10 +1234,13 @@ function ContentPickerModal({ type, C, onPick, onClose }) {
 }
 
 // ── Template picker modal ─────────────────────────────────────────────────────
-function TemplatePicker({ onSelect, onCreateWithAI, C }) {
+function TemplatePicker({ onSelect, onCreateWithAI, onClose, C }) {
   return (
-    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', backdropFilter:'blur(4px)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center' }}>
-      <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:6, padding:'40px 36px', width:640, maxWidth:'92vw' }}>
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', backdropFilter:'blur(4px)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center' }}
+      onClick={onClose}>
+      <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:6, padding:'40px 36px', width:640, maxWidth:'92vw', position:'relative' }}
+        onClick={e => e.stopPropagation()}>
+        <button onClick={onClose} style={{ position:'absolute', top:14, right:16, background:'transparent', border:'none', color:C.grey, fontSize:18, cursor:'pointer', lineHeight:1, padding:0 }}>✕</button>
         <h2 style={{ fontFamily:'var(--font-heading)', fontSize:24, fontWeight:700, color:C.white, margin:'0 0 4px' }}>Start a new email</h2>
         <p style={{ fontFamily:'var(--font-body)', fontSize:13, color:C.grey, margin:'0 0 28px' }}>Choose a starting point or begin with a blank canvas</p>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:12 }}>
@@ -1854,6 +1857,7 @@ export default function EmailBuilderModule({ C, mode, onBack }) {
           C={C}
           onSelect={factory => { setBlocks(factory); setShowPicker(false); }}
           onCreateWithAI={() => { setShowAiTemplate(true); }}
+          onClose={() => setShowPicker(false)}
         />
       )}
 
