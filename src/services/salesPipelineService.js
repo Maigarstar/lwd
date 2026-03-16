@@ -88,21 +88,36 @@ export async function deleteProspect(id) {
 
 // ── Outreach email log ────────────────────────────────────────────────────────
 
-export async function logOutreachEmail({ prospectId, emailType, subject, body }) {
+/**
+ * Log an outreach email and return the created row (including its id).
+ * The id is used by callers to append a tracking pixel to the email body.
+ *
+ * @param {object} opts
+ * @param {string} opts.prospectId
+ * @param {string} opts.emailType  - 'cold'|'follow_up_1'|'follow_up_2'|'proposal'|'campaign'|'custom'
+ * @param {string} opts.subject
+ * @param {string} opts.body
+ * @param {string} [opts.campaignId]  - Optional: link to a prospect_campaigns row
+ * @returns {Promise<object>} Created outreach_emails row with id
+ */
+export async function logOutreachEmail({ prospectId, emailType, subject, body, campaignId }) {
+  const row = {
+    prospect_id: prospectId,
+    email_type:  emailType,
+    subject,
+    body,
+    sent_at: new Date().toISOString(),
+    status:  'sent',
+  };
+  if (campaignId) row.campaign_id = campaignId;
+
   const { data, error } = await supabase
     .from('outreach_emails')
-    .insert([{
-      prospect_id: prospectId,
-      email_type: emailType,
-      subject,
-      body,
-      sent_at: new Date().toISOString(),
-      status: 'sent',
-    }])
+    .insert([row])
     .select()
     .single();
   if (error) throw error;
-  return data;
+  return data; // includes data.id for pixel URL construction
 }
 
 export async function markReplied(outreachEmailId) {

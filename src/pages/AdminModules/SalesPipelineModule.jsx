@@ -53,6 +53,29 @@ import {
   generateNextAction,
   getPipelineIntelligence,
 } from '../../services/dealIntelligenceService';
+import {
+  fetchCampaigns,
+  createCampaign,
+  updateCampaign,
+  deleteCampaign,
+  filterProspectsForCampaign,
+  sendCampaign,
+  fetchCampaignStats,
+} from '../../services/campaignService';
+import {
+  discoverByKeywords,
+  discoverFromUrl,
+  importDiscoveredProspects,
+} from '../../services/prospectDiscoveryService';
+import {
+  fetchOnboardingTask,
+  createOnboardingTask,
+  toggleOnboardingItem,
+  getOnboardingProgress,
+} from '../../services/onboardingService';
+import {
+  fetchEmailAnalytics,
+} from '../../services/emailAnalyticsService';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -135,6 +158,16 @@ const S = {
   formInput:   { padding: '9px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, color: '#171717', outline: 'none', background: '#fafaf8' },
   formSelect:  { padding: '9px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, color: '#171717', background: '#fafaf8', outline: 'none' },
   formTextarea:{ padding: '9px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, color: '#171717', outline: 'none', background: '#fafaf8', minHeight: 80, resize: 'vertical', fontFamily: 'Inter, sans-serif' },
+
+  // Campaigns view
+  campTable:   { width: '100%', borderCollapse: 'collapse', background: '#fff' },
+  campTh:      { padding: '10px 14px', fontSize: 11, fontWeight: 600, letterSpacing: '0.07em', color: '#888', textAlign: 'left', borderBottom: '2px solid #f0ece4', background: '#fafaf8', textTransform: 'uppercase' },
+  campTd:      { padding: '10px 14px', fontSize: 13, borderBottom: '1px solid #f3f0ea', verticalAlign: 'middle' },
+  // Analytics
+  analyticsKpi: { background: '#fff', border: '1px solid #ede8de', borderRadius: 8, padding: '14px 16px', flex: 1, minWidth: 120 },
+  analyticsKpiVal: { fontSize: 24, fontWeight: 700, color: '#171717', fontFamily: 'Cormorant Garamond, Georgia, serif' },
+  analyticsKpiLabel: { fontSize: 11, color: '#888', marginTop: 2, letterSpacing: '0.05em' },
+  analyticsNote: { fontSize: 11, color: '#aaa', fontStyle: 'italic', marginBottom: 12 },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -386,6 +419,8 @@ function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onC
   const [localScore,   setLocalScore]   = useState(prospect.lead_score ?? null);
   const [dealHealth,   setDealHealth]   = useState(null);
   const [closeProb,    setCloseProb]    = useState(null);
+  const [onboardingTask, setOnboardingTask] = useState(null);
+  const [onboardingLoading, setOnboardingLoading] = useState(false);
 
   useEffect(() => {
     setHistLoading(true);
@@ -401,6 +436,36 @@ function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onC
       })
       .finally(() => setHistLoading(false));
   }, [prospect.id]);
+
+  useEffect(() => {
+    const currentStage = stages.find(s => s.id === prospect.stage_id);
+    if (!currentStage?.is_won && prospect.status !== 'converted') return;
+    setOnboardingLoading(true);
+    fetchOnboardingTask(prospect.id)
+      .then(async task => {
+        if (!task) {
+          // Create on first open after Closed Won
+          const created = await createOnboardingTask(prospect.id).catch(() => null);
+          setOnboardingTask(created);
+        } else {
+          setOnboardingTask(task);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setOnboardingLoading(false));
+  }, [prospect.id, prospect.status]);
+
+  async function handleToggleOnboarding(itemId) {
+    if (!onboardingTask) return;
+    try {
+      const { task, onboardingComplete } = await toggleOnboardingItem(onboardingTask.id, itemId);
+      setOnboardingTask(task);
+      if (onboardingComplete) {
+        // Refresh history to show the completion note
+        fetchOutreachHistory(prospect.id).then(setHistory);
+      }
+    } catch (e) { console.error(e); }
+  }
 
   function handleEmailSent(data) {
     const entry = { subject: data.subject, body: data.body, sent_at: new Date().toISOString(), status: 'sent', email_type: 'custom' };
@@ -590,6 +655,47 @@ function ProspectPanel({ prospect, stages, templates, onEdit, onStageChange, onC
               </div>
             ))}
         </div>
+
+        {/* Onboarding Checklist - shown for Closed Won prospects */}
+        {(stages.find(s => s.id === prospect.stage_id)?.is_won || prospect.status === 'converted') && (
+          <div style={{ borderTop: '1px solid #f3f0ea', paddingTop: 14, marginTop: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <div style={{ ...S.fieldLabel, margin: 0 }}>Onboarding Checklist</div>
+              {onboardingTask && (() => {
+                const prog = getOnboardingProgress(onboardingTask.checklist_items);
+                return (
+                  <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 600, color: onboardingTask.status === 'complete' ? '#22c55e' : '#f59e0b' }}>
+                    {prog.completed}/{prog.total}
+                  </span>
+                );
+              })()}
+            </div>
+            {onboardingTask && (() => {
+              const prog = getOnboardingProgress(onboardingTask.checklist_items);
+              return (
+                <>
+                  <div style={{ height: 5, background: '#f3f0ea', borderRadius: 100, marginBottom: 12 }}>
+                    <div style={{ height: '100%', background: onboardingTask.status === 'complete' ? '#22c55e' : G, borderRadius: 100, width: `${prog.percentage}%`, transition: 'width 0.4s' }} />
+                  </div>
+                  {onboardingTask.checklist_items.map(item => (
+                    <div key={item.id} onClick={() => handleToggleOnboarding(item.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: '1px solid #f9f9f7', cursor: 'pointer' }}>
+                      <div style={{ width: 16, height: 16, borderRadius: 4, border: `1.5px solid ${item.completed ? '#22c55e' : '#ccc'}`, background: item.completed ? '#22c55e' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' }}>
+                        {item.completed && <span style={{ color: '#fff', fontSize: 10, fontWeight: 700, lineHeight: 1 }}>&#10003;</span>}
+                      </div>
+                      <span style={{ fontSize: 12, color: item.completed ? '#aaa' : '#333', textDecoration: item.completed ? 'line-through' : 'none', flex: 1 }}>{item.label}</span>
+                    </div>
+                  ))}
+                  {onboardingTask.status === 'complete' && (
+                    <div style={{ marginTop: 12, padding: '10px 12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 7, fontSize: 12, color: '#166534', fontWeight: 600 }}>
+                      &#10003; Onboarding complete. Consider publishing the listing if not yet live.
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+            {onboardingLoading && <div style={{ fontSize: 12, color: '#aaa' }}>Loading checklist...</div>}
+          </div>
+        )}
       </div>
 
       {showEmail && (
@@ -724,7 +830,7 @@ function ListView({ prospects, stages, onOpenPanel, sortKey, sortDir, onSort }) 
 
 // ── Dashboard View ────────────────────────────────────────────────────────────
 
-function DashboardView({ stats, stages, overdueFU, onRunFollowUps, followUpRunning, onRecalcScores, scoresRefreshing, intelligence }) {
+function DashboardView({ stats, stages, overdueFU, onRunFollowUps, followUpRunning, onRecalcScores, scoresRefreshing, intelligence, analytics }) {
   const maxCount = Math.max(...stages.map(s => stats.stageCounts?.[s.name] || 0), 1);
   const kpis = [
     { label: 'Total Prospects',   value: stats.totalProspects   || 0 },
@@ -836,6 +942,79 @@ function DashboardView({ stats, stages, overdueFU, onRunFollowUps, followUpRunni
         </div>
       )}
 
+      {/* Email Analytics */}
+      {analytics && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#555' }}>Email Analytics</div>
+            <div style={{ fontSize: 11, color: '#aaa', fontStyle: 'italic' }}>{analytics.openRateNote}</div>
+          </div>
+
+          {/* KPI row */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+            {[
+              { label: 'Emails Sent',     value: analytics.totalSent },
+              { label: 'Open Rate',       value: `${analytics.openRate}%`,        note: 'approx' },
+              { label: 'Reply Rate',      value: `${analytics.replyRate}%` },
+              { label: 'Open to Reply',   value: `${analytics.openToReplyRate}%` },
+              { label: 'Avg Reply Time',  value: analytics.avgReplyHours > 0 ? `${analytics.avgReplyHours}h` : '--' },
+            ].map(k => (
+              <div key={k.label} style={S.analyticsKpi}>
+                <div style={S.analyticsKpiVal}>{k.value}{k.note ? <span style={{ fontSize: 11, color: '#aaa', fontWeight: 400, marginLeft: 4 }}>{k.note}</span> : null}</div>
+                <div style={S.analyticsKpiLabel}>{k.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Subject line table */}
+          {analytics.subjectLines.length > 0 && (
+            <div style={{ background: '#fff', border: '1px solid #ede8de', borderRadius: 8, padding: '16px 18px', marginBottom: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 12 }}>Subject Line Performance</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead><tr>
+                  {['Subject', 'Sent', 'Opens', 'Open %', 'Replies', 'Reply %'].map(h => (
+                    <th key={h} style={{ textAlign: h === 'Subject' ? 'left' : 'center', padding: '5px 8px', color: '#aaa', fontWeight: 600, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', borderBottom: '1px solid #f3f0ea' }}>{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {analytics.subjectLines.map((s, i) => (
+                    <tr key={s.subject} style={{ background: i === 0 && s.openRate >= 40 ? `${G}08` : 'transparent' }}>
+                      <td style={{ padding: '6px 8px', borderLeft: i === 0 && s.openRate >= 40 ? `3px solid ${G}` : '3px solid transparent', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#333' }} title={s.subject}>{s.subject}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'center', color: '#666' }}>{s.sent}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'center', color: '#666' }}>{s.opens}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600, color: s.openRate >= 40 ? '#22c55e' : s.openRate >= 20 ? '#f59e0b' : '#aaa' }}>{s.openRate}%</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'center', color: '#666' }}>{s.replies}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600, color: s.replyRate >= 20 ? '#22c55e' : s.replyRate >= 10 ? '#f59e0b' : '#aaa' }}>{s.replyRate}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Send time heatmap */}
+          {analytics.sendTimePatterns && (
+            <div style={{ background: '#fff', border: '1px solid #ede8de', borderRadius: 8, padding: '16px 18px', marginBottom: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 12 }}>Best Send Times (by Reply Rate)</div>
+              <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                {analytics.sendTimePatterns.map(b => {
+                  const intensity = Math.min(1, b.replyRate / 30);
+                  const bg = b.sent > 0 ? `rgba(143,116,32,${0.1 + intensity * 0.7})` : '#f3f0ea';
+                  const textC = intensity > 0.5 ? '#fff' : '#666';
+                  return (
+                    <div key={b.hour} title={`${b.label}: ${b.sent} sent, ${b.replyRate}% reply rate`} style={{ flex: '1 1 calc(8.33% - 3px)', minWidth: 36, height: 40, background: bg, borderRadius: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'default' }}>
+                      <div style={{ fontSize: 9, color: textC, fontWeight: 600, lineHeight: 1 }}>{b.label}</div>
+                      {b.sent > 0 && <div style={{ fontSize: 9, color: textC, opacity: 0.8, marginTop: 1 }}>{b.replyRate}%</div>}
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ fontSize: 10, color: '#aaa', marginTop: 8 }}>Darker = higher reply rate. Hover for details.</div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={{ background: '#fff', border: '1px solid #ede8de', borderRadius: 8, padding: '18px 20px', marginBottom: 20 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 16 }}>Stage Distribution</div>
         {stages.map(stage => {
@@ -871,6 +1050,469 @@ function DashboardView({ stats, stages, overdueFU, onRunFollowUps, followUpRunni
   );
 }
 
+// ── Campaign Builder Drawer ───────────────────────────────────────────────────
+
+function CampaignBuilderDrawer({ prospects, pipelines, stages, templates, assignRules, assignSettings, onSaved, onClose }) {
+  const [step, setStep] = useState(1); // 1=Filters 2=Audience 3=Compose 4=Confirm
+  const [campaignName, setCampaignName] = useState('');
+  const [filters, setFilters] = useState({ pipeline_id: '', stage_ids: [], venue_types: [], min_score: 0, statuses: ['active'] });
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [aiPersonalise, setAiPersonalise] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendProgress, setSendProgress] = useState(0);
+  const [sendTotal, setSendTotal] = useState(0);
+  const [confirmed, setConfirmed] = useState(false); // double-click protection
+
+  const VENUE_TYPES_OPTS = ['Venue', 'Vendor', 'Planner', 'Photographer', 'Florist', 'Caterer'];
+  const STATUS_OPTS      = ['active', 'converted', 'lost', 'paused'];
+
+  const audience = filterProspectsForCampaign(prospects, {
+    pipeline_id:  filters.pipeline_id  || undefined,
+    stage_ids:    filters.stage_ids.length  ? filters.stage_ids  : undefined,
+    venue_types:  filters.venue_types.length ? filters.venue_types : undefined,
+    min_score:    filters.min_score > 0 ? filters.min_score : undefined,
+    statuses:     filters.statuses.length ? filters.statuses : ['active'],
+  });
+
+  function toggleArr(arr, val) {
+    return arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val];
+  }
+
+  async function handleSend() {
+    if (confirmed || sending || audience.length === 0 || !subject || !body) return;
+    setConfirmed(true); // prevent double-click
+    setSending(true);
+    setSendTotal(audience.length);
+    try {
+      const fromEmail = localStorage.getItem('emailFromAddress') || '';
+      const fromName  = localStorage.getItem('emailFromName') || 'Luxury Wedding Directory';
+      const campaign  = await createCampaign({
+        name:                 campaignName || `Campaign ${new Date().toLocaleDateString('en-GB')}`,
+        filters,
+        subject,
+        body,
+        personalisation_mode: aiPersonalise ? 'ai_assisted' : 'template',
+        from_email:           fromEmail,
+        from_name:            fromName,
+        total_recipients:     audience.length,
+      });
+      await sendCampaign({
+        campaign,
+        prospects: audience,
+        fromEmail,
+        fromName,
+        templates,
+        personaliseWithAI: aiPersonalise,
+        onProgress: (sent) => setSendProgress(sent),
+      });
+      onSaved();
+    } catch (e) {
+      console.error('Campaign send failed:', e);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const stepLabels = ['Filters', 'Audience', 'Compose', 'Confirm'];
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 2000, display: 'flex', justifyContent: 'flex-end' }} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ width: 440, background: '#fff', height: '100%', overflowY: 'auto', boxShadow: '-4px 0 20px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column' }}>
+        {/* Header */}
+        <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #f0ece4', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ flex: 1, fontSize: 16, fontWeight: 600, fontFamily: 'Cormorant Garamond, Georgia, serif', color: '#171717' }}>New Campaign</div>
+          <button style={S.panelClose} onClick={onClose}>x</button>
+        </div>
+
+        {/* Step pills */}
+        <div style={{ display: 'flex', padding: '12px 20px', gap: 6, borderBottom: '1px solid #f0ece4' }}>
+          {stepLabels.map((label, i) => (
+            <div key={label} style={{ flex: 1, textAlign: 'center', fontSize: 10, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', padding: '5px 0', borderRadius: 4, background: step === i + 1 ? G : step > i + 1 ? G + '22' : '#f3f0ea', color: step === i + 1 ? '#fff' : step > i + 1 ? G : '#aaa', cursor: step > i + 1 ? 'pointer' : 'default' }} onClick={() => { if (step > i + 1) setStep(i + 1); }}>{label}</div>
+          ))}
+        </div>
+
+        {/* Step body */}
+        <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
+
+          {step === 1 && (
+            <div>
+              <div style={S.formLabel}>Campaign Name</div>
+              <input style={{ ...S.formInput, width: '100%', boxSizing: 'border-box', marginTop: 4, marginBottom: 18 }} value={campaignName} onChange={e => setCampaignName(e.target.value)} placeholder="e.g. March Venue Outreach" />
+
+              <div style={S.formLabel}>Pipeline</div>
+              <select style={{ ...S.formSelect, width: '100%', marginTop: 4, marginBottom: 18 }} value={filters.pipeline_id} onChange={e => setFilters(f => ({ ...f, pipeline_id: e.target.value, stage_ids: [] }))}>
+                <option value="">All pipelines</option>
+                {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+
+              <div style={S.formLabel}>Stages</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6, marginBottom: 18 }}>
+                {stages.filter(s => !filters.pipeline_id || s.pipeline_id === filters.pipeline_id).map(s => {
+                  const active = filters.stage_ids.includes(s.id);
+                  return (
+                    <button key={s.id} type="button" onClick={() => setFilters(f => ({ ...f, stage_ids: toggleArr(f.stage_ids, s.id) }))} style={{ padding: '4px 10px', borderRadius: 100, fontSize: 11, border: `1px solid ${active ? s.color : '#ddd'}`, background: active ? s.color + '22' : 'transparent', color: active ? s.color : '#666', cursor: 'pointer' }}>{s.name}</button>
+                  );
+                })}
+                {stages.filter(s => !filters.pipeline_id || s.pipeline_id === filters.pipeline_id).length === 0 && <div style={{ fontSize: 12, color: '#aaa' }}>Select a pipeline first</div>}
+              </div>
+
+              <div style={S.formLabel}>Venue Type</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6, marginBottom: 18 }}>
+                {VENUE_TYPES_OPTS.map(vt => {
+                  const active = filters.venue_types.includes(vt);
+                  return (
+                    <button key={vt} type="button" onClick={() => setFilters(f => ({ ...f, venue_types: toggleArr(f.venue_types, vt) }))} style={{ padding: '4px 10px', borderRadius: 100, fontSize: 11, border: `1px solid ${active ? G : '#ddd'}`, background: active ? G + '22' : 'transparent', color: active ? G : '#666', cursor: 'pointer' }}>{vt}</button>
+                  );
+                })}
+              </div>
+
+              <div style={S.formLabel}>Min Lead Score: {filters.min_score}</div>
+              <input type="range" min={0} max={100} step={5} value={filters.min_score} onChange={e => setFilters(f => ({ ...f, min_score: Number(e.target.value) }))} style={{ width: '100%', marginTop: 6, marginBottom: 18, accentColor: G }} />
+
+              <div style={S.formLabel}>Status</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                {STATUS_OPTS.map(st => {
+                  const active = filters.statuses.includes(st);
+                  return (
+                    <button key={st} type="button" onClick={() => setFilters(f => ({ ...f, statuses: toggleArr(f.statuses, st) }))} style={{ padding: '4px 12px', borderRadius: 100, fontSize: 11, border: `1px solid ${active ? G : '#ddd'}`, background: active ? G + '22' : 'transparent', color: active ? G : '#666', cursor: 'pointer', textTransform: 'capitalize' }}>{st}</button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div>
+              <div style={{ marginBottom: 14, padding: '12px 16px', background: audience.length > 0 ? '#f0fdf4' : '#fef2f2', borderRadius: 8, border: `1px solid ${audience.length > 0 ? '#bbf7d0' : '#fca5a5'}` }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: audience.length > 0 ? '#166534' : '#dc2626', fontFamily: 'Cormorant Garamond, Georgia, serif' }}>{audience.length} recipient{audience.length !== 1 ? 's' : ''}</div>
+                <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Matching your filter criteria with a valid email address</div>
+              </div>
+              {audience.length === 0 && <div style={{ fontSize: 12, color: '#aaa', textAlign: 'center', padding: '20px 0' }}>No prospects match these filters. Adjust filters in Step 1.</div>}
+              <div style={{ maxHeight: 380, overflowY: 'auto' }}>
+                {audience.map(p => (
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f3f0ea', gap: 10 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: G, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.company_name}</div>
+                      <div style={{ fontSize: 11, color: '#aaa' }}>{p.email}</div>
+                    </div>
+                    <ScorePill score={p.lead_score} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div>
+              <div style={S.formLabel}>Subject Line</div>
+              <input style={{ ...S.formInput, width: '100%', boxSizing: 'border-box', marginTop: 4, marginBottom: 18 }} value={subject} onChange={e => setSubject(e.target.value)} placeholder="e.g. Partnership opportunity with Luxury Wedding Directory" />
+
+              <div style={S.formLabel}>Email Body</div>
+              <textarea style={{ ...S.formTextarea, width: '100%', boxSizing: 'border-box', marginTop: 4, minHeight: 220, marginBottom: 18 }} value={body} onChange={e => setBody(e.target.value)} placeholder="Write your email body here. Use {{company_name}}, {{contact_name}} for personalisation." />
+
+              <div style={{ background: '#fffdf8', border: `1px solid ${G}30`, borderRadius: 8, padding: '12px 14px' }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={aiPersonalise} onChange={e => setAiPersonalise(e.target.checked)} style={{ marginTop: 2, accentColor: G }} />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#171717' }}>AI Personalise each email</div>
+                    <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>AI rewrites the body for each prospect based on their profile. Adds approx. 3 seconds per recipient.</div>
+                  </div>
+                </label>
+              </div>
+
+              <div style={{ marginTop: 14, padding: '10px 12px', background: '#f8f8f8', borderRadius: 6, fontSize: 11, color: '#aaa' }}>
+                An unsubscribe footer will be automatically appended to every email.
+              </div>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div>
+              <div style={{ background: '#f9f9f7', border: '1px solid #ede8de', borderRadius: 8, padding: '16px 18px', marginBottom: 20 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 12 }}>Send Summary</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#888' }}>Campaign</span><span style={{ fontWeight: 600 }}>{campaignName || 'Untitled'}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#888' }}>Recipients</span><span style={{ fontWeight: 600, color: '#166534' }}>{audience.length}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#888' }}>Subject</span><span style={{ fontWeight: 500, maxWidth: 200, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subject}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#888' }}>Personalisation</span><span style={{ color: aiPersonalise ? G : '#888' }}>{aiPersonalise ? 'AI assisted' : 'Template'}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#888' }}>From</span><span>{localStorage.getItem('emailFromAddress') || 'Not configured'}</span></div>
+                </div>
+              </div>
+
+              {sending && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 12, color: '#555', marginBottom: 6 }}>Sending {sendProgress} of {sendTotal}...</div>
+                  <div style={{ height: 6, background: '#f3f0ea', borderRadius: 100 }}>
+                    <div style={{ height: '100%', background: G, borderRadius: 100, width: `${sendTotal > 0 ? (sendProgress / sendTotal) * 100 : 0}%`, transition: 'width 0.3s' }} />
+                  </div>
+                </div>
+              )}
+
+              <div style={{ fontSize: 11, color: '#dc2626', background: '#fee2e2', borderRadius: 6, padding: '10px 12px', marginBottom: 16 }}>
+                Once sent, this campaign cannot be sent again. Each prospect will receive exactly one email.
+              </div>
+
+              <button
+                style={{ ...S.goldBtn, width: '100%', padding: '13px 0', fontSize: 13, opacity: (sending || confirmed || audience.length === 0 || !subject || !body) ? 0.5 : 1 }}
+                onClick={handleSend}
+                disabled={sending || confirmed || audience.length === 0 || !subject || !body}
+              >
+                {sending ? `Sending (${sendProgress}/${sendTotal})...` : `Send Campaign to ${audience.length} Recipient${audience.length !== 1 ? 's' : ''}`}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Footer nav */}
+        <div style={{ padding: '14px 20px', borderTop: '1px solid #f0ece4', display: 'flex', justifyContent: 'space-between' }}>
+          <button style={S.outlineBtn} onClick={step === 1 ? onClose : () => setStep(s => s - 1)}>{step === 1 ? 'Cancel' : 'Back'}</button>
+          {step < 4
+            ? <button style={S.goldBtn} onClick={() => setStep(s => s + 1)} disabled={step === 3 && (!subject || !body)}>Next</button>
+            : null
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Discovery Modal ───────────────────────────────────────────────────────────
+
+function DiscoveryModal({ pipelines, allStages, assignRules, assignSettings, onImported, onClose }) {
+  const [tab,           setTab]           = useState('keyword'); // 'keyword' | 'url'
+  const [query,         setQuery]         = useState('');
+  const [location,      setLocation]      = useState('United Kingdom');
+  const [venueType,     setVenueType]     = useState('Venue');
+  const [count,         setCount]         = useState(8);
+  const [url,           setUrl]           = useState('');
+  const [results,       setResults]       = useState([]);
+  const [selected,      setSelected]      = useState(new Set());
+  const [urlDraft,      setUrlDraft]      = useState(null);
+  const [loading,       setLoading]       = useState(false);
+  const [importing,     setImporting]     = useState(false);
+  const [error,         setError]         = useState(null);
+
+  const TYPES = ['Venue', 'Photographer', 'Florist', 'Caterer', 'Planner', 'Musician', 'Hair and Makeup', 'Cake Designer', 'Transport', 'Vendor'];
+
+  async function handleDiscover() {
+    if (!query.trim() || !location.trim()) return;
+    setLoading(true); setError(null); setResults([]); setSelected(new Set());
+    try {
+      const res = await discoverByKeywords({ query, location, venueType, count });
+      setResults(res);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  }
+
+  async function handleExtract() {
+    if (!url.trim()) return;
+    setLoading(true); setError(null); setUrlDraft(null);
+    try {
+      const res = await discoverFromUrl(url);
+      setUrlDraft(res);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  }
+
+  async function handleImportKeyword() {
+    const toImport = results.filter(r => selected.has(r.company_name));
+    if (!toImport.length) return;
+    setImporting(true);
+    try {
+      const created = await importDiscoveredProspects(toImport, { pipelines, rules: assignRules, settings: assignSettings, allStages });
+      onImported(created);
+    } catch (e) { setError(e.message); }
+    finally { setImporting(false); }
+  }
+
+  async function handleImportUrl() {
+    if (!urlDraft) return;
+    setImporting(true);
+    try {
+      const created = await importDiscoveredProspects([urlDraft], { pipelines, rules: assignRules, settings: assignSettings, allStages });
+      onImported(created);
+    } catch (e) { setError(e.message); }
+    finally { setImporting(false); }
+  }
+
+  function toggleSelect(name) {
+    setSelected(s => {
+      const ns = new Set(s);
+      ns.has(name) ? ns.delete(name) : ns.add(name);
+      return ns;
+    });
+  }
+
+  return (
+    <div style={S.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ ...S.modal, maxWidth: 640, width: '95vw' }}>
+        <div style={S.modalHead}>Prospect Discovery Engine</div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', borderBottom: '1px solid #f0ece4', marginBottom: 20 }}>
+          {[['keyword', 'Keyword Search'], ['url', 'URL Extract']].map(([key, label]) => (
+            <button key={key} onClick={() => { setTab(key); setError(null); setResults([]); setUrlDraft(null); }} style={{ padding: '8px 18px', background: 'none', border: 'none', borderBottom: tab === key ? `2px solid ${G}` : '2px solid transparent', color: tab === key ? G : '#888', fontSize: 13, fontWeight: tab === key ? 600 : 400, cursor: 'pointer' }}>{label}</button>
+          ))}
+        </div>
+
+        {tab === 'keyword' && (
+          <div>
+            <div style={S.formRow}>
+              <div style={S.formCol}>
+                <div style={S.formLabel}>Search Query</div>
+                <input style={{ ...S.formInput, marginTop: 4 }} value={query} onChange={e => setQuery(e.target.value)} placeholder="e.g. luxury barn venues" onKeyDown={e => e.key === 'Enter' && handleDiscover()} />
+              </div>
+              <div style={S.formCol}>
+                <div style={S.formLabel}>Location</div>
+                <input style={{ ...S.formInput, marginTop: 4 }} value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. Cotswolds, UK" />
+              </div>
+            </div>
+            <div style={S.formRow}>
+              <div style={S.formCol}>
+                <div style={S.formLabel}>Business Type</div>
+                <select style={{ ...S.formSelect, marginTop: 4 }} value={venueType} onChange={e => setVenueType(e.target.value)}>
+                  {TYPES.map(t => <option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <div style={S.formCol}>
+                <div style={S.formLabel}>Count</div>
+                <select style={{ ...S.formSelect, marginTop: 4 }} value={count} onChange={e => setCount(Number(e.target.value))}>
+                  {[5, 8, 10, 15].map(n => <option key={n} value={n}>{n} suggestions</option>)}
+                </select>
+              </div>
+            </div>
+            <button style={{ ...S.goldBtn, marginBottom: 20, opacity: loading ? 0.6 : 1 }} onClick={handleDiscover} disabled={loading || !query || !location}>{loading ? 'Discovering...' : 'Discover Prospects'}</button>
+
+            {results.length > 0 && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#555' }}>{results.length} suggestions</div>
+                  <button style={{ fontSize: 11, color: G, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setSelected(selected.size === results.length ? new Set() : new Set(results.map(r => r.company_name)))}>{selected.size === results.length ? 'Deselect all' : 'Select all'}</button>
+                </div>
+                {results.map(r => (
+                  <div key={r.company_name} onClick={() => toggleSelect(r.company_name)} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 12px', borderRadius: 7, marginBottom: 8, background: selected.has(r.company_name) ? G + '08' : '#fafaf8', border: `1px solid ${selected.has(r.company_name) ? G + '40' : '#ede8de'}`, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={selected.has(r.company_name)} onChange={() => {}} style={{ marginTop: 3, accentColor: G }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#171717' }}>{r.company_name}</div>
+                      {r.website && <div style={{ fontSize: 11, color: G }}>{r.website}</div>}
+                      {r.notes && <div style={{ fontSize: 12, color: '#666', marginTop: 3, lineHeight: 1.5 }}>{r.notes}</div>}
+                    </div>
+                    <span style={{ fontSize: 10, color: '#888', background: '#f3f0ea', padding: '2px 8px', borderRadius: 100, whiteSpace: 'nowrap' }}>{r.venue_type}</span>
+                  </div>
+                ))}
+                <button style={{ ...S.goldBtn, width: '100%', marginTop: 10, opacity: selected.size === 0 || importing ? 0.6 : 1 }} onClick={handleImportKeyword} disabled={selected.size === 0 || importing}>{importing ? 'Importing...' : `Import ${selected.size} Selected Prospect${selected.size !== 1 ? 's' : ''}`}</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === 'url' && (
+          <div>
+            <div style={{ marginBottom: 16 }}>
+              <div style={S.formLabel}>Website URL</div>
+              <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                <input style={{ ...S.formInput, flex: 1 }} value={url} onChange={e => setUrl(e.target.value)} placeholder="https://www.venuename.co.uk" onKeyDown={e => e.key === 'Enter' && handleExtract()} />
+                <button style={{ ...S.goldBtn, opacity: loading ? 0.6 : 1, whiteSpace: 'nowrap' }} onClick={handleExtract} disabled={loading || !url}>{loading ? 'Extracting...' : 'Extract Details'}</button>
+              </div>
+            </div>
+
+            {urlDraft && (
+              <div>
+                <div style={{ marginBottom: 14 }}>
+                  {[['company_name', 'Company Name'], ['contact_name', 'Contact Name'], ['email', 'Email'], ['venue_type', 'Type'], ['website', 'Website'], ['country', 'Country']].map(([k, label]) => (
+                    <div key={k} style={S.formRow}>
+                      <div style={S.formCol}>
+                        <div style={S.formLabel}>{label}</div>
+                        <input style={{ ...S.formInput, marginTop: 4 }} value={urlDraft[k] || ''} onChange={e => setUrlDraft(d => ({ ...d, [k]: e.target.value }))} />
+                      </div>
+                    </div>
+                  ))}
+                  <div style={S.formLabel}>Notes</div>
+                  <textarea style={{ ...S.formTextarea, width: '100%', boxSizing: 'border-box', marginTop: 4 }} value={urlDraft.notes || ''} onChange={e => setUrlDraft(d => ({ ...d, notes: e.target.value }))} rows={3} />
+                </div>
+                <button style={{ ...S.goldBtn, width: '100%', opacity: importing ? 0.6 : 1 }} onClick={handleImportUrl} disabled={importing || !urlDraft.company_name}>{importing ? 'Saving...' : 'Save as Prospect'}</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {error && <div style={{ marginTop: 14, fontSize: 12, color: '#dc2626', background: '#fee2e2', padding: '8px 12px', borderRadius: 6 }}>{error}</div>}
+
+        <div style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end' }}>
+          <button style={S.outlineBtn} onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Campaigns View ────────────────────────────────────────────────────────────
+
+function CampaignsView({ campaigns, onNewCampaign, onRefresh }) {
+  const [statsCache, setStatsCache] = useState({});
+  useEffect(() => {
+    campaigns.filter(c => c.status === 'sent').forEach(async c => {
+      try {
+        const s = await fetchCampaignStats(c.id);
+        setStatsCache(prev => ({ ...prev, [c.id]: s }));
+      } catch {}
+    });
+  }, [campaigns.length]);
+
+  const STATUS_COLOR = { draft: '#aaa', sending: '#f59e0b', sent: '#22c55e', paused: '#f97316' };
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 24px' }}>
+      <div style={{ padding: '16px 24px 12px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#555' }}>Outreach Campaigns</div>
+        <div style={{ flex: 1 }} />
+        <button style={S.goldBtn} onClick={onNewCampaign}>+ New Campaign</button>
+      </div>
+      <div style={{ padding: '0 24px' }}>
+        {campaigns.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '60px 0', color: '#aaa' }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>&#9993;</div>
+            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6 }}>No campaigns yet</div>
+            <div style={{ fontSize: 12 }}>Create your first campaign to send personalised outreach to a filtered group of prospects.</div>
+          </div>
+        ) : (
+          <table style={S.campTable}>
+            <thead><tr>
+              <th style={S.campTh}>Campaign</th>
+              <th style={S.campTh}>Status</th>
+              <th style={S.campTh}>Recipients</th>
+              <th style={S.campTh}>Opens</th>
+              <th style={S.campTh}>Replies</th>
+              <th style={S.campTh}>Sent</th>
+            </tr></thead>
+            <tbody>
+              {campaigns.map(c => {
+                const stats = statsCache[c.id];
+                const statusColor = STATUS_COLOR[c.status] || '#aaa';
+                return (
+                  <tr key={c.id}>
+                    <td style={S.campTd}>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{c.name}</div>
+                      <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{c.personalisation_mode === 'ai_assisted' ? 'AI Personalised' : 'Template'}</div>
+                    </td>
+                    <td style={S.campTd}><span style={{ ...S.badge(statusColor), textTransform: 'capitalize' }}>{c.status}</span></td>
+                    <td style={S.campTd}>{c.sent_count} / {c.total_recipients}</td>
+                    <td style={S.campTd}>{stats ? `${stats.opens} (${stats.openRate}%)` : (c.status === 'sent' ? '--' : '--')}</td>
+                    <td style={S.campTd}>{stats ? `${stats.replies} (${stats.replyRate}%)` : (c.status === 'sent' ? '--' : '--')}</td>
+                    <td style={S.campTd}>{c.sent_at ? new Date(c.sent_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '--'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function SalesPipelineModule() {
@@ -895,6 +1537,11 @@ export default function SalesPipelineModule() {
   const [assignRules,   setAssignRules]   = useState([]);
   const [assignSettings,setAssignSettings] = useState({ ai_fallback_enabled: true, fallback_pipeline_id: null });
   const [pipelineIntel, setPipelineIntel] = useState(null);
+  const [campaigns,     setCampaigns]     = useState([]);
+  const [showCampaignBuilder, setShowCampaignBuilder] = useState(false);
+  const [showDiscovery, setShowDiscovery] = useState(false);
+  const [emailAnalytics, setEmailAnalytics] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   const currentStages    = allStages.filter(s => s.pipeline_id === selectedPipeline);
   const currentTemplates = allTemplates.filter(t => t.pipeline_id === selectedPipeline);
@@ -954,10 +1601,20 @@ export default function SalesPipelineModule() {
           }
           setPipelineIntel(getPipelineIntelligence(scoredList, stages, healthMap, probMap));
         }
+        // Load campaigns in parallel
+        fetchCampaigns().then(setCampaigns).catch(() => {});
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
     })();
   }, []);
+
+  useEffect(() => {
+    if (view !== 'dashboard' || emailAnalytics) return;
+    setAnalyticsLoading(true);
+    fetchEmailAnalytics({}).then(a => {
+      setEmailAnalytics(a);
+    }).catch(() => {}).finally(() => setAnalyticsLoading(false));
+  }, [view]);
 
   async function handleMoveToStage(prospectId, stage) {
     if (!stage) return;
@@ -1071,7 +1728,9 @@ export default function SalesPipelineModule() {
           <button style={S.viewBtn(view === 'kanban')}    onClick={() => setView('kanban')}>Kanban</button>
           <button style={S.viewBtn(view === 'list')}      onClick={() => setView('list')}>List</button>
           <button style={S.viewBtn(view === 'dashboard')} onClick={() => setView('dashboard')}>Dashboard</button>
+          <button style={S.viewBtn(view === 'campaigns')} onClick={() => setView('campaigns')}>Campaigns</button>
         </div>
+        <button style={{ ...S.outlineBtn, fontSize: 12, padding: '7px 14px' }} onClick={() => setShowDiscovery(true)}>&#9740; Discover</button>
         <button style={S.goldBtn} onClick={() => handleAddProspect()}>+ Add Prospect</button>
       </div>
 
@@ -1107,6 +1766,14 @@ export default function SalesPipelineModule() {
               onRecalcScores={handleRecalcScores}
               scoresRefreshing={scoresRefreshing}
               intelligence={pipelineIntel}
+              analytics={analyticsLoading ? null : emailAnalytics}
+            />
+          )}
+          {view === 'campaigns' && (
+            <CampaignsView
+              campaigns={campaigns}
+              onNewCampaign={() => setShowCampaignBuilder(true)}
+              onRefresh={() => fetchCampaigns().then(setCampaigns).catch(() => {})}
             />
           )}
         </div>
@@ -1137,6 +1804,38 @@ export default function SalesPipelineModule() {
           assignSettings={assignSettings}
           onSave={handleProspectSaved}
           onClose={() => { setEditModal(null); setDefaultStage(null); }}
+        />
+      )}
+
+      {showCampaignBuilder && (
+        <CampaignBuilderDrawer
+          prospects={prospects}
+          pipelines={pipelines}
+          stages={allStages}
+          templates={allTemplates}
+          assignRules={assignRules}
+          assignSettings={assignSettings}
+          onSaved={() => {
+            setShowCampaignBuilder(false);
+            fetchCampaigns().then(setCampaigns).catch(() => {});
+            notify('Campaign sent successfully.');
+          }}
+          onClose={() => setShowCampaignBuilder(false)}
+        />
+      )}
+
+      {showDiscovery && (
+        <DiscoveryModal
+          pipelines={pipelines}
+          allStages={allStages}
+          assignRules={assignRules}
+          assignSettings={assignSettings}
+          onImported={created => {
+            setProspects(list => [...created, ...list]);
+            setShowDiscovery(false);
+            notify(`${created.length} prospect${created.length !== 1 ? 's' : ''} added from Discovery Engine.`);
+          }}
+          onClose={() => setShowDiscovery(false)}
         />
       )}
     </div>

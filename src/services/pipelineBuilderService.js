@@ -173,7 +173,7 @@ export async function fetchStageTemplate(stageId) {
  * actions array comes from pipeline_stages.closed_won_actions JSONB.
  */
 export async function fireClosedWonActions(prospect, actions = []) {
-  const results = { activated: false, newsletterAdded: false, welcomeSent: false, taskCreated: false };
+  const results = { activated: false, newsletterAdded: false, welcomeSent: false, taskCreated: false, onboardingCreated: false };
 
   for (const action of actions) {
     try {
@@ -247,6 +247,16 @@ export async function fireClosedWonActions(prospect, actions = []) {
           status: 'sent',
         }]);
         results.taskCreated = true;
+      }
+
+      if (action === 'create_onboarding_checklist' && prospect.id) {
+        // Create the structured onboarding checklist (new system)
+        // Import lazily to avoid circular deps
+        const { createOnboardingTask } = await import('./onboardingService');
+        await createOnboardingTask(prospect.id).catch(e =>
+          console.warn('[fireClosedWonActions] Onboarding task creation failed (non-fatal):', e.message)
+        );
+        results.onboardingCreated = true;
       }
     } catch (err) {
       console.error(`Closed Won action "${action}" failed:`, err);
