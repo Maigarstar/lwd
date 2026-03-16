@@ -14,6 +14,16 @@ import VendorLeadInbox from "../components/VendorLeadInbox";
 import { useVendorAuth } from "../context/VendorAuthContext";
 import { exitAdminPreview } from "../context/AdminPreviewContext";
 import { getMySubmission, upsertSubmission } from "../services/artistryService";
+import { supabase } from "../lib/supabaseClient";
+import {
+  runAudit,
+  fetchLatestAudit,
+  checkAiVisibility,
+  getTopIssues,
+  scoreLabel as auditScoreLabel,
+  scoreColor as auditScoreColor,
+} from "../services/websiteAuditService";
+import AuditScoreRing from "../components/seo/AuditScoreRing";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -494,6 +504,10 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
 
   const [aiBio, setAiBio] = useState("");
   const [genBio, setGenBio] = useState(false);
+  const [vendorListing,     setVendorListing]     = useState(null);
+  const [vendorAudit,       setVendorAudit]       = useState(null);
+  const [vendorAuditLoading, setVendorAuditLoading] = useState(false);
+  const [vendorAiVis,       setVendorAiVis]       = useState(null); // { visible, note }
 
   // ── Live chat notifications ──────────────────────────────────────────────
   const [chatNotif, setChatNotif] = useState(null);
@@ -800,6 +814,75 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
       if (i >= text.length) { clearInterval(interval); setGenBio(false); }
     }, 20);
   };
+
+  // Load listing + authority score when SEO tab is opened
+  useEffect(() => {
+    if (dashTab !== 'seo' || !vendor?.id) return;
+    if (vendorAudit || vendorAuditLoading) return; // already loaded
+
+    async function loadSeoAudit() {
+      setVendorAuditLoading(true);
+      try {
+        // 1. Fetch the vendor's listing
+        const { data: rows } = await supabase
+          .from('listings')
+          .select('id, name, website, city, region, country')
+          .eq('vendor_account_id', vendor.id)
+          .eq('status', 'live')
+          .limit(1);
+
+        const lst = rows?.[0] || null;
+        setVendorListing(lst);
+        if (!lst?.id) return;
+
+        // 2. Fetch latest audit
+        let row = await fetchLatestAudit({ listingId: lst.id });
+
+        // 3. Auto-run first audit if none exists and website is known
+        if (!row && lst.website) {
+          row = await runAudit(lst.website, { listingId: lst.id, logActivity: false });
+        }
+
+        setVendorAudit(row);
+
+        // 4. Check AI visibility if not yet done
+        if (row && row.ai_visible === null && lst.name) {
+          const location = [lst.city, lst.region, lst.country].filter(Boolean).join(', ');
+          const vis = await checkAiVisibility(lst.name, location, { auditId: row.id });
+          setVendorAiVis(vis);
+          setVendorAudit(prev => prev ? { ...prev, ai_visible: vis.visible, ai_visible_note: vis.note } : prev);
+        } else if (row && row.ai_visible !== null) {
+          setVendorAiVis({ visible: row.ai_visible, note: row.ai_visible_note || '' });
+        }
+      } catch (e) {
+        console.error('SEO audit load failed:', e);
+      } finally {
+        setVendorAuditLoading(false);
+      }
+    }
+
+    loadSeoAudit();
+  }, [dashTab, vendor?.id]);
+
+  async function handleRunNewAudit() {
+    if (!vendorListing?.website) return;
+    setVendorAuditLoading(true);
+    setVendorAiVis(null);
+    try {
+      const row = await runAudit(vendorListing.website, { listingId: vendorListing.id, logActivity: false });
+      setVendorAudit(row);
+      const location = [vendorListing.city, vendorListing.region, vendorListing.country].filter(Boolean).join(', ');
+      if (vendorListing.name) {
+        const vis = await checkAiVisibility(vendorListing.name, location, { auditId: row.id });
+        setVendorAiVis(vis);
+        setVendorAudit(prev => prev ? { ...prev, ai_visible: vis.visible, ai_visible_note: vis.note } : prev);
+      }
+    } catch (e) {
+      console.error('Re-audit failed:', e);
+    } finally {
+      setVendorAuditLoading(false);
+    }
+  }
 
   const DTab = ({ id, label, icon }) => (
     <button
@@ -2622,23 +2705,142 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
           {dashTab === "seo" && (
             <div>
               <div style={{ marginBottom: 28 }}>
-                <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: "3px", textTransform: "uppercase", color: C.gold, marginBottom: 8 }}>AI-Powered SEO Tools</div>
-                <h2 style={{ fontFamily: GD, fontSize: isMobile ? 24 : 32, color: C.white, fontWeight: 600 }}>Rank Higher. Get More Leads.</h2>
+                <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: "3px", textTransform: "uppercase", color: C.gold, marginBottom: 8 }}>Website Visibility</div>
+                <h2 style={{ fontFamily: GD, fontSize: isMobile ? 24 : 32, color: C.white, fontWeight: 600 }}>Your Authority Score</h2>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20, marginBottom: 24 }}>
-                {[
-                  { label: "SEO Score", val: "87/100", color: C.green, sub: "↑ 12 points this month" },
-                  { label: "Keywords Ranking", val: "34", color: C.gold, sub: "Top 10 Google positions" },
-                  { label: "Organic Traffic", val: "1,240", color: C.blue, sub: "Monthly visitors from search" },
-                  { label: "Directory Page Rank", val: "#1", color: "#a78bfa", sub: "London luxury venues" },
-                ].map((s, i) => (
-                  <div key={i} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "var(--lwd-radius-card)", padding: "20px 22px" }}>
-                    <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: C.grey, marginBottom: 6 }}>{s.label}</div>
-                    <div style={{ fontFamily: GD, fontSize: 34, color: s.color, fontWeight: 600 }}>{s.val}</div>
-                    <div style={{ fontFamily: NU, fontSize: 12, color: C.green, marginTop: 4 }}>{s.sub}</div>
+
+              {/* Authority Score card */}
+              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "var(--lwd-radius-card)", padding: 28, marginBottom: 20 }}>
+                {vendorAuditLoading && !vendorAudit ? (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "32px 0", gap: 12 }}>
+                    <div style={{ fontFamily: NU, fontSize: 13, color: C.grey }}>Analysing your website...</div>
+                    <div style={{ width: 200, height: 4, background: C.border, borderRadius: 100, overflow: "hidden" }}>
+                      <div style={{ height: "100%", background: C.gold, borderRadius: 100, width: "60%", animation: "pulse 1.5s ease-in-out infinite" }} />
+                    </div>
                   </div>
-                ))}
+                ) : vendorAudit ? (() => {
+                  const issues = getTopIssues(vendorAudit.findings);
+                  const auditDate = vendorAudit.created_at ? new Date(vendorAudit.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+                  const SIGNALS = [
+                    { key: 'title',       label: 'Page Title',        w: 15 },
+                    { key: 'description', label: 'Meta Description',  w: 15 },
+                    { key: 'schema',      label: 'Structured Data',   w: 15 },
+                    { key: 'h1',          label: 'H1 Heading',        w: 10 },
+                    { key: 'og',          label: 'Open Graph Tags',   w: 10 },
+                    { key: 'https',       label: 'HTTPS',             w: 10 },
+                    { key: 'viewport',    label: 'Mobile Viewport',   w:  5 },
+                    { key: 'canonical',   label: 'Canonical URL',     w:  5 },
+                    { key: 'sitemap',     label: 'Sitemap',           w:  5 },
+                    { key: 'robots',      label: 'Robots Meta',       w:  5 },
+                    { key: 'images',      label: 'Image Alt Text',    w:  5 },
+                  ];
+                  function signalPass(f, key) {
+                    if (!f[key]) return true;
+                    switch (key) {
+                      case 'title':       return f.title.ok;
+                      case 'description': return f.description.ok;
+                      case 'schema':      return f.schema.present;
+                      case 'h1':          return f.h1.ok;
+                      case 'og':          return f.og.complete;
+                      case 'https':       return f.https.ok;
+                      case 'viewport':    return f.viewport.present;
+                      case 'canonical':   return f.canonical.present;
+                      case 'sitemap':     return f.sitemap.found;
+                      case 'robots':      return f.robots.ok;
+                      case 'images':      return f.images.ok;
+                      default:            return true;
+                    }
+                  }
+                  return (
+                    <>
+                      {/* Score ring + summary row */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 32, flexWrap: "wrap", marginBottom: 24 }}>
+                        <AuditScoreRing score={vendorAudit.score} size={140} strokeWidth={12} />
+                        <div style={{ flex: 1, minWidth: 200 }}>
+                          {/* AI visibility */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                            <div style={{
+                              width: 10, height: 10, borderRadius: "50%",
+                              background: vendorAiVis === null ? C.border : vendorAiVis.visible ? "#22c55e" : "#6b7280",
+                              flexShrink: 0,
+                            }} />
+                            <div style={{ fontFamily: NU, fontSize: 12, color: C.grey }}>
+                              {vendorAiVis === null
+                                ? "Checking AI visibility..."
+                                : vendorAiVis.visible
+                                  ? `AI Visible: ${vendorAiVis.note}`
+                                  : "Not found in AI knowledge bases"}
+                            </div>
+                          </div>
+                          {/* Audit URL + date */}
+                          <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, marginBottom: 4 }}>
+                            {vendorAudit.url}
+                          </div>
+                          <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, marginBottom: 16, opacity: 0.6 }}>
+                            Last audited: {auditDate}
+                          </div>
+                          <button
+                            onClick={handleRunNewAudit}
+                            disabled={vendorAuditLoading}
+                            style={{
+                              fontSize: 11, padding: "6px 14px", borderRadius: "var(--lwd-radius-input)",
+                              border: `1px solid ${C.gold}`, background: "transparent", color: C.gold,
+                              cursor: vendorAuditLoading ? "not-allowed" : "pointer", fontFamily: NU,
+                              opacity: vendorAuditLoading ? 0.5 : 1,
+                            }}
+                          >
+                            {vendorAuditLoading ? "Auditing..." : "Run New Audit"}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Full signal checklist */}
+                      <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20 }}>
+                        <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", color: C.grey, marginBottom: 12 }}>Signal Checklist</div>
+                        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "6px 20px" }}>
+                          {SIGNALS.map(({ key, label, w }) => {
+                            const pass = signalPass(vendorAudit.findings, key);
+                            const issue = issues.find(i => i.signal === key);
+                            return (
+                              <div key={key} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
+                                <span style={{ fontSize: 13, color: pass ? "#22c55e" : issue?.severity === "critical" ? "#ef4444" : "#f97316", flexShrink: 0, marginTop: 1 }}>
+                                  {pass ? "✓" : "✗"}
+                                </span>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontFamily: NU, fontSize: 12, color: C.white, fontWeight: pass ? 400 : 600 }}>{label}</div>
+                                  {issue && <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, marginTop: 2 }}>{issue.label}</div>}
+                                </div>
+                                <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, opacity: 0.6 }}>{w}pts</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </>
+                  );
+                })() : (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "32px 0", gap: 12, textAlign: "center" }}>
+                    <div style={{ fontFamily: GD, fontSize: 22, color: C.white }}>No audit yet</div>
+                    <div style={{ fontFamily: NU, fontSize: 13, color: C.grey, maxWidth: 320 }}>
+                      {vendorListing?.website ? "Click below to run your first website authority audit." : "No website found on your listing. Add a website URL in your listing details."}
+                    </div>
+                    {vendorListing?.website && (
+                      <button
+                        onClick={handleRunNewAudit}
+                        style={{
+                          marginTop: 8, padding: "10px 24px", background: `linear-gradient(135deg,${C.gold},${C.gold2})`,
+                          color: C.black, border: "none", borderRadius: "var(--lwd-radius-input)",
+                          fontFamily: NU, fontSize: 11, fontWeight: 800, letterSpacing: "1.5px", textTransform: "uppercase", cursor: "pointer",
+                        }}
+                      >
+                        Run Audit
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
+
+              {/* AI Profile Writer (preserved, unchanged) */}
               <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "var(--lwd-radius-card)", padding: 28, marginBottom: 20 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
                   <div>
@@ -2685,22 +2887,6 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
                     {genBio && <span style={{ animation: "pulse 1s infinite", color: C.gold }}>|</span>}
                   </div>
                 )}
-              </div>
-              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "var(--lwd-radius-card)", padding: 24 }}>
-                <div style={{ fontFamily: NU, fontSize: 13, fontWeight: 700, color: C.white, marginBottom: 16 }}>Recommended Keywords for Your Listing</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {[
-                    "luxury wedding venues London",
-                    "Victorian ballroom wedding",
-                    "exclusive wedding hire London",
-                    "wedding venue crystal chandelier",
-                    "London wedding 300 guests",
-                    "black tie wedding London",
-                    "wedding venue with accommodation London",
-                  ].map((k) => (
-                    <Pill key={k} text={k} />
-                  ))}
-                </div>
               </div>
             </div>
           )}

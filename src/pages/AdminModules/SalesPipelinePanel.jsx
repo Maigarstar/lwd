@@ -49,6 +49,15 @@ import {
   fmtLastContact,
   fmtDaysInPipeline,
 } from '../../services/engagementService';
+import {
+  runAudit,
+  fetchLatestAudit,
+  generateAuditEmail,
+  getTopIssues,
+  scoreLabel as auditScoreLabel,
+  scoreColor as auditScoreColor,
+} from '../../services/websiteAuditService';
+import AuditScoreRing from '../../components/seo/AuditScoreRing';
 
 // ── Helpers (duplicated from module to keep this file self-contained) ─────────
 
@@ -241,6 +250,9 @@ export default function ProspectPanel({ prospect, stages, templates, onEdit, onS
   const [onboardingLoading, setOnboardingLoading] = useState(false);
   const [contractStatus, setContractStatus] = useState(prospect.contract_status || 'none');
   const [engagement, setEngagement] = useState(null);
+  const [audit,          setAudit]          = useState(null);
+  const [auditLoading,   setAuditLoading]   = useState(false);
+  const [auditEmailLoading, setAuditEmailLoading] = useState(false);
 
   const resolvedG = G || LIGHT_G;
 
@@ -318,6 +330,43 @@ export default function ProspectPanel({ prospect, stages, templates, onEdit, onS
       const fresh = calculateLeadScore(prospect, history.map((e, i) => i === idx ? { ...e, status: 'replied' } : e));
       setLocalScore(fresh);
     } catch (e) { console.error(e); }
+  }
+
+  // Load previous audit when panel opens (if prospect has a website)
+  useEffect(() => {
+    if (!prospect.website) return;
+    fetchLatestAudit({ prospectId: prospect.id })
+      .then(row => { if (row) setAudit(row); })
+      .catch(() => {});
+  }, [prospect.id]);
+
+  async function handleAuditSite() {
+    if (!prospect.website) return;
+    setAuditLoading(true);
+    try {
+      const row = await runAudit(prospect.website, { prospectId: prospect.id, logActivity: true });
+      setAudit(row);
+      // Refresh activity feed so the new audit entry appears
+      fetchOutreachHistory(prospect.id).then(setHistory);
+    } catch (e) {
+      console.error('Audit failed:', e);
+    } finally {
+      setAuditLoading(false);
+    }
+  }
+
+  async function handleGenerateAuditEmail() {
+    if (!audit) return;
+    setAuditEmailLoading(true);
+    try {
+      const result = await generateAuditEmail(audit, prospect);
+      setPrefilledEmail(result);
+      setShowEmail(true);
+    } catch (e) {
+      console.error('Audit email generation failed:', e);
+    } finally {
+      setAuditEmailLoading(false);
+    }
   }
 
   async function handleAiAction(type) {
@@ -434,10 +483,68 @@ export default function ProspectPanel({ prospect, stages, templates, onEdit, onS
         </div>
 
         {/* Action buttons */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: audit ? 10 : 14, flexWrap: 'wrap' }}>
           <button style={{ ...S.goldBtn, fontSize: 12, padding: '6px 14px' }} onClick={() => { setPrefilledEmail(null); setShowEmail(true); }}>Send Email</button>
           <button style={{ fontSize: 12, padding: '6px 14px', border: '1px solid #ddd', borderRadius: 5, background: 'transparent', color: '#555', cursor: 'pointer', fontFamily: 'Inter, sans-serif' }} onClick={() => setShowNote(true)}>+ Note</button>
+          {prospect.website && (
+            <button
+              style={{ fontSize: 12, padding: '6px 14px', border: `1px solid ${resolvedG}`, borderRadius: 5, background: 'transparent', color: resolvedG, cursor: auditLoading ? 'not-allowed' : 'pointer', fontFamily: 'Inter, sans-serif', opacity: auditLoading ? 0.6 : 1 }}
+              onClick={handleAuditSite}
+              disabled={auditLoading}
+            >
+              {auditLoading ? 'Auditing...' : '\u2726 Audit Site'}
+            </button>
+          )}
         </div>
+
+        {/* Audit result panel */}
+        {audit && !auditLoading && (() => {
+          const issues = getTopIssues(audit.findings, 3);
+          const auditDate = audit.created_at ? new Date(audit.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }) : '';
+          return (
+            <div style={{ marginBottom: 14, padding: '14px 14px', background: 'rgba(143,116,32,0.04)', border: '1px solid rgba(143,116,32,0.18)', borderRadius: 7 }}>
+              {/* Score + label */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 10 }}>
+                <AuditScoreRing score={audit.score} size={72} strokeWidth={7} />
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Website Authority</div>
+                  <div style={{ fontSize: 11, color: '#555', marginBottom: 6 }}>{audit.url}</div>
+                  <div style={{ fontSize: 10, color: '#aaa' }}>Audited {auditDate}</div>
+                </div>
+              </div>
+              {/* Top issues */}
+              {issues.length > 0 && (
+                <div style={{ marginBottom: 10 }}>
+                  {issues.map((issue) => (
+                    <div key={issue.signal} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, padding: '4px 0', borderBottom: '1px solid rgba(143,116,32,0.08)' }}>
+                      <span style={{ fontSize: 12, color: issue.severity === 'critical' ? '#ef4444' : '#f97316', flexShrink: 0, marginTop: 1 }}>
+                        {issue.severity === 'critical' ? '\u26A0' : '\u25B2'}
+                      </span>
+                      <span style={{ fontSize: 12, color: '#444', lineHeight: 1.4 }}>{issue.label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Actions */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  style={{ fontSize: 11, padding: '5px 12px', borderRadius: 4, border: `1px solid ${resolvedG}`, background: resolvedG, color: '#fff', cursor: auditEmailLoading ? 'not-allowed' : 'pointer', fontFamily: 'Inter, sans-serif', opacity: auditEmailLoading ? 0.6 : 1 }}
+                  onClick={handleGenerateAuditEmail}
+                  disabled={auditEmailLoading}
+                >
+                  {auditEmailLoading ? 'Generating...' : '\u2726 Generate Audit Email'}
+                </button>
+                <button
+                  style={{ fontSize: 11, color: resolvedG, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif', textDecoration: 'underline' }}
+                  onClick={handleAuditSite}
+                  disabled={auditLoading}
+                >
+                  Re-audit
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Lost reason banner */}
         {prospect.status === 'lost' && prospect.lost_reason && (
@@ -548,19 +655,21 @@ export default function ProspectPanel({ prospect, stages, templates, onEdit, onS
           {histLoading ? <div style={{ fontSize: 12, color: '#aaa' }}>Loading...</div>
             : history.length === 0 ? <div style={{ fontSize: 12, color: '#aaa' }}>No activity yet.</div>
             : history.map((h, i) => {
-              const isNote = h.direction === 'internal';
+              const isNote  = h.direction === 'internal' && h.email_type !== 'audit';
+              const isAudit = h.email_type === 'audit';
               return (
-                <div key={h.id || i} style={{ ...S.histItem, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, background: isNote ? '#fffbf0' : undefined, borderLeft: isNote ? '2px solid #f59e0b' : undefined, paddingLeft: isNote ? 8 : undefined }}>
+                <div key={h.id || i} style={{ ...S.histItem, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, background: isNote ? '#fffbf0' : isAudit ? 'rgba(143,116,32,0.04)' : undefined, borderLeft: isNote ? '2px solid #f59e0b' : isAudit ? `2px solid ${resolvedG}` : undefined, paddingLeft: (isNote || isAudit) ? 8 : undefined }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      {isNote && <span style={{ fontSize: 10 }}>&#9998;</span>}
-                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: isNote ? '#555' : undefined, fontStyle: isNote ? 'italic' : undefined }}>
-                        {isNote ? h.body : h.subject}
+                      {isNote  && <span style={{ fontSize: 10 }}>&#9998;</span>}
+                      {isAudit && <span style={{ fontSize: 10, color: resolvedG }}>&#9670;</span>}
+                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: (isNote || isAudit) ? '#555' : undefined, fontStyle: isNote ? 'italic' : undefined }}>
+                        {(isNote || isAudit) ? h.body || h.subject : h.subject}
                       </div>
                     </div>
                     <div style={S.histTime}>
                       {fmtDate(h.sent_at)}
-                      {!isNote && (
+                      {!isNote && !isAudit && (
                         <>
                           {' - '}
                           <span style={{ color: h.status === 'replied' ? '#22c55e' : h.status === 'bounced' ? '#dc2626' : '#888', fontWeight: h.status === 'replied' ? 600 : 400 }}>
@@ -568,10 +677,11 @@ export default function ProspectPanel({ prospect, stages, templates, onEdit, onS
                           </span>
                         </>
                       )}
-                      {isNote && <span style={{ marginLeft: 4, color: '#f59e0b', fontWeight: 600 }}>note</span>}
+                      {isNote  && <span style={{ marginLeft: 4, color: '#f59e0b', fontWeight: 600 }}>note</span>}
+                      {isAudit && <span style={{ marginLeft: 4, color: resolvedG, fontWeight: 600 }}>audit</span>}
                     </div>
                   </div>
-                  {!isNote && h.status === 'sent' && h.id && (
+                  {!isNote && !isAudit && h.status === 'sent' && h.id && (
                     <button style={S.replyBtn} onClick={() => handleMarkReplied(h.id, i)} title="Mark this email as replied">
                       Replied
                     </button>

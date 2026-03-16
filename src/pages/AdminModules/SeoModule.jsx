@@ -6,6 +6,8 @@
 import { useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import { ThemeCtx } from '../../theme/ThemeContext';
 import { fetchListingsSeoStatus, generateListingSeo, bulkGenerateSeo } from '../../services/seoService';
+import { fetchAllAudits, runAudit, getTopIssues, scoreLabel, scoreColor } from '../../services/websiteAuditService';
+import AuditScoreRing from '../../components/seo/AuditScoreRing';
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -120,6 +122,12 @@ export default function SeoModule() {
   const [toast, setToast]               = useState(null);
   const [error, setError]               = useState(null);
 
+  // ── Visibility Intelligence state ─────────────────────────────────────────
+  const [seoTab,        setSeoTab]       = useState('overview');
+  const [audits,        setAudits]       = useState([]);
+  const [auditsLoading, setAuditsLoading] = useState(false);
+  const [reauditingId,  setReauditingId] = useState(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -134,6 +142,41 @@ export default function SeoModule() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const loadAudits = useCallback(async () => {
+    setAuditsLoading(true);
+    try {
+      const rows = await fetchAllAudits({ limit: 200 });
+      setAudits(rows);
+    } catch (e) {
+      console.error('Failed to load audits:', e);
+    } finally {
+      setAuditsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const VI_TABS = ['website-audits', 'authority-scores', 'ai-visibility', 'prospect-outreach'];
+    if (VI_TABS.includes(seoTab) && audits.length === 0 && !auditsLoading) {
+      loadAudits();
+    }
+  }, [seoTab]);
+
+  async function handleReaudit(auditRow) {
+    setReauditingId(auditRow.id);
+    try {
+      const newRow = await runAudit(auditRow.url, {
+        prospectId: auditRow.prospect_id || undefined,
+        listingId:  auditRow.listing_id  || undefined,
+        logActivity: !!auditRow.prospect_id,
+      });
+      setAudits(prev => [newRow, ...prev.filter(a => a.id !== auditRow.id)]);
+    } catch (e) {
+      setToast(`Re-audit failed: ${e.message}`);
+    } finally {
+      setReauditingId(null);
+    }
+  }
 
   // ── Stats ──────────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -208,9 +251,74 @@ export default function SeoModule() {
     verticalAlign: 'middle',
   };
 
+  // ── Grouped tab definitions ───────────────────────────────────────────────
+  const TAB_GROUPS = [
+    {
+      label: 'Internal SEO',
+      tabs: [
+        { id: 'overview',    label: 'Overview'      },
+        { id: 'listings',    label: 'Listings SEO'  },
+        { id: 'content-seo', label: 'Content & SEO' },
+      ],
+    },
+    {
+      label: 'Visibility Intelligence',
+      tabs: [
+        { id: 'website-audits',    label: 'Website Audits'   },
+        { id: 'authority-scores',  label: 'Authority Scores' },
+        { id: 'ai-visibility',     label: 'AI Visibility'    },
+        { id: 'prospect-outreach', label: 'Prospect Outreach'},
+      ],
+    },
+  ];
+
+  function fmtDate(iso) {
+    if (!iso) return '--';
+    return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+  }
+
   return (
     <div style={{ color: C.white, fontFamily: NU }}>
-      {/* ── Coverage header ─────────────────────────────────────────────── */}
+
+      {/* ── Two-group tab bar ─────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: 0, marginBottom: 32, flexWrap: 'wrap', borderBottom: `1px solid ${C.border}` }}>
+        {TAB_GROUPS.map((group, gi) => (
+          <div key={group.label} style={{ display: 'flex', flexDirection: 'column', marginRight: gi === 0 ? 24 : 0 }}>
+            <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.grey2, padding: '0 2px 6px', opacity: 0.7 }}>
+              {group.label}
+            </div>
+            <div style={{ display: 'flex', gap: 0 }}>
+              {group.tabs.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setSeoTab(tab.id)}
+                  style={{
+                    padding: '7px 14px',
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: seoTab === tab.id ? `2px solid ${G}` : '2px solid transparent',
+                    color: seoTab === tab.id ? G : C.grey,
+                    fontFamily: NU, fontSize: 12, fontWeight: seoTab === tab.id ? 600 : 400,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'color 0.15s',
+                    marginBottom: -1,
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* INTERNAL SEO TABS                                                   */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+
+      {/* ── Overview tab ─────────────────────────────────────────────────── */}
+      {seoTab === 'overview' && (
       <div style={{ marginBottom: 32 }}>
         <h2 style={{ fontFamily: GD, fontSize: 22, fontWeight: 400, color: C.off, margin: '0 0 20px' }}>
           SEO Coverage
@@ -239,6 +347,11 @@ export default function SeoModule() {
           {stats.pct}% of listings have complete SEO
         </div>
       </div>
+      )}
+
+      {/* ── Listings SEO tab ──────────────────────────────────────────────── */}
+      {seoTab === 'listings' && (
+      <div>
 
       {/* ── Action bar ──────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 24, flexWrap: 'wrap' }}>
@@ -440,6 +553,224 @@ export default function SeoModule() {
           </div>
         )}
       </div>
+
+      </div>
+      )}
+
+      {/* ── Content & SEO placeholder ─────────────────────────────────────── */}
+      {seoTab === 'content-seo' && (
+        <div style={{ padding: '48px 0', textAlign: 'center', color: C.grey, fontFamily: NU, fontSize: 13 }}>
+          <div style={{ fontFamily: GD, fontSize: 22, color: C.off, marginBottom: 8 }}>Content & SEO</div>
+          <div>Magazine article SEO, category metadata, and sitemap management will appear here.</div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* VISIBILITY INTELLIGENCE TABS                                        */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+
+      {/* ── Website Audits tab ───────────────────────────────────────────── */}
+      {seoTab === 'website-audits' && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <h2 style={{ fontFamily: GD, fontSize: 20, fontWeight: 400, color: C.off, margin: 0 }}>Website Audits</h2>
+            <button onClick={loadAudits} disabled={auditsLoading} style={{ padding: '7px 16px', background: 'transparent', border: `1px solid ${C.border2}`, color: C.grey, borderRadius: 5, fontFamily: NU, fontSize: 12, cursor: 'pointer' }}>
+              {auditsLoading ? 'Loading...' : 'Refresh'}
+            </button>
+          </div>
+          {auditsLoading ? (
+            <div style={{ padding: 40, textAlign: 'center', color: C.grey, fontSize: 13 }}>Loading audits...</div>
+          ) : audits.length === 0 ? (
+            <div style={{ padding: 40, textAlign: 'center', color: C.grey, fontSize: 13 }}>
+              No audits yet. Run an audit from the Sales Pipeline (Audit Site button) or visit the Vendor Dashboard SEO tab.
+            </div>
+          ) : (
+            <div style={{ background: C.card, borderRadius: 8, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={colHeader}>URL</th>
+                      <th style={colHeader}>Score</th>
+                      <th style={colHeader}>Top Issue</th>
+                      <th style={colHeader}>Type</th>
+                      <th style={colHeader}>Date</th>
+                      <th style={colHeader}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {audits.map(a => {
+                      const issues = getTopIssues(a.findings, 1);
+                      const sc = scoreColor(a.score);
+                      return (
+                        <tr key={a.id} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                          <td style={{ ...cell, maxWidth: 220 }}>
+                            <a href={a.url} target="_blank" rel="noreferrer" style={{ color: G, fontSize: 11, fontFamily: NU, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', maxWidth: 200 }} title={a.url}>{a.url.replace(/^https?:\/\//, '')}</a>
+                          </td>
+                          <td style={cell}>
+                            <span style={{ fontFamily: GD, fontSize: 18, color: sc, fontWeight: 600 }}>{a.score}</span>
+                            <span style={{ fontFamily: NU, fontSize: 10, color: sc, marginLeft: 4 }}>{scoreLabel(a.score)}</span>
+                          </td>
+                          <td style={{ ...cell, maxWidth: 220, color: C.grey, fontSize: 11 }}>
+                            {issues[0]?.label || <span style={{ opacity: 0.4 }}>All clear</span>}
+                          </td>
+                          <td style={cell}>
+                            <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: a.prospect_id ? 'rgba(99,102,241,0.12)' : 'rgba(16,185,129,0.1)', color: a.prospect_id ? '#6366f1' : '#10b981', fontWeight: 600, fontFamily: NU, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                              {a.prospect_id ? 'Prospect' : 'Vendor'}
+                            </span>
+                          </td>
+                          <td style={{ ...cell, color: C.grey, fontSize: 11 }}>{fmtDate(a.created_at)}</td>
+                          <td style={cell}>
+                            <RowBtn disabled={reauditingId === a.id} onClick={() => handleReaudit(a)}>
+                              {reauditingId === a.id ? 'Running...' : 'Re-audit'}
+                            </RowBtn>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Authority Scores tab ──────────────────────────────────────────── */}
+      {seoTab === 'authority-scores' && (
+        <div>
+          <h2 style={{ fontFamily: GD, fontSize: 20, fontWeight: 400, color: C.off, margin: '0 0 20px' }}>Authority Scores</h2>
+          {auditsLoading ? (
+            <div style={{ padding: 40, textAlign: 'center', color: C.grey, fontSize: 13 }}>Loading...</div>
+          ) : (() => {
+            // Latest audit per listing, sorted score ASC (worst first)
+            const byListing = {};
+            audits.filter(a => a.listing_id).forEach(a => {
+              if (!byListing[a.listing_id] || new Date(a.created_at) > new Date(byListing[a.listing_id].created_at)) {
+                byListing[a.listing_id] = a;
+              }
+            });
+            const rows = Object.values(byListing).sort((a, b) => a.score - b.score);
+            if (rows.length === 0) return <div style={{ padding: 40, textAlign: 'center', color: C.grey, fontSize: 13 }}>No vendor audits yet.</div>;
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
+                {rows.map(a => (
+                  <div key={a.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: '20px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                    <AuditScoreRing score={a.score} size={90} strokeWidth={8} />
+                    <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, textAlign: 'center', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.url}>
+                      {a.url.replace(/^https?:\/\//, '')}
+                    </div>
+                    <div style={{ fontFamily: NU, fontSize: 10, color: C.grey2 }}>{fmtDate(a.created_at)}</div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* ── AI Visibility tab ─────────────────────────────────────────────── */}
+      {seoTab === 'ai-visibility' && (
+        <div>
+          <h2 style={{ fontFamily: GD, fontSize: 20, fontWeight: 400, color: C.off, margin: '0 0 20px' }}>AI Visibility</h2>
+          {auditsLoading ? (
+            <div style={{ padding: 40, textAlign: 'center', color: C.grey, fontSize: 13 }}>Loading...</div>
+          ) : (() => {
+            const checked = audits.filter(a => a.ai_visible !== null);
+            if (checked.length === 0) return <div style={{ padding: 40, textAlign: 'center', color: C.grey, fontSize: 13 }}>No AI visibility checks run yet. Open the Vendor Dashboard SEO tab to trigger checks.</div>;
+            return (
+              <div style={{ background: C.card, borderRadius: 8, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={colHeader}>URL</th>
+                      <th style={colHeader}>AI Status</th>
+                      <th style={colHeader}>Note</th>
+                      <th style={colHeader}>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {checked.map(a => (
+                      <tr key={a.id} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                        <td style={{ ...cell, maxWidth: 220 }}>
+                          <a href={a.url} target="_blank" rel="noreferrer" style={{ color: G, fontSize: 11 }} title={a.url}>{a.url.replace(/^https?:\/\//, '')}</a>
+                        </td>
+                        <td style={cell}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: a.ai_visible ? '#22c55e' : '#6b7280', flexShrink: 0 }} />
+                            <span style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, color: a.ai_visible ? '#22c55e' : '#6b7280' }}>
+                              {a.ai_visible ? 'KNOWN' : 'UNKNOWN'}
+                            </span>
+                          </div>
+                        </td>
+                        <td style={{ ...cell, color: C.grey, fontSize: 11, maxWidth: 280 }}>{a.ai_visible_note || '--'}</td>
+                        <td style={{ ...cell, color: C.grey, fontSize: 11 }}>{fmtDate(a.created_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* ── Prospect Outreach tab ─────────────────────────────────────────── */}
+      {seoTab === 'prospect-outreach' && (
+        <div>
+          <h2 style={{ fontFamily: GD, fontSize: 20, fontWeight: 400, color: C.off, margin: '0 0 20px' }}>Prospect Outreach</h2>
+          {auditsLoading ? (
+            <div style={{ padding: 40, textAlign: 'center', color: C.grey, fontSize: 13 }}>Loading...</div>
+          ) : (() => {
+            const prospectAudits = audits.filter(a => a.prospect_id);
+            if (prospectAudits.length === 0) return <div style={{ padding: 40, textAlign: 'center', color: C.grey, fontSize: 13 }}>No prospect audits yet. Open a prospect in the Sales Pipeline and click "Audit Site" to get started.</div>;
+            return (
+              <div style={{ background: C.card, borderRadius: 8, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={colHeader}>URL</th>
+                      <th style={colHeader}>Score</th>
+                      <th style={colHeader}>Top Issues</th>
+                      <th style={colHeader}>Date</th>
+                      <th style={colHeader}>Open Prospect</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {prospectAudits.map(a => {
+                      const issues = getTopIssues(a.findings, 2);
+                      const sc = scoreColor(a.score);
+                      return (
+                        <tr key={a.id} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                          <td style={{ ...cell, maxWidth: 200 }}>
+                            <a href={a.url} target="_blank" rel="noreferrer" style={{ color: G, fontSize: 11 }} title={a.url}>{a.url.replace(/^https?:\/\//, '')}</a>
+                          </td>
+                          <td style={cell}>
+                            <span style={{ fontFamily: GD, fontSize: 18, color: sc, fontWeight: 600 }}>{a.score}</span>
+                            <span style={{ fontFamily: NU, fontSize: 10, color: sc, marginLeft: 4 }}>{scoreLabel(a.score)}</span>
+                          </td>
+                          <td style={{ ...cell, color: C.grey, fontSize: 11, maxWidth: 260 }}>
+                            {issues.map((i, idx) => <div key={idx}>{i.label}</div>)}
+                            {issues.length === 0 && <span style={{ opacity: 0.4 }}>All signals pass</span>}
+                          </td>
+                          <td style={{ ...cell, color: C.grey, fontSize: 11 }}>{fmtDate(a.created_at)}</td>
+                          <td style={cell}>
+                            <RowBtn gold onClick={() => {
+                              window.dispatchEvent(new CustomEvent('lwd-nav', { detail: { tab: 'sales-pipeline', prospectId: a.prospect_id } }));
+                            }}>
+                              Open
+                            </RowBtn>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {/* ── Toast ───────────────────────────────────────────────────────── */}
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
