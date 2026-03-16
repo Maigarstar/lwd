@@ -1258,7 +1258,24 @@ export default function SalesPipelineModule() {
       {/* Body */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          {view === 'kanban' && (
+
+          {/* Low SEO empty state */}
+          {filterLowSeo && !seoAuditsLoading && filtered.length === 0 && (view === 'kanban' || view === 'list') && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: 12, padding: 48, textAlign: 'center' }}>
+              <div style={{ fontSize: 28, opacity: 0.25 }}>◆</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: C.white }}>No prospects with weak SEO</div>
+              <div style={{ fontSize: 13, color: C.grey, maxWidth: 340, lineHeight: 1.6 }}>
+                None of your prospects have a linked audit score below 55.
+                Use <strong>Add by URL</strong> to audit a venue website and create a prospect with a real SEO score.
+              </div>
+              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                <button style={{ ...S.goldBtn, fontSize: 12, padding: '8px 16px' }} onClick={() => setShowUrlModal(true)}>+ Add by URL</button>
+                <button style={{ ...S.outlineBtn, fontSize: 12, padding: '8px 16px' }} onClick={() => setFilterLowSeo(false)}>Clear Filter</button>
+              </div>
+            </div>
+          )}
+
+          {!(filterLowSeo && !seoAuditsLoading && filtered.length === 0) && view === 'kanban' && (
             <KanbanBoard
               prospects={filtered}
               stages={currentStages}
@@ -1269,7 +1286,7 @@ export default function SalesPipelineModule() {
               prospectAudits={prospectAudits}
             />
           )}
-          {view === 'list' && (
+          {!(filterLowSeo && !seoAuditsLoading && filtered.length === 0) && view === 'list' && (
             <ListView
               prospects={filtered}
               stages={allStages}
