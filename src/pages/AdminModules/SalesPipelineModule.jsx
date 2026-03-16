@@ -88,6 +88,7 @@ import {
 import { ThemeCtx } from '../../theme/ThemeContext';
 import ProspectPanel from './SalesPipelinePanel';
 import UrlToLeadModal from '../../components/crm/UrlToLeadModal';
+import { fetchAllAudits } from '../../services/websiteAuditService';
 import DashboardView from './SalesPipelineDashboard';
 import CampaignBuilderDrawer from './SalesPipelineCampaignDrawer';
 import DiscoveryModal from './SalesPipelineDiscoveryModal';
@@ -465,7 +466,7 @@ function LostReasonModal({ prospect, onSave, onSkip }) {
 
 // ── Kanban Board ──────────────────────────────────────────────────────────────
 
-function KanbanBoard({ prospects, stages, S, onMoveToStage, onOpenPanel, onAddProspect }) {
+function KanbanBoard({ prospects, stages, S, onMoveToStage, onOpenPanel, onAddProspect, prospectAudits = {} }) {
   const [draggingId, setDraggingId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
 
@@ -512,7 +513,14 @@ function KanbanBoard({ prospects, stages, S, onMoveToStage, onOpenPanel, onAddPr
                   >
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 4, marginBottom: 3 }}>
                       <div style={S.cardCompany}>{p.company_name}</div>
-                      <ScorePill score={p.lead_score} />
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+                        <ScorePill score={p.lead_score} />
+                        {prospectAudits[p.id] && (
+                          <span title={`SEO: ${scoreLabel(prospectAudits[p.id].score)}`} style={{ fontSize: 9, fontWeight: 700, color: scoreColor(prospectAudits[p.id].score), letterSpacing: '0.04em', lineHeight: 1 }}>
+                            SEO {prospectAudits[p.id].score}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     {p.contact_name && <div style={S.cardContact}>{p.contact_name}</div>}
                     <div style={{ marginBottom: 4 }}>
@@ -548,7 +556,7 @@ function KanbanBoard({ prospects, stages, S, onMoveToStage, onOpenPanel, onAddPr
 
 // ── List View ─────────────────────────────────────────────────────────────────
 
-function ListView({ prospects, stages, S, onOpenPanel, onBulkUpdate, sortKey, sortDir, onSort }) {
+function ListView({ prospects, stages, S, onOpenPanel, onBulkUpdate, sortKey, sortDir, onSort, prospectAudits = {} }) {
   const [selected, setSelected] = React.useState(new Set());
   const [bulkStatus, setBulkStatus] = React.useState('');
   const [bulkApplying, setBulkApplying] = React.useState(false);
@@ -613,7 +621,14 @@ function ListView({ prospects, stages, S, onOpenPanel, onBulkUpdate, sortKey, so
             return (
               <tr key={p.id} style={{ background: selected.has(p.id) ? 'rgba(143,116,32,0.07)' : (overdue ? '#fff8f6' : undefined), cursor: 'pointer' }}>
                 <td style={S.td} onClick={e => e.stopPropagation()}><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} /></td>
-                <td style={S.td} onClick={() => onOpenPanel(p)}><ScorePill score={p.lead_score} /></td>
+                <td style={S.td} onClick={() => onOpenPanel(p)}>
+                  <ScorePill score={p.lead_score} />
+                  {prospectAudits[p.id] && (
+                    <div title={`SEO score: ${prospectAudits[p.id].score}/100 (${scoreLabel(prospectAudits[p.id].score)})`} style={{ fontSize: 10, fontWeight: 700, color: scoreColor(prospectAudits[p.id].score), marginTop: 2, letterSpacing: '0.03em' }}>
+                      SEO {prospectAudits[p.id].score}
+                    </div>
+                  )}
+                </td>
                 <td style={S.td} onClick={() => onOpenPanel(p)}><strong>{p.company_name}</strong></td>
                 <td style={S.td} onClick={() => onOpenPanel(p)}>{p.contact_name || '--'}</td>
                 <td style={S.td} onClick={() => onOpenPanel(p)}>{stage ? <span style={S.badge(stage.color)}>{stage.name}</span> : '--'}</td>
@@ -972,7 +987,35 @@ export default function SalesPipelineModule() {
   const [showDiscovery, setShowDiscovery] = useState(false);
   const [emailAnalytics, setEmailAnalytics] = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [showArchived, setShowArchived] = useState(false);
+  const [showArchived,    setShowArchived]    = useState(false);
+  const [filterLowSeo,   setFilterLowSeo]    = useState(false);
+  const [prospectAudits, setProspectAudits]  = useState({});  // { prospect_id: auditRow }
+  const [seoAuditsLoading, setSeoAuditsLoading] = useState(false);
+
+  async function loadProspectAudits() {
+    if (Object.keys(prospectAudits).length > 0) return;  // already loaded
+    setSeoAuditsLoading(true);
+    try {
+      const rows = await fetchAllAudits({ type: 'prospect', limit: 500 });
+      const map = {};
+      for (const r of rows) {
+        // rows ordered by created_at DESC - first match per prospect_id is the latest
+        if (r.prospect_id && !map[r.prospect_id]) map[r.prospect_id] = r;
+      }
+      setProspectAudits(map);
+    } catch (e) {
+      console.warn('Failed to load prospect audits:', e);
+    } finally {
+      setSeoAuditsLoading(false);
+    }
+  }
+
+  async function toggleLowSeo() {
+    if (!filterLowSeo && Object.keys(prospectAudits).length === 0) {
+      await loadProspectAudits();
+    }
+    setFilterLowSeo(f => !f);
+  }
 
   const currentStages    = allStages.filter(s => s.pipeline_id === selectedPipeline);
   const currentTemplates = allTemplates.filter(t => t.pipeline_id === selectedPipeline);
@@ -988,6 +1031,11 @@ export default function SalesPipelineModule() {
           || (p.email || '').toLowerCase().includes(q);
       }
       return true;
+    })
+    .filter(p => {
+      if (!filterLowSeo) return true;
+      const a = prospectAudits[p.id];
+      return a && a.score < 55;  // Critical (<35) or Weak (35-54)
     })
     .sort((a, b) => {
       const av = a[sortKey] || '', bv = b[sortKey] || '';
@@ -1196,6 +1244,13 @@ export default function SalesPipelineModule() {
         </div>
         <button style={{ ...S.outlineBtn, fontSize: 12, padding: '7px 14px' }} onClick={() => setShowDiscovery(true)}>&#9740; Discover</button>
         <button style={{ ...S.outlineBtn, fontSize: 12, padding: '7px 14px' }} onClick={() => exportProspectsCSV(filtered)}>&#8595; Export CSV</button>
+        <button
+          style={{ ...S.outlineBtn, fontSize: 12, padding: '7px 14px', borderColor: filterLowSeo ? '#ef4444' : 'rgba(239,68,68,0.35)', color: filterLowSeo ? '#ef4444' : '#f87171', background: filterLowSeo ? 'rgba(239,68,68,0.08)' : 'transparent', fontWeight: filterLowSeo ? 700 : 400 }}
+          onClick={toggleLowSeo}
+          title="Show only prospects with Critical or Weak SEO score (<55)"
+        >
+          {seoAuditsLoading ? '...' : '◆ Low SEO'}
+        </button>
         <button style={{ ...S.outlineBtn, fontSize: 12, padding: '7px 14px', borderColor: 'rgba(201,168,76,0.5)', color: '#c9a84c' }} onClick={() => setShowUrlModal(true)}>+ Add by URL</button>
         <button style={S.goldBtn} onClick={() => handleAddProspect()}>+ Add Prospect</button>
       </div>
@@ -1211,6 +1266,7 @@ export default function SalesPipelineModule() {
               onMoveToStage={handleMoveToStage}
               onOpenPanel={p => setOpenPanel(p)}
               onAddProspect={stage => handleAddProspect(stage)}
+              prospectAudits={prospectAudits}
             />
           )}
           {view === 'list' && (
@@ -1223,6 +1279,7 @@ export default function SalesPipelineModule() {
               sortKey={sortKey}
               sortDir={sortDir}
               onSort={handleSort}
+              prospectAudits={prospectAudits}
             />
           )}
           {view === 'dashboard' && (
