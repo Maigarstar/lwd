@@ -62,6 +62,7 @@ import SixSensesShowcasePage    from "./pages/SixSensesShowcasePage.jsx";
 import VenueProfilePage         from "./pages/VenueProfilePage.jsx";
 import AuraDiscoveryDemoPage    from "./pages/AuraDiscoveryDemoPage.jsx";
 import NotFoundPage         from "./pages/NotFoundPage.jsx";
+import UnsubscribePage      from "./pages/UnsubscribePage.jsx";
 import { VENDORS }            from "./data/vendors.js";
 
 // ── Lazy-loaded admin modules for bundle optimization ──────────────────────────
@@ -110,6 +111,7 @@ function stateToPath(pg, opts = {}) {
     case "standard":         return "/the-lwd-standard";
     case "about":            return "/about";
     case "contact":          return "/contact";
+    case "unsubscribe":      return "/unsubscribe";
     case "partnership":      return "/partnership";
     case "usa":              return "/usa";
     case "italy":            return "/italy";
@@ -128,10 +130,10 @@ function stateToPath(pg, opts = {}) {
     case "couple-forgot-password": return "/getting-married/forgot-password";
     case "couple-reset-password":  return "/getting-married/reset-password";
     case "join":             return "/join";
+    case "partner-enquiry":  return "/partner-enquiry";
     case "getting-married":  return "/getting-married";
     case "shortlist":        return "/shortlist";
     case "artistry-awards":  return "/artistry-awards";
-    case "partner-enquiry":  return "/partner-enquiry";
     case "magazine":         return "/magazine";
     case "magazine-category": return `/magazine/category/${opts.magazineCategoryId || ''}`;
     case "magazine-fashion": return "/magazine/fashion";
@@ -157,6 +159,8 @@ function pathToState(pathname) {
     usa: "usa", italy: "italy", admin: "admin", vendor: "vendor", couple: "couple", "real-weddings": "real-weddings", shortlist: "shortlist", "getting-married": "getting-married", join: "join", "artistry-awards": "artistry-awards", "partner-enquiry": "partner-enquiry",
   };
   const parts = clean.split("/");
+  // Unsubscribe landing page
+  if (parts[0] === "unsubscribe" && parts.length === 1) return { page: "unsubscribe" };
   // Handle vendor auth subroutes first (before treating /vendor as static)
   if (parts[0] === "vendor" && parts[1] === "login" && parts.length === 2) return { page: "vendor-login" };
   if (parts[0] === "vendor" && parts[1] === "signup" && parts.length === 2) return { page: "vendor-signup" };
@@ -355,6 +359,7 @@ function App() {
   const goAbout    = () => setPage("about");
   const goContact     = () => setPage("contact");
   const goPartnership = () => setPage("partnership");
+  const goPartnerEnquiry = () => setPage("partner-enquiry");
   const goUSA         = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("usa"); };
   const goItaly       = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("italy"); };
   const goAdmin       = () => setPage("admin");
@@ -388,7 +393,6 @@ function App() {
   const goGettingMarried = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("getting-married"); };
   const goArtistryAwards = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("artistry-awards"); };
   const goJoin = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("join"); };
-  const goPartnerEnquiry = () => setPage("partner-enquiry");
   const goMagazine = () => { setActiveMagazineCategoryId(null); setActiveMagazineSlug(null); setPage("magazine"); };
   const goMagazineCategory = (categoryId) => { setActiveMagazineCategoryId(categoryId); setActiveMagazineSlug(null); setPage("magazine-category"); };
   const goMagazineArticle = (slug) => { setActiveMagazineSlug(slug); setActiveMagazineCategoryId(null); setPage("magazine-article"); };
@@ -596,6 +600,9 @@ function App() {
         {page === "contact" && (
           <ContactLWD onBack={goHome} onViewCategory={goCategory} onViewStandard={goStandard} onViewAbout={goAbout} onViewPartnership={goPartnership} footerNav={footerNav} />
         )}
+        {page === "unsubscribe" && (
+          <UnsubscribePage />
+        )}
         {page === "partnership" && (
           <LWDPartnership onBack={goHome} onViewCategory={goCategory} onViewStandard={goStandard} onViewAbout={goAbout} onViewContact={goContact} footerNav={footerNav} />
         )}
@@ -669,7 +676,7 @@ function App() {
           <JoinPage />
         )}
         {page === "partner-enquiry" && (
-          <PartnerEnquiryPage />
+          <PartnerEnquiryPage footerNav={footerNav} onBack={goHome} onNavigateStandard={goStandard} onNavigateAbout={goAbout} />
         )}
         {page === "home" && (
           <HomePage onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} onViewStandard={goStandard} onViewAbout={goAbout} onViewContact={goContact} onViewPartnership={goPartnership} onViewVendor={goVendor} onViewAdmin={goAdmin} onViewUSA={goUSA} onViewItaly={goItaly} onViewMagazine={goMagazine} onViewMagazineArticle={goMagazineArticle} footerNav={footerNav} />
