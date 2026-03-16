@@ -1237,7 +1237,7 @@ function ContentPickerModal({ type, C, onPick, onClose }) {
 function TemplatePicker({ onSelect, onCreateWithAI, C }) {
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', backdropFilter:'blur(4px)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center' }}>
-      <div style={{ background:C.bg, border:`1px solid ${C.border}`, borderRadius:6, padding:'40px 36px', width:640, maxWidth:'92vw' }}>
+      <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:6, padding:'40px 36px', width:640, maxWidth:'92vw' }}>
         <h2 style={{ fontFamily:'var(--font-heading)', fontSize:24, fontWeight:700, color:C.white, margin:'0 0 4px' }}>Start a new email</h2>
         <p style={{ fontFamily:'var(--font-body)', fontSize:13, color:C.grey, margin:'0 0 28px' }}>Choose a starting point or begin with a blank canvas</p>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:12 }}>
@@ -1370,7 +1370,7 @@ function SendModal({ subject: initialSubject, html, builderMode, C, onClose }) {
 
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.65)', backdropFilter:'blur(5px)', zIndex:2000, display:'flex', alignItems:'center', justifyContent:'center' }}>
-      <div style={{ background:C.bg, border:`1px solid ${C.border}`, borderRadius:6, width:520, maxWidth:'92vw', maxHeight:'88vh', overflowY:'auto', color:C.white }}>
+      <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:6, width:520, maxWidth:'92vw', maxHeight:'88vh', overflowY:'auto', color:C.white }}>
 
         {/* Header */}
         <div style={{ padding:'20px 24px 16px', borderBottom:`1px solid ${C.border}`, display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
@@ -1493,9 +1493,9 @@ function SendModal({ subject: initialSubject, html, builderMode, C, onClose }) {
               { label:'Type',       value: builderMode === 'newsletter' ? 'Newsletter' : 'Campaign' },
               { label:'Recipients', value: `${recipients.length} ${recipientMode === 'manual' ? 'manual' : 'from ' + MODES.find(m=>m.key===recipientMode)?.label}` },
             ].map(row => (
-              <div key={row.label} style={{ display:'flex', gap:12, padding:'10px 0', borderBottom:`1px solid rgba(255,255,255,0.05)` }}>
+              <div key={row.label} style={{ display:'flex', gap:12, padding:'10px 0', borderBottom:`1px solid ${C.border||'rgba(255,255,255,0.05)'}` }}>
                 <div style={{ fontFamily:'var(--font-body)', fontSize:11, color:C.grey, width:90, flexShrink:0 }}>{row.label}</div>
-                <div style={{ fontFamily:'var(--font-body)', fontSize:13, color:'#eee', flex:1, wordBreak:'break-all' }}>{row.value}</div>
+                <div style={{ fontFamily:'var(--font-body)', fontSize:13, color:C.white, flex:1, wordBreak:'break-all' }}>{row.value}</div>
               </div>
             ))}
 
@@ -1545,13 +1545,13 @@ function DraftsModal({ C, onLoad, onClose }) {
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.72)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center' }}
       onClick={onClose}>
-      <div style={{ background:'#1a1a1a', border:`1px solid ${GOLD_BDR}`, borderRadius:6, width:560, maxHeight:'70vh', display:'flex', flexDirection:'column', overflow:'hidden' }}
+      <div style={{ background:C.card||'#1a1a1a', border:`1px solid ${C.border||GOLD_BDR}`, borderRadius:6, width:560, maxHeight:'70vh', display:'flex', flexDirection:'column', overflow:'hidden' }}
         onClick={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'18px 24px', borderBottom:`1px solid rgba(255,255,255,0.08)` }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'18px 24px', borderBottom:`1px solid ${C.border||'rgba(255,255,255,0.08)'}` }}>
           <div>
-            <div style={{ fontFamily:'var(--font-display)', fontSize:20, color:'#fff' }}>Saved Drafts</div>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:20, color:C.white||'#fff' }}>Saved Drafts</div>
             <div style={{ fontFamily:'var(--font-body)', fontSize:12, color:C.grey, marginTop:2 }}>{drafts.length} draft{drafts.length !== 1 ? 's' : ''} saved locally</div>
           </div>
           <button onClick={onClose} style={{ background:'transparent', border:'none', color:C.grey, fontSize:20, cursor:'pointer', lineHeight:1 }}>x</button>
@@ -1565,11 +1565,11 @@ function DraftsModal({ C, onLoad, onClose }) {
             </div>
           ) : (
             drafts.map(d => (
-              <div key={d.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 24px', borderBottom:`1px solid rgba(255,255,255,0.05)`, cursor:'pointer' }}
+              <div key={d.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 24px', borderBottom:`1px solid ${C.border||'rgba(255,255,255,0.05)'}`, cursor:'pointer' }}
                 onMouseEnter={e => e.currentTarget.style.background='rgba(143,116,32,0.07)'}
                 onMouseLeave={e => e.currentTarget.style.background='transparent'}>
                 <div style={{ flex:1 }} onClick={() => onLoad(d)}>
-                  <div style={{ fontFamily:'var(--font-body)', fontSize:13, color:'#eee', fontWeight:600 }}>{d.subject || '(No subject)'}</div>
+                  <div style={{ fontFamily:'var(--font-body)', fontSize:13, color:C.white||'#eee', fontWeight:600 }}>{d.subject || '(No subject)'}</div>
                   <div style={{ fontFamily:'var(--font-body)', fontSize:11, color:C.grey, marginTop:3 }}>
                     {d.builderMode === 'newsletter' ? 'Newsletter' : 'Email'} - {d.blocks.length} block{d.blocks.length !== 1 ? 's' : ''}
                     <span style={{ marginLeft:8 }}>{new Date(d.savedAt).toLocaleString()}</span>
@@ -1580,7 +1580,7 @@ function DraftsModal({ C, onLoad, onClose }) {
                   Load
                 </button>
                 <button onClick={() => handleDelete(d.id)}
-                  style={{ padding:'5px 10px', background:'transparent', border:`1px solid rgba(255,255,255,0.12)`, borderRadius:3, fontFamily:'var(--font-body)', fontSize:11, color:C.grey, cursor:'pointer', flexShrink:0 }}>
+                  style={{ padding:'5px 10px', background:'transparent', border:`1px solid ${C.border||'rgba(255,255,255,0.12)'}`, borderRadius:3, fontFamily:'var(--font-body)', fontSize:11, color:C.grey, cursor:'pointer', flexShrink:0 }}>
                   Delete
                 </button>
               </div>
@@ -1847,7 +1847,7 @@ export default function EmailBuilderModule({ C, mode, onBack }) {
   const builderTitle = builderMode === 'newsletter' ? 'Newsletter Builder' : 'Email Builder';
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', minHeight:0, background:C.bg }}>
+    <div style={{ display:'flex', flexDirection:'column', height:'100%', minHeight:0, background:C.black||'#fafaf8' }}>
 
       {showPicker && (
         <TemplatePicker
@@ -1909,7 +1909,7 @@ export default function EmailBuilderModule({ C, mode, onBack }) {
       <div style={{ height:52, flexShrink:0, background:C.card, borderBottom:`1px solid ${C.border}`, display:'flex', alignItems:'center', padding:'0 18px', gap:14 }}>
 
         {/* Mode toggle */}
-        <div style={{ display:'flex', background:C.bg, borderRadius:3, border:`1px solid ${C.border}`, overflow:'hidden', flexShrink:0 }}>
+        <div style={{ display:'flex', background:C.dark||'#f5f0e8', borderRadius:3, border:`1px solid ${C.border}`, overflow:'hidden', flexShrink:0 }}>
           {['email','newsletter'].map(m => (
             <button key={m} onClick={()=>setBuilderMode(m)}
               style={{ padding:'5px 14px', fontFamily:'var(--font-body)', fontSize:11, fontWeight:600, letterSpacing:'0.06em', textTransform:'capitalize', background:builderMode===m?GOLD:'transparent', color:builderMode===m?'#000':C.grey, border:'none', cursor:'pointer', transition:'all 0.15s' }}>
@@ -1943,7 +1943,7 @@ export default function EmailBuilderModule({ C, mode, onBack }) {
         </div>
 
         {/* Preview toggle */}
-        <div style={{ display:'flex', background:C.bg, borderRadius:3, border:`1px solid ${C.border}`, overflow:'hidden', flexShrink:0 }}>
+        <div style={{ display:'flex', background:C.dark||'#f5f0e8', borderRadius:3, border:`1px solid ${C.border}`, overflow:'hidden', flexShrink:0 }}>
           {[{k:'desktop',l:'⊡ Desktop'},{k:'mobile',l:'▧ Mobile'}].map(t => (
             <button key={t.k} onClick={() => setPreviewMode(t.k)}
               style={{ padding:'5px 12px', fontFamily:'var(--font-body)', fontSize:11, fontWeight:600, background:previewMode===t.k?GOLD_DIM:'transparent', color:previewMode===t.k?GOLD:C.grey, border:'none', borderRight:t.k==='desktop'?`1px solid ${C.border}`:'none', cursor:'pointer' }}>
@@ -1955,7 +1955,7 @@ export default function EmailBuilderModule({ C, mode, onBack }) {
         {/* Tone dropdown */}
         <select value={tone} onChange={e=>setTone(e.target.value)}
           title="AI tone preset"
-          style={{ padding:'5px 8px', background:C.bg, border:`1px solid ${GOLD_BDR}`, borderRadius:3, fontFamily:'var(--font-body)', fontSize:10, color:GOLD, cursor:'pointer', outline:'none', appearance:'none', flexShrink:0, maxWidth:120 }}>
+          style={{ padding:'5px 8px', background:C.dark||'#f5f0e8', border:`1px solid ${GOLD_BDR}`, borderRadius:3, fontFamily:'var(--font-body)', fontSize:10, color:GOLD, cursor:'pointer', outline:'none', appearance:'none', flexShrink:0, maxWidth:120 }}>
           {TONE_PRESETS.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
         </select>
 
@@ -2011,7 +2011,7 @@ export default function EmailBuilderModule({ C, mode, onBack }) {
                   style={{ width:'100%', display:'flex', alignItems:'center', gap:10, padding:'8px 14px', background:'transparent', border:'none', cursor:'pointer', textAlign:'left', borderRadius:0, transition:'background 0.1s' }}
                   onMouseEnter={e => e.currentTarget.style.background=GOLD_DIM}
                   onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-                  <span style={{ width:26, height:26, borderRadius:3, background:C.bg, border:`1px solid ${C.border}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, color:GOLD, flexShrink:0 }}>{def.icon}</span>
+                  <span style={{ width:26, height:26, borderRadius:3, background:C.dark||'#f5f0e8', border:`1px solid ${C.border}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, color:GOLD, flexShrink:0 }}>{def.icon}</span>
                   <div>
                     <div style={{ fontFamily:'var(--font-body)', fontSize:12, fontWeight:600, color:C.white }}>{def.label}</div>
                     <div style={{ fontFamily:'var(--font-body)', fontSize:10, color:C.grey }}>{def.desc}</div>
@@ -2023,7 +2023,7 @@ export default function EmailBuilderModule({ C, mode, onBack }) {
         </div>
 
         {/* CENTER - canvas */}
-        <div style={{ flex:1, overflowY:'auto', background:'#e8e3db', display:'flex', flexDirection:'column', alignItems:'center', padding:'28px 20px' }}
+        <div style={{ flex:1, overflowY:'auto', background:C.dark||'#e8e3db', display:'flex', flexDirection:'column', alignItems:'center', padding:'28px 20px' }}
           onClick={e => { if(e.target===e.currentTarget) setSelectedId(null); }}>
 
           <div style={{ width:canvasWidth, transition:'width 0.25s', background:'#ffffff', boxShadow:'0 2px 24px rgba(0,0,0,0.10)', marginBottom:24, minHeight:200, position:'relative' }}
@@ -2077,9 +2077,9 @@ export default function EmailBuilderModule({ C, mode, onBack }) {
           <div style={{ display:'flex', gap:8, flexWrap:'wrap', justifyContent:'center', maxWidth:canvasWidth }}>
             {['heading','text','image','button','divider','spacer'].map(type => (
               <button key={type} onClick={() => addBlock(type)}
-                style={{ padding:'5px 13px', background:'rgba(255,255,255,0.7)', border:`1px solid #ccc`, borderRadius:20, fontFamily:'var(--font-body)', fontSize:11, color:'#555', cursor:'pointer', backdropFilter:'blur(4px)' }}
+                style={{ padding:'5px 13px', background:C.card||'rgba(255,255,255,0.7)', border:`1px solid ${C.border||'#ccc'}`, borderRadius:20, fontFamily:'var(--font-body)', fontSize:11, color:C.grey||'#555', cursor:'pointer' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor=GOLD; e.currentTarget.style.color=GOLD; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor='#ccc'; e.currentTarget.style.color='#555'; }}>
+                onMouseLeave={e => { e.currentTarget.style.borderColor=C.border||'#ccc'; e.currentTarget.style.color=C.grey||'#555'; }}>
                 + {BLOCK_DEFS.find(d=>d.type===type)?.label}
               </button>
             ))}
