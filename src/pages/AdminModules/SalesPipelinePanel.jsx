@@ -499,23 +499,23 @@ export default function ProspectPanel({ prospect, stages, templates, onEdit, onS
         {/* AI Assistant */}
         <div style={S.aiSection}>
           <div style={{ ...S.fieldLabel, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ color: resolvedG }}>&#10022;</span> AI Assistant
+            <span style={{ color: resolvedG }}>{'\u2726'}</span> AI Assistant
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
             <button style={S.aiBtn} onClick={() => handleAiAction('cold')} disabled={aiLoading}>
-              {aiLoading ? '...' : '&#10022;'} Cold Email
+              {aiLoading ? '...' : '\u2726'} Cold Email
             </button>
             <button style={S.aiBtn} onClick={() => handleAiAction('follow_up')} disabled={aiLoading}>
-              {aiLoading ? '...' : '&#10022;'} Follow-Up
+              {aiLoading ? '...' : '\u2726'} Follow-Up
             </button>
             <button style={S.aiBtn} onClick={() => handleAiAction('proposal')} disabled={aiLoading}>
-              {aiLoading ? '...' : '&#10022;'} Proposal
+              {aiLoading ? '...' : '\u2726'} Proposal
             </button>
             <button style={{ ...S.aiBtn, background: 'rgba(59,130,246,0.08)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.3)' }} onClick={() => handleAiAction('next_step')} disabled={aiLoading}>
-              {aiLoading ? '...' : '?'} Next Step
+              {aiLoading ? '...' : '\u2726'} Next Step
             </button>
             <button style={{ ...S.aiBtn, background: 'rgba(249,115,22,0.08)', color: '#f97316', border: '1px solid rgba(249,115,22,0.3)', width: '100%', justifyContent: 'center' }} onClick={() => handleAiAction('next_action')} disabled={aiLoading}>
-              {aiLoading ? '...' : '&#9654;'} AI Next Action
+              {aiLoading ? '...' : '\u25B6'} AI Next Action
             </button>
           </div>
           {aiLoading && <div style={{ fontSize: 12, color: '#8f7420', padding: '8px 0' }}>Generating with AI...</div>}
