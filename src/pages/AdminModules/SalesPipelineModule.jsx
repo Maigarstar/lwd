@@ -1609,7 +1609,8 @@ export default function SalesPipelineModule() {
   }, []);
 
   useEffect(() => {
-    if (view !== 'dashboard' || emailAnalytics) return;
+    if (view !== 'dashboard') return;
+    // Refresh analytics every time the Dashboard view is opened
     setAnalyticsLoading(true);
     fetchEmailAnalytics({}).then(a => {
       setEmailAnalytics(a);

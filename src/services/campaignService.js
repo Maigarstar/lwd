@@ -24,6 +24,31 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 const PIXEL_BASE   = `${SUPABASE_URL}/functions/v1/track-email-open`;
 const SEND_DELAY_MS = 300;
 
+// ── Body conversion ────────────────────────────────────────────────────────────
+
+/**
+ * Ensure the email body is delivered as HTML to the send-email edge function.
+ * If the body already contains HTML tags (e.g. from a rich template or the
+ * tracking pixel), pass it through untouched. Otherwise wrap plain-text
+ * content in a minimal HTML structure so Resend renders it correctly and
+ * the tracking pixel <img> tag fires.
+ */
+function bodyToHtml(text) {
+  if (!text) return '';
+  // Already has HTML - pass through (pixel img tag qualifies)
+  if (/<[a-z][\s\S]*>/i.test(text)) return text;
+  // Plain text: convert line breaks and wrap
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const paragraphs = escaped
+    .split(/\n\n+/)
+    .map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`)
+    .join('\n');
+  return `<div style="font-family:sans-serif;font-size:15px;line-height:1.7;color:#1a1a1a;max-width:600px">${paragraphs}</div>`;
+}
+
 // ── Pixel helper ───────────────────────────────────────────────────────────────
 
 /**
@@ -213,15 +238,14 @@ export async function sendCampaign({
         const pixelHtml = buildPixelHtml(emailRow.id);
         const bodyWithPixel = body + pixelHtml;
 
-        // 6. Send via Resend
+        // 6. Send via Resend - edge function expects html + recipients[]
         if (prospect.email) {
           await sendEmail({
-            to:       prospect.email,
-            toName:   prospect.contact_name || prospect.company_name,
             subject,
-            text:     bodyWithPixel,
             fromEmail,
             fromName,
+            html:       bodyToHtml(bodyWithPixel),
+            recipients: [{ email: prospect.email, name: prospect.contact_name || prospect.company_name }],
           });
         }
 

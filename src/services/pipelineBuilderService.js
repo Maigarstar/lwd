@@ -212,13 +212,14 @@ export async function fireClosedWonActions(prospect, actions = []) {
           const subject = mergeTags(tpl.subject, prospect);
           const body    = mergeTags(tpl.body, prospect);
 
-          // Fire and forget via edge function
+          // Fire and forget via edge function (html + recipients[] format)
           await supabase.functions.invoke('send-email', {
             body: {
-              to: prospect.email,
-              toName: prospect.contact_name,
               subject,
-              text: body,
+              fromName:   'Luxury Wedding Directory',
+              fromEmail:  'hello@luxuryweddingdirectory.co.uk',
+              html:       body,
+              recipients: [{ email: prospect.email, name: prospect.contact_name }],
             },
           }).catch(() => {});
 
@@ -236,27 +237,29 @@ export async function fireClosedWonActions(prospect, actions = []) {
         }
       }
 
-      if (action === 'create_onboarding_task') {
-        // Log a system note in outreach history
-        await supabase.from('outreach_emails').insert([{
-          prospect_id: prospect.id,
-          email_type: 'custom',
-          subject: 'Onboarding task created',
-          body: `Onboarding initiated for ${prospect.company_name}. Status: Closed Won. Begin profile setup and account activation.`,
-          sent_at: new Date().toISOString(),
-          status: 'sent',
-        }]);
-        results.taskCreated = true;
-      }
-
-      if (action === 'create_onboarding_checklist' && prospect.id) {
-        // Create the structured onboarding checklist (new system)
-        // Import lazily to avoid circular deps
-        const { createOnboardingTask } = await import('./onboardingService');
-        await createOnboardingTask(prospect.id).catch(e =>
-          console.warn('[fireClosedWonActions] Onboarding task creation failed (non-fatal):', e.message)
-        );
-        results.onboardingCreated = true;
+      // create_onboarding_task (legacy) and create_onboarding_checklist both
+      // create the structured checklist. The legacy action also logs a system note.
+      if (action === 'create_onboarding_task' || action === 'create_onboarding_checklist') {
+        if (prospect.id) {
+          const { createOnboardingTask } = await import('./onboardingService');
+          await createOnboardingTask(prospect.id).catch(e =>
+            console.warn('[fireClosedWonActions] Onboarding task creation failed (non-fatal):', e.message)
+          );
+        }
+        if (action === 'create_onboarding_task') {
+          // Legacy: also log a system note to outreach history
+          await supabase.from('outreach_emails').insert([{
+            prospect_id: prospect.id,
+            email_type: 'custom',
+            subject: 'Onboarding task created',
+            body: `Onboarding initiated for ${prospect.company_name}. Status: Closed Won. Begin profile setup and account activation.`,
+            sent_at: new Date().toISOString(),
+            status: 'sent',
+          }]);
+          results.taskCreated = true;
+        } else {
+          results.onboardingCreated = true;
+        }
       }
     } catch (err) {
       console.error(`Closed Won action "${action}" failed:`, err);
@@ -303,9 +306,15 @@ export async function runAutoFollowUps({ fromEmail, fromName, dryRun = false } =
       const body    = mergeTags(template.body, p);
 
       if (!dryRun && p.email) {
-        // Send via edge function
+        // Send via edge function (html + recipients[] format)
         await supabase.functions.invoke('send-email', {
-          body: { to: p.email, toName: p.contact_name, subject, text: body, fromEmail, fromName },
+          body: {
+            subject,
+            fromName,
+            fromEmail,
+            html:       body,
+            recipients: [{ email: p.email, name: p.contact_name }],
+          },
         }).catch(() => {});
 
         // Log
