@@ -68,17 +68,17 @@ const PLATFORMS = [
   { key: "linkedin",  label: "LinkedIn" },
   { key: "tiktok",    label: "TikTok" },
   { key: "web",       label: "Website" },
-  { key: "email",     label: "Email" },
+  { key: "email",     label: "Newsletter" },
 ];
 
 const STATUSES = [
-  { key: "brief",     label: "Brief",     color: "#6b7280" },
-  { key: "draft",     label: "Draft",     color: "#3b82f6" },
-  { key: "review",    label: "Review",    color: "#f59e0b" },
-  { key: "approved",  label: "Approved",  color: "#0ea5e9" },
-  { key: "scheduled", label: "Scheduled", color: "#8b5cf6" },
-  { key: "live",      label: "Live",      color: "#22c55e" },
-  { key: "reported",  label: "Reported",  color: "#6b7280" },
+  { key: "brief",     label: "Brief",        chip: "BRIEF",  color: "#6b7280" },
+  { key: "draft",     label: "Draft",        chip: "DRAFT",  color: "#3b82f6" },
+  { key: "review",    label: "For Approval", chip: "APPVL",  color: "#f59e0b" },
+  { key: "approved",  label: "Approved",     chip: "APPRVD", color: "#0ea5e9" },
+  { key: "scheduled", label: "Scheduled",    chip: "SCHED",  color: "#8b5cf6" },
+  { key: "live",      label: "Live",         chip: "LIVE",   color: "#22c55e" },
+  { key: "reported",  label: "Reported",     chip: "DONE",   color: "#6b7280" },
 ];
 
 const STATUS_PIPELINE = STATUSES.map((s) => s.key);
@@ -441,13 +441,319 @@ function ContentModal({ C, item, clients, onSave, onClose }) {
   );
 }
 
+// ── Duplicate Modal ────────────────────────────────────────────────────────────
+
+function DuplicateModal({ C, item, clients, onCreateItems, onClose }) {
+  const G = C?.gold || "#8f7420";
+  const t = typeFor(item.type);
+
+  // Which clients to duplicate to
+  const [selectedClients, setSelectedClients] = useState([item.clientId]);
+
+  // Date mode
+  const [dateMode, setDateMode] = useState("single"); // single | multiple | weekly
+
+  // Single / multiple dates
+  const baseDate = item.date || isoDate(today.getFullYear(), today.getMonth(), today.getDate());
+  const [dates, setDates] = useState([baseDate]);
+
+  // Weekly repeat
+  const [weekStart, setWeekStart] = useState(baseDate);
+  const [weekCount, setWeekCount] = useState(4);
+
+  // Overrides
+  const [titleOverride, setTitleOverride] = useState(item.title);
+  const [captionVariation, setCaptionVariation] = useState("");
+  const [showVariation, setShowVariation] = useState(false);
+
+  const weeklyDates = useMemo(() => {
+    if (dateMode !== "weekly") return [];
+    const result = [];
+    for (let i = 0; i < weekCount; i++) {
+      const base = new Date(weekStart + "T12:00:00");
+      base.setDate(base.getDate() + i * 7);
+      result.push(isoDate(base.getFullYear(), base.getMonth(), base.getDate()));
+    }
+    return result;
+  }, [dateMode, weekStart, weekCount]);
+
+  const effectiveDates = dateMode === "weekly" ? weeklyDates : dates;
+  const totalItems = selectedClients.length * effectiveDates.length;
+
+  function toggleClient(cid) {
+    setSelectedClients((prev) =>
+      prev.includes(cid) ? prev.filter((c) => c !== cid) : [...prev, cid]
+    );
+  }
+
+  function addDate() {
+    setDates((prev) => [...prev, prev[prev.length - 1] || baseDate]);
+  }
+
+  function removeDate(idx) {
+    setDates((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  function updateDate(idx, val) {
+    setDates((prev) => prev.map((d, i) => (i === idx ? val : d)));
+  }
+
+  function handleCreate() {
+    if (totalItems === 0) return;
+    const newItems = [];
+    for (const clientId of selectedClients) {
+      for (const date of effectiveDates) {
+        newItems.push({
+          ...item,
+          id: `ct${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          clientId,
+          date,
+          title: titleOverride || item.title,
+          caption: (showVariation && captionVariation) ? captionVariation : item.caption,
+          status: "brief",
+        });
+      }
+    }
+    onCreateItems(newItems);
+    onClose();
+  }
+
+  const inputStyle = {
+    width: "100%", background: C?.dark || "#111",
+    border: `1px solid ${C?.border || "#333"}`, borderRadius: 6,
+    padding: "8px 12px", color: C?.white || "#fff", fontSize: 13,
+    outline: "none", boxSizing: "border-box",
+  };
+
+  const labelStyle = {
+    display: "block", fontSize: 11, fontWeight: 600,
+    color: C?.grey || "#888", letterSpacing: "0.05em",
+    textTransform: "uppercase", marginBottom: 5,
+  };
+
+  const modeBtnStyle = (active) => ({
+    flex: 1, padding: "7px 0", borderRadius: 5, cursor: "pointer",
+    fontSize: 11, fontWeight: 700,
+    background: active ? G + "22" : "none",
+    border: `1px solid ${active ? G + "66" : C?.border || "#333"}`,
+    color: active ? G : C?.grey || "#888",
+  });
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 1100,
+      background: "rgba(0,0,0,0.78)", display: "flex",
+      alignItems: "center", justifyContent: "center", padding: 24,
+    }} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{
+        background: C?.card || "#1a1a1a",
+        border: `1px solid ${C?.border || "#333"}`,
+        borderRadius: 12, width: "100%", maxWidth: 640,
+        maxHeight: "90vh", overflowY: "auto",
+        padding: "32px 36px",
+        boxShadow: "0 24px 64px rgba(0,0,0,0.6)",
+      }}>
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <TypePill typeKey={item.type} />
+              <span style={{ fontSize: 10, color: C?.grey2 || "#666" }}>Duplicating</span>
+            </div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: C?.off || "#fff", lineHeight: 1.3 }}>
+              {item.title}
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            background: "none", border: "none", color: C?.grey || "#888",
+            fontSize: 20, cursor: "pointer", padding: "4px 8px",
+          }}>x</button>
+        </div>
+
+        {/* Title override */}
+        <div style={{ marginBottom: 20 }}>
+          <label style={labelStyle}>Title for copies</label>
+          <input
+            value={titleOverride}
+            onChange={(e) => setTitleOverride(e.target.value)}
+            style={inputStyle}
+          />
+        </div>
+
+        {/* Client selection */}
+        <div style={{ marginBottom: 20 }}>
+          <label style={labelStyle}>Create for clients</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {clients.map((c) => {
+              const active = selectedClients.includes(c.id);
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => toggleClient(c.id)}
+                  style={{
+                    padding: "5px 14px", borderRadius: 100, cursor: "pointer",
+                    fontSize: 11, fontWeight: 600,
+                    background: active ? G + "22" : "none",
+                    border: `1px solid ${active ? G + "66" : C?.border || "#333"}`,
+                    color: active ? G : C?.grey || "#888",
+                  }}
+                >
+                  {c.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Date mode selector */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={labelStyle}>Schedule</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button style={modeBtnStyle(dateMode === "single")} onClick={() => setDateMode("single")}>Single date</button>
+            <button style={modeBtnStyle(dateMode === "multiple")} onClick={() => setDateMode("multiple")}>Multiple dates</button>
+            <button style={modeBtnStyle(dateMode === "weekly")} onClick={() => setDateMode("weekly")}>Weekly repeat</button>
+          </div>
+        </div>
+
+        {/* Single date */}
+        {dateMode === "single" && (
+          <div style={{ marginBottom: 20 }}>
+            <input type="date" value={dates[0]} onChange={(e) => updateDate(0, e.target.value)} style={inputStyle} />
+          </div>
+        )}
+
+        {/* Multiple dates */}
+        {dateMode === "multiple" && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {dates.map((d, idx) => (
+                <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input type="date" value={d} onChange={(e) => updateDate(idx, e.target.value)}
+                    style={{ ...inputStyle, flex: 1 }} />
+                  {dates.length > 1 && (
+                    <button onClick={() => removeDate(idx)} style={{
+                      background: "none", border: `1px solid ${C?.border || "#333"}`,
+                      borderRadius: 5, padding: "6px 10px", color: C?.grey || "#888",
+                      cursor: "pointer", fontSize: 12, flexShrink: 0,
+                    }}>x</button>
+                  )}
+                </div>
+              ))}
+              <button onClick={addDate} style={{
+                background: "none", border: `1px dashed ${G}55`,
+                borderRadius: 6, padding: "7px 0", color: G,
+                fontSize: 11, fontWeight: 600, cursor: "pointer",
+              }}>+ Add date</button>
+            </div>
+          </div>
+        )}
+
+        {/* Weekly repeat */}
+        {dateMode === "weekly" && (
+          <div style={{ marginBottom: 20, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Starting</label>
+              <input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Repeat for</label>
+              <select value={weekCount} onChange={(e) => setWeekCount(Number(e.target.value))} style={inputStyle}>
+                {[2,3,4,6,8,12].map((n) => (
+                  <option key={n} value={n}>{n} weeks</option>
+                ))}
+              </select>
+            </div>
+            {weeklyDates.length > 0 && (
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={labelStyle}>Dates to be created</label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {weeklyDates.map((d) => (
+                    <span key={d} style={{
+                      fontSize: 10, padding: "3px 9px", borderRadius: 100,
+                      background: G + "18", color: G, fontWeight: 600,
+                    }}>
+                      {new Date(d + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Caption variation */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: showVariation ? 10 : 0 }}>
+            <label style={{ ...labelStyle, margin: 0, cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={showVariation}
+                onChange={(e) => setShowVariation(e.target.checked)}
+                style={{ marginRight: 6, accentColor: G }}
+              />
+              Use caption variation
+            </label>
+            <span style={{ fontSize: 10, color: C?.grey2 || "#555" }}>optional - override the original caption for all copies</span>
+          </div>
+          {showVariation && (
+            <textarea
+              value={captionVariation}
+              onChange={(e) => setCaptionVariation(e.target.value)}
+              placeholder="Alternative caption or CTA for these copies..."
+              rows={3}
+              style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }}
+            />
+          )}
+        </div>
+
+        {/* Summary + create */}
+        <div style={{
+          borderTop: `1px solid ${C?.border || "#333"}`,
+          paddingTop: 20, marginTop: 4,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <div style={{ fontSize: 12, color: C?.grey || "#888" }}>
+            {totalItems > 0 ? (
+              <>Creating <strong style={{ color: C?.white || "#fff" }}>{totalItems}</strong> {totalItems === 1 ? "item" : "items"}
+              {selectedClients.length > 1 && ` across ${selectedClients.length} clients`}
+              {effectiveDates.length > 1 && `, ${effectiveDates.length} dates`}</>
+            ) : (
+              "Select at least one client and one date"
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={onClose} style={{
+              background: "none", border: `1px solid ${C?.border || "#333"}`,
+              borderRadius: 6, padding: "9px 20px", color: C?.grey || "#888",
+              fontSize: 13, cursor: "pointer",
+            }}>Cancel</button>
+            <button
+              onClick={handleCreate}
+              disabled={totalItems === 0}
+              style={{
+                background: totalItems > 0 ? G : C?.border || "#333",
+                border: "none", borderRadius: 6, padding: "9px 24px",
+                color: totalItems > 0 ? "#fff" : C?.grey2 || "#555",
+                fontSize: 13, fontWeight: 600,
+                cursor: totalItems > 0 ? "pointer" : "not-allowed",
+              }}
+            >
+              Create {totalItems > 0 ? `${totalItems} ${totalItems === 1 ? "Item" : "Items"}` : "Items"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Calendar View ──────────────────────────────────────────────────────────────
 
 // Short type label for calendar pills
 function shortType(key) {
   const map = {
     "post": "POST", "reel": "REEL", "blog": "BLOG",
-    "venue-feature": "FEATURE", "fam-trip": "FAM", "newsletter": "EMAIL",
+    "venue-feature": "FEATURE", "fam-trip": "FAM", "newsletter": "NEWS",
     "link-building": "LINKS", "organic-content": "ORGANIC",
     "consultancy": "CONSULT", "mentoring": "MENTOR",
     "photography": "PHOTO", "video": "VIDEO", "style-shoot": "SHOOT",
@@ -564,11 +870,18 @@ function CalendarView({ C, items, allItems, clients, onItemClick, onAddForDate, 
 
               {/* Gap signal */}
               {isGapWeek && dayItems.length === 0 && (
-                <div style={{
-                  fontSize: 8, color: C?.grey2 || "#555",
-                  letterSpacing: "0.04em", marginBottom: 3,
-                  textTransform: "uppercase",
-                }}>no content</div>
+                <div
+                  onClick={(e) => { e.stopPropagation(); onAddForDate(dateStr); }}
+                  style={{
+                    fontSize: 8, color: C?.grey2 || "#555",
+                    letterSpacing: "0.04em", marginBottom: 3,
+                    textTransform: "uppercase", cursor: "pointer",
+                    lineHeight: 1.5,
+                  }}
+                  title="Gap week - click to add content"
+                >
+                  gap
+                </div>
               )}
 
               {/* Content items */}
@@ -589,16 +902,18 @@ function CalendarView({ C, items, allItems, clients, onItemClick, onAddForDate, 
                       maxWidth: "100%", overflow: "hidden",
                     }}
                   >
-                    {/* Top row: type label + status dot */}
+                    {/* Top row: type label + status chip */}
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 1 }}>
                       <span style={{ fontSize: 8, fontWeight: 800, color: t.color, letterSpacing: "0.05em" }}>
                         {shortType(item.type)}
                       </span>
                       <span style={{
-                        width: 5, height: 5, borderRadius: "50%",
-                        background: s.color, flexShrink: 0,
-                        display: "inline-block",
-                      }} title={s.label} />
+                        fontSize: 7, fontWeight: 800, letterSpacing: "0.04em",
+                        color: s.color, background: s.color + "22",
+                        padding: "1px 4px", borderRadius: 3, flexShrink: 0, lineHeight: 1.4,
+                      }}>
+                        {s.chip}
+                      </span>
                     </div>
                     {/* Title */}
                     <div style={{
@@ -608,12 +923,23 @@ function CalendarView({ C, items, allItems, clients, onItemClick, onAddForDate, 
                     }}>
                       {item.title}
                     </div>
-                    {/* Client initials */}
-                    {item.clientId && (
-                      <div style={{ fontSize: 8, color: t.color + "bb", marginTop: 1, fontWeight: 600 }}>
-                        {getInitials(clientFor(item.clientId, clients)?.name || item.clientId)}
-                      </div>
-                    )}
+                    {/* Client initials + campaign */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 2 }}>
+                      {item.clientId && (
+                        <span style={{ fontSize: 8, color: t.color + "bb", fontWeight: 600 }}>
+                          {getInitials(clientFor(item.clientId, clients)?.name || item.clientId)}
+                        </span>
+                      )}
+                      {item.campaign && (
+                        <span style={{
+                          fontSize: 7, color: C?.grey2 || "#555", fontWeight: 500,
+                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                          maxWidth: "60%", textAlign: "right",
+                        }} title={item.campaign}>
+                          {item.campaign}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -704,7 +1030,7 @@ function QueueView({ C, items, clients, onItemClick, onStatusChange }) {
                     {/* Type + Platform */}
                     <div style={{ display: "flex", gap: 5, marginBottom: 8, flexWrap: "wrap" }}>
                       <TypePill typeKey={item.type} small />
-                      {platform && (
+                      {platform && platform.label !== typeFor(item.type).label && (
                         <span style={{
                           fontSize: 9, color: C?.grey2 || "#666", fontWeight: 600,
                           background: C?.dark || "#111", padding: "1px 6px", borderRadius: 100,
@@ -904,7 +1230,7 @@ function CampaignsView({ C, items, clients }) {
 
 // ── Detail Drawer ──────────────────────────────────────────────────────────────
 
-function DetailDrawer({ C, item, clients, allItems, onEdit, onDelete, onClose }) {
+function DetailDrawer({ C, item, clients, allItems, onEdit, onDelete, onClose, onStatusChange, onDuplicate }) {
   if (!item) return null;
   const G = C?.gold || "#8f7420";
   const t = typeFor(item.type);
@@ -912,6 +1238,12 @@ function DetailDrawer({ C, item, clients, allItems, onEdit, onDelete, onClose })
   const client = clientFor(item.clientId, clients);
   const platform = PLATFORMS.find((p) => p.key === item.platform);
   const isFAM = item.type === "fam-trip";
+
+  const statusIdx = STATUS_PIPELINE.indexOf(item.status);
+  const prevStatusKey = STATUS_PIPELINE[statusIdx - 1];
+  const nextStatusKey = STATUS_PIPELINE[statusIdx + 1];
+  const nextStatus = nextStatusKey ? statusFor(nextStatusKey) : null;
+  const prevStatus = prevStatusKey ? statusFor(prevStatusKey) : null;
 
   // If FAM trip: find all content items linked via the same campaign
   const campaignItems = isFAM && item.campaign
@@ -944,10 +1276,50 @@ function DetailDrawer({ C, item, clients, allItems, onEdit, onDelete, onClose })
         }}>x</button>
 
         {/* Type + status */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 16, marginTop: 4 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 12, marginTop: 4 }}>
           <TypePill typeKey={item.type} />
           <StatusPill statusKey={item.status} />
         </div>
+
+        {/* Quick status actions */}
+        {(nextStatus || prevStatus) && (
+          <div style={{
+            display: "flex", gap: 8, marginBottom: 16,
+            padding: "10px 12px",
+            background: C?.dark || "#111",
+            borderRadius: 8,
+            border: `1px solid ${C?.border || "#333"}`,
+          }}>
+            {prevStatus && (
+              <button
+                onClick={() => onStatusChange(item.id, prevStatusKey)}
+                style={{
+                  flex: 1, background: "none",
+                  border: `1px solid ${C?.border || "#333"}`,
+                  borderRadius: 5, padding: "6px 0",
+                  color: C?.grey || "#888", fontSize: 11, fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                ← {prevStatus.label}
+              </button>
+            )}
+            {nextStatus && (
+              <button
+                onClick={() => onStatusChange(item.id, nextStatusKey)}
+                style={{
+                  flex: 2, background: nextStatus.color + "22",
+                  border: `1px solid ${nextStatus.color}55`,
+                  borderRadius: 5, padding: "6px 0",
+                  color: nextStatus.color, fontSize: 11, fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Move to {nextStatus.label} →
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Title */}
         <div style={{ fontSize: 18, fontWeight: 700, color: C?.off || "#fff", lineHeight: 1.3, marginBottom: 8 }}>
@@ -1044,6 +1416,11 @@ function DetailDrawer({ C, item, clients, allItems, onEdit, onDelete, onClose })
             background: G, border: "none", borderRadius: 7,
             padding: "10px 0", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer",
           }}>Edit Content</button>
+          <button onClick={() => onDuplicate(item)} style={{
+            background: "none", border: `1px solid ${C?.border || "#333"}`,
+            borderRadius: 7, padding: "9px 0", color: C?.grey || "#888",
+            fontSize: 13, fontWeight: 600, cursor: "pointer",
+          }}>Duplicate</button>
           <button onClick={() => { onDelete(item.id); onClose(); }} style={{
             background: "none", border: `1px solid ${C?.rose || "#be123c"}44`,
             borderRadius: 7, padding: "9px 0", color: C?.rose || "#be123c",
@@ -1103,9 +1480,10 @@ export default function SocialStudioModule({ C }) {
   const [typeFilter,  setTypeFilter]   = useState("all");
   const [calYear,     setCalYear]      = useState(today.getFullYear());
   const [calMonth,    setCalMonth]     = useState(today.getMonth());
-  const [showModal,   setShowModal]    = useState(false);
-  const [editItem,    setEditItem]     = useState(null);
-  const [drawerItem,  setDrawerItem]   = useState(null);
+  const [showModal,       setShowModal]      = useState(false);
+  const [editItem,        setEditItem]       = useState(null);
+  const [drawerItem,      setDrawerItem]     = useState(null);
+  const [duplicateSource, setDuplicateSource] = useState(null);
 
   // Filtered items
   const filtered = useMemo(() => {
@@ -1148,6 +1526,15 @@ export default function SocialStudioModule({ C }) {
     setEditItem(item);
     setDrawerItem(null);
     setShowModal(true);
+  }
+
+  function handleDuplicate(item) {
+    setDuplicateSource(item);
+    setDrawerItem(null);
+  }
+
+  function handleCreateItems(newItems) {
+    setItems((prev) => [...newItems, ...prev]);
   }
 
   function prevMonth() {
@@ -1301,6 +1688,17 @@ export default function SocialStudioModule({ C }) {
         />
       )}
 
+      {/* Duplicate modal */}
+      {duplicateSource && (
+        <DuplicateModal
+          C={C}
+          item={duplicateSource}
+          clients={clients}
+          onCreateItems={handleCreateItems}
+          onClose={() => setDuplicateSource(null)}
+        />
+      )}
+
       {/* Detail drawer */}
       {drawerItem && (
         <DetailDrawer
@@ -1311,6 +1709,8 @@ export default function SocialStudioModule({ C }) {
           onEdit={openEditModal}
           onDelete={handleDelete}
           onClose={() => setDrawerItem(null)}
+          onStatusChange={handleStatusChange}
+          onDuplicate={handleDuplicate}
         />
       )}
     </div>

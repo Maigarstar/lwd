@@ -288,9 +288,9 @@ const NAV_SECTIONS = [
   {
     group: "Content",
     items: [
+      { key: "homepage-manager", label: "Homepage Manager",  icon: "⌂" },
       { key: "social-studio",    label: "Social Studio",     icon: "◉" },
       { key: "page-studio",      label: "Page Studio",       icon: "⟡" },
-      { key: "homepage-manager", label: "Homepage Manager",  icon: "⌂" },
       { key: "magazine",         label: "The Magazine",      icon: "◈" },
       { key: "magazine-studio",  label: "Magazine Studio",   icon: "✦" },
       { key: "reusable-blocks",  label: "Reusable Blocks",   icon: "⊞" },
@@ -9308,14 +9308,8 @@ function MagazineAdminModule({ C, onNavigate }) {
     <div style={{ padding: 'clamp(24px, 3vw, 40px)', maxWidth: 1100 }}>
       <div style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <div style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: GOLD_M, marginBottom: 6 }}>
-            Content · The Magazine
-          </div>
-          <h2 style={{ fontFamily: GD_A, fontSize: 'clamp(22px, 3vw, 30px)', fontWeight: 400, color: C.off, margin: 0 }}>
-            The Magazine
-          </h2>
-          <p style={{ fontFamily: NU_A, fontSize: 13, color: C.grey, margin: '6px 0 0' }}>
-            AI-driven editorial · feeds into the Aura AI search engine
+          <p style={{ fontFamily: NU_A, fontSize: 13, color: C.grey, margin: 0 }}>
+            AI-driven editorial - feeds into the Aura AI search engine
           </p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>

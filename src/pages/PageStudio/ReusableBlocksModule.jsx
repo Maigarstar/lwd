@@ -119,10 +119,7 @@ const ReusableBlocksModule = ({ C, NU, GD }) => {
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
           <div>
-            <h2 style={{ fontFamily: GD, fontSize: 28, color: C.white, margin: "0 0 8px 0" }}>
-              Reusable Blocks
-            </h2>
-            <p style={{ fontFamily: NU, fontSize: 11, color: C.grey2, margin: 0 }}>
+            <p style={{ fontFamily: NU, fontSize: 13, color: C.grey2, margin: 0 }}>
               Manage reusable content blocks library
             </p>
           </div>

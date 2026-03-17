@@ -251,16 +251,6 @@ const PageStudioHome = ({ C, NU, GD, onNavigate }) => {
         marginBottom: 28,
       }}>
         <div>
-          <h1 style={{
-            fontFamily: GD,
-            fontSize: 26,
-            fontWeight: 400,
-            color: C.white,
-            margin: '0 0 4px',
-            lineHeight: 1.2,
-          }}>
-            Page Studio
-          </h1>
           <p style={{
             fontFamily: NU,
             fontSize: 11,
