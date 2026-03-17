@@ -6,6 +6,7 @@
 import { useState, useEffect, useContext, useCallback, useMemo, useRef } from 'react';
 import { ThemeCtx } from '../../theme/ThemeContext';
 import { fetchListingsSeoStatus, generateListingSeo, bulkGenerateSeo } from '../../services/seoService';
+import { fetchPosts, fetchCategories } from '../../services/magazineService';
 import {
   fetchDomainGroupedAudits, runAudit,
   scoreLabel, scoreColor,
@@ -257,6 +258,13 @@ export default function SeoModule() {
   const [auditOppFilter,   setAuditOppFilter] = useState('all');   // all | High | Medium | Low
   const [auditSort,        setAuditSort]      = useState('date');  // date | score-asc | score-desc | opportunity
 
+  // Content & SEO state
+  const [contentPosts,      setContentPosts]      = useState([]);
+  const [contentCats,       setContentCats]       = useState([]);
+  const [contentLoading,    setContentLoading]    = useState(false);
+  const [contentFilter,     setContentFilter]     = useState('all'); // all | missing | complete
+  const [contentSearch,     setContentSearch]     = useState('');
+
   // ── Load internal SEO listings ──────────────────────────────────────────────
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -279,6 +287,29 @@ export default function SeoModule() {
     const VI_TABS = ['website-audits', 'authority-scores', 'ai-visibility', 'prospect-outreach'];
     if (VI_TABS.includes(seoTab) && domainGroups.length === 0 && !auditsLoading) {
       loadDomainAudits();
+    }
+  }, [seoTab]);
+
+  // ── Load content SEO (magazine posts + categories) ──────────────────────────
+  const loadContentSeo = useCallback(async () => {
+    setContentLoading(true);
+    try {
+      const [postsRes, catsRes] = await Promise.all([
+        fetchPosts(),
+        fetchCategories(),
+      ]);
+      setContentPosts(postsRes?.data || []);
+      setContentCats(catsRes?.data || []);
+    } catch (e) {
+      console.error('Failed to load content SEO:', e);
+    } finally {
+      setContentLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (seoTab === 'content-seo' && contentPosts.length === 0 && !contentLoading) {
+      loadContentSeo();
     }
   }, [seoTab]);
 
@@ -621,12 +652,149 @@ export default function SeoModule() {
         </div>
       )}
 
-      {seoTab === 'content-seo' && (
-        <div style={{ padding: '48px 0', textAlign: 'center', color: C.grey, fontFamily: NU, fontSize: 13 }}>
-          <div style={{ fontFamily: GD, fontSize: 22, color: C.off, marginBottom: 8 }}>Content & SEO</div>
-          <div>Magazine article SEO, category metadata, and sitemap management will appear here.</div>
-        </div>
-      )}
+      {seoTab === 'content-seo' && (() => {
+        const hasSeoTitle  = p => !!p.seo_title;
+        const hasMetaDesc  = p => !!p.meta_description;
+        const hasOgImage   = p => !!p.og_image;
+        const isComplete   = p => hasSeoTitle(p) && hasMetaDesc(p) && hasOgImage(p);
+        const isMissing    = p => !isComplete(p);
+
+        const filtered = contentPosts.filter(p => {
+          const matchSearch = !contentSearch || (p.title || '').toLowerCase().includes(contentSearch.toLowerCase()) || (p.slug || '').toLowerCase().includes(contentSearch.toLowerCase());
+          const matchFilter = contentFilter === 'all' ? true : contentFilter === 'complete' ? isComplete(p) : isMissing(p);
+          return matchSearch && matchFilter;
+        });
+
+        const total    = contentPosts.length;
+        const complete = contentPosts.filter(isComplete).length;
+        const pct      = total ? Math.round((complete / total) * 100) : 0;
+
+        const catComplete = contentCats.filter(c => c.seo_title && c.meta_description).length;
+
+        return (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
+              <div>
+                <h2 style={{ fontFamily: GD, fontSize: 20, fontWeight: 400, color: C.off, margin: '0 0 4px' }}>Content & SEO</h2>
+                <div style={{ fontFamily: NU, fontSize: 12, color: C.grey }}>{total} articles tracked</div>
+              </div>
+              <button onClick={loadContentSeo} disabled={contentLoading} style={{ padding: '7px 16px', background: 'transparent', border: `1px solid ${C.border2}`, color: C.grey, borderRadius: 5, fontFamily: NU, fontSize: 12, cursor: contentLoading ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
+                {contentLoading ? 'Loading...' : 'Refresh'}
+              </button>
+            </div>
+
+            {/* Summary tiles */}
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
+              <StatTile label="Total Articles"     value={total}                              C={C} />
+              <StatTile label="SEO Complete"       value={complete}                           C={C} gold />
+              <StatTile label="Missing SEO Title"  value={contentPosts.filter(p => !hasSeoTitle(p)).length}  C={C} />
+              <StatTile label="Missing Meta Desc"  value={contentPosts.filter(p => !hasMetaDesc(p)).length}  C={C} />
+              <StatTile label="Missing OG Image"   value={contentPosts.filter(p => !hasOgImage(p)).length}   C={C} />
+            </div>
+
+            {/* Progress bar */}
+            <div style={{ background: C.dark, borderRadius: 6, height: 8, overflow: 'hidden', maxWidth: 480, marginBottom: 8 }}>
+              <div style={{ height: '100%', width: `${pct}%`, background: `linear-gradient(90deg, ${G}, #e8c96c)`, borderRadius: 6, transition: 'width 0.6s ease' }} />
+            </div>
+            <div style={{ fontSize: 12, color: C.grey, fontFamily: NU, marginBottom: 24 }}>{pct}% of articles have complete SEO</div>
+
+            {/* Category SEO summary */}
+            {contentCats.length > 0 && (
+              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: '14px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+                <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.grey2 }}>Categories</div>
+                <div style={{ fontFamily: NU, fontSize: 13, color: C.white }}>{contentCats.length} total</div>
+                <div style={{ fontFamily: NU, fontSize: 13, color: catComplete === contentCats.length ? '#22c55e' : G }}>{catComplete} with SEO metadata</div>
+                <div style={{ fontFamily: NU, fontSize: 13, color: C.grey }}>{contentCats.length - catComplete} missing title or description</div>
+              </div>
+            )}
+
+            {/* Filter bar */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+              <input
+                placeholder="Search articles..."
+                value={contentSearch}
+                onChange={e => setContentSearch(e.target.value)}
+                style={{ padding: '7px 12px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, borderRadius: 5, color: C.white, fontFamily: NU, fontSize: 12, outline: 'none', flex: '1 1 180px', maxWidth: 260 }}
+              />
+              <div style={{ display: 'flex', gap: 4 }}>
+                {['all', 'missing', 'complete'].map(f => (
+                  <button key={f} onClick={() => setContentFilter(f)} style={{ padding: '6px 14px', borderRadius: 4, border: contentFilter === f ? 'none' : `1px solid ${C.border}`, background: contentFilter === f ? G : 'transparent', color: contentFilter === f ? '#fff' : C.grey, fontFamily: NU, fontSize: 12, fontWeight: 500, cursor: 'pointer', textTransform: 'capitalize' }}>
+                    {f === 'all' ? `All (${total})` : f === 'missing' ? `Incomplete (${contentPosts.filter(isMissing).length})` : `Complete (${complete})`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Articles table */}
+            {contentLoading ? (
+              <div style={{ padding: 48, textAlign: 'center', color: C.grey, fontSize: 13 }}>Loading articles...</div>
+            ) : filtered.length === 0 ? (
+              <div style={{ padding: 48, textAlign: 'center', color: C.grey, fontSize: 13 }}>
+                {total === 0 ? 'No magazine articles found.' : 'No articles match the current filter.'}
+              </div>
+            ) : (
+              <div style={{ background: C.card, borderRadius: 8, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr>
+                        <th style={colHeader}>Article</th>
+                        <th style={colHeader}>Category</th>
+                        <th style={colHeader}>Status</th>
+                        <th style={colHeader}>SEO Title</th>
+                        <th style={colHeader}>Meta Description</th>
+                        <th style={colHeader}>OG Image</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map(post => (
+                        <tr key={post.id} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                          <td style={{ ...cell, maxWidth: 240 }}>
+                            <div style={{ fontWeight: 500, color: C.white, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={post.title}>{post.title || 'Untitled'}</div>
+                            {post.slug && <div style={{ fontSize: 11, color: C.grey2 }}>/magazine/{post.slug}</div>}
+                          </td>
+                          <td style={cell}>
+                            <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>{post.category_label || post.category_slug || '--'}</span>
+                          </td>
+                          <td style={cell}>
+                            <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: post.published ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.06)', color: post.published ? '#10b981' : C.grey, fontWeight: 600, fontFamily: NU, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                              {post.published ? 'Live' : 'Draft'}
+                            </span>
+                          </td>
+                          <td style={{ ...cell, maxWidth: 200 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <Tick ok={hasSeoTitle(post)} />
+                              {post.seo_title
+                                ? <span style={{ color: C.grey, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160, fontSize: 11 }} title={post.seo_title}>{post.seo_title}</span>
+                                : <span style={{ color: C.grey2, fontSize: 11 }}>Not set</span>}
+                            </div>
+                          </td>
+                          <td style={{ ...cell, maxWidth: 200 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <Tick ok={hasMetaDesc(post)} />
+                              {post.meta_description
+                                ? <span style={{ color: C.grey, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160, fontSize: 11 }} title={post.meta_description}>{post.meta_description.substring(0, 50)}{post.meta_description.length > 50 ? '...' : ''}</span>
+                                : <span style={{ color: C.grey2, fontSize: 11 }}>Not set</span>}
+                            </div>
+                          </td>
+                          <td style={cell}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <Tick ok={hasOgImage(post)} />
+                              {post.og_image
+                                ? <img src={post.og_image} alt="" style={{ width: 36, height: 24, objectFit: 'cover', borderRadius: 2 }} />
+                                : <span style={{ color: C.grey2, fontSize: 11 }}>Not set</span>}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ═══════════════════════ VISIBILITY INTELLIGENCE ═══════════════════════ */}
 
