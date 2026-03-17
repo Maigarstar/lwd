@@ -43,6 +43,7 @@ import PlatformSettingsModule from "./AdminModules/PlatformSettingsModule";
 import TeamModule from "./AdminModules/TeamModule";
 import SeoModule from "./AdminModules/SeoModule";
 import ConnectedDataModule from "./AdminModules/ConnectedDataModule";
+import SocialStudioModule from "./AdminModules/SocialStudioModule";
 import { POSTS } from "./Magazine/data/posts";
 import { PRODUCTS, COLLECTIONS, formatPrice } from "./Magazine/data/products";
 import { CATEGORIES } from "./Magazine/data/categories";
@@ -287,8 +288,9 @@ const NAV_SECTIONS = [
   {
     group: "Content",
     items: [
-      { key: "page-studio",  label: "Page Studio",       icon: "⟡" },
-      { key: "homepage-manager", label: "Homepage Manager", icon: "⌂" },
+      { key: "social-studio",    label: "Social Studio",     icon: "◉" },
+      { key: "page-studio",      label: "Page Studio",       icon: "⟡" },
+      { key: "homepage-manager", label: "Homepage Manager",  icon: "⌂" },
       { key: "magazine",         label: "The Magazine",      icon: "◈" },
       { key: "magazine-studio",  label: "Magazine Studio",   icon: "✦" },
       { key: "reusable-blocks",  label: "Reusable Blocks",   icon: "⊞" },
@@ -8731,6 +8733,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         else onNavigate(action);
       }} />;
       case "magazine-studio": return null; // Handled in main render logic
+      case "social-studio":   return <SocialStudioModule C={C} />;
       case "reusable-blocks": return <ReusableBlocksModule C={C} NU={NU} GD={GD} />;
       default:              return <OverviewModule C={C} />;
     }
