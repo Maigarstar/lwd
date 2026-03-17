@@ -20,6 +20,7 @@ const PLATFORMS = [
   { key: "instagram", label: "Instagram" },
   { key: "facebook",  label: "Facebook" },
   { key: "pinterest", label: "Pinterest" },
+  { key: "linkedin",  label: "LinkedIn" },
   { key: "tiktok",    label: "TikTok" },
   { key: "web",       label: "Website" },
   { key: "email",     label: "Email" },
