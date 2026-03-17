@@ -89,7 +89,10 @@ export const TONE_OPTIONS = [
 export function computeWordCount(content = []) {
   return content.reduce((total, block) => {
     const text = [block.text, block.body, block.tip, block.standfirst]
-      .filter(Boolean).join(' ');
+      .filter(Boolean)
+      // Strip HTML tags (body_wysiwyg stores rich HTML) and decode common entities
+      .map(t => t.replace(/<[^>]*>/g, ' ').replace(/&[a-z]{2,6};/gi, ' ').replace(/&\d+;/gi, ' '))
+      .join(' ');
     return total + text.split(/\s+/).filter(Boolean).length;
   }, 0);
 }

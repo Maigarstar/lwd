@@ -120,23 +120,49 @@ serve(async (req) => {
       );
     }
 
-    // Fetch top 5 landing pages
-    const pagesRes = await fetch(apiBase, {
-      method:  'POST',
-      headers: commonHeaders,
-      body: JSON.stringify({
-        dateRanges: [{ startDate: start, endDate: end }],
-        dimensions: [{ name: 'landingPagePlusQueryString' }],
-        metrics:    [
-          { name: 'sessions'              },
-          { name: 'bounceRate'            },
-          { name: 'averageSessionDuration'},
-        ],
-        limit:    5,
-        orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+    // Fetch top 10 landing pages, traffic channels, and device breakdown in parallel
+    const [pagesRes, channelsRes, devicesRes] = await Promise.all([
+      fetch(apiBase, {
+        method:  'POST',
+        headers: commonHeaders,
+        body: JSON.stringify({
+          dateRanges: [{ startDate: start, endDate: end }],
+          dimensions: [{ name: 'landingPagePlusQueryString' }],
+          metrics:    [
+            { name: 'sessions'              },
+            { name: 'bounceRate'            },
+            { name: 'averageSessionDuration'},
+          ],
+          limit:    10,
+          orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+        }),
       }),
-    });
-    const pagesData = await pagesRes.json();
+      fetch(apiBase, {
+        method:  'POST',
+        headers: commonHeaders,
+        body: JSON.stringify({
+          dateRanges: [{ startDate: start, endDate: end }],
+          dimensions: [{ name: 'sessionDefaultChannelGroup' }],
+          metrics:    [{ name: 'sessions' }, { name: 'newUsers' }],
+          limit:    10,
+          orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+        }),
+      }),
+      fetch(apiBase, {
+        method:  'POST',
+        headers: commonHeaders,
+        body: JSON.stringify({
+          dateRanges: [{ startDate: start, endDate: end }],
+          dimensions: [{ name: 'deviceCategory' }],
+          metrics:    [{ name: 'sessions' }, { name: 'engagedSessions' }],
+          limit:    5,
+          orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+        }),
+      }),
+    ]);
+    const [pagesData, channelsData, devicesData] = await Promise.all([
+      pagesRes.json(), channelsRes.json(), devicesRes.json(),
+    ]);
 
     // Parse summary row — guard every value against undefined (empty rows when no data)
     const row  = summaryData.rows?.[0];
@@ -159,6 +185,29 @@ serve(async (req) => {
       avgDuration:     fmtDuration(Number(r.metricValues?.[2]?.value || 0)),
     }));
 
+    // Parse channels
+    const totalSessionsForPct = Math.round(sessions) || 1;
+    const channels = (channelsData.rows || []).map((r: any) => {
+      const s = Math.round(Number(r.metricValues?.[0]?.value || 0));
+      return {
+        channel:  r.dimensionValues?.[0]?.value || 'Other',
+        sessions: s,
+        pct:      Number(((s / totalSessionsForPct) * 100).toFixed(1)),
+        newUsers: Math.round(Number(r.metricValues?.[1]?.value || 0)),
+      };
+    });
+
+    // Parse devices
+    const devices = (devicesData.rows || []).map((r: any) => {
+      const s = Math.round(Number(r.metricValues?.[0]?.value || 0));
+      return {
+        device:          r.dimensionValues?.[0]?.value || 'other',
+        sessions:        s,
+        pct:             Number(((s / totalSessionsForPct) * 100).toFixed(1)),
+        engagedSessions: Math.round(Number(r.metricValues?.[1]?.value || 0)),
+      };
+    });
+
     return Response.json({
       summary: {
         sessions:            Math.round(sessions),
@@ -170,6 +219,8 @@ serve(async (req) => {
         newUsers:            Math.round(newUsers),
         totalUsers:          Math.round(totalUsers),
       },
+      channels,
+      devices,
       landingPages,
       startDate:   start,
       endDate:     end,

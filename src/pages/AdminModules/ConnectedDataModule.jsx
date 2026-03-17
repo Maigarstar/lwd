@@ -53,6 +53,17 @@ function fmtNum(n) {
   return String(n);
 }
 
+function fmtTimeAgo(date) {
+  if (!date) return '';
+  const secs = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (secs < 10)  return 'just now';
+  if (secs < 60)  return `${secs}s ago`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60)  return `${mins} min${mins === 1 ? '' : 's'} ago`;
+  const hrs = Math.floor(mins / 60);
+  return `${hrs}h ago`;
+}
+
 function dateRangeLabel(range) {
   return { '7daysAgo': 'Last 7 days', '28daysAgo': 'Last 28 days', '90daysAgo': 'Last 90 days' }[range] || range;
 }
@@ -397,10 +408,18 @@ function ConnectionCard({ name, description, icon, integration, service, conn, o
           </div>
         )}
 
-        {/* Connected-at */}
+        {/* Connected-at + last synced */}
         {connected && conn?.connected_at && (
-          <div style={{ marginTop: 6, fontFamily: NU, fontSize: 10, color: C.grey2 }}>
-            Connected {new Date(conn.connected_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+          <div style={{ marginTop: 6, fontFamily: NU, fontSize: 10, color: C.grey2, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span>Connected {new Date(conn.connected_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+            {conn?.token_expiry && (
+              <>
+                <span style={{ color: C.border }}>·</span>
+                <span style={{ color: new Date(conn.token_expiry) > new Date() ? '#86efac' : '#f87171' }}>
+                  Token {new Date(conn.token_expiry) > new Date() ? 'valid' : 'expired'}
+                </span>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -711,9 +730,10 @@ function ErrorBanner({ message, onRetry, C }) {
 
 // ─── AnalyticsView ────────────────────────────────────────────────────────────
 function AnalyticsView({ conn, dateRange, onDateChange, onGoToConnections, onChangeProperty, C }) {
-  const [data,    setData]    = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState(null);
+  const [data,      setData]      = useState(null);
+  const [loading,   setLoading]   = useState(false);
+  const [error,     setError]     = useState(null);
+  const [fetchedAt, setFetchedAt] = useState(null);
 
   const propId = conn?.selected_property_id;
 
@@ -726,6 +746,7 @@ function AnalyticsView({ conn, dateRange, onDateChange, onGoToConnections, onCha
       const end   = todayStr();
       const result = await fetchAnalyticsData(propId, { startDate: start, endDate: end });
       setData(result);
+      setFetchedAt(new Date());
     } catch (e) {
       setError(e.message || 'Failed to load Analytics data.');
     } finally {
@@ -746,6 +767,100 @@ function AnalyticsView({ conn, dateRange, onDateChange, onGoToConnections, onCha
 
   // Detect all-zeros (API enabled but data not yet backfilled)
   const allZeros = s != null && s.sessions === 0 && s.totalUsers === 0 && s.newUsers === 0;
+
+  // ── Performance insight builder ────────────────────────────────────────────
+  function buildInsight(d) {
+    if (!d?.summary || allZeros) return null;
+    const { sessions, engagedSessions, bounceRate, totalUsers, newUsers, avgSessionFormatted, pagesPerSession } = d.summary;
+    const engageRate = sessions > 0 ? Math.round((engagedSessions / sessions) * 100) : 0;
+    const returnRate = totalUsers > 0 ? Math.round(((totalUsers - newUsers) / totalUsers) * 100) : 0;
+    const topChannel = d.channels?.[0];
+
+    let sentimentColor = C.green;
+    let sentimentLabel = 'Performing well';
+    if (bounceRate > 65 || engageRate < 30) { sentimentColor = '#f87171'; sentimentLabel = 'Needs attention'; }
+    else if (bounceRate > 45 || engageRate < 50) { sentimentColor = '#fbbf24'; sentimentLabel = 'Room to improve'; }
+
+    const lines = [];
+    if (sessions > 0) {
+      lines.push(`${fmtNum(sessions)} sessions recorded with a ${engageRate}% engagement rate${engageRate >= 60 ? ', indicating strong visitor intent' : engageRate >= 40 ? ', showing moderate audience engagement' : ', suggesting visitors are not finding what they need'}.`);
+    }
+    if (bounceRate != null) {
+      lines.push(`Bounce rate is ${bounceRate}% (${bounceRate < 40 ? 'excellent' : bounceRate < 55 ? 'acceptable' : bounceRate < 70 ? 'elevated' : 'high'}) with an average session of ${avgSessionFormatted ?? '0s'} and ${pagesPerSession ?? 0} pages per visit.`);
+    }
+    if (topChannel) {
+      lines.push(`Primary traffic source is ${topChannel.channel} at ${topChannel.pct}%${returnRate > 20 ? ` with ${returnRate}% returning visitors` : ''}.`);
+    }
+    return { lines, sentimentColor, sentimentLabel };
+  }
+
+  // ── Flagged issues builder ─────────────────────────────────────────────────
+  function buildFlags(d) {
+    if (!d?.summary || allZeros) return [];
+    const flags = [];
+    const { bounceRate, engagedSessions, sessions } = d.summary;
+    const engageRate = sessions > 0 ? Math.round((engagedSessions / sessions) * 100) : 0;
+    const channels = d.channels ?? [];
+    const unassigned = channels.find(ch => ch.channel === 'Unassigned' || ch.channel === '(other)');
+    const organic = channels.find(ch => ch.channel === 'Organic Search');
+
+    if (bounceRate > 65) {
+      flags.push({ icon: '⚠', label: 'High Bounce Rate', detail: `${bounceRate}% of sessions bounce immediately. Review landing page relevance and load speed.`, sev: 'high' });
+    } else if (bounceRate > 50) {
+      flags.push({ icon: '◎', label: 'Elevated Bounce Rate', detail: `${bounceRate}% bounce rate. Consider improving above-the-fold content on top landing pages.`, sev: 'med' });
+    }
+    if (unassigned && unassigned.pct > 15) {
+      flags.push({ icon: '◎', label: 'Unassigned Traffic', detail: `${unassigned.pct}% of sessions are unattributed. Check UTM tagging on paid and referral campaigns.`, sev: 'med' });
+    }
+    if (organic && organic.pct < 15 && sessions > 200) {
+      flags.push({ icon: '◎', label: 'Low Organic Contribution', detail: `Organic search drives only ${organic.pct}% of traffic. Content SEO and backlink strategy may need attention.`, sev: 'med' });
+    }
+    if (!organic && sessions > 200) {
+      flags.push({ icon: '◎', label: 'No Organic Search Traffic', detail: 'Zero sessions from organic search detected. Pages may not be indexed or ranking for target queries.', sev: 'high' });
+    }
+    if (engageRate < 30 && sessions > 50) {
+      flags.push({ icon: '⚠', label: 'Low Engagement Signal', detail: `Only ${engageRate}% of sessions are classified as engaged. Users may be leaving before interacting with content.`, sev: 'high' });
+    }
+    return flags;
+  }
+
+  const insight = buildInsight(data);
+  const flags   = buildFlags(data);
+
+  // ── Engagement label helper ────────────────────────────────────────────────
+  function engagementLabel(row, medianSessions) {
+    const br = row.bounceRate ?? 0;
+    const sess = row.sessions ?? 0;
+    if (br < 38 && sess >= medianSessions) return { label: 'Strong',  color: '#4ade80', bg: 'rgba(74,222,128,0.08)'  };
+    if (br < 55)                           return { label: 'Average', color: '#fbbf24', bg: 'rgba(251,191,36,0.08)'  };
+    return                                        { label: 'Weak',    color: '#f87171', bg: 'rgba(248,113,113,0.08)' };
+  }
+
+  // ── Conversion risk helper ─────────────────────────────────────────────────
+  function conversionRisk(row) {
+    const br = row.bounceRate ?? 0;
+    // parse avgDuration string (e.g. "1m 24s" or "45s") to seconds
+    const raw = row.avgDuration ?? '';
+    const mins = parseInt((raw.match(/(\d+)m/) || [])[1] ?? '0', 10);
+    const secs = parseInt((raw.match(/(\d+)s/) || [])[1] ?? '0', 10);
+    const dur = mins * 60 + secs;
+
+    if (br < 40 && dur >= 60) return { label: 'Low Risk',  color: '#4ade80' };
+    if (br < 60 && dur >= 30) return { label: 'Med Risk',  color: '#fbbf24' };
+    return                           { label: 'High Risk', color: '#f87171' };
+  }
+
+  // Median sessions across landing pages for engagement label calibration
+  const sortedSess = [...(data?.landingPages ?? [])].map(r => r.sessions).sort((a, b) => a - b);
+  const medianSess = sortedSess.length ? sortedSess[Math.floor(sortedSess.length / 2)] : 0;
+
+  // Bounce rate colour
+  function bounceColor(br) {
+    if (br == null) return C.grey;
+    if (br < 40)   return '#4ade80';
+    if (br < 60)   return '#fbbf24';
+    return '#f87171';
+  }
 
   return (
     <div>
@@ -780,26 +895,113 @@ function AnalyticsView({ conn, dateRange, onDateChange, onGoToConnections, onCha
       {/* Error */}
       {error && <ErrorBanner message={error} onRetry={load} C={C} />}
 
+      {/* Performance Insight block */}
+      {!loading && insight && (
+        <div style={{
+          backgroundColor: C.card,
+          border: `1px solid rgba(249,171,0,0.18)`,
+          borderRadius: 8,
+          padding: '14px 18px',
+          marginBottom: 20,
+          display: 'flex',
+          gap: 14,
+          alignItems: 'flex-start',
+        }}>
+          <div style={{
+            flexShrink: 0, width: 34, height: 34, borderRadius: 6,
+            backgroundColor: `${insight.sentimentColor}18`,
+            border: `1px solid ${insight.sentimentColor}40`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 15,
+          }}>💡</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.grey2 }}>
+                Performance Insight
+              </span>
+              <span style={{
+                fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase',
+                color: insight.sentimentColor,
+                backgroundColor: `${insight.sentimentColor}15`,
+                border: `1px solid ${insight.sentimentColor}35`,
+                borderRadius: 3, padding: '1px 6px',
+              }}>{insight.sentimentLabel}</span>
+            </div>
+            {insight.lines.map((line, i) => (
+              <p key={i} style={{
+                fontFamily: NU, fontSize: 12, color: C.white, lineHeight: 1.65,
+                margin: 0, marginBottom: i < insight.lines.length - 1 ? 4 : 0,
+              }}>{line}</p>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Metrics grid */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
         gap: 10, marginBottom: allZeros ? 12 : 24,
+        opacity: allZeros ? 0.45 : 1,
+        transition: 'opacity 0.3s ease',
       }}>
         {loading ? (
           Array.from({ length: 7 }).map((_, i) => <MetricCardSkeleton key={i} C={C} />)
         ) : s ? (
           <>
-            <MetricCard label="Sessions"          value={fmtNum(s.sessions ?? 0)}          tint="ga" C={C} />
-            <MetricCard label="Engaged Sessions"  value={fmtNum(s.engagedSessions ?? 0)}   tint="ga" C={C} />
-            <MetricCard label="Bounce Rate"       value={`${s.bounceRate ?? 0}%`}           tint="ga" C={C} sub="lower is better" />
-            <MetricCard label="Avg Session"       value={s.avgSessionFormatted ?? '0s'}     tint="ga" C={C} />
-            <MetricCard label="Pages / Session"   value={s.pagesPerSession ?? 0}            tint="ga" C={C} />
-            <MetricCard label="New Users"         value={fmtNum(s.newUsers ?? 0)}           tint="ga" C={C} />
-            <MetricCard label="Total Users"       value={fmtNum(s.totalUsers ?? 0)}         tint="ga" C={C} />
+            <MetricCard label="Sessions"          value={allZeros ? '--' : fmtNum(s.sessions ?? 0)}          tint="ga" C={C} />
+            <MetricCard label="Engaged Sessions"  value={allZeros ? '--' : fmtNum(s.engagedSessions ?? 0)}   tint="ga" C={C} />
+            <MetricCard label="Bounce Rate"       value={allZeros ? '--' : `${s.bounceRate ?? 0}%`}           tint="ga" C={C} sub="lower is better" />
+            <MetricCard label="Avg Session"       value={allZeros ? '--' : (s.avgSessionFormatted ?? '0s')}   tint="ga" C={C} />
+            <MetricCard label="Pages / Session"   value={allZeros ? '--' : (s.pagesPerSession ?? 0)}          tint="ga" C={C} />
+            <MetricCard label="New Users"         value={allZeros ? '--' : fmtNum(s.newUsers ?? 0)}           tint="ga" C={C} />
+            <MetricCard label="Total Users"       value={allZeros ? '--' : fmtNum(s.totalUsers ?? 0)}         tint="ga" C={C} />
           </>
         ) : null}
       </div>
+
+      {/* Flagged Issues */}
+      {!loading && flags.length > 0 && (
+        <div style={{
+          backgroundColor: C.card,
+          border: `1px solid rgba(248,113,113,0.18)`,
+          borderRadius: 8, overflow: 'hidden',
+          marginBottom: 20,
+        }}>
+          <div style={{
+            padding: '10px 16px',
+            borderBottom: `1px solid ${C.border}`,
+            backgroundColor: 'rgba(248,113,113,0.04)',
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <span style={{ fontSize: 12 }}>🚩</span>
+            <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#f87171' }}>
+              Flagged Issues ({flags.length})
+            </span>
+          </div>
+          {flags.map((flag, i) => (
+            <div key={i} style={{
+              display: 'flex', alignItems: 'flex-start', gap: 12,
+              padding: '10px 16px',
+              borderBottom: i < flags.length - 1 ? `1px solid ${C.border}` : 'none',
+            }}>
+              <span style={{
+                flexShrink: 0, fontSize: 12, marginTop: 1,
+                color: flag.sev === 'high' ? '#f87171' : '#fbbf24',
+              }}>{flag.icon}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span style={{
+                  fontFamily: NU, fontSize: 11, fontWeight: 600,
+                  color: flag.sev === 'high' ? '#f87171' : '#fbbf24',
+                }}>{flag.label}</span>
+                <span style={{ fontFamily: NU, fontSize: 11, color: C.grey, marginLeft: 8 }}>
+                  {flag.detail}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Zero-state sync notice */}
       {!loading && allZeros && (
@@ -822,6 +1024,57 @@ function AnalyticsView({ conn, dateRange, onDateChange, onGoToConnections, onCha
         </div>
       )}
 
+      {/* Channels + Devices row */}
+      {!loading && (data?.channels?.length > 0 || data?.devices?.length > 0) && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+
+          {/* Traffic channels */}
+          {data?.channels?.length > 0 && (
+            <div style={{ backgroundColor: C.card, border: `1px solid rgba(249,171,0,0.12)`, borderRadius: 8, overflow: 'hidden' }}>
+              <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, backgroundColor: 'rgba(249,171,0,0.04)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.grey2 }}>Traffic Channels</span>
+                <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.grey2 }}>Sessions</span>
+              </div>
+              {data.channels.map((ch, i) => (
+                <div key={i} style={{ padding: '8px 14px', borderBottom: i < data.channels.length - 1 ? `1px solid ${C.border}` : 'none' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <span style={{ fontFamily: NU, fontSize: 11, color: C.white }}>{ch.channel}</span>
+                    <span style={{ fontFamily: NU, fontSize: 11, color: C.white }}>{fmtNum(ch.sessions)} <span style={{ color: C.grey2, fontSize: 10 }}>({ch.pct}%)</span></span>
+                  </div>
+                  <div style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${Math.min(ch.pct, 100)}%`, backgroundColor: '#F9AB00', borderRadius: 2, opacity: 0.7 }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Device breakdown */}
+          {data?.devices?.length > 0 && (
+            <div style={{ backgroundColor: C.card, border: `1px solid rgba(249,171,0,0.12)`, borderRadius: 8, overflow: 'hidden' }}>
+              <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, backgroundColor: 'rgba(249,171,0,0.04)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.grey2 }}>Devices</span>
+                <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.grey2 }}>Sessions</span>
+              </div>
+              {data.devices.map((dv, i) => {
+                const icon = dv.device === 'mobile' ? '📱' : dv.device === 'desktop' ? '🖥' : dv.device === 'tablet' ? '📲' : '📡';
+                return (
+                  <div key={i} style={{ padding: '8px 14px', borderBottom: i < data.devices.length - 1 ? `1px solid ${C.border}` : 'none' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <span style={{ fontFamily: NU, fontSize: 11, color: C.white, textTransform: 'capitalize' }}>{icon} {dv.device}</span>
+                      <span style={{ fontFamily: NU, fontSize: 11, color: C.white }}>{fmtNum(dv.sessions)} <span style={{ color: C.grey2, fontSize: 10 }}>({dv.pct}%)</span></span>
+                    </div>
+                    <div style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${Math.min(dv.pct, 100)}%`, backgroundColor: '#F9AB00', borderRadius: 2, opacity: 0.55 }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Landing pages table */}
       {!loading && data?.landingPages?.length > 0 && (
         <div style={{
@@ -831,12 +1084,12 @@ function AnalyticsView({ conn, dateRange, onDateChange, onGoToConnections, onCha
         }}>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 80px 90px 100px',
+            gridTemplateColumns: '1fr 72px 90px 100px 80px 80px',
             padding: '10px 16px',
             borderBottom: `1px solid ${C.border}`,
             backgroundColor: 'rgba(249,171,0,0.04)',
           }}>
-            {['Top Landing Pages', 'Sessions', 'Bounce', 'Avg Duration'].map((h, i) => (
+            {['Top Landing Pages', 'Sessions', 'Bounce', 'Avg Duration', 'Engagement', 'Conv. Risk'].map((h, i) => (
               <span key={i} style={{
                 fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase',
                 letterSpacing: '0.08em', color: C.grey2,
@@ -844,34 +1097,74 @@ function AnalyticsView({ conn, dateRange, onDateChange, onGoToConnections, onCha
               }}>{h}</span>
             ))}
           </div>
-          {data.landingPages.map((row, i) => (
-            <div key={i} style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 80px 90px 100px',
-              padding: '10px 16px',
-              borderBottom: i < data.landingPages.length - 1 ? `1px solid ${C.border}` : 'none',
-              alignItems: 'center',
-            }}>
-              <span style={{
-                fontFamily: 'monospace', fontSize: 11, color: C.grey,
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                paddingRight: 12,
-              }}>{row.page}</span>
-              <span style={{ fontFamily: NU, fontSize: 12, color: C.white, textAlign: 'right' }}>{fmtNum(row.sessions)}</span>
-              <span style={{ fontFamily: NU, fontSize: 12, color: row.bounceRate > 60 ? '#f87171' : C.grey, textAlign: 'right' }}>{row.bounceRate}%</span>
-              <span style={{ fontFamily: NU, fontSize: 12, color: C.grey, textAlign: 'right' }}>{row.avgDuration}</span>
-            </div>
-          ))}
+          {data.landingPages.map((row, i) => {
+            const eng  = engagementLabel(row, medianSess);
+            const risk = conversionRisk(row);
+            const br   = row.bounceRate ?? 0;
+            return (
+              <div key={i} style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 72px 90px 100px 80px 80px',
+                padding: '9px 16px',
+                borderBottom: i < data.landingPages.length - 1 ? `1px solid ${C.border}` : 'none',
+                alignItems: 'center',
+              }}>
+                <span style={{
+                  fontFamily: 'monospace', fontSize: 11, color: C.grey,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  paddingRight: 10,
+                }}>{row.page}</span>
+                <span style={{ fontFamily: NU, fontSize: 12, color: C.white, textAlign: 'right' }}>{fmtNum(row.sessions)}</span>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{
+                    fontFamily: NU, fontSize: 12,
+                    color: bounceColor(br),
+                    fontWeight: br >= 60 ? 600 : 400,
+                  }}>{br}%</span>
+                  {br >= 60 && <span style={{ fontFamily: NU, fontSize: 8, color: bounceColor(br), display: 'block', lineHeight: 1.2 }}>
+                    {br < 70 ? 'elevated' : 'high'}
+                  </span>}
+                  {br < 40 && <span style={{ fontFamily: NU, fontSize: 8, color: bounceColor(br), display: 'block', lineHeight: 1.2 }}>good</span>}
+                </div>
+                <span style={{ fontFamily: NU, fontSize: 12, color: C.grey, textAlign: 'right' }}>{row.avgDuration}</span>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{
+                    fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
+                    color: eng.color,
+                    backgroundColor: eng.bg,
+                    border: `1px solid ${eng.color}35`,
+                    borderRadius: 3, padding: '2px 6px',
+                  }}>{eng.label}</span>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{
+                    fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
+                    color: risk.color,
+                    backgroundColor: `${risk.color}12`,
+                    border: `1px solid ${risk.color}35`,
+                    borderRadius: 3, padding: '2px 6px',
+                  }}>{risk.label}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
       {/* Footer */}
       {!loading && data && (
-        <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#22c55e' }} />
-          <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2 }}>
-            {data.startDate} to {data.endDate} · Live data via Google Analytics Data API
-          </span>
+        <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#22c55e', flexShrink: 0 }} />
+            <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2 }}>
+              {data.startDate} to {data.endDate} · Live data via Google Analytics Data API
+            </span>
+          </div>
+          {fetchedAt && (
+            <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2 }}>
+              Last updated: {fmtTimeAgo(fetchedAt)}
+            </span>
+          )}
         </div>
       )}
     </div>
@@ -880,10 +1173,11 @@ function AnalyticsView({ conn, dateRange, onDateChange, onGoToConnections, onCha
 
 // ─── SearchConsoleView ────────────────────────────────────────────────────────
 function SearchConsoleView({ conn, dateRange, onDateChange, onGoToConnections, onChangeProperty, C }) {
-  const [data,    setData]    = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState(null);
-  const [sortBy,  setSortBy]  = useState('clicks'); // clicks | impressions | position
+  const [data,      setData]      = useState(null);
+  const [loading,   setLoading]   = useState(false);
+  const [error,     setError]     = useState(null);
+  const [sortBy,    setSortBy]    = useState('clicks'); // clicks | impressions | position
+  const [fetchedAt, setFetchedAt] = useState(null);
 
   const propId = conn?.selected_property_id;
 
@@ -896,6 +1190,7 @@ function SearchConsoleView({ conn, dateRange, onDateChange, onGoToConnections, o
       const end   = todayStr();
       const result = await fetchSearchConsoleData(propId, { rowLimit: 20, startDate: start, endDate: end });
       setData(result);
+      setFetchedAt(new Date());
     } catch (e) {
       setError(e.message || 'Failed to load Search Console data.');
     } finally {
@@ -929,14 +1224,34 @@ function SearchConsoleView({ conn, dateRange, onDateChange, onGoToConnections, o
         style={{
           fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase',
           letterSpacing: '0.08em',
-          color: active ? '#4285F4' : C.grey2,
-          background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-          textAlign: 'right', textDecoration: active ? 'underline' : 'none', textUnderlineOffset: 2,
+          color: active ? '#c9a84c' : C.grey2,
+          background: active ? 'rgba(201,168,76,0.08)' : 'none',
+          border: 'none', cursor: 'pointer',
+          padding: '3px 6px', borderRadius: 3,
+          textAlign: 'right',
         }}
       >
         {label}{active ? ' ▼' : ''}
       </button>
     );
+  }
+
+  // Build insight line from real data
+  function buildInsight(rows, totals) {
+    if (!rows || rows.length === 0 || !totals) return null;
+    const page1 = rows.filter(r => (r.position ?? 99) <= 10).length;
+    const top3  = rows.filter(r => (r.position ?? 99) <= 3).length;
+    const avgPos = totals.position;
+    if (top3 > 0) {
+      return `${top3} ${top3 === 1 ? 'query' : 'queries'} ranking in the top 3 positions — strong visibility for branded and high-intent terms.`;
+    }
+    if (page1 > 3) {
+      return `${page1} queries on page one. Average position ${avgPos} — good foundation with room to push key terms higher.`;
+    }
+    if (avgPos && avgPos < 20) {
+      return `Average position ${avgPos} across top queries. Several terms are close to page one — worth optimising.`;
+    }
+    return `${totals.clicks?.toLocaleString() || 0} clicks from ${totals.impressions?.toLocaleString() || 0} impressions over this period.`;
   }
 
   return (
@@ -992,6 +1307,23 @@ function SearchConsoleView({ conn, dateRange, onDateChange, onGoToConnections, o
         ) : null}
       </div>
 
+      {/* Insight line */}
+      {!loading && sortedRows.length > 0 && (() => {
+        const insight = buildInsight(data?.rows, data?.totals);
+        return insight ? (
+          <div style={{
+            display: 'flex', alignItems: 'flex-start', gap: 8,
+            padding: '10px 14px', marginBottom: 14,
+            backgroundColor: 'rgba(66,133,244,0.05)',
+            border: '1px solid rgba(66,133,244,0.15)',
+            borderRadius: 6,
+          }}>
+            <span style={{ fontSize: 13, flexShrink: 0 }}>💡</span>
+            <span style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.6 }}>{insight}</span>
+          </div>
+        ) : null;
+      })()}
+
       {/* Queries table */}
       {!loading && sortedRows.length > 0 && (
         <div style={{
@@ -1034,8 +1366,10 @@ function SearchConsoleView({ conn, dateRange, onDateChange, onGoToConnections, o
               <span style={{ fontFamily: NU, fontSize: 12, color: C.grey, textAlign: 'right' }}>{fmtNum(row.impressions ?? 0)}</span>
               <span style={{ fontFamily: NU, fontSize: 12, color: C.grey, textAlign: 'right' }}>{row.ctr != null ? `${row.ctr}%` : '--'}</span>
               <span style={{
-                fontFamily: NU, fontSize: 12, textAlign: 'right',
-                color: (row.position ?? 99) <= 3 ? '#22c55e' : (row.position ?? 99) <= 10 ? '#f9ab00' : C.grey,
+                fontFamily: NU, fontSize: 11, fontWeight: 600, textAlign: 'right',
+                color: (row.position ?? 99) <= 3 ? '#22c55e'
+                     : (row.position ?? 99) <= 10 ? '#c9a84c'
+                     : C.grey2,
               }}>{row.position != null ? `#${row.position}` : '--'}</span>
             </div>
           ))}
@@ -1056,11 +1390,18 @@ function SearchConsoleView({ conn, dateRange, onDateChange, onGoToConnections, o
 
       {/* Footer */}
       {!loading && data && (
-        <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#22c55e' }} />
-          <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2 }}>
-            {data.startDate} to {data.endDate} · Live data via Google Search Console API
-          </span>
+        <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#22c55e', flexShrink: 0 }} />
+            <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2 }}>
+              {data.startDate} to {data.endDate} · Live data via Google Search Console API
+            </span>
+          </div>
+          {fetchedAt && (
+            <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2 }}>
+              Last updated: {fmtTimeAgo(fetchedAt)}
+            </span>
+          )}
         </div>
       )}
     </div>

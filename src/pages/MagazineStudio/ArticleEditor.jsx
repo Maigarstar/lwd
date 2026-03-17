@@ -2494,11 +2494,25 @@ function SEOPanel({ formData, onChange, tone }) {
   const wc = computeWordCount(formData.content);
   const rt = computeReadingTime(wc);
   const { runAI, loading: aiLoading, error: aiError } = useAIGenerate(formData, tone);
+  const [tagInput, setTagInput] = useState('');
+
+  const currentTags = Array.isArray(formData.tags) ? formData.tags : [];
+  const addTag = (raw) => {
+    const trimmed = raw.trim().toLowerCase().replace(/\s+/g, '-');
+    if (!trimmed || currentTags.includes(trimmed)) { setTagInput(''); return; }
+    upd('tags', [...currentTags, trimmed]);
+    setTagInput('');
+  };
+  const removeTag = (tag) => upd('tags', currentTags.filter(t => t !== tag));
 
   const handleAI = (action) => {
     runAI(action, (a, result) => {
       if (a === 'generate-seo-title') upd('seoTitle', result);
       if (a === 'generate-meta')      upd('metaDescription', result);
+      if (a === 'generate-tags') {
+        const newTags = result.split(',').map(t => t.trim().toLowerCase().replace(/\s+/g, '-')).filter(Boolean);
+        upd('tags', [...new Set([...currentTags, ...newTags])]);
+      }
     });
   };
 
@@ -2579,6 +2593,53 @@ function SEOPanel({ formData, onChange, tone }) {
           <span style={{ fontFamily: FU, fontSize: 10, color: 'var(--s-text, #f5f0e8)' }}>SEO looks good, no issues found</span>
         </div>
       )}
+
+      <Divider />
+      <SectionLabel>Tags</SectionLabel>
+      {/* Tag chips */}
+      {currentTags.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 10 }}>
+          {currentTags.map(tag => (
+            <div key={tag} style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              fontFamily: FU, fontSize: 9, color: 'var(--s-text, #f5f0e8)',
+              background: 'var(--s-input-bg, rgba(245,240,232,0.04))',
+              border: '1px solid var(--s-border, rgba(245,240,232,0.07))',
+              borderRadius: 20, padding: '3px 8px',
+            }}>
+              {tag}
+              <button
+                onClick={() => removeTag(tag)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--s-muted, rgba(245,240,232,0.45))', fontSize: 11, lineHeight: 1, padding: '0 0 0 2px' }}
+              >×</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
+        <input
+          value={tagInput}
+          onChange={e => setTagInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(tagInput); } }}
+          placeholder="Add tag, press Enter or comma…"
+          style={{
+            flex: 1, fontFamily: FU, fontSize: 11,
+            background: 'var(--s-input-bg, rgba(245,240,232,0.04))',
+            border: '1px solid var(--s-input-border, rgba(245,240,232,0.1))',
+            color: 'var(--s-text, #f5f0e8)', padding: '6px 10px', borderRadius: 2, outline: 'none',
+          }}
+        />
+        <button
+          onClick={() => addTag(tagInput)}
+          style={{
+            fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+            textTransform: 'uppercase', padding: '5px 10px', borderRadius: 2,
+            background: 'var(--s-gold, #c9a96e)', border: 'none', color: '#0a0a0a', cursor: 'pointer',
+            flexShrink: 0,
+          }}
+        >+ Add</button>
+      </div>
+      {aiBtn('generate-tags', '✦ Generate Tags')}
 
       <Divider />
       <SectionLabel>Search Engine</SectionLabel>
@@ -2860,6 +2921,16 @@ function PublishPanel({ formData, onChange, onPublish, onUnpublish, onSave, onDu
             colorScheme: 'dark',
           }}
         />
+        {isScheduled && (
+          <div style={{ fontFamily: FU, fontSize: 9, color: 'var(--s-info, #5b8dd9)', marginTop: 4 }}>
+            Scheduled for {new Date(formData.scheduledDate).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+          </div>
+        )}
+        {!isPublished && formData.scheduledDate && new Date(formData.scheduledDate) <= new Date() && (
+          <div style={{ fontFamily: FU, fontSize: 9, color: 'var(--s-warn, #d4a843)', marginTop: 4 }}>
+            Scheduled date has passed. Click Publish Now to go live.
+          </div>
+        )}
       </Field>
 
       <Divider />
@@ -3411,6 +3482,17 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
     return () => clearInterval(autosaveRef.current);
   }, [save]);
 
+  // Warn before browser close/tab navigation when dirty
+  useEffect(() => {
+    const handler = (e) => {
+      if (!dirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [dirty]);
+
   const statuses = computeStatuses(formData);
 
   const handlePreviewBlockClick = (idx) => {
@@ -3426,7 +3508,16 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', background: S.bg, overflow: 'hidden', ...themeVars(editorLight) }}>
       {showTemplate && (
         <TemplatePicker
-          onSelect={t => { updateForm({ ...formData, content: t.content.map(b => ({ ...b })) }); setShowTemplate(false); setActiveTab('hero'); }}
+          onSelect={t => {
+            const newContent = t.content.map(b => ({ ...b, id: crypto.randomUUID() }));
+            updateForm({ ...formData, content: newContent });
+            setShowTemplate(false);
+            setActiveTab('content');
+            const autoOpen = new Set();
+            newContent.forEach((b, i) => { if (b.type === 'intro' || b.type === 'body_wysiwyg') autoOpen.add(i); });
+            if (autoOpen.size === 0) autoOpen.add(0);
+            setOpenIndices(autoOpen);
+          }}
           onClose={() => setShowTemplate(false)}
         />
       )}
@@ -3444,7 +3535,13 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
         borderBottom: `1px solid ${S.border}`,
       }}>
         {/* Back */}
-        <button onClick={onBack} style={{ background: 'none', border: 'none', color: S.muted, cursor: 'pointer', fontFamily: FU, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', flexShrink: 0 }}>
+        <button
+          onClick={() => {
+            if (dirty && !window.confirm('You have unsaved changes. Leave without saving?')) return;
+            onBack();
+          }}
+          style={{ background: 'none', border: 'none', color: S.muted, cursor: 'pointer', fontFamily: FU, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', flexShrink: 0 }}
+        >
           ← Articles
         </button>
         <div style={{ width: 1, height: 18, background: S.border, flexShrink: 0 }} />

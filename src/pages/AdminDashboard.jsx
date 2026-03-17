@@ -8295,6 +8295,20 @@ export default function AdminDashboard({ onBack, onNavigate }) {
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
+  // ── lwd-nav custom event: cross-module navigation ──────────────────────────
+  // Fired by child modules (e.g. VisibilityDetailPanel "Connect" link,
+  // Prospect Outreach "Open" button) to navigate to a different admin tab.
+  // Payload: { tab: string, prospectId?: string, seoTab?: string }
+  useEffect(() => {
+    const handleLwdNav = (e) => {
+      const { tab } = e.detail || {};
+      if (!tab) return;
+      setActiveTab(tab);
+    };
+    window.addEventListener('lwd-nav', handleLwdNav);
+    return () => window.removeEventListener('lwd-nav', handleLwdNav);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Theme customisation state (persisted to localStorage) ──
   const [customDark, setCustomDark] = useState(() => {
     const saved = _loadTheme();
@@ -9294,7 +9308,7 @@ function MagazineAdminModule({ C, onNavigate }) {
           <div style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: GOLD_M, marginBottom: 6 }}>
             Content · The Magazine
           </div>
-          <h2 style={{ fontFamily: GD_A, fontSize: 'clamp(22px, 3vw, 30px)', fontWeight: 400, color: C.heading, margin: 0 }}>
+          <h2 style={{ fontFamily: GD_A, fontSize: 'clamp(22px, 3vw, 30px)', fontWeight: 400, color: C.off, margin: 0 }}>
             The Magazine
           </h2>
           <p style={{ fontFamily: NU_A, fontSize: 13, color: C.grey, margin: '6px 0 0' }}>
@@ -9328,9 +9342,9 @@ function MagazineAdminModule({ C, onNavigate }) {
 
       <div className="admin-grid-4col" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
         {stats.map(s => (
-          <div key={s.label} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px' }}>
+          <div key={s.label} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px' }}>
             <div style={{ fontFamily: NU_A, fontSize: 10, color: C.grey, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>{s.label}</div>
-            <div style={{ fontFamily: GD_A, fontSize: 28, fontWeight: 400, color: C.heading }}>{s.value}</div>
+            <div style={{ fontFamily: GD_A, fontSize: 28, fontWeight: 400, color: C.off }}>{s.value}</div>
           </div>
         ))}
       </div>
@@ -9362,13 +9376,13 @@ function MagazineAdminModule({ C, onNavigate }) {
         <div>
           <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search articles..." style={{
-              fontFamily: NU_A, fontSize: 12, color: C.text,
-              background: C.surface, border: `1px solid ${C.border}`,
+              fontFamily: NU_A, fontSize: 12, color: C.white,
+              background: C.card, border: `1px solid ${C.border}`,
               borderRadius: 4, padding: '8px 14px', outline: 'none', minWidth: 220,
             }} />
             <select value={filterCat} onChange={e => setFilterCat(e.target.value)} style={{
-              fontFamily: NU_A, fontSize: 12, color: C.text,
-              background: C.surface, border: `1px solid ${C.border}`,
+              fontFamily: NU_A, fontSize: 12, color: C.white,
+              background: C.card, border: `1px solid ${C.border}`,
               borderRadius: 4, padding: '8px 14px', outline: 'none',
             }}>
               <option value="all">All Categories</option>
@@ -9379,7 +9393,7 @@ function MagazineAdminModule({ C, onNavigate }) {
             </span>
           </div>
           <div style={{ border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 130px 90px 70px 90px', padding: '10px 16px', background: C.surface, borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 130px 90px 70px 90px', padding: '10px 16px', background: C.card, borderBottom: `1px solid ${C.border}` }}>
               {['', 'Title', 'Category', 'Author', 'Read', 'Status'].map(h => (
                 <span key={h} style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.grey }}>{h}</span>
               ))}
@@ -9389,11 +9403,11 @@ function MagazineAdminModule({ C, onNavigate }) {
                 display: 'grid', gridTemplateColumns: '40px 1fr 130px 90px 70px 90px',
                 padding: '12px 16px', alignItems: 'center',
                 borderBottom: i < filtered.length - 1 ? `1px solid ${C.border}` : 'none',
-                background: i % 2 === 0 ? 'transparent' : `${C.surface}60`,
+                background: i % 2 === 0 ? 'transparent' : `${C.card}60`,
               }}>
                 <div style={{ width: 28, height: 28, borderRadius: 2, backgroundImage: `url(${post.coverImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
                 <div>
-                  <div style={{ fontFamily: NU_A, fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 8 }}>
+                  <div style={{ fontFamily: NU_A, fontSize: 12, fontWeight: 600, color: C.white, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 8 }}>
                     {post.title}
                   </div>
                   <div style={{ fontFamily: NU_A, fontSize: 10, color: C.grey }}>/{post.slug}</div>
@@ -9417,13 +9431,13 @@ function MagazineAdminModule({ C, onNavigate }) {
         <div>
           <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
             <input value={productSearch} onChange={e => setProductSearch(e.target.value)} placeholder="Search products..." style={{
-              fontFamily: NU_A, fontSize: 12, color: C.text,
-              background: C.surface, border: `1px solid ${C.border}`,
+              fontFamily: NU_A, fontSize: 12, color: C.white,
+              background: C.card, border: `1px solid ${C.border}`,
               borderRadius: 4, padding: '8px 14px', outline: 'none', minWidth: 220,
             }} />
             <select value={productCat} onChange={e => setProductCat(e.target.value)} style={{
-              fontFamily: NU_A, fontSize: 12, color: C.text,
-              background: C.surface, border: `1px solid ${C.border}`,
+              fontFamily: NU_A, fontSize: 12, color: C.white,
+              background: C.card, border: `1px solid ${C.border}`,
               borderRadius: 4, padding: '8px 14px', outline: 'none',
             }}>
               <option value="all">All Categories</option>
@@ -9442,17 +9456,17 @@ function MagazineAdminModule({ C, onNavigate }) {
             {PRODUCTS
               .filter(p => (productCat === 'all' || p.category === productCat) && (!productSearch || p.title.toLowerCase().includes(productSearch.toLowerCase()) || p.brand.toLowerCase().includes(productSearch.toLowerCase())))
               .map(p => (
-                <div key={p.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden', display: 'flex' }}>
+                <div key={p.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden', display: 'flex' }}>
                   <div style={{ width: 80, flexShrink: 0, backgroundImage: `url(${p.image})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
                   <div style={{ padding: '14px 16px', flex: 1, minWidth: 0 }}>
                     <div style={{ fontFamily: NU_A, fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD_M, marginBottom: 4 }}>
                       {p.brand}
                     </div>
-                    <div style={{ fontFamily: NU_A, fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div style={{ fontFamily: NU_A, fontSize: 13, fontWeight: 600, color: C.white, marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {p.title}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                      <span style={{ fontFamily: NU_A, fontSize: 12, fontWeight: 600, color: C.text }}>{formatPrice(p.salePrice || p.price)}</span>
+                      <span style={{ fontFamily: NU_A, fontSize: 12, fontWeight: 600, color: C.white }}>{formatPrice(p.salePrice || p.price)}</span>
                       {p.salePrice && <span style={{ fontFamily: NU_A, fontSize: 11, color: C.grey, textDecoration: 'line-through' }}>{formatPrice(p.price)}</span>}
                       {p.badge && <span style={{ fontFamily: NU_A, fontSize: 8, fontWeight: 700, letterSpacing: '0.1em', color: '#fff', background: GOLD_M, padding: '2px 6px', borderRadius: 2 }}>{p.badge}</span>}
                     </div>
@@ -9460,8 +9474,8 @@ function MagazineAdminModule({ C, onNavigate }) {
                       via {p.retailer} · {p.category}
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.text, background: C.bg, border: `1px solid ${C.border}`, padding: '5px 10px', borderRadius: 3, cursor: 'pointer' }}>Edit</button>
-                      <button style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.text, background: C.bg, border: `1px solid ${C.border}`, padding: '5px 10px', borderRadius: 3, cursor: 'pointer' }}>Duplicate</button>
+                      <button style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.white, background: C.dark, border: `1px solid ${C.border}`, padding: '5px 10px', borderRadius: 3, cursor: 'pointer' }}>Edit</button>
+                      <button style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.white, background: C.dark, border: `1px solid ${C.border}`, padding: '5px 10px', borderRadius: 3, cursor: 'pointer' }}>Duplicate</button>
                     </div>
                   </div>
                 </div>
@@ -9469,12 +9483,12 @@ function MagazineAdminModule({ C, onNavigate }) {
             }
           </div>
 
-          <div style={{ marginTop: 24, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: 20 }}>
+          <div style={{ marginTop: 24, background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: 20 }}>
             <div style={{ fontFamily: NU_A, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.grey, marginBottom: 12 }}>Collections</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px,1fr))', gap: 12 }}>
               {Object.entries(COLLECTIONS).map(([id, col]) => (
-                <div key={id} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 4, padding: '12px 14px' }}>
-                  <div style={{ fontFamily: NU_A, fontSize: 11, fontWeight: 600, color: C.text, marginBottom: 4 }}>{col.label}</div>
+                <div key={id} style={{ background: C.dark, border: `1px solid ${C.border}`, borderRadius: 4, padding: '12px 14px' }}>
+                  <div style={{ fontFamily: NU_A, fontSize: 11, fontWeight: 600, color: C.white, marginBottom: 4 }}>{col.label}</div>
                   <div style={{ fontFamily: NU_A, fontSize: 10, color: C.grey }}>{col.productIds.length} products</div>
                 </div>
               ))}
@@ -9488,10 +9502,10 @@ function MagazineAdminModule({ C, onNavigate }) {
           {CATEGORIES.map(cat => {
             const count = POSTS.filter(p => p.category === cat.id).length;
             return (
-              <div key={cat.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+              <div key={cat.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
                 <div style={{ width: 44, height: 44, flexShrink: 0, borderRadius: 4, backgroundImage: `url(${cat.heroImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
                 <div>
-                  <div style={{ fontFamily: NU_A, fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 3 }}>{cat.label}</div>
+                  <div style={{ fontFamily: NU_A, fontSize: 12, fontWeight: 600, color: C.white, marginBottom: 3 }}>{cat.label}</div>
                   <div style={{ fontFamily: NU_A, fontSize: 10, color: C.grey, marginBottom: 6 }}>{count} article{count !== 1 ? 's' : ''}</div>
                   <div style={{ fontFamily: NU_A, fontSize: 10, color: GOLD_M, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{cat.defaultCardStyle}</div>
                 </div>

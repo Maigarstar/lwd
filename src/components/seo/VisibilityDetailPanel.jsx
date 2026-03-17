@@ -693,6 +693,189 @@ export default function VisibilityDetailPanel({ domainGroup, connections, onClos
               <span style={{ fontFamily: NU, fontSize: 9, background: 'rgba(201,168,76,0.1)', color: G, padding: '1px 6px', borderRadius: 3, letterSpacing: '0.06em', fontWeight: 700, textTransform: 'uppercase' }}>Tier 2</span>
             </div>
 
+            {/* ── Site Intelligence: combined cross-signal block ───────────── */}
+            {(() => {
+              const gaConn = connections?.analytics;
+              const scConn = connections?.search_console;
+              const bothConnected = gaConn?.status === 'connected' && scConn?.status === 'connected';
+              const dataReady = gaData && scData && !gaLoading && !scLoading;
+              if (!bothConnected || !dataReady) return null;
+
+              const gs = gaData.summary;
+              const st = scData.totals;
+
+              // ── Unified Score ──────────────────────────────────────────────
+              const seoComp = Math.round((a.score / 100) * 40);
+              const br = gs.bounceRate ?? 50;
+              const engComp = br < 30 ? 30 : br < 45 ? 24 : br < 60 ? 16 : br < 75 ? 9 : 4;
+              const ctr = parseFloat(st.ctr) || 0;
+              const visComp = ctr > 5 ? 30 : ctr > 3 ? 24 : ctr > 1 ? 16 : ctr > 0.3 ? 9 : 4;
+              const unifiedScore = seoComp + engComp + visComp;
+
+              const uColor = unifiedScore >= 70 ? '#4ade80' : unifiedScore >= 45 ? '#fbbf24' : '#f87171';
+              const uLabel = unifiedScore >= 70 ? 'Strong' : unifiedScore >= 45 ? 'Developing' : 'Needs Work';
+
+              // ── Cross-signal findings ──────────────────────────────────────
+              const findings = [];
+
+              // SEO + engagement compound
+              if (critical.length > 0 && br > 55) {
+                findings.push({ sev: 'high', icon: '⚠', title: 'Compounding risk', detail: `${critical.length} critical SEO issue${critical.length > 1 ? 's' : ''} combined with a ${br}% bounce rate creates a compounding problem. Visitors find the site but leave before converting.` });
+              }
+              // Good rankings, poor engagement
+              if ((st.position ?? 99) < 10 && br > 60) {
+                findings.push({ sev: 'high', icon: '⚠', title: 'Rankings not converting', detail: `Average position ${st.position} in search but ${br}% bounce rate. Strong visibility is being wasted on a poor on-page experience.` });
+              }
+              // High impressions, low CTR
+              if ((st.impressions ?? 0) > 200 && ctr < 2) {
+                findings.push({ sev: 'med', icon: '◎', title: 'Click-through gap', detail: `${(st.impressions ?? 0).toLocaleString()} impressions but only ${ctr}% CTR. Title tags and meta descriptions likely need rewriting to match search intent.` });
+              }
+              // Near-ranking opportunities
+              const nearRank = (scData.rows ?? []).filter(r => r.position >= 4 && r.position <= 10 && (r.impressions ?? 0) > 20);
+              if (nearRank.length > 0) {
+                findings.push({ sev: 'med', icon: '◎', title: `${nearRank.length} near-ranking keyword${nearRank.length > 1 ? 's' : ''}`, detail: `${nearRank.length} quer${nearRank.length > 1 ? 'ies' : 'y'} ranking positions 4-10 with active impressions. Targeted content updates could push these to the top 3.` });
+              }
+              // Enquiry experience + active traffic
+              if (enquiry.score < 50 && (gs.sessions ?? 0) > 200) {
+                findings.push({ sev: 'med', icon: '◎', title: 'Enquiry friction costing conversions', detail: `Enquiry experience score is ${enquiry.score}/100 on a site receiving ${(gs.sessions).toLocaleString()} sessions. Fixing contact flow could directly increase lead volume.` });
+              }
+              // Strong signals
+              if (critical.length === 0 && br < 40 && ctr > 3) {
+                findings.push({ sev: 'good', icon: '✓', title: 'Healthy site signals', detail: `No critical SEO issues, ${br}% bounce rate, and ${ctr}% CTR. Site is performing well across all three signal sources.` });
+              }
+
+              // ── Keyword opportunities ──────────────────────────────────────
+              const opportunities = (scData.rows ?? [])
+                .filter(r => (r.impressions ?? 0) >= 30)
+                .map(r => {
+                  const rowCtr = parseFloat(r.ctr ?? 0);
+                  if (r.position >= 4 && r.position <= 10) return { ...r, type: 'Near Rank', typeColor: '#4ade80', action: 'Content push' };
+                  if (rowCtr < 2 && (r.impressions ?? 0) > 50)  return { ...r, type: 'CTR Gap',   typeColor: '#fbbf24', action: 'Meta rewrite' };
+                  return null;
+                })
+                .filter(Boolean)
+                .slice(0, 5);
+
+              // ── Top page signals (GA landing pages with bounce) ────────────
+              const topPages = (gaData.landingPages ?? []).slice(0, 4).map(p => {
+                const pageBr = p.bounceRate ?? null;
+                const bColor = pageBr == null ? '#6b7280' : pageBr < 40 ? '#4ade80' : pageBr < 60 ? '#fbbf24' : '#f87171';
+                return { ...p, bColor, pageBr };
+              });
+
+              return (
+                <div style={{ marginBottom: 16, border: '1px solid rgba(201,168,76,0.22)', borderRadius: 8, overflow: 'hidden', background: 'rgba(201,168,76,0.03)' }}>
+
+                  {/* Header: unified score */}
+                  <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(201,168,76,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: G }}>Site Intelligence</span>
+                      <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#4ade80', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 3, padding: '1px 5px' }}>Live</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontFamily: NU, fontSize: 9, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Unified Score</div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, justifyContent: 'flex-end' }}>
+                          <span style={{ fontFamily: NU, fontSize: 22, fontWeight: 700, color: uColor, lineHeight: 1 }}>{unifiedScore}</span>
+                          <span style={{ fontFamily: NU, fontSize: 10, color: '#6b7280' }}>/100</span>
+                          <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: uColor, background: `${uColor}18`, border: `1px solid ${uColor}30`, borderRadius: 3, padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{uLabel}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Score breakdown strip */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '1px solid rgba(201,168,76,0.1)' }}>
+                    {[
+                      { label: 'SEO Health', value: seoComp, max: 40, color: scoreColor(a.score) },
+                      { label: 'Engagement', value: engComp,  max: 30, color: br < 45 ? '#4ade80' : br < 65 ? '#fbbf24' : '#f87171' },
+                      { label: 'Search Vis.',  value: visComp,  max: 30, color: ctr > 3 ? '#4ade80' : ctr > 1 ? '#fbbf24' : '#f87171' },
+                    ].map((seg, i) => (
+                      <div key={i} style={{ padding: '10px 14px', borderRight: i < 2 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                        <div style={{ fontFamily: NU, fontSize: 9, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>{seg.label}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ flex: 1, height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${(seg.value / seg.max) * 100}%`, background: seg.color, borderRadius: 2, transition: 'width 0.5s ease' }} />
+                          </div>
+                          <span style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, color: seg.color, flexShrink: 0 }}>{seg.value}<span style={{ fontFamily: NU, fontSize: 9, color: '#4b5563' }}>/{seg.max}</span></span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Cross-signal findings */}
+                  {findings.length > 0 && (
+                    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div style={{ padding: '9px 16px 5px', fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6b7280' }}>Cross-Signal Findings</div>
+                      {findings.map((f, i) => (
+                        <div key={i} style={{
+                          display: 'flex', gap: 10, padding: '8px 16px',
+                          borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                        }}>
+                          <span style={{ fontSize: 11, flexShrink: 0, marginTop: 1, color: f.sev === 'high' ? '#f87171' : f.sev === 'good' ? '#4ade80' : '#fbbf24' }}>{f.icon}</span>
+                          <div>
+                            <span style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, color: f.sev === 'high' ? '#f87171' : f.sev === 'good' ? '#4ade80' : '#fbbf24' }}>{f.title} </span>
+                            <span style={{ fontFamily: NU, fontSize: 11, color: '#9ca3af' }}>{f.detail}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Keyword opportunities */}
+                  {opportunities.length > 0 && (
+                    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div style={{ padding: '9px 16px 5px', fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6b7280' }}>Keyword Opportunities</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 52px 56px 52px 78px', padding: '4px 16px 6px', gap: 6 }}>
+                        {['Query', 'Impr.', 'Pos.', 'CTR', 'Action'].map((h, i) => (
+                          <span key={i} style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#4b5563', textAlign: i === 0 ? 'left' : 'right' }}>{h}</span>
+                        ))}
+                      </div>
+                      {opportunities.map((opp, i) => (
+                        <div key={i} style={{
+                          display: 'grid', gridTemplateColumns: '1fr 52px 56px 52px 78px',
+                          padding: '7px 16px', gap: 6, alignItems: 'center',
+                          borderTop: '1px solid rgba(255,255,255,0.04)',
+                        }}>
+                          <span style={{ fontFamily: NU, fontSize: 10, color: '#9ca3af', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opp.query}</span>
+                          <span style={{ fontFamily: NU, fontSize: 10, color: '#f5f2ec', textAlign: 'right' }}>{(opp.impressions ?? 0).toLocaleString()}</span>
+                          <span style={{ fontFamily: NU, fontSize: 10, color: G, textAlign: 'right', fontWeight: 600 }}>#{opp.position?.toFixed(1)}</span>
+                          <span style={{ fontFamily: NU, fontSize: 10, color: '#9ca3af', textAlign: 'right' }}>{parseFloat(opp.ctr ?? 0).toFixed(1)}%</span>
+                          <div style={{ textAlign: 'right' }}>
+                            <span style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, color: opp.typeColor, background: `${opp.typeColor}14`, border: `1px solid ${opp.typeColor}30`, borderRadius: 3, padding: '2px 5px', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{opp.action}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Top pages signals */}
+                  {topPages.length > 0 && (
+                    <div>
+                      <div style={{ padding: '9px 16px 5px', fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6b7280' }}>Top Page Signals</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 64px 70px', padding: '4px 16px 6px', gap: 6 }}>
+                        {['Page', 'Sessions', 'Bounce'].map((h, i) => (
+                          <span key={i} style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#4b5563', textAlign: i === 0 ? 'left' : 'right' }}>{h}</span>
+                        ))}
+                      </div>
+                      {topPages.map((p, i) => (
+                        <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 64px 70px', padding: '7px 16px', gap: 6, alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                          <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#9ca3af', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.page}</span>
+                          <span style={{ fontFamily: NU, fontSize: 10, color: '#f5f2ec', textAlign: 'right' }}>{(p.sessions ?? 0).toLocaleString()}</span>
+                          <div style={{ textAlign: 'right' }}>
+                            {p.pageBr != null
+                              ? <span style={{ fontFamily: NU, fontSize: 10, color: p.bColor, fontWeight: p.pageBr > 60 ? 600 : 400 }}>{p.pageBr}%</span>
+                              : <span style={{ fontFamily: NU, fontSize: 10, color: '#6b7280' }}>-</span>
+                            }
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* Google Analytics Section */}
             {(() => {
               const gaConn = connections?.analytics;

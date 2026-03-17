@@ -329,6 +329,9 @@ export default function SeoModule() {
     }
   }, []);
 
+  // Load once on mount so Tier 2 data is always available when the audit panel opens
+  useEffect(() => { loadConnections(); }, [loadConnections]);
+
   useEffect(() => {
     if (seoTab === 'connections') loadConnections();
   }, [seoTab, loadConnections]);

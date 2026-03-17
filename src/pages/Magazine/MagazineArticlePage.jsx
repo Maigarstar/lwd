@@ -17,7 +17,10 @@ import { getMagTheme, FD, FU, GOLD_CONST as GOLD } from './magazineTheme';
 const CREAM = '#f5f0e8';
 
 function formatDate(d) {
-  return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return '';
+  return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 // ─── Reading Progress Bar ─────────────────────────────────────────────────────

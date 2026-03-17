@@ -5,13 +5,13 @@ export default function NewsletterEditor({ content, updateField }) {
 
   return (
     <div>
-      <h3 style={{ fontSize: 18, fontWeight: 600, color: C.text, margin: "0 0 24px 0" }}>
+      <h3 style={{ fontSize: 18, fontWeight: 600, color: C.white, margin: "0 0 24px 0" }}>
         Newsletter Block
       </h3>
 
       {/* Heading */}
       <div style={{ marginBottom: 24 }}>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 8, textTransform: "uppercase" }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.grey, marginBottom: 8, textTransform: "uppercase" }}>
           Heading
         </label>
         <input
@@ -25,7 +25,7 @@ export default function NewsletterEditor({ content, updateField }) {
             border: `1px solid ${C.border}`,
             borderRadius: 6,
             background: C.card,
-            color: C.text,
+            color: C.white,
             fontSize: 14,
             fontFamily: "inherit",
             boxSizing: "border-box",
@@ -35,7 +35,7 @@ export default function NewsletterEditor({ content, updateField }) {
 
       {/* Subtitle */}
       <div style={{ marginBottom: 24 }}>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 8, textTransform: "uppercase" }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.grey, marginBottom: 8, textTransform: "uppercase" }}>
           Subtitle / Description
         </label>
         <textarea
@@ -48,7 +48,7 @@ export default function NewsletterEditor({ content, updateField }) {
             border: `1px solid ${C.border}`,
             borderRadius: 6,
             background: C.card,
-            color: C.text,
+            color: C.white,
             fontSize: 14,
             fontFamily: "inherit",
             minHeight: 80,
@@ -60,7 +60,7 @@ export default function NewsletterEditor({ content, updateField }) {
 
       {/* Button Text */}
       <div style={{ marginBottom: 24 }}>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 8, textTransform: "uppercase" }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.grey, marginBottom: 8, textTransform: "uppercase" }}>
           Subscription Button Text
         </label>
         <input
@@ -74,18 +74,18 @@ export default function NewsletterEditor({ content, updateField }) {
             border: `1px solid ${C.border}`,
             borderRadius: 6,
             background: C.card,
-            color: C.text,
+            color: C.white,
             fontSize: 14,
             fontFamily: "inherit",
             boxSizing: "border-box",
           }}
         />
-        <p style={{ fontSize: 12, color: C.textSecondary, marginTop: 6, margin: "6px 0 0 0" }}>
+        <p style={{ fontSize: 12, color: C.grey, marginTop: 6, margin: "6px 0 0 0" }}>
           Text displayed on the subscription button
         </p>
       </div>
 
-      <div style={{ padding: "16px", background: "rgba(201, 168, 76, 0.05)", border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, color: C.textSecondary }}>
+      <div style={{ padding: "16px", background: "rgba(201, 168, 76, 0.05)", border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, color: C.grey }}>
         📧 The newsletter block encourages visitor email signup for updates and inspiration.
       </div>
     </div>

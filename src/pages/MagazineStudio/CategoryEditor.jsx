@@ -323,6 +323,8 @@ function LayoutPicker({ value, onChange }) {
 // ── Subcategory pills editor ───────────────────────────────────────────────────
 function SubcategoryEditor({ value = [], onChange }) {
   const [input, setInput] = useState('');
+  const [dragIdx, setDragIdx] = useState(null);
+  const [overIdx, setOverIdx] = useState(null);
 
   const add = () => {
     const trimmed = input.trim();
@@ -333,17 +335,42 @@ function SubcategoryEditor({ value = [], onChange }) {
 
   const remove = (pill) => onChange(value.filter(v => v !== pill));
 
+  const handleDrop = (targetIdx) => {
+    if (dragIdx !== null && dragIdx !== targetIdx) {
+      const next = [...value];
+      const [moved] = next.splice(dragIdx, 1);
+      next.splice(targetIdx, 0, moved);
+      onChange(next);
+    }
+    setDragIdx(null);
+    setOverIdx(null);
+  };
+
   return (
     <div>
-      {/* existing pills */}
+      {/* existing pills, draggable */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: value.length ? 8 : 0 }}>
-        {value.map(pill => (
-          <div key={pill} style={{
-            display: 'flex', alignItems: 'center', gap: 4,
-            fontFamily: FU, fontSize: 10, color: S.text,
-            background: S.surfaceUp, border: `1px solid ${S.border}`,
-            borderRadius: 20, padding: '3px 10px',
-          }}>
+        {value.map((pill, idx) => (
+          <div
+            key={pill}
+            draggable
+            onDragStart={() => setDragIdx(idx)}
+            onDragOver={e => { e.preventDefault(); setOverIdx(idx); }}
+            onDragLeave={() => setOverIdx(null)}
+            onDrop={() => handleDrop(idx)}
+            onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              fontFamily: FU, fontSize: 10,
+              color: overIdx === idx ? S.gold : S.text,
+              background: overIdx === idx ? `${S.gold}15` : S.surfaceUp,
+              border: `1px solid ${overIdx === idx ? `${S.gold}60` : S.border}`,
+              borderRadius: 20, padding: '3px 10px',
+              cursor: 'grab', transition: 'all 0.12s',
+              opacity: dragIdx === idx ? 0.4 : 1,
+            }}
+          >
+            <span style={{ fontSize: 8, color: S.faint, marginRight: 2, cursor: 'grab' }}>⠿</span>
             {pill}
             <button
               onClick={() => remove(pill)}
@@ -378,7 +405,7 @@ function SubcategoryEditor({ value = [], onChange }) {
         >+ Add</button>
       </div>
       <div style={{ fontFamily: FU, fontSize: 9, color: S.faint, marginTop: 5 }}>
-        Press Enter or click Add. Drag to reorder not yet supported.
+        Press Enter or click Add. Drag pills to reorder.
       </div>
     </div>
   );
