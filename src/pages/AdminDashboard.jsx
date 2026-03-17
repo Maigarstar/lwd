@@ -42,6 +42,7 @@ import PipelineBuilderModule from "./AdminModules/PipelineBuilderModule";
 import PlatformSettingsModule from "./AdminModules/PlatformSettingsModule";
 import TeamModule from "./AdminModules/TeamModule";
 import SeoModule from "./AdminModules/SeoModule";
+import ConnectedDataModule from "./AdminModules/ConnectedDataModule";
 import { POSTS } from "./Magazine/data/posts";
 import { PRODUCTS, COLLECTIONS, formatPrice } from "./Magazine/data/products";
 import { CATEGORIES } from "./Magazine/data/categories";
@@ -271,9 +272,10 @@ const NAV_SECTIONS = [
   {
     group: "Intelligence",
     items: [
-      { key: "aura",         label: "Aura Analytics",    icon: "✧" },
-      { key: "api",          label: "API Management",    icon: "⟐" },
-      { key: "ai-settings",  label: "AI Settings",       icon: "⚙" },
+      { key: "aura",           label: "Aura Analytics",    icon: "✧" },
+      { key: "api",            label: "API Management",    icon: "⟐" },
+      { key: "ai-settings",   label: "AI Settings",       icon: "⚙" },
+      { key: "connected-data", label: "Connected Data",   icon: "◉" },
     ],
   },
   {
@@ -8689,7 +8691,8 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "advertise-leads":   return <PartnerEnquiriesModule C={C} filterType="advertise" />;
       case "aura":          return <AuraAnalyticsModule C={C} />;
       case "api":           return <APIManagementModule C={C} />;
-      case "ai-settings":   return <AISettingsPage C={C} />;
+      case "ai-settings":     return <AISettingsPage C={C} />;
+      case "connected-data": return <ConnectedDataModule C={C} NU={NU} GD={GD} />;
       case "styles":        return <StyleEditorModule C={C} darkPalette={customDark} lightPalette={customLight} fonts={customFonts} customCss={customCss} siteSettings={siteSettings} auditLog={auditLog} onUpdatePalette={handleUpdatePalette} onUpdateFonts={handleUpdateFonts} onUpdateCss={handleUpdateCss} onUpdateSiteSettings={handleUpdateSiteSettings} onSave={handleSaveThemeLogged} onRevert={handleRevertTheme} onExport={handleExportTheme} onImport={handleImportTheme} onApplyPreset={handleApplyPreset} saveStatus={saveStatus} />;
       case "page-studio":   return <PageStudioHome C={C} NU={NU} GD={GD} onNavigate={(action, params) => {
         if (action === "page-editor" && params?.pageId) {

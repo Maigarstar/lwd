@@ -180,6 +180,14 @@ const PageStudioHome = ({ C, NU, GD, onNavigate }) => {
       alert('Cannot delete the current homepage. Set a different page as homepage first.');
       return;
     }
+    if (page.pageType === 'legal') {
+      alert('Legal pages are protected and cannot be deleted.');
+      return;
+    }
+    if (page.isLocked) {
+      alert(`"${page.title}" is locked. Unlock it in the page editor before deleting.`);
+      return;
+    }
     if (!window.confirm(`Delete "${page.title}"? This cannot be undone.`)) return;
     const updated = pages.filter(p => p.id !== page.id);
     savePages(updated);
@@ -518,7 +526,7 @@ const PageRow = ({ page, isLast, isHomepage, homepageLocked, C, NU, GD, onEdit, 
       </div>
 
       {/* Type badge */}
-      <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
         <span style={{
           display: 'inline-block',
           fontFamily: NU,
@@ -533,6 +541,12 @@ const PageRow = ({ page, isLast, isHomepage, homepageLocked, C, NU, GD, onEdit, 
         }}>
           {TYPE_LABELS[page.pageType] || page.pageType}
         </span>
+        {page.pageType === 'legal' && (
+          <span title="Legal page - protected from deletion" style={{ fontSize: 11, opacity: 0.8 }}>🛡️</span>
+        )}
+        {page.isLocked && page.pageType !== 'legal' && (
+          <span title="Page locked" style={{ fontSize: 10, opacity: 0.7 }}>🔒</span>
+        )}
       </div>
 
       {/* Status badge - click to toggle draft/published */}
@@ -565,9 +579,14 @@ const PageRow = ({ page, isLast, isHomepage, homepageLocked, C, NU, GD, onEdit, 
         </button>
       </div>
 
-      {/* Slug */}
-      <div style={{ fontFamily: 'monospace', fontSize: 11, color: C.grey2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {truncateSlug(page.slug)}
+      {/* Slug (locked when published or isLocked) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden' }}>
+        {(page.status === 'published' || page.isLocked) && (
+          <span title={page.isLocked ? 'Page locked' : 'Slug locked on publish'} style={{ fontSize: 10, opacity: 0.6, flexShrink: 0 }}>🔒</span>
+        )}
+        <span style={{ fontFamily: 'monospace', fontSize: 11, color: C.grey2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {truncateSlug(page.slug)}
+        </span>
       </div>
 
       {/* Last updated */}
@@ -643,19 +662,31 @@ const PageRow = ({ page, isLast, isHomepage, homepageLocked, C, NU, GD, onEdit, 
           </button>
         )}
 
-        {/* Delete (hidden on current homepage) */}
-        {!isHomepage && (
+        {/* Delete: hidden on homepage and legal pages; locked pages show disabled */}
+        {!isHomepage && page.pageType !== 'legal' && (
           <button
             onClick={onDelete}
-            title="Delete page"
+            title={page.isLocked ? 'Unlock page before deleting' : 'Delete page'}
+            disabled={!!page.isLocked}
             style={{
               ...btnBase,
               backgroundColor: 'transparent',
-              color: 'rgba(239,68,68,0.7)',
-              border: '1px solid rgba(239,68,68,0.25)',
+              color: page.isLocked ? 'rgba(239,68,68,0.35)' : 'rgba(239,68,68,0.7)',
+              border: `1px solid ${page.isLocked ? 'rgba(239,68,68,0.12)' : 'rgba(239,68,68,0.25)'}`,
+              cursor: page.isLocked ? 'not-allowed' : 'pointer',
             }}
-            onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.5)'; }}
-            onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'rgba(239,68,68,0.7)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.25)'; }}
+            onMouseEnter={e => {
+              if (!page.isLocked) {
+                e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.1)';
+                e.currentTarget.style.color = '#ef4444';
+                e.currentTarget.style.borderColor = 'rgba(239,68,68,0.5)';
+              }
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = page.isLocked ? 'rgba(239,68,68,0.35)' : 'rgba(239,68,68,0.7)';
+              e.currentTarget.style.borderColor = page.isLocked ? 'rgba(239,68,68,0.12)' : 'rgba(239,68,68,0.25)';
+            }}
           >
             Delete
           </button>
