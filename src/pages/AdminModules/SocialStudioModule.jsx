@@ -15,7 +15,7 @@ const CONTENT_TYPES = [
   { key: "fam-trip",       label: "FAM Trip",       color: "#8b5cf6", icon: "✦" },
   { key: "newsletter",     label: "Newsletter",     color: "#f97316", icon: "✉" },
   { key: "link-building",  label: "Link Building",  color: "#06b6d4", icon: "⟐" },
-  { key: "seo-ai",         label: "SEO / AI",       color: "#a855f7", icon: "⚙" },
+  { key: "organic-content", label: "Organic Content", color: "#a855f7", icon: "⚙" },
 ];
 
 const PLATFORMS = [
