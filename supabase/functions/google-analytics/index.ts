@@ -138,10 +138,18 @@ serve(async (req) => {
     });
     const pagesData = await pagesRes.json();
 
-    // Parse summary row
+    // Parse summary row — guard every value against undefined (empty rows when no data)
     const row  = summaryData.rows?.[0];
     const vals = (row?.metricValues || []).map((v: any) => Number(v.value || 0));
-    const [sessions, engagedSessions, bounceRate, avgSessionDuration, pagesPerSession, newUsers, totalUsers] = vals;
+    const [
+      sessions        = 0,
+      engagedSessions = 0,
+      bounceRate      = 0,
+      avgSessionDuration = 0,
+      pagesPerSession = 0,
+      newUsers        = 0,
+      totalUsers      = 0,
+    ] = vals;
 
     const landingPages = (pagesData.rows || []).map((r: any) => ({
       page:            r.dimensionValues?.[0]?.value || '/',

@@ -159,12 +159,47 @@ function SuccessToast({ service, onDone }) {
 }
 
 // ─── ConnectionCard ───────────────────────────────────────────────────────────
-function ConnectionCard({ name, description, icon, integration, conn, onConnect, onDisconnect, onChangeProperty, isConnecting, C }) {
+function ConnectionCard({ name, description, icon, integration, service, conn, onConnect, onDisconnect, onChangeProperty, onRefresh, isConnecting, C }) {
   const status     = conn?.status || 'disconnected';
   const connected  = status === 'connected';
   const isError    = status === 'error';
   const isPending  = status === 'pending' || isConnecting;
-  const propName   = conn?.selected_property_name || conn?.selected_property_id || null;
+  const propName   = conn?.selected_property_name || null;
+  const propId     = conn?.selected_property_id   || null;
+  const typeLabel  = service === 'analytics' ? 'GA4' : 'GSC';
+
+  // Manual property entry state (shown when connected but no property selected)
+  const [showManual, setShowManual] = useState(false);
+  const [manualId,   setManualId]   = useState('');
+  const [savingMan,  setSavingMan]  = useState(false);
+  const [manualErr,  setManualErr]  = useState('');
+
+  const placeholder = service === 'analytics'
+    ? 'e.g. properties/123456789'
+    : 'e.g. https://www.example.com/';
+
+  async function handleSaveManual() {
+    const val = manualId.trim();
+    if (!val) { setManualErr('Enter a property ID or URL.'); return; }
+    // Basic format check
+    if (service === 'analytics' && !val.startsWith('properties/')) {
+      setManualErr('GA4 property ID must start with "properties/"');
+      return;
+    }
+    setManualErr('');
+    setSavingMan(true);
+    try {
+      await selectProperty(service, val, val);
+      setShowManual(false);
+      setManualId('');
+      // Refresh connections list from parent
+      onRefresh?.();
+    } catch (e) {
+      setManualErr(e.message || 'Failed to save property.');
+    } finally {
+      setSavingMan(false);
+    }
+  }
 
   return (
     <div style={{
@@ -208,28 +243,149 @@ function ConnectionCard({ name, description, icon, integration, conn, onConnect,
           Unlocks: <span style={{ color: '#c9a84c' }}>{integration}</span>
         </div>
 
-        {/* Connected property detail */}
-        {connected && propName && (
-          <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              backgroundColor: 'rgba(34,197,94,0.06)',
-              border: '1px solid rgba(34,197,94,0.15)',
-              borderRadius: 4, padding: '5px 10px',
-            }}>
+        {/* Connected property detail — explicit admin view */}
+        {connected && (propName || propId) && (
+          <div style={{
+            marginTop: 12,
+            padding: '10px 12px',
+            backgroundColor: 'rgba(34,197,94,0.05)',
+            border: '1px solid rgba(34,197,94,0.15)',
+            borderRadius: 5,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#22c55e', flexShrink: 0 }} />
-              <span style={{ fontFamily: NU, fontSize: 11, color: '#86efac' }}>{propName}</span>
+              <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#22c55e' }}>
+                Connected · {typeLabel}
+              </span>
             </div>
+            <div style={{ fontFamily: NU, fontSize: 12, color: '#d1fae5', marginBottom: propId ? 3 : 0 }}>
+              <span style={{ color: C.grey2 }}>Property: </span>{propName || propId}
+            </div>
+            {propId && (
+              <div style={{ fontFamily: 'monospace', fontSize: 11, color: C.grey2 }}>
+                <span style={{ color: C.grey2 }}>ID: </span>
+                <span style={{ color: '#86efac' }}>{propId}</span>
+              </div>
+            )}
             {conn?.available_properties?.length > 1 && (
               <button
                 onClick={onChangeProperty}
                 style={{
+                  marginTop: 7,
                   fontFamily: NU, fontSize: 10, color: C.grey2, background: 'none', border: 'none',
                   cursor: 'pointer', padding: 0, textDecoration: 'underline', textUnderlineOffset: 2,
                 }}
               >
-                Change
+                Change property ({conn.available_properties.length} available)
               </button>
+            )}
+          </div>
+        )}
+
+        {/* Manual property entry — shown when connected but no property resolved */}
+        {connected && !propId && (
+          <div style={{ marginTop: 12 }}>
+            {!showManual ? (
+              <div style={{
+                padding: '10px 12px',
+                backgroundColor: 'rgba(201,168,76,0.05)',
+                border: '1px solid rgba(201,168,76,0.18)',
+                borderRadius: 5,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
+              }}>
+                <div>
+                  <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, color: '#c9a84c', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>
+                    No property selected
+                  </div>
+                  <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, lineHeight: 1.5 }}>
+                    {service === 'analytics'
+                      ? 'Auto-fetch returned 0 properties. Enter your GA4 property ID manually.'
+                      : 'Auto-fetch returned 0 properties. Enter your Search Console site URL manually.'}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowManual(true)}
+                  style={{
+                    flexShrink: 0,
+                    fontFamily: NU, fontSize: 11, fontWeight: 600,
+                    padding: '6px 12px',
+                    backgroundColor: 'transparent',
+                    border: '1px solid rgba(201,168,76,0.35)',
+                    color: '#c9a84c',
+                    borderRadius: 4, cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Set manually
+                </button>
+              </div>
+            ) : (
+              <div style={{
+                padding: '12px 14px',
+                backgroundColor: 'rgba(201,168,76,0.05)',
+                border: '1px solid rgba(201,168,76,0.22)',
+                borderRadius: 5,
+              }}>
+                <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, color: '#c9a84c', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
+                  {service === 'analytics' ? 'Enter GA4 Property ID' : 'Enter Search Console Site URL'}
+                </div>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <input
+                    value={manualId}
+                    onChange={e => { setManualId(e.target.value); setManualErr(''); }}
+                    onKeyDown={e => e.key === 'Enter' && handleSaveManual()}
+                    placeholder={placeholder}
+                    style={{
+                      flex: 1,
+                      fontFamily: 'monospace', fontSize: 12,
+                      padding: '7px 10px',
+                      backgroundColor: C.dark,
+                      border: `1px solid ${manualErr ? 'rgba(239,68,68,0.45)' : C.border2}`,
+                      borderRadius: 4,
+                      color: C.white,
+                      outline: 'none',
+                    }}
+                  />
+                  <button
+                    onClick={handleSaveManual}
+                    disabled={savingMan}
+                    style={{
+                      flexShrink: 0,
+                      fontFamily: NU, fontSize: 11, fontWeight: 600,
+                      padding: '7px 14px',
+                      backgroundColor: '#c9a84c',
+                      border: 'none', color: '#000',
+                      borderRadius: 4, cursor: savingMan ? 'not-allowed' : 'pointer',
+                      opacity: savingMan ? 0.6 : 1,
+                    }}
+                  >
+                    {savingMan ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => { setShowManual(false); setManualId(''); setManualErr(''); }}
+                    style={{
+                      flexShrink: 0,
+                      fontFamily: NU, fontSize: 11, color: C.grey2,
+                      background: 'none', border: 'none', cursor: 'pointer', padding: '7px 6px',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+                {manualErr && (
+                  <div style={{ marginTop: 5, fontFamily: NU, fontSize: 11, color: '#f87171' }}>
+                    {manualErr}
+                  </div>
+                )}
+                <div style={{ marginTop: 7, fontFamily: NU, fontSize: 10, color: C.grey2, lineHeight: 1.5 }}>
+                  {service === 'analytics'
+                    ? 'Find this in Google Analytics: Admin > Property Settings. Format: properties/XXXXXXXXX'
+                    : 'Use the exact URL registered in Search Console (include trailing slash if applicable).'}
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -1107,10 +1263,12 @@ export default function ConnectedDataModule({ C }) {
                 description="Unlock engagement signals including sessions, bounce rate, average session duration, pages per session, and top landing pages for any connected property."
                 icon={<GoogleAnalyticsIcon size={36} />}
                 integration="Analytics tab — full engagement dashboard"
+                service="analytics"
                 conn={connections.analytics}
                 onConnect={() => handleConnect('analytics')}
                 onDisconnect={() => handleDisconnect('analytics')}
                 onChangeProperty={() => openPropertyModal('analytics')}
+                onRefresh={loadConnections}
                 isConnecting={connecting === 'analytics'}
                 C={C}
               />
@@ -1119,10 +1277,12 @@ export default function ConnectedDataModule({ C }) {
                 description="Unlock keyword visibility data including top search queries, click-through rates, impressions, and average position for any connected Search Console property."
                 icon={<GoogleSearchConsoleIcon size={36} />}
                 integration="Search Console tab — queries and ranking signals"
+                service="search_console"
                 conn={connections.search_console}
                 onConnect={() => handleConnect('search_console')}
                 onDisconnect={() => handleDisconnect('search_console')}
                 onChangeProperty={() => openPropertyModal('search_console')}
+                onRefresh={loadConnections}
                 isConnecting={connecting === 'search_console'}
                 C={C}
               />
