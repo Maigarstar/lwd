@@ -8,12 +8,14 @@ import { useState, useMemo } from "react";
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const CONTENT_TYPES = [
-  { key: "post",          label: "Post",          color: "#3b82f6", icon: "◈" },
-  { key: "reel",          label: "Reel",          color: "#ec4899", icon: "▶" },
-  { key: "blog",          label: "Blog",          color: "#22c55e", icon: "✎" },
-  { key: "venue-feature", label: "Venue Feature", color: "#8f7420", icon: "⌂" },
-  { key: "fam-trip",      label: "FAM Trip",      color: "#8b5cf6", icon: "✦" },
-  { key: "newsletter",    label: "Newsletter",    color: "#f97316", icon: "✉" },
+  { key: "post",           label: "Post",           color: "#3b82f6", icon: "◈" },
+  { key: "reel",           label: "Reel",           color: "#ec4899", icon: "▶" },
+  { key: "blog",           label: "Blog",           color: "#22c55e", icon: "✎" },
+  { key: "venue-feature",  label: "Venue Feature",  color: "#8f7420", icon: "⌂" },
+  { key: "fam-trip",       label: "FAM Trip",       color: "#8b5cf6", icon: "✦" },
+  { key: "newsletter",     label: "Newsletter",     color: "#f97316", icon: "✉" },
+  { key: "link-building",  label: "Link Building",  color: "#06b6d4", icon: "⟐" },
+  { key: "seo-ai",         label: "SEO / AI",       color: "#a855f7", icon: "⚙" },
 ];
 
 const PLATFORMS = [
