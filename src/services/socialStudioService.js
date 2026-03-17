@@ -28,6 +28,7 @@ function dbToAccount(row) {
     name:                 row.name,
     slug:                 row.slug                  || '',
     logoUrl:              row.logo_url              || '',
+    heroImageUrl:         row.hero_image_url        || '',
     primaryContactName:   row.primary_contact_name  || '',
     primaryContactEmail:  row.primary_contact_email || '',
     contactPhone:         row.contact_phone         || '',
@@ -54,6 +55,7 @@ function accountToDb(form) {
     name:                  form.name,
     slug:                  form.slug                  || slugify(form.name),
     logo_url:              form.logoUrl               || null,
+    hero_image_url:        form.heroImageUrl          || null,
     primary_contact_name:  form.primaryContactName    || null,
     primary_contact_email: form.primaryContactEmail   || null,
     contact_phone:         form.contactPhone          || null,
@@ -594,5 +596,115 @@ export async function deleteContentItem(id) {
   } catch (err) {
     console.error('[SocialStudio] deleteContentItem error:', err);
     return false;
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// PORTAL CONFIG
+// ═════════════════════════════════════════════════════════════════════════════
+
+// Default menu config per plan tier.
+// Admin can override per-account after creation.
+const MENU_KEYS = [
+  { key: 'overview',    label: 'Overview',     icon: '◈' },
+  { key: 'content',     label: 'Content',      icon: '◉' },
+  { key: 'campaigns',   label: 'Campaigns',    icon: '◎' },
+  { key: 'performance', label: 'Performance',  icon: '◇' },
+  { key: 'brand',       label: 'Your Brand',   icon: '✦' },
+  { key: 'requests',    label: 'Requests',     icon: '◫' },
+  { key: 'settings',    label: 'Settings',     icon: '⊡' },
+];
+
+const PLAN_DEFAULTS = {
+  signature:  { overview: true, content: true, campaigns: true, performance: true, brand: true,  requests: true,  settings: true  },
+  growth:     { overview: true, content: true, campaigns: true, performance: true, brand: false, requests: true,  settings: true  },
+  essentials: { overview: true, content: true, campaigns: false,performance: false,brand: false, requests: true,  settings: true  },
+  custom:     { overview: true, content: true, campaigns: false,performance: false,brand: false, requests: false, settings: true  },
+};
+
+/**
+ * Build a default portal_config for a given plan.
+ * Called when creating a managed account or when portal_config is null.
+ * @param {string} plan - 'signature' | 'growth' | 'essentials' | 'custom'
+ * @returns {Object}
+ */
+export function buildDefaultPortalConfig(plan) {
+  const defaults = PLAN_DEFAULTS[plan] || PLAN_DEFAULTS.essentials;
+  return {
+    menu: MENU_KEYS.map((m, i) => ({
+      key:     m.key,
+      label:   m.label,
+      icon:    m.icon,
+      enabled: defaults[m.key] ?? false,
+      order:   i,
+    })),
+    accountManager: { name: '', title: '', email: '', photo: '' },
+    welcomeMessage: '',
+  };
+}
+
+/**
+ * Fetch the portal_config for a managed account.
+ * Returns a built default if the column is null (plan-based).
+ * @param {string} managedAccountId
+ * @returns {Promise<Object>}
+ */
+export async function fetchPortalConfig(managedAccountId) {
+  if (!isSupabaseAvailable()) return buildDefaultPortalConfig('essentials');
+  try {
+    const { data, error } = await supabase
+      .from('managed_accounts')
+      .select('portal_config, plan')
+      .eq('id', managedAccountId)
+      .single();
+    if (error) throw error;
+    if (data?.portal_config) return data.portal_config;
+    return buildDefaultPortalConfig(data?.plan || 'essentials');
+  } catch (err) {
+    console.error('[SocialStudio] fetchPortalConfig error:', err);
+    return buildDefaultPortalConfig('essentials');
+  }
+}
+
+/**
+ * Save portal_config for a managed account.
+ * @param {string} managedAccountId
+ * @param {Object} config
+ * @returns {Promise<boolean>}
+ */
+export async function updatePortalConfig(managedAccountId, config) {
+  if (!isSupabaseAvailable()) return offline(false);
+  try {
+    const { error } = await supabase
+      .from('managed_accounts')
+      .update({ portal_config: config })
+      .eq('id', managedAccountId);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('[SocialStudio] updatePortalConfig error:', err);
+    return false;
+  }
+}
+
+/**
+ * Fetch a managed account by vendor_id.
+ * Used by ClientPortal to load the account for the logged-in vendor.
+ * @param {string} vendorId
+ * @returns {Promise<Object|null>}
+ */
+export async function fetchManagedAccountByVendorId(vendorId) {
+  if (!isSupabaseAvailable()) return offline(null);
+  try {
+    const { data, error } = await supabase
+      .from('managed_accounts')
+      .select('*')
+      .eq('vendor_id', vendorId)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? { ...dbToAccount(data), portalConfig: data.portal_config || null } : null;
+  } catch (err) {
+    console.error('[SocialStudio] fetchManagedAccountByVendorId error:', err);
+    return null;
   }
 }

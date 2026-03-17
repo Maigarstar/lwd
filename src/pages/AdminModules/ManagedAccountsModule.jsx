@@ -3,13 +3,16 @@
 // Created when a CRM deal is won. Separate from the CRM pipeline (leads)
 // and the Vendor Accounts access layer (vendors).
 // Hub for content delivery, campaigns, and activity per client.
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   fetchManagedAccounts,
   createManagedAccount,
   updateManagedAccount,
   fetchClientContentSummary,
   fetchAllContentSummaries,
+  fetchPortalConfig,
+  updatePortalConfig,
+  buildDefaultPortalConfig,
 } from "../../services/socialStudioService";
 
 // Fallback data (matches migration seed UUIDs)
@@ -113,6 +116,7 @@ function AccountModal({ C, account, onSave, onClose }) {
   const isEdit = !!account?.id;
   const [form, setForm] = useState(account ? { ...account } : {
     name: "", slug: "",
+    logoUrl: "", heroImageUrl: "",
     primaryContactName: "", primaryContactEmail: "", contactPhone: "",
     companyType: "", plan: "growth",
     serviceStatus: "onboarding", status: "active", onboardingStatus: "pending",
@@ -193,6 +197,12 @@ function AccountModal({ C, account, onSave, onClose }) {
               <input value={form.slug} onChange={e => set("slug", e.target.value)} placeholder="villa-deste" style={inp} />
             )}
           </div>
+          {field("Hero Image URL",
+            <input value={form.heroImageUrl || ""} onChange={e => set("heroImageUrl", e.target.value)} placeholder="https://... (shown in client portal)" style={inp} />
+          )}
+          {field("Logo URL",
+            <input value={form.logoUrl || ""} onChange={e => set("logoUrl", e.target.value)} placeholder="https://..." style={inp} />
+          )}
           {field("Company Type",
             <select value={form.companyType} onChange={e => set("companyType", e.target.value)} style={inp}>
               <option value="">Select type</option>
@@ -331,6 +341,194 @@ function ContentSummary({ C, accountId }) {
       {!summary.activeCampaign && !summary.lastPublished && summary.scheduled === 0 && summary.draft === 0 && summary.liveThisMonth === 0 && (
         <div style={{ fontSize: 12, color: C?.grey2 || "#555", fontStyle: "italic" }}>No content in pipeline yet.</div>
       )}
+    </div>
+  );
+}
+
+// Portal Config Editor
+// Admin can toggle which menu items are visible in the client portal,
+// rename labels, and reorder items via drag-and-drop.
+
+function PortalConfigEditor({ C, account }) {
+  const G = C?.gold || "#8f7420";
+  const [config, setConfig]   = useState(null);
+  const [saving, setSaving]   = useState(false);
+  const [saved,  setSaved]    = useState(false);
+  const dragIndex             = useRef(null);
+
+  useEffect(() => {
+    fetchPortalConfig(account.id).then(cfg => {
+      setConfig(cfg);
+    });
+  }, [account.id]);
+
+  if (!config) return (
+    <div style={{ fontSize: 12, color: C?.grey || "#888", padding: "8px 0" }}>Loading...</div>
+  );
+
+  const menu = [...config.menu].sort((a, b) => a.order - b.order);
+
+  function setMenu(newMenu) {
+    setConfig(c => ({ ...c, menu: newMenu.map((m, i) => ({ ...m, order: i })) }));
+    setSaved(false);
+  }
+
+  function toggleItem(key) {
+    setMenu(menu.map(m => m.key === key ? { ...m, enabled: !m.enabled } : m));
+  }
+
+  function renameItem(key, label) {
+    setMenu(menu.map(m => m.key === key ? { ...m, label } : m));
+  }
+
+  function setManager(field, val) {
+    setConfig(c => ({ ...c, accountManager: { ...c.accountManager, [field]: val } }));
+    setSaved(false);
+  }
+
+  // Drag-and-drop handlers
+  function onDragStart(i) {
+    dragIndex.current = i;
+  }
+
+  function onDragOver(e, i) {
+    e.preventDefault();
+    if (dragIndex.current === null || dragIndex.current === i) return;
+    const reordered = [...menu];
+    const [moved] = reordered.splice(dragIndex.current, 1);
+    reordered.splice(i, 0, moved);
+    dragIndex.current = i;
+    setMenu(reordered);
+  }
+
+  function onDragEnd() {
+    dragIndex.current = null;
+  }
+
+  async function save() {
+    setSaving(true);
+    await updatePortalConfig(account.id, config);
+    setSaving(false);
+    setSaved(true);
+  }
+
+  async function resetToDefaults() {
+    const fresh = buildDefaultPortalConfig(account.plan || "essentials");
+    setConfig(fresh);
+    setSaved(false);
+  }
+
+  const inp = {
+    background: C?.dark || "#111",
+    border: `1px solid ${C?.border || "#333"}`,
+    borderRadius: 4, padding: "4px 8px",
+    color: C?.white || "#fff", fontSize: 11,
+    outline: "none", width: "100%", boxSizing: "border-box",
+  };
+
+  return (
+    <div>
+      {/* Menu items */}
+      <div style={{ marginBottom: 16 }}>
+        {menu.map((item, i) => (
+          <div
+            key={item.key}
+            draggable
+            onDragStart={() => onDragStart(i)}
+            onDragOver={e => onDragOver(e, i)}
+            onDragEnd={onDragEnd}
+            style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "7px 0",
+              borderBottom: `1px solid ${(C?.border || "#333") + "55"}`,
+              cursor: "grab",
+              opacity: item.enabled ? 1 : 0.45,
+            }}
+          >
+            {/* Drag handle */}
+            <span style={{ color: C?.grey2 || "#555", fontSize: 11, cursor: "grab", userSelect: "none", flexShrink: 0 }}>
+              ≡
+            </span>
+
+            {/* Toggle */}
+            <button
+              onClick={() => toggleItem(item.key)}
+              style={{
+                width: 28, height: 16, borderRadius: 8, flexShrink: 0, cursor: "pointer",
+                border: "none", position: "relative",
+                background: item.enabled ? G : (C?.border || "#333"),
+                transition: "background 0.15s",
+              }}
+            >
+              <span style={{
+                position: "absolute", top: 2,
+                left: item.enabled ? 14 : 2,
+                width: 12, height: 12, borderRadius: "50%",
+                background: "#fff", transition: "left 0.15s",
+              }} />
+            </button>
+
+            {/* Icon */}
+            <span style={{ fontSize: 11, color: C?.grey || "#888", flexShrink: 0, width: 14 }}>
+              {item.icon}
+            </span>
+
+            {/* Editable label */}
+            <input
+              value={item.label}
+              onChange={e => renameItem(item.key, e.target.value)}
+              style={{ ...inp, flex: 1 }}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Account manager strip */}
+      <div style={{
+        fontSize: 10, fontWeight: 700, color: C?.grey || "#888",
+        letterSpacing: "0.08em", textTransform: "uppercase",
+        marginBottom: 8, paddingBottom: 5,
+        borderBottom: `1px solid ${C?.border || "#333"}`,
+      }}>
+        Account Manager (shown in portal)
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+        {[
+          ["name",  "Name"],
+          ["title", "Title"],
+          ["email", "Email"],
+          ["photo", "Photo URL"],
+        ].map(([field, label]) => (
+          <div key={field}>
+            <div style={{ fontSize: 9, color: C?.grey2 || "#555", marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
+            <input
+              value={config.accountManager?.[field] || ""}
+              onChange={e => setManager(field, e.target.value)}
+              style={inp}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Actions */}
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <button onClick={save} disabled={saving} style={{
+          background: saving ? (C?.border || "#333") : G,
+          border: "none", borderRadius: 6,
+          padding: "7px 16px", color: "#fff",
+          fontSize: 11, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer",
+          flex: 1,
+        }}>
+          {saving ? "Saving..." : saved ? "Saved" : "Save Portal Config"}
+        </button>
+        <button onClick={resetToDefaults} style={{
+          background: "none", border: `1px solid ${C?.border || "#333"}`,
+          borderRadius: 6, padding: "7px 12px",
+          color: C?.grey || "#888", fontSize: 11, cursor: "pointer",
+        }}>
+          Reset
+        </button>
+      </div>
     </div>
   );
 }
@@ -487,7 +685,7 @@ function DetailPanel({ C, account, onEdit, onClose, onStatusAction }) {
         )}
 
         {/* Quick link to Social Studio */}
-        <div style={{ marginTop: 8, paddingTop: 16, borderTop: `1px solid ${C?.border || "#333"}` }}>
+        <div style={{ marginTop: 8, paddingTop: 16, borderTop: `1px solid ${C?.border || "#333"}`, marginBottom: 20 }}>
           <button
             onClick={() => window.dispatchEvent(new CustomEvent("lwd-nav", { detail: { tab: "social-studio" } }))}
             style={{
@@ -503,6 +701,11 @@ function DetailPanel({ C, account, onEdit, onClose, onStatusAction }) {
             View in Social Studio
           </button>
         </div>
+
+        {/* Portal config */}
+        {section("Client Portal Menu",
+          <PortalConfigEditor C={C} account={account} />
+        )}
       </div>
     </div>
   );

@@ -31,6 +31,7 @@ const AdminDashboard         = lazy(() => import("./pages/AdminDashboard.jsx"));
 import AdminLogin             from "./pages/AdminLogin.jsx";
 import GoogleOAuthCallback    from "./pages/GoogleOAuthCallback.jsx";
 const VendorDashboard        = lazy(() => import("./pages/VendorDashboard.jsx"));
+const ClientPortal           = lazy(() => import("./pages/ClientPortal.jsx"));
 import VendorLogin            from "./pages/VendorLogin.jsx";
 import VendorSignup           from "./pages/VendorSignup.jsx";
 import VendorActivate         from "./pages/VendorActivate.jsx";
@@ -120,6 +121,7 @@ function stateToPath(pg, opts = {}) {
     case "admin":                return "/admin";
     case "admin-login":          return "/admin/login";
     case "admin-oauth-callback": return "/admin/oauth/callback";
+    case "portal":           return "/portal";
     case "vendor":           return "/vendor";
     case "vendor-login":           return "/vendor/login";
     case "vendor-signup":          return "/vendor/signup";
@@ -164,6 +166,8 @@ function pathToState(pathname) {
   const parts = clean.split("/");
   // Unsubscribe landing page
   if (parts[0] === "unsubscribe" && parts.length === 1) return { page: "unsubscribe" };
+  // Client portal
+  if (parts[0] === "portal") return { page: "portal" };
   // Handle vendor auth subroutes first (before treating /vendor as static)
   if (parts[0] === "vendor" && parts[1] === "login" && parts.length === 2) return { page: "vendor-login" };
   if (parts[0] === "vendor" && parts[1] === "signup" && parts.length === 2) return { page: "vendor-signup" };
@@ -656,6 +660,11 @@ function App() {
         {page === "vendor" && (
           <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>}>
             <VendorDashboard onBack={goHome} onVendorLogin={goVendorLogin} />
+          </Suspense>
+        )}
+        {page === "portal" && (
+          <Suspense fallback={<div style={{ minHeight: "100vh", background: "#0b0906", display: "flex", alignItems: "center", justifyContent: "center", color: "#8a7d6a", fontSize: 13, fontFamily: "Inter,sans-serif", letterSpacing: "2px" }}>Loading your portal...</div>}>
+            <ClientPortal />
           </Suspense>
         )}
         {page === "real-weddings" && (
