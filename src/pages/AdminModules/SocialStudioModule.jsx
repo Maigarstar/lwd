@@ -7,48 +7,59 @@ import { useState, useMemo } from "react";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
+// layer: "content" = appears on calendar | "production" = production tracker | "campaign" = campaign wrapper | "service" = CRM/service layer
 const CONTENT_TYPE_GROUPS = [
   {
     group: "Social",
+    layer: "content",
     types: [
-      { key: "post", label: "Post", color: "#3b82f6", icon: "◈" },
-      { key: "reel", label: "Reel", color: "#ec4899", icon: "▶" },
+      { key: "post", label: "Post", color: "#3b82f6", icon: "◈", layer: "content" },
+      { key: "reel", label: "Reel", color: "#ec4899", icon: "▶", layer: "content" },
     ],
   },
   {
     group: "Editorial",
+    layer: "content",
     types: [
-      { key: "blog",            label: "Blog",            color: "#22c55e", icon: "✎" },
-      { key: "venue-feature",   label: "Venue Feature",   color: "#8f7420", icon: "⌂" },
-      { key: "newsletter",      label: "Newsletter",      color: "#f97316", icon: "✉" },
-      { key: "organic-content", label: "Organic Content", color: "#a855f7", icon: "⚙" },
+      { key: "blog",            label: "Blog",            color: "#22c55e", icon: "✎", layer: "content" },
+      { key: "venue-feature",   label: "Venue Feature",   color: "#8f7420", icon: "⌂", layer: "content" },
+      { key: "newsletter",      label: "Newsletter",      color: "#f97316", icon: "✉", layer: "content" },
+      { key: "organic-content", label: "Organic Content", color: "#a855f7", icon: "⚙", layer: "content" },
     ],
   },
   {
-    group: "Creative",
+    group: "Production",
+    layer: "production",
     types: [
-      { key: "photography", label: "Photography",      color: "#64748b", icon: "◎" },
-      { key: "video",       label: "Video Production", color: "#dc2626", icon: "▶" },
-      { key: "style-shoot", label: "Style Shoot",      color: "#be185d", icon: "✦" },
+      { key: "photography", label: "Photography",      color: "#64748b", icon: "◎", layer: "production" },
+      { key: "video",       label: "Video Production", color: "#dc2626", icon: "▶", layer: "production" },
+      { key: "style-shoot", label: "Style Shoot",      color: "#be185d", icon: "✦", layer: "production" },
     ],
   },
   {
-    group: "Growth",
+    group: "Campaigns",
+    layer: "campaign",
     types: [
-      { key: "link-building", label: "Link Building", color: "#06b6d4", icon: "⟐" },
-      { key: "fam-trip",      label: "FAM Trip",       color: "#8b5cf6", icon: "✦" },
+      { key: "fam-trip", label: "FAM Trip", color: "#8b5cf6", icon: "✦", layer: "campaign" },
     ],
   },
   {
     group: "Services",
+    layer: "service",
     types: [
-      { key: "consultancy", label: "Consultancy", color: "#0d9488", icon: "◆" },
-      { key: "mentoring",   label: "Mentoring",   color: "#d97706", icon: "◉" },
+      { key: "link-building", label: "Link Building", color: "#06b6d4", icon: "⟐", layer: "service" },
+      { key: "consultancy",   label: "Consultancy",   color: "#0d9488", icon: "◆", layer: "service" },
+      { key: "mentoring",     label: "Mentoring",     color: "#d97706", icon: "◉", layer: "service" },
     ],
   },
 ];
 
 const CONTENT_TYPES = CONTENT_TYPE_GROUPS.flatMap((g) => g.types);
+
+// Only published outputs belong on the content calendar
+const CALENDAR_TYPES = new Set(
+  CONTENT_TYPES.filter((t) => t.layer === "content").map((t) => t.key)
+);
 
 const PLATFORMS = [
   { key: "instagram", label: "Instagram" },
@@ -432,10 +443,23 @@ function ContentModal({ C, item, clients, onSave, onClose }) {
 
 // ── Calendar View ──────────────────────────────────────────────────────────────
 
-function CalendarView({ C, items, onItemClick, calYear, calMonth }) {
-  const numDays   = daysInMonth(calYear, calMonth);
-  const firstDay  = new Date(calYear, calMonth, 1).getDay(); // 0=Sun
+// Short type label for calendar pills
+function shortType(key) {
+  const map = {
+    "post": "POST", "reel": "REEL", "blog": "BLOG",
+    "venue-feature": "FEATURE", "fam-trip": "FAM", "newsletter": "EMAIL",
+    "link-building": "LINKS", "organic-content": "ORGANIC",
+    "consultancy": "CONSULT", "mentoring": "MENTOR",
+    "photography": "PHOTO", "video": "VIDEO", "style-shoot": "SHOOT",
+  };
+  return map[key] || key.toUpperCase().slice(0, 6);
+}
+
+function CalendarView({ C, items, allItems, clients, onItemClick, onAddForDate, calYear, calMonth }) {
+  const numDays  = daysInMonth(calYear, calMonth);
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
   const G = C?.gold || "#8f7420";
+  const [hoveredDay, setHoveredDay] = useState(null);
 
   // Group items by date
   const byDate = useMemo(() => {
@@ -447,8 +471,27 @@ function CalendarView({ C, items, onItemClick, calYear, calMonth }) {
     return map;
   }, [items]);
 
-  const todayStr = isoDate(today.getFullYear(), today.getMonth(), today.getDate());
+  // Detect week gaps: weeks where no content is scheduled for any client
+  const weekGaps = useMemo(() => {
+    const gaps = new Set();
+    // Build 7-day week rows
+    const totalCells = firstDay + numDays;
+    const numWeeks = Math.ceil(totalCells / 7);
+    for (let w = 0; w < numWeeks; w++) {
+      let hasContent = false;
+      for (let d = 0; d < 7; d++) {
+        const dayNum = w * 7 + d - firstDay + 1;
+        if (dayNum < 1 || dayNum > numDays) continue;
+        const dateStr = isoDate(calYear, calMonth, dayNum);
+        // Check allItems (not filtered) so gap signal is client-agnostic
+        if (allItems.some((i) => i.date?.startsWith(dateStr))) { hasContent = true; break; }
+      }
+      if (!hasContent) gaps.add(w);
+    }
+    return gaps;
+  }, [allItems, firstDay, numDays, calYear, calMonth]);
 
+  const todayStr = isoDate(today.getFullYear(), today.getMonth(), today.getDate());
   const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   return (
@@ -466,50 +509,111 @@ function CalendarView({ C, items, onItemClick, calYear, calMonth }) {
 
       {/* Calendar grid */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 1 }}>
-        {/* Empty cells before first day */}
         {Array.from({ length: firstDay }).map((_, i) => (
-          <div key={`e${i}`} style={{ minHeight: 90, background: C?.dark || "#111", borderRadius: 4, opacity: 0.3 }} />
+          <div key={`e${i}`} style={{ minHeight: 110, background: C?.dark || "#111", borderRadius: 4, opacity: 0.3 }} />
         ))}
 
-        {/* Day cells */}
         {Array.from({ length: numDays }).map((_, idx) => {
-          const day = idx + 1;
+          const day     = idx + 1;
           const dateStr = isoDate(calYear, calMonth, day);
           const dayItems = byDate[dateStr] || [];
           const isToday = dateStr === todayStr;
+          const weekRow = Math.floor((firstDay + idx) / 7);
+          const isGapWeek = weekGaps.has(weekRow);
+          const isHovered = hoveredDay === dateStr;
 
           return (
-            <div key={day} style={{
-              minHeight: 90,
-              background: C?.dark || "#111",
-              borderRadius: 4,
-              padding: "8px 6px",
-              border: isToday ? `1px solid ${G}55` : `1px solid ${C?.border || "#333"}22`,
-              position: "relative",
-            }}>
-              <div style={{
-                fontSize: 11, fontWeight: isToday ? 700 : 400,
-                color: isToday ? G : C?.grey2 || "#666",
-                marginBottom: 5,
-              }}>{day}</div>
+            <div
+              key={day}
+              onMouseEnter={() => setHoveredDay(dateStr)}
+              onMouseLeave={() => setHoveredDay(null)}
+              style={{
+                minHeight: 110,
+                background: isGapWeek && dayItems.length === 0
+                  ? (C?.dark || "#111") + "cc"
+                  : C?.dark || "#111",
+                borderRadius: 4,
+                padding: "8px 6px 6px",
+                border: isToday
+                  ? `1px solid ${G}66`
+                  : isGapWeek && dayItems.length === 0
+                  ? `1px dashed ${C?.border || "#333"}55`
+                  : `1px solid ${C?.border || "#333"}22`,
+                position: "relative",
+                transition: "border-color 0.15s",
+              }}
+            >
+              {/* Day number + quick add */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+                <span style={{
+                  fontSize: 11, fontWeight: isToday ? 700 : 400,
+                  color: isToday ? G : C?.grey2 || "#666",
+                }}>{day}</span>
+                {isHovered && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onAddForDate(dateStr); }}
+                    style={{
+                      background: G + "22", border: `1px solid ${G}44`,
+                      borderRadius: 3, padding: "1px 5px",
+                      color: G, fontSize: 10, fontWeight: 700, cursor: "pointer",
+                      lineHeight: 1.4,
+                    }}
+                  >+</button>
+                )}
+              </div>
 
+              {/* Gap signal */}
+              {isGapWeek && dayItems.length === 0 && (
+                <div style={{
+                  fontSize: 8, color: C?.grey2 || "#555",
+                  letterSpacing: "0.04em", marginBottom: 3,
+                  textTransform: "uppercase",
+                }}>no content</div>
+              )}
+
+              {/* Content items */}
               {dayItems.slice(0, 3).map((item) => {
                 const t = typeFor(item.type);
+                const s = statusFor(item.status);
                 return (
-                  <div key={item.id}
+                  <div
+                    key={item.id}
                     onClick={() => onItemClick(item)}
-                    title={item.title}
+                    title={`${item.title} - ${s.label}`}
                     style={{
-                      background: t.color + "22",
+                      background: t.color + "18",
                       borderLeft: `2px solid ${t.color}`,
                       borderRadius: "0 3px 3px 0",
-                      padding: "2px 5px",
-                      fontSize: 10, color: t.color, fontWeight: 600,
-                      marginBottom: 2, cursor: "pointer",
+                      padding: "3px 5px 3px 5px",
+                      marginBottom: 3, cursor: "pointer",
+                      maxWidth: "100%", overflow: "hidden",
+                    }}
+                  >
+                    {/* Top row: type label + status dot */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 1 }}>
+                      <span style={{ fontSize: 8, fontWeight: 800, color: t.color, letterSpacing: "0.05em" }}>
+                        {shortType(item.type)}
+                      </span>
+                      <span style={{
+                        width: 5, height: 5, borderRadius: "50%",
+                        background: s.color, flexShrink: 0,
+                        display: "inline-block",
+                      }} title={s.label} />
+                    </div>
+                    {/* Title */}
+                    <div style={{
+                      fontSize: 10, color: C?.white || "#fff", fontWeight: 500,
                       whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                      maxWidth: "100%",
+                      lineHeight: 1.3,
                     }}>
-                    {item.title}
+                      {item.title}
+                    </div>
+                    {/* Client initials */}
+                    {item.clientId && (
+                      <div style={{ fontSize: 8, color: t.color + "bb", marginTop: 1, fontWeight: 600 }}>
+                        {getInitials(clientFor(item.clientId, clients)?.name || item.clientId)}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -800,13 +904,19 @@ function CampaignsView({ C, items, clients }) {
 
 // ── Detail Drawer ──────────────────────────────────────────────────────────────
 
-function DetailDrawer({ C, item, clients, onEdit, onDelete, onClose }) {
+function DetailDrawer({ C, item, clients, allItems, onEdit, onDelete, onClose }) {
   if (!item) return null;
   const G = C?.gold || "#8f7420";
   const t = typeFor(item.type);
   const s = statusFor(item.status);
   const client = clientFor(item.clientId, clients);
   const platform = PLATFORMS.find((p) => p.key === item.platform);
+  const isFAM = item.type === "fam-trip";
+
+  // If FAM trip: find all content items linked via the same campaign
+  const campaignItems = isFAM && item.campaign
+    ? allItems.filter((i) => i.id !== item.id && i.campaign === item.campaign)
+    : [];
 
   return (
     <div style={{
@@ -879,6 +989,52 @@ function DetailDrawer({ C, item, clients, onEdit, onDelete, onClose }) {
           <div style={{ marginBottom: 24 }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: C?.grey2 || "#666", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 6 }}>Internal Notes</div>
             <div style={{ fontSize: 12, color: C?.grey || "#888", lineHeight: 1.6 }}>{item.notes}</div>
+          </div>
+        )}
+
+        {/* FAM Trip: campaign content container */}
+        {isFAM && (
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: C?.grey2 || "#666", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 10 }}>
+              Content from this campaign
+            </div>
+            {campaignItems.length === 0 ? (
+              <div style={{
+                border: `1px dashed ${C?.border || "#333"}`,
+                borderRadius: 7, padding: "14px 12px",
+                fontSize: 12, color: C?.grey2 || "#666", textAlign: "center",
+              }}>
+                No linked content yet. Tag items with campaign "{item.campaign}" to see them here.
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {campaignItems.map((ci) => {
+                  const ct = typeFor(ci.type);
+                  const cs = statusFor(ci.status);
+                  return (
+                    <div key={ci.id} style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      background: C?.dark || "#111",
+                      borderRadius: 7, padding: "8px 12px",
+                      borderLeft: `3px solid ${ct.color}`,
+                    }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: C?.white || "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {ci.title}
+                        </div>
+                        <div style={{ fontSize: 9, color: ct.color, fontWeight: 700, marginTop: 2, letterSpacing: "0.04em" }}>
+                          {shortType(ci.type)}
+                        </div>
+                      </div>
+                      <Badge label={cs.label} color={cs.color} small />
+                    </div>
+                  );
+                })}
+                <div style={{ fontSize: 10, color: C?.grey2 || "#666", marginTop: 4, textAlign: "right" }}>
+                  {campaignItems.length} content {campaignItems.length === 1 ? "item" : "items"} in this campaign
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -956,10 +1112,10 @@ export default function SocialStudioModule({ C }) {
     let list = items;
     if (clientFilter !== "all") list = list.filter((i) => i.clientId === clientFilter);
     if (typeFilter   !== "all") list = list.filter((i) => i.type === typeFilter);
-    // For calendar: filter to current month
+    // Calendar only shows published content outputs, not production/campaign/service items
     if (view === "calendar") {
       const prefix = `${calYear}-${String(calMonth + 1).padStart(2, "0")}`;
-      list = list.filter((i) => i.date?.startsWith(prefix));
+      list = list.filter((i) => i.date?.startsWith(prefix) && CALENDAR_TYPES.has(i.type));
     }
     return list;
   }, [items, clientFilter, typeFilter, view, calYear, calMonth]);
@@ -1111,7 +1267,12 @@ export default function SocialStudioModule({ C }) {
       {/* View content */}
       {view === "calendar" && (
         <CalendarView
-          C={C} items={filtered} onItemClick={handleItemClick}
+          C={C} items={filtered} allItems={items} clients={clients}
+          onItemClick={handleItemClick}
+          onAddForDate={(dateStr) => {
+            setEditItem({ ...emptyForm(clientFilter !== "all" ? clientFilter : clients[0]?.id || ""), date: dateStr });
+            setShowModal(true);
+          }}
           calYear={calYear} calMonth={calMonth}
         />
       )}
@@ -1149,6 +1310,7 @@ export default function SocialStudioModule({ C }) {
           C={C}
           item={drawerItem}
           clients={clients}
+          allItems={items}
           onEdit={openEditModal}
           onDelete={handleDelete}
           onClose={() => setDrawerItem(null)}
