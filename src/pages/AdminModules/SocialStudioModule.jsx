@@ -3,7 +3,16 @@
 // Planning, execution, scheduling, and performance tracking in one place.
 // Internal tool for LWD team. Not a standalone scheduler.
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import {
+  fetchClients,
+  fetchContent,
+  createContentItem,
+  createContentItems,
+  updateContentItem,
+  updateContentStatus,
+  deleteContentItem,
+} from "../../services/socialStudioService";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -83,11 +92,13 @@ const STATUSES = [
 
 const STATUS_PIPELINE = STATUSES.map((s) => s.key);
 
-const MOCK_CLIENTS = [
-  { id: "c1", name: "Villa d'Este" },
-  { id: "c2", name: "Belmond Villa San Michele" },
-  { id: "c3", name: "Borgo Egnazia" },
-  { id: "c4", name: "Amanzoe" },
+// Fallback clients used only when Supabase is unavailable.
+// UUIDs match the seed rows in 20260317_social_studio.sql migration.
+const FALLBACK_CLIENTS = [
+  { id: "a1b2c3d4-0001-0000-0000-000000000001", name: "Villa d'Este" },
+  { id: "a1b2c3d4-0002-0000-0000-000000000002", name: "Belmond Villa San Michele" },
+  { id: "a1b2c3d4-0003-0000-0000-000000000003", name: "Borgo Egnazia" },
+  { id: "a1b2c3d4-0004-0000-0000-000000000004", name: "Amanzoe" },
 ];
 
 const today = new Date();
@@ -102,87 +113,88 @@ function isoDate(year, month, day) {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-// Seed content so the module looks alive from day one
-const SEED_CONTENT = [
+// Offline fallback content - only shown when Supabase is unavailable.
+// Uses stable UUIDs matching FALLBACK_CLIENTS above.
+const FALLBACK_CONTENT = [
   {
-    id: "ct1", clientId: "c1", type: "reel", platform: "instagram",
+    id: "ct1", clientId: "a1b2c3d4-0001-0000-0000-000000000001", type: "reel", platform: "instagram",
     status: "live", date: isoDate(y, m, 3),
     title: "Golden Hour at Villa d'Este",
     caption: "The magic hour captured in 30 seconds. Terrace, lake, and legacy.",
     campaign: "Spring Push", assignedTo: "Yasmine",
   },
   {
-    id: "ct2", clientId: "c1", type: "post", platform: "instagram",
+    id: "ct2", clientId: "a1b2c3d4-0001-0000-0000-000000000001", type: "post", platform: "instagram",
     status: "live", date: isoDate(y, m, 6),
     title: "Grand Ballroom Detail Shot",
     caption: "Every chandelier tells a story. Enquire for 2025 availability.",
     campaign: "Spring Push", assignedTo: "Taiwo",
   },
   {
-    id: "ct3", clientId: "c2", type: "blog", platform: "web",
+    id: "ct3", clientId: "a1b2c3d4-0002-0000-0000-000000000002", type: "blog", platform: "web",
     status: "live", date: isoDate(y, m, 8),
     title: "Why Florence is Europe's Ultimate Wedding Destination",
     caption: "Editorial SEO piece targeting high-intent couples.",
     campaign: "SEO Amplification", assignedTo: "Yasmine",
   },
   {
-    id: "ct4", clientId: "c1", type: "post", platform: "instagram",
+    id: "ct4", clientId: "a1b2c3d4-0001-0000-0000-000000000001", type: "post", platform: "instagram",
     status: "scheduled", date: isoDate(y, m, 12),
     title: "Terrace Wedding Setup",
     caption: "Long tables, olive trees, and lake Como. Your dream, our canvas.",
     campaign: "Spring Push", assignedTo: "Taiwo",
   },
   {
-    id: "ct5", clientId: "c3", type: "reel", platform: "instagram",
+    id: "ct5", clientId: "a1b2c3d4-0003-0000-0000-000000000003", type: "reel", platform: "instagram",
     status: "scheduled", date: isoDate(y, m, 14),
     title: "Borgo Morning Ritual Reel",
     caption: "Behind the scenes of how the team prepares for a wedding morning.",
     campaign: "Authenticity Series", assignedTo: "Yasmine",
   },
   {
-    id: "ct6", clientId: "c2", type: "venue-feature", platform: "web",
+    id: "ct6", clientId: "a1b2c3d4-0002-0000-0000-000000000002", type: "venue-feature", platform: "web",
     status: "review", date: isoDate(y, m, 15),
     title: "Venue Feature: Belmond Villa San Michele",
     caption: "Full editorial spread with gallery, spaces, and enquiry flow.",
     campaign: "Venue Spotlights", assignedTo: "Taiwo",
   },
   {
-    id: "ct7", clientId: "c4", type: "post", platform: "facebook",
+    id: "ct7", clientId: "a1b2c3d4-0004-0000-0000-000000000004", type: "post", platform: "facebook",
     status: "approved", date: isoDate(y, m, 16),
     title: "Amanzoe Clifftop Ceremony",
     caption: "Saying yes with the Aegean as your witness. Enquire now.",
     campaign: "Aegean Summer", assignedTo: "Yasmine",
   },
   {
-    id: "ct8", clientId: "c3", type: "newsletter", platform: "email",
+    id: "ct8", clientId: "a1b2c3d4-0003-0000-0000-000000000003", type: "newsletter", platform: "email",
     status: "draft", date: isoDate(y, m, 18),
     title: "June Edition: Puglia in Full Bloom",
     caption: "Curated inspiration for couples considering southern Italy.",
     campaign: "Monthly Newsletter", assignedTo: "Taiwo",
   },
   {
-    id: "ct9", clientId: "c1", type: "fam-trip", platform: "instagram",
+    id: "ct9", clientId: "a1b2c3d4-0001-0000-0000-000000000001", type: "fam-trip", platform: "instagram",
     status: "brief", date: isoDate(y, m, 20),
     title: "FAM Trip: Lake Como Immersion",
     caption: "3-day hosted experience for top UK and US planners.",
     campaign: "FAM Programme 2025", assignedTo: "Yasmine",
   },
   {
-    id: "ct10", clientId: "c4", type: "reel", platform: "instagram",
+    id: "ct10", clientId: "a1b2c3d4-0004-0000-0000-000000000004", type: "reel", platform: "instagram",
     status: "draft", date: isoDate(y, m, 22),
     title: "Greek Sunset Ceremony BTS",
     caption: "Raw and real - the moments between the moments.",
     campaign: "Aegean Summer", assignedTo: "Taiwo",
   },
   {
-    id: "ct11", clientId: "c2", type: "post", platform: "pinterest",
+    id: "ct11", clientId: "a1b2c3d4-0002-0000-0000-000000000002", type: "post", platform: "pinterest",
     status: "brief", date: isoDate(y, m, 25),
     title: "Floral Arch Inspiration: Tuscan Style",
     caption: "Pin-worthy floral editorial from the gardens of Florence.",
     campaign: "Inspiration Pins", assignedTo: "Yasmine",
   },
   {
-    id: "ct12", clientId: "c3", type: "blog", platform: "web",
+    id: "ct12", clientId: "a1b2c3d4-0003-0000-0000-000000000003", type: "blog", platform: "web",
     status: "brief", date: isoDate(y, m, 28),
     title: "Borgo Egnazia: A Couple's Guide to Puglia",
     caption: "Long-form guide targeting 'Puglia wedding venue' keywords.",
@@ -1472,10 +1484,11 @@ function StatsBar({ C, items }) {
 export default function SocialStudioModule({ C }) {
   const G = C?.gold || "#8f7420";
 
-  // State
-  const [items,       setItems]        = useState(SEED_CONTENT);
-  const [clients]                      = useState(MOCK_CLIENTS);
-  const [view,        setView]         = useState("calendar"); // calendar | queue | campaigns
+  // ── State ───────────────────────────────────────────────────────────────────
+  const [items,       setItems]        = useState([]);
+  const [clients,     setClients]      = useState([]);
+  const [loading,     setLoading]      = useState(true);
+  const [view,        setView]         = useState("calendar");
   const [clientFilter, setClientFilter] = useState("all");
   const [typeFilter,  setTypeFilter]   = useState("all");
   const [calYear,     setCalYear]      = useState(today.getFullYear());
@@ -1485,7 +1498,22 @@ export default function SocialStudioModule({ C }) {
   const [drawerItem,      setDrawerItem]     = useState(null);
   const [duplicateSource, setDuplicateSource] = useState(null);
 
-  // Filtered items
+  // ── Load on mount ───────────────────────────────────────────────────────────
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    const [loadedClients, loadedItems] = await Promise.all([
+      fetchClients(),
+      fetchContent(),
+    ]);
+    // Fall back to offline data if Supabase returned nothing
+    setClients(loadedClients.length > 0 ? loadedClients : FALLBACK_CLIENTS);
+    setItems(loadedItems.length > 0   ? loadedItems   : FALLBACK_CONTENT);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadAll(); }, [loadAll]);
+
+  // ── Derived / filtered ──────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     let list = items;
     if (clientFilter !== "all") list = list.filter((i) => i.clientId === clientFilter);
@@ -1498,24 +1526,40 @@ export default function SocialStudioModule({ C }) {
     return list;
   }, [items, clientFilter, typeFilter, view, calYear, calMonth]);
 
-  function handleSave(form) {
+  // ── Handlers ────────────────────────────────────────────────────────────────
+
+  async function handleSave(form) {
     if (form.id) {
+      // Optimistic update
       setItems((prev) => prev.map((i) => i.id === form.id ? { ...i, ...form } : i));
+      setShowModal(false);
+      setEditItem(null);
+      await updateContentItem(form.id, form);
     } else {
-      const newItem = { ...form, id: `ct${Date.now()}` };
-      setItems((prev) => [newItem, ...prev]);
+      // Create - get real UUID back from DB
+      const created = await createContentItem(form);
+      if (created) {
+        setItems((prev) => [created, ...prev]);
+      } else {
+        // Offline fallback: temp ID until next load
+        setItems((prev) => [{ ...form, id: `ct${Date.now()}` }, ...prev]);
+      }
+      setShowModal(false);
+      setEditItem(null);
     }
-    setShowModal(false);
-    setEditItem(null);
   }
 
-  function handleStatusChange(id, newStatus) {
+  async function handleStatusChange(id, newStatus) {
+    // Optimistic update
     setItems((prev) => prev.map((i) => i.id === id ? { ...i, status: newStatus } : i));
     if (drawerItem?.id === id) setDrawerItem((d) => ({ ...d, status: newStatus }));
+    await updateContentStatus(id, newStatus);
   }
 
-  function handleDelete(id) {
+  async function handleDelete(id) {
     setItems((prev) => prev.filter((i) => i.id !== id));
+    setDrawerItem(null);
+    await deleteContentItem(id);
   }
 
   function handleItemClick(item) {
@@ -1533,8 +1577,19 @@ export default function SocialStudioModule({ C }) {
     setDrawerItem(null);
   }
 
-  function handleCreateItems(newItems) {
-    setItems((prev) => [...newItems, ...prev]);
+  async function handleCreateItems(newItems) {
+    // Optimistic: add temp items immediately so UI feels instant
+    const tempItems = newItems.map((it, i) => ({ ...it, id: `ct_temp_${Date.now()}_${i}` }));
+    setItems((prev) => [...tempItems, ...prev]);
+    // Persist in batch and swap temp IDs for real UUIDs
+    const created = await createContentItems(newItems);
+    if (created && created.length > 0) {
+      setItems((prev) => {
+        // Remove the temp items, add real ones
+        const withoutTemp = prev.filter((i) => !i.id.startsWith("ct_temp_"));
+        return [...created, ...withoutTemp];
+      });
+    }
   }
 
   function prevMonth() {
@@ -1558,6 +1613,14 @@ export default function SocialStudioModule({ C }) {
       <span style={{ fontSize: 12 }}>{icon}</span> {label}
     </button>
   );
+
+  if (loading) {
+    return (
+      <div style={{ padding: 48, textAlign: "center", color: C?.grey || "#888", fontSize: 13 }}>
+        Loading content pipeline...
+      </div>
+    );
+  }
 
   return (
     <div style={{ background: C?.black || "#0a0a0a", minHeight: "100vh", color: C?.white || "#fff" }}>
