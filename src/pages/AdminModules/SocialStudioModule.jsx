@@ -7,21 +7,48 @@ import { useState, useMemo } from "react";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const CONTENT_TYPES = [
-  { key: "post",            label: "Post",             color: "#3b82f6", icon: "◈" },
-  { key: "reel",            label: "Reel",             color: "#ec4899", icon: "▶" },
-  { key: "blog",            label: "Blog",             color: "#22c55e", icon: "✎" },
-  { key: "venue-feature",   label: "Venue Feature",    color: "#8f7420", icon: "⌂" },
-  { key: "fam-trip",        label: "FAM Trip",         color: "#8b5cf6", icon: "✦" },
-  { key: "newsletter",      label: "Newsletter",       color: "#f97316", icon: "✉" },
-  { key: "link-building",   label: "Link Building",    color: "#06b6d4", icon: "⟐" },
-  { key: "organic-content", label: "Organic Content",  color: "#a855f7", icon: "⚙" },
-  { key: "consultancy",     label: "Consultancy",      color: "#0d9488", icon: "◆" },
-  { key: "mentoring",       label: "Mentoring",        color: "#d97706", icon: "◉" },
-  { key: "photography",     label: "Photography",      color: "#64748b", icon: "◎" },
-  { key: "video",           label: "Video Production", color: "#dc2626", icon: "▶" },
-  { key: "style-shoot",     label: "Style Shoot",      color: "#be185d", icon: "✦" },
+const CONTENT_TYPE_GROUPS = [
+  {
+    group: "Social",
+    types: [
+      { key: "post", label: "Post", color: "#3b82f6", icon: "◈" },
+      { key: "reel", label: "Reel", color: "#ec4899", icon: "▶" },
+    ],
+  },
+  {
+    group: "Editorial",
+    types: [
+      { key: "blog",            label: "Blog",            color: "#22c55e", icon: "✎" },
+      { key: "venue-feature",   label: "Venue Feature",   color: "#8f7420", icon: "⌂" },
+      { key: "newsletter",      label: "Newsletter",      color: "#f97316", icon: "✉" },
+      { key: "organic-content", label: "Organic Content", color: "#a855f7", icon: "⚙" },
+    ],
+  },
+  {
+    group: "Creative",
+    types: [
+      { key: "photography", label: "Photography",      color: "#64748b", icon: "◎" },
+      { key: "video",       label: "Video Production", color: "#dc2626", icon: "▶" },
+      { key: "style-shoot", label: "Style Shoot",      color: "#be185d", icon: "✦" },
+    ],
+  },
+  {
+    group: "Growth",
+    types: [
+      { key: "link-building", label: "Link Building", color: "#06b6d4", icon: "⟐" },
+      { key: "fam-trip",      label: "FAM Trip",       color: "#8b5cf6", icon: "✦" },
+    ],
+  },
+  {
+    group: "Services",
+    types: [
+      { key: "consultancy", label: "Consultancy", color: "#0d9488", icon: "◆" },
+      { key: "mentoring",   label: "Mentoring",   color: "#d97706", icon: "◉" },
+    ],
+  },
 ];
+
+const CONTENT_TYPES = CONTENT_TYPE_GROUPS.flatMap((g) => g.types);
 
 const PLATFORMS = [
   { key: "instagram", label: "Instagram" },
@@ -323,7 +350,11 @@ function ContentModal({ C, item, clients, onSave, onClose }) {
           {/* Content type */}
           {fieldGroup("Type",
             <select value={form.type} onChange={(e) => set("type", e.target.value)} style={inputStyle}>
-              {CONTENT_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+              {CONTENT_TYPE_GROUPS.map((g) => (
+                <optgroup key={g.group} label={g.group}>
+                  {g.types.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+                </optgroup>
+              ))}
             </select>
           )}
 
@@ -1042,7 +1073,11 @@ export default function SocialStudioModule({ C }) {
             }}
           >
             <option value="all">All Types</option>
-            {CONTENT_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+            {CONTENT_TYPE_GROUPS.map((g) => (
+              <optgroup key={g.group} label={g.group}>
+                {g.types.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+              </optgroup>
+            ))}
           </select>
 
           {/* Calendar month nav (only in calendar view) */}
