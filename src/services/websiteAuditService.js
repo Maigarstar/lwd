@@ -341,16 +341,41 @@ export async function fetchAllAudits({ type = 'all', limit = 100 } = {}) {
  * @returns {{ visible: boolean, note: string }}
  */
 export async function checkAiVisibility(venueName, location, { auditId } = {}) {
-  const prompt = `Do you have knowledge of "${venueName}" in ${location} as a wedding venue? Reply with exactly one of:\nKNOWN: [one sentence about what you know]\nUNKNOWN`;
+  const locationClause = location ? ` in ${location}` : '';
+  const prompt = `You are evaluating AI search presence for a wedding business.
+
+Business name: "${venueName}"${locationClause}
+
+Answer the following as JSON only. Base every answer strictly on your training data - do not speculate or infer:
+{
+  "known": true or false,
+  "note": "One sentence: what you know about this specific business, or 'No knowledge of this brand found in training data'",
+  "highIntentPresence": true or false,
+  "highIntentNote": "One sentence: whether this brand would appear in AI responses to high-intent queries like 'best wedding venues near [location]', and why"
+}`;
 
   const raw = await callAI('ai_visibility', prompt);
 
-  const visible = raw.toUpperCase().startsWith('KNOWN');
-  const note    = visible
-    ? raw.replace(/^KNOWN:\s*/i, '').trim()
-    : 'No AI knowledge found for this venue';
+  let parsed = null;
+  try {
+    const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+    parsed = JSON.parse(cleaned);
+  } catch {
+    // Fallback to legacy format
+    const visible = raw.toUpperCase().startsWith('KNOWN');
+    parsed = {
+      known: visible,
+      note: visible ? raw.replace(/^KNOWN:\s*/i, '').trim() : 'No knowledge of this brand found in training data',
+      highIntentPresence: null,
+      highIntentNote: null,
+    };
+  }
 
-  // Persist result to the audit row
+  const visible             = Boolean(parsed.known);
+  const note                = parsed.note || (visible ? 'Brand is known in training data' : 'No knowledge of this brand found in training data');
+  const highIntentPresence  = parsed.highIntentPresence ?? null;
+  const highIntentNote      = parsed.highIntentNote || null;
+
   if (auditId) {
     await supabase
       .from('website_audits')
@@ -358,7 +383,257 @@ export async function checkAiVisibility(venueName, location, { auditId } = {}) {
       .eq('id', auditId);
   }
 
-  return { visible, note };
+  return { visible, note, highIntentPresence, highIntentNote };
+}
+
+// ── Impact descriptions per signal ───────────────────────────────────────────
+
+const SIGNAL_IMPACT = {
+  title:       'The page title is the first thing both search engines and couples see in search results. Without a compelling, well-optimised title, this page is unlikely to rank - and even less likely to earn a click when it does.',
+  description: 'The meta description is effectively a 160-character pitch in search results. A missing or weak description leaves couples with no reason to click through, even when the site does appear.',
+  schema:      'Structured data tells Google exactly what this business is and what it offers. Without it, the site misses out on rich results, star ratings, and event features that help listings stand out from competitors.',
+  h1:          'The main heading sets the tone for both visitors and search engines. Without a clear H1, the page can feel unfocused - reducing confidence and increasing the chance a couple leaves without enquiring.',
+  og:          'When links are shared on Instagram, Facebook, or WhatsApp, Open Graph tags control the preview image and description. Without them, links appear as plain text and lose the visual impact that drives referral clicks.',
+  https:       'HTTPS is now a baseline expectation for any professional website. Sites flagged as "Not Secure" by browsers risk losing trust at the exact moment a couple is deciding whether to make an enquiry.',
+  viewport:    'A missing viewport tag means the site may not display correctly on mobile phones. Given that most couples browse venues on their phone, a poor mobile experience directly reduces the chance of an enquiry.',
+  canonical:   'A canonical tag prevents search engines from treating similar pages as duplicates. Without one, ranking authority can be divided across multiple URLs, weakening the overall search performance of the site.',
+  sitemap:     'A sitemap helps search engines discover and index every page on the site. Without one, key pages - such as galleries, packages, or location-specific content - may never appear in search results.',
+  robots:      'This page is currently set to noindex, meaning it is actively excluded from Google and other search engines. No SEO investment will help a page that is hidden from search.',
+  images:      'Images without descriptive alt text miss keyword opportunities and reduce the perceived quality of the site. For premium and luxury venues, presentation standards matter at every level of the experience.',
+};
+
+// ── Severity thresholds ───────────────────────────────────────────────────────
+// critical  : weight >= 15 (directly affects indexing and visibility)
+// important : weight 10-14 (affects ranking, trust, and usability)
+// minor     : weight < 10  (best-practice gaps)
+
+function _signalSeverity(weight) {
+  if (weight >= 15) return 'critical';
+  if (weight >= 10) return 'important';
+  return 'minor';
+}
+
+/** Returns { critical, important, minor } counts for a findings object */
+export function getIssueSeverityCounts(findings) {
+  if (!findings || typeof findings !== 'object') return { critical: 0, important: 0, minor: 0 };
+  const counts = { critical: 0, important: 0, minor: 0 };
+  for (const [signal, meta] of Object.entries(SIGNAL_META)) {
+    if (!findings[signal]) continue;
+    if (meta.label(findings)) counts[_signalSeverity(meta.weight)]++;
+  }
+  return counts;
+}
+
+/** Returns all failing issues with labels, impact text, and severity */
+export function getIssuesWithImpact(findings) {
+  if (!findings || typeof findings !== 'object') return [];
+  const issues = [];
+  for (const [signal, meta] of Object.entries(SIGNAL_META)) {
+    if (!findings[signal]) continue;
+    const label = meta.label(findings);
+    if (label) {
+      issues.push({
+        signal,
+        label,
+        weight:   meta.weight,
+        severity: _signalSeverity(meta.weight),
+        impact:   SIGNAL_IMPACT[signal] || '',
+      });
+    }
+  }
+  return issues.sort((a, b) => b.weight - a.weight);
+}
+
+/** Returns signals that passed (no issue found) */
+export function getPassedSignals(findings) {
+  if (!findings || typeof findings !== 'object') return [];
+  const LABELS = {
+    title: 'Page title present and well-formed',
+    description: 'Meta description present and within length',
+    schema: 'Structured data (JSON-LD) detected',
+    h1: 'Single H1 heading present',
+    og: 'Open Graph tags complete',
+    https: 'Site served over HTTPS',
+    viewport: 'Mobile viewport tag present',
+    canonical: 'Canonical URL tag present',
+    sitemap: 'sitemap.xml found',
+    robots: 'Page is indexable',
+    images: 'All images have alt text',
+  };
+  return Object.entries(SIGNAL_META)
+    .filter(([signal, meta]) => findings[signal] && !meta.label(findings))
+    .map(([signal]) => ({ signal, label: LABELS[signal] || signal }));
+}
+
+// ── Domain normalisation ──────────────────────────────────────────────────────
+
+export function normalizeDomain(url) {
+  if (!url) return '';
+  try {
+    const u = new URL(url.startsWith('http') ? url : `https://${url}`);
+    return u.hostname.replace(/^www\./, '');
+  } catch {
+    return url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0].split('?')[0];
+  }
+}
+
+// ── Trend computation ─────────────────────────────────────────────────────────
+
+/** Compares current score against previous audit to produce a trend indicator */
+export function computeTrend(latestScore, history) {
+  if (!history || history.length === 0) return { label: 'No history yet', value: 0, direction: 'none' };
+  const prev = history[0];
+  const diff = latestScore - prev.score;
+  if (Math.abs(diff) <= 2) return { label: 'Stable', value: 0, direction: 'stable' };
+  if (diff > 0) return { label: `+${diff}`, value: diff, direction: 'up' };
+  return { label: String(diff), value: diff, direction: 'down' };
+}
+
+// ── Enquiry Experience scoring ────────────────────────────────────────────────
+
+/**
+ * Derives an enquiry experience score from structural audit signals.
+ * Tier 1 only: no external data required.
+ * Returns { score: 0-100, label, signals[] }
+ */
+export function scoreEnquiryExperience(findings) {
+  if (!findings) return { score: 50, label: 'Unknown', signals: [] };
+
+  const signals = [];
+  let score = 100;
+
+  if (!findings.https?.ok) {
+    score -= 25;
+    signals.push({ issue: 'Site not served over HTTPS', impact: 'Lack of a security certificate reduces visitor trust and may deter enquiries from cautious couples.', severity: 'critical' });
+  }
+  if (!findings.viewport?.present) {
+    score -= 20;
+    signals.push({ issue: 'No mobile viewport', impact: 'Visitors on mobile may struggle to read content or locate the contact form, increasing drop-off.', severity: 'important' });
+  }
+  if (!findings.og?.title && !findings.og?.description) {
+    score -= 15;
+    signals.push({ issue: 'No brand messaging detected', impact: 'Limited OG tags suggest the site has not invested in how it communicates online, which can feel impersonal.', severity: 'important' });
+  }
+  if (findings.h1?.count === 0) {
+    score -= 15;
+    signals.push({ issue: 'No clear page headline', impact: 'Without a strong H1, visitors may not immediately understand the offer, increasing the chance they leave without enquiring.', severity: 'important' });
+  }
+  if (!findings.schema?.present) {
+    score -= 10;
+    signals.push({ issue: 'No structured business identity', impact: 'Google and visitors may struggle to categorise what this business offers, reducing confidence in the brand.', severity: 'minor' });
+  }
+  if (findings.images?.total > 0 && !findings.images?.ok) {
+    score -= 5;
+    signals.push({ issue: 'Images without descriptive labels', impact: 'Reduces perceived professionalism, particularly for visitors using screen readers or slow connections.', severity: 'minor' });
+  }
+
+  score = Math.max(0, score);
+
+  let label = 'Excellent';
+  if (score < 40)      label = 'Poor';
+  else if (score < 60) label = 'Weak';
+  else if (score < 80) label = 'Good';
+
+  return { score, label, signals };
+}
+
+// ── Opportunity Score ─────────────────────────────────────────────────────────
+
+/**
+ * Computes a commercial opportunity score from SEO score, issue severity,
+ * and enquiry experience. Returns 'High' | 'Medium' | 'Low'.
+ */
+export function computeOpportunityScore(seoScore, findings) {
+  const { critical, important } = getIssueSeverityCounts(findings);
+  const { score: eqScore } = scoreEnquiryExperience(findings);
+
+  let raw = 100 - seoScore;
+  raw += critical * 8;
+  raw += important * 4;
+  raw += Math.round((100 - eqScore) * 0.15);
+  raw = Math.min(100, raw);
+
+  if (raw >= 55) return 'High';
+  if (raw >= 30) return 'Medium';
+  return 'Low';
+}
+
+// ── Domain-grouped audit fetch ────────────────────────────────────────────────
+
+/**
+ * Fetches all audits and groups them by normalised domain.
+ * Each entry: { domain, latest: auditRow, history: auditRow[] }
+ * Returns an array sorted by latest audit date descending.
+ */
+export async function fetchDomainGroupedAudits(limit = 400) {
+  const { data, error } = await supabase
+    .from('website_audits')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw new Error(error.message);
+
+  const byDomain = {};
+  for (const audit of (data ?? [])) {
+    const domain = normalizeDomain(audit.url);
+    if (!byDomain[domain]) {
+      byDomain[domain] = { domain, latest: audit, history: [] };
+    } else {
+      byDomain[domain].history.push(audit);
+    }
+  }
+
+  return Object.values(byDomain);
+}
+
+// ── Intelligence summary (AI) ─────────────────────────────────────────────────
+
+/**
+ * Generates a 3-part client-ready summary: visibility, conversion, opportunity.
+ * Uses the existing ai-generate edge function.
+ */
+export async function generateIntelligenceSummary(auditRow) {
+  const issues = getIssuesWithImpact(auditRow.findings);
+  const { label: eqLabel, score: eqScore } = scoreEnquiryExperience(auditRow.findings);
+  const criticalList = issues.filter(i => i.severity === 'critical').map(i => i.label).slice(0, 2).join('; ');
+
+  const userPrompt = `Website: ${auditRow.url}
+SEO Score: ${auditRow.score}/100 (${scoreLabel(auditRow.score)})
+Critical issues: ${criticalList || 'None'}
+Enquiry experience: ${eqLabel} (${eqScore}/100)
+Total issues: ${issues.length}
+
+Generate a 4-part intelligence summary as JSON only:
+{
+  "visibility": "1-2 sentences on current search visibility and what is limiting it",
+  "conversion": "1-2 sentences on the enquiry experience and what signals affect conversion",
+  "opportunity": "1 sentence on the primary commercial gain if key issues are addressed",
+  "experienceInsight": "1 sentence describing how the enquiry journey feels from a couple's perspective - e.g. warm and inviting, clinical and impersonal, unclear, confusing, polished, etc."
+}
+
+Rules: commercial and client-ready tone, not developer language. Reference specific signals where relevant. Under 160 words total. No jargon, no bullet points, no markdown.`;
+
+  const raw = await callAI('intelligence_summary', userPrompt);
+
+  try {
+    const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+    const parsed  = JSON.parse(cleaned);
+    return {
+      visibility:        parsed.visibility        || '',
+      conversion:        parsed.conversion        || '',
+      opportunity:       parsed.opportunity       || '',
+      experienceInsight: parsed.experienceInsight || '',
+    };
+  } catch {
+    const crit = issues.filter(i => i.severity === 'critical').length;
+    return {
+      visibility:        `This site scores ${auditRow.score}/100 with ${crit} critical visibility ${crit === 1 ? 'issue' : 'issues'} identified.`,
+      conversion:        `The enquiry experience is rated ${eqLabel}, which may be affecting how many visitors complete contact forms.`,
+      opportunity:       'Addressing the key issues identified could meaningfully improve both search visibility and enquiry rates.',
+      experienceInsight: '',
+    };
+  }
 }
 
 // ── generateAuditEmail ────────────────────────────────────────────────────────

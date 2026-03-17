@@ -29,6 +29,7 @@ import USAPage                from "./pages/USAPage.jsx";
 import ItalyPage              from "./pages/ItalyPage.jsx";
 const AdminDashboard         = lazy(() => import("./pages/AdminDashboard.jsx"));
 import AdminLogin             from "./pages/AdminLogin.jsx";
+import GoogleOAuthCallback    from "./pages/GoogleOAuthCallback.jsx";
 const VendorDashboard        = lazy(() => import("./pages/VendorDashboard.jsx"));
 import VendorLogin            from "./pages/VendorLogin.jsx";
 import VendorSignup           from "./pages/VendorSignup.jsx";
@@ -116,8 +117,9 @@ function stateToPath(pg, opts = {}) {
     case "partnership":      return "/partnership";
     case "usa":              return "/usa";
     case "italy":            return "/italy";
-    case "admin":            return "/admin";
-    case "admin-login":      return "/admin/login";
+    case "admin":                return "/admin";
+    case "admin-login":          return "/admin/login";
+    case "admin-oauth-callback": return "/admin/oauth/callback";
     case "vendor":           return "/vendor";
     case "vendor-login":           return "/vendor/login";
     case "vendor-signup":          return "/vendor/signup";
@@ -175,6 +177,7 @@ function pathToState(pathname) {
   if (parts[0] === "vendor" && parts[1] === "reset-password" && parts.length === 2) return { page: "vendor-reset-password" };
   // Handle admin auth subroutes
   if (parts[0] === "admin" && parts[1] === "login" && parts.length === 2) return { page: "admin-login" };
+  if (parts[0] === "admin" && parts[1] === "oauth" && parts[2] === "callback") return { page: "admin-oauth-callback" };
   // Handle couple auth subroutes
   if (parts[0] === "couple" && parts[1] === "signup" && parts.length === 2) return { page: "couple-signup" };
   if (parts[0] === "couple" && parts[1] === "login" && parts.length === 2) return { page: "couple-login" };
@@ -621,6 +624,9 @@ function App() {
         )}
         {page === "admin-login" && (
           <AdminLogin onBack={goHome} />
+        )}
+        {page === "admin-oauth-callback" && (
+          <GoogleOAuthCallback />
         )}
         {page === "admin" && (
           <AdminRoute onBack={goHome} onNavigate={(action, data) => {
