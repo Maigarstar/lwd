@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useContext, useCallback, useMemo, useRef } from 'react';
 import { ThemeCtx } from '../../theme/ThemeContext';
-import { fetchListingsSeoStatus, generateListingSeo, bulkGenerateSeo } from '../../services/seoService';
+import { fetchListingsSeoStatus, generateListingSeo, bulkGenerateSeo, generateArticleSeo, bulkGenerateArticleSeo } from '../../services/seoService';
 import { fetchPosts, fetchCategories } from '../../services/magazineService';
 import {
   fetchDomainGroupedAudits, runAudit,
@@ -259,11 +259,14 @@ export default function SeoModule() {
   const [auditSort,        setAuditSort]      = useState('date');  // date | score-asc | score-desc | opportunity
 
   // Content & SEO state
-  const [contentPosts,      setContentPosts]      = useState([]);
-  const [contentCats,       setContentCats]       = useState([]);
-  const [contentLoading,    setContentLoading]    = useState(false);
-  const [contentFilter,     setContentFilter]     = useState('all'); // all | missing | complete
-  const [contentSearch,     setContentSearch]     = useState('');
+  const [contentPosts,        setContentPosts]        = useState([]);
+  const [contentCats,         setContentCats]         = useState([]);
+  const [contentLoading,      setContentLoading]      = useState(false);
+  const [contentFilter,       setContentFilter]       = useState('all'); // all | missing | complete
+  const [contentSearch,       setContentSearch]       = useState('');
+  const [contentGenerating,   setContentGenerating]   = useState({});
+  const [contentBulkRunning,  setContentBulkRunning]  = useState(false);
+  const [contentBulkProgress, setContentBulkProgress] = useState({ done: 0, total: 0 });
 
   // ── Load internal SEO listings ──────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -479,6 +482,41 @@ export default function SeoModule() {
     setToast('SEO generation complete.');
   }, [bulkRunning, listings]);
 
+  // ── Generate SEO for single article ────────────────────────────────────────
+  const handleGenerateArticle = useCallback(async (post) => {
+    setContentGenerating(g => ({ ...g, [post.id]: true }));
+    try {
+      const updated = await generateArticleSeo(post);
+      setContentPosts(prev => prev.map(p => p.id === post.id ? { ...p, ...updated } : p));
+      setToast(`SEO generated for "${post.title}"`);
+    } catch (err) {
+      setToast(`Failed to generate SEO for "${post.title}": ${err.message}`);
+    } finally {
+      setContentGenerating(g => { const n = { ...g }; delete n[post.id]; return n; });
+    }
+  }, []);
+
+  // ── Bulk generate SEO for articles ─────────────────────────────────────────
+  const handleBulkGenerateContent = useCallback(async () => {
+    if (contentBulkRunning) return;
+    const targets = contentPosts.filter(p => !p.seo_title || !p.meta_description);
+    if (targets.length === 0) { setToast('All articles already have SEO title and meta description.'); return; }
+
+    setContentBulkRunning(true);
+    setContentBulkProgress({ done: 0, total: targets.length });
+
+    await bulkGenerateArticleSeo(contentPosts, {
+      onProgress: (done, total) => setContentBulkProgress({ done, total }),
+      onPostDone: (id, updated) => {
+        if (updated) setContentPosts(prev => prev.map(p => p.id === id ? { ...p, ...updated } : p));
+        setContentBulkProgress(p => ({ ...p, done: p.done + 1 }));
+      },
+    });
+
+    setContentBulkRunning(false);
+    setToast('Article SEO generation complete.');
+  }, [contentBulkRunning, contentPosts]);
+
   // ── Row open ────────────────────────────────────────────────────────────────
   function openGroup(group) {
     setSelectedGroup(group);
@@ -678,9 +716,14 @@ export default function SeoModule() {
                 <h2 style={{ fontFamily: GD, fontSize: 20, fontWeight: 400, color: C.off, margin: '0 0 4px' }}>Content & SEO</h2>
                 <div style={{ fontFamily: NU, fontSize: 12, color: C.grey }}>{total} articles tracked</div>
               </div>
-              <button onClick={loadContentSeo} disabled={contentLoading} style={{ padding: '7px 16px', background: 'transparent', border: `1px solid ${C.border2}`, color: C.grey, borderRadius: 5, fontFamily: NU, fontSize: 12, cursor: contentLoading ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
-                {contentLoading ? 'Loading...' : 'Refresh'}
-              </button>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                <button onClick={handleBulkGenerateContent} disabled={contentBulkRunning || contentLoading} style={{ padding: '7px 18px', background: contentBulkRunning ? 'rgba(201,168,76,0.3)' : G, color: '#fff', border: 'none', borderRadius: 5, fontFamily: NU, fontSize: 12, fontWeight: 600, cursor: contentBulkRunning || contentLoading ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
+                  {contentBulkRunning ? `Generating... (${contentBulkProgress.done}/${contentBulkProgress.total})` : `Bulk Generate Missing SEO (${contentPosts.filter(p => !p.seo_title || !p.meta_description).length})`}
+                </button>
+                <button onClick={loadContentSeo} disabled={contentLoading} style={{ padding: '7px 16px', background: 'transparent', border: `1px solid ${C.border2}`, color: C.grey, borderRadius: 5, fontFamily: NU, fontSize: 12, cursor: contentLoading ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
+                  {contentLoading ? 'Loading...' : 'Refresh'}
+                </button>
+              </div>
             </div>
 
             {/* Summary tiles */}
@@ -725,6 +768,16 @@ export default function SeoModule() {
               </div>
             </div>
 
+            {/* Bulk progress bar */}
+            {contentBulkRunning && contentBulkProgress.total > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ background: C.dark, borderRadius: 4, height: 6, overflow: 'hidden', maxWidth: 360 }}>
+                  <div style={{ height: '100%', width: `${Math.round((contentBulkProgress.done / contentBulkProgress.total) * 100)}%`, background: G, borderRadius: 4, transition: 'width 0.3s' }} />
+                </div>
+                <div style={{ fontSize: 11, color: C.grey, marginTop: 4, fontFamily: NU }}>{contentBulkProgress.done} of {contentBulkProgress.total} articles done</div>
+              </div>
+            )}
+
             {/* Articles table */}
             {contentLoading ? (
               <div style={{ padding: 48, textAlign: 'center', color: C.grey, fontSize: 13 }}>Loading articles...</div>
@@ -744,6 +797,7 @@ export default function SeoModule() {
                         <th style={colHeader}>SEO Title</th>
                         <th style={colHeader}>Meta Description</th>
                         <th style={colHeader}>OG Image</th>
+                        <th style={colHeader}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -783,6 +837,18 @@ export default function SeoModule() {
                               {post.og_image
                                 ? <img src={post.og_image} alt="" style={{ width: 36, height: 24, objectFit: 'cover', borderRadius: 2 }} />
                                 : <span style={{ color: C.grey2, fontSize: 11 }}>Not set</span>}
+                            </div>
+                          </td>
+                          <td style={{ ...cell, whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                              <RowBtn gold disabled={!!contentGenerating[post.id] || contentBulkRunning} onClick={() => handleGenerateArticle(post)}>
+                                {contentGenerating[post.id] ? 'Generating...' : 'Generate'}
+                              </RowBtn>
+                              {post.slug && (
+                                <RowBtn onClick={() => window.dispatchEvent(new CustomEvent('lwd-nav', { detail: { tab: 'magazine-studio', slug: post.slug } }))}>
+                                  Edit in Studio
+                                </RowBtn>
+                              )}
                             </div>
                           </td>
                         </tr>

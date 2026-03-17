@@ -146,3 +146,88 @@ export async function bulkGenerateSeo(listings, { onProgress, onListingDone } = 
   onProgress?.(targets.length, targets.length);
   return { generated, failed };
 }
+
+// ── Generate SEO for a single magazine article ─────────────────────────────────
+
+/**
+ * Calls AI to generate seo_title + meta_description for a magazine article.
+ * Patches magazine_posts in Supabase and returns the updated post object.
+ * @param {object} post - Post from fetchPosts (must have id, title)
+ */
+export async function generateArticleSeo(post) {
+  const title    = post.title || 'Article';
+  const category = post.category_label || post.category_slug || '';
+  const excerpt  = post.excerpt || '';
+
+  const userPrompt = `Generate SEO metadata for this luxury wedding magazine article.
+
+ARTICLE INFORMATION:
+Title: ${title}${category ? `\nCategory: ${category}` : ''}${excerpt ? `\nExcerpt: ${excerpt}` : ''}
+
+Generate:
+1. SEO title (50-60 characters, include category context and luxury appeal)
+2. Meta description (150-160 characters, compelling, keyword-rich, encourage clicks)
+
+RETURN JSON ONLY in this exact format (no extra text):
+{"seo_title": "...", "meta_description": "..."}`;
+
+  const raw = await callAI('seo', userPrompt);
+
+  let parsed;
+  try {
+    const match = raw.match(/\{[\s\S]*?\}/);
+    parsed = JSON.parse(match ? match[0] : raw);
+  } catch {
+    throw new Error('AI returned unexpected response format');
+  }
+
+  const { seo_title, meta_description } = parsed;
+  if (!seo_title || !meta_description) throw new Error('AI response missing seo_title or meta_description');
+
+  const { data, error } = await supabase
+    .from('magazine_posts')
+    .update({ seo_title, meta_description })
+    .eq('id', post.id)
+    .select('id, seo_title, meta_description, og_title, og_description, og_image')
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  return { ...post, ...data };
+}
+
+// ── Bulk generate SEO for all magazine articles missing metadata ───────────────
+
+/**
+ * Generates SEO for all articles missing seo_title OR meta_description.
+ * Runs sequentially with delays to respect rate limits.
+ * @param {object[]} posts - From fetchPosts
+ * @param {{ onProgress?, onPostDone? }} callbacks
+ */
+export async function bulkGenerateArticleSeo(posts, { onProgress, onPostDone } = {}) {
+  const targets = posts.filter(p => !p.seo_title || !p.meta_description);
+  let generated = 0;
+  let failed    = 0;
+
+  for (let i = 0; i < targets.length; i++) {
+    const post = targets[i];
+    onProgress?.(i, targets.length);
+
+    try {
+      const updated = await generateArticleSeo(post);
+      generated++;
+      onPostDone?.(post.id, updated);
+    } catch (err) {
+      failed++;
+      console.error(`SEO generation failed for "${post.title}":`, err);
+      onPostDone?.(post.id, null);
+    }
+
+    if (i < targets.length - 1) {
+      await new Promise(r => setTimeout(r, 600));
+    }
+  }
+
+  onProgress?.(targets.length, targets.length);
+  return { generated, failed };
+}
