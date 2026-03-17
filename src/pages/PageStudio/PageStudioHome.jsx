@@ -1,9 +1,9 @@
-import { useState, useMemo } from 'react';
-import { loadPages } from './utils/pageStorage';
+import { useState, useMemo, useCallback } from 'react';
+import { loadPages, savePages } from './utils/pageStorage';
 import { MOCK_PAGES } from './data/mockPages';
 
 /**
- * PageStudioHome, Pages index / home screen for Page Studio
+ * PageStudioHome - Pages index / home screen for Page Studio
  *
  * Matches the premium visual language of Listing Studio:
  *   same spacing, card density, gold accents, button styles, font usage.
@@ -16,6 +16,28 @@ import { MOCK_PAGES } from './data/mockPages';
  */
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const HP_ID_KEY   = 'ps_homepage_page_id';
+const HP_LOCK_KEY = 'ps_homepage_locked';
+
+function loadHomepageId(pages) {
+  const stored = localStorage.getItem(HP_ID_KEY);
+  if (stored) return stored;
+  const hp = pages.find(p => p.pageType === 'homepage' || p.id === 'page_home');
+  return hp ? hp.id : null;
+}
+
+function saveHomepageId(id) {
+  localStorage.setItem(HP_ID_KEY, id);
+}
+
+function loadHomepageLocked() {
+  return localStorage.getItem(HP_LOCK_KEY) !== 'false'; // locked by default
+}
+
+function saveHomepageLocked(val) {
+  localStorage.setItem(HP_LOCK_KEY, String(val));
+}
 
 const PAGE_TYPES = [
   { value: 'all',         label: 'All Types' },
@@ -64,7 +86,7 @@ const TYPE_LABELS = {
 };
 
 function relativeDate(iso) {
-  if (!iso) return ' - ';
+  if (!iso) return '-';
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 2)   return 'Just now';
@@ -82,27 +104,28 @@ function relativeDate(iso) {
 
 function truncateSlug(slug, max = 36) {
   if (!slug || slug.length <= max) return slug;
-  return slug.slice(0, max) + '…';
+  return slug.slice(0, max) + '...';
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const PageStudioHome = ({ C, NU, GD, onNavigate }) => {
-  const [search,     setSearch]     = useState('');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const initialPages = useMemo(() => loadPages(MOCK_PAGES), []);
+  const [pages,          setPages]          = useState(initialPages);
+  const [homepageId,     setHomepageId]     = useState(() => loadHomepageId(initialPages));
+  const [homepageLocked, setHomepageLocked] = useState(loadHomepageLocked);
+  const [search,         setSearch]         = useState('');
+  const [typeFilter,     setTypeFilter]     = useState('all');
+  const [statusFilter,   setStatusFilter]   = useState('all');
 
-  // Load from localStorage (falls back to mock data)
-  const allPages = useMemo(() => loadPages(MOCK_PAGES), []);
-
-  // Homepage always first, then sort the rest by updatedAt desc
+  // Homepage always first, then sort rest by updatedAt desc
   const sorted = useMemo(() => {
-    const home = allPages.find(p => p.pageType === 'homepage' || p.id === 'page_home');
-    const rest = allPages
-      .filter(p => p.id !== (home?.id))
+    const home = pages.find(p => p.id === homepageId);
+    const rest  = pages
+      .filter(p => p.id !== homepageId)
       .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
     return home ? [home, ...rest] : rest;
-  }, [allPages]);
+  }, [pages, homepageId]);
 
   // Filter
   const filtered = useMemo(() => {
@@ -117,11 +140,65 @@ const PageStudioHome = ({ C, NU, GD, onNavigate }) => {
 
   // Stats
   const stats = useMemo(() => ({
-    total:     allPages.length,
-    published: allPages.filter(p => p.status === 'published').length,
-    draft:     allPages.filter(p => p.status === 'draft').length,
-    scheduled: allPages.filter(p => p.status === 'scheduled').length,
-  }), [allPages]);
+    total:     pages.length,
+    published: pages.filter(p => p.status === 'published').length,
+    draft:     pages.filter(p => p.status === 'draft').length,
+    scheduled: pages.filter(p => p.status === 'scheduled').length,
+  }), [pages]);
+
+  // ── Handlers ────────────────────────────────────────────────────────────────
+
+  const handleToggleLock = useCallback(() => {
+    const next = !homepageLocked;
+    saveHomepageLocked(next);
+    setHomepageLocked(next);
+  }, [homepageLocked]);
+
+  const handleSetHomepage = useCallback((id) => {
+    if (homepageLocked) return;
+    saveHomepageId(id);
+    setHomepageId(id);
+  }, [homepageLocked]);
+
+  const handleDuplicate = useCallback((page) => {
+    const ts = Date.now();
+    const newPage = {
+      ...page,
+      id:        `page_${ts}`,
+      title:     `${page.title} (Copy)`,
+      slug:      `${page.slug}-copy`,
+      status:    'draft',
+      updatedAt: new Date().toISOString(),
+    };
+    const updated = [...pages, newPage];
+    savePages(updated);
+    setPages(updated);
+  }, [pages]);
+
+  const handleDelete = useCallback((page) => {
+    if (page.id === homepageId) {
+      alert('Cannot delete the current homepage. Set a different page as homepage first.');
+      return;
+    }
+    if (!window.confirm(`Delete "${page.title}"? This cannot be undone.`)) return;
+    const updated = pages.filter(p => p.id !== page.id);
+    savePages(updated);
+    setPages(updated);
+  }, [pages, homepageId]);
+
+  const handlePreview = useCallback((page) => {
+    const slug = page.slug === '/' ? '/' : `/${page.slug}`;
+    window.open(slug, '_blank', 'noopener');
+  }, []);
+
+  const handleToggleStatus = useCallback((page) => {
+    const next = page.status === 'published' ? 'draft' : 'published';
+    const updated = pages.map(p =>
+      p.id === page.id ? { ...p, status: next, updatedAt: new Date().toISOString() } : p
+    );
+    savePages(updated);
+    setPages(updated);
+  }, [pages]);
 
   // Styles
   const selectStyle = {
@@ -148,13 +225,13 @@ const PageStudioHome = ({ C, NU, GD, onNavigate }) => {
           .psh-outer { padding: 14px 14px 40px !important; }
           .psh-filters { flex-direction: column !important; align-items: stretch !important; }
           .psh-search { width: 100% !important; max-width: 100% !important; }
-          .psh-table-header { grid-template-columns: 1fr auto auto 60px !important; }
+          .psh-table-header { grid-template-columns: 1fr auto auto 80px !important; }
           .psh-table-header > span:nth-child(4),
           .psh-table-header > span:nth-child(5) { display: none !important; }
-          .psh-table-row { grid-template-columns: 1fr auto auto 60px !important; }
+          .psh-table-row { grid-template-columns: 1fr auto auto 80px !important; }
           .psh-table-row > div:nth-child(4),
           .psh-table-row > div:nth-child(5) { display: none !important; }
-          .psh-table-row > div:nth-child(6) button { padding: 4px 8px !important; font-size: 9px !important; }
+          .psh-table-row > div:last-child button { padding: 4px 6px !important; font-size: 9px !important; }
         }
       `}</style>
 
@@ -210,12 +287,7 @@ const PageStudioHome = ({ C, NU, GD, onNavigate }) => {
       </div>
 
       {/* ── Stats strip ─────────────────────────────────────────────────── */}
-      <div style={{
-        display: 'flex',
-        gap: 10,
-        marginBottom: 24,
-        flexWrap: 'wrap',
-      }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' }}>
         {[
           { label: 'Total',     value: stats.total,     color: C.gold },
           { label: 'Published', value: stats.published,  color: '#86efac' },
@@ -231,139 +303,130 @@ const PageStudioHome = ({ C, NU, GD, onNavigate }) => {
             border: `1px solid ${C.border}`,
             borderRadius: 3,
           }}>
-            <span style={{
-              fontFamily: GD,
-              fontSize: 18,
-              fontWeight: 400,
-              color: stat.color,
-              lineHeight: 1,
-            }}>{stat.value}</span>
-            <span style={{
-              fontFamily: NU,
-              fontSize: 9,
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.1em',
-              color: C.grey2,
-            }}>{stat.label}</span>
+            <span style={{ fontFamily: GD, fontSize: 18, fontWeight: 400, color: stat.color, lineHeight: 1 }}>{stat.value}</span>
+            <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: C.grey2 }}>{stat.label}</span>
           </div>
         ))}
       </div>
 
-      {/* ── Filters ─────────────────────────────────────────────────────── */}
-      <div className="psh-filters" style={{
+      {/* ── Homepage lock banner ────────────────────────────────────────── */}
+      <div style={{
         display: 'flex',
-        gap: 8,
-        marginBottom: 20,
         alignItems: 'center',
-        flexWrap: 'wrap',
+        gap: 12,
+        padding: '10px 14px',
+        marginBottom: 16,
+        backgroundColor: homepageLocked ? 'rgba(201,168,76,0.06)' : 'rgba(239,68,68,0.06)',
+        border: `1px solid ${homepageLocked ? 'rgba(201,168,76,0.2)' : 'rgba(239,68,68,0.2)'}`,
+        borderRadius: 4,
       }}>
+        <span style={{ fontSize: 15 }}>{homepageLocked ? '🔒' : '🔓'}</span>
+        <div style={{ flex: 1 }}>
+          <span style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, color: homepageLocked ? C.gold : '#ef4444' }}>
+            Homepage {homepageLocked ? 'Locked' : 'Unlocked'}
+          </span>
+          <span style={{ fontFamily: NU, fontSize: 11, color: C.grey2, marginLeft: 8 }}>
+            {homepageLocked
+              ? 'The active homepage cannot be changed. Release the lock to reassign it.'
+              : 'Homepage reassignment is active. Click "Set as Home" on any page, then lock again.'}
+          </span>
+        </div>
+        <button
+          onClick={handleToggleLock}
+          style={{
+            fontFamily: NU,
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: '0.07em',
+            textTransform: 'uppercase',
+            padding: '6px 14px',
+            border: `1px solid ${homepageLocked ? 'rgba(201,168,76,0.5)' : 'rgba(239,68,68,0.5)'}`,
+            backgroundColor: 'transparent',
+            color: homepageLocked ? C.gold : '#ef4444',
+            borderRadius: 3,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.backgroundColor = homepageLocked ? 'rgba(201,168,76,0.1)' : 'rgba(239,68,68,0.1)'; }}
+          onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+        >
+          {homepageLocked ? 'Release Lock' : 'Lock Homepage'}
+        </button>
+      </div>
+
+      {/* ── Filters ─────────────────────────────────────────────────────── */}
+      <div className="psh-filters" style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'center', flexWrap: 'wrap' }}>
         <input
           className="psh-search"
           type="text"
-          placeholder="Search pages…"
+          placeholder="Search pages..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          style={{
-            ...selectStyle,
-            width: 220,
-            padding: '7px 10px',
-          }}
+          style={{ ...selectStyle, width: 220, padding: '7px 10px' }}
         />
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={selectStyle}>
-          {PAGE_TYPES.map(t => (
-            <option key={t.value} value={t.value}>{t.label}</option>
-          ))}
+          {PAGE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={selectStyle}>
-          {STATUS_OPTIONS.map(s => (
-            <option key={s.value} value={s.value}>{s.label}</option>
-          ))}
+          {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
         {(search || typeFilter !== 'all' || statusFilter !== 'all') && (
           <button
             onClick={() => { setSearch(''); setTypeFilter('all'); setStatusFilter('all'); }}
-            style={{
-              fontFamily: NU,
-              fontSize: 10,
-              color: C.grey2,
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '0 4px',
-              textDecoration: 'underline',
-            }}
+            style={{ fontFamily: NU, fontSize: 10, color: C.grey2, background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px', textDecoration: 'underline' }}
           >
             Clear
           </button>
         )}
         <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2, marginLeft: 'auto' }}>
-          {filtered.length} of {allPages.length} pages
+          {filtered.length} of {pages.length} pages
         </span>
       </div>
 
       {/* ── Table ───────────────────────────────────────────────────────── */}
-      <div style={{
-        backgroundColor: C.card,
-        border: `1px solid ${C.border}`,
-        borderRadius: 4,
-        overflow: 'hidden',
-      }}>
+      <div style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, borderRadius: 4, overflow: 'hidden' }}>
         {/* Header row */}
         <div className="psh-table-header" style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 110px 100px 180px 90px 80px',
+          gridTemplateColumns: '1fr 110px 100px 180px 90px 1fr',
           gap: 0,
           padding: '8px 16px',
           borderBottom: `1px solid ${C.border}`,
           backgroundColor: C.dark || C.card,
         }}>
-          {['Title', 'Type', 'Status', 'Slug', 'Updated', ''].map((col, i) => (
-            <span key={i} style={{
-              fontFamily: NU,
-              fontSize: 9,
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.1em',
-              color: C.grey2,
-            }}>{col}</span>
+          {['Title', 'Type', 'Status', 'Slug', 'Updated', 'Actions'].map((col, i) => (
+            <span key={i} style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: C.grey2 }}>{col}</span>
           ))}
         </div>
 
         {/* Rows */}
         {filtered.length === 0 ? (
-          <div style={{
-            padding: '48px 20px',
-            textAlign: 'center',
-            fontFamily: NU,
-            fontSize: 12,
-            color: C.grey2,
-          }}>
+          <div style={{ padding: '48px 20px', textAlign: 'center', fontFamily: NU, fontSize: 12, color: C.grey2 }}>
             No pages match your filters.
           </div>
         ) : filtered.map((page, idx) => (
           <PageRow
             key={page.id}
             page={page}
-            isFirst={idx === 0}
             isLast={idx === filtered.length - 1}
-            isHomepage={page.pageType === 'homepage' || page.id === 'page_home'}
+            isHomepage={page.id === homepageId}
             C={C}
             NU={NU}
             GD={GD}
+            homepageLocked={homepageLocked}
             onEdit={() => onNavigate('page-editor', { pageId: page.id })}
+            onSetHomepage={() => handleSetHomepage(page.id)}
+            onDelete={() => handleDelete(page)}
+            onPreview={() => handlePreview(page)}
+            onDuplicate={() => handleDuplicate(page)}
+            onToggleStatus={() => handleToggleStatus(page)}
           />
         ))}
       </div>
 
       {/* ── Footer note ─────────────────────────────────────────────────── */}
-      <p style={{
-        fontFamily: NU,
-        fontSize: 10,
-        color: C.grey2,
-        marginTop: 16,
-        textAlign: 'right',
-      }}>
+      <p style={{ fontFamily: NU, fontSize: 10, color: C.grey2, marginTop: 16, textAlign: 'right' }}>
         Pages are saved locally. Database sync coming in a future release.
       </p>
     </div>
@@ -372,11 +435,25 @@ const PageStudioHome = ({ C, NU, GD, onNavigate }) => {
 
 // ─── PageRow ──────────────────────────────────────────────────────────────────
 
-const PageRow = ({ page, isFirst, isLast, isHomepage, C, NU, GD, onEdit }) => {
+const PageRow = ({ page, isLast, isHomepage, homepageLocked, C, NU, GD, onEdit, onSetHomepage, onDelete, onPreview, onDuplicate, onToggleStatus }) => {
   const [hovered, setHovered] = useState(false);
 
-  const typeColor  = TYPE_COLORS[page.pageType]  || TYPE_COLORS.custom;
-  const statusColor = STATUS_COLORS[page.status] || STATUS_COLORS.draft;
+  const typeColor   = TYPE_COLORS[page.pageType]  || TYPE_COLORS.custom;
+  const statusColor = STATUS_COLORS[page.status]  || STATUS_COLORS.draft;
+
+  const btnBase = {
+    fontFamily: NU,
+    fontSize: 10,
+    fontWeight: 600,
+    letterSpacing: '0.05em',
+    textTransform: 'uppercase',
+    padding: '4px 10px',
+    borderRadius: 3,
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+    whiteSpace: 'nowrap',
+    lineHeight: '16px',
+  };
 
   return (
     <div
@@ -385,12 +462,12 @@ const PageRow = ({ page, isFirst, isLast, isHomepage, C, NU, GD, onEdit }) => {
       className="psh-table-row"
       style={{
         display: 'grid',
-        gridTemplateColumns: '1fr 110px 100px 180px 90px 80px',
+        gridTemplateColumns: '1fr 110px 100px 180px 90px 1fr',
         gap: 0,
         alignItems: 'center',
-        padding: '12px 16px',
+        padding: '11px 16px',
         borderBottom: isLast ? 'none' : `1px solid ${C.border}`,
-        backgroundColor: hovered ? (C.dark || '#f8f5f0') : 'transparent',
+        backgroundColor: hovered ? (C.dark || '#1a1a18') : 'transparent',
         transition: 'background-color 0.12s ease',
         cursor: 'default',
       }}
@@ -399,7 +476,7 @@ const PageRow = ({ page, isFirst, isLast, isHomepage, C, NU, GD, onEdit }) => {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
         {isHomepage && (
           <span style={{
-            fontSize: 9,
+            fontSize: 8,
             backgroundColor: C.gold + '22',
             color: C.gold,
             border: `1px solid ${C.gold}55`,
@@ -410,7 +487,12 @@ const PageRow = ({ page, isFirst, isLast, isHomepage, C, NU, GD, onEdit }) => {
             textTransform: 'uppercase',
             letterSpacing: '0.08em',
             flexShrink: 0,
-          }}>PINNED</span>
+            display: 'flex',
+            alignItems: 'center',
+            gap: 3,
+          }}>
+            {homepageLocked ? '🔒' : '🔓'} PINNED
+          </span>
         )}
         <button
           onClick={onEdit}
@@ -453,66 +535,131 @@ const PageRow = ({ page, isFirst, isLast, isHomepage, C, NU, GD, onEdit }) => {
         </span>
       </div>
 
-      {/* Status badge */}
+      {/* Status badge - click to toggle draft/published */}
       <div>
-        <span style={{
-          display: 'inline-block',
-          fontFamily: NU,
-          fontSize: 9,
-          fontWeight: 700,
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-          padding: '2px 7px',
-          borderRadius: 2,
-          backgroundColor: statusColor.bg,
-          color: statusColor.text,
-        }}>
+        <button
+          onClick={page.status === 'scheduled' || page.status === 'archived' ? undefined : onToggleStatus}
+          title={page.status === 'published' ? 'Click to revert to draft' : page.status === 'draft' ? 'Click to publish' : undefined}
+          style={{
+            display: 'inline-block',
+            fontFamily: NU,
+            fontSize: 9,
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            padding: '2px 7px',
+            borderRadius: 2,
+            backgroundColor: statusColor.bg,
+            color: statusColor.text,
+            border: 'none',
+            cursor: (page.status === 'draft' || page.status === 'published') ? 'pointer' : 'default',
+          }}
+          onMouseEnter={e => {
+            if (page.status === 'draft' || page.status === 'published') {
+              e.currentTarget.style.filter = 'brightness(1.2)';
+            }
+          }}
+          onMouseLeave={e => { e.currentTarget.style.filter = 'none'; }}
+        >
           {page.status}
-        </span>
+        </button>
       </div>
 
       {/* Slug */}
-      <div style={{
-        fontFamily: 'monospace',
-        fontSize: 11,
-        color: C.grey2,
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-      }}>
+      <div style={{ fontFamily: 'monospace', fontSize: 11, color: C.grey2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {truncateSlug(page.slug)}
       </div>
 
       {/* Last updated */}
-      <div style={{
-        fontFamily: NU,
-        fontSize: 11,
-        color: C.grey2,
-      }}>
+      <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2 }}>
         {relativeDate(page.updatedAt)}
       </div>
 
-      {/* Edit button */}
-      <div>
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+        {/* Edit */}
         <button
           onClick={onEdit}
           style={{
-            fontFamily: NU,
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            padding: '5px 12px',
+            ...btnBase,
             backgroundColor: hovered ? C.gold : 'transparent',
             color: hovered ? '#fff' : C.gold,
             border: `1px solid ${C.gold}`,
-            borderRadius: 3,
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
           }}
+          onMouseEnter={e => { e.currentTarget.style.backgroundColor = C.gold; e.currentTarget.style.color = '#fff'; }}
+          onMouseLeave={e => { e.currentTarget.style.backgroundColor = hovered ? C.gold : 'transparent'; e.currentTarget.style.color = hovered ? '#fff' : C.gold; }}
         >
           Edit
         </button>
+
+        {/* Preview */}
+        <button
+          onClick={onPreview}
+          title="Open page in new tab"
+          style={{
+            ...btnBase,
+            backgroundColor: 'transparent',
+            color: C.grey,
+            border: `1px solid ${C.border}`,
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = C.white; e.currentTarget.style.borderColor = C.grey; }}
+          onMouseLeave={e => { e.currentTarget.style.color = C.grey; e.currentTarget.style.borderColor = C.border; }}
+        >
+          Preview
+        </button>
+
+        {/* Duplicate */}
+        <button
+          onClick={onDuplicate}
+          title="Duplicate as draft"
+          style={{
+            ...btnBase,
+            backgroundColor: 'transparent',
+            color: C.grey,
+            border: `1px solid ${C.border}`,
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = C.white; e.currentTarget.style.borderColor = C.grey; }}
+          onMouseLeave={e => { e.currentTarget.style.color = C.grey; e.currentTarget.style.borderColor = C.border; }}
+        >
+          Duplicate
+        </button>
+
+        {/* Set as Homepage (only on non-homepage rows, only when unlocked) */}
+        {!isHomepage && !homepageLocked && (
+          <button
+            onClick={onSetHomepage}
+            title="Set this page as the homepage"
+            style={{
+              ...btnBase,
+              backgroundColor: 'transparent',
+              color: C.gold,
+              border: `1px solid ${C.gold}44`,
+              opacity: 0.7,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.borderColor = C.gold; }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '0.7'; e.currentTarget.style.borderColor = C.gold + '44'; }}
+          >
+            Set as Home
+          </button>
+        )}
+
+        {/* Delete (hidden on current homepage) */}
+        {!isHomepage && (
+          <button
+            onClick={onDelete}
+            title="Delete page"
+            style={{
+              ...btnBase,
+              backgroundColor: 'transparent',
+              color: 'rgba(239,68,68,0.7)',
+              border: '1px solid rgba(239,68,68,0.25)',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.5)'; }}
+            onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'rgba(239,68,68,0.7)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.25)'; }}
+          >
+            Delete
+          </button>
+        )}
       </div>
     </div>
   );
