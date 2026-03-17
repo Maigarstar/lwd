@@ -8,14 +8,19 @@ import { useState, useMemo } from "react";
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const CONTENT_TYPES = [
-  { key: "post",           label: "Post",           color: "#3b82f6", icon: "◈" },
-  { key: "reel",           label: "Reel",           color: "#ec4899", icon: "▶" },
-  { key: "blog",           label: "Blog",           color: "#22c55e", icon: "✎" },
-  { key: "venue-feature",  label: "Venue Feature",  color: "#8f7420", icon: "⌂" },
-  { key: "fam-trip",       label: "FAM Trip",       color: "#8b5cf6", icon: "✦" },
-  { key: "newsletter",     label: "Newsletter",     color: "#f97316", icon: "✉" },
-  { key: "link-building",  label: "Link Building",  color: "#06b6d4", icon: "⟐" },
-  { key: "organic-content", label: "Organic Content", color: "#a855f7", icon: "⚙" },
+  { key: "post",            label: "Post",             color: "#3b82f6", icon: "◈" },
+  { key: "reel",            label: "Reel",             color: "#ec4899", icon: "▶" },
+  { key: "blog",            label: "Blog",             color: "#22c55e", icon: "✎" },
+  { key: "venue-feature",   label: "Venue Feature",    color: "#8f7420", icon: "⌂" },
+  { key: "fam-trip",        label: "FAM Trip",         color: "#8b5cf6", icon: "✦" },
+  { key: "newsletter",      label: "Newsletter",       color: "#f97316", icon: "✉" },
+  { key: "link-building",   label: "Link Building",    color: "#06b6d4", icon: "⟐" },
+  { key: "organic-content", label: "Organic Content",  color: "#a855f7", icon: "⚙" },
+  { key: "consultancy",     label: "Consultancy",      color: "#0d9488", icon: "◆" },
+  { key: "mentoring",       label: "Mentoring",        color: "#d97706", icon: "◉" },
+  { key: "photography",     label: "Photography",      color: "#64748b", icon: "◎" },
+  { key: "video",           label: "Video Production", color: "#dc2626", icon: "▶" },
+  { key: "style-shoot",     label: "Style Shoot",      color: "#be185d", icon: "✦" },
 ];
 
 const PLATFORMS = [
