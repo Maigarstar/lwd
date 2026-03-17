@@ -1178,9 +1178,6 @@ export default function SocialStudioModule({ C }) {
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20 }}>
           <div>
-            <h1 style={{ fontSize: 24, fontWeight: 700, color: C?.off || "#fff", margin: 0, marginBottom: 4 }}>
-              Social Studio
-            </h1>
             <p style={{ fontSize: 13, color: C?.grey || "#888", margin: 0 }}>
               Content pipeline for managed clients. Plan, create, schedule, and track.
             </p>
