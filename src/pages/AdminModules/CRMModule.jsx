@@ -6,6 +6,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { convertLeadToManagedAccount, fetchManagedAccountByLeadId } from '../../services/socialStudioService';
 
 const GOLD     = '#c9a84c';
 const GOLD_DIM = 'rgba(201,168,76,0.1)';
@@ -809,13 +810,15 @@ function ActivityTab({ leads, notes, C, onSelectContact }) {
 }
 
 // ── Contact detail panel ───────────────────────────────────────────────────
-function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNote, onAddTask, onCompleteTask, noteText, setNoteText, noteSubmitting, onDealValueChange }) {
+function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNote, onAddTask, onCompleteTask, noteText, setNoteText, noteSubmitting, onDealValueChange, onConvert }) {
   const req  = lead.requirements_json || {};
   const score = calcLeadScore(lead);
   const [dealInput, setDealInput] = useState(req.dealValue||'');
   const [activeSection, setSection] = useState('overview');
   const [taskText, setTaskText]   = useState('');
   const [taskDue, setTaskDue]     = useState('');
+  const [converting, setConverting] = useState(false);
+  const [convertState, setConvertState] = useState(null); // null | 'success' | 'duplicate'
 
   const contactTasks = tasks.filter(t=>t.lead_id===lead.id);
 
@@ -845,7 +848,7 @@ function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNot
         </div>
 
         {/* Quick actions */}
-        <div style={{ display:'flex', gap:8, marginTop:12 }}>
+        <div style={{ display:'flex', gap:8, marginTop:12, flexWrap:'wrap' }}>
           <a href={`mailto:${lead.email}`} style={{ padding:'5px 12px', background:'transparent', border:`1px solid ${C.border}`, borderRadius:3, fontFamily:'var(--font-body)', fontSize:11, color:C.grey, textDecoration:'none', cursor:'pointer' }}>
             ✉ Email
           </a>
@@ -858,6 +861,33 @@ function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNot
             <a href={req.website} target="_blank" rel="noreferrer" style={{ padding:'5px 12px', background:'transparent', border:`1px solid ${C.border}`, borderRadius:3, fontFamily:'var(--font-body)', fontSize:11, color:C.grey, textDecoration:'none', cursor:'pointer' }}>
               ↗ Website
             </a>
+          )}
+          {onConvert && lead.status === 'converted' && convertState !== 'success' && (
+            <button
+              onClick={async () => {
+                if (converting) return;
+                setConverting(true);
+                const result = await onConvert(lead);
+                setConverting(false);
+                setConvertState(result);
+              }}
+              disabled={converting}
+              style={{
+                padding:'5px 12px',
+                background: convertState === 'duplicate' ? 'transparent' : GOLD,
+                border: convertState === 'duplicate' ? `1px solid ${GOLD}` : 'none',
+                borderRadius:3, fontFamily:'var(--font-body)', fontSize:11,
+                fontWeight:600, color: convertState === 'duplicate' ? GOLD : '#000',
+                cursor: converting ? 'not-allowed' : 'pointer', letterSpacing:'0.04em',
+              }}
+            >
+              {converting ? 'Converting...' : convertState === 'duplicate' ? '↗ View Managed Account' : '◈ Convert to Managed Account'}
+            </button>
+          )}
+          {convertState === 'success' && (
+            <span style={{ padding:'5px 12px', background:'rgba(16,185,129,0.12)', border:'1px solid rgba(16,185,129,0.3)', borderRadius:3, fontFamily:'var(--font-body)', fontSize:11, color:'#10b981' }}>
+              ✓ Managed Account created
+            </span>
           )}
         </div>
 
@@ -1132,6 +1162,28 @@ export default function CRMModule({ C }) {
     } catch (err) { /* status update failed */ }
   };
 
+  // Returns 'success' | 'duplicate' | 'error'
+  const handleConvertToManaged = async (lead) => {
+    try {
+      const existing = await fetchManagedAccountByLeadId(lead.id);
+      if (existing) {
+        // Duplicate - account already exists, navigate to it
+        window.dispatchEvent(new CustomEvent('lwd-nav', { detail: { tab: 'managed-accounts' } }));
+        return 'duplicate';
+      }
+      const created = await convertLeadToManagedAccount(lead);
+      if (!created) return 'error';
+      // Mark CRM lead as converted if not already
+      if (lead.status !== 'converted') {
+        await handleStatusChange(lead.id, 'converted');
+      }
+      return 'success';
+    } catch (err) {
+      console.error('[CRM] handleConvertToManaged error:', err);
+      return 'error';
+    }
+  };
+
   const handleDealValueChange = async (leadId, value) => {
     try {
       const { supabase } = await import('../../lib/supabaseClient');
@@ -1231,6 +1283,7 @@ export default function CRMModule({ C }) {
           onClose={() => setSelectedLead(null)}
           onStatusChange={handleStatusChange}
           onDealValueChange={handleDealValueChange}
+          onConvert={handleConvertToManaged}
           notes={panelNotes}
           tasks={tasks}
           onAddNote={handleAddNote}

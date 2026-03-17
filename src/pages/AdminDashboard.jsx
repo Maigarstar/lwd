@@ -44,6 +44,7 @@ import TeamModule from "./AdminModules/TeamModule";
 import SeoModule from "./AdminModules/SeoModule";
 import ConnectedDataModule from "./AdminModules/ConnectedDataModule";
 import SocialStudioModule from "./AdminModules/SocialStudioModule";
+import ManagedAccountsModule from "./AdminModules/ManagedAccountsModule";
 import { POSTS } from "./Magazine/data/posts";
 import { PRODUCTS, COLLECTIONS, formatPrice } from "./Magazine/data/products";
 import { CATEGORIES } from "./Magazine/data/categories";
@@ -220,6 +221,12 @@ const THEME_PRESETS = {
 // ── Sidebar navigation with grouped sections ───────────────────────────────
 const NAV_SECTIONS = [
   {
+    group: "Managed Accounts",
+    items: [
+      { key: "managed-accounts", label: "Managed Accounts",  icon: "◈" },
+    ],
+  },
+  {
     group: "Platform",
     items: [
       { key: "overview",        label: "Overview",          icon: "◈" },
@@ -239,9 +246,9 @@ const NAV_SECTIONS = [
   {
     group: "Growth",
     items: [
-      { key: "leads",        label: "Leads",             icon: "⊛" },
-      { key: "seo",          label: "SEO",               icon: "⊡" },
-      { key: "crm",          label: "CRM",               icon: "⊕" },
+      { key: "leads",            label: "Leads",             icon: "⊛" },
+      { key: "seo",              label: "SEO",               icon: "⊡" },
+      { key: "crm",              label: "CRM",               icon: "⊕" },
     ],
   },
   {
@@ -8698,7 +8705,8 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "email-builder":      return <EmailBuilderModule C={C} onBack={() => setActiveTab('email-marketing')} />;
       case "newsletter-builder": return <EmailBuilderModule C={C} mode="newsletter" onBack={() => setActiveTab('newsletter')} />;
       case "seo":           return <SeoModule C={C} />;
-      case "crm":           return <CRMModule C={C} />;
+      case "crm":               return <CRMModule C={C} />;
+      case "managed-accounts":  return <ManagedAccountsModule C={C} />;
       case "partner-enquiries": return <PartnerEnquiriesModule C={C} />;
       case "sales-pipeline":    return <SalesPipelineModule C={C} />;
       case "pipeline-builder":  return <PipelineBuilderModule C={C} />;

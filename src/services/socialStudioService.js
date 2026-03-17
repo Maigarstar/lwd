@@ -1,8 +1,13 @@
 // ─── socialStudioService.js ───────────────────────────────────────────────────
-// Data layer for Social Studio: clients, campaigns, and content items.
-// All reads/writes go through Supabase.
-// Falls back gracefully if Supabase is unavailable (returns empty arrays /
-// offline-flagged objects so the UI still mounts without crashing).
+// Data layer for Managed Accounts, Social Campaigns, and Social Content.
+//
+// managed_accounts: active service clients. Created when a CRM lead is
+//   converted (won). Separate from the CRM pipeline (leads) and the vendor
+//   auth layer (vendors). Is the hub for content delivery and activity.
+//
+// All reads/writes go through Supabase. Falls back gracefully when the DB
+// tables are unavailable, returning empty arrays / offline-flagged objects
+// so the UI still mounts without crashing.
 // ─────────────────────────────────────────────────────────────────────────────
 import { supabase, isSupabaseAvailable } from '../lib/supabaseClient';
 
@@ -13,35 +18,57 @@ function offline(fallback) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// CLIENTS
+// MANAGED ACCOUNTS
 // ═════════════════════════════════════════════════════════════════════════════
 
 // DB row → UI shape
-function dbToClient(row) {
+function dbToAccount(row) {
   return {
-    id:            row.id,
-    name:          row.name,
-    slug:          row.slug          || '',
-    logoUrl:       row.logo_url      || '',
-    contactName:   row.contact_name  || '',
-    contactEmail:  row.contact_email || '',
-    active:        row.active        !== false,
-    internalNotes: row.internal_notes || '',
-    createdAt:     row.created_at,
-    updatedAt:     row.updated_at,
+    id:                   row.id,
+    name:                 row.name,
+    slug:                 row.slug                  || '',
+    logoUrl:              row.logo_url              || '',
+    primaryContactName:   row.primary_contact_name  || '',
+    primaryContactEmail:  row.primary_contact_email || '',
+    contactPhone:         row.contact_phone         || '',
+    companyType:          row.company_type          || '',
+    plan:                 row.plan                  || '',
+    serviceStatus:        row.service_status        || 'onboarding',
+    status:               row.status                || 'active',
+    contractStart:        row.contract_start_date   || null,
+    contractEnd:          row.contract_end_date     || null,
+    renewalDate:          row.renewal_date          || null,
+    accountManager:       row.account_manager       || '',
+    onboardingStatus:     row.onboarding_status     || 'pending',
+    internalNotes:        row.internal_notes        || '',
+    vendorId:             row.vendor_id             || null,
+    crmLeadId:            row.crm_lead_id           || null,
+    createdAt:            row.created_at,
+    updatedAt:            row.updated_at,
   };
 }
 
-// UI form → DB insert shape
-function clientToDb(form) {
+// UI form → DB insert/update shape
+function accountToDb(form) {
   return {
-    name:           form.name,
-    slug:           form.slug          || slugify(form.name),
-    logo_url:       form.logoUrl       || null,
-    contact_name:   form.contactName   || null,
-    contact_email:  form.contactEmail  || null,
-    active:         form.active        !== false,
-    internal_notes: form.internalNotes || null,
+    name:                  form.name,
+    slug:                  form.slug                  || slugify(form.name),
+    logo_url:              form.logoUrl               || null,
+    primary_contact_name:  form.primaryContactName    || null,
+    primary_contact_email: form.primaryContactEmail   || null,
+    contact_phone:         form.contactPhone          || null,
+    company_type:          form.companyType           || null,
+    plan:                  form.plan                  || null,
+    service_status:        form.serviceStatus         || 'onboarding',
+    status:                form.status                || 'active',
+    contract_start_date:   form.contractStart         || null,
+    contract_end_date:     form.contractEnd           || null,
+    renewal_date:          form.renewalDate           || null,
+    account_manager:       form.accountManager        || null,
+    onboarding_status:     form.onboardingStatus      || 'pending',
+    internal_notes:        form.internalNotes         || null,
+    vendor_id:             form.vendorId              || null,
+    crm_lead_id:           form.crmLeadId             || null,
   };
 }
 
@@ -50,68 +77,145 @@ function slugify(str) {
 }
 
 /**
- * Fetch all active managed clients.
- * @returns {Promise<Array>} array of client objects
+ * Fetch all managed accounts.
+ * @param {{ status?: string }} opts - optional filter
+ * @returns {Promise<Array>}
  */
-export async function fetchClients() {
+export async function fetchManagedAccounts(opts = {}) {
   if (!isSupabaseAvailable()) return offline([]);
   try {
-    const { data, error } = await supabase
-      .from('social_clients')
+    let q = supabase
+      .from('managed_accounts')
       .select('*')
-      .eq('active', true)
       .order('name');
+    if (opts.status) q = q.eq('status', opts.status);
+    const { data, error } = await q;
     if (error) throw error;
-    return (data || []).map(dbToClient);
+    return (data || []).map(dbToAccount);
   } catch (err) {
-    console.error('[SocialStudio] fetchClients error:', err);
+    console.error('[SocialStudio] fetchManagedAccounts error:', err);
     return [];
   }
 }
 
 /**
- * Create a new managed client.
- * @param {Object} form
- * @returns {Promise<Object|null>} created client or null on error
+ * Fetch a single managed account by id.
+ * @param {string} id
+ * @returns {Promise<Object|null>}
  */
-export async function createClient(form) {
+export async function fetchManagedAccount(id) {
   if (!isSupabaseAvailable()) return offline(null);
   try {
     const { data, error } = await supabase
-      .from('social_clients')
-      .insert([clientToDb(form)])
-      .select()
+      .from('managed_accounts')
+      .select('*')
+      .eq('id', id)
       .single();
     if (error) throw error;
-    return dbToClient(data);
+    return dbToAccount(data);
   } catch (err) {
-    console.error('[SocialStudio] createClient error:', err);
+    console.error('[SocialStudio] fetchManagedAccount error:', err);
     return null;
   }
 }
 
 /**
- * Update an existing client.
+ * Create a new managed account (manual, not from CRM conversion).
+ * @param {Object} form
+ * @returns {Promise<Object|null>}
+ */
+export async function createManagedAccount(form) {
+  if (!isSupabaseAvailable()) return offline(null);
+  try {
+    const { data, error } = await supabase
+      .from('managed_accounts')
+      .insert([accountToDb(form)])
+      .select()
+      .single();
+    if (error) throw error;
+    return dbToAccount(data);
+  } catch (err) {
+    console.error('[SocialStudio] createManagedAccount error:', err);
+    return null;
+  }
+}
+
+/**
+ * Check if a managed account already exists for a given CRM lead id.
+ * Used for duplicate prevention during CRM conversion.
+ * @param {string} crmLeadId
+ * @returns {Promise<Object|null>} existing account or null
+ */
+export async function fetchManagedAccountByLeadId(crmLeadId) {
+  if (!isSupabaseAvailable()) return offline(null);
+  try {
+    const { data, error } = await supabase
+      .from('managed_accounts')
+      .select('*')
+      .eq('crm_lead_id', crmLeadId)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? dbToAccount(data) : null;
+  } catch (err) {
+    console.error('[SocialStudio] fetchManagedAccountByLeadId error:', err);
+    return null;
+  }
+}
+
+/**
+ * Convert a won CRM lead into a managed account.
+ * Carries over core client info from the lead record.
+ * @param {Object} lead - CRM lead object (from leads table)
+ * @returns {Promise<Object|null>} created managed account
+ */
+export async function convertLeadToManagedAccount(lead) {
+  if (!isSupabaseAvailable()) return offline(null);
+  const req = lead.requirements_json || {};
+  const form = {
+    name:                req.businessName || `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || lead.email,
+    slug:                slugify(req.businessName || `${lead.first_name || ''} ${lead.last_name || ''}`),
+    primaryContactName:  `${lead.first_name || ''} ${lead.last_name || ''}`.trim(),
+    primaryContactEmail: lead.email  || '',
+    contactPhone:        lead.phone  || '',
+    plan:                '',
+    serviceStatus:       'onboarding',
+    status:              'active',
+    onboardingStatus:    'pending',
+    crmLeadId:           lead.id,
+    internalNotes:       `Converted from CRM lead on ${new Date().toLocaleDateString('en-GB')}. Original source: ${lead.lead_source || 'unknown'}.`,
+  };
+  return createManagedAccount(form);
+}
+
+/**
+ * Update an existing managed account.
  * @param {string} id
  * @param {Object} form
  * @returns {Promise<Object|null>}
  */
-export async function updateClient(id, form) {
-  if (!isSupabaseAvailable()) return offline(null);
+export async function updateManagedAccount(id, form) {
+  if (!isSupabaseAvailable()) return offline({ ...form, id });
   try {
     const { data, error } = await supabase
-      .from('social_clients')
-      .update(clientToDb(form))
+      .from('managed_accounts')
+      .update(accountToDb(form))
       .eq('id', id)
       .select()
       .single();
     if (error) throw error;
-    return dbToClient(data);
+    return dbToAccount(data);
   } catch (err) {
-    console.error('[SocialStudio] updateClient error:', err);
-    return null;
+    console.error('[SocialStudio] updateManagedAccount error:', err);
+    return { ...form, id };
   }
 }
+
+// ── Backwards-compat aliases used by SocialStudioModule ──────────────────────
+// SocialStudioModule uses "clients" terminology internally.
+// These aliases keep that working without touching the module's internals.
+export const fetchClients        = fetchManagedAccounts;
+export const createClient        = createManagedAccount;
+export const updateClient        = updateManagedAccount;
 
 // ═════════════════════════════════════════════════════════════════════════════
 // CAMPAIGNS
@@ -119,37 +223,39 @@ export async function updateClient(id, form) {
 
 function dbToCampaign(row) {
   return {
-    id:          row.id,
-    clientId:    row.client_id    || null,
-    name:        row.name,
-    description: row.description  || '',
-    startDate:   row.start_date   || null,
-    endDate:     row.end_date     || null,
-    status:      row.status       || 'active',
-    sortOrder:   row.sort_order   ?? 0,
-    createdAt:   row.created_at,
-    updatedAt:   row.updated_at,
+    id:               row.id,
+    managedAccountId: row.managed_account_id || null,
+    // UI compat alias
+    clientId:         row.managed_account_id || null,
+    name:             row.name,
+    description:      row.description  || '',
+    startDate:        row.start_date   || null,
+    endDate:          row.end_date     || null,
+    status:           row.status       || 'active',
+    sortOrder:        row.sort_order   ?? 0,
+    createdAt:        row.created_at,
+    updatedAt:        row.updated_at,
   };
 }
 
 function campaignToDb(form) {
   return {
-    client_id:   form.clientId    || null,
-    name:        form.name,
-    description: form.description || null,
-    start_date:  form.startDate   || null,
-    end_date:    form.endDate     || null,
-    status:      form.status      || 'active',
-    sort_order:  form.sortOrder   ?? 0,
+    managed_account_id: form.managedAccountId || form.clientId || null,
+    name:               form.name,
+    description:        form.description  || null,
+    start_date:         form.startDate    || null,
+    end_date:           form.endDate      || null,
+    status:             form.status       || 'active',
+    sort_order:         form.sortOrder    ?? 0,
   };
 }
 
 /**
- * Fetch campaigns, optionally filtered by client.
- * @param {string|null} clientId
+ * Fetch campaigns, optionally filtered by managed account.
+ * @param {string|null} managedAccountId
  * @returns {Promise<Array>}
  */
-export async function fetchCampaigns(clientId = null) {
+export async function fetchCampaigns(managedAccountId = null) {
   if (!isSupabaseAvailable()) return offline([]);
   try {
     let q = supabase
@@ -157,7 +263,7 @@ export async function fetchCampaigns(clientId = null) {
       .select('*')
       .order('sort_order')
       .order('name');
-    if (clientId) q = q.eq('client_id', clientId);
+    if (managedAccountId) q = q.eq('managed_account_id', managedAccountId);
     const { data, error } = await q;
     if (error) throw error;
     return (data || []).map(dbToCampaign);
@@ -218,46 +324,48 @@ export async function updateCampaign(id, form) {
 // DB row → UI shape used throughout SocialStudioModule
 function dbToItem(row) {
   return {
-    id:          row.id,
-    clientId:    row.client_id     || '',
-    campaignId:  row.campaign_id   || null,
-    campaign:    row.campaign_name || '',   // denormalised; matches existing UI prop
-    title:       row.title         || '',
-    type:        row.type          || 'post',
-    platform:    row.platform      || 'instagram',
-    status:      row.status        || 'brief',
-    date:        row.publish_date  || null, // matches existing UI prop 'date'
-    assignedTo:  row.assigned_to   || '',
-    caption:     row.caption_brief || '',  // matches existing UI prop 'caption'
-    notes:       row.internal_notes || '',
-    parentId:    row.parent_id     || null,
-    createdAt:   row.created_at,
-    updatedAt:   row.updated_at,
+    id:               row.id,
+    // UI uses 'clientId' - maps to managed_account_id
+    clientId:         row.managed_account_id || '',
+    managedAccountId: row.managed_account_id || '',
+    campaignId:       row.campaign_id        || null,
+    campaign:         row.campaign_name      || '',
+    title:            row.title              || '',
+    type:             row.type               || 'post',
+    platform:         row.platform           || 'instagram',
+    status:           row.status             || 'brief',
+    date:             row.publish_date       || null,
+    assignedTo:       row.assigned_to        || '',
+    caption:          row.caption_brief      || '',
+    notes:            row.internal_notes     || '',
+    parentId:         row.parent_id          || null,
+    createdAt:        row.created_at,
+    updatedAt:        row.updated_at,
   };
 }
 
 // UI item → DB insert/update shape
 function itemToDb(item) {
   return {
-    client_id:      item.clientId    || null,
-    campaign_id:    item.campaignId  || null,
-    campaign_name:  item.campaign    || null,
-    title:          item.title       || '',
-    type:           item.type        || 'post',
-    platform:       item.platform    || 'instagram',
-    status:         item.status      || 'brief',
-    publish_date:   item.date        || null,
-    assigned_to:    item.assignedTo  || null,
-    caption_brief:  item.caption     || null,
-    internal_notes: item.notes       || null,
-    parent_id:      item.parentId    || null,
+    managed_account_id: item.clientId         || item.managedAccountId || null,
+    campaign_id:        item.campaignId        || null,
+    campaign_name:      item.campaign          || null,
+    title:              item.title             || '',
+    type:               item.type              || 'post',
+    platform:           item.platform          || 'instagram',
+    status:             item.status            || 'brief',
+    publish_date:       item.date              || null,
+    assigned_to:        item.assignedTo        || null,
+    caption_brief:      item.caption           || null,
+    internal_notes:     item.notes             || null,
+    parent_id:          item.parentId          || null,
   };
 }
 
 /**
  * Fetch all content items, optionally filtered.
  * @param {{ clientId?: string, status?: string, month?: string }} opts
- *   month format: 'YYYY-MM' - returns items whose publish_date starts with that prefix
+ *   month format: 'YYYY-MM'
  * @returns {Promise<Array>}
  */
 export async function fetchContent(opts = {}) {
@@ -269,9 +377,9 @@ export async function fetchContent(opts = {}) {
       .order('publish_date', { ascending: true })
       .order('created_at', { ascending: false });
 
-    if (opts.clientId) q = q.eq('client_id', opts.clientId);
-    if (opts.status)   q = q.eq('status', opts.status);
-    // Month filter: publish_date BETWEEN 'YYYY-MM-01' AND 'YYYY-MM-31'
+    if (opts.clientId)         q = q.eq('managed_account_id', opts.clientId);
+    if (opts.managedAccountId) q = q.eq('managed_account_id', opts.managedAccountId);
+    if (opts.status)           q = q.eq('status', opts.status);
     if (opts.month) {
       const [yr, mo] = opts.month.split('-').map(Number);
       const from = `${yr}-${String(mo).padStart(2,'0')}-01`;
@@ -289,27 +397,72 @@ export async function fetchContent(opts = {}) {
 }
 
 /**
- * Fetch a lightweight content summary for a single client.
- * Used by CRM client detail view (Phase 3).
- * Returns counts + last published date without loading full item list.
- * @param {string} clientId
+ * Fetch content summaries for ALL managed accounts in one query.
+ * Returns a map: { [managedAccountId]: summary }
+ * Used by ManagedAccountsModule to populate card-level signals without N+1 queries.
  * @returns {Promise<Object>}
  */
-export async function fetchClientContentSummary(clientId) {
-  if (!isSupabaseAvailable()) return offline({ scheduled: 0, draft: 0, liveThisMonth: 0, lastPublished: null, activeCampaign: null });
+export async function fetchAllContentSummaries() {
+  const empty = () => ({ scheduled: 0, draft: 0, liveThisMonth: 0, lastPublished: null, activeCampaign: null, totalItems: 0 });
+  if (!isSupabaseAvailable()) return offline({});
   try {
-    const now  = new Date();
-    const yr   = now.getFullYear();
-    const mo   = now.getMonth() + 1;
-    const moPad = String(mo).padStart(2, '0');
+    const now        = new Date();
+    const yr         = now.getFullYear();
+    const mo         = now.getMonth() + 1;
+    const moPad      = String(mo).padStart(2, '0');
     const monthStart = `${yr}-${moPad}-01`;
     const monthEnd   = `${yr}-${moPad}-31`;
 
-    // Fetch all items for this client in one query (small dataset per client)
+    const { data, error } = await supabase
+      .from('social_content')
+      .select('id, managed_account_id, status, publish_date, campaign_name')
+      .order('publish_date', { ascending: false });
+
+    if (error) throw error;
+    const items = data || [];
+
+    // Group by managed_account_id
+    const map = {};
+    for (const item of items) {
+      const aid = item.managed_account_id;
+      if (!aid) continue;
+      if (!map[aid]) map[aid] = empty();
+      const s = map[aid];
+      s.totalItems++;
+      if (item.status === 'scheduled') s.scheduled++;
+      if (item.status === 'draft' || item.status === 'brief') s.draft++;
+      if (item.status === 'live' && item.publish_date >= monthStart && item.publish_date <= monthEnd) s.liveThisMonth++;
+      if (!s.lastPublished && item.status === 'live') s.lastPublished = item.publish_date;
+      if (!s.activeCampaign && item.campaign_name && item.status !== 'reported') s.activeCampaign = item.campaign_name;
+    }
+    return map;
+  } catch (err) {
+    console.error('[SocialStudio] fetchAllContentSummaries error:', err);
+    return {};
+  }
+}
+
+/**
+ * Fetch a lightweight content summary for a managed account.
+ * Used by the Managed Accounts detail view (Phase 3 CRM integration).
+ * @param {string} managedAccountId
+ * @returns {Promise<Object>}
+ */
+export async function fetchClientContentSummary(managedAccountId) {
+  const empty = { scheduled: 0, draft: 0, liveThisMonth: 0, lastPublished: null, activeCampaign: null };
+  if (!isSupabaseAvailable()) return offline(empty);
+  try {
+    const now     = new Date();
+    const yr      = now.getFullYear();
+    const mo      = now.getMonth() + 1;
+    const moPad   = String(mo).padStart(2, '0');
+    const monthStart = `${yr}-${moPad}-01`;
+    const monthEnd   = `${yr}-${moPad}-31`;
+
     const { data, error } = await supabase
       .from('social_content')
       .select('id, status, publish_date, campaign_name')
-      .eq('client_id', clientId)
+      .eq('managed_account_id', managedAccountId)
       .order('publish_date', { ascending: false });
 
     if (error) throw error;
@@ -324,21 +477,20 @@ export async function fetchClientContentSummary(clientId) {
     const lastLive      = items.find(i => i.status === 'live');
     const lastPublished = lastLive?.publish_date || null;
 
-    // Most recent active campaign (from most recent item that has a campaign_name)
     const withCampaign  = items.find(i => i.campaign_name && i.status !== 'reported');
     const activeCampaign = withCampaign?.campaign_name || null;
 
     return { scheduled, draft, liveThisMonth, lastPublished, activeCampaign };
   } catch (err) {
     console.error('[SocialStudio] fetchClientContentSummary error:', err);
-    return { scheduled: 0, draft: 0, liveThisMonth: 0, lastPublished: null, activeCampaign: null };
+    return empty;
   }
 }
 
 /**
  * Create a single content item.
- * @param {Object} item - UI shape (from ContentModal form)
- * @returns {Promise<Object|null>} created item in UI shape, or null on error
+ * @param {Object} item - UI shape
+ * @returns {Promise<Object|null>}
  */
 export async function createContentItem(item) {
   if (!isSupabaseAvailable()) {
@@ -359,10 +511,9 @@ export async function createContentItem(item) {
 }
 
 /**
- * Create multiple content items in one batch.
- * Used by DuplicateModal (one row per client per date).
- * @param {Array} items - array of UI-shape items
- * @returns {Promise<Array>} created items in UI shape
+ * Create multiple content items in one batch (DuplicateModal).
+ * @param {Array} items
+ * @returns {Promise<Array>}
  */
 export async function createContentItems(items) {
   if (!isSupabaseAvailable()) {
@@ -385,7 +536,7 @@ export async function createContentItems(items) {
 /**
  * Update an existing content item.
  * @param {string} id
- * @param {Object} item - UI shape (partial or full)
+ * @param {Object} item - UI shape
  * @returns {Promise<Object|null>}
  */
 export async function updateContentItem(id, item) {
@@ -406,11 +557,10 @@ export async function updateContentItem(id, item) {
 }
 
 /**
- * Update only the status of a content item.
- * Lightweight patch - avoids sending the full row on quick status changes.
+ * Update only the status of a content item (lightweight patch).
  * @param {string} id
  * @param {string} status
- * @returns {Promise<boolean>} true on success
+ * @returns {Promise<boolean>}
  */
 export async function updateContentStatus(id, status) {
   if (!isSupabaseAvailable()) return offline(false);
