@@ -17,6 +17,15 @@ function offline(fallback) {
   return fallback;
 }
 
+// ── Fallback accounts (matches migration seed UUIDs) ──────────────────────────
+// Used when the managed_accounts table is not yet available (pre-migration).
+export const FALLBACK_ACCOUNTS = [
+  { id: 'a1b2c3d4-0001-0000-0000-000000000001', name: "Villa d'Este",             slug: 'villa-deste',               plan: 'signature', status: 'active', serviceStatus: 'active', onboardingStatus: 'complete', companyType: 'venue', primaryContactName: '', primaryContactEmail: '', contactPhone: '', accountManager: '', renewalDate: null, contractStart: null, contractEnd: null, internalNotes: '', logoUrl: '', heroImageUrl: '' },
+  { id: 'a1b2c3d4-0002-0000-0000-000000000002', name: 'Belmond Villa San Michele', slug: 'belmond-villa-san-michele', plan: 'signature', status: 'active', serviceStatus: 'active', onboardingStatus: 'complete', companyType: 'venue', primaryContactName: '', primaryContactEmail: '', contactPhone: '', accountManager: '', renewalDate: null, contractStart: null, contractEnd: null, internalNotes: '', logoUrl: '', heroImageUrl: '' },
+  { id: 'a1b2c3d4-0003-0000-0000-000000000003', name: 'Borgo Egnazia',             slug: 'borgo-egnazia',             plan: 'growth',    status: 'active', serviceStatus: 'active', onboardingStatus: 'complete', companyType: 'venue', primaryContactName: '', primaryContactEmail: '', contactPhone: '', accountManager: '', renewalDate: null, contractStart: null, contractEnd: null, internalNotes: '', logoUrl: '', heroImageUrl: '' },
+  { id: 'a1b2c3d4-0004-0000-0000-000000000004', name: 'Chewton Glen',             slug: 'chewton-glen',              plan: 'essentials',status: 'active', serviceStatus: 'onboarding', onboardingStatus: 'in-progress', companyType: 'hotel', primaryContactName: '', primaryContactEmail: '', contactPhone: '', accountManager: '', renewalDate: null, contractStart: null, contractEnd: null, internalNotes: '', logoUrl: '', heroImageUrl: '' },
+];
+
 // ═════════════════════════════════════════════════════════════════════════════
 // MANAGED ACCOUNTS
 // ═════════════════════════════════════════════════════════════════════════════
@@ -84,7 +93,7 @@ function slugify(str) {
  * @returns {Promise<Array>}
  */
 export async function fetchManagedAccounts(opts = {}) {
-  if (!isSupabaseAvailable()) return offline([]);
+  if (!isSupabaseAvailable()) return offline(FALLBACK_ACCOUNTS);
   try {
     let q = supabase
       .from('managed_accounts')
@@ -93,10 +102,11 @@ export async function fetchManagedAccounts(opts = {}) {
     if (opts.status) q = q.eq('status', opts.status);
     const { data, error } = await q;
     if (error) throw error;
-    return (data || []).map(dbToAccount);
+    const rows = (data || []).map(dbToAccount);
+    return rows.length > 0 ? rows : FALLBACK_ACCOUNTS;
   } catch (err) {
     console.error('[SocialStudio] fetchManagedAccounts error:', err);
-    return [];
+    return FALLBACK_ACCOUNTS;
   }
 }
 
@@ -647,22 +657,32 @@ export function buildDefaultPortalConfig(plan) {
  * Fetch the portal_config for a managed account.
  * Returns a built default if the column is null (plan-based).
  * @param {string} managedAccountId
+ * @param {string} [fallbackPlan] - plan to use if DB row not found or query fails
  * @returns {Promise<Object>}
  */
-export async function fetchPortalConfig(managedAccountId) {
-  if (!isSupabaseAvailable()) return buildDefaultPortalConfig('essentials');
+export async function fetchPortalConfig(managedAccountId, fallbackPlan = 'essentials') {
+  if (!isSupabaseAvailable()) {
+    console.debug('[PortalConfig] supabase unavailable — using generated default', { managedAccountId, fallbackPlan, source: 'no-supabase' });
+    return buildDefaultPortalConfig(fallbackPlan);
+  }
   try {
     const { data, error } = await supabase
       .from('managed_accounts')
       .select('portal_config, plan')
       .eq('id', managedAccountId)
-      .single();
+      .maybeSingle();
     if (error) throw error;
-    if (data?.portal_config) return data.portal_config;
-    return buildDefaultPortalConfig(data?.plan || 'essentials');
+    if (data?.portal_config) {
+      console.debug('[PortalConfig] loaded from database', { managedAccountId, plan: data.plan, source: 'db' });
+      return data.portal_config;
+    }
+    const resolvedPlan = data?.plan || fallbackPlan;
+    console.debug('[PortalConfig] portal_config null — using generated default', { managedAccountId, resolvedPlan, dbHit: !!data, source: 'generated' });
+    return buildDefaultPortalConfig(resolvedPlan);
   } catch (err) {
     console.error('[SocialStudio] fetchPortalConfig error:', err);
-    return buildDefaultPortalConfig('essentials');
+    console.debug('[PortalConfig] query failed — using generated default', { managedAccountId, fallbackPlan, source: 'error-fallback' });
+    return buildDefaultPortalConfig(fallbackPlan);
   }
 }
 

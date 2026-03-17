@@ -13,15 +13,8 @@ import {
   fetchPortalConfig,
   updatePortalConfig,
   buildDefaultPortalConfig,
+  FALLBACK_ACCOUNTS,
 } from "../../services/socialStudioService";
-
-// Fallback data (matches migration seed UUIDs)
-const FALLBACK_ACCOUNTS = [
-  { id: "a1b2c3d4-0001-0000-0000-000000000001", name: "Villa d'Este",             slug: "villa-deste",               plan: "signature", status: "active", serviceStatus: "active", onboardingStatus: "complete", companyType: "venue",  primaryContactName: "", primaryContactEmail: "", contactPhone: "", accountManager: "", renewalDate: null, contractStart: null, contractEnd: null, internalNotes: "" },
-  { id: "a1b2c3d4-0002-0000-0000-000000000002", name: "Belmond Villa San Michele", slug: "belmond-villa-san-michele", plan: "signature", status: "active", serviceStatus: "active", onboardingStatus: "complete", companyType: "venue",  primaryContactName: "", primaryContactEmail: "", contactPhone: "", accountManager: "", renewalDate: null, contractStart: null, contractEnd: null, internalNotes: "" },
-  { id: "a1b2c3d4-0003-0000-0000-000000000003", name: "Borgo Egnazia",             slug: "borgo-egnazia",             plan: "growth",    status: "active", serviceStatus: "active", onboardingStatus: "complete", companyType: "venue",  primaryContactName: "", primaryContactEmail: "", contactPhone: "", accountManager: "", renewalDate: null, contractStart: null, contractEnd: null, internalNotes: "" },
-  { id: "a1b2c3d4-0004-0000-0000-000000000004", name: "Amanzoe",                   slug: "amanzoe",                   plan: "growth",    status: "active", serviceStatus: "active", onboardingStatus: "complete", companyType: "hotel", primaryContactName: "", primaryContactEmail: "", contactPhone: "", accountManager: "", renewalDate: null, contractStart: null, contractEnd: null, internalNotes: "" },
-];
 
 const PLAN_OPTIONS = [
   { key: "signature",  label: "Signature",  color: "#c9a84c" },
@@ -357,10 +350,10 @@ function PortalConfigEditor({ C, account }) {
   const dragIndex             = useRef(null);
 
   useEffect(() => {
-    fetchPortalConfig(account.id).then(cfg => {
+    fetchPortalConfig(account.id, account.plan || 'essentials').then(cfg => {
       setConfig(cfg);
     });
-  }, [account.id]);
+  }, [account.id, account.plan]);
 
   if (!config) return (
     <div style={{ fontSize: 12, color: C?.grey || "#888", padding: "8px 0" }}>Loading...</div>
@@ -836,7 +829,7 @@ export default function ManagedAccountsModule({ C }) {
       fetchManagedAccounts(),
       fetchAllContentSummaries(),
     ]);
-    setAccounts(data.length > 0 ? data : FALLBACK_ACCOUNTS);
+    setAccounts(data);
     setSummaries(sums || {});
     setLoading(false);
   }, []);

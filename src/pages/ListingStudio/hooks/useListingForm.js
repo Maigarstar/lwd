@@ -32,7 +32,8 @@ function snakeToCamel(obj) {
 export const useListingForm = (listingId = null) => {
   const [formData, setFormData] = useState({
     listing_type: 'venue', // venue | planner | photographer | videographer | general
-    vendor_account_id: null, // linked vendor account
+    vendor_account_id: null,   // linked vendor account
+    managed_account_id: null,  // linked managed account (Social Studio client)
     venue_name: '',
     hero_tagline: '',
     slug: '',
@@ -241,6 +242,7 @@ export const useListingForm = (listingId = null) => {
           setFormData({
             listing_type: listing.listingType || 'venue',
             vendor_account_id: listing.vendorAccountId || null,
+            managed_account_id: listing.managedAccountId || null,
             venue_name: listing.name || '',
             hero_tagline: listing.heroTagline || '',
             slug: listing.slug || '',
@@ -599,6 +601,7 @@ export const useListingForm = (listingId = null) => {
         status: publishStatus,
         listingType: formData.listing_type || 'venue',
         vendorAccountId: formData.vendor_account_id || null,
+        managedAccountId: formData.managed_account_id || null,
         tier: 'standard',
         // Full rich media_items array (File objects stripped), stored as JSONB.
         // Also consumed by sync-media-ai-index edge function after save.

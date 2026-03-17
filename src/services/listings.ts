@@ -448,6 +448,7 @@ function mapFormToDatabaseFields(data: any): any {
     'awards': 'awards',
     'visibility': 'visibility',
     'vendorAccountId': 'vendor_account_id',
+    'managedAccountId': 'managed_account_id',
     'ceremonySpaces': 'ceremony_spaces',
     'receptionSpaces': 'reception_spaces',
     'accommodation': 'accommodation',
@@ -771,11 +772,21 @@ export async function createListing(data: Listing) {
     // Sanitize payload: convert empty strings to null for numeric/date fields
     const dbData = sanitizeListingPayload(mapped)
 
-    const { data: listing, error } = await supabase!
+    let { data: listing, error } = await supabase!
       .from('listings')
       .insert([dbData])
       .select()
       .single()
+
+    // Graceful retry: if managed_account_id column doesn't exist yet (schema cache miss), strip and retry
+    // Only catches schema/column-not-found errors, not FK constraint violations
+    if (error && error.message?.includes('managed_account_id') && error.message?.includes('schema cache')) {
+      const { managed_account_id: _ma, ...dbDataWithout } = dbData as any
+      const retried = await supabase!.from('listings').insert([dbDataWithout]).select().single()
+      if (retried.error) throw retried.error
+      listing = retried.data
+      error = null
+    }
 
     if (error) throw error
 
@@ -812,12 +823,22 @@ export async function updateListing(id: string, data: Partial<Listing>) {
     // Sanitize payload: convert empty strings to null for numeric/date fields
     const updateData = sanitizeListingPayload(mapped)
 
-    const { data: listing, error } = await supabase!
+    let { data: listing, error } = await supabase!
       .from('listings')
       .update(updateData)
       .eq('id', id)
       .select()
       .single()
+
+    // Graceful retry: if managed_account_id column doesn't exist yet (schema cache miss), strip and retry
+    // Only catches schema/column-not-found errors, not FK constraint violations
+    if (error && error.message?.includes('managed_account_id') && error.message?.includes('schema cache')) {
+      const { managed_account_id: _ma, ...updateDataWithout } = updateData as any
+      const retried = await supabase!.from('listings').update(updateDataWithout).eq('id', id).select().single()
+      if (retried.error) throw retried.error
+      listing = retried.data
+      error = null
+    }
 
     if (error) {
       console.error("Supabase UPDATE error:", error);
@@ -861,6 +882,26 @@ export async function fetchListingById(id: string) {
   } catch (error) {
     console.error('Error fetching listing:', error)
     throw error
+  }
+}
+
+/**
+ * Fetch the listing linked to a managed account.
+ * Returns a lightweight subset used by the client portal.
+ */
+export async function fetchListingByManagedAccountId(managedAccountId: string) {
+  if (!isSupabaseAvailable() || !supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('listings')
+      .select('id, name, slug, status, hero_image, hero_tagline, card_image, city, country, region, listing_type, review_count, rating, price_from, price_currency')
+      .eq('managed_account_id', managedAccountId)
+      .maybeSingle();
+    if (error || !data) return null;
+    return mapListingFromDb(data);
+  } catch (err) {
+    console.error('[Listings] fetchListingByManagedAccountId error:', err);
+    return null;
   }
 }
 

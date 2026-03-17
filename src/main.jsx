@@ -376,6 +376,7 @@ function App() {
   const goItaly       = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("italy"); };
   const goAdmin       = () => setPage("admin");
   const goVendor              = () => setPage("vendor");
+  const goPortal              = () => setPage("portal");
   const goVendorLogin         = () => setPage("vendor-login");
   const goVendorSignup        = () => setPage("vendor-signup");
   const goVendorConfirmEmail  = () => setPage("vendor-confirm-email");
@@ -640,7 +641,7 @@ function App() {
         )}
         {page === "editorial-showcase" && <EditorialShowcase />}
         {page === "vendor-login" && (
-          <VendorLogin onLoginSuccess={goVendor} />
+          <VendorLogin onLoginSuccess={(dest) => dest === 'portal' ? goPortal() : goVendor()} />
         )}
         {page === "vendor-signup" && (
           <VendorSignup onSignupSuccess={goVendor} />
