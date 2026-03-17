@@ -647,6 +647,37 @@ function NoPropertyGuard({ service, conn, onChangeProperty, C }) {
   );
 }
 
+// ─── RefreshButton ────────────────────────────────────────────────────────────
+function RefreshButton({ onRefresh, loading, C }) {
+  return (
+    <button
+      onClick={onRefresh}
+      disabled={loading}
+      title="Refresh data"
+      style={{
+        display: 'flex', alignItems: 'center', gap: 5,
+        fontFamily: NU, fontSize: 11, color: loading ? C.grey2 : C.grey,
+        background: 'none',
+        border: `1px solid ${C.border}`,
+        borderRadius: 4, cursor: loading ? 'default' : 'pointer',
+        padding: '5px 10px',
+        opacity: loading ? 0.5 : 1,
+        transition: 'all 0.13s',
+      }}
+      onMouseEnter={e => { if (!loading) { e.currentTarget.style.borderColor = C.grey; e.currentTarget.style.color = C.white; } }}
+      onMouseLeave={e => { if (!loading) { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.grey; } }}
+    >
+      <svg
+        width="12" height="12" viewBox="0 0 16 16" fill="none"
+        style={{ animation: loading ? 'cd-spin 0.8s linear infinite' : 'none', flexShrink: 0 }}
+      >
+        <path d="M13.65 2.35A8 8 0 1 0 15 8h-2a6 6 0 1 1-1.05-3.35L10 7h5V2l-1.35.35z" fill="currentColor" />
+      </svg>
+      {loading ? 'Loading...' : 'Refresh'}
+    </button>
+  );
+}
+
 // ─── ErrorBanner ─────────────────────────────────────────────────────────────
 function ErrorBanner({ message, onRetry, C }) {
   return (
@@ -713,6 +744,9 @@ function AnalyticsView({ conn, dateRange, onDateChange, onGoToConnections, onCha
 
   const s = data?.summary;
 
+  // Detect all-zeros (API enabled but data not yet backfilled)
+  const allZeros = s != null && s.sessions === 0 && s.totalUsers === 0 && s.newUsers === 0;
+
   return (
     <div>
       {/* Header row */}
@@ -729,11 +763,18 @@ function AnalyticsView({ conn, dateRange, onDateChange, onGoToConnections, onCha
               border: '1px solid rgba(249,171,0,0.2)', borderRadius: 3, padding: '1px 6px',
             }}>GA4</span>
           </div>
-          <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, marginTop: 4 }}>
-            {conn.selected_property_name || propId}
+          <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span>{conn.selected_property_name && conn.selected_property_name !== propId ? conn.selected_property_name : ''}</span>
+            {conn.selected_property_name && conn.selected_property_name !== propId && (
+              <span style={{ color: C.border }}>·</span>
+            )}
+            <span style={{ fontFamily: 'monospace', fontSize: 10 }}>{propId}</span>
           </div>
         </div>
-        <DateRangeSelector value={dateRange} onChange={onDateChange} C={C} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <RefreshButton onRefresh={load} loading={loading} C={C} />
+          <DateRangeSelector value={dateRange} onChange={onDateChange} C={C} />
+        </div>
       </div>
 
       {/* Error */}
@@ -743,22 +784,43 @@ function AnalyticsView({ conn, dateRange, onDateChange, onGoToConnections, onCha
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-        gap: 10, marginBottom: 24,
+        gap: 10, marginBottom: allZeros ? 12 : 24,
       }}>
         {loading ? (
           Array.from({ length: 7 }).map((_, i) => <MetricCardSkeleton key={i} C={C} />)
         ) : s ? (
           <>
-            <MetricCard label="Sessions"          value={fmtNum(s.sessions)}           tint="ga" C={C} />
-            <MetricCard label="Engaged Sessions"  value={fmtNum(s.engagedSessions)}    tint="ga" C={C} />
-            <MetricCard label="Bounce Rate"       value={`${s.bounceRate}%`}           tint="ga" C={C} sub="lower is better" />
-            <MetricCard label="Avg Session"       value={s.avgSessionFormatted}        tint="ga" C={C} />
-            <MetricCard label="Pages / Session"   value={s.pagesPerSession}            tint="ga" C={C} />
-            <MetricCard label="New Users"         value={fmtNum(s.newUsers)}           tint="ga" C={C} />
-            <MetricCard label="Total Users"       value={fmtNum(s.totalUsers)}         tint="ga" C={C} />
+            <MetricCard label="Sessions"          value={fmtNum(s.sessions ?? 0)}          tint="ga" C={C} />
+            <MetricCard label="Engaged Sessions"  value={fmtNum(s.engagedSessions ?? 0)}   tint="ga" C={C} />
+            <MetricCard label="Bounce Rate"       value={`${s.bounceRate ?? 0}%`}           tint="ga" C={C} sub="lower is better" />
+            <MetricCard label="Avg Session"       value={s.avgSessionFormatted ?? '0s'}     tint="ga" C={C} />
+            <MetricCard label="Pages / Session"   value={s.pagesPerSession ?? 0}            tint="ga" C={C} />
+            <MetricCard label="New Users"         value={fmtNum(s.newUsers ?? 0)}           tint="ga" C={C} />
+            <MetricCard label="Total Users"       value={fmtNum(s.totalUsers ?? 0)}         tint="ga" C={C} />
           </>
         ) : null}
       </div>
+
+      {/* Zero-state sync notice */}
+      {!loading && allZeros && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 10,
+          padding: '12px 16px', marginBottom: 24,
+          backgroundColor: 'rgba(249,171,0,0.05)',
+          border: '1px solid rgba(249,171,0,0.18)',
+          borderRadius: 6,
+        }}>
+          <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>⏳</span>
+          <div>
+            <div style={{ fontFamily: NU, fontSize: 12, fontWeight: 600, color: '#F9AB00', marginBottom: 3 }}>
+              Data is still syncing with Google Analytics
+            </div>
+            <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, lineHeight: 1.6 }}>
+              This can take up to 24 hours after initial connection. The API is live and receiving requests correctly. Check back later or hit Refresh to re-poll.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Landing pages table */}
       {!loading && data?.landingPages?.length > 0 && (
@@ -893,11 +955,20 @@ function SearchConsoleView({ conn, dateRange, onDateChange, onGoToConnections, o
               border: '1px solid rgba(66,133,244,0.2)', borderRadius: 3, padding: '1px 6px',
             }}>GSC</span>
           </div>
-          <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, marginTop: 4 }}>
-            {conn.selected_property_name || propId}
+          <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+            {conn.selected_property_name && conn.selected_property_name !== propId && (
+              <>
+                <span>{conn.selected_property_name}</span>
+                <span style={{ color: C.border }}>·</span>
+              </>
+            )}
+            <span style={{ fontFamily: 'monospace', fontSize: 10 }}>{propId}</span>
           </div>
         </div>
-        <DateRangeSelector value={dateRange} onChange={onDateChange} C={C} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <RefreshButton onRefresh={load} loading={loading} C={C} />
+          <DateRangeSelector value={dateRange} onChange={onDateChange} C={C} />
+        </div>
       </div>
 
       {/* Error */}
@@ -913,10 +984,10 @@ function SearchConsoleView({ conn, dateRange, onDateChange, onGoToConnections, o
           Array.from({ length: 4 }).map((_, i) => <MetricCardSkeleton key={i} C={C} />)
         ) : t ? (
           <>
-            <MetricCard label="Total Clicks"      value={fmtNum(t.clicks)}      tint="sc" C={C} />
-            <MetricCard label="Impressions"       value={fmtNum(t.impressions)} tint="sc" C={C} />
-            <MetricCard label="Avg CTR"           value={`${t.ctr}%`}           tint="sc" C={C} sub="click-through rate" />
-            <MetricCard label="Avg Position"      value={t.position}            tint="sc" C={C} sub="lower is better" />
+            <MetricCard label="Total Clicks"      value={fmtNum(t.clicks ?? 0)}          tint="sc" C={C} />
+            <MetricCard label="Impressions"       value={fmtNum(t.impressions ?? 0)}      tint="sc" C={C} />
+            <MetricCard label="Avg CTR"           value={`${t.ctr ?? '0.0'}%`}            tint="sc" C={C} sub="click-through rate" />
+            <MetricCard label="Avg Position"      value={t.position ?? '--'}              tint="sc" C={C} sub="lower is better" />
           </>
         ) : null}
       </div>
@@ -959,13 +1030,13 @@ function SearchConsoleView({ conn, dateRange, onDateChange, onGoToConnections, o
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 paddingRight: 12,
               }}>{row.query}</span>
-              <span style={{ fontFamily: NU, fontSize: 12, color: C.white, textAlign: 'right' }}>{fmtNum(row.clicks)}</span>
-              <span style={{ fontFamily: NU, fontSize: 12, color: C.grey, textAlign: 'right' }}>{fmtNum(row.impressions)}</span>
-              <span style={{ fontFamily: NU, fontSize: 12, color: C.grey, textAlign: 'right' }}>{row.ctr}%</span>
+              <span style={{ fontFamily: NU, fontSize: 12, color: C.white, textAlign: 'right' }}>{fmtNum(row.clicks ?? 0)}</span>
+              <span style={{ fontFamily: NU, fontSize: 12, color: C.grey, textAlign: 'right' }}>{fmtNum(row.impressions ?? 0)}</span>
+              <span style={{ fontFamily: NU, fontSize: 12, color: C.grey, textAlign: 'right' }}>{row.ctr != null ? `${row.ctr}%` : '--'}</span>
               <span style={{
                 fontFamily: NU, fontSize: 12, textAlign: 'right',
-                color: row.position <= 3 ? '#22c55e' : row.position <= 10 ? '#f9ab00' : C.grey,
-              }}>#{row.position}</span>
+                color: (row.position ?? 99) <= 3 ? '#22c55e' : (row.position ?? 99) <= 10 ? '#f9ab00' : C.grey,
+              }}>{row.position != null ? `#${row.position}` : '--'}</span>
             </div>
           ))}
         </div>
