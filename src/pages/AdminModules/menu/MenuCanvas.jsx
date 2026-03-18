@@ -359,50 +359,73 @@ export default function MenuCanvas({
     : "rgba(255,255,255,0.82)";
 
   return (
-    <div>
+    <div style={{ width: "100%" }}>
       {/* ── Toolbar ── */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        marginBottom: 6, gap: 6,
+        background: C?.bg || "#0b0906",
+        border: `1px solid ${C?.border || "#2a2218"}`,
+        borderRadius: 9, padding: "5px 8px",
+      }}>
 
-        {/* Left group: view + header state + mode */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        {/* Left group: view | header state | mode */}
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
 
           {/* Desktop / Mobile */}
-          <div style={{ display: "flex", background: C?.bg || "#0b0906", border: `1px solid ${C?.border || "#2a2218"}`, borderRadius: 7, padding: 3, gap: 2 }}>
-            {[["desktop", "⬜ Desktop"], ["mobile", "📱 Mobile"]].map(([val, label]) => (
+          <div style={{ display: "flex", gap: 1 }}>
+            {[["desktop", "⬜", "Desktop"], ["mobile", "📱", "Mobile"]].map(([val, icon, label]) => (
               <button key={val} onClick={() => setViewMode(val)} style={{
-                background: viewMode === val ? G + "22" : "transparent",
-                border: `1px solid ${viewMode === val ? G + "60" : "transparent"}`,
-                borderRadius: 5, padding: "4px 12px", cursor: "pointer",
+                background: viewMode === val ? G + "1e" : "transparent",
+                border: `1px solid ${viewMode === val ? G + "55" : "transparent"}`,
+                borderRadius: 6, padding: "4px 10px", cursor: "pointer",
                 fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.06em",
                 textTransform: "uppercase", color: viewMode === val ? G : (C?.grey || "#8a7d6a"),
-                transition: "all 0.15s",
-              }}>{label}</button>
+                transition: "all 0.15s", whiteSpace: "nowrap",
+              }}>{icon} {label}</button>
             ))}
           </div>
 
+          {/* Zone divider */}
+          <div style={{ width: 1, height: 16, background: C?.border || "#2a2218", margin: "0 4px", flexShrink: 0 }} />
+
           {/* Header state — only desktop */}
-          {viewMode === "desktop" && (
-            <div style={{ display: "flex", background: C?.bg || "#0b0906", border: `1px solid ${C?.border || "#2a2218"}`, borderRadius: 7, padding: 3, gap: 2 }}>
+          {viewMode === "desktop" ? (
+            <div style={{ display: "flex", gap: 1 }}>
               {[["default", "Default"], ["transparent", "Glass"], ["sticky", "Sticky"]].map(([val, label]) => (
                 <button key={val} onClick={() => setHeaderState(val)} style={{
                   background: headerState === val ? G + "18" : "transparent",
-                  border: `1px solid ${headerState === val ? G + "60" : "transparent"}`,
-                  borderRadius: 5, padding: "4px 11px", cursor: "pointer",
+                  border: `1px solid ${headerState === val ? G + "55" : "transparent"}`,
+                  borderRadius: 6, padding: "4px 9px", cursor: "pointer",
                   fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.06em",
                   textTransform: "uppercase", color: headerState === val ? G : (C?.grey || "#8a7d6a"),
                   transition: "all 0.15s",
                 }}>{label}</button>
               ))}
             </div>
+          ) : (
+            <div style={{ display: "flex", gap: 1 }}>
+              <button disabled style={{
+                background: "transparent", border: "1px solid transparent",
+                borderRadius: 6, padding: "4px 9px",
+                fontFamily: SANS, fontSize: 9, color: C?.grey2 || "#5a5045",
+                letterSpacing: "0.06em", textTransform: "uppercase",
+              }}>Mobile view</button>
+            </div>
           )}
 
+          {/* Zone divider */}
+          <div style={{ width: 1, height: 16, background: C?.border || "#2a2218", margin: "0 4px", flexShrink: 0 }} />
+
           {/* Edit / Live */}
-          <div style={{ display: "flex", background: C?.bg || "#0b0906", border: `1px solid ${C?.border || "#2a2218"}`, borderRadius: 7, padding: 3, gap: 2 }}>
+          <div style={{ display: "flex", gap: 1 }}>
             {[["edit", "Edit"], ["live", "Live"]].map(([val, label]) => (
               <button key={val} onClick={() => setCanvasMode(val)} style={{
                 background: canvasMode === val ? (val === "live" ? "#1a3a1a" : G) : "transparent",
-                border: canvasMode === val ? `1px solid ${val === "live" ? "#4ade80" : G}` : "1px solid transparent",
-                borderRadius: 5, padding: "4px 12px", cursor: "pointer",
+                border: canvasMode === val
+                  ? `1px solid ${val === "live" ? "#4ade80" : G}`
+                  : "1px solid transparent",
+                borderRadius: 6, padding: "4px 10px", cursor: "pointer",
                 fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em",
                 textTransform: "uppercase",
                 color: canvasMode === val ? (val === "live" ? "#4ade80" : "#0a0906") : (C?.grey || "#8a7d6a"),
@@ -413,12 +436,14 @@ export default function MenuCanvas({
         </div>
 
         {/* Right group: theme + live link */}
-        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
+          {/* Zone divider */}
+          <div style={{ width: 1, height: 16, background: C?.border || "#2a2218", margin: "0 4px", flexShrink: 0 }} />
           {[["dark", "Dark"], ["light", "Light"], ["editorial", "Edt"]].map(([val, label]) => (
             <button key={val} onClick={() => setPageTheme(val)} style={{
               background: pageTheme === val ? G + "18" : "transparent",
-              border: `1px solid ${pageTheme === val ? G + "60" : (C?.border || "#2a2218")}`,
-              borderRadius: 5, padding: "3px 8px", cursor: "pointer",
+              border: `1px solid ${pageTheme === val ? G + "55" : "transparent"}`,
+              borderRadius: 6, padding: "4px 8px", cursor: "pointer",
               fontFamily: SANS, fontSize: 9, fontWeight: 600, letterSpacing: "0.05em",
               textTransform: "uppercase", color: pageTheme === val ? G : (C?.grey2 || "#5a5045"),
               transition: "all 0.15s",
@@ -426,34 +451,41 @@ export default function MenuCanvas({
           ))}
           <a href="http://localhost:5176/" target="_blank" rel="noreferrer"
             style={{
-              fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.06em",
-              textTransform: "uppercase", color: C?.grey2 || "#5a5045", textDecoration: "none",
-              border: `1px solid ${C?.border || "#2a2218"}`, borderRadius: 5, padding: "3px 8px",
-              transition: "all 0.15s",
+              fontFamily: SANS, fontSize: 11, fontWeight: 700,
+              color: C?.grey2 || "#5a5045", textDecoration: "none",
+              border: `1px solid transparent`, borderRadius: 6, padding: "4px 6px",
+              transition: "all 0.15s", lineHeight: 1,
             }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = G; e.currentTarget.style.color = G; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = C?.border || "#2a2218"; e.currentTarget.style.color = C?.grey2 || "#5a5045"; }}
+            onMouseEnter={e => { e.currentTarget.style.color = G; }}
+            onMouseLeave={e => { e.currentTarget.style.color = C?.grey2 || "#5a5045"; }}
           >↗</a>
         </div>
       </div>
 
       {/* ── Context row ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, minHeight: 18 }}>
-        <div style={{ fontFamily: SANS, fontSize: 9, letterSpacing: "0.05em", opacity: 0.55, color: canvasMode === "live" ? "#4ade80" : (C?.grey || "#8a7d6a"), display: "flex", alignItems: "center", gap: 5 }}>
-          {canvasMode === "edit"
-            ? <><span>✎</span> Click any nav item to open its editor</>
-            : <><span style={{ fontSize: 8 }}>●</span> Live mode - links open in new tab</>
-          }
-        </div>
-        {canvasMode === "edit" && selectedItemId && (() => {
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5, minHeight: 18 }}>
+        {canvasMode === "edit" && selectedItemId ? (() => {
           const editingItem = effectiveItems.find(i => i.id === selectedItemId);
           return editingItem ? (
-            <div style={{ fontFamily: SANS, fontSize: 9, color: G, opacity: 0.85, letterSpacing: "0.04em", display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ opacity: 0.4 }}>|</span>
-              Editing: <strong style={{ fontWeight: 700 }}>{editingItem.label}</strong>
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              background: G + "12", border: `1px solid ${G}30`,
+              borderRadius: 5, padding: "2px 8px 2px 6px",
+            }}>
+              <span style={{ fontFamily: SANS, fontSize: 9, color: G, opacity: 0.7 }}>✎</span>
+              <span style={{ fontFamily: SANS, fontSize: 9, color: G, fontWeight: 700, letterSpacing: "0.04em" }}>
+                {editingItem.label}
+              </span>
             </div>
           ) : null;
-        })()}
+        })() : (
+          <div style={{ fontFamily: SANS, fontSize: 9, letterSpacing: "0.04em", color: C?.grey || "#8a7d6a", opacity: 0.6, display: "flex", alignItems: "center", gap: 4 }}>
+            {canvasMode === "edit"
+              ? <><span>✎</span> Click any item to select</>
+              : <><span style={{ color: "#4ade80", fontSize: 8 }}>●</span> Live - links open in new tab</>
+            }
+          </div>
+        )}
       </div>
 
       {/* ── Mobile view ── */}
@@ -472,6 +504,7 @@ export default function MenuCanvas({
       {/* ── Desktop view ── */}
       {viewMode === "desktop" && (
         <div style={{
+          width: "100%",
           border: `1px solid ${C?.border || "#2a2218"}`,
           borderRadius: 10, boxShadow: "0 12px 48px rgba(0,0,0,0.6)",
           overflow: "visible", position: "relative",
@@ -571,10 +604,11 @@ export default function MenuCanvas({
                         position: "relative", cursor: "pointer",
                         padding: "4px 8px", borderRadius: 5,
                         background: canvasMode === "edit" && isEditing
-                          ? G + "22"
+                          ? G + "28"
                           : isActive ? (canvasMode === "live" ? "rgba(255,255,255,0.06)" : G + "0c") : "transparent",
-                        outline: canvasMode === "edit" && isEditing ? `1.5px solid ${G}60` : "none",
-                        transition: "background 0.15s",
+                        outline: canvasMode === "edit" && isEditing ? `1.5px solid ${G}80` : "none",
+                        outlineOffset: canvasMode === "edit" && isEditing ? "2px" : "0",
+                        transition: "background 0.15s, outline 0.15s",
                       }}
                         onMouseEnter={() => handleItemHover(item)}
                         onClick={handleClick}

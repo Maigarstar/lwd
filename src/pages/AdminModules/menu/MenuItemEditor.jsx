@@ -202,14 +202,14 @@ export default function MenuItemEditor({
     background: C?.dark || "#0d0d0d",
     border: `1px solid ${C?.border || "#2a2218"}`,
     borderRadius: 6, color: C?.white || "#f5efe4",
-    fontFamily: SANS, fontSize: 13, padding: "9px 12px", outline: "none",
+    fontFamily: SANS, fontSize: 13, padding: "7px 11px", outline: "none",
   };
   const lbl = {
-    fontFamily: SANS, fontSize: 10, fontWeight: 700, letterSpacing: "0.1em",
-    textTransform: "uppercase", color: C?.grey || "#8a7d6a", marginBottom: 5, display: "block",
+    fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.1em",
+    textTransform: "uppercase", color: C?.grey || "#8a7d6a", marginBottom: 4, display: "block",
   };
-  const hint = { fontFamily: SANS, fontSize: 11, color: C?.grey || "#8a7d6a", marginTop: 4, lineHeight: 1.5 };
-  const row2 = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 };
+  const hint = { fontFamily: SANS, fontSize: 10, color: C?.grey || "#8a7d6a", marginTop: 3, lineHeight: 1.5 };
+  const row2 = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 };
   const isPanel = form.type === "dropdown" || form.type === "mega_menu";
 
   // ── If no item selected AND no new item being added, show placeholder ──
@@ -269,12 +269,12 @@ export default function MenuItemEditor({
       background: C?.card || "#1a1510",
       border: `1px solid ${C?.border || "#2a2218"}`,
       borderTop: `2px solid ${G}`,
-      borderRadius: 10, padding: 24,
-      marginTop: 16,
+      borderRadius: 10, padding: "18px 20px",
+      marginTop: 14,
     }}>
 
       {/* Editor header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div>
             <div style={{ fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: G, opacity: 0.7, marginBottom: 3 }}>
@@ -304,7 +304,7 @@ export default function MenuItemEditor({
 
       {/* Tabs — only for panel types */}
       {isPanel && (
-        <div style={{ display: "flex", gap: 4, marginBottom: 24, borderBottom: `1px solid ${C?.border || "#2a2218"}` }}>
+        <div style={{ display: "flex", gap: 4, marginBottom: 18, borderBottom: `1px solid ${C?.border || "#2a2218"}` }}>
           {[["structure", "Structure"], ["design", "Design"]].map(([key, label]) => (
             <button key={key} onClick={() => setTab(key)} style={{
               background: "none", border: "none",
@@ -319,7 +319,7 @@ export default function MenuItemEditor({
 
       {/* ── STRUCTURE TAB ── */}
       {tab === "structure" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
           {/* Type selector */}
           <div>
@@ -401,22 +401,22 @@ export default function MenuItemEditor({
           {/* ── Link Type System ── */}
           <div>
             <label style={lbl}>Link Type</label>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginBottom: 12 }}>
               {LINK_TYPE_OPTIONS.map(opt => {
                 // parent_only only valid for dropdown/mega_menu
                 if (opt.value === "parent_only" && form.type === "link") return null;
                 const active = form.link_type === opt.value;
                 return (
                   <button key={opt.value} onClick={() => handleLinkTypeChange(opt.value)} style={{
-                    textAlign: "left", padding: "9px 12px", borderRadius: 7, cursor: "pointer",
+                    textAlign: "left", padding: "7px 10px", borderRadius: 6, cursor: "pointer",
                     background: active ? G + "14" : "transparent",
                     border: `1px solid ${active ? G : (C?.border || "#2a2218")}`,
                     transition: "all 0.15s",
                   }}>
-                    <div style={{ fontFamily: SANS, fontSize: 11, fontWeight: active ? 700 : 500, color: active ? G : (C?.off || "#d4c8b0"), letterSpacing: "0.02em" }}>
+                    <div style={{ fontFamily: SANS, fontSize: 10, fontWeight: active ? 700 : 500, color: active ? G : (C?.off || "#d4c8b0"), letterSpacing: "0.02em" }}>
                       {opt.label}
                     </div>
-                    <div style={{ fontFamily: SANS, fontSize: 9, color: C?.grey || "#8a7d6a", marginTop: 2 }}>
+                    <div style={{ fontFamily: SANS, fontSize: 9, color: C?.grey || "#8a7d6a", marginTop: 1 }}>
                       {opt.desc}
                     </div>
                   </button>

@@ -297,13 +297,15 @@ export default function MenuModule({ C }) {
 
       {/* ── Studio split layout ── */}
       <div style={{
-        display: "grid",
-        gridTemplateColumns: "390px 1fr",
+        display: "flex",
         gap: 24, alignItems: "start",
       }}>
 
         {/* ── LEFT: tabs + tree + editor ── */}
-        <div ref={leftPanelRef} style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+        <div ref={leftPanelRef} style={{
+          display: "flex", flexDirection: "column", gap: 0,
+          width: 750, flexShrink: 0,
+        }}>
 
           {/* Tab switcher */}
           <div style={{
@@ -386,6 +388,7 @@ export default function MenuModule({ C }) {
 
         {/* ── RIGHT: sticky live canvas ── */}
         <div style={{
+          flex: 1, minWidth: 0,
           position: "sticky", top: 24,
           maxHeight: "calc(100vh - 140px)",
           overflowY: "auto",

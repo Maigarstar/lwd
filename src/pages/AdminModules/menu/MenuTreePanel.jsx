@@ -71,15 +71,15 @@ function TreeNode({
   return (
     <div>
       <div style={{
-        display: "flex", alignItems: "center", gap: 10,
-        padding: `10px 16px 10px ${16 + depth * 28}px`,
+        display: "flex", alignItems: "center", gap: 8,
+        padding: `7px 14px 7px ${14 + depth * 22}px`,
         borderTop: depth === 0 ? `1px solid ${C?.border || "#2a2218"}` : "none",
         background: isSelected
           ? G + "14"
           : moving === item.id
             ? G + "10"
             : depth > 0
-              ? ((C?.bg || "#0b0906") + "50")
+              ? ((C?.bg || "#0b0906") + "0e")
               : "transparent",
         borderLeft: isSelected ? `3px solid ${G}` : "3px solid transparent",
         opacity: item.visible ? 1 : 0.5,
@@ -132,23 +132,23 @@ function TreeNode({
 
         {/* Label + badges */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{
-              fontFamily: SANS, fontSize: 13,
+              fontFamily: SANS, fontSize: 12,
               fontWeight: isSelected ? 600 : (depth === 0 ? 500 : 400),
               color: isSelected ? (C?.white || "#f5efe4") : (C?.off || "#d4c8b0"),
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              maxWidth: "140px",
             }}>
               {item.label}
             </span>
             <TypeBadge type={item.type || "link"} visible={item.visible} />
-            {(item.type === "dropdown" || item.type === "mega_menu") && item.menu_preset && (
-              <span style={{ fontFamily: SANS, fontSize: 9, color: C?.grey || "#8a7d6a", opacity: 0.7 }}>
-                {PRESETS[item.menu_preset]?.label || item.menu_preset}
-              </span>
-            )}
           </div>
-          {(item.slug || item.url || item.nav_action || item.link_type !== "manual") && (
-            <div style={{ fontFamily: MONO, fontSize: 10, color: C?.grey || "#8a7d6a", marginTop: 2 }}>
+          {(item.slug || item.url || item.nav_action || (item.link_type && item.link_type !== "manual")) && (
+            <div style={{
+              fontFamily: MONO, fontSize: 9, color: C?.grey || "#8a7d6a", marginTop: 1,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
               {item.link_type && item.link_type !== "manual" && item.link_type !== "spa_action"
                 ? `[${item.link_type}] ${item.link_record_slug || ""}`
                 : item.nav_action
@@ -178,7 +178,7 @@ function TreeNode({
 
       {/* Children */}
       {hasChildren && expanded && (
-        <div style={{ borderLeft: `1px solid ${C?.border || "#2a2218"}33`, marginLeft: 16 + depth * 28 + 44 }}>
+        <div style={{ borderLeft: `1px solid ${C?.border || "#2a2218"}33`, marginLeft: 14 + depth * 22 + 38 }}>
           {item.children.map(child => (
             <TreeNode
               key={child.id}
