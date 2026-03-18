@@ -253,13 +253,18 @@ export default function FooterCanvas({
           }
         `}</style>
 
-        {/* Label */}
+        {/* Label with flanking gold rules */}
         <div style={{
-          fontFamily: SANS, fontSize: 9, fontWeight: 700,
-          letterSpacing: "0.14em", textTransform: "uppercase",
-          color: G, textAlign: "center", marginBottom: 12, opacity: 0.85,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          gap: 14, marginBottom: 14,
         }}>
-          Iconic Venues
+          <div style={{ height: 1, width: 48, background: G, opacity: 0.6 }} />
+          <span style={{
+            fontFamily: SANS, fontSize: 9, fontWeight: 700,
+            letterSpacing: "0.16em", textTransform: "uppercase",
+            color: G, whiteSpace: "nowrap",
+          }}>Iconic Venues</span>
+          <div style={{ height: 1, width: 48, background: G, opacity: 0.6 }} />
         </div>
 
         {/* Marquee container with fade edges */}
@@ -278,10 +283,12 @@ export default function FooterCanvas({
             {repeated.map((name, i) => (
               <span key={i} style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
                 <span style={{
-                  fontFamily: SERIF,
-                  fontSize: 14,
+                  fontFamily: SANS,
+                  fontSize: 11,
+                  fontWeight: 500,
                   color: textColor,
-                  letterSpacing: "0.03em",
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
                   whiteSpace: "nowrap",
                 }}>{name}</span>
                 <span style={{
