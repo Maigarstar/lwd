@@ -181,7 +181,7 @@ export default function FooterConfig({ footerConfig, onConfigChange, onSave, sav
         <div>
           <label style={lbl}>Columns</label>
           <div style={{ display: "flex", gap: 6 }}>
-            {[2, 3, 4].map(n => (
+            {[2, 3, 4, 5, 6].map(n => (
               <button key={n} onClick={() => set("layout_columns", n)} style={{
                 flex: 1, background: cfg.layout_columns === n ? G + "18" : "transparent",
                 border: `1px solid ${cfg.layout_columns === n ? G + "60" : C?.border || "#2a2218"}`,

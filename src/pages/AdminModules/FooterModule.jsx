@@ -287,6 +287,49 @@ export default function FooterModule({ C }) {
     } finally { setMoving(null); }
   }
 
+  // ── Reorder a locked group (heading + items beneath) ────────────────────
+  async function handleReorderGroup(groupItems, targetItem) {
+    if (!groupItems?.length || !targetItem) return;
+    const colId = groupItems[0].column_id;
+    const siblings = allItems.filter(i => i.column_id === colId).sort((a, b) => a.position - b.position);
+    const groupIds = new Set(groupItems.map(i => i.id));
+    const withoutGroup = siblings.filter(i => !groupIds.has(i.id));
+    const targetIdx = withoutGroup.findIndex(i => i.id === targetItem.id);
+    const insertAt = targetIdx < 0 ? withoutGroup.length : targetIdx;
+    const reordered = [
+      ...withoutGroup.slice(0, insertAt),
+      ...groupItems,
+      ...withoutGroup.slice(insertAt),
+    ];
+    setMoving(groupItems[0].id);
+    try {
+      await Promise.all(
+        reordered.map((item, idx) =>
+          supabase.from("footer_items").update({ position: idx + 1 }).eq("id", item.id)
+        )
+      );
+      await load();
+    } catch (e) {
+      setToast({ msg: "Group reorder failed: " + e.message, type: "error" });
+    } finally { setMoving(null); }
+  }
+
+  // ── Swap entire columns (drag section header to reorder) ─────────────────
+  async function handleReorderColumn(fromColId, toColId) {
+    if (fromColId === toColId) return;
+    const fromItems = allItems.filter(i => i.column_id === fromColId);
+    const toItems   = allItems.filter(i => i.column_id === toColId);
+    try {
+      await Promise.all([
+        ...fromItems.map(i => supabase.from("footer_items").update({ column_id: toColId }).eq("id", i.id)),
+        ...toItems.map(i =>   supabase.from("footer_items").update({ column_id: fromColId }).eq("id", i.id)),
+      ]);
+      await load();
+    } catch (e) {
+      setToast({ msg: "Column reorder failed: " + e.message, type: "error" });
+    }
+  }
+
   // ── Save footer config ────────────────────────────────────────────────────
   async function handleSaveConfig() {
     setConfigSaving(true);
@@ -365,6 +408,8 @@ export default function FooterModule({ C }) {
                 onMoveUp={handleMoveUp}
                 onMoveDown={handleMoveDown}
                 onReorder={handleReorder}
+                onReorderGroup={handleReorderGroup}
+                onReorderColumn={handleReorderColumn}
                 onToggleVisible={handleToggleVisible}
                 onRemove={handleRemove}
                 C={C}

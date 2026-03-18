@@ -143,7 +143,7 @@ export default function FooterCanvas({
             style={{
               fontFamily: SANS, fontSize: 9, fontWeight: 600,
               letterSpacing: "0.14em", textTransform: "uppercase",
-              color: accentColor, opacity: 0.6, marginBottom: 12,
+              color: accentColor, opacity: 0.8, marginBottom: 12,
               ...selectOutline(item),
             }}
           >
@@ -206,6 +206,32 @@ export default function FooterCanvas({
         );
       }
     }
+  }
+
+  // ── Editorial tagline above Iconic strip ─────────────────────────────
+  function renderEditorialTagline() {
+    const textColor = cfg.text_color || "#d4c8b0";
+    return (
+      <div style={{
+        textAlign: "center",
+        padding: isMobile ? "32px 20px 0" : "44px 0 0",
+        background: footerBg,
+      }}>
+        <p style={{
+          fontFamily: "'Gilda Display', 'Cormorant Garamond', Georgia, serif",
+          fontSize: isMobile ? 15 : 17,
+          fontWeight: 400,
+          fontStyle: "italic",
+          color: textColor,
+          opacity: 0.55,
+          letterSpacing: "0.02em",
+          lineHeight: 1.5,
+          margin: 0,
+        }}>
+          The world's finest venues and vendors, carefully selected
+        </p>
+      </div>
+    );
   }
 
   // ── Iconic Venues strip — seamless marquee ────────────────────────────
@@ -293,8 +319,8 @@ export default function FooterCanvas({
                 }}>{name}</span>
                 <span style={{
                   color: G,
-                  margin: "0 52px",
-                  opacity: 0.4,
+                  margin: "0 40px",
+                  opacity: 0.5,
                   fontSize: 8,
                   flexShrink: 0,
                 }}>·</span>
@@ -374,10 +400,20 @@ export default function FooterCanvas({
     );
   }
 
+  // ── Fallback editorial content per nav column (shown when DB column is empty) ──
+  const COLUMN_FALLBACKS = [
+    { heading: "COUPLES",      links: ["Browse Venues", "Find Photographers", "Wedding Planners", "Real Weddings", "The Magazine", "Planning Checklist"] },
+    { heading: "VENDORS",      links: ["List Your Business", "Advertise", "Pricing Plans", "Success Stories", "Vendor Dashboard"] },
+    { heading: "DESTINATIONS", links: ["Lake Como", "Amalfi Coast", "French Riviera", "Tuscany", "Mykonos", "Dubai", "All Destinations"] },
+    { heading: "OUR BRANDS",   links: ["LWD Magazine", "Artistry Awards", "The LWD Standard", "Getting Married"] },
+    { heading: "COMPANY",      links: ["About Us", "Editorial Standards", "Press & Media", "Contact", "Privacy Policy"] },
+  ];
+
   // ── Main footer grid ───────────────────────────────────────────────────
   function renderMainFooter() {
     const padX = cfg.pad_x || 48;
     const padY = cfg.pad_y || 64;
+    const textColor = cfg.text_color || "#d4c8b0";
 
     const gridCols = isMobile
       ? "1fr"
@@ -400,23 +436,27 @@ export default function FooterCanvas({
           {/* Columns 2-N */}
           {colIds.map((colId, idx) => {
             const colItems = grouped[colId] || [];
-            const GUIDED = [
-              "Add links for couples: venues, vendors, planning tools",
-              "Add links for vendors: list your business, resources",
-              "Add destinations, regions, or curated venue collections",
-              "Add sister brands, collections, and brand partnerships",
-              "Add company links, editorial standards, contact",
-            ];
-            const guideText = GUIDED[idx] || "Add blocks to this column";
+            const fallback = COLUMN_FALLBACKS[idx];
             return (
               <div key={colId} style={{ display: "flex", flexDirection: "column" }}>
-                {colItems.map(item => renderItem(item))}
-                {colItems.length === 0 && (
-                  <div style={{
-                    fontFamily: SANS, fontSize: 11, color: "#2a2218",
-                    fontStyle: "italic", lineHeight: 1.6,
-                  }}>{guideText}</div>
-                )}
+                {colItems.length > 0
+                  ? colItems.map(item => renderItem(item))
+                  : fallback && (
+                    <div style={{ opacity: 0.28 }}>
+                      <div style={{
+                        fontFamily: SANS, fontSize: 9, fontWeight: 600,
+                        letterSpacing: "0.14em", textTransform: "uppercase",
+                        color: G, marginBottom: 12,
+                      }}>{fallback.heading}</div>
+                      {fallback.links.map((lbl, i) => (
+                        <div key={i} style={{
+                          fontFamily: SANS, fontSize: 12,
+                          color: textColor, padding: "3px 0", lineHeight: 1.85,
+                        }}>{lbl}</div>
+                      ))}
+                    </div>
+                  )
+                }
               </div>
             );
           })}
@@ -447,8 +487,8 @@ export default function FooterCanvas({
           <div style={{
             fontFamily: SANS, fontSize: 9, fontWeight: 700,
             letterSpacing: "0.12em", textTransform: "uppercase",
-            color: G, marginBottom: 6, opacity: 0.8,
-          }}>Stay connected</div>
+            color: G, marginBottom: 6, opacity: 1,
+          }}>The editorial</div>
           <div style={{
             fontFamily: SERIF, fontSize: isMobile ? 18 : 22,
             color: textColor, marginBottom: 4,
@@ -457,7 +497,7 @@ export default function FooterCanvas({
           </div>
           <div style={{
             fontFamily: SANS, fontSize: 12,
-            color: textColor, opacity: 0.65, lineHeight: 1.5,
+            color: textColor, opacity: 0.85, lineHeight: 1.5,
           }}>
             {cfg.newsletter_subtext || "Monthly inspiration for modern luxury couples"}
           </div>
@@ -474,12 +514,12 @@ export default function FooterCanvas({
             placeholder="Your email address"
             style={{
               flex: 1, background: "transparent",
-              border: `1px solid ${cfg.border_color || "#2a2218"}`,
+              border: `1px solid ${cfg.accent_color || "#c9a84c"}80`,
               borderRight: "none",
               borderRadius: "4px 0 0 4px",
               color: textColor, fontFamily: SANS, fontSize: 12,
               padding: "10px 14px", outline: "none",
-              opacity: 0.6,
+              opacity: 0.9,
             }}
           />
           <button style={{
@@ -595,6 +635,9 @@ export default function FooterCanvas({
           background: footerBg,
           borderTop: cfg.border_top ? `1px solid ${cfg.border_color || "#2a2218"}` : "none",
         }}>
+          {/* 0. Editorial tagline */}
+          {renderEditorialTagline()}
+
           {/* 1. Iconic Venues strip */}
           <div style={{ padding: isMobile ? 0 : `0 ${cfg.pad_x || 48}px` }}>
             {renderIconicStrip()}

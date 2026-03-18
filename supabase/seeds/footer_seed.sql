@@ -78,61 +78,54 @@ INSERT INTO footer_items (label, block_type, column_id, position, visible, iconi
   ]'::jsonb
 );
 
--- ── 4. Couples column (column_id = 2) ─────────────────────────────────────────
+-- ── 4. Couples column (column_id = 2) — editorial, 6 guided links ─────────────
 INSERT INTO footer_items (label, block_type, column_id, position, visible, link_type, url) VALUES
-  ('COUPLES',            'heading', 2,  1, true, 'manual', ''),
-  ('Browse Venues',      'link',    2,  2, true, 'manual', '/venues'),
-  ('Find Photographers', 'link',    2,  3, true, 'manual', '/vendors/photographers'),
-  ('Florists',           'link',    2,  4, true, 'manual', '/vendors/florists'),
-  ('Music & DJs',        'link',    2,  5, true, 'manual', '/vendors/music-djs'),
-  ('Wedding Planners',   'link',    2,  6, true, 'manual', '/vendors/wedding-planners'),
-  ('Real Weddings',      'link',    2,  7, true, 'manual', '/real-weddings'),
-  ('The Magazine',       'link',    2,  8, true, 'manual', '/magazine'),
-  ('Artistry Awards',    'link',    2,  9, true, 'manual', '/artistry-awards'),
-  ('Getting Married',    'link',    2, 10, true, 'manual', '/getting-married'),
-  ('Budget Calculator',  'link',    2, 11, true, 'manual', '/budget-calculator'),
-  ('Planning Checklist', 'link',    2, 12, true, 'manual', '/planning-checklist');
+  ('COUPLES',            'heading', 2, 1, true, 'manual', ''),
+  ('Browse Venues',      'link',    2, 2, true, 'manual', '/venues'),
+  ('Find Photographers', 'link',    2, 3, true, 'manual', '/vendors/photographers'),
+  ('Wedding Planners',   'link',    2, 4, true, 'manual', '/vendors/wedding-planners'),
+  ('Real Weddings',      'link',    2, 5, true, 'manual', '/real-weddings'),
+  ('The Magazine',       'link',    2, 6, true, 'manual', '/magazine'),
+  ('Planning Checklist', 'link',    2, 7, true, 'manual', '/planning-checklist');
 
--- ── 5. Vendors column (column_id = 3) ─────────────────────────────────────────
+-- ── 5. Vendors column (column_id = 3) — with proof link ───────────────────────
 INSERT INTO footer_items (label, block_type, column_id, position, visible, link_type, url) VALUES
   ('VENDORS',            'heading', 3, 1, true, 'manual', ''),
   ('List Your Business', 'link',    3, 2, true, 'manual', '/list-your-business'),
   ('Advertise',          'link',    3, 3, true, 'manual', '/advertise'),
   ('Pricing Plans',      'link',    3, 4, true, 'manual', '/pricing'),
-  ('Vendor Dashboard',   'link',    3, 5, true, 'manual', '/vendor-dashboard'),
-  ('SEO Tools',          'link',    3, 6, true, 'manual', '/seo-tools'),
-  ('Success Stories',    'link',    3, 7, true, 'manual', '/success-stories'),
-  ('Vendor Blog',        'link',    3, 8, true, 'manual', '/vendor-blog');
+  ('Success Stories',    'link',    3, 5, true, 'manual', '/success-stories'),
+  ('Vendor Dashboard',   'link',    3, 6, true, 'manual', '/vendor-dashboard'),
+  ('Vendor Blog',        'link',    3, 7, true, 'manual', '/vendor-blog');
 
--- ── 6. Destinations / Collections column (column_id = 4) ──────────────────────
+-- ── 6. Destinations column (column_id = 4) — curated locations ────────────────
 INSERT INTO footer_items (label, block_type, column_id, position, visible, link_type, url) VALUES
-  ('DESTINATIONS',       'heading',      4, 1, true, 'manual', ''),
-  ('Italy',              'link',         4, 2, true, 'manual', '/destinations/italy'),
-  ('France',             'link',         4, 3, true, 'manual', '/destinations/france'),
-  ('Spain',              'link',         4, 4, true, 'manual', '/destinations/spain'),
-  ('Greece',             'link',         4, 5, true, 'manual', '/destinations/greece'),
-  ('Portugal',           'link',         4, 6, true, 'manual', '/destinations/portugal'),
-  ('United Kingdom',     'link',         4, 7, true, 'manual', '/destinations/united-kingdom'),
-  ('All Destinations',   'link',         4, 8, true, 'manual', '/destinations');
+  ('DESTINATIONS',   'heading', 4, 1, true, 'manual', ''),
+  ('Lake Como',      'link',    4, 2, true, 'manual', '/destinations/lake-como'),
+  ('Amalfi Coast',   'link',    4, 3, true, 'manual', '/destinations/amalfi-coast'),
+  ('French Riviera', 'link',    4, 4, true, 'manual', '/destinations/french-riviera'),
+  ('Tuscany',        'link',    4, 5, true, 'manual', '/destinations/tuscany'),
+  ('Mykonos',        'link',    4, 6, true, 'manual', '/destinations/mykonos'),
+  ('Dubai',          'link',    4, 7, true, 'manual', '/destinations/dubai'),
+  ('All Destinations','link',   4, 8, true, 'manual', '/destinations');
 
 -- ── 7. Our Brands column (column_id = 5) ─────────────────────────────────────
 INSERT INTO footer_items (label, block_type, column_id, position, visible, link_type, url) VALUES
-  ('OUR BRANDS',              'heading', 5, 1, true, 'manual', ''),
-  ('LWD Magazine',            'link',    5, 2, true, 'manual', '/magazine'),
-  ('Artistry Awards',         'link',    5, 3, true, 'manual', '/artistry-awards'),
-  ('The LWD Standard',        'link',    5, 4, true, 'manual', '/the-lwd-standard'),
-  ('Getting Married',         'link',    5, 5, true, 'manual', '/getting-married');
+  ('OUR BRANDS',        'heading', 5, 1, true, 'manual', ''),
+  ('LWD Magazine',      'link',    5, 2, true, 'manual', '/magazine'),
+  ('Artistry Awards',   'link',    5, 3, true, 'manual', '/artistry-awards'),
+  ('The LWD Standard',  'link',    5, 4, true, 'manual', '/the-lwd-standard'),
+  ('Getting Married',   'link',    5, 5, true, 'manual', '/getting-married');
 
--- ── 8. Company column (column_id = 6) ─────────────────────────────────────────
+-- ── 8. Company column (column_id = 6) — authority + contact ───────────────────
 INSERT INTO footer_items (label, block_type, column_id, position, visible, link_type, url) VALUES
-  ('COMPANY',              'heading', 6, 1, true, 'manual', ''),
-  ('About Us',             'link',    6, 2, true, 'manual', '/about'),
-  ('Editorial Standards',  'link',    6, 3, true, 'manual', '/editorial-standards'),
-  ('Press & Media',        'link',    6, 4, true, 'manual', '/press'),
-  ('Careers',              'link',    6, 5, true, 'manual', '/careers'),
-  ('Contact',              'link',    6, 6, true, 'manual', '/contact'),
-  ('Privacy Policy',       'link',    6, 7, true, 'manual', '/privacy-policy'),
-  ('Terms',                'link',    6, 8, true, 'manual', '/terms');
+  ('COMPANY',             'heading', 6, 1, true, 'manual', ''),
+  ('About Us',            'link',    6, 2, true, 'manual', '/about'),
+  ('Editorial Standards', 'link',    6, 3, true, 'manual', '/editorial-standards'),
+  ('Press & Media',       'link',    6, 4, true, 'manual', '/press'),
+  ('Careers',             'link',    6, 5, true, 'manual', '/careers'),
+  ('Contact',             'link',    6, 6, true, 'manual', '/contact'),
+  ('Privacy Policy',      'link',    6, 7, true, 'manual', '/privacy-policy');
 
 -- ── 9. Bottom bar links (column_id = 99) ──────────────────────────────────────
 INSERT INTO footer_items (label, block_type, column_id, position, visible, link_type, url) VALUES
