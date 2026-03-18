@@ -1640,7 +1640,9 @@ export default function MenuModule({ C }) {
 
       {/* Page header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
-        <h1 style={{ fontFamily: SERIF, fontSize: 30, fontWeight: 500, color: C?.white || "#f5efe4", margin: 0 }}>Menu Builder</h1>
+        <p style={{ fontFamily: SANS, fontSize: 13, color: C?.grey || "#8a7d6a", margin: 0, lineHeight: 1.6 }}>
+          Build your navigation tree. Changes reflect instantly in the canvas.
+        </p>
         <button
           onClick={() => setModal({ item: null, parentId: null })}
           style={{
