@@ -19,6 +19,15 @@ INSERT INTO nav_items (
   featured_title, featured_text, featured_link
 ) VALUES
 
+-- Home (simple link — position 0, always first)
+(
+  'b0000001-0000-0000-0000-000000000000',
+  'Home', '', '/', null, 'link', 0, true,
+  false, 'gold', false, 'classic-luxury', 'slide-down',
+  '#1a1510', '#f5efe4', '#c9a84c', '#c9a84c', '#2a2218', 'luxury', 8, 28,
+  false, 'left', '2-col', true, false, '', '', '', '', ''
+),
+
 -- Browse Venues (mega menu — full width, 3-col, venue types)
 (
   'b0000001-0000-0000-0000-000000000001',

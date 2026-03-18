@@ -9,7 +9,7 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
-const SANS  = "'Inter', system-ui, sans-serif";
+const SANS  = "'Nunito', sans-serif";
 const SERIF = "'Cormorant Garamond', Georgia, serif";
 const MONO  = "'JetBrains Mono', 'Fira Mono', monospace";
 
@@ -626,7 +626,7 @@ function ItemModal({ item, parentId, onSave, onClose, onFormChange, C }) {
               <div>
                 <label style={lbl}>Label Font</label>
                 <select value={form.label_font || "sans"} onChange={e => set("label_font", e.target.value)} style={{ ...inp, cursor: "pointer" }}>
-                  <option value="sans">Sans-serif (Inter)</option>
+                  <option value="sans">Sans-serif (Nunito)</option>
                   <option value="serif">Serif (Cormorant)</option>
                   <option value="mono">Monospace</option>
                 </select>
