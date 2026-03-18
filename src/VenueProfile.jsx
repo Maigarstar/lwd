@@ -5320,7 +5320,7 @@ function Footer() {
       </div>
 
       {/* Newsletter strip */}
-      <div style={{ background: bgMid, borderTop: `1px solid ${border}`, borderBottom: `1px solid ${border}` }}>
+      <div style={{ background: bg, borderTop: `1px solid ${border}`, borderBottom: `1px solid ${border}` }}>
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 40px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24 }}>
           <div>
             <div style={{ fontFamily: FD, fontSize: 18, color: text, marginBottom: 4 }}>The LWD Edit, monthly inspiration for couples</div>
