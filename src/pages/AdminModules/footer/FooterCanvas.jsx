@@ -116,7 +116,7 @@ export default function FooterCanvas({
   const isMobile = viewMode === "mobile";
   const canvasWidth = isMobile ? 390 : "100%";
 
-  const numCols = cfg.layout_columns || 4;
+  const numCols = cfg.layout_columns || 6;
   const colIds = Array.from({ length: numCols - 1 }, (_, i) => i + 2);
 
   function isSelected(item) { return item.id === selectedItemId; }
@@ -141,9 +141,9 @@ export default function FooterCanvas({
             key={item.id}
             onClick={() => onSelectItem(item)}
             style={{
-              fontFamily: SANS, fontSize: 9, fontWeight: 700,
-              letterSpacing: "0.12em", textTransform: "uppercase",
-              color: accentColor, marginBottom: 10,
+              fontFamily: SANS, fontSize: 9, fontWeight: 600,
+              letterSpacing: "0.14em", textTransform: "uppercase",
+              color: accentColor, opacity: 0.6, marginBottom: 12,
               ...selectOutline(item),
             }}
           >
@@ -193,11 +193,11 @@ export default function FooterCanvas({
             style={{
               fontFamily: SANS, fontSize: 12,
               color: hovered ? accentColor : textColor,
-              padding: "2px 0", lineHeight: 1.8,
-              opacity: item.visible ? 1 : 0.4,
+              padding: "3px 0", lineHeight: 1.85,
+              opacity: item.visible ? (hovered ? 1 : 0.78) : 0.35,
               textDecoration: hovered ? "underline" : "none",
-              textDecorationColor: accentColor + "80",
-              transition: "color 150ms, text-decoration 150ms",
+              textDecorationColor: accentColor + "60",
+              transition: "color 180ms, opacity 180ms",
               ...selectOutline(item),
             }}
           >
@@ -256,15 +256,15 @@ export default function FooterCanvas({
         {/* Label with flanking gold rules */}
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "center",
-          gap: 14, marginBottom: 14,
+          gap: 16, marginBottom: 16,
         }}>
-          <div style={{ height: 1, width: 48, background: G, opacity: 0.6 }} />
+          <div style={{ height: 1, width: 56, background: G, opacity: 0.45 }} />
           <span style={{
-            fontFamily: SANS, fontSize: 9, fontWeight: 700,
-            letterSpacing: "0.16em", textTransform: "uppercase",
-            color: G, whiteSpace: "nowrap",
+            fontFamily: SANS, fontSize: 8, fontWeight: 300,
+            letterSpacing: "0.26em", textTransform: "uppercase",
+            color: G, whiteSpace: "nowrap", opacity: 0.85,
           }}>{cfg.strip_label || "Iconic Venues"}</span>
-          <div style={{ height: 1, width: 48, background: G, opacity: 0.6 }} />
+          <div style={{ height: 1, width: 56, background: G, opacity: 0.45 }} />
         </div>
 
         {/* Marquee container with fade edges */}
@@ -293,9 +293,9 @@ export default function FooterCanvas({
                 }}>{name}</span>
                 <span style={{
                   color: G,
-                  margin: "0 32px",
-                  opacity: 0.5,
-                  fontSize: 9,
+                  margin: "0 52px",
+                  opacity: 0.4,
+                  fontSize: 8,
                   flexShrink: 0,
                 }}>·</span>
               </span>
@@ -332,8 +332,8 @@ export default function FooterCanvas({
         {cfg.show_tagline && (
           <div style={{
             fontFamily: SANS, fontSize: 11,
-            color: textColor, opacity: 0.7, lineHeight: 1.5,
-            maxWidth: 200,
+            color: textColor, opacity: 0.65, lineHeight: 1.6,
+            maxWidth: 168,
           }}>
             {cfg.tagline_text || "The world's finest wedding directory"}
           </div>
@@ -391,7 +391,7 @@ export default function FooterCanvas({
         <div style={{
           display: "grid",
           gridTemplateColumns: gridCols,
-          gap: isMobile ? 24 : 40,
+          gap: isMobile ? 24 : 32,
           alignItems: "start",
         }}>
           {/* Column 1: Brand block (locked) */}
@@ -401,9 +401,11 @@ export default function FooterCanvas({
           {colIds.map((colId, idx) => {
             const colItems = grouped[colId] || [];
             const GUIDED = [
-              "Add links to showcase your venues and vendors",
-              "Add company links or editorial pages",
-              "Add support or contact information",
+              "Add links for couples: venues, vendors, planning tools",
+              "Add links for vendors: list your business, resources",
+              "Add destinations, regions, or curated venue collections",
+              "Add sister brands, collections, and brand partnerships",
+              "Add company links, editorial standards, contact",
             ];
             const guideText = GUIDED[idx] || "Add blocks to this column";
             return (

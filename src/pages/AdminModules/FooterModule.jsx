@@ -264,6 +264,29 @@ export default function FooterModule({ C }) {
     } finally { setMoving(null); }
   }
 
+  // ── Drag-and-drop reorder ────────────────────────────────────────────────
+  async function handleReorder(draggedItem, targetItem) {
+    if (!draggedItem || !targetItem || draggedItem.id === targetItem.id) return;
+    if (draggedItem.column_id !== targetItem.column_id) return;
+    const siblings = allItems
+      .filter(i => i.column_id === draggedItem.column_id)
+      .sort((a, b) => a.position - b.position);
+    const withoutDragged = siblings.filter(i => i.id !== draggedItem.id);
+    const targetIdx = withoutDragged.findIndex(i => i.id === targetItem.id);
+    withoutDragged.splice(targetIdx, 0, draggedItem);
+    setMoving(draggedItem.id);
+    try {
+      await Promise.all(
+        withoutDragged.map((item, idx) =>
+          supabase.from("footer_items").update({ position: idx + 1 }).eq("id", item.id)
+        )
+      );
+      await load();
+    } catch (e) {
+      setToast({ msg: "Reorder failed: " + e.message, type: "error" });
+    } finally { setMoving(null); }
+  }
+
   // ── Save footer config ────────────────────────────────────────────────────
   async function handleSaveConfig() {
     setConfigSaving(true);
@@ -341,6 +364,7 @@ export default function FooterModule({ C }) {
                 onAdd={handleAdd}
                 onMoveUp={handleMoveUp}
                 onMoveDown={handleMoveDown}
+                onReorder={handleReorder}
                 onToggleVisible={handleToggleVisible}
                 onRemove={handleRemove}
                 C={C}

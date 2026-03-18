@@ -1,6 +1,17 @@
 -- Brand Footer seed — content from live site reference
--- Run AFTER the footer_items + footer_config migrations.
--- Safe to re-run: uses ON CONFLICT DO NOTHING on config, TRUNCATE+INSERT on items.
+-- Run AFTER the footer_items + footer_config migrations (including 20260318_footer_5col_layout.sql).
+-- Safe to re-run: uses ON CONFLICT DO UPDATE on config, TRUNCATE+INSERT on items.
+--
+-- Column ID convention:
+--   0  = Iconic Venues strip
+--   1  = Brand Block (locked, config-driven)
+--   2  = Couples
+--   3  = Vendors
+--   4  = Destinations / Collections
+--   5  = Our Brands
+--   6  = Company
+--   99 = Bottom bar utility links
+-- ────────────────────────────────────────────────────────────────────────────────
 
 -- ── 1. Footer config ──────────────────────────────────────────────────────────
 INSERT INTO footer_config (
@@ -12,9 +23,9 @@ INSERT INTO footer_config (
   social_instagram, social_pinterest, social_tiktok,
   show_newsletter, newsletter_heading, newsletter_subtext, newsletter_btn_label,
   show_bottom_bar, bottom_bar_bg, bottom_bar_text, copyright_text,
-  visibility_mode
+  strip_label, visibility_mode
 ) VALUES (
-  'homepage', 4, 'columns',
+  'homepage', 6, 'columns',
   64, 72,
   '#0b0906', 1.0, '#d4c8b0', '#c9a84c',
   true, '#2a2218',
@@ -22,7 +33,7 @@ INSERT INTO footer_config (
   '', '', '',
   true, 'The LWD Edit', 'Monthly inspiration for modern luxury couples', 'Subscribe',
   true, '#080604', '#5a5045', '2026 LuxuryWeddingDirectory.com · Est. 2006 · All rights reserved',
-  'all'
+  'Iconic Venues', 'all'
 ) ON CONFLICT (id) DO UPDATE SET
   layout_columns       = EXCLUDED.layout_columns,
   pad_x                = EXCLUDED.pad_x,
@@ -39,6 +50,7 @@ INSERT INTO footer_config (
   newsletter_subtext   = EXCLUDED.newsletter_subtext,
   show_bottom_bar      = EXCLUDED.show_bottom_bar,
   copyright_text       = EXCLUDED.copyright_text,
+  strip_label          = EXCLUDED.strip_label,
   visibility_mode      = EXCLUDED.visibility_mode,
   updated_at           = now();
 
@@ -92,22 +104,40 @@ INSERT INTO footer_items (label, block_type, column_id, position, visible, link_
   ('Success Stories',    'link',    3, 7, true, 'manual', '/success-stories'),
   ('Vendor Blog',        'link',    3, 8, true, 'manual', '/vendor-blog');
 
--- ── 6. Company column (column_id = 4) ─────────────────────────────────────────
+-- ── 6. Destinations / Collections column (column_id = 4) ──────────────────────
 INSERT INTO footer_items (label, block_type, column_id, position, visible, link_type, url) VALUES
-  ('COMPANY',              'heading', 4, 1, true, 'manual', ''),
-  ('About Us',             'link',    4, 2, true, 'manual', '/about'),
-  ('The LWD Standard',     'link',    4, 3, true, 'manual', '/the-lwd-standard'),
-  ('Editorial Standards',  'link',    4, 4, true, 'manual', '/editorial-standards'),
-  ('Press & Media',        'link',    4, 5, true, 'manual', '/press'),
-  ('Careers',              'link',    4, 6, true, 'manual', '/careers'),
-  ('Contact',              'link',    4, 7, true, 'manual', '/contact'),
-  ('Privacy Policy',       'link',    4, 8, true, 'manual', '/privacy-policy'),
-  ('Terms',                'link',    4, 9, true, 'manual', '/terms');
+  ('DESTINATIONS',       'heading',      4, 1, true, 'manual', ''),
+  ('Italy',              'link',         4, 2, true, 'manual', '/destinations/italy'),
+  ('France',             'link',         4, 3, true, 'manual', '/destinations/france'),
+  ('Spain',              'link',         4, 4, true, 'manual', '/destinations/spain'),
+  ('Greece',             'link',         4, 5, true, 'manual', '/destinations/greece'),
+  ('Portugal',           'link',         4, 6, true, 'manual', '/destinations/portugal'),
+  ('United Kingdom',     'link',         4, 7, true, 'manual', '/destinations/united-kingdom'),
+  ('All Destinations',   'link',         4, 8, true, 'manual', '/destinations');
 
--- ── 7. Bottom bar links (column_id = 5) ──────────────────────────────────────
+-- ── 7. Our Brands column (column_id = 5) ─────────────────────────────────────
 INSERT INTO footer_items (label, block_type, column_id, position, visible, link_type, url) VALUES
-  ('Privacy', 'link', 5, 1, true, 'manual', '/privacy'),
-  ('Terms',   'link', 5, 2, true, 'manual', '/terms'),
-  ('Cookies', 'link', 5, 3, true, 'manual', '/cookies'),
-  ('Sitemap', 'link', 5, 4, true, 'manual', '/sitemap'),
-  ('Admin',   'link', 5, 5, true, 'manual', '/admin');
+  ('OUR BRANDS',              'heading', 5, 1, true, 'manual', ''),
+  ('LWD Magazine',            'link',    5, 2, true, 'manual', '/magazine'),
+  ('Artistry Awards',         'link',    5, 3, true, 'manual', '/artistry-awards'),
+  ('The LWD Standard',        'link',    5, 4, true, 'manual', '/the-lwd-standard'),
+  ('Getting Married',         'link',    5, 5, true, 'manual', '/getting-married');
+
+-- ── 8. Company column (column_id = 6) ─────────────────────────────────────────
+INSERT INTO footer_items (label, block_type, column_id, position, visible, link_type, url) VALUES
+  ('COMPANY',              'heading', 6, 1, true, 'manual', ''),
+  ('About Us',             'link',    6, 2, true, 'manual', '/about'),
+  ('Editorial Standards',  'link',    6, 3, true, 'manual', '/editorial-standards'),
+  ('Press & Media',        'link',    6, 4, true, 'manual', '/press'),
+  ('Careers',              'link',    6, 5, true, 'manual', '/careers'),
+  ('Contact',              'link',    6, 6, true, 'manual', '/contact'),
+  ('Privacy Policy',       'link',    6, 7, true, 'manual', '/privacy-policy'),
+  ('Terms',                'link',    6, 8, true, 'manual', '/terms');
+
+-- ── 9. Bottom bar links (column_id = 99) ──────────────────────────────────────
+INSERT INTO footer_items (label, block_type, column_id, position, visible, link_type, url) VALUES
+  ('Privacy', 'link', 99, 1, true, 'manual', '/privacy'),
+  ('Terms',   'link', 99, 2, true, 'manual', '/terms'),
+  ('Cookies', 'link', 99, 3, true, 'manual', '/cookies'),
+  ('Sitemap', 'link', 99, 4, true, 'manual', '/sitemap'),
+  ('Admin',   'link', 99, 5, true, 'manual', '/admin');

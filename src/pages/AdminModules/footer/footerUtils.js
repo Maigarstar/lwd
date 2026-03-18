@@ -37,18 +37,18 @@ export const LAYOUT_OPTIONS = [
 ];
 
 // ── Column ID convention ───────────────────────────────────────────────────
-// 0 = Iconic Venues strip
-// 1 = Brand block (locked, config-driven)
-// 2-4 = Nav columns (user-managed)
-// 5 = Bottom bar utility links
+// 0  = Iconic Venues strip
+// 1  = Brand block (locked, config-driven)
+// 2-5 = Nav columns (user-managed): Couples | Vendors | Destinations | Company
+// 99 = Bottom bar utility links (moved from 5 to avoid nav column conflict)
 export const ICONIC_STRIP_COL = 0;
 export const BRAND_COL        = 1;
-export const BOTTOM_BAR_COL   = 5;
+export const BOTTOM_BAR_COL   = 99;
 
 // ── Default footer_config row ──────────────────────────────────────────────
 export const DEFAULT_FOOTER_CONFIG = {
   id:                  "homepage",
-  layout_columns:      4,
+  layout_columns:      6,
   layout_type:         "columns",
   pad_x:               48,
   pad_y:               64,
