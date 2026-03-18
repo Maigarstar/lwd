@@ -70,6 +70,7 @@ export const DEFAULT_FOOTER_CONFIG = {
   newsletter_heading:  "The LWD Edit",
   newsletter_subtext:  "Monthly inspiration for modern luxury couples",
   newsletter_btn_label:"Subscribe",
+  strip_label:         "Iconic Venues",
   show_bottom_bar:     true,
   bottom_bar_bg:       "#080604",
   bottom_bar_text:     "#5a5045",

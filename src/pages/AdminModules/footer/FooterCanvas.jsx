@@ -263,7 +263,7 @@ export default function FooterCanvas({
             fontFamily: SANS, fontSize: 9, fontWeight: 700,
             letterSpacing: "0.16em", textTransform: "uppercase",
             color: G, whiteSpace: "nowrap",
-          }}>Iconic Venues</span>
+          }}>{cfg.strip_label || "Iconic Venues"}</span>
           <div style={{ height: 1, width: 48, background: G, opacity: 0.6 }} />
         </div>
 

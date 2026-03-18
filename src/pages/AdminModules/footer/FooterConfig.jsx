@@ -147,8 +147,13 @@ export default function FooterConfig({ footerConfig, onConfigChange, onSave, sav
       borderRadius: 10, overflow: "hidden",
     }}>
 
+      {/* ── Iconic Strip ────────────────────────────────────────────── */}
+      <Section title="Iconic Strip" defaultOpen C={C}>
+        <TextRow label="Strip Label" field="strip_label" cfg={cfg} set={set} placeholder="Iconic Venues" C={C} />
+      </Section>
+
       {/* ── Layout ──────────────────────────────────────────────────── */}
-      <Section title="Layout" defaultOpen C={C}>
+      <Section title="Layout" C={C}>
         <div>
           <label style={lbl}>Layout Type</label>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
