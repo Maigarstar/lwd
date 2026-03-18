@@ -591,7 +591,7 @@ export default function FooterCanvas({
           width: isMobile ? canvasWidth : "100%",
           margin: isMobile ? "0 auto" : undefined,
           background: footerBg,
-          borderTop: cfg.border_top ? `1px solid ${cfg.border_color || "#2a2218"}` : "none",
+          borderTop: cfg.border_top ? `1px solid ${G}` : "none",
         }}>
           {/* 1. Iconic Venues strip */}
           <div style={{ padding: isMobile ? 0 : `0 ${cfg.pad_x || 48}px` }}>
