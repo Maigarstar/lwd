@@ -307,13 +307,27 @@ export default function SiteFooter({
           {/* ── Brand column ── */}
           <div>
             {(cfg?.show_logo ?? true) && (
-              <div style={{
-                fontFamily: GD, fontSize: cfg?.logo_size || 10,
-                color: gold, letterSpacing: "0.22em",
-                textTransform: "uppercase", lineHeight: 1.7, marginBottom: 6,
-              }}>
-                Luxury Wedding<br />Directory
-              </div>
+              cfg?.logo_type === "image" && cfg?.logo_url ? (
+                <img
+                  src={cfg.logo_url}
+                  alt="Luxury Wedding Directory"
+                  style={{
+                    height: cfg?.logo_size || 48,
+                    maxWidth: "100%",
+                    objectFit: "contain",
+                    display: "block",
+                    marginBottom: 6,
+                  }}
+                />
+              ) : (
+                <div style={{
+                  fontFamily: GD, fontSize: cfg?.logo_size || 10,
+                  color: gold, letterSpacing: "0.22em",
+                  textTransform: "uppercase", lineHeight: 1.7, marginBottom: 6,
+                }}>
+                  Luxury Wedding<br />Directory
+                </div>
+              )
             )}
             <div style={{
               fontFamily: NU, fontSize: 9, letterSpacing: "3px",

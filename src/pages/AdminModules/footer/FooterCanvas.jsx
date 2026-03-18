@@ -347,15 +347,25 @@ export default function FooterCanvas({
   // ── Brand block (column 1) ─────────────────────────────────────────────
   function renderBrandBlock() {
     const textColor = cfg.text_color || "#d4c8b0";
+    const logoSize  = cfg.logo_size || 32;
+    const isImage   = cfg.logo_type === "image" && cfg.logo_url;
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {cfg.show_logo && (
-          <div style={{
-            fontFamily: SERIF, fontSize: cfg.logo_size || 32,
-            color: G, letterSpacing: "0.04em", lineHeight: 1,
-          }}>
-            LWD
-          </div>
+          isImage ? (
+            <img
+              src={cfg.logo_url}
+              alt="Logo"
+              style={{ height: logoSize, maxWidth: "100%", objectFit: "contain", display: "block" }}
+            />
+          ) : (
+            <div style={{
+              fontFamily: SERIF, fontSize: logoSize,
+              color: G, letterSpacing: "0.04em", lineHeight: 1,
+            }}>
+              LWD
+            </div>
+          )
         )}
         {cfg.show_tagline && (
           <div style={{

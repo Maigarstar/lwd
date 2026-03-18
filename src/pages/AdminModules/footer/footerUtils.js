@@ -59,6 +59,8 @@ export const DEFAULT_FOOTER_CONFIG = {
   border_top:          true,
   border_color:        "#2a2218",
   show_logo:           true,
+  logo_type:           "text",
+  logo_url:            "",
   logo_size:           32,
   show_tagline:        true,
   tagline_text:        "The world's finest wedding directory",

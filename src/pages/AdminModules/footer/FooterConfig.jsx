@@ -3,8 +3,14 @@
 // Each change is applied instantly to the canvas via onConfigChange.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { createClient } from "@supabase/supabase-js";
 import { SANS, SERIF, LAYOUT_OPTIONS, DEFAULT_FOOTER_CONFIG } from "./footerUtils.js";
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
 // ── Collapsible section wrapper ────────────────────────────────────────────
 function Section({ title, defaultOpen = false, children, C }) {
@@ -125,11 +131,46 @@ function NumRow({ label, field, cfg, set, min, max, C }) {
 export default function FooterConfig({ footerConfig, onConfigChange, onSave, saving, C }) {
   const G = C?.gold || "#c9a84c";
   const cfg = footerConfig || DEFAULT_FOOTER_CONFIG;
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const fileInputRef = useRef(null);
 
   const set = (k, v) => {
     const next = { ...cfg, [k]: v };
     onConfigChange(next);
   };
+
+  async function handleLogoUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const allowed = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
+    if (!allowed.includes(file.type)) {
+      setUploadError("Accepted formats: PNG, JPEG, WebP, SVG");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError("File must be under 5 MB");
+      return;
+    }
+    setUploadError("");
+    setUploading(true);
+    try {
+      const ext  = file.name.split(".").pop();
+      const path = `logo/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("brand-assets")
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from("brand-assets").getPublicUrl(path);
+      set("logo_url",  data.publicUrl);
+      set("logo_type", "image");
+    } catch (err) {
+      setUploadError(err.message || "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   const lbl = { fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: C?.grey || "#8a7d6a", marginBottom: 4, display: "block" };
   const inp = {
@@ -246,7 +287,130 @@ export default function FooterConfig({ footerConfig, onConfigChange, onSave, sav
       {/* ── Brand Block ─────────────────────────────────────────────── */}
       <Section title="Brand Block" C={C}>
         <ToggleRow label="Show logo" field="show_logo" cfg={cfg} set={set} C={C} />
-        {cfg.show_logo && <NumRow label="Logo size (px)" field="logo_size" cfg={cfg} set={set} min={16} max={80} C={C} />}
+
+        {cfg.show_logo && (
+          <>
+            {/* Logo type toggle */}
+            <div>
+              <label style={{ fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: C?.grey || "#8a7d6a", marginBottom: 6, display: "block" }}>Logo Type</label>
+              <div style={{ display: "flex", gap: 6 }}>
+                {[
+                  { value: "text",  label: "Text" },
+                  { value: "image", label: "Image" },
+                ].map(opt => {
+                  const active = (cfg.logo_type || "text") === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => set("logo_type", opt.value)}
+                      style={{
+                        flex: 1, padding: "7px 8px", cursor: "pointer",
+                        background: active ? G + "18" : "transparent",
+                        border: `1px solid ${active ? G + "60" : C?.border || "#2a2218"}`,
+                        borderRadius: 6,
+                        fontFamily: SANS, fontSize: 11, fontWeight: active ? 700 : 400,
+                        color: active ? G : C?.grey || "#8a7d6a",
+                      }}
+                    >{opt.label}</button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Text logo: just size control */}
+            {(cfg.logo_type || "text") === "text" && (
+              <NumRow label="Text size (px)" field="logo_size" cfg={cfg} set={set} min={16} max={80} C={C} />
+            )}
+
+            {/* Image logo: upload + preview */}
+            {cfg.logo_type === "image" && (
+              <div>
+                <label style={{ fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: C?.grey || "#8a7d6a", marginBottom: 6, display: "block" }}>Logo Image</label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".png,.jpg,.jpeg,.webp,.svg"
+                  style={{ display: "none" }}
+                  onChange={handleLogoUpload}
+                />
+
+                {cfg.logo_url ? (
+                  /* Preview */
+                  <div style={{
+                    background: C?.dark || "#0d0d0d",
+                    border: `1px solid ${C?.border || "#2a2218"}`,
+                    borderRadius: 8, padding: 12,
+                    display: "flex", flexDirection: "column", gap: 10,
+                  }}>
+                    <div style={{
+                      background: "#1a1510", borderRadius: 6, padding: "16px 12px",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      minHeight: 64,
+                    }}>
+                      <img
+                        src={cfg.logo_url}
+                        alt="Logo preview"
+                        style={{ maxHeight: cfg.logo_size || 48, maxWidth: "100%", objectFit: "contain" }}
+                      />
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        style={{
+                          flex: 1, padding: "6px 0", cursor: "pointer",
+                          background: "transparent",
+                          border: `1px solid ${C?.border || "#2a2218"}`,
+                          borderRadius: 6,
+                          fontFamily: SANS, fontSize: 10, fontWeight: 600,
+                          color: C?.grey || "#8a7d6a",
+                        }}
+                      >{uploading ? "Uploading..." : "Replace"}</button>
+                      <button
+                        onClick={() => { set("logo_url", ""); set("logo_type", "text"); }}
+                        style={{
+                          flex: 1, padding: "6px 0", cursor: "pointer",
+                          background: "transparent",
+                          border: "1px solid #5a2a2a",
+                          borderRadius: 6,
+                          fontFamily: SANS, fontSize: 10, fontWeight: 600,
+                          color: "#b04040",
+                        }}
+                      >Remove</button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Upload dropzone */
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    style={{
+                      width: "100%", boxSizing: "border-box",
+                      background: uploading ? G + "08" : "transparent",
+                      border: `1.5px dashed ${uploading ? G + "60" : C?.border || "#2a2218"}`,
+                      borderRadius: 8, padding: "20px 12px",
+                      cursor: uploading ? "wait" : "pointer",
+                      display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+                    }}
+                  >
+                    <span style={{ fontFamily: SANS, fontSize: 20, color: C?.grey || "#8a7d6a", opacity: 0.5 }}>+</span>
+                    <span style={{ fontFamily: SANS, fontSize: 11, color: C?.grey || "#8a7d6a" }}>
+                      {uploading ? "Uploading..." : "Click to upload logo"}
+                    </span>
+                    <span style={{ fontFamily: SANS, fontSize: 9, color: "#5a5045" }}>PNG, JPEG, WebP, SVG — max 5 MB</span>
+                  </button>
+                )}
+
+                {uploadError && (
+                  <div style={{ fontFamily: SANS, fontSize: 10, color: "#b04040", marginTop: 4 }}>{uploadError}</div>
+                )}
+
+                <NumRow label="Display size (px)" field="logo_size" cfg={cfg} set={set} min={20} max={200} C={C} />
+              </div>
+            )}
+          </>
+        )}
+
         <ToggleRow label="Show tagline" field="show_tagline" cfg={cfg} set={set} C={C} />
         {cfg.show_tagline && <TextRow label="Tagline text" field="tagline_text" cfg={cfg} set={set} C={C} />}
         <ToggleRow label="Show social links" field="show_social" cfg={cfg} set={set} C={C} />
