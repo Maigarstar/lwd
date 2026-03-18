@@ -122,9 +122,9 @@ export async function fetchManagedAccount(id) {
       .from('managed_accounts')
       .select('*')
       .eq('id', id)
-      .single();
+      .maybeSingle();
     if (error) throw error;
-    return dbToAccount(data);
+    return data ? dbToAccount(data) : null;
   } catch (err) {
     console.error('[SocialStudio] fetchManagedAccount error:', err);
     return null;

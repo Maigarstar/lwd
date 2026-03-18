@@ -512,44 +512,77 @@ function CampaignsPage({ account }) {
 }
 
 // -- Performance Page ----------------------------------------------------------
-const PERF_PILLARS = [
-  {
-    key: "content",
-    label: "Content Impact",
-    desc: "Reach, engagement, and audience growth driven by your content programme. Posts published, impressions delivered, and audience growth tracked month by month.",
-    metrics: ["Posts Published", "Estimated Reach", "Engagement Rate"],
-  },
-  {
-    key: "visibility",
-    label: "Search Visibility",
-    desc: "How your listing ranks across search engines and the LWD directory. Keyword positions, organic traffic, and click-through rate from Google Search Console.",
-    metrics: ["Organic Sessions", "Avg. Position", "Click-through Rate"],
-  },
-  {
-    key: "enquiries",
-    label: "Enquiry Value",
-    desc: "The commercial impact of your presence in the directory. Enquiries received, conversion rate from page views, and estimated pipeline value per month.",
-    metrics: ["Enquiries", "Conversion Rate", "Est. Pipeline Value"],
-  },
-];
+function PerformancePage({ account, listing, summary }) {
+  const now       = new Date();
+  const monthName = now.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const mgr       = account?.portalConfig?.accountManager;
 
-function PerformancePage({ account, listing }) {
+  // Real content metrics from summary
+  const published = summary?.liveThisMonth ?? 0;
+  const scheduled = summary?.scheduled     ?? 0;
+  const inPipeline= summary?.draft         ?? 0;
+  const lastPub   = summary?.lastPublished ? fmtDate(summary.lastPublished) : null;
+  const campaign  = summary?.activeCampaign ?? null;
+  const hasContent= published > 0 || scheduled > 0 || inPipeline > 0;
+
+  // Build curated narrative sentences
+  const narrative = [];
+  if (published > 0) {
+    narrative.push(`${published} piece${published !== 1 ? "s" : ""} of content published this month.`);
+  }
+  if (scheduled > 0) {
+    narrative.push(`${scheduled} post${scheduled !== 1 ? "s" : ""} scheduled for the coming weeks.`);
+  }
+  if (campaign) {
+    narrative.push(`Active campaign: ${campaign}.`);
+  }
+  if (!hasContent) {
+    narrative.push("Your content programme is being prepared. Items will appear here as they enter the pipeline.");
+  }
+
   return (
     <div>
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontFamily: SERIF, fontSize: 28, fontWeight: 500, color: T.white, marginBottom: 6 }}>Performance</div>
         <p style={{ fontFamily: SANS, fontSize: 13, color: T.grey, margin: 0, lineHeight: 1.7 }}>
-          The commercial and creative impact of your account, measured across content, search, and enquiry performance.
+          The impact of your account, measured across content delivery, search presence, and enquiry performance.
         </p>
       </div>
 
-      {/* Live listing stats - real data now */}
+      {/* Month in review - curated narrative */}
+      <div style={{ marginBottom: 36, padding: "24px 28px", background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, borderTop: `2px solid ${T.goldDim}` }}>
+        <div style={{ fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: T.goldDim, marginBottom: 10 }}>
+          {monthName}
+        </div>
+        <div style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 500, color: T.off, marginBottom: 14, lineHeight: 1.3 }}>
+          {hasContent ? "Here is where things stand this month." : "Your account is being set up."}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {narrative.map((line, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+              <span style={{ color: T.goldDim, fontSize: 10, marginTop: 2, flexShrink: 0 }}>-</span>
+              <span style={{ fontFamily: SANS, fontSize: 13, color: T.grey, lineHeight: 1.7 }}>{line}</span>
+            </div>
+          ))}
+        </div>
+        {mgr?.name && (
+          <div style={{ marginTop: 18, paddingTop: 16, borderTop: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 10 }}>
+            {mgr.photo && <img src={mgr.photo} alt={mgr.name} style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />}
+            <span style={{ fontFamily: SANS, fontSize: 11, color: T.grey2 }}>
+              Your account manager is {mgr.name}{mgr.title ? `, ${mgr.title}` : ""}.
+              {mgr.email && <> Contact: <a href={`mailto:${mgr.email}`} style={{ color: T.gold, textDecoration: "none" }}>{mgr.email}</a>.</>}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Directory presence - real listing data */}
       {listing && (
         <div style={{ marginBottom: 36 }}>
           <SectionTitle>Directory Presence</SectionTitle>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1 }}>
             {[
-              { label: "Rating",        value: listing.rating ? `${listing.rating}/5` : "-",  color: T.gold, note: listing.reviewCount ? `${listing.reviewCount} review${listing.reviewCount !== 1 ? "s" : ""}` : null },
+              { label: "Rating",        value: listing.rating ? `${listing.rating}/5` : "-", color: T.gold,  note: listing.reviewCount ? `${listing.reviewCount} review${listing.reviewCount !== 1 ? "s" : ""}` : null },
               { label: "Listing Status",value: listing.status === "published" ? "Live" : listing.status || "Draft", color: listing.status === "published" ? T.green : T.grey, note: listing.name },
               { label: "Starting From", value: listing.priceFrom ? `${listing.priceCurrency || "EUR"} ${listing.priceFrom.toLocaleString()}` : "-", color: T.off, note: null },
             ].map(s => (
@@ -563,43 +596,84 @@ function PerformancePage({ account, listing }) {
         </div>
       )}
 
-      {/* Three pillars - positioned as future proof of value */}
-      <SectionTitle>Performance Pillars</SectionTitle>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 32 }}>
-        {PERF_PILLARS.map(pillar => (
-          <div key={pillar.key} style={{
+      {/* Content Impact - real metrics from summary */}
+      <div style={{ marginBottom: 12 }}>
+        <SectionTitle>Content Impact</SectionTitle>
+        <div style={{ padding: "24px 28px", background: T.card, border: `1px solid ${T.border}`, borderRadius: 10 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 12 }}>
+            <div style={{ fontFamily: SANS, fontSize: 14, fontWeight: 600, color: T.off }}>Content Pipeline</div>
+            <span style={{ fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 20, border: `1px solid ${hasContent ? T.gold + "44" : T.border2}`, color: hasContent ? T.gold : T.grey2, flexShrink: 0 }}>
+              {hasContent ? "Live" : "Building"}
+            </span>
+          </div>
+          <p style={{ fontFamily: SANS, fontSize: 13, color: T.grey, margin: "0 0 20px", lineHeight: 1.8 }}>
+            Content published, in progress, and scheduled across your active campaigns.
+            {lastPub && <> Last published {lastPub}.</>}
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+            {[
+              { label: "Published This Month", value: published },
+              { label: "Scheduled",            value: scheduled },
+              { label: "In Pipeline",          value: inPipeline },
+            ].map(m => (
+              <div key={m.label} style={{ padding: "14px 14px 12px", background: T.bg, border: `1px solid ${m.value > 0 ? T.border2 : T.border}`, borderRadius: 6, textAlign: "center" }}>
+                <div style={{ fontFamily: SERIF, fontSize: 26, fontWeight: 600, color: m.value > 0 ? T.off : T.grey2, lineHeight: 1, marginBottom: 6 }}>
+                  {m.value > 0 ? m.value : "-"}
+                </div>
+                <div style={{ fontFamily: SANS, fontSize: 9, color: T.grey2, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>{m.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Search Visibility + Enquiry Value - intentional setup state */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 32, marginTop: 12 }}>
+        {[
+          {
+            label: "Search Visibility",
+            desc:  "Keyword rankings, organic sessions, and click-through rate from Search Console. This view will activate once your analytics integrations are connected during onboarding.",
+            metrics: [
+              { label: "Organic Sessions",   note: "via Google Analytics" },
+              { label: "Avg. Position",      note: "via Search Console" },
+              { label: "Click-through Rate", note: "via Search Console" },
+            ],
+          },
+          {
+            label: "Enquiry Value",
+            desc:  "Enquiries received from your directory listing, conversion rate from page views, and estimated pipeline value. Tracked once your listing is live and enquiry routing is configured.",
+            metrics: [
+              { label: "Enquiries",           note: "from listing" },
+              { label: "Conversion Rate",     note: "views to contact" },
+              { label: "Est. Pipeline Value", note: "per month" },
+            ],
+          },
+        ].map(pillar => (
+          <div key={pillar.label} style={{
             padding: "24px 28px",
             background: T.card,
             border: `1px solid ${T.border}`,
             borderRadius: 10,
+            opacity: 0.72,
           }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 12 }}>
-              <div style={{ fontFamily: SANS, fontSize: 14, fontWeight: 600, color: T.off }}>{pillar.label}</div>
-              <span style={{ fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 20, border: `1px solid ${T.border2}`, color: T.grey2, flexShrink: 0 }}>
-                Setting up
+              <div style={{ fontFamily: SANS, fontSize: 14, fontWeight: 600, color: T.grey }}>{pillar.label}</div>
+              <span style={{ fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 20, border: `1px solid ${T.border}`, color: T.grey2, flexShrink: 0 }}>
+                Connecting soon
               </span>
             </div>
-            <p style={{ fontFamily: SANS, fontSize: 13, color: T.grey, margin: "0 0 20px", lineHeight: 1.8 }}>{pillar.desc}</p>
+            <p style={{ fontFamily: SANS, fontSize: 13, color: T.grey2, margin: "0 0 20px", lineHeight: 1.8 }}>{pillar.desc}</p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
               {pillar.metrics.map(m => (
-                <div key={m} style={{ padding: "10px 12px", background: T.bg, border: `1px solid ${T.border2}`, borderRadius: 6 }}>
-                  <div style={{ fontFamily: SERIF, fontSize: 20, color: T.grey2, lineHeight: 1, marginBottom: 4 }}>-</div>
-                  <div style={{ fontFamily: SANS, fontSize: 9, color: T.grey2, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>{m}</div>
+                <div key={m.label} style={{ padding: "12px 12px 10px", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 6, textAlign: "center" }}>
+                  <div style={{ fontFamily: SERIF, fontSize: 22, color: T.grey2, lineHeight: 1, marginBottom: 6 }}>-</div>
+                  <div style={{ fontFamily: SANS, fontSize: 9, color: T.grey2, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 2 }}>{m.label}</div>
+                  <div style={{ fontFamily: SANS, fontSize: 9, color: T.grey2, opacity: 0.6 }}>{m.note}</div>
                 </div>
               ))}
             </div>
           </div>
         ))}
-      </div>
-
-      {/* What gets measured note */}
-      <div style={{ padding: "20px 24px", background: T.sidebar, border: `1px solid ${T.border}`, borderRadius: 8, borderLeft: `3px solid ${T.goldDim}` }}>
-        <div style={{ fontFamily: SANS, fontSize: 11, fontWeight: 600, color: T.gold, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 6 }}>
-          About this dashboard
-        </div>
-        <p style={{ fontFamily: SANS, fontSize: 13, color: T.grey, margin: 0, lineHeight: 1.8 }}>
-          Performance data will populate once your analytics integrations are connected. Your account manager will configure Google Analytics, Search Console, and social platform tracking as part of your onboarding.
-        </p>
       </div>
     </div>
   );
@@ -977,7 +1051,7 @@ export default function ClientPortal() {
       case "overview":    return <OverviewPage account={account} summary={summary} listing={listing} />;
       case "content":     return <ContentPage account={account} />;
       case "campaigns":   return <CampaignsPage account={account} />;
-      case "performance": return <PerformancePage account={account} listing={listing} />;
+      case "performance": return <PerformancePage account={account} listing={listing} summary={summary} />;
       case "brand":       return <BrandPage account={account} listing={listing} />;
       case "requests":    return <RequestsPage account={account} />;
       case "settings":    return <SettingsPage account={account} />;
