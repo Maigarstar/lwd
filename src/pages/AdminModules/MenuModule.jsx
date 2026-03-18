@@ -1030,10 +1030,19 @@ function LivePreviewStrip({ items, G, C }) {
 
 // ─── Live Design Canvas ──────────────────────────────────────────────────────
 
+// Resolve a nav item to a URL for live-mode clicks
+function getLiveUrl(item) {
+  if (item.url) return item.url.startsWith("http") ? item.url : `http://localhost:5176${item.url}`;
+  if (item.nav_action) return `http://localhost:5176/?action=${item.nav_action}`;
+  if (item.slug) return `http://localhost:5176/${item.slug}`;
+  return "http://localhost:5176/";
+}
+
 function LiveDesignCanvas({ items, C, selectedItemId, draftForm, onItemClick }) {
   const G = C?.gold || "#c9a84c";
   const [activeItemId, setActiveItemId] = useState(null);
   const [pageTheme, setPageTheme] = useState("dark");
+  const [canvasMode, setCanvasMode] = useState("edit"); // "edit" | "live"
   const [subcatCache, setSubcatCache] = useState({});
 
   // Merge live draft onto the item being edited — everything else uses saved data
@@ -1194,58 +1203,71 @@ function LiveDesignCanvas({ items, C, selectedItemId, draftForm, onItemClick }) 
     <div>
 
       {/* Section header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ fontFamily: SANS, fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: G }}>
-            Design Canvas
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+
+        {/* Left: mode toggle Edit | Live */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", background: C?.bg || "#0b0906", border: `1px solid ${C?.border || "#2a2218"}`, borderRadius: 7, padding: 3, gap: 2 }}>
+            {[["edit", "Edit"], ["live", "Live"]].map(([val, label]) => (
+              <button key={val} onClick={() => setCanvasMode(val)} style={{
+                background: canvasMode === val ? (val === "live" ? "#1a3a1a" : G) : "transparent",
+                border: canvasMode === val ? `1px solid ${val === "live" ? "#4ade80" : G}` : "1px solid transparent",
+                borderRadius: 5, padding: "4px 14px", cursor: "pointer",
+                fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: canvasMode === val ? (val === "live" ? "#4ade80" : "#0a0906") : (C?.grey || "#8a7d6a"),
+                transition: "all 0.15s",
+              }}>{label}</button>
+            ))}
           </div>
-          {selectedItemId && !activeItemId && (() => {
+
+          {/* Context label — only in edit mode when an item is selected */}
+          {canvasMode === "edit" && selectedItemId && !activeItemId && (() => {
             const editingItem = effectiveItems.find(i => i.id === selectedItemId);
             return editingItem ? (
-              <div style={{ fontFamily: SANS, fontSize: 9, color: G, opacity: 0.8, letterSpacing: "0.04em", display: "flex", alignItems: "center", gap: 5 }}>
-                <span style={{ opacity: 0.5 }}>|</span>
+              <div style={{ fontFamily: SANS, fontSize: 9, color: G, opacity: 0.8, letterSpacing: "0.04em", display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ opacity: 0.4 }}>|</span>
                 Editing: <strong style={{ fontWeight: 700 }}>{editingItem.label}</strong>
               </div>
             ) : null;
           })()}
         </div>
-        <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+
+        {/* Right: theme toggles + view live */}
+        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
           {[["dark", "Dark"], ["light", "Light"], ["editorial", "Edt"]].map(([val, label]) => (
             <button key={val} onClick={() => setPageTheme(val)} style={{
-              background: pageTheme === val ? G + "20" : "transparent",
-              border: `1px solid ${pageTheme === val ? G : (C?.border || "#2a2218")}`,
-              borderRadius: 5, padding: "4px 10px", cursor: "pointer",
-              fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.06em",
-              textTransform: "uppercase", color: pageTheme === val ? G : (C?.grey || "#8a7d6a"),
+              background: pageTheme === val ? G + "18" : "transparent",
+              border: `1px solid ${pageTheme === val ? G + "60" : (C?.border || "#2a2218")}`,
+              borderRadius: 5, padding: "3px 8px", cursor: "pointer",
+              fontFamily: SANS, fontSize: 9, fontWeight: 600, letterSpacing: "0.05em",
+              textTransform: "uppercase", color: pageTheme === val ? G : (C?.grey2 || "#5a5045"),
               transition: "all 0.15s",
             }}>{label}</button>
           ))}
-          <a
-            href="http://localhost:5176/"
-            target="_blank"
-            rel="noreferrer"
+          <a href="http://localhost:5176/" target="_blank" rel="noreferrer"
             style={{
               fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.06em",
-              textTransform: "uppercase", color: C?.grey || "#8a7d6a", textDecoration: "none",
-              display: "flex", alignItems: "center", gap: 3,
-              border: `1px solid ${C?.border || "#2a2218"}`,
-              borderRadius: 5, padding: "4px 10px", transition: "all 0.15s",
+              textTransform: "uppercase", color: C?.grey2 || "#5a5045", textDecoration: "none",
+              border: `1px solid ${C?.border || "#2a2218"}`, borderRadius: 5, padding: "3px 8px",
+              transition: "all 0.15s",
             }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = G; e.currentTarget.style.color = G; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = C?.border || "#2a2218"; e.currentTarget.style.color = C?.grey || "#8a7d6a"; }}
-          >
-            View Live ↗
-          </a>
+            onMouseLeave={e => { e.currentTarget.style.borderColor = C?.border || "#2a2218"; e.currentTarget.style.color = C?.grey2 || "#5a5045"; }}
+          >↗</a>
         </div>
       </div>
 
-      {/* Click-to-edit hint */}
+      {/* Mode hint */}
       <div style={{
-        fontFamily: SANS, fontSize: 9, color: C?.grey || "#8a7d6a",
-        letterSpacing: "0.05em", marginBottom: 6, opacity: 0.6,
+        fontFamily: SANS, fontSize: 9, letterSpacing: "0.05em", marginBottom: 6, opacity: 0.55,
         display: "flex", alignItems: "center", gap: 5,
+        color: canvasMode === "live" ? "#4ade80" : (C?.grey || "#8a7d6a"),
       }}>
-        <span style={{ fontSize: 10 }}>↑</span> Click any nav item to edit
+        {canvasMode === "edit"
+          ? <><span>✎</span> Click any nav item to open its editor</>
+          : <><span style={{ fontSize: 8 }}>●</span> Live mode - nav links open in new tab</>
+        }
       </div>
 
       {/* Canvas frame */}
@@ -1262,7 +1284,8 @@ function LiveDesignCanvas({ items, C, selectedItemId, draftForm, onItemClick }) 
           background: "#161616", padding: "10px 16px",
           borderRadius: "12px 12px 0 0",
           display: "flex", alignItems: "center", gap: 8,
-          borderBottom: "1px solid #2a2a2a",
+          borderBottom: `1px solid ${canvasMode === "live" ? "#4ade8030" : "#2a2a2a"}`,
+          transition: "border-color 0.2s",
         }}>
           <div style={{ display: "flex", gap: 6 }}>
             {["#f87171", "#fbbf24", "#4ade80"].map((c, i) => (
@@ -1276,6 +1299,17 @@ function LiveDesignCanvas({ items, C, selectedItemId, draftForm, onItemClick }) 
             textAlign: "center",
           }}>
             luxuryweddingdirectory.com
+          </div>
+          {/* Mode badge */}
+          <div style={{
+            fontFamily: SANS, fontSize: 8, fontWeight: 700, letterSpacing: "0.1em",
+            textTransform: "uppercase", padding: "2px 7px", borderRadius: 4,
+            background: canvasMode === "live" ? "#4ade8022" : G + "18",
+            border: `1px solid ${canvasMode === "live" ? "#4ade8055" : G + "40"}`,
+            color: canvasMode === "live" ? "#4ade80" : G,
+            transition: "all 0.2s",
+          }}>
+            {canvasMode === "live" ? "Live" : "Edit"}
           </div>
         </div>
 
@@ -1307,27 +1341,31 @@ function LiveDesignCanvas({ items, C, selectedItemId, draftForm, onItemClick }) 
                 )}
                 {regular.map(item => {
                   const isActive    = resolvedActiveId === item.id;
-                  const isEditing   = selectedItemId === item.id;
-                  const isSelected  = isEditing && !activeItemId;
+                  const isEditing   = canvasMode === "edit" && selectedItemId === item.id;
                   const isDropdown  = item.type === "dropdown" || item.type === "mega_menu";
                   const itemAccent  = (item.panel_accent_color && isDropdown) ? item.panel_accent_color : G;
+
+                  const handleClick = canvasMode === "edit"
+                    ? () => onItemClick?.(item)
+                    : () => window.open(getLiveUrl(item), "_blank");
+
                   return (
                     <div key={item.id} style={{
                       position: "relative", cursor: "pointer",
                       padding: "4px 8px", borderRadius: 5,
-                      background: isEditing
+                      background: canvasMode === "edit" && isEditing
                         ? G + "22"
-                        : isActive ? G + "0c" : "transparent",
-                      outline: isEditing ? `1.5px solid ${G}60` : "none",
+                        : isActive ? (canvasMode === "live" ? "rgba(255,255,255,0.06)" : G + "0c") : "transparent",
+                      outline: canvasMode === "edit" && isEditing ? `1.5px solid ${G}60` : "none",
                       transition: "background 0.15s",
                     }}
                       onMouseEnter={() => handleItemHover(item)}
-                      onClick={() => onItemClick?.(item)}
-                      title={`Edit: ${item.label}`}
+                      onClick={handleClick}
+                      title={canvasMode === "edit" ? `Edit: ${item.label}` : `Open: ${item.label}`}
                     >
                       <span style={{
                         fontFamily: SANS, fontSize: 12, letterSpacing: "0.04em",
-                        color: isActive ? itemAccent : isEditing ? G : "rgba(255,255,255,0.82)",
+                        color: isActive ? itemAccent : (canvasMode === "edit" && isEditing) ? G : "rgba(255,255,255,0.82)",
                         fontWeight: isEditing || isActive ? 600 : 400,
                         display: "flex", alignItems: "center", gap: 4,
                         transition: "color 0.15s",
@@ -1350,8 +1388,8 @@ function LiveDesignCanvas({ items, C, selectedItemId, draftForm, onItemClick }) 
                           height: 1.5, background: itemAccent,
                         }} />
                       )}
-                      {/* Editing indicator dot */}
-                      {isEditing && !isActive && (
+                      {/* Edit mode: indicator dot on selected item */}
+                      {canvasMode === "edit" && isEditing && !isActive && (
                         <div style={{
                           position: "absolute", top: 2, right: 2,
                           width: 5, height: 5, borderRadius: "50%", background: G,
@@ -1366,19 +1404,22 @@ function LiveDesignCanvas({ items, C, selectedItemId, draftForm, onItemClick }) 
               {ctas.length > 0 && (
                 <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
                   {ctas.map(item => {
-                    const isEditing = selectedItemId === item.id;
+                    const isEditing = canvasMode === "edit" && selectedItemId === item.id;
+                    const handleCtaClick = canvasMode === "edit"
+                      ? () => onItemClick?.(item)
+                      : () => window.open(getLiveUrl(item), "_blank");
                     return (
                       <span key={item.id}
-                        onClick={() => onItemClick?.(item)}
-                        title={`Edit: ${item.label}`}
+                        onClick={handleCtaClick}
+                        title={canvasMode === "edit" ? `Edit: ${item.label}` : `Open: ${item.label}`}
                         style={{
                           fontFamily: SANS, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em",
                           textTransform: "uppercase", padding: "7px 18px", borderRadius: 6, cursor: "pointer",
                           background: item.cta_style === "outline" ? "transparent" : item.cta_style === "dark" ? "#0a0906" : G,
-                          border: `1.5px solid ${isEditing ? "#fff" : item.cta_style === "dark" ? "#2a2a2a" : G}`,
+                          border: `1.5px solid ${canvasMode === "edit" && isEditing ? "#fff" : item.cta_style === "dark" ? "#2a2a2a" : G}`,
                           color: item.cta_style === "gold" ? "#0a0906" : G,
                           userSelect: "none",
-                          outline: isEditing ? `2px solid ${G}80` : "none",
+                          outline: canvasMode === "edit" && isEditing ? `2px solid ${G}80` : "none",
                           outlineOffset: 2,
                         }}
                       >{item.label}</span>
@@ -1518,6 +1559,8 @@ export default function MenuModule({ C }) {
         setToast({ msg: "Nav item added", type: "success" });
       }
       setModal(null);
+      setSelectedItemId(null);
+      setDraftForm(null);
       await load();
     } catch (e) {
       setToast({ msg: "Error: " + e.message, type: "error" });
@@ -1604,6 +1647,7 @@ export default function MenuModule({ C }) {
           {/* Inline edit panel (replaces fixed modal) */}
           {modal !== null && (
             <ItemModal
+              key={modal?.item?.id || "new"}
               item={modal.item}
               parentId={modal.parentId}
               onSave={handleSave}

@@ -45,6 +45,7 @@ import SeoModule from "./AdminModules/SeoModule";
 import ConnectedDataModule from "./AdminModules/ConnectedDataModule";
 import SocialStudioModule from "./AdminModules/SocialStudioModule";
 import ManagedAccountsModule from "./AdminModules/ManagedAccountsModule";
+import MenuModule from "./AdminModules/MenuModule";
 import { POSTS } from "./Magazine/data/posts";
 import { PRODUCTS, COLLECTIONS, formatPrice } from "./Magazine/data/products";
 import { CATEGORIES } from "./Magazine/data/categories";
@@ -290,6 +291,7 @@ const NAV_SECTIONS = [
     group: "Design",
     items: [
       { key: "styles",       label: "Style Editor",      icon: "◑" },
+      { key: "menu",         label: "Menu",              icon: "≡" },
     ],
   },
   {
@@ -8743,6 +8745,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "magazine-studio": return null; // Handled in main render logic
       case "social-studio":   return <SocialStudioModule C={C} />;
       case "reusable-blocks": return <ReusableBlocksModule C={C} NU={NU} GD={GD} />;
+      case "menu":            return <MenuModule C={C} />;
       default:              return <OverviewModule C={C} />;
     }
   };

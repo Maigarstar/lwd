@@ -1,14 +1,65 @@
 // ─── src/components/nav/HomeNav.jsx ──────────────────────────────────────────
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { createClient } from "@supabase/supabase-js";
 import { useTheme } from "../../theme/ThemeContext";
+import MegaMenuPanel from "./MegaMenuPanel";
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
 
+// Maps nav_action values to handler functions passed as props
+function resolveHandler(item, handlers) {
+  const { nav_action, url, slug, open_new_tab } = item;
+  if (nav_action === "about")          return () => handlers.onNavigateAbout?.();
+  if (nav_action === "planning")       return () => handlers.onNavigateStandard?.();
+  if (nav_action === "aura-discovery") return () => { window.location.href = "/discovery/aura"; };
+  if (nav_action === "browse")         return () => { window.location.href = "/venue"; };
+  if (nav_action === "real-weddings")  return () => { window.location.href = "/real-weddings"; };
+  if (nav_action === "magazine")       return () => { window.location.href = "/magazine"; };
+  if (nav_action === "join")           return () => { window.location.href = "/join"; };
+  if (nav_action === "contact")        return () => { window.location.href = "/contact"; };
+  if (nav_action === "artistry-awards")return () => { window.location.href = "/artistry-awards"; };
+  if (url) return () => { open_new_tab ? window.open(url, "_blank", "noreferrer") : window.location.href = url; };
+  if (slug) return () => { window.location.href = `/${slug}`; };
+  return null;
+}
+
+// Fallback links used if Supabase is unavailable
+const FALLBACK_LINKS = [
+  { id: "f1", label: "Browse",         nav_action: "browse",         visible: true },
+  { id: "f2", label: "Aura Discovery", nav_action: "aura-discovery", visible: true },
+  { id: "f3", label: "Real Weddings",  nav_action: "real-weddings",  visible: true },
+  { id: "f4", label: "Planning",       nav_action: "planning",       visible: true },
+  { id: "f5", label: "About",          nav_action: "about",          visible: true },
+  { id: "f6", label: "Magazine",       nav_action: "magazine",       visible: true },
+];
+
 export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavigateStandard, onNavigateAbout }) {
   const C = useTheme();
-  const [scrolled, setScrolled] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [scrolled,    setScrolled]   = useState(false);
+  const [drawerOpen,  setDrawerOpen] = useState(false);
+  const [navItems,    setNavItems]   = useState(FALLBACK_LINKS);
+  const [openPanel,   setOpenPanel]  = useState(null); // nav item id | null
+  const navRef    = useRef(null);
+  const closeTimer = useRef(null);
+
+  const openMegaMenu = useCallback(id => {
+    clearTimeout(closeTimer.current);
+    setOpenPanel(id);
+  }, []);
+
+  const startClose = useCallback(() => {
+    closeTimer.current = setTimeout(() => setOpenPanel(null), 120);
+  }, []);
+
+  const cancelClose = useCallback(() => {
+    clearTimeout(closeTimer.current);
+  }, []);
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 60);
@@ -22,11 +73,25 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
     return () => { document.body.style.overflow = ""; };
   }, [drawerOpen]);
 
-  const navLinks = ["Browse", "Aura Discovery", "Real Weddings", "Planning", "About", "Blog"];
+  // Load nav items from Supabase, fall back to static list on error
+  useEffect(() => {
+    supabase
+      .from("nav_items")
+      .select("id, label, url, slug, nav_action, open_new_tab, visible, position, type, is_cta, cta_style, animation, panel_bg, panel_text_color, panel_accent_color, panel_hover_color, panel_border_color, panel_shadow, panel_radius, panel_padding, panel_full_width, panel_align, layout_type, show_descriptions, has_cta_in_panel, panel_cta_label, panel_cta_link, featured_title, featured_text, featured_image, featured_link, menu_preset")
+      .is("parent_id", null)
+      .eq("visible", true)
+      .order("position", { ascending: true })
+      .then(({ data, error }) => {
+        if (!error && data && data.length > 0) setNavItems(data);
+      });
+  }, []);
+
+  const handlers = { onNavigateAbout, onNavigateStandard, onVendorLogin };
 
   return (
     <>
       <nav
+        ref={navRef}
         aria-label="Main navigation"
         className="home-nav"
         style={{
@@ -68,30 +133,88 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
 
         {/* Right side, desktop */}
         <div className="home-nav-right-desktop" style={{ display: "flex", gap: 28, alignItems: "center" }}>
-          {navLinks.map((t) => {
-            const linkColor =
-              scrolled && !darkMode ? C.grey : "rgba(255,255,255,0.6)";
+          {navItems.filter(i => i.type !== "cta").map((item) => {
+            const linkColor = scrolled && !darkMode ? C.grey : "rgba(255,255,255,0.6)";
+            const handler   = resolveHandler(item, handlers);
+            const isMega    = item.type === "mega_menu" || item.type === "dropdown";
+            const navH      = navRef.current ? navRef.current.getBoundingClientRect().bottom : 64;
+
+            if (isMega) {
+              return (
+                <div
+                  key={item.id}
+                  style={{ position: "relative" }}
+                  onMouseEnter={() => openMegaMenu(item.id)}
+                  onMouseLeave={startClose}
+                >
+                  <button
+                    className="home-nav-links"
+                    onClick={handler || undefined}
+                    style={{
+                      background: "none", border: "none",
+                      cursor: "pointer", fontSize: 13, fontWeight: 400,
+                      color: openPanel === item.id ? C.gold : linkColor,
+                      fontFamily: NU, letterSpacing: "0.3px", transition: "color 0.2s",
+                      display: "flex", alignItems: "center", gap: 4,
+                    }}
+                  >
+                    {item.label}
+                    <span style={{ fontSize: 9, opacity: 0.6, transition: "transform 0.2s", transform: openPanel === item.id ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
+                  </button>
+                  {openPanel === item.id && (
+                    <MegaMenuPanel
+                      item={item}
+                      navHeight={navH}
+                      onMouseEnter={cancelClose}
+                      onMouseLeave={startClose}
+                    />
+                  )}
+                </div>
+              );
+            }
+
             return (
               <button
-                key={t}
+                key={item.id}
                 className="home-nav-links"
-                onClick={() => { if (t === "Aura Discovery") window.location.href = "/discovery/aura"; if (t === "Planning") onNavigateStandard?.(); if (t === "About") onNavigateAbout?.(); }}
+                onClick={handler || undefined}
                 style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  fontSize: 13,
-                  fontWeight: 400,
-                  color: linkColor,
-                  fontFamily: NU,
-                  letterSpacing: "0.3px",
-                  transition: "color 0.2s",
+                  background: "none", border: "none",
+                  cursor: handler ? "pointer" : "default",
+                  fontSize: 13, fontWeight: 400, color: linkColor,
+                  fontFamily: NU, letterSpacing: "0.3px", transition: "color 0.2s",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = C.gold)}
-                onMouseLeave={(e) => (e.currentTarget.style.color = linkColor)}
+                onMouseEnter={e => (e.currentTarget.style.color = C.gold)}
+                onMouseLeave={e => (e.currentTarget.style.color = linkColor)}
               >
-                {t}
+                {item.label}
               </button>
+            );
+          })}
+          {/* CTA items — pinned right, styled button */}
+          {navItems.filter(i => i.type === "cta").map((item) => {
+            const handler = resolveHandler(item, handlers);
+            const isOutline = item.cta_style === "outline";
+            const isDark = item.cta_style === "dark";
+            return (
+              <button
+                key={item.id}
+                onClick={handler || undefined}
+                style={{
+                  background: isDark ? "#0a0906" : isOutline ? "transparent" : C.gold,
+                  color: isDark ? C.gold : isOutline ? C.gold : "#0a0906",
+                  border: `1px solid ${isDark ? "#333" : C.gold}`,
+                  borderRadius: "var(--lwd-radius-input)",
+                  padding: "8px 20px", fontSize: 10, fontWeight: 700,
+                  letterSpacing: "1.5px", textTransform: "uppercase",
+                  cursor: "pointer", fontFamily: NU, transition: "all 0.25s ease",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.color = "#0a0906"; }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = isDark ? "#0a0906" : isOutline ? "transparent" : C.gold;
+                  e.currentTarget.style.color = isDark ? C.gold : isOutline ? C.gold : "#0a0906";
+                }}
+              >{item.label}</button>
             );
           })}
 
@@ -275,17 +398,19 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
 
         {/* Nav links */}
         <div style={{ padding: "16px 0" }}>
-          {navLinks.map((t) => (
+          {navItems.map((item) => {
+            const handler = resolveHandler(item, handlers);
+            return (
             <button
-              key={t}
-              onClick={() => { setDrawerOpen(false); if (t === "Aura Discovery") window.location.href = "/discovery/aura"; if (t === "Planning") onNavigateStandard?.(); if (t === "About") onNavigateAbout?.(); }}
+              key={item.id}
+              onClick={() => { setDrawerOpen(false); handler?.(); }}
               style={{
                 display: "block",
                 width: "100%",
                 textAlign: "left",
                 background: "none",
                 border: "none",
-                cursor: "pointer",
+                cursor: handler ? "pointer" : "default",
                 padding: "14px 28px",
                 fontSize: 15,
                 fontWeight: 400,
@@ -297,9 +422,9 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
               onMouseEnter={(e) => { e.currentTarget.style.color = C.gold; e.currentTarget.style.background = "rgba(201,168,76,0.06)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(245,240,232,0.7)"; e.currentTarget.style.background = "transparent"; }}
             >
-              {t}
+              {item.label}
             </button>
-          ))}
+          );})}
         </div>
 
         {/* Divider */}
