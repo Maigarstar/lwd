@@ -218,6 +218,29 @@ export default function FooterConfig({ footerConfig, onConfigChange, onSave, sav
         <ColorRow label="Accent Color" field="accent_color" cfg={cfg} set={set} C={C} />
         <ToggleRow label="Border top" field="border_top" cfg={cfg} set={set} C={C} />
         {cfg.border_top && <ColorRow label="Border Color" field="border_color" cfg={cfg} set={set} C={C} />}
+        <button
+          onClick={() => {
+            const d = DEFAULT_FOOTER_CONFIG;
+            onConfigChange({
+              ...cfg,
+              bg_color: d.bg_color, bg_opacity: d.bg_opacity,
+              text_color: d.text_color, accent_color: d.accent_color,
+              border_top: d.border_top, border_color: d.border_color,
+            });
+          }}
+          style={{
+            background: "none", border: `1px solid ${C?.border || "#2a2218"}`,
+            borderRadius: 6, padding: "6px 12px", cursor: "pointer",
+            fontFamily: SANS, fontSize: 10, fontWeight: 600,
+            letterSpacing: "0.06em", textTransform: "uppercase",
+            color: C?.grey || "#8a7d6a", width: "100%",
+            transition: "border-color 120ms, color 120ms",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = G; e.currentTarget.style.color = G; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = C?.border || "#2a2218"; e.currentTarget.style.color = C?.grey || "#8a7d6a"; }}
+        >
+          Reset to defaults
+        </button>
       </Section>
 
       {/* ── Brand Block ─────────────────────────────────────────────── */}
