@@ -401,6 +401,7 @@ function ItemModal({ item, parentId, onSave, onClose, onFormChange, C }) {
   const [tab, setTab] = useState("structure"); // structure | design
   const [advanced, setAdvanced] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saved,  setSaved]  = useState(false);
   const [magCategories,  setMagCategories]  = useState([]);
   const [previewSubcats, setPreviewSubcats] = useState([]);
   const [previewPost,    setPreviewPost]    = useState(null);
@@ -460,8 +461,14 @@ function ItemModal({ item, parentId, onSave, onClose, onFormChange, C }) {
   async function handleSave() {
     if (!form.label.trim()) return;
     setSaving(true);
+    setSaved(false);
     await onSave({ ...form, parent_id: parentId ?? item?.parent_id ?? null });
     setSaving(false);
+    // Flash "Saved ✓" for existing items; new items close the panel so no flash needed
+    if (item) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2200);
+    }
   }
 
   const inp = {
@@ -869,12 +876,18 @@ function ItemModal({ item, parentId, onSave, onClose, onFormChange, C }) {
             cursor: "pointer", textTransform: "uppercase",
           }}>Cancel</button>
           <button onClick={handleSave} disabled={saving || !form.label.trim()} style={{
-            background: G, border: "none", borderRadius: 6, color: "#0a0906",
+            background: saved ? "#1a3a1a" : G,
+            border: saved ? `1px solid #4ade8088` : "none",
+            borderRadius: 6,
+            color: saved ? "#4ade80" : "#0a0906",
             padding: "9px 24px", fontFamily: SANS, fontSize: 12, fontWeight: 700,
-            letterSpacing: "0.06em", cursor: saving ? "not-allowed" : "pointer",
-            textTransform: "uppercase", opacity: saving || !form.label.trim() ? 0.5 : 1,
+            letterSpacing: "0.06em",
+            cursor: saving || saved ? "default" : !form.label.trim() ? "not-allowed" : "pointer",
+            textTransform: "uppercase",
+            opacity: !form.label.trim() && !saving ? 0.5 : 1,
+            transition: "background 0.2s, color 0.2s, border-color 0.2s",
           }}>
-            {saving ? "Saving..." : item ? "Save Changes" : "Add Item"}
+            {saving ? "Saving..." : saved ? "Saved ✓" : item ? "Save Changes" : "Add Item"}
           </button>
         </div>
     </div>
@@ -1541,13 +1554,24 @@ export default function MenuModule({ C }) {
   async function handleSave(form) {
     try {
       if (modal.item) {
+        // Update existing — keep panel open, reload data in place
         const { error } = await supabase
           .from("nav_items")
           .update({ ...form, updated_at: new Date().toISOString() })
           .eq("id", modal.item.id);
         if (error) throw error;
-        setToast({ msg: "Nav item updated", type: "success" });
+        // Refresh tree without closing the editor
+        const { data } = await supabase
+          .from("nav_items").select("*").order("position", { ascending: true });
+        const flat = data || [];
+        setAllItems(flat);
+        setTree(buildTree(flat));
+        // Keep modal in sync with fresh DB row (preserves key stability)
+        const freshItem = flat.find(i => i.id === modal.item.id);
+        if (freshItem) setModal(m => m ? { ...m, item: freshItem } : null);
+        // selectedItemId and draftForm stay — canvas remains in editing state
       } else {
+        // Insert new — close panel after, toast confirms
         const siblings = allItems.filter(i =>
           (i.parent_id ?? null) === (form.parent_id ?? null)
         );
@@ -1556,12 +1580,12 @@ export default function MenuModule({ C }) {
           .from("nav_items")
           .insert([{ ...form, position: nextPos }]);
         if (error) throw error;
+        setModal(null);
+        setSelectedItemId(null);
+        setDraftForm(null);
+        await load();
         setToast({ msg: "Nav item added", type: "success" });
       }
-      setModal(null);
-      setSelectedItemId(null);
-      setDraftForm(null);
-      await load();
     } catch (e) {
       setToast({ msg: "Error: " + e.message, type: "error" });
     }
