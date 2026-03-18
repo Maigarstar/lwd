@@ -83,6 +83,7 @@ export default function FooterCanvas({
   const [viewMode, setViewMode]   = useState("desktop"); // "desktop" | "mobile"
   const [pageTheme, setPageTheme] = useState("dark");    // "dark" | "light" | "editorial"
   const [venueNames, setVenueNames] = useState({});      // slug -> name cache
+  const [hoveredItemId, setHoveredItemId] = useState(null);
 
   const cfg = footerConfig || DEFAULT_FOOTER_CONFIG;
   const G = cfg.accent_color || "#c9a84c";
@@ -205,28 +206,56 @@ export default function FooterCanvas({
         );
 
       case "link":
-      default:
+      default: {
+        const hovered = hoveredItemId === item.id;
         return (
           <div
             key={item.id}
             onClick={() => onSelectItem(item)}
+            onMouseEnter={() => setHoveredItemId(item.id)}
+            onMouseLeave={() => setHoveredItemId(null)}
             style={{
               fontFamily: SANS, fontSize: 12,
-              color: textColor, padding: "2px 0", lineHeight: 1.8,
+              color: hovered ? accentColor : textColor,
+              padding: "2px 0", lineHeight: 1.8,
               opacity: item.visible ? 1 : 0.4,
+              textDecoration: hovered ? "underline" : "none",
+              textDecorationColor: accentColor + "80",
+              transition: "color 150ms, text-decoration 150ms",
               ...selectOutline(item),
             }}
           >
             {item.label || "Link"}
           </div>
         );
+      }
     }
   }
 
   // ── Iconic Venues strip ───────────────────────────────────────────────
   function renderIconicStrip() {
     const iconicBlock = iconicItems.find(i => i.block_type === "iconic_venues");
-    if (!iconicBlock) return null;
+
+    // Always render the strip section — show placeholder if no block configured
+    if (!iconicBlock) {
+      return (
+        <div style={{
+          padding: isMobile ? "16px 20px" : "18px 0",
+          borderBottom: `1px solid ${cfg.border_color || "#2a2218"}`,
+          textAlign: "center",
+        }}>
+          <div style={{ fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: G, marginBottom: 8 }}>
+            Iconic Venues
+          </div>
+          <div style={{ fontFamily: SANS, fontSize: 11, color: "#3a3530", fontStyle: "italic" }}>
+            Highlight your most iconic venues across the platform.
+          </div>
+          <div style={{ fontFamily: SANS, fontSize: 10, color: "#2a2218", marginTop: 4 }}>
+            Add a venue strip in the Iconic Venues section.
+          </div>
+        </div>
+      );
+    }
 
     const slugs = iconicBlock.venue_slugs || [];
     const names = slugs.length > 0
@@ -360,16 +389,22 @@ export default function FooterCanvas({
           <div>{renderBrandBlock()}</div>
 
           {/* Columns 2-N */}
-          {colIds.map(colId => {
+          {colIds.map((colId, idx) => {
             const colItems = grouped[colId] || [];
+            const GUIDED = [
+              "Add links to showcase your venues and vendors",
+              "Add company links or editorial pages",
+              "Add support or contact information",
+            ];
+            const guideText = GUIDED[idx] || "Add blocks to this column";
             return (
               <div key={colId} style={{ display: "flex", flexDirection: "column" }}>
                 {colItems.map(item => renderItem(item))}
                 {colItems.length === 0 && (
                   <div style={{
-                    fontFamily: SANS, fontSize: 11, color: "#3a3530",
-                    fontStyle: "italic",
-                  }}>Empty column</div>
+                    fontFamily: SANS, fontSize: 11, color: "#2a2218",
+                    fontStyle: "italic", lineHeight: 1.6,
+                  }}>{guideText}</div>
                 )}
               </div>
             );
@@ -398,6 +433,11 @@ export default function FooterCanvas({
       }}>
         {/* Left: editorial copy */}
         <div>
+          <div style={{
+            fontFamily: SANS, fontSize: 9, fontWeight: 700,
+            letterSpacing: "0.12em", textTransform: "uppercase",
+            color: G, marginBottom: 6, opacity: 0.8,
+          }}>Stay connected</div>
           <div style={{
             fontFamily: SERIF, fontSize: isMobile ? 18 : 22,
             color: textColor, marginBottom: 4,

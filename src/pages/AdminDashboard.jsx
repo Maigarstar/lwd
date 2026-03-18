@@ -293,7 +293,7 @@ const NAV_SECTIONS = [
     items: [
       { key: "styles",       label: "Style Editor",      icon: "◑" },
         { key: "menu",         label: "Menu Builder",      icon: "≡" },
-      { key: "footer",       label: "Footer Builder",    icon: "▭" },
+      { key: "footer",       label: "Brand Footer",      icon: "▭" },
     ],
   },
   {

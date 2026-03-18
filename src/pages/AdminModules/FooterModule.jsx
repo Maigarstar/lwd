@@ -307,8 +307,7 @@ export default function FooterModule({ C }) {
       {/* ── Page header ── */}
       <div style={{ marginBottom: 24 }}>
         <p style={{ fontFamily: SANS, fontSize: 13, color: C?.grey || "#8a7d6a", margin: 0, lineHeight: 1.6 }}>
-          Build your footer. Manage blocks, design tokens, newsletter, and the Iconic Venues strip.
-          Changes reflect instantly in the canvas.
+          Control how your brand is presented at the base of every page. Manage your Iconic Venues strip, navigation structure, newsletter, and design system. Changes reflect instantly in the canvas.
         </p>
       </div>
 

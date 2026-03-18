@@ -255,6 +255,35 @@ export default function FooterConfig({ footerConfig, onConfigChange, onSave, sav
         )}
       </Section>
 
+      {/* ── Visibility ──────────────────────────────────────────────── */}
+      <Section title="Visibility" C={C}>
+        <div style={{ fontFamily: SANS, fontSize: 11, color: C?.grey || "#8a7d6a", lineHeight: 1.6, marginBottom: 8 }}>
+          Control which pages this footer appears on.
+        </div>
+        {[
+          { value: "all",       label: "Show on all pages",       desc: "Footer appears everywhere on the site" },
+          { value: "editorial", label: "Show on editorial only",   desc: "Magazine, editorial, and blog pages only" },
+          { value: "directory", label: "Show on directory pages",  desc: "Venue listings, search, and destination pages only" },
+        ].map(opt => {
+          const active = (cfg.visibility_mode || "all") === opt.value;
+          return (
+            <button key={opt.value} onClick={() => set("visibility_mode", opt.value)} style={{
+              background: active ? G + "18" : "transparent",
+              border: `1px solid ${active ? G + "60" : C?.border || "#2a2218"}`,
+              borderRadius: 6, padding: "7px 10px", textAlign: "left",
+              cursor: "pointer", transition: "all 120ms", width: "100%",
+            }}>
+              <div style={{ fontFamily: SANS, fontSize: 11, fontWeight: 600, color: active ? G : C?.off || "#d4c8b0" }}>
+                {opt.label}
+              </div>
+              <div style={{ fontFamily: SANS, fontSize: 10, color: active ? G + "aa" : "#5a5045" }}>
+                {opt.desc}
+              </div>
+            </button>
+          );
+        })}
+      </Section>
+
       {/* Save button */}
       <div style={{ padding: "14px 14px" }}>
         <button

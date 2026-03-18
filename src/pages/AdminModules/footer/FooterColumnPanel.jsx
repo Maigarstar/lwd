@@ -141,13 +141,14 @@ function SectionHeader({ label, onAdd, addLabel, locked, C }) {
 }
 
 // ── Empty state ────────────────────────────────────────────────────────────
-function EmptySlot({ msg, C }) {
+function EmptySlot({ msg, hint, C }) {
   return (
-    <div style={{
-      padding: "10px 14px",
-      fontFamily: SANS, fontSize: 11,
-      color: "#3a3530", fontStyle: "italic",
-    }}>{msg}</div>
+    <div style={{ padding: "10px 14px 12px" }}>
+      <div style={{ fontFamily: SANS, fontSize: 11, color: "#5a5045", fontStyle: "italic" }}>{msg}</div>
+      {hint && (
+        <div style={{ fontFamily: SANS, fontSize: 10, color: "#3a3530", marginTop: 3, lineHeight: 1.5 }}>{hint}</div>
+      )}
+    </div>
   );
 }
 
@@ -197,7 +198,12 @@ export default function FooterColumnPanel({
     ));
   }
 
-  const colNames = ["Brand", "Couples", "Vendors", "Company", "Help & Info"];
+  // Curated section names — editorial framing, not technical column numbers
+  const SECTION_META = {
+    2: { label: "Discovery",  hint: "Add links to showcase your venues and vendors" },
+    3: { label: "Company",    hint: "Add company links or editorial pages" },
+    4: { label: "Support",    hint: "Add support or contact information" },
+  };
 
   return (
     <div style={{
@@ -208,20 +214,24 @@ export default function FooterColumnPanel({
       fontFamily: SANS,
     }}>
 
-      {/* ── Iconic Venues Strip ───────────────────────────────────────── */}
+      {/* ── Iconic Venues ─────────────────────────────────────────────── */}
       <SectionHeader
-        label="Iconic Venues Strip"
+        label="Iconic Venues"
         onAdd={() => onAdd(ICONIC_STRIP_COL)}
         addLabel="Add Strip"
         C={C}
       />
       {renderBlockList(ICONIC_STRIP_COL, grouped[ICONIC_STRIP_COL])}
       {(!grouped[ICONIC_STRIP_COL] || grouped[ICONIC_STRIP_COL].length === 0) && (
-        <EmptySlot msg="No iconic venues block yet" C={C} />
+        <EmptySlot
+          msg="No strip added yet"
+          hint="Highlight your most iconic venues across the platform"
+          C={C}
+        />
       )}
 
-      {/* ── Brand Block (locked) ──────────────────────────────────────── */}
-      <SectionHeader label="Column 1 - Brand" locked C={C} />
+      {/* ── Brand Presence (locked) ───────────────────────────────────── */}
+      <SectionHeader label="Brand Presence" locked C={C} />
       <div style={{
         padding: "8px 14px 10px",
         fontFamily: SANS, fontSize: 11,
@@ -229,7 +239,7 @@ export default function FooterColumnPanel({
         lineHeight: 1.6,
         borderBottom: `1px solid ${C?.border || "#2a2218"}`,
       }}>
-        Logo, tagline, and social links.
+        Your logo, tagline, and social presence.
         <br />
         <span style={{ color: "#5a5045" }}>Configure in the Config tab.</span>
       </div>
@@ -237,31 +247,33 @@ export default function FooterColumnPanel({
       {/* ── Nav Columns 2-N ───────────────────────────────────────────── */}
       {Array.from({ length: numCols - 1 }, (_, i) => {
         const colId = i + 2;
-        const colLabel = colNames[colId] || `Column ${colId}`;
+        const meta = SECTION_META[colId] || { label: `Column ${colId}`, hint: "Add blocks to this column" };
         const colItems = grouped[colId] || [];
         return (
           <div key={colId}>
             <SectionHeader
-              label={`Column ${colId}${colNames[colId] ? ` - ${colNames[colId]}` : ""}`}
+              label={meta.label}
               onAdd={() => onAdd(colId)}
               C={C}
             />
             {renderBlockList(colId, colItems)}
-            {colItems.length === 0 && <EmptySlot msg="No blocks yet" C={C} />}
+            {colItems.length === 0 && (
+              <EmptySlot msg="No blocks yet" hint={meta.hint} C={C} />
+            )}
           </div>
         );
       })}
 
-      {/* ── Bottom Bar Links ──────────────────────────────────────────── */}
+      {/* ── Legal & System ────────────────────────────────────────────── */}
       <SectionHeader
-        label="Bottom Bar Links"
+        label="Legal & System"
         onAdd={() => onAdd(BOTTOM_BAR_COL)}
         addLabel="Add Link"
         C={C}
       />
       {renderBlockList(BOTTOM_BAR_COL, grouped[BOTTOM_BAR_COL])}
       {(!grouped[BOTTOM_BAR_COL] || grouped[BOTTOM_BAR_COL].length === 0) && (
-        <EmptySlot msg="No bottom bar links yet" C={C} />
+        <EmptySlot msg="No links yet" hint="Privacy, Terms, Cookies — utility links for the bottom bar" C={C} />
       )}
 
     </div>

@@ -74,6 +74,7 @@ export const DEFAULT_FOOTER_CONFIG = {
   bottom_bar_bg:       "#080604",
   bottom_bar_text:     "#5a5045",
   copyright_text:      "2025 Luxury Wedding Directory",
+  visibility_mode:     "all",
 };
 
 // ── Blank new footer item ──────────────────────────────────────────────────
