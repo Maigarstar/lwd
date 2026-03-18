@@ -291,7 +291,7 @@ const NAV_SECTIONS = [
     group: "Design",
     items: [
       { key: "styles",       label: "Style Editor",      icon: "◑" },
-      { key: "menu",         label: "Menu",              icon: "≡" },
+      { key: "menu",         label: "Menu Builder",      icon: "≡" },
     ],
   },
   {

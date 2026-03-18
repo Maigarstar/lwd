@@ -1639,14 +1639,8 @@ export default function MenuModule({ C }) {
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
 
       {/* Page header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28 }}>
-        <div>
-          <div style={{ fontFamily: SANS, fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: G, marginBottom: 6 }}>Navigation</div>
-          <h1 style={{ fontFamily: SERIF, fontSize: 30, fontWeight: 500, color: C?.white || "#f5efe4", margin: 0 }}>Menu Builder</h1>
-          <p style={{ fontFamily: SANS, fontSize: 13, color: C?.grey || "#8a7d6a", margin: "8px 0 0", lineHeight: 1.6 }}>
-            Build your navigation tree. Changes reflect instantly in the canvas.
-          </p>
-        </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
+        <h1 style={{ fontFamily: SERIF, fontSize: 30, fontWeight: 500, color: C?.white || "#f5efe4", margin: 0 }}>Menu Builder</h1>
         <button
           onClick={() => setModal({ item: null, parentId: null })}
           style={{
