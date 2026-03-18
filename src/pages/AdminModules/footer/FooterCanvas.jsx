@@ -213,13 +213,15 @@ export default function FooterCanvas({
     const textColor = cfg.text_color || "#d4c8b0";
     return (
       <div style={{
+        width: "100%",
         textAlign: "center",
-        padding: isMobile ? "32px 20px 0" : "44px 0 0",
+        padding: isMobile ? "32px 20px 40px" : "52px 0 48px",
         background: footerBg,
+        boxSizing: "border-box",
       }}>
         <p style={{
           fontFamily: "'Gilda Display', 'Cormorant Garamond', Georgia, serif",
-          fontSize: isMobile ? 15 : 17,
+          fontSize: isMobile ? 17 : 22,
           fontWeight: 400,
           fontStyle: "italic",
           color: textColor,
@@ -514,7 +516,9 @@ export default function FooterCanvas({
             placeholder="Your email address"
             style={{
               flex: 1, background: "transparent",
-              border: `1px solid ${cfg.accent_color || "#c9a84c"}80`,
+              borderTop: `1px solid ${cfg.accent_color || "#c9a84c"}80`,
+              borderBottom: `1px solid ${cfg.accent_color || "#c9a84c"}80`,
+              borderLeft: `1px solid ${cfg.accent_color || "#c9a84c"}80`,
               borderRight: "none",
               borderRadius: "4px 0 0 4px",
               color: textColor, fontFamily: SANS, fontSize: 12,
@@ -635,10 +639,16 @@ export default function FooterCanvas({
           background: footerBg,
           borderTop: cfg.border_top ? `1px solid ${cfg.border_color || "#2a2218"}` : "none",
         }}>
-          {/* 0. Editorial tagline */}
+          {/* 0. Editorial tagline — own full-width container, reads as introduction */}
           {renderEditorialTagline()}
 
-          {/* 1. Iconic Venues strip */}
+          {/* Separator: visually closes the tagline block before the strip begins */}
+          <div style={{
+            borderTop: `1px solid ${cfg.border_color || "#2a2218"}`,
+            margin: "0",
+          }} />
+
+          {/* 1. Iconic Venues strip — separate block below */}
           <div style={{ padding: isMobile ? 0 : `0 ${cfg.pad_x || 48}px` }}>
             {renderIconicStrip()}
           </div>
