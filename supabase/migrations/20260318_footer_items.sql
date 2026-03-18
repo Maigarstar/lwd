@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS footer_items (
   position         integer NOT NULL DEFAULT 1,
   block_type       text NOT NULL DEFAULT 'link',
   content          text,        -- for heading / text blocks
-  venue_slugs      jsonb,       -- for iconic_venues block: stores array of listing slugs
+  iconic_venues    jsonb,       -- for iconic_venues block: [{name, url}] editorial entries
   visible          boolean NOT NULL DEFAULT true,
   open_new_tab     boolean NOT NULL DEFAULT false,
   created_at       timestamptz NOT NULL DEFAULT now(),

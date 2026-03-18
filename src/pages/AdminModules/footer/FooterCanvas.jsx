@@ -3,19 +3,13 @@
 // Sections: Iconic Venues strip | Main footer (brand + columns) | Newsletter | Bottom bar
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { useState } from "react";
 import {
   SANS, SERIF,
   AUTO_BLOCK_PLACEHOLDERS,
   DEFAULT_FOOTER_CONFIG,
   ICONIC_STRIP_COL, BRAND_COL, BOTTOM_BAR_COL,
 } from "./footerUtils.js";
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
 
 // ── Toolbar pill button ───────────────────────────────────────────────────
 function PillBtn({ label, active, onClick, C }) {
@@ -82,8 +76,8 @@ export default function FooterCanvas({
 }) {
   const [viewMode, setViewMode]   = useState("desktop"); // "desktop" | "mobile"
   const [pageTheme, setPageTheme] = useState("dark");    // "dark" | "light" | "editorial"
-  const [venueNames, setVenueNames] = useState({});      // slug -> name cache
   const [hoveredItemId, setHoveredItemId] = useState(null);
+  const [marqueePaused, setMarqueePaused] = useState(false);
 
   const cfg = footerConfig || DEFAULT_FOOTER_CONFIG;
   const G = cfg.accent_color || "#c9a84c";
@@ -106,24 +100,6 @@ export default function FooterCanvas({
 
   const iconicItems    = (grouped[ICONIC_STRIP_COL] || []).filter(i => i.visible);
   const bottomBarItems = (grouped[BOTTOM_BAR_COL] || []).filter(i => i.visible);
-
-  // ── Fetch venue names for iconic_venues blocks ─────────────────────────
-  useEffect(() => {
-    const allSlugs = [];
-    effectiveItems.forEach(item => {
-      if (item.block_type === "iconic_venues" && Array.isArray(item.venue_slugs)) {
-        item.venue_slugs.forEach(s => { if (s && !venueNames[s]) allSlugs.push(s); });
-      }
-    });
-    if (allSlugs.length === 0) return;
-    supabase.from("listings").select("slug, name").in("slug", allSlugs)
-      .then(({ data }) => {
-        if (!data) return;
-        const map = {};
-        data.forEach(l => { map[l.slug] = l.name; });
-        setVenueNames(prev => ({ ...prev, ...map }));
-      });
-  }, [JSON.stringify(effectiveItems.map(i => i.venue_slugs))]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Page themes for the outer canvas wrapper ───────────────────────────
   const PAGE_THEMES = {
@@ -232,77 +208,103 @@ export default function FooterCanvas({
     }
   }
 
-  // ── Iconic Venues strip ───────────────────────────────────────────────
+  // ── Iconic Venues strip — seamless marquee ────────────────────────────
   function renderIconicStrip() {
     const iconicBlock = iconicItems.find(i => i.block_type === "iconic_venues");
 
-    // Always render the strip section — show placeholder if no block configured
-    if (!iconicBlock) {
-      return (
-        <div style={{
-          padding: isMobile ? "16px 20px" : "18px 0",
-          borderBottom: `1px solid ${cfg.border_color || "#2a2218"}`,
-          textAlign: "center",
-        }}>
-          <div style={{ fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: G, marginBottom: 8 }}>
-            Iconic Venues
-          </div>
-          <div style={{ fontFamily: SANS, fontSize: 11, color: "#3a3530", fontStyle: "italic" }}>
-            Highlight your most iconic venues across the platform.
-          </div>
-          <div style={{ fontFamily: SANS, fontSize: 10, color: "#2a2218", marginTop: 4 }}>
-            Add a venue strip in the Iconic Venues section.
-          </div>
-        </div>
-      );
+    // Derive names: manual entries (name/url objects) or fallback placeholders
+    let names;
+    if (iconicBlock) {
+      const entries = iconicBlock.iconic_venues || [];
+      names = entries.length > 0
+        ? entries.map(e => e.name).filter(Boolean)
+        : ["Villa d'Este", "Borgo Egnazia", "Belmond", "Il Borro", "Palazzo Versace", "Aman Venice"];
+    } else {
+      names = ["Villa d'Este", "Borgo Egnazia", "Belmond", "Il Borro", "Palazzo Versace", "Aman Venice"];
     }
 
-    const slugs = iconicBlock.venue_slugs || [];
-    const names = slugs.length > 0
-      ? slugs.map(s => venueNames[s] || s)
-      : ["Villa d'Este", "Borgo Egnazia", "Belmond", "Il Borro", "Palazzo Versace"];
+    // Repeat enough times to fill any viewport seamlessly (min 3x)
+    const reps = Math.max(3, Math.ceil(18 / names.length));
+    const repeated = Array.from({ length: reps }, () => names).flat();
 
-    const isStripSelected = isSelected(iconicBlock);
+    // Duration: ~7s per venue, minimum 40s for a slow luxurious feel
+    const duration = Math.max(40, names.length * 7);
+
+    const isStripSelected = iconicBlock ? isSelected(iconicBlock) : false;
+    const textColor = cfg.text_color || "#d4c8b0";
 
     return (
       <div
-        onClick={() => onSelectItem(iconicBlock)}
+        onClick={iconicBlock ? () => onSelectItem(iconicBlock) : undefined}
+        onMouseEnter={() => setMarqueePaused(true)}
+        onMouseLeave={() => setMarqueePaused(false)}
         style={{
-          padding: isMobile ? "16px 20px" : "20px 0",
+          padding: "18px 0 16px",
           borderBottom: `1px solid ${cfg.border_color || "#2a2218"}`,
-          cursor: "pointer",
-          ...( isStripSelected ? { outline: `1.5px solid ${G}80`, outlineOffset: -2 } : {} ),
+          cursor: iconicBlock ? "pointer" : "default",
+          ...(isStripSelected ? { outline: `1.5px solid ${G}80`, outlineOffset: -2 } : {}),
         }}
       >
+        {/* Keyframe injection */}
+        <style>{`
+          @keyframes lwd-marquee {
+            from { transform: translateX(0); }
+            to   { transform: translateX(-${Math.round(100 / reps)}%); }
+          }
+        `}</style>
+
+        {/* Label */}
         <div style={{
           fontFamily: SANS, fontSize: 9, fontWeight: 700,
           letterSpacing: "0.14em", textTransform: "uppercase",
-          color: G, textAlign: "center", marginBottom: 10,
+          color: G, textAlign: "center", marginBottom: 12, opacity: 0.85,
         }}>
           Iconic Venues
         </div>
+
+        {/* Marquee container with fade edges */}
         <div style={{
-          display: "flex",
-          flexWrap: isMobile ? "wrap" : "nowrap",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: isMobile ? "8px 16px" : 0,
+          overflow: "hidden",
+          maskImage: "linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)",
+          WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)",
         }}>
-          {names.map((name, i) => (
-            <span key={i} style={{ display: "flex", alignItems: "center" }}>
-              <span style={{
-                fontFamily: SERIF, fontSize: isMobile ? 13 : 14,
-                color: cfg.text_color || "#d4c8b0",
-                letterSpacing: "0.02em",
-              }}>{name}</span>
-              {!isMobile && i < names.length - 1 && (
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            width: "max-content",
+            animation: `lwd-marquee ${duration}s linear infinite`,
+            animationPlayState: marqueePaused ? "paused" : "running",
+          }}>
+            {repeated.map((name, i) => (
+              <span key={i} style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
                 <span style={{
-                  color: G, margin: "0 16px", opacity: 0.6, fontSize: 10,
+                  fontFamily: SERIF,
+                  fontSize: 14,
+                  color: textColor,
+                  letterSpacing: "0.03em",
+                  whiteSpace: "nowrap",
+                }}>{name}</span>
+                <span style={{
+                  color: G,
+                  margin: "0 32px",
+                  opacity: 0.5,
+                  fontSize: 9,
+                  flexShrink: 0,
                 }}>·</span>
-              )}
-            </span>
-          ))}
+              </span>
+            ))}
+          </div>
         </div>
+
+        {/* Placeholder hint when no block added */}
+        {!iconicBlock && (
+          <div style={{
+            textAlign: "center", marginTop: 10,
+            fontFamily: SANS, fontSize: 10, color: "#3a3530", fontStyle: "italic",
+          }}>
+            Add a curated selection of iconic venues to highlight your world
+          </div>
+        )}
       </div>
     );
   }

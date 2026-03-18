@@ -88,7 +88,7 @@ export function blankFooterItem(columnId = 2) {
     position:        999,
     block_type:      columnId === ICONIC_STRIP_COL ? "iconic_venues" : "link",
     content:         "",
-    venue_slugs:     [],
+    iconic_venues:   [],
     visible:         true,
     open_new_tab:    false,
   };
@@ -105,7 +105,7 @@ export function itemToFooterForm(item) {
     position:        item.position ?? 1,
     block_type:      item.block_type || "link",
     content:         item.content || "",
-    venue_slugs:     item.venue_slugs || [],
+    iconic_venues:   item.iconic_venues || [],
     visible:         item.visible !== false,
     open_new_tab:    !!item.open_new_tab,
   };

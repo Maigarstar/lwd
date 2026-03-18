@@ -61,11 +61,9 @@ export default function FooterBlockEditor({
   const [saving, setSaving]           = useState(false);
   const [saved, setSaved]             = useState(false);
   const [recordSearch, setRecordSearch] = useState("");
-  const [venueSearch, setVenueSearch]   = useState("");
   const [venueCategories, setVenueCategories] = useState([]);
   const [countries, setCountries]       = useState([]);
   const [magCategories, setMagCategories] = useState([]);
-  const [allListings, setAllListings]   = useState([]); // for iconic_venues multi-select
 
   // Reset form when selection changes
   useEffect(() => {
@@ -73,7 +71,6 @@ export default function FooterBlockEditor({
     setForm(itemToFooterForm(item));
     setSaved(false);
     setRecordSearch("");
-    setVenueSearch("");
   }, [item?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync every keystroke to canvas
@@ -102,16 +99,6 @@ export default function FooterBlockEditor({
         .then(({ data }) => setMagCategories(data || []));
     }
   }, [form?.link_type]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Load listings for iconic_venues multi-select
-  useEffect(() => {
-    if (!form || form.block_type !== "iconic_venues") return;
-    supabase.from("listings").select("slug, name, country")
-      .eq("status", "active")
-      .order("name", { ascending: true })
-      .limit(200)
-      .then(({ data }) => setAllListings(data || []));
-  }, [form?.block_type]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!item || !form) return <EmptyState C={C} />;
 
@@ -203,84 +190,84 @@ export default function FooterBlockEditor({
     );
   }
 
-  // ── Iconic Venues multi-select ─────────────────────────────────────────
-  function renderVenueMultiSelect() {
-    const selected = form.venue_slugs || [];
-    const filtered = allListings.filter(l =>
-      (l.name || "").toLowerCase().includes(venueSearch.toLowerCase()) ||
-      (l.country || "").toLowerCase().includes(venueSearch.toLowerCase())
-    );
+  // ── Iconic Venues editorial editor ────────────────────────────────────
+  function renderVenueManualEditor() {
+    const entries = form.iconic_venues || [];
+
+    const updateEntry = (i, field, val) => {
+      const next = entries.map((e, idx) => idx === i ? { ...e, [field]: val } : e);
+      set("iconic_venues", next);
+    };
+    const removeEntry = (i) => set("iconic_venues", entries.filter((_, idx) => idx !== i));
+    const moveUp   = (i) => {
+      if (i === 0) return;
+      const next = [...entries];
+      [next[i - 1], next[i]] = [next[i], next[i - 1]];
+      set("iconic_venues", next);
+    };
+    const moveDown = (i) => {
+      if (i === entries.length - 1) return;
+      const next = [...entries];
+      [next[i], next[i + 1]] = [next[i + 1], next[i]];
+      set("iconic_venues", next);
+    };
+    const addEntry = () => set("iconic_venues", [...entries, { name: "", url: "" }]);
+
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <label style={lbl}>Selected Venues ({selected.length})</label>
-        {selected.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 4 }}>
-            {selected.map(slug => {
-              const listing = allListings.find(l => l.slug === slug);
-              const name = listing?.name || slug;
-              return (
-                <span key={slug} style={{
-                  display: "inline-flex", alignItems: "center", gap: 4,
-                  background: G + "18", border: `1px solid ${G}40`,
-                  borderRadius: 5, padding: "3px 8px",
-                  fontFamily: SANS, fontSize: 11, color: G,
-                }}>
-                  {name}
-                  <button onClick={() => set("venue_slugs", selected.filter(s => s !== slug))} style={{
-                    background: "none", border: "none", cursor: "pointer",
-                    color: G, fontSize: 12, padding: 0, lineHeight: 1,
-                  }}>✕</button>
-                </span>
-              );
-            })}
-          </div>
-        )}
-        <label style={lbl}>Add venues</label>
-        <input
-          value={venueSearch}
-          onChange={e => setVenueSearch(e.target.value)}
-          placeholder="Search venues..."
-          style={inp}
-        />
-        <div style={{ maxHeight: 180, overflowY: "auto", display: "flex", flexDirection: "column", gap: 3 }}>
-          {filtered.slice(0, 50).map(l => {
-            const isIn = selected.includes(l.slug);
-            return (
-              <button key={l.slug} onClick={() => {
-                if (isIn) {
-                  set("venue_slugs", selected.filter(s => s !== l.slug));
-                } else {
-                  set("venue_slugs", [...selected, l.slug]);
-                }
-              }} style={{
-                background: isIn ? G + "14" : "transparent",
-                border: `1px solid ${isIn ? G + "50" : C?.border || "#2a2218"}`,
-                borderRadius: 5, padding: "6px 10px", textAlign: "left",
-                color: isIn ? G : C?.off || "#d4c8b0",
-                fontFamily: SANS, fontSize: 12, cursor: "pointer",
-                display: "flex", alignItems: "center", gap: 8,
-              }}>
-                <span style={{
-                  width: 14, height: 14, border: `1px solid ${isIn ? G : "#5a5045"}`,
-                  borderRadius: 3, background: isIn ? G : "transparent",
-                  display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  flexShrink: 0, fontSize: 9, color: "#0a0906",
-                }}>{isIn ? "✓" : ""}</span>
-                <span>{l.name}</span>
-                {l.country && (
-                  <span style={{ fontFamily: SANS, fontSize: 10, color: C?.grey || "#8a7d6a", marginLeft: "auto" }}>
-                    {l.country}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-          {filtered.length === 0 && (
-            <div style={{ fontFamily: SANS, fontSize: 12, color: C?.grey || "#8a7d6a", padding: 8 }}>
-              No venues found
-            </div>
-          )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ fontFamily: SANS, fontSize: 11, color: C?.grey || "#8a7d6a", lineHeight: 1.6 }}>
+          A curated selection of venues presented as a brand showcase. Add venue names and optional links.
         </div>
+
+        {entries.map((entry, i) => (
+          <div key={i} style={{
+            background: C?.dark || "#0d0d0d",
+            border: `1px solid ${C?.border || "#2a2218"}`,
+            borderRadius: 7, padding: "10px 12px",
+            display: "flex", flexDirection: "column", gap: 8,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontFamily: SANS, fontSize: 9, color: "#5a5045", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                Venue {i + 1}
+              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <button onClick={() => moveUp(i)} disabled={i === 0} style={{ background: "none", border: "none", cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "#2a2218" : "#5a5045", fontSize: 11, padding: "1px 3px" }}>▲</button>
+                <button onClick={() => moveDown(i)} disabled={i === entries.length - 1} style={{ background: "none", border: "none", cursor: i === entries.length - 1 ? "default" : "pointer", color: i === entries.length - 1 ? "#2a2218" : "#5a5045", fontSize: 11, padding: "1px 3px" }}>▼</button>
+                <button onClick={() => removeEntry(i)} style={{ background: "none", border: "none", cursor: "pointer", color: "#5a3030", fontSize: 13, padding: "1px 4px", lineHeight: 1 }}
+                  onMouseEnter={e => e.currentTarget.style.color = "#f87171"}
+                  onMouseLeave={e => e.currentTarget.style.color = "#5a3030"}
+                >✕</button>
+              </div>
+            </div>
+            <input
+              value={entry.name}
+              onChange={e => updateEntry(i, "name", e.target.value)}
+              placeholder="Venue name (e.g. Villa d'Este)"
+              style={inp}
+            />
+            <input
+              value={entry.url || ""}
+              onChange={e => updateEntry(i, "url", e.target.value)}
+              placeholder="Link (optional — /path or https://...)"
+              style={{ ...inp, opacity: 0.7 }}
+            />
+          </div>
+        ))}
+
+        <button
+          onClick={addEntry}
+          style={{
+            background: "none", border: `1px dashed ${G}40`,
+            borderRadius: 7, padding: "9px 0", textAlign: "center",
+            color: G, fontFamily: SANS, fontSize: 11, fontWeight: 600,
+            letterSpacing: "0.06em", cursor: "pointer",
+            transition: "border-color 120ms, background 120ms",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = G + "80"; e.currentTarget.style.background = G + "08"; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = G + "40"; e.currentTarget.style.background = "none"; }}
+        >
+          + Add Venue
+        </button>
       </div>
     );
   }
@@ -373,8 +360,8 @@ export default function FooterBlockEditor({
           />
         )}
 
-        {/* Iconic venues multi-select */}
-        {isIconic && renderVenueMultiSelect()}
+        {/* Iconic venues editorial editor */}
+        {isIconic && renderVenueManualEditor()}
 
         {/* Heading / Text content */}
         {(isHeading || isText) && (
