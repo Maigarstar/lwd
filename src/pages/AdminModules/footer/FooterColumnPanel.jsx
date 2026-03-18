@@ -425,8 +425,8 @@ export default function FooterColumnPanel({
         />
       )}
 
-      {/* ── Brand Presence (locked) ───────────────────────────────────── */}
-      <SectionHeader label="Brand Presence" locked C={C} />
+      {/* ── Brand Footer (locked) ─────────────────────────────────────── */}
+      <SectionHeader label="Brand Footer" locked C={C} />
       <div style={{
         padding: "8px 14px 10px",
         fontFamily: SANS, fontSize: 11,
@@ -434,9 +434,9 @@ export default function FooterColumnPanel({
         lineHeight: 1.6,
         borderBottom: `1px solid ${C?.border || "#2a2218"}`,
       }}>
-        Your logo, tagline, and social presence.
+        Logo, tagline, est. line, and social links.
         <br />
-        <span style={{ color: "#5a5045" }}>Configure in the Config tab.</span>
+        <span style={{ color: "#5a5045" }}>Edit in the Config tab - Brand Footer section.</span>
       </div>
 
       {/* ── Nav Columns 2-N (draggable to reorder entire columns) ───── */}
@@ -478,16 +478,16 @@ export default function FooterColumnPanel({
         );
       })}
 
-      {/* ── Legal & System ────────────────────────────────────────────── */}
+      {/* ── Bottom Bar ────────────────────────────────────────────────── */}
       <SectionHeader
-        label="Legal & System"
+        label="Bottom Bar"
         onAdd={() => onAdd(BOTTOM_BAR_COL)}
         addLabel="Add Link"
         C={C}
       />
       {renderBlockList(BOTTOM_BAR_COL, grouped[BOTTOM_BAR_COL])}
       {(!grouped[BOTTOM_BAR_COL] || grouped[BOTTOM_BAR_COL].length === 0) && (
-        <EmptySlot msg="No links yet" hint="Privacy, Terms, Cookies — utility links for the bottom bar" C={C} />
+        <EmptySlot msg="No links yet" hint="Privacy, Terms, Cookies — add utility links for the site's bottom bar" C={C} />
       )}
 
     </div>

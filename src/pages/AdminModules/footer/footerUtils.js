@@ -71,6 +71,8 @@ export const DEFAULT_FOOTER_CONFIG = {
   social_instagram:    "",
   social_pinterest:    "",
   social_tiktok:       "",
+  show_iconic_strip:      true,
+  show_editorial_tagline: true,
   strip_pad_y:            20,
   show_newsletter:        true,
   newsletter_bg:          "#000000",

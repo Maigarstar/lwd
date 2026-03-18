@@ -190,8 +190,14 @@ export default function FooterConfig({ footerConfig, onConfigChange, onSave, sav
 
       {/* ── Iconic Strip ────────────────────────────────────────────── */}
       <Section title="Iconic Strip" defaultOpen C={C}>
-        <TextRow label="Strip Label" field="strip_label" cfg={cfg} set={set} placeholder="Iconic Venues" C={C} />
-        <NumRow label="Strip height (px)" field="strip_pad_y" cfg={cfg} set={set} min={0} max={80} C={C} />
+        <ToggleRow label="Show iconic strip" field="show_iconic_strip" cfg={cfg} set={set} C={C} />
+        <ToggleRow label="Show editorial tagline" field="show_editorial_tagline" cfg={cfg} set={set} C={C} />
+        {cfg.show_iconic_strip !== false && (
+          <>
+            <TextRow label="Strip label" field="strip_label" cfg={cfg} set={set} placeholder="Iconic Venues" C={C} />
+            <NumRow label="Strip height (px)" field="strip_pad_y" cfg={cfg} set={set} min={0} max={80} C={C} />
+          </>
+        )}
       </Section>
 
       {/* ── Layout ──────────────────────────────────────────────────── */}

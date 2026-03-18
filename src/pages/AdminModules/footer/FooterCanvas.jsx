@@ -78,6 +78,7 @@ export default function FooterCanvas({
   const [pageTheme, setPageTheme] = useState("dark");    // "dark" | "light" | "editorial"
   const [hoveredItemId, setHoveredItemId] = useState(null);
   const [marqueePaused, setMarqueePaused] = useState(false);
+  const [newsletterHovered, setNewsletterHovered] = useState(false);
 
   const cfg = footerConfig || DEFAULT_FOOTER_CONFIG;
   const G = cfg.accent_color || "#c9a84c";
@@ -454,18 +455,32 @@ export default function FooterCanvas({
                 {colItems.length > 0
                   ? colItems.map(item => renderItem(item))
                   : fallback && (
-                    <div style={{ opacity: 0.28 }}>
+                    <div>
+                      <div style={{ opacity: 0.22 }}>
+                        <div style={{
+                          fontFamily: SANS, fontSize: 9, fontWeight: 600,
+                          letterSpacing: "0.14em", textTransform: "uppercase",
+                          color: G, marginBottom: 12,
+                        }}>{fallback.heading}</div>
+                        {fallback.links.map((lbl, i) => (
+                          <div key={i} style={{
+                            fontFamily: SANS, fontSize: 12,
+                            color: textColor, padding: "3px 0", lineHeight: 1.85,
+                          }}>{lbl}</div>
+                        ))}
+                      </div>
                       <div style={{
-                        fontFamily: SANS, fontSize: 9, fontWeight: 600,
-                        letterSpacing: "0.14em", textTransform: "uppercase",
-                        color: G, marginBottom: 12,
-                      }}>{fallback.heading}</div>
-                      {fallback.links.map((lbl, i) => (
-                        <div key={i} style={{
-                          fontFamily: SANS, fontSize: 12,
-                          color: textColor, padding: "3px 0", lineHeight: 1.85,
-                        }}>{lbl}</div>
-                      ))}
+                        marginTop: 12,
+                        border: `1px dashed ${G}25`,
+                        borderRadius: 4,
+                        padding: "6px 8px",
+                        fontFamily: SANS, fontSize: 9,
+                        color: "#5a5045", fontStyle: "italic",
+                        textAlign: "center",
+                        letterSpacing: "0.04em",
+                      }}>
+                        + Add blocks in the panel
+                      </div>
                     </div>
                   )
                 }
@@ -484,24 +499,38 @@ export default function FooterCanvas({
     const textColor = cfg.text_color || "#d4c8b0";
 
     return (
-      <div style={{
-        padding: isMobile ? `${cfg.newsletter_pad_y ?? 20}px 20px` : `${cfg.newsletter_pad_y ?? 20}px ${padX}px`,
-        borderTop: `1px solid ${cfg.newsletter_border_color || "#2d2d2d"}`,
-        borderBottom: `1px solid ${cfg.newsletter_border_color || "#2d2d2d"}`,
-        background: cfg.newsletter_bg || "#000000",
-        display: "flex",
-        flexDirection: isMobile ? "column" : "row",
-        alignItems: isMobile ? "flex-start" : "center",
-        justifyContent: "space-between",
-        gap: isMobile ? 16 : 32,
-      }}>
+      <div
+        onMouseEnter={() => setNewsletterHovered(true)}
+        onMouseLeave={() => setNewsletterHovered(false)}
+        style={{
+          padding: isMobile ? `${cfg.newsletter_pad_y ?? 20}px 20px` : `${cfg.newsletter_pad_y ?? 20}px ${padX}px`,
+          borderTop: `1px solid ${cfg.newsletter_border_color || "#2d2d2d"}`,
+          borderBottom: `1px solid ${cfg.newsletter_border_color || "#2d2d2d"}`,
+          background: cfg.newsletter_bg || "#000000",
+          display: "flex",
+          flexDirection: isMobile ? "column" : "row",
+          alignItems: isMobile ? "flex-start" : "center",
+          justifyContent: "space-between",
+          gap: isMobile ? 16 : 32,
+          outline: newsletterHovered ? `1px solid ${G}30` : "1px solid transparent",
+          outlineOffset: -1,
+          transition: "outline-color 150ms",
+          cursor: "default",
+        }}
+      >
         {/* Left: editorial copy */}
         <div>
           <div style={{
-            fontFamily: SANS, fontSize: 9, fontWeight: 700,
-            letterSpacing: "0.12em", textTransform: "uppercase",
-            color: G, marginBottom: 6, opacity: 1,
-          }}>{cfg.newsletter_label || "The Editorial"}</div>
+            fontFamily: SANS, fontSize: 8, fontWeight: 700,
+            letterSpacing: "0.18em", textTransform: "uppercase",
+            color: G, marginBottom: 8, opacity: newsletterHovered ? 1 : 0.85,
+            transition: "opacity 150ms",
+            display: "flex", alignItems: "center", gap: 8,
+          }}>
+            <div style={{ height: 1, width: 24, background: G, opacity: 0.5 }} />
+            {cfg.newsletter_label || "The Editorial"}
+            <div style={{ height: 1, width: 24, background: G, opacity: 0.5 }} />
+          </div>
           <div style={{
             fontFamily: SERIF, fontSize: isMobile ? 18 : 22,
             color: textColor, marginBottom: 4,
@@ -641,18 +670,19 @@ export default function FooterCanvas({
           borderTop: cfg.border_top ? `1px solid ${cfg.border_color || "#2a2218"}` : "none",
         }}>
           {/* 0. Editorial tagline — own full-width container, reads as introduction */}
-          {renderEditorialTagline()}
+          {cfg.show_editorial_tagline !== false && renderEditorialTagline()}
 
           {/* Separator: visually closes the tagline block before the strip begins */}
-          <div style={{
-            borderTop: `1px solid ${cfg.border_color || "#2a2218"}`,
-            margin: "0",
-          }} />
+          {cfg.show_editorial_tagline !== false && (
+            <div style={{ borderTop: `1px solid ${cfg.border_color || "#2a2218"}`, margin: "0" }} />
+          )}
 
           {/* 1. Iconic Venues strip — separate block below */}
-          <div style={{ padding: isMobile ? 0 : `0 ${cfg.pad_x || 48}px` }}>
-            {renderIconicStrip()}
-          </div>
+          {cfg.show_iconic_strip !== false && (
+            <div style={{ padding: isMobile ? 0 : `0 ${cfg.pad_x || 48}px` }}>
+              {renderIconicStrip()}
+            </div>
+          )}
 
           {/* 2. Main footer columns */}
           {renderMainFooter()}
