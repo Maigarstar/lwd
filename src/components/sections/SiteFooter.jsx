@@ -1,95 +1,101 @@
 // ─── src/components/sections/SiteFooter.jsx ──────────────────────────────────
-// Universal luxury footer, used on every page.
-// Always dark. Continuous iconic-venues scroll band. Institutional tone.
+// Live footer driven by footer_config + footer_items in Supabase.
+// Falls back gracefully to hardcoded content if DB is unavailable.
+// Column IDs: 0=iconic strip, 1=brand(config), 2-6=nav cols, 99=bottom bar.
+import { useState, useEffect } from "react";
 import { useTheme } from "../../theme/ThemeContext";
+import { supabase } from "../../lib/supabaseClient";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
+const EDITORIAL_LINE = "The world's finest venues and vendors, carefully selected";
 
-// ── Iconic venue names (curated global luxury alliance, display only) ────────
-const ICONIC_VENUES = [
-  "Rosewood","Belmond","Aman","Six Senses","Mandarin Oriental","Oetker Collection",
-  "Four Seasons","The Peninsula Hotels","Raffles","One and Only","Auberge Resorts",
+// ── Fallback content (used when Supabase unavailable) ─────────────────────────
+const FALLBACK_ICONIC = [
+  "The Peninsula Hotels","Raffles","One and Only","Auberge Resorts",
   "The Dorchester","Waldorf Astoria","Conrad","Park Hyatt","Banyan Tree","Jumeirah",
-  "Fairmont","The Ritz","Claridges","Hotel de Crillon","Le Bristol Paris",
-  "Plaza Athenee","Grand Hotel Tremezzo","Villa d'Este","The Gritti Palace",
-  "Ashford Castle","Adare Manor","Cliveden House","Castello di Casole",
+  "Rosewood","Belmond","Aman","Six Senses","Mandarin Oriental",
+  "Four Seasons","Fairmont","The Ritz","Villa d'Este","Ashford Castle",
 ];
 
-// ── Social icons ─────────────────────────────────────────────────────────────
-const SOCIALS = [
-  { label: "Instagram", code: "IG" },
-  { label: "TikTok", code: "TK" },
-  { label: "YouTube", code: "YT" },
-  { label: "Facebook", code: "FB" },
-  { label: "Pinterest", code: "PT" },
-];
-
-const WA_URL =
-  "https://wa.me/447960497211?text=Hello%20Luxury%20Wedding%20Directory%2C%20I%20would%20like%20more%20information";
-
-// ── Navigation column definitions ────────────────────────────────────────────
-const NAV_COLS = [
+const FALLBACK_NAV = [
   {
     title: "Couples",
     links: [
-      { text: "Browse Venues", action: "onViewCategory" },
-      { text: "Find Photographers" },
-      { text: "Florists" },
-      { text: "Music & DJs" },
-      { text: "Wedding Planners" },
-      { text: "Real Weddings" },
-      { text: "The Magazine", action: "onNavigateMagazine" },
-      { text: "Artistry Awards", action: "onNavigateArtistryAwards" },
-      { text: "Getting Married", action: "onNavigateGettingMarried" },
-      { text: "Budget Calculator" },
-      { text: "Planning Checklist" },
+      { label: "Browse Venues",      url: "/venues" },
+      { label: "Find Photographers", url: "/vendors/photographers" },
+      { label: "Wedding Planners",   url: "/vendors/wedding-planners" },
+      { label: "Real Weddings",      url: "/real-weddings" },
+      { label: "The Magazine",       url: "/magazine" },
+      { label: "Planning Checklist", url: "/planning-checklist" },
     ],
   },
   {
     title: "Vendors",
     links: [
-      { text: "List Your Business", action: "onNavigatePartnership" },
-      { text: "Advertise", action: "onNavigatePartnerEnquiry" },
-      { text: "Pricing Plans", action: "onNavigatePartnership" },
-      { text: "Vendor Dashboard" },
-      { text: "SEO Tools" },
-      { text: "Success Stories" },
-      { text: "Vendor Blog" },
+      { label: "List Your Business", url: "/list-your-business" },
+      { label: "Advertise",          url: "/advertise" },
+      { label: "Pricing Plans",      url: "/pricing" },
+      { label: "Success Stories",    url: "/success-stories" },
+      { label: "Vendor Dashboard",   url: "/vendor-dashboard" },
     ],
   },
   {
     title: "Company",
     links: [
-      { text: "About Us", action: "onNavigateAbout" },
-      { text: "The LWD Standard", action: "onNavigateStandard" },
-      { text: "Editorial Standards" },
-      { text: "Press & Media" },
-      { text: "Careers" },
-      { text: "Contact", action: "onNavigateContact" },
-      { text: "Privacy Policy" },
-      { text: "Terms" },
+      { label: "About Us",            url: "/about" },
+      { label: "Editorial Standards", url: "/editorial-standards" },
+      { label: "Press & Media",       url: "/press" },
+      { label: "Careers",             url: "/careers" },
+      { label: "Contact",             url: "/contact" },
+      { label: "Privacy Policy",      url: "/privacy-policy" },
     ],
   },
 ];
 
-// ── WhatsApp SVG icon (monochrome, no green) ─────────────────────────────────
+const FALLBACK_BOTTOM_LINKS = [
+  { label: "Privacy", url: "/privacy" },
+  { label: "Terms",   url: "/terms" },
+  { label: "Cookies", url: "/cookies" },
+  { label: "Sitemap", url: "/sitemap" },
+  { label: "Admin",   url: "/admin" },
+];
+
+const WA_URL =
+  "https://wa.me/447960497211?text=Hello%20Luxury%20Wedding%20Directory%2C%20I%20would%20like%20more%20information";
+
+// ── WhatsApp icon ─────────────────────────────────────────────────────────────
 function WhatsAppIcon({ size = 16, color = "currentColor" }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill={color}
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden="true">
       <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
     </svg>
   );
 }
 
-// ── Component ────────────────────────────────────────────────────────────────
+// ── Social SVG icons ──────────────────────────────────────────────────────────
+function SocialSvg({ platform, size = 20, color = "currentColor" }) {
+  if (platform === "instagram") return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" aria-hidden="true">
+      <rect x="2" y="2" width="20" height="20" rx="5" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="17" cy="7" r="1" fill={color} stroke="none" />
+    </svg>
+  );
+  if (platform === "pinterest") return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden="true">
+      <path d="M12 2C6.48 2 2 6.48 2 12c0 4.24 2.65 7.86 6.39 9.29-.09-.78-.17-1.98.03-2.83.19-.77 1.27-5.39 1.27-5.39s-.32-.65-.32-1.61c0-1.51.88-2.64 1.97-2.64.93 0 1.38.7 1.38 1.54 0 .94-.6 2.34-.91 3.64-.26 1.09.54 1.97 1.6 1.97 1.92 0 3.21-2.47 3.21-5.39 0-2.23-1.51-3.79-3.66-3.79-2.49 0-3.96 1.87-3.96 3.8 0 .75.29 1.56.65 2 .07.09.08.17.06.26-.07.27-.21.87-.24.99-.04.16-.13.19-.3.12-1.12-.52-1.82-2.17-1.82-3.49 0-2.84 2.06-5.44 5.94-5.44 3.12 0 5.54 2.22 5.54 5.19 0 3.1-1.95 5.59-4.66 5.59-.91 0-1.77-.47-2.06-1.03l-.56 2.09c-.2.78-.75 1.75-1.12 2.34.84.26 1.74.4 2.67.4 5.52 0 10-4.48 10-10S17.52 2 12 2z"/>
+    </svg>
+  );
+  if (platform === "tiktok") return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden="true">
+      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34v-7a8.27 8.27 0 0 0 4.84 1.55V6.41a4.85 4.85 0 0 1-1.07-.28z"/>
+    </svg>
+  );
+  return null;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
 export default function SiteFooter({
   onNavigateHome,
   onNavigateContact,
@@ -104,68 +110,152 @@ export default function SiteFooter({
   onNavigatePartnerEnquiry,
 }) {
   const C = useTheme();
+  const [cfg, setCfg]     = useState(null);
+  const [items, setItems] = useState(null); // null = still loading
 
-  // Map action keys to callbacks
-  const actions = {
-    onNavigateHome,
-    onNavigateContact,
-    onNavigatePartnership,
-    onNavigateAdmin,
-    onNavigateAbout,
-    onNavigateStandard,
-    onViewCategory,
-    onNavigateGettingMarried,
-    onNavigateArtistryAwards,
-    onNavigateMagazine,
-    onNavigatePartnerEnquiry,
-  };
+  useEffect(() => {
+    async function load() {
+      try {
+        const [cfgRes, itemsRes] = await Promise.all([
+          supabase.from("footer_config").select("*").eq("id", "homepage").maybeSingle(),
+          supabase.from("footer_items").select("*").eq("visible", true).order("position"),
+        ]);
+        if (!cfgRes.error && cfgRes.data)   setCfg(cfgRes.data);
+        if (!itemsRes.error && itemsRes.data) setItems(itemsRes.data);
+      } catch {
+        // Supabase unavailable - keep null, render fallback below
+      }
+    }
+    load();
+  }, []);
+
+  // ── Derived values ──────────────────────────────────────────────────────────
+  const gold      = cfg?.accent_color  || C.gold || "#c9a84c";
+  const textColor = cfg?.text_color    || "#d4c8b0";
+  const bgColor   = cfg?.bg_color      || "#0a0a08";
+  const bbBg      = cfg?.bottom_bar_bg || "#080604";
+  const bbText    = cfg?.bottom_bar_text || "rgba(255,255,255,0.3)";
+  const padX      = cfg?.pad_x ?? 64;
+
+  // Group visible items by column_id, sorted by position
+  const grouped = {};
+  (items || []).forEach(item => {
+    if (!grouped[item.column_id]) grouped[item.column_id] = [];
+    grouped[item.column_id].push(item);
+  });
+
+  // Iconic strip names
+  const iconicBlock = (grouped[0] || []).find(i => i.block_type === "iconic_venues");
+  const iconicNames = iconicBlock?.iconic_venues?.length
+    ? iconicBlock.iconic_venues.map(e => e.name).filter(Boolean)
+    : FALLBACK_ICONIC;
+
+  // Repeat for seamless marquee (min 3x to fill any viewport)
+  const reps = Math.max(3, Math.ceil(30 / iconicNames.length));
+  const marqueeNames = Array.from({ length: reps }, () => iconicNames).flat();
+
+  // Nav columns (2-6): build from DB when loaded, else use fallback
+  let navCols;
+  if (items !== null) {
+    navCols = [2, 3, 4, 5, 6]
+      .map(colId => {
+        const colItems = grouped[colId] || [];
+        const heading  = colItems.find(i => i.block_type === "heading");
+        const links    = colItems.filter(i => i.block_type === "link");
+        return heading ? { colId, title: heading.content || heading.label, links } : null;
+      })
+      .filter(Boolean);
+    // Fall back to FALLBACK_NAV if DB returned nothing for nav cols
+    if (!navCols.length) navCols = FALLBACK_NAV.map((c, i) => ({ colId: i + 2, ...c }));
+  } else {
+    navCols = FALLBACK_NAV.map((c, i) => ({ colId: i + 2, ...c }));
+  }
+
+  // Bottom bar links (col 99)
+  const bottomLinks = (grouped[99] || []).length
+    ? grouped[99]
+    : FALLBACK_BOTTOM_LINKS;
+
+  // Social (only real URLs)
+  const socials = [];
+  if (cfg?.social_instagram) socials.push({ platform: "instagram", url: cfg.social_instagram, label: "Instagram" });
+  if (cfg?.social_pinterest) socials.push({ platform: "pinterest", url: cfg.social_pinterest, label: "Pinterest" });
+  if (cfg?.social_tiktok)    socials.push({ platform: "tiktok",    url: cfg.social_tiktok,    label: "TikTok" });
+
+  // Strip label
+  const stripLabel    = cfg?.strip_label || "Iconic Venues";
+  const showNewsletter = cfg ? cfg.show_newsletter : false;
+  const showBottomBar  = cfg ? cfg.show_bottom_bar : true;
+  const copyrightText  = cfg?.copyright_text || "2026 LuxuryWeddingDirectory.com · Est. 2006 · All rights reserved";
+
+  // Grid columns: brand (wider) + one per nav col
+  const gridTemplateColumns = `2fr ${navCols.map(() => "1fr").join(" ")}`;
+
+  // Link click handler: URL-first, then callback fallback
+  function handleLinkClick(item) {
+    if (item.url && item.url !== "#") {
+      window.location.href = item.url;
+      return;
+    }
+  }
+
+  const linkStyle = (hovered) => ({
+    fontFamily: NU,
+    fontSize: 12,
+    color: hovered ? gold : "rgba(255,255,255,0.3)",
+    marginBottom: 9,
+    cursor: "pointer",
+    transition: "color 0.2s",
+    textDecoration: "none",
+    display: "block",
+  });
 
   return (
     <footer
       className="site-footer"
       aria-label="Site footer"
-      style={{
-        background: "#0a0a08",
-        borderTop: "1px solid rgba(201,168,76,0.12)",
-        padding: "80px 60px 36px",
-      }}
+      style={{ background: bgColor, borderTop: `1px solid rgba(201,168,76,0.12)` }}
     >
-      {/* ── Gold accent divider ─────────────────────────────────────────── */}
-      <div
-        aria-hidden="true"
-        style={{
-          height: 1,
-          background: `linear-gradient(90deg, transparent, ${C.gold}, rgba(116,129,114,0.6), transparent)`,
-          marginBottom: 56,
-        }}
-      />
+      {/* ── Editorial line ──────────────────────────────────────────────── */}
+      <div style={{
+        textAlign: "center",
+        padding: "52px 0 36px",
+        background: bgColor,
+      }}>
+        <p style={{
+          fontFamily: GD,
+          fontSize: 20,
+          fontWeight: 400,
+          fontStyle: "italic",
+          color: textColor,
+          opacity: 0.55,
+          letterSpacing: "0.02em",
+          lineHeight: 1.5,
+          margin: 0,
+        }}>
+          {EDITORIAL_LINE}
+        </p>
+      </div>
 
-      {/* ── Iconic Venues Band (continuous scroll) ─────────────────────── */}
-      <div style={{ maxWidth: 1400, margin: "0 auto", marginBottom: 56 }}>
+      {/* ── Separator before strip ──────────────────────────────────────── */}
+      <div aria-hidden="true" style={{
+        height: 1,
+        background: `linear-gradient(90deg, transparent, ${gold}, rgba(116,129,114,0.6), transparent)`,
+        margin: `0 ${padX}px 0`,
+      }} />
+
+      {/* ── Iconic Venues marquee strip ─────────────────────────────────── */}
+      <div style={{ maxWidth: "100%", margin: "0 auto", padding: "20px 0 18px" }}>
         {/* Label */}
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 12,
-            }}
-          >
-            <div style={{ width: 28, height: 1, background: C.gold }} />
-            <span
-              style={{
-                fontFamily: NU,
-                fontSize: 9,
-                letterSpacing: "0.3em",
-                textTransform: "uppercase",
-                color: C.gold,
-                fontWeight: 600,
-              }}
-            >
-              Iconic Venues
-            </span>
-            <div style={{ width: 28, height: 1, background: C.gold }} />
+        <div style={{ textAlign: "center", marginBottom: 18 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
+            <div style={{ width: 48, height: 1, background: gold, opacity: 0.45 }} />
+            <span style={{
+              fontFamily: NU, fontSize: 8, fontWeight: 600,
+              letterSpacing: "0.28em", textTransform: "uppercase",
+              color: gold, opacity: 0.85,
+            }}>{stripLabel}</span>
+            <div style={{ width: 48, height: 1, background: gold, opacity: 0.45 }} />
           </div>
         </div>
 
@@ -180,374 +270,330 @@ export default function SiteFooter({
         >
           <div
             className="site-footer-scroll-track"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              whiteSpace: "nowrap",
-              width: "max-content",
-            }}
+            style={{ display: "flex", alignItems: "center", whiteSpace: "nowrap", width: "max-content" }}
           >
-            {/* Two copies of the list for seamless infinite loop */}
-            {[0, 1].map((copy) => (
-              <span key={copy} style={{ display: "flex", alignItems: "center" }} aria-hidden={copy === 1 || undefined}>
-                {ICONIC_VENUES.map((name, i) => (
-                  <span key={`${copy}-${i}`} style={{ display: "inline-flex", alignItems: "center" }}>
-                    <span
-                      style={{
-                        fontFamily: NU,
-                        fontSize: 11,
-                        fontWeight: 400,
-                        letterSpacing: "0.15em",
-                        textTransform: "uppercase",
-                        color: "rgba(255,255,255,0.35)",
-                      }}
-                    >
-                      {name}
-                    </span>
-                    <span
-                      aria-hidden="true"
-                      style={{
-                        color: C.gold,
-                        fontSize: 6,
-                        opacity: 0.35,
-                        margin: "0 18px",
-                      }}
-                    >
-                      ✦
-                    </span>
-                  </span>
-                ))}
+            {marqueeNames.map((name, i) => (
+              <span key={i} style={{ display: "inline-flex", alignItems: "center" }}>
+                <span style={{
+                  fontFamily: NU, fontSize: 11, fontWeight: 400,
+                  letterSpacing: "0.15em", textTransform: "uppercase",
+                  color: "rgba(255,255,255,0.35)",
+                }}>{name}</span>
+                <span aria-hidden="true" style={{
+                  color: gold, fontSize: 6, opacity: 0.4, margin: "0 40px",
+                }}>·</span>
               </span>
             ))}
           </div>
         </div>
       </div>
 
-      {/* ── Main Footer Grid ────────────────────────────────────────────── */}
-      <div style={{ maxWidth: 1400, margin: "0 auto" }}>
-        <div
-          style={{
-            height: 1,
-            background: "rgba(255,255,255,0.06)",
-            marginBottom: 52,
-          }}
-          aria-hidden="true"
-        />
+      {/* ── Main footer grid ────────────────────────────────────────────── */}
+      <div style={{ maxWidth: "100%", padding: `0 ${padX}px` }}>
+        <div aria-hidden="true" style={{
+          height: 1, background: "rgba(255,255,255,0.06)", marginBottom: 52,
+        }} />
 
         <div
           className="site-footer-grid"
           style={{
             display: "grid",
-            gridTemplateColumns: "2fr 1fr 1fr 1fr",
+            gridTemplateColumns,
             gap: 48,
             marginBottom: 52,
+            alignItems: "start",
           }}
         >
           {/* ── Brand column ── */}
           <div>
-            <div
-              style={{
-                fontFamily: GD,
-                fontSize: 10,
-                color: C.gold,
-                letterSpacing: "0.22em",
-                textTransform: "uppercase",
-                lineHeight: 1.7,
-                marginBottom: 6,
-              }}
-            >
-              Luxury Wedding
-              <br />
-              Directory
-            </div>
-            <div
-              style={{
-                fontFamily: NU,
-                fontSize: 9,
-                letterSpacing: "3px",
-                textTransform: "uppercase",
-                color: "rgba(255,255,255,0.35)",
-                marginBottom: 20,
-              }}
-            >
+            {(cfg?.show_logo ?? true) && (
+              <div style={{
+                fontFamily: GD, fontSize: cfg?.logo_size || 10,
+                color: gold, letterSpacing: "0.22em",
+                textTransform: "uppercase", lineHeight: 1.7, marginBottom: 6,
+              }}>
+                Luxury Wedding<br />Directory
+              </div>
+            )}
+            <div style={{
+              fontFamily: NU, fontSize: 9, letterSpacing: "3px",
+              textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 20,
+            }}>
               Est. 2006 · Worldwide
             </div>
 
             {/* Gold divider */}
-            <div
-              aria-hidden="true"
-              style={{
-                width: 40,
-                height: 1,
-                background: `linear-gradient(90deg, ${C.gold}, transparent)`,
-                marginBottom: 18,
-              }}
-            />
+            <div aria-hidden="true" style={{
+              width: 40, height: 1,
+              background: `linear-gradient(90deg, ${gold}, transparent)`,
+              marginBottom: 18,
+            }} />
 
-            <p
-              style={{
-                fontFamily: NU,
-                fontSize: 13,
+            {(cfg?.show_tagline ?? true) && (
+              <p style={{
+                fontFamily: NU, fontSize: 13,
                 color: "rgba(255,255,255,0.38)",
-                lineHeight: 1.85,
-                maxWidth: 300,
-                margin: 0,
-                marginBottom: 18,
-              }}
-            >
-              The world's most trusted luxury wedding directory.
-              Connecting discerning couples with exceptional venues and
-              professionals across 62 countries.
-            </p>
+                lineHeight: 1.85, maxWidth: 300,
+                margin: 0, marginBottom: 18,
+              }}>
+                {cfg?.tagline_text || "The world's most trusted luxury wedding directory. Connecting discerning couples with exceptional venues and professionals across 62 countries."}
+              </p>
+            )}
 
             {/* Office */}
             <div style={{ marginBottom: 22 }}>
-              <div
-                style={{
-                  fontFamily: NU,
-                  fontSize: 10,
-                  letterSpacing: "0.2em",
-                  textTransform: "uppercase",
-                  color: "rgba(255,255,255,0.45)",
-                  marginBottom: 4,
-                }}
-              >
-                Office
-              </div>
-              <div
-                style={{
-                  fontFamily: NU,
-                  fontSize: 12,
-                  color: "rgba(255,255,255,0.6)",
-                  lineHeight: 1.6,
-                }}
-              >
-                Worldwide · London Headquarters
-              </div>
+              <div style={{
+                fontFamily: NU, fontSize: 10, letterSpacing: "0.2em",
+                textTransform: "uppercase", color: "rgba(255,255,255,0.45)", marginBottom: 4,
+              }}>Office</div>
+              <div style={{
+                fontFamily: NU, fontSize: 12,
+                color: "rgba(255,255,255,0.6)", lineHeight: 1.6,
+              }}>Worldwide · London Headquarters</div>
             </div>
 
-            {/* Social icons */}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {SOCIALS.map(({ label, code }) => (
-                <div
-                  key={code}
-                  role="link"
-                  aria-label={label}
-                  tabIndex={0}
+            {/* Social links (only real URLs) */}
+            {(cfg?.show_social ?? true) && (
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {socials.map(({ platform, url, label }) => (
+                  <a
+                    key={platform}
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={label}
+                    style={{
+                      width: 36, height: 36,
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: "var(--lwd-radius-input)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: "rgba(255,255,255,0.35)",
+                      cursor: "pointer", transition: "all 0.2s", textDecoration: "none",
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = gold;
+                      e.currentTarget.style.color = gold;
+                      e.currentTarget.style.background = "rgba(201,168,76,0.08)";
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+                      e.currentTarget.style.color = "rgba(255,255,255,0.35)";
+                      e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                    }}
+                  >
+                    <SocialSvg platform={platform} size={18} color="currentColor" />
+                  </a>
+                ))}
+
+                {/* WhatsApp always shown */}
+                <a
+                  href={WA_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Chat with us on WhatsApp"
                   style={{
-                    width: 36,
-                    height: 36,
+                    width: 36, height: 36,
                     background: "rgba(255,255,255,0.04)",
                     border: "1px solid rgba(255,255,255,0.08)",
                     borderRadius: "var(--lwd-radius-input)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    fontFamily: NU,
-                    letterSpacing: "0.5px",
+                    display: "flex", alignItems: "center", justifyContent: "center",
                     color: "rgba(255,255,255,0.35)",
-                    cursor: "pointer",
-                    transition: "all 0.2s",
+                    cursor: "pointer", transition: "all 0.2s", textDecoration: "none",
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = C.gold;
-                    e.currentTarget.style.color = C.gold;
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = gold;
+                    e.currentTarget.style.color = gold;
                     e.currentTarget.style.background = "rgba(201,168,76,0.08)";
                   }}
-                  onMouseLeave={(e) => {
+                  onMouseLeave={e => {
                     e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
                     e.currentTarget.style.color = "rgba(255,255,255,0.35)";
                     e.currentTarget.style.background = "rgba(255,255,255,0.04)";
                   }}
                 >
-                  {code}
-                </div>
-              ))}
-
-              {/* WhatsApp, monochrome SVG icon */}
-              <a
-                href={WA_URL}
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Chat with us on WhatsApp"
-                style={{
-                  width: 36,
-                  height: 36,
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  borderRadius: "var(--lwd-radius-input)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "rgba(255,255,255,0.35)",
-                  cursor: "pointer",
-                  transition: "all 0.2s",
-                  textDecoration: "none",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = C.gold;
-                  e.currentTarget.style.color = C.gold;
-                  e.currentTarget.style.background = "rgba(201,168,76,0.08)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
-                  e.currentTarget.style.color = "rgba(255,255,255,0.35)";
-                  e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-                }}
-              >
-                <WhatsAppIcon size={16} color="currentColor" />
-              </a>
-            </div>
+                  <WhatsAppIcon size={16} color="currentColor" />
+                </a>
+              </div>
+            )}
           </div>
 
-          {/* ── Nav columns ── */}
-          {NAV_COLS.map(({ title, links }) => (
-            <div key={title}>
-              <div
-                style={{
-                  fontFamily: NU,
-                  fontSize: 9,
-                  letterSpacing: "0.25em",
-                  textTransform: "uppercase",
-                  color: "rgba(255,255,255,0.5)",
-                  marginBottom: 18,
-                  fontWeight: 600,
-                }}
-              >
+          {/* ── Nav columns (DB-driven) ── */}
+          {navCols.map(({ colId, title, links }) => (
+            <div key={colId}>
+              <div style={{
+                fontFamily: NU, fontSize: 9, letterSpacing: "0.25em",
+                textTransform: "uppercase", color: gold,
+                opacity: 0.75, marginBottom: 18, fontWeight: 600,
+              }}>
                 {title}
               </div>
-              {links.map(({ text, action }) => {
-                const cb = action ? actions[action] : null;
-                return (
+              {links.map(item => {
+                const label = item.label || item.text || "";
+                const href  = item.url && item.url !== "" ? item.url : null;
+                return href ? (
+                  <a
+                    key={item.id || label}
+                    href={href}
+                    style={linkStyle(false)}
+                    onMouseEnter={e => (e.currentTarget.style.color = gold)}
+                    onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.3)")}
+                  >
+                    {label}
+                  </a>
+                ) : (
                   <div
-                    key={text}
+                    key={item.id || label}
                     role="link"
                     tabIndex={0}
-                    aria-disabled={!cb || undefined}
-                    onClick={() => cb?.()}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") cb?.();
-                    }}
-                    style={{
-                      fontFamily: NU,
-                      fontSize: 12,
-                      color: "rgba(255,255,255,0.3)",
-                      marginBottom: 9,
-                      cursor: cb ? "pointer" : "default",
-                      transition: "color 0.2s",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.color = C.gold;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.color = "rgba(255,255,255,0.3)";
-                    }}
+                    style={linkStyle(false)}
+                    onMouseEnter={e => (e.currentTarget.style.color = gold)}
+                    onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.3)")}
+                    onClick={() => handleLinkClick(item)}
+                    onKeyDown={e => e.key === "Enter" && handleLinkClick(item)}
                   >
-                    {text}
+                    {label}
                   </div>
                 );
               })}
             </div>
           ))}
         </div>
+      </div>
 
-        {/* ── Legal bar ─────────────────────────────────────────────────── */}
+      {/* ── Newsletter strip ────────────────────────────────────────────── */}
+      {showNewsletter && (
+        <div style={{
+          borderTop: `1px solid rgba(255,255,255,0.06)`,
+          padding: `28px ${padX}px`,
+          background: bgColor,
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 32,
+          flexWrap: "wrap",
+        }}>
+          <div>
+            <div style={{
+              fontFamily: NU, fontSize: 9, fontWeight: 700,
+              letterSpacing: "0.12em", textTransform: "uppercase",
+              color: gold, marginBottom: 6,
+            }}>The editorial</div>
+            <div style={{
+              fontFamily: GD, fontSize: 22,
+              color: textColor, marginBottom: 4,
+            }}>
+              {cfg?.newsletter_heading || "The LWD Edit"}
+            </div>
+            <div style={{
+              fontFamily: NU, fontSize: 12,
+              color: textColor, opacity: 0.75, lineHeight: 1.5,
+            }}>
+              {cfg?.newsletter_subtext || "Monthly inspiration for modern luxury couples"}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexShrink: 0, width: 360 }}>
+            <input
+              type="email"
+              placeholder="Your email address"
+              aria-label="Email address for newsletter"
+              style={{
+                flex: 1, background: "transparent",
+                borderTop: `1px solid ${gold}80`,
+                borderBottom: `1px solid ${gold}80`,
+                borderLeft: `1px solid ${gold}80`,
+                borderRight: "none",
+                borderRadius: "4px 0 0 4px",
+                color: textColor, fontFamily: NU, fontSize: 13,
+                padding: "11px 14px", outline: "none",
+              }}
+            />
+            <button style={{
+              background: gold, border: "none",
+              borderRadius: "0 4px 4px 0",
+              color: "#0a0906", fontFamily: NU, fontSize: 11,
+              fontWeight: 700, letterSpacing: "0.08em",
+              textTransform: "uppercase", padding: "11px 20px",
+              cursor: "pointer", flexShrink: 0,
+            }}>
+              {cfg?.newsletter_btn_label || "Subscribe"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bottom bar ─────────────────────────────────────────────────── */}
+      {showBottomBar && (
         <div
           className="site-footer-legal"
           style={{
-            borderTop: "1px solid rgba(255,255,255,0.06)",
-            paddingTop: 24,
+            background: bbBg,
+            padding: `16px ${padX}px`,
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "flex-start",
+            alignItems: "center",
             flexWrap: "wrap",
             gap: 12,
           }}
         >
           <div>
-            <div
-              style={{
-                fontFamily: NU,
-                fontSize: 11,
-                color: "rgba(255,255,255,0.45)",
-              }}
-            >
-              © 2026 LuxuryWeddingDirectory.com · Est. 2006 · All rights reserved
+            <div style={{ fontFamily: NU, fontSize: 11, color: bbText }}>
+              &copy; {copyrightText}
             </div>
-            <div
-              style={{
-                fontFamily: NU,
-                fontSize: 10,
-                color: "rgba(255,255,255,0.35)",
-                marginTop: 4,
-              }}
-            >
+            <div style={{ fontFamily: NU, fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 3 }}>
               Luxury Wedding Directory is a brand of 5 Star Weddings Ltd, United Kingdom.
             </div>
           </div>
 
-          <div
-            className="site-footer-legal-links"
-            style={{ display: "flex", gap: 20 }}
-          >
-            {["Privacy", "Terms", "Cookies", "Sitemap", "Admin"].map((l) => (
-              <span
-                key={l}
-                role="link"
-                tabIndex={0}
-                onClick={() => {
-                  if (l === "Admin") onNavigateAdmin?.();
-                  if (l === "Cookies") window.dispatchEvent(new Event("lwd:show-cookies"));
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && l === "Admin") onNavigateAdmin?.();
-                  if (e.key === "Enter" && l === "Cookies") window.dispatchEvent(new Event("lwd:show-cookies"));
-                }}
-                style={{
-                  fontFamily: NU,
-                  fontSize: 11,
-                  color: "rgba(255,255,255,0.2)",
-                  cursor: "pointer",
-                  transition: "color 0.2s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = C.gold)}
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.color = "rgba(255,255,255,0.2)")
-                }
-              >
-                {l}
-              </span>
-            ))}
+          <div className="site-footer-legal-links" style={{ display: "flex", gap: 20 }}>
+            {bottomLinks.map(item => {
+              const label = item.label || item.text || "";
+              return (
+                <span
+                  key={item.id || label}
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => {
+                    if (label === "Admin")   onNavigateAdmin?.();
+                    if (label === "Cookies") window.dispatchEvent(new Event("lwd:show-cookies"));
+                    else if (item.url && item.url !== "") window.location.href = item.url;
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && label === "Admin") onNavigateAdmin?.();
+                  }}
+                  style={{
+                    fontFamily: NU, fontSize: 11,
+                    color: bbText, cursor: "pointer", transition: "color 0.2s",
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.color = gold)}
+                  onMouseLeave={e => (e.currentTarget.style.color = bbText)}
+                >
+                  {label}
+                </span>
+              );
+            })}
           </div>
 
-          {/* Engineered by */}
-          <div
-            className="site-footer-engineered"
-            style={{ marginTop: 10, textAlign: "right" }}
-          >
+          <div className="site-footer-engineered" style={{ textAlign: "right" }}>
             <a
               href="https://taigenic.com"
               target="_blank"
               rel="noreferrer"
               style={{
-                fontFamily: NU,
-                fontSize: 9,
+                fontFamily: NU, fontSize: 9,
                 color: "rgba(255,255,255,0.28)",
-                textDecoration: "none",
-                transition: "color 0.2s ease",
+                textDecoration: "none", transition: "color 0.2s",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = C.gold)}
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.color = "rgba(255,255,255,0.28)")
-              }
+              onMouseEnter={e => (e.currentTarget.style.color = gold)}
+              onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.28)")}
             >
               Engineered by Taigenic
             </a>
           </div>
         </div>
-      </div>
+      )}
     </footer>
   );
 }
