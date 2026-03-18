@@ -8,7 +8,6 @@ import { useState } from 'react';
 import { ThemeCtx } from '../theme/ThemeContext';
 import { getDarkPalette, getLightPalette } from '../theme/tokens';
 import HomeNav from '../components/nav/HomeNav';
-import SiteFooter from '../components/sections/SiteFooter';
 import PartnerEnquiryForm from '../components/enquiry/PartnerEnquiryForm';
 
 const DARK  = getDarkPalette();
@@ -119,7 +118,6 @@ export default function PartnerEnquiryPage({ footerNav = {}, onNavigateStandard,
           </div>
         </main>
 
-        <SiteFooter {...footerNav} />
       </div>
     </ThemeCtx.Provider>
   );

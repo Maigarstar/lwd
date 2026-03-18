@@ -8,7 +8,6 @@ import { useChat } from "../chat/ChatContext";
 import { STYLES, CAPS, PRICES, DEFAULT_FILTERS } from "../data/italyVenues";
 
 import HomeNav from "../components/nav/HomeNav";
-import SiteFooter from "../components/sections/SiteFooter";
 import CountrySearchBar from "../components/filters/CountrySearchBar";
 import MapSection from "../components/sections/MapSection";
 import GCard from "../components/cards/GCard";
@@ -790,8 +789,6 @@ export default function USAPage({
             </div>
           </section>
         </main>
-
-        <SiteFooter {...footerNav} />
 
         {/* ── Quick View modal ────────────────────────────────────────── */}
         {qvItem && <QuickViewModal item={qvItem} onClose={() => setQvItem(null)} onViewFull={(v) => { setQvItem(null); onViewVenue(v); }} />}

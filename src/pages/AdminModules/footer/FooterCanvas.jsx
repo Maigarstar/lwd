@@ -267,7 +267,7 @@ export default function FooterCanvas({
         onMouseEnter={() => setMarqueePaused(true)}
         onMouseLeave={() => setMarqueePaused(false)}
         style={{
-          padding: "18px 0 16px",
+          padding: `${cfg.strip_pad_y ?? 20}px 0`,
           borderBottom: `1px solid ${cfg.border_color || "#2a2218"}`,
           cursor: iconicBlock ? "pointer" : "default",
           ...(isStripSelected ? { outline: `1.5px solid ${G}80`, outlineOffset: -2 } : {}),
@@ -363,7 +363,7 @@ export default function FooterCanvas({
               fontFamily: SERIF, fontSize: logoSize,
               color: G, letterSpacing: "0.04em", lineHeight: 1,
             }}>
-              LWD
+              {cfg.logo_text || "Luxury Wedding Directory"}
             </div>
           )
         )}
@@ -485,9 +485,10 @@ export default function FooterCanvas({
 
     return (
       <div style={{
-        padding: isMobile ? "28px 20px" : `28px ${padX}px`,
-        borderTop: `1px solid ${cfg.border_color || "#2a2218"}`,
-        background: footerBg,
+        padding: isMobile ? `${cfg.newsletter_pad_y ?? 20}px 20px` : `${cfg.newsletter_pad_y ?? 20}px ${padX}px`,
+        borderTop: `1px solid ${cfg.newsletter_border_color || "#2d2d2d"}`,
+        borderBottom: `1px solid ${cfg.newsletter_border_color || "#2d2d2d"}`,
+        background: cfg.newsletter_bg || "#000000",
         display: "flex",
         flexDirection: isMobile ? "column" : "row",
         alignItems: isMobile ? "flex-start" : "center",
@@ -500,7 +501,7 @@ export default function FooterCanvas({
             fontFamily: SANS, fontSize: 9, fontWeight: 700,
             letterSpacing: "0.12em", textTransform: "uppercase",
             color: G, marginBottom: 6, opacity: 1,
-          }}>The editorial</div>
+          }}>{cfg.newsletter_label || "The Editorial"}</div>
           <div style={{
             fontFamily: SERIF, fontSize: isMobile ? 18 : 22,
             color: textColor, marginBottom: 4,

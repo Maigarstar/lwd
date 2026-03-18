@@ -19,7 +19,6 @@ import { getCategoryById, CATEGORIES } from './data/categories';
 import { fetchPosts, fetchCategories } from '../../services/magazineService';
 import MagazineNav from './components/MagazineNav';
 import NewsletterCapture from './components/NewsletterCapture';
-import SiteFooter from '../../components/sections/SiteFooter';
 import { getMagTheme, FD, FU, GOLD_CONST as GOLD } from './magazineTheme';
 import SeoHead from '../../components/seo/SeoHead';
 
@@ -314,7 +313,6 @@ export default function CategoryPage({
 
       {/* ── Newsletter + Footer ───────────────────────────────────────────── */}
       <NewsletterCapture isLight={isLight} />
-      <SiteFooter {...footerNav} />
     </div>
   );
 }

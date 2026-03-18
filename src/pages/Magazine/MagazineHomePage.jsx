@@ -15,7 +15,6 @@ import { POSTS, getFeaturedPosts, getTrendingPosts, getLatestPosts, getPostsByCa
 import { fetchPosts, fetchHomepageConfig } from '../../services/magazineService';
 import MagazineNav from './components/MagazineNav';
 import NewsletterCapture from './components/NewsletterCapture';
-import SiteFooter from '../../components/sections/SiteFooter';
 import { useIsMobile } from '../../components/profile/ProfileDesignSystem';
 import { getMagTheme } from './magazineTheme';
 
@@ -128,7 +127,6 @@ export default function MagazineHomePage({
 
       {/* ── Shared chrome: Newsletter + Footer ─────────────────────── */}
       <NewsletterCapture isLight={isLight} />
-      <SiteFooter {...footerNav} />
     </div>
   );
 }

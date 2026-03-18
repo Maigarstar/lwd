@@ -8,7 +8,6 @@ import { getDarkPalette, getLightPalette, getDefaultMode } from "../theme/tokens
 import { useChat } from "../chat/ChatContext";
 
 import CatNav from "../components/nav/CatNav";
-import SiteFooter from "../components/sections/SiteFooter";
 import SliderNav from "../components/ui/SliderNav";
 import PlannerMapPanel from "../components/maps/PlannerMapPanel";
 import LightboxModal from "../components/ui/LightboxModal";
@@ -201,7 +200,6 @@ export default function VendorProfileTemplate({
               Vendor not found
             </div>
           </div>
-          <SiteFooter {...footerNav} />
         </div>
       </ThemeCtx.Provider>
     );
@@ -418,8 +416,6 @@ export default function VendorProfileTemplate({
             </div>
           )}
         </LightboxModal>
-
-        <SiteFooter {...footerNav} />
 
         {/* Mobile bottom bar */}
         <VendorMobileBar vendor={enrichedVendor} C={C} />

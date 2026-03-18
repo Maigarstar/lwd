@@ -27,7 +27,6 @@ import FeaturedSlider  from "../components/sections/FeaturedSlider";
 import EditorialBanner from "../components/sections/EditorialBanner";
 import MapSection      from "../components/sections/MapSection";
 import SEOBlock        from "../components/sections/SEOBlock";
-import SiteFooter      from "../components/sections/SiteFooter";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import CountrySearchBar from "../components/filters/CountrySearchBar";
 import HCard           from "../components/cards/HCard";
@@ -508,9 +507,6 @@ export default function ItalyPage({
 
         {/* ── Browse Italian Regions ── */}
         <DirectoryBrands onViewRegion={onViewRegion} onViewCategory={onViewCategory} showInternational={false} showUK={false} showItaly />
-
-        {/* ── Black footer ── */}
-        <SiteFooter {...footerNav} />
 
         {/* ── Quick View modal (page-level) ── */}
         {qvItem && (

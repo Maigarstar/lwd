@@ -5,7 +5,6 @@
 
 import { useState, useEffect } from "react";
 import { loadPages } from "./PageStudio/utils/pageStorage.js";
-import SiteFooter from "../components/sections/SiteFooter.jsx";
 import InquiryModal from "../components/InquiryModal.jsx";
 
 // Section component renderers
@@ -630,9 +629,6 @@ const PublicVendorProfilePage = ({ vendorSlug, onBack, footerNav = {} }) => {
           </p>
         </div>
       )}
-
-      {/* Footer */}
-      <SiteFooter {...footerNav} />
 
       {/* Inquiry Modal */}
       <InquiryModal

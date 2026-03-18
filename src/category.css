@@ -463,19 +463,38 @@ div[role="listbox"]::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3);
   .home-footer-legal-links { justify-content: center !important; }
 
   /* ── SiteFooter (universal) ── */
-  .site-footer { padding: 48px 20px 28px !important; }
+  .site-footer { padding: 0 !important; }
+  .site-footer-tagline { padding: 32px 20px 24px !important; }
+  .site-footer-tagline p { font-size: 15px !important; }
+  .site-footer-body { padding: 0 20px !important; }
   .site-footer-grid {
-    grid-template-columns: 1fr !important;
-    gap: 36px !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 32px 24px !important;
+  }
+  .site-footer-brand {
+    grid-column: 1 / -1 !important;
+  }
+  .site-footer-newsletter {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+    gap: 20px !important;
+  }
+  .site-footer-subscribe {
+    width: 100% !important;
   }
   .site-footer-legal {
     flex-direction: column !important;
     text-align: center !important;
     gap: 8px !important;
+    padding-left: 20px !important;
+    padding-right: 20px !important;
   }
   .site-footer-legal-links {
     justify-content: center !important;
     flex-wrap: wrap !important;
+    gap: 12px !important;
   }
   .site-footer-engineered {
     text-align: center !important;

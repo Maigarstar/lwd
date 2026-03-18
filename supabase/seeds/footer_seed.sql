@@ -31,7 +31,7 @@ INSERT INTO footer_config (
   true, '#2a2218',
   true, 28, true, 'The world''s most trusted luxury wedding directory. Connecting discerning couples with exceptional venues and professionals across 62 countries.', true,
   '', '', '',
-  true, 'The LWD Edit', 'Monthly inspiration for modern luxury couples', 'Subscribe',
+  true, 'The LWD Edit, monthly inspiration for couples', 'Extraordinary venues, real weddings, and planning guides. No spam.', 'Subscribe',
   true, '#080604', '#5a5045', '2026 LuxuryWeddingDirectory.com · Est. 2006 · All rights reserved',
   'Iconic Venues', 'all'
 ) ON CONFLICT (id) DO UPDATE SET

@@ -217,7 +217,7 @@ export default function SiteFooter({
       style={{ background: bgColor, borderTop: `1px solid rgba(201,168,76,0.12)` }}
     >
       {/* ── Editorial line ──────────────────────────────────────────────── */}
-      <div style={{
+      <div className="site-footer-tagline" style={{
         textAlign: "center",
         padding: "52px 0 36px",
         background: bgColor,
@@ -245,7 +245,7 @@ export default function SiteFooter({
       }} />
 
       {/* ── Iconic Venues marquee strip ─────────────────────────────────── */}
-      <div style={{ maxWidth: "100%", margin: "0 auto", padding: "20px 0 18px" }}>
+      <div style={{ maxWidth: "100%", margin: "0 auto", padding: `${cfg?.strip_pad_y ?? 20}px 0` }}>
         {/* Label */}
         <div style={{ textAlign: "center", marginBottom: 18 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
@@ -289,7 +289,7 @@ export default function SiteFooter({
       </div>
 
       {/* ── Main footer grid ────────────────────────────────────────────── */}
-      <div style={{ maxWidth: "100%", padding: `0 ${padX}px` }}>
+      <div className="site-footer-body" style={{ maxWidth: "100%", padding: `0 ${padX}px` }}>
         <div aria-hidden="true" style={{
           height: 1, background: "rgba(255,255,255,0.06)", marginBottom: 52,
         }} />
@@ -305,7 +305,7 @@ export default function SiteFooter({
           }}
         >
           {/* ── Brand column ── */}
-          <div>
+          <div className="site-footer-brand">
             {(cfg?.show_logo ?? true) && (
               cfg?.logo_type === "image" && cfg?.logo_url ? (
                 <img
@@ -325,7 +325,8 @@ export default function SiteFooter({
                   color: gold, letterSpacing: "0.22em",
                   textTransform: "uppercase", lineHeight: 1.7, marginBottom: 6,
                 }}>
-                  Luxury Wedding<br />Directory
+                  {(cfg?.logo_text || "Luxury Wedding Directory").split(" ").slice(0, -1).join(" ")}<br />
+                  {(cfg?.logo_text || "Luxury Wedding Directory").split(" ").slice(-1)[0]}
                 </div>
               )
             )}
@@ -333,7 +334,7 @@ export default function SiteFooter({
               fontFamily: NU, fontSize: 9, letterSpacing: "3px",
               textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 20,
             }}>
-              Est. 2006 · Worldwide
+              {cfg?.brand_est_text || "Est. 2006 · Worldwide"}
             </div>
 
             {/* Gold divider */}
@@ -363,7 +364,7 @@ export default function SiteFooter({
               <div style={{
                 fontFamily: NU, fontSize: 12,
                 color: "rgba(255,255,255,0.6)", lineHeight: 1.6,
-              }}>Worldwide · London Headquarters</div>
+              }}>{cfg?.brand_office_text || "Worldwide · London Headquarters"}</div>
             </div>
 
             {/* Social links (only real URLs) */}
@@ -478,62 +479,75 @@ export default function SiteFooter({
       {/* ── Newsletter strip ────────────────────────────────────────────── */}
       {showNewsletter && (
         <div style={{
-          borderTop: `1px solid rgba(255,255,255,0.06)`,
-          padding: `28px ${padX}px`,
-          background: bgColor,
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 32,
-          flexWrap: "wrap",
+          background: cfg?.newsletter_bg || "#000000",
+          borderTop: `1px solid ${cfg?.newsletter_border_color || "#2d2d2d"}`,
+          borderBottom: `1px solid ${cfg?.newsletter_border_color || "#2d2d2d"}`,
+          position: "relative",
+          overflow: "hidden",
         }}>
-          <div>
-            <div style={{
-              fontFamily: NU, fontSize: 9, fontWeight: 700,
-              letterSpacing: "0.12em", textTransform: "uppercase",
-              color: gold, marginBottom: 6,
-            }}>The editorial</div>
-            <div style={{
-              fontFamily: GD, fontSize: 22,
-              color: textColor, marginBottom: 4,
-            }}>
-              {cfg?.newsletter_heading || "The LWD Edit"}
-            </div>
-            <div style={{
-              fontFamily: NU, fontSize: 12,
-              color: textColor, opacity: 0.75, lineHeight: 1.5,
-            }}>
-              {cfg?.newsletter_subtext || "Monthly inspiration for modern luxury couples"}
-            </div>
-          </div>
 
-          <div style={{ display: "flex", flexShrink: 0, width: 360 }}>
-            <input
-              type="email"
-              placeholder="Your email address"
-              aria-label="Email address for newsletter"
-              style={{
-                flex: 1, background: "transparent",
-                borderTop: `1px solid ${gold}80`,
-                borderBottom: `1px solid ${gold}80`,
-                borderLeft: `1px solid ${gold}80`,
-                borderRight: "none",
-                borderRadius: "4px 0 0 4px",
-                color: textColor, fontFamily: NU, fontSize: 13,
-                padding: "11px 14px", outline: "none",
-              }}
-            />
-            <button style={{
-              background: gold, border: "none",
-              borderRadius: "0 4px 4px 0",
-              color: "#0a0906", fontFamily: NU, fontSize: 11,
-              fontWeight: 700, letterSpacing: "0.08em",
-              textTransform: "uppercase", padding: "11px 20px",
-              cursor: "pointer", flexShrink: 0,
-            }}>
-              {cfg?.newsletter_btn_label || "Subscribe"}
-            </button>
+          {/* Content — 60px padding matches footer grid */}
+          <div className="site-footer-newsletter" style={{
+            padding: `${cfg?.newsletter_pad_y ?? 20}px ${padX}px`,
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 40,
+            position: "relative",
+          }}>
+            {/* Editorial copy */}
+            <div>
+              <div style={{
+                fontFamily: NU, fontSize: 8, fontWeight: 700,
+                letterSpacing: "0.22em", textTransform: "uppercase",
+                color: gold, opacity: 0.8, marginBottom: 8,
+              }}>{cfg?.newsletter_label || "The Editorial"}</div>
+              <div style={{
+                fontFamily: GD, fontSize: 24,
+                color: textColor, marginBottom: 6, lineHeight: 1.2,
+              }}>
+                {cfg?.newsletter_heading || "The LWD Edit, monthly inspiration for couples"}
+              </div>
+              <div style={{
+                fontFamily: NU, fontSize: 13,
+                color: textColor, opacity: 0.55, lineHeight: 1.6,
+                maxWidth: 420,
+              }}>
+                {cfg?.newsletter_subtext || "Extraordinary venues, real weddings, and planning guides. No spam."}
+              </div>
+            </div>
+
+            {/* Subscribe row */}
+            <div className="site-footer-subscribe" style={{ display: "flex", flexShrink: 0, alignItems: "stretch", width: 380 }}>
+              <input
+                type="email"
+                placeholder="Your email address"
+                aria-label="Email address for newsletter"
+                style={{
+                  flex: 1,
+                  background: "rgba(255,255,255,0.04)",
+                  borderTop: `1px solid ${gold}45`,
+                  borderBottom: `1px solid ${gold}45`,
+                  borderLeft: `1px solid ${gold}45`,
+                  borderRight: "none",
+                  color: textColor, fontFamily: NU, fontSize: 13,
+                  padding: "13px 16px", outline: "none",
+                  letterSpacing: "0.01em",
+                }}
+              />
+              <button style={{
+                background: `linear-gradient(135deg, ${gold} 0%, #9a7832 100%)`,
+                border: "none",
+                color: "#0a0800", fontFamily: NU, fontSize: 10,
+                fontWeight: 700, letterSpacing: "0.14em",
+                textTransform: "uppercase", padding: "13px 22px",
+                cursor: "pointer", flexShrink: 0,
+                whiteSpace: "nowrap",
+              }}>
+                {cfg?.newsletter_btn_label || "Subscribe"}
+              </button>
+            </div>
           </div>
         </div>
       )}

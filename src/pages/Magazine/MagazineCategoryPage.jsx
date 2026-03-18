@@ -6,7 +6,6 @@ import { HeroEditorial, HeroDualFeature, HeroPortrait } from './components/HeroM
 import PostCard from './components/PostCards';
 import MagazineNav from './components/MagazineNav';
 import NewsletterCapture from './components/NewsletterCapture';
-import SiteFooter from '../../components/sections/SiteFooter';
 
 const FD = "'Gilda Display', 'Playfair Display', Georgia, serif";
 const FU = "'Nunito', 'Inter', 'Helvetica Neue', sans-serif";
@@ -368,7 +367,6 @@ export default function MagazineCategoryPage({ categoryId, onNavigateArticle, on
       </section>
 
       <NewsletterCapture isLight={isLight} />
-      <SiteFooter {...footerNav} />
     </div>
   );
 }

@@ -27,7 +27,6 @@ import FeaturedSlider  from "../components/sections/FeaturedSlider";
 import EditorialBanner from "../components/sections/EditorialBanner";
 import MapSection      from "../components/sections/MapSection";
 import SEOBlock        from "../components/sections/SEOBlock";
-import SiteFooter      from "../components/sections/SiteFooter";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import FilterBar       from "../components/filters/FilterBar";
 import HCard           from "../components/cards/HCard";
@@ -521,9 +520,6 @@ export default function CountryTemplate({
 
         {/* ── Browse Italian Regions ── */}
         <DirectoryBrands onViewRegion={onViewRegion} onViewCategory={onViewCategory} showInternational={false} showUK={false} showItaly />
-
-        {/* ── Black footer ── */}
-        <SiteFooter {...footerNav} />
 
         {/* Aura chat is now global, rendered by AuraChat in main.jsx */}
 

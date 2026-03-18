@@ -19,7 +19,6 @@ import { getRegionPageConfig } from "../services/regionPageConfig";
 import GCard from "../components/cards/GCard";
 import GCardMobile from "../components/cards/GCardMobile";
 import QuickViewModal from "../components/modals/QuickViewModal";
-import SiteFooter from "../components/sections/SiteFooter";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import FeaturedSlider from "../components/sections/FeaturedSlider";
 import RegionHero from "../components/sections/RegionHero";
@@ -1038,9 +1037,6 @@ export default function RegionPage({
 
         {/* ═══ BROWSE BY REGION ══════════════════════════════════════════ */}
         <DirectoryBrands onViewRegion={onViewRegion} onViewCategory={onViewCategory} showInternational={false} showUK={countrySlug !== "italy" && countrySlug !== "usa"} showItaly={countrySlug === "italy"} showUSA={countrySlug === "usa"} />
-
-        {/* ═══ FOOTER ═══════════════════════════════════════════════════════ */}
-        <SiteFooter {...footerNav} />
 
         {/* Quick-view modal */}
         {qvItem && (

@@ -20,7 +20,6 @@ import {
 import { VENUES } from "../data/italyVenues";
 import { VENDORS } from "../data/vendors.js";
 
-import SiteFooter from "../components/sections/SiteFooter";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import GCard           from "../components/cards/GCard";
 import MapSection      from "../components/sections/MapSection";
@@ -940,8 +939,6 @@ export default function RegionCategoryPage({
         {/* ════════════════════════════════════════════════════════════════════
             11. FOOTER
         ════════════════════════════════════════════════════════════════════ */}
-        <SiteFooter {...footerNav} />
-
         {/* ── Quick View modal (page-level) ── */}
         {qvItem && (
           <QuickViewModal

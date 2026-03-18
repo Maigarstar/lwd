@@ -5,7 +5,6 @@ import ArticleBody from './components/ArticleBody';
 import RelatedPosts from './components/RelatedPosts';
 import MagazineNav from './components/MagazineNav';
 import NewsletterCapture from './components/NewsletterCapture';
-import SiteFooter from '../../components/sections/SiteFooter';
 import SeoHead from '../../components/seo/SeoHead';
 import JsonLd from '../../components/seo/JsonLd';
 import { buildArticleSchema } from '../../utils/structuredData';
@@ -286,7 +285,6 @@ function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome
 
       <RelatedPosts posts={relatedPosts} onRead={goArticle} light={isLight} />
       <NewsletterCapture isLight={isLight} />
-      <SiteFooter {...(footerNav || {})} />
     </div>
   );
 }
@@ -450,7 +448,6 @@ function LayoutSidebar({ post, relatedPosts, onNavigateArticle, onNavigateHome, 
       {/* Related posts full-width below */}
       <RelatedPosts posts={relatedPosts.slice(0, 3)} onRead={goArticle} light={isLight} />
       <NewsletterCapture isLight={isLight} />
-      <SiteFooter {...(footerNav || {})} />
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { AdminAuthProvider, useAdminAuth } from "./context/AdminAuthContext";
 import ProtectedCoupleRoute  from "./components/ProtectedCoupleRoute";
 import AuraChat              from "./chat/AuraChat";
 import CookieBanner          from "./components/CookieBanner";
+import SiteFooter            from "./components/sections/SiteFooter.jsx";
 
 // ── Apply saved theme CSS variables BEFORE React renders ─────────────────────
 applyThemeToDocument();
@@ -710,6 +711,11 @@ function App() {
         )}
         {page === "not-found" && (
           <NotFoundPage onNavigateHome={goHome} onNavigateCategory={goCategory} />
+        )}
+
+        {/* ── Global site footer ── */}
+        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password"].includes(page) && (
+          <SiteFooter onNavigateAdmin={goAdmin} />
         )}
 
         {/* ── Global chat system, hidden on dashboards and auth pages ── */}

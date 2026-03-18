@@ -10,7 +10,6 @@ import { getDarkPalette } from "../theme/tokens";
 import { useChat } from "../chat/ChatContext";
 
 import HomeNav from "../components/nav/HomeNav";
-import SiteFooter from "../components/sections/SiteFooter";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -506,7 +505,6 @@ export default function ContactLWD({ onBack, onViewCategory, onViewStandard, onV
           </section>
         </main>
 
-        <SiteFooter {...footerNav} />
       </div>
     </ThemeCtx.Provider>
   );

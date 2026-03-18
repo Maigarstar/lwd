@@ -191,6 +191,7 @@ export default function FooterConfig({ footerConfig, onConfigChange, onSave, sav
       {/* ── Iconic Strip ────────────────────────────────────────────── */}
       <Section title="Iconic Strip" defaultOpen C={C}>
         <TextRow label="Strip Label" field="strip_label" cfg={cfg} set={set} placeholder="Iconic Venues" C={C} />
+        <NumRow label="Strip height (px)" field="strip_pad_y" cfg={cfg} set={set} min={0} max={80} C={C} />
       </Section>
 
       {/* ── Layout ──────────────────────────────────────────────────── */}
@@ -317,9 +318,12 @@ export default function FooterConfig({ footerConfig, onConfigChange, onSave, sav
               </div>
             </div>
 
-            {/* Text logo: just size control */}
+            {/* Text logo: text + size controls */}
             {(cfg.logo_type || "text") === "text" && (
-              <NumRow label="Text size (px)" field="logo_size" cfg={cfg} set={set} min={16} max={80} C={C} />
+              <>
+                <TextRow label="Logo text" field="logo_text" cfg={cfg} set={set} placeholder="Luxury Wedding Directory" C={C} />
+                <NumRow label="Text size (px)" field="logo_size" cfg={cfg} set={set} min={16} max={80} C={C} />
+              </>
             )}
 
             {/* Image logo: upload + preview */}
@@ -411,6 +415,8 @@ export default function FooterConfig({ footerConfig, onConfigChange, onSave, sav
           </>
         )}
 
+        <TextRow label="Est. line" field="brand_est_text" cfg={cfg} set={set} placeholder="Est. 2006 · Worldwide" C={C} />
+        <TextRow label="Office location" field="brand_office_text" cfg={cfg} set={set} placeholder="Worldwide · London Headquarters" C={C} />
         <ToggleRow label="Show tagline" field="show_tagline" cfg={cfg} set={set} C={C} />
         {cfg.show_tagline && <TextRow label="Tagline text" field="tagline_text" cfg={cfg} set={set} C={C} />}
         <ToggleRow label="Show social links" field="show_social" cfg={cfg} set={set} C={C} />
@@ -428,6 +434,10 @@ export default function FooterConfig({ footerConfig, onConfigChange, onSave, sav
         <ToggleRow label="Show newsletter section" field="show_newsletter" cfg={cfg} set={set} C={C} />
         {cfg.show_newsletter && (
           <>
+            <ColorRow label="Background" field="newsletter_bg" cfg={cfg} set={set} C={C} />
+            <ColorRow label="Border color" field="newsletter_border_color" cfg={cfg} set={set} C={C} />
+            <NumRow label="Padding top/bottom (px)" field="newsletter_pad_y" cfg={cfg} set={set} min={0} max={80} C={C} />
+            <TextRow label="Label" field="newsletter_label" cfg={cfg} set={set} placeholder="The Editorial" C={C} />
             <TextRow label="Heading" field="newsletter_heading" cfg={cfg} set={set} placeholder="The LWD Edit" C={C} />
             <TextRow label="Subtext" field="newsletter_subtext" cfg={cfg} set={set} placeholder="Monthly inspiration..." C={C} />
             <TextRow label="Button label" field="newsletter_btn_label" cfg={cfg} set={set} placeholder="Subscribe" C={C} />

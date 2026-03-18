@@ -2,7 +2,6 @@
 import { useEffect, useMemo, useState } from "react";
 
 import CatNav from "../components/nav/CatNav";
-import SiteFooter from "../components/SiteFooter";
 import SliderNav from "../components/ui/SliderNav";
 import PlannerMapPanel from "../components/map/PlannerMapPanel";
 
@@ -203,8 +202,6 @@ export default function ProfilePage({
             </div>
           </div>
         </div>
-
-        <SiteFooter {...footerNav} />
 
         <VendorMobileBar vendor={enriched} C={C} />
 

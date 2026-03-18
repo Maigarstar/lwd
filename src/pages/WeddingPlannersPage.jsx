@@ -13,7 +13,6 @@ import PlannerFilterBar from "../components/filters/PlannerFilterBar";
 import FeaturedPlannersCarousel from "../components/sections/FeaturedPlannersCarousel";
 import PlannerMapPanel from "../components/maps/PlannerMapPanel";
 import EditorialWeddingsShowcase from "../components/sections/EditorialWeddingsShowcase";
-import SiteFooter from "../components/sections/SiteFooter";
 
 const GD   = "var(--font-heading-primary)";
 const NU   = "var(--font-body)";
@@ -611,7 +610,6 @@ export default function WeddingPlannersPage({
 
       {/* ── 7. Italy Regions Footer ────────────────────────────────────────────── */}
       <ItalyRegionsFooter C={C} onViewRegion={onViewRegion} countrySlug={countrySlug} isMobile={isMobile} />
-      <SiteFooter {...footerNav} />
 
       {/* ── Mobile Map Full-Screen Overlay ──────────────────────────────────────── */}
       {showMap && isMobile && (

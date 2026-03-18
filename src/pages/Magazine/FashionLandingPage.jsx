@@ -6,7 +6,6 @@ import ProductCard from './components/ProductCard';
 import MagazineNav from './components/MagazineNav';
 import PostCard, { CardLargeEditorial, CardOverlay } from './components/PostCards';
 import NewsletterCapture from './components/NewsletterCapture';
-import SiteFooter from '../../components/sections/SiteFooter';
 import {
   ShoppableProductRow,
   BeautyShelf,
@@ -427,7 +426,6 @@ export default function FashionLandingPage({
       </section>
 
       <NewsletterCapture />
-      <SiteFooter {...footerNav} />
     </div>
   );
 }

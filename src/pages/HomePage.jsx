@@ -10,7 +10,6 @@ import { fetchListings } from "../services/listings";
 import HomeNav from "../components/nav/HomeNav";
 import SlimHero from "../components/sections/SlimHero";
 import FeaturedSlider from "../components/sections/FeaturedSlider";
-import SiteFooter from "../components/sections/SiteFooter";
 import DestinationGrid from "../components/sections/DestinationGrid";
 import VenueGrid from "../components/sections/VenueGrid";
 import VendorPreview from "../components/sections/VendorPreview";
@@ -147,8 +146,6 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
           <NewsletterBand />
           <DirectoryBrands onViewRegion={(countrySlug, regionSlug) => onViewRegion?.(countrySlug, regionSlug)} onViewCategory={onViewCategory} onViewUSA={onViewUSA} onViewItaly={onViewItaly} />
         </main>
-
-        <SiteFooter {...footerNav} />
 
         {/* Enquiry modal */}
         <EnquiryModal

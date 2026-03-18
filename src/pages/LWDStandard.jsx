@@ -10,7 +10,6 @@ import { getDarkPalette, getLightPalette, getDefaultMode } from "../theme/tokens
 import { useChat } from "../chat/ChatContext";
 
 import HomeNav from "../components/nav/HomeNav";
-import SiteFooter from "../components/sections/SiteFooter";
 import Icon from "../chat/Icons";
 
 const GD = "var(--font-heading-primary)";
@@ -493,7 +492,6 @@ export default function LWDStandard({ onBack, onViewCategory, onViewAbout, onVie
           </section>
         </main>
 
-        <SiteFooter {...footerNav} />
       </div>
     </ThemeCtx.Provider>
   );

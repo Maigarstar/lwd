@@ -8,7 +8,6 @@ import { useState, useEffect, useRef } from 'react';
 import { fetchShowcaseBySlug }  from '../services/showcaseService';
 import { fetchListingBySlug }   from '../services/listings';
 import HomeNav                  from '../components/nav/HomeNav';
-import SiteFooter               from '../components/sections/SiteFooter';
 import { buildCardImgs }        from '../utils/mediaMappers';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -367,8 +366,6 @@ export default function ShowcasePage({ slug, onBack, onGoDestination, onNavigate
       {/* Sections */}
       {sectionsToRender.map(sec => renderSection(sec))}
 
-      {/* Footer */}
-      <SiteFooter footerNav={{}} onNavigateStandard={onNavigateStandard} />
     </div>
   );
 }
