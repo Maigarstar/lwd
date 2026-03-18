@@ -107,6 +107,8 @@ async function run() {
     { label: "Artistry Awards",  block_type: "link",    column_id: 5, position:  3, visible: true, link_type: "manual", url: "/artistry-awards" },
     { label: "The LWD Standard", block_type: "link",    column_id: 5, position:  4, visible: true, link_type: "manual", url: "/the-lwd-standard" },
     { label: "Getting Married",  block_type: "link",    column_id: 5, position:  5, visible: true, link_type: "manual", url: "/getting-married" },
+    { label: "Real Weddings",    block_type: "link",    column_id: 5, position:  6, visible: true, link_type: "manual", url: "/real-weddings" },
+    { label: "LWD Awards",       block_type: "link",    column_id: 5, position:  7, visible: true, link_type: "manual", url: "/lwd-awards" },
 
     // col 6 — Company
     { label: "COMPANY",              block_type: "heading", column_id: 6, position:  1, visible: true, link_type: "manual", url: "" },

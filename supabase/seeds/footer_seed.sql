@@ -115,7 +115,9 @@ INSERT INTO footer_items (label, block_type, column_id, position, visible, link_
   ('LWD Magazine',      'link',    5, 2, true, 'manual', '/magazine'),
   ('Artistry Awards',   'link',    5, 3, true, 'manual', '/artistry-awards'),
   ('The LWD Standard',  'link',    5, 4, true, 'manual', '/the-lwd-standard'),
-  ('Getting Married',   'link',    5, 5, true, 'manual', '/getting-married');
+  ('Getting Married',   'link',    5, 5, true, 'manual', '/getting-married'),
+  ('Real Weddings',     'link',    5, 6, true, 'manual', '/real-weddings'),
+  ('LWD Awards',        'link',    5, 7, true, 'manual', '/lwd-awards');
 
 -- ── 8. Company column (column_id = 6) — authority + contact ───────────────────
 INSERT INTO footer_items (label, block_type, column_id, position, visible, link_type, url) VALUES

@@ -44,7 +44,7 @@ function Sep({ C }) {
 
 // ── Social icon (SVG inline, minimal) ─────────────────────────────────────
 function SocialIcon({ platform, color }) {
-  const style = { width: 16, height: 16, display: "block" };
+  const style = { width: 24, height: 24, display: "block" };
   if (platform === "instagram") return (
     <svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" style={style}>
       <rect x="2" y="2" width="20" height="20" rx="5" />
@@ -215,7 +215,7 @@ export default function FooterCanvas({
       <div style={{
         width: "100%",
         textAlign: "center",
-        padding: isMobile ? "32px 20px 40px" : "52px 0 48px",
+        padding: isMobile ? "28px 20px 28px" : "44px 0 32px",
         background: footerBg,
         boxSizing: "border-box",
       }}>
@@ -367,7 +367,7 @@ export default function FooterCanvas({
           </div>
         )}
         {cfg.show_social && (
-          <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
             {cfg.social_instagram && (
               <a href={cfg.social_instagram} style={{ opacity: 0.7 }}>
                 <SocialIcon platform="instagram" color={textColor} />
@@ -385,13 +385,13 @@ export default function FooterCanvas({
             )}
             {/* Placeholder icons if none configured */}
             {!cfg.social_instagram && !cfg.social_pinterest && !cfg.social_tiktok && (
-              <div style={{ display: "flex", gap: 10 }}>
+              <div style={{ display: "flex", gap: 6 }}>
                 {["IG", "PT", "TK"].map(p => (
                   <div key={p} style={{
-                    width: 28, height: 28, borderRadius: "50%",
+                    width: 42, height: 42, borderRadius: "50%",
                     border: `1px solid ${cfg.border_color || "#2a2218"}`,
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontFamily: SANS, fontSize: 8, color: textColor, opacity: 0.4,
+                    fontFamily: SANS, fontSize: 9, color: textColor, opacity: 0.4,
                   }}>{p}</div>
                 ))}
               </div>
@@ -423,7 +423,7 @@ export default function FooterCanvas({
 
     return (
       <div style={{
-        padding: isMobile ? `${padY * 0.6}px 20px` : `${padY}px ${padX}px`,
+        padding: isMobile ? `${padY * 0.6}px 20px` : `${Math.round(padY * 0.65)}px ${padX}px ${padY}px`,
         background: footerBg,
       }}>
         <div style={{
@@ -622,16 +622,6 @@ export default function FooterCanvas({
         width: "100%",
         boxSizing: "border-box",
       }}>
-        {/* Optional: page content mock above footer */}
-        <div style={{
-          padding: isMobile ? "24px 20px" : "32px 48px",
-          background: theme.bg,
-          borderBottom: `1px solid rgba(255,255,255,0.05)`,
-        }}>
-          <div style={{ height: 20, width: "60%", background: "rgba(255,255,255,0.04)", borderRadius: 4, marginBottom: 8 }} />
-          <div style={{ height: 14, width: "40%", background: "rgba(255,255,255,0.03)", borderRadius: 4 }} />
-        </div>
-
         {/* Footer sections */}
         <div style={{
           width: isMobile ? canvasWidth : "100%",
