@@ -1,7 +1,7 @@
 // MenuModule.jsx
 // Navigation Design Builder — tree structure, type system, design presets, live preview.
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -1030,7 +1030,7 @@ function LivePreviewStrip({ items, G, C }) {
 
 // ─── Live Design Canvas ──────────────────────────────────────────────────────
 
-function LiveDesignCanvas({ items, C, selectedItemId, draftForm }) {
+function LiveDesignCanvas({ items, C, selectedItemId, draftForm, onItemClick }) {
   const G = C?.gold || "#c9a84c";
   const [activeItemId, setActiveItemId] = useState(null);
   const [pageTheme, setPageTheme] = useState("dark");
@@ -1199,11 +1199,15 @@ function LiveDesignCanvas({ items, C, selectedItemId, draftForm }) {
           <div style={{ fontFamily: SANS, fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: G }}>
             Design Canvas
           </div>
-          {selectedItemId && !activeItemId && (
-            <div style={{ fontFamily: SANS, fontSize: 9, color: G, opacity: 0.7, letterSpacing: "0.04em" }}>
-              - editing selected
-            </div>
-          )}
+          {selectedItemId && !activeItemId && (() => {
+            const editingItem = effectiveItems.find(i => i.id === selectedItemId);
+            return editingItem ? (
+              <div style={{ fontFamily: SANS, fontSize: 9, color: G, opacity: 0.8, letterSpacing: "0.04em", display: "flex", alignItems: "center", gap: 5 }}>
+                <span style={{ opacity: 0.5 }}>|</span>
+                Editing: <strong style={{ fontWeight: 700 }}>{editingItem.label}</strong>
+              </div>
+            ) : null;
+          })()}
         </div>
         <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
           {[["dark", "Dark"], ["light", "Light"], ["editorial", "Edt"]].map(([val, label]) => (
@@ -1233,6 +1237,15 @@ function LiveDesignCanvas({ items, C, selectedItemId, draftForm }) {
             View Live ↗
           </a>
         </div>
+      </div>
+
+      {/* Click-to-edit hint */}
+      <div style={{
+        fontFamily: SANS, fontSize: 9, color: C?.grey || "#8a7d6a",
+        letterSpacing: "0.05em", marginBottom: 6, opacity: 0.6,
+        display: "flex", alignItems: "center", gap: 5,
+      }}>
+        <span style={{ fontSize: 10 }}>↑</span> Click any nav item to edit
       </div>
 
       {/* Canvas frame */}
@@ -1294,23 +1307,28 @@ function LiveDesignCanvas({ items, C, selectedItemId, draftForm }) {
                 )}
                 {regular.map(item => {
                   const isActive    = resolvedActiveId === item.id;
-                  const isSelected  = selectedItemId === item.id && !activeItemId;
+                  const isEditing   = selectedItemId === item.id;
+                  const isSelected  = isEditing && !activeItemId;
                   const isDropdown  = item.type === "dropdown" || item.type === "mega_menu";
                   const itemAccent  = (item.panel_accent_color && isDropdown) ? item.panel_accent_color : G;
                   return (
                     <div key={item.id} style={{
-                      position: "relative", cursor: "default",
-                      padding: "4px 6px", borderRadius: 4,
-                      background: isSelected ? G + "14" : "transparent",
-                      outline: isSelected ? `1px solid ${G}40` : "none",
-                      transition: "background 0.2s",
+                      position: "relative", cursor: "pointer",
+                      padding: "4px 8px", borderRadius: 5,
+                      background: isEditing
+                        ? G + "22"
+                        : isActive ? G + "0c" : "transparent",
+                      outline: isEditing ? `1.5px solid ${G}60` : "none",
+                      transition: "background 0.15s",
                     }}
                       onMouseEnter={() => handleItemHover(item)}
+                      onClick={() => onItemClick?.(item)}
+                      title={`Edit: ${item.label}`}
                     >
                       <span style={{
                         fontFamily: SANS, fontSize: 12, letterSpacing: "0.04em",
-                        color: isActive ? itemAccent : "rgba(255,255,255,0.82)",
-                        fontWeight: isActive ? 600 : 400,
+                        color: isActive ? itemAccent : isEditing ? G : "rgba(255,255,255,0.82)",
+                        fontWeight: isEditing || isActive ? 600 : 400,
                         display: "flex", alignItems: "center", gap: 4,
                         transition: "color 0.15s",
                         userSelect: "none",
@@ -1329,7 +1347,14 @@ function LiveDesignCanvas({ items, C, selectedItemId, draftForm }) {
                       {isActive && (
                         <div style={{
                           position: "absolute", bottom: -4, left: 0, right: 0,
-                          height: 1, background: itemAccent,
+                          height: 1.5, background: itemAccent,
+                        }} />
+                      )}
+                      {/* Editing indicator dot */}
+                      {isEditing && !isActive && (
+                        <div style={{
+                          position: "absolute", top: 2, right: 2,
+                          width: 5, height: 5, borderRadius: "50%", background: G,
                         }} />
                       )}
                     </div>
@@ -1340,16 +1365,25 @@ function LiveDesignCanvas({ items, C, selectedItemId, draftForm }) {
               {/* CTA buttons */}
               {ctas.length > 0 && (
                 <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
-                  {ctas.map(item => (
-                    <span key={item.id} style={{
-                      fontFamily: SANS, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em",
-                      textTransform: "uppercase", padding: "7px 18px", borderRadius: 6, cursor: "default",
-                      background: item.cta_style === "outline" ? "transparent" : item.cta_style === "dark" ? "#0a0906" : G,
-                      border: `1px solid ${item.cta_style === "dark" ? "#2a2a2a" : G}`,
-                      color: item.cta_style === "gold" ? "#0a0906" : G,
-                      userSelect: "none",
-                    }}>{item.label}</span>
-                  ))}
+                  {ctas.map(item => {
+                    const isEditing = selectedItemId === item.id;
+                    return (
+                      <span key={item.id}
+                        onClick={() => onItemClick?.(item)}
+                        title={`Edit: ${item.label}`}
+                        style={{
+                          fontFamily: SANS, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em",
+                          textTransform: "uppercase", padding: "7px 18px", borderRadius: 6, cursor: "pointer",
+                          background: item.cta_style === "outline" ? "transparent" : item.cta_style === "dark" ? "#0a0906" : G,
+                          border: `1.5px solid ${isEditing ? "#fff" : item.cta_style === "dark" ? "#2a2a2a" : G}`,
+                          color: item.cta_style === "gold" ? "#0a0906" : G,
+                          userSelect: "none",
+                          outline: isEditing ? `2px solid ${G}80` : "none",
+                          outlineOffset: 2,
+                        }}
+                      >{item.label}</span>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1432,6 +1466,19 @@ export default function MenuModule({ C }) {
   const [moving, setMoving] = useState(null);
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [draftForm, setDraftForm] = useState(null); // live draft from edit panel
+  const leftColumnRef = useRef(null);
+
+  // Canvas click → select item in tree + open its editor
+  function handleCanvasItemClick(canvasItem) {
+    const fullItem = allItems.find(i => i.id === canvasItem.id);
+    if (!fullItem) return;
+    setSelectedItemId(fullItem.id);
+    setModal({ item: fullItem, parentId: null });
+    // Scroll left panel back to top so the edit form is visible
+    if (leftColumnRef.current) {
+      leftColumnRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }
 
   async function load() {
     const { data, error } = await supabase
@@ -1552,7 +1599,7 @@ export default function MenuModule({ C }) {
       }}>
 
         {/* ── LEFT: tree + controls (independently scrollable) ── */}
-        <div style={{ maxHeight: "calc(100vh - 160px)", overflowY: "auto", paddingRight: 2 }}>
+        <div ref={leftColumnRef} style={{ maxHeight: "calc(100vh - 160px)", overflowY: "auto", paddingRight: 2 }}>
 
           {/* Inline edit panel (replaces fixed modal) */}
           {modal !== null && (
@@ -1615,7 +1662,7 @@ export default function MenuModule({ C }) {
           maxHeight: "calc(100vh - 160px)",
           overflowY: "auto",
         }}>
-          <LiveDesignCanvas items={allItems} C={C} selectedItemId={selectedItemId} draftForm={draftForm} />
+          <LiveDesignCanvas items={allItems} C={C} selectedItemId={selectedItemId} draftForm={draftForm} onItemClick={handleCanvasItemClick} />
         </div>
 
       </div>
