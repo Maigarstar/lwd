@@ -189,6 +189,7 @@ function blankForm() {
     layout_columns: 2, layout_type: "2-col",
     show_descriptions: true, show_icons: false, show_thumbnails: false,
     has_cta_in_panel: false, panel_cta_label: "", panel_cta_link: "",
+    label_font: "sans", label_color: "",
   };
 }
 
@@ -234,6 +235,8 @@ function itemToForm(item) {
     has_cta_in_panel: !!item.has_cta_in_panel,
     panel_cta_label:  item.panel_cta_label || "",
     panel_cta_link:   item.panel_cta_link || "",
+    label_font:       item.label_font || "sans",
+    label_color:      item.label_color || "",
   };
 }
 
@@ -616,6 +619,31 @@ function ItemModal({ item, parentId, onSave, onClose, onFormChange, C }) {
                   {labelText}
                 </label>
               ))}
+            </div>
+
+            {/* Label font + colour */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <div>
+                <label style={lbl}>Label Font</label>
+                <select value={form.label_font || "sans"} onChange={e => set("label_font", e.target.value)} style={{ ...inp, cursor: "pointer" }}>
+                  <option value="sans">Sans-serif (Inter)</option>
+                  <option value="serif">Serif (Cormorant)</option>
+                  <option value="mono">Monospace</option>
+                </select>
+              </div>
+              <div>
+                <label style={lbl}>Label Colour</label>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input type="color"
+                    value={form.label_color || "#f5efe4"}
+                    onChange={e => set("label_color", e.target.value)}
+                    style={{ width: 36, height: 36, border: "none", borderRadius: 4, cursor: "pointer", background: "none", padding: 2 }} />
+                  <input value={form.label_color || ""}
+                    onChange={e => set("label_color", e.target.value)}
+                    placeholder="Default (theme)"
+                    style={{ ...inp, flex: 1, fontFamily: MONO, fontSize: 11 }} />
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -1377,8 +1405,9 @@ function LiveDesignCanvas({ items, C, selectedItemId, draftForm, onItemClick }) 
                       title={canvasMode === "edit" ? `Edit: ${item.label}` : `Open: ${item.label}`}
                     >
                       <span style={{
-                        fontFamily: SANS, fontSize: 12, letterSpacing: "0.04em",
-                        color: isActive ? itemAccent : (canvasMode === "edit" && isEditing) ? G : "rgba(255,255,255,0.82)",
+                        fontFamily: item.label_font === "serif" ? SERIF : item.label_font === "mono" ? MONO : SANS,
+                        fontSize: 12, letterSpacing: "0.04em",
+                        color: isActive ? itemAccent : (canvasMode === "edit" && isEditing) ? G : (item.label_color || "rgba(255,255,255,0.82)"),
                         fontWeight: isEditing || isActive ? 600 : 400,
                         display: "flex", alignItems: "center", gap: 4,
                         transition: "color 0.15s",
@@ -1520,6 +1549,7 @@ export default function MenuModule({ C }) {
   const [moving, setMoving] = useState(null);
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [draftForm, setDraftForm] = useState(null); // live draft from edit panel
+  const [confirmDelete, setConfirmDelete] = useState(null); // item pending deletion
   const leftColumnRef = useRef(null);
 
   // Canvas click → select item in tree + open its editor
@@ -1591,14 +1621,25 @@ export default function MenuModule({ C }) {
     }
   }
 
-  async function handleDelete(item) {
+  function handleDelete(item) {
     if (item.children?.length > 0) {
       setToast({ msg: "Remove child items first", type: "error" }); return;
     }
+    // Show confirmation warning before destroying
+    setConfirmDelete(item);
+  }
+
+  async function confirmDeleteExecute() {
+    const item = confirmDelete;
+    setConfirmDelete(null);
     setDeleting(item.id);
     try {
       const { error } = await supabase.from("nav_items").delete().eq("id", item.id);
       if (error) throw error;
+      // If this item was open in the editor, close the panel
+      if (selectedItemId === item.id) {
+        setModal(null); setSelectedItemId(null); setDraftForm(null);
+      }
       setToast({ msg: `"${item.label}" removed`, type: "success" });
       await load();
     } catch (e) {
@@ -1652,6 +1693,44 @@ export default function MenuModule({ C }) {
           }}
         >+ Add Item</button>
       </div>
+
+      {/* ── Delete confirmation dialog ── */}
+      {confirmDelete && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 9000,
+          background: "rgba(0,0,0,0.72)", backdropFilter: "blur(6px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }} onClick={() => setConfirmDelete(null)}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: C?.card || "#1a1510",
+            border: `1px solid #4a2020`,
+            borderTop: `2px solid #f87171`,
+            borderRadius: 12, padding: "32px 36px", maxWidth: 420, width: "90vw",
+            boxShadow: "0 24px 80px rgba(0,0,0,0.7)",
+          }}>
+            <div style={{ fontFamily: SANS, fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#f87171", marginBottom: 10 }}>Confirm Delete</div>
+            <div style={{ fontFamily: SERIF, fontSize: 22, color: C?.white || "#f5efe4", marginBottom: 10 }}>
+              Remove "{confirmDelete.label}"?
+            </div>
+            <div style={{ fontFamily: SANS, fontSize: 13, color: C?.grey || "#8a7d6a", lineHeight: 1.7, marginBottom: 28 }}>
+              This will permanently remove the nav item from your site. This action cannot be undone.
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button onClick={() => setConfirmDelete(null)} style={{
+                background: "none", border: `1px solid ${C?.border || "#2a2218"}`,
+                borderRadius: 6, color: C?.grey || "#8a7d6a",
+                padding: "9px 20px", fontFamily: SANS, fontSize: 12, fontWeight: 600,
+                letterSpacing: "0.06em", textTransform: "uppercase", cursor: "pointer",
+              }}>Cancel</button>
+              <button onClick={confirmDeleteExecute} style={{
+                background: "#f87171", border: "none", borderRadius: 6, color: "#fff",
+                padding: "9px 24px", fontFamily: SANS, fontSize: 12, fontWeight: 700,
+                letterSpacing: "0.06em", textTransform: "uppercase", cursor: "pointer",
+              }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Studio: two-column split ── */}
       <div style={{

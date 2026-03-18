@@ -134,7 +134,10 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
         {/* Right side, desktop */}
         <div className="home-nav-right-desktop" style={{ display: "flex", gap: 28, alignItems: "center" }}>
           {navItems.filter(i => i.type !== "cta").map((item) => {
-            const linkColor = scrolled && !darkMode ? C.grey : "rgba(255,255,255,0.6)";
+            const FONT_MAP = { serif: GD, mono: "'JetBrains Mono','Fira Mono',monospace", sans: NU };
+            const labelFont = FONT_MAP[item.label_font] || NU;
+            const labelColor = item.label_color || (scrolled && !darkMode ? C.grey : "rgba(255,255,255,0.6)");
+            const linkColor = labelColor;
             const handler   = resolveHandler(item, handlers);
             const isMega    = item.type === "mega_menu" || item.type === "dropdown";
             const navH      = navRef.current ? navRef.current.getBoundingClientRect().bottom : 64;
@@ -154,7 +157,7 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
                       background: "none", border: "none",
                       cursor: "pointer", fontSize: 13, fontWeight: 400,
                       color: openPanel === item.id ? C.gold : linkColor,
-                      fontFamily: NU, letterSpacing: "0.3px", transition: "color 0.2s",
+                      fontFamily: labelFont, letterSpacing: "0.3px", transition: "color 0.2s",
                       display: "flex", alignItems: "center", gap: 4,
                     }}
                   >
@@ -182,7 +185,7 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
                   background: "none", border: "none",
                   cursor: handler ? "pointer" : "default",
                   fontSize: 13, fontWeight: 400, color: linkColor,
-                  fontFamily: NU, letterSpacing: "0.3px", transition: "color 0.2s",
+                  fontFamily: labelFont, letterSpacing: "0.3px", transition: "color 0.2s",
                 }}
                 onMouseEnter={e => (e.currentTarget.style.color = C.gold)}
                 onMouseLeave={e => (e.currentTarget.style.color = linkColor)}
