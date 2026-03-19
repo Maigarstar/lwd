@@ -6524,7 +6524,7 @@ function CompareEnquiryForm({ venue, onClose }) {
 
 function CompareModal({ items, onClose }) {
   const C = DARK; // modal is always dark
-  const { openMiniBar, sendMessage } = useChat();
+  const { openWorkspace, sendMessage, setChatContext } = useChat();
   const [venues,       setVenues]       = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [enquiryVenue, setEnquiryVenue] = useState(null); // full venue object for in-modal enquiry
@@ -6685,10 +6685,21 @@ function CompareModal({ items, onClose }) {
         <button
           type="button"
           onClick={() => {
-            openMiniBar();
+            // Set context so the recommendations panel knows we're in compare mode
+            setChatContext({ page: 'compare', country: venues[0]?.country || null, region: venues[0]?.destination || null });
+            // Open the full workspace — this is a decision environment, not a quick question
+            openWorkspace();
             if (venues.length > 1) {
-              const names = venues.map(v => v.name).join(' and ');
-              sendMessage(`I'm comparing ${names} — can you help me understand which might suit us better?`);
+              // Build a rich context message from the fetched venue data
+              const venueSummaries = venues.map(v => {
+                const parts = [v.name];
+                if (v.type)        parts.push(v.type);
+                if (v.destination || v.country) parts.push(v.destination || v.country);
+                if (v.capacity)    parts.push(`up to ${v.capacity} guests`);
+                return parts.join(', ');
+              });
+              const listing = venueSummaries.join(' · ');
+              sendMessage(`I'm comparing these venues: ${listing}. Can you help me understand which might be the better fit for our wedding?`);
             }
           }}
           style={{
