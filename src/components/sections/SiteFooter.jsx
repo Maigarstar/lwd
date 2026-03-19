@@ -616,9 +616,7 @@ export default function SiteFooter({
           textAlign: "center",
         }}>
           <a
-            href="https://taigenic.com"
-            target="_blank"
-            rel="noreferrer"
+            href="/taigenic"
             style={{ textDecoration: "none", display: "inline-block", transition: "opacity 0.25s" }}
             onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
             onMouseLeave={e => (e.currentTarget.style.opacity = "0.99")}
@@ -635,7 +633,7 @@ export default function SiteFooter({
               onMouseEnter={e => (e.currentTarget.style.color = gold)}
               onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.40)")}
             >
-              Powered by Taigenic
+              Powered by Taigenic.AI
             </span>
             <span style={{
               display: "block",
