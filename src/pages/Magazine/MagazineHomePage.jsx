@@ -102,7 +102,7 @@ export default function MagazineHomePage({
   return (
     <div style={{ background: T.bg, minHeight: '100vh', transition: 'background 0.35s' }}>
       {/* ── Site-wide nav ──────────────────────────────────────────── */}
-      <HomeNav darkMode={!isLight} onToggleDark={onToggleLight} />
+      <HomeNav darkMode={!isLight} onToggleDark={onToggleLight} hasHero={false} />
       {/* ── Magazine navigation ────────────────────────────────────── */}
       <MagazineNav
         activeCategoryId={null}

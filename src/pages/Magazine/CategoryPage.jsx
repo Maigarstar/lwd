@@ -175,7 +175,7 @@ export default function CategoryPage({
       />
 
       {/* ── Site-wide nav ─────────────────────────────────────────────────── */}
-      <HomeNav darkMode={!isLight} onToggleDark={onToggleLight} />
+      <HomeNav darkMode={!isLight} onToggleDark={onToggleLight} hasHero={false} />
       {/* ── Magazine navigation ───────────────────────────────────────────── */}
       <MagazineNav
         activeCategoryId={categoryId}

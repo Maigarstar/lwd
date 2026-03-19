@@ -273,7 +273,7 @@ export default function FashionLandingPage({
 
   return (
     <div style={{ background: BG, minHeight: '100vh', transition: 'background 0.35s' }}>
-      <HomeNav darkMode={!isLight} onToggleDark={onToggleLight} />
+      <HomeNav darkMode={!isLight} onToggleDark={onToggleLight} hasHero={false} />
       <MagazineNav
         activeCategoryId="fashion"
         onNavigateHome={onNavigateHome}

@@ -39,7 +39,7 @@ const FALLBACK_LINKS = [
   { id: "f6", label: "Magazine",       nav_action: "magazine",       visible: true },
 ];
 
-export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavigateStandard, onNavigateAbout }) {
+export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavigateStandard, onNavigateAbout, hasHero = true }) {
   const C = useTheme();
   const [scrolled,    setScrolled]   = useState(false);
   const [drawerOpen,  setDrawerOpen] = useState(false);
@@ -47,6 +47,20 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
   const [openPanel,   setOpenPanel]  = useState(null); // nav item id | null
   const navRef    = useRef(null);
   const closeTimer = useRef(null);
+
+  // ── Two-state logic ──────────────────────────────────────────────────────────
+  // transparent = on a hero page AND not yet scrolled past threshold
+  // solid       = scrolled, OR no hero on this page
+  const isTransparent = hasHero && !scrolled;
+
+  // Colours derived from state — never white-on-white
+  const navBg       = isTransparent ? "transparent"            : "rgba(255,255,255,0.97)";
+  const navBorder   = isTransparent ? "none"                   : "1px solid rgba(0,0,0,0.08)";
+  const navShadow   = isTransparent ? "none"                   : "0 2px 20px rgba(0,0,0,0.06)";
+  const brandColor  = isTransparent ? "#f5f0e8"                : "#1e1e1e";
+  const linkColor   = isTransparent ? "rgba(255,255,255,0.82)" : "#3a3a3a";
+  const iconColor   = isTransparent ? "rgba(255,255,255,0.6)"  : "#3a3a3a";
+  const iconBorder  = isTransparent ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.15)";
 
   const openMegaMenu = useCallback(id => {
     clearTimeout(closeTimer.current);
@@ -62,8 +76,10 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
   }, []);
 
   useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 60);
+    const handler = () => setScrolled(window.scrollY > 80);
     window.addEventListener("scroll", handler, { passive: true });
+    // Initialise immediately (page may already be scrolled on mount)
+    handler();
     return () => window.removeEventListener("scroll", handler);
   }, []);
 
@@ -100,18 +116,15 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
           left: 0,
           right: 0,
           zIndex: 700,
-          padding: scrolled ? "12px 40px" : "20px 40px",
-          background: scrolled
-            ? darkMode
-              ? "rgba(8,8,8,0.97)"
-              : "rgba(255,255,255,0.97)"
-            : "transparent",
-          backdropFilter: scrolled ? "blur(20px)" : "none",
-          borderBottom: scrolled ? `1px solid ${C.border}` : "none",
+          padding: isTransparent ? "20px 40px" : "12px 40px",
+          background: navBg,
+          backdropFilter: isTransparent ? "none" : "blur(20px)",
+          borderBottom: navBorder,
+          boxShadow: navShadow,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          transition: "all 0.4s ease",
+          transition: "background 0.3s ease, padding 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease",
         }}
       >
         {/* Brand */}
@@ -121,10 +134,10 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
             fontFamily: GD,
             fontSize: 20,
             fontWeight: 600,
-            color: scrolled && !darkMode ? C.white : "#f5f0e8",
+            color: brandColor,
             letterSpacing: 0.5,
             cursor: "pointer",
-            transition: "color 0.4s ease",
+            transition: "color 0.3s ease",
           }}
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
         >
@@ -136,8 +149,8 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
           {navItems.filter(i => i.type !== "cta").map((item) => {
             const FONT_MAP = { serif: GD, mono: "'JetBrains Mono','Fira Mono',monospace", sans: NU };
             const labelFont = FONT_MAP[item.label_font] || NU;
-            const labelColor = item.label_color || (scrolled && !darkMode ? C.grey : "rgba(255,255,255,0.6)");
-            const linkColor = labelColor;
+            const itemColor = item.label_color || linkColor;
+            const labelColor = itemColor;
             const handler   = resolveHandler(item, handlers);
             const isMega    = item.type === "mega_menu" || item.type === "dropdown";
             const navH      = navRef.current ? navRef.current.getBoundingClientRect().bottom : 64;
@@ -231,9 +244,9 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
             aria-label={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
             style={{
               background: "none",
-              border: `1px solid ${C.border2}`,
+              border: `1px solid ${iconBorder}`,
               borderRadius: "var(--lwd-radius-input)",
-              color: C.grey,
+              color: iconColor,
               width: 36,
               height: 36,
               fontSize: 15,
@@ -241,7 +254,7 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              transition: "all 0.2s",
+              transition: "all 0.3s ease",
               flexShrink: 0,
             }}
             onMouseEnter={(e) => {
@@ -249,8 +262,8 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
               e.currentTarget.style.color = C.gold;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = C.border2;
-              e.currentTarget.style.color = C.grey;
+              e.currentTarget.style.borderColor = iconBorder;
+              e.currentTarget.style.color = iconColor;
             }}
           >
             {darkMode ? "☀" : "☽"}

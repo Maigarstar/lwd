@@ -202,7 +202,7 @@ function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome
   return (
     <div style={{ background: T.bg, minHeight: '100vh', transition: 'background 0.35s' }}>
       <ReadingProgress />
-      <HomeNav darkMode={!isLight} onToggleDark={onToggleLight} />
+      <HomeNav darkMode={!isLight} onToggleDark={onToggleLight} hasHero={false} />
       <MagazineNav
         activeCategoryId={post.category}
         onNavigateHome={onNavigateHome}
@@ -311,7 +311,7 @@ function LayoutSidebar({ post, relatedPosts, onNavigateArticle, onNavigateHome, 
   return (
     <div style={{ background: T.bg, minHeight: '100vh', transition: 'background 0.35s' }}>
       <ReadingProgress />
-      <HomeNav darkMode={!isLight} onToggleDark={onToggleLight} />
+      <HomeNav darkMode={!isLight} onToggleDark={onToggleLight} hasHero={false} />
       <MagazineNav
         activeCategoryId={post.category}
         onNavigateHome={onNavigateHome}
