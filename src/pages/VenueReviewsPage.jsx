@@ -266,7 +266,7 @@ export default function VenueReviewsPage() {
   // ── Pill ─────────────────────────────────────────────────────────────────────
   const Pill = ({ label, active, onClick }) => (
     <button onClick={onClick} style={{
-      width: 120, padding: '7px 0', border: `1px solid ${active ? C.gold : 'rgba(0,0,0,0.1)'}`,
+      width: 100, padding: '7px 0', border: `1px solid ${active ? C.gold : 'rgba(0,0,0,0.1)'}`,
       background: active ? C.goldLight : 'none',
       color: active ? C.gold : C.textLight,
       fontFamily: FB, fontSize: 12, fontWeight: active ? 700 : 400,
@@ -430,24 +430,26 @@ export default function VenueReviewsPage() {
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '64px 56px 120px' }}>
 
         {/* Controls — single row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 36, flexWrap: 'nowrap', overflowX: 'auto' }}>
-          <span style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, letterSpacing: '0.8px', textTransform: 'uppercase', whiteSpace: 'nowrap', marginRight: 2 }}>Sort</span>
-          <Pill label="Most Recent"    active={sortMode === 'recent'}   onClick={() => { setSortMode('recent');   setVisibleCount(8); }} />
-          <Pill label="Highest Rated"  active={sortMode === 'highest'}  onClick={() => { setSortMode('highest');  setVisibleCount(8); }} />
-          <Pill label="Most Detailed"  active={sortMode === 'detailed'} onClick={() => { setSortMode('detailed'); setVisibleCount(8); }} />
-          {/* Divider */}
-          <span style={{ width: 1, height: 20, background: C.border2, flexShrink: 0, margin: '0 6px' }} />
-          <span style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, letterSpacing: '0.8px', textTransform: 'uppercase', whiteSpace: 'nowrap', marginRight: 2 }}>Filter</span>
-          <Pill label="All"        active={!starFilter}             onClick={() => { setStarFilter(null);    setVisibleCount(8); }} />
-          <Pill label="★★★★★"     active={starFilter === 5}        onClick={() => { setStarFilter(5);       setVisibleCount(8); }} />
-          <Pill label="★★★★"      active={starFilter === 4}        onClick={() => { setStarFilter(4);       setVisibleCount(8); }} />
-          <Pill label="★★★"       active={starFilter === 3}        onClick={() => { setStarFilter(3);       setVisibleCount(8); }} />
-          <Pill label="Below ★★★" active={starFilter === 'below'}  onClick={() => { setStarFilter('below'); setVisibleCount(8); }} />
-          {/* Count — pushed right */}
-          <span style={{ marginLeft: 'auto', fontFamily: FB, fontSize: 12, color: C.textMuted, whiteSpace: 'nowrap', flexShrink: 0 }}>
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap' }}>
+            <span style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, letterSpacing: '0.8px', textTransform: 'uppercase', whiteSpace: 'nowrap', marginRight: 2 }}>Sort</span>
+            <Pill label="Most Recent"    active={sortMode === 'recent'}   onClick={() => { setSortMode('recent');   setVisibleCount(8); }} />
+            <Pill label="Highest Rated"  active={sortMode === 'highest'}  onClick={() => { setSortMode('highest');  setVisibleCount(8); }} />
+            <Pill label="Most Detailed"  active={sortMode === 'detailed'} onClick={() => { setSortMode('detailed'); setVisibleCount(8); }} />
+            {/* Divider */}
+            <span style={{ width: 1, height: 20, background: C.border2, flexShrink: 0, margin: '0 6px' }} />
+            <span style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, letterSpacing: '0.8px', textTransform: 'uppercase', whiteSpace: 'nowrap', marginRight: 2 }}>Filter</span>
+            <Pill label="All"        active={!starFilter}             onClick={() => { setStarFilter(null);    setVisibleCount(8); }} />
+            <Pill label="★★★★★"     active={starFilter === 5}        onClick={() => { setStarFilter(5);       setVisibleCount(8); }} />
+            <Pill label="★★★★"      active={starFilter === 4}        onClick={() => { setStarFilter(4);       setVisibleCount(8); }} />
+            <Pill label="★★★"       active={starFilter === 3}        onClick={() => { setStarFilter(3);       setVisibleCount(8); }} />
+            <Pill label="Below ★★★" active={starFilter === 'below'}  onClick={() => { setStarFilter('below'); setVisibleCount(8); }} />
+          </div>
+          <div style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, marginTop: 10 }}>
             Showing {Math.min(visibleCount, sorted.length)} of {sorted.length}
-          </span>
+          </div>
         </div>
+        <div style={{ marginBottom: 24 }} />
 
         {/* Review list */}
         {sorted.length === 0 ? (
