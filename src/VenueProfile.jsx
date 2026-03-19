@@ -1197,28 +1197,94 @@ function Hero({ venue, heroStyle, setHeroStyle, onEnquire, onBack }) {
 // ─── STATS STRIP ─────────────────────────────────────────────────────────────
 function StatsStrip({ venue }) {
   const C = useT();
-  const sleepsValue = venue.accommodation?.maxOvernightGuests ?? venue.accommodation?.maxGuests ?? null;
-  const sleepsSub   = venue.accommodation?.totalRooms ? `${venue.accommodation.totalRooms} rooms` : 'rooms';
+
+  // Capacity
+  const maxCeremony  = venue.capacity?.ceremony || venue.capacity?.standing || null;
+  const maxDinner    = venue.capacity?.dinner || venue.capacity?.seated || null;
+  const maxGuests    = maxCeremony || maxDinner;
+
+  // Accommodation
+  const sleepsValue  = venue.accommodation?.maxOvernightGuests ?? venue.accommodation?.maxGuests ?? null;
+  const totalRooms   = venue.accommodation?.totalRooms ?? null;
+
+  // Spaces
+  const spacesCount  = venue.spaces?.length || null;
+
+  // Ceremony styles — derived from spaces tags or venue.ceremonyStyles
+  const ceremonyTypes = (() => {
+    const from = venue.ceremonyStyles || [];
+    if (from.length) return from.slice(0, 2).join(" & ");
+    if (!venue.spaces?.length) return null;
+    const tags = new Set();
+    venue.spaces.forEach(s => {
+      if (s.setting?.toLowerCase().includes("beach"))   tags.add("Beach");
+      if (s.setting?.toLowerCase().includes("garden"))  tags.add("Garden");
+      if (s.setting?.toLowerCase().includes("chapel"))  tags.add("Chapel");
+      if (s.setting?.toLowerCase().includes("terrace")) tags.add("Terrace");
+      if (s.indoor !== undefined) tags.add(s.indoor ? "Indoor" : "Outdoor");
+    });
+    const arr = [...tags].slice(0, 2);
+    return arr.length ? arr.join(" & ") : null;
+  })();
+
   const stats = [
-    { label: "From",      value: venue.priceFrom ? fmtPrice(venue.priceFrom, venue.priceCurrency) : null, sub: "per event", hide: !venue.priceFrom },
-    { label: "Ceremony",  value: venue.capacity?.ceremony ? `Up to ${venue.capacity.ceremony}` : null, sub: "guests", hide: !venue.capacity?.ceremony },
-    { label: "Dinner",    value: venue.capacity?.dinner   ? `Up to ${venue.capacity.dinner}`   : null, sub: "guests", hide: !venue.capacity?.dinner },
-    { label: "Sleeps",    value: sleepsValue,                                  sub: sleepsSub,                        hide: !sleepsValue },
-    { label: "Responds",  value: venue.responseTime,                           sub: `${venue.responseRate || ''}% response rate`, hide: !venue.responseTime },
-    { label: "Rating",    value: venue.rating ? `${venue.rating} ★` : null,   sub: `${venue.reviews || 0} reviews`,  hide: !venue.rating },
+    {
+      label: "Starting From",
+      value: venue.priceFrom ? fmtPrice(venue.priceFrom, venue.priceCurrency) : null,
+      sub: "per event",
+      hide: !venue.priceFrom,
+    },
+    {
+      label: "Max Guests",
+      value: maxGuests ? maxGuests.toString() : null,
+      sub: maxDinner ? `${maxDinner} seated` : "guests",
+      hide: !maxGuests,
+    },
+    {
+      label: "Rooms",
+      value: totalRooms ? totalRooms.toString() : (sleepsValue ? sleepsValue.toString() : null),
+      sub: sleepsValue && totalRooms ? `sleeps ${sleepsValue}` : "for guests",
+      hide: !totalRooms && !sleepsValue,
+    },
+    {
+      label: "Event Spaces",
+      value: spacesCount ? spacesCount.toString() : null,
+      sub: "distinct settings",
+      hide: !spacesCount,
+    },
+    {
+      label: "Ceremony Style",
+      value: ceremonyTypes,
+      sub: "settings available",
+      hide: !ceremonyTypes,
+      small: true, // text value, not a number — render smaller
+    },
+    {
+      label: "Response Time",
+      value: venue.responseTime,
+      sub: venue.responseRate ? `${venue.responseRate}% reply rate` : "typical",
+      hide: !venue.responseTime,
+    },
+    {
+      label: "Rating",
+      value: venue.rating ? `${venue.rating}★` : null,
+      sub: `${venue.reviews || 0} verified reviews`,
+      hide: !venue.rating,
+    },
   ].filter(s => !s.hide);
+
   return (
     <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "0 40px" }}>
-      <div style={{ display: "flex", overflowX: "auto", gap: 0 }}>
+      <div style={{ display: "flex", overflowX: "auto", gap: 0, scrollbarWidth: "none" }}>
         {stats.map((s, i) => (
           <div key={i} style={{
-            flex: "0 0 auto", padding: "20px 28px",
+            flex: "0 0 auto", padding: "18px 28px",
             borderRight: i < stats.length - 1 ? `1px solid ${C.border}` : "none",
-            minWidth: 130,
+            minWidth: 120,
           }}>
-            <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 500, color: C.gold, lineHeight: 1 }}>{s.value}</div>
-            <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, marginTop: 4, letterSpacing: "0.5px", textTransform: "uppercase" }}>{s.label}</div>
-            <div style={{ fontFamily: FB, fontSize: 11, color: C.textLight, marginTop: 2 }}>{s.sub}</div>
+            <div style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, letterSpacing: "0.7px", textTransform: "uppercase", marginBottom: 5 }}>{s.label}</div>
+            <div style={{ fontFamily: s.small ? FB : FD, fontSize: s.small ? 15 : 22, fontWeight: s.small ? 600 : 500, color: C.gold, lineHeight: 1, letterSpacing: s.small ? "-0.2px" : "normal" }}>{s.value}</div>
+            <div style={{ fontFamily: FB, fontSize: 11, color: C.textLight, marginTop: 4 }}>{s.sub}</div>
           </div>
         ))}
       </div>
@@ -2822,9 +2888,10 @@ function AboutSection({ venue, isDbVenue = false }) {
 function ContactSection({ venue }) {
   const C = useT();
   const [emailRevealed, setEmailRevealed] = useState(false);
+  const [mapLoaded, setMapLoaded]         = useState(false);
   if (!venue.contact) return null;
   const addr = venue.contact.address || {};
-  const rm = venue.contact.responseMetrics || {};
+  const rm   = venue.contact.responseMetrics || {};
 
   const contactRow = (iconName, label, content, props = {}) => {
     const Tag = props.href ? "a" : "div";
@@ -2850,12 +2917,26 @@ function ContactSection({ venue }) {
 
   const addressFormatted = [addr.line1, addr.city, `${addr.postcode} ${addr.region}`, addr.country].join(", ");
 
+  // Clean location label (deduplicate city/region if same)
+  const locationParts = [addr.city, addr.region, addr.country]
+    .filter(Boolean)
+    .filter((v, i, a) => a.indexOf(v) === i); // dedupe
+  const locationLabel = locationParts.join(", ");
+
+  // Travel context — nearest airport if available
+  const nearestAirport = venue.access?.nearestAirport;
+
+  // Google Maps links — embed + external
+  const rawQuery  = venue.contact.mapQuery?.replace(/\+/g, " ") || locationLabel;
+  const embedSrc  = `https://maps.google.com/maps?q=${encodeURIComponent(rawQuery)}&t=&z=13&ie=UTF8&iwloc=&output=embed`;
+  const mapsLink  = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rawQuery)}`;
+
   return (
     <section style={{ marginBottom: 56 }}>
       <SectionHeading title="Contact & Location" subtitle="Find us and plan your journey" />
       <div className="vp-contact-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
 
-        {/* Contact details */}
+        {/* ── Contact details ── */}
         <div>
           <div style={{ display: "flex", flexDirection: "column", gap: 0, border: `1px solid ${C.border}`, overflow: "hidden" }}>
             {addressFormatted && contactRow("pin", "Address",
@@ -2881,31 +2962,79 @@ function ContactSection({ venue }) {
             )}
           </div>
 
-          {/* Response metrics, only show if data exists */}
           {rm.averageResponseHours && (
-          <div style={{ marginTop: 14, padding: "12px 16px", background: C.goldLight, border: `1px solid ${C.goldBorder}`, display: "flex", alignItems: "flex-start", gap: 10 }}>
-            <Icon name="zap" size={14} color={C.gold} style={{ marginTop: 1 }} />
-            <div>
-              <div style={{ fontFamily: FB, fontSize: 12, color: C.gold, fontWeight: 600, marginBottom: 3 }}>Responds within {rm.averageResponseHours} hrs</div>
-              <div style={{ fontFamily: FB, fontSize: 12, color: C.textLight }}>
-                {rm.responseRatePercent}% response rate{rm.sameDayTypical ? " · Typically replies same day" : ""}
+            <div style={{ marginTop: 14, padding: "12px 16px", background: C.goldLight, border: `1px solid ${C.goldBorder}`, display: "flex", alignItems: "flex-start", gap: 10 }}>
+              <Icon name="zap" size={14} color={C.gold} style={{ marginTop: 1 }} />
+              <div>
+                <div style={{ fontFamily: FB, fontSize: 12, color: C.gold, fontWeight: 600, marginBottom: 3 }}>Responds within {rm.averageResponseHours} hrs</div>
+                <div style={{ fontFamily: FB, fontSize: 12, color: C.textLight }}>
+                  {rm.responseRatePercent}% response rate{rm.sameDayTypical ? " · Typically replies same day" : ""}
+                </div>
               </div>
             </div>
-          </div>
           )}
         </div>
 
-        {/* Google Map */}
-        <div style={{ border: `1px solid ${C.border}`, overflow: "hidden" }}>
-          <iframe
-            title="Venue location"
-            width="100%"
-            height="100%"
-            style={{ display: "block", minHeight: 300, border: "none" }}
-            loading="lazy"
-            src={`https://maps.google.com/maps?q=${venue.contact.mapQuery}&output=embed&z=12`}
-          />
+        {/* ── Map column ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+
+          {/* Location descriptor */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Icon name="pin" size={13} color={C.gold} />
+              <span style={{ fontFamily: FB, fontSize: 13, color: C.textMid, fontWeight: 500 }}>
+                {locationLabel || venue.location}
+              </span>
+              {nearestAirport && (
+                <span style={{ fontFamily: FB, fontSize: 12, color: C.textMuted }}>
+                  · {nearestAirport} nearest airport
+                </span>
+              )}
+            </div>
+            <a
+              href={mapsLink} target="_blank" rel="noopener noreferrer"
+              style={{ fontFamily: FB, fontSize: 11, color: C.gold, textDecoration: "none", letterSpacing: "0.3px", display: "flex", alignItems: "center", gap: 4, transition: "opacity 0.2s" }}
+              onMouseEnter={e => e.currentTarget.style.opacity = "0.72"}
+              onMouseLeave={e => e.currentTarget.style.opacity = "1"}
+            >
+              View in Google Maps ↗
+            </a>
+          </div>
+
+          {/* Map container — fixed height so iframe always renders */}
+          <div style={{
+            position: "relative", height: 340, overflow: "hidden",
+            border: `1px solid ${C.border}`,
+            borderRadius: "var(--lwd-radius-input)",
+            boxShadow: "0 2px 16px rgba(0,0,0,0.06)",
+            background: C.bgAlt,
+          }}>
+            {/* Loading shimmer — hidden once map fires onLoad */}
+            {!mapLoaded && (
+              <div style={{
+                position: "absolute", inset: 0, display: "flex", flexDirection: "column",
+                alignItems: "center", justifyContent: "center", gap: 12,
+                background: C.bgAlt,
+              }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill={C.gold} opacity="0.4"/>
+                </svg>
+                <span style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, letterSpacing: "0.3px" }}>Loading map…</span>
+              </div>
+            )}
+            <iframe
+              title="Venue location"
+              width="100%"
+              height="340"
+              style={{ display: "block", border: "none", opacity: mapLoaded ? 1 : 0, transition: "opacity 0.4s ease" }}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              src={embedSrc}
+              onLoad={() => setMapLoaded(true)}
+            />
+          </div>
         </div>
+
       </div>
     </section>
   );
