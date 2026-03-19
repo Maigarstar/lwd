@@ -57,6 +57,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
         onVendorLogin={() => window.location.href = '/admin'}
         onNavigateStandard={() => window.location.href = '/'}
         onNavigateAbout={() => window.location.href = '/'}
+        hasHero={false}
       />
       <div style={{
         background: bgColor,
