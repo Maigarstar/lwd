@@ -266,12 +266,12 @@ export default function VenueReviewsPage() {
   // ── Pill ─────────────────────────────────────────────────────────────────────
   const Pill = ({ label, active, onClick }) => (
     <button onClick={onClick} style={{
-      padding: '7px 18px', border: `1px solid ${active ? C.gold : 'rgba(0,0,0,0.1)'}`,
+      width: 120, padding: '7px 0', border: `1px solid ${active ? C.gold : 'rgba(0,0,0,0.1)'}`,
       background: active ? C.goldLight : 'none',
       color: active ? C.gold : C.textLight,
       fontFamily: FB, fontSize: 12, fontWeight: active ? 700 : 400,
       cursor: 'pointer', transition: 'all 0.18s',
-      borderRadius: 20, letterSpacing: '0.1px',
+      borderRadius: 20, letterSpacing: '0.1px', textAlign: 'center', flexShrink: 0,
     }}
       onMouseEnter={e => { if (!active) { e.currentTarget.style.borderColor = C.goldBorder; e.currentTarget.style.color = C.gold; } }}
       onMouseLeave={e => { if (!active) { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.1)'; e.currentTarget.style.color = C.textLight; } }}
