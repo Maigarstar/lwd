@@ -560,12 +560,13 @@ export default function SiteFooter({
             background: bbBg,
             padding: `16px ${padX}px`,
             display: "flex",
-            justifyContent: "space-between",
+            flexDirection: "column",
             alignItems: "center",
-            flexWrap: "wrap",
-            gap: 12,
+            gap: 10,
+            textAlign: "center",
           }}
         >
+          {/* Copyright */}
           <div>
             <div style={{ fontFamily: NU, fontSize: 11, color: bbText }}>
               &copy; {copyrightText}
@@ -575,7 +576,8 @@ export default function SiteFooter({
             </div>
           </div>
 
-          <div className="site-footer-legal-links" style={{ display: "flex", gap: 20 }}>
+          {/* Policy links — centred */}
+          <div className="site-footer-legal-links" style={{ display: "flex", gap: 20, flexWrap: "wrap", justifyContent: "center" }}>
             {bottomLinks.map(item => {
               const label = item.label || item.text || "";
               return (
@@ -603,7 +605,6 @@ export default function SiteFooter({
               );
             })}
           </div>
-
         </div>
       )}
 
