@@ -8,8 +8,9 @@ const SCROLL_THRESHOLD = 180; // px before the label slides in
 
 export default function AuraLauncher() {
   const { openMiniBar, messages } = useChat();
-  const [hov,      setHov]      = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [hov,            setHov]          = useState(false);
+  const [expanded,       setExpanded]     = useState(false);
+  const [compareBarUp,   setCompareBarUp] = useState(false);
 
   const auraCount = messages.filter((m) => m.from === "aura").length;
 
@@ -17,9 +18,15 @@ export default function AuraLauncher() {
   useEffect(() => {
     const onScroll = () => setExpanded(window.scrollY > SCROLL_THRESHOLD);
     window.addEventListener("scroll", onScroll, { passive: true });
-    // Set initial state in case page is already scrolled
     onScroll();
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Shift up when the compare bar is visible on venue profiles
+  useEffect(() => {
+    const handler = (e) => setCompareBarUp(!!e.detail?.active);
+    window.addEventListener("lwd:compare-bar", handler);
+    return () => window.removeEventListener("lwd:compare-bar", handler);
   }, []);
 
   return (
@@ -30,9 +37,10 @@ export default function AuraLauncher() {
       aria-label="Open Aura chat assistant"
       style={{
         position:       "fixed",
-        bottom:         28,
+        bottom:         compareBarUp ? 92 : 28,
         right:          28,
         zIndex:         900,
+        transition:     "bottom 0.3s cubic-bezier(0.25,0.46,0.45,0.94), background 0.2s ease, transform 0.2s ease, padding 0.5s cubic-bezier(0.25,0.46,0.45,0.94), gap 0.5s cubic-bezier(0.25,0.46,0.45,0.94), box-shadow 0.2s ease",
         display:        "flex",
         alignItems:     "center",
         gap:            expanded ? 10 : 0,
@@ -43,8 +51,7 @@ export default function AuraLauncher() {
         border:         "none",
         cursor:         "pointer",
         boxShadow:      "0 6px 28px rgba(201,168,76,0.4)",
-        // Smooth glide — no spring/bounce, just a gentle ease-out
-        transition:     "background 0.2s ease, transform 0.2s ease, padding 0.5s cubic-bezier(0.25,0.46,0.45,0.94), gap 0.5s cubic-bezier(0.25,0.46,0.45,0.94), box-shadow 0.2s ease",
+        // Smooth glide — bottom handled in style above (includes compare-bar shift)
         transform:      hov ? "translateY(-2px)" : "translateY(0)",
       }}
     >

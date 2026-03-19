@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, createContext, useContext } from "react";
 import { getDefaultMode } from "./theme/tokens";
 import GCardMobile from "./components/cards/GCardMobile";
 import SliderNav from "./components/ui/SliderNav";
-import { fetchListingBySlug } from './services/listings';
+import { fetchListingBySlug, fetchListingById } from './services/listings';
 import { fetchApprovedReviews } from './services/reviewService';
 import { buildCardImgs, mapMediaItemToGalleryPhoto, buildVenueVideos } from './utils/mediaMappers';
 import ReviewSubmitForm from './components/reviews/ReviewSubmitForm';
@@ -5652,6 +5652,345 @@ function MobileLeadBar({ venue }) {
   );
 }
 
+// ─── COMPARE MODAL ───────────────────────────────────────────────────────────
+
+const VENUE_TYPE_LABELS = {
+  villa:       'Villa',
+  castle:      'Castle',
+  hotel:       'Hotel',
+  manor:       'Manor House',
+  chateau:     'Château',
+  barn:        'Barn',
+  garden:      'Garden',
+  beach:       'Beach',
+  vineyard:    'Vineyard',
+  estate:      'Estate',
+  palazzo:     'Palazzo',
+  resort:      'Resort',
+  farmhouse:   'Farmhouse',
+  penthouse:   'Penthouse',
+};
+
+function CompareStat({ label, value, accent, C }) {
+  return (
+    <div style={{
+      display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+      padding: '10px 0', borderBottom: `1px solid ${C.border}`,
+    }}>
+      <span style={{ fontFamily: FB, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.textMuted, fontWeight: 600 }}>
+        {label}
+      </span>
+      <span style={{ fontFamily: FB, fontSize: 13, color: accent || C.textMid, fontWeight: 500, textAlign: 'right', maxWidth: '60%' }}>
+        {value || <span style={{ color: C.textMuted, fontStyle: 'italic', fontWeight: 400 }}>—</span>}
+      </span>
+    </div>
+  );
+}
+
+function CompareVenueColumn({ venue, isLast, highlight, C, onClose, onEnquire }) {
+  const heroSrc = venue?.heroImage
+    || (Array.isArray(venue?.heroImages) && venue.heroImages[0]?.url)
+    || (Array.isArray(venue?.imgs) && venue.imgs[0]?.src)
+    || venue?.cardImage
+    || null;
+
+  const locationParts = [venue?.city, venue?.region, venue?.country].filter(Boolean);
+  const location = locationParts.join(', ');
+  const flag = COUNTRY_FLAG[venue?.country] || '';
+  const price = venue?.priceFrom
+    ? `${venue.priceCurrency || '€'}${Number(venue.priceFrom).toLocaleString()}`
+    : null;
+  const capacity = venue?.capacity ? `Up to ${Number(venue.capacity).toLocaleString()} guests` : null;
+  const type = VENUE_TYPE_LABELS[venue?.listingType?.toLowerCase?.()] || venue?.listingType || null;
+  const rating = venue?.rating ? Number(venue.rating).toFixed(1) : null;
+  const reviews = venue?.reviewCount ?? venue?.reviews ?? null;
+  const exclusiveUse = venue?.exclusiveUseEnabled ?? venue?.exclusiveUse?.enabled ?? null;
+  const slug = venue?.slug || null;
+  const profileUrl = slug ? `/venues/${slug}` : null;
+
+  if (!venue || (!venue.name && !heroSrc)) {
+    return (
+      <div style={{
+        borderRight: isLast ? 'none' : `1px solid rgba(184,160,90,0.15)`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 500,
+      }}>
+        <div style={{ fontFamily: FB, fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>Unable to load</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      borderRight: isLast ? 'none' : `1px solid rgba(184,160,90,0.15)`,
+      display: 'flex', flexDirection: 'column',
+      position: 'relative',
+    }}>
+
+      {/* Highlight badge */}
+      {highlight && (
+        <div style={{
+          position: 'absolute', top: 16, left: 16, zIndex: 2,
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+          border: `1px solid ${C.gold}`,
+          padding: '3px 10px', borderRadius: 2,
+          fontFamily: FB, fontSize: 9, fontWeight: 700,
+          letterSpacing: '0.14em', textTransform: 'uppercase', color: C.gold,
+        }}>
+          {highlight}
+        </div>
+      )}
+
+      {/* Hero image */}
+      <div style={{ position: 'relative', height: 300, flexShrink: 0, overflow: 'hidden', background: '#1a1a18' }}>
+        {heroSrc ? (
+          <img
+            src={heroSrc}
+            alt={venue.name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+        ) : (
+          <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #1a1a18 0%, #2a2a24 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontFamily: FD, fontSize: 32, color: 'rgba(184,160,90,0.2)' }}>✦</span>
+          </div>
+        )}
+        {/* Gradient overlay */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.1) 55%, transparent 100%)' }} />
+        {/* Name over image */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '20px 24px' }}>
+          {rating && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+              <span style={{ color: C.gold, fontSize: 10 }}>★</span>
+              <span style={{ fontFamily: FB, fontSize: 11, color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>
+                {rating}
+              </span>
+              {reviews > 0 && (
+                <span style={{ fontFamily: FB, fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>
+                  · {reviews} review{reviews !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+          )}
+          <div style={{ fontFamily: FD, fontSize: 20, color: '#fff', fontWeight: 400, lineHeight: 1.2, marginBottom: 4 }}>
+            {venue.name}
+          </div>
+          {location && (
+            <div style={{ fontFamily: FB, fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
+              {flag && <span style={{ marginRight: 5 }}>{flag}</span>}
+              {location}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div style={{ padding: '24px 24px 20px', flex: 1, background: '#0f0f0d' }}>
+        <CompareStat label="Starting From" value={price ? <span style={{ color: C.gold }}>{price}</span> : null} C={C} />
+        <CompareStat label="Capacity" value={capacity} C={C} />
+        <CompareStat label="Venue Type" value={type} C={C} />
+        <CompareStat
+          label="Exclusive Use"
+          value={
+            exclusiveUse === true  ? <span style={{ color: '#8fa08c' }}>✓ Available</span> :
+            exclusiveUse === false ? <span style={{ color: C.textMuted }}>Not offered</span> :
+            null
+          }
+          C={C}
+        />
+      </div>
+
+      {/* CTAs */}
+      <div style={{ padding: '20px 24px 28px', display: 'flex', flexDirection: 'column', gap: 8, background: '#0f0f0d' }}>
+        {profileUrl ? (
+          <a
+            href={profileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'block', textAlign: 'center',
+              padding: '11px 16px',
+              background: C.gold, border: 'none', borderRadius: 'var(--lwd-radius-input)',
+              color: '#fff', fontFamily: FB, fontSize: 12, fontWeight: 700,
+              letterSpacing: '0.06em', textTransform: 'uppercase',
+              textDecoration: 'none', cursor: 'pointer',
+              transition: 'opacity 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+          >
+            View Full Profile →
+          </a>
+        ) : null}
+        <button
+          onClick={() => onEnquire && onEnquire(slug)}
+          style={{
+            display: 'block', width: '100%', textAlign: 'center',
+            padding: '10px 16px',
+            background: 'transparent',
+            border: `1px solid rgba(255,255,255,0.18)`,
+            borderRadius: 'var(--lwd-radius-input)',
+            color: 'rgba(255,255,255,0.6)', fontFamily: FB, fontSize: 12, fontWeight: 500,
+            letterSpacing: '0.04em',
+            cursor: 'pointer',
+            transition: 'border-color 0.15s, color 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = `rgba(184,160,90,0.5)`; e.currentTarget.style.color = C.gold; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = `rgba(255,255,255,0.18)`; e.currentTarget.style.color = 'rgba(255,255,255,0.6)'; }}
+        >
+          Send Enquiry
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CompareModal({ items, onClose, onEnquire }) {
+  const C = DARK; // modal is always dark
+  const [venues, setVenues]   = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Lock body scroll
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  // Escape to close
+  useEffect(() => {
+    const handler = e => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  // Fetch all venues
+  useEffect(() => {
+    if (!items.length) return;
+    let cancelled = false;
+    setLoading(true);
+    Promise.all(
+      items.map(item =>
+        fetchListingById(String(item.id)).catch(() => ({ id: item.id, name: item.name }))
+      )
+    ).then(results => {
+      if (!cancelled) { setVenues(results); setLoading(false); }
+    });
+    return () => { cancelled = true; };
+  }, [items]);
+
+  // Compute highlight badges — best rating, best price
+  const highlights = {};
+  if (venues.length >= 2) {
+    const ratings = venues.map((v, i) => ({ i, val: v?.rating ? Number(v.rating) : -1 }));
+    const prices  = venues.map((v, i) => ({ i, val: v?.priceFrom ? Number(v.priceFrom) : Infinity }));
+    const topRated  = ratings.reduce((a, b) => b.val > a.val ? b : a);
+    const bestValue = prices.reduce((a, b) => b.val < a.val ? b : a);
+    if (topRated.val  > 0)          highlights[topRated.i]  = 'Highest Rated';
+    if (bestValue.val < Infinity && bestValue.i !== topRated.i) highlights[bestValue.i] = 'Most Affordable';
+  }
+
+  const count = items.length;
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 960,
+        background: 'rgba(0,0,0,0.97)',
+        display: 'flex', flexDirection: 'column',
+        animation: 'fadeIn 0.2s ease',
+      }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      {/* ── Header ── */}
+      <div style={{
+        flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '22px 40px',
+        borderBottom: `1px solid rgba(184,160,90,0.18)`,
+        background: 'rgba(10,10,8,0.95)',
+        backdropFilter: 'blur(16px)',
+      }}>
+        <div>
+          <div style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: C.gold, fontWeight: 700, marginBottom: 5 }}>
+            Venue Comparison
+          </div>
+          <div style={{ fontFamily: FD, fontSize: 24, color: '#fff', fontWeight: 400 }}>
+            {count === 1 ? '1 Venue Selected' : `${count} Venues Side by Side`}
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          aria-label="Close comparison"
+          style={{
+            width: 44, height: 44, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.14)',
+            color: 'rgba(255,255,255,0.7)', fontSize: 20, lineHeight: 1,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'all 0.2s', flexShrink: 0,
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = '#fff'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
+        >
+          ×
+        </button>
+      </div>
+
+      {/* ── Body ── */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '40px' }}>
+        {loading ? (
+          <div style={{
+            height: '100%', minHeight: 400,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16,
+          }}>
+            <div style={{ fontFamily: FD, fontSize: 20, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.04em' }}>
+              Curating your comparison…
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              {items.map((_, i) => (
+                <div key={i} style={{
+                  width: 5, height: 5, borderRadius: '50%',
+                  background: 'rgba(184,160,90,0.5)',
+                  animation: `dotPulse 1.4s ease-in-out ${i * 0.18}s infinite`,
+                }} />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${count}, 1fr)`,
+            border: `1px solid rgba(184,160,90,0.2)`,
+            borderRadius: 12,
+            overflow: 'hidden',
+            boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
+          }}>
+            {venues.map((venue, i) => (
+              <CompareVenueColumn
+                key={venue?.id || i}
+                venue={venue}
+                isLast={i === venues.length - 1}
+                highlight={highlights[i] || null}
+                C={C}
+                onClose={onClose}
+                onEnquire={onEnquire}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Footer note */}
+        {!loading && (
+          <div style={{ textAlign: 'center', marginTop: 28 }}>
+            <span style={{ fontFamily: FB, fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>
+              Add up to 3 venues to compare · Click outside or press Esc to close
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── COMPARE BAR ─────────────────────────────────────────────────────────────
 function CompareBar({ items, onRemove, onClear, onCompare }) {
   const C = useT();
@@ -6248,12 +6587,39 @@ function VenueCookieBanner() {
   );
 }
 
+// ─── COMPARE LIST PERSISTENCE ─────────────────────────────────────────────────
+// Stored in sessionStorage so it survives slug changes and page navigations
+// within the same browser session.
+const COMPARE_STORAGE_KEY = 'lwd_compare_list';
+
+function loadCompareList() {
+  try { return JSON.parse(sessionStorage.getItem(COMPARE_STORAGE_KEY)) || []; }
+  catch { return []; }
+}
+
+function saveCompareList(list) {
+  try { sessionStorage.setItem(COMPARE_STORAGE_KEY, JSON.stringify(list)); }
+  catch {}
+}
+
 // ─── MAIN EXPORT ─────────────────────────────────────────────────────────────
 export default function VenueProfile({ onBack = null, slug = null }) {
-  const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
+  // Always default to light mode on venue profiles — dark is opt-in via toggle
+  const [darkMode, setDarkMode] = useState(false);
   const [saved, setSaved] = useState(false);
   const [lightIdx, setLightIdx] = useState(null);
-  const [compareList, setCompareList] = useState([]);
+  const [compareList, setCompareList] = useState(() => loadCompareList());
+  const [showCompareModal, setShowCompareModal] = useState(false);
+
+  // Sync compareList to sessionStorage + notify global Aura button to shift up
+  useEffect(() => {
+    saveCompareList(compareList);
+    window.dispatchEvent(new CustomEvent('lwd:compare-bar', { detail: { active: compareList.length > 0 } }));
+    // Cleanup: broadcast inactive when this component unmounts
+    return () => {
+      window.dispatchEvent(new CustomEvent('lwd:compare-bar', { detail: { active: false } }));
+    };
+  }, [compareList]);
   const [heroStyle, setHeroStyle] = useState("cinematic");
   const [enquiryOpen, setEnquiryOpen] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
@@ -6660,10 +7026,27 @@ export default function VenueProfile({ onBack = null, slug = null }) {
           onCompare={() => {
             trackCompareView({ compareList, sourceSurface: 'compare_bar' });
             trackComparePair({ compareList, sourceSurface: 'compare_bar' });
+            setShowCompareModal(true);
           }}
         />
         <Lightbox gallery={VV.gallery} idx={lightIdx} setLightIdx={setLightIdx} onClose={() => setLightIdx(null)} onPrev={() => setLightIdx(i => (i - 1 + (VV.gallery?.length || 1)) % (VV.gallery?.length || 1))} onNext={() => setLightIdx(i => (i + 1) % (VV.gallery?.length || 1))} engagement={VV.engagement?.photos} />
         {enquiryOpen && <EnquiryModal venue={VV} onClose={() => setEnquiryOpen(false)} />}
+        {showCompareModal && compareList.length > 0 && (
+          <CompareModal
+            items={compareList}
+            onClose={() => setShowCompareModal(false)}
+            onEnquire={(venueSlug) => {
+              setShowCompareModal(false);
+              if (venueSlug && venueSlug === slug) {
+                // Current venue — open enquiry inline
+                setEnquiryOpen(true);
+              } else if (venueSlug) {
+                // Different venue — navigate to their profile
+                window.location.href = `/venues/${venueSlug}`;
+              }
+            }}
+          />
+        )}
         {showReviewForm && (
           <div
             style={{

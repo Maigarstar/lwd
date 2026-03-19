@@ -5,10 +5,18 @@ import Icon from "./Icons";
 
 export default function AuraMiniBar() {
   const { messages, isTyping, sendMessage, openWorkspace, closeChat } = useChat();
-  const [input, setInput]       = useState("");
+  const [input, setInput]         = useState("");
   const [listening, setListening] = useState(false);
-  const threadRef         = useRef(null);
-  const inputRef          = useRef(null);
+  const [compareBarUp, setCompareBarUp] = useState(false);
+  const threadRef  = useRef(null);
+  const inputRef   = useRef(null);
+
+  // Shift up when the compare bar is visible on venue profiles
+  useEffect(() => {
+    const handler = (e) => setCompareBarUp(!!e.detail?.active);
+    window.addEventListener("lwd:compare-bar", handler);
+    return () => window.removeEventListener("lwd:compare-bar", handler);
+  }, []);
 
   // Last 3 messages for the compact thread
   const thread = messages.slice(-3);
@@ -68,9 +76,10 @@ export default function AuraMiniBar() {
       aria-label="Aura mini chat"
       style={{
         position:            "fixed",
-        bottom:              20,
+        bottom:              compareBarUp ? 84 : 20,
         left:                "50%",
         transform:           "translateX(-50%)",
+        transition:          "bottom 0.3s cubic-bezier(0.25,0.46,0.45,0.94)",
         zIndex:              900,
         width:               660,
         maxWidth:            "calc(100vw - 32px)",
