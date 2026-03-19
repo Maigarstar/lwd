@@ -18,7 +18,7 @@ import { supabase } from '../lib/supabaseClient';
 // ─────────────────────────────────────────────────────────────────────────────
 
 const SESSION_ID_KEY  = 'lwd_session_id';
-const MODAL_SEEN_KEY  = 'lwd_ext_modal_seen';
+const MODAL_SEEN_KEY  = 'lwd_ext_modal_seen_domains'; // JSON array of hostnames
 
 export function getSessionId() {
   try {
@@ -41,17 +41,26 @@ export function getSessionId() {
 // Social media links always skip the modal entirely (but may still track).
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function hasSeenModalThisSession() {
+// Returns true only if this specific domain has already been introduced this session.
+// Each new destination gets its own modal — once per domain per session.
+export function hasSeenModalThisSession(url) {
   try {
-    return sessionStorage.getItem(MODAL_SEEN_KEY) === 'true';
+    const hostname = new URL(url).hostname;
+    const seen = JSON.parse(sessionStorage.getItem(MODAL_SEEN_KEY) || '[]');
+    return seen.includes(hostname);
   } catch {
     return false;
   }
 }
 
-export function markModalSeen() {
+export function markModalSeen(url) {
   try {
-    sessionStorage.setItem(MODAL_SEEN_KEY, 'true');
+    const hostname = new URL(url).hostname;
+    const seen = JSON.parse(sessionStorage.getItem(MODAL_SEEN_KEY) || '[]');
+    if (!seen.includes(hostname)) {
+      seen.push(hostname);
+      sessionStorage.setItem(MODAL_SEEN_KEY, JSON.stringify(seen));
+    }
   } catch {
     // sessionStorage unavailable — silently ignore
   }

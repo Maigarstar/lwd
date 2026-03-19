@@ -272,7 +272,7 @@ function SocialLinksCard({ vendor, venueId, C }) {
       window.open(link.href, '_blank', 'noopener,noreferrer');
     } else {
       // Website — modal once per session, then direct
-      if (!hasSeenModalThisSession()) {
+      if (!hasSeenModalThisSession(link.href)) {
         setExitConfig({ url: link.href, name: vendor.name || vendor.business_name || 'this vendor' });
       } else {
         trackExternalClick(trackData);
@@ -307,7 +307,7 @@ function SocialLinksCard({ vendor, venueId, C }) {
           url={exitConfig.url}
           onClose={() => setExitConfig(null)}
           onContinue={() => {
-            markModalSeen();
+            markModalSeen(exitConfig.url);
             trackExternalClick({
               entityType: 'vendor',
               entityId: vendor.id || null,

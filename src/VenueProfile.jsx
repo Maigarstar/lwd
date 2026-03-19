@@ -1475,7 +1475,7 @@ function SidebarContact({ venue }) {
   const handleWebsiteClick = () => {
     const url = toAbsoluteUrl(venue.contact.website);
     const trackData = { entityType: 'venue', entityId: venue.id, venueId: venue.id, linkType: 'website', url };
-    if (!hasSeenModalThisSession()) {
+    if (!hasSeenModalThisSession(url)) {
       setExitConfig({ url, name: venue.name });
     } else {
       trackExternalClick(trackData);
@@ -1533,7 +1533,7 @@ function SidebarContact({ venue }) {
           url={exitConfig.url}
           onClose={() => setExitConfig(null)}
           onContinue={() => {
-            markModalSeen();
+            markModalSeen(exitConfig.url);
             trackExternalClick({ entityType: 'venue', entityId: venue.id, venueId: venue.id, linkType: 'website', url: exitConfig.url });
           }}
         />
@@ -2960,7 +2960,7 @@ function ContactSection({ venue }) {
   const handleWebsiteClick = () => {
     const url = toAbsoluteUrl(venue.contact.website);
     const trackData = { entityType: 'venue', entityId: venue.id, venueId: venue.id, linkType: 'website', url };
-    if (!hasSeenModalThisSession()) {
+    if (!hasSeenModalThisSession(url)) {
       setExitConfig({ url, name: venue.name });
     } else {
       trackExternalClick(trackData);
@@ -3168,7 +3168,7 @@ function ContactSection({ venue }) {
           url={exitConfig.url}
           onClose={() => setExitConfig(null)}
           onContinue={() => {
-            markModalSeen();
+            markModalSeen(exitConfig.url);
             trackExternalClick({ entityType: 'venue', entityId: venue.id, venueId: venue.id, linkType: 'website', url: exitConfig.url });
           }}
         />
