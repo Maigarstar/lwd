@@ -16,7 +16,7 @@
 const FD = 'var(--font-heading-primary)';
 const FB = 'var(--font-body)';
 const GOLD = '#b8a05a';
-const GOLD_DIM = 'rgba(184,160,90,0.3)';
+const GOLD_DIM = 'rgba(184,160,90,0.28)';
 
 export default function ExternalLinkModal({ name, url, onClose, onContinue }) {
   if (!url) return null;
@@ -46,23 +46,24 @@ export default function ExternalLinkModal({ name, url, onClose, onContinue }) {
           border: `1px solid ${GOLD_DIM}`,
           borderRadius: 2,
           width: 'min(500px, 88vw)',
-          padding: '52px 48px 46px',
+          padding: '52px 48px 48px',
           position: 'relative',
           textAlign: 'center',
           boxShadow: '0 32px 80px rgba(0,0,0,0.65)',
         }}
       >
-        {/* ✕ Close */}
+        {/* ✕ Close — softer, more restrained */}
         <button
           onClick={onClose}
           style={{
-            position: 'absolute', top: 16, right: 18,
+            position: 'absolute', top: 18, right: 20,
             background: 'none', border: 'none', cursor: 'pointer',
-            fontSize: 16, color: 'rgba(184,160,90,0.45)', lineHeight: 1,
-            transition: 'color 0.2s',
+            fontSize: 14, color: 'rgba(184,160,90,0.28)', lineHeight: 1,
+            transition: 'color 0.25s',
+            fontWeight: 300,
           }}
-          onMouseEnter={e => e.currentTarget.style.color = GOLD}
-          onMouseLeave={e => e.currentTarget.style.color = 'rgba(184,160,90,0.45)'}
+          onMouseEnter={e => e.currentTarget.style.color = 'rgba(184,160,90,0.65)'}
+          onMouseLeave={e => e.currentTarget.style.color = 'rgba(184,160,90,0.28)'}
           aria-label="Close"
         >✕</button>
 
@@ -71,53 +72,53 @@ export default function ExternalLinkModal({ name, url, onClose, onContinue }) {
           fontFamily: FB,
           fontSize: 9, fontWeight: 700,
           letterSpacing: '0.22em', textTransform: 'uppercase',
-          color: GOLD, marginBottom: 18,
+          color: GOLD, marginBottom: 20,
         }}>
           You're being connected
         </div>
 
         {/* Gold divider */}
-        <div style={{ width: 28, height: 1, background: 'rgba(184,160,90,0.3)', margin: '0 auto 26px' }} />
+        <div style={{ width: 28, height: 1, background: 'rgba(184,160,90,0.28)', margin: '0 auto 30px' }} />
 
-        {/* Headline */}
+        {/* Headline — destination name is the hero */}
         <p style={{
           fontFamily: FD,
           fontSize: 28, fontWeight: 400, fontStyle: 'italic',
           color: '#f0ede6', lineHeight: 1.45,
-          margin: '0 0 12px',
+          margin: '0 0 18px',
         }}>
           You're being connected to{' '}
-          {name && (
-            <span style={{ color: GOLD }}>{name}</span>
-          )}
+          {name && <span style={{ color: GOLD }}>{name}</span>}
         </p>
 
-        {/* Body */}
+        {/* "via LWD" — introducer, not the focus. Smaller + lower contrast */}
         <p style={{
           fontFamily: FB,
-          fontSize: 13, color: 'rgba(200,196,188,0.75)',
-          lineHeight: 1.65, margin: '0 0 6px',
+          fontSize: 11, color: 'rgba(200,196,188,0.38)',
+          letterSpacing: '0.04em',
+          lineHeight: 1.6, margin: '0 0 10px',
         }}>
           via Luxury Wedding Directory
         </p>
 
-        {/* Subtext */}
+        {/* Legal subtext — smallest, lowest contrast, it's context not content */}
         <p style={{
           fontFamily: FB,
-          fontSize: 12, color: 'rgba(200,196,188,0.45)',
-          margin: '0 0 36px', letterSpacing: '0.01em',
+          fontSize: 11, color: 'rgba(200,196,188,0.28)',
+          margin: '0 0 42px',
+          letterSpacing: '0.02em',
         }}>
           This website is managed independently
         </p>
 
-        {/* CTAs */}
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 28 }}>
+        {/* CTAs — wider gap for premium breathing room */}
+        <div style={{ display: 'flex', gap: 16, justifyContent: 'center', alignItems: 'center', marginBottom: 32 }}>
           <a
             href={url}
             onClick={handleContinue}
             style={{
               display: 'inline-block',
-              padding: '13px 38px',
+              padding: '13px 40px',
               background: GOLD,
               color: '#0a0a08',
               fontFamily: FB, fontSize: 11, fontWeight: 800,
@@ -135,31 +136,31 @@ export default function ExternalLinkModal({ name, url, onClose, onContinue }) {
             style={{
               background: 'none',
               border: `1px solid ${GOLD_DIM}`,
-              color: 'rgba(200,196,188,0.55)',
+              color: 'rgba(200,196,188,0.5)',
               fontFamily: FB, fontSize: 11, fontWeight: 700,
               letterSpacing: '0.13em', textTransform: 'uppercase',
-              padding: '13px 28px', borderRadius: 1, cursor: 'pointer',
+              padding: '13px 30px', borderRadius: 1, cursor: 'pointer',
               transition: 'border-color 0.2s, color 0.2s',
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.borderColor = 'rgba(184,160,90,0.6)';
+              e.currentTarget.style.borderColor = 'rgba(184,160,90,0.55)';
               e.currentTarget.style.color = '#c8c4bc';
             }}
             onMouseLeave={e => {
               e.currentTarget.style.borderColor = GOLD_DIM;
-              e.currentTarget.style.color = 'rgba(200,196,188,0.55)';
+              e.currentTarget.style.color = 'rgba(200,196,188,0.5)';
             }}
           >
             Go Back
           </button>
         </div>
 
-        {/* Return line — smaller, lighter, visually secondary */}
+        {/* Return line — italic, gold ghost, visually the quietest element */}
         <p style={{
           fontFamily: FD,
-          fontSize: 13, fontStyle: 'italic',
-          color: 'rgba(184,160,90,0.35)',
-          margin: 0, lineHeight: 1.5,
+          fontSize: 12, fontStyle: 'italic',
+          color: 'rgba(184,160,90,0.3)',
+          margin: 0, lineHeight: 1.6,
         }}>
           We'll be here when you're ready to continue planning
         </p>
