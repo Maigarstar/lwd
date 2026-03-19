@@ -87,6 +87,11 @@ export const DEFAULT_FOOTER_CONFIG = {
   bottom_bar_bg:       "#080604",
   bottom_bar_text:     "#5a5045",
   copyright_text:      "2025 Luxury Wedding Directory",
+  show_taigenic:       true,
+  taigenic_label:      "Powered by Taigenic.AI",
+  taigenic_tagline:    "AI systems for luxury brands",
+  taigenic_url:        "/taigenic",
+  taigenic_symbol:     "✦",
   visibility_mode:     "all",
 };
 

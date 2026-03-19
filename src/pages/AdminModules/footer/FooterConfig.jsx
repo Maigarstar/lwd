@@ -463,6 +463,19 @@ export default function FooterConfig({ footerConfig, onConfigChange, onSave, sav
         )}
       </Section>
 
+      {/* ── Taigenic Signature ──────────────────────────────────────── */}
+      <Section title="Taigenic Signature" C={C}>
+        <ToggleRow label="Show signature" field="show_taigenic" cfg={cfg} set={set} C={C} />
+        {cfg.show_taigenic && (
+          <>
+            <TextRow label="Symbol" field="taigenic_symbol" cfg={cfg} set={set} placeholder="✦" C={C} />
+            <TextRow label="Top line" field="taigenic_label" cfg={cfg} set={set} placeholder="Powered by Taigenic.AI" C={C} />
+            <TextRow label="Tagline" field="taigenic_tagline" cfg={cfg} set={set} placeholder="AI systems for luxury brands" C={C} />
+            <TextRow label="Link URL" field="taigenic_url" cfg={cfg} set={set} placeholder="/taigenic" C={C} />
+          </>
+        )}
+      </Section>
+
       {/* ── Visibility ──────────────────────────────────────────────── */}
       <Section title="Visibility" C={C}>
         <div style={{ fontFamily: SANS, fontSize: 11, color: C?.grey || "#8a7d6a", lineHeight: 1.6, marginBottom: 8 }}>

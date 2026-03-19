@@ -185,8 +185,13 @@ export default function SiteFooter({
   // Strip label
   const stripLabel    = cfg?.strip_label || "Iconic Venues";
   const showNewsletter = cfg ? cfg.show_newsletter : false;
-  const showBottomBar  = cfg ? cfg.show_bottom_bar : true;
-  const copyrightText  = cfg?.copyright_text || "2026 LuxuryWeddingDirectory.com · Est. 2006 · All rights reserved";
+  const showBottomBar   = cfg ? cfg.show_bottom_bar : true;
+  const copyrightText   = cfg?.copyright_text || "2026 LuxuryWeddingDirectory.com · Est. 2006 · All rights reserved";
+  const showTaigenic    = cfg ? cfg.show_taigenic !== false : true;
+  const taigenicLabel   = cfg?.taigenic_label   || "Powered by Taigenic.AI";
+  const taigenicTagline = cfg?.taigenic_tagline || "AI systems for luxury brands";
+  const taigenicUrl     = cfg?.taigenic_url     || "/taigenic";
+  const taigenicSymbol  = cfg?.taigenic_symbol  || "✦";
 
   // Grid columns: brand (wider) + one per nav col
   const gridTemplateColumns = `2fr ${navCols.map(() => "1fr").join(" ")}`;
@@ -609,10 +614,10 @@ export default function SiteFooter({
       )}
 
       {/* ── Taigenic signature ───────────────────────────────────────────── */}
-      {showBottomBar && (
+      {showBottomBar && showTaigenic && (
         <div style={{ background: bbBg, padding: "6px 0 20px", textAlign: "center" }}>
           <a
-            href="/taigenic"
+            href={taigenicUrl}
             style={{
               textDecoration: "none",
               display: "inline-block",
@@ -623,13 +628,11 @@ export default function SiteFooter({
             onMouseEnter={e => {
               e.currentTarget.style.background = "rgba(201,168,76,0.06)";
               e.currentTarget.querySelector(".tai-line1").style.color = gold;
-              e.currentTarget.querySelector(".tai-line1").style.opacity = "1";
               e.currentTarget.querySelector(".tai-line2").style.opacity = "0.65";
             }}
             onMouseLeave={e => {
               e.currentTarget.style.background = "transparent";
               e.currentTarget.querySelector(".tai-line1").style.color = "rgba(255,255,255,0.48)";
-              e.currentTarget.querySelector(".tai-line1").style.opacity = "1";
               e.currentTarget.querySelector(".tai-line2").style.opacity = "1";
             }}
           >
@@ -642,7 +645,7 @@ export default function SiteFooter({
               color: "rgba(255,255,255,0.48)",
               transition: "color 0.3s",
             }}>
-              ✦ Powered by Taigenic.AI
+              {taigenicSymbol} {taigenicLabel}
             </span>
             <span className="tai-line2" style={{
               display: "block",
@@ -653,7 +656,7 @@ export default function SiteFooter({
               marginTop: 2,
               transition: "opacity 0.3s",
             }}>
-              AI systems for luxury brands
+              {taigenicTagline}
             </span>
           </a>
         </div>
