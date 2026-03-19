@@ -65,8 +65,8 @@ export default function AuraWorkspace({ onBack, onHome, onVenues, onLogin }) {
 
   // mobileDrawer: null | "left" | "right"
   const [mobileDrawer,   setMobileDrawer]   = useState(null);
-  const [leftCollapsed,  setLeftCollapsed]  = useState(true);
-  const [rightCollapsed, setRightCollapsed] = useState(true);
+  const [leftCollapsed,  setLeftCollapsed]  = useState(false);
+  const [rightCollapsed, setRightCollapsed] = useState(false);
   const [visible,        setVisible]        = useState(false);
   const [darkMode,       setDarkMode]       = useState(false);
   const [shareToast,     setShareToast]     = useState(false);
