@@ -11,6 +11,7 @@ import MenuTreePanel   from "./menu/MenuTreePanel.jsx";
 import MenuItemEditor  from "./menu/MenuItemEditor.jsx";
 import MenuNavConfig   from "./menu/MenuNavConfig.jsx";
 import MenuCanvas      from "./menu/MenuCanvas.jsx";
+import MenuBranding    from "./menu/MenuBranding.jsx";
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -93,7 +94,7 @@ export default function MenuModule({ C }) {
   const [draftForm, setDraftForm]     = useState(null); // live draft from editor (for canvas)
 
   // ── UI state ────────────────────────────────────────────────────────────
-  const [leftTab, setLeftTab]         = useState("items"); // "items" | "config"
+  const [leftTab, setLeftTab]         = useState("items"); // "items" | "config" | "branding"
   const [toast, setToast]             = useState(null);
   const [deleting, setDeleting]       = useState(null);   // item.id being deleted
   const [moving, setMoving]           = useState(null);   // item.id being reordered
@@ -314,7 +315,7 @@ export default function MenuModule({ C }) {
             border: `1px solid ${C?.border || "#2a2218"}`,
             borderRadius: 8, padding: 4,
           }}>
-            {[["items", "Items"], ["config", "Nav Config"]].map(([key, label]) => (
+            {[["items", "Items"], ["config", "Nav Config"], ["branding", "Branding"]].map(([key, label]) => (
               <button key={key} onClick={() => setLeftTab(key)} style={{
                 flex: 1, background: leftTab === key ? G : "transparent",
                 border: `1px solid ${leftTab === key ? G : "transparent"}`,
@@ -383,6 +384,11 @@ export default function MenuModule({ C }) {
               saving={configSaving}
               C={C}
             />
+          )}
+
+          {/* Branding tab */}
+          {leftTab === "branding" && (
+            <MenuBranding C={C} />
           )}
         </div>
 

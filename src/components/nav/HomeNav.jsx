@@ -9,6 +9,27 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
+// ── Site branding defaults ────────────────────────────────────────────────────
+const DEFAULT_BRANDING = {
+  logo_type:                 "text",
+  logo_text:                 "Luxury Wedding Directory",
+  logo_font:                 "serif",
+  logo_color:                null,
+  logo_image_light:          null,
+  logo_image_dark:           null,
+  logo_image_mobile:         null,
+  logo_alt_text:             "Luxury Wedding Directory",
+  logo_link_target:          "/",
+  header_layout:             "logo-left",
+  show_logo_in_header:       true,
+  header_logo_width_desktop: 180,
+  header_logo_width_mobile:  120,
+  header_logo_rendering:     "contain",
+  transparent_bg_expected:   true,
+  logo_align_header:         "left",
+  menu_align_header:         "right",
+};
+
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
 
@@ -45,6 +66,7 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
   const [drawerOpen,  setDrawerOpen] = useState(false);
   const [navItems,    setNavItems]   = useState(FALLBACK_LINKS);
   const [openPanel,   setOpenPanel]  = useState(null); // nav item id | null
+  const [branding,    setBranding]   = useState(DEFAULT_BRANDING);
   const navRef    = useRef(null);
   const closeTimer = useRef(null);
 
@@ -98,6 +120,18 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
     return () => { document.body.style.overflow = ""; };
   }, [drawerOpen]);
 
+  // Load site branding (logo + layout)
+  useEffect(() => {
+    supabase
+      .from("site_branding")
+      .select("*")
+      .eq("id", "main")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setBranding({ ...DEFAULT_BRANDING, ...data });
+      });
+  }, []);
+
   // Load nav items from Supabase, fall back to static list on error
   useEffect(() => {
     supabase
@@ -112,6 +146,206 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
   }, []);
 
   const handlers = { onNavigateAbout, onNavigateStandard, onVendorLogin };
+
+  // ── Layout flags ─────────────────────────────────────────────────────────────
+  const isStacked  = branding.header_layout === "logo-center-stacked" || branding.header_layout === "logo-above-centered";
+  const isSplit    = branding.header_layout === "split-center-logo";
+  const isCenterMenu = branding.header_layout === "logo-left-center-menu";
+
+  // Resolve logo image src: on transparent hero, prefer dark variant; otherwise prefer light
+  const logoImgSrc = (() => {
+    if (branding.logo_type !== "image" && branding.logo_type !== "image+text") return null;
+    const useLight = !isTransparent || !branding.transparent_bg_expected;
+    const light = branding.logo_image_light;
+    const dark  = branding.logo_image_dark;
+    if (useLight)  return light || dark || null;
+    return dark || light || null;
+  })();
+
+  const logoWidth = window?.innerWidth < 768
+    ? (branding.header_logo_width_mobile || 120)
+    : (branding.header_logo_width_desktop || 180);
+
+  // ── Logo renderer ─────────────────────────────────────────────────────────
+  function renderLogo() {
+    if (!branding.show_logo_in_header) return null;
+
+    const handleClick = () => {
+      const target = branding.logo_link_target || "/";
+      if (target === "/" || target === "") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        window.location.href = target;
+      }
+    };
+
+    const isImageType = branding.logo_type === "image" || branding.logo_type === "image+text" || branding.logo_type === "icon";
+    const isTextType  = branding.logo_type === "text" || branding.logo_type === "image+text";
+
+    return (
+      <div
+        style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flexShrink: 0 }}
+        onClick={handleClick}
+      >
+        {/* Image / icon */}
+        {isImageType && logoImgSrc && (
+          <img
+            src={logoImgSrc}
+            alt={branding.logo_alt_text || "Site logo"}
+            style={{
+              width: branding.header_logo_rendering === "fixed-width" ? logoWidth : "auto",
+              height: branding.header_logo_rendering === "fixed-height" ? 40 : "auto",
+              maxWidth: logoWidth,
+              maxHeight: 52,
+              objectFit: branding.header_logo_rendering === "cover" ? "cover" : "contain",
+              display: "block",
+            }}
+          />
+        )}
+        {/* Text */}
+        {isTextType && (
+          <div
+            className="home-nav-brand"
+            style={{
+              fontFamily: branding.logo_font === "sans" ? NU : GD,
+              fontSize: 20,
+              fontWeight: 600,
+              color: branding.logo_color || brandColor,
+              letterSpacing: 0.5,
+              transition: "color 0.3s ease",
+            }}
+          >
+            {/* Preserve the gold "Wedding" highlight for the default text */}
+            {branding.logo_text === "Luxury Wedding Directory" && !branding.logo_color
+              ? <>Luxury <span style={{ color: C.gold }}>Wedding</span> Directory</>
+              : (branding.logo_text || "Luxury Wedding Directory")}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Shared nav links block (used in both layouts) ─────────────────────────
+  function renderNavLinks() {
+    return (
+      <div
+        className="home-nav-right-desktop"
+        style={{ display: "flex", gap: isStacked ? 24 : 28, alignItems: "center" }}
+      >
+        {navItems.filter(i => i.type !== "cta").map((item) => {
+          const FONT_MAP = { serif: GD, mono: "'JetBrains Mono','Fira Mono',monospace", sans: NU };
+          const labelFont = FONT_MAP[item.label_font] || NU;
+          const itemColor = item.label_color || linkColor;
+          const handler   = resolveHandler(item, handlers);
+          const isMega    = item.type === "mega_menu" || item.type === "dropdown";
+          const navH      = navRef.current ? navRef.current.getBoundingClientRect().bottom : 64;
+
+          if (isMega) {
+            return (
+              <div
+                key={item.id}
+                style={{ position: "relative" }}
+                onMouseEnter={() => openMegaMenu(item.id)}
+                onMouseLeave={startClose}
+              >
+                <button
+                  className="home-nav-links"
+                  onClick={handler || undefined}
+                  style={{
+                    background: "none", border: "none",
+                    cursor: "pointer", fontSize: 13, fontWeight: 400,
+                    color: openPanel === item.id ? C.gold : linkColor,
+                    fontFamily: labelFont, letterSpacing: "0.3px", transition: "color 0.2s",
+                    display: "flex", alignItems: "center", gap: 4,
+                  }}
+                >
+                  {item.label}
+                  <span style={{ fontSize: 9, opacity: 0.6, transition: "transform 0.2s", transform: openPanel === item.id ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
+                </button>
+                {openPanel === item.id && (
+                  <MegaMenuPanel
+                    item={item}
+                    navHeight={navH}
+                    onMouseEnter={cancelClose}
+                    onMouseLeave={startClose}
+                  />
+                )}
+              </div>
+            );
+          }
+
+          return (
+            <button
+              key={item.id}
+              className="home-nav-links"
+              onClick={handler || undefined}
+              style={{
+                background: "none", border: "none",
+                cursor: handler ? "pointer" : "default",
+                fontSize: 13, fontWeight: 400, color: linkColor,
+                fontFamily: labelFont, letterSpacing: "0.3px", transition: "color 0.2s",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.color = C.gold)}
+              onMouseLeave={e => (e.currentTarget.style.color = linkColor)}
+            >
+              {item.label}
+            </button>
+          );
+        })}
+
+        {/* CTA items */}
+        {navItems.filter(i => i.type === "cta").map((item) => {
+          const handler = resolveHandler(item, handlers);
+          const isOutline = item.cta_style === "outline";
+          const isDark = item.cta_style === "dark";
+          return (
+            <button
+              key={item.id}
+              onClick={handler || undefined}
+              style={{
+                background: isDark ? "#0a0906" : isOutline ? "transparent" : C.gold,
+                color: isDark ? C.gold : isOutline ? C.gold : "#0a0906",
+                border: `1px solid ${isDark ? "#333" : C.gold}`,
+                borderRadius: "var(--lwd-radius-input)",
+                padding: "8px 20px", fontSize: 10, fontWeight: 700,
+                letterSpacing: "1.5px", textTransform: "uppercase",
+                cursor: "pointer", fontFamily: NU, transition: "all 0.25s ease",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.color = "#0a0906"; }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = isDark ? "#0a0906" : isOutline ? "transparent" : C.gold;
+                e.currentTarget.style.color = isDark ? C.gold : isOutline ? C.gold : "#0a0906";
+              }}
+            >{item.label}</button>
+          );
+        })}
+
+        <div className="home-nav-divider" style={{ width: 1, height: 18, background: C.border2 }} />
+
+        {/* Dark mode toggle */}
+        <button
+          className="home-nav-dark-toggle"
+          onClick={onToggleDark}
+          title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          aria-label={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          style={{
+            background: "none",
+            border: `1px solid ${iconBorder}`,
+            borderRadius: "var(--lwd-radius-input)",
+            color: iconColor,
+            width: 36, height: 36, fontSize: 15,
+            cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "all 0.3s ease", flexShrink: 0,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = iconBorder; e.currentTarget.style.color = iconColor; }}
+        >
+          {darkMode ? "☀" : "☽"}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -132,152 +366,96 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
           boxShadow: navShadow,
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
+          justifyContent: (isStacked || isSplit || isCenterMenu) ? "center" : "space-between",
           transition: "background 0.3s ease, padding 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease",
         }}
       >
-        {/* Brand */}
-        <div
-          className="home-nav-brand"
-          style={{
-            fontFamily: GD,
-            fontSize: 20,
-            fontWeight: 600,
-            color: brandColor,
-            letterSpacing: 0.5,
-            cursor: "pointer",
-            transition: "color 0.3s ease",
-          }}
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        >
-          Luxury <span style={{ color: C.gold }}>Wedding</span> Directory
-        </div>
+        {/* ── Layout: logo-left (standard) ── */}
+        {!isStacked && !isSplit && !isCenterMenu && (
+          <>
+            {renderLogo()}
+            {renderNavLinks()}
+          </>
+        )}
 
-        {/* Right side, desktop */}
-        <div className="home-nav-right-desktop" style={{ display: "flex", gap: 28, alignItems: "center" }}>
-          {navItems.filter(i => i.type !== "cta").map((item) => {
-            const FONT_MAP = { serif: GD, mono: "'JetBrains Mono','Fira Mono',monospace", sans: NU };
-            const labelFont = FONT_MAP[item.label_font] || NU;
-            const itemColor = item.label_color || linkColor;
-            const labelColor = itemColor;
-            const handler   = resolveHandler(item, handlers);
-            const isMega    = item.type === "mega_menu" || item.type === "dropdown";
-            const navH      = navRef.current ? navRef.current.getBoundingClientRect().bottom : 64;
+        {/* ── Layout: logo-center-stacked / logo-above-centered ── */}
+        {isStacked && (
+          <div style={{
+            display: "flex", flexDirection: "column", alignItems: "center",
+            width: "100%", gap: isTransparent ? 10 : 6,
+          }}>
+            {renderLogo()}
+            {renderNavLinks()}
+          </div>
+        )}
 
-            if (isMega) {
-              return (
-                <div
-                  key={item.id}
-                  style={{ position: "relative" }}
-                  onMouseEnter={() => openMegaMenu(item.id)}
-                  onMouseLeave={startClose}
-                >
-                  <button
-                    className="home-nav-links"
-                    onClick={handler || undefined}
-                    style={{
-                      background: "none", border: "none",
-                      cursor: "pointer", fontSize: 13, fontWeight: 400,
-                      color: openPanel === item.id ? C.gold : linkColor,
-                      fontFamily: labelFont, letterSpacing: "0.3px", transition: "color 0.2s",
-                      display: "flex", alignItems: "center", gap: 4,
-                    }}
-                  >
-                    {item.label}
-                    <span style={{ fontSize: 9, opacity: 0.6, transition: "transform 0.2s", transform: openPanel === item.id ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
-                  </button>
-                  {openPanel === item.id && (
-                    <MegaMenuPanel
-                      item={item}
-                      navHeight={navH}
-                      onMouseEnter={cancelClose}
-                      onMouseLeave={startClose}
-                    />
-                  )}
-                </div>
-              );
-            }
+        {/* ── Layout: split-center-logo (nav split left+right, logo center) ── */}
+        {isSplit && (() => {
+          const nonCtaItems = navItems.filter(i => i.type !== "cta");
+          const ctaItems    = navItems.filter(i => i.type === "cta");
+          const half        = Math.ceil(nonCtaItems.length / 2);
+          const leftItems   = nonCtaItems.slice(0, half);
+          const rightItems  = nonCtaItems.slice(half);
+          return (
+            <div style={{ display: "flex", alignItems: "center", width: "100%", gap: 20 }}>
+              {/* Left nav group */}
+              <div style={{ display: "flex", gap: 24, alignItems: "center", flex: 1, justifyContent: "flex-end" }}>
+                {leftItems.map(item => {
+                  const handler = resolveHandler(item, handlers);
+                  return (
+                    <button key={item.id} className="home-nav-links" onClick={handler || undefined}
+                      style={{ background: "none", border: "none", cursor: handler ? "pointer" : "default", fontSize: 13, fontWeight: 400, color: linkColor, fontFamily: NU, letterSpacing: "0.3px", transition: "color 0.2s" }}
+                      onMouseEnter={e => (e.currentTarget.style.color = C.gold)}
+                      onMouseLeave={e => (e.currentTarget.style.color = linkColor)}
+                    >{item.label}</button>
+                  );
+                })}
+              </div>
+              {/* Center logo */}
+              <div style={{ flexShrink: 0 }}>{renderLogo()}</div>
+              {/* Right nav group + CTAs + toggle */}
+              <div style={{ display: "flex", gap: 24, alignItems: "center", flex: 1 }}>
+                {rightItems.map(item => {
+                  const handler = resolveHandler(item, handlers);
+                  return (
+                    <button key={item.id} className="home-nav-links" onClick={handler || undefined}
+                      style={{ background: "none", border: "none", cursor: handler ? "pointer" : "default", fontSize: 13, fontWeight: 400, color: linkColor, fontFamily: NU, letterSpacing: "0.3px", transition: "color 0.2s" }}
+                      onMouseEnter={e => (e.currentTarget.style.color = C.gold)}
+                      onMouseLeave={e => (e.currentTarget.style.color = linkColor)}
+                    >{item.label}</button>
+                  );
+                })}
+                {ctaItems.map(item => {
+                  const handler = resolveHandler(item, handlers);
+                  const isOutline = item.cta_style === "outline";
+                  const isDark = item.cta_style === "dark";
+                  return (
+                    <button key={item.id} onClick={handler || undefined} style={{ background: isDark ? "#0a0906" : isOutline ? "transparent" : C.gold, color: isDark ? C.gold : isOutline ? C.gold : "#0a0906", border: `1px solid ${isDark ? "#333" : C.gold}`, borderRadius: "var(--lwd-radius-input)", padding: "8px 20px", fontSize: 10, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", cursor: "pointer", fontFamily: NU, transition: "all 0.25s ease" }}
+                      onMouseEnter={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.color = "#0a0906"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = isDark ? "#0a0906" : isOutline ? "transparent" : C.gold; e.currentTarget.style.color = isDark ? C.gold : isOutline ? C.gold : "#0a0906"; }}
+                    >{item.label}</button>
+                  );
+                })}
+                <div className="home-nav-divider" style={{ width: 1, height: 18, background: C.border2 }} />
+                <button className="home-nav-dark-toggle" onClick={onToggleDark} aria-label={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                  style={{ background: "none", border: `1px solid ${iconBorder}`, borderRadius: "var(--lwd-radius-input)", color: iconColor, width: 36, height: 36, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.3s ease" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = iconBorder; e.currentTarget.style.color = iconColor; }}
+                >{darkMode ? "☀" : "☽"}</button>
+              </div>
+            </div>
+          );
+        })()}
 
-            return (
-              <button
-                key={item.id}
-                className="home-nav-links"
-                onClick={handler || undefined}
-                style={{
-                  background: "none", border: "none",
-                  cursor: handler ? "pointer" : "default",
-                  fontSize: 13, fontWeight: 400, color: linkColor,
-                  fontFamily: labelFont, letterSpacing: "0.3px", transition: "color 0.2s",
-                }}
-                onMouseEnter={e => (e.currentTarget.style.color = C.gold)}
-                onMouseLeave={e => (e.currentTarget.style.color = linkColor)}
-              >
-                {item.label}
-              </button>
-            );
-          })}
-          {/* CTA items — pinned right, styled button */}
-          {navItems.filter(i => i.type === "cta").map((item) => {
-            const handler = resolveHandler(item, handlers);
-            const isOutline = item.cta_style === "outline";
-            const isDark = item.cta_style === "dark";
-            return (
-              <button
-                key={item.id}
-                onClick={handler || undefined}
-                style={{
-                  background: isDark ? "#0a0906" : isOutline ? "transparent" : C.gold,
-                  color: isDark ? C.gold : isOutline ? C.gold : "#0a0906",
-                  border: `1px solid ${isDark ? "#333" : C.gold}`,
-                  borderRadius: "var(--lwd-radius-input)",
-                  padding: "8px 20px", fontSize: 10, fontWeight: 700,
-                  letterSpacing: "1.5px", textTransform: "uppercase",
-                  cursor: "pointer", fontFamily: NU, transition: "all 0.25s ease",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.color = "#0a0906"; }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.background = isDark ? "#0a0906" : isOutline ? "transparent" : C.gold;
-                  e.currentTarget.style.color = isDark ? C.gold : isOutline ? C.gold : "#0a0906";
-                }}
-              >{item.label}</button>
-            );
-          })}
-
-          <div className="home-nav-divider" style={{ width: 1, height: 18, background: C.border2 }} />
-
-          {/* Dark mode toggle */}
-          <button
-            className="home-nav-dark-toggle"
-            onClick={onToggleDark}
-            title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            aria-label={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            style={{
-              background: "none",
-              border: `1px solid ${iconBorder}`,
-              borderRadius: "var(--lwd-radius-input)",
-              color: iconColor,
-              width: 36,
-              height: 36,
-              fontSize: 15,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "all 0.3s ease",
-              flexShrink: 0,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = C.gold;
-              e.currentTarget.style.color = C.gold;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = iconBorder;
-              e.currentTarget.style.color = iconColor;
-            }}
-          >
-            {darkMode ? "☀" : "☽"}
-          </button>
-        </div>
+        {/* ── Layout: logo-left-center-menu (logo left, links centered) ── */}
+        {isCenterMenu && (
+          <div style={{ display: "flex", alignItems: "center", width: "100%", position: "relative" }}>
+            {renderLogo()}
+            <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}>
+              {renderNavLinks()}
+            </div>
+          </div>
+        )}
 
         {/* Hamburger, mobile only */}
         <button

@@ -110,18 +110,21 @@ export default function SiteFooter({
   onNavigatePartnerEnquiry,
 }) {
   const C = useTheme();
-  const [cfg, setCfg]     = useState(null);
-  const [items, setItems] = useState(null); // null = still loading
+  const [cfg,      setCfg]      = useState(null);
+  const [items,    setItems]    = useState(null); // null = still loading
+  const [branding, setBranding] = useState(null);
 
   useEffect(() => {
     async function load() {
       try {
-        const [cfgRes, itemsRes] = await Promise.all([
+        const [cfgRes, itemsRes, brandRes] = await Promise.all([
           supabase.from("footer_config").select("*").eq("id", "homepage").maybeSingle(),
           supabase.from("footer_items").select("*").eq("visible", true).order("position"),
+          supabase.from("site_branding").select("*").eq("id", "main").maybeSingle(),
         ]);
-        if (!cfgRes.error && cfgRes.data)   setCfg(cfgRes.data);
-        if (!itemsRes.error && itemsRes.data) setItems(itemsRes.data);
+        if (!cfgRes.error && cfgRes.data)     setCfg(cfgRes.data);
+        if (!itemsRes.error && itemsRes.data)  setItems(itemsRes.data);
+        if (!brandRes.error && brandRes.data)  setBranding(brandRes.data);
       } catch {
         // Supabase unavailable - keep null, render fallback below
       }
@@ -311,34 +314,72 @@ export default function SiteFooter({
         >
           {/* ── Brand column ── */}
           <div className="site-footer-brand" style={{ paddingTop: 0, marginTop: 0 }}>
-            {(cfg?.show_logo ?? true) && (
-              cfg?.logo_type === "image" && cfg?.logo_url ? (
-                <img
-                  src={cfg.logo_url}
-                  alt="Luxury Wedding Directory"
-                  style={{
-                    height: cfg?.logo_size || 48,
-                    maxWidth: "100%",
-                    objectFit: "contain",
-                    display: "block",
-                    marginBottom: 6,
-                  }}
-                />
-              ) : (
+            {(() => {
+              // Resolve logo settings: prefer site_branding, fall back to footer_config legacy fields
+              const showLogo = branding
+                ? branding.show_logo_in_footer !== false
+                : (cfg?.show_logo ?? true);
+
+              if (!showLogo) return null;
+
+              // Determine which logo to render (footer override or inherited)
+              let logoType, logoText, logoImageUrl, logoHeight, logoFont, logoColor;
+              if (branding) {
+                const sameLogo = branding.use_same_logo_everywhere !== false;
+                const footerImgOverride = !sameLogo && branding.logo_image_footer;
+                logoType     = branding.logo_type || "text";
+                logoText     = branding.logo_text || "Luxury Wedding Directory";
+                logoImageUrl = footerImgOverride
+                  ? branding.logo_image_footer
+                  : (branding.logo_image_light || null);
+                logoHeight   = branding.footer_logo_width_desktop || 160;
+                logoFont     = branding.logo_font   || "serif";
+                logoColor    = branding.logo_color  || null;
+              } else {
+                // Legacy footer_config fallback
+                logoType     = cfg?.logo_type === "image" ? "image" : "text";
+                logoText     = cfg?.logo_text  || "Luxury Wedding Directory";
+                logoImageUrl = cfg?.logo_url;
+                logoHeight   = cfg?.logo_size  || 48;
+                logoFont     = "serif";
+                logoColor    = null;
+              }
+
+              if (logoType === "image" && logoImageUrl) {
+                return (
+                  <img
+                    src={logoImageUrl}
+                    alt={logoText}
+                    style={{
+                      height: logoHeight,
+                      maxWidth: "100%",
+                      objectFit: "contain",
+                      display: "block",
+                      marginBottom: 6,
+                    }}
+                  />
+                );
+              }
+
+              const fontFamily = logoFont === "sans" ? NU : GD;
+              const words = logoText.split(" ");
+              return (
                 <div style={{
-                  fontFamily: GD, fontSize: cfg?.logo_size || 10,
-                  color: gold, letterSpacing: "0.22em",
-                  textTransform: "uppercase", lineHeight: 1.15, marginBottom: 6,
+                  fontFamily,
+                  fontSize: branding ? 22 : (cfg?.logo_size || 10),
+                  color: logoColor || gold,
+                  letterSpacing: "0.22em",
+                  textTransform: "uppercase",
+                  lineHeight: 1.15,
+                  marginBottom: 6,
                 }}>
-                  {(() => {
-                    const words = (cfg?.logo_text || "Luxury Wedding Directory").split(" ");
-                    return words.length > 1
-                      ? <>{words.slice(0, -1).join(" ")}<br />{words[words.length - 1]}</>
-                      : words[0];
-                  })()}
+                  {words.length > 1
+                    ? <>{words.slice(0, -1).join(" ")}<br />{words[words.length - 1]}</>
+                    : words[0]
+                  }
                 </div>
-              )
-            )}
+              );
+            })()}
             <div style={{
               fontFamily: NU, fontSize: 9, letterSpacing: "3px",
               textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 20,
