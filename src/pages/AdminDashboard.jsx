@@ -295,10 +295,15 @@ const NAV_SECTIONS = [
     ],
   },
   {
+    group: "Branding",
+    items: [
+      { key: "branding",     label: "Logo & Identity",   icon: "✦" },
+      { key: "styles",       label: "Colour & Type",     icon: "◑" },
+    ],
+  },
+  {
     group: "Design",
     items: [
-      { key: "branding",     label: "Branding",          icon: "✦" },
-      { key: "styles",       label: "Style Editor",      icon: "◑" },
       { key: "menu",         label: "Menu Builder",      icon: "≡" },
       { key: "footer",       label: "Brand Footer",      icon: "▭" },
     ],
@@ -324,6 +329,7 @@ const GROUP_ICON_PATHS = {
   Growth:       'M23 6l-9.5 9.5-5-5L1 18M17 6h6v6',
   Engagement:   'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z',
   Intelligence: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
+  Branding:     'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
   Design:       'M12 20h9M16.5 3.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z',
   Content:      'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6',
   Marketing:        'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
