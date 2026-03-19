@@ -57,6 +57,13 @@ export interface CreateLeadResult {
  * 6. Route and send notifications
  * 7. Return result
  */
+// Valid UUID v4 check — integer IDs from static data must not be sent to UUID columns
+const toUUID = (v: any): string | null => {
+  if (!v) return null
+  const s = String(v)
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s) ? s : null
+}
+
 export async function createLead(payload: LeadPayload): Promise<CreateLeadResult> {
   try {
     // 1. Score the lead
@@ -74,10 +81,10 @@ export async function createLead(payload: LeadPayload): Promise<CreateLeadResult
       priority,
       score,
 
-      listing_id: payload.listingId || null,
+      listing_id: toUUID(payload.listingId),
       listing_type: payload.listingType || null,
-      venue_id: payload.venueId || null,
-      vendor_id: payload.vendorId || null,
+      venue_id: toUUID(payload.venueId),
+      vendor_id: toUUID(payload.vendorId),
 
       user_id: payload.userId || null,
       aura_session_id: payload.auraSessionId || null,
