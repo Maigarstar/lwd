@@ -1,6 +1,7 @@
 // ─── src/main.jsx ─────────────────────────────────────────────────────────────
 import { useState, useEffect, useRef, StrictMode, lazy, Suspense } from "react";
 import { createRoot }           from "react-dom/client";
+import { HelmetProvider }       from "react-helmet-async";
 
 import { applyThemeToDocument } from "./theme/ThemeLoader";
 import { ShortlistProvider } from "./shortlist/ShortlistContext";
@@ -11,6 +12,7 @@ import { AdminAuthProvider, useAdminAuth } from "./context/AdminAuthContext";
 import ProtectedCoupleRoute  from "./components/ProtectedCoupleRoute";
 import AuraChat              from "./chat/AuraChat";
 import CookieBanner          from "./components/CookieBanner";
+import SiteFooter            from "./components/sections/SiteFooter.jsx";
 
 // ── Apply saved theme CSS variables BEFORE React renders ─────────────────────
 applyThemeToDocument();
@@ -26,9 +28,11 @@ import ContactLWD             from "./pages/ContactLWD.jsx";
 import LWDPartnership         from "./pages/LWDPartnership.jsx";
 import USAPage                from "./pages/USAPage.jsx";
 import ItalyPage              from "./pages/ItalyPage.jsx";
-import AdminDashboard         from "./pages/AdminDashboard.jsx";
+const AdminDashboard         = lazy(() => import("./pages/AdminDashboard.jsx"));
 import AdminLogin             from "./pages/AdminLogin.jsx";
-import VendorDashboard        from "./pages/VendorDashboard.jsx";
+import GoogleOAuthCallback    from "./pages/GoogleOAuthCallback.jsx";
+const VendorDashboard        = lazy(() => import("./pages/VendorDashboard.jsx"));
+const ClientPortal           = lazy(() => import("./pages/ClientPortal.jsx"));
 import VendorLogin            from "./pages/VendorLogin.jsx";
 import VendorSignup           from "./pages/VendorSignup.jsx";
 import VendorActivate         from "./pages/VendorActivate.jsx";
@@ -46,7 +50,7 @@ import PugliaPage             from "./pages/PugliaPage.jsx";
 import ShortlistPage          from "./pages/ShortlistPage.jsx";
 import RealWeddingsPage       from "./pages/RealWeddingsPage.jsx";
 import RealWeddingDetailPage  from "./pages/RealWeddingDetailPage.jsx";
-import GettingMarriedDashboard from "./pages/GettingMarriedDashboard.jsx";
+const GettingMarriedDashboard = lazy(() => import("./pages/GettingMarriedDashboard.jsx"));
 import JoinPage from "./pages/JoinPage.jsx";
 import PartnerEnquiryPage from "./pages/PartnerEnquiryPage.jsx";
 import ArtistryPage from "./pages/Artistry/ArtistryPage.jsx";
@@ -54,7 +58,7 @@ import MagazineHomePage     from "./pages/Magazine/MagazineHomePage.jsx";
 import CategoryPage          from "./pages/Magazine/CategoryPage.jsx";
 import MagazineArticlePage  from "./pages/Magazine/MagazineArticlePage.jsx";
 import FashionLandingPage   from "./pages/Magazine/FashionLandingPage.jsx";
-import MagazineStudio       from "./pages/MagazineStudio/index.jsx";
+const MagazineStudio         = lazy(() => import("./pages/MagazineStudio/index.jsx"));
 import EditorialShowcase    from "./pages/EditorialShowcase.jsx";
 import ShowcasePage         from "./pages/ShowcasePage.jsx";
 import DdeShowcasePage          from "./pages/DdeShowcasePage.jsx";
@@ -63,6 +67,7 @@ import VenueProfilePage         from "./pages/VenueProfilePage.jsx";
 import VenueReviewsPage         from "./pages/VenueReviewsPage.jsx";
 import AuraDiscoveryDemoPage    from "./pages/AuraDiscoveryDemoPage.jsx";
 import NotFoundPage         from "./pages/NotFoundPage.jsx";
+import UnsubscribePage      from "./pages/UnsubscribePage.jsx";
 import { VENDORS }            from "./data/vendors.js";
 
 // ── Lazy-loaded admin modules for bundle optimization ──────────────────────────
@@ -111,11 +116,14 @@ function stateToPath(pg, opts = {}) {
     case "standard":         return "/the-lwd-standard";
     case "about":            return "/about";
     case "contact":          return "/contact";
+    case "unsubscribe":      return "/unsubscribe";
     case "partnership":      return "/partnership";
     case "usa":              return "/usa";
     case "italy":            return "/italy";
-    case "admin":            return "/admin";
-    case "admin-login":      return "/admin/login";
+    case "admin":                return "/admin";
+    case "admin-login":          return "/admin/login";
+    case "admin-oauth-callback": return "/admin/oauth/callback";
+    case "portal":           return "/portal";
     case "vendor":           return "/vendor";
     case "vendor-login":           return "/vendor/login";
     case "vendor-signup":          return "/vendor/signup";
@@ -159,6 +167,10 @@ function pathToState(pathname) {
     usa: "usa", italy: "italy", admin: "admin", vendor: "vendor", couple: "couple", "real-weddings": "real-weddings", shortlist: "shortlist", "getting-married": "getting-married", join: "join", "artistry-awards": "artistry-awards", "partner-enquiry": "partner-enquiry",
   };
   const parts = clean.split("/");
+  // Unsubscribe landing page
+  if (parts[0] === "unsubscribe" && parts.length === 1) return { page: "unsubscribe" };
+  // Client portal
+  if (parts[0] === "portal") return { page: "portal" };
   // Handle vendor auth subroutes first (before treating /vendor as static)
   if (parts[0] === "vendor" && parts[1] === "login" && parts.length === 2) return { page: "vendor-login" };
   if (parts[0] === "vendor" && parts[1] === "signup" && parts.length === 2) return { page: "vendor-signup" };
@@ -172,6 +184,7 @@ function pathToState(pathname) {
   if (parts[0] === "vendor" && parts[1] === "reset-password" && parts.length === 2) return { page: "vendor-reset-password" };
   // Handle admin auth subroutes
   if (parts[0] === "admin" && parts[1] === "login" && parts.length === 2) return { page: "admin-login" };
+  if (parts[0] === "admin" && parts[1] === "oauth" && parts[2] === "callback") return { page: "admin-oauth-callback" };
   // Handle couple auth subroutes
   if (parts[0] === "couple" && parts[1] === "signup" && parts.length === 2) return { page: "couple-signup" };
   if (parts[0] === "couple" && parts[1] === "login" && parts.length === 2) return { page: "couple-login" };
@@ -195,9 +208,9 @@ function pathToState(pathname) {
   if (parts[0] === "showcase" && parts[1] === "grand-tirolia-kitzbuehel") return { page: "gt-showcase" };
   // Venue showcase: /showcase/{slug}
   if (parts[0] === "showcase" && parts.length === 2) return { page: "showcase", showcaseSlug: parts[1] };
+  // Venue listing profile: /venues/{slug}
   // Venue reviews page: /venues/{slug}/reviews
   if (parts[0] === "venues" && parts.length === 3 && parts[2] === "reviews") return { page: "venue-reviews", venueSlug: parts[1] };
-  // Venue listing profile: /venues/{slug}
   if (parts[0] === "venues" && parts.length === 2) return { page: "venue-profile", venueSlug: parts[1] };
   // Wedding venue listing profile: /wedding-venues/{slug}
   if (parts[0] === "wedding-venues" && parts.length === 2) return { page: "listing-profile", venueSlug: parts[1] };
@@ -231,7 +244,11 @@ function AdminRoute({ onBack, onNavigate }) {
     return null;
   }
 
-  return <AdminDashboard onBack={onBack} onNavigate={onNavigate} />;
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', fontFamily: 'inherit' }}>Loading...</div>}>
+      <AdminDashboard onBack={onBack} onNavigate={onNavigate} />
+    </Suspense>
+  );
 }
 
 // ── App (router + providers in one place) ────────────────────────────────────
@@ -364,6 +381,7 @@ function App() {
   const goItaly       = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("italy"); };
   const goAdmin       = () => setPage("admin");
   const goVendor              = () => setPage("vendor");
+  const goPortal              = () => setPage("portal");
   const goVendorLogin         = () => setPage("vendor-login");
   const goVendorSignup        = () => setPage("vendor-signup");
   const goVendorConfirmEmail  = () => setPage("vendor-confirm-email");
@@ -566,10 +584,12 @@ function App() {
           />
         )}
         {page === "magazine-studio" && (
-          <MagazineStudio
-            onNavigateMagazine={goMagazine}
-            onNavigateHome={goHome}
-          />
+          <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>}>
+            <MagazineStudio
+              onNavigateMagazine={goMagazine}
+              onNavigateHome={goHome}
+            />
+          </Suspense>
         )}
         {page === "puglia" && (
           <PugliaPage onBack={goHome} onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewStandard={goStandard} onViewAbout={goAbout} footerNav={footerNav} />
@@ -603,6 +623,9 @@ function App() {
         {page === "contact" && (
           <ContactLWD onBack={goHome} onViewCategory={goCategory} onViewStandard={goStandard} onViewAbout={goAbout} onViewPartnership={goPartnership} footerNav={footerNav} />
         )}
+        {page === "unsubscribe" && (
+          <UnsubscribePage />
+        )}
         {page === "partnership" && (
           <LWDPartnership onBack={goHome} onViewCategory={goCategory} onViewStandard={goStandard} onViewAbout={goAbout} onViewContact={goContact} footerNav={footerNav} />
         )}
@@ -615,6 +638,9 @@ function App() {
         {page === "admin-login" && (
           <AdminLogin onBack={goHome} />
         )}
+        {page === "admin-oauth-callback" && (
+          <GoogleOAuthCallback />
+        )}
         {page === "admin" && (
           <AdminRoute onBack={goHome} onNavigate={(action, data) => {
             if (action === 'magazine-studio') { goMagazineStudio(); return; }
@@ -623,7 +649,7 @@ function App() {
         )}
         {page === "editorial-showcase" && <EditorialShowcase />}
         {page === "vendor-login" && (
-          <VendorLogin onLoginSuccess={goVendor} />
+          <VendorLogin onLoginSuccess={(dest) => dest === 'portal' ? goPortal() : goVendor()} />
         )}
         {page === "vendor-signup" && (
           <VendorSignup onSignupSuccess={goVendor} />
@@ -641,7 +667,14 @@ function App() {
           <VendorResetPassword />
         )}
         {page === "vendor" && (
-          <VendorDashboard onBack={goHome} onVendorLogin={goVendorLogin} />
+          <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>}>
+            <VendorDashboard onBack={goHome} onVendorLogin={goVendorLogin} />
+          </Suspense>
+        )}
+        {page === "portal" && (
+          <Suspense fallback={<div style={{ minHeight: "100vh", background: "#0b0906", display: "flex", alignItems: "center", justifyContent: "center", color: "#8a7d6a", fontSize: 13, fontFamily: "Inter,sans-serif", letterSpacing: "2px" }}>Loading your portal...</div>}>
+            <ClientPortal />
+          </Suspense>
         )}
         {page === "real-weddings" && (
           <RealWeddingsPage C={COLORS} NU={FONTS.normal} GD={FONTS.display} onNavigate={(type, data) => { if (type === "real-wedding-detail") goRealWeddingDetail(data.realWeddingSlug); }} />
@@ -668,9 +701,11 @@ function App() {
           <CoupleResetPassword />
         )}
         {page === "getting-married" && (
-          <ProtectedCoupleRoute>
-            <GettingMarriedDashboard onBack={goHome} footerNav={footerNav} />
-          </ProtectedCoupleRoute>
+          <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>}>
+            <ProtectedCoupleRoute>
+              <GettingMarriedDashboard onBack={goHome} footerNav={footerNav} />
+            </ProtectedCoupleRoute>
+          </Suspense>
         )}
         {page === "join" && (
           <JoinPage />
@@ -683,6 +718,11 @@ function App() {
         )}
         {page === "not-found" && (
           <NotFoundPage onNavigateHome={goHome} onNavigateCategory={goCategory} />
+        )}
+
+        {/* ── Global site footer ── */}
+        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password"].includes(page) && (
+          <SiteFooter onNavigateAdmin={goAdmin} />
         )}
 
         {/* ── Global chat system, hidden on dashboards and auth pages ── */}
@@ -704,6 +744,8 @@ function App() {
 // ── Root ──────────────────────────────────────────────────────────────────────
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <App />
+    <HelmetProvider>
+      <App />
+    </HelmetProvider>
   </StrictMode>
 );
