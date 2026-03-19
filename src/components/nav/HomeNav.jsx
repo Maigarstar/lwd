@@ -255,68 +255,6 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
           >
             {darkMode ? "☀" : "☽"}
           </button>
-
-          {/* Vendor Login */}
-          <button
-            className="home-nav-vendor-login"
-            onClick={onVendorLogin}
-            style={{
-              background: "none",
-              border: `1px solid ${C.border2}`,
-              borderRadius: "var(--lwd-radius-input)",
-              color: C.grey,
-              padding: "8px 16px",
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: "1.5px",
-              textTransform: "uppercase",
-              cursor: "pointer",
-              fontFamily: NU,
-              transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = C.gold;
-              e.currentTarget.style.color = C.gold;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = C.border2;
-              e.currentTarget.style.color = C.grey;
-            }}
-          >
-            Vendor Login
-          </button>
-
-          {/* List Your Business */}
-          <button
-            onClick={() => onVendorLogin?.()}
-            className="home-nav-list-biz"
-            style={{
-              background: "transparent",
-              color: C.gold,
-              border: `1px solid ${C.gold}`,
-              borderRadius: "var(--lwd-radius-input)",
-              padding: "8px 20px",
-              fontSize: 10,
-              fontWeight: 600,
-              letterSpacing: "1.8px",
-              textTransform: "uppercase",
-              cursor: "pointer",
-              fontFamily: NU,
-              transition: "all 0.3s ease",
-              position: "relative",
-              overflow: "hidden",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = C.gold;
-              e.currentTarget.style.color = "#0a0906";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = C.gold;
-            }}
-          >
-            List Your Business
-          </button>
         </div>
 
         {/* Hamburger, mobile only */}
@@ -428,56 +366,6 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
               {item.label}
             </button>
           );})}
-        </div>
-
-        {/* Divider */}
-        <div style={{ height: 1, background: "rgba(201,168,76,0.12)", margin: "0 24px" }} />
-
-        {/* Actions */}
-        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 12 }}>
-          {/* Vendor Login */}
-          <button
-            onClick={() => { setDrawerOpen(false); onVendorLogin?.(); }}
-            style={{
-              background: "none",
-              border: "1px solid rgba(201,168,76,0.3)",
-              borderRadius: "var(--lwd-radius-card)",
-              color: "rgba(245,240,232,0.7)",
-              padding: "12px 20px",
-              fontSize: 12,
-              fontWeight: 600,
-              letterSpacing: "1.2px",
-              textTransform: "uppercase",
-              cursor: "pointer",
-              fontFamily: NU,
-              transition: "all 0.2s",
-              textAlign: "center",
-            }}
-          >
-            Vendor Login
-          </button>
-
-          {/* List Your Business */}
-          <button
-            onClick={() => { setDrawerOpen(false); onVendorLogin?.(); }}
-            style={{
-              background: C.gold,
-              color: "#0a0906",
-              border: "none",
-              borderRadius: "var(--lwd-radius-card)",
-              padding: "13px 20px",
-              fontSize: 12,
-              fontWeight: 700,
-              letterSpacing: "1.2px",
-              textTransform: "uppercase",
-              cursor: "pointer",
-              fontFamily: NU,
-              transition: "all 0.2s",
-              textAlign: "center",
-            }}
-          >
-            List Your Business
-          </button>
         </div>
 
         {/* Divider */}
