@@ -6567,7 +6567,7 @@ function CompareEnquiryForm({ venue, onClose }) {
 
 function CompareModal({ items, onClose }) {
   const C = DARK; // modal is always dark
-  const { openWorkspace, sendMessage, setChatContext } = useChat();
+  const { openWorkspace, sendMessage, setChatContext, messages } = useChat();
   const [venues,       setVenues]       = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [enquiryVenue, setEnquiryVenue] = useState(null); // full venue object for in-modal enquiry
@@ -6743,16 +6743,18 @@ function CompareModal({ items, onClose }) {
             // Open the full workspace — this is a decision environment, not a quick question
             openWorkspace();
             if (venues.length > 1) {
-              // Build a rich context message from the fetched venue data
-              const venueSummaries = venues.map(v => {
-                const parts = [v.name];
-                if (v.type)        parts.push(v.type);
-                if (v.destination || v.country) parts.push(v.destination || v.country);
-                if (v.capacity)    parts.push(`up to ${v.capacity} guests`);
-                return parts.join(', ');
-              });
-              const listing = venueSummaries.join(' · ');
-              sendMessage(`I'm comparing these venues: ${listing}. Can you help me understand which might be the better fit for our wedding?`);
+              // Only send the intro message once — don't repeat it every time the user reopens Aura
+              const alreadySent = messages.some(m => m.from === 'user' && m.text?.startsWith("I'm comparing these venues:"));
+              if (!alreadySent) {
+                const venueSummaries = venues.map(v => {
+                  const parts = [v.name];
+                  if (v.type)                     parts.push(v.type);
+                  if (v.destination || v.country) parts.push(v.destination || v.country);
+                  if (v.capacity)                 parts.push(`up to ${v.capacity} guests`);
+                  return parts.join(', ');
+                });
+                sendMessage(`I'm comparing these venues: ${venueSummaries.join(' · ')}. Can you help me understand which might be the better fit for our wedding?`);
+              }
             }
           }}
           style={{
