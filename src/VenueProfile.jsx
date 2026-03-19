@@ -3,10 +3,17 @@ import { getDefaultMode } from "./theme/tokens";
 import GCardMobile from "./components/cards/GCardMobile";
 import SliderNav from "./components/ui/SliderNav";
 import { fetchListingBySlug } from './services/listings';
+import { fetchApprovedReviews } from './services/reviewService';
 import { buildCardImgs, mapMediaItemToGalleryPhoto, buildVenueVideos } from './utils/mediaMappers';
 import ReviewsSection from './components/reviews/ReviewsSection';
 import ReviewSubmitForm from './components/reviews/ReviewSubmitForm';
 import VenueEnquiryForm from './components/enquiry/VenueEnquiryForm';
+import SeoHead from './components/seo/SeoHead';
+import JsonLd from './components/seo/JsonLd';
+import { buildVenueSchema, buildBreadcrumbSchema, buildFaqSchema } from './utils/structuredData';
+import HomeNav from "./components/nav/HomeNav";
+
+const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://www.luxuryweddingdirectory.co.uk';
 
 function useIsMobile(bp = 768) {
   const [mobile, setMobile] = useState(() => window.innerWidth <= bp);
@@ -339,6 +346,7 @@ function GlobalStyles() {
       @keyframes shimmer     { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
       @keyframes slideUp     { from { transform:translateY(100%); opacity:0; } to { transform:translateY(0); opacity:1; } }
       @keyframes kenBurns    { 0%{transform:scale(1)} 100%{transform:scale(1.06)} }
+      @keyframes pulse       { 0%,100%{box-shadow:0 0 0 0 rgba(74,222,128,0.5)} 50%{box-shadow:0 0 0 5px rgba(74,222,128,0)} }
       @keyframes chatModalIn { from { opacity:0; transform:translate(-50%,-50%) scale(0.93); } to { opacity:1; transform:translate(-50%,-50%) scale(1); } }
       @keyframes dotPulse    { 0%,80%,100% { transform:scale(0); opacity:0.4; } 40% { transform:scale(1); opacity:1; } }
       @keyframes lightbox-progress { from { width:0 } to { width:100% } }
@@ -615,8 +623,8 @@ function HeroSlider({ imgs, height, children }) {
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>{a.dir}</button>
       ))}
-      {/* Dots */}
-      <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 5 }}>
+      {/* Dots — right-aligned to share the bottom strip with the breadcrumb */}
+      <div style={{ position: "absolute", bottom: 16, right: 40, display: "flex", gap: 5, alignItems: "center" }}>
         {imgs.map((_, i) => (
           <button key={i} onClick={() => setIdx(i)} style={{
             width: i === idx ? 20 : 6, height: 6, border: "none", cursor: "pointer",
@@ -630,7 +638,7 @@ function HeroSlider({ imgs, height, children }) {
 }
 
 // ─── HERO STYLE 1: CINEMATIC ─────────────────────────────────────────────────
-function HeroCinematic({ venue, onEnquire }) {
+function HeroCinematic({ venue, onEnquire, onBack }) {
   const C = useT();
   const isMobile = useIsMobile();
   return (
@@ -655,6 +663,27 @@ function HeroCinematic({ venue, onEnquire }) {
             {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.55)" }}>({venue.reviews} reviews)</span>}</> }
             {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: "#4ade80", fontWeight: 700 }}>✓ LWD Verified</span>}
           </div>
+          {/* Urgency signal — social proof before the CTA */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "5px 11px",
+              background: "rgba(0,0,0,0.32)", backdropFilter: "blur(10px)",
+              border: "1px solid rgba(255,255,255,0.13)",
+            }}>
+              <span style={{
+                width: 6, height: 6, borderRadius: "50%", background: "#4ade80", flexShrink: 0,
+                boxShadow: "0 0 0 0 rgba(74,222,128,0.7)",
+                animation: "pulse 2s cubic-bezier(0.4,0,0.6,1) infinite",
+              }} />
+              <span style={{ fontFamily: FB, fontSize: 11, color: "rgba(255,255,255,0.82)", letterSpacing: "0.35px" }}>
+                {venue.weddingsHosted
+                  ? `${venue.weddingsHosted}+ weddings hosted · Popular this season`
+                  : 'Popular this season · Limited peak dates remaining'}
+              </span>
+            </span>
+          </div>
+
           {/* Hero CTA */}
           <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
             <button onClick={onEnquire} style={{
@@ -701,6 +730,22 @@ function HeroCinematic({ venue, onEnquire }) {
               )}
             </div>
           </div>
+
+        </div>
+        {/* Breadcrumb — absolutely pinned to bottom-left, same row as slider dots */}
+        <div style={{ position: "absolute", bottom: 16, left: 40, display: "flex", alignItems: "center", gap: 6, fontFamily: FB, fontSize: 11, letterSpacing: "0.3px" }}>
+          {["Venues", venue.country, venue.location?.split(', ').pop()].filter(Boolean).map((crumb) => (
+            <span key={crumb} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span
+                style={{ color: "rgba(255,255,255,0.55)", cursor: crumb === "Venues" ? "pointer" : "default", transition: "color 0.2s" }}
+                onClick={crumb === "Venues" && onBack ? onBack : undefined}
+                onMouseEnter={e => { if (crumb === "Venues") e.currentTarget.style.color = "rgba(255,255,255,0.9)"; }}
+                onMouseLeave={e => { if (crumb === "Venues") e.currentTarget.style.color = "rgba(255,255,255,0.55)"; }}
+              >{crumb}</span>
+              <span style={{ color: "rgba(255,255,255,0.25)", fontSize: 10 }}>›</span>
+            </span>
+          ))}
+          <span style={{ color: "rgba(255,255,255,0.85)", fontWeight: 600 }}>{venue.name}</span>
         </div>
       </HeroSlider>
     </div>
@@ -978,7 +1023,33 @@ const TABS = [
   { key: 'things-to-do', label: 'Things to Do', show: (v) => (v.experiences?.length || 0) > 0 },
 ];
 
-function StickyTabNav({ venue, activeTab, onTabClick }) {
+// ─── BREADCRUMB BAR ───────────────────────────────────────────────────────────
+function BreadcrumbBar({ venue, onBack }) {
+  const C = useT();
+  const crumbs = ["Venues", venue.country, venue.location?.split(', ').pop()].filter(Boolean);
+  return (
+    <div style={{
+      maxWidth: 1280, margin: '0 auto', padding: '14px 40px',
+      display: 'flex', alignItems: 'center', gap: 6,
+      fontFamily: "'Nunito','Inter',sans-serif", fontSize: 12, letterSpacing: '0.2px',
+    }}>
+      {crumbs.map((crumb) => (
+        <span key={crumb} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span
+            style={{ color: C.textMid || '#888', cursor: crumb === 'Venues' ? 'pointer' : 'default', transition: 'color 0.2s' }}
+            onClick={crumb === 'Venues' && onBack ? onBack : undefined}
+            onMouseEnter={e => { if (crumb === 'Venues') e.currentTarget.style.color = C.gold; }}
+            onMouseLeave={e => { if (crumb === 'Venues') e.currentTarget.style.color = C.textMid || '#888'; }}
+          >{crumb}</span>
+          <span style={{ color: C.border2, fontSize: 10 }}>›</span>
+        </span>
+      ))}
+      <span style={{ color: C.text, fontWeight: 600 }}>{venue.name}</span>
+    </div>
+  );
+}
+
+function StickyTabNav({ venue, activeTab, onTabClick, saved, setSaved, onAddCompare, compareList = [] }) {
   const C = useT();
   const isMobile = useIsMobile();
   const visibleTabs = TABS.filter(t => t.show(venue));
@@ -986,7 +1057,7 @@ function StickyTabNav({ venue, activeTab, onTabClick }) {
   if (isMobile) {
     return (
       <div data-tab-nav style={{
-        position: 'sticky', top: 72, zIndex: 50,
+        position: 'sticky', top: 60, zIndex: 50,
         backgroundColor: C.navBg || C.bg, borderBottom: `1px solid ${C.border}`,
         padding: '10px 20px',
         backdropFilter: 'blur(12px)',
@@ -1019,18 +1090,16 @@ function StickyTabNav({ venue, activeTab, onTabClick }) {
 
   return (
     <div data-tab-nav style={{
-      position: 'sticky', top: 72, zIndex: 50,
+      position: 'sticky', top: 60, zIndex: 50,
       backgroundColor: C.navBg || C.bg,
       backdropFilter: 'blur(12px)',
       borderBottom: `1px solid ${C.border}`,
     }}>
       <div style={{
         maxWidth: 1280, margin: '0 auto', padding: '0 40px',
-        display: 'flex', alignItems: 'stretch',
-        overflowX: 'auto',
-        scrollbarWidth: 'none',
-        msOverflowStyle: 'none',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
+        <div style={{ display: 'flex', alignItems: 'stretch', overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none', flex: 1 }}>
         {visibleTabs.map((t, i) => {
           const active = activeTab === t.key;
           return (
@@ -1064,6 +1133,29 @@ function StickyTabNav({ venue, activeTab, onTabClick }) {
             </div>
           );
         })}
+        </div>
+        {/* Venue actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, paddingLeft: 16 }}>
+          {[
+            { label: saved ? '♥  Saved' : '♡  Save', action: () => setSaved(s => !s), active: saved },
+            { label: '⊕  Compare', action: onAddCompare, active: compareList.length > 0 },
+            { label: '↗  Share', action: () => {}, active: false },
+          ].map(btn => (
+            <button key={btn.label} onClick={btn.action}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#c9a84c'; e.currentTarget.style.color = '#c9a84c'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = btn.active ? '#c9a84c' : 'rgba(0,0,0,0.15)'; e.currentTarget.style.color = btn.active ? '#c9a84c' : '#666'; }}
+              style={{
+                padding: '6px 14px', fontSize: 11, fontWeight: 700, letterSpacing: '0.6px',
+                textTransform: 'uppercase', fontFamily: "'Nunito','Inter',sans-serif",
+                background: btn.active ? 'rgba(201,168,76,0.08)' : 'none',
+                border: `1px solid ${btn.active ? '#c9a84c' : 'rgba(0,0,0,0.15)'}`,
+                borderRadius: 'var(--lwd-radius-input)',
+                color: btn.active ? '#c9a84c' : '#666',
+                cursor: 'pointer', transition: 'all 0.2s',
+              }}>{btn.label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -1106,7 +1198,7 @@ function SectionLayout({ children, sideImg, isMobile }) {
 }
 
 // ─── HERO WRAPPER, style switcher ───────────────────────────────────────────
-function Hero({ venue, heroStyle, setHeroStyle, onEnquire }) {
+function Hero({ venue, heroStyle, setHeroStyle, onEnquire, onBack }) {
   const C = useT();
   // Only show Video option if the venue has video configured
   const styles = [
@@ -1117,7 +1209,7 @@ function Hero({ venue, heroStyle, setHeroStyle, onEnquire }) {
   ];
   return (
     <div>
-      {heroStyle === "cinematic" && <HeroCinematic venue={venue} onEnquire={onEnquire} />}
+      {heroStyle === "cinematic" && <HeroCinematic venue={venue} onEnquire={onEnquire} onBack={onBack} />}
       {heroStyle === "split"     && <HeroSplit venue={venue} onEnquire={onEnquire} />}
       {heroStyle === "magazine"  && <HeroMagazine venue={venue} onEnquire={onEnquire} />}
       {heroStyle === "video"     && <HeroVideo venue={venue} onEnquire={onEnquire} />}
@@ -1128,28 +1220,94 @@ function Hero({ venue, heroStyle, setHeroStyle, onEnquire }) {
 // ─── STATS STRIP ─────────────────────────────────────────────────────────────
 function StatsStrip({ venue }) {
   const C = useT();
-  const sleepsValue = venue.accommodation?.maxOvernightGuests ?? venue.accommodation?.maxGuests ?? null;
-  const sleepsSub   = venue.accommodation?.totalRooms ? `${venue.accommodation.totalRooms} rooms` : 'rooms';
+
+  // Capacity
+  const maxCeremony  = venue.capacity?.ceremony || venue.capacity?.standing || null;
+  const maxDinner    = venue.capacity?.dinner || venue.capacity?.seated || null;
+  const maxGuests    = maxCeremony || maxDinner;
+
+  // Accommodation
+  const sleepsValue  = venue.accommodation?.maxOvernightGuests ?? venue.accommodation?.maxGuests ?? null;
+  const totalRooms   = venue.accommodation?.totalRooms ?? null;
+
+  // Spaces
+  const spacesCount  = venue.spaces?.length || null;
+
+  // Ceremony styles — derived from spaces tags or venue.ceremonyStyles
+  const ceremonyTypes = (() => {
+    const from = venue.ceremonyStyles || [];
+    if (from.length) return from.slice(0, 2).join(" & ");
+    if (!venue.spaces?.length) return null;
+    const tags = new Set();
+    venue.spaces.forEach(s => {
+      if (s.setting?.toLowerCase().includes("beach"))   tags.add("Beach");
+      if (s.setting?.toLowerCase().includes("garden"))  tags.add("Garden");
+      if (s.setting?.toLowerCase().includes("chapel"))  tags.add("Chapel");
+      if (s.setting?.toLowerCase().includes("terrace")) tags.add("Terrace");
+      if (s.indoor !== undefined) tags.add(s.indoor ? "Indoor" : "Outdoor");
+    });
+    const arr = [...tags].slice(0, 2);
+    return arr.length ? arr.join(" & ") : null;
+  })();
+
   const stats = [
-    { label: "From",      value: venue.priceFrom ? fmtPrice(venue.priceFrom, venue.priceCurrency) : null, sub: "per event", hide: !venue.priceFrom },
-    { label: "Ceremony",  value: venue.capacity?.ceremony ? `Up to ${venue.capacity.ceremony}` : null, sub: "guests", hide: !venue.capacity?.ceremony },
-    { label: "Dinner",    value: venue.capacity?.dinner   ? `Up to ${venue.capacity.dinner}`   : null, sub: "guests", hide: !venue.capacity?.dinner },
-    { label: "Sleeps",    value: sleepsValue,                                  sub: sleepsSub,                        hide: !sleepsValue },
-    { label: "Responds",  value: venue.responseTime,                           sub: `${venue.responseRate || ''}% response rate`, hide: !venue.responseTime },
-    { label: "Rating",    value: venue.rating ? `${venue.rating} ★` : null,   sub: `${venue.reviews || 0} reviews`,  hide: !venue.rating },
+    {
+      label: "Starting From",
+      value: venue.priceFrom ? fmtPrice(venue.priceFrom, venue.priceCurrency) : null,
+      sub: "per event",
+      hide: !venue.priceFrom,
+    },
+    {
+      label: "Max Guests",
+      value: maxGuests ? maxGuests.toString() : null,
+      sub: maxDinner ? `${maxDinner} seated` : "guests",
+      hide: !maxGuests,
+    },
+    {
+      label: "Rooms",
+      value: totalRooms ? totalRooms.toString() : (sleepsValue ? sleepsValue.toString() : null),
+      sub: sleepsValue && totalRooms ? `sleeps ${sleepsValue}` : "for guests",
+      hide: !totalRooms && !sleepsValue,
+    },
+    {
+      label: "Event Spaces",
+      value: spacesCount ? spacesCount.toString() : null,
+      sub: "distinct settings",
+      hide: !spacesCount,
+    },
+    {
+      label: "Ceremony Style",
+      value: ceremonyTypes,
+      sub: "settings available",
+      hide: !ceremonyTypes,
+      small: true, // text value, not a number — render smaller
+    },
+    {
+      label: "Response Time",
+      value: venue.responseTime,
+      sub: venue.responseRate ? `${venue.responseRate}% reply rate` : "typical",
+      hide: !venue.responseTime,
+    },
+    {
+      label: "Rating",
+      value: venue.rating ? `${venue.rating}★` : null,
+      sub: `${venue.reviews || 0} verified reviews`,
+      hide: !venue.rating,
+    },
   ].filter(s => !s.hide);
+
   return (
     <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "0 40px" }}>
-      <div style={{ display: "flex", overflowX: "auto", gap: 0 }}>
+      <div style={{ display: "flex", overflowX: "auto", gap: 0, scrollbarWidth: "none" }}>
         {stats.map((s, i) => (
           <div key={i} style={{
-            flex: "0 0 auto", padding: "20px 28px",
+            flex: "0 0 auto", padding: "18px 28px",
             borderRight: i < stats.length - 1 ? `1px solid ${C.border}` : "none",
-            minWidth: 130,
+            minWidth: 120,
           }}>
-            <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 500, color: C.gold, lineHeight: 1 }}>{s.value}</div>
-            <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, marginTop: 4, letterSpacing: "0.5px", textTransform: "uppercase" }}>{s.label}</div>
-            <div style={{ fontFamily: FB, fontSize: 11, color: C.textLight, marginTop: 2 }}>{s.sub}</div>
+            <div style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, letterSpacing: "0.7px", textTransform: "uppercase", marginBottom: 5 }}>{s.label}</div>
+            <div style={{ fontFamily: s.small ? FB : FD, fontSize: s.small ? 15 : 22, fontWeight: s.small ? 600 : 500, color: C.gold, lineHeight: 1, letterSpacing: s.small ? "-0.2px" : "normal" }}>{s.value}</div>
+            <div style={{ fontFamily: FB, fontSize: 11, color: C.textLight, marginTop: 4 }}>{s.sub}</div>
           </div>
         ))}
       </div>
@@ -1178,14 +1336,25 @@ function OwnerCard({ owner, venue }) {
         {/* Owner header */}
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
           <div style={{ position: "relative", flexShrink: 0 }}>
-            <img
-              src={owner.photo}
-              alt={owner.name}
-              style={{
-                width: 58, height: 58, borderRadius: "50%", objectFit: "cover",
-                border: `2px solid ${C.gold}`, display: "block",
-              }}
-            />
+            {owner.photo ? (
+              <img
+                src={owner.photo}
+                alt={owner.name}
+                style={{
+                  width: 58, height: 58, borderRadius: "50%", objectFit: "cover",
+                  border: `2px solid ${C.gold}`, display: "block",
+                }}
+              />
+            ) : (
+              <div style={{
+                width: 58, height: 58, borderRadius: "50%",
+                border: `2px solid ${C.gold}`, background: C.goldLight,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontFamily: FD, fontSize: 20, color: C.gold, letterSpacing: "-0.5px",
+              }}>
+                {(owner.name || "V").split(" ").map(w => w[0]).slice(0, 2).join("")}
+              </div>
+            )}
             {/* LWD verified dot */}
             <div style={{
               position: "absolute", bottom: 0, right: 0,
@@ -2742,9 +2911,10 @@ function AboutSection({ venue, isDbVenue = false }) {
 function ContactSection({ venue }) {
   const C = useT();
   const [emailRevealed, setEmailRevealed] = useState(false);
+  const [mapLoaded, setMapLoaded]         = useState(false);
   if (!venue.contact) return null;
   const addr = venue.contact.address || {};
-  const rm = venue.contact.responseMetrics || {};
+  const rm   = venue.contact.responseMetrics || {};
 
   const contactRow = (iconName, label, content, props = {}) => {
     const Tag = props.href ? "a" : "div";
@@ -2770,12 +2940,26 @@ function ContactSection({ venue }) {
 
   const addressFormatted = [addr.line1, addr.city, `${addr.postcode} ${addr.region}`, addr.country].join(", ");
 
+  // Clean location label (deduplicate city/region if same)
+  const locationParts = [addr.city, addr.region, addr.country]
+    .filter(Boolean)
+    .filter((v, i, a) => a.indexOf(v) === i); // dedupe
+  const locationLabel = locationParts.join(", ");
+
+  // Travel context — nearest airport if available
+  const nearestAirport = venue.access?.nearestAirport;
+
+  // Google Maps links — embed + external
+  const rawQuery  = venue.contact.mapQuery?.replace(/\+/g, " ") || locationLabel;
+  const embedSrc  = `https://maps.google.com/maps?q=${encodeURIComponent(rawQuery)}&t=&z=13&ie=UTF8&iwloc=&output=embed`;
+  const mapsLink  = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rawQuery)}`;
+
   return (
     <section style={{ marginBottom: 56 }}>
       <SectionHeading title="Contact & Location" subtitle="Find us and plan your journey" />
       <div className="vp-contact-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
 
-        {/* Contact details */}
+        {/* ── Contact details ── */}
         <div>
           <div style={{ display: "flex", flexDirection: "column", gap: 0, border: `1px solid ${C.border}`, overflow: "hidden" }}>
             {addressFormatted && contactRow("pin", "Address",
@@ -2801,31 +2985,79 @@ function ContactSection({ venue }) {
             )}
           </div>
 
-          {/* Response metrics, only show if data exists */}
           {rm.averageResponseHours && (
-          <div style={{ marginTop: 14, padding: "12px 16px", background: C.goldLight, border: `1px solid ${C.goldBorder}`, display: "flex", alignItems: "flex-start", gap: 10 }}>
-            <Icon name="zap" size={14} color={C.gold} style={{ marginTop: 1 }} />
-            <div>
-              <div style={{ fontFamily: FB, fontSize: 12, color: C.gold, fontWeight: 600, marginBottom: 3 }}>Responds within {rm.averageResponseHours} hrs</div>
-              <div style={{ fontFamily: FB, fontSize: 12, color: C.textLight }}>
-                {rm.responseRatePercent}% response rate{rm.sameDayTypical ? " · Typically replies same day" : ""}
+            <div style={{ marginTop: 14, padding: "12px 16px", background: C.goldLight, border: `1px solid ${C.goldBorder}`, display: "flex", alignItems: "flex-start", gap: 10 }}>
+              <Icon name="zap" size={14} color={C.gold} style={{ marginTop: 1 }} />
+              <div>
+                <div style={{ fontFamily: FB, fontSize: 12, color: C.gold, fontWeight: 600, marginBottom: 3 }}>Responds within {rm.averageResponseHours} hrs</div>
+                <div style={{ fontFamily: FB, fontSize: 12, color: C.textLight }}>
+                  {rm.responseRatePercent}% response rate{rm.sameDayTypical ? " · Typically replies same day" : ""}
+                </div>
               </div>
             </div>
-          </div>
           )}
         </div>
 
-        {/* Google Map */}
-        <div style={{ border: `1px solid ${C.border}`, overflow: "hidden" }}>
-          <iframe
-            title="Venue location"
-            width="100%"
-            height="100%"
-            style={{ display: "block", minHeight: 300, border: "none" }}
-            loading="lazy"
-            src={`https://maps.google.com/maps?q=${venue.contact.mapQuery}&output=embed&z=12`}
-          />
+        {/* ── Map column ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+
+          {/* Location descriptor */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Icon name="pin" size={13} color={C.gold} />
+              <span style={{ fontFamily: FB, fontSize: 13, color: C.textMid, fontWeight: 500 }}>
+                {locationLabel || venue.location}
+              </span>
+              {nearestAirport && (
+                <span style={{ fontFamily: FB, fontSize: 12, color: C.textMuted }}>
+                  · {nearestAirport} nearest airport
+                </span>
+              )}
+            </div>
+            <a
+              href={mapsLink} target="_blank" rel="noopener noreferrer"
+              style={{ fontFamily: FB, fontSize: 11, color: C.gold, textDecoration: "none", letterSpacing: "0.3px", display: "flex", alignItems: "center", gap: 4, transition: "opacity 0.2s" }}
+              onMouseEnter={e => e.currentTarget.style.opacity = "0.72"}
+              onMouseLeave={e => e.currentTarget.style.opacity = "1"}
+            >
+              View in Google Maps ↗
+            </a>
+          </div>
+
+          {/* Map container — fixed height so iframe always renders */}
+          <div style={{
+            position: "relative", height: 340, overflow: "hidden",
+            border: `1px solid ${C.border}`,
+            borderRadius: "var(--lwd-radius-input)",
+            boxShadow: "0 2px 16px rgba(0,0,0,0.06)",
+            background: C.bgAlt,
+          }}>
+            {/* Loading shimmer — hidden once map fires onLoad */}
+            {!mapLoaded && (
+              <div style={{
+                position: "absolute", inset: 0, display: "flex", flexDirection: "column",
+                alignItems: "center", justifyContent: "center", gap: 12,
+                background: C.bgAlt,
+              }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill={C.gold} opacity="0.4"/>
+                </svg>
+                <span style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, letterSpacing: "0.3px" }}>Loading map…</span>
+              </div>
+            )}
+            <iframe
+              title="Venue location"
+              width="100%"
+              height="340"
+              style={{ display: "block", border: "none", opacity: mapLoaded ? 1 : 0, transition: "opacity 0.4s ease" }}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              src={embedSrc}
+              onLoad={() => setMapLoaded(true)}
+            />
+          </div>
         </div>
+
       </div>
     </section>
   );
@@ -2841,6 +3073,7 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
   const [commentsMap, setCommentsMap] = useState({});
   const [commentText, setCommentText] = useState("");
   const [ytPaused, setYtPaused]       = useState(false);
+  const [resolvedEmbedUrl, setResolvedEmbedUrl] = useState(null);
 
   const idx = videos.findIndex((v) => v.id === video.id);
   const hasPrev = idx > 0;
@@ -2854,12 +3087,32 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const embedUrl = video.youtubeId
     ? `https://www.youtube-nocookie.com/embed/${video.youtubeId}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&showinfo=0&controls=1&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(origin)}`
+    : video.vimeoId
+    ? `https://player.vimeo.com/video/${video.vimeoId}?autoplay=1&title=0&byline=0&portrait=0&dnt=1${video.vimeoHash ? `&h=${video.vimeoHash}` : ''}`
     : null;
+
+  // For Vimeo URLs without a numeric ID (e.g. vimeo.com/user/slug), resolve via oEmbed
+  const isVimeoUrl = !video.youtubeId && !video.vimeoId && video.url?.includes('vimeo.com');
+  useEffect(() => {
+    if (!isVimeoUrl || !video.url) return;
+    setResolvedEmbedUrl(null);
+    fetch(`https://vimeo.com/api/oembed.json?url=${encodeURIComponent(video.url)}&autoplay=1`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data?.video_id) return;
+        const hash = data.uri?.split('/').find(p => /^[a-f0-9]{8,}$/i.test(p)) || null;
+        const url = `https://player.vimeo.com/video/${data.video_id}?autoplay=1&title=0&byline=0&portrait=0&dnt=1${hash ? `&h=${hash}` : ''}`;
+        setResolvedEmbedUrl(url);
+      })
+      .catch(() => {});
+  }, [video.url, isVimeoUrl]);
+
+  const activeEmbedUrl = embedUrl || resolvedEmbedUrl;
 
   const iframeRef = useRef(null);
 
-  // Reset paused overlay when video changes
-  useEffect(() => { setYtPaused(false); }, [video.id]);
+  // Reset paused overlay and resolved URL when video changes
+  useEffect(() => { setYtPaused(false); setResolvedEmbedUrl(null); }, [video.id]);
 
   // Stop video playback on unmount (prevents audio continuing after modal closes)
   useEffect(() => {
@@ -3045,7 +3298,7 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
           {!isMobile && videos.length > 1 && navBtn("next", hasNext, hovNext, setHovNext)}
 
           {/* Video player */}
-          {embedUrl ? (
+          {activeEmbedUrl ? (
             <div style={{
               flex: isMobile ? "none" : 1,
               position: "relative",
@@ -3054,8 +3307,8 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
             }}>
               <iframe
                 ref={iframeRef}
-                key={video.youtubeId + video.id}
-                src={embedUrl}
+                key={activeEmbedUrl + video.id}
+                src={activeEmbedUrl}
                 style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
                 allow="autoplay; fullscreen; picture-in-picture"
                 allowFullScreen
@@ -3109,9 +3362,11 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
                 }}>
                   <span style={{ fontSize: 18, color: "#C9A84C", marginLeft: 3 }}>▶</span>
                 </div>
-                <div style={{ fontFamily: FD, fontSize: 15, color: "rgba(201,168,76,0.85)", letterSpacing: "1.5px" }}>Film Coming Soon</div>
+                <div style={{ fontFamily: FD, fontSize: 15, color: "rgba(201,168,76,0.85)", letterSpacing: "1.5px" }}>
+                  {isVimeoUrl ? "Loading film…" : "Film Coming Soon"}
+                </div>
                 <div style={{ fontFamily: FB, fontSize: 12, color: "rgba(255,255,255,0.4)", maxWidth: 300, lineHeight: 1.65, marginTop: 8 }}>
-                  This film will be available shortly.<br />Contact us for a private screening enquiry.
+                  {isVimeoUrl ? "Connecting to Vimeo…" : <>This film will be available shortly.<br />Contact us for a private screening enquiry.</>}
                 </div>
               </div>
             </div>
@@ -3459,8 +3714,8 @@ function VideoGallery({ videos, venue }) {
         )}
       </div>
 
-      {/* Thumbnail strip, slider on mobile, grid on desktop */}
-      {isMobile ? (
+      {/* Thumbnail strip — only shown when there are multiple videos */}
+      {videos.length > 1 && (isMobile ? (
         <div className="vp-films-slider" style={{
           display: "flex", gap: 10, overflowX: "auto", scrollSnapType: "x mandatory",
           WebkitOverflowScrolling: "touch", scrollbarWidth: "none", msOverflowStyle: "none",
@@ -3552,7 +3807,7 @@ function VideoGallery({ videos, venue }) {
             </div>
           ))}
         </div>
-      )}
+      ))}
 
       {/* Video play modal */}
       {playing && (
@@ -3606,9 +3861,10 @@ function ExclusiveUse({ venue, onEnquire }) {
               </div>
             )}
             {eu.description && (
-              <div style={{ fontFamily: FB, fontSize: 14, color: C.textMid, lineHeight: 1.8, marginBottom: 28 }}>
-                {eu.description}
-              </div>
+              <div
+                style={{ fontFamily: FB, fontSize: 14, color: C.textMid, lineHeight: 1.8, marginBottom: 28 }}
+                dangerouslySetInnerHTML={{ __html: eu.description }}
+              />
             )}
             <button
               type="button"
@@ -3772,10 +4028,12 @@ function SpaceAttributeBadges({ space, C }) {
   );
 }
 
-function SpacesSection({ spaces }) {
+function SpacesSection({ spaces, venue }) {
   const C = useT();
   const isMobile = useIsMobile();
   const [floorPlanModal, setFloorPlanModal] = useState(null); // { url, name }
+  // Gallery images used as fallback when a space has no dedicated image
+  const galleryImgs = (venue?.imgs || []).map(i => (typeof i === 'string' ? i : (i.src || i.url || '')).trim()).filter(Boolean);
 
   return (
     <section id="capacity" style={{ marginBottom: 56 }}>
@@ -3787,6 +4045,7 @@ function SpacesSection({ spaces }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 48 : 64 }}>
         {spaces.map((s, i) => {
           const isEven = i % 2 === 0;
+          const spaceImg = s.img || galleryImgs[i % galleryImgs.length] || null;
           return (
             <div key={s.id || s.name} className="vp-space-card" style={{
               display: 'grid',
@@ -3796,7 +4055,7 @@ function SpacesSection({ spaces }) {
               alignItems: 'center',
             }}>
               {/* Image column, full landscape, max 750px height */}
-              {s.img && (
+              {spaceImg && (
                 <div style={{
                   order: isMobile ? 0 : (isEven ? 0 : 1),
                   overflow: 'hidden',
@@ -3804,7 +4063,7 @@ function SpacesSection({ spaces }) {
                   aspectRatio: '16 / 10',
                 }}>
                   <img
-                    src={s.img} alt={s.name}
+                    src={spaceImg} alt={s.name}
                     className="lwd-img-zoom"
                     style={{
                       width: '100%',
@@ -3952,6 +4211,10 @@ function RoomsSection({ venue }) {
   const acc = venue.accommodation;
   if (!acc || (!acc.totalRooms && !acc.description)) return null;
   const [roomsLightboxIdx, setRoomsLightboxIdx] = useState(null);
+  // Fall back to gallery images when no dedicated room images are assigned
+  const roomImgs = acc.images?.length > 0
+    ? acc.images
+    : (venue.imgs || []).slice(0, 6).map(i => (typeof i === 'string' ? i : (i.src || i.url || '')).trim()).filter(Boolean);
 
   return (
     <section id="rooms" style={{ marginBottom: 56 }}>
@@ -4000,14 +4263,14 @@ function RoomsSection({ venue }) {
           />
         )}
 
-        {/* Room images grid (max 6) */}
-        {acc.images?.length > 0 && (
+        {/* Room images grid (max 6) — uses dedicated room images or falls back to gallery */}
+        {roomImgs.length > 0 && (
           <div style={{
             display: 'grid',
             gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
             gap: 8,
           }}>
-            {acc.images.slice(0, 6).map((src, i) => (
+            {roomImgs.slice(0, 6).map((src, i) => (
               <img
                 key={i} src={src} alt={`Room ${i + 1}`}
                 loading="lazy"
@@ -4018,7 +4281,7 @@ function RoomsSection({ venue }) {
           </div>
         )}
         {roomsLightboxIdx !== null && (() => {
-          const lightboxImages = (acc.images || []).slice(0, 6).map(src => ({ src, title: '' }));
+          const lightboxImages = roomImgs.slice(0, 6).map(src => ({ src, title: '' }));
           return (
             <MenuImageModal
               images={lightboxImages}
@@ -4113,7 +4376,16 @@ function DiningSection({ venue }) {
 
   if (!dining || (!dining.description && !dining.style)) return null;
 
-  const sideImg = dining.menuImages?.[0]?.src || venue.imgs?.[1] || venue.imgs?.[0];
+  // Gallery fallback: normalize venue.imgs to plain URL strings
+  const galleryImgs = (venue.imgs || [])
+    .map(i => (typeof i === 'string' ? i : (i.src || i.url || '')).trim())
+    .filter(Boolean);
+
+  const sideImg = dining.menuImages?.[0]?.src || galleryImgs[1] || galleryImgs[0] || null;
+
+  // Fallback gallery: use venue gallery images when no dedicated dining images exist
+  const hasDiningImages = dining.menuImages?.length > 0;
+  const fallbackGalleryImgs = !hasDiningImages ? galleryImgs.slice(0, 4) : [];
 
   const PillGroup = ({ items, color }) => (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
@@ -4188,8 +4460,8 @@ function DiningSection({ venue }) {
           />
         )}
 
-        {/* Menu Highlights */}
-        {dining.menuImages?.length > 0 && (
+        {/* Menu Highlights — dedicated dining images */}
+        {hasDiningImages && (
           <div>
             <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textLight, marginBottom: 12 }}>Menu Highlights</p>
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(dining.menuImages.length, 4)}, 1fr)`, gap: 8 }}>
@@ -4208,6 +4480,21 @@ function DiningSection({ venue }) {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Gallery fallback — shown when no dedicated dining images exist */}
+        {!hasDiningImages && fallbackGalleryImgs.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(fallbackGalleryImgs.length, 4)}, 1fr)`, gap: 8, marginTop: 4 }}>
+            {fallbackGalleryImgs.map((src, i) => (
+              <img
+                key={i}
+                src={src}
+                alt=""
+                loading="lazy"
+                style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', borderRadius: 2 }}
+              />
+            ))}
           </div>
         )}
       </SectionLayout>
@@ -5213,148 +5500,6 @@ function CompareBar({ items, onRemove, onClear }) {
   );
 }
 
-// ─── FOOTER ──────────────────────────────────────────────────────────────────
-function Footer() {
-  // Always dark, luxury brand standard, independent of light/dark page theme
-  const bg      = "#0c0c0a";
-  const bgMid   = "#111110";
-  const gold    = "#b8a05a";
-  const green   = "#8fa08c";
-  const text    = "#f5f2ec";
-  const muted   = "#6b6860";
-  const border  = "#252522";
-
-  const cols = [
-    {
-      title: "Venues",
-      links: ["By Country", "By Style", "By Capacity", "Destination Weddings", "Exclusive Use Venues"],
-    },
-    {
-      title: "Inspiration",
-      links: ["Real Weddings", "Planning Guides", "Checklists", "Video Tours", "Honeymoon Ideas"],
-    },
-    {
-      title: "Help",
-      links: ["How it Works", "FAQs", "Contact Us", "List Your Venue", "Advertise with LWD"],
-    },
-    {
-      title: "Company",
-      links: ["About LWD", "Press & Media", "Careers", "Partnerships", "LWD Foundation"],
-    },
-  ];
-
-  const socials = [
-    { label: "Instagram", icon: "◈" },
-    { label: "Pinterest",  icon: "⊕" },
-    { label: "TikTok",     icon: "▷" },
-    { label: "YouTube",    icon: "▶" },
-    { label: "Facebook",   icon: "ƒ" },
-  ];
-
-  return (
-    <footer style={{ background: bg, color: text }}>
-      {/* Gold accent line at top */}
-      <div style={{ height: 1, background: `linear-gradient(90deg, transparent, ${gold}, ${green}, transparent)` }} />
-
-      {/* Main grid */}
-      <div className="vp-footer-grid" style={{ maxWidth: 1280, margin: "0 auto", padding: "72px 40px 56px", display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 48 }}>
-
-        {/* Brand column */}
-        <div>
-          {/* Wordmark */}
-          <div style={{ fontFamily: FD, fontSize: 20, letterSpacing: "3px", color: gold, marginBottom: 6, lineHeight: 1.1 }}>
-            LUXURY WEDDING<br />DIRECTORY
-          </div>
-          <div style={{ width: 36, height: 1, background: `linear-gradient(90deg, ${gold}, ${green})`, marginBottom: 22 }} />
-
-          <p style={{ fontFamily: FB, fontSize: 13, color: muted, lineHeight: 1.85, maxWidth: 240, marginBottom: 32 }}>
-            The world's most trusted directory of extraordinary wedding venues. Handpicked. Verified. Exceptional.
-          </p>
-
-          {/* Social icons */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 32 }}>
-            {socials.map(s => (
-              <button key={s.label} title={s.label} style={{
-                width: 38, height: 38, border: `1px solid ${border}`, borderRadius: "var(--lwd-radius-input)",
-                background: "none", color: muted, fontSize: 15,
-                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                transition: "all 0.2s",
-              }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = gold; e.currentTarget.style.color = gold; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = muted; }}
-              >{s.icon}</button>
-            ))}
-          </div>
-
-          {/* Trust badges */}
-          <div style={{ display: "flex", gap: 10 }}>
-            {["LWD Verified", "Est. 2006"].map(b => (
-              <div key={b} style={{
-                padding: "5px 12px", border: `1px solid ${border}`,
-                fontFamily: FB, fontSize: 10, color: muted,
-                letterSpacing: "0.8px", textTransform: "uppercase",
-              }}>{b}</div>
-            ))}
-          </div>
-        </div>
-
-        {/* Nav columns */}
-        {cols.map(col => (
-          <div key={col.title}>
-            <div style={{ fontFamily: FB, fontSize: 10, letterSpacing: "1.8px", textTransform: "uppercase", color: gold, marginBottom: 22, fontWeight: 700 }}>{col.title}</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {col.links.map(link => (
-                <a key={link} href="#" style={{ fontFamily: FB, fontSize: 13, color: muted, textDecoration: "none", transition: "color 0.18s", letterSpacing: "0.1px" }}
-                  onMouseEnter={e => e.currentTarget.style.color = text}
-                  onMouseLeave={e => e.currentTarget.style.color = muted}
-                >{link}</a>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Newsletter strip */}
-      <div style={{ background: bgMid, borderTop: `1px solid ${border}`, borderBottom: `1px solid ${border}` }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 40px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24 }}>
-          <div>
-            <div style={{ fontFamily: FD, fontSize: 18, color: text, marginBottom: 4 }}>The LWD Edit, monthly inspiration for couples</div>
-            <div style={{ fontFamily: FB, fontSize: 13, color: muted }}>Extraordinary venues, real weddings, and planning guides. No spam.</div>
-          </div>
-          <div style={{ display: "flex", gap: 0, flexShrink: 0 }}>
-            <input type="email" placeholder="Your email address"
-              style={{ padding: "12px 18px", background: "#1a1a18", border: `1px solid ${border}`, borderRight: "none", color: text, fontFamily: FB, fontSize: 13, width: 260, outline: "none" }} />
-            <button style={{
-              padding: "12px 24px", background: gold, border: "none", borderRadius: "var(--lwd-radius-input)",
-              color: "#fff", fontFamily: FB, fontSize: 12, fontWeight: 700,
-              letterSpacing: "0.8px", textTransform: "uppercase", cursor: "pointer",
-              transition: "opacity 0.2s",
-            }}
-              onMouseEnter={e => e.currentTarget.style.opacity = "0.88"}
-              onMouseLeave={e => e.currentTarget.style.opacity = "1"}
-            >Subscribe</button>
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom bar */}
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "20px 40px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24 }}>
-        <div style={{ fontFamily: FB, fontSize: 12, color: muted }}>
-          © 2026 Luxury Wedding Directory Ltd. All rights reserved. Registered in England & Wales.
-        </div>
-        <div style={{ display: "flex", gap: 20 }}>
-          {["Privacy Policy", "Terms of Use", "Cookie Settings", "Sitemap"].map(l => (
-            <a key={l} href="#" style={{ fontFamily: FB, fontSize: 12, color: muted, textDecoration: "none", transition: "color 0.18s" }}
-              onMouseEnter={e => e.currentTarget.style.color = text}
-              onMouseLeave={e => e.currentTarget.style.color = muted}
-            >{l}</a>
-          ))}
-        </div>
-      </div>
-    </footer>
-  );
-}
-
 // ─── FLOATING AURA CHAT ──────────────────────────────────────────────────────
 function AuraChat({ venue }) {
   const C = useT();
@@ -5933,6 +6078,7 @@ export default function VenueProfile({ onBack = null, slug = null }) {
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [dbVenue, setDbVenue] = useState(null);
+  const [rawListing, setRawListing] = useState(null);
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
@@ -6143,7 +6289,36 @@ export default function VenueProfile({ onBack = null, slug = null }) {
               }
             : null,
         };
-        if (!ignore) setDbVenue(mapped);
+        // ── Fetch approved reviews and map to testimonials format ─────────────
+        let testimonials = [];
+        try {
+          const reviews = await fetchApprovedReviews('venue', listing.id);
+          testimonials = (reviews || []).map(r => ({
+            id:       r.id,
+            names:    r.reviewer_name,
+            avatar:   r.reviewer_name
+                        .split(' ')
+                        .filter(w => /^[A-Za-z]/.test(w))
+                        .map(w => w[0].toUpperCase())
+                        .slice(0, 2)
+                        .join(''),
+            date:     r.event_date
+                        ? new Date(r.event_date).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+                        : new Date(r.published_at || r.created_at).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
+            location: r.reviewer_location || '',
+            rating:   Number(r.overall_rating),
+            text:     r.review_text,
+            verified: r.is_verified,
+          }));
+        } catch (reviewErr) {
+          console.warn('[VenueProfile] Reviews fetch failed silently:', reviewErr);
+        }
+        mapped.testimonials = testimonials;
+
+        if (!ignore) {
+          setDbVenue(mapped);
+          setRawListing(listing);
+        }
       } catch (err) {
         console.error('Failed to load venue by slug', err);
         if (!ignore) setNotFound(true);
@@ -6196,11 +6371,32 @@ export default function VenueProfile({ onBack = null, slug = null }) {
   return (
     <Theme.Provider value={C}>
       <GlobalStyles />
+      {/* SEO head - only when real listing data is loaded */}
+      {rawListing && (
+        <>
+          <SeoHead
+            title={rawListing.seoTitle || rawListing.name}
+            description={rawListing.seoDescription || rawListing.shortDescription || rawListing.cardSummary}
+            keywords={rawListing.seoKeywords}
+            canonicalUrl={`${SITE_URL}/wedding-venues/${slug}`}
+            ogImage={rawListing.heroImage || rawListing.imgs?.[0]?.src || rawListing.imgs?.[0]}
+          />
+          <JsonLd schema={buildVenueSchema(rawListing)} />
+          <JsonLd schema={buildBreadcrumbSchema([
+            { name: 'Home', url: '/' },
+            { name: rawListing.country || 'Venues', url: '/' },
+            { name: rawListing.name, url: `/wedding-venues/${slug}` },
+          ])} />
+          {rawListing.faqEnabled !== false && rawListing.faqCategories && rawListing.faqCategories.length > 0 && (
+            <JsonLd schema={buildFaqSchema(rawListing.faqCategories)} />
+          )}
+        </>
+      )}
       <div className="vp-root" style={{ background: C.bg, minHeight: "100vh", color: C.text }}>
-        <Nav venue={VV} darkMode={darkMode} setDarkMode={setDarkMode} saved={saved} setSaved={setSaved} compareList={compareList} onAddCompare={addCompare} onBack={onBack} />
-        <Hero venue={VV} heroStyle={heroStyle} setHeroStyle={setHeroStyle} onEnquire={() => setEnquiryOpen(true)} />
+        <HomeNav hasHero={true} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} />
+        <Hero venue={VV} heroStyle={heroStyle} setHeroStyle={setHeroStyle} onEnquire={() => setEnquiryOpen(true)} onBack={onBack} />
         <StatsStrip venue={VV} />
-        <StickyTabNav venue={VV} activeTab={activeTab} onTabClick={scrollToSection} />
+        <StickyTabNav venue={VV} activeTab={activeTab} onTabClick={scrollToSection} saved={saved} setSaved={setSaved} onAddCompare={addCompare} compareList={compareList} />
 
         {/* Main layout */}
         <div className="vp-main-wrapper" style={{ maxWidth: 1280, margin: "0 auto", padding: "48px 40px 120px" }}>
@@ -6212,7 +6408,7 @@ export default function VenueProfile({ onBack = null, slug = null }) {
               {VV.videos && VV.videos.length > 0 && <VideoGallery videos={VV.videos} venue={VV} />}
               <ExclusiveUse venue={VV} onEnquire={() => setEnquiryOpen(true)} />
               <CateringSection venue={VV} />
-              {VV.spaces && <SpacesSection spaces={VV.spaces} />}
+              {VV.spaces && <SpacesSection spaces={VV.spaces} venue={VV} />}
               <RoomsSection venue={VV} />
               {VV.dining && <DiningSection venue={VV} />}
               <VenueTypeSection venue={VV} />
@@ -6226,7 +6422,7 @@ export default function VenueProfile({ onBack = null, slug = null }) {
               <RecentlyViewed venue={VV} />
             </div>
             {/* Sidebar, 4 zones, sticky on desktop */}
-            <div className="lwd-sidebar" style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 137, alignSelf: "start" }}>
+            <div className="lwd-sidebar" style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 108, alignSelf: "start" }}>
               {/* Zone 1, Owner card (only if owner data available) */}
               {VV.owner && VV.owner.name && <OwnerCard owner={VV.owner} venue={VV} />}
               {/* Zone 2, Venue enquiry form (lead gen) */}
@@ -6252,7 +6448,6 @@ export default function VenueProfile({ onBack = null, slug = null }) {
           </div>
         </div>
 
-        <Footer />
         <MobileLeadBar venue={VV} />
         <CompareBar items={compareList} onRemove={id => setCompareList(l => l.filter(v => v.id !== id))} onClear={() => setCompareList([])} />
         <Lightbox gallery={VV.gallery} idx={lightIdx} setLightIdx={setLightIdx} onClose={() => setLightIdx(null)} onPrev={() => setLightIdx(i => (i - 1 + (VV.gallery?.length || 1)) % (VV.gallery?.length || 1))} onNext={() => setLightIdx(i => (i + 1) % (VV.gallery?.length || 1))} engagement={VV.engagement?.photos} />

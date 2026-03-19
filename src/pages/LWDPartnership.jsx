@@ -10,7 +10,6 @@ import { getDarkPalette } from "../theme/tokens";
 import { useChat } from "../chat/ChatContext";
 
 import HomeNav from "../components/nav/HomeNav";
-import SiteFooter from "../components/sections/SiteFooter";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -102,6 +101,7 @@ export default function LWDPartnership({ onBack, onViewCategory, onViewStandard,
           onVendorLogin={onBack}
           onNavigateStandard={onViewStandard}
           onNavigateAbout={onViewAbout}
+          hasHero={false}
         />
 
         <main>
@@ -358,7 +358,6 @@ export default function LWDPartnership({ onBack, onViewCategory, onViewStandard,
           </section>
         </main>
 
-        <SiteFooter {...footerNav} />
       </div>
     </ThemeCtx.Provider>
   );

@@ -11,7 +11,6 @@ import { getDarkPalette } from "../theme/tokens";
 import { useChat } from "../chat/ChatContext";
 
 import HomeNav from "../components/nav/HomeNav";
-import SiteFooter from "../components/sections/SiteFooter";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -61,6 +60,7 @@ export default function AboutLWD({ onBack, onViewCategory, onViewStandard, onVie
           onVendorLogin={onBack}
           onNavigateStandard={onViewStandard}
           onNavigateAbout={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          hasHero={false}
         />
 
         <main>
@@ -490,7 +490,6 @@ export default function AboutLWD({ onBack, onViewCategory, onViewStandard, onVie
           </section>
         </main>
 
-        <SiteFooter {...footerNav} />
       </div>
     </ThemeCtx.Provider>
   );

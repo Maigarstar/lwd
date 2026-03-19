@@ -4,15 +4,23 @@ import { fetchPostBySlug } from '../../services/magazineService';
 import ArticleBody from './components/ArticleBody';
 import RelatedPosts from './components/RelatedPosts';
 import MagazineNav from './components/MagazineNav';
+import HomeNav from '../../components/nav/HomeNav';
 import NewsletterCapture from './components/NewsletterCapture';
-import SiteFooter from '../../components/sections/SiteFooter';
+import SeoHead from '../../components/seo/SeoHead';
+import JsonLd from '../../components/seo/JsonLd';
+import { buildArticleSchema } from '../../utils/structuredData';
+
+const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://www.luxuryweddingdirectory.co.uk';
 
 import { getMagTheme, FD, FU, GOLD_CONST as GOLD } from './magazineTheme';
 
 const CREAM = '#f5f0e8';
 
 function formatDate(d) {
-  return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return '';
+  return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 // ─── Reading Progress Bar ─────────────────────────────────────────────────────
@@ -194,7 +202,7 @@ function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome
   return (
     <div style={{ background: T.bg, minHeight: '100vh', transition: 'background 0.35s' }}>
       <ReadingProgress />
-
+      <HomeNav darkMode={!isLight} onToggleDark={onToggleLight} hasHero={false} />
       <MagazineNav
         activeCategoryId={post.category}
         onNavigateHome={onNavigateHome}
@@ -202,6 +210,7 @@ function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome
         onNavigateArticle={goArticle}
         isLight={isLight}
         onToggleLight={onToggleLight}
+        topOffset={60}
       />
 
       {/* Hero */}
@@ -278,7 +287,6 @@ function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome
 
       <RelatedPosts posts={relatedPosts} onRead={goArticle} light={isLight} />
       <NewsletterCapture isLight={isLight} />
-      <SiteFooter {...(footerNav || {})} />
     </div>
   );
 }
@@ -303,7 +311,7 @@ function LayoutSidebar({ post, relatedPosts, onNavigateArticle, onNavigateHome, 
   return (
     <div style={{ background: T.bg, minHeight: '100vh', transition: 'background 0.35s' }}>
       <ReadingProgress />
-
+      <HomeNav darkMode={!isLight} onToggleDark={onToggleLight} hasHero={false} />
       <MagazineNav
         activeCategoryId={post.category}
         onNavigateHome={onNavigateHome}
@@ -311,6 +319,7 @@ function LayoutSidebar({ post, relatedPosts, onNavigateArticle, onNavigateHome, 
         onNavigateArticle={goArticle}
         isLight={isLight}
         onToggleLight={onToggleLight}
+        topOffset={60}
       />
 
       {/* Hero, narrower, left-aligned for sidebar layout */}
@@ -442,7 +451,6 @@ function LayoutSidebar({ post, relatedPosts, onNavigateArticle, onNavigateHome, 
       {/* Related posts full-width below */}
       <RelatedPosts posts={relatedPosts.slice(0, 3)} onRead={goArticle} light={isLight} />
       <NewsletterCapture isLight={isLight} />
-      <SiteFooter {...(footerNav || {})} />
     </div>
   );
 }
@@ -514,78 +522,27 @@ export default function MagazineArticlePage({ slug, onNavigateArticle, onNavigat
     });
   }, [slug]);
 
-  // SEO head injection
-  useEffect(() => {
-    if (!post) return;
-    const prevTitle = document.title;
-    document.title = `${post.seoTitle || post.title} | LDW Magazine`;
-
-    const setMeta = (sel, content) => {
-      if (!content) return;
-      let el = document.querySelector(sel);
-      if (!el) { el = document.createElement('meta'); document.head.appendChild(el); }
-      const attr = sel.includes('[name') ? 'name' : 'property';
-      const key  = sel.match(/["']([^"']+)['"]/)?.[1];
-      if (key) el.setAttribute(attr, key);
-      el.setAttribute('content', content);
-    };
-
-    setMeta('[name="description"]',         post.metaDescription || post.excerpt || '');
-    setMeta('[property="og:title"]',         post.ogTitle || post.seoTitle || post.title);
-    setMeta('[property="og:description"]',   post.ogDescription || post.metaDescription || post.excerpt || '');
-    setMeta('[property="og:image"]',         post.ogImage || post.coverImage || '');
-    setMeta('[property="og:type"]',          'article');
-
-    return () => { document.title = prevTitle; };
-  }, [post]);
-
-  // JSON-LD structured data
-  useEffect(() => {
-    if (!post) return;
-    const scriptId = 'magazine-article-jsonld';
-    let el = document.getElementById(scriptId);
-    if (!el) {
-      el = document.createElement('script');
-      el.type = 'application/ld+json';
-      el.id = scriptId;
-      document.head.appendChild(el);
-    }
-    const publishedDate = post.publishedAt || post.date || null;
-    const modifiedDate  = post.updatedAt   || publishedDate || null;
-    const schema = {
-      '@context': 'https://schema.org',
-      '@type': 'Article',
-      headline:     post.seoTitle || post.title,
-      description:  post.metaDescription || post.excerpt || '',
-      image:        post.ogImage || post.coverImage || undefined,
-      datePublished: publishedDate,
-      dateModified:  modifiedDate,
-      author: post.author?.name ? {
-        '@type': 'Person',
-        name: post.author.name,
-      } : undefined,
-      publisher: {
-        '@type': 'Organization',
-        name: 'LDW Magazine',
-        logo: { '@type': 'ImageObject', url: `${window.location.origin}/logo.svg` },
-      },
-      mainEntityOfPage: {
-        '@type': 'WebPage',
-        '@id': `${window.location.origin}/magazine/${post.slug}`,
-      },
-    };
-    // Remove undefined fields for clean output
-    el.textContent = JSON.stringify(schema, (_, v) => v === undefined ? undefined : v);
-    return () => { el.remove(); };
-  }, [post]);
-
   if (loading && !post) return null;
   if (!post) return <ArticleNotFound onNavigateHome={onNavigateHome} />;
 
   const relatedPosts = getRelatedPosts(post, 4);
+  const canonicalUrl = post.category_slug && post.slug
+    ? `${SITE_URL}/magazine/${post.category_slug}/${post.slug}`
+    : undefined;
 
   const sharedProps = { post, relatedPosts, onNavigateArticle, onNavigateHome, onNavigateCategory, isLight, onToggleLight, footerNav };
 
-  if (post.layout === 'sidebar') return <LayoutSidebar {...sharedProps} />;
-  return <LayoutFullWidth {...sharedProps} />;
+  return (
+    <>
+      <SeoHead
+        title={post.seo_title || post.seoTitle || post.title}
+        description={post.seo_description || post.seoDescription || post.metaDescription || post.excerpt}
+        canonicalUrl={canonicalUrl}
+        ogImage={post.hero_image || post.heroImage || post.ogImage || post.coverImage}
+        ogType="article"
+      />
+      <JsonLd schema={buildArticleSchema(post)} />
+      {post.layout === 'sidebar' ? <LayoutSidebar {...sharedProps} /> : <LayoutFullWidth {...sharedProps} />}
+    </>
+  );
 }

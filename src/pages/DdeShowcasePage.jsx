@@ -17,7 +17,6 @@ import { ThemeCtx, LIGHT }   from '../components/profile/ProfileDesignSystem';
 import VenueEnquireCard       from '../components/cards/editorial/VenueEnquireCard';
 import VenueEnquiryForm       from '../components/enquiry/VenueEnquiryForm';
 import HomeNav                from '../components/nav/HomeNav';
-import SiteFooter             from '../components/sections/SiteFooter';
 import { useBreakpoint }      from '../hooks/useWindowWidth';
 import { fetchVenueContent }  from '../services/venueContentService';
 
@@ -622,6 +621,7 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
           onVendorLogin={null}
           onNavigateStandard={onNavigateStandard}
           onNavigateAbout={onNavigateAbout}
+          hasHero={false}
         />
       </div>
 
@@ -1022,7 +1022,6 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
         }} />
       </section>
 
-      <SiteFooter footerNav={{}} />
     </div>
   );
 }

@@ -15,7 +15,6 @@ import { useState, useEffect } from 'react';
 import AuraDiscoveryGrid from '../components/discovery/AuraDiscoveryGrid';
 import { useChat } from '../chat/ChatContext';
 import HomeNav from '../components/nav/HomeNav';
-import SiteFooter from '../components/sections/SiteFooter';
 
 export default function AuraDiscoveryDemoPage({ onViewVenue }) {
   const { openMiniBar } = useChat();
@@ -58,6 +57,7 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
         onVendorLogin={() => window.location.href = '/admin'}
         onNavigateStandard={() => window.location.href = '/'}
         onNavigateAbout={() => window.location.href = '/'}
+        hasHero={false}
       />
       <div style={{
         background: bgColor,
@@ -787,7 +787,6 @@ export default function AuraDiscoveryDemoPage({ onViewVenue }) {
       </div>
       </div>
 
-      <SiteFooter footerNav={{}} />
     </>
   );
 }

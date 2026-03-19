@@ -16,7 +16,6 @@ import MediaBlock             from '../components/profile/MediaBlock';
 import { ThemeCtx, LIGHT }   from '../components/profile/ProfileDesignSystem';
 import VenueEnquireCard       from '../components/cards/editorial/VenueEnquireCard';
 import HomeNav                from '../components/nav/HomeNav';
-import SiteFooter             from '../components/sections/SiteFooter';
 import { useBreakpoint }      from '../hooks/useWindowWidth';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -555,6 +554,7 @@ export default function SixSensesShowcasePage({ onBack, onGoDestination, onNavig
           onVendorLogin={null}
           onNavigateStandard={onNavigateStandard}
           onNavigateAbout={onNavigateAbout}
+          hasHero={false}
         />
       </div>
 
@@ -956,7 +956,6 @@ export default function SixSensesShowcasePage({ onBack, onGoDestination, onNavig
         }} />
       </section>
 
-      <SiteFooter footerNav={{}} />
     </div>
   );
 }
