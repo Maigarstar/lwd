@@ -3103,64 +3103,108 @@ function ContactSection({ venue }) {
           onClick={() => setExitUrl(null)}
           style={{
             position: "fixed", inset: 0, zIndex: 9999,
-            background: "rgba(0,0,0,0.72)",
+            background: "rgba(10,10,8,0.55)",
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}
         >
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              background: "#fff", borderRadius: 4,
-              width: "min(520px, 90vw)", padding: "56px 48px 48px",
-              position: "relative", textAlign: "center",
+              background: "#0f0f0d",
+              border: "1px solid rgba(184,160,90,0.22)",
+              borderRadius: 2,
+              width: "min(480px, 88vw)",
+              padding: "52px 44px 44px",
+              position: "relative",
+              textAlign: "center",
+              boxShadow: "0 32px 80px rgba(0,0,0,0.6)",
             }}
           >
             {/* Close × */}
             <button
               onClick={() => setExitUrl(null)}
               style={{
-                position: "absolute", top: 18, right: 20,
+                position: "absolute", top: 16, right: 18,
                 background: "none", border: "none", cursor: "pointer",
-                fontSize: 22, color: "#222", lineHeight: 1,
+                fontSize: 18, color: "rgba(184,160,90,0.5)", lineHeight: 1,
+                transition: "color 0.2s",
               }}
+              onMouseEnter={e => e.currentTarget.style.color = "#b8a05a"}
+              onMouseLeave={e => e.currentTarget.style.color = "rgba(184,160,90,0.5)"}
               aria-label="Close"
-            >×</button>
+            >✕</button>
 
-            {/* Message */}
-            <p style={{
-              fontFamily: "'Cormorant Garamond', Georgia, serif",
-              fontSize: 22, fontWeight: 400,
-              color: "#111", lineHeight: 1.55,
-              marginBottom: 36, marginTop: 0,
+            {/* Gold eyebrow */}
+            <div style={{
+              fontFamily: FB, fontSize: 9, fontWeight: 700, letterSpacing: "0.2em",
+              textTransform: "uppercase", color: "#b8a05a", marginBottom: 20,
             }}>
-              You are leaving luxuryweddingdirectory.com. The site you are about to visit is managed independently and may have different policies.
+              Leaving LWD
+            </div>
+
+            {/* Gold divider */}
+            <div style={{ width: 32, height: 1, background: "rgba(184,160,90,0.35)", margin: "0 auto 28px" }} />
+
+            {/* Headline */}
+            <p style={{
+              fontFamily: FD,
+              fontSize: 26, fontWeight: 400, fontStyle: "italic",
+              color: "#f0ede6", lineHeight: 1.5,
+              marginBottom: 10, marginTop: 0,
+            }}>
+              You're leaving our site
             </p>
 
-            {/* Continue button */}
-            <a
-              href={exitUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setExitUrl(null)}
-              style={{
-                display: "inline-block",
-                padding: "16px 40px",
-                borderRadius: 40,
-                background: "#7b5c8a",
-                color: "#fff",
-                fontFamily: "'Montserrat', sans-serif",
-                fontSize: 13,
-                fontWeight: 700,
-                letterSpacing: "0.12em",
-                textTransform: "uppercase",
-                textDecoration: "none",
-                transition: "background 0.2s",
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = "#6a4d78"}
-              onMouseLeave={e => e.currentTarget.style.background = "#7b5c8a"}
-            >
-              Continue
-            </a>
+            {/* Body */}
+            <p style={{
+              fontFamily: FB, fontSize: 13, color: "rgba(200,196,188,0.75)",
+              lineHeight: 1.7, marginBottom: 36, marginTop: 0,
+              maxWidth: 340, marginLeft: "auto", marginRight: "auto",
+            }}>
+              The site you're about to visit is managed independently and may have different privacy policies.
+            </p>
+
+            {/* Buttons */}
+            <div style={{ display: "flex", gap: 12, justifyContent: "center", alignItems: "center" }}>
+              <a
+                href={exitUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setExitUrl(null)}
+                style={{
+                  display: "inline-block",
+                  padding: "13px 36px",
+                  background: "#b8a05a",
+                  color: "#0a0a08",
+                  fontFamily: FB, fontSize: 11, fontWeight: 800,
+                  letterSpacing: "0.15em", textTransform: "uppercase",
+                  textDecoration: "none", borderRadius: 1,
+                  transition: "opacity 0.2s",
+                }}
+                onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
+                onMouseLeave={e => e.currentTarget.style.opacity = "1"}
+              >
+                Continue
+              </a>
+              <button
+                onClick={() => setExitUrl(null)}
+                style={{
+                  background: "none",
+                  border: "1px solid rgba(184,160,90,0.3)",
+                  color: "rgba(200,196,188,0.6)",
+                  fontFamily: FB, fontSize: 11, fontWeight: 700,
+                  letterSpacing: "0.12em", textTransform: "uppercase",
+                  padding: "13px 28px", borderRadius: 1, cursor: "pointer",
+                  transition: "border-color 0.2s, color 0.2s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(184,160,90,0.6)"; e.currentTarget.style.color = "#c8c4bc"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(184,160,90,0.3)"; e.currentTarget.style.color = "rgba(200,196,188,0.6)"; }}
+              >
+                Go Back
+              </button>
+            </div>
           </div>
         </div>
       )}
