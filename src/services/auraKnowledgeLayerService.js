@@ -15,6 +15,7 @@
 
 import { supabase } from '../lib/supabaseClient';
 import { getQualityTier, QUALITY_TIERS } from './listings';
+import { THEMES } from './reviewThemeService';
 
 /**
  * Fetch complete knowledge layer for a venue
@@ -38,7 +39,7 @@ export async function fetchVenueKnowledgeLayer(venueId) {
         .single(),
       supabase
         .from('reviews')
-        .select('overall_rating, review_text, created_at')
+        .select('overall_rating, review_text, created_at, themes, aura_metadata, review_title, reviewer_name, reviewer_location, event_date, is_verified')
         .eq('entity_id', venueId)
         .eq('entity_type', 'listing')
         .order('created_at', { ascending: false })
@@ -120,6 +121,13 @@ export async function fetchVenueKnowledgeLayer(venueId) {
           rating: r.overall_rating,
           content: r.review_text,
           createdAt: r.created_at,
+          themes: r.themes || [],
+          auraMetadata: r.aura_metadata || {},
+          title: r.review_title,
+          reviewer: r.reviewer_name,
+          location: r.reviewer_location,
+          verified: r.is_verified,
+          eventDate: r.event_date,
         })),
         averageRating: reviewsRes.data.length > 0
           ? (reviewsRes.data.reduce((sum, r) => sum + (r.overall_rating || 0), 0) / reviewsRes.data.length).toFixed(1)
@@ -271,64 +279,94 @@ export function extractVenueHighlights(knowledge) {
 }
 
 /**
- * Extract themes from review content using simple keyword matching
- * Returns object with theme counts
+ * Aggregate stored themes from review items (reads pre-extracted themes array).
+ * Returns object with canonical 11-theme counts, keyed by theme name.
  */
 function extractReviewThemes(reviews) {
-  const themes = {
-    service: 0,
-    venue: 0,
-    food: 0,
-    location: 0,
-    team: 0,
-    garden: 0,
-    staff: 0,
-  };
+  // Initialise all 11 canonical themes at zero
+  const counts = {};
+  for (const themeKey of Object.keys(THEMES)) {
+    counts[themeKey] = 0;
+  }
 
-  const serviceKeywords = ['service', 'staff', 'team', 'helpful', 'professional', 'attentive', 'coordination'];
-  const venueKeywords = ['venue', 'beautiful', 'stunning', 'elegant', 'space', 'setting', 'landscape'];
-  const foodKeywords = ['food', 'cuisine', 'meal', 'dinner', 'catering', 'chef', 'taste'];
-  const locationKeywords = ['location', 'access', 'parking', 'drive', 'convenient', 'journey'];
-  const gardenKeywords = ['garden', 'park', 'landscape', 'grounds', 'nature', 'flowers'];
+  for (const review of reviews) {
+    // Read stored themes array (populated by DB trigger / saveReviewThemes)
+    const storedThemes = review.themes || [];
+    for (const t of storedThemes) {
+      if (counts[t] !== undefined) {
+        counts[t]++;
+      }
+    }
+  }
 
-  reviews.forEach(review => {
-    const text = (review.content || '').toLowerCase();
-
-    if (serviceKeywords.some(k => text.includes(k))) themes.service++;
-    if (venueKeywords.some(k => text.includes(k))) themes.venue++;
-    if (foodKeywords.some(k => text.includes(k))) themes.food++;
-    if (locationKeywords.some(k => text.includes(k))) themes.location++;
-    if (gardenKeywords.some(k => text.includes(k))) themes.garden++;
-  });
-
-  return themes;
+  return counts;
 }
 
 /**
- * Analyze reviews for common themes and sentiment
- * Returns structured data for Aura AI analysis
+ * Analyze reviews for common themes and sentiment.
+ * Returns structured data for Aura AI analysis.
+ * Covers all 11 canonical themes with counts and percentages.
  */
 export function analyzeReviewThemes(knowledge) {
   if (!knowledge || !knowledge.reviews) return null;
 
   const { reviews } = knowledge;
-  const themes = extractReviewThemes(reviews.items);
+  const themeCounts = extractReviewThemes(reviews.items);
 
-  // Sort themes by frequency
-  const sortedThemes = Object.entries(themes)
-    .filter(([_, count]) => count > 0)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
-
-  return {
-    topThemes: sortedThemes.map(([theme, count]) => ({
-      theme,
+  // All 11 themes with count + pct, sorted by frequency desc
+  const allThemes = Object.entries(themeCounts)
+    .map(([themeKey, count]) => ({
+      theme: themeKey,
+      label: THEMES[themeKey]?.label || themeKey,
       mentions: count,
       percentage: reviews.total > 0 ? Math.round((count / reviews.total) * 100) : 0,
-    })),
+    }))
+    .sort((a, b) => b.mentions - a.mentions);
+
+  const topThemes = allThemes.filter(t => t.mentions > 0).slice(0, 5);
+
+  return {
+    allThemes,
+    topThemes,
     sentimentOverview: getSentimentOverview(reviews),
     commonPraise: extractCommonPraise(reviews.items),
   };
+}
+
+/**
+ * Get review intelligence block for Aura system prompt injection.
+ * Returns a concise human-readable string summarising guest review data.
+ *
+ * @param {object} knowledge - Full knowledge layer from fetchVenueKnowledgeLayer
+ * @returns {string}
+ */
+export function getReviewIntelligence(knowledge) {
+  if (!knowledge || !knowledge.reviews) return '';
+  const { reviews } = knowledge;
+  if (reviews.total === 0) return 'Guest reviews: None yet.';
+
+  const themeAnalysis = analyzeReviewThemes(knowledge);
+  const topThemeStr = themeAnalysis?.topThemes
+    ?.slice(0, 3)
+    .map(t => `${t.label} (${t.mentions}/${reviews.total} reviews)`)
+    .join(', ') || 'none identified';
+
+  // Strongest review: first item (most recent), truncated at 120 chars
+  const strongest = reviews.items[0];
+  const strongestQuote = strongest?.content
+    ? (strongest.content.length > 120 ? strongest.content.slice(0, 120) + '…' : strongest.content)
+    : null;
+
+  const sentiment = getSentimentOverview(reviews);
+  const avg = reviews.averageRating || '—';
+
+  let result = `Guest reviews (${reviews.total} total, avg ${avg}★): Top themes: ${topThemeStr}.`;
+  if (strongestQuote) {
+    result += ` Strongest review: '${strongestQuote}'`;
+  }
+  result += ` Sentiment: ${sentiment}.`;
+
+  return result;
 }
 
 /**
