@@ -61,3 +61,9 @@ export async function fetchEntityEvents(entityId, days = 30) {
   try { return await callEdge({ action: 'entity_events', entityId, days }); }
   catch (e) { console.warn('[userEvents] fetchEntityEvents:', e.message); return null; }
 }
+
+/** Compare intelligence — most compared, top pairs, per-venue competitors */
+export async function fetchCompareTop(days = 30, limit = 10) {
+  try { return await callEdge({ action: 'compare_top', days, limit }); }
+  catch (e) { console.warn('[userEvents] fetchCompareTop:', e.message); return null; }
+}

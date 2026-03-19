@@ -13,7 +13,7 @@ import { buildVenueSchema, buildBreadcrumbSchema, buildFaqSchema } from './utils
 import HomeNav from "./components/nav/HomeNav";
 import ExternalLinkModal from "./components/ExternalLinkModal";
 import { trackExternalClick, hasSeenModalThisSession, markModalSeen } from "./services/outboundClickService";
-import { trackProfileView } from "./services/userEventService";
+import { trackProfileView, trackCompareAdd, trackCompareRemove, trackCompareView, trackComparePair } from "./services/userEventService";
 
 const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://www.luxuryweddingdirectory.co.uk';
 
@@ -5653,7 +5653,7 @@ function MobileLeadBar({ venue }) {
 }
 
 // ─── COMPARE BAR ─────────────────────────────────────────────────────────────
-function CompareBar({ items, onRemove, onClear }) {
+function CompareBar({ items, onRemove, onClear, onCompare }) {
   const C = useT();
   if (!items.length) return null;
   return (
@@ -5675,7 +5675,7 @@ function CompareBar({ items, onRemove, onClear }) {
       )}
       <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
         <button onClick={onClear} style={{ padding: "6px 14px", background: "none", border: "1px solid rgba(255,255,255,0.25)", borderRadius: "var(--lwd-radius-input)", color: "rgba(255,255,255,0.6)", fontFamily: FB, fontSize: 12, cursor: "pointer" }}>Clear</button>
-        <button style={{ padding: "6px 20px", background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)", color: "#fff", fontFamily: FB, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Compare Now →</button>
+        <button onClick={onCompare} style={{ padding: "6px 20px", background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)", color: "#fff", fontFamily: FB, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Compare Now →</button>
       </div>
     </div>
   );
@@ -6535,7 +6535,16 @@ export default function VenueProfile({ onBack = null, slug = null }) {
 
   const addCompare = () => {
     if (!compareList.find(v => v.id === VV.id)) {
-      setCompareList(l => [...l, { id: VV.id, name: VV.name }]);
+      setCompareList(l => {
+        const updated = [...l, { id: VV.id, name: VV.name }].slice(0, 3);
+        trackCompareAdd({
+          venueId:       VV.id,
+          venueName:     VV.name,
+          compareList:   l,           // peers already in bar before this add
+          sourceSurface: 'venue_profile',
+        });
+        return updated;
+      });
     }
   };
 
@@ -6638,7 +6647,21 @@ export default function VenueProfile({ onBack = null, slug = null }) {
         </div>
 
         <MobileLeadBar venue={VV} />
-        <CompareBar items={compareList} onRemove={id => setCompareList(l => l.filter(v => v.id !== id))} onClear={() => setCompareList([])} />
+        <CompareBar
+          items={compareList}
+          onRemove={id => {
+            const removed = compareList.find(v => v.id === id);
+            setCompareList(l => l.filter(v => v.id !== id));
+            if (removed) {
+              trackCompareRemove({ venueId: id, venueName: removed.name, compareList, sourceSurface: 'compare_bar' });
+            }
+          }}
+          onClear={() => setCompareList([])}
+          onCompare={() => {
+            trackCompareView({ compareList, sourceSurface: 'compare_bar' });
+            trackComparePair({ compareList, sourceSurface: 'compare_bar' });
+          }}
+        />
         <Lightbox gallery={VV.gallery} idx={lightIdx} setLightIdx={setLightIdx} onClose={() => setLightIdx(null)} onPrev={() => setLightIdx(i => (i - 1 + (VV.gallery?.length || 1)) % (VV.gallery?.length || 1))} onNext={() => setLightIdx(i => (i + 1) % (VV.gallery?.length || 1))} engagement={VV.engagement?.photos} />
         {enquiryOpen && <EnquiryModal venue={VV} onClose={() => setEnquiryOpen(false)} />}
         {showReviewForm && (

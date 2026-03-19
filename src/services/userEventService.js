@@ -217,6 +217,105 @@ export function trackAuraQuery({ query, venuesRecommended = [], sourceSurface = 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Compare behaviour tracking
+//
+// Event taxonomy:
+//   compare_add    — venue added to compare bar
+//   compare_remove — venue removed from compare bar
+//   compare_view   — "Compare Now" clicked; user viewed the comparison
+//   compare_pair   — one event per pairwise combination (A×B, A×C, B×C)
+//                    competitive intelligence: which venues are compared together
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Venue added to the compare bar.
+ * @param {{ venueId: string, venueName?: string, compareList?: {id:string,name:string}[], sourceSurface?: string }} p
+ */
+export function trackCompareAdd({ venueId, venueName = null, compareList = [], sourceSurface = 'venue_profile' }) {
+  const peers = compareList.filter(v => v.id !== venueId);
+  trackEvent({
+    eventType:  'compare_add',
+    entityType: 'venue',
+    entityId:   venueId,
+    metadata: {
+      venue_name:          venueName,
+      compared_with_ids:   peers.map(v => v.id),
+      compared_with_names: peers.map(v => v.name),
+      compared_count:      compareList.length + 1,
+      source_surface:      sourceSurface,
+    },
+  });
+}
+
+/**
+ * Venue removed from the compare bar.
+ * @param {{ venueId: string, venueName?: string, compareList?: {id:string,name:string}[], sourceSurface?: string }} p
+ */
+export function trackCompareRemove({ venueId, venueName = null, compareList = [], sourceSurface = 'compare_bar' }) {
+  const peers = compareList.filter(v => v.id !== venueId);
+  trackEvent({
+    eventType:  'compare_remove',
+    entityType: 'venue',
+    entityId:   venueId,
+    metadata: {
+      venue_name:          venueName,
+      compared_with_ids:   peers.map(v => v.id),
+      compared_with_names: peers.map(v => v.name),
+      compared_count:      compareList.length,
+      source_surface:      sourceSurface,
+    },
+  });
+}
+
+/**
+ * "Compare Now" clicked — user viewed the full comparison.
+ * Fires once per comparison view. compareList = all venues in bar.
+ * @param {{ compareList: {id:string,name:string}[], sourceSurface?: string }} p
+ */
+export function trackCompareView({ compareList = [], sourceSurface = 'compare_bar' }) {
+  if (compareList.length < 2) return;
+  trackEvent({
+    eventType: 'compare_view',
+    metadata: {
+      venues:         compareList.map(v => ({ id: v.id, name: v.name })),
+      compared_count: compareList.length,
+      source_surface: sourceSurface,
+    },
+  });
+}
+
+/**
+ * One event per pairwise combination in the compare bar.
+ * Up to 3 venues → up to 3 pair events (A×B, A×C, B×C).
+ * Competitive intelligence: which venues users compare head-to-head.
+ * @param {{ compareList: {id:string,name:string}[], sourceSurface?: string }} p
+ */
+export function trackComparePair({ compareList = [], sourceSurface = 'compare_bar' }) {
+  if (compareList.length < 2) return;
+  for (let i = 0; i < compareList.length; i++) {
+    for (let j = i + 1; j < compareList.length; j++) {
+      const a = compareList[i];
+      const b = compareList[j];
+      // Use the first venue as entity anchor, second in metadata
+      trackEvent({
+        eventType:  'compare_pair',
+        entityType: 'venue',
+        entityId:   a.id,
+        metadata: {
+          venue_a_id:     a.id,
+          venue_a_name:   a.name,
+          venue_b_id:     b.id,
+          venue_b_name:   b.name,
+          all_venues:     compareList.map(v => ({ id: v.id, name: v.name })),
+          compared_count: compareList.length,
+          source_surface: sourceSurface,
+        },
+      });
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Return after outbound — passive detection via visibilitychange
 //
 // Flow:

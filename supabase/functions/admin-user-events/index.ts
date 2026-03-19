@@ -9,6 +9,7 @@
 //   search_queries  — top search queries, zero-result queries, filter usage
 //   enquiry_funnel  — started vs submitted per entity + platform rates
 //   shortlist_top   — most shortlisted venues/vendors
+//   compare_top     — most compared venues, top pairs, per-venue competitors
 //   timeline        — daily event counts by type (last N days)
 //   entity_events   — all events for a specific entity (venue/vendor drill-down)
 //
@@ -85,6 +86,9 @@ async function handleSummary(days: number) {
   const auraQueries     = byType["aura_query"]            || 0;
   const profileViews    = byType["profile_view"]          || 0;
   const returns         = byType["returned_after_outbound"] || 0;
+  const compareAdds     = byType["compare_add"]           || 0;
+  const comparePairs    = byType["compare_pair"]          || 0;
+  const compareViews    = byType["compare_view"]          || 0;
 
   const enquiryRate = enquiryStarts > 0
     ? Math.round((enquirySubs / enquiryStarts) * 100)
@@ -101,6 +105,9 @@ async function handleSummary(days: number) {
       enquirySubmissions: enquirySubs,
       enquiryConversionRate: enquiryRate,
       shortlistAdds,
+      compareAdds,
+      comparePairs,
+      compareViews,
       auraQueries,
       returnsAfterOutbound: returns,
     },
@@ -309,6 +316,111 @@ async function handleTimeline(days: number, eventTypes: string[]) {
   return ok({ timeline, byType, total: rows.length, days });
 }
 
+// ── compare_top ───────────────────────────────────────────────────────────────
+async function handleCompareTop(days: number, limit: number) {
+  // Fetch compare_add, compare_pair events together
+  const { data, error } = await supabase
+    .from("user_events")
+    .select("event_type, entity_id, metadata")
+    .in("event_type", ["compare_add", "compare_pair"])
+    .gte("created_at", sinceDate(days));
+
+  if (error) return err(error.message, 500);
+
+  const rows = (data || []) as {
+    event_type: string;
+    entity_id: string | null;
+    metadata: Record<string, unknown>;
+  }[];
+
+  // ── Most compared venues (by compare_add events) ──────────────────────────
+  const addCounts: Record<string, { adds: number; name: string | null }> = {};
+
+  rows
+    .filter(r => r.event_type === "compare_add" && r.entity_id)
+    .forEach(r => {
+      const id = r.entity_id!;
+      if (!addCounts[id]) {
+        addCounts[id] = { adds: 0, name: String(r.metadata?.venue_name || "") || null };
+      }
+      addCounts[id].adds++;
+    });
+
+  const mostCompared = Object.entries(addCounts)
+    .map(([venueId, v]) => ({ venueId, ...v }))
+    .sort((a, b) => b.adds - a.adds)
+    .slice(0, limit);
+
+  // ── Top compare pairs (from compare_pair events) ──────────────────────────
+  const pairCounts: Record<string, { count: number; nameA: string | null; nameB: string | null }> = {};
+
+  rows
+    .filter(r => r.event_type === "compare_pair")
+    .forEach(r => {
+      const m = r.metadata;
+      const idA = String(m?.venue_a_id || "");
+      const idB = String(m?.venue_b_id || "");
+      if (!idA || !idB) return;
+      // Canonical key: always smaller id first for de-duplication
+      const [k1, k2, n1, n2] = idA < idB
+        ? [idA, idB, String(m.venue_a_name || ""), String(m.venue_b_name || "")]
+        : [idB, idA, String(m.venue_b_name || ""), String(m.venue_a_name || "")];
+      const key = `${k1}:::${k2}`;
+      if (!pairCounts[key]) pairCounts[key] = { count: 0, nameA: n1 || null, nameB: n2 || null };
+      pairCounts[key].count++;
+    });
+
+  const topPairs = Object.entries(pairCounts)
+    .map(([key, v]) => {
+      const [venueAId, venueBId] = key.split(":::");
+      return { venueAId, venueBId, ...v };
+    })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+
+  // ── Per-venue top competitors (venues most compared against each target) ───
+  const competitorMap: Record<string, Record<string, { count: number; name: string | null }>> = {};
+
+  rows
+    .filter(r => r.event_type === "compare_pair")
+    .forEach(r => {
+      const m = r.metadata;
+      const idA = String(m?.venue_a_id || "");
+      const idB = String(m?.venue_b_id || "");
+      const nA  = String(m?.venue_a_name || "") || null;
+      const nB  = String(m?.venue_b_name || "") || null;
+      if (!idA || !idB) return;
+      // A vs B: record B as competitor of A, and A as competitor of B
+      if (!competitorMap[idA]) competitorMap[idA] = {};
+      if (!competitorMap[idA][idB]) competitorMap[idA][idB] = { count: 0, name: nB };
+      competitorMap[idA][idB].count++;
+
+      if (!competitorMap[idB]) competitorMap[idB] = {};
+      if (!competitorMap[idB][idA]) competitorMap[idB][idA] = { count: 0, name: nA };
+      competitorMap[idB][idA].count++;
+    });
+
+  // Top 5 competitors per venue, for top N venues only
+  const venueCompetitors = Object.entries(competitorMap)
+    .map(([venueId, rivals]) => ({
+      venueId,
+      venueName: addCounts[venueId]?.name || null,
+      topCompetitors: Object.entries(rivals)
+        .map(([rivalId, rv]) => ({ rivalId, ...rv }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5),
+    }))
+    .filter(v => v.topCompetitors.length > 0)
+    .sort((a, b) => {
+      const aTotal = a.topCompetitors.reduce((s, r) => s + r.count, 0);
+      const bTotal = b.topCompetitors.reduce((s, r) => s + r.count, 0);
+      return bTotal - aTotal;
+    })
+    .slice(0, limit);
+
+  return ok({ mostCompared, topPairs, venueCompetitors, days });
+}
+
 // ── entity_events ─────────────────────────────────────────────────────────────
 async function handleEntityEvents(entityId: string, days: number) {
   const { data, error } = await supabase
@@ -354,10 +466,11 @@ Deno.serve(async (req: Request) => {
     case "enquiry_funnel": return handleEnquiryFunnel(Number(days), Number(limit));
     case "shortlist_top":  return handleShortlistTop(Number(days), Number(limit));
     case "timeline":       return handleTimeline(Number(days), Array.isArray(eventTypes) ? eventTypes as string[] : []);
+    case "compare_top":   return handleCompareTop(Number(days), Number(limit));
     case "entity_events":
       if (!entityId) return err("entityId required for entity_events action");
       return handleEntityEvents(String(entityId), Number(days));
     default:
-      return err(`Unknown action: ${action}. Must be: summary | search_queries | enquiry_funnel | shortlist_top | timeline | entity_events`);
+      return err(`Unknown action: ${action}. Must be: summary | search_queries | enquiry_funnel | shortlist_top | compare_top | timeline | entity_events`);
   }
 });

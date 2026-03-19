@@ -21,6 +21,7 @@ import {
   fetchSearchQueries,
   fetchEnquiryFunnel,
   fetchShortlistTop,
+  fetchCompareTop,
 } from '../../services/adminUserEventsService';
 
 const GD = 'var(--font-heading-primary)';
@@ -726,6 +727,176 @@ function ShortlistPanel({ days, C }) {
   );
 }
 
+// ── Compare Intelligence panel ────────────────────────────────────────────────
+
+function CompareIntelPanel({ days, C }) {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetchCompareTop(days, 10).then(d => {
+      if (!cancelled) { setData(d); setLoading(false); }
+    });
+    return () => { cancelled = true; };
+  }, [days]);
+
+  if (loading) {
+    return (
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '32px', textAlign: 'center' }}>
+        <span style={{ fontFamily: NU, fontSize: 12, color: C.grey }}>Loading compare data…</span>
+      </div>
+    );
+  }
+
+  if (!data || (!data.mostCompared?.length && !data.topPairs?.length)) {
+    return (
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '40px', textAlign: 'center' }}>
+        <div style={{ fontFamily: GD, fontSize: 15, color: C.off, marginBottom: 8 }}>No compare data yet</div>
+        <div style={{ fontFamily: NU, fontSize: 12, color: C.grey }}>Compare behaviour will appear here once users start comparing venues.</div>
+      </div>
+    );
+  }
+
+  const maxAdds   = data.mostCompared?.[0]?.adds || 1;
+  const maxPairs  = data.topPairs?.[0]?.count || 1;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* Summary KPIs */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+        <KpiCard
+          label="Most Compared Venue"
+          value={data.mostCompared?.[0]?.name || data.mostCompared?.[0]?.venueId?.slice(0, 8) || '—'}
+          sub={data.mostCompared?.[0]?.adds ? `${data.mostCompared[0].adds} compare adds` : 'no data'}
+          accent={C.gold} C={C}
+        />
+        <KpiCard
+          label="Top Pair"
+          value={data.topPairs?.[0] ? `${data.topPairs[0].nameA?.split(' ')[0] || '?'} × ${data.topPairs[0].nameB?.split(' ')[0] || '?'}` : '—'}
+          sub={data.topPairs?.[0]?.count ? `Compared ${data.topPairs[0].count}×` : 'no data'}
+          accent="#a78bfa" C={C}
+        />
+        <KpiCard
+          label="Unique Venues Compared"
+          value={fmt(data.mostCompared?.length)}
+          sub={`Last ${days}d`}
+          accent="#60a5fa" C={C}
+        />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+
+        {/* Most compared venues */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden' }}>
+          <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.gold, fontWeight: 600 }}>
+              Most Compared Venues
+            </div>
+            <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, marginTop: 4 }}>
+              Venues added to compare bar most often
+            </div>
+          </div>
+          {data.mostCompared?.slice(0, 8).map((v, i) => (
+            <div key={v.venueId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px', borderBottom: `1px solid ${C.border}` }}>
+              <span style={{ fontFamily: GD, fontSize: i < 3 ? 15 : 12, color: i === 0 ? C.gold : i === 1 ? '#94a3b8' : i === 2 ? '#cd7f32' : C.grey2, minWidth: 20, textAlign: 'center' }}>
+                {i + 1}
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: NU, fontSize: 12, color: C.off, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 3 }}>
+                  {v.name || v.venueId?.slice(0, 14) + '…'}
+                </div>
+                <div style={{ height: 3, background: C.border, borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${(v.adds / maxAdds) * 100}%`, background: C.gold, borderRadius: 2 }} />
+                </div>
+              </div>
+              <span style={{ fontFamily: GD, fontSize: 18, color: C.gold, flexShrink: 0 }}>{v.adds}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Top compare pairs */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden' }}>
+          <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#a78bfa', fontWeight: 600 }}>
+              Top Compared Pairs
+            </div>
+            <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, marginTop: 4 }}>
+              Head-to-head comparisons — competitive landscape
+            </div>
+          </div>
+          {(!data.topPairs || data.topPairs.length === 0) && (
+            <div style={{ padding: '24px', fontFamily: NU, fontSize: 12, color: C.grey }}>No pair data yet.</div>
+          )}
+          {data.topPairs?.slice(0, 8).map((pair, i) => (
+            <div key={`${pair.venueAId}-${pair.venueBId}`} style={{ padding: '12px 20px', borderBottom: `1px solid ${C.border}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <span style={{ fontFamily: GD, fontSize: 12, color: C.grey2, minWidth: 20 }}>{i + 1}</span>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                  <span style={{ fontFamily: NU, fontSize: 11, color: C.off, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '42%' }}>
+                    {pair.nameA || pair.venueAId?.slice(0, 8)}
+                  </span>
+                  <span style={{ fontFamily: NU, fontSize: 10, color: '#a78bfa', flexShrink: 0 }}>vs</span>
+                  <span style={{ fontFamily: NU, fontSize: 11, color: C.off, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '42%' }}>
+                    {pair.nameB || pair.venueBId?.slice(0, 8)}
+                  </span>
+                </div>
+                <span style={{ fontFamily: GD, fontSize: 16, color: '#a78bfa', flexShrink: 0 }}>{pair.count}×</span>
+              </div>
+              <div style={{ marginLeft: 28, height: 3, background: C.border, borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${(pair.count / maxPairs) * 100}%`, background: '#a78bfa', borderRadius: 2 }} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+      </div>
+
+      {/* Per-venue competitor table */}
+      {data.venueCompetitors?.length > 0 && (
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden' }}>
+          <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#60a5fa', fontWeight: 600 }}>
+              Per-Venue Competitor Intelligence
+            </div>
+            <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, marginTop: 4 }}>
+              Which venues users compare against each property
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+            {data.venueCompetitors.slice(0, 6).map(v => (
+              <div key={v.venueId} style={{ padding: '14px 20px', borderBottom: `1px solid ${C.border}` }}>
+                <div style={{ fontFamily: NU, fontSize: 12, color: C.off, fontWeight: 600, marginBottom: 8 }}>
+                  {v.venueName || v.venueId?.slice(0, 16) + '…'}
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {v.topCompetitors.map((rival, ri) => (
+                    <div key={rival.rivalId} style={{
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      padding: '3px 10px',
+                      background: ri === 0 ? `${C.gold}14` : `${C.border}`,
+                      border: `1px solid ${ri === 0 ? C.gold : C.border}`,
+                      borderRadius: 3,
+                    }}>
+                      <span style={{ fontFamily: NU, fontSize: 11, color: ri === 0 ? C.gold : C.off }}>
+                        {rival.name || rival.rivalId?.slice(0, 8)}
+                      </span>
+                      <span style={{ fontFamily: NU, fontSize: 10, color: C.grey }}>{rival.count}×</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
 // ── Days filter pill ──────────────────────────────────────────────────────────
 
 function DaysPicker({ days, onChange, C }) {
@@ -768,12 +939,13 @@ function EventSummaryBar({ days, C }) {
     { label: 'Enquiry Starts',     value: fmt(h?.enquiryStarts),         accent: C.gold },
     { label: 'Enquiry Rate',       value: h?.enquiryConversionRate != null ? `${h.enquiryConversionRate}%` : '—', accent: h?.enquiryConversionRate >= 50 ? '#22c55e' : C.gold },
     { label: 'Shortlist Adds',     value: fmt(h?.shortlistAdds),         accent: '#22c55e' },
+    { label: 'Compare Adds',       value: fmt(h?.compareAdds),           accent: '#a78bfa' },
     { label: 'Aura Queries',       value: fmt(h?.auraQueries),           accent: '#f59e0b' },
     { label: 'Returns',            value: fmt(h?.returnsAfterOutbound),  accent: '#e1306c' },
   ];
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 12, marginBottom: 20 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 12, marginBottom: 20 }}>
       {cards.map(card => (
         <div key={card.label} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '14px 16px', borderTop: `3px solid ${card.accent}` }}>
           <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.grey, fontWeight: 600, marginBottom: 6 }}>{card.label}</div>
@@ -791,6 +963,7 @@ const TABS = [
   { key: 'search',    label: 'Search Intelligence' },
   { key: 'enquiry',   label: 'Enquiry Funnel' },
   { key: 'shortlist', label: 'Shortlist Signals' },
+  { key: 'compare',   label: 'Compare Intelligence' },
 ];
 
 function TabBar({ active, onChange, C }) {
@@ -935,6 +1108,7 @@ export default function PlatformIntelligenceModule({ C }) {
       {activeTab === 'search'    && <SearchIntelligencePanel days={days} C={C} />}
       {activeTab === 'enquiry'   && <EnquiryFunnelPanel days={days} C={C} />}
       {activeTab === 'shortlist' && <ShortlistPanel days={days} C={C} />}
+      {activeTab === 'compare'   && <CompareIntelPanel days={days} C={C} />}
 
     </div>
   );
