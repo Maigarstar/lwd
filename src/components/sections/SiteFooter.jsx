@@ -608,45 +608,51 @@ export default function SiteFooter({
         </div>
       )}
 
-      {/* ── Taigenic signature — one base layer with the legal bar ─────── */}
+      {/* ── Taigenic signature ───────────────────────────────────────────── */}
       {showBottomBar && (
-        <div style={{
-          background: bbBg,
-          padding: "6px 0 18px",
-          textAlign: "center",
-        }}>
+        <div style={{ background: bbBg, padding: "6px 0 20px", textAlign: "center" }}>
           <a
             href="/taigenic"
-            style={{ textDecoration: "none", display: "inline-block", transition: "opacity 0.25s" }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
-            onMouseLeave={e => (e.currentTarget.style.opacity = "0.99")}
+            style={{
+              textDecoration: "none",
+              display: "inline-block",
+              padding: "8px 24px",
+              borderRadius: 6,
+              transition: "background 0.3s",
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = "rgba(201,168,76,0.06)";
+              e.currentTarget.querySelector(".tai-line1").style.color = gold;
+              e.currentTarget.querySelector(".tai-line1").style.opacity = "1";
+              e.currentTarget.querySelector(".tai-line2").style.opacity = "0.65";
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.querySelector(".tai-line1").style.color = "rgba(255,255,255,0.48)";
+              e.currentTarget.querySelector(".tai-line1").style.opacity = "1";
+              e.currentTarget.querySelector(".tai-line2").style.opacity = "1";
+            }}
           >
-            <span style={{
+            <span className="tai-line1" style={{
               display: "block",
               fontFamily: NU,
               fontSize: 11,
               fontVariant: "small-caps",
               letterSpacing: "2.5px",
-              color: "rgba(255,255,255,0.40)",
-              transition: "color 0.25s",
-            }}
-              onMouseEnter={e => (e.currentTarget.style.color = gold)}
-              onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.40)")}
-            >
-              Powered by Taigenic.AI
+              color: "rgba(255,255,255,0.48)",
+              transition: "color 0.3s",
+            }}>
+              ✦ Powered by Taigenic.AI
             </span>
-            <span style={{
+            <span className="tai-line2" style={{
               display: "block",
               fontFamily: NU,
               fontSize: 9,
               letterSpacing: "1.5px",
-              color: "rgba(255,255,255,0.22)",
-              marginTop: 3,
-              transition: "color 0.25s",
-            }}
-              onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.45)")}
-              onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.22)")}
-            >
+              color: "rgba(255,255,255,0.26)",
+              marginTop: 2,
+              transition: "opacity 0.3s",
+            }}>
               AI systems for luxury brands
             </span>
           </a>
