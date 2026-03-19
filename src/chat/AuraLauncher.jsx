@@ -17,12 +17,18 @@ export default function AuraLauncher() {
   const hasAuraReply = messages.some(m => m.from === "aura");
   const showDot      = hasUserTurn && hasAuraReply;
 
-  // Expand label once the user has scrolled past the hero
+  // Expand label once the user has scrolled past the hero — desktop only
+  // On mobile the pill stays as a tight icon: less intrusive, no label overlap
   useEffect(() => {
-    const onScroll = () => setExpanded(window.scrollY > SCROLL_THRESHOLD);
+    const isMobile = () => window.innerWidth < 768;
+    const onScroll = () => setExpanded(!isMobile() && window.scrollY > SCROLL_THRESHOLD);
     window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
     onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
   }, []);
 
   // Shift up when the compare bar is visible on venue profiles
