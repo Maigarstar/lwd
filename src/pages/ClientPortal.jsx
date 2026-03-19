@@ -17,6 +17,8 @@ import {
   fetchContent,
   fetchCampaigns,
 } from "../services/socialStudioService";
+import { fetchUpcomingEventsForVenue } from "../services/eventService";
+import { formatEventDate, formatEventTime } from "../services/eventService";
 import { fetchListingByManagedAccountId } from "../services/listings.ts";
 import { useAdaptiveColor } from "../hooks/useAdaptiveColor";
 
@@ -506,6 +508,157 @@ function CampaignsPage({ account }) {
             );
           })}
         </div>
+      )}
+    </div>
+  );
+}
+
+// -- Events Page ---------------------------------------------------------------
+function EventsPage({ account, listing }) {
+  const [events, setEvents]   = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const venueId = listing?.id || null;
+      const managedAccountId = account?.id || null;
+      // Try venue ID first, fall back to managed account
+      const fetched = venueId
+        ? await fetchUpcomingEventsForVenue(venueId, 20)
+        : [];
+      if (!cancelled) { setEvents(fetched); setLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [account?.id, listing?.id]);
+
+  const upcoming = events.filter(e => {
+    if (!e.startDate) return false;
+    return e.startDate >= new Date().toISOString().split('T')[0];
+  });
+  const past = events.filter(e => {
+    if (!e.startDate) return false;
+    return e.startDate < new Date().toISOString().split('T')[0];
+  });
+
+  function EventCard({ ev }) {
+    const dateStr = formatEventDate(ev.startDate);
+    const timeStr = ev.startTime ? formatEventTime(ev.startTime) : null;
+    return (
+      <div style={{
+        background: T.card, border: `1px solid ${T.border}`, borderRadius: 4,
+        padding: "20px 24px", marginBottom: 12,
+        display: "flex", alignItems: "flex-start", gap: 20,
+      }}>
+        {/* Date badge */}
+        <div style={{
+          flexShrink: 0, width: 52, textAlign: "center",
+          background: T.border, borderRadius: 4, padding: "8px 6px",
+        }}>
+          <div style={{ fontFamily: SERIF, fontSize: 22, color: T.gold, lineHeight: 1 }}>
+            {ev.startDate ? new Date(ev.startDate + 'T00:00:00').getDate() : "—"}
+          </div>
+          <div style={{ fontFamily: SANS, fontSize: 9, color: T.grey, letterSpacing: "0.1em", textTransform: "uppercase", marginTop: 2 }}>
+            {ev.startDate ? new Date(ev.startDate + 'T00:00:00').toLocaleDateString('en-GB', { month: 'short' }) : ""}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <span style={{ fontFamily: SERIF, fontSize: 17, color: T.off, fontWeight: 500 }}>{ev.title}</span>
+            {ev.isVirtual && (
+              <span style={{ fontFamily: SANS, fontSize: 9, color: T.blue, letterSpacing: "0.1em", textTransform: "uppercase",
+                background: "rgba(96,165,250,0.12)", border: "1px solid rgba(96,165,250,0.25)", borderRadius: 2, padding: "2px 6px" }}>
+                Virtual
+              </span>
+            )}
+          </div>
+          {ev.subtitle && (
+            <div style={{ fontFamily: SANS, fontSize: 12, color: T.grey, marginBottom: 6 }}>{ev.subtitle}</div>
+          )}
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+            {dateStr && (
+              <span style={{ fontFamily: SANS, fontSize: 11, color: T.grey2 }}>
+                📅 {dateStr}{timeStr ? ` · ${timeStr}` : ""}
+              </span>
+            )}
+            {ev.locationName && !ev.isVirtual && (
+              <span style={{ fontFamily: SANS, fontSize: 11, color: T.grey2 }}>
+                📍 {ev.locationName}
+              </span>
+            )}
+            {ev.capacity && (
+              <span style={{ fontFamily: SANS, fontSize: 11, color: T.grey2 }}>
+                👥 {ev.capacity} capacity
+              </span>
+            )}
+            {typeof ev.bookingCount === 'number' && (
+              <span style={{ fontFamily: SANS, fontSize: 11, color: T.green }}>
+                ✓ {ev.bookingCount} registered
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Type badge */}
+        <div style={{
+          flexShrink: 0, fontFamily: SANS, fontSize: 9, color: T.gold,
+          letterSpacing: "0.1em", textTransform: "uppercase",
+          background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.2)",
+          borderRadius: 2, padding: "3px 8px",
+        }}>
+          {ev.eventType?.replace(/_/g, ' ') || 'Event'}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ maxWidth: 760, margin: "0 auto" }}>
+      {/* Header */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ fontFamily: SANS, fontSize: 10, color: T.gold, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 8 }}>Events</div>
+        <h1 style={{ fontFamily: SERIF, fontSize: 28, color: T.off, fontWeight: 400, margin: "0 0 8px" }}>Your Upcoming Events</h1>
+        <p style={{ fontFamily: SANS, fontSize: 13, color: T.grey, margin: 0, lineHeight: 1.7 }}>
+          Manage open days, virtual tours, and exhibitions. Bookings are collected automatically.
+        </p>
+      </div>
+
+      {loading ? (
+        <div style={{ fontFamily: SANS, fontSize: 13, color: T.grey2, padding: "40px 0", textAlign: "center" }}>Loading events…</div>
+      ) : upcoming.length === 0 && past.length === 0 ? (
+        <div style={{
+          background: T.card, border: `1px solid ${T.border}`, borderRadius: 4,
+          padding: "48px 32px", textAlign: "center",
+        }}>
+          <div style={{ fontFamily: SERIF, fontSize: 22, color: T.off, marginBottom: 12 }}>No events scheduled</div>
+          <p style={{ fontFamily: SANS, fontSize: 13, color: T.grey, maxWidth: 360, margin: "0 auto 24px", lineHeight: 1.8 }}>
+            Your account manager can create and publish events for you — open days, showcases, virtual tours, and more.
+          </p>
+          <div style={{ fontFamily: SANS, fontSize: 11, color: T.grey2, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+            Contact your account manager to get started
+          </div>
+        </div>
+      ) : (
+        <>
+          {upcoming.length > 0 && (
+            <>
+              <div style={{ fontFamily: SANS, fontSize: 10, color: T.gold, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 16 }}>
+                Upcoming · {upcoming.length} event{upcoming.length !== 1 ? 's' : ''}
+              </div>
+              {upcoming.map(ev => <EventCard key={ev.id} ev={ev} />)}
+            </>
+          )}
+          {past.length > 0 && (
+            <>
+              <div style={{ fontFamily: SANS, fontSize: 10, color: T.grey2, letterSpacing: "0.2em", textTransform: "uppercase", margin: "32px 0 16px" }}>
+                Past events · {past.length}
+              </div>
+              {past.map(ev => <EventCard key={ev.id} ev={ev} />)}
+            </>
+          )}
+        </>
       )}
     </div>
   );
@@ -1054,6 +1207,7 @@ export default function ClientPortal() {
       case "performance": return <PerformancePage account={account} listing={listing} summary={summary} />;
       case "brand":       return <BrandPage account={account} listing={listing} />;
       case "requests":    return <RequestsPage account={account} />;
+      case "events":      return <EventsPage account={account} listing={listing} />;
       case "settings":    return <SettingsPage account={account} />;
       default:            return <SettingsPage account={account} />;
     }

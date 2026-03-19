@@ -10,6 +10,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useEffect, useRef } from 'react';
 import { fetchVenueContent } from '../services/venueContentService';
+import { fetchUpcomingEventsForVenue, formatEventDate, formatEventTime } from '../services/eventService';
 
 import ParallaxBannerCard      from '../components/cards/editorial/ParallaxBannerCard';
 import FeatureCard             from '../components/cards/editorial/FeatureCard';
@@ -183,6 +184,7 @@ function StickyVenueNav({ venue, activeSection, onScrollTo }) {
     { id: 'rooms',     label: 'Rooms' },
     { id: 'golf',      label: 'Golf' },
     { id: 'weddings',  label: 'Weddings' },
+    { id: 'events',    label: 'Events' },
   ];
 
   // Filter NAV_ITEMS based on section visibility
@@ -390,6 +392,7 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
   const { isMobile } = useBreakpoint();
   const [activeSection, setActiveSection] = useState('overview');
   const [venueContent, setVenueContent] = useState(null);
+  const [venueEvents, setVenueEvents] = useState([]);
   const basevenue = venueProp || GT_VENUE;
 
   // Merge static venue with dynamic content
@@ -425,9 +428,18 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
     loadVenueContent();
   }, [basevenue]);
 
+  // Fetch upcoming events for this venue
+  useEffect(() => {
+    const venueId = basevenue.listingId || basevenue.id;
+    if (!venueId) return;
+    fetchUpcomingEventsForVenue(venueId, 6).then(evts => {
+      if (evts?.length) setVenueEvents(evts);
+    }).catch(() => {});
+  }, [basevenue.listingId, basevenue.id]);
+
   // ── Section scroll spy ────────────────────────────────────────────────────
   useEffect(() => {
-    const sections = ['overview', 'spaces', 'dining', 'rooms', 'golf', 'weddings', 'enquire'];
+    const sections = ['overview', 'spaces', 'dining', 'rooms', 'golf', 'weddings', 'events', 'enquire'];
     const onScroll = () => {
       for (let i = sections.length - 1; i >= 0; i--) {
         const el = document.getElementById(sections[i]);
@@ -805,6 +817,84 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
           amenities: venue.amenities,
         }} />
       </Section>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION — UPCOMING EVENTS
+      ═══════════════════════════════════════════════════════════════════ */}
+      {venueEvents.length > 0 && venue.sectionVisibility?.events !== false && (
+      <Section id="events" bg="#111">
+        <SectionHeader
+          eyebrow="Open Days & Events"
+          title="Join Us in Person"
+          subtitle={`Experience ${venue.name} first-hand. Register for an upcoming open day, private tour, or virtual showcase.`}
+          light
+        />
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))',
+          gap: 16,
+        }}>
+          {venueEvents.map(ev => {
+            const dateStr = formatEventDate(ev.startDate);
+            const timeStr = ev.startTime ? formatEventTime(ev.startTime) : null;
+            return (
+              <a
+                key={ev.id}
+                href={`/events/${ev.slug}`}
+                style={{ textDecoration: 'none', display: 'block' }}
+              >
+                <div style={{
+                  background: '#1a1a18', border: '1px solid #2a2a28', borderRadius: 4,
+                  overflow: 'hidden', transition: 'border-color 0.2s',
+                }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = GOLD}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = '#2a2a28'}
+                >
+                  {ev.coverImageUrl && (
+                    <div style={{ height: 160, overflow: 'hidden' }}>
+                      <img src={ev.coverImageUrl} alt={ev.title}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </div>
+                  )}
+                  <div style={{ padding: '18px 20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                      <div style={{
+                        fontFamily: NU, fontSize: 10, color: GOLD, letterSpacing: '0.12em',
+                        textTransform: 'uppercase',
+                      }}>
+                        {ev.eventType?.replace(/_/g, ' ') || 'Event'}
+                      </div>
+                      {ev.isVirtual && (
+                        <div style={{ fontFamily: NU, fontSize: 9, color: '#60a5fa', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Virtual</div>
+                      )}
+                    </div>
+                    <div style={{ fontFamily: GD, fontSize: 18, color: '#f0ece4', fontWeight: 400, marginBottom: 6, lineHeight: 1.3 }}>
+                      {ev.title}
+                    </div>
+                    {ev.subtitle && (
+                      <div style={{ fontFamily: NU, fontSize: 12, color: '#888', marginBottom: 10, lineHeight: 1.5 }}>{ev.subtitle}</div>
+                    )}
+                    <div style={{ fontFamily: NU, fontSize: 11, color: '#666', marginTop: 12 }}>
+                      {dateStr}{timeStr ? ` · ${timeStr}` : ''}
+                    </div>
+                    {ev.locationName && !ev.isVirtual && (
+                      <div style={{ fontFamily: NU, fontSize: 11, color: '#555', marginTop: 3 }}>{ev.locationName}</div>
+                    )}
+                    <div style={{
+                      marginTop: 16, display: 'inline-block',
+                      fontFamily: NU, fontSize: 11, color: GOLD, letterSpacing: '0.1em',
+                      textTransform: 'uppercase', borderBottom: `1px solid ${GOLD}`, paddingBottom: 1,
+                    }}>
+                      Register →
+                    </div>
+                  </div>
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      </Section>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           ENQUIRE

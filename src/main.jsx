@@ -69,6 +69,7 @@ import DdeShowcasePage          from "./pages/DdeShowcasePage.jsx";
 import SixSensesShowcasePage    from "./pages/SixSensesShowcasePage.jsx";
 import VenueProfilePage         from "./pages/VenueProfilePage.jsx";
 import VenueReviewsPage         from "./pages/VenueReviewsPage.jsx";
+import EventDetailPage          from "./pages/EventDetailPage.jsx";
 import AuraDiscoveryDemoPage    from "./pages/AuraDiscoveryDemoPage.jsx";
 import NotFoundPage         from "./pages/NotFoundPage.jsx";
 import UnsubscribePage      from "./pages/UnsubscribePage.jsx";
@@ -152,6 +153,7 @@ function stateToPath(pg, opts = {}) {
     case "magazine-studio":  return "/magazine-studio";
     case "venue-profile":    return `/venues/${opts.venueSlug || 'grand-tirolia'}`;
     case "venue-reviews":    return `/venues/${opts.venueSlug || ''}/reviews`;
+    case "event-detail":     return `/events/${opts.eventSlug || ''}`;
     case "listing-profile":  return `/wedding-venues/${opts.venueSlug || ''}`;
     case "dde-showcase":      return "/showcase/domaine-des-etangs";
     case "gt-showcase":       return "/showcase/grand-tirolia-kitzbuehel";
@@ -216,6 +218,8 @@ function pathToState(pathname) {
   // Venue reviews page: /venues/{slug}/reviews
   if (parts[0] === "venues" && parts.length === 3 && parts[2] === "reviews") return { page: "venue-reviews", venueSlug: parts[1] };
   if (parts[0] === "venues" && parts.length === 2) return { page: "venue-profile", venueSlug: parts[1] };
+  // Event detail: /events/{slug}
+  if (parts[0] === "events" && parts.length === 2) return { page: "event-detail", eventSlug: parts[1] };
   // Wedding venue listing profile: /wedding-venues/{slug}
   if (parts[0] === "wedding-venues" && parts.length === 2) return { page: "listing-profile", venueSlug: parts[1] };
   if (parts[0] === "magazine-studio" && parts.length === 1) return { page: "magazine-studio" };
@@ -273,6 +277,7 @@ function App() {
   const [activeMagazineSlug, setActiveMagazineSlug] = useState(initial.magazineSlug || null);
   const [activeVenueSlug, setActiveVenueSlug] = useState(initial.venueSlug || null);
   const [activeShowcaseSlug, setActiveShowcaseSlug] = useState(initial.showcaseSlug || null);
+  const [activeEventSlug, setActiveEventSlug] = useState(initial.eventSlug || null);
   const [magazineLight, setMagazineLight] = useState(true);
 
   // Ref: skip pushState when change came from popstate (back/forward)
@@ -295,11 +300,12 @@ function App() {
       magazineSlug: activeMagazineSlug,
       venueSlug: activeVenueSlug,
       showcaseSlug: activeShowcaseSlug,
+      eventSlug: activeEventSlug,
     });
     if (window.location.pathname !== path) {
       window.history.pushState(null, "", path);
     }
-  }, [page, activeCountrySlug, activeRegionSlug, activeCategorySlug, activePlannerSlug, activeWeddingSlug, activationToken, activeMagazineCategoryId, activeMagazineSlug, activeVenueSlug, activeShowcaseSlug]);
+  }, [page, activeCountrySlug, activeRegionSlug, activeCategorySlug, activePlannerSlug, activeWeddingSlug, activationToken, activeMagazineCategoryId, activeMagazineSlug, activeVenueSlug, activeShowcaseSlug, activeEventSlug]);
 
   // ── Popstate: back / forward browser buttons ─────────────────────────────
   useEffect(() => {
@@ -316,6 +322,7 @@ function App() {
       setActiveMagazineSlug(s.magazineSlug || null);
       setActiveVenueSlug(s.venueSlug || null);
       setActiveShowcaseSlug(s.showcaseSlug || null);
+      setActiveEventSlug(s.eventSlug || null);
       setCategoryRegion(null);
       setCategorySearchQuery(null);
       setPage(s.page);
@@ -400,6 +407,7 @@ function App() {
   const goAdminLogin  = () => setPage("admin-login");
   const goPuglia           = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("puglia"); };
   const goAuraDiscovery    = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("aura-discovery"); };
+  const goEventDetail = (eventSlug) => { setActiveEventSlug(eventSlug); setPage("event-detail"); };
 
   // Store couple/vendor nav functions on window for use in auth components
   useEffect(() => {
@@ -455,6 +463,9 @@ function App() {
         )}
         {page === "venue-reviews" && (
           <VenueReviewsPage />
+        )}
+        {page === "event-detail" && (
+          <EventDetailPage slug={activeEventSlug} onBack={goHome} />
         )}
         {page === "dde-showcase" && (
           <DdeShowcasePage
@@ -725,7 +736,7 @@ function App() {
         )}
 
         {/* ── Global site footer ── */}
-        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password"].includes(page) && (
+        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","event-detail"].includes(page) && (
           <SiteFooter onNavigateAdmin={goAdmin} />
         )}
 

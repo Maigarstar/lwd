@@ -622,14 +622,15 @@ const MENU_KEYS = [
   { key: 'performance', label: 'Performance',  icon: '◇' },
   { key: 'brand',       label: 'Your Brand',   icon: '✦' },
   { key: 'requests',    label: 'Requests',     icon: '◫' },
+  { key: 'events',      label: 'Events',       icon: '◈' },
   { key: 'settings',    label: 'Settings',     icon: '⊡' },
 ];
 
 const PLAN_DEFAULTS = {
-  signature:  { overview: true, content: true, campaigns: true, performance: true, brand: true,  requests: true,  settings: true  },
-  growth:     { overview: true, content: true, campaigns: true, performance: true, brand: false, requests: true,  settings: true  },
-  essentials: { overview: true, content: true, campaigns: false,performance: false,brand: false, requests: true,  settings: true  },
-  custom:     { overview: true, content: true, campaigns: false,performance: false,brand: false, requests: false, settings: true  },
+  signature:  { overview: true, content: true, campaigns: true, performance: true, brand: true,  requests: true,  events: true,  settings: true  },
+  growth:     { overview: true, content: true, campaigns: true, performance: true, brand: false, requests: true,  events: true,  settings: true  },
+  essentials: { overview: true, content: true, campaigns: false,performance: false,brand: false, requests: true,  events: false, settings: true  },
+  custom:     { overview: true, content: true, campaigns: false,performance: false,brand: false, requests: false, events: false, settings: true  },
 };
 
 /**

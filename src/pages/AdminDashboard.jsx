@@ -49,6 +49,7 @@ import MenuModule from "./AdminModules/MenuModule";
 import FooterModule from "./AdminModules/FooterModule";
 import MenuBranding from "./AdminModules/menu/MenuBranding";
 import PlatformIntelligenceModule from "./AdminModules/PlatformIntelligenceModule";
+import EventsModule from "./AdminModules/EventsModule";
 import { fetchClickSummary, fetchBatchClickCounts } from "../services/adminOutboundClicksService";
 import VenueIntakeStudio from "./admin/VenueIntakeStudio";
 import { POSTS } from "./Magazine/data/posts";
@@ -240,6 +241,7 @@ const NAV_SECTIONS = [
       { key: "listing-studio",  label: "Listing Studio",    icon: "✎" },
       { key: "venue-intake",    label: "Venue Intake Studio", icon: "⬆" },
       { key: "venue-profiles",    label: "Showcase Profiles",  icon: "⌂" },
+      { key: "events",            label: "Events",             icon: "◈" },
       { key: "reviews",         label: "Reviews",           icon: "★" },
       { key: "vendor-accounts", label: "Vendor Accounts",   icon: "👤" },
       { key: "categories",      label: "Categories",        icon: "▦" },
@@ -8764,6 +8766,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "newsletter-builder": return <EmailBuilderModule C={C} mode="newsletter" onBack={() => setActiveTab('newsletter')} />;
       case "seo":           return <SeoModule C={C} />;
       case "crm":               return <CRMModule C={C} />;
+      case "events":            return <EventsModule C={C} />;
       case "managed-accounts":  return <ManagedAccountsModule C={C} />;
       case "partner-enquiries": return <PartnerEnquiriesModule C={C} />;
       case "sales-pipeline":    return <SalesPipelineModule C={C} />;
