@@ -12,7 +12,10 @@ export default function AuraLauncher() {
   const [expanded,       setExpanded]     = useState(false);
   const [compareBarUp,   setCompareBarUp] = useState(false);
 
-  const auraCount = messages.filter((m) => m.from === "aura").length;
+  // Only signal after genuine two-way conversation — not on the opening greeting
+  const hasUserTurn  = messages.some(m => m.from === "user");
+  const hasAuraReply = messages.some(m => m.from === "aura");
+  const showDot      = hasUserTurn && hasAuraReply;
 
   // Expand label once the user has scrolled past the hero
   useEffect(() => {
@@ -94,7 +97,7 @@ export default function AuraLauncher() {
       </span>
 
       {/* Notification dot */}
-      {auraCount > 0 && (
+      {showDot && (
         <span
           aria-hidden="true"
           style={{

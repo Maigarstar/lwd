@@ -558,11 +558,11 @@ export default function SiteFooter({
           className="site-footer-legal"
           style={{
             background: bbBg,
-            padding: `16px ${padX}px`,
+            padding: `14px ${padX}px 8px`,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: 10,
+            gap: 8,
             textAlign: "center",
           }}
         >
@@ -608,30 +608,49 @@ export default function SiteFooter({
         </div>
       )}
 
-      {/* ── Taigenic credit — centred below the bottom bar ───────────────── */}
+      {/* ── Taigenic signature — one base layer with the legal bar ─────── */}
       {showBottomBar && (
         <div style={{
           background: bbBg,
-          borderTop: "1px solid rgba(255,255,255,0.05)",
-          padding: "10px 0 14px",
+          padding: "6px 0 18px",
           textAlign: "center",
         }}>
           <a
             href="https://taigenic.com"
             target="_blank"
             rel="noreferrer"
-            style={{
-              fontFamily: NU, fontSize: 9,
-              letterSpacing: "1.5px",
-              textTransform: "uppercase",
-              color: "rgba(255,255,255,0.22)",
-              textDecoration: "none",
-              transition: "color 0.2s",
-            }}
-            onMouseEnter={e => (e.currentTarget.style.color = gold)}
-            onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.22)")}
+            style={{ textDecoration: "none", display: "inline-block", transition: "opacity 0.25s" }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
+            onMouseLeave={e => (e.currentTarget.style.opacity = "0.99")}
           >
-            Powered by Taigenic
+            <span style={{
+              display: "block",
+              fontFamily: NU,
+              fontSize: 11,
+              fontVariant: "small-caps",
+              letterSpacing: "2.5px",
+              color: "rgba(255,255,255,0.40)",
+              transition: "color 0.25s",
+            }}
+              onMouseEnter={e => (e.currentTarget.style.color = gold)}
+              onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.40)")}
+            >
+              Powered by Taigenic
+            </span>
+            <span style={{
+              display: "block",
+              fontFamily: NU,
+              fontSize: 9,
+              letterSpacing: "1.5px",
+              color: "rgba(255,255,255,0.22)",
+              marginTop: 3,
+              transition: "color 0.25s",
+            }}
+              onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.45)")}
+              onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.22)")}
+            >
+              AI systems for luxury brands
+            </span>
           </a>
         </div>
       )}
