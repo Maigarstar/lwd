@@ -622,16 +622,22 @@ function HeroSlider({ imgs, height, children }) {
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>{a.dir}</button>
       ))}
-      {/* Dots — right-aligned to share the bottom strip with the breadcrumb */}
-      <div style={{ position: "absolute", bottom: 16, right: 40, display: "flex", gap: 5, alignItems: "center" }}>
-        {imgs.map((_, i) => (
-          <button key={i} onClick={() => setIdx(i)} style={{
-            width: i === idx ? 20 : 6, height: 6, border: "none", cursor: "pointer",
-            background: i === idx ? C.gold : "rgba(255,255,255,0.5)",
-            transition: "all 0.3s ease",
-          }} />
-        ))}
-      </div>
+      {/* Dots — max 3 shown: prev · active · next */}
+      {imgs.length > 1 && (
+        <div style={{ position: "absolute", bottom: 16, right: 40, display: "flex", gap: 5, alignItems: "center" }}>
+          {[
+            (idx - 1 + imgs.length) % imgs.length,
+            idx,
+            (idx + 1) % imgs.length,
+          ].filter((v, i, a) => imgs.length >= 3 || a.indexOf(v) === i).map((dotIdx, i) => (
+            <button key={dotIdx} onClick={() => setIdx(dotIdx)} style={{
+              width: dotIdx === idx ? 20 : 6, height: 6, border: "none", cursor: "pointer",
+              background: dotIdx === idx ? C.gold : "rgba(255,255,255,0.5)",
+              transition: "all 0.3s ease",
+            }} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
