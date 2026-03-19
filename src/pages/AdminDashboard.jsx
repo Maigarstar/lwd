@@ -47,6 +47,7 @@ import SocialStudioModule from "./AdminModules/SocialStudioModule";
 import ManagedAccountsModule from "./AdminModules/ManagedAccountsModule";
 import MenuModule from "./AdminModules/MenuModule";
 import FooterModule from "./AdminModules/FooterModule";
+import VenueIntakeStudio from "./admin/VenueIntakeStudio";
 import { POSTS } from "./Magazine/data/posts";
 import { PRODUCTS, COLLECTIONS, formatPrice } from "./Magazine/data/products";
 import { CATEGORIES } from "./Magazine/data/categories";
@@ -234,6 +235,7 @@ const NAV_SECTIONS = [
       { key: "overview",        label: "Overview",          icon: "◈" },
       { key: "listings",        label: "Listings",          icon: "⊞" },
       { key: "listing-studio",  label: "Listing Studio",    icon: "✎" },
+      { key: "venue-intake",    label: "Venue Intake Studio", icon: "⬆" },
       { key: "venue-profiles",    label: "Showcase Profiles",  icon: "⌂" },
       { key: "reviews",         label: "Reviews",           icon: "★" },
       { key: "vendor-accounts", label: "Vendor Accounts",   icon: "👤" },
@@ -8697,6 +8699,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       }} />;
       case "reviews": return <ReviewsModule />;
       case "listing-studio": return null; // Handled in main render logic
+      case "venue-intake":   return <VenueIntakeStudio C={C} />;
       case "vendor-accounts": return <VendorAccountsPage C={C} />;
       case "categories":    return <CategoriesModule C={C} />;
       case "enquiries":     return <AdminAllLeads C={C} />;

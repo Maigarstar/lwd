@@ -1183,14 +1183,25 @@ function OwnerCard({ owner, venue }) {
         {/* Owner header */}
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
           <div style={{ position: "relative", flexShrink: 0 }}>
-            <img
-              src={owner.photo}
-              alt={owner.name}
-              style={{
-                width: 58, height: 58, borderRadius: "50%", objectFit: "cover",
-                border: `2px solid ${C.gold}`, display: "block",
-              }}
-            />
+            {owner.photo ? (
+              <img
+                src={owner.photo}
+                alt={owner.name}
+                style={{
+                  width: 58, height: 58, borderRadius: "50%", objectFit: "cover",
+                  border: `2px solid ${C.gold}`, display: "block",
+                }}
+              />
+            ) : (
+              <div style={{
+                width: 58, height: 58, borderRadius: "50%",
+                border: `2px solid ${C.gold}`, background: C.goldLight,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontFamily: FD, fontSize: 20, color: C.gold, letterSpacing: "-0.5px",
+              }}>
+                {(owner.name || "V").split(" ").map(w => w[0]).slice(0, 2).join("")}
+              </div>
+            )}
             {/* LWD verified dot */}
             <div style={{
               position: "absolute", bottom: 0, right: 0,
@@ -2846,6 +2857,7 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
   const [commentsMap, setCommentsMap] = useState({});
   const [commentText, setCommentText] = useState("");
   const [ytPaused, setYtPaused]       = useState(false);
+  const [resolvedEmbedUrl, setResolvedEmbedUrl] = useState(null);
 
   const idx = videos.findIndex((v) => v.id === video.id);
   const hasPrev = idx > 0;
@@ -2859,12 +2871,32 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const embedUrl = video.youtubeId
     ? `https://www.youtube-nocookie.com/embed/${video.youtubeId}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&showinfo=0&controls=1&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(origin)}`
+    : video.vimeoId
+    ? `https://player.vimeo.com/video/${video.vimeoId}?autoplay=1&title=0&byline=0&portrait=0&dnt=1${video.vimeoHash ? `&h=${video.vimeoHash}` : ''}`
     : null;
+
+  // For Vimeo URLs without a numeric ID (e.g. vimeo.com/user/slug), resolve via oEmbed
+  const isVimeoUrl = !video.youtubeId && !video.vimeoId && video.url?.includes('vimeo.com');
+  useEffect(() => {
+    if (!isVimeoUrl || !video.url) return;
+    setResolvedEmbedUrl(null);
+    fetch(`https://vimeo.com/api/oembed.json?url=${encodeURIComponent(video.url)}&autoplay=1`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data?.video_id) return;
+        const hash = data.uri?.split('/').find(p => /^[a-f0-9]{8,}$/i.test(p)) || null;
+        const url = `https://player.vimeo.com/video/${data.video_id}?autoplay=1&title=0&byline=0&portrait=0&dnt=1${hash ? `&h=${hash}` : ''}`;
+        setResolvedEmbedUrl(url);
+      })
+      .catch(() => {});
+  }, [video.url, isVimeoUrl]);
+
+  const activeEmbedUrl = embedUrl || resolvedEmbedUrl;
 
   const iframeRef = useRef(null);
 
-  // Reset paused overlay when video changes
-  useEffect(() => { setYtPaused(false); }, [video.id]);
+  // Reset paused overlay and resolved URL when video changes
+  useEffect(() => { setYtPaused(false); setResolvedEmbedUrl(null); }, [video.id]);
 
   // Stop video playback on unmount (prevents audio continuing after modal closes)
   useEffect(() => {
@@ -3050,7 +3082,7 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
           {!isMobile && videos.length > 1 && navBtn("next", hasNext, hovNext, setHovNext)}
 
           {/* Video player */}
-          {embedUrl ? (
+          {activeEmbedUrl ? (
             <div style={{
               flex: isMobile ? "none" : 1,
               position: "relative",
@@ -3059,8 +3091,8 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
             }}>
               <iframe
                 ref={iframeRef}
-                key={video.youtubeId + video.id}
-                src={embedUrl}
+                key={activeEmbedUrl + video.id}
+                src={activeEmbedUrl}
                 style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
                 allow="autoplay; fullscreen; picture-in-picture"
                 allowFullScreen
@@ -3114,9 +3146,11 @@ function VideoPlayModal({ video, videos = [], onSelect, onClose, engagement }) {
                 }}>
                   <span style={{ fontSize: 18, color: "#C9A84C", marginLeft: 3 }}>▶</span>
                 </div>
-                <div style={{ fontFamily: FD, fontSize: 15, color: "rgba(201,168,76,0.85)", letterSpacing: "1.5px" }}>Film Coming Soon</div>
+                <div style={{ fontFamily: FD, fontSize: 15, color: "rgba(201,168,76,0.85)", letterSpacing: "1.5px" }}>
+                  {isVimeoUrl ? "Loading film…" : "Film Coming Soon"}
+                </div>
                 <div style={{ fontFamily: FB, fontSize: 12, color: "rgba(255,255,255,0.4)", maxWidth: 300, lineHeight: 1.65, marginTop: 8 }}>
-                  This film will be available shortly.<br />Contact us for a private screening enquiry.
+                  {isVimeoUrl ? "Connecting to Vimeo…" : <>This film will be available shortly.<br />Contact us for a private screening enquiry.</>}
                 </div>
               </div>
             </div>
@@ -3464,8 +3498,8 @@ function VideoGallery({ videos, venue }) {
         )}
       </div>
 
-      {/* Thumbnail strip, slider on mobile, grid on desktop */}
-      {isMobile ? (
+      {/* Thumbnail strip — only shown when there are multiple videos */}
+      {videos.length > 1 && (isMobile ? (
         <div className="vp-films-slider" style={{
           display: "flex", gap: 10, overflowX: "auto", scrollSnapType: "x mandatory",
           WebkitOverflowScrolling: "touch", scrollbarWidth: "none", msOverflowStyle: "none",
@@ -3557,7 +3591,7 @@ function VideoGallery({ videos, venue }) {
             </div>
           ))}
         </div>
-      )}
+      ))}
 
       {/* Video play modal */}
       {playing && (
@@ -3611,9 +3645,10 @@ function ExclusiveUse({ venue, onEnquire }) {
               </div>
             )}
             {eu.description && (
-              <div style={{ fontFamily: FB, fontSize: 14, color: C.textMid, lineHeight: 1.8, marginBottom: 28 }}>
-                {eu.description}
-              </div>
+              <div
+                style={{ fontFamily: FB, fontSize: 14, color: C.textMid, lineHeight: 1.8, marginBottom: 28 }}
+                dangerouslySetInnerHTML={{ __html: eu.description }}
+              />
             )}
             <button
               type="button"
@@ -3777,10 +3812,12 @@ function SpaceAttributeBadges({ space, C }) {
   );
 }
 
-function SpacesSection({ spaces }) {
+function SpacesSection({ spaces, venue }) {
   const C = useT();
   const isMobile = useIsMobile();
   const [floorPlanModal, setFloorPlanModal] = useState(null); // { url, name }
+  // Gallery images used as fallback when a space has no dedicated image
+  const galleryImgs = (venue?.imgs || []).map(i => (typeof i === 'string' ? i : (i.src || i.url || '')).trim()).filter(Boolean);
 
   return (
     <section id="capacity" style={{ marginBottom: 56 }}>
@@ -3792,6 +3829,7 @@ function SpacesSection({ spaces }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 48 : 64 }}>
         {spaces.map((s, i) => {
           const isEven = i % 2 === 0;
+          const spaceImg = s.img || galleryImgs[i % galleryImgs.length] || null;
           return (
             <div key={s.id || s.name} className="vp-space-card" style={{
               display: 'grid',
@@ -3801,7 +3839,7 @@ function SpacesSection({ spaces }) {
               alignItems: 'center',
             }}>
               {/* Image column, full landscape, max 750px height */}
-              {s.img && (
+              {spaceImg && (
                 <div style={{
                   order: isMobile ? 0 : (isEven ? 0 : 1),
                   overflow: 'hidden',
@@ -3809,7 +3847,7 @@ function SpacesSection({ spaces }) {
                   aspectRatio: '16 / 10',
                 }}>
                   <img
-                    src={s.img} alt={s.name}
+                    src={spaceImg} alt={s.name}
                     className="lwd-img-zoom"
                     style={{
                       width: '100%',
@@ -3957,6 +3995,10 @@ function RoomsSection({ venue }) {
   const acc = venue.accommodation;
   if (!acc || (!acc.totalRooms && !acc.description)) return null;
   const [roomsLightboxIdx, setRoomsLightboxIdx] = useState(null);
+  // Fall back to gallery images when no dedicated room images are assigned
+  const roomImgs = acc.images?.length > 0
+    ? acc.images
+    : (venue.imgs || []).slice(0, 6).map(i => (typeof i === 'string' ? i : (i.src || i.url || '')).trim()).filter(Boolean);
 
   return (
     <section id="rooms" style={{ marginBottom: 56 }}>
@@ -4005,14 +4047,14 @@ function RoomsSection({ venue }) {
           />
         )}
 
-        {/* Room images grid (max 6) */}
-        {acc.images?.length > 0 && (
+        {/* Room images grid (max 6) — uses dedicated room images or falls back to gallery */}
+        {roomImgs.length > 0 && (
           <div style={{
             display: 'grid',
             gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
             gap: 8,
           }}>
-            {acc.images.slice(0, 6).map((src, i) => (
+            {roomImgs.slice(0, 6).map((src, i) => (
               <img
                 key={i} src={src} alt={`Room ${i + 1}`}
                 loading="lazy"
@@ -4023,7 +4065,7 @@ function RoomsSection({ venue }) {
           </div>
         )}
         {roomsLightboxIdx !== null && (() => {
-          const lightboxImages = (acc.images || []).slice(0, 6).map(src => ({ src, title: '' }));
+          const lightboxImages = roomImgs.slice(0, 6).map(src => ({ src, title: '' }));
           return (
             <MenuImageModal
               images={lightboxImages}
@@ -4118,7 +4160,16 @@ function DiningSection({ venue }) {
 
   if (!dining || (!dining.description && !dining.style)) return null;
 
-  const sideImg = dining.menuImages?.[0]?.src || venue.imgs?.[1] || venue.imgs?.[0];
+  // Gallery fallback: normalize venue.imgs to plain URL strings
+  const galleryImgs = (venue.imgs || [])
+    .map(i => (typeof i === 'string' ? i : (i.src || i.url || '')).trim())
+    .filter(Boolean);
+
+  const sideImg = dining.menuImages?.[0]?.src || galleryImgs[1] || galleryImgs[0] || null;
+
+  // Fallback gallery: use venue gallery images when no dedicated dining images exist
+  const hasDiningImages = dining.menuImages?.length > 0;
+  const fallbackGalleryImgs = !hasDiningImages ? galleryImgs.slice(0, 4) : [];
 
   const PillGroup = ({ items, color }) => (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
@@ -4193,8 +4244,8 @@ function DiningSection({ venue }) {
           />
         )}
 
-        {/* Menu Highlights */}
-        {dining.menuImages?.length > 0 && (
+        {/* Menu Highlights — dedicated dining images */}
+        {hasDiningImages && (
           <div>
             <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textLight, marginBottom: 12 }}>Menu Highlights</p>
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(dining.menuImages.length, 4)}, 1fr)`, gap: 8 }}>
@@ -4213,6 +4264,21 @@ function DiningSection({ venue }) {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Gallery fallback — shown when no dedicated dining images exist */}
+        {!hasDiningImages && fallbackGalleryImgs.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(fallbackGalleryImgs.length, 4)}, 1fr)`, gap: 8, marginTop: 4 }}>
+            {fallbackGalleryImgs.map((src, i) => (
+              <img
+                key={i}
+                src={src}
+                alt=""
+                loading="lazy"
+                style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', borderRadius: 2 }}
+              />
+            ))}
           </div>
         )}
       </SectionLayout>
@@ -6100,7 +6166,7 @@ export default function VenueProfile({ onBack = null, slug = null }) {
               {VV.videos && VV.videos.length > 0 && <VideoGallery videos={VV.videos} venue={VV} />}
               <ExclusiveUse venue={VV} onEnquire={() => setEnquiryOpen(true)} />
               <CateringSection venue={VV} />
-              {VV.spaces && <SpacesSection spaces={VV.spaces} />}
+              {VV.spaces && <SpacesSection spaces={VV.spaces} venue={VV} />}
               <RoomsSection venue={VV} />
               {VV.dining && <DiningSection venue={VV} />}
               <VenueTypeSection venue={VV} />

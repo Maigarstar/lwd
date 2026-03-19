@@ -274,11 +274,27 @@ const ytThumb = (url) => {
 
 /**
  * Extract the numeric Vimeo video ID from a Vimeo URL.
- * Handles: vimeo.com/123456789, vimeo.com/channels/…/123456789, player.vimeo.com/video/123456789
+ * Handles: vimeo.com/123456789, vimeo.com/123456789/HASH (private links),
+ *          player.vimeo.com/video/123456789?h=HASH, vimeo.com/channels/…/123456789
  */
 const extractVimeoId = (url) => {
   const m = url?.match(/vimeo\.com\/(?:video\/|channels\/[^/]+\/|groups\/[^/]+\/videos\/|album\/[^/]+\/video\/)?(\d+)/);
   return m?.[1] || null;
+};
+
+/**
+ * Extract the private hash from a Vimeo URL (e.g. vimeo.com/ID/HASH or ?h=HASH).
+ * Required for private/unlisted Vimeo videos.
+ */
+const extractVimeoHash = (url) => {
+  if (!url) return null;
+  // vimeo.com/123456/abcdef format
+  const pathMatch = url.match(/vimeo\.com\/\d+\/([a-f0-9]+)/i);
+  if (pathMatch) return pathMatch[1];
+  // ?h=abcdef or &h=abcdef param format
+  const paramMatch = url.match(/[?&]h=([a-f0-9]+)/i);
+  if (paramMatch) return paramMatch[1];
+  return null;
 };
 
 /**
@@ -318,13 +334,15 @@ export const buildVenueVideos = (mediaItems = []) =>
       return (a.sort_order ?? 999) - (b.sort_order ?? 999);
     })
     .map(item => {
-      const ytId    = extractYouTubeId(item.url);
-      const vimeoId = extractVimeoId(item.url);
+      const ytId     = extractYouTubeId(item.url);
+      const vimeoId  = extractVimeoId(item.url);
+      const vimeoHash = vimeoId ? extractVimeoHash(item.url) : null;
       return {
         id:          item.id,
         url:         item.url,
-        youtubeId:   ytId    || null,
-        vimeoId:     vimeoId || null,
+        youtubeId:   ytId     || null,
+        vimeoId:     vimeoId  || null,
+        vimeoHash:   vimeoHash || null,
         title:       item.title    || 'Venue Video',
         thumb:       item.thumbnail || ytThumb(item.url) || null,
         desc:        item.caption  || item.description || '',
