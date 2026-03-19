@@ -604,22 +604,34 @@ export default function SiteFooter({
             })}
           </div>
 
-          <div className="site-footer-engineered" style={{ textAlign: "right" }}>
-            <a
-              href="https://taigenic.com"
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                fontFamily: NU, fontSize: 9,
-                color: "rgba(255,255,255,0.28)",
-                textDecoration: "none", transition: "color 0.2s",
-              }}
-              onMouseEnter={e => (e.currentTarget.style.color = gold)}
-              onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.28)")}
-            >
-              Engineered by Taigenic
-            </a>
-          </div>
+        </div>
+      )}
+
+      {/* ── Taigenic credit — centred below the bottom bar ───────────────── */}
+      {showBottomBar && (
+        <div style={{
+          background: bbBg,
+          borderTop: "1px solid rgba(255,255,255,0.05)",
+          padding: "10px 0 14px",
+          textAlign: "center",
+        }}>
+          <a
+            href="https://taigenic.com"
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              fontFamily: NU, fontSize: 9,
+              letterSpacing: "1.5px",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.22)",
+              textDecoration: "none",
+              transition: "color 0.2s",
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = gold)}
+            onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.22)")}
+          >
+            Powered by Taigenic
+          </a>
         </div>
       )}
     </footer>
