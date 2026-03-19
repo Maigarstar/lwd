@@ -2,9 +2,10 @@
 // 3-step enquiry wizard matching venue LeadForm mechanics.
 // Steps: 0 idle → 1 date → 2 guests → 3 details → 4 success
 // ─────────────────────────────────────────────────────────────────────────────
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { saveInquiry } from "../../services/inquiryService";
 import { sendEnquiryNotifications } from "../../services/emailService";
+import { trackEnquiryStarted, trackEnquirySubmitted } from "../../services/userEventService";
 
 const FD = "var(--font-heading-primary)";
 const FB = "var(--font-body)";
@@ -20,6 +21,7 @@ export default function VendorContactForm({ vendor, C, leadSource = "Venue Profi
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const set = useCallback((k, v) => setForm(f => ({ ...f, [k]: v })), []);
+  const enquiryStartTracked = useRef(false);
 
   if (!vendor || !C) return null;
 
@@ -52,6 +54,9 @@ export default function VendorContactForm({ vendor, C, leadSource = "Venue Profi
 
       // Send notification emails (couple confirmation + vendor lead notification)
       await sendEnquiryNotifications(enquiryData, vendor.email);
+
+      // Track enquiry submitted
+      trackEnquirySubmitted({ entityType: 'vendor', entityId: vendor.id ?? null, entityName: vendor.name ?? null, source: leadSource });
 
       // Success - move to success screen
       setStep(4);
@@ -141,7 +146,13 @@ export default function VendorContactForm({ vendor, C, leadSource = "Venue Profi
         <div style={{ height: 1, background: C.border, marginBottom: 16 }} />
 
         {/* Primary CTA */}
-        <button onClick={() => setStep(1)} style={{
+        <button onClick={() => {
+          setStep(1);
+          if (!enquiryStartTracked.current) {
+            enquiryStartTracked.current = true;
+            trackEnquiryStarted({ entityType: 'vendor', entityId: vendor.id ?? null, entityName: vendor.name ?? null, source: leadSource });
+          }
+        }} style={{
           width: "100%", padding: "15px 20px", background: C.gold,
           border: "none", borderRadius: "var(--lwd-radius-input)",
           color: "#fff", fontFamily: FB, fontSize: 13, fontWeight: 700,

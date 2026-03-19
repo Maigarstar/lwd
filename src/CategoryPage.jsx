@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, createContext, useContext } from "react";
+import { trackSearch } from "./services/userEventService";
 
 // ═══════════════════════════════════════════════════════════════
 // DESIGN TOKENS
@@ -1299,6 +1300,26 @@ export default function CategoryPage({ onBack = () => {}, onViewVenue = () => {}
   const batch1 = filtered.slice(0, 5);
   const batch2 = filtered.slice(5, Math.min(visibleCount, filtered.length));
   const featuredVenues = VENUES.filter(v => v.featured);
+
+  // Track search when filters change (debounced 800ms — wait for user to finish)
+  const searchTrackTimer = useRef(null);
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    clearTimeout(searchTrackTimer.current);
+    searchTrackTimer.current = setTimeout(() => {
+      const activeFilters = Object.fromEntries(
+        Object.entries(filters).filter(([, v]) => v && v !== 'All' && v !== REGIONS[0] && v !== STYLES[0] && v !== CAPS[0] && v !== PRICES[0])
+      );
+      trackSearch({
+        query: '',
+        filters: activeFilters,
+        resultsCount: filtered.length,
+        zeroResults: filtered.length === 0,
+      });
+    }, 800);
+    return () => clearTimeout(searchTrackTimer.current);
+  }, [filters, filtered.length]);
 
   const CSS = `
     @import url('https://fonts.googleapis.com/css2?family=Gilda+Display&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,600&family=Outfit:wght@300;400;500;600;700&display=swap');

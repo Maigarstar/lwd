@@ -4,8 +4,9 @@
  * Phase 2: Supabase persistence
  */
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { saveInquiry } from "../services/inquiryService";
+import { trackEnquiryStarted, trackEnquirySubmitted } from "../services/userEventService";
 
 const InquiryForm = ({ vendorName, vendorId, onSuccess, onClose }) => {
   const [formData, setFormData] = useState({
@@ -20,6 +21,14 @@ const InquiryForm = ({ vendorName, vendorId, onSuccess, onClose }) => {
 
   const [status, setStatus] = useState("idle"); // idle, submitting, success, error
   const [errorMsg, setErrorMsg] = useState("");
+  const enquiryStartTracked = useRef(false);
+
+  const handleFirstFocus = () => {
+    if (!enquiryStartTracked.current) {
+      enquiryStartTracked.current = true;
+      trackEnquiryStarted({ entityType: 'vendor', entityId: vendorId ?? null, entityName: vendorName ?? null, source: 'InquiryForm' });
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -67,6 +76,7 @@ const InquiryForm = ({ vendorName, vendorId, onSuccess, onClose }) => {
       if (error) throw error;
 
       setStatus("success");
+      trackEnquirySubmitted({ entityType: 'vendor', entityId: vendorId ?? null, entityName: vendorName ?? null, source: 'InquiryForm' });
       if (onSuccess) onSuccess(data);
 
       // Reset form
@@ -205,6 +215,7 @@ const InquiryForm = ({ vendorName, vendorId, onSuccess, onClose }) => {
               name="coupleName"
               value={formData.coupleName}
               onChange={handleChange}
+              onFocus={handleFirstFocus}
               placeholder="Full name"
               style={{
                 width: "100%",

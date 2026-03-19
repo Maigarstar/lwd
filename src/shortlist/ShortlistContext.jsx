@@ -3,6 +3,7 @@ import {
   createContext, useContext, useState, useCallback, useEffect, useRef,
 } from "react";
 import { getUserShortlist, addToShortlist, removeFromShortlist, subscribeToShortlist } from "../services/shortlistService";
+import { trackShortlistAdd, trackShortlistRemove } from "../services/userEventService";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function load(key, fallback) {
@@ -134,6 +135,9 @@ export function ShortlistProvider({ children }) {
     setItems((prev) => [...prev, item]);
     emitEvent("shortlist_add", item.id, item.type ?? "vendor");
 
+    // Track in unified event system
+    trackShortlistAdd({ entityType: item.type ?? 'venue', entityId: item.id, entityName: item.name ?? null });
+
     // Sync to Supabase if available
     if (supabaseAvailable) {
       addToShortlist(item.id, item, deviceId.current, false)
@@ -151,6 +155,9 @@ export function ShortlistProvider({ children }) {
     // Update local state immediately (optimistic)
     setItems((prev) => prev.filter((x) => x.id !== id));
     emitEvent("shortlist_remove", id, found.type ?? "venue");
+
+    // Track in unified event system
+    trackShortlistRemove({ entityType: found.type ?? 'venue', entityId: id, entityName: found.name ?? null });
 
     // Sync to Supabase if available
     if (supabaseAvailable) {
