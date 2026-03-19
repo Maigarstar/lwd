@@ -5655,6 +5655,7 @@ function MobileLeadBar({ venue }) {
 // ─── COMPARE MODAL ───────────────────────────────────────────────────────────
 
 const VENUE_TYPE_LABELS = {
+  venue:       'Venue',
   villa:       'Villa',
   castle:      'Castle',
   hotel:       'Hotel',
@@ -5669,6 +5670,13 @@ const VENUE_TYPE_LABELS = {
   resort:      'Resort',
   farmhouse:   'Farmhouse',
   penthouse:   'Penthouse',
+  lodge:       'Lodge',
+  yacht:       'Yacht',
+  island:      'Private Island',
+  rooftop:     'Rooftop',
+  loft:        'Loft',
+  gallery:     'Gallery',
+  spa:         'Spa & Retreat',
 };
 
 function CompareStat({ label, value, accent, C }) {
@@ -5701,7 +5709,8 @@ function CompareVenueColumn({ venue, isLast, highlight, C, onClose, onEnquire })
     ? `${venue.priceCurrency || '€'}${Number(venue.priceFrom).toLocaleString()}`
     : null;
   const capacity = venue?.capacity ? `Up to ${Number(venue.capacity).toLocaleString()} guests` : null;
-  const type = VENUE_TYPE_LABELS[venue?.listingType?.toLowerCase?.()] || venue?.listingType || null;
+  const type = VENUE_TYPE_LABELS[venue?.listingType?.toLowerCase?.()] ||
+    (venue?.listingType ? venue.listingType.charAt(0).toUpperCase() + venue.listingType.slice(1) : null);
   const rating = venue?.rating ? Number(venue.rating).toFixed(1) : null;
   const reviews = venue?.reviewCount ?? venue?.reviews ?? null;
   const exclusiveUse = venue?.exclusiveUseEnabled ?? venue?.exclusiveUse?.enabled ?? null;
