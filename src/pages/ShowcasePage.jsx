@@ -359,8 +359,7 @@ export default function ShowcasePage({ slug, onBack, onGoDestination, onNavigate
       <HomeNav
         onNavigateStandard={onNavigateStandard}
         onNavigateAbout={onNavigateAbout}
-        transparent
-        light={false}
+        hasHero={false}
       />
 
       {/* Sections */}

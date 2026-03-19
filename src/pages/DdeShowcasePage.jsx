@@ -621,6 +621,7 @@ export default function DdeShowcasePage({ onBack, onGoDestination, onNavigateSta
           onVendorLogin={null}
           onNavigateStandard={onNavigateStandard}
           onNavigateAbout={onNavigateAbout}
+          hasHero={false}
         />
       </div>
 

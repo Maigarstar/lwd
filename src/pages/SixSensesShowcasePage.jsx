@@ -554,6 +554,7 @@ export default function SixSensesShowcasePage({ onBack, onGoDestination, onNavig
           onVendorLogin={null}
           onNavigateStandard={onNavigateStandard}
           onNavigateAbout={onNavigateAbout}
+          hasHero={false}
         />
       </div>
 
