@@ -330,8 +330,12 @@ export default function SiteFooter({
                   color: gold, letterSpacing: "0.22em",
                   textTransform: "uppercase", lineHeight: 1.7, marginBottom: 6,
                 }}>
-                  {(cfg?.logo_text || "Luxury Wedding Directory").split(" ").slice(0, -1).join(" ")}<br />
-                  {(cfg?.logo_text || "Luxury Wedding Directory").split(" ").slice(-1)[0]}
+                  {(() => {
+                    const words = (cfg?.logo_text || "Luxury Wedding Directory").split(" ");
+                    return words.length > 1
+                      ? <>{words.slice(0, -1).join(" ")}<br />{words[words.length - 1]}</>
+                      : words[0];
+                  })()}
                 </div>
               )
             )}
