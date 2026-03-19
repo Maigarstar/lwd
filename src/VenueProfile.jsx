@@ -16,6 +16,15 @@ import { trackExternalClick, hasSeenModalThisSession, markModalSeen } from "./se
 
 const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://www.luxuryweddingdirectory.co.uk';
 
+// Ensures external URLs always have a protocol, without doubling it up
+// e.g. "auberge.com/..." → "https://auberge.com/..."
+//      "https://auberge.com/..." → "https://auberge.com/..." (unchanged)
+const toAbsoluteUrl = (url) => {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url)) return url;
+  return `https://${url}`;
+};
+
 function useIsMobile(bp = 768) {
   const [mobile, setMobile] = useState(() => window.innerWidth <= bp);
   useEffect(() => {
@@ -1464,7 +1473,7 @@ function SidebarContact({ venue }) {
   const [exitConfig, setExitConfig] = useState(null);
 
   const handleWebsiteClick = () => {
-    const url = `https://${venue.contact.website}`;
+    const url = toAbsoluteUrl(venue.contact.website);
     const trackData = { entityType: 'venue', entityId: venue.id, venueId: venue.id, linkType: 'website', url };
     if (!hasSeenModalThisSession()) {
       setExitConfig({ url, name: venue.name });
@@ -2949,7 +2958,7 @@ function ContactSection({ venue }) {
   if (!venue.contact) return null;
 
   const handleWebsiteClick = () => {
-    const url = `https://${venue.contact.website}`;
+    const url = toAbsoluteUrl(venue.contact.website);
     const trackData = { entityType: 'venue', entityId: venue.id, venueId: venue.id, linkType: 'website', url };
     if (!hasSeenModalThisSession()) {
       setExitConfig({ url, name: venue.name });
