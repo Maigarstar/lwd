@@ -7,14 +7,61 @@ import SaveChatModal    from "./SaveChatModal";
 
 const GOLD    = "#C9A84C";
 
-const QUICK_ASKS = [
-  "What venues have capacity for 100+ guests?",
-  "Show me Tuscany venues with a romantic style",
-  "Find photographers near Lake Como",
-  "Wedding planner on the Amalfi Coast",
-  "What's included in venue packages?",
-  "Venues available for winter weddings",
-];
+// ── Context-aware suggested questions ─────────────────────────────────────────
+function getQuickAsks(activeContext) {
+  const { page, country, region, compareVenues = [] } = activeContext || {};
+
+  // Compare mode — questions about the specific venues being evaluated
+  if (page === 'compare' && compareVenues.length > 0) {
+    const names = compareVenues.map(v => v.name);
+    const first = names[0];
+    const second = names[1];
+    return [
+      second
+        ? `What's the key difference between ${first} and ${second}?`
+        : `Tell me more about ${first}`,
+      "Which of these venues offers exclusive use?",
+      "Which venue is better for an intimate wedding under 80 guests?",
+      "What are the travel options for guests at each venue?",
+      "Which venue has the stronger reputation for food and service?",
+      "What time of year is best for each of these venues?",
+    ];
+  }
+
+  // Region-specific suggestions
+  if (region && region !== 'All regions') {
+    return [
+      `Show me the top-rated venues in ${region}`,
+      `Which ${region} venues offer exclusive use?`,
+      `Find photographers based near ${region}`,
+      `What's the best season to wed in ${region}?`,
+      "What's included in typical venue packages?",
+      "Find a venue with accommodation on site",
+    ];
+  }
+
+  // Country-specific suggestions
+  if (country) {
+    return [
+      `Show me luxury venues in ${country} for 100+ guests`,
+      `Which venues in ${country} have a romantic style?`,
+      `Find a wedding planner based in ${country}`,
+      "What venues offer exclusive hire?",
+      "What's included in typical venue packages?",
+      "Show me venues available for winter weddings",
+    ];
+  }
+
+  // General fallback
+  return [
+    "Find me a luxury venue for 80 guests",
+    "What venues offer full exclusive use?",
+    "Show me venues with a romantic or historic style",
+    "What's typically included in a venue package?",
+    "Find a wedding planner in Europe",
+    "Which venues are available in summer?",
+  ];
+}
 
 // ── Theme helper ───────────────────────────────────────────────────────────────
 function getT(dark) {
@@ -92,7 +139,7 @@ function IconPill({ icon, label, gold, onClick, T }) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function WorkspaceLeft({ collapsed, onBack, darkMode }) {
-  const { sendMessage, clearHistory, messages } = useChat();
+  const { sendMessage, clearHistory, messages, activeContext } = useChat();
   const { items: shortlist }                    = useShortlist();
   const T = getT(darkMode);
 
@@ -218,17 +265,34 @@ export default function WorkspaceLeft({ collapsed, onBack, darkMode }) {
       </div>
 
       {/* ── Active Context ────────────────────────────────────────────────── */}
-      <Section label="Active Context" T={T}>
-        <div style={{ background: T.rowBg, border: `1px solid ${T.divider}`, borderRadius: 6, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 5 }}>
-          <ContextRow icon={<Icon name="globe" size={12} color={GOLD} />} text="Italy"       T={T} />
-          <ContextRow icon={<Icon name="mapPin" size={12} color={GOLD} />} text="All regions" T={T} dim />
-        </div>
-      </Section>
+      {activeContext && (activeContext.page === 'compare'
+        ? activeContext.compareVenues?.length > 0
+        : (activeContext.country || (activeContext.region && activeContext.region !== 'All regions'))
+      ) && (
+        <Section label="Active Context" T={T}>
+          <div style={{ background: T.rowBg, border: `1px solid ${T.divider}`, borderRadius: 6, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 5 }}>
+            {activeContext.page === 'compare' ? (
+              activeContext.compareVenues.map((v) => (
+                <ContextRow key={v.id} icon={<Icon name="heart" size={12} color={GOLD} />} text={v.name} T={T} />
+              ))
+            ) : (
+              <>
+                {activeContext.country && (
+                  <ContextRow icon={<Icon name="globe" size={12} color={GOLD} />} text={activeContext.country} T={T} />
+                )}
+                {activeContext.region && activeContext.region !== 'All regions' && (
+                  <ContextRow icon={<Icon name="mapPin" size={12} color={GOLD} />} text={activeContext.region} T={T} />
+                )}
+              </>
+            )}
+          </div>
+        </Section>
+      )}
 
       {/* ── Quick Asks, elegant suggestion chips ─────────────────────────── */}
       <Section label="Suggested" T={T}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {QUICK_ASKS.map((q) => (
+          {getQuickAsks(activeContext).map((q) => (
             <button
               key={q}
               onClick={() => sendMessage(q)}
