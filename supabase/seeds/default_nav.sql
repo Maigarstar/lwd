@@ -33,17 +33,10 @@ ON CONFLICT (id) DO UPDATE SET
   updated_at           = now();
 
 -- ── 2. Top-level nav items ────────────────────────────────────────────────────
--- Clear children first to avoid FK violations on re-seed
-DELETE FROM nav_items WHERE parent_id IN (
-  'a0000001-0000-0000-0000-000000000001',
-  'a0000001-0000-0000-0000-000000000002',
-  'a0000001-0000-0000-0000-000000000003',
-  'a0000001-0000-0000-0000-000000000004',
-  'a0000001-0000-0000-0000-000000000005',
-  'a0000001-0000-0000-0000-000000000006',
-  'a0000001-0000-0000-0000-000000000007',
-  'a0000001-0000-0000-0000-000000000008'
-);
+-- Full wipe first so old rows with different IDs don't survive as duplicates.
+-- Children must go before parents to respect FK constraints.
+DELETE FROM nav_items WHERE parent_id IS NOT NULL;
+DELETE FROM nav_items;
 
 INSERT INTO nav_items (
   id, label, url, nav_action, slug, type, is_cta, cta_style,
