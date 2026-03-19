@@ -80,15 +80,20 @@ export default function ExternalLinkModal({ name, url, onClose, onContinue }) {
         {/* Gold divider */}
         <div style={{ width: 28, height: 1, background: 'rgba(184,160,90,0.28)', margin: '0 auto 30px' }} />
 
-        {/* Headline — destination name is the hero */}
+        {/* Headline — name breaks to its own line for emphasis */}
         <p style={{
           fontFamily: FD,
           fontSize: 28, fontWeight: 400, fontStyle: 'italic',
-          color: '#f0ede6', lineHeight: 1.45,
+          color: '#f0ede6', lineHeight: 1.5,
           margin: '0 0 18px',
         }}>
-          You're being connected to{' '}
-          {name && <span style={{ color: GOLD }}>{name}</span>}
+          You're being connected to
+          {name && (
+            <>
+              <br />
+              <span style={{ color: GOLD }}>{name}</span>
+            </>
+          )}
         </p>
 
         {/* "via LWD" — introducer, not the focus. Smaller + lower contrast */}
@@ -108,7 +113,7 @@ export default function ExternalLinkModal({ name, url, onClose, onContinue }) {
           margin: '0 0 42px',
           letterSpacing: '0.02em',
         }}>
-          This website is managed independently
+          This site is managed independently
         </p>
 
         {/* CTAs — wider gap for premium breathing room */}
