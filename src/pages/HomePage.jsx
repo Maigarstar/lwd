@@ -56,7 +56,12 @@ function listingToCard(listing) {
     cat:         listing.categorySlug || listing.listingType || '',
     type:        listing.listingType  || '',
     // Vendor-specific amenities / includes
-    includes:    Array.isArray(listing.amenities) ? listing.amenities : (listing.tags || []),
+    // amenities is stored as comma-separated TEXT in DB — split into array
+    includes:    Array.isArray(listing.amenities)
+                   ? listing.amenities
+                   : (typeof listing.amenities === 'string' && listing.amenities.trim()
+                       ? listing.amenities.split(',').map(s => s.trim()).filter(Boolean)
+                       : (listing.tags || [])),
     specialties: Array.isArray(listing.tags)      ? listing.tags      : [],
   };
 }

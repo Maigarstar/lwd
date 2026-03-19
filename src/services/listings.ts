@@ -77,6 +77,21 @@ export function mapListingFromDb(rawListing: any): Listing {
     listing.imgs = buildCardImgs(listing.mediaItems);
   }
 
+  // Fallback: intake listings pushed before media_items fix have hero_images but
+  // no media_items JSONB. Build a minimal imgs array from heroImages so QV + cards
+  // always have at least a featured image to display.
+  if ((!listing.imgs || listing.imgs.length === 0) && Array.isArray(listing.heroImages) && listing.heroImages.length > 0) {
+    listing.imgs = listing.heroImages
+      .filter((h: any) => h?.url)
+      .map((h: any, i: number) => ({
+        src:        normaliseUrl(h.url),
+        url:        normaliseUrl(h.url),
+        alt_text:   '',
+        is_featured: h.featured ?? i === 0,
+        sort_order:  i,
+      }));
+  }
+
   // Build video URL from media_items
   if (Array.isArray(listing.mediaItems) && !listing.videoUrl) {
     listing.videoUrl = buildCardVideoUrl(listing.mediaItems) ?? undefined;
@@ -224,6 +239,19 @@ function transformSupabaseListingForUI(listing: any): any {
     if (!transformed.videoUrl) {
       transformed.videoUrl = buildCardVideoUrl(transformed.mediaItems) ?? undefined
     }
+  }
+
+  // Fallback: hero_images → imgs for intake listings without media_items
+  if ((!transformed.imgs || transformed.imgs.length === 0) && Array.isArray(transformed.heroImages) && transformed.heroImages.length > 0) {
+    transformed.imgs = transformed.heroImages
+      .filter((h: any) => h?.url)
+      .map((h: any, i: number) => ({
+        src:         h.url,
+        url:         h.url,
+        alt_text:    '',
+        is_featured: h.featured ?? i === 0,
+        sort_order:  i,
+      }));
   }
 
   return transformed
