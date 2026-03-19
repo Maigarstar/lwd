@@ -621,8 +621,8 @@ function HeroSlider({ imgs, height, children }) {
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>{a.dir}</button>
       ))}
-      {/* Dots */}
-      <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 5 }}>
+      {/* Dots — right-aligned to share the bottom strip with the breadcrumb */}
+      <div style={{ position: "absolute", bottom: 16, right: 40, display: "flex", gap: 5, alignItems: "center" }}>
         {imgs.map((_, i) => (
           <button key={i} onClick={() => setIdx(i)} style={{
             width: i === idx ? 20 : 6, height: 6, border: "none", cursor: "pointer",
@@ -636,7 +636,7 @@ function HeroSlider({ imgs, height, children }) {
 }
 
 // ─── HERO STYLE 1: CINEMATIC ─────────────────────────────────────────────────
-function HeroCinematic({ venue, onEnquire }) {
+function HeroCinematic({ venue, onEnquire, onBack }) {
   const C = useT();
   const isMobile = useIsMobile();
   return (
@@ -707,6 +707,22 @@ function HeroCinematic({ venue, onEnquire }) {
               )}
             </div>
           </div>
+
+        </div>
+        {/* Breadcrumb — absolutely pinned to bottom-left, same row as slider dots */}
+        <div style={{ position: "absolute", bottom: 16, left: 40, display: "flex", alignItems: "center", gap: 6, fontFamily: FB, fontSize: 11, letterSpacing: "0.3px" }}>
+          {["Venues", venue.country, venue.location?.split(', ').pop()].filter(Boolean).map((crumb) => (
+            <span key={crumb} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span
+                style={{ color: "rgba(255,255,255,0.55)", cursor: crumb === "Venues" ? "pointer" : "default", transition: "color 0.2s" }}
+                onClick={crumb === "Venues" && onBack ? onBack : undefined}
+                onMouseEnter={e => { if (crumb === "Venues") e.currentTarget.style.color = "rgba(255,255,255,0.9)"; }}
+                onMouseLeave={e => { if (crumb === "Venues") e.currentTarget.style.color = "rgba(255,255,255,0.55)"; }}
+              >{crumb}</span>
+              <span style={{ color: "rgba(255,255,255,0.25)", fontSize: 10 }}>›</span>
+            </span>
+          ))}
+          <span style={{ color: "rgba(255,255,255,0.85)", fontWeight: 600 }}>{venue.name}</span>
         </div>
       </HeroSlider>
     </div>
@@ -1159,7 +1175,7 @@ function SectionLayout({ children, sideImg, isMobile }) {
 }
 
 // ─── HERO WRAPPER, style switcher ───────────────────────────────────────────
-function Hero({ venue, heroStyle, setHeroStyle, onEnquire }) {
+function Hero({ venue, heroStyle, setHeroStyle, onEnquire, onBack }) {
   const C = useT();
   // Only show Video option if the venue has video configured
   const styles = [
@@ -1170,7 +1186,7 @@ function Hero({ venue, heroStyle, setHeroStyle, onEnquire }) {
   ];
   return (
     <div>
-      {heroStyle === "cinematic" && <HeroCinematic venue={venue} onEnquire={onEnquire} />}
+      {heroStyle === "cinematic" && <HeroCinematic venue={venue} onEnquire={onEnquire} onBack={onBack} />}
       {heroStyle === "split"     && <HeroSplit venue={venue} onEnquire={onEnquire} />}
       {heroStyle === "magazine"  && <HeroMagazine venue={venue} onEnquire={onEnquire} />}
       {heroStyle === "video"     && <HeroVideo venue={venue} onEnquire={onEnquire} />}
@@ -6200,8 +6216,7 @@ export default function VenueProfile({ onBack = null, slug = null }) {
       )}
       <div className="vp-root" style={{ background: C.bg, minHeight: "100vh", color: C.text }}>
         <HomeNav hasHero={true} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} />
-        <Hero venue={VV} heroStyle={heroStyle} setHeroStyle={setHeroStyle} onEnquire={() => setEnquiryOpen(true)} />
-        <BreadcrumbBar venue={VV} onBack={onBack} />
+        <Hero venue={VV} heroStyle={heroStyle} setHeroStyle={setHeroStyle} onEnquire={() => setEnquiryOpen(true)} onBack={onBack} />
         <StatsStrip venue={VV} />
         <StickyTabNav venue={VV} activeTab={activeTab} onTabClick={scrollToSection} saved={saved} setSaved={setSaved} onAddCompare={addCompare} compareList={compareList} />
 
