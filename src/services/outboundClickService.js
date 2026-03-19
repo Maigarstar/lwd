@@ -10,6 +10,7 @@
  */
 
 import { supabase } from '../lib/supabaseClient';
+import { markOutboundPending } from './userEventService';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Session ID
@@ -99,6 +100,9 @@ export function trackExternalClick({ entityType, entityId, venueId, linkType, ur
     session_id  : getSessionId(),
     user_id     : null,               // reserved for future auth integration
   };
+
+  // Store pending return marker — detected by initReturnDetection() visibilitychange
+  markOutboundPending({ entityType, entityId, linkType, url });
 
   // Fire and forget — never block the redirect
   supabase

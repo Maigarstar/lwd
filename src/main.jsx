@@ -17,6 +17,10 @@ import SiteFooter            from "./components/sections/SiteFooter.jsx";
 // ── Apply saved theme CSS variables BEFORE React renders ─────────────────────
 applyThemeToDocument();
 
+// ── Initialise return-after-outbound detection (runs once, passive) ──────────
+import { initReturnDetection } from "./services/userEventService";
+initReturnDetection();
+
 import HomePage from "./pages/HomePage.jsx";
 import VenueProfile           from "./VenueProfile.jsx";
 // CountryTemplate removed, /category now renders ItalyPage with noIndex

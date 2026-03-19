@@ -763,15 +763,17 @@ function EventSummaryBar({ days, C }) {
 
   const h = data?.highlights;
   const cards = [
-    { label: 'Searches',        value: fmt(h?.searches),           accent: '#60a5fa' },
-    { label: 'Enquiries Started', value: fmt(h?.enquiryStarts),    accent: C.gold },
-    { label: 'Enquiries Submitted', value: fmt(h?.enquirySubmissions), accent: '#22c55e' },
-    { label: 'Conversion Rate', value: h?.enquiryConversionRate != null ? `${h.enquiryConversionRate}%` : '—', accent: h?.enquiryConversionRate >= 50 ? '#22c55e' : C.gold },
-    { label: 'Shortlist Adds',  value: fmt(h?.shortlistAdds),      accent: '#a78bfa' },
+    { label: 'Profile Views',      value: fmt(h?.profileViews),          accent: '#60a5fa' },
+    { label: 'Searches',           value: fmt(h?.searches),              accent: '#a78bfa' },
+    { label: 'Enquiry Starts',     value: fmt(h?.enquiryStarts),         accent: C.gold },
+    { label: 'Enquiry Rate',       value: h?.enquiryConversionRate != null ? `${h.enquiryConversionRate}%` : '—', accent: h?.enquiryConversionRate >= 50 ? '#22c55e' : C.gold },
+    { label: 'Shortlist Adds',     value: fmt(h?.shortlistAdds),         accent: '#22c55e' },
+    { label: 'Aura Queries',       value: fmt(h?.auraQueries),           accent: '#f59e0b' },
+    { label: 'Returns',            value: fmt(h?.returnsAfterOutbound),  accent: '#e1306c' },
   ];
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 20 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 12, marginBottom: 20 }}>
       {cards.map(card => (
         <div key={card.label} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '14px 16px', borderTop: `3px solid ${card.accent}` }}>
           <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.grey, fontWeight: 600, marginBottom: 6 }}>{card.label}</div>

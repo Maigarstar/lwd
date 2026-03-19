@@ -78,11 +78,13 @@ async function handleSummary(days: number) {
   });
 
   // Convenience totals
-  const searches    = byType["search"] || 0;
-  const enquiryStarts = byType["enquiry_started"] || 0;
-  const enquirySubs   = byType["enquiry_submitted"] || 0;
-  const shortlistAdds = byType["shortlist_add"] || 0;
-  const auraQueries   = byType["aura_query"] || 0;
+  const searches        = byType["search"]               || 0;
+  const enquiryStarts   = byType["enquiry_started"]       || 0;
+  const enquirySubs     = byType["enquiry_submitted"]     || 0;
+  const shortlistAdds   = byType["shortlist_add"]         || 0;
+  const auraQueries     = byType["aura_query"]            || 0;
+  const profileViews    = byType["profile_view"]          || 0;
+  const returns         = byType["returned_after_outbound"] || 0;
 
   const enquiryRate = enquiryStarts > 0
     ? Math.round((enquirySubs / enquiryStarts) * 100)
@@ -94,11 +96,13 @@ async function handleSummary(days: number) {
     byType,
     highlights: {
       searches,
+      profileViews,
       enquiryStarts,
       enquirySubmissions: enquirySubs,
       enquiryConversionRate: enquiryRate,
       shortlistAdds,
       auraQueries,
+      returnsAfterOutbound: returns,
     },
   });
 }

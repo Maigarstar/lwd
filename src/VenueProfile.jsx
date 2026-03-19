@@ -13,6 +13,7 @@ import { buildVenueSchema, buildBreadcrumbSchema, buildFaqSchema } from './utils
 import HomeNav from "./components/nav/HomeNav";
 import ExternalLinkModal from "./components/ExternalLinkModal";
 import { trackExternalClick, hasSeenModalThisSession, markModalSeen } from "./services/outboundClickService";
+import { trackProfileView } from "./services/userEventService";
 
 const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://www.luxuryweddingdirectory.co.uk';
 
@@ -6270,6 +6271,14 @@ export default function VenueProfile({ onBack = null, slug = null }) {
   useEffect(() => {
     if (dbVenue && dbVenue.name && slug) {
       recordVenueView(VV, slug);
+      // Track profile_view in unified event system (once per real data load)
+      trackProfileView({
+        entityType:    'venue',
+        entityId:      dbVenue.id   || null,
+        entityName:    dbVenue.name || null,
+        slug,
+        sourceSurface: 'venue_profile',
+      });
     }
   }, [slug, dbVenue]);
 

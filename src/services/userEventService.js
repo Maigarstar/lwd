@@ -118,12 +118,12 @@ export function trackEvent({ eventType, entityType = null, entityId = null, meta
 
 /**
  * Directory/category search executed.
- * @param {{ query?: string, filters?: object, resultsCount: number, zeroResults: boolean }} p
+ * @param {{ query?: string, filters?: object, resultsCount: number, zeroResults: boolean, sourceSurface?: string }} p
  */
-export function trackSearch({ query = '', filters = {}, resultsCount = 0, zeroResults = false }) {
+export function trackSearch({ query = '', filters = {}, resultsCount = 0, zeroResults = false, sourceSurface = null }) {
   trackEvent({
     eventType: 'search',
-    metadata: { query: query.trim().slice(0, 200), filters, results_count: resultsCount, zero_results: zeroResults },
+    metadata: { query: query.trim().slice(0, 200), filters, results_count: resultsCount, zero_results: zeroResults, source_surface: sourceSurface },
   });
 }
 
@@ -142,27 +142,27 @@ export function trackSearchResultClick({ entityType, entityId, entityName = null
 
 /**
  * User opened / started filling an enquiry form.
- * @param {{ entityType: string, entityId: string, entityName?: string, source?: string }} p
+ * @param {{ entityType: string, entityId: string, entityName?: string, source?: string, sourceSurface?: string }} p
  */
-export function trackEnquiryStarted({ entityType, entityId, entityName = null, source = null }) {
+export function trackEnquiryStarted({ entityType, entityId, entityName = null, source = null, sourceSurface = null }) {
   trackEvent({
     eventType:  'enquiry_started',
     entityType,
     entityId,
-    metadata: { entity_name: entityName, source },
+    metadata: { entity_name: entityName, source, source_surface: sourceSurface || source },
   });
 }
 
 /**
  * Enquiry form successfully submitted.
- * @param {{ entityType: string, entityId: string, entityName?: string, source?: string }} p
+ * @param {{ entityType: string, entityId: string, entityName?: string, source?: string, sourceSurface?: string }} p
  */
-export function trackEnquirySubmitted({ entityType, entityId, entityName = null, source = null }) {
+export function trackEnquirySubmitted({ entityType, entityId, entityName = null, source = null, sourceSurface = null }) {
   trackEvent({
     eventType:  'enquiry_submitted',
     entityType,
     entityId,
-    metadata: { entity_name: entityName, source },
+    metadata: { entity_name: entityName, source, source_surface: sourceSurface || source },
   });
 }
 
@@ -193,12 +193,97 @@ export function trackShortlistRemove({ entityType, entityId, entityName = null }
 }
 
 /**
- * Aura chat message sent by user.
- * @param {{ query: string, venuesRecommended?: string[] }} p
+ * Venue or vendor profile viewed.
+ * @param {{ entityType: string, entityId: string, entityName?: string, slug?: string, sourceSurface?: string }} p
  */
-export function trackAuraQuery({ query, venuesRecommended = [] }) {
+export function trackProfileView({ entityType, entityId, entityName = null, slug = null, sourceSurface = 'venue_profile' }) {
+  trackEvent({
+    eventType:  'profile_view',
+    entityType,
+    entityId,
+    metadata: { entity_name: entityName, slug, source_surface: sourceSurface },
+  });
+}
+
+/**
+ * Aura chat message sent by user.
+ * @param {{ query: string, venuesRecommended?: string[], sourceSurface?: string }} p
+ */
+export function trackAuraQuery({ query, venuesRecommended = [], sourceSurface = 'aura_chat' }) {
   trackEvent({
     eventType: 'aura_query',
-    metadata: { query: query.trim().slice(0, 500), venues_recommended: venuesRecommended },
+    metadata: { query: query.trim().slice(0, 500), venues_recommended: venuesRecommended, source_surface: sourceSurface },
   });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Return after outbound — passive detection via visibilitychange
+//
+// Flow:
+//   1. outboundClickService stores a pending marker when any external link fires
+//   2. initReturnDetection() sets up a visibilitychange listener once per session
+//   3. When the LWD tab becomes visible again:
+//      — check for a pending marker < 30 min old
+//      — if found: fire returned_after_outbound + clear the marker
+//
+// Call initReturnDetection() once on app start (e.g. in main.jsx).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PENDING_RETURN_KEY  = 'lwd_pending_return';
+const RETURN_WINDOW_MS    = 30 * 60 * 1000; // 30 minutes
+let returnDetectionActive = false;
+
+export function initReturnDetection() {
+  if (returnDetectionActive || typeof document === 'undefined') return;
+  returnDetectionActive = true;
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+
+    try {
+      const raw = sessionStorage.getItem(PENDING_RETURN_KEY);
+      if (!raw) return;
+
+      const pending = JSON.parse(raw);
+      const elapsed = Date.now() - (pending.ts || 0);
+
+      if (elapsed > 0 && elapsed < RETURN_WINDOW_MS) {
+        // User came back within the window — fire the event
+        trackEvent({
+          eventType:  'returned_after_outbound',
+          entityType: pending.entityType || null,
+          entityId:   pending.entityId   || null,
+          metadata: {
+            outbound_url:      pending.url      || null,
+            outbound_link_type: pending.linkType || null,
+            elapsed_seconds:   Math.round(elapsed / 1000),
+            source_surface:    'return_detection',
+          },
+        });
+      }
+
+      // Clear pending marker regardless of whether it was in-window or not
+      sessionStorage.removeItem(PENDING_RETURN_KEY);
+    } catch {
+      // Never fail silently
+    }
+  });
+}
+
+/**
+ * Called by outboundClickService to mark that an outbound click just happened.
+ * Stores the marker so initReturnDetection() can detect the return.
+ */
+export function markOutboundPending({ entityType, entityId, linkType, url }) {
+  try {
+    sessionStorage.setItem(PENDING_RETURN_KEY, JSON.stringify({
+      entityType: entityType || null,
+      entityId:   entityId   || null,
+      linkType:   linkType   || null,
+      url:        url        || null,
+      ts:         Date.now(),
+    }));
+  } catch {
+    // sessionStorage unavailable
+  }
 }

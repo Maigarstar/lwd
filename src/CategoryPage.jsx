@@ -1316,6 +1316,7 @@ export default function CategoryPage({ onBack = () => {}, onViewVenue = () => {}
         filters: activeFilters,
         resultsCount: filtered.length,
         zeroResults: filtered.length === 0,
+        sourceSurface: 'category_page',
       });
     }, 800);
     return () => clearTimeout(searchTrackTimer.current);

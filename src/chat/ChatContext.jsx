@@ -3,6 +3,7 @@ import {
   createContext, useContext, useState, useCallback, useRef, useEffect,
 } from "react";
 import { getRecommendations } from "./recommendationEngine";
+import { trackAuraQuery } from "../services/userEventService";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function loadMessages() {
@@ -99,6 +100,14 @@ export function ChatProvider({ children }) {
   const sendMessage = useCallback((text) => {
     const trimmed = text.trim();
     if (!trimmed) return;
+
+    // Track Aura query — captures query + active context for intent mapping
+    trackAuraQuery({
+      query: trimmed,
+      venuesRecommended: [],      // populated when real AI recommendations land
+      sourceSurface: activeContext?.page || 'aura_chat',
+    });
+
     const userMsg = { id: Date.now(), from: "user", text: trimmed };
     setMessages((prev) => [...prev, userMsg]);
     setIsTyping(true);
@@ -109,7 +118,7 @@ export function ChatProvider({ children }) {
         { id: Date.now() + 1, from: "aura", text: nextStub() },
       ]);
     }, 850);
-  }, []);
+  }, [activeContext]);
 
   const clearHistory = useCallback(() => {
     clearTimeout(replyTimer.current);
