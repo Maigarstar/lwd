@@ -117,46 +117,30 @@ export async function createLead(payload: LeadPayload): Promise<CreateLeadResult
       lead_value_band: valueBand,
     }
 
-    // 3. Insert lead
+    // 3. Submit via edge function (service role bypasses RLS)
     if (!isSupabaseAvailable()) {
       console.log('leadEngineService: Supabase unavailable, logging lead locally')
-      console.log('Lead payload:', leadRow)
       return { success: true, leadId: 'offline-' + Date.now(), score, priority, error: null }
     }
 
-    const { data: lead, error: insertError } = await supabase
-      .from('leads')
-      .insert(leadRow)
-      .select('id')
-      .single()
-
-    if (insertError) {
-      console.error('leadEngineService: leads INSERT blocked —', insertError.code, insertError.message, insertError.details, insertError.hint)
-      throw insertError
-    }
-    const leadId = lead.id
-
-    // 4. Record lead_created event
-    await recordLeadEvent(leadId, 'lead_created', {
-      source: payload.leadSource,
-      channel: payload.leadChannel,
-      score,
-      priority,
+    const { data: fnData, error: fnError } = await supabase.functions.invoke('submit-lead', {
+      body: { ...leadRow, score, priority, leadValueBand: valueBand },
     })
 
-    // 5. Store initial message
-    if (payload.message) {
-      await supabase.from('lead_messages').insert({
-        lead_id: leadId,
-        message_type: 'initial_enquiry',
-        body: payload.message,
-      })
+    if (fnError || !fnData?.success) {
+      const msg = fnError?.message || fnData?.error || 'submit-lead edge function failed'
+      console.error('leadEngineService: submit-lead failed —', msg)
+      throw new Error(msg)
     }
 
-    // 6. Route and send notifications (fire-and-forget)
-    routeAndNotify(leadId, leadRow).catch(err =>
-      console.error('leadEngineService: Notification routing failed:', err)
-    )
+    const leadId = fnData.data?.leadId
+
+    // 4. Route and send notifications (fire-and-forget, uses service role)
+    if (leadId) {
+      routeAndNotify(leadId, leadRow).catch(err =>
+        console.error('leadEngineService: Notification routing failed:', err)
+      )
+    }
 
     return { success: true, leadId, score, priority, error: null }
   } catch (error) {
