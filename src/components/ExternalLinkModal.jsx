@@ -52,27 +52,27 @@ export default function ExternalLinkModal({ name, url, onClose, onContinue }) {
           boxShadow: '0 32px 80px rgba(0,0,0,0.65)',
         }}
       >
-        {/* ✕ Close — softer, more restrained */}
+        {/* ✕ Close — very soft, almost whispered */}
         <button
           onClick={onClose}
           style={{
             position: 'absolute', top: 18, right: 20,
             background: 'none', border: 'none', cursor: 'pointer',
-            fontSize: 14, color: 'rgba(184,160,90,0.28)', lineHeight: 1,
-            transition: 'color 0.25s',
+            fontSize: 14, color: 'rgba(184,160,90,0.22)', lineHeight: 1,
+            transition: 'color 0.3s',
             fontWeight: 300,
           }}
-          onMouseEnter={e => e.currentTarget.style.color = 'rgba(184,160,90,0.65)'}
-          onMouseLeave={e => e.currentTarget.style.color = 'rgba(184,160,90,0.28)'}
+          onMouseEnter={e => e.currentTarget.style.color = 'rgba(184,160,90,0.55)'}
+          onMouseLeave={e => e.currentTarget.style.color = 'rgba(184,160,90,0.22)'}
           aria-label="Close"
         >✕</button>
 
-        {/* Eyebrow */}
+        {/* Eyebrow — extra air below before the divider */}
         <div style={{
           fontFamily: FB,
           fontSize: 9, fontWeight: 700,
           letterSpacing: '0.22em', textTransform: 'uppercase',
-          color: GOLD, marginBottom: 20,
+          color: GOLD, marginBottom: 26,
         }}>
           You're being connected
         </div>
@@ -129,10 +129,10 @@ export default function ExternalLinkModal({ name, url, onClose, onContinue }) {
               fontFamily: FB, fontSize: 11, fontWeight: 800,
               letterSpacing: '0.16em', textTransform: 'uppercase',
               textDecoration: 'none', borderRadius: 1,
-              transition: 'opacity 0.2s',
+              transition: 'opacity 0.2s, transform 0.2s',
             }}
-            onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; e.currentTarget.style.transform = 'scale(1.02)'; }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1)'; }}
           >
             Continue
           </a>
