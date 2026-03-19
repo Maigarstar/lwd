@@ -302,30 +302,47 @@ function ContactProfileEditor({ profile = {}, onChange }) {
         </div>
       </div>
 
+      {/* Website */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={LABEL}>Website</label>
+        <input
+          type="text"
+          value={profile.website || ''}
+          onChange={e => update('website', e.target.value)}
+          placeholder="https://…"
+          style={FIELD}
+        />
+      </div>
+
       {/* Social links */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <div>
-          <label style={LABEL}>Instagram Handle</label>
-          <div style={{ position: 'relative' }}>
-            <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#aaa' }}>@</span>
-            <input
-              type="text"
-              value={profile.instagram || ''}
-              onChange={e => update('instagram', e.target.value.replace(/^@/, ''))}
-              placeholder="handle"
-              style={{ ...FIELD, paddingLeft: 28 }}
-            />
-          </div>
-        </div>
-        <div>
-          <label style={LABEL}>Website</label>
-          <input
-            type="text"
-            value={profile.website || ''}
-            onChange={e => update('website', e.target.value)}
-            placeholder="https://…"
-            style={FIELD}
-          />
+      <div style={{ borderTop: '1px solid #ede8e1', paddingTop: 16, marginTop: 4 }}>
+        <p style={{ ...LABEL, marginBottom: 12 }}>Social Media Links</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {[
+            { key: 'instagram', label: 'Instagram', placeholder: 'https://instagram.com/venuename', icon: '📸' },
+            { key: 'facebook',  label: 'Facebook',  placeholder: 'https://facebook.com/venuename', icon: '📘' },
+            { key: 'linkedin',  label: 'LinkedIn',  placeholder: 'https://linkedin.com/company/venuename', icon: '💼' },
+            { key: 'tiktok',    label: 'TikTok',    placeholder: 'https://tiktok.com/@venuename', icon: '🎵' },
+            { key: 'twitter',   label: 'X (Twitter)', placeholder: 'https://x.com/venuename', icon: '𝕏' },
+            { key: 'pinterest', label: 'Pinterest', placeholder: 'https://pinterest.com/venuename', icon: '📌' },
+            { key: 'youtube',   label: 'YouTube',   placeholder: 'https://youtube.com/@venuename', icon: '▶️' },
+          ].map(({ key, label, placeholder, icon }) => {
+            const social = profile.social || {};
+            return (
+              <div key={key}>
+                <label style={LABEL}>
+                  <span style={{ marginRight: 5 }}>{icon}</span>{label}
+                </label>
+                <input
+                  type="url"
+                  value={social[key] || ''}
+                  onChange={e => update('social', { ...social, [key]: e.target.value })}
+                  placeholder={placeholder}
+                  style={FIELD}
+                />
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

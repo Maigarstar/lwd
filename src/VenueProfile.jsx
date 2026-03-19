@@ -6321,6 +6321,7 @@ export default function VenueProfile({ onBack = null, slug = null }) {
             phone:   listing.phone   || listing.contactProfile?.phone   || null,
             email:   listing.email   || listing.contactProfile?.email   || null,
             website: listing.website || listing.contactProfile?.website || null,
+            social:  listing.contactProfile?.social || null,
             responseMetrics: {
               averageResponseHours: null,
               responseRatePercent:  null,
