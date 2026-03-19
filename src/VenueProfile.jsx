@@ -5,7 +5,6 @@ import SliderNav from "./components/ui/SliderNav";
 import { fetchListingBySlug } from './services/listings';
 import { fetchApprovedReviews } from './services/reviewService';
 import { buildCardImgs, mapMediaItemToGalleryPhoto, buildVenueVideos } from './utils/mediaMappers';
-import ReviewsSection from './components/reviews/ReviewsSection';
 import ReviewSubmitForm from './components/reviews/ReviewSubmitForm';
 import VenueEnquiryForm from './components/enquiry/VenueEnquiryForm';
 import SeoHead from './components/seo/SeoHead';
@@ -1011,7 +1010,6 @@ function HeroVideo({ venue, onEnquire }) {
 const TABS = [
   { key: 'overview',     label: 'Overview',     show: (v) => true },
   { key: 'gallery',      label: 'Gallery',      show: (v) => (v.gallery?.length || 0) > 0 },
-  { key: 'reviews',      label: 'Reviews',      show: (v) => (v.testimonials?.length || 0) > 0 },
   { key: 'capacity',     label: 'Spaces',       show: (v) => (v.spaces?.length || 0) > 0 },
   { key: 'rooms',        label: 'Rooms',        show: (v) => v.accommodation?.totalRooms > 0 || v.accommodation?.description },
   { key: 'dining',       label: 'Dining',       show: (v) => v.dining?.description || v.dining?.style },
@@ -4752,117 +4750,183 @@ function GettingHere({ access }) {
 }
 
 // ─── REVIEWS ─────────────────────────────────────────────────────────────────
-function Reviews({ testimonials, venue }) {
+function Reviews({ testimonials, venue, venueSlug }) {
   const C = useT();
   const isMobile = useIsMobile();
+  const [expandedFirst, setExpandedFirst] = useState(false);
 
-  // Only render if testimonials data exists
   if (!testimonials || !Array.isArray(testimonials) || testimonials.length === 0) return null;
 
-  const PER_PAGE = 3;
-  const pages = Math.ceil(testimonials.length / PER_PAGE);
-  const [page, setPage] = useState(0);
-  const visible = testimonials.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
+  const featured = testimonials[0];
+  const rest = testimonials.slice(1);
+  const LONG_THRESHOLD = 300;
+  const featuredIsLong = (featured.text || '').length > LONG_THRESHOLD;
 
-  const navBtn = (dir) => ({
-    width: 36, height: 36, borderRadius: "var(--lwd-radius-input)", border: `1px solid ${C.border2}`,
-    background: "none", color: C.textMuted, cursor: "pointer",
-    fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center",
-    transition: "all 0.2s", flexShrink: 0,
-  });
+  // Avatar initials helper
+  const getInitials = (names) => {
+    if (!names) return '?';
+    const parts = names.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0][0].toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
 
-  const reviewCard = (r) => (
-    <div key={r.id} style={{ padding: isMobile ? 20 : 24, border: `1px solid ${C.border}`, background: C.surface, borderTop: `3px solid ${C.gold}`, animation: "fadeUp 0.35s ease both", flex: isMobile ? "0 0 280px" : undefined, scrollSnapAlign: isMobile ? "start" : undefined }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-        <div style={{ width: 44, height: 44, background: C.goldLight, border: `1px solid ${C.goldBorder}`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FD, fontSize: 16, color: C.gold, flexShrink: 0 }}>{r.avatar}</div>
+  // Compact card for horizontal slider
+  const compactCard = (r, idx) => (
+    <div
+      key={r.id || idx}
+      style={{
+        flex: '0 0 340px',
+        padding: 20,
+        border: `1px solid ${C.border}`,
+        background: C.surface,
+        scrollSnapAlign: 'start',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+      }}
+    >
+      {/* Stars */}
+      <Stars rating={r.rating} size={11} />
+
+      {/* Title */}
+      {r.title && (
+        <div style={{ fontFamily: FD, fontSize: 14, color: C.text, lineHeight: 1.4 }}>{r.title}</div>
+      )}
+
+      {/* Body – 4 line clamp */}
+      <p style={{
+        fontFamily: FB, fontSize: 13, color: C.textMid, lineHeight: 1.75, margin: 0,
+        display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+        flex: 1,
+      }}>{r.text}</p>
+
+      {/* Footer */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+        <div style={{
+          width: 28, height: 28, background: C.goldLight, border: `1px solid ${C.goldBorder}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: FD, fontSize: 11, color: C.gold, flexShrink: 0,
+        }}>{getInitials(r.names)}</div>
         <div>
-          <div style={{ fontFamily: FD, fontSize: 16, color: C.text }}>{r.names}</div>
-          <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted }}>{r.date} · {r.location}</div>
+          <div style={{ fontFamily: FB, fontSize: 12, color: C.text, fontWeight: 600 }}>{r.names}</div>
+          <div style={{ fontFamily: FB, fontSize: 10, color: C.textMuted }}>
+            {[r.location, r.date].filter(Boolean).join(' · ')}
+          </div>
         </div>
-      </div>
-      <Stars rating={r.rating} size={12} />
-      <p style={{ fontFamily: FB, fontSize: 13, color: C.textMid, lineHeight: 1.75, marginTop: 12, ...(isMobile ? { display: "-webkit-box", WebkitLineClamp: 6, WebkitBoxOrient: "vertical", overflow: "hidden" } : {}) }}>{r.text}</p>
-      <div style={{ marginTop: 14 }}>
-        <span style={{ fontFamily: FB, fontSize: 11, color: C.green, fontWeight: 700 }}>✓ Verified Review</span>
+        {r.verified && (
+          <span style={{ marginLeft: 'auto', fontFamily: FB, fontSize: 10, color: C.green, fontWeight: 700, whiteSpace: 'nowrap' }}>✓ Verified</span>
+        )}
       </div>
     </div>
   );
 
   return (
     <section id="reviews" style={{ marginBottom: 56 }}>
-      <SectionHeading title="Reviews" subtitle={`Trusted by ${venue?.reviews || 0} couples who have celebrated at this venue`} />
-      <>
+      <SectionHeading title="What Couples Say" subtitle={`Rated ${venue?.rating || '5.0'} by ${venue?.reviews || testimonials.length} verified couple${(venue?.reviews || testimonials.length) !== 1 ? 's' : ''}`} />
 
-        {/* Summary bar */}
-        <div className="vp-reviews-summary" style={{ display: isMobile ? "flex" : "grid", flexDirection: isMobile ? "column" : undefined, gridTemplateColumns: isMobile ? undefined : "200px 1fr", gap: isMobile ? 20 : 40, marginBottom: 28, padding: isMobile ? 20 : 32, border: `1px solid ${C.border}`, background: C.surface }}>
-          <div style={{ textAlign: "center", borderRight: isMobile ? "none" : `1px solid ${C.border}`, borderBottom: isMobile ? `1px solid ${C.border}` : "none", paddingRight: isMobile ? 0 : 40, paddingBottom: isMobile ? 16 : 0 }}>
-            <div style={{ fontFamily: FD, fontSize: isMobile ? 56 : 78, fontWeight: 400, color: C.gold, lineHeight: 1 }}>{venue.rating}</div>
-            <Stars rating={venue.rating} size={18} />
-            {venue.reviews != null && <div style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginTop: 8 }}>{venue.reviews} verified reviews</div>}
+      {/* ── Featured review ───────────────────────────────────────────────── */}
+      <div style={{
+        padding: isMobile ? 20 : 32,
+        borderLeft: `3px solid ${C.gold}`,
+        border: `1px solid ${C.goldBorder}`,
+        borderLeftWidth: 3,
+        borderLeftColor: C.gold,
+        background: C.goldLight,
+        marginBottom: rest.length > 0 ? 28 : 0,
+        position: 'relative',
+      }}>
+        {/* Large quote mark */}
+        <div style={{
+          fontFamily: FD, fontSize: 72, color: C.gold, lineHeight: 0.6,
+          marginBottom: 16, opacity: 0.6, userSelect: 'none',
+        }}>"</div>
+
+        {/* Title */}
+        {featured.title && (
+          <div style={{ fontFamily: FD, fontSize: 18, color: C.text, marginBottom: 10 }}>{featured.title}</div>
+        )}
+
+        {/* Body */}
+        <p style={{
+          fontFamily: FB, fontSize: 14, color: C.textMid, lineHeight: 1.8, margin: 0,
+          ...(!expandedFirst && featuredIsLong ? {
+            display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+          } : {}),
+        }}>{featured.text}</p>
+
+        {featuredIsLong && (
+          <button
+            onClick={() => setExpandedFirst(e => !e)}
+            style={{
+              marginTop: 8, fontFamily: FB, fontSize: 12, color: C.gold,
+              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+              fontWeight: 600,
+            }}
+          >{expandedFirst ? 'Show less' : 'Read more'}</button>
+        )}
+
+        {/* Footer row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 20, flexWrap: 'wrap' }}>
+          <div style={{
+            width: 40, height: 40, background: C.goldLight, border: `1px solid ${C.goldBorder}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: FD, fontSize: 15, color: C.gold, flexShrink: 0,
+          }}>{getInitials(featured.names)}</div>
+          <div>
+            <div style={{ fontFamily: FD, fontSize: 15, color: C.text }}>{featured.names}</div>
+            <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted }}>
+              {[featured.location, featured.date].filter(Boolean).join(' · ')}
+            </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 8 }}>
-            {[5,4,3,2,1].map(star => (
-              <div key={star} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, width: 16 }}>{star}</span>
-                <span style={{ fontSize: 11, color: C.gold }}>★</span>
-                <div style={{ flex: 1, height: 6, background: C.border, overflow: "hidden" }}>
-                  <div style={{ width: star === 5 ? "89%" : star === 4 ? "8%" : "3%", height: "100%", background: C.gold, transition: "width 0.8s ease" }} />
-                </div>
-                <span style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, width: 28 }}>{star === 5 ? "113" : star === 4 ? "10" : "4"}</span>
-              </div>
-            ))}
+          <div style={{ marginLeft: 4 }}>
+            <Stars rating={featured.rating} size={12} />
+          </div>
+          {featured.verified !== false && (
+            <span style={{ fontFamily: FB, fontSize: 11, color: C.green, fontWeight: 700, padding: '2px 8px', border: `1px solid ${C.green}`, borderRadius: 2 }}>✓ Verified</span>
+          )}
+        </div>
+      </div>
+
+      {/* ── More from guests ──────────────────────────────────────────────── */}
+      {rest.length > 0 && (
+        <>
+          <div style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: '0.8px', textTransform: 'uppercase', marginBottom: 12 }}>More from guests</div>
+          <div style={{
+            display: 'flex', gap: 16, overflowX: 'auto', scrollSnapType: 'x mandatory',
+            WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none',
+            paddingBottom: 4,
+          }} className="vp-reviews-more-slider">
+            {rest.map((r, i) => compactCard(r, i))}
+          </div>
+        </>
+      )}
+
+      {/* ── Bottom action row ─────────────────────────────────────────────── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginTop: 24, flexWrap: 'wrap', gap: 12,
+      }}>
+        {/* Aggregate */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontFamily: FD, fontSize: 36, color: C.gold, lineHeight: 1 }}>{venue?.rating || '5.0'}</span>
+          <div>
+            <Stars rating={venue?.rating || 5} size={14} />
+            <div style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, marginTop: 2 }}>
+              {venue?.reviews || testimonials.length} verified review{(venue?.reviews || testimonials.length) !== 1 ? 's' : ''}
+            </div>
           </div>
         </div>
-
-        {/* Review cards, slider on mobile, paginated grid on desktop */}
-        {isMobile ? (
-          <div style={{ display: "flex", gap: 12, overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", marginBottom: 20, scrollbarWidth: "none", msOverflowStyle: "none" }} className="vp-reviews-slider">
-            {testimonials.map(reviewCard)}
-          </div>
-        ) : (
-          <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 20 }}>
-              {visible.map(reviewCard)}
-            </div>
-
-            {/* Navigation row */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              {/* Dot indicators */}
-              <div style={{ display: "flex", gap: 6 }}>
-                {Array.from({ length: pages }).map((_, i) => (
-                  <button key={i} onClick={() => setPage(i)} style={{
-                    width: i === page ? 20 : 8, height: 8, borderRadius: 4,
-                    background: i === page ? C.gold : C.border2,
-                    border: "none", cursor: "pointer", padding: 0,
-                    transition: "all 0.3s ease",
-                  }} />
-                ))}
-              </div>
-
-              {/* Prev / count / Next */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontFamily: FB, fontSize: 11, color: C.textMuted }}>
-                  {page * PER_PAGE + 1}–{Math.min(page * PER_PAGE + PER_PAGE, testimonials.length)} of {testimonials.length}
-                </span>
-                <button
-                  onClick={() => setPage(p => Math.max(0, p - 1))}
-                  disabled={page === 0}
-                  style={{ ...navBtn(), opacity: page === 0 ? 0.35 : 1 }}
-                  onMouseEnter={e => { if (page > 0) { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.textMuted; }}
-                >←</button>
-                <button
-                  onClick={() => setPage(p => Math.min(pages - 1, p + 1))}
-                  disabled={page === pages - 1}
-                  style={{ ...navBtn(), opacity: page === pages - 1 ? 0.35 : 1 }}
-                  onMouseEnter={e => { if (page < pages - 1) { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.textMuted; }}
-                >→</button>
-              </div>
-            </div>
-          </>
-        )}
-      </>
+        {/* Read all link */}
+        <a
+          href={venueSlug ? `/venues/${venueSlug}/reviews` : '#'}
+          style={{
+            fontFamily: FB, fontSize: 13, color: C.gold, fontWeight: 600,
+            textDecoration: 'none', letterSpacing: '0.2px',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.textDecoration = 'underline'; }}
+          onMouseLeave={e => { e.currentTarget.style.textDecoration = 'none'; }}
+        >Read all reviews →</a>
+      </div>
     </section>
   );
 }
@@ -6415,8 +6479,7 @@ export default function VenueProfile({ onBack = null, slug = null }) {
               <WeddingWeekend venue={VV} />
               <ContactSection venue={VV} />
               {VV.access && Array.isArray(VV.access.airports) && VV.access.airports.length > 0 && <GettingHere access={VV.access} />}
-              {VV.testimonials && Array.isArray(VV.testimonials) && VV.testimonials.length > 0 && <Reviews testimonials={VV.testimonials} venue={VV} />}
-              {dbVenue && dbVenue.id && <ReviewsSection entityType="venue" entityId={dbVenue.id} onOpenReviewForm={() => setShowReviewForm(true)} />}
+              {VV.testimonials && Array.isArray(VV.testimonials) && VV.testimonials.length > 0 && <Reviews testimonials={VV.testimonials} venue={VV} venueSlug={slug} />}
               <FAQSection venue={VV} onAsk={() => setEnquiryOpen(true)} />
               <SimilarVenues venue={VV} />
               <RecentlyViewed venue={VV} />
