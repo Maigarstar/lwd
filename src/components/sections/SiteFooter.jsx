@@ -575,7 +575,7 @@ export default function SiteFooter({
             </div>
           </div>
 
-          <div className="site-footer-legal-links" style={{ display: "flex", gap: 20, alignItems: "center" }}>
+          <div className="site-footer-legal-links" style={{ display: "flex", gap: 20 }}>
             {bottomLinks.map(item => {
               const label = item.label || item.text || "";
               return (
@@ -602,8 +602,9 @@ export default function SiteFooter({
                 </span>
               );
             })}
+          </div>
 
-            {/* Taigenic credit — lives in the links row, never behind Aura */}
+          <div className="site-footer-engineered" style={{ textAlign: "right" }}>
             <a
               href="https://taigenic.com"
               target="_blank"
