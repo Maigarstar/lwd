@@ -7,15 +7,11 @@ import { useChat } from "./ChatContext";
 const SCROLL_THRESHOLD = 180; // px before the label slides in
 
 export default function AuraLauncher() {
-  const { openMiniBar, messages } = useChat();
+  const { openMiniBar } = useChat();
   const [hov,            setHov]          = useState(false);
   const [expanded,       setExpanded]     = useState(false);
   const [compareBarUp,   setCompareBarUp] = useState(false);
 
-  // Only signal after genuine two-way conversation — not on the opening greeting
-  const hasUserTurn  = messages.some(m => m.from === "user");
-  const hasAuraReply = messages.some(m => m.from === "aura");
-  const showDot      = hasUserTurn && hasAuraReply;
 
   // Expand label once the user has scrolled past the hero — desktop only
   // On mobile the pill stays as a tight icon: less intrusive, no label overlap
@@ -102,22 +98,6 @@ export default function AuraLauncher() {
         Chat with Aura?
       </span>
 
-      {/* Notification dot */}
-      {showDot && (
-        <span
-          aria-hidden="true"
-          style={{
-            position:     "absolute",
-            top:          -4,
-            right:        -4,
-            width:        14,
-            height:       14,
-            borderRadius: "50%",
-            background:   "#fff",
-            border:       "2px solid #C9A84C",
-          }}
-        />
-      )}
     </button>
   );
 }
