@@ -5,18 +5,24 @@ import Icon from "./Icons";
 
 const KEYFRAMES = `
   @keyframes aura-float-in {
-    from {
+    0% {
       opacity:   0;
-      transform: translate(-50%, calc(-50% + 18px)) scale(0.95);
+      transform: translate(-50%, calc(-50% + 6px)) scale(0.988);
+      filter:    blur(8px);
     }
-    to {
+    30% {
+      opacity:   0.6;
+      filter:    blur(2px);
+    }
+    100% {
       opacity:   1;
       transform: translate(-50%, -50%) scale(1);
+      filter:    blur(0px);
     }
   }
   @keyframes aura-fade-bg {
-    from { opacity: 0; }
-    to   { opacity: 1; }
+    0%   { opacity: 0; }
+    100% { opacity: 1; }
   }
 `;
 
@@ -93,7 +99,7 @@ export default function AuraMiniBar() {
           background:     "rgba(10,9,7,0.22)",
           backdropFilter: "blur(3px)",
           WebkitBackdropFilter: "blur(3px)",
-          animation:      "aura-fade-bg 0.35s ease both",
+          animation:      "aura-fade-bg 0.65s cubic-bezier(0.4,0,0.2,1) both",
         }}
       />
 
@@ -113,7 +119,7 @@ export default function AuraMiniBar() {
           background: "#1E1C19",
           border:     "1px solid rgba(201,168,76,0.22)",
           boxShadow:  "0 32px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(201,168,76,0.07), 0 0 40px rgba(201,168,76,0.05)",
-          animation:  "aura-float-in 0.42s cubic-bezier(0.22,1,0.36,1) both",
+          animation:  "aura-float-in 0.85s cubic-bezier(0.4,0,0.2,1) both",
         }}
       >
         {/* ── Header ── */}
