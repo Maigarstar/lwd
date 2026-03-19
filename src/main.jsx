@@ -64,6 +64,7 @@ import ShowcasePage         from "./pages/ShowcasePage.jsx";
 import DdeShowcasePage          from "./pages/DdeShowcasePage.jsx";
 import SixSensesShowcasePage    from "./pages/SixSensesShowcasePage.jsx";
 import VenueProfilePage         from "./pages/VenueProfilePage.jsx";
+import VenueReviewsPage         from "./pages/VenueReviewsPage.jsx";
 import AuraDiscoveryDemoPage    from "./pages/AuraDiscoveryDemoPage.jsx";
 import NotFoundPage         from "./pages/NotFoundPage.jsx";
 import UnsubscribePage      from "./pages/UnsubscribePage.jsx";
@@ -146,6 +147,7 @@ function stateToPath(pg, opts = {}) {
     case "magazine-article": return `/magazine/${opts.magazineSlug || ''}`;
     case "magazine-studio":  return "/magazine-studio";
     case "venue-profile":    return `/venues/${opts.venueSlug || 'grand-tirolia'}`;
+    case "venue-reviews":    return `/venues/${opts.venueSlug || ''}/reviews`;
     case "listing-profile":  return `/wedding-venues/${opts.venueSlug || ''}`;
     case "dde-showcase":      return "/showcase/domaine-des-etangs";
     case "gt-showcase":       return "/showcase/grand-tirolia-kitzbuehel";
@@ -207,6 +209,8 @@ function pathToState(pathname) {
   // Venue showcase: /showcase/{slug}
   if (parts[0] === "showcase" && parts.length === 2) return { page: "showcase", showcaseSlug: parts[1] };
   // Venue listing profile: /venues/{slug}
+  // Venue reviews page: /venues/{slug}/reviews
+  if (parts[0] === "venues" && parts.length === 3 && parts[2] === "reviews") return { page: "venue-reviews", venueSlug: parts[1] };
   if (parts[0] === "venues" && parts.length === 2) return { page: "venue-profile", venueSlug: parts[1] };
   // Wedding venue listing profile: /wedding-venues/{slug}
   if (parts[0] === "wedding-venues" && parts.length === 2) return { page: "listing-profile", venueSlug: parts[1] };
@@ -444,6 +448,9 @@ function App() {
         )}
         {page === "listing-profile" && (
           <VenueProfile slug={activeVenueSlug} onBack={goHome} />
+        )}
+        {page === "venue-reviews" && (
+          <VenueReviewsPage />
         )}
         {page === "dde-showcase" && (
           <DdeShowcasePage
