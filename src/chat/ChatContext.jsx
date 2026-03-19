@@ -4,6 +4,7 @@ import {
 } from "react";
 import { getRecommendations } from "./recommendationEngine";
 import { trackAuraQuery } from "../services/userEventService";
+import { supabase, isSupabaseAvailable } from "../lib/supabaseClient";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function loadMessages() {
@@ -97,27 +98,68 @@ export function ChatProvider({ children }) {
     );
   }, []);
 
-  const sendMessage = useCallback((text) => {
+  const sendMessage = useCallback(async (text) => {
     const trimmed = text.trim();
     if (!trimmed) return;
 
-    // Track Aura query — captures query + active context for intent mapping
+    // Track Aura query
     trackAuraQuery({
       query: trimmed,
-      venuesRecommended: [],      // populated when real AI recommendations land
+      venuesRecommended: [],
       sourceSurface: activeContext?.page || 'aura_chat',
     });
 
     const userMsg = { id: Date.now(), from: "user", text: trimmed };
     setMessages((prev) => [...prev, userMsg]);
     setIsTyping(true);
-    replyTimer.current = setTimeout(() => {
+
+    // ── Build venue-aware system prompt from active context ────────────────
+    const ctxLines = [
+      activeContext.page     && `The user is currently on the ${activeContext.page} page.`,
+      activeContext.country  && `They are interested in venues in ${activeContext.country}.`,
+      activeContext.region   && `Specifically in ${activeContext.region}.`,
+    ].filter(Boolean).join(' ');
+
+    const systemPrompt = [
+      `You are Aura, the AI wedding concierge for Luxury Wedding Directory — the world's finest curated collection of luxury wedding venues and vendors.`,
+      `Your tone is warm, assured, and quietly expert — like a trusted specialist, not a chatbot.`,
+      `Keep every response to 2–4 sentences. Be specific, never generic. Help the couple make a decision.`,
+      ctxLines,
+      `If they're comparing venues, highlight the genuine differences. If they have a question, answer it directly.`,
+      `Never say you're an AI model. You are Aura.`,
+    ].filter(Boolean).join(' ');
+
+    // ── Try real AI via edge function ──────────────────────────────────────
+    try {
+      if (!isSupabaseAvailable()) throw new Error('Supabase unavailable');
+
+      const { data, error } = await supabase.functions.invoke('ai-generate', {
+        body: {
+          feature: 'aura_chat',
+          systemPrompt,
+          userPrompt: trimmed,
+        },
+      });
+
+      if (error || !data?.text) throw new Error(error?.message || 'Empty response');
+
       setIsTyping(false);
       setMessages((prev) => [
         ...prev,
-        { id: Date.now() + 1, from: "aura", text: nextStub() },
+        { id: Date.now() + 1, from: 'aura', text: data.text },
       ]);
-    }, 850);
+    } catch (err) {
+      // ── Graceful fallback to stub responses ────────────────────────────
+      console.warn('[Aura] AI call failed, using stub:', err?.message);
+      clearTimeout(replyTimer.current);
+      replyTimer.current = setTimeout(() => {
+        setIsTyping(false);
+        setMessages((prev) => [
+          ...prev,
+          { id: Date.now() + 1, from: 'aura', text: nextStub() },
+        ]);
+      }, 600);
+    }
   }, [activeContext]);
 
   const clearHistory = useCallback(() => {

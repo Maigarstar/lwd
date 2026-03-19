@@ -12,6 +12,7 @@ import JsonLd from './components/seo/JsonLd';
 import { buildVenueSchema, buildBreadcrumbSchema, buildFaqSchema } from './utils/structuredData';
 import HomeNav from "./components/nav/HomeNav";
 import { useChat } from "./chat/ChatContext";
+import { createLead } from "./services/leadEngineService";
 import ExternalLinkModal from "./components/ExternalLinkModal";
 import { trackExternalClick, hasSeenModalThisSession, markModalSeen } from "./services/outboundClickService";
 import { trackProfileView, trackCompareAdd, trackCompareRemove, trackCompareView, trackComparePair } from "./services/userEventService";
@@ -6151,13 +6152,15 @@ function buildMessage(date, guests) {
 }
 
 function CompareEnquiryForm({ venue, onClose }) {
-  const { openMiniBar } = useChat();
-  const [form,       setForm]       = useState({ name1: '', name2: '', email: '', phone: '', date: '', guests: '', message: BASE_MSG });
-  const [sent,       setSent]       = useState(false);
-  const [msgEdited,  setMsgEdited]  = useState(false);
-  const [calOpen,    setCalOpen]    = useState(false);
-  const [calAnchor,  setCalAnchor]  = useState(null);
-  const [selDate,    setSelDate]    = useState(null);
+  const { openMiniBar, sessionId } = useChat();
+  const [form,        setForm]        = useState({ name1: '', name2: '', email: '', phone: '', date: '', guests: '', message: BASE_MSG });
+  const [sent,        setSent]        = useState(false);
+  const [submitting,  setSubmitting]  = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [msgEdited,   setMsgEdited]   = useState(false);
+  const [calOpen,     setCalOpen]     = useState(false);
+  const [calAnchor,   setCalAnchor]   = useState(null);
+  const [selDate,     setSelDate]     = useState(null);
   const dateFieldRef = useRef(null);
   const textareaRef  = useRef(null);
 
@@ -6199,7 +6202,42 @@ function CompareEnquiryForm({ venue, onClose }) {
   const loc     = [venue?.city, venue?.country].filter(Boolean).join(', ');
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const canSubmit = !!(form.name1 && form.email);
+  const canSubmit = !!(form.name1 && form.email) && !submitting;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const result = await createLead({
+        leadSource:   'Compare Enquiry',
+        leadChannel:  'compare_modal',
+        leadType:     'venue_enquiry',
+        listingId:    String(venue.id),
+        venueId:      String(venue.id),
+        firstName:    form.name1.trim() || undefined,
+        lastName:     form.name2.trim() || undefined,
+        fullName:     [form.name1.trim(), form.name2.trim()].filter(Boolean).join(' & ') || undefined,
+        email:        form.email.trim(),
+        phone:        form.phone.trim() || undefined,
+        weddingDate:  form.date.trim()   || undefined,
+        guestCount:   form.guests.trim() || undefined,
+        message:      form.message.trim(),
+        auraSessionId: sessionId || undefined,
+        intentSummary: `Venue enquiry from Compare modal for ${venue.name}`,
+        requirementsJson: { source: 'compare_modal', venue_name: venue.name },
+        tagsJson:     ['compare_enquiry'],
+        consentDataProcessing: true,
+      });
+      if (!result.success) throw new Error('Lead creation failed');
+      setSent(true);
+    } catch (err) {
+      console.error('[CompareEnquiryForm] submit failed:', err);
+      setSubmitError('Something went wrong. Please try again or contact us directly.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // ── Design tokens ─────────────────────────────────────────────────────────
   const GOLD        = '#C9A84C';
@@ -6247,16 +6285,16 @@ function CompareEnquiryForm({ venue, onClose }) {
     position: 'fixed', inset: 0, zIndex: 1100,
     background: 'rgba(0,0,0,0.72)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    padding: 24,
+    padding: 'clamp(8px, 3vw, 24px)',
     backdropFilter: 'blur(6px)',
   };
   const panelStyle = {
     // Warm near-black with very subtle gold undertone
     background: 'linear-gradient(170deg, #111009 0%, #0c0c0a 50%, #0f0d08 100%)',
     border: '1px solid rgba(201,168,76,0.32)',
-    borderRadius: 16,
+    borderRadius: 'clamp(10px, 2vw, 16px)',
     width: '100%', maxWidth: 500,
-    maxHeight: '90vh', overflowY: 'auto',
+    maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto',
     // Multi-layer glow: close bloom + wide ambient + depth shadow
     boxShadow: [
       `inset 0 1px 0 rgba(255,255,255,0.06)`,           // top inner light edge
@@ -6365,7 +6403,7 @@ function CompareEnquiryForm({ venue, onClose }) {
       <div style={{ height: 3, background: `linear-gradient(90deg, ${GOLD} 0%, rgba(184,160,90,0.6) 60%, rgba(184,160,90,0.05) 100%)` }} />
 
       {/* ── Form body ── */}
-      <div style={{ padding: '28px 28px 8px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ padding: 'clamp(16px, 4vw, 28px) clamp(16px, 5vw, 28px) 8px', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
         {/* Section title */}
         <div style={{ marginBottom: 4 }}>
@@ -6471,7 +6509,7 @@ function CompareEnquiryForm({ venue, onClose }) {
       }}>
         <button
           disabled={!canSubmit}
-          onClick={() => canSubmit && setSent(true)}
+          onClick={handleSubmit}
           style={{
             padding: '16px 24px', width: '100%',
             background: canSubmit
@@ -6483,17 +6521,22 @@ function CompareEnquiryForm({ venue, onClose }) {
             fontFamily: FB, fontSize: 13, fontWeight: 800,
             letterSpacing: '0.1em', textTransform: 'uppercase',
             cursor: canSubmit ? 'pointer' : 'default',
-            // Active state always glows to signal "ready"
             boxShadow: canSubmit
               ? `0 2px 0 rgba(0,0,0,0.2), 0 6px 28px rgba(201,168,76,0.38), inset 0 1px 0 rgba(255,255,255,0.18)`
               : 'none',
             transition: 'all 0.18s',
+            position: 'relative',
           }}
           onMouseEnter={e => { if (canSubmit) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 2px 0 rgba(0,0,0,0.2), 0 14px 36px rgba(201,168,76,0.52), inset 0 1px 0 rgba(255,255,255,0.18)'; } }}
           onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = canSubmit ? '0 2px 0 rgba(0,0,0,0.2), 0 6px 28px rgba(201,168,76,0.38), inset 0 1px 0 rgba(255,255,255,0.18)' : 'none'; }}
         >
-          Send Enquiry →
+          {submitting ? 'Sending…' : 'Send Enquiry →'}
         </button>
+        {submitError && (
+          <div style={{ fontFamily: FB, fontSize: 11, color: '#e57373', textAlign: 'center', lineHeight: 1.5 }}>
+            {submitError}
+          </div>
+        )}
         <div style={{ fontFamily: FB, fontSize: 11, color: 'rgba(255,255,255,0.55)', textAlign: 'center', lineHeight: 1.65, letterSpacing: '0.01em' }}>
           Your details are shared only with this venue and handled in confidence.
         </div>
@@ -6622,7 +6665,7 @@ function CompareModal({ items, onClose }) {
       </div>
 
       {/* ── Body ── */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '44px' }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: 'clamp(16px, 4vw, 44px)' }}>
         {loading ? (
           <div style={{
             height: '100%', minHeight: 400,
@@ -6644,7 +6687,7 @@ function CompareModal({ items, onClose }) {
         ) : (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: `repeat(${count}, 1fr)`,
+            gridTemplateColumns: `repeat(${count}, minmax(260px, 1fr))`,
             border: `1px solid rgba(184,160,90,0.18)`,
             borderRadius: 14,
             overflow: 'hidden',
@@ -6809,9 +6852,26 @@ function CompareBar({ items, onRemove, onClear, onCompare }) {
   );
 }
 
+// ─── AURA PRESENCE ────────────────────────────────────────────────────────────
+// Time-based availability: 09:00–18:00 UTC Mon–Fri = online
+function getAuraStatus() {
+  const now     = new Date();
+  const hour    = now.getUTCHours();
+  const weekday = now.getUTCDay(); // 0=Sun,6=Sat
+  const online  = weekday >= 1 && weekday <= 5 && hour >= 9 && hour < 18;
+  return {
+    online,
+    dotColor:  online ? '#4caf7d' : 'rgba(184,160,90,0.55)',
+    ringColor: online ? 'rgba(76,175,125,0.2)' : 'rgba(184,160,90,0.12)',
+    label:     online ? 'Online' : 'Typically responds within 24h',
+    labelColor:online ? '#4caf7d' : 'rgba(184,160,90,0.7)',
+  };
+}
+
 // ─── FLOATING AURA CHAT ──────────────────────────────────────────────────────
 function AuraChat({ venue }) {
   const C = useT();
+  const aura = getAuraStatus();
   // mode: "closed" | "modal" | "full"
   const [mode, setMode] = useState("closed");
   const [msgs, setMsgs] = useState([
@@ -7003,8 +7063,8 @@ function AuraChat({ venue }) {
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             <div style={{
               width: 8, height: 8, borderRadius: "50%",
-              background: "#4caf7d",
-              boxShadow: "0 0 0 3px rgba(76,175,125,0.2)",
+              background: aura.dotColor,
+              boxShadow: `0 0 0 3px ${aura.ringColor}`,
             }} />
             <div style={{
               width: 30, height: 30, borderRadius: "50%",
@@ -7069,9 +7129,9 @@ function AuraChat({ venue }) {
             }}>✦</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: FD, fontSize: 16, color: C.text, letterSpacing: "0.02em" }}>Aura</div>
-              <div style={{ fontFamily: FB, fontSize: 11, color: C.green, display: "flex", alignItems: "center", gap: 5, marginTop: 1 }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#4caf7d", display: "inline-block" }} />
-                LWD AI · Knows {venue.name}
+              <div style={{ fontFamily: FB, fontSize: 11, color: aura.labelColor, display: "flex", alignItems: "center", gap: 5, marginTop: 1 }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: aura.dotColor, display: "inline-block" }} />
+                {aura.label} · Knows {venue.name}
               </div>
             </div>
             {/* Expand button */}
@@ -7169,9 +7229,9 @@ function AuraChat({ venue }) {
                 }}>✦</div>
                 <div>
                   <div style={{ fontFamily: FD, fontSize: 14, color: "#f5f2ec", letterSpacing: "0.04em" }}>Aura</div>
-                  <div style={{ fontFamily: FB, fontSize: 10, color: "#4caf7d", display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#4caf7d", display: "inline-block" }} />
-                    Online
+                  <div style={{ fontFamily: FB, fontSize: 10, color: aura.labelColor, display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ width: 5, height: 5, borderRadius: "50%", background: aura.dotColor, display: "inline-block" }} />
+                    {aura.label}
                   </div>
                 </div>
               </div>
