@@ -429,32 +429,24 @@ export default function VenueReviewsPage() {
       {/* ── CONTENT ──────────────────────────────────────────────────────── */}
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '64px 56px 120px' }}>
 
-        {/* Controls */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 36, alignItems: 'flex-start', justifyContent: 'space-between' }}>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {/* Sort */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, letterSpacing: '0.8px', textTransform: 'uppercase', marginRight: 2 }}>Sort</span>
-              <Pill label="Most Recent"    active={sortMode === 'recent'}   onClick={() => { setSortMode('recent');   setVisibleCount(8); }} />
-              <Pill label="Highest Rated"  active={sortMode === 'highest'}  onClick={() => { setSortMode('highest');  setVisibleCount(8); }} />
-              <Pill label="Most Detailed"  active={sortMode === 'detailed'} onClick={() => { setSortMode('detailed'); setVisibleCount(8); }} />
-            </div>
-            {/* Star filter */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, letterSpacing: '0.8px', textTransform: 'uppercase', marginRight: 2 }}>Filter</span>
-              <Pill label="All"       active={!starFilter}           onClick={() => { setStarFilter(null);    setVisibleCount(8); }} />
-              <Pill label="★★★★★"    active={starFilter === 5}     onClick={() => { setStarFilter(5);       setVisibleCount(8); }} />
-              <Pill label="★★★★"     active={starFilter === 4}     onClick={() => { setStarFilter(4);       setVisibleCount(8); }} />
-              <Pill label="★★★"      active={starFilter === 3}     onClick={() => { setStarFilter(3);       setVisibleCount(8); }} />
-              <Pill label="Below ★★★" active={starFilter === 'below'} onClick={() => { setStarFilter('below'); setVisibleCount(8); }} />
-            </div>
-          </div>
-
-          {/* Count */}
-          <div style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, alignSelf: 'flex-end', paddingBottom: 2 }}>
+        {/* Controls — single row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 36, flexWrap: 'nowrap', overflowX: 'auto' }}>
+          <span style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, letterSpacing: '0.8px', textTransform: 'uppercase', whiteSpace: 'nowrap', marginRight: 2 }}>Sort</span>
+          <Pill label="Most Recent"    active={sortMode === 'recent'}   onClick={() => { setSortMode('recent');   setVisibleCount(8); }} />
+          <Pill label="Highest Rated"  active={sortMode === 'highest'}  onClick={() => { setSortMode('highest');  setVisibleCount(8); }} />
+          <Pill label="Most Detailed"  active={sortMode === 'detailed'} onClick={() => { setSortMode('detailed'); setVisibleCount(8); }} />
+          {/* Divider */}
+          <span style={{ width: 1, height: 20, background: C.border2, flexShrink: 0, margin: '0 6px' }} />
+          <span style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, letterSpacing: '0.8px', textTransform: 'uppercase', whiteSpace: 'nowrap', marginRight: 2 }}>Filter</span>
+          <Pill label="All"        active={!starFilter}             onClick={() => { setStarFilter(null);    setVisibleCount(8); }} />
+          <Pill label="★★★★★"     active={starFilter === 5}        onClick={() => { setStarFilter(5);       setVisibleCount(8); }} />
+          <Pill label="★★★★"      active={starFilter === 4}        onClick={() => { setStarFilter(4);       setVisibleCount(8); }} />
+          <Pill label="★★★"       active={starFilter === 3}        onClick={() => { setStarFilter(3);       setVisibleCount(8); }} />
+          <Pill label="Below ★★★" active={starFilter === 'below'}  onClick={() => { setStarFilter('below'); setVisibleCount(8); }} />
+          {/* Count — pushed right */}
+          <span style={{ marginLeft: 'auto', fontFamily: FB, fontSize: 12, color: C.textMuted, whiteSpace: 'nowrap', flexShrink: 0 }}>
             Showing {Math.min(visibleCount, sorted.length)} of {sorted.length}
-          </div>
+          </span>
         </div>
 
         {/* Review list */}
