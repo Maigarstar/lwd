@@ -94,17 +94,17 @@ export default function ExternalLinkModal({ name, url, onClose, onContinue }) {
         {/* "via LWD" — introducer, not the focus. Smaller + lower contrast */}
         <p style={{
           fontFamily: FB,
-          fontSize: 11, color: 'rgba(200,196,188,0.38)',
+          fontSize: 11, color: 'rgba(200,196,188,0.62)',
           letterSpacing: '0.04em',
           lineHeight: 1.6, margin: '0 0 10px',
         }}>
           via Luxury Wedding Directory
         </p>
 
-        {/* Legal subtext — smallest, lowest contrast, it's context not content */}
+        {/* Legal subtext — context not content, but still legible */}
         <p style={{
           fontFamily: FB,
-          fontSize: 11, color: 'rgba(200,196,188,0.28)',
+          fontSize: 11, color: 'rgba(200,196,188,0.48)',
           margin: '0 0 42px',
           letterSpacing: '0.02em',
         }}>
@@ -155,11 +155,11 @@ export default function ExternalLinkModal({ name, url, onClose, onContinue }) {
           </button>
         </div>
 
-        {/* Return line — italic, gold ghost, visually the quietest element */}
+        {/* Return line — italic, gold, visually secondary but readable */}
         <p style={{
           fontFamily: FD,
           fontSize: 12, fontStyle: 'italic',
-          color: 'rgba(184,160,90,0.3)',
+          color: 'rgba(184,160,90,0.55)',
           margin: 0, lineHeight: 1.6,
         }}>
           We'll be here when you're ready to continue planning
