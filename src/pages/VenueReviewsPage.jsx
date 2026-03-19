@@ -266,12 +266,16 @@ export default function VenueReviewsPage() {
   // ── Pill ─────────────────────────────────────────────────────────────────────
   const Pill = ({ label, active, onClick }) => (
     <button onClick={onClick} style={{
-      padding: '7px 16px', border: `1px solid ${active ? C.gold : C.border2}`,
+      padding: '7px 18px', border: `1px solid ${active ? C.gold : 'rgba(0,0,0,0.1)'}`,
       background: active ? C.goldLight : 'none',
-      color: active ? C.gold : C.textMuted,
+      color: active ? C.gold : C.textLight,
       fontFamily: FB, fontSize: 12, fontWeight: active ? 700 : 400,
-      cursor: 'pointer', transition: 'all 0.15s',
-    }}>{label}</button>
+      cursor: 'pointer', transition: 'all 0.18s',
+      borderRadius: 20, letterSpacing: '0.1px',
+    }}
+      onMouseEnter={e => { if (!active) { e.currentTarget.style.borderColor = C.goldBorder; e.currentTarget.style.color = C.gold; } }}
+      onMouseLeave={e => { if (!active) { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.1)'; e.currentTarget.style.color = C.textLight; } }}
+    >{label}</button>
   );
 
   // ── Loading ──────────────────────────────────────────────────────────────────
@@ -330,8 +334,14 @@ export default function VenueReviewsPage() {
         }}>
           <h1 style={{
             fontFamily: FD, fontSize: 'clamp(30px, 4.5vw, 58px)', fontWeight: 400,
-            color: '#fff', letterSpacing: '-0.3px', lineHeight: 1.05, margin: '0 0 14px',
+            color: '#fff', letterSpacing: '-0.3px', lineHeight: 1.05, margin: '0 0 10px',
           }}>{venueName}</h1>
+
+          {/* Emotional hook */}
+          <p style={{
+            fontFamily: FB, fontSize: 13, color: 'rgba(255,255,255,0.55)',
+            margin: '0 0 16px', letterSpacing: '0.1px', lineHeight: 1.5,
+          }}>Real experiences from couples who celebrated here</p>
 
           {/* Rating summary on hero */}
           {avgRating && (
@@ -372,51 +382,52 @@ export default function VenueReviewsPage() {
         <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'stretch', gap: 0 }}>
 
           {/* Big number */}
-          <div style={{ padding: '24px 40px 24px 0', borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6, minWidth: 160 }}>
-            <div style={{ fontFamily: FD, fontSize: 52, fontWeight: 400, color: C.gold, lineHeight: 1 }}>{avgRating || '—'}</div>
+          <div style={{ padding: '36px 48px 36px 0', borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8, minWidth: 180 }}>
+            <div style={{ fontFamily: FD, fontSize: 56, fontWeight: 400, color: C.gold, lineHeight: 1 }}>{avgRating || '—'}</div>
             <StarsOnLight rating={parseFloat(avgRating) || 0} size={16} gold={C.gold} />
             <div style={{ fontFamily: FB, fontSize: 12, color: C.textMuted, marginTop: 2 }}>
-              {totalReviews} verified review{totalReviews !== 1 ? 's' : ''}
+              Based on {totalReviews} verified review{totalReviews !== 1 ? 's' : ''}
             </div>
           </div>
 
           {/* Star distribution bars */}
-          <div style={{ padding: '24px 40px', display: 'flex', flexDirection: 'column', gap: 6, justifyContent: 'center', flex: 1 }}>
+          <div style={{ padding: '36px 48px', display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'center', flex: 1 }}>
             {[5,4,3,2,1].map(s => (
               <RatingBar key={s} star={s} count={starDist[s] || 0} total={totalReviews} C={C} />
             ))}
           </div>
 
-          {/* Venue quick info */}
-          <div style={{ padding: '24px 0 24px 40px', borderLeft: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 10, minWidth: 220 }}>
-            <a href={`/venues/${slug}`} style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              padding: '10px 20px', border: `1px solid ${C.gold}`,
-              background: C.goldLight, color: C.gold,
-              fontFamily: FB, fontSize: 12, fontWeight: 700,
-              textDecoration: 'none', letterSpacing: '0.5px', textTransform: 'uppercase',
-              transition: 'all 0.2s',
-            }}
-              onMouseEnter={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.color = '#fff'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = C.goldLight; e.currentTarget.style.color = C.gold; }}
-            >← View Venue Profile</a>
+          {/* Actions */}
+          <div style={{ padding: '36px 0 36px 48px', borderLeft: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 12, minWidth: 240 }}>
+            {/* Write a Review — prominent */}
             <a href={`/venues/${slug}#reviews`} style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              padding: '10px 20px', border: `1px solid ${C.border2}`,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              padding: '13px 24px', background: C.gold, border: `1px solid ${C.gold}`,
+              color: '#fff', fontFamily: FB, fontSize: 12, fontWeight: 700,
+              textDecoration: 'none', letterSpacing: '0.8px', textTransform: 'uppercase',
+              transition: 'opacity 0.2s',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+            >✦ Write a Review</a>
+            {/* View profile — secondary */}
+            <a href={`/venues/${slug}`} style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              padding: '11px 24px', border: `1px solid ${C.border2}`,
               background: 'none', color: C.textMid,
-              fontFamily: FB, fontSize: 12, fontWeight: 600,
-              textDecoration: 'none', letterSpacing: '0.5px', textTransform: 'uppercase',
+              fontFamily: FB, fontSize: 12, fontWeight: 500,
+              textDecoration: 'none', letterSpacing: '0.4px',
               transition: 'all 0.2s',
             }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.textMid; }}
-            >✦ Write a Review</a>
+            >← View Venue Profile</a>
           </div>
         </div>
       </div>
 
       {/* ── CONTENT ──────────────────────────────────────────────────────── */}
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '48px 56px 100px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '64px 56px 120px' }}>
 
         {/* Controls */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 36, alignItems: 'flex-start', justifyContent: 'space-between' }}>
