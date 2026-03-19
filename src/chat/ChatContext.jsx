@@ -62,7 +62,7 @@ export function ChatProvider({ children }) {
   const [chatDark,        setChatDark]        = useState(true);
   const [messages,        setMessages]        = useState(() => loadMessages() ?? [INIT_MESSAGE]);
   const [isTyping,        setIsTyping]        = useState(false);
-  const [activeContext,   setActiveContext]   = useState({ country: null, region: null, page: null });
+  const [activeContext,   setActiveContext]   = useState({ country: null, region: null, page: null, compareVenues: [] });
   const [recommendations, setRecommendations] = useState({ items: [], summary: "", intent: {} });
 
   // Persist messages
@@ -89,13 +89,12 @@ export function ChatProvider({ children }) {
   const toggleTheme   = useCallback(() => setChatDark((d) => !d),      []);
 
   const setChatContext = useCallback((ctx) => {
-    setActiveContext((prev) =>
-      prev.country === ctx.country &&
-      prev.region  === ctx.region  &&
-      prev.page    === ctx.page
-        ? prev
-        : ctx
-    );
+    setActiveContext((prev) => ({
+      ...prev,
+      ...ctx,
+      // preserve existing compareVenues if new context doesn't provide them
+      compareVenues: ctx.compareVenues ?? prev.compareVenues ?? [],
+    }));
   }, []);
 
   const sendMessage = useCallback(async (text) => {

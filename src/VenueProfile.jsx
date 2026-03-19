@@ -6728,8 +6728,8 @@ function CompareModal({ items, onClose }) {
         <button
           type="button"
           onClick={() => {
-            // Set context so the recommendations panel knows we're in compare mode
-            setChatContext({ page: 'compare', country: venues[0]?.country || null, region: venues[0]?.destination || null });
+            // Set context — pass the full venue objects so the panel pins them
+            setChatContext({ page: 'compare', country: venues[0]?.country || null, region: venues[0]?.destination || null, compareVenues: venues });
             // Open the full workspace — this is a decision environment, not a quick question
             openWorkspace();
             if (venues.length > 1) {

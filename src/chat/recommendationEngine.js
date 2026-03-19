@@ -106,8 +106,51 @@ export function extractIntent(messages) {
   return { region, vendorCategory, style, maxCapacity, resultType };
 }
 
+// ── Map a Supabase listing to the RecommendationCard shape ───────────────────
+function mapListingToCardShape(v) {
+  // imgs array may contain objects { src, url } or plain strings
+  const rawImgs = v.imgs || v.heroImages || [];
+  const firstImg = rawImgs.length > 0
+    ? (typeof rawImgs[0] === 'string' ? rawImgs[0] : rawImgs[0]?.src || rawImgs[0]?.url || '')
+    : '';
+
+  // Normalise priceFrom to a display string
+  let priceFrom = v.priceFrom ?? null;
+  if (typeof priceFrom === 'number') priceFrom = `£${priceFrom.toLocaleString()}`;
+
+  return {
+    id:         v.id,
+    name:       v.name        || 'Unknown venue',
+    imgs:       firstImg ? [firstImg] : [],
+    city:       v.city        || v.destination || v.country || '',
+    region:     v.destination || v.country     || '',
+    rating:     v.rating      ? Number(v.rating) : null,
+    reviews:    v.reviewCount || v.reviews      || null,
+    priceFrom,
+    capacity:   v.capacity    || null,
+    styles:     Array.isArray(v.styles) ? v.styles : (v.type ? [v.type] : []),
+    online:     true,
+    verified:   v.verified    ?? true,
+    lwdScore:   v.lwdScore    || null,
+    tag:        'Being Compared',
+    _comparePin: true,
+  };
+}
+
 // ── Build curated recommendation list ────────────────────────────────────────
 export function getRecommendations(messages, activeContext) {
+  // ── Compare mode: pin the exact venues being evaluated, first ─────────────
+  const compareVenues = activeContext?.compareVenues;
+  if (Array.isArray(compareVenues) && compareVenues.length > 0) {
+    const pinned = compareVenues.map(mapListingToCardShape);
+    const intent = messages?.length ? extractIntent(messages) : {};
+    return {
+      items:   pinned,
+      summary: `Venues you're comparing`,
+      intent,
+    };
+  }
+
   if (!messages || messages.length === 0) {
     return { items: rankByCuratedIndex([...VENUES]).slice(0, 4), summary: "Popular venues in Italy", intent: {} };
   }
