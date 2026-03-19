@@ -6,7 +6,6 @@ import { HeroEditorial, HeroDualFeature, HeroPortrait } from './components/HeroM
 import PostCard from './components/PostCards';
 import MagazineNav from './components/MagazineNav';
 import NewsletterCapture from './components/NewsletterCapture';
-import SiteFooter from '../../components/sections/SiteFooter';
 
 const FD = "'Gilda Display', 'Playfair Display', Georgia, serif";
 const FU = "'Nunito', 'Inter', 'Helvetica Neue', sans-serif";
@@ -50,6 +49,7 @@ const SUBCATEGORY_MAP = {
 export default function MagazineCategoryPage({ categoryId, onNavigateArticle, onNavigateHome, onNavigateCategory, isLight = false, onToggleLight, footerNav = {} }) {
   const [sort, setSort] = useState('latest');
   const [activeSubcat, setActiveSubcat] = useState(null);
+  const [viewMode, setViewMode] = useState('grid3');
   const [dbPosts, setDbPosts] = useState([]);
   const [dbCategory, setDbCategory] = useState(null);
 
@@ -101,7 +101,15 @@ export default function MagazineCategoryPage({ categoryId, onNavigateArticle, on
     return new Date(b.date || b.publishedAt) - new Date(a.date || a.publishedAt);
   }), [allPosts, sort]);
 
-  const [featured, ...rest] = sorted;
+  const filtered = useMemo(() => {
+    if (!activeSubcat) return sorted;
+    return sorted.filter(p =>
+      p.tags?.some(t => t.toLowerCase() === activeSubcat.toLowerCase()) ||
+      p.subcategory?.toLowerCase() === activeSubcat.toLowerCase()
+    );
+  }, [sorted, activeSubcat]);
+
+  const [featured, ...rest] = filtered;
   const goArticle = post => onNavigateArticle && onNavigateArticle(post.slug);
 
   // Related categories, 3 neighbours in the CATEGORIES array
@@ -174,7 +182,7 @@ export default function MagazineCategoryPage({ categoryId, onNavigateArticle, on
 
   // For portrait / dual-feature heroes, the top posts are consumed by the hero
   const heroConsumed = heroStyle === 'portrait' ? 5 : heroStyle === 'dual-feature' ? 2 : 0;
-  const gridPosts = heroConsumed > 0 ? sorted.slice(heroConsumed) : rest;
+  const gridPosts = heroConsumed > 0 ? filtered.slice(heroConsumed) : rest;
 
   return (
     <div style={{ background: BG, minHeight: '100vh', transition: 'background 0.35s' }}>
@@ -185,65 +193,22 @@ export default function MagazineCategoryPage({ categoryId, onNavigateArticle, on
         onNavigateArticle={goArticle}
         isLight={isLight}
         onToggleLight={onToggleLight}
+        filterSubcats={subcats}
+        activeSubcat={activeSubcat}
+        onSubcat={setActiveSubcat}
+        sort={sort}
+        onSort={setSort}
+        viewMode={viewMode}
+        onViewMode={setViewMode}
+        onEdit={onNavigateHome}
       />
 
       {/* Category hero, variant per category */}
       {renderHero()}
 
-      {/* Subcategory pills strip */}
-      {subcats.length > 0 && (
-        <div style={{
-          padding: '0 clamp(24px, 5vw, 80px)',
-          borderBottom: `1px solid ${INTRO_BRD}`,
-          background: BG,
-        }}>
-          <div style={{
-            maxWidth: 1280, margin: '0 auto',
-            display: 'flex', gap: 6, alignItems: 'center',
-            overflowX: 'auto', padding: '16px 0',
-            scrollbarWidth: 'none',
-          }}>
-            <button
-              onClick={() => setActiveSubcat(null)}
-              style={{
-                fontFamily: FU, fontSize: 10, fontWeight: !activeSubcat ? 700 : 400,
-                letterSpacing: '0.08em', textTransform: 'uppercase',
-                color: !activeSubcat ? GOLD : SORT_OFF,
-                background: !activeSubcat ? `${GOLD}12` : 'transparent',
-                border: `1px solid ${!activeSubcat ? GOLD : SORT_BRD}`,
-                padding: '6px 14px', borderRadius: 20, cursor: 'pointer',
-                transition: 'all 0.18s', whiteSpace: 'nowrap', flexShrink: 0,
-              }}
-            >
-              All
-            </button>
-            {subcats.map(sub => {
-              const active = activeSubcat === sub;
-              return (
-                <button
-                  key={sub}
-                  onClick={() => setActiveSubcat(active ? null : sub)}
-                  style={{
-                    fontFamily: FU, fontSize: 10, fontWeight: active ? 700 : 400,
-                    letterSpacing: '0.08em',
-                    color: active ? GOLD : SORT_OFF,
-                    background: active ? `${GOLD}12` : 'transparent',
-                    border: `1px solid ${active ? GOLD : SORT_BRD}`,
-                    padding: '6px 14px', borderRadius: 20, cursor: 'pointer',
-                    transition: 'all 0.18s', whiteSpace: 'nowrap', flexShrink: 0,
-                  }}
-                >
-                  {sub}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Category intro + sort control */}
+      {/* Category intro */}
       <div style={{ padding: 'clamp(32px, 4vw, 52px) clamp(24px, 5vw, 80px)', background: BG, borderBottom: `1px solid ${INTRO_BRD}` }}>
-        <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
+        <div style={{ maxWidth: 1280, margin: '0 auto' }}>
           <div style={{ maxWidth: 600 }}>
             <h2 style={{ fontFamily: FD, fontSize: 'clamp(22px, 3vw, 32px)', fontWeight: 400, color: TEXT, margin: '0 0 10px' }}>
               {category.label}
@@ -252,32 +217,12 @@ export default function MagazineCategoryPage({ categoryId, onNavigateArticle, on
               {category.description}
             </p>
           </div>
-
-          {/* Sort control */}
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-            <span style={{ fontFamily: FU, fontSize: 10, color: LABEL_C, letterSpacing: '0.1em', marginRight: 8, textTransform: 'uppercase' }}>
-              Sort:
-            </span>
-            {SORT_OPTIONS.map(opt => (
-              <button key={opt.value} onClick={() => setSort(opt.value)} style={{
-                fontFamily: FU, fontSize: 10, fontWeight: sort === opt.value ? 700 : 400,
-                letterSpacing: '0.08em', textTransform: 'uppercase',
-                color: sort === opt.value ? GOLD : SORT_OFF,
-                background: sort === opt.value ? `${GOLD}12` : 'transparent',
-                border: `1px solid ${sort === opt.value ? GOLD : SORT_BRD}`,
-                padding: '5px 12px', borderRadius: 2, cursor: 'pointer',
-                transition: 'all 0.18s',
-              }}>
-                {opt.label}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 
       {/* Post grid */}
       <section style={{ padding: 'clamp(48px, 7vw, 88px) clamp(24px, 5vw, 80px)', maxWidth: 1280, margin: '0 auto' }}>
-        {sorted.length === 0 ? (
+        {filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '80px 0', fontFamily: FU, fontSize: 13, color: MUTED }}>
             No stories in this category yet.
           </div>
@@ -291,7 +236,15 @@ export default function MagazineCategoryPage({ categoryId, onNavigateArticle, on
             )}
 
             {gridPosts.length > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 'clamp(32px, 4vw, 52px)' }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: viewMode === 'list' ? '1fr'
+                  : viewMode === 'wide' ? 'repeat(auto-fill, minmax(480px, 1fr))'
+                  : viewMode === 'compact' ? 'repeat(auto-fill, minmax(240px, 1fr))'
+                  : viewMode === 'grid2' ? 'repeat(2, 1fr)'
+                  : 'repeat(auto-fill, minmax(340px, 1fr))',
+                gap: viewMode === 'list' ? '0' : 'clamp(32px, 4vw, 52px)',
+              }}>
                 {gridPosts.map(post => (
                   <PostCard key={post.id} post={post} style={cardStyle} onClick={goArticle} light={isLight} />
                 ))}
@@ -368,7 +321,6 @@ export default function MagazineCategoryPage({ categoryId, onNavigateArticle, on
       </section>
 
       <NewsletterCapture isLight={isLight} />
-      <SiteFooter {...footerNav} />
     </div>
   );
 }

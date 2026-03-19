@@ -1,8 +1,12 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // Supabase Edge Function: AI Extract & Populate Listing
 // ═══════════════════════════════════════════════════════════════════════════
-// Purpose: Extract facts from uploaded source materials (PDF, images, text)
-//          and write polished luxury editorial copy for all listing fields.
+// Purpose: Extract facts from source materials and write luxury editorial copy.
+//
+// LEARNING MODE: When a listing already exists (venue_id matches a listing),
+// the function loads the current listing state and injects it as prior context.
+// The AI then ENHANCES and FILLS GAPS rather than starting from scratch.
+// Run repeatedly as new sources are added — the listing keeps improving.
 //
 // Two-step reasoning in a single Claude call:
 //   Step 1 — EXTRACT: Pull real facts from source materials
@@ -13,20 +17,24 @@
 //     venueName?: string,
 //     listingType?: string,
 //     pastedText?: string,
+//     websiteUrl?: string,
 //     videoLinks?: string[],
+//     socialLinks?: string[],
 //     files?: Array<{
 //       name: string,
-//       type: 'pdf' | 'image' | 'text',
+//       type: 'pdf' | 'image' | 'text' | 'docx',
 //       mediaType: string,
 //       data?: string,          // base64 (PDFs and images)
 //       extractedText?: string, // plain text (text files)
-//     }>
+//     }>,
+//     venue_id?: string,        // intake_job id — used to load existing listing
+//     listing_id?: string,      // direct listing id — used for re-extraction passes
 //   }
 //
 // Response:
 //   {
 //     result: { ...listing fields... },
-//     _meta: { sources_used, missing_fields }
+//     _meta: { sources_used, missing_fields, mode: 'create' | 'enhance' }
 //   }
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -49,8 +57,8 @@ interface FileInput {
   name: string;
   type: "pdf" | "image" | "text" | "docx";
   mediaType: string;
-  data?: string;          // base64 for PDFs and images
-  extractedText?: string; // plain text for text files
+  data?: string;
+  extractedText?: string;
 }
 
 interface ExtractRequest {
@@ -62,6 +70,7 @@ interface ExtractRequest {
   socialLinks?: string[];
   files?: FileInput[];
   venue_id?: string;
+  listing_id?: string;
 }
 
 // ── JSON Schema the AI must return ──────────────────────────────────────────
@@ -100,10 +109,17 @@ const JSON_SCHEMA = `{
   "rooms_total": "",
   "rooms_suites": "",
   "rooms_max_guests": "",
+  "rooms_accommodation_type": "",
+  "rooms_min_stay": "",
+  "rooms_exclusive_use": false,
   "rooms_description": "",
   "dining_style": "",
   "dining_chef_name": "",
   "dining_in_house": false,
+  "dining_external": false,
+  "dining_menu_styles": [],
+  "dining_dietary": [],
+  "dining_drinks": [],
   "dining_description": "",
   "faq_enabled": false,
   "faq_categories": [
@@ -135,7 +151,8 @@ const JSON_SCHEMA = `{
   "_meta": {
     "sources_used": [],
     "extraction_confidence": "high",
-    "missing_fields": []
+    "missing_fields": [],
+    "mode": "create"
   }
 }`;
 
@@ -145,36 +162,180 @@ const SYSTEM_PROMPT = `You are an expert content strategist for Luxury Wedding D
 Your role is to:
 1. EXTRACT real facts from source materials (PDFs, brochures, website content, images, text) — transcribing them exactly as found
 2. WRITE polished luxury editorial copy for specific fields — using ONLY facts you extracted, never inventing
+3. ENHANCE existing listings — when prior listing data is provided, keep what is already good and fill gaps or improve with new information
 
 CRITICAL RULES:
-1. NEVER hallucinate or invent facts. If not found in source materials, leave field as "" or null or [].
+1. NEVER hallucinate or invent facts. If not found in source materials OR prior data, leave field as "" or null or [].
 2. Factual fields (venue_name, address, postcode, phone, email, website, capacity, prices, room counts, chef name, dining_in_house, video_urls, etc.) — copy EXACTLY as found. Do not rephrase or embellish.
 3. Editorial fields (summary, description, rooms_description, dining_description, seo_*, etc.) — write in elegant, aspirational tone.
-4. HTML fields (description, rooms_description, dining_description, exclusive_use_description) use ONLY <p> tags — no other HTML elements.
+4. HTML fields (description, rooms_description, dining_description) use ONLY <p> tags — no other HTML elements. exclusive_use_description is plain text only — no HTML tags.
 5. Keep lengths within limits: summary ≤240 chars, seo_title ≤60 chars, seo_description 150–160 chars.
 6. Return ONLY valid JSON. No markdown fences, no prose outside the JSON object.
-7. For spaces[], only include spaces explicitly mentioned in the source materials.
-8. For faq_categories[], only create categories if FAQ-style content exists in the source.
+7. For spaces[], only include spaces explicitly mentioned in the source materials or prior data.
+8. For faq_categories[], only create categories if FAQ-style content exists in the source or prior data.
 9. For nearby_items[], icon must be one of: "nature", "dining", "wine", "spa", "tour", "cooking", "check", "truffle".
-10. spaces[].type must be one of: "ballroom", "chapel", "garden", "terrace", "pool", "drawing_room", "library", "cellar", "barn", "marquee", "beach", "rooftop", "other".`;
+10. spaces[].type must be one of: "ballroom", "chapel", "garden", "terrace", "pool", "drawing_room", "library", "cellar", "barn", "marquee", "beach", "rooftop", "other".
+11. ENHANCE MODE: When prior listing data is provided, treat it as your baseline. Keep existing good values. Only overwrite a prior value if the new source material provides a better, more complete, or corrected version. Merge arrays (spaces[], faq_categories[], nearby_items[]) by combining unique entries.`;
+
+// ── Load existing listing data to enable enhance/learning mode ───────────────
+async function loadExistingListing(body: ExtractRequest): Promise<Record<string, unknown> | null> {
+  // Try listing_id first (direct), then try finding listing via intake_job venue_id
+  if (body.listing_id) {
+    const { data } = await supabase
+      .from("listings")
+      .select(`
+        name, address, address_line2, postcode, city, region, country,
+        summary, description, amenities, capacity, price_range,
+        exclusive_use_enabled, exclusive_use_title, exclusive_use_price,
+        exclusive_use_subline, exclusive_use_description, exclusive_use_includes,
+        spaces,
+        rooms_total, rooms_suites, rooms_max_guests, rooms_accommodation_type,
+        rooms_min_stay, rooms_exclusive_use, rooms_description,
+        dining_style, dining_chef_name, dining_in_house, dining_external,
+        dining_menu_styles, dining_dietary, dining_drinks, dining_description,
+        faq_enabled, faq_categories,
+        seo_title, seo_description, seo_keywords,
+        contact_profile,
+        nearby_enabled, nearby_items,
+        videos
+      `)
+      .eq("id", body.listing_id)
+      .maybeSingle();
+    return data || null;
+  }
+
+  if (body.venue_id) {
+    // venue_id is the intake_job id — find the listing created from this job
+    // Listings created by intake have a slug starting with the slugified venue name
+    // but there's no direct FK. Try matching via intake_jobs.listing_id if it exists.
+    const { data: job } = await supabase
+      .from("intake_jobs")
+      .select("listing_id")
+      .eq("id", body.venue_id)
+      .maybeSingle();
+
+    if (job?.listing_id) {
+      const { data } = await supabase
+        .from("listings")
+        .select(`
+          name, address, address_line2, postcode, city, region, country,
+          summary, description, amenities, capacity, price_range,
+          exclusive_use_enabled, exclusive_use_title, exclusive_use_price,
+          exclusive_use_subline, exclusive_use_description, exclusive_use_includes,
+          spaces,
+          rooms_total, rooms_suites, rooms_max_guests, rooms_accommodation_type,
+          rooms_min_stay, rooms_exclusive_use, rooms_description,
+          dining_style, dining_chef_name, dining_in_house, dining_external,
+          dining_menu_styles, dining_dietary, dining_drinks, dining_description,
+          faq_enabled, faq_categories,
+          seo_title, seo_description, seo_keywords,
+          contact_profile,
+          nearby_enabled, nearby_items,
+          videos
+        `)
+        .eq("id", job.listing_id)
+        .maybeSingle();
+      return data || null;
+    }
+  }
+
+  return null;
+}
+
+// ── Serialise existing listing into a readable context block for the AI ──────
+function buildPriorDataBlock(existing: Record<string, unknown>): string {
+  // Only include fields that have meaningful values
+  const lines: string[] = [];
+
+  const str = (v: unknown) => (v && typeof v === "string" && v.trim() ? v.trim() : null);
+  const num = (v: unknown) => (v != null && v !== "" ? v : null);
+  const arr = (v: unknown) => (Array.isArray(v) && v.length > 0 ? v : null);
+
+  if (str(existing.name))        lines.push(`venue_name: ${existing.name}`);
+  if (str(existing.address))     lines.push(`address: ${existing.address}`);
+  if (str(existing.city))        lines.push(`city: ${existing.city}`);
+  if (str(existing.region))      lines.push(`region: ${existing.region}`);
+  if (str(existing.country))     lines.push(`country: ${existing.country}`);
+  if (str(existing.postcode))    lines.push(`postcode: ${existing.postcode}`);
+  if (str(existing.summary))     lines.push(`summary: ${existing.summary}`);
+  if (str(existing.amenities))   lines.push(`amenities: ${existing.amenities}`);
+  if (str(existing.capacity))    lines.push(`capacity: ${existing.capacity}`);
+  if (str(existing.price_range)) lines.push(`price_range: ${existing.price_range}`);
+  if (num(existing.rooms_total)) lines.push(`rooms_total: ${existing.rooms_total}`);
+  if (num(existing.rooms_suites)) lines.push(`rooms_suites: ${existing.rooms_suites}`);
+  if (num(existing.rooms_max_guests)) lines.push(`rooms_max_guests: ${existing.rooms_max_guests}`);
+  if (str(existing.rooms_accommodation_type)) lines.push(`rooms_accommodation_type: ${existing.rooms_accommodation_type}`);
+  if (str(existing.rooms_min_stay)) lines.push(`rooms_min_stay: ${existing.rooms_min_stay}`);
+  if (existing.rooms_exclusive_use) lines.push(`rooms_exclusive_use: true`);
+  if (str(existing.dining_style)) lines.push(`dining_style: ${existing.dining_style}`);
+  if (str(existing.dining_chef_name)) lines.push(`dining_chef_name: ${existing.dining_chef_name}`);
+  if (existing.dining_in_house)  lines.push(`dining_in_house: true`);
+  if (existing.dining_external)  lines.push(`dining_external: true`);
+  if (arr(existing.dining_menu_styles)) lines.push(`dining_menu_styles: ${JSON.stringify(existing.dining_menu_styles)}`);
+  if (arr(existing.dining_dietary))     lines.push(`dining_dietary: ${JSON.stringify(existing.dining_dietary)}`);
+  if (arr(existing.dining_drinks))      lines.push(`dining_drinks: ${JSON.stringify(existing.dining_drinks)}`);
+  if (existing.exclusive_use_enabled)   lines.push(`exclusive_use_enabled: true`);
+  if (str(existing.exclusive_use_title))       lines.push(`exclusive_use_title: ${existing.exclusive_use_title}`);
+  if (str(existing.exclusive_use_price))       lines.push(`exclusive_use_price: ${existing.exclusive_use_price}`);
+  if (str(existing.exclusive_use_subline))     lines.push(`exclusive_use_subline: ${existing.exclusive_use_subline}`);
+  if (str(existing.exclusive_use_description)) lines.push(`exclusive_use_description: ${existing.exclusive_use_description}`);
+  if (arr(existing.exclusive_use_includes))    lines.push(`exclusive_use_includes: ${JSON.stringify(existing.exclusive_use_includes)}`);
+  if (arr(existing.spaces))      lines.push(`spaces (existing): ${JSON.stringify(existing.spaces)}`);
+  if (arr(existing.faq_categories)) lines.push(`faq_categories (existing): ${JSON.stringify(existing.faq_categories)}`);
+  if (arr(existing.nearby_items))   lines.push(`nearby_items (existing): ${JSON.stringify(existing.nearby_items)}`);
+  if (arr(existing.seo_keywords))   lines.push(`seo_keywords: ${JSON.stringify(existing.seo_keywords)}`);
+
+  // Contact profile
+  const cp = existing.contact_profile as Record<string, unknown> | null;
+  if (cp) {
+    const cpLines: string[] = [];
+    if (cp.name)      cpLines.push(`name: ${cp.name}`);
+    if (cp.title)     cpLines.push(`title: ${cp.title}`);
+    if (cp.email)     cpLines.push(`email: ${cp.email}`);
+    if (cp.phone)     cpLines.push(`phone: ${cp.phone}`);
+    if (cp.website)   cpLines.push(`website: ${cp.website}`);
+    if (cp.instagram) cpLines.push(`instagram: ${cp.instagram}`);
+    if (cpLines.length) lines.push(`contact_profile: { ${cpLines.join(", ")} }`);
+  }
+
+  if (lines.length === 0) return "";
+
+  return `--- EXISTING LISTING DATA (prior knowledge — keep, merge, and enhance) ---
+This listing has already been partially populated. RETAIN these values unless new source materials provide better information. FILL IN any gaps. MERGE arrays rather than replacing them.
+
+${lines.join("\n")}
+
+--- END OF EXISTING DATA ---`;
+}
 
 // ── Build user prompt ────────────────────────────────────────────────────────
-function buildUserPrompt(body: ExtractRequest, fetchedWebContent?: string): string {
+function buildUserPrompt(
+  body: ExtractRequest,
+  fetchedWebContent?: string,
+  existingListing?: Record<string, unknown> | null
+): string {
   const { venueName, listingType, pastedText, websiteUrl, videoLinks, files } = body;
+  const isEnhanceMode = !!existingListing;
 
   const sourcesList: string[] = [];
-  if (files?.some(f => f.type === "pdf"))                    sourcesList.push("PDF documents (attached)");
-  if (files?.some(f => f.type === "image"))                  sourcesList.push("images (attached)");
+  if (isEnhanceMode)                                                          sourcesList.push("existing listing data (prior knowledge)");
+  if (files?.some(f => f.type === "pdf"))                                     sourcesList.push("PDF documents (attached)");
+  if (files?.some(f => f.type === "image"))                                   sourcesList.push("images (attached)");
   if (files?.some(f => f.type === "text" && f.extractedText && !f.name?.toLowerCase().endsWith(".docx"))) sourcesList.push("text documents");
   if (files?.some(f => f.name?.toLowerCase().endsWith(".docx") && f.extractedText)) sourcesList.push("Word documents");
-  if (pastedText)                                             sourcesList.push("pasted text");
-  if (fetchedWebContent)                                      sourcesList.push(`website: ${websiteUrl}`);
-  else if (websiteUrl)                                        sourcesList.push(`website URL: ${websiteUrl}`);
-  if (videoLinks?.length)                                     sourcesList.push(`${videoLinks.length} video link(s)`);
-  if (body.socialLinks?.length)                               sourcesList.push(`${body.socialLinks.length} social profile(s)`);
+  if (pastedText)                                                              sourcesList.push("pasted text");
+  if (fetchedWebContent)                                                       sourcesList.push(`website: ${websiteUrl}`);
+  else if (websiteUrl)                                                         sourcesList.push(`website URL: ${websiteUrl}`);
+  if (videoLinks?.length)                                                      sourcesList.push(`${videoLinks.length} video link(s)`);
+  if (body.socialLinks?.length)                                                sourcesList.push(`${body.socialLinks.length} social profile(s)`);
 
-  // Source priority: PDF/paste (highest) → website → images/video
   const textBlocks: string[] = [];
+
+  // Inject prior listing data first (highest priority baseline)
+  if (isEnhanceMode && existingListing) {
+    const priorBlock = buildPriorDataBlock(existingListing);
+    if (priorBlock) textBlocks.push(priorBlock);
+  }
 
   if (pastedText?.trim()) {
     textBlocks.push(`--- PASTED TEXT (priority source) ---\n${pastedText.slice(0, 8000)}`);
@@ -189,7 +350,6 @@ function buildUserPrompt(body: ExtractRequest, fetchedWebContent?: string): stri
   if (fetchedWebContent) {
     textBlocks.push(`--- WEBSITE CONTENT: ${websiteUrl} ---\n${fetchedWebContent.slice(0, 10000)}`);
   } else if (websiteUrl) {
-    // Can't fetch content, but store the URL
     textBlocks.push(`--- VENUE WEBSITE URL ---\n${websiteUrl}\n(Store this as contact_profile.website)`);
   }
 
@@ -202,15 +362,30 @@ function buildUserPrompt(body: ExtractRequest, fetchedWebContent?: string): stri
   }
 
   const contextBlock = textBlocks.length > 0
-    ? `\n\nSOURCE MATERIALS (text content):\n\n${textBlocks.join("\n\n")}`
+    ? `\n\nSOURCE MATERIALS:\n\n${textBlocks.join("\n\n")}`
     : "";
 
   const venueContext = [
-    venueName   ? `Name: ${venueName}`     : "",
-    listingType ? `Type: ${listingType}`   : "",
+    venueName   ? `Name: ${venueName}`   : "",
+    listingType ? `Type: ${listingType}` : "",
   ].filter(Boolean).join("\n");
 
-  return `PHASE 1 — EXTRACT FACTS (transcribe exactly from source materials, do not rephrase)
+  const modeHeader = isEnhanceMode
+    ? `ENHANCE MODE — You have prior listing data AND new source materials.
+Your task: Produce a COMPLETE, IMPROVED version of the listing JSON by:
+1. Starting from the existing data as your baseline
+2. Extracting any NEW facts from the new source materials
+3. IMPROVING editorial copy where new sources give richer detail
+4. FILLING IN any fields that were previously empty
+5. MERGING arrays (spaces, faq_categories, nearby_items) — add new unique entries, keep existing ones
+6. NEVER deleting or downgrading data that was already there unless the new source clearly corrects it
+
+`
+    : `CREATE MODE — No prior listing data exists. Extract everything from scratch.
+
+`;
+
+  return `${modeHeader}PHASE 1 — EXTRACT FACTS (transcribe exactly from source materials, do not rephrase)
 
 Extract these values precisely as found:
 
@@ -226,37 +401,44 @@ CAPACITY & PRICING:
 
 VENUE SPECIFICS:
 - Event spaces: name, type (ballroom/garden/chapel/etc), indoor/outdoor, individual capacity figures
-- Dining: style, whether catering is in-house (yes/no), chef name
+- Dining: style, whether catering is in-house (yes/no), external caterers allowed (yes/no), chef name
+- Dining menu styles (e.g. Plated Dinner, Family Style, Buffet, Sharing Plates, Set Menu) → dining_menu_styles[]
+- Dietary options (e.g. Vegan, Vegetarian, Gluten-Free, Halal, Kosher) → dining_dietary[]
+- Drinks options (e.g. Open Bar, Signature Cocktails, Wine Pairing, Corkage Available) → dining_drinks[]
+- Accommodation type (e.g. Hotel Rooms, Suites, Villas, Cottages), minimum night stay → rooms_accommodation_type, rooms_min_stay
+- Whether accommodation is available for exclusive use → rooms_exclusive_use
 - Amenities and features listed in source
 - FAQ questions and answers if explicitly present
 - Nearby activities or experiences mentioned
 - Video or media URLs found in source
 
-PHASE 2 — WRITE EDITORIAL COPY (using ONLY facts from Phase 1, no invention)
+PHASE 2 — WRITE EDITORIAL COPY (using ONLY facts from Phase 1 and prior data, no invention)
 
 Write polished luxury editorial content in an elegant, aspirational tone for high-net-worth couples planning destination weddings.
 
-Compose these editorial fields ONLY (all other fields should be the exact values from Phase 1):
+Compose these editorial fields ONLY (all other fields should be exact values from Phase 1 or prior data):
 - summary: 1–2 elegant sentences, max 240 chars, no quotation marks
 - description: 3–4 paragraphs in <p> tags, evocative and aspirational
-- rooms_description: elegant accommodation narrative (only if rooms found)
-- dining_description: aspirational dining narrative (only if dining found)
-- exclusive_use_title, exclusive_use_subline, exclusive_use_description (only if exclusive use pricing/info found)
+- rooms_description: elegant accommodation narrative in <p> tags (only if rooms data found)
+- dining_description: aspirational dining narrative in <p> tags (only if dining found)
+- exclusive_use_title, exclusive_use_subline (only if exclusive use pricing/info found)
+- exclusive_use_description: 2–3 sentences of PLAIN TEXT only — no HTML tags. Describes the intimacy and appeal of hiring the entire estate privately.
 - spaces[].description: one short evocative sentence per space (only if space is mentioned)
-- faq_categories[].questions[].a — helpful, editorial-quality answers (only if Q&A content found in source)
+- faq_categories[].questions[].a — helpful, editorial-quality answers (only if Q&A content found)
 - contact_profile.bio: one elegant sentence (only if contact person details found)
-- amenities: comma-separated list of features found in source
+- amenities: comma-separated list of features found in source or prior data
 - seo_title: max 60 chars, natural language, includes venue name and location
 - seo_description: 150–160 chars, compelling with soft call to action
 - seo_keywords: JSON array of 6–8 keyword phrases
-- nearby_items[]: experiences found in source, with appropriate icon
-- exclusive_use_includes[]: specific inclusions mentioned in source
+- nearby_items[]: experiences found in source or prior data, with appropriate icon
+- exclusive_use_includes[]: specific inclusions mentioned in source or prior data
 
-${venueContext ? `KNOWN VENUE CONTEXT:\n${venueContext}\n` : ""}
-Sources being analysed: ${sourcesList.join(", ") || "none specified"}
+Set _meta.mode to "${isEnhanceMode ? "enhance" : "create"}".
+
+${venueContext ? `KNOWN VENUE CONTEXT:\n${venueContext}\n` : ""}Sources being analysed: ${sourcesList.join(", ") || "none specified"}
 ${contextBlock}
 
-Return the populated version of this exact JSON structure. Fill every field you can from the source materials. Leave empty string, null, false, or [] for anything not found — never invent:
+Return the populated version of this exact JSON structure. Fill every field you can from ALL sources. Leave empty string, null, false, or [] for anything genuinely not found — never invent:
 
 ${JSON_SCHEMA}`;
 }
@@ -265,37 +447,25 @@ ${JSON_SCHEMA}`;
 function buildMessageContent(body: ExtractRequest, userPrompt: string): unknown[] {
   const content: unknown[] = [];
 
-  // Add PDF documents
   for (const f of (body.files || [])) {
     if (f.type === "pdf" && f.data) {
       content.push({
         type: "document",
-        source: {
-          type: "base64",
-          media_type: "application/pdf",
-          data: f.data,
-        },
+        source: { type: "base64", media_type: "application/pdf", data: f.data },
       });
     }
   }
 
-  // Add images
   for (const f of (body.files || [])) {
     if (f.type === "image" && f.data) {
       content.push({
         type: "image",
-        source: {
-          type: "base64",
-          media_type: f.mediaType,
-          data: f.data,
-        },
+        source: { type: "base64", media_type: f.mediaType, data: f.data },
       });
     }
   }
 
-  // Add text prompt last
   content.push({ type: "text", text: userPrompt });
-
   return content;
 }
 
@@ -328,7 +498,6 @@ serve(async (req) => {
   try {
     const body: ExtractRequest = await req.json();
 
-    // Validate — at least some source material required
     const hasFiles     = (body.files?.length ?? 0) > 0;
     const hasPaste     = !!body.pastedText?.trim();
     const hasVideos    = (body.videoLinks?.length ?? 0) > 0;
@@ -342,33 +511,51 @@ serve(async (req) => {
       );
     }
 
-    // Get active AI settings (Claude required for multimodal)
-    const { data: settings, error: settingsError } = await supabase
-      .from("ai_settings")
-      .select("id, provider, api_key, model, max_tokens")
-      .eq("active", true)
-      .single();
+    // ── LEARNING MODE: load existing listing if one exists ──────────────────
+    const existingListing = await loadExistingListing(body);
+    const isEnhanceMode = !!existingListing;
+    console.log(`[ai-extract-listing] mode=${isEnhanceMode ? "enhance" : "create"}, venue_id=${body.venue_id || "none"}, listing_id=${body.listing_id || "none"}`);
 
-    if (settingsError || !settings) {
-      return new Response(
-        JSON.stringify({ error: "No active AI provider configured", status: "not_configured" }),
-        { status: 503, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    // For multimodal (PDFs + images), Claude is required
+    // ── Provider selection ──────────────────────────────────────────────────
     const hasBinaryFiles = (body.files || []).some(f => f.type === "pdf" || f.type === "image");
-    if (hasBinaryFiles && settings.provider !== "claude") {
-      return new Response(
-        JSON.stringify({
-          error: "PDF and image processing requires Claude as the active AI provider. Please update your AI settings.",
-          status: "provider_mismatch"
-        }),
-        { status: 422, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+    let settings: { id: string; provider: string; api_key: string; model: string; max_tokens: number } | null = null;
+
+    if (hasBinaryFiles) {
+      const { data: claudeSettings } = await supabase
+        .from("ai_settings")
+        .select("id, provider, api_key, model, max_tokens")
+        .eq("provider", "claude")
+        .order("active", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!claudeSettings) {
+        return new Response(
+          JSON.stringify({
+            error: "PDF and image processing requires a Claude (Anthropic) API key. Add one in AI Settings — it doesn't need to be the active provider.",
+            status: "no_claude_key"
+          }),
+          { status: 422, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+      settings = claudeSettings;
+    } else {
+      const { data: activeSettings, error: settingsError } = await supabase
+        .from("ai_settings")
+        .select("id, provider, api_key, model, max_tokens")
+        .eq("active", true)
+        .single();
+
+      if (settingsError || !activeSettings) {
+        return new Response(
+          JSON.stringify({ error: "No active AI provider configured", status: "not_configured" }),
+          { status: 503, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+      settings = activeSettings;
     }
 
-    // Fetch website content via Jina Reader (handles JS-heavy/SPA sites, returns clean markdown)
+    // ── Fetch website content via Jina Reader ───────────────────────────────
     let fetchedWebContent = "";
     let websiteFetchStatus = body.websiteUrl ? "failed" : "not_provided";
     if (body.websiteUrl) {
@@ -397,7 +584,7 @@ serve(async (req) => {
       }
     }
 
-    // Extract text from DOCX files server-side (before building prompt)
+    // ── DOCX extraction ─────────────────────────────────────────────────────
     const docxFiles = (body.files || []).filter(f => f.type === "docx" && f.data);
     if (docxFiles.length > 0) {
       try {
@@ -429,13 +616,14 @@ serve(async (req) => {
       }
     }
 
-    // Website-only failure guard: abort early if website was the only source and fetch failed
+    // ── Website-only failure guard ──────────────────────────────────────────
     const hasSubstantiveContent =
       fetchedWebContent ||
       body.pastedText?.trim() ||
       (body.files || []).some(f => f.extractedText || (f.type !== "docx" && f.data)) ||
       (body.videoLinks?.length ?? 0) > 0 ||
-      (body.socialLinks?.length ?? 0) > 0;
+      (body.socialLinks?.length ?? 0) > 0 ||
+      isEnhanceMode; // enhance mode is always valid — we have prior data
 
     if (!hasSubstantiveContent && body.websiteUrl) {
       return new Response(
@@ -446,8 +634,8 @@ serve(async (req) => {
       );
     }
 
-    // Build prompt
-    const userPrompt = buildUserPrompt(body, fetchedWebContent);
+    // ── Build prompt ────────────────────────────────────────────────────────
+    const userPrompt = buildUserPrompt(body, fetchedWebContent, existingListing);
     let rawText = "";
     let tokensUsed = 0;
     let estimatedCost = 0;
@@ -456,15 +644,14 @@ serve(async (req) => {
       const messageContent = buildMessageContent(body, userPrompt);
       const hasPdfFiles = (body.files || []).some(f => f.type === "pdf");
 
-      // Extraction + writing needs generous tokens regardless of the ai_settings value
-      const maxTokens = Math.max(settings.max_tokens || 4096, 8000);
+      // Generous token budget: extraction + writing + enhance context all need room
+      const maxTokens = Math.max(settings.max_tokens || 4096, 16000);
 
       const claudeHeaders: Record<string, string> = {
         "Content-Type": "application/json",
         "x-api-key": settings.api_key,
         "anthropic-version": "2023-06-01",
       };
-      // Only add PDF beta header when actual PDF files are present
       if (hasPdfFiles) claudeHeaders["anthropic-beta"] = "pdfs-2024-09-25";
 
       const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -486,11 +673,9 @@ serve(async (req) => {
       const data = await response.json();
       rawText = data.content[0].text;
       tokensUsed = (data.usage.input_tokens || 0) + (data.usage.output_tokens || 0);
-      // Claude Sonnet pricing estimate
       estimatedCost = (data.usage.input_tokens * 0.000003) + (data.usage.output_tokens * 0.000015);
 
     } else {
-      // Text-only path for OpenAI / Gemini (no binary file support in Phase 1)
       const textOnlyPrompt = `${SYSTEM_PROMPT}\n\n${userPrompt}`;
 
       if (settings.provider === "openai") {
@@ -507,7 +692,7 @@ serve(async (req) => {
               { role: "user",   content: userPrompt },
             ],
             temperature: 0.6,
-            max_tokens: settings.max_tokens || 4096,
+            max_tokens: Math.max(settings.max_tokens || 4096, 16000),
           }),
         });
         if (!response.ok) {
@@ -527,7 +712,7 @@ serve(async (req) => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               contents: [{ parts: [{ text: textOnlyPrompt }] }],
-              generationConfig: { temperature: 0.6, maxOutputTokens: settings.max_tokens || 4096 },
+              generationConfig: { temperature: 0.6, maxOutputTokens: Math.max(settings.max_tokens || 4096, 16000) },
             }),
           }
         );
@@ -542,26 +727,26 @@ serve(async (req) => {
       }
     }
 
-    // Parse JSON from response
+    // ── Parse response ──────────────────────────────────────────────────────
     let result: Record<string, unknown>;
     try {
       result = JSON.parse(extractJSON(rawText));
     } catch {
-      // Log the raw response to help diagnose future issues
       console.error("JSON parse failed. Raw response (first 500 chars):", rawText?.slice(0, 500));
       throw new Error(`AI returned malformed JSON. The response may have been cut short — try with less source material, or regenerate. (Output tokens used: ${tokensUsed})`);
     }
 
-    // Inject website fetch status into _meta so the panel can show a warning
+    // Inject metadata
     if (result._meta && typeof result._meta === "object") {
       (result._meta as Record<string, unknown>).website_fetch_status = websiteFetchStatus;
+      (result._meta as Record<string, unknown>).mode = isEnhanceMode ? "enhance" : "create";
     } else {
-      result._meta = { website_fetch_status: websiteFetchStatus };
+      result._meta = { website_fetch_status: websiteFetchStatus, mode: isEnhanceMode ? "enhance" : "create" };
     }
 
     const duration = Date.now() - startTime;
 
-    // Log usage
+    // ── Log usage ───────────────────────────────────────────────────────────
     await supabase.from("ai_usage_log").insert({
       provider: settings.provider,
       model: settings.model,
@@ -574,7 +759,6 @@ serve(async (req) => {
       request_duration_ms: duration,
     });
 
-    // Update last_used_at
     await supabase
       .from("ai_settings")
       .update({ last_used_at: new Date().toISOString() })
@@ -588,7 +772,6 @@ serve(async (req) => {
   } catch (error) {
     console.error("AI extract-listing error:", error);
 
-    // Log error
     try {
       await supabase.from("ai_usage_log").insert({
         feature: "listing_import",

@@ -77,6 +77,21 @@ export function mapListingFromDb(rawListing: any): Listing {
     listing.imgs = buildCardImgs(listing.mediaItems);
   }
 
+  // Fallback: intake listings pushed before media_items fix have hero_images but
+  // no media_items JSONB. Build a minimal imgs array from heroImages so QV + cards
+  // always have at least a featured image to display.
+  if ((!listing.imgs || listing.imgs.length === 0) && Array.isArray(listing.heroImages) && listing.heroImages.length > 0) {
+    listing.imgs = listing.heroImages
+      .filter((h: any) => h?.url)
+      .map((h: any, i: number) => ({
+        src:        normaliseUrl(h.url),
+        url:        normaliseUrl(h.url),
+        alt_text:   '',
+        is_featured: h.featured ?? i === 0,
+        sort_order:  i,
+      }));
+  }
+
   // Build video URL from media_items
   if (Array.isArray(listing.mediaItems) && !listing.videoUrl) {
     listing.videoUrl = buildCardVideoUrl(listing.mediaItems) ?? undefined;
@@ -224,6 +239,19 @@ function transformSupabaseListingForUI(listing: any): any {
     if (!transformed.videoUrl) {
       transformed.videoUrl = buildCardVideoUrl(transformed.mediaItems) ?? undefined
     }
+  }
+
+  // Fallback: hero_images → imgs for intake listings without media_items
+  if ((!transformed.imgs || transformed.imgs.length === 0) && Array.isArray(transformed.heroImages) && transformed.heroImages.length > 0) {
+    transformed.imgs = transformed.heroImages
+      .filter((h: any) => h?.url)
+      .map((h: any, i: number) => ({
+        src:         h.url,
+        url:         h.url,
+        alt_text:    '',
+        is_featured: h.featured ?? i === 0,
+        sort_order:  i,
+      }));
   }
 
   return transformed
@@ -448,6 +476,7 @@ function mapFormToDatabaseFields(data: any): any {
     'awards': 'awards',
     'visibility': 'visibility',
     'vendorAccountId': 'vendor_account_id',
+    'managedAccountId': 'managed_account_id',
     'ceremonySpaces': 'ceremony_spaces',
     'receptionSpaces': 'reception_spaces',
     'accommodation': 'accommodation',
@@ -745,8 +774,6 @@ function syncMediaAIIndex(listingId: string, data: any): void {
     .then(({ error }) => {
       if (error) {
         console.warn('[AI sync] media_ai_index sync failed (non-blocking):', error);
-      } else {
-        console.log(`[AI sync] media_ai_index synced for listing ${listingId}`);
       }
     })
     .catch((err) =>
@@ -773,13 +800,21 @@ export async function createListing(data: Listing) {
     // Sanitize payload: convert empty strings to null for numeric/date fields
     const dbData = sanitizeListingPayload(mapped)
 
-    console.log('Sanitized payload sending to Supabase:', dbData)
-
-    const { data: listing, error } = await supabase!
+    let { data: listing, error } = await supabase!
       .from('listings')
       .insert([dbData])
       .select()
       .single()
+
+    // Graceful retry: if managed_account_id column doesn't exist yet (schema cache miss), strip and retry
+    // Only catches schema/column-not-found errors, not FK constraint violations
+    if (error && error.message?.includes('managed_account_id') && error.message?.includes('schema cache')) {
+      const { managed_account_id: _ma, ...dbDataWithout } = dbData as any
+      const retried = await supabase!.from('listings').insert([dbDataWithout]).select().single()
+      if (retried.error) throw retried.error
+      listing = retried.data
+      error = null
+    }
 
     if (error) throw error
 
@@ -798,13 +833,6 @@ export async function createListing(data: Listing) {
  * Update an existing listing
  */
 export async function updateListing(id: string, data: Partial<Listing>) {
-  console.log("═══════════════════════════════════════════════════════════");
-  console.log("updateListing() START");
-  console.log("Listing ID to update:", id);
-  console.log("ID is truthy?", !!id);
-  console.log("ID type:", typeof id);
-  console.log("═══════════════════════════════════════════════════════════");
-
   if (!isSupabaseAvailable()) {
     console.error('Supabase not configured')
     throw new Error('Supabase not configured')
@@ -813,35 +841,32 @@ export async function updateListing(id: string, data: Partial<Listing>) {
   try {
     // Prepare data (auto-generate slug if needed)
     const prepared = prepareListingData({ ...data } as Listing)
-    console.log("After prepareListingData:", prepared.name, prepared.slug);
 
     // Map form field names to database field names
     const mapped = mapFormToDatabaseFields({
       ...prepared,
       updatedAt: new Date().toISOString(), // Use camelCase so it gets mapped correctly to updated_at
     })
-    console.log("After mapFormToDatabaseFields - mapped keys:", Object.keys(mapped));
-    console.log("updated_at in mapped?", 'updated_at' in mapped);
 
     // Sanitize payload: convert empty strings to null for numeric/date fields
     const updateData = sanitizeListingPayload(mapped)
-    console.log("═══════════════════════════════════════════════════════════");
-    console.log("FINAL UPDATE PAYLOAD - Keys:", Object.keys(updateData));
-    console.log("FINAL UPDATE PAYLOAD - Full:", JSON.stringify(updateData, null, 2));
-    console.log("═══════════════════════════════════════════════════════════");
 
-    // Log the query parameters
-    console.log("Supabase UPDATE query:");
-    console.log("  Table: 'listings'");
-    console.log("  ID filter: .eq('id', '" + id + "')");
-    console.log("  Update data fields:", Object.keys(updateData).length);
-
-    const { data: listing, error } = await supabase!
+    let { data: listing, error } = await supabase!
       .from('listings')
       .update(updateData)
       .eq('id', id)
       .select()
       .single()
+
+    // Graceful retry: if managed_account_id column doesn't exist yet (schema cache miss), strip and retry
+    // Only catches schema/column-not-found errors, not FK constraint violations
+    if (error && error.message?.includes('managed_account_id') && error.message?.includes('schema cache')) {
+      const { managed_account_id: _ma, ...updateDataWithout } = updateData as any
+      const retried = await supabase!.from('listings').update(updateDataWithout).eq('id', id).select().single()
+      if (retried.error) throw retried.error
+      listing = retried.data
+      error = null
+    }
 
     if (error) {
       console.error("Supabase UPDATE error:", error);
@@ -850,8 +875,6 @@ export async function updateListing(id: string, data: Partial<Listing>) {
       console.error("Error details:", error);
       throw error
     }
-
-    console.log("Supabase UPDATE success - returned listing:", listing);
 
     // Fire-and-forget: sync rich media metadata into AI search index
     syncMediaAIIndex(listing.id, data)
@@ -887,6 +910,26 @@ export async function fetchListingById(id: string) {
   } catch (error) {
     console.error('Error fetching listing:', error)
     throw error
+  }
+}
+
+/**
+ * Fetch the listing linked to a managed account.
+ * Returns a lightweight subset used by the client portal.
+ */
+export async function fetchListingByManagedAccountId(managedAccountId: string) {
+  if (!isSupabaseAvailable() || !supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('listings')
+      .select('id, name, slug, status, hero_image, hero_tagline, card_image, city, country, region, listing_type, review_count, rating, price_from, price_currency')
+      .eq('managed_account_id', managedAccountId)
+      .maybeSingle();
+    if (error || !data) return null;
+    return mapListingFromDb(data);
+  } catch (err) {
+    console.error('[Listings] fetchListingByManagedAccountId error:', err);
+    return null;
   }
 }
 
@@ -949,8 +992,6 @@ export async function fetchListings(filters?: {
     // Transform to match UI expectations (status formatting, display fields, etc.)
     const uiListings = camelListings.map(listing => transformSupabaseListingForUI(listing))
 
-    console.log('Transformed listings for UI:', uiListings)
-
     return uiListings as Listing[]
   } catch (error) {
     console.error('Error fetching listings:', error)
@@ -962,19 +1003,14 @@ export async function fetchListings(filters?: {
  * Save a listing as draft (status = 'draft')
  */
 export async function saveDraft(id: string | undefined, data: Listing) {
-  console.log("saveDraft() called with ID:", id);
-  console.log("saveDraft() data keys:", Object.keys(data));
-
   const draftData = {
     ...data,
     status: 'draft' as const,
   }
 
   if (id) {
-    console.log("saveDraft() - UPDATING existing listing with ID:", id);
     return updateListing(id, draftData)
   } else {
-    console.log("saveDraft() - CREATING new listing (no ID provided)");
     return createListing(draftData)
   }
 }
@@ -983,9 +1019,6 @@ export async function saveDraft(id: string | undefined, data: Listing) {
  * Publish a listing (status = 'published')
  */
 export async function publishListing(id: string | undefined, data: Listing) {
-  console.log("publishListing() called with ID:", id);
-  console.log("publishListing() data keys:", Object.keys(data));
-
   const publishData = {
     ...data,
     status: 'published' as const,
@@ -993,10 +1026,8 @@ export async function publishListing(id: string | undefined, data: Listing) {
   }
 
   if (id) {
-    console.log("publishListing() - UPDATING existing listing with ID:", id);
     return updateListing(id, publishData)
   } else {
-    console.log("publishListing() - CREATING new listing (no ID provided)");
     return createListing(publishData)
   }
 }

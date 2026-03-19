@@ -10,7 +10,6 @@ import { fetchListings } from "../services/listings";
 import HomeNav from "../components/nav/HomeNav";
 import SlimHero from "../components/sections/SlimHero";
 import FeaturedSlider from "../components/sections/FeaturedSlider";
-import SiteFooter from "../components/sections/SiteFooter";
 import DestinationGrid from "../components/sections/DestinationGrid";
 import VenueGrid from "../components/sections/VenueGrid";
 import VendorPreview from "../components/sections/VendorPreview";
@@ -57,7 +56,12 @@ function listingToCard(listing) {
     cat:         listing.categorySlug || listing.listingType || '',
     type:        listing.listingType  || '',
     // Vendor-specific amenities / includes
-    includes:    Array.isArray(listing.amenities) ? listing.amenities : (listing.tags || []),
+    // amenities is stored as comma-separated TEXT in DB — split into array
+    includes:    Array.isArray(listing.amenities)
+                   ? listing.amenities
+                   : (typeof listing.amenities === 'string' && listing.amenities.trim()
+                       ? listing.amenities.split(',').map(s => s.trim()).filter(Boolean)
+                       : (listing.tags || [])),
     specialties: Array.isArray(listing.tags)      ? listing.tags      : [],
   };
 }
@@ -147,8 +151,6 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
           <NewsletterBand />
           <DirectoryBrands onViewRegion={(countrySlug, regionSlug) => onViewRegion?.(countrySlug, regionSlug)} onViewCategory={onViewCategory} onViewUSA={onViewUSA} onViewItaly={onViewItaly} />
         </main>
-
-        <SiteFooter {...footerNav} />
 
         {/* Enquiry modal */}
         <EnquiryModal

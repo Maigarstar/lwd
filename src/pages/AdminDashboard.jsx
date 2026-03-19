@@ -34,6 +34,9 @@ import MagazineStudio from "./MagazineStudio/index";
 import ArtistryPage from "./Artistry/ArtistryPage";
 import { getAllSubmissions, reviewSubmission, toggleFeatured } from "../services/artistryService";
 import ReviewsModule from "./AdminDashboard/ReviewsModule";
+import CRMModule from "./AdminModules/CRMModule";
+import EmailMarketingModule from "./AdminModules/EmailMarketingModule";
+import EmailBuilderModule from "./AdminModules/EmailBuilderModule";
 import { POSTS } from "./Magazine/data/posts";
 import { PRODUCTS, COLLECTIONS, formatPrice } from "./Magazine/data/products";
 import { CATEGORIES } from "./Magazine/data/categories";
@@ -230,9 +233,16 @@ const NAV_SECTIONS = [
     group: "Growth",
     items: [
       { key: "leads",        label: "Leads",             icon: "⊛" },
-      { key: "marketing",    label: "Marketing",         icon: "◆" },
       { key: "seo",          label: "SEO",               icon: "⊡" },
       { key: "crm",          label: "CRM",               icon: "⊕" },
+    ],
+  },
+  {
+    group: "Marketing",
+    items: [
+      { key: "email-marketing",  label: "Email Marketing",  icon: "◉" },
+      { key: "newsletter",       label: "Newsletter",       icon: "✉" },
+      { key: "email-builder",    label: "Email Builder",    icon: "✎" },
     ],
   },
   {
@@ -286,6 +296,7 @@ const GROUP_ICON_PATHS = {
   Intelligence: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
   Design:       'M12 20h9M16.5 3.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z',
   Content:      'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6',
+  Marketing:        'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
   'Internal Sales': 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
 };
 
@@ -8655,9 +8666,13 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "countries":     return <CountriesModule C={C} />;
       case "regions":       return <RegionsModule C={C} />;
       case "leads":         return <LeadsModule C={C} />;
-      case "marketing":     return <PlaceholderModule title="Marketing Intelligence" C={C} />;
+      case "marketing":      return <EmailMarketingModule C={C} onNavigate={setActiveTab} />;
+      case "email-marketing": return <EmailMarketingModule C={C} onNavigate={setActiveTab} />;
+      case "newsletter":     return <EmailMarketingModule C={C} defaultTab="newsletter" onNavigate={setActiveTab} />;
+      case "email-builder":      return <EmailBuilderModule C={C} onBack={() => setActiveTab('email-marketing')} />;
+      case "newsletter-builder": return <EmailBuilderModule C={C} mode="newsletter" onBack={() => setActiveTab('newsletter')} />;
       case "seo":           return <PlaceholderModule title="SEO Command Centre" C={C} />;
-      case "crm":           return <PlaceholderModule title="CRM & Lead Management" C={C} />;
+      case "crm":           return <CRMModule C={C} />;
       case "partner-enquiries": return <PartnerEnquiriesModule C={C} />;
       case "sales-pipeline":    return <PlaceholderModule title="Sales Pipeline" C={C} />;
       case "advertise-leads":   return <PartnerEnquiriesModule C={C} filterType="advertise" />;

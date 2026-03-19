@@ -127,22 +127,45 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
   const timerRef                  = useRef(null);
 
   const isVendor = item?.type === "vendor";
+  // amenities is stored as a comma-separated TEXT string in the DB.
+  // Normalise to array so it renders correctly whether it's a string or array.
+  const amenitiesArr = (() => {
+    const a = item?.amenities;
+    if (!a) return [];
+    if (Array.isArray(a)) return a;
+    return a.split(',').map(s => s.trim()).filter(Boolean);
+  })();
+
+  // For vendors: specialties. For venues: includes → styles → amenities (intake listings).
   const features = isVendor
     ? (item?.specialties ?? [])
-    : (item?.includes ?? item?.styles ?? []);
+    : (item?.includes?.length > 0 ? item.includes : item?.styles?.length > 0 ? item.styles : amenitiesArr);
 
-  const mapUrl = item?.lat && item?.lng
-    ? `https://www.openstreetmap.org/export/embed.html?bbox=${item.lng - 0.025},${item.lat - 0.025},${item.lng + 0.025},${item.lat + 0.025}&layer=mapnik&marker=${item.lat},${item.lng}`
+  // Use Google Maps embed — same approach as VenueProfile Contact & Location section.
+  // Works with city/region/country even without lat/lng (e.g. intake listings).
+  const mapQuery = [item?.city, item?.region, item?.country].filter(Boolean).join(',+').replace(/ /g, '+');
+  const mapUrl = mapQuery
+    ? `https://maps.google.com/maps?q=${mapQuery}&output=embed&z=12`
     : null;
 
   // ── Build combined media array: images first, then videos, then reels ────────
   const mediaItems = (() => {
     const items = [];
-    // Images, imgs[] may be plain URL strings or rich objects { src, url, alt_text, ... }
-    (item?.imgs || []).forEach(img => {
+    // Images: sort featured first (defensive — buildCardImgs should already sort,
+    // but intake listings pushed before media_items fix may arrive unsorted).
+    const imgs = [...(item?.imgs || [])].sort((a, b) => {
+      const aF = typeof a === "object" ? (a?.is_featured ? 1 : 0) : 0;
+      const bF = typeof b === "object" ? (b?.is_featured ? 1 : 0) : 0;
+      return bF - aF; // featured first
+    });
+    imgs.forEach(img => {
       const src = typeof img === "string" ? img : (img?.src || img?.url || "");
       if (src) items.push({ type: "image", src });
     });
+    // Fallback: if no imgs at all but heroImg exists (old intake listings)
+    if (items.length === 0 && item?.heroImg) {
+      items.push({ type: "image", src: item.heroImg });
+    }
     // Single videoUrl (from LuxuryVenueCard / LuxuryVendorCard)
     if (item?.videoUrl) {
       items.push({ type: "video", src: item.videoUrl });
