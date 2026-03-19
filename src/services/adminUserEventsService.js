@@ -17,7 +17,6 @@ async function callEdge(payload) {
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${ANON_KEY}`,
-      'apikey': ANON_KEY,
     },
     body: JSON.stringify(payload),
   });
