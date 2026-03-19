@@ -35,14 +35,14 @@ ON CONFLICT (id) DO UPDATE SET
 -- ── 2. Top-level nav items ────────────────────────────────────────────────────
 -- Clear children first to avoid FK violations on re-seed
 DELETE FROM nav_items WHERE parent_id IN (
-  'nav00001-0000-0000-0000-000000000001',
-  'nav00001-0000-0000-0000-000000000002',
-  'nav00001-0000-0000-0000-000000000003',
-  'nav00001-0000-0000-0000-000000000004',
-  'nav00001-0000-0000-0000-000000000005',
-  'nav00001-0000-0000-0000-000000000006',
-  'nav00001-0000-0000-0000-000000000007',
-  'nav00001-0000-0000-0000-000000000008'
+  'a0000001-0000-0000-0000-000000000001',
+  'a0000001-0000-0000-0000-000000000002',
+  'a0000001-0000-0000-0000-000000000003',
+  'a0000001-0000-0000-0000-000000000004',
+  'a0000001-0000-0000-0000-000000000005',
+  'a0000001-0000-0000-0000-000000000006',
+  'a0000001-0000-0000-0000-000000000007',
+  'a0000001-0000-0000-0000-000000000008'
 );
 
 INSERT INTO nav_items (
@@ -58,7 +58,7 @@ INSERT INTO nav_items (
 
 -- Home
 (
-  'nav00001-0000-0000-0000-000000000001',
+  'a0000001-0000-0000-0000-000000000001',
   'Home', '/', '', '', 'link', false, 'gold',
   1, true, false,
   false, 'columns', 'manual',
@@ -71,7 +71,7 @@ INSERT INTO nav_items (
 
 -- Browse Venues (dropdown with destinations)
 (
-  'nav00001-0000-0000-0000-000000000002',
+  'a0000001-0000-0000-0000-000000000002',
   'Browse Venues', '/venue', 'browse', '', 'mega_menu', false, 'gold',
   2, true, false,
   true, '3-col', 'manual',
@@ -84,7 +84,7 @@ INSERT INTO nav_items (
 
 -- Aura Discovery
 (
-  'nav00001-0000-0000-0000-000000000003',
+  'a0000001-0000-0000-0000-000000000003',
   'Aura Discovery', '/discovery/aura', 'aura-discovery', '', 'link', false, 'gold',
   3, true, false,
   false, 'columns', 'manual',
@@ -97,7 +97,7 @@ INSERT INTO nav_items (
 
 -- Real Weddings
 (
-  'nav00001-0000-0000-0000-000000000004',
+  'a0000001-0000-0000-0000-000000000004',
   'Real Weddings', '/real-weddings', 'real-weddings', '', 'link', false, 'gold',
   4, true, false,
   false, 'columns', 'manual',
@@ -110,7 +110,7 @@ INSERT INTO nav_items (
 
 -- Planning
 (
-  'nav00001-0000-0000-0000-000000000005',
+  'a0000001-0000-0000-0000-000000000005',
   'Planning', '/the-lwd-standard', 'planning', '', 'link', false, 'gold',
   5, true, false,
   false, 'columns', 'manual',
@@ -123,7 +123,7 @@ INSERT INTO nav_items (
 
 -- Magazine
 (
-  'nav00001-0000-0000-0000-000000000006',
+  'a0000001-0000-0000-0000-000000000006',
   'Magazine', '/magazine', 'magazine', '', 'link', false, 'gold',
   6, true, false,
   false, 'columns', 'manual',
@@ -136,7 +136,7 @@ INSERT INTO nav_items (
 
 -- About
 (
-  'nav00001-0000-0000-0000-000000000007',
+  'a0000001-0000-0000-0000-000000000007',
   'About', '/about', 'about', '', 'link', false, 'gold',
   7, true, false,
   false, 'columns', 'manual',
@@ -149,7 +149,7 @@ INSERT INTO nav_items (
 
 -- List Your Venue (CTA button)
 (
-  'nav00001-0000-0000-0000-000000000008',
+  'a0000001-0000-0000-0000-000000000008',
   'List Your Venue', '/join', 'join', '', 'cta', true, 'gold',
   8, true, false,
   false, 'columns', 'manual',
@@ -190,65 +190,65 @@ INSERT INTO nav_items (
   panel_full_width, panel_align, layout_columns, layout_type, show_descriptions
 ) VALUES
 
-('nav00002-0000-0000-0000-000000000001',
+('a0000002-0000-0000-0000-000000000001',
   'Italy', '/italy', 'italy', 'link', 1, true,
-  'nav00001-0000-0000-0000-000000000002',
+  'a0000001-0000-0000-0000-000000000002',
   false, 'gold', false, false, 'columns', 'manual', 'classic-luxury', 'slide-down',
   '#1a1510', '#f5efe4', '#c9a84c', '#c9a84c', '#2a2218', 'luxury', 8, 28,
   false, 'left', 2, '2-col', true),
 
-('nav00002-0000-0000-0000-000000000002',
+('a0000002-0000-0000-0000-000000000002',
   'France', '/france', 'france', 'link', 2, true,
-  'nav00001-0000-0000-0000-000000000002',
+  'a0000001-0000-0000-0000-000000000002',
   false, 'gold', false, false, 'columns', 'manual', 'classic-luxury', 'slide-down',
   '#1a1510', '#f5efe4', '#c9a84c', '#c9a84c', '#2a2218', 'luxury', 8, 28,
   false, 'left', 2, '2-col', true),
 
-('nav00002-0000-0000-0000-000000000003',
+('a0000002-0000-0000-0000-000000000003',
   'Greece', '/greece', 'greece', 'link', 3, true,
-  'nav00001-0000-0000-0000-000000000002',
+  'a0000001-0000-0000-0000-000000000002',
   false, 'gold', false, false, 'columns', 'manual', 'classic-luxury', 'slide-down',
   '#1a1510', '#f5efe4', '#c9a84c', '#c9a84c', '#2a2218', 'luxury', 8, 28,
   false, 'left', 2, '2-col', true),
 
-('nav00002-0000-0000-0000-000000000004',
+('a0000002-0000-0000-0000-000000000004',
   'UK & Ireland', '/uk', 'uk', 'link', 4, true,
-  'nav00001-0000-0000-0000-000000000002',
+  'a0000001-0000-0000-0000-000000000002',
   false, 'gold', false, false, 'columns', 'manual', 'classic-luxury', 'slide-down',
   '#1a1510', '#f5efe4', '#c9a84c', '#c9a84c', '#2a2218', 'luxury', 8, 28,
   false, 'left', 2, '2-col', true),
 
-('nav00002-0000-0000-0000-000000000005',
+('a0000002-0000-0000-0000-000000000005',
   'Spain', '/spain', 'spain', 'link', 5, true,
-  'nav00001-0000-0000-0000-000000000002',
+  'a0000001-0000-0000-0000-000000000002',
   false, 'gold', false, false, 'columns', 'manual', 'classic-luxury', 'slide-down',
   '#1a1510', '#f5efe4', '#c9a84c', '#c9a84c', '#2a2218', 'luxury', 8, 28,
   false, 'left', 2, '2-col', true),
 
-('nav00002-0000-0000-0000-000000000006',
+('a0000002-0000-0000-0000-000000000006',
   'Portugal', '/portugal', 'portugal', 'link', 6, true,
-  'nav00001-0000-0000-0000-000000000002',
+  'a0000001-0000-0000-0000-000000000002',
   false, 'gold', false, false, 'columns', 'manual', 'classic-luxury', 'slide-down',
   '#1a1510', '#f5efe4', '#c9a84c', '#c9a84c', '#2a2218', 'luxury', 8, 28,
   false, 'left', 2, '2-col', true),
 
-('nav00002-0000-0000-0000-000000000007',
+('a0000002-0000-0000-0000-000000000007',
   'Maldives', '/maldives', 'maldives', 'link', 7, true,
-  'nav00001-0000-0000-0000-000000000002',
+  'a0000001-0000-0000-0000-000000000002',
   false, 'gold', false, false, 'columns', 'manual', 'classic-luxury', 'slide-down',
   '#1a1510', '#f5efe4', '#c9a84c', '#c9a84c', '#2a2218', 'luxury', 8, 28,
   false, 'left', 2, '2-col', true),
 
-('nav00002-0000-0000-0000-000000000008',
+('a0000002-0000-0000-0000-000000000008',
   'Caribbean', '/caribbean', 'caribbean', 'link', 8, true,
-  'nav00001-0000-0000-0000-000000000002',
+  'a0000001-0000-0000-0000-000000000002',
   false, 'gold', false, false, 'columns', 'manual', 'classic-luxury', 'slide-down',
   '#1a1510', '#f5efe4', '#c9a84c', '#c9a84c', '#2a2218', 'luxury', 8, 28,
   false, 'left', 2, '2-col', true),
 
-('nav00002-0000-0000-0000-000000000009',
+('a0000002-0000-0000-0000-000000000009',
   'USA', '/usa', 'usa', 'link', 9, true,
-  'nav00001-0000-0000-0000-000000000002',
+  'a0000001-0000-0000-0000-000000000002',
   false, 'gold', false, false, 'columns', 'manual', 'classic-luxury', 'slide-down',
   '#1a1510', '#f5efe4', '#c9a84c', '#c9a84c', '#2a2218', 'luxury', 8, 28,
   false, 'left', 2, '2-col', true)
