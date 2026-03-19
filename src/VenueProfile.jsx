@@ -1011,7 +1011,6 @@ function HeroVideo({ venue, onEnquire }) {
 const TABS = [
   { key: 'overview',     label: 'Overview',     show: (v) => true },
   { key: 'gallery',      label: 'Gallery',      show: (v) => (v.gallery?.length || 0) > 0 },
-  { key: 'reviews',      label: 'Reviews',      show: (v) => (v.testimonials?.length || 0) > 0 },
   { key: 'capacity',     label: 'Spaces',       show: (v) => (v.spaces?.length || 0) > 0 },
   { key: 'rooms',        label: 'Rooms',        show: (v) => v.accommodation?.totalRooms > 0 || v.accommodation?.description },
   { key: 'dining',       label: 'Dining',       show: (v) => v.dining?.description || v.dining?.style },
