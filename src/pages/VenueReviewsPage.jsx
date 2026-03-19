@@ -3,7 +3,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import HomeNav from '../components/nav/HomeNav';
-import SiteFooter from '../components/sections/SiteFooter';
 import { fetchListingBySlug } from '../services/listings';
 import { fetchApprovedReviews } from '../services/reviewService';
 import { THEMES } from '../services/reviewThemeService';
@@ -329,17 +328,6 @@ export default function VenueReviewsPage() {
           padding: '0 56px 48px',
           animation: 'vrFadeIn 0.8s ease both',
         }}>
-          {/* Venue identity */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-            <span style={{ fontFamily: FB, fontSize: 11, color: 'rgba(255,255,255,0.55)', letterSpacing: '1.2px', textTransform: 'uppercase' }}>
-              Guest Reviews
-            </span>
-            <span style={{ width: 28, height: 1, background: 'rgba(255,255,255,0.25)' }} />
-            <span style={{ fontFamily: FB, fontSize: 11, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.5px' }}>
-              {venueLocation}
-            </span>
-          </div>
-
           <h1 style={{
             fontFamily: FD, fontSize: 'clamp(30px, 4.5vw, 58px)', fontWeight: 400,
             color: '#fff', letterSpacing: '-0.3px', lineHeight: 1.05, margin: '0 0 14px',
@@ -517,7 +505,6 @@ export default function VenueReviewsPage() {
 
       </div>
 
-      <SiteFooter />
     </div>
   );
 }
