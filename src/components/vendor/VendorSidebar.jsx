@@ -4,6 +4,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState } from "react";
 import VendorContactForm from "./VendorContactForm";
+import ExternalLinkModal from "../ExternalLinkModal";
+import { trackExternalClick, hasSeenModalThisSession, markModalSeen } from "../../services/outboundClickService";
 
 const FD = "var(--font-heading-primary)";
 const FB = "var(--font-body)";
@@ -239,41 +241,91 @@ function QuickFactsCard({ vendor, C }) {
 /* ═══════════════════════════════════════════════════════════════════════════════
    Card 4, Social Links
    ═══════════════════════════════════════════════════════════════════════════════ */
-function SocialLinksCard({ vendor, C }) {
+// Social link types that go direct (no modal) — track silently
+const SOCIAL_LINK_TYPES = new Set(['instagram', 'pinterest', 'tiktok', 'facebook', 'twitter', 'youtube', 'linkedin']);
+
+function SocialLinksCard({ vendor, venueId, C }) {
+  const [exitConfig, setExitConfig] = useState(null);
   const s = vendor.socials || {};
-  const links = [
-    s.instagram && { label: "IG", href: s.instagram, icon: "📷" },
-    s.pinterest && { label: "PT", href: s.pinterest, icon: "📌" },
-    s.tiktok    && { label: "TK", href: s.tiktok, icon: "🎵" },
-    s.website   && { label: "Web", href: s.website, icon: "🌐" },
+
+  const allLinks = [
+    s.instagram && { label: "IG",  href: s.instagram, icon: "📷", type: "instagram" },
+    s.pinterest && { label: "PT",  href: s.pinterest, icon: "📌", type: "pinterest" },
+    s.tiktok    && { label: "TK",  href: s.tiktok,    icon: "🎵", type: "tiktok"    },
+    s.website   && { label: "Web", href: s.website,   icon: "🌐", type: "website"   },
   ].filter(Boolean);
 
-  if (!links.length) return null;
+  if (!allLinks.length) return null;
+
+  const handleClick = (link) => {
+    const trackData = {
+      entityType: 'vendor',
+      entityId: vendor.id || null,
+      venueId: venueId || null,
+      linkType: link.type,
+      url: link.href,
+    };
+
+    if (SOCIAL_LINK_TYPES.has(link.type)) {
+      // Social — track immediately + open directly
+      trackExternalClick(trackData);
+      window.open(link.href, '_blank', 'noopener,noreferrer');
+    } else {
+      // Website — modal once per session, then direct
+      if (!hasSeenModalThisSession()) {
+        setExitConfig({ url: link.href, name: vendor.name || vendor.business_name || 'this vendor' });
+      } else {
+        trackExternalClick(trackData);
+        window.open(link.href, '_blank', 'noopener,noreferrer');
+      }
+    }
+  };
 
   return (
-    <div style={{ border: `1px solid ${C.border}`, background: C.surface || C.card, padding: "14px 22px" }}>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        {links.map(l => (
-          <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer"
-            style={{
-              width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
-              border: `1px solid ${C.border2 || C.border}`, borderRadius: "var(--lwd-radius-input)",
-              fontSize: 15, textDecoration: "none", color: C.text, transition: "border-color 0.2s, color 0.2s",
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2 || C.border; e.currentTarget.style.color = C.text; }}
-            title={l.label}
-          >{l.icon}</a>
-        ))}
+    <>
+      <div style={{ border: `1px solid ${C.border}`, background: C.surface || C.card, padding: "14px 22px" }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {allLinks.map(l => (
+            <button key={l.label} onClick={() => handleClick(l)}
+              style={{
+                width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
+                border: `1px solid ${C.border2 || C.border}`, borderRadius: "var(--lwd-radius-input)",
+                fontSize: 15, background: "none", cursor: "pointer",
+                color: C.text, transition: "border-color 0.2s, color 0.2s",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2 || C.border; e.currentTarget.style.color = C.text; }}
+              title={l.label}
+            >{l.icon}</button>
+          ))}
+        </div>
       </div>
-    </div>
+
+      {exitConfig && (
+        <ExternalLinkModal
+          name={exitConfig.name}
+          url={exitConfig.url}
+          onClose={() => setExitConfig(null)}
+          onContinue={() => {
+            markModalSeen();
+            trackExternalClick({
+              entityType: 'vendor',
+              entityId: vendor.id || null,
+              venueId: venueId || null,
+              linkType: 'website',
+              url: exitConfig.url,
+            });
+          }}
+        />
+      )}
+    </>
   );
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
    Main export, stacks all 5 cards
    ═══════════════════════════════════════════════════════════════════════════════ */
-export default function VendorSidebar({ vendor, vendorType, C, onChat, onSave, isSaved }) {
+export default function VendorSidebar({ vendor, vendorType, venueId, C, onChat, onSave, isSaved }) {
   if (!vendor || !C) return null;
 
   return (
@@ -281,7 +333,7 @@ export default function VendorSidebar({ vendor, vendorType, C, onChat, onSave, i
       <ContactPersonCard vendor={vendor} C={C} />
       <ConversionCard vendor={vendor} C={C} onChat={onChat} onSave={onSave} isSaved={isSaved} />
       <QuickFactsCard vendor={vendor} C={C} />
-      <SocialLinksCard vendor={vendor} C={C} />
+      <SocialLinksCard vendor={vendor} venueId={venueId} C={C} />
       <div className="vpt-form-anchor">
         <div style={{ border: `1px solid ${C.border}`, background: C.surface || C.card, padding: 28 }}>
           <div style={{ fontFamily: FB, fontSize: 10, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: C.gold, marginBottom: 16 }}>

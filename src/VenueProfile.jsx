@@ -11,6 +11,8 @@ import SeoHead from './components/seo/SeoHead';
 import JsonLd from './components/seo/JsonLd';
 import { buildVenueSchema, buildBreadcrumbSchema, buildFaqSchema } from './utils/structuredData';
 import HomeNav from "./components/nav/HomeNav";
+import ExternalLinkModal from "./components/ExternalLinkModal";
+import { trackExternalClick, hasSeenModalThisSession, markModalSeen } from "./services/outboundClickService";
 
 const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://www.luxuryweddingdirectory.co.uk';
 
@@ -1459,6 +1461,19 @@ function OpeningHoursWidget({ openingHours }) {
 
 function SidebarContact({ venue }) {
   const C = useT();
+  const [exitConfig, setExitConfig] = useState(null);
+
+  const handleWebsiteClick = () => {
+    const url = `https://${venue.contact.website}`;
+    const trackData = { entityType: 'venue', entityId: venue.id, venueId: venue.id, linkType: 'website', url };
+    if (!hasSeenModalThisSession()) {
+      setExitConfig({ url, name: venue.name });
+    } else {
+      trackExternalClick(trackData);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   return (
     <div style={{ border: `1px solid ${C.border}`, background: C.surface }}>
       {/* Mini map */}
@@ -1487,20 +1502,33 @@ function SidebarContact({ venue }) {
             onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.text; }}
           ><Icon name="phone" size={12} /> Call</a>
-          <a href={`https://${venue.contact.website}`} target="_blank" rel="noopener noreferrer" style={{
+          <button onClick={venue.contact.website ? handleWebsiteClick : undefined} style={{
             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             padding: "9px 8px", border: `1px solid ${C.border2}`, borderRadius: "var(--lwd-radius-input)",
             fontFamily: FB, fontSize: 11, fontWeight: 700, color: C.text,
-            textDecoration: "none", letterSpacing: "0.4px", textTransform: "uppercase",
+            background: "none", cursor: "pointer",
+            letterSpacing: "0.4px", textTransform: "uppercase",
             transition: "all 0.2s",
           }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.text; }}
-          ><Icon name="globe" size={12} /> Website</a>
+          ><Icon name="globe" size={12} /> Website</button>
         </div>
       </div>
       {/* Opening hours */}
       <OpeningHoursWidget openingHours={venue.openingHours} />
+
+      {exitConfig && (
+        <ExternalLinkModal
+          name={exitConfig.name}
+          url={exitConfig.url}
+          onClose={() => setExitConfig(null)}
+          onContinue={() => {
+            markModalSeen();
+            trackExternalClick({ entityType: 'venue', entityId: venue.id, venueId: venue.id, linkType: 'website', url: exitConfig.url });
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -2917,8 +2945,19 @@ function ContactSection({ venue }) {
   const C = useT();
   const [emailRevealed, setEmailRevealed] = useState(false);
   const [mapLoaded, setMapLoaded]         = useState(false);
-  const [exitUrl, setExitUrl]             = useState(null);
+  const [exitConfig, setExitConfig]       = useState(null);
   if (!venue.contact) return null;
+
+  const handleWebsiteClick = () => {
+    const url = `https://${venue.contact.website}`;
+    const trackData = { entityType: 'venue', entityId: venue.id, venueId: venue.id, linkType: 'website', url };
+    if (!hasSeenModalThisSession()) {
+      setExitConfig({ url, name: venue.name });
+    } else {
+      trackExternalClick(trackData);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
   const addr = venue.contact.address || {};
   const rm   = venue.contact.responseMetrics || {};
 
@@ -2985,9 +3024,23 @@ function ContactSection({ venue }) {
                     cursor: "pointer", letterSpacing: "0.3px",
                   }}>Click to reveal email</button>
             )}
-            {venue.contact.website && contactRow("globe", "Website",
-              <div style={{ fontFamily: FB, fontSize: 14, color: C.gold, fontWeight: 600 }}>{venue.contact.website}</div>,
-              { href: `https://${venue.contact.website}`, target: "_blank", rel: "noopener noreferrer" }
+            {venue.contact.website && (
+              <div
+                onClick={handleWebsiteClick}
+                style={{
+                  padding: "18px 20px", display: "flex", gap: 14, alignItems: "center",
+                  cursor: "pointer", transition: "background 0.2s",
+                  borderBottom: `1px solid ${C.border}`,
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = C.bgAlt}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >
+                <Icon name="globe" size={15} color={C.textMuted} />
+                <div>
+                  <div style={{ fontFamily: FB, fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: C.textMuted, marginBottom: 3 }}>Website</div>
+                  <div style={{ fontFamily: FB, fontSize: 14, color: C.gold, fontWeight: 600 }}>{venue.contact.website}</div>
+                </div>
+              </div>
             )}
 
             {/* ── Social media links ── */}
@@ -3007,7 +3060,10 @@ function ContactSection({ venue }) {
                 <div style={{ padding: "16px 20px", borderTop: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 12 }}>
                   <span style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, letterSpacing: "0.7px", textTransform: "uppercase", marginRight: 4 }}>Follow</span>
                   {links.map(l => (
-                    <button key={l.key} onClick={() => setExitUrl(s[l.key])} title={l.label}
+                    <button key={l.key} onClick={() => {
+                      trackExternalClick({ entityType: 'venue', entityId: venue.id, venueId: venue.id, linkType: l.key, url: s[l.key] });
+                      window.open(s[l.key], '_blank', 'noopener,noreferrer');
+                    }} title={l.label}
                       style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: C.textMuted, transition: "color 0.2s", display: "flex" }}
                       onMouseEnter={e => e.currentTarget.style.color = C.gold}
                       onMouseLeave={e => e.currentTarget.style.color = C.textMuted}
@@ -3097,116 +3153,16 @@ function ContactSection({ venue }) {
 
       </div>
 
-      {/* ── External link exit modal ── */}
-      {exitUrl && (
-        <div
-          onClick={() => setExitUrl(null)}
-          style={{
-            position: "fixed", inset: 0, zIndex: 9999,
-            background: "rgba(10,10,8,0.55)",
-            backdropFilter: "blur(14px)",
-            WebkitBackdropFilter: "blur(14px)",
-            display: "flex", alignItems: "center", justifyContent: "center",
+      {exitConfig && (
+        <ExternalLinkModal
+          name={exitConfig.name}
+          url={exitConfig.url}
+          onClose={() => setExitConfig(null)}
+          onContinue={() => {
+            markModalSeen();
+            trackExternalClick({ entityType: 'venue', entityId: venue.id, venueId: venue.id, linkType: 'website', url: exitConfig.url });
           }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{
-              background: "#0f0f0d",
-              border: "1px solid rgba(184,160,90,0.22)",
-              borderRadius: 2,
-              width: "min(480px, 88vw)",
-              padding: "52px 44px 44px",
-              position: "relative",
-              textAlign: "center",
-              boxShadow: "0 32px 80px rgba(0,0,0,0.6)",
-            }}
-          >
-            {/* Close × */}
-            <button
-              onClick={() => setExitUrl(null)}
-              style={{
-                position: "absolute", top: 16, right: 18,
-                background: "none", border: "none", cursor: "pointer",
-                fontSize: 18, color: "rgba(184,160,90,0.5)", lineHeight: 1,
-                transition: "color 0.2s",
-              }}
-              onMouseEnter={e => e.currentTarget.style.color = "#b8a05a"}
-              onMouseLeave={e => e.currentTarget.style.color = "rgba(184,160,90,0.5)"}
-              aria-label="Close"
-            >✕</button>
-
-            {/* Gold eyebrow */}
-            <div style={{
-              fontFamily: FB, fontSize: 9, fontWeight: 700, letterSpacing: "0.2em",
-              textTransform: "uppercase", color: "#b8a05a", marginBottom: 20,
-            }}>
-              Leaving LWD
-            </div>
-
-            {/* Gold divider */}
-            <div style={{ width: 32, height: 1, background: "rgba(184,160,90,0.35)", margin: "0 auto 28px" }} />
-
-            {/* Headline */}
-            <p style={{
-              fontFamily: FD,
-              fontSize: 26, fontWeight: 400, fontStyle: "italic",
-              color: "#f0ede6", lineHeight: 1.5,
-              marginBottom: 10, marginTop: 0,
-            }}>
-              You're leaving our site
-            </p>
-
-            {/* Body */}
-            <p style={{
-              fontFamily: FB, fontSize: 13, color: "rgba(200,196,188,0.75)",
-              lineHeight: 1.7, marginBottom: 36, marginTop: 0,
-              maxWidth: 340, marginLeft: "auto", marginRight: "auto",
-            }}>
-              The site you're about to visit is managed independently and may have different privacy policies.
-            </p>
-
-            {/* Buttons */}
-            <div style={{ display: "flex", gap: 12, justifyContent: "center", alignItems: "center" }}>
-              <a
-                href={exitUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setExitUrl(null)}
-                style={{
-                  display: "inline-block",
-                  padding: "13px 36px",
-                  background: "#b8a05a",
-                  color: "#0a0a08",
-                  fontFamily: FB, fontSize: 11, fontWeight: 800,
-                  letterSpacing: "0.15em", textTransform: "uppercase",
-                  textDecoration: "none", borderRadius: 1,
-                  transition: "opacity 0.2s",
-                }}
-                onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
-                onMouseLeave={e => e.currentTarget.style.opacity = "1"}
-              >
-                Continue
-              </a>
-              <button
-                onClick={() => setExitUrl(null)}
-                style={{
-                  background: "none",
-                  border: "1px solid rgba(184,160,90,0.3)",
-                  color: "rgba(200,196,188,0.6)",
-                  fontFamily: FB, fontSize: 11, fontWeight: 700,
-                  letterSpacing: "0.12em", textTransform: "uppercase",
-                  padding: "13px 28px", borderRadius: 1, cursor: "pointer",
-                  transition: "border-color 0.2s, color 0.2s",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(184,160,90,0.6)"; e.currentTarget.style.color = "#c8c4bc"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(184,160,90,0.3)"; e.currentTarget.style.color = "rgba(200,196,188,0.6)"; }}
-              >
-                Go Back
-              </button>
-            </div>
-          </div>
-        </div>
+        />
       )}
     </section>
   );
