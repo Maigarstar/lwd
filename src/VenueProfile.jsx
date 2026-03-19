@@ -6591,6 +6591,16 @@ function CompareModal({ items, onClose }) {
     return () => window.removeEventListener('keydown', handler);
   }, [onClose, enquiryVenue]);
 
+  // Listen for Aura workspace "Enquire" button dispatches
+  useEffect(() => {
+    const handler = e => {
+      const venue = venues.find(v => String(v.id) === String(e.detail?.venueId));
+      if (venue) setEnquiryVenue(venue);
+    };
+    window.addEventListener('lwd:aura-enquire', handler);
+    return () => window.removeEventListener('lwd:aura-enquire', handler);
+  }, [venues]);
+
   // Fetch all venues
   useEffect(() => {
     if (!items.length) return;

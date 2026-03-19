@@ -47,7 +47,8 @@ function CollapsedRight({ itemCount, darkMode }) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function WorkspaceRight({ collapsed, darkMode }) {
-  const { recommendations } = useChat();
+  const { recommendations, activeContext } = useChat();
+  const isCompareMode = activeContext?.page === 'compare';
   const { items = [], summary = "Curated for you" } = recommendations ?? {};
   const [qvItem, setQvItem] = useState(null);
   const T = getT(darkMode);
@@ -100,6 +101,9 @@ export default function WorkspaceRight({ collapsed, darkMode }) {
               darkMode={darkMode}
               onQuickView={setQvItem}
               onViewFull={setQvItem}
+              onEnquire={isCompareMode && item._comparePin ? (v) => {
+                window.dispatchEvent(new CustomEvent('lwd:aura-enquire', { detail: { venueId: v.id } }));
+              } : null}
             />
           ))
         )}

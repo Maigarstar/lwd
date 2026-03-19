@@ -41,7 +41,7 @@ function getT(dark) {
   };
 }
 
-export default function RecommendationCard({ item, darkMode = true, onQuickView, onViewFull }) {
+export default function RecommendationCard({ item, darkMode = true, onQuickView, onViewFull, onEnquire }) {
   const { isShortlisted, toggleItem } = useShortlist();
   const [hov, setHov] = useState(false);
   const saved    = isShortlisted(item.id);
@@ -345,27 +345,51 @@ export default function RecommendationCard({ item, darkMode = true, onQuickView,
             >
               <Icon name="eye" size={10} /> Quick View
             </button>
-            <button
-              onClick={() => onViewFull?.(item)}
-              style={{
-                fontFamily:    "var(--font-body)",
-                fontSize:      10,
-                fontWeight:    600,
-                letterSpacing: "1px",
-                textTransform: "uppercase",
-                color:         GOLD,
-                background:    "rgba(201,168,76,0.09)",
-                border:        "1px solid rgba(201,168,76,0.22)",
-                borderRadius:  "var(--lwd-radius-input)",
-                padding:       "5px 10px",
-                cursor:        "pointer",
-                display:       "flex",
-                alignItems:    "center",
-                gap:           3,
-              }}
-            >
-              View <Icon name="arrowRight" size={10} />
-            </button>
+            {onEnquire ? (
+              <button
+                onClick={() => onEnquire(item)}
+                style={{
+                  fontFamily:    "var(--font-body)",
+                  fontSize:      10,
+                  fontWeight:    700,
+                  letterSpacing: "0.8px",
+                  textTransform: "uppercase",
+                  color:         "#0a0800",
+                  background:    GOLD,
+                  border:        "none",
+                  borderRadius:  "var(--lwd-radius-input)",
+                  padding:       "5px 10px",
+                  cursor:        "pointer",
+                  display:       "flex",
+                  alignItems:    "center",
+                  gap:           3,
+                }}
+              >
+                Enquire <Icon name="arrowRight" size={10} />
+              </button>
+            ) : (
+              <button
+                onClick={() => onViewFull?.(item)}
+                style={{
+                  fontFamily:    "var(--font-body)",
+                  fontSize:      10,
+                  fontWeight:    600,
+                  letterSpacing: "1px",
+                  textTransform: "uppercase",
+                  color:         GOLD,
+                  background:    "rgba(201,168,76,0.09)",
+                  border:        "1px solid rgba(201,168,76,0.22)",
+                  borderRadius:  "var(--lwd-radius-input)",
+                  padding:       "5px 10px",
+                  cursor:        "pointer",
+                  display:       "flex",
+                  alignItems:    "center",
+                  gap:           3,
+                }}
+              >
+                View <Icon name="arrowRight" size={10} />
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -100,7 +100,7 @@ export default function AuraMiniBar() {
         style={{
           position:       "fixed",
           inset:          0,
-          zIndex:         899,
+          zIndex:         1001,
           background:     "rgba(10,9,7,0.22)",
           backdropFilter: "blur(3px)",
           WebkitBackdropFilter: "blur(3px)",
@@ -116,7 +116,7 @@ export default function AuraMiniBar() {
           position:   "fixed",
           top:        "50%",
           left:       "50%",
-          zIndex:     900,
+          zIndex:     1002,
           width:      680,
           maxWidth:   "calc(100vw - 32px)",
           borderRadius: 20,

@@ -61,7 +61,8 @@ function getTheme(dark) {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function AuraWorkspace({ onBack, onHome, onVenues, onLogin }) {
-  const { closeFull, recommendations } = useChat();
+  const { closeFull, closeChat, activeContext, recommendations } = useChat();
+  const isCompareMode = activeContext?.page === 'compare';
 
   // mobileDrawer: null | "left" | "right"
   const [mobileDrawer,   setMobileDrawer]   = useState(null);
@@ -334,8 +335,34 @@ export default function AuraWorkspace({ onBack, onHome, onVenues, onLogin }) {
               <Icon name="link" size={13} /> <span className="aws-btn-label">Share</span>
             </button>
 
-            {/* Minimise */}
-            <CtrlBtn icon={<Icon name="minimize" size={13} />} label="Minimise" onClick={closeFull} />
+            {/* Minimise / Back to comparison */}
+            {isCompareMode ? (
+              <button
+                onClick={closeChat}
+                title="Back to comparison"
+                style={{
+                  background:   "rgba(201,168,76,0.1)",
+                  border:      "1px solid rgba(201,168,76,0.3)",
+                  borderRadius: 3,
+                  color:        "#C9A84C",
+                  fontFamily:  "var(--font-body)",
+                  fontSize:     11,
+                  cursor:      "pointer",
+                  padding:     "5px 13px",
+                  display:     "flex",
+                  alignItems:  "center",
+                  gap:          5,
+                  transition:  "all 0.2s",
+                  whiteSpace:  "nowrap",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(201,168,76,0.18)"; e.currentTarget.style.borderColor = "#C9A84C"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "rgba(201,168,76,0.1)";  e.currentTarget.style.borderColor = "rgba(201,168,76,0.3)"; }}
+              >
+                ← Back to comparison
+              </button>
+            ) : (
+              <CtrlBtn icon={<Icon name="minimize" size={13} />} label="Minimise" onClick={closeFull} />
+            )}
 
             {/* Share toast */}
             {shareToast && (
