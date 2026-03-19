@@ -47,6 +47,8 @@ import SocialStudioModule from "./AdminModules/SocialStudioModule";
 import ManagedAccountsModule from "./AdminModules/ManagedAccountsModule";
 import MenuModule from "./AdminModules/MenuModule";
 import FooterModule from "./AdminModules/FooterModule";
+import PlatformIntelligenceModule from "./AdminModules/PlatformIntelligenceModule";
+import { fetchClickSummary, fetchBatchClickCounts } from "../services/adminOutboundClicksService";
 import VenueIntakeStudio from "./admin/VenueIntakeStudio";
 import { POSTS } from "./Magazine/data/posts";
 import { PRODUCTS, COLLECTIONS, formatPrice } from "./Magazine/data/products";
@@ -284,10 +286,11 @@ const NAV_SECTIONS = [
   {
     group: "Intelligence",
     items: [
-      { key: "aura",           label: "Aura Analytics",    icon: "✧" },
-      { key: "api",            label: "API Management",    icon: "⟐" },
-      { key: "ai-settings",   label: "AI Settings",       icon: "⚙" },
-      { key: "connected-data", label: "Connected Data",   icon: "◉" },
+      { key: "aura",                   label: "Aura Analytics",         icon: "✧" },
+      { key: "api",                    label: "API Management",         icon: "⟐" },
+      { key: "ai-settings",           label: "AI Settings",            icon: "⚙" },
+      { key: "connected-data",         label: "Connected Data",        icon: "◉" },
+      { key: "platform-intelligence",  label: "Platform Intelligence", icon: "⬡" },
     ],
   },
   {
@@ -1766,15 +1769,39 @@ function CapacityBar({ filled, total, color, C }) {
 // Overview Module
 // ═════════════════════════════════════════════════════════════════════════════
 function OverviewModule({ C }) {
+  const [clickSummary, setClickSummary] = useState(null);
+  const [clickLoading, setClickLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchClickSummary(30).then(d => {
+      if (!cancelled) { setClickSummary(d); setClickLoading(false); }
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const clickValue = clickLoading ? "…" : clickSummary?.total != null
+    ? clickSummary.total >= 1000 ? `${(clickSummary.total / 1000).toFixed(1)}k` : String(clickSummary.total)
+    : "—";
+  const clickSub = clickSummary
+    ? `${clickSummary.summary?.website ?? 0} site · ${clickSummary.summary?.social ?? 0} social`
+    : "30 days";
+
+  const allStats = [
+    ...STATS,
+    { label: "Outbound Clicks (30d)", value: clickValue, sub: clickSub, accent: C.gold },
+  ];
+
   return (
     <div>
-      <div className="admin-stats-grid admin-grid-4col" style={{
-        display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20, marginBottom: 40,
+      <div className="admin-stats-grid" style={{
+        display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 20, marginBottom: 40,
       }}>
-        {STATS.map((s) => (
+        {allStats.map((s) => (
           <div key={s.label} style={{
             background: C.card, border: `1px solid ${C.border}`,
             borderRadius: 4, padding: "24px 20px",
+            borderTop: s.accent ? `3px solid ${s.accent}` : undefined,
           }}>
             <p style={{
               fontFamily: NU, fontSize: 10, letterSpacing: "0.2em",
@@ -8486,6 +8513,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
     const [actionFeedback, setActionFeedback] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [clickCounts, setClickCounts] = useState({});
 
     useEffect(() => {
       const loadListings = async () => {
@@ -8498,7 +8526,16 @@ export default function AdminDashboard({ onBack, onNavigate }) {
             return;
           }
           const data = await fetchListings();
-          setListings(data && data.length > 0 ? data : []);
+          const rows = data && data.length > 0 ? data : [];
+          setListings(rows);
+
+          // Batch-load outbound click counts (fire-and-forget — never blocks UI)
+          if (rows.length > 0) {
+            const ids = rows.map(l => l.id).filter(Boolean);
+            fetchBatchClickCounts(ids, 30).then(res => {
+              if (res?.counts) setClickCounts(res.counts);
+            });
+          }
         } catch (error) {
           setError("Failed to load listings: " + error.message);
           setListings([]);
@@ -8636,6 +8673,17 @@ export default function AdminDashboard({ onBack, onNavigate }) {
                         <span style={{ width: 6, height: 6, borderRadius: "50%", background: dot, display: "inline-block" }} />
                         {l.status || 'Draft'}
                       </span>
+                      {clickCounts[l.id] != null && clickCounts[l.id] > 0 && (
+                        <span title="Outbound clicks (30d)" style={{
+                          fontFamily: NU, fontSize: 9, fontWeight: 700,
+                          letterSpacing: "0.08em",
+                          color: C.gold, background: `${C.gold}14`,
+                          border: `1px solid ${C.gold}30`,
+                          padding: "2px 7px", borderRadius: 10,
+                        }}>
+                          ↗ {clickCounts[l.id]}
+                        </span>
+                      )}
                     </div>
                     <div style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>
                       {[l.city, l.region, l.country].filter(Boolean).join(' · ')}
@@ -8723,7 +8771,8 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "aura":          return <AuraAnalyticsModule C={C} />;
       case "api":           return <APIManagementModule C={C} />;
       case "ai-settings":     return <AISettingsPage C={C} />;
-      case "connected-data": return <ConnectedDataModule C={C} NU={NU} GD={GD} />;
+      case "connected-data":          return <ConnectedDataModule C={C} NU={NU} GD={GD} />;
+      case "platform-intelligence":  return <PlatformIntelligenceModule C={C} />;
       case "styles":        return <StyleEditorModule C={C} darkPalette={customDark} lightPalette={customLight} fonts={customFonts} customCss={customCss} siteSettings={siteSettings} auditLog={auditLog} onUpdatePalette={handleUpdatePalette} onUpdateFonts={handleUpdateFonts} onUpdateCss={handleUpdateCss} onUpdateSiteSettings={handleUpdateSiteSettings} onSave={handleSaveThemeLogged} onRevert={handleRevertTheme} onExport={handleExportTheme} onImport={handleImportTheme} onApplyPreset={handleApplyPreset} saveStatus={saveStatus} />;
       case "page-studio":   return <PageStudioHome C={C} NU={NU} GD={GD} onNavigate={(action, params) => {
         if (action === "page-editor" && params?.pageId) {
