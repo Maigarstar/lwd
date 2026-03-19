@@ -11,6 +11,7 @@ import SeoHead from './components/seo/SeoHead';
 import JsonLd from './components/seo/JsonLd';
 import { buildVenueSchema, buildBreadcrumbSchema, buildFaqSchema } from './utils/structuredData';
 import HomeNav from "./components/nav/HomeNav";
+import { useChat } from "./chat/ChatContext";
 import ExternalLinkModal from "./components/ExternalLinkModal";
 import { trackExternalClick, hasSeenModalThisSession, markModalSeen } from "./services/outboundClickService";
 import { trackProfileView, trackCompareAdd, trackCompareRemove, trackCompareView, trackComparePair } from "./services/userEventService";
@@ -6150,6 +6151,7 @@ function buildMessage(date, guests) {
 }
 
 function CompareEnquiryForm({ venue, onClose }) {
+  const { openMiniBar } = useChat();
   const [form,       setForm]       = useState({ name1: '', name2: '', email: '', phone: '', date: '', guests: '', message: BASE_MSG });
   const [sent,       setSent]       = useState(false);
   const [msgEdited,  setMsgEdited]  = useState(false);
@@ -6495,6 +6497,24 @@ function CompareEnquiryForm({ venue, onClose }) {
         <div style={{ fontFamily: FB, fontSize: 11, color: 'rgba(255,255,255,0.55)', textAlign: 'center', lineHeight: 1.65, letterSpacing: '0.01em' }}>
           Your details are shared only with this venue and handled in confidence.
         </div>
+
+        {/* Aura soft link */}
+        <div style={{ textAlign: 'center', marginTop: 10 }}>
+          <button
+            type="button"
+            onClick={openMiniBar}
+            style={{
+              background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+              fontFamily: FB, fontSize: 11, letterSpacing: '0.03em',
+              color: 'rgba(201,168,76,0.55)',
+              transition: 'color 0.18s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#C9A84C'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(201,168,76,0.55)'; }}
+          >
+            ✦ Have questions before sending? Chat with Aura
+          </button>
+        </div>
       </div>
 
     </div>
@@ -6504,6 +6524,7 @@ function CompareEnquiryForm({ venue, onClose }) {
 
 function CompareModal({ items, onClose }) {
   const C = DARK; // modal is always dark
+  const { openMiniBar, sendMessage } = useChat();
   const [venues,       setVenues]       = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [enquiryVenue, setEnquiryVenue] = useState(null); // full venue object for in-modal enquiry
@@ -6651,6 +6672,49 @@ function CompareModal({ items, onClose }) {
             </span>
           </div>
         )}
+      </div>
+
+      {/* ── Aura strip ── */}
+      <div style={{
+        flexShrink: 0,
+        borderTop: '1px solid rgba(255,255,255,0.05)',
+        padding: '13px 44px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(8,8,6,0.6)',
+      }}>
+        <button
+          type="button"
+          onClick={() => {
+            openMiniBar();
+            if (venues.length > 1) {
+              const names = venues.map(v => v.name).join(' and ');
+              sendMessage(`I'm comparing ${names} — can you help me understand which might suit us better?`);
+            }
+          }}
+          style={{
+            background: 'none', border: 'none', padding: '4px 0', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 8,
+            transition: 'opacity 0.18s',
+            opacity: 0.65,
+          }}
+          onMouseEnter={e => { e.currentTarget.style.opacity = '1'; }}
+          onMouseLeave={e => { e.currentTarget.style.opacity = '0.65'; }}
+        >
+          <span style={{
+            width: 22, height: 22, borderRadius: '50%',
+            background: 'rgba(201,168,76,0.12)',
+            border: '1px solid rgba(201,168,76,0.25)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 10, color: '#C9A84C', flexShrink: 0,
+          }}>✦</span>
+          <span style={{
+            fontFamily: FB, fontSize: 12, color: 'rgba(255,255,255,0.65)',
+            letterSpacing: '0.02em',
+          }}>
+            Not sure which to choose?{' '}
+            <span style={{ color: '#C9A84C' }}>Ask Aura →</span>
+          </span>
+        </button>
       </div>
 
       {/* ── Company footer ── */}
