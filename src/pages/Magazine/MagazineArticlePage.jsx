@@ -4,6 +4,7 @@ import { fetchPostBySlug } from '../../services/magazineService';
 import ArticleBody from './components/ArticleBody';
 import RelatedPosts from './components/RelatedPosts';
 import MagazineNav from './components/MagazineNav';
+import HomeNav from '../../components/nav/HomeNav';
 import NewsletterCapture from './components/NewsletterCapture';
 import SeoHead from '../../components/seo/SeoHead';
 import JsonLd from '../../components/seo/JsonLd';
@@ -201,7 +202,7 @@ function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome
   return (
     <div style={{ background: T.bg, minHeight: '100vh', transition: 'background 0.35s' }}>
       <ReadingProgress />
-
+      <HomeNav darkMode={!isLight} onToggleDark={onToggleLight} />
       <MagazineNav
         activeCategoryId={post.category}
         onNavigateHome={onNavigateHome}
@@ -209,6 +210,7 @@ function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome
         onNavigateArticle={goArticle}
         isLight={isLight}
         onToggleLight={onToggleLight}
+        topOffset={60}
       />
 
       {/* Hero */}
@@ -309,7 +311,7 @@ function LayoutSidebar({ post, relatedPosts, onNavigateArticle, onNavigateHome, 
   return (
     <div style={{ background: T.bg, minHeight: '100vh', transition: 'background 0.35s' }}>
       <ReadingProgress />
-
+      <HomeNav darkMode={!isLight} onToggleDark={onToggleLight} />
       <MagazineNav
         activeCategoryId={post.category}
         onNavigateHome={onNavigateHome}
@@ -317,6 +319,7 @@ function LayoutSidebar({ post, relatedPosts, onNavigateArticle, onNavigateHome, 
         onNavigateArticle={goArticle}
         isLight={isLight}
         onToggleLight={onToggleLight}
+        topOffset={60}
       />
 
       {/* Hero, narrower, left-aligned for sidebar layout */}

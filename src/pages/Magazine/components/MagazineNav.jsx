@@ -540,6 +540,7 @@ export default function MagazineNav({
   viewMode = 'grid3',
   onViewMode,
   onEdit,
+  topOffset = 0,
 }) {
   const [scrolled, setScrolled] = useState(false);
   const [megaOpen, setMegaOpen] = useState(false);
@@ -582,7 +583,7 @@ export default function MagazineNav({
     <>
       <style>{`
         .mag-nav-bar {
-          position: sticky; top: 0; z-index: 200;
+          position: sticky; top: ${topOffset}px; z-index: 200;
           backdrop-filter: blur(14px);
           transition: border-color 0.3s, background 0.35s;
         }

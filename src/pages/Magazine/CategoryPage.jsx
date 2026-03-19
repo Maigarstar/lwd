@@ -18,6 +18,7 @@ import { getPostsByCategory } from './data/posts';
 import { getCategoryById, CATEGORIES } from './data/categories';
 import { fetchPosts, fetchCategories } from '../../services/magazineService';
 import MagazineNav from './components/MagazineNav';
+import HomeNav from '../../components/nav/HomeNav';
 import NewsletterCapture from './components/NewsletterCapture';
 import { getMagTheme, FD, FU, GOLD_CONST as GOLD } from './magazineTheme';
 import SeoHead from '../../components/seo/SeoHead';
@@ -173,7 +174,9 @@ export default function CategoryPage({
         ogImage={category.heroImage || category.hero_image}
       />
 
-      {/* ── Navigation ────────────────────────────────────────────────────── */}
+      {/* ── Site-wide nav ─────────────────────────────────────────────────── */}
+      <HomeNav darkMode={!isLight} onToggleDark={onToggleLight} />
+      {/* ── Magazine navigation ───────────────────────────────────────────── */}
       <MagazineNav
         activeCategoryId={categoryId}
         onNavigateHome={onNavigateHome}
@@ -181,6 +184,7 @@ export default function CategoryPage({
         onNavigateArticle={goArticle}
         isLight={isLight}
         onToggleLight={onToggleLight}
+        topOffset={60}
       />
 
       {/* ── Subcategory pills + controls bar ──────────────────────────────── */}

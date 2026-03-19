@@ -14,6 +14,7 @@ import { useState, useEffect } from 'react';
 import { POSTS, getFeaturedPosts, getTrendingPosts, getLatestPosts, getPostsByCategory } from './data/posts';
 import { fetchPosts, fetchHomepageConfig } from '../../services/magazineService';
 import MagazineNav from './components/MagazineNav';
+import HomeNav from '../../components/nav/HomeNav';
 import NewsletterCapture from './components/NewsletterCapture';
 import { useIsMobile } from '../../components/profile/ProfileDesignSystem';
 import { getMagTheme } from './magazineTheme';
@@ -100,7 +101,9 @@ export default function MagazineHomePage({
 
   return (
     <div style={{ background: T.bg, minHeight: '100vh', transition: 'background 0.35s' }}>
-      {/* ── Shared chrome: Navigation ──────────────────────────────── */}
+      {/* ── Site-wide nav ──────────────────────────────────────────── */}
+      <HomeNav darkMode={!isLight} onToggleDark={onToggleLight} />
+      {/* ── Magazine navigation ────────────────────────────────────── */}
       <MagazineNav
         activeCategoryId={null}
         onNavigateHome={() => {}}
@@ -108,6 +111,7 @@ export default function MagazineHomePage({
         onNavigateArticle={goArticle}
         isLight={isLight}
         onToggleLight={onToggleLight}
+        topOffset={60}
       />
 
       {/* ── Active layout ──────────────────────────────────────────── */}

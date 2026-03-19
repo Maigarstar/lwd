@@ -4,6 +4,7 @@ import { CATEGORIES } from './data/categories';
 import { getProductsByCollection } from './data/products';
 import ProductCard from './components/ProductCard';
 import MagazineNav from './components/MagazineNav';
+import HomeNav from '../../components/nav/HomeNav';
 import PostCard, { CardLargeEditorial, CardOverlay } from './components/PostCards';
 import NewsletterCapture from './components/NewsletterCapture';
 import {
@@ -272,6 +273,7 @@ export default function FashionLandingPage({
 
   return (
     <div style={{ background: BG, minHeight: '100vh', transition: 'background 0.35s' }}>
+      <HomeNav darkMode={!isLight} onToggleDark={onToggleLight} />
       <MagazineNav
         activeCategoryId="fashion"
         onNavigateHome={onNavigateHome}
@@ -279,6 +281,7 @@ export default function FashionLandingPage({
         onNavigateArticle={goArticle}
         isLight={isLight}
         onToggleLight={onToggleLight}
+        topOffset={60}
       />
 
       {/* Fashion Sub-Nav */}
