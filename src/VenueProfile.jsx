@@ -2917,6 +2917,7 @@ function ContactSection({ venue }) {
   const C = useT();
   const [emailRevealed, setEmailRevealed] = useState(false);
   const [mapLoaded, setMapLoaded]         = useState(false);
+  const [exitUrl, setExitUrl]             = useState(null);
   if (!venue.contact) return null;
   const addr = venue.contact.address || {};
   const rm   = venue.contact.responseMetrics || {};
@@ -3006,15 +3007,15 @@ function ContactSection({ venue }) {
                 <div style={{ padding: "16px 20px", borderTop: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 12 }}>
                   <span style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, letterSpacing: "0.7px", textTransform: "uppercase", marginRight: 4 }}>Follow</span>
                   {links.map(l => (
-                    <a key={l.key} href={s[l.key]} target="_blank" rel="noopener noreferrer" title={l.label}
-                      style={{ color: C.textMuted, transition: "color 0.2s" }}
+                    <button key={l.key} onClick={() => setExitUrl(s[l.key])} title={l.label}
+                      style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: C.textMuted, transition: "color 0.2s", display: "flex" }}
                       onMouseEnter={e => e.currentTarget.style.color = C.gold}
                       onMouseLeave={e => e.currentTarget.style.color = C.textMuted}
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ display: "block" }}>
                         <path d={l.icon} />
                       </svg>
-                    </a>
+                    </button>
                   ))}
                 </div>
               );
@@ -3095,6 +3096,74 @@ function ContactSection({ venue }) {
         </div>
 
       </div>
+
+      {/* ── External link exit modal ── */}
+      {exitUrl && (
+        <div
+          onClick={() => setExitUrl(null)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 9999,
+            background: "rgba(0,0,0,0.72)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: "#fff", borderRadius: 4,
+              width: "min(520px, 90vw)", padding: "56px 48px 48px",
+              position: "relative", textAlign: "center",
+            }}
+          >
+            {/* Close × */}
+            <button
+              onClick={() => setExitUrl(null)}
+              style={{
+                position: "absolute", top: 18, right: 20,
+                background: "none", border: "none", cursor: "pointer",
+                fontSize: 22, color: "#222", lineHeight: 1,
+              }}
+              aria-label="Close"
+            >×</button>
+
+            {/* Message */}
+            <p style={{
+              fontFamily: "'Cormorant Garamond', Georgia, serif",
+              fontSize: 22, fontWeight: 400,
+              color: "#111", lineHeight: 1.55,
+              marginBottom: 36, marginTop: 0,
+            }}>
+              You are leaving luxuryweddingdirectory.com. The site you are about to visit is managed independently and may have different policies.
+            </p>
+
+            {/* Continue button */}
+            <a
+              href={exitUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setExitUrl(null)}
+              style={{
+                display: "inline-block",
+                padding: "16px 40px",
+                borderRadius: 40,
+                background: "#7b5c8a",
+                color: "#fff",
+                fontFamily: "'Montserrat', sans-serif",
+                fontSize: 13,
+                fontWeight: 700,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                textDecoration: "none",
+                transition: "background 0.2s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = "#6a4d78"}
+              onMouseLeave={e => e.currentTarget.style.background = "#7b5c8a"}
+            >
+              Continue
+            </a>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
