@@ -6229,10 +6229,13 @@ function CompareEnquiryForm({ venue, onClose }) {
         tagsJson:     ['compare_enquiry'],
         consentDataProcessing: true,
       });
-      if (!result.success) throw new Error('Lead creation failed');
+      if (!result.success) {
+        console.error('[CompareEnquiryForm] createLead failed:', result.error);
+        throw new Error(`DB error: ${result.error?.message || result.error?.code || JSON.stringify(result.error)}`);
+      }
       setSent(true);
     } catch (err) {
-      console.error('[CompareEnquiryForm] submit failed:', err);
+      console.error('[CompareEnquiryForm] submit failed:', err?.message, err);
       setSubmitError('Something went wrong. Please try again or contact us directly.');
     } finally {
       setSubmitting(false);

@@ -123,7 +123,10 @@ export async function createLead(payload: LeadPayload): Promise<CreateLeadResult
       .select('id')
       .single()
 
-    if (insertError) throw insertError
+    if (insertError) {
+      console.error('leadEngineService: leads INSERT blocked —', insertError.code, insertError.message, insertError.details, insertError.hint)
+      throw insertError
+    }
     const leadId = lead.id
 
     // 4. Record lead_created event
