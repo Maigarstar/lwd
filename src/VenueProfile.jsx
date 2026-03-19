@@ -3,6 +3,7 @@ import { getDefaultMode } from "./theme/tokens";
 import GCardMobile from "./components/cards/GCardMobile";
 import SliderNav from "./components/ui/SliderNav";
 import { fetchListingBySlug } from './services/listings';
+import { fetchApprovedReviews } from './services/reviewService';
 import { buildCardImgs, mapMediaItemToGalleryPhoto, buildVenueVideos } from './utils/mediaMappers';
 import ReviewsSection from './components/reviews/ReviewsSection';
 import ReviewSubmitForm from './components/reviews/ReviewSubmitForm';
@@ -345,6 +346,7 @@ function GlobalStyles() {
       @keyframes shimmer     { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
       @keyframes slideUp     { from { transform:translateY(100%); opacity:0; } to { transform:translateY(0); opacity:1; } }
       @keyframes kenBurns    { 0%{transform:scale(1)} 100%{transform:scale(1.06)} }
+      @keyframes pulse       { 0%,100%{box-shadow:0 0 0 0 rgba(74,222,128,0.5)} 50%{box-shadow:0 0 0 5px rgba(74,222,128,0)} }
       @keyframes chatModalIn { from { opacity:0; transform:translate(-50%,-50%) scale(0.93); } to { opacity:1; transform:translate(-50%,-50%) scale(1); } }
       @keyframes dotPulse    { 0%,80%,100% { transform:scale(0); opacity:0.4; } 40% { transform:scale(1); opacity:1; } }
       @keyframes lightbox-progress { from { width:0 } to { width:100% } }
@@ -661,6 +663,27 @@ function HeroCinematic({ venue, onEnquire, onBack }) {
             {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.55)" }}>({venue.reviews} reviews)</span>}</> }
             {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: "#4ade80", fontWeight: 700 }}>✓ LWD Verified</span>}
           </div>
+          {/* Urgency signal — social proof before the CTA */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "5px 11px",
+              background: "rgba(0,0,0,0.32)", backdropFilter: "blur(10px)",
+              border: "1px solid rgba(255,255,255,0.13)",
+            }}>
+              <span style={{
+                width: 6, height: 6, borderRadius: "50%", background: "#4ade80", flexShrink: 0,
+                boxShadow: "0 0 0 0 rgba(74,222,128,0.7)",
+                animation: "pulse 2s cubic-bezier(0.4,0,0.6,1) infinite",
+              }} />
+              <span style={{ fontFamily: FB, fontSize: 11, color: "rgba(255,255,255,0.82)", letterSpacing: "0.35px" }}>
+                {venue.weddingsHosted
+                  ? `${venue.weddingsHosted}+ weddings hosted · Popular this season`
+                  : 'Popular this season · Limited peak dates remaining'}
+              </span>
+            </span>
+          </div>
+
           {/* Hero CTA */}
           <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
             <button onClick={onEnquire} style={{
@@ -6266,6 +6289,32 @@ export default function VenueProfile({ onBack = null, slug = null }) {
               }
             : null,
         };
+        // ── Fetch approved reviews and map to testimonials format ─────────────
+        let testimonials = [];
+        try {
+          const reviews = await fetchApprovedReviews('venue', listing.id);
+          testimonials = (reviews || []).map(r => ({
+            id:       r.id,
+            names:    r.reviewer_name,
+            avatar:   r.reviewer_name
+                        .split(' ')
+                        .filter(w => /^[A-Za-z]/.test(w))
+                        .map(w => w[0].toUpperCase())
+                        .slice(0, 2)
+                        .join(''),
+            date:     r.event_date
+                        ? new Date(r.event_date).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+                        : new Date(r.published_at || r.created_at).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
+            location: r.reviewer_location || '',
+            rating:   Number(r.overall_rating),
+            text:     r.review_text,
+            verified: r.is_verified,
+          }));
+        } catch (reviewErr) {
+          console.warn('[VenueProfile] Reviews fetch failed silently:', reviewErr);
+        }
+        mapped.testimonials = testimonials;
+
         if (!ignore) {
           setDbVenue(mapped);
           setRawListing(listing);
