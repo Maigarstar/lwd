@@ -295,14 +295,9 @@ const NAV_SECTIONS = [
     ],
   },
   {
-    group: "Branding",
-    items: [
-      { key: "branding",     label: "Logo & Identity",   icon: "✦" },
-    ],
-  },
-  {
     group: "Design",
     items: [
+      { key: "branding",     label: "Logo & Identity",   icon: "✦" },
       { key: "styles",       label: "Style Editor",      icon: "◑" },
       { key: "menu",         label: "Menu Builder",      icon: "≡" },
       { key: "footer",       label: "Brand Footer",      icon: "▭" },
