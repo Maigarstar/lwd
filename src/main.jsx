@@ -465,7 +465,7 @@ function App() {
           <VenueReviewsPage />
         )}
         {page === "event-detail" && (
-          <EventDetailPage slug={activeEventSlug} onBack={goHome} />
+          <EventDetailPage slug={activeEventSlug} onBack={goHome} footerNav={footerNav} />
         )}
         {page === "dde-showcase" && (
           <DdeShowcasePage
@@ -736,7 +736,7 @@ function App() {
         )}
 
         {/* ── Global site footer ── */}
-        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","event-detail"].includes(page) && (
+        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password"].includes(page) && (
           <SiteFooter onNavigateAdmin={goAdmin} />
         )}
 
