@@ -449,10 +449,10 @@ function Stars({ rating, size = 13 }) {
 function SectionHeading({ title, subtitle }) {
   const C = useT();
   return (
-    <div style={{ marginBottom: 36, textAlign: 'left', width: '100%' }}>
-      <h2 style={{ fontFamily: FD, fontSize: 32, fontWeight: 400, color: C.text, letterSpacing: "-0.3px", lineHeight: 1.15, marginBottom: 10 }}>{title}</h2>
+    <div style={{ marginBottom: 40, textAlign: 'left', width: '100%' }}>
+      <h2 style={{ fontFamily: FD, fontSize: 34, fontWeight: 400, color: C.text, letterSpacing: "-0.4px", lineHeight: 1.1, marginBottom: 12 }}>{title}</h2>
       <div style={{ width: 48, height: 2, backgroundImage: `linear-gradient(90deg, ${C.gold}, ${C.green})` }} />
-      {subtitle && <p style={{ fontFamily: FB, fontSize: 15, color: C.textLight, marginTop: 12, lineHeight: 1.6 }}>{subtitle}</p>}
+      {subtitle && <p style={{ fontFamily: FB, fontSize: 14, color: C.textMuted, marginTop: 12, lineHeight: 1.65, letterSpacing: '0.1px' }}>{subtitle}</p>}
     </div>
   );
 }
@@ -1262,21 +1262,21 @@ function StatsStrip({ venue }) {
       hide: !venue.priceFrom,
     },
     {
-      label: "Max Guests",
-      value: maxGuests ? maxGuests.toString() : null,
-      sub: maxDinner ? `${maxDinner} seated` : "guests",
-      hide: !maxGuests,
+      label: "Up to",
+      value: maxGuests ? `${maxGuests}` : (sleepsValue ? `${sleepsValue}` : null),
+      sub: "guests",
+      hide: !maxGuests && !sleepsValue,
     },
     {
       label: "Rooms",
-      value: totalRooms ? totalRooms.toString() : (sleepsValue ? sleepsValue.toString() : null),
-      sub: sleepsValue && totalRooms ? `sleeps ${sleepsValue}` : "for guests",
-      hide: !totalRooms && !sleepsValue,
+      value: totalRooms ? totalRooms.toString() : null,
+      sub: sleepsValue ? `sleeps ${sleepsValue}` : "for guests",
+      hide: !totalRooms,
     },
     {
       label: "Event Spaces",
       value: spacesCount ? spacesCount.toString() : null,
-      sub: "distinct settings",
+      sub: "ceremony settings",
       hide: !spacesCount,
     },
     {
@@ -1284,13 +1284,14 @@ function StatsStrip({ venue }) {
       value: ceremonyTypes,
       sub: "settings available",
       hide: !ceremonyTypes,
-      small: true, // text value, not a number — render smaller
+      small: true,
     },
     {
-      label: "Response Time",
-      value: venue.responseTime,
-      sub: venue.responseRate ? `${venue.responseRate}% reply rate` : "typical",
-      hide: !venue.responseTime,
+      label: "Exclusive Use",
+      value: venue.exclusiveUse ? "Available" : null,
+      sub: "full venue buyout",
+      hide: !venue.exclusiveUse,
+      small: true,
     },
     {
       label: "Rating",
@@ -3014,7 +3015,7 @@ function ContactSection({ venue }) {
               </span>
               {nearestAirport && (
                 <span style={{ fontFamily: FB, fontSize: 12, color: C.textMuted }}>
-                  · {nearestAirport} nearest airport
+                  · {nearestAirport} nearest airport{venue.access?.transferTime ? ` · ${venue.access.transferTime} transfer` : ''}
                 </span>
               )}
             </div>
@@ -3030,10 +3031,10 @@ function ContactSection({ venue }) {
 
           {/* Map container — fixed height so iframe always renders */}
           <div style={{
-            position: "relative", height: 340, overflow: "hidden",
+            position: "relative", height: 400, overflow: "hidden",
             border: `1px solid ${C.border}`,
             borderRadius: "var(--lwd-radius-input)",
-            boxShadow: "0 2px 16px rgba(0,0,0,0.06)",
+            boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
             background: C.bgAlt,
           }}>
             {/* Loading shimmer — hidden once map fires onLoad */}
@@ -3052,7 +3053,7 @@ function ContactSection({ venue }) {
             <iframe
               title="Venue location"
               width="100%"
-              height="340"
+              height="400"
               style={{ display: "block", border: "none", opacity: mapLoaded ? 1 : 0, transition: "opacity 0.4s ease" }}
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
