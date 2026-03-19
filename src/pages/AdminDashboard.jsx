@@ -47,6 +47,7 @@ import SocialStudioModule from "./AdminModules/SocialStudioModule";
 import ManagedAccountsModule from "./AdminModules/ManagedAccountsModule";
 import MenuModule from "./AdminModules/MenuModule";
 import FooterModule from "./AdminModules/FooterModule";
+import MenuBranding from "./AdminModules/menu/MenuBranding";
 import PlatformIntelligenceModule from "./AdminModules/PlatformIntelligenceModule";
 import { fetchClickSummary, fetchBatchClickCounts } from "../services/adminOutboundClicksService";
 import VenueIntakeStudio from "./admin/VenueIntakeStudio";
@@ -296,8 +297,9 @@ const NAV_SECTIONS = [
   {
     group: "Design",
     items: [
+      { key: "branding",     label: "Branding",          icon: "✦" },
       { key: "styles",       label: "Style Editor",      icon: "◑" },
-        { key: "menu",         label: "Menu Builder",      icon: "≡" },
+      { key: "menu",         label: "Menu Builder",      icon: "≡" },
       { key: "footer",       label: "Brand Footer",      icon: "▭" },
     ],
   },
@@ -8799,6 +8801,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "magazine-studio": return null; // Handled in main render logic
       case "social-studio":   return <SocialStudioModule C={C} />;
       case "reusable-blocks": return <ReusableBlocksModule C={C} NU={NU} GD={GD} />;
+      case "branding":        return <MenuBranding C={C} />;
       case "menu":            return <MenuModule C={C} />;
       case "footer":          return <FooterModule C={C} />;
       default:              return <OverviewModule C={C} />;
