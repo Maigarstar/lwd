@@ -532,6 +532,14 @@ export default function MagazineNav({
   onNavigateArticle,
   isLight = false,
   onToggleLight,
+  filterSubcats,
+  activeSubcat,
+  onSubcat,
+  sort,
+  onSort,
+  viewMode = 'grid3',
+  onViewMode,
+  onEdit,
 }) {
   const [scrolled, setScrolled] = useState(false);
   const [megaOpen, setMegaOpen] = useState(false);
@@ -567,6 +575,8 @@ export default function MagazineNav({
   const catInactive = isLight ? 'rgba(30,28,22,0.45)' : 'rgba(245,240,232,0.45)';
   const catHover = isLight ? 'rgba(30,28,22,0.8)' : 'rgba(245,240,232,0.8)';
   const iconColor = isLight ? 'rgba(30,28,22,0.5)' : 'rgba(245,240,232,0.5)';
+  const SORT_OFF = isLight ? 'rgba(30,28,22,0.4)' : 'rgba(245,240,232,0.4)';
+  const SORT_BRD = isLight ? 'rgba(30,28,22,0.12)' : 'rgba(245,240,232,0.12)';
 
   return (
     <>
@@ -751,6 +761,132 @@ export default function MagazineNav({
                 </button>
               );
             })}
+          </div>
+        )}
+
+        {/* Filter bar, desktop only, shown when filterSubcats provided */}
+        {!isMobile && filterSubcats?.length > 0 && (
+          <div style={{
+            borderTop: `1px solid ${dividerColor}`,
+            background: navBg,
+            padding: '0 clamp(20px, 4vw, 60px)',
+          }}>
+            <div style={{
+              maxWidth: 1280, margin: '0 auto',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+            }}>
+              {/* Left: subcategory pills */}
+              <div style={{
+                display: 'flex', gap: 6, alignItems: 'center',
+                overflowX: 'auto', padding: '10px 0', scrollbarWidth: 'none',
+              }}>
+                {/* All pill */}
+                <button
+                  onClick={() => onSubcat && onSubcat(null)}
+                  style={{
+                    fontFamily: FU, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase',
+                    padding: '5px 13px', borderRadius: 20, cursor: 'pointer',
+                    transition: 'all 0.18s', whiteSpace: 'nowrap', flexShrink: 0,
+                    fontWeight: !activeSubcat ? 700 : 400,
+                    background: !activeSubcat ? `${GOLD}15` : 'transparent',
+                    border: `1px solid ${!activeSubcat ? GOLD : SORT_BRD}`,
+                    color: !activeSubcat ? GOLD : SORT_OFF,
+                  }}
+                >
+                  All
+                </button>
+                {filterSubcats.map(sub => {
+                  const isActiveSub = activeSubcat === sub;
+                  return (
+                    <button
+                      key={sub}
+                      onClick={() => onSubcat && onSubcat(isActiveSub ? null : sub)}
+                      style={{
+                        fontFamily: FU, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase',
+                        padding: '5px 13px', borderRadius: 20, cursor: 'pointer',
+                        transition: 'all 0.18s', whiteSpace: 'nowrap', flexShrink: 0,
+                        fontWeight: isActiveSub ? 700 : 400,
+                        background: isActiveSub ? `${GOLD}15` : 'transparent',
+                        border: `1px solid ${isActiveSub ? GOLD : SORT_BRD}`,
+                        color: isActiveSub ? GOLD : SORT_OFF,
+                      }}
+                    >
+                      {sub}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Right: controls */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexShrink: 0 }}>
+                {/* Sort group */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  {[
+                    { value: 'latest', label: 'Latest' },
+                    { value: 'popular', label: 'Most Read' },
+                    { value: 'az', label: 'A–Z' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => onSort && onSort(opt.value)}
+                      style={{
+                        fontFamily: FU, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase',
+                        background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px',
+                        color: sort === opt.value ? GOLD : SORT_OFF,
+                        fontWeight: sort === opt.value ? 700 : 400,
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Thin divider */}
+                <div style={{ width: 1, height: 14, background: dividerColor }} />
+
+                {/* View mode group */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {[
+                    { mode: 'grid2', icon: '▦' },
+                    { mode: 'grid3', icon: '⊞' },
+                    { mode: 'list',  icon: '☰' },
+                    { mode: 'wide',  icon: '⊟' },
+                    { mode: 'compact', icon: '▤' },
+                  ].map(({ mode, icon }) => (
+                    <button
+                      key={mode}
+                      onClick={() => onViewMode && onViewMode(mode)}
+                      style={{
+                        fontFamily: FU, fontSize: 13, border: 'none', cursor: 'pointer',
+                        padding: '4px 7px', borderRadius: 2, lineHeight: 1,
+                        color: viewMode === mode ? GOLD : SORT_OFF,
+                        background: viewMode === mode ? `${GOLD}12` : 'transparent',
+                      }}
+                    >
+                      {icon}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Thin divider before edit button */}
+                {onEdit && <div style={{ width: 1, height: 14, background: dividerColor }} />}
+
+                {/* Edit button */}
+                {onEdit && (
+                  <button
+                    onClick={onEdit}
+                    style={{
+                      fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.14em',
+                      textTransform: 'uppercase', color: GOLD,
+                      background: `${GOLD}10`, border: `1px solid ${GOLD}30`,
+                      padding: '5px 11px', borderRadius: 2, cursor: 'pointer',
+                    }}
+                  >
+                    ✎ Edit
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
