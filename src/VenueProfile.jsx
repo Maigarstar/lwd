@@ -10,6 +10,7 @@ import VenueEnquiryForm from './components/enquiry/VenueEnquiryForm';
 import SeoHead from './components/seo/SeoHead';
 import JsonLd from './components/seo/JsonLd';
 import { buildVenueSchema, buildBreadcrumbSchema, buildFaqSchema } from './utils/structuredData';
+import HomeNav from "./components/nav/HomeNav";
 
 const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://www.luxuryweddingdirectory.co.uk';
 
@@ -983,7 +984,33 @@ const TABS = [
   { key: 'things-to-do', label: 'Things to Do', show: (v) => (v.experiences?.length || 0) > 0 },
 ];
 
-function StickyTabNav({ venue, activeTab, onTabClick }) {
+// ─── BREADCRUMB BAR ───────────────────────────────────────────────────────────
+function BreadcrumbBar({ venue, onBack }) {
+  const C = useT();
+  const crumbs = ["Venues", venue.country, venue.location?.split(', ').pop()].filter(Boolean);
+  return (
+    <div style={{
+      maxWidth: 1280, margin: '0 auto', padding: '14px 40px',
+      display: 'flex', alignItems: 'center', gap: 6,
+      fontFamily: "'Nunito','Inter',sans-serif", fontSize: 12, letterSpacing: '0.2px',
+    }}>
+      {crumbs.map((crumb) => (
+        <span key={crumb} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span
+            style={{ color: C.textMid || '#888', cursor: crumb === 'Venues' ? 'pointer' : 'default', transition: 'color 0.2s' }}
+            onClick={crumb === 'Venues' && onBack ? onBack : undefined}
+            onMouseEnter={e => { if (crumb === 'Venues') e.currentTarget.style.color = C.gold; }}
+            onMouseLeave={e => { if (crumb === 'Venues') e.currentTarget.style.color = C.textMid || '#888'; }}
+          >{crumb}</span>
+          <span style={{ color: C.border2, fontSize: 10 }}>›</span>
+        </span>
+      ))}
+      <span style={{ color: C.text, fontWeight: 600 }}>{venue.name}</span>
+    </div>
+  );
+}
+
+function StickyTabNav({ venue, activeTab, onTabClick, saved, setSaved, onAddCompare, compareList = [] }) {
   const C = useT();
   const isMobile = useIsMobile();
   const visibleTabs = TABS.filter(t => t.show(venue));
@@ -991,7 +1018,7 @@ function StickyTabNav({ venue, activeTab, onTabClick }) {
   if (isMobile) {
     return (
       <div data-tab-nav style={{
-        position: 'sticky', top: 72, zIndex: 50,
+        position: 'sticky', top: 60, zIndex: 50,
         backgroundColor: C.navBg || C.bg, borderBottom: `1px solid ${C.border}`,
         padding: '10px 20px',
         backdropFilter: 'blur(12px)',
@@ -1024,18 +1051,16 @@ function StickyTabNav({ venue, activeTab, onTabClick }) {
 
   return (
     <div data-tab-nav style={{
-      position: 'sticky', top: 72, zIndex: 50,
+      position: 'sticky', top: 60, zIndex: 50,
       backgroundColor: C.navBg || C.bg,
       backdropFilter: 'blur(12px)',
       borderBottom: `1px solid ${C.border}`,
     }}>
       <div style={{
         maxWidth: 1280, margin: '0 auto', padding: '0 40px',
-        display: 'flex', alignItems: 'stretch',
-        overflowX: 'auto',
-        scrollbarWidth: 'none',
-        msOverflowStyle: 'none',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
+        <div style={{ display: 'flex', alignItems: 'stretch', overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none', flex: 1 }}>
         {visibleTabs.map((t, i) => {
           const active = activeTab === t.key;
           return (
@@ -1069,6 +1094,29 @@ function StickyTabNav({ venue, activeTab, onTabClick }) {
             </div>
           );
         })}
+        </div>
+        {/* Venue actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, paddingLeft: 16 }}>
+          {[
+            { label: saved ? '♥  Saved' : '♡  Save', action: () => setSaved(s => !s), active: saved },
+            { label: '⊕  Compare', action: onAddCompare, active: compareList.length > 0 },
+            { label: '↗  Share', action: () => {}, active: false },
+          ].map(btn => (
+            <button key={btn.label} onClick={btn.action}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#c9a84c'; e.currentTarget.style.color = '#c9a84c'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = btn.active ? '#c9a84c' : 'rgba(0,0,0,0.15)'; e.currentTarget.style.color = btn.active ? '#c9a84c' : '#666'; }}
+              style={{
+                padding: '6px 14px', fontSize: 11, fontWeight: 700, letterSpacing: '0.6px',
+                textTransform: 'uppercase', fontFamily: "'Nunito','Inter',sans-serif",
+                background: btn.active ? 'rgba(201,168,76,0.08)' : 'none',
+                border: `1px solid ${btn.active ? '#c9a84c' : 'rgba(0,0,0,0.15)'}`,
+                borderRadius: 'var(--lwd-radius-input)',
+                color: btn.active ? '#c9a84c' : '#666',
+                cursor: 'pointer', transition: 'all 0.2s',
+              }}>{btn.label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -6151,10 +6199,11 @@ export default function VenueProfile({ onBack = null, slug = null }) {
         </>
       )}
       <div className="vp-root" style={{ background: C.bg, minHeight: "100vh", color: C.text }}>
-        <Nav venue={VV} darkMode={darkMode} setDarkMode={setDarkMode} saved={saved} setSaved={setSaved} compareList={compareList} onAddCompare={addCompare} onBack={onBack} />
+        <HomeNav hasHero={true} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} />
         <Hero venue={VV} heroStyle={heroStyle} setHeroStyle={setHeroStyle} onEnquire={() => setEnquiryOpen(true)} />
+        <BreadcrumbBar venue={VV} onBack={onBack} />
         <StatsStrip venue={VV} />
-        <StickyTabNav venue={VV} activeTab={activeTab} onTabClick={scrollToSection} />
+        <StickyTabNav venue={VV} activeTab={activeTab} onTabClick={scrollToSection} saved={saved} setSaved={setSaved} onAddCompare={addCompare} compareList={compareList} />
 
         {/* Main layout */}
         <div className="vp-main-wrapper" style={{ maxWidth: 1280, margin: "0 auto", padding: "48px 40px 120px" }}>
@@ -6180,7 +6229,7 @@ export default function VenueProfile({ onBack = null, slug = null }) {
               <RecentlyViewed venue={VV} />
             </div>
             {/* Sidebar, 4 zones, sticky on desktop */}
-            <div className="lwd-sidebar" style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 137, alignSelf: "start" }}>
+            <div className="lwd-sidebar" style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 108, alignSelf: "start" }}>
               {/* Zone 1, Owner card (only if owner data available) */}
               {VV.owner && VV.owner.name && <OwnerCard owner={VV.owner} venue={VV} />}
               {/* Zone 2, Venue enquiry form (lead gen) */}
