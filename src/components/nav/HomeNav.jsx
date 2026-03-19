@@ -54,13 +54,22 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
   const isTransparent = hasHero && !scrolled;
 
   // Colours derived from state — never white-on-white
-  const navBg       = isTransparent ? "transparent"            : "rgba(255,255,255,0.97)";
-  const navBorder   = isTransparent ? "none"                   : "1px solid rgba(0,0,0,0.08)";
-  const navShadow   = isTransparent ? "none"                   : "0 2px 20px rgba(0,0,0,0.06)";
-  const brandColor  = isTransparent ? "#f5f0e8"                : "#1e1e1e";
-  const linkColor   = isTransparent ? "rgba(255,255,255,0.82)" : "#3a3a3a";
-  const iconColor   = isTransparent ? "rgba(255,255,255,0.6)"  : "#3a3a3a";
-  const iconBorder  = isTransparent ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.15)";
+  // Solid state respects darkMode so it works on both light + dark pages
+  const solidBg     = darkMode ? "rgba(11,9,6,0.97)"           : "rgba(255,255,255,0.97)";
+  const solidBrand  = darkMode ? "#f5f0e8"                     : "#1e1e1e";
+  const solidLink   = darkMode ? "rgba(255,255,255,0.75)"      : "#3a3a3a";
+  const solidIcon   = darkMode ? "rgba(255,255,255,0.5)"       : "#3a3a3a";
+  const solidBorder = darkMode ? "rgba(255,255,255,0.08)"      : "rgba(0,0,0,0.15)";
+  const solidEdge   = darkMode ? "1px solid rgba(255,255,255,0.06)" : "1px solid rgba(0,0,0,0.08)";
+  const solidShadow = darkMode ? "none"                        : "0 2px 20px rgba(0,0,0,0.06)";
+
+  const navBg       = isTransparent ? "transparent" : solidBg;
+  const navBorder   = isTransparent ? "none"        : solidEdge;
+  const navShadow   = isTransparent ? "none"        : solidShadow;
+  const brandColor  = isTransparent ? "#f5f0e8"     : solidBrand;
+  const linkColor   = isTransparent ? "rgba(255,255,255,0.82)" : solidLink;
+  const iconColor   = isTransparent ? "rgba(255,255,255,0.6)"  : solidIcon;
+  const iconBorder  = isTransparent ? "rgba(255,255,255,0.25)" : solidBorder;
 
   const openMegaMenu = useCallback(id => {
     clearTimeout(closeTimer.current);

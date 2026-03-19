@@ -103,6 +103,7 @@ export default function ContactLWD({ onBack, onViewCategory, onViewStandard, onV
           onVendorLogin={onBack}
           onNavigateStandard={onViewStandard}
           onNavigateAbout={onViewAbout}
+          hasHero={false}
         />
 
         <main>

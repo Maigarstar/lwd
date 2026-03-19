@@ -60,6 +60,7 @@ export default function AboutLWD({ onBack, onViewCategory, onViewStandard, onVie
           onVendorLogin={onBack}
           onNavigateStandard={onViewStandard}
           onNavigateAbout={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          hasHero={false}
         />
 
         <main>

@@ -101,6 +101,7 @@ export default function LWDPartnership({ onBack, onViewCategory, onViewStandard,
           onVendorLogin={onBack}
           onNavigateStandard={onViewStandard}
           onNavigateAbout={onViewAbout}
+          hasHero={false}
         />
 
         <main>

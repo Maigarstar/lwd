@@ -32,6 +32,7 @@ export default function PartnerEnquiryPage({ footerNav = {}, onNavigateStandard,
           onVendorLogin={onBack || (() => {})}
           onNavigateStandard={onNavigateStandard || (() => {})}
           onNavigateAbout={onNavigateAbout || (() => {})}
+          hasHero={false}
         />
 
         {/* Main content */}
