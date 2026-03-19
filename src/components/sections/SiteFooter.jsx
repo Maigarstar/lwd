@@ -310,7 +310,7 @@ export default function SiteFooter({
           }}
         >
           {/* ── Brand column ── */}
-          <div className="site-footer-brand">
+          <div className="site-footer-brand" style={{ paddingTop: 0, marginTop: 0 }}>
             {(cfg?.show_logo ?? true) && (
               cfg?.logo_type === "image" && cfg?.logo_url ? (
                 <img
@@ -328,7 +328,7 @@ export default function SiteFooter({
                 <div style={{
                   fontFamily: GD, fontSize: cfg?.logo_size || 10,
                   color: gold, letterSpacing: "0.22em",
-                  textTransform: "uppercase", lineHeight: 1.7, marginBottom: 6,
+                  textTransform: "uppercase", lineHeight: 1.15, marginBottom: 6,
                 }}>
                   {(() => {
                     const words = (cfg?.logo_text || "Luxury Wedding Directory").split(" ");
