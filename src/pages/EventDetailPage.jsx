@@ -23,7 +23,7 @@ import HomeNav from '../components/nav/HomeNav';
 const GD   = 'var(--font-heading-primary)';
 const NU   = 'var(--font-body)';
 const GOLD = '#c9a84c';
-const FORM_W = 400; // px — fixed booking form width
+const FORM_W = 380; // px — fixed booking form width
 
 // ── Palette factory ───────────────────────────────────────────────────────────
 function getPalette(isLight) {
@@ -81,24 +81,33 @@ function AddToCalendar({ event, P }) {
     a.href = url; a.download = `${event.slug || 'event'}.ics`; a.click();
     URL.revokeObjectURL(url);
   };
-  const btn = {
-    flex: 1, padding: '10px 0',
-    border: `1px solid ${P.border}`, borderRadius: 2,
-    fontFamily: NU, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase',
-    cursor: 'pointer', background: 'transparent', color: P.textSub, textAlign: 'center',
-    textDecoration: 'none', transition: 'border-color 0.15s, color 0.15s',
+  const linkStyle = {
+    fontFamily: NU, fontSize: 11, letterSpacing: '0.08em',
+    color: P.textMuted, textDecoration: 'none', cursor: 'pointer',
+    background: 'none', border: 'none', padding: 0,
+    display: 'inline-flex', alignItems: 'center', gap: 5,
+    transition: 'color 0.15s',
   };
   return (
-    <div style={{ display: 'flex', gap: 10, marginBottom: 40 }}>
-      <a href={googleCalendarUrl(event)} target="_blank" rel="noopener noreferrer" style={btn}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = P.border; e.currentTarget.style.color = P.textSub; }}>
-        📅 Add to Google Calendar
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 20,
+      padding: '14px 0', marginBottom: 44,
+      borderTop: `1px solid ${P.border}`, borderBottom: `1px solid ${P.border}`,
+    }}>
+      <span style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: P.textMuted, flexShrink: 0 }}>
+        Save the date
+      </span>
+      <div style={{ width: 1, height: 14, background: P.border, flexShrink: 0 }} />
+      <a href={googleCalendarUrl(event)} target="_blank" rel="noopener noreferrer" style={linkStyle}
+        onMouseEnter={e => e.currentTarget.style.color = GOLD}
+        onMouseLeave={e => e.currentTarget.style.color = P.textMuted}>
+        📅 Google Calendar
       </a>
-      <button onClick={dlIcs} style={btn}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = P.border; e.currentTarget.style.color = P.textSub; }}>
-        🍎 Apple / iCal (.ics)
+      <div style={{ width: 1, height: 14, background: P.border, flexShrink: 0 }} />
+      <button onClick={dlIcs} style={linkStyle}
+        onMouseEnter={e => e.currentTarget.style.color = GOLD}
+        onMouseLeave={e => e.currentTarget.style.color = P.textMuted}>
+        🍎 Apple / iCal
       </button>
     </div>
   );
@@ -1129,11 +1138,11 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
         maxWidth: 1240, margin: '0 auto',
         padding: isPreview ? '24px 20px' : (isMobile ? '32px 18px' : '56px 40px'),
         display: isMobile ? 'block' : 'flex',
-        gap: 48, alignItems: 'flex-start',
+        gap: 56, alignItems: 'flex-start',
       }}>
 
         {/* ───────── LEFT COLUMN ─────────────────────────────────────── */}
-        <div style={{ flex: '0 0 750px', minWidth: 0, maxWidth: '100%' }}>
+        <div style={{ flex: '0 0 800px', minWidth: 0, maxWidth: '100%' }}>
 
           {/* Detail strip */}
           <div style={{
@@ -1157,10 +1166,22 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
               </DetailRow>
             ) : null}
             {event.isFree !== false && (
-              <DetailRow P={P} icon="🎟">
-                <span style={{ color: GOLD, fontWeight: 600 }}>Complimentary</span>
-                {' '}— no charge to attend
-              </DetailRow>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 14 }}>
+                <span style={{ color: GOLD, fontSize: 16, flexShrink: 0 }}>🎟</span>
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8,
+                  background: `${GOLD}14`, border: `1px solid ${GOLD}40`,
+                  borderRadius: 2, padding: '5px 12px',
+                }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: GOLD, flexShrink: 0, display: 'inline-block' }} />
+                  <span style={{ fontFamily: NU, fontSize: 12, color: GOLD, letterSpacing: '0.06em', fontWeight: 600 }}>
+                    Complimentary
+                  </span>
+                  <span style={{ fontFamily: NU, fontSize: 12, color: P.textSub }}>
+                    — no charge to attend
+                  </span>
+                </div>
+              </div>
             )}
             {event.isFree === false && event.ticketPrice && (
               <DetailRow P={P} icon="🎟">
@@ -1266,7 +1287,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
 
           {/* Description */}
           {event.description && (
-            <div style={{ marginBottom: 44 }}>
+            <div style={{ marginBottom: 64 }}>
               <Label>About This Event</Label>
               <div
                 className="event-desc-prose"
@@ -1288,7 +1309,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
 
           {/* YouTube / stream embed */}
           {event.isVirtual && youtubeEmbedUrl && (
-            <div style={{ marginBottom: 44 }}>
+            <div style={{ marginBottom: 64 }}>
               <Label>Live Stream</Label>
               <div style={{
                 position: 'relative', paddingBottom: '56.25%', height: 0,
@@ -1336,23 +1357,30 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
           {showBookingPanel && !booking && !isEventPast && (
             <div style={{
               marginBottom: 40,
-              padding: '32px 36px',
+              padding: '28px 32px',
               background: P.sectionBg,
-              border: `1px solid ${P.border}`,
+              border: `1px solid ${isLimited && remaining > 0 ? `${GOLD}50` : P.border}`,
+              borderLeft: `3px solid ${isLimited && remaining > 0 ? '#e87070' : GOLD}`,
               borderRadius: 4,
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               gap: 24, flexWrap: 'wrap',
             }}>
               <div>
-                <div style={{ fontFamily: GD, fontSize: 22, color: P.text, marginBottom: 6, fontWeight: 400 }}>
-                  Ready to attend?
-                </div>
-                <div style={{ fontFamily: NU, fontSize: 12, color: P.textMuted }}>
+                <div style={{ fontFamily: GD, fontSize: 21, color: P.text, marginBottom: 5, fontWeight: 400 }}>
                   {remaining === 0
-                    ? "Join the waitlist \u2014 we\u2019ll notify you of cancellations."
-                    : remaining !== null
-                      ? `${remaining} place${remaining !== 1 ? 's' : ''} remaining. Secure yours today.`
-                      : 'Reserve your place at this exclusive event.'}
+                    ? 'Fully booked'
+                    : isLimited && remaining !== null
+                      ? `Only ${remaining} place${remaining !== 1 ? 's' : ''} left`
+                      : 'Secure your place'}
+                </div>
+                <div style={{ fontFamily: NU, fontSize: 12, color: P.textMuted, lineHeight: 1.6 }}>
+                  {remaining === 0
+                    ? 'Join the waitlist — we\'ll notify you if a place becomes available.'
+                    : isLimited && remaining !== null
+                      ? 'This event is almost full. Register now to guarantee your attendance.'
+                      : remaining !== null
+                        ? `${remaining} of ${event.capacity} places still available. Complimentary to attend.`
+                        : `${event.isFree !== false ? 'Complimentary to attend. ' : ''}Reserve your place at this exclusive event.`}
                 </div>
               </div>
               <a
@@ -1374,7 +1402,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
                 onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
                 onMouseLeave={e => e.currentTarget.style.opacity = '1'}
               >
-                Book Your Place →
+                {remaining === 0 ? 'Join Waitlist →' : 'Reserve Your Place →'}
               </a>
             </div>
           )}
