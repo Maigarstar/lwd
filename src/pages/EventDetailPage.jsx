@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { trackEvent } from '../services/userEventService';
 import {
   fetchEventBySlug,
+  fetchUpcomingEventsForVenue,
   formatEventDate,
   formatEventTime,
   googleCalendarUrl,
@@ -91,8 +92,10 @@ function AddToCalendar({ event, P }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 20,
-      padding: '14px 0', marginBottom: 44,
-      borderTop: `1px solid ${P.border}`, borderBottom: `1px solid ${P.border}`,
+      padding: '12px 26px', marginBottom: 48,
+      border: `1px solid ${P.border}`, borderTop: 'none',
+      borderRadius: '0 0 4px 4px',
+      background: P.sectionBg,
     }}>
       <span style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: P.textMuted, flexShrink: 0 }}>
         Save the date
@@ -176,8 +179,8 @@ function Gallery({ urls, videoUrl, P }) {
       {videoUrl && (() => {
         const thumb = videoThumb(videoUrl);
         return (
-          <div style={{ marginBottom: 44 }}>
-            <Label>Video</Label>
+          <div style={{ marginBottom: 64, marginTop: 8 }}>
+            <Label>Watch</Label>
             <div
               onClick={() => setOpen(0)}
               style={{
@@ -221,7 +224,7 @@ function Gallery({ urls, videoUrl, P }) {
       {images.length > 0 && (
         <div style={{ marginBottom: 44 }}>
           <Label>Gallery</Label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
             {images.map((src, i) => {
               const itemIdx = videoUrl ? i + 1 : i;
               return (
@@ -969,6 +972,8 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
   // In preview mode, mirror the admin light/dark toggle; otherwise use internal state
   const [isLight, setIsLight]   = useState(isPreview ? !previewDarkMode : false);
   const [venue, setVenue]       = useState(null);
+  const [venueEvents, setVenueEvents] = useState([]);
+  const [showFloating, setShowFloating] = useState(false);
 
   // Keep light/dark in sync with admin toggle when in preview
   useEffect(() => {
@@ -1008,6 +1013,22 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
       .then(l => setVenue(l || null))
       .catch(() => {});
   }, [event?.venueId, isPreview]);
+
+  // Other events at same venue
+  useEffect(() => {
+    if (isPreview || !event?.venueId) return;
+    fetchUpcomingEventsForVenue(event.venueId, 4)
+      .then(evs => setVenueEvents((evs || []).filter(e => e.id !== event.id).slice(0, 3)))
+      .catch(() => {});
+  }, [event?.venueId, event?.id, isPreview]);
+
+  // Floating CTA on scroll
+  useEffect(() => {
+    if (isPreview) return;
+    const onScroll = () => setShowFloating(window.scrollY > 520);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [isPreview]);
 
   const dateStr    = event ? formatEventDate(event.startDate) : '';
   const timeStr    = event?.startTime ? formatEventTime(event.startTime) : null;
@@ -1147,7 +1168,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
           {/* Detail strip */}
           <div style={{
             background: P.card, border: `1px solid ${P.border}`, borderRadius: 4,
-            padding: '22px 26px', marginBottom: 40,
+            padding: '22px 26px', marginBottom: 0,
             transition: 'background 0.3s, border-color 0.3s',
           }}>
             {dateStr && (
@@ -1443,15 +1464,20 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
           )}
         </div>
 
-        {/* ───────── RIGHT COLUMN — 400px fixed, sticky ───────────────── */}
+        {/* ───────── RIGHT COLUMN — fixed, sticky ───────────────── */}
         {!isMobile && showBookingPanel && (
           <div id="booking-panel" style={{
             width: FORM_W, flexShrink: 0,
             position: 'sticky', top: 32, alignSelf: 'flex-start',
           }}>
             <div style={{
-              background: P.card, border: `1px solid ${P.border}`, borderRadius: 4,
-              padding: '28px 26px', transition: 'background 0.3s, border-color 0.3s',
+              background: P.card,
+              border: `1px solid ${P.border}`,
+              borderTop: `3px solid ${GOLD}`,
+              borderRadius: 4,
+              padding: '28px 26px',
+              boxShadow: isLight ? '0 4px 24px rgba(0,0,0,0.08)' : '0 4px 24px rgba(0,0,0,0.3)',
+              transition: 'background 0.3s, border-color 0.3s',
             }}>
               {isEventPast ? (
                 <EventEndedPanel event={event} venue={venue} P={P} />
@@ -1513,6 +1539,95 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
           </div>
         )}
       </div>
+
+      {/* Other open days at this venue */}
+      {!isPreview && venueEvents.length > 0 && (
+        <div style={{
+          maxWidth: 1200, margin: '0 auto 72px',
+          padding: isMobile ? '0 18px' : '0 40px',
+        }}>
+          <div style={{ height: 1, background: P.border, marginBottom: 52 }} />
+          <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD, marginBottom: 8 }}>
+            {venue?.name ? `More at ${venue.name}` : 'More open days'}
+          </div>
+          <h3 style={{ fontFamily: GD, fontSize: 24, fontWeight: 400, color: P.text, margin: '0 0 28px', lineHeight: 1.2 }}>
+            Other Events This Season
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 16 }}>
+            {venueEvents.map(ev => {
+              const dStr = formatEventDate(ev.startDate);
+              const tStr = ev.startTime ? formatEventTime(ev.startTime) : null;
+              return (
+                <a key={ev.id} href={`/events/${ev.slug}`} style={{ textDecoration: 'none' }}>
+                  <div style={{
+                    background: P.card, border: `1px solid ${P.border}`, borderRadius: 4, overflow: 'hidden',
+                    transition: 'border-color 0.2s, transform 0.2s', cursor: 'pointer',
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = P.border; e.currentTarget.style.transform = 'translateY(0)'; }}>
+                    {ev.coverImageUrl && (
+                      <div style={{ height: 140, overflow: 'hidden' }}>
+                        <img src={ev.coverImageUrl} alt={ev.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      </div>
+                    )}
+                    <div style={{ padding: '14px 16px' }}>
+                      <div style={{ fontFamily: NU, fontSize: 9, color: GOLD, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 5 }}>
+                        {ev.eventType?.replace(/_/g, ' ') || 'Event'}
+                      </div>
+                      <div style={{ fontFamily: GD, fontSize: 15, color: P.text, marginBottom: 4, lineHeight: 1.3 }}>{ev.title}</div>
+                      <div style={{ fontFamily: NU, fontSize: 11, color: P.textMuted }}>
+                        {dStr}{tStr ? ` · ${tStr}` : ''}
+                      </div>
+                    </div>
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Floating mini CTA — appears after scrolling past the hero */}
+      {!isPreview && showBookingPanel && !booking && !isEventPast && showFloating && (
+        <div style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 200,
+          background: isLight ? 'rgba(250,248,245,0.96)' : 'rgba(14,12,10,0.96)',
+          backdropFilter: 'blur(12px)',
+          borderTop: `1px solid ${P.border}`,
+          padding: isMobile ? '12px 18px' : '14px 40px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+          transform: showFloating ? 'translateY(0)' : 'translateY(100%)',
+          transition: 'transform 0.3s cubic-bezier(0.32, 0, 0.16, 1)',
+        }}>
+          <div>
+            <div style={{ fontFamily: GD, fontSize: 15, color: P.text, lineHeight: 1.2 }}>{event.title}</div>
+            <div style={{ fontFamily: NU, fontSize: 11, color: P.textMuted, marginTop: 2 }}>
+              {remaining === 0 ? 'Fully booked' : isLimited && remaining !== null
+                ? `⚡ ${remaining} place${remaining !== 1 ? 's' : ''} remaining`
+                : dateStr || 'Upcoming'}
+            </div>
+          </div>
+          <a
+            href="#booking-panel"
+            onClick={e => {
+              e.preventDefault();
+              const el = document.getElementById('booking-panel');
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              else window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            style={{
+              padding: '10px 22px', background: GOLD, color: '#0e0c0a',
+              borderRadius: 2, fontFamily: NU, fontSize: 11, fontWeight: 700,
+              letterSpacing: '0.1em', textTransform: 'uppercase', textDecoration: 'none',
+              flexShrink: 0, whiteSpace: 'nowrap', transition: 'opacity 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+          >
+            {remaining === 0 ? 'Join Waitlist' : 'Reserve Place →'}
+          </a>
+        </div>
+      )}
 
       {/* SiteFooter rendered globally from main.jsx */}
     </div>
