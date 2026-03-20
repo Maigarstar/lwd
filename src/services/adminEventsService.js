@@ -127,6 +127,10 @@ export function dbToEvent(row) {
     galleryUrls:        row.gallery_urls || [],
     videoUrl:           row.video_url || null,
     videoHeroMode:      row.video_hero_mode || false,
+    isFree:             row.is_free !== false,
+    ticketPrice:        row.ticket_price || null,
+    ticketCurrency:     row.ticket_currency || 'GBP',
+    ticketIncludes:     row.ticket_includes || null,
     tagsJson:           row.tags_json || [],
     createdAt:          row.created_at,
     updatedAt:          row.updated_at,
@@ -166,6 +170,10 @@ export function eventToDb(event) {
     gallery_urls:          event.galleryUrls         || [],
     video_url:             event.videoUrl            || null,
     video_hero_mode:       event.videoHeroMode       || false,
+    is_free:               event.isFree              !== false,
+    ticket_price:          event.ticketPrice         || null,
+    ticket_currency:       event.ticketCurrency      || 'GBP',
+    ticket_includes:       event.ticketIncludes      || null,
     tags_json:             event.tagsJson            || [],
   }
 }

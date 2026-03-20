@@ -105,6 +105,7 @@ function emptyEvent() {
     capacity: '', waitlistEnabled: false,
     isVirtual: false, virtualPlatform: '', streamUrl: '', replayUrl: '',
     description: '', coverImageUrl: '', galleryUrls: [], videoUrl: null, videoHeroMode: false, tagsJson: [],
+    isFree: true, ticketPrice: null, ticketCurrency: 'GBP', ticketIncludes: '',
     managedAccountId: '', venueId: '', ownerId: '',
   }
 }
@@ -550,6 +551,24 @@ function StepSettings({ form, set, C }) {
           ]}
           C={C}
         />
+      </div>
+
+      <div style={{ background: C.dark, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px', marginBottom: 18 }}>
+        <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.gold, fontWeight: 600, marginBottom: 14 }}>Ticketing</div>
+        <Toggle
+          label="Free event"
+          checked={form.isFree !== false}
+          onChange={v => set('isFree', v)}
+          hint="Toggle off to mark as a paid event. Payment is handled directly by the venue."
+          C={C}
+        />
+        {form.isFree === false && (
+          <>
+            <InputField label="Price per guest" value={form.ticketPrice || ''} onChange={v => set('ticketPrice', v ? parseFloat(v) : null)} type="number" placeholder="50" hint="e.g. 50 for £50 per guest" C={C} />
+            <SelectField label="Currency" value={form.ticketCurrency || 'GBP'} onChange={v => set('ticketCurrency', v)} options={[{value:'GBP',label:'GBP £'},{value:'EUR',label:'EUR €'},{value:'USD',label:'USD $'}]} C={C} />
+            <InputField label="What's included (optional)" value={form.ticketIncludes || ''} onChange={v => set('ticketIncludes', v)} placeholder="Includes drinks and canapés" C={C} />
+          </>
+        )}
       </div>
 
       <div style={{ background: C.dark, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px', marginBottom: 18 }}>

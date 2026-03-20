@@ -42,6 +42,10 @@ export function dbToEvent(row) {
     galleryUrls:        row.gallery_urls || [],
     videoUrl:           row.video_url || null,
     videoHeroMode:      row.video_hero_mode || false,
+    isFree:             row.is_free !== false,   // default true
+    ticketPrice:        row.ticket_price || null,
+    ticketCurrency:     row.ticket_currency || 'GBP',
+    ticketIncludes:     row.ticket_includes || null,
     tagsJson:           row.tags_json || [],
     metaJson:           row.meta_json || {},
     createdAt:          row.created_at,
@@ -188,4 +192,26 @@ export async function fetchEventBySlug(slug) {
 export async function fetchUpcomingEventsForVenue(venueId, limit = 6) {
   if (!venueId) return []
   return fetchPublishedEvents({ venueId, limit, upcomingOnly: true })
+}
+
+/**
+ * Fetch past published events for a specific venue (start_date < today)
+ * Ordered most-recent first, limited to last 6 by default.
+ */
+export async function fetchPastEventsForVenue(venueId, limit = 6) {
+  if (!venueId || !isSupabaseAvailable()) return []
+  const today = new Date().toISOString().split('T')[0]
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .eq('venue_id', venueId)
+    .eq('status', 'published')
+    .lt('start_date', today)
+    .order('start_date', { ascending: false })
+    .limit(limit)
+  if (error) {
+    console.warn('[eventService] fetchPastEventsForVenue:', error.message)
+    return []
+  }
+  return (data || []).map(dbToEvent)
 }

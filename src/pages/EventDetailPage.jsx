@@ -360,10 +360,11 @@ function mapReview(r) {
 }
 
 // ── Venue Reviews Strip (mirrors VenueReviewsPage card style) ─────────────────
-function VenueReviewsStrip({ venueId, P }) {
-  const [reviews, setReviews]     = useState([]);
+function VenueReviewsStrip({ venueId, venueName: venueNameProp, P }) {
+  const [reviews,   setReviews]   = useState([]);
   const [venueSlug, setVenueSlug] = useState(null);
-  const [loading, setLoading]     = useState(true);
+  const [venueName, setVenueName] = useState(venueNameProp || null);
+  const [loading,   setLoading]   = useState(true);
 
   useEffect(() => {
     if (!venueId) { setLoading(false); return; }
@@ -373,6 +374,7 @@ function VenueReviewsStrip({ venueId, P }) {
     ]).then(([raw, listing]) => {
       setReviews((raw || []).map(mapReview).slice(0, 3));
       setVenueSlug(listing?.slug || null);
+      if (!venueNameProp) setVenueName(listing?.name || null);
     }).catch(e => console.warn('[VenueReviewsStrip]', e))
       .finally(() => setLoading(false));
   }, [venueId]);
@@ -380,26 +382,40 @@ function VenueReviewsStrip({ venueId, P }) {
   if (loading || reviews.length === 0) return null;
 
   const avgRating = (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1);
-  const REVIEW_GOLD = '#c9a84c';
+  const RG = '#c9a84c'; // review gold
 
   return (
     <div style={{ marginBottom: 44 }}>
-      <Label>Guest Reviews</Label>
+      <Label>Venue Reviews</Label>
+
+      {/* "Hosted at X, rated Y by couples" intro line */}
+      {venueName && (
+        <div style={{
+          fontFamily: NU, fontSize: 12, color: P.textMuted,
+          marginBottom: 20, letterSpacing: '0.02em',
+        }}>
+          Hosted at{' '}
+          <span style={{ color: P.text, fontWeight: 600 }}>{venueName}</span>
+          {', rated '}
+          <span style={{ color: RG, fontWeight: 700 }}>{avgRating}</span>
+          {' by couples'}
+        </div>
+      )}
 
       {/* Summary bar */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24,
         paddingBottom: 18, borderBottom: `1px solid ${P.border}`,
       }}>
-        <div style={{ fontFamily: GD, fontSize: 40, color: REVIEW_GOLD, lineHeight: 1 }}>{avgRating}</div>
+        <div style={{ fontFamily: GD, fontSize: 40, color: RG, lineHeight: 1 }}>{avgRating}</div>
         <div>
           <div style={{ display: 'flex', gap: 3, marginBottom: 4 }}>
             {[1,2,3,4,5].map(s => (
-              <span key={s} style={{ fontSize: 14, color: s <= Math.round(Number(avgRating)) ? REVIEW_GOLD : P.border, lineHeight: 1 }}>★</span>
+              <span key={s} style={{ fontSize: 14, color: s <= Math.round(Number(avgRating)) ? RG : P.border, lineHeight: 1 }}>★</span>
             ))}
           </div>
           <div style={{ fontFamily: NU, fontSize: 11, color: P.textMuted, letterSpacing: '0.05em' }}>
-            {reviews.length} review{reviews.length !== 1 ? 's' : ''} · Venue profile
+            {reviews.length} review{reviews.length !== 1 ? 's' : ''} · from the venue profile
           </div>
         </div>
       </div>
@@ -407,22 +423,22 @@ function VenueReviewsStrip({ venueId, P }) {
       {/* Cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
         {reviews.map((r, idx) => (
-          <ReviewCardStrip key={r.id} r={r} P={P} idx={idx} GOLD={REVIEW_GOLD} />
+          <ReviewCardStrip key={r.id} r={r} P={P} idx={idx} GOLD={RG} />
         ))}
       </div>
 
-      {/* See all link */}
+      {/* Read all → */}
       {venueSlug && (
         <a
           href={`/venues/${venueSlug}/reviews`}
           target="_blank" rel="noopener noreferrer"
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 20,
-            fontFamily: NU, fontSize: 12, color: REVIEW_GOLD, textDecoration: 'none',
+            fontFamily: NU, fontSize: 12, color: RG, textDecoration: 'none',
             letterSpacing: '0.08em', fontWeight: 600,
           }}
         >
-          See all venue reviews →
+          Read all venue reviews →
         </a>
       )}
     </div>
@@ -510,6 +526,82 @@ function ReviewCardStrip({ r, P, idx, GOLD }) {
             fontFamily: NU, fontSize: 9, color: '#5fa87a', fontWeight: 700,
             padding: '2px 8px', border: '1px solid #5fa87a60', letterSpacing: '0.1em', borderRadius: 2,
           }}>✓ Verified</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Event Ended Panel — shown in the booking sidebar when the event is past ───
+function EventEndedPanel({ event, venue, P }) {
+  const venueSlug = venue?.slug || null;
+  const venueName = venue?.name || null;
+
+  return (
+    <div style={{ textAlign: 'center', padding: '12px 0 4px' }}>
+      {/* Icon */}
+      <div style={{
+        width: 48, height: 48, borderRadius: '50%',
+        background: `${GOLD}14`, border: `1px solid ${GOLD}40`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        margin: '0 auto 18px', fontSize: 20,
+      }}>◈</div>
+
+      <div style={{ fontFamily: GD, fontSize: 18, color: P.text, fontWeight: 400, marginBottom: 8, lineHeight: 1.3 }}>
+        This event has ended
+      </div>
+      <div style={{ fontFamily: NU, fontSize: 12, color: P.textMuted, marginBottom: 28, lineHeight: 1.7 }}>
+        {event.title} took place on {event.startDate
+          ? new Date(event.startDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+          : 'a previous date'}.
+        {venueName && ` Hosted by ${venueName}.`}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* View upcoming events */}
+        {venueSlug ? (
+          <a
+            href={`/venues/${venueSlug}`}
+            style={{
+              display: 'block', padding: '13px 20px',
+              background: GOLD, borderRadius: 2, textDecoration: 'none',
+              fontFamily: NU, fontSize: 12, fontWeight: 700,
+              letterSpacing: '0.1em', textTransform: 'uppercase', color: '#0e0c0a',
+            }}
+            onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
+            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+          >
+            View Upcoming Events →
+          </a>
+        ) : (
+          <a
+            href="/"
+            style={{
+              display: 'block', padding: '13px 20px',
+              background: GOLD, borderRadius: 2, textDecoration: 'none',
+              fontFamily: NU, fontSize: 12, fontWeight: 700,
+              letterSpacing: '0.1em', textTransform: 'uppercase', color: '#0e0c0a',
+            }}
+          >
+            View All Events →
+          </a>
+        )}
+
+        {/* Send enquiry */}
+        {venueSlug && (
+          <a
+            href={`/venues/${venueSlug}#enquire`}
+            style={{
+              display: 'block', padding: '12px 20px',
+              background: 'transparent', border: `1px solid ${P.border}`, borderRadius: 2,
+              fontFamily: NU, fontSize: 12, color: P.textSub,
+              letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = P.border; e.currentTarget.style.color = P.textSub; }}
+          >
+            Send an Enquiry
+          </a>
         )}
       </div>
     </div>
@@ -645,11 +737,15 @@ function BookingForm({ event, onSuccess, P }) {
         textTransform: 'uppercase', cursor: submitting ? 'not-allowed' : 'pointer',
         opacity: submitting ? 0.7 : 1, transition: 'background 0.2s',
       }}>
-        {submitting ? 'Registering…' : 'Confirm Registration'}
+        {submitting
+          ? (event.isFree === false ? 'Reserving…' : 'Registering…')
+          : (event.isFree === false ? 'Reserve Your Place' : 'Confirm Registration')}
       </button>
 
       <p style={{ fontFamily: NU, fontSize: 11, color: P.textMuted, textAlign: 'center', margin: '12px 0 0', lineHeight: 1.7 }}>
-        Free. Confirmation email sent within minutes.
+        {event.isFree === false
+          ? 'Payment is handled directly by the venue. They will contact you to complete your booking.'
+          : 'Free to attend. Confirmation email sent within minutes.'}
       </p>
     </form>
   );
@@ -674,10 +770,12 @@ function BookingConfirmed({ booking, event, P }) {
         margin: '0 auto 20px', fontSize: 22, color: '#4ade80',
       }}>✓</div>
       <div style={{ fontFamily: GD, fontSize: 21, color: P.text, fontWeight: 400, marginBottom: 8 }}>
-        You're registered
+        {event.isFree === false ? 'Your place is reserved' : "You're registered"}
       </div>
       <div style={{ fontFamily: NU, fontSize: 13, color: P.textSub, marginBottom: 24, lineHeight: 1.7 }}>
-        Confirmation sent to your email.<br />
+        {event.isFree === false
+          ? <>Your place has been reserved. The venue will contact you to complete payment.<br /></>
+          : <>Confirmation sent to your email.<br /></>}
         Reference: <strong style={{ color: GOLD }}>{booking.bookingRef}</strong>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -716,6 +814,7 @@ export default function EventDetailPage({ slug, onBack, footerNav }) {
   const [notFound, setNotFound] = useState(false);
   const [booking, setBooking]   = useState(null);
   const [isLight, setIsLight]   = useState(false);
+  const [venue, setVenue] = useState(null);
 
   const P = getPalette(isLight);
 
@@ -730,6 +829,13 @@ export default function EventDetailPage({ slug, onBack, footerNav }) {
     return () => { cancelled = true; };
   }, [slug]);
 
+  useEffect(() => {
+    if (!event?.venueId) return;
+    fetchListingById(event.venueId)
+      .then(l => setVenue(l || null))
+      .catch(() => {});
+  }, [event?.venueId]);
+
   const dateStr    = event ? formatEventDate(event.startDate) : '';
   const timeStr    = event?.startTime ? formatEventTime(event.startTime) : null;
   const endDateStr = event?.endDate && event.endDate !== event.startDate ? formatEventDate(event.endDate) : null;
@@ -743,6 +849,20 @@ export default function EventDetailPage({ slug, onBack, footerNav }) {
   const useVideoHero = !!(event?.videoHeroMode && event?.videoUrl);
   const hasHero = useVideoHero || !!event?.coverImageUrl;
   const showBookingPanel = event && (event.bookingMode === 'internal' || event.bookingMode === 'enquiry_only');
+  const isEventPast = event ? (() => {
+    const d = event.endDate || event.startDate;
+    return d ? new Date(d + 'T23:59:59') < new Date() : false;
+  })() : false;
+
+  const confirmedCount = event?.bookingCount ?? 0;
+  const remaining = (event?.capacity && event?.capacity > 0)
+    ? Math.max(0, event.capacity - confirmedCount)
+    : null;
+  const capacityPct = (remaining !== null && event?.capacity)
+    ? Math.min(100, Math.round((confirmedCount / event.capacity) * 100))
+    : 0;
+  const isLimited = remaining !== null && event?.capacity
+    && remaining <= Math.max(5, Math.floor(event.capacity * 0.25));
 
   if (loading) {
     return (
@@ -781,6 +901,16 @@ export default function EventDetailPage({ slug, onBack, footerNav }) {
         onNavigateAbout={footerNav?.onNavigateAbout || (() => { window.location.href = '/about'; })}
         onNavigateStandard={footerNav?.onNavigateStandard || (() => { window.location.href = '/the-lwd-standard'; })}
       />
+      <style>{`
+        .event-desc-prose p { margin: 0 0 16px; }
+        .event-desc-prose h2 { font-family: var(--font-heading-primary); font-size: 22px; font-weight: 400; margin: 28px 0 12px; }
+        .event-desc-prose h3 { font-family: var(--font-heading-primary); font-size: 17px; font-weight: 400; margin: 22px 0 8px; }
+        .event-desc-prose ul, .event-desc-prose ol { padding-left: 22px; margin: 0 0 16px; }
+        .event-desc-prose li { margin-bottom: 6px; line-height: 1.75; }
+        .event-desc-prose blockquote { border-left: 3px solid #c9a84c; margin: 20px 0; padding-left: 18px; opacity: 0.8; }
+        .event-desc-prose strong { color: inherit; font-weight: 700; }
+        .event-desc-prose a { color: #c9a84c; text-decoration: underline; }
+      `}</style>
 
       {/* ── Hero ── */}
       <div style={{ position: 'relative', height: isMobile ? 340 : 520, overflow: 'hidden', background: '#111' }}>
@@ -867,6 +997,56 @@ export default function EventDetailPage({ slug, onBack, footerNav }) {
             )}
           </div>
 
+          {/* Hosted by Venue */}
+          {venue && (
+            <div style={{
+              background: P.card, border: `1px solid ${P.border}`, borderRadius: 4,
+              padding: '20px 26px', marginBottom: 40,
+              display: 'flex', alignItems: 'center', gap: 20,
+              transition: 'background 0.3s, border-color 0.3s',
+            }}>
+              {/* Venue thumb */}
+              {(venue.coverImg || venue.imgs?.[0]) && (
+                <div style={{
+                  width: 56, height: 56, borderRadius: 2, overflow: 'hidden',
+                  flexShrink: 0, border: `1px solid ${P.border}`,
+                }}>
+                  <img
+                    src={venue.coverImg || (typeof venue.imgs?.[0] === 'string' ? venue.imgs[0] : venue.imgs?.[0]?.src)}
+                    alt={venue.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  />
+                </div>
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: NU, fontSize: 9, color: GOLD, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 5 }}>
+                  Hosted by
+                </div>
+                <div style={{ fontFamily: GD, fontSize: 17, color: P.text, lineHeight: 1.2, marginBottom: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {venue.name}
+                </div>
+                {(venue.city || venue.country) && (
+                  <div style={{ fontFamily: NU, fontSize: 11, color: P.textMuted }}>
+                    {[venue.city, venue.country].filter(Boolean).join(', ')}
+                  </div>
+                )}
+              </div>
+              <a
+                href={`/venues/${venue.slug}`}
+                style={{
+                  fontFamily: NU, fontSize: 11, color: GOLD, textDecoration: 'none',
+                  border: `1px solid ${GOLD}50`, borderRadius: 2,
+                  padding: '7px 14px', flexShrink: 0, letterSpacing: '0.08em',
+                  whiteSpace: 'nowrap', transition: 'background 0.2s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = `${GOLD}14`}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                View Venue →
+              </a>
+            </div>
+          )}
+
           {/* Description */}
           {event.description && (
             <div style={{ marginBottom: 44 }}>
@@ -886,7 +1066,7 @@ export default function EventDetailPage({ slug, onBack, footerNav }) {
           <EventMap event={event} P={P} />
 
           {/* Venue Reviews */}
-          {event.venueId && <VenueReviewsStrip venueId={event.venueId} P={P} />}
+          {event.venueId && <VenueReviewsStrip venueId={event.venueId} venueName={venue?.name} P={P} />}
 
           {/* YouTube / stream embed */}
           {event.isVirtual && youtubeEmbedUrl && (
@@ -934,14 +1114,69 @@ export default function EventDetailPage({ slug, onBack, footerNav }) {
             </a>
           )}
 
+          {/* Secondary CTA — for scrollers who haven't booked yet */}
+          {showBookingPanel && !booking && !isEventPast && (
+            <div style={{
+              marginBottom: 40,
+              padding: '32px 36px',
+              background: P.sectionBg,
+              border: `1px solid ${P.border}`,
+              borderRadius: 4,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              gap: 24, flexWrap: 'wrap',
+            }}>
+              <div>
+                <div style={{ fontFamily: GD, fontSize: 22, color: P.text, marginBottom: 6, fontWeight: 400 }}>
+                  Ready to attend?
+                </div>
+                <div style={{ fontFamily: NU, fontSize: 12, color: P.textMuted }}>
+                  {remaining === 0
+                    ? "Join the waitlist \u2014 we\u2019ll notify you of cancellations."
+                    : remaining !== null
+                      ? `${remaining} place${remaining !== 1 ? 's' : ''} remaining. Secure yours today.`
+                      : 'Reserve your place at this exclusive event.'}
+                </div>
+              </div>
+              <a
+                href="#booking-panel"
+                onClick={e => {
+                  e.preventDefault();
+                  const el = document.getElementById('booking-panel');
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  else window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                style={{
+                  display: 'inline-block', padding: '14px 28px',
+                  background: GOLD, color: '#0e0c0a', borderRadius: 2,
+                  fontFamily: NU, fontSize: 12, fontWeight: 700,
+                  letterSpacing: '0.12em', textTransform: 'uppercase',
+                  textDecoration: 'none', flexShrink: 0,
+                  transition: 'opacity 0.2s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+                onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+              >
+                Book Your Place →
+              </a>
+            </div>
+          )}
+
           {/* On mobile the form renders here, below content */}
           {isMobile && showBookingPanel && (
             <div style={{ marginTop: 40 }}>
               <div style={{ background: P.card, border: `1px solid ${P.border}`, borderRadius: 4, padding: '28px 22px' }}>
-                {booking ? <BookingConfirmed booking={booking} event={event} P={P} /> : (
+                {isEventPast ? (
+                  <EventEndedPanel event={event} venue={venue} P={P} />
+                ) : booking ? <BookingConfirmed booking={booking} event={event} P={P} /> : (
                   <>
-                    <Label>{event.bookingMode === 'enquiry_only' ? 'Enquire' : 'Register Your Place'}</Label>
-                    <div style={{ fontFamily: GD, fontSize: 18, color: P.text, marginBottom: 18, lineHeight: 1.3 }}>{event.title}</div>
+                    <Label>{event.bookingMode === 'enquiry_only' ? 'Enquire' : event.isFree === false ? 'Reserve Your Place' : 'Register Your Place'}</Label>
+                    <div style={{ fontFamily: GD, fontSize: 18, color: P.text, marginBottom: 4, lineHeight: 1.3 }}>{event.title}</div>
+                    {event.isFree === false && event.ticketPrice && (
+                      <div style={{ fontFamily: NU, fontSize: 12, color: GOLD, marginBottom: 14 }}>
+                        From {event.ticketCurrency === 'GBP' ? '£' : event.ticketCurrency === 'EUR' ? '€' : '$'}{Number(event.ticketPrice).toLocaleString()} per guest
+                        {event.ticketIncludes && <span style={{ color: P.textMuted }}> · {event.ticketIncludes}</span>}
+                      </div>
+                    )}
                     {dateStr && (
                       <div style={{ fontFamily: NU, fontSize: 12, color: P.textMuted, marginBottom: 18, paddingBottom: 18, borderBottom: `1px solid ${P.border}` }}>
                         {dateStr}{timeStr ? ` · ${timeStr}` : ''}
@@ -964,23 +1199,57 @@ export default function EventDetailPage({ slug, onBack, footerNav }) {
 
         {/* ───────── RIGHT COLUMN — 400px fixed, sticky ───────────────── */}
         {!isMobile && showBookingPanel && (
-          <div style={{
+          <div id="booking-panel" style={{
             width: FORM_W, flexShrink: 0,
-            position: 'sticky', top: 32,
+            position: 'sticky', top: 32, alignSelf: 'flex-start',
           }}>
             <div style={{
               background: P.card, border: `1px solid ${P.border}`, borderRadius: 4,
               padding: '28px 26px', transition: 'background 0.3s, border-color 0.3s',
             }}>
-              {booking ? <BookingConfirmed booking={booking} event={event} P={P} /> : (
+              {isEventPast ? (
+                <EventEndedPanel event={event} venue={venue} P={P} />
+              ) : booking ? <BookingConfirmed booking={booking} event={event} P={P} /> : (
                 <>
-                  <Label>{event.bookingMode === 'enquiry_only' ? 'Enquire' : 'Register Your Place'}</Label>
-                  <div style={{ fontFamily: GD, fontSize: 20, color: P.text, marginBottom: 18, lineHeight: 1.3, transition: 'color 0.3s' }}>
+                  <Label>{event.bookingMode === 'enquiry_only' ? 'Enquire' : event.isFree === false ? 'Reserve Your Place' : 'Register Your Place'}</Label>
+                  <div style={{ fontFamily: GD, fontSize: 20, color: P.text, marginBottom: 4, lineHeight: 1.3, transition: 'color 0.3s' }}>
                     {event.title}
                   </div>
+                  {event.isFree === false && event.ticketPrice && (
+                    <div style={{ fontFamily: NU, fontSize: 13, color: GOLD, marginBottom: 14, letterSpacing: '0.02em' }}>
+                      From {event.ticketCurrency === 'GBP' ? '£' : event.ticketCurrency === 'EUR' ? '€' : '$'}{Number(event.ticketPrice).toLocaleString()} per guest
+                      {event.ticketIncludes && <span style={{ color: P.textMuted, fontWeight: 400 }}> · {event.ticketIncludes}</span>}
+                    </div>
+                  )}
                   {dateStr && (
                     <div style={{ fontFamily: NU, fontSize: 12, color: P.textMuted, marginBottom: 18, paddingBottom: 18, borderBottom: `1px solid ${P.border}` }}>
                       {dateStr}{timeStr ? ` · ${timeStr}` : ''}
+                    </div>
+                  )}
+                  {/* Availability urgency */}
+                  {remaining !== null && (
+                    <div style={{ marginBottom: 20, paddingBottom: 20, borderBottom: `1px solid ${P.border}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <span style={{
+                          fontFamily: NU, fontSize: 11, fontWeight: 700,
+                          color: isLimited ? '#e87070' : P.textSub,
+                          letterSpacing: '0.03em',
+                        }}>
+                          {isLimited ? '⚡ ' : ''}{remaining === 0 ? 'Fully booked' : `${remaining} of ${event.capacity} places remaining`}
+                        </span>
+                        {isLimited && remaining > 0 && (
+                          <span style={{ fontFamily: NU, fontSize: 9, color: '#e87070', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>
+                            Limited
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ height: 3, background: P.border, borderRadius: 99, overflow: 'hidden' }}>
+                        <div style={{
+                          width: `${capacityPct}%`, height: '100%', borderRadius: 99,
+                          background: isLimited ? '#e87070' : GOLD,
+                          transition: 'width 1s ease',
+                        }} />
+                      </div>
                     </div>
                   )}
                   <BookingForm event={event} onSuccess={r => setBooking(r)} P={P} />

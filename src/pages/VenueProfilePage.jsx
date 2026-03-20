@@ -10,7 +10,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useEffect, useRef } from 'react';
 import { fetchVenueContent } from '../services/venueContentService';
-import { fetchUpcomingEventsForVenue, formatEventDate, formatEventTime } from '../services/eventService';
+import { fetchUpcomingEventsForVenue, fetchPastEventsForVenue, formatEventDate, formatEventTime } from '../services/eventService';
 
 import ParallaxBannerCard      from '../components/cards/editorial/ParallaxBannerCard';
 import FeatureCard             from '../components/cards/editorial/FeatureCard';
@@ -392,7 +392,8 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
   const { isMobile } = useBreakpoint();
   const [activeSection, setActiveSection] = useState('overview');
   const [venueContent, setVenueContent] = useState(null);
-  const [venueEvents, setVenueEvents] = useState([]);
+  const [venueEvents, setVenueEvents]     = useState([]);
+  const [pastEvents,  setPastEvents]      = useState([]);
   const basevenue = venueProp || GT_VENUE;
 
   // Merge static venue with dynamic content
@@ -428,12 +429,15 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
     loadVenueContent();
   }, [basevenue]);
 
-  // Fetch upcoming events for this venue
+  // Fetch upcoming + past events for this venue
   useEffect(() => {
     const venueId = basevenue.listingId || basevenue.id;
     if (!venueId) return;
     fetchUpcomingEventsForVenue(venueId, 6).then(evts => {
       if (evts?.length) setVenueEvents(evts);
+    }).catch(() => {});
+    fetchPastEventsForVenue(venueId, 6).then(evts => {
+      if (evts?.length) setPastEvents(evts);
     }).catch(() => {});
   }, [basevenue.listingId, basevenue.id]);
 
@@ -886,6 +890,89 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
                       textTransform: 'uppercase', borderBottom: `1px solid ${GOLD}`, paddingBottom: 1,
                     }}>
                       Register →
+                    </div>
+                  </div>
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      </Section>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          PAST EVENTS
+      ═══════════════════════════════════════════════════════════════════ */}
+      {pastEvents.length > 0 && (
+      <Section id="past-events" bg="#0c0c0a">
+        <SectionHeader
+          eyebrow="Recent Events"
+          title={`Past Events at ${venue.name}`}
+          subtitle="A record of events hosted at this venue. View event details or send an enquiry for future availability."
+          light
+        />
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))',
+          gap: 16,
+        }}>
+          {pastEvents.map(ev => {
+            const dateStr = formatEventDate(ev.startDate);
+            return (
+              <a
+                key={ev.id}
+                href={`/events/${ev.slug}`}
+                style={{ textDecoration: 'none', display: 'block' }}
+              >
+                <div style={{
+                  background: '#141412', border: '1px solid #222220', borderRadius: 4,
+                  overflow: 'hidden', transition: 'border-color 0.2s', opacity: 0.85,
+                }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#444'; e.currentTarget.style.opacity = '1'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#222220'; e.currentTarget.style.opacity = '0.85'; }}
+                >
+                  {ev.coverImageUrl && (
+                    <div style={{ height: 140, overflow: 'hidden', position: 'relative' }}>
+                      <img src={ev.coverImageUrl} alt={ev.title}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'grayscale(30%)' }} />
+                      {/* Past overlay */}
+                      <div style={{
+                        position: 'absolute', top: 10, right: 10,
+                        fontFamily: 'var(--font-body)', fontSize: 9, fontWeight: 700,
+                        letterSpacing: '0.12em', textTransform: 'uppercase',
+                        color: 'rgba(255,255,255,0.6)', background: 'rgba(0,0,0,0.55)',
+                        padding: '3px 8px', borderRadius: 2,
+                        border: '1px solid rgba(255,255,255,0.15)',
+                      }}>Completed</div>
+                    </div>
+                  )}
+                  {!ev.coverImageUrl && (
+                    <div style={{ height: 56, background: '#1a1a18', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                      <span style={{ fontFamily: 'var(--font-body)', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)' }}>Completed</span>
+                    </div>
+                  )}
+                  <div style={{ padding: '16px 20px' }}>
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>
+                      {ev.eventType?.replace(/_/g, ' ') || 'Event'}
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-heading-primary)', fontSize: 17, color: 'rgba(240,236,228,0.75)', fontWeight: 400, marginBottom: 6, lineHeight: 1.3 }}>
+                      {ev.title}
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 10 }}>
+                      {dateStr}
+                      {ev.bookingCount > 0 && (
+                        <span style={{ marginLeft: 8, color: 'rgba(201,168,76,0.5)' }}>
+                          · {ev.bookingCount} attended
+                        </span>
+                      )}
+                    </div>
+                    <div style={{
+                      marginTop: 14, display: 'inline-block',
+                      fontFamily: 'var(--font-body)', fontSize: 10, color: 'rgba(255,255,255,0.35)',
+                      letterSpacing: '0.1em', textTransform: 'uppercase',
+                      borderBottom: '1px solid rgba(255,255,255,0.15)', paddingBottom: 1,
+                    }}>
+                      View Event →
                     </div>
                   </div>
                 </div>
