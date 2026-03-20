@@ -1022,12 +1022,23 @@ export default function EventDetailPage({ slug, onBack, footerNav }) {
                 <div style={{ fontFamily: NU, fontSize: 9, color: GOLD, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 5 }}>
                   Hosted by
                 </div>
-                <div style={{ fontFamily: GD, fontSize: 17, color: P.text, lineHeight: 1.2, marginBottom: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ fontFamily: GD, fontSize: 17, color: P.text, lineHeight: 1.2, marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {venue.name}
                 </div>
+                {/* Tagline — heroTagline preferred, fall back to shortDescription truncated */}
+                {(venue.heroTagline || venue.shortDescription) && (
+                  <div style={{
+                    fontFamily: NU, fontSize: 11, color: P.textSub,
+                    lineHeight: 1.5, marginBottom: 3,
+                    overflow: 'hidden', display: '-webkit-box',
+                    WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                  }}>
+                    {venue.heroTagline || (venue.shortDescription?.slice(0, 90) + (venue.shortDescription?.length > 90 ? '…' : ''))}
+                  </div>
+                )}
                 {(venue.city || venue.country) && (
-                  <div style={{ fontFamily: NU, fontSize: 11, color: P.textMuted }}>
-                    {[venue.city, venue.country].filter(Boolean).join(', ')}
+                  <div style={{ fontFamily: NU, fontSize: 10, color: P.textMuted, letterSpacing: '0.04em' }}>
+                    📍 {[venue.city, venue.country].filter(Boolean).join(', ')}
                   </div>
                 )}
               </div>

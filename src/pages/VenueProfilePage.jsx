@@ -966,13 +966,25 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
                         </span>
                       )}
                     </div>
-                    <div style={{
-                      marginTop: 14, display: 'inline-block',
-                      fontFamily: 'var(--font-body)', fontSize: 10, color: 'rgba(255,255,255,0.35)',
-                      letterSpacing: '0.1em', textTransform: 'uppercase',
-                      borderBottom: '1px solid rgba(255,255,255,0.15)', paddingBottom: 1,
-                    }}>
-                      View Event →
+                    <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 14 }}>
+                      <div style={{
+                        fontFamily: 'var(--font-body)', fontSize: 10, color: 'rgba(255,255,255,0.35)',
+                        letterSpacing: '0.1em', textTransform: 'uppercase',
+                        borderBottom: '1px solid rgba(255,255,255,0.15)', paddingBottom: 1,
+                      }}>
+                        View Event →
+                      </div>
+                      {/* Gallery hint — only if event has images */}
+                      {ev.galleryUrls?.length > 0 && (
+                        <div style={{
+                          fontFamily: 'var(--font-body)', fontSize: 10,
+                          color: `rgba(201,168,76,0.5)`,
+                          letterSpacing: '0.08em', textTransform: 'uppercase',
+                          display: 'flex', alignItems: 'center', gap: 4,
+                        }}>
+                          <span style={{ fontSize: 11 }}>◻</span> View highlights
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
