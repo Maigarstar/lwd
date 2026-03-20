@@ -15,7 +15,7 @@ import { useChat } from "./chat/ChatContext";
 import { createLead } from "./services/leadEngineService";
 import ExternalLinkModal from "./components/ExternalLinkModal";
 import { trackExternalClick, hasSeenModalThisSession, markModalSeen } from "./services/outboundClickService";
-import { trackProfileView, trackCompareAdd, trackCompareRemove, trackCompareView, trackComparePair } from "./services/userEventService";
+import { trackProfileView, trackCompareAdd, trackCompareRemove, trackCompareView, trackComparePair, trackEvent } from "./services/userEventService";
 import { fetchUpcomingEventsForVenue, formatEventDate, formatEventTime } from './services/eventService';
 import EventDrawer from './components/EventDrawer';
 
@@ -1337,7 +1337,10 @@ function StatsStrip({ venue, nextEvent, onEventClick }) {
         {/* Next Open Day — only when an upcoming event exists */}
         {nextEvent && nextEventDate && (
           <div
-            onClick={() => onEventClick?.(nextEvent)}
+            onClick={() => {
+              trackEvent({ eventType: 'event_cta_click', entityType: 'event', entityId: nextEvent.id, metadata: { surface: 'stats_strip', eventTitle: nextEvent.title } })
+              onEventClick?.(nextEvent)
+            }}
             style={{
               flex: "0 0 auto", padding: "18px 28px", minWidth: 140,
               cursor: "pointer", position: "relative",

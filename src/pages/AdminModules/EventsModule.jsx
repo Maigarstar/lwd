@@ -12,6 +12,7 @@ import {
   adminDeleteEvent, adminListBookings, adminUpdateBooking,
   dbToEvent, eventToDb, slugifyTitle,
 } from '../../services/adminEventsService'
+import { supabase } from '../../lib/supabaseClient'
 import { fetchListings } from '../../services/listings'
 import EventDetailPage from '../EventDetailPage'
 import { uploadMediaFile } from '../../utils/storageUpload'
@@ -1435,12 +1436,85 @@ function BookingsPanel({ eventId, eventTitle, onClose, C }) {
   )
 }
 
+// ─── Event intel fetch ────────────────────────────────────────────────────────
+async function fetchEventIntel(days = 30) {
+  if (!supabase) return { byEvent: {}, summary: {} }
+  const since = new Date(Date.now() - days * 86400000).toISOString()
+  const TYPES = ['event_drawer_open', 'event_registration', 'event_page_view', 'event_cta_click']
+  const { data } = await supabase
+    .from('user_events')
+    .select('entity_id, event_type')
+    .in('event_type', TYPES)
+    .gte('created_at', since)
+  if (!data) return { byEvent: {}, summary: {} }
+  // Group by entity_id + event_type
+  const byEvent = {}
+  const summary = {}
+  data.forEach(({ entity_id, event_type }) => {
+    if (entity_id) {
+      if (!byEvent[entity_id]) byEvent[entity_id] = {}
+      byEvent[entity_id][event_type] = (byEvent[entity_id][event_type] || 0) + 1
+    }
+    summary[event_type] = (summary[event_type] || 0) + 1
+  })
+  return { byEvent, summary }
+}
+
+// ─── Platform intel header ────────────────────────────────────────────────────
+function IntelSummary({ summary, days, C }) {
+  const items = [
+    { label: 'Drawer Opens',  key: 'event_drawer_open',  icon: '◱' },
+    { label: 'Registrations', key: 'event_registration',  icon: '✓' },
+    { label: 'Page Views',    key: 'event_page_view',     icon: '👁' },
+    { label: 'Strip Clicks',  key: 'event_cta_click',     icon: '↗' },
+  ]
+  const totalDrawers = summary['event_drawer_open'] || 0
+  const totalRegs    = summary['event_registration'] || 0
+  const convRate     = totalDrawers > 0 ? Math.round((totalRegs / totalDrawers) * 100) : 0
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 1, marginBottom: 24, border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden' }}>
+      {items.map(({ label, key, icon }) => (
+        <div key={key} style={{ background: C.card, padding: '14px 16px', borderRight: `1px solid ${C.border}` }}>
+          <div style={{ fontFamily: NU, fontSize: 9, color: C.grey, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 6 }}>{icon} {label}</div>
+          <div style={{ fontFamily: GD, fontSize: 24, color: summary[key] > 0 ? C.gold : C.grey2, fontWeight: 400 }}>{summary[key] || 0}</div>
+          <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginTop: 2 }}>last {days}d</div>
+        </div>
+      ))}
+      <div style={{ background: C.card, padding: '14px 16px' }}>
+        <div style={{ fontFamily: NU, fontSize: 9, color: C.grey, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 6 }}>⚡ Conversion</div>
+        <div style={{ fontFamily: GD, fontSize: 24, color: convRate > 0 ? C.gold : C.grey2, fontWeight: 400 }}>{convRate}%</div>
+        <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginTop: 2 }}>drawer → register</div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Per-event intel pill ─────────────────────────────────────────────────────
+function EventIntelPill({ eventId, intel, C }) {
+  const d = intel[eventId] || {}
+  const opens = d['event_drawer_open'] || 0
+  const regs  = d['event_registration'] || 0
+  const views = d['event_page_view'] || 0
+  if (opens === 0 && regs === 0 && views === 0) return (
+    <div style={{ fontFamily: NU, fontSize: 10, color: C.grey2 }}>—</div>
+  )
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {opens > 0 && <div style={{ fontFamily: NU, fontSize: 10, color: C.gold }}>◱ {opens} opens</div>}
+      {regs  > 0 && <div style={{ fontFamily: NU, fontSize: 10, color: '#22c55e' }}>✓ {regs} reg{regs !== 1 ? 's' : ''}</div>}
+      {views > 0 && <div style={{ fontFamily: NU, fontSize: 10, color: C.grey }}>👁 {views} views</div>}
+    </div>
+  )
+}
+
 // ─── Events List ──────────────────────────────────────────────────────────────
 
 function EventsList({ onEdit, onViewBookings, onNew, C }) {
   const [events, setEvents]       = useState([])
   const [loading, setLoading]     = useState(true)
   const [filterStatus, setFilter] = useState('')
+  const [intel, setIntel]         = useState({ byEvent: {}, summary: {} })
+  const [intelDays, setIntelDays] = useState(30)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -1449,6 +1523,11 @@ function EventsList({ onEdit, onViewBookings, onNew, C }) {
   }, [filterStatus])
 
   useEffect(() => { load() }, [load])
+
+  // Load intel separately — non-blocking
+  useEffect(() => {
+    fetchEventIntel(intelDays).then(setIntel)
+  }, [intelDays])
 
   const handleDelete = async (id, title) => {
     if (!window.confirm(`Cancel event "${title}"? This will set its status to Cancelled.`)) return
@@ -1477,24 +1556,39 @@ function EventsList({ onEdit, onViewBookings, onNew, C }) {
   return (
     <div>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
           <h2 style={{ fontFamily: GD, fontSize: 22, color: C.off, margin: '0 0 4px', fontWeight: 400 }}>Events</h2>
           <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, margin: 0 }}>
             Manage venue open days, virtual tours, and exhibitions
           </p>
         </div>
-        <button
-          onClick={onNew}
-          style={{
-            fontFamily: NU, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
-            padding: '10px 20px', borderRadius: 4, cursor: 'pointer',
-            background: C.gold, border: 'none', color: '#000',
-          }}
-        >
-          + Create Event
-        </button>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          {/* Days selector for intel */}
+          <select
+            value={intelDays}
+            onChange={e => setIntelDays(Number(e.target.value))}
+            style={{ fontFamily: NU, fontSize: 11, color: C.grey, background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '6px 10px', cursor: 'pointer' }}
+          >
+            <option value={7}>Last 7 days</option>
+            <option value={30}>Last 30 days</option>
+            <option value={90}>Last 90 days</option>
+          </select>
+          <button
+            onClick={onNew}
+            style={{
+              fontFamily: NU, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
+              padding: '10px 20px', borderRadius: 4, cursor: 'pointer',
+              background: C.gold, border: 'none', color: '#000',
+            }}
+          >
+            + Create Event
+          </button>
+        </div>
       </div>
+
+      {/* Platform intel summary */}
+      <IntelSummary summary={intel.summary} days={intelDays} C={C} />
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
@@ -1530,8 +1624,8 @@ function EventsList({ onEdit, onViewBookings, onNew, C }) {
       {!loading && events.length > 0 && (
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden' }}>
           {/* Column headers */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px 80px 60px 160px', gap: 12, padding: '8px 16px', borderBottom: `1px solid ${C.border}` }}>
-            {['Event', 'Date', 'Type', 'Status', 'Bookings', 'Actions'].map(h => (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px 80px 60px 110px 160px', gap: 12, padding: '8px 16px', borderBottom: `1px solid ${C.border}` }}>
+            {['Event', 'Date', 'Type', 'Status', 'Bookings', 'Intel', 'Actions'].map(h => (
               <span key={h} style={{ fontFamily: NU, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.grey2, fontWeight: 600 }}>{h}</span>
             ))}
           </div>
@@ -1539,7 +1633,7 @@ function EventsList({ onEdit, onViewBookings, onNew, C }) {
           {events.map(event => (
             <div
               key={event.id}
-              style={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px 80px 60px 160px', gap: 12, padding: '14px 16px', borderBottom: `1px solid ${C.border}`, alignItems: 'center' }}
+              style={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px 80px 60px 110px 160px', gap: 12, padding: '14px 16px', borderBottom: `1px solid ${C.border}`, alignItems: 'center' }}
             >
               {/* Event name + cover */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
@@ -1561,6 +1655,9 @@ function EventsList({ onEdit, onViewBookings, onNew, C }) {
               <div style={{ fontFamily: GD, fontSize: 16, color: event.bookingCount > 0 ? C.gold : C.grey, textAlign: 'center' }}>
                 {event.bookingCount ?? 0}
               </div>
+
+              {/* Intel */}
+              <EventIntelPill eventId={event.id} intel={intel.byEvent} C={C} />
 
               {/* Actions */}
               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
