@@ -197,12 +197,13 @@ Deno.serve(async (req) => {
     // Counts per status
     const { data: allStatuses } = await supabase
       .from("event_bookings")
-      .select("status, guest_count")
+      .select("status, guest_count, attended")
       .eq("event_id", eventId);
 
     const counts = {
       total:            allStatuses?.length ?? 0,
       confirmed:        allStatuses?.filter(b => b.status === "confirmed").length  ?? 0,
+      attended:         allStatuses?.filter(b => b.attended).length                ?? 0,
       pending:          allStatuses?.filter(b => b.status === "pending").length    ?? 0,
       cancelled:        allStatuses?.filter(b => b.status === "cancelled").length  ?? 0,
       waitlist:         allStatuses?.filter(b => b.status === "waitlist").length   ?? 0,

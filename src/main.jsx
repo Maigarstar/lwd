@@ -70,6 +70,7 @@ import SixSensesShowcasePage    from "./pages/SixSensesShowcasePage.jsx";
 import VenueProfilePage         from "./pages/VenueProfilePage.jsx";
 import VenueReviewsPage         from "./pages/VenueReviewsPage.jsx";
 import EventDetailPage          from "./pages/EventDetailPage.jsx";
+import EventReviewPage          from "./pages/EventReviewPage.jsx";
 import AuraDiscoveryDemoPage    from "./pages/AuraDiscoveryDemoPage.jsx";
 import NotFoundPage         from "./pages/NotFoundPage.jsx";
 import UnsubscribePage      from "./pages/UnsubscribePage.jsx";
@@ -154,6 +155,7 @@ function stateToPath(pg, opts = {}) {
     case "venue-profile":    return `/venues/${opts.venueSlug || 'grand-tirolia'}`;
     case "venue-reviews":    return `/venues/${opts.venueSlug || ''}/reviews`;
     case "event-detail":     return `/events/${opts.eventSlug || ''}`;
+    case "event-review":     return "/review";
     case "listing-profile":  return `/wedding-venues/${opts.venueSlug || ''}`;
     case "dde-showcase":      return "/showcase/domaine-des-etangs";
     case "gt-showcase":       return "/showcase/grand-tirolia-kitzbuehel";
@@ -220,6 +222,8 @@ function pathToState(pathname) {
   if (parts[0] === "venues" && parts.length === 2) return { page: "venue-profile", venueSlug: parts[1] };
   // Event detail: /events/{slug}
   if (parts[0] === "events" && parts.length === 2) return { page: "event-detail", eventSlug: parts[1] };
+  // Event attendee review: /review?token=UUID
+  if (parts[0] === "review" && parts.length === 1) return { page: "event-review" };
   // Wedding venue listing profile: /wedding-venues/{slug}
   if (parts[0] === "wedding-venues" && parts.length === 2) return { page: "listing-profile", venueSlug: parts[1] };
   if (parts[0] === "magazine-studio" && parts.length === 1) return { page: "magazine-studio" };
@@ -466,6 +470,9 @@ function App() {
         )}
         {page === "event-detail" && (
           <EventDetailPage slug={activeEventSlug} onBack={goHome} footerNav={footerNav} />
+        )}
+        {page === "event-review" && (
+          <EventReviewPage />
         )}
         {page === "dde-showcase" && (
           <DdeShowcasePage
@@ -736,7 +743,7 @@ function App() {
         )}
 
         {/* ── Global site footer ── */}
-        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password"].includes(page) && (
+        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","event-review"].includes(page) && (
           <SiteFooter onNavigateAdmin={goAdmin} />
         )}
 

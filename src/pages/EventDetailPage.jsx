@@ -840,6 +840,10 @@ function BookingConfirmed({ booking, event, P }) {
     URL.revokeObjectURL(url);
   };
 
+  const today = new Date().toISOString().split('T')[0];
+  const eventPast  = event.startDate && event.startDate < today;
+  const reviewUrl  = booking.reviewToken ? `/review?token=${booking.reviewToken}` : null;
+
   return (
     <div style={{ textAlign: 'center', padding: '28px 0' }}>
       <div style={{
@@ -879,22 +883,55 @@ function BookingConfirmed({ booking, event, P }) {
           onMouseLeave={e => { e.currentTarget.style.borderColor = P.border; e.currentTarget.style.color = P.textSub; }}>
           ⬇ Download .ics File
         </button>
+
+        {/* Post-event review CTA */}
+        {eventPast && reviewUrl ? (
+          <a href={reviewUrl} target="_blank" rel="noopener noreferrer"
+            style={{
+              display: 'block', marginTop: 8, padding: '13px 20px',
+              background: GOLD, border: `1px solid ${GOLD}`,
+              borderRadius: 2, fontFamily: NU, fontSize: 12, color: '#0e0c0a',
+              letterSpacing: '0.1em', textTransform: 'uppercase', textDecoration: 'none',
+              fontWeight: 600,
+            }}
+            onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
+            onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+            ✦ Share Your Experience
+          </a>
+        ) : (
+          <p style={{
+            fontFamily: NU, fontSize: 11, color: P.textMuted,
+            textAlign: 'center', margin: '12px 0 0', lineHeight: 1.8,
+            letterSpacing: '0.03em',
+          }}>
+            After the event, we'll invite you to share your experience.
+          </p>
+        )}
       </div>
     </div>
   );
 }
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
-export default function EventDetailPage({ slug, onBack, footerNav, previewEvent = null }) {
-  const { isMobile } = useBreakpoint();
+export default function EventDetailPage({ slug, onBack, footerNav, previewEvent = null, previewDarkMode = true }) {
+  const { isMobile: _isMobile } = useBreakpoint();
   const isPreview = !!previewEvent;
+  // In the builder preview panel (≈50% viewport width), force compact/mobile layout
+  // so the preview fits properly — desktop layout is designed for full-width pages
+  const isMobile = isPreview ? true : _isMobile;
 
   const [event, setEvent]       = useState(isPreview ? previewEvent : null);
   const [loading, setLoading]   = useState(!isPreview);
   const [notFound, setNotFound] = useState(false);
   const [booking, setBooking]   = useState(null);
-  const [isLight, setIsLight]   = useState(false);
+  // In preview mode, mirror the admin light/dark toggle; otherwise use internal state
+  const [isLight, setIsLight]   = useState(isPreview ? !previewDarkMode : false);
   const [venue, setVenue]       = useState(null);
+
+  // Keep light/dark in sync with admin toggle when in preview
+  useEffect(() => {
+    if (isPreview) setIsLight(!previewDarkMode);
+  }, [isPreview, previewDarkMode]);
 
   const P = getPalette(isLight);
 
@@ -1003,7 +1040,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
       `}</style>
 
       {/* ── Hero ── */}
-      <div style={{ position: 'relative', height: isMobile ? 340 : 520, overflow: 'hidden', background: '#111' }}>
+      <div style={{ position: 'relative', height: isPreview ? 260 : (isMobile ? 340 : 520), overflow: 'hidden', background: '#111' }}>
         {useVideoHero && ytId(event.videoUrl) ? (
           // YouTube video hero: full-bleed autoplay muted loop
           <iframe
@@ -1033,15 +1070,15 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
           <div style={{ width: '100%', height: '100%', background: isLight ? '#e8e0d0' : 'linear-gradient(135deg, #1a1710 0%, #111 100%)' }} />
         )}
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(10,8,6,0.92) 0%, rgba(10,8,6,0.3) 55%, transparent 100%)' }} />
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: isMobile ? '28px 20px' : '48px 60px' }}>
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: isPreview ? '20px 24px' : (isMobile ? '28px 20px' : '48px 60px') }}>
           <div style={{ fontFamily: NU, fontSize: 10, color: GOLD, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 10 }}>
             {event.eventType?.replace(/_/g, ' ') || 'Event'}{event.isVirtual && ' · Virtual'}
           </div>
-          <h1 style={{ fontFamily: GD, fontSize: isMobile ? 30 : 48, color: '#f5f0e8', fontWeight: 400, margin: '0 0 10px', lineHeight: 1.1 }}>
+          <h1 style={{ fontFamily: GD, fontSize: isPreview ? 26 : (isMobile ? 30 : 48), color: '#f5f0e8', fontWeight: 400, margin: '0 0 8px', lineHeight: 1.1 }}>
             {event.title}
           </h1>
           {event.subtitle && (
-            <p style={{ fontFamily: NU, fontSize: isMobile ? 14 : 17, color: 'rgba(245,240,232,0.65)', margin: 0, maxWidth: 600 }}>
+            <p style={{ fontFamily: NU, fontSize: isPreview ? 13 : (isMobile ? 14 : 17), color: 'rgba(245,240,232,0.65)', margin: 0, maxWidth: 600 }}>
               {event.subtitle}
             </p>
           )}
@@ -1051,7 +1088,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
       {/* ── Body: wide container, left + right columns ── */}
       <div style={{
         maxWidth: 1240, margin: '0 auto',
-        padding: isMobile ? '32px 18px' : '56px 40px',
+        padding: isPreview ? '24px 20px' : (isMobile ? '32px 18px' : '56px 40px'),
         display: isMobile ? 'block' : 'flex',
         gap: 48, alignItems: 'flex-start',
       }}>

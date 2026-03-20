@@ -160,7 +160,7 @@ export async function submitEventBooking(payload, event) {
     const { data: bookingData, error: bookingError } = await supabase
       .from('event_bookings')
       .insert(bookingRow)
-      .select('id, booking_ref, status')
+      .select('id, booking_ref, status, review_token')
       .single()
 
     if (bookingError) {
@@ -168,7 +168,7 @@ export async function submitEventBooking(payload, event) {
       throw bookingError
     }
 
-    const { id: bookingId, booking_ref: bookingRef } = bookingData
+    const { id: bookingId, booking_ref: bookingRef, review_token: reviewToken } = bookingData
 
     // 2. Create lead (fire-and-forget, non-blocking)
     let leadId = null
@@ -221,7 +221,7 @@ export async function submitEventBooking(payload, event) {
         })
     }
 
-    return { success: true, bookingId, bookingRef, leadId, error: null }
+    return { success: true, bookingId, bookingRef, reviewToken: reviewToken || null, leadId, error: null }
 
   } catch (error) {
     console.error('[eventBookingService] submitEventBooking failed:', error)

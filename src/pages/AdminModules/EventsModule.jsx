@@ -789,234 +789,395 @@ function ListingPickerField({ label, value, onChange, onSelect, hint, C }) {
 
 // ─── Events Builder ───────────────────────────────────────────────────────────
 
-function EventsBuilder({ event: existingEvent, onSave, onCancel, C }) {
-  const [step, setStep]       = useState('venue')
-  const [form, setForm]       = useState(existingEvent ? { ...dbToEvent(existingEvent), ...existingEvent } : emptyEvent())
-  const [saving, setSaving]   = useState(false)
-  const [saveErr, setSaveErr] = useState(null)
+function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = true }) {
+  const [form, setForm]         = useState(existingEvent ? dbToEvent(existingEvent) : emptyEvent())
+  const [saving, setSaving]     = useState(false)
+  const [saveErr, setSaveErr]   = useState(null)
+  const [viewMode, setViewMode] = useState('split') // 'split' | 'editor' | 'preview'
+  const [dirty, setDirty]       = useState(false)
+
+  // Palette: light cream in light mode (matches Listing Studio), dark in dark mode
+  const LS = darkMode ? {
+    bg:     C.black,
+    card:   C.card,
+    border: C.border,
+    text:   C.off,
+    muted:  C.grey,
+    gold:   C.gold,
+    btn:    C.off,
+    btnTxt: C.black,
+  } : {
+    bg:     '#F2EFE9',
+    card:   '#F8F6F2',
+    border: '#D9D2C6',
+    text:   '#222222',
+    muted:  '#777777',
+    gold:   '#8A6A18',
+    btn:    '#1a1a1a',
+    btnTxt: '#ffffff',
+  }
 
   const set = useCallback((key, val) => {
     setForm(prev => ({ ...prev, [key]: val }))
+    setDirty(true)
   }, [])
 
-  const currentStepIdx = BUILDER_STEPS.findIndex(s => s.key === step)
-  const isLast = currentStepIdx === BUILDER_STEPS.length - 1
-  const isFirst = currentStepIdx === 0
-
-  const handleSave = async () => {
-    setSaving(true)
-    setSaveErr(null)
+  const handleSave = async (publishOverride) => {
+    setSaving(true); setSaveErr(null)
     try {
-      const dbPayload = eventToDb(form)
+      const payload = { ...eventToDb(form) }
+      if (publishOverride === 'published') payload.status = 'published'
+      if (publishOverride === 'draft')     payload.status = 'draft'
       let result
       if (existingEvent?.id) {
-        result = await adminUpdateEvent(existingEvent.id, dbPayload)
+        result = await adminUpdateEvent(existingEvent.id, payload)
       } else {
-        result = await adminCreateEvent(dbPayload)
+        result = await adminCreateEvent(payload)
       }
-      if (result?.event) {
-        onSave(result.event)
-      } else {
-        setSaveErr(result?.error || 'Save failed — please try again')
-      }
-    } catch (e) {
-      setSaveErr(e.message)
-    } finally {
-      setSaving(false)
-    }
+      if (result?.event) { setDirty(false); onSave(result.event) }
+      else setSaveErr(result?.error || 'Save failed — please try again')
+    } catch (e) { setSaveErr(e.message) }
+    finally { setSaving(false) }
   }
 
-  return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+  // Auto-generate slug from title (only if slug hasn't been manually edited)
+  const handleTitleChange = (val) => {
+    set('title', val)
+    if (!form._slugManual) set('slug', slugifyTitle(val))
+  }
 
-      {/* ── LEFT — editor panel ───────────────────────────────────────────── */}
+  const showEditor  = viewMode === 'split' || viewMode === 'editor'
+  const showPreview = viewMode === 'split' || viewMode === 'preview'
+
+  // ── Section card — matches Listing Builder card visual language ─────────────
+  const SCard = ({ title, hint, children }) => (
+    <div style={{ marginBottom: 24 }}>
       <div style={{
-        flex: '0 0 52%', overflowY: 'auto', borderRight: `1px solid ${C.border}`,
-        display: 'flex', flexDirection: 'column',
+        background: LS.card, border: `1px solid ${LS.border}`,
+        borderRadius: 8, overflow: 'hidden',
       }}>
-        {/* Header */}
-        <div style={{
-          padding: '14px 22px', borderBottom: `1px solid ${C.border}`,
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          position: 'sticky', top: 0, background: C.black, zIndex: 10, gap: 12,
-        }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            {/* Event title */}
-            <div style={{ fontFamily: GD, fontSize: 17, color: form.title ? C.off : C.grey, fontWeight: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {form.title || 'Untitled Event'}
-            </div>
-            {/* Linked venue + status */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3, flexWrap: 'wrap' }}>
-              {(form._venueName || form.venueId) ? (
-                <span style={{ fontFamily: NU, fontSize: 10, color: C.gold, letterSpacing: '0.04em' }}>
-                  ◈ {form._venueName || `Venue ${form.venueId?.slice(0, 8)}…`}
-                </span>
-              ) : (
-                <span style={{ fontFamily: NU, fontSize: 10, color: '#ef4444', opacity: 0.7, letterSpacing: '0.04em' }}>⚠ No venue linked</span>
-              )}
-              <span style={{ fontFamily: NU, fontSize: 10, color: C.grey }}>·</span>
-              <span style={{ fontFamily: NU, fontSize: 10, color: C.grey, textTransform: 'capitalize' }}>{form.status || 'draft'}</span>
-            </div>
-          </div>
-          <button onClick={onCancel} style={{ fontFamily: NU, fontSize: 11, color: C.grey, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 4, padding: '7px 14px', cursor: 'pointer', flexShrink: 0 }}>
-            ← Events
-          </button>
+        <div style={{ padding: '12px 20px', borderBottom: `1px solid ${LS.border}` }}>
+          <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: LS.gold }}>{title}</div>
+          {hint && <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 3, lineHeight: 1.5 }}>{hint}</div>}
+        </div>
+        <div style={{ padding: 20 }}>{children}</div>
+      </div>
+    </div>
+  )
+
+  // ── Two-column grid ─────────────────────────────────────────────────────────
+  const Grid2 = ({ children, gap = 16 }) => (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap }}>{children}</div>
+  )
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+
+      {/* ── TOP BAR — matches Listing Studio light theme ─────────────────────── */}
+      <div style={{
+        display: 'flex', alignItems: 'center',
+        padding: '10px 24px', borderBottom: `1px solid ${LS.border}`,
+        background: LS.bg, flexShrink: 0, zIndex: 20, gap: 8,
+      }}>
+        {/* Left: AI tools */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button style={{
+            fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px',
+            background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: 'pointer',
+          }}>Magic AI</button>
+          <button style={{
+            fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px',
+            background: 'transparent', color: LS.text, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer',
+          }}>Fill with AI</button>
         </div>
 
-        {/* Step tabs with completion cues */}
-        {(() => {
-          // Per-step completion logic — did the user fill required fields?
-          const stepComplete = {
-            venue:    !!form.venueId,
-            basics:   !!form.title,
-            datetime: !!form.startDate,
-            details:  !!form.description,
-            media:    !!form.coverImageUrl,
-            booking:  true, // has defaults
-            settings: true, // has defaults
-          }
-          return (
-            <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, padding: '0 22px', overflowX: 'auto' }}>
-              {BUILDER_STEPS.map((s) => {
-                const active    = s.key === step
-                const complete  = stepComplete[s.key]
-                const dotColor  = active ? C.gold : complete ? '#22c55e' : C.border
-                const dotText   = active ? s.num : complete ? '✓' : s.num
-                const textColor = active ? C.gold : complete ? C.off : C.grey
-                return (
+        {/* Right: save actions + view mode */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
+          {saveErr && <span style={{ fontFamily: NU, fontSize: 11, color: '#ef4444', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{saveErr}</span>}
+          <button onClick={onCancel} style={{
+            fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px',
+            background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer',
+          }}>Discard</button>
+          <button onClick={() => handleSave('draft')} disabled={saving || !dirty} style={{
+            fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px',
+            background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6,
+            cursor: saving || !dirty ? 'not-allowed' : 'pointer', opacity: saving || !dirty ? 0.35 : 1,
+          }}>{saving ? 'Saving…' : 'Save Draft'}</button>
+          <button onClick={() => handleSave('published')} disabled={saving} style={{
+            fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px',
+            background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6,
+            cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1,
+          }}>{saving ? 'Publishing…' : form.status === 'published' ? '✓ Published' : 'Publish'}</button>
+
+          {/* Divider + SPLIT · EDITOR · PREVIEW text links */}
+          <div style={{ width: 1, height: 16, background: LS.border, marginLeft: 4 }} />
+          {['split', 'editor', 'preview'].map(m => (
+            <span key={m} onClick={() => setViewMode(m)} style={{
+              fontFamily: NU, fontSize: 11, fontWeight: viewMode === m ? 700 : 500,
+              letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer',
+              color: viewMode === m ? LS.text : LS.muted,
+              borderBottom: viewMode === m ? `1px solid ${LS.text}` : '1px solid transparent',
+              paddingBottom: 1,
+            }}>{m === 'split' ? 'Split' : m === 'editor' ? 'Editor' : 'Preview'}</span>
+          ))}
+        </div>
+      </div>
+
+      {/* ── PANELS ─────────────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+        {/* LEFT — long scroll section cards */}
+        {showEditor && (
+          <div style={{
+            flex: viewMode === 'editor' ? '1' : '0 0 50%',
+            overflowY: 'auto',
+            background: LS.bg,
+            borderRight: showPreview ? `1px solid ${LS.border}` : 'none',
+            padding: '28px 32px 80px',
+          }}>
+            {/* Page header — event name + venue + status (matches Listing Builder) */}
+            <div style={{ marginBottom: 24 }}>
+              <h1 style={{ fontSize: 26, fontWeight: 600, color: LS.text, margin: '0 0 6px 0', lineHeight: 1.2 }}>
+                {form.title || 'Untitled Event'}
+              </h1>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: LS.muted, fontFamily: NU }}>
+                {form._venueName
+                  ? <span>{form._venueName}</span>
+                  : <span style={{ color: '#c0392b' }}>⚠ No venue linked</span>
+                }
+                <span style={{ opacity: 0.4 }}>·</span>
+                <span>{form.status === 'published' ? 'Published' : 'Draft'}</span>
+              </div>
+            </div>
+
+            {/* ── 1. VENUE ──────────────────────────────────────────────────── */}
+            <SCard title="Venue" hint="Link this event to a venue listing on the directory">
+              <ListingPickerField
+                label="Linked Venue"
+                value={form.venueId}
+                onChange={v => set('venueId', v)}
+                onSelect={l => set('_venueName', l?.name || '')}
+                hint="Search published listings by name or city. Powers the Hosted by card and venue profile connection."
+                C={C}
+              />
+            </SCard>
+
+            {/* ── 2. BASIC DETAILS ──────────────────────────────────────────── */}
+            <SCard title="Basic Details" hint="Title, event type and public URL">
+              <InputField label="Event Title *" value={form.title} onChange={handleTitleChange} placeholder="e.g. Open Day at Belmond Villa San Michele" required C={C} />
+              <InputField label="Subtitle" value={form.subtitle} onChange={v => set('subtitle', v)} placeholder="An exclusive morning tour for invited couples" hint="Optional — shown beneath the title on the event page" C={C} />
+              <Grid2>
+                <div>
+                  <InputField
+                    label="URL Slug"
+                    value={form.slug}
+                    onChange={v => { set('slug', v); set('_slugManual', true) }}
+                    placeholder="open-day-belmond-villa"
+                    hint="/events/your-slug"
+                    C={C}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, paddingTop: 22 }}>
                   <button
-                    key={s.key}
-                    onClick={() => setStep(s.key)}
-                    style={{
-                      fontFamily: NU, fontSize: 10, fontWeight: 700,
-                      letterSpacing: '0.08em', textTransform: 'uppercase',
-                      padding: '10px 14px', cursor: 'pointer',
-                      background: 'transparent', border: 'none',
-                      borderBottom: `2px solid ${active ? C.gold : 'transparent'}`,
-                      color: textColor, whiteSpace: 'nowrap',
-                      display: 'flex', alignItems: 'center', gap: 5,
-                    }}
-                  >
-                    <span style={{
-                      width: 15, height: 15, borderRadius: '50%', flexShrink: 0,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 7, fontWeight: 700,
-                      background: active ? C.gold : complete ? '#22c55e20' : C.border,
-                      color: active ? '#000' : complete ? '#22c55e' : C.grey,
-                      border: complete && !active ? '1px solid #22c55e40' : 'none',
-                    }}>
-                      {dotText}
-                    </span>
-                    {s.label}
-                  </button>
-                )
-              })}
-            </div>
-          )
-        })()}
+                    onClick={() => { set('slug', slugifyTitle(form.title || '', Date.now().toString(36).slice(-4))); set('_slugManual', false) }}
+                    style={{ fontFamily: NU, fontSize: 11, color: C.gold, background: 'transparent', border: `1px solid ${C.gold}40`, borderRadius: 4, padding: '10px 14px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                  >↺ Regenerate</button>
+                </div>
+              </Grid2>
+              <SelectField label="Event Type" value={form.eventType || 'open_day'} onChange={v => set('eventType', v)} options={EVENT_TYPES} C={C} />
+            </SCard>
 
-        {/* Step content */}
-        <div style={{ padding: '28px 28px 0', flex: 1 }}>
-          {step === 'venue'    && <StepVenue    form={form} set={set} C={C} />}
-          {step === 'basics'   && <StepBasics   form={form} set={set} C={C} />}
-          {step === 'datetime' && <StepDateTime form={form} set={set} C={C} />}
-          {step === 'details'  && <StepDetails  form={form} set={set} C={C} />}
-          {step === 'media'    && <StepMedia    form={form} set={set} C={C} />}
-          {step === 'booking'  && <StepBooking  form={form} set={set} C={C} />}
-          {step === 'settings' && <StepSettings form={form} set={set} C={C} />}
-        </div>
+            {/* ── 3. DATE & TIME ────────────────────────────────────────────── */}
+            <SCard title="Date & Time" hint="When the event takes place">
+              <Grid2>
+                <InputField label="Start Date *" value={form.startDate} onChange={v => set('startDate', v)} type="date" C={C} />
+                <InputField label="Start Time"   value={form.startTime} onChange={v => set('startTime', v)} type="time" C={C} />
+                <InputField label="End Date"     value={form.endDate}   onChange={v => set('endDate', v)}   type="date" C={C} />
+                <InputField label="End Time"     value={form.endTime}   onChange={v => set('endTime', v)}   type="time" C={C} />
+              </Grid2>
+              <SelectField
+                label="Timezone"
+                value={form.timezone || 'Europe/London'}
+                onChange={v => set('timezone', v)}
+                options={[
+                  { value: 'Europe/London',       label: 'London (GMT / BST)' },
+                  { value: 'Europe/Paris',         label: 'Paris (CET)' },
+                  { value: 'Europe/Rome',          label: 'Rome (CET)' },
+                  { value: 'America/New_York',     label: 'New York (ET)' },
+                  { value: 'America/Los_Angeles',  label: 'Los Angeles (PT)' },
+                  { value: 'Asia/Dubai',           label: 'Dubai (GST)' },
+                  { value: 'Asia/Singapore',       label: 'Singapore (SGT)' },
+                ]}
+                C={C}
+              />
+            </SCard>
 
-        {/* Error */}
-        {saveErr && (
-          <div style={{ margin: '16px 28px 0', background: '#ef444414', border: '1px solid #ef444440', borderRadius: 4, padding: '10px 14px', fontFamily: NU, fontSize: 12, color: '#ef4444' }}>
-            {saveErr}
+            {/* ── 4. EVENT DETAILS ──────────────────────────────────────────── */}
+            <SCard title="Event Details" hint="Description and where it takes place">
+              <EventDescriptionEditor value={form.description} onChange={v => set('description', v)} C={C} />
+              <Grid2>
+                <InputField label="Location Name"  value={form.locationName}    onChange={v => set('locationName', v)}    placeholder="e.g. Belmond Villa San Michele"          C={C} />
+                <InputField label="Full Address"   value={form.locationAddress} onChange={v => set('locationAddress', v)} placeholder="Via Doccia, 4, 50014 Fiesole FI, Italy"  C={C} />
+              </Grid2>
+            </SCard>
+
+            {/* ── 5. VIRTUAL EVENT ──────────────────────────────────────────── */}
+            <SCard title="Virtual Event" hint="For online or hybrid events">
+              <Toggle label="This is a virtual event" checked={!!form.isVirtual} onChange={v => set('isVirtual', v)} hint="Show stream URL and virtual platform fields" C={C} />
+              {form.isVirtual && (
+                <>
+                  <SelectField label="Virtual Platform" value={form.virtualPlatform || ''} onChange={v => set('virtualPlatform', v)} options={[{ value: '', label: 'Select platform…' }, ...VIRTUAL_PLATFORMS]} C={C} />
+                  <InputField label="Live Stream URL"         value={form.streamUrl  || ''} onChange={v => set('streamUrl', v)}  placeholder="https://youtube.com/embed/…" C={C} />
+                  <InputField label="Replay URL (after event)" value={form.replayUrl || ''} onChange={v => set('replayUrl', v)}  placeholder="https://youtube.com/watch?v=…" hint="Available after the event" C={C} />
+                </>
+              )}
+            </SCard>
+
+            {/* ── 6. MEDIA ──────────────────────────────────────────────────── */}
+            <SCard title="Media" hint="Cover image, video and gallery">
+              <InputField label="Cover Image URL" value={form.coverImageUrl || ''} onChange={v => set('coverImageUrl', v)} placeholder="https://…" hint="Hero image on the event page. Recommended: 1600×900px" C={C} />
+              {form.coverImageUrl && (
+                <div style={{ marginBottom: 18, borderRadius: 6, overflow: 'hidden', aspectRatio: '16/9', background: C.border }}>
+                  <img src={form.coverImageUrl} alt="Cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none' }} />
+                </div>
+              )}
+              <InputField label="Video URL" value={form.videoUrl || ''} onChange={v => set('videoUrl', v || null)} placeholder="https://youtube.com/watch?v=…" hint="YouTube or Vimeo. Shown above gallery images on the event page." C={C} />
+              {form.videoUrl && (
+                <Toggle label="Use video as hero (replaces cover image in the header)" checked={!!form.videoHeroMode} onChange={v => set('videoHeroMode', v)} C={C} />
+              )}
+              {form.videoUrl && videoThumb(form.videoUrl) && (
+                <div style={{ marginBottom: 18, borderRadius: 6, overflow: 'hidden', aspectRatio: '16/9', background: C.border, position: 'relative' }}>
+                  <img src={videoThumb(form.videoUrl)} alt="Video thumb" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)' }}>
+                    <div style={{ width: 40, height: 40, borderRadius: '50%', background: `${C.gold}cc`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ color: '#000', fontSize: 16, marginLeft: 3 }}>▶</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div style={{ marginBottom: 6, fontFamily: NU, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.grey, fontWeight: 600 }}>Gallery Images</div>
+              <p style={{ fontFamily: NU, fontSize: 11, color: C.grey, margin: '0 0 8px' }}>One URL per line — max 6 images</p>
+              <textarea
+                value={(form.galleryUrls || []).join('\n')}
+                onChange={e => set('galleryUrls', e.target.value.split('\n').map(s => s.trim()).filter(Boolean).slice(0, 6))}
+                rows={4}
+                placeholder={'https://…\nhttps://…\nhttps://…'}
+                style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: NU, fontSize: 12, color: C.grey, background: C.dark, border: `1px solid ${C.border}`, borderRadius: 4, padding: '10px 12px', outline: 'none', lineHeight: 1.7 }}
+              />
+              {form.galleryUrls?.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginTop: 12 }}>
+                  {form.galleryUrls.map((url, i) => (
+                    <div key={i} style={{ aspectRatio: '3/2', borderRadius: 4, overflow: 'hidden', background: C.border }}>
+                      <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none' }} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </SCard>
+
+            {/* ── 7. GETTING THERE & PRACTICAL DETAILS ─────────────────────── */}
+            <SCard title="Getting There & Practical Details" hint="Concierge-style logistics shown on the event page below the map — helps couples plan their journey">
+              <Grid2>
+                <InputField label="Nearest Airport"      value={form.nearestAirport    || ''} onChange={v => set('nearestAirport', v)}     placeholder="Florence Airport"               C={C} />
+                <InputField label="Air Travel Time"      value={form.travelTime        || ''} onChange={v => set('travelTime', v)}          placeholder="approx. 1hr 15min by car"       C={C} />
+                <InputField label="Nearest Train Station" value={form.nearestTrainStation || ''} onChange={v => set('nearestTrainStation', v)} placeholder="Pisa Centrale"             C={C} />
+                <InputField label="Train Travel Time"    value={form.trainTravelTime   || ''} onChange={v => set('trainTravelTime', v)}     placeholder="45 min direct from Florence"    C={C} />
+              </Grid2>
+              <InputField label="Transport Notes" value={form.transportNotes || ''} onChange={v => set('transportNotes', v)} placeholder="Private transfers available · Car hire recommended · Taxi access" hint="Transfers, car hire, taxi options" C={C} />
+              <Grid2>
+                <InputField label="Parking"         value={form.parkingInfo    || ''} onChange={v => set('parkingInfo', v)}    placeholder="Complimentary on-site parking"   C={C} />
+                <InputField label="Directions Link" value={form.directionsLink || ''} onChange={v => set('directionsLink', v)} placeholder="https://maps.google.com/…"       C={C} />
+              </Grid2>
+              <InputField label="Guest Logistics" value={form.guestLogistics || ''} onChange={v => set('guestLogistics', v)} placeholder="Smart casual dress. Lunch provided. Overnight stays on request." hint="Dress code, meals, accommodation, shuttle — anything that helps guests prepare" C={C} />
+            </SCard>
+
+            {/* ── 8. BOOKING ────────────────────────────────────────────────── */}
+            <SCard title="Booking" hint="How guests register or reserve their place">
+              <SelectField label="Booking Mode" value={form.bookingMode || 'internal'} onChange={v => set('bookingMode', v)} options={BOOKING_MODES} C={C} />
+              {form.bookingMode === 'external' && (
+                <InputField label="External Booking URL" value={form.externalBookingUrl || ''} onChange={v => set('externalBookingUrl', v)} placeholder="https://…" C={C} />
+              )}
+              <Grid2>
+                <InputField label="Capacity" value={form.capacity || ''} onChange={v => set('capacity', v ? Number(v) : '')} type="number" placeholder="Leave blank for unlimited" hint="Max attendees" C={C} />
+                <div style={{ paddingTop: 22 }}>
+                  <Toggle label="Enable waitlist when full" checked={!!form.waitlistEnabled} onChange={v => set('waitlistEnabled', v)} C={C} />
+                </div>
+              </Grid2>
+              <Toggle label="Free to attend" checked={form.isFree !== false} onChange={v => set('isFree', v)} hint="Toggle off to mark as a paid event. Payment is handled directly by the venue." C={C} />
+              {form.isFree === false && (
+                <>
+                  <Grid2>
+                    <InputField label="Price per guest" value={form.ticketPrice || ''} onChange={v => set('ticketPrice', v ? parseFloat(v) : null)} type="number" placeholder="50" hint="e.g. 50 for £50" C={C} />
+                    <SelectField label="Currency" value={form.ticketCurrency || 'GBP'} onChange={v => set('ticketCurrency', v)} options={[{value:'GBP',label:'GBP £'},{value:'EUR',label:'EUR €'},{value:'USD',label:'USD $'},{value:'AED',label:'AED'},{value:'CHF',label:'CHF'}]} C={C} />
+                  </Grid2>
+                  <InputField label="What's included" value={form.ticketIncludes || ''} onChange={v => set('ticketIncludes', v)} placeholder="Champagne reception, guided tour, lunch" hint="Shown to guests before booking" C={C} />
+                </>
+              )}
+            </SCard>
+
+            {/* ── 9. SETTINGS ───────────────────────────────────────────────── */}
+            <SCard title="Settings" hint="Publication status and configuration">
+              <SelectField
+                label="Status"
+                value={form.status || 'draft'}
+                onChange={v => set('status', v)}
+                options={[
+                  { value: 'draft',     label: 'Draft — not visible on site' },
+                  { value: 'published', label: 'Published — live on site' },
+                  { value: 'cancelled', label: 'Cancelled' },
+                  { value: 'archived',  label: 'Archived' },
+                ]}
+                C={C}
+              />
+              <Toggle label="Part of an exhibition" checked={!!form.isExhibition} onChange={v => set('isExhibition', v)} hint="Enables LWD Virtual Wedding Exhibition grouping" C={C} />
+              {!form.venueId && (
+                <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '12px 16px', display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: 4 }}>
+                  <span style={{ color: '#ef4444', fontSize: 14 }}>⚠</span>
+                  <div>
+                    <div style={{ fontFamily: NU, fontSize: 12, fontWeight: 600, color: '#ef4444', marginBottom: 2 }}>No venue linked</div>
+                    <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, lineHeight: 1.5 }}>This event won't appear on a venue profile. Link a venue in the Venue section above.</div>
+                  </div>
+                </div>
+              )}
+            </SCard>
+
           </div>
         )}
 
-        {/* Navigation — sticky at bottom */}
-        <div style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '18px 28px', borderTop: `1px solid ${C.border}`,
-          position: 'sticky', bottom: 0, background: C.black,
-        }}>
-          <button
-            onClick={() => !isFirst && setStep(BUILDER_STEPS[currentStepIdx - 1].key)}
-            disabled={isFirst}
-            style={{
-              fontFamily: NU, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
-              padding: '10px 18px', borderRadius: 4, cursor: isFirst ? 'default' : 'pointer',
-              background: 'transparent', border: `1px solid ${isFirst ? C.border : C.border}`,
-              color: isFirst ? C.border : C.grey,
-            }}
-          >
-            ← Previous
-          </button>
-
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              onClick={() => { set('status', 'draft'); handleSave() }}
-              disabled={saving}
-              style={{
-                fontFamily: NU, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
-                padding: '10px 18px', borderRadius: 4, cursor: saving ? 'default' : 'pointer',
-                background: 'transparent', border: `1px solid ${C.gold}40`, color: C.gold,
-              }}
-            >
-              Save Draft
-            </button>
-
-            {isLast ? (
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                style={{
-                  fontFamily: NU, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
-                  padding: '10px 22px', borderRadius: 4, cursor: saving ? 'default' : 'pointer',
-                  background: C.gold, border: 'none', color: '#000',
-                }}
-              >
-                {saving ? 'Saving…' : (form.status === 'published' ? '✓ Publish Event' : 'Save Event')}
-              </button>
+        {/* RIGHT — live preview */}
+        {showPreview && (
+          <div style={{ flex: viewMode === 'preview' ? '1' : '0 0 50%', overflowY: 'auto', background: LS.bg }}>
+            <div style={{
+              position: 'sticky', top: 0, zIndex: 20,
+              background: LS.bg, borderBottom: `1px solid ${LS.border}`,
+              padding: '10px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <span style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: LS.gold, fontWeight: 700 }}>Live Preview</span>
+              {form.slug && (
+                <a href={`/events/${form.slug}`} target="_blank" rel="noopener noreferrer" style={{ fontFamily: NU, fontSize: 10, color: LS.muted, textDecoration: 'none', letterSpacing: '0.04em' }}>
+                  /events/{form.slug} ↗
+                </a>
+              )}
+            </div>
+            {!form.title ? (
+              <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                height: 'calc(100% - 41px)', gap: 12, padding: 40, textAlign: 'center',
+              }}>
+                <div style={{ fontFamily: GD, fontSize: 28, color: LS.text, fontWeight: 400, lineHeight: 1.2 }}>
+                  Live preview will appear here
+                </div>
+                <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, letterSpacing: '0.05em' }}>
+                  Start typing an event title →
+                </div>
+              </div>
             ) : (
-              <button
-                onClick={() => setStep(BUILDER_STEPS[currentStepIdx + 1].key)}
-                style={{
-                  fontFamily: NU, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
-                  padding: '10px 22px', borderRadius: 4, cursor: 'pointer',
-                  background: C.gold, border: 'none', color: '#000',
-                }}
-              >
-                Next →
-              </button>
+              <EventDetailPage previewEvent={form} previewDarkMode={darkMode} />
             )}
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* ── RIGHT — live preview (actual EventDetailPage) ────────────────── */}
-      <div style={{ flex: '0 0 48%', overflowY: 'auto', background: '#0e0c0a' }}>
-        {/* Preview bar */}
-        <div style={{
-          position: 'sticky', top: 0, zIndex: 20,
-          background: '#111', borderBottom: '1px solid #2a2520',
-          padding: '10px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        }}>
-          <span style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#c9a84c', fontWeight: 700 }}>
-            Live Preview
-          </span>
-          {form.slug && (
-            <a
-              href={`/events/${form.slug}`} target="_blank" rel="noopener noreferrer"
-              style={{ fontFamily: NU, fontSize: 10, color: '#5a5248', textDecoration: 'none', letterSpacing: '0.04em' }}
-            >
-              /events/{form.slug} ↗
-            </a>
-          )}
-        </div>
-        {/* Real event page rendered from draft state — no fetch, no nav */}
-        <EventDetailPage previewEvent={form} />
       </div>
-
     </div>
   )
 }
@@ -1036,6 +1197,14 @@ function BookingsPanel({ eventId, eventTitle, onClose, C }) {
     adminListBookings(eventId).then(d => setData(d))
   }
 
+  const handleAttendedToggle = async (bookingId, current) => {
+    await adminUpdateBooking(bookingId, {
+      attended: !current,
+      attended_at: !current ? new Date().toISOString() : null,
+    })
+    adminListBookings(eventId).then(d => setData(d))
+  }
+
   const counts = data?.counts || {}
   const bookings = data?.bookings || []
 
@@ -1051,10 +1220,11 @@ function BookingsPanel({ eventId, eventTitle, onClose, C }) {
       </div>
 
       {/* Counts */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10, marginBottom: 20 }}>
         {[
           { label: 'Total',     value: counts.total,       colour: C.gold },
           { label: 'Confirmed', value: counts.confirmed,   colour: '#22c55e' },
+          { label: 'Attended',  value: counts.attended,    colour: '#4ade80' },
           { label: 'Pending',   value: counts.pending,     colour: '#f59e0b' },
           { label: 'Waitlist',  value: counts.waitlist,    colour: '#a78bfa' },
           { label: 'Guests',    value: counts.totalGuests, colour: C.off },
@@ -1073,15 +1243,16 @@ function BookingsPanel({ eventId, eventTitle, onClose, C }) {
       )}
       {!loading && bookings.length > 0 && (
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px 60px 100px 80px', gap: 12, padding: '8px 16px', borderBottom: `1px solid ${C.border}` }}>
-            {['Guest', 'Email', 'Guests', 'Ref', 'Status'].map(h => (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px 60px 100px 80px 88px', gap: 12, padding: '8px 16px', borderBottom: `1px solid ${C.border}` }}>
+            {['Guest', 'Email', 'Guests', 'Ref', 'Status', 'Attended'].map(h => (
               <span key={h} style={{ fontFamily: NU, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.grey2, fontWeight: 600 }}>{h}</span>
             ))}
           </div>
           {bookings.map(b => {
             const statusColour = { confirmed: '#22c55e', pending: '#f59e0b', cancelled: '#ef4444', waitlist: '#a78bfa' }[b.status] || C.grey
+            const isAttended = !!b.attended
             return (
-              <div key={b.id} style={{ display: 'grid', gridTemplateColumns: '1fr 180px 60px 100px 80px', gap: 12, padding: '12px 16px', borderBottom: `1px solid ${C.border}`, alignItems: 'center' }}>
+              <div key={b.id} style={{ display: 'grid', gridTemplateColumns: '1fr 180px 60px 100px 80px 88px', gap: 12, padding: '12px 16px', borderBottom: `1px solid ${C.border}`, alignItems: 'center' }}>
                 <div>
                   <div style={{ fontFamily: NU, fontSize: 13, color: C.off }}>{b.first_name} {b.last_name}</div>
                   <div style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>{b.phone || ''}</div>
@@ -1102,6 +1273,20 @@ function BookingsPanel({ eventId, eventTitle, onClose, C }) {
                     <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
                   ))}
                 </select>
+                <button
+                  onClick={() => handleAttendedToggle(b.id, isAttended)}
+                  title={isAttended ? `Attended ${b.attended_at ? new Date(b.attended_at).toLocaleDateString('en-GB') : ''}` : 'Mark as attended'}
+                  style={{
+                    fontFamily: NU, fontSize: 10, fontWeight: 700,
+                    background: isAttended ? 'rgba(34,197,94,0.12)' : 'transparent',
+                    border: `1px solid ${isAttended ? 'rgba(34,197,94,0.35)' : C.border}`,
+                    color: isAttended ? '#22c55e' : C.grey2,
+                    borderRadius: 3, padding: '3px 8px', cursor: 'pointer',
+                    letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap',
+                  }}
+                >
+                  {isAttended ? '✓ Yes' : '— No'}
+                </button>
               </div>
             )
           })}
@@ -1278,14 +1463,26 @@ function EventsList({ onEdit, onViewBookings, onNew, C }) {
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
-export default function EventsModule({ C }) {
-  const [view, setView]                 = useState('list') // 'list' | 'builder' | 'bookings'
+export default function EventsModule({ C, darkMode = true, onBuilderModeChange, startInBuilder = false }) {
+  const [view, setView]                 = useState(startInBuilder ? 'builder' : 'list')
   const [editingEvent, setEditingEvent] = useState(null)
   const [bookingsEvent, setBookingsEvent] = useState(null)
   const [savedBanner, setSavedBanner]   = useState(false)
 
-  const handleEdit = (event) => { setEditingEvent(event); setView('builder') }
-  const handleNew  = ()      => { setEditingEvent(null);  setView('builder') }
+  const enterBuilder = () => { onBuilderModeChange?.(true) }
+  const exitBuilder  = () => { onBuilderModeChange?.(false) }
+
+  // When opened as Event Studio, signal builder-active immediately (layout effect
+  // runs before paint so there is no flash of the padded/non-flex shell)
+  useEffect(() => {
+    if (startInBuilder) {
+      onBuilderModeChange?.(true)
+      return () => onBuilderModeChange?.(false)
+    }
+  }, [startInBuilder]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleEdit = (event) => { setEditingEvent(event); setView('builder'); enterBuilder() }
+  const handleNew  = ()      => { setEditingEvent(null);  setView('builder'); enterBuilder() }
 
   const handleViewBookings = (event) => { setBookingsEvent(event); setView('bookings') }
 
@@ -1294,10 +1491,16 @@ export default function EventsModule({ C }) {
     setTimeout(() => setSavedBanner(false), 3000)
     setView('list')
     setEditingEvent(null)
+    exitBuilder()
+  }
+
+  const handleCancel = () => {
+    setView('list')
+    exitBuilder()
   }
 
   return (
-    <div style={{ maxWidth: 1100 }}>
+    <div style={view === 'builder' ? { display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: C.black } : { maxWidth: 1100 }}>
       {/* Save banner */}
       {savedBanner && (
         <div style={{
@@ -1323,8 +1526,9 @@ export default function EventsModule({ C }) {
         <EventsBuilder
           event={editingEvent}
           onSave={handleSaved}
-          onCancel={() => setView('list')}
+          onCancel={handleCancel}
           C={C}
+          darkMode={darkMode}
         />
       )}
 

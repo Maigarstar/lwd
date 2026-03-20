@@ -242,6 +242,7 @@ const NAV_SECTIONS = [
       { key: "venue-intake",    label: "Venue Intake Studio", icon: "⬆" },
       { key: "venue-profiles",    label: "Showcase Profiles",  icon: "⌂" },
       { key: "events",            label: "Events",             icon: "◈" },
+      { key: "event-studio",      label: "Event Studio",       icon: "✎" },
       { key: "reviews",         label: "Reviews",           icon: "★" },
       { key: "vendor-accounts", label: "Vendor Accounts",   icon: "👤" },
       { key: "categories",      label: "Categories",        icon: "▦" },
@@ -8301,6 +8302,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
 
   const [listingStudioMode, setListingStudioMode] = useState(initialLS.mode); // 'new', 'edit', or null
   const [listingStudioListingId, setListingStudioListingId] = useState(initialLS.id);
+  const [eventsBuilderActive, setEventsBuilderActive] = useState(false);
 
   const getInitialPageEditorId = () => {
     const hash = window.location.hash.slice(1);
@@ -8766,7 +8768,8 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "newsletter-builder": return <EmailBuilderModule C={C} mode="newsletter" onBack={() => setActiveTab('newsletter')} />;
       case "seo":           return <SeoModule C={C} />;
       case "crm":               return <CRMModule C={C} />;
-      case "events":            return <EventsModule C={C} />;
+      case "events":            return <EventsModule key="events" C={C} darkMode={darkMode} onBuilderModeChange={setEventsBuilderActive} />;
+      case "event-studio":      return <EventsModule key="event-studio" C={C} darkMode={darkMode} onBuilderModeChange={setEventsBuilderActive} startInBuilder />;
       case "managed-accounts":  return <ManagedAccountsModule C={C} />;
       case "partner-enquiries": return <PartnerEnquiriesModule C={C} />;
       case "sales-pipeline":    return <SalesPipelineModule C={C} />;
@@ -8819,7 +8822,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         @media (max-width: 768px) {
           .admin-sidebar { display: flex !important; position: fixed !important; z-index: 999; left: 0; top: 0; width: 220px !important; height: 100vh !important; transform: translateX(${sidebarOpen ? "0" : "-100%"}); transition: transform 0.3s ease !important; box-shadow: ${sidebarOpen ? "6px 0 32px rgba(0,0,0,0.7)" : "none"}; border-right: ${sidebarOpen ? "1px solid rgba(201,168,76,0.25)" : "none"} !important; }
           .admin-sidebar-overlay { display: ${sidebarOpen ? "block" : "none"}; position: fixed; inset: 0; z-index: 998; background: rgba(0,0,0,0.5); }
-          .admin-main { padding: ${activeTab === 'magazine-studio' || activeTab === 'page-editor' || activeTab === 'listing-studio' || listingStudioMode ? '0' : '56px 16px 20px'} !important; }
+          .admin-main { padding: ${activeTab === 'magazine-studio' || activeTab === 'page-editor' || activeTab === 'listing-studio' || activeTab === 'event-studio' || listingStudioMode || eventsBuilderActive ? '0' : '56px 16px 20px'} !important; }
           .admin-hamburger { display: flex !important; }
           .admin-collapse-btn { display: none !important; }
           .admin-grid-2col { grid-template-columns: 1fr !important; }
@@ -9037,7 +9040,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         </aside>
 
         {/* ── Main content ── */}
-        <main className="admin-main" style={{ flex: 1, minHeight: 0, padding: listingStudioMode || activeTab === 'listing-studio' || activeTab === 'page-editor' || activeTab === 'magazine-studio' ? 0 : "40px 48px", overflow: activeTab === 'page-editor' || activeTab === 'magazine-studio' ? "hidden" : "auto", transition: "background 0.3s" }}>
+        <main className="admin-main" style={{ flex: 1, minHeight: 0, padding: listingStudioMode || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'page-editor' || activeTab === 'magazine-studio' || eventsBuilderActive ? 0 : "40px 48px", overflow: activeTab === 'page-editor' || activeTab === 'magazine-studio' || eventsBuilderActive || activeTab === 'event-studio' ? "hidden" : "auto", display: eventsBuilderActive || activeTab === 'event-studio' ? "flex" : undefined, flexDirection: eventsBuilderActive || activeTab === 'event-studio' ? "column" : undefined, transition: "background 0.3s" }}>
           {/* Magazine Studio, full-screen inside admin layout */}
           {activeTab === 'magazine-studio' ? (
             <MagazineStudio
@@ -9074,7 +9077,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
             </Suspense>
           ) : (
             <>
-              {activeTab !== 'page-editor' && (
+              {!['page-editor', 'listing-studio', 'event-studio', 'magazine-studio', 'venue-intake'].includes(activeTab) && !listingStudioMode && !eventsBuilderActive && (
                 <div style={{ marginBottom: 36 }}>
                   <h1 style={{
                     fontFamily: GD, fontSize: 24, fontWeight: 400,
