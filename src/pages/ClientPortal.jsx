@@ -20,6 +20,8 @@ import {
 import { fetchUpcomingEventsForVenue, fetchPortalEventBookings, formatEventDate, formatEventTime } from "../services/eventService";
 import { fetchListingByManagedAccountId } from "../services/listings.ts";
 import { useAdaptiveColor } from "../hooks/useAdaptiveColor";
+import { getConnections, fetchSearchConsoleData, fetchAnalyticsData } from "../services/googleConnectionService";
+import { supabase } from "../lib/supabaseClient";
 
 // -- Fonts / tokens ------------------------------------------------------------
 const SERIF = "'Cormorant Garamond', 'Georgia', serif";
@@ -830,39 +832,184 @@ function PerformancePage({ account, listing, summary }) {
   const monthName = now.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   const mgr       = account?.portalConfig?.accountManager;
 
+  // Time range state
+  const [days, setDays]           = useState(30);
+
+  // Live data states
+  const [connections, setConns]   = useState(null);
+  const [scData, setScData]       = useState(null);
+  const [gaData, setGaData]       = useState(null);
+  const [bookingCount, setBkCount]= useState(null);
+  const [dataLoading, setDLoding] = useState(true);
+
   // Real content metrics from summary
-  const published = summary?.liveThisMonth ?? 0;
-  const scheduled = summary?.scheduled     ?? 0;
-  const inPipeline= summary?.draft         ?? 0;
-  const lastPub   = summary?.lastPublished ? fmtDate(summary.lastPublished) : null;
-  const campaign  = summary?.activeCampaign ?? null;
-  const hasContent= published > 0 || scheduled > 0 || inPipeline > 0;
+  const published  = summary?.liveThisMonth ?? 0;
+  const scheduled  = summary?.scheduled     ?? 0;
+  const inPipeline = summary?.draft         ?? 0;
+  const lastPub    = summary?.lastPublished ? fmtDate(summary.lastPublished) : null;
+  const campaign   = summary?.activeCampaign ?? null;
+  const hasContent = published > 0 || scheduled > 0 || inPipeline > 0;
 
   // Build curated narrative sentences
   const narrative = [];
-  if (published > 0) {
-    narrative.push(`${published} piece${published !== 1 ? "s" : ""} of content published this month.`);
+  if (published > 0)  narrative.push(`${published} piece${published !== 1 ? "s" : ""} of content published this month.`);
+  if (scheduled > 0)  narrative.push(`${scheduled} post${scheduled !== 1 ? "s" : ""} scheduled for the coming weeks.`);
+  if (campaign)       narrative.push(`Active campaign: ${campaign}.`);
+  if (!hasContent)    narrative.push("Your content programme is being prepared. Items will appear here as they enter the pipeline.");
+
+  function startDate(d) {
+    const dt = new Date();
+    dt.setDate(dt.getDate() - d);
+    return dt.toISOString().split("T")[0];
   }
-  if (scheduled > 0) {
-    narrative.push(`${scheduled} post${scheduled !== 1 ? "s" : ""} scheduled for the coming weeks.`);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadLiveData() {
+      setDLoding(true);
+      setScData(null);
+      setGaData(null);
+
+      const start = startDate(days);
+      const end   = new Date().toISOString().split("T")[0];
+
+      // 1. Load connection status
+      const conns = await getConnections().catch(() => null);
+      if (cancelled) return;
+      setConns(conns);
+
+      const tasks = [];
+
+      // 2. GSC
+      const scConn = conns?.search_console;
+      if (scConn?.status === "connected" && scConn.selected_property_id) {
+        tasks.push(
+          fetchSearchConsoleData(scConn.selected_property_id, { rowLimit: 8, startDate: start, endDate: end })
+            .then(d => { if (!cancelled) setScData(d); })
+            .catch(() => { if (!cancelled) setScData("error"); })
+        );
+      }
+
+      // 3. GA
+      const gaConn = conns?.analytics;
+      if (gaConn?.status === "connected" && gaConn.selected_property_id) {
+        tasks.push(
+          fetchAnalyticsData(gaConn.selected_property_id, { startDate: start, endDate: end })
+            .then(d => { if (!cancelled) setGaData(d); })
+            .catch(() => { if (!cancelled) setGaData("error"); })
+        );
+      }
+
+      // 4. Event bookings count for this venue
+      if (listing?.id) {
+        tasks.push(
+          supabase
+            .from("event_bookings")
+            .select("id", { count: "exact", head: true })
+            .eq("venue_id", listing.id)
+            .gte("created_at", start + "T00:00:00")
+            .eq("status", "confirmed")
+            .then(({ count }) => { if (!cancelled) setBkCount(count ?? 0); })
+            .catch(() => {})
+        );
+      }
+
+      await Promise.allSettled(tasks);
+      if (!cancelled) setDLoding(false);
+    }
+    loadLiveData();
+    return () => { cancelled = true; };
+  }, [days, listing?.id]);
+
+  const scConn      = connections?.search_console;
+  const gaConn      = connections?.analytics;
+  const scConnected = scConn?.status === "connected";
+  const gaConnected = gaConn?.status === "connected";
+
+  const scTotals = scData && scData !== "error" ? scData?.totals : null;
+  const scRows   = scData && scData !== "error" ? (scData?.rows || []) : [];
+  const gaS      = gaData && gaData !== "error" ? gaData?.summary : null;
+
+  // Est. pipeline: bookings × listing price × 8% conversion assumption
+  const estPipeline = listing?.priceFrom && bookingCount > 0
+    ? Math.round(bookingCount * listing.priceFrom * 0.08).toLocaleString()
+    : null;
+  const currency = listing?.priceCurrency || "EUR";
+
+  // Sub-components
+  function DayFilter() {
+    return (
+      <div style={{ display: "flex", gap: 4 }}>
+        {[7, 30, 90].map(d => (
+          <button key={d} onClick={() => setDays(d)} style={{
+            fontFamily: SANS, fontSize: 10, padding: "4px 10px",
+            background: days === d ? T.gold : "transparent",
+            color: days === d ? "#0b0906" : T.grey,
+            border: `1px solid ${days === d ? T.gold : T.border}`,
+            borderRadius: 3, cursor: "pointer",
+            fontWeight: days === d ? 700 : 400,
+            letterSpacing: "0.08em", transition: "all 0.15s",
+          }}>{d}d</button>
+        ))}
+      </div>
+    );
   }
-  if (campaign) {
-    narrative.push(`Active campaign: ${campaign}.`);
+
+  function LiveBadge({ connected }) {
+    return (
+      <span style={{
+        fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.1em",
+        textTransform: "uppercase", padding: "3px 10px", borderRadius: 20,
+        border: `1px solid ${connected ? T.gold + "44" : T.border}`,
+        color: connected ? T.gold : T.grey2, flexShrink: 0,
+      }}>
+        {connected ? "Live" : "Not Connected"}
+      </span>
+    );
   }
-  if (!hasContent) {
-    narrative.push("Your content programme is being prepared. Items will appear here as they enter the pipeline.");
+
+  function NotConnectedNote({ service }) {
+    return (
+      <div style={{ padding: "20px 24px", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 6 }}>
+        <p style={{ fontFamily: SANS, fontSize: 13, color: T.grey2, margin: 0, lineHeight: 1.7 }}>
+          {service} is not yet connected for this account. Contact your account manager to enable this view.
+        </p>
+      </div>
+    );
+  }
+
+  function KpiGrid({ items }) {
+    return (
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${items.length}, 1fr)`, gap: 1 }}>
+        {items.map(m => (
+          <div key={m.label} style={{ background: T.card, border: `1px solid ${T.border}`, padding: "18px 18px 16px", textAlign: "center" }}>
+            <div style={{ fontFamily: SERIF, fontSize: 26, fontWeight: 600, color: m.color || T.off, lineHeight: 1, marginBottom: 6 }}>
+              {m.value}
+            </div>
+            <div style={{ fontFamily: SANS, fontSize: 9, color: T.grey2, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: m.note ? 3 : 0 }}>
+              {m.label}
+            </div>
+            {m.note && <div style={{ fontFamily: SANS, fontSize: 9, color: T.grey2, opacity: 0.65 }}>{m.note}</div>}
+          </div>
+        ))}
+      </div>
+    );
   }
 
   return (
     <div>
-      <div style={{ marginBottom: 32 }}>
-        <div style={{ fontFamily: SERIF, fontSize: 28, fontWeight: 500, color: T.white, marginBottom: 6 }}>Performance</div>
-        <p style={{ fontFamily: SANS, fontSize: 13, color: T.grey, margin: 0, lineHeight: 1.7 }}>
-          The impact of your account, measured across content delivery, search presence, and enquiry performance.
-        </p>
+      {/* Header + time filter */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32 }}>
+        <div>
+          <div style={{ fontFamily: SERIF, fontSize: 28, fontWeight: 500, color: T.white, marginBottom: 6 }}>Performance</div>
+          <p style={{ fontFamily: SANS, fontSize: 13, color: T.grey, margin: 0, lineHeight: 1.7 }}>
+            The impact of your account, measured across content delivery, search presence, and enquiry performance.
+          </p>
+        </div>
+        <DayFilter />
       </div>
 
-      {/* Month in review - curated narrative */}
+      {/* Month in review */}
       <div style={{ marginBottom: 36, padding: "24px 28px", background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, borderTop: `2px solid ${T.goldDim}` }}>
         <div style={{ fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: T.goldDim, marginBottom: 10 }}>
           {monthName}
@@ -889,15 +1036,15 @@ function PerformancePage({ account, listing, summary }) {
         )}
       </div>
 
-      {/* Directory presence - real listing data */}
+      {/* Directory presence */}
       {listing && (
         <div style={{ marginBottom: 36 }}>
           <SectionTitle>Directory Presence</SectionTitle>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1 }}>
             {[
-              { label: "Rating",        value: listing.rating ? `${listing.rating}/5` : "-", color: T.gold,  note: listing.reviewCount ? `${listing.reviewCount} review${listing.reviewCount !== 1 ? "s" : ""}` : null },
-              { label: "Listing Status",value: listing.status === "published" ? "Live" : listing.status || "Draft", color: listing.status === "published" ? T.green : T.grey, note: listing.name },
-              { label: "Starting From", value: listing.priceFrom ? `${listing.priceCurrency || "EUR"} ${listing.priceFrom.toLocaleString()}` : "-", color: T.off, note: null },
+              { label: "Rating",         value: listing.rating ? `${listing.rating}/5` : "-", color: T.gold,  note: listing.reviewCount ? `${listing.reviewCount} review${listing.reviewCount !== 1 ? "s" : ""}` : null },
+              { label: "Listing Status", value: listing.status === "published" ? "Live" : listing.status || "Draft", color: listing.status === "published" ? T.green : T.grey, note: listing.name },
+              { label: "Starting From",  value: listing.priceFrom ? `${listing.priceCurrency || "EUR"} ${listing.priceFrom.toLocaleString()}` : "-", color: T.off, note: null },
             ].map(s => (
               <div key={s.label} style={{ background: T.card, border: `1px solid ${T.border}`, padding: "20px 20px 18px", textAlign: "center" }}>
                 <div style={{ fontFamily: SERIF, fontSize: 28, fontWeight: 600, color: s.color, lineHeight: 1, marginBottom: 6 }}>{s.value}</div>
@@ -909,8 +1056,8 @@ function PerformancePage({ account, listing, summary }) {
         </div>
       )}
 
-      {/* Content Impact - real metrics from summary */}
-      <div style={{ marginBottom: 12 }}>
+      {/* Content Impact */}
+      <div style={{ marginBottom: 36 }}>
         <SectionTitle>Content Impact</SectionTitle>
         <div style={{ padding: "24px 28px", background: T.card, border: `1px solid ${T.border}`, borderRadius: 10 }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 12 }}>
@@ -940,53 +1087,94 @@ function PerformancePage({ account, listing, summary }) {
         </div>
       </div>
 
-      {/* Search Visibility + Enquiry Value - intentional setup state */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 32, marginTop: 12 }}>
-        {[
-          {
-            label: "Search Visibility",
-            desc:  "Keyword rankings, organic sessions, and click-through rate from Search Console. This view will activate once your analytics integrations are connected during onboarding.",
-            metrics: [
-              { label: "Organic Sessions",   note: "via Google Analytics" },
-              { label: "Avg. Position",      note: "via Search Console" },
-              { label: "Click-through Rate", note: "via Search Console" },
-            ],
-          },
-          {
-            label: "Enquiry Value",
-            desc:  "Enquiries received from your directory listing, conversion rate from page views, and estimated pipeline value. Tracked once your listing is live and enquiry routing is configured.",
-            metrics: [
-              { label: "Enquiries",           note: "from listing" },
-              { label: "Conversion Rate",     note: "views to contact" },
-              { label: "Est. Pipeline Value", note: "per month" },
-            ],
-          },
-        ].map(pillar => (
-          <div key={pillar.label} style={{
-            padding: "24px 28px",
-            background: T.card,
-            border: `1px solid ${T.border}`,
-            borderRadius: 10,
-            opacity: 0.72,
-          }}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 12 }}>
-              <div style={{ fontFamily: SANS, fontSize: 14, fontWeight: 600, color: T.grey }}>{pillar.label}</div>
-              <span style={{ fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 20, border: `1px solid ${T.border}`, color: T.grey2, flexShrink: 0 }}>
-                Connecting soon
-              </span>
-            </div>
-            <p style={{ fontFamily: SANS, fontSize: 13, color: T.grey2, margin: "0 0 20px", lineHeight: 1.8 }}>{pillar.desc}</p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-              {pillar.metrics.map(m => (
-                <div key={m.label} style={{ padding: "12px 12px 10px", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 6, textAlign: "center" }}>
-                  <div style={{ fontFamily: SERIF, fontSize: 22, color: T.grey2, lineHeight: 1, marginBottom: 6 }}>-</div>
-                  <div style={{ fontFamily: SANS, fontSize: 9, color: T.grey2, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 2 }}>{m.label}</div>
-                  <div style={{ fontFamily: SANS, fontSize: 9, color: T.grey2, opacity: 0.6 }}>{m.note}</div>
-                </div>
-              ))}
-            </div>
+      {/* Search Visibility — GSC */}
+      <div style={{ marginBottom: 36 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <SectionTitle style={{ margin: 0 }}>Search Visibility</SectionTitle>
+          <LiveBadge connected={scConnected} />
+        </div>
+        {!scConnected ? (
+          <NotConnectedNote service="Google Search Console" />
+        ) : scData === null ? (
+          <div style={{ padding: "20px 24px", background: T.card, border: `1px solid ${T.border}`, borderRadius: 6 }}>
+            <div style={{ fontFamily: SANS, fontSize: 13, color: T.grey2 }}>Loading search data…</div>
           </div>
-        ))}
+        ) : scData === "error" ? (
+          <div style={{ padding: "20px 24px", background: T.card, border: `1px solid ${T.border}`, borderRadius: 6 }}>
+            <div style={{ fontFamily: SANS, fontSize: 13, color: T.grey2 }}>Could not load Search Console data. Please try again later.</div>
+          </div>
+        ) : (
+          <div>
+            <KpiGrid items={[
+              { label: "Impressions",  value: scTotals?.impressions?.toLocaleString() || "0",   color: T.off,  note: `last ${days}d` },
+              { label: "Clicks",       value: scTotals?.clicks?.toLocaleString()      || "0",   color: T.gold, note: `last ${days}d` },
+              { label: "CTR",          value: scTotals?.ctr != null ? `${(scTotals.ctr * 100).toFixed(1)}%` : "-", color: T.off, note: "click-through" },
+              { label: "Avg Position", value: scTotals?.position != null ? scTotals.position.toFixed(1) : "-", color: T.off, note: "search ranking" },
+            ]} />
+            {scRows.length > 0 && (
+              <div style={{ marginTop: 1, background: T.card, border: `1px solid ${T.border}`, borderRadius: "0 0 6px 6px", overflow: "hidden" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 60px 80px 70px", gap: 8, padding: "8px 16px", background: T.bg }}>
+                  {["Top Queries", "Clicks", "Impr.", "Position"].map(h => (
+                    <span key={h} style={{ fontFamily: SANS, fontSize: 9, color: T.grey, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600, textAlign: h !== "Top Queries" ? "right" : "left" }}>{h}</span>
+                  ))}
+                </div>
+                {scRows.slice(0, 6).map((row, i) => (
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 60px 80px 70px", gap: 8, padding: "9px 16px", borderTop: `1px solid ${T.border}`, alignItems: "center" }}>
+                    <span style={{ fontFamily: SANS, fontSize: 12, color: T.off, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.query}</span>
+                    <span style={{ fontFamily: SANS, fontSize: 12, color: T.gold, textAlign: "right" }}>{row.clicks?.toLocaleString()}</span>
+                    <span style={{ fontFamily: SANS, fontSize: 12, color: T.grey, textAlign: "right" }}>{row.impressions?.toLocaleString()}</span>
+                    <span style={{ fontFamily: SANS, fontSize: 12, color: T.grey, textAlign: "right" }}>{row.position?.toFixed(1)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Traffic Overview — GA */}
+      <div style={{ marginBottom: 36 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <SectionTitle style={{ margin: 0 }}>Traffic Overview</SectionTitle>
+          <LiveBadge connected={gaConnected} />
+        </div>
+        {!gaConnected ? (
+          <NotConnectedNote service="Google Analytics" />
+        ) : gaData === null ? (
+          <div style={{ padding: "20px 24px", background: T.card, border: `1px solid ${T.border}`, borderRadius: 6 }}>
+            <div style={{ fontFamily: SANS, fontSize: 13, color: T.grey2 }}>Loading analytics data…</div>
+          </div>
+        ) : gaData === "error" ? (
+          <div style={{ padding: "20px 24px", background: T.card, border: `1px solid ${T.border}`, borderRadius: 6 }}>
+            <div style={{ fontFamily: SANS, fontSize: 13, color: T.grey2 }}>Could not load Analytics data. Please try again later.</div>
+          </div>
+        ) : (
+          <KpiGrid items={[
+            { label: "Sessions",         value: gaS?.sessions?.toLocaleString()         || "0", color: T.gold, note: `last ${days}d` },
+            { label: "Engaged Sessions", value: gaS?.engagedSessions?.toLocaleString()  || "0", color: T.off,  note: "quality visits" },
+            { label: "Bounce Rate",      value: gaS?.bounceRate != null ? `${gaS.bounceRate}%` : "-", color: gaS?.bounceRate > 60 ? T.red : gaS?.bounceRate > 40 ? T.amber : T.green, note: gaS?.bounceRate > 60 ? "needs attention" : gaS?.bounceRate > 40 ? "room to improve" : "performing well" },
+          ]} />
+        )}
+      </div>
+
+      {/* Enquiry Value */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <SectionTitle style={{ margin: 0 }}>Enquiry Value</SectionTitle>
+          <span style={{ fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 20, border: `1px solid ${bookingCount > 0 ? T.gold + "44" : T.border}`, color: bookingCount > 0 ? T.gold : T.grey2 }}>
+            {bookingCount > 0 ? "Active" : "Building"}
+          </span>
+        </div>
+        <KpiGrid items={[
+          { label: "Event Bookings",  value: bookingCount != null ? bookingCount.toString() : "-", color: T.gold, note: `last ${days}d` },
+          { label: "Starting Price",  value: listing?.priceFrom ? `${currency} ${listing.priceFrom.toLocaleString()}` : "-", color: T.off, note: "per event / stay" },
+          { label: "Est. Pipeline",   value: estPipeline ? `${currency} ${estPipeline}` : "-", color: estPipeline ? T.green : T.grey2, note: "indicative value" },
+        ]} />
+        {bookingCount === 0 && (
+          <p style={{ fontFamily: SANS, fontSize: 11, color: T.grey2, marginTop: 12, lineHeight: 1.6 }}>
+            No confirmed event bookings in this period. Create and publish an event to start tracking enquiry value.
+          </p>
+        )}
       </div>
     </div>
   );

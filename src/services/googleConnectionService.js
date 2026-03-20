@@ -122,9 +122,9 @@ export async function disconnectService(service) {
 
 // ── Fetch real Search Console query data ──────────────────────────────────────
 
-export async function fetchSearchConsoleData(siteUrl, { rowLimit = 10 } = {}) {
+export async function fetchSearchConsoleData(siteUrl, { rowLimit = 10, startDate, endDate } = {}) {
   const { data, error } = await supabase.functions.invoke('google-search-console', {
-    body: { siteUrl, rowLimit },
+    body: { siteUrl, rowLimit, ...(startDate && { startDate }), ...(endDate && { endDate }) },
   });
   if (error) throw new Error(error.message);
   if (data?.error) throw new Error(data.error);
@@ -133,9 +133,9 @@ export async function fetchSearchConsoleData(siteUrl, { rowLimit = 10 } = {}) {
 
 // ── Fetch real Google Analytics engagement data ───────────────────────────────
 
-export async function fetchAnalyticsData(propertyId) {
+export async function fetchAnalyticsData(propertyId, options = {}) {
   const { data, error } = await supabase.functions.invoke('google-analytics', {
-    body: { propertyId },
+    body: { propertyId, ...options },
   });
   if (error) throw new Error(error.message);
   if (data?.error) throw new Error(data.error);
