@@ -8034,7 +8034,7 @@ export default function VenueProfile({ onBack = null, slug = null }) {
           </div>
         )}
         <VenueCookieBanner />
-        <EventDrawer event={drawerEvent} onClose={() => setDrawerEvent(null)} />
+        <EventDrawer event={drawerEvent} onClose={() => setDrawerEvent(null)} darkMode={darkMode} />
       </div>
     </Theme.Provider>
   );

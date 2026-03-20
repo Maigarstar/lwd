@@ -13,7 +13,7 @@ const GD   = 'var(--font-heading-primary)';
 const NU   = 'var(--font-body)';
 const GOLD = '#C9A84C';
 
-const P = {
+const LIGHT = {
   bg:      '#faf8f5',
   card:    '#ffffff',
   border:  '#e8e0d4',
@@ -21,10 +21,22 @@ const P = {
   sub:     '#5a5045',
   muted:   '#9a8e80',
   inputBg: '#f5f0e8',
+  backdrop: 'rgba(0,0,0,0.45)',
+};
+
+const DARK = {
+  bg:      '#111110',
+  card:    '#1a1a18',
+  border:  '#2e2e2b',
+  text:    '#f0ece4',
+  sub:     '#c0b8a8',
+  muted:   '#7a7060',
+  inputBg: '#242420',
+  backdrop: 'rgba(0,0,0,0.65)',
 };
 
 // ── Mini booking form ─────────────────────────────────────────────────────────
-function BookingForm({ event, onSuccess }) {
+function BookingForm({ event, onSuccess, P }) {
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', phone: '',
     guestCount: 1, message: '', consentMarketing: false, consentDataProcessing: true,
@@ -113,7 +125,7 @@ function BookingForm({ event, onSuccess }) {
         type="submit" disabled={submitting}
         style={{
           width: '100%', padding: '13px 0',
-          background: submitting ? '#ccc' : '#1a1a18', color: '#fff',
+          background: submitting ? P.muted : P.text, color: P.bg,
           border: 'none', borderRadius: 3, cursor: submitting ? 'not-allowed' : 'pointer',
           fontFamily: NU, fontSize: 13, fontWeight: 600, letterSpacing: '0.08em',
           transition: 'background 0.15s',
@@ -129,7 +141,7 @@ function BookingForm({ event, onSuccess }) {
 }
 
 // ── Confirmed state ───────────────────────────────────────────────────────────
-function BookingConfirmed({ event }) {
+function BookingConfirmed({ event, P }) {
   return (
     <div style={{ textAlign: 'center', padding: '32px 0' }}>
       <div style={{ fontSize: 36, marginBottom: 16 }}>✓</div>
@@ -148,7 +160,8 @@ function BookingConfirmed({ event }) {
 }
 
 // ── Main drawer ───────────────────────────────────────────────────────────────
-export default function EventDrawer({ event, onClose }) {
+export default function EventDrawer({ event, onClose, darkMode = false }) {
+  const P = darkMode ? DARK : LIGHT;
   const [booking, setBooking] = useState(null);
   const [visible, setVisible] = useState(false);
 
@@ -196,7 +209,7 @@ export default function EventDrawer({ event, onClose }) {
         onClick={onClose}
         style={{
           position: 'fixed', inset: 0, zIndex: 1100,
-          background: 'rgba(0,0,0,0.45)',
+          background: P.backdrop,
           opacity: visible ? 1 : 0,
           transition: 'opacity 0.3s ease',
         }}
@@ -380,7 +393,7 @@ export default function EventDrawer({ event, onClose }) {
 
           {/* Booking / Register section */}
           {booking ? (
-            <BookingConfirmed event={event} />
+            <BookingConfirmed event={event} P={P} />
           ) : showBooking ? (
             <div>
               <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: GOLD, marginBottom: 4, fontWeight: 600 }}>
@@ -391,14 +404,14 @@ export default function EventDrawer({ event, onClose }) {
                   ? `Tickets from £${event.ticketPrice || '—'}. Complete the form and we'll be in touch to confirm your place.`
                   : 'Complimentary. Complete the form below and we\'ll confirm your place.'}
               </p>
-              <BookingForm event={event} onSuccess={r => setBooking(r)} />
+              <BookingForm event={event} onSuccess={r => setBooking(r)} P={P} />
             </div>
           ) : event.bookingMode === 'external' && event.externalBookingUrl ? (
             <a
               href={event.externalBookingUrl} target="_blank" rel="noopener noreferrer"
               style={{
                 display: 'block', width: '100%', boxSizing: 'border-box',
-                padding: '14px 0', background: '#1a1a18', color: '#fff',
+                padding: '14px 0', background: P.text, color: P.bg,
                 textAlign: 'center', borderRadius: 3, textDecoration: 'none',
                 fontFamily: NU, fontSize: 13, fontWeight: 600, letterSpacing: '0.08em',
               }}
