@@ -12,6 +12,9 @@ import {
   buildIcsBlob,
 } from '../services/eventService';
 import { submitEventBooking } from '../services/eventBookingService';
+import { fetchApprovedReviews } from '../services/reviewService';
+import { fetchListingById } from '../services/listings';
+import { THEMES } from '../services/reviewThemeService';
 import { useBreakpoint } from '../hooks/useWindowWidth';
 import HomeNav from '../components/nav/HomeNav';
 
@@ -329,6 +332,185 @@ function EventMap({ event, P }) {
         >
           Open in Maps →
         </a>
+      </div>
+    </div>
+  );
+}
+
+// ── Helpers shared with reviews ───────────────────────────────────────────────
+function mapReview(r) {
+  const name = r.reviewer_name || 'Anonymous';
+  const initials = name.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
+  return {
+    id:       r.id,
+    names:    name,
+    location: r.reviewer_location || null,
+    date:     r.event_date
+      ? new Date(r.event_date).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+      : r.published_at
+        ? new Date(r.published_at).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+        : null,
+    rating:   Number(r.overall_rating) || 5,
+    title:    r.review_title || null,
+    text:     r.review_text || '',
+    verified: !!r.is_verified,
+    themes:   r.themes || [],
+    avatar:   initials,
+  };
+}
+
+// ── Venue Reviews Strip (mirrors VenueReviewsPage card style) ─────────────────
+function VenueReviewsStrip({ venueId, P }) {
+  const [reviews, setReviews]     = useState([]);
+  const [venueSlug, setVenueSlug] = useState(null);
+  const [loading, setLoading]     = useState(true);
+
+  useEffect(() => {
+    if (!venueId) { setLoading(false); return; }
+    Promise.all([
+      fetchApprovedReviews('venue', venueId),
+      fetchListingById(venueId),
+    ]).then(([raw, listing]) => {
+      setReviews((raw || []).map(mapReview).slice(0, 3));
+      setVenueSlug(listing?.slug || null);
+    }).catch(e => console.warn('[VenueReviewsStrip]', e))
+      .finally(() => setLoading(false));
+  }, [venueId]);
+
+  if (loading || reviews.length === 0) return null;
+
+  const avgRating = (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1);
+  const REVIEW_GOLD = '#c9a84c';
+
+  return (
+    <div style={{ marginBottom: 44 }}>
+      <Label>Guest Reviews</Label>
+
+      {/* Summary bar */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24,
+        paddingBottom: 18, borderBottom: `1px solid ${P.border}`,
+      }}>
+        <div style={{ fontFamily: GD, fontSize: 40, color: REVIEW_GOLD, lineHeight: 1 }}>{avgRating}</div>
+        <div>
+          <div style={{ display: 'flex', gap: 3, marginBottom: 4 }}>
+            {[1,2,3,4,5].map(s => (
+              <span key={s} style={{ fontSize: 14, color: s <= Math.round(Number(avgRating)) ? REVIEW_GOLD : P.border, lineHeight: 1 }}>★</span>
+            ))}
+          </div>
+          <div style={{ fontFamily: NU, fontSize: 11, color: P.textMuted, letterSpacing: '0.05em' }}>
+            {reviews.length} review{reviews.length !== 1 ? 's' : ''} · Venue profile
+          </div>
+        </div>
+      </div>
+
+      {/* Cards */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+        {reviews.map((r, idx) => (
+          <ReviewCardStrip key={r.id} r={r} P={P} idx={idx} GOLD={REVIEW_GOLD} />
+        ))}
+      </div>
+
+      {/* See all link */}
+      {venueSlug && (
+        <a
+          href={`/venues/${venueSlug}/reviews`}
+          target="_blank" rel="noopener noreferrer"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 20,
+            fontFamily: NU, fontSize: 12, color: REVIEW_GOLD, textDecoration: 'none',
+            letterSpacing: '0.08em', fontWeight: 600,
+          }}
+        >
+          See all venue reviews →
+        </a>
+      )}
+    </div>
+  );
+}
+
+function ReviewCardStrip({ r, P, idx, GOLD }) {
+  const [expanded, setExpanded] = useState(false);
+  const LONG = r.text.length > 320;
+
+  return (
+    <div style={{
+      padding: '24px 28px',
+      background: P.card,
+      border: `1px solid ${P.border}`,
+      borderLeft: `4px solid ${GOLD}`,
+      borderRadius: idx === 0 ? '4px 4px 0 0' : idx === -1 ? '0 0 4px 4px' : 0,
+    }}>
+      {/* Quote + title row */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 12 }}>
+        <span style={{
+          fontFamily: GD, fontSize: 44, color: GOLD,
+          lineHeight: 0.6, opacity: 0.4, flexShrink: 0, userSelect: 'none', marginTop: 8,
+        }}>"</span>
+        <div>
+          {r.title && (
+            <div style={{ fontFamily: GD, fontSize: 15, color: P.text, lineHeight: 1.35, marginBottom: 5 }}>
+              {r.title}
+            </div>
+          )}
+          {/* Stars */}
+          <span style={{ display: 'inline-flex', gap: 2 }}>
+            {[1,2,3,4,5].map(s => (
+              <span key={s} style={{ fontSize: 11, color: s <= Math.round(r.rating) ? GOLD : P.border, lineHeight: 1 }}>★</span>
+            ))}
+          </span>
+        </div>
+      </div>
+
+      {/* Body */}
+      <p style={{
+        fontFamily: NU, fontSize: 13, color: P.textSub, lineHeight: 1.8, margin: '0 0 0',
+        ...(!expanded && LONG ? { display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : {}),
+      }}>{r.text}</p>
+
+      {LONG && (
+        <button onClick={() => setExpanded(e => !e)} style={{
+          marginTop: 6, fontFamily: NU, fontSize: 11, color: GOLD,
+          background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+          fontWeight: 700, letterSpacing: '0.05em',
+        }}>{expanded ? 'Show less ↑' : 'Read full review ↓'}</button>
+      )}
+
+      {/* Theme tags */}
+      {r.themes && r.themes.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 14 }}>
+          {r.themes.map(t => (
+            <span key={t} style={{
+              fontFamily: NU, fontSize: 9, color: GOLD, fontWeight: 700,
+              padding: '2px 8px', border: `1px solid ${GOLD}40`,
+              background: `${GOLD}10`, letterSpacing: '0.1em', textTransform: 'uppercase', borderRadius: 2,
+            }}>{THEMES[t]?.label || t}</span>
+          ))}
+        </div>
+      )}
+
+      {/* Reviewer row */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 12, marginTop: 18,
+        paddingTop: 14, borderTop: `1px solid ${P.border}`, flexWrap: 'wrap',
+      }}>
+        <div style={{
+          width: 36, height: 36, background: `${GOLD}14`, border: `1px solid ${GOLD}40`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: GD, fontSize: 13, color: GOLD, flexShrink: 0, borderRadius: 2,
+        }}>{r.avatar}</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: GD, fontSize: 13, color: P.text, marginBottom: 2 }}>{r.names}</div>
+          <div style={{ fontFamily: NU, fontSize: 10, color: P.textMuted }}>
+            {[r.location, r.date].filter(Boolean).join(' · ')}
+          </div>
+        </div>
+        {r.verified && (
+          <span style={{
+            fontFamily: NU, fontSize: 9, color: '#5fa87a', fontWeight: 700,
+            padding: '2px 8px', border: '1px solid #5fa87a60', letterSpacing: '0.1em', borderRadius: 2,
+          }}>✓ Verified</span>
+        )}
       </div>
     </div>
   );
@@ -702,6 +884,9 @@ export default function EventDetailPage({ slug, onBack, footerNav }) {
 
           {/* Map */}
           <EventMap event={event} P={P} />
+
+          {/* Venue Reviews */}
+          {event.venueId && <VenueReviewsStrip venueId={event.venueId} P={P} />}
 
           {/* YouTube / stream embed */}
           {event.isVirtual && youtubeEmbedUrl && (
