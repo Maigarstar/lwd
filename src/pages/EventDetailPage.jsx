@@ -337,6 +337,85 @@ function EventMap({ event, P }) {
   );
 }
 
+// ── Getting There & Practical Details ────────────────────────────────────────
+function GettingThere({ event, P }) {
+  const {
+    nearestAirport, travelTime, nearestTrainStation, trainTravelTime,
+    transportNotes, parkingInfo, guestLogistics, directionsLink,
+    locationAddress, locationName,
+  } = event;
+
+  const hasAny = nearestAirport || nearestTrainStation || transportNotes || parkingInfo || guestLogistics;
+  if (!hasAny) return null;
+
+  const fallbackMapsUrl = locationAddress || locationName
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationAddress || locationName)}`
+    : null;
+  const mapsUrl = directionsLink || fallbackMapsUrl;
+
+  const Row = ({ icon, children }) => (
+    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '9px 0', borderBottom: `1px solid ${P.border}` }}>
+      <span style={{ color: GOLD, fontSize: 13, flexShrink: 0, marginTop: 1 }}>{icon}</span>
+      <span style={{ fontFamily: NU, fontSize: 13, color: P.textMid, lineHeight: 1.6 }}>{children}</span>
+    </div>
+  );
+
+  return (
+    <div style={{ marginBottom: 44 }}>
+      <Label>Getting There & Practical Details</Label>
+
+      <div style={{ background: P.card, border: `1px solid ${P.border}`, borderRadius: 4, padding: '4px 20px 8px', overflow: 'hidden' }}>
+
+        {/* Air */}
+        {nearestAirport && (
+          <Row icon="✈">
+            <span style={{ color: P.text, fontWeight: 600 }}>Nearest airport:</span>{' '}
+            {nearestAirport}{travelTime ? `, ${travelTime}` : ''}
+          </Row>
+        )}
+
+        {/* Train */}
+        {nearestTrainStation && (
+          <Row icon="🚆">
+            <span style={{ color: P.text, fontWeight: 600 }}>Nearest station:</span>{' '}
+            {nearestTrainStation}{trainTravelTime ? `, ${trainTravelTime}` : ''}
+          </Row>
+        )}
+
+        {/* Transfers */}
+        {transportNotes && (
+          <Row icon="🚗">{transportNotes}</Row>
+        )}
+
+        {/* Parking */}
+        {parkingInfo && (
+          <Row icon="P">{parkingInfo}</Row>
+        )}
+
+        {/* Guest logistics */}
+        {guestLogistics && (
+          <Row icon="🏨">{guestLogistics}</Row>
+        )}
+
+      </div>
+
+      {/* Get directions CTA */}
+      {mapsUrl && (
+        <a
+          href={mapsUrl} target="_blank" rel="noopener noreferrer"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 14,
+            fontFamily: NU, fontSize: 12, color: GOLD, textDecoration: 'none',
+            letterSpacing: '0.08em', fontWeight: 600,
+          }}
+        >
+          Get directions →
+        </a>
+      )}
+    </div>
+  );
+}
+
 // ── Helpers shared with reviews ───────────────────────────────────────────────
 function mapReview(r) {
   const name = r.reviewer_name || 'Anonymous';
@@ -1086,6 +1165,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
 
           {/* Map */}
           <EventMap event={event} P={P} />
+          <GettingThere event={event} P={P} />
 
           {/* Venue Reviews */}
           {!isPreview && event.venueId && <VenueReviewsStrip venueId={event.venueId} venueName={venue?.name} P={P} />}

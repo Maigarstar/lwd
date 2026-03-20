@@ -46,12 +46,20 @@ export function dbToEvent(row) {
     ticketPrice:        row.ticket_price || null,
     ticketCurrency:     row.ticket_currency || 'GBP',
     ticketIncludes:     row.ticket_includes || null,
-    tagsJson:           row.tags_json || [],
-    metaJson:           row.meta_json || {},
-    createdAt:          row.created_at,
-    updatedAt:          row.updated_at,
-    // joined booking count (when selected with count)
-    bookingCount:       row.event_bookings?.[0]?.count ?? null,
+    tagsJson:            row.tags_json || [],
+    metaJson:            row.meta_json || {},
+    // Getting There & Practical Details
+    nearestAirport:      row.nearest_airport       || null,
+    travelTime:          row.travel_time            || null,
+    nearestTrainStation: row.nearest_train_station  || null,
+    trainTravelTime:     row.train_travel_time      || null,
+    transportNotes:      row.transport_notes        || null,
+    parkingInfo:         row.parking_info           || null,
+    guestLogistics:      row.guest_logistics        || null,
+    directionsLink:      row.directions_link        || null,
+    createdAt:           row.created_at,
+    updatedAt:           row.updated_at,
+    bookingCount:        row.event_bookings?.[0]?.count ?? null,
   }
 }
 

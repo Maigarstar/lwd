@@ -111,6 +111,10 @@ function emptyEvent() {
     description: '', coverImageUrl: '', galleryUrls: [], videoUrl: null, videoHeroMode: false, tagsJson: [],
     isFree: true, ticketPrice: null, ticketCurrency: 'GBP', ticketIncludes: '',
     managedAccountId: '', venueId: '', ownerId: '',
+    // Getting There & Practical Details
+    nearestAirport: '', travelTime: '', nearestTrainStation: '', trainTravelTime: '',
+    transportNotes: '', parkingInfo: '', guestLogistics: '', directionsLink: '',
+    _venueName: '', // UI-only display, not persisted to DB
   }
 }
 
@@ -366,6 +370,7 @@ function StepVenue({ form, set, C }) {
         label="Linked Venue"
         value={form.venueId}
         onChange={v => set('venueId', v)}
+        onSelect={l => set('_venueName', l?.name || '')}
         hint="Search by venue name or location. This links the event to a listing via venue_id."
         C={C}
       />
@@ -454,7 +459,7 @@ function StepDetails({ form, set, C }) {
         <InputField label="Full Address" value={form.locationAddress} onChange={v => set('locationAddress', v)} placeholder="Via Doccia, 4, 50014 Fiesole FI, Italy" C={C} />
       </div>
 
-      <div style={{ background: C.dark, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px' }}>
+      <div style={{ background: C.dark, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px', marginBottom: 18 }}>
         <Toggle label="This is a virtual event" checked={form.isVirtual} onChange={v => set('isVirtual', v)} hint="Show stream URL and virtual platform fields" C={C} />
         {form.isVirtual && (
           <>
@@ -463,6 +468,24 @@ function StepDetails({ form, set, C }) {
             <InputField label="Replay URL (after event)" value={form.replayUrl} onChange={v => set('replayUrl', v)} placeholder="https://youtube.com/watch?v=..." C={C} />
           </>
         )}
+      </div>
+
+      {/* Getting There & Practical Details */}
+      <div style={{ background: C.dark, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px' }}>
+        <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.gold, fontWeight: 600, marginBottom: 4 }}>Getting There & Practical Details</div>
+        <p style={{ fontFamily: NU, fontSize: 11, color: C.grey, margin: '0 0 16px', lineHeight: 1.6 }}>
+          Concierge-style logistics shown on the event page below the map. Helps couples and guests plan their journey.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <InputField label="Nearest Airport" value={form.nearestAirport || ''} onChange={v => set('nearestAirport', v)} placeholder="Florence Airport" C={C} />
+          <InputField label="Air Travel Time" value={form.travelTime || ''} onChange={v => set('travelTime', v)} placeholder="approx. 1 hour 15 minutes by car" C={C} />
+          <InputField label="Nearest Train Station" value={form.nearestTrainStation || ''} onChange={v => set('nearestTrainStation', v)} placeholder="Pisa Centrale" C={C} />
+          <InputField label="Train Travel Time" value={form.trainTravelTime || ''} onChange={v => set('trainTravelTime', v)} placeholder="45 minutes, direct from Florence" C={C} />
+        </div>
+        <InputField label="Transport Notes" value={form.transportNotes || ''} onChange={v => set('transportNotes', v)} placeholder="Private transfers available · Car hire recommended · Taxi access" hint="Transfers, car hire, taxi options — one elegant line" C={C} />
+        <InputField label="Parking" value={form.parkingInfo || ''} onChange={v => set('parkingInfo', v)} placeholder="Complimentary on-site parking · Valet available on arrival" C={C} />
+        <InputField label="Guest Logistics" value={form.guestLogistics || ''} onChange={v => set('guestLogistics', v)} placeholder="Accommodation nearby · Shuttle service available" hint="Optional — accommodation, shuttles, etc." C={C} />
+        <InputField label="Google Maps / Directions Link" value={form.directionsLink || ''} onChange={v => set('directionsLink', v)} placeholder="https://maps.google.com/..." hint="Paste a Google Maps link for the 'Get directions' CTA" C={C} />
       </div>
     </div>
   )
@@ -622,14 +645,14 @@ function StepSettings({ form, set, C }) {
 }
 
 // ── Listing picker — search by name, select by id ─────────────────────────────
-function ListingPickerField({ label, value, onChange, hint, C }) {
+// onSelect(listing) — optional callback for builder header to receive the full listing object
+function ListingPickerField({ label, value, onChange, onSelect, hint, C }) {
   const [listings,  setListings]  = useState([])
   const [query,     setQuery]     = useState('')
-  const [selected,  setSelected]  = useState(null) // { id, name }
+  const [selected,  setSelected]  = useState(null) // { id, name, thumb, city, country, type }
   const [open,      setOpen]      = useState(false)
   const [loadingL,  setLoadingL]  = useState(false)
 
-  // Load all listings once on mount
   useEffect(() => {
     setLoadingL(true)
     fetchListings({ status: 'published' })
@@ -638,26 +661,39 @@ function ListingPickerField({ label, value, onChange, hint, C }) {
       .finally(() => setLoadingL(false))
   }, [])
 
-  // When an existing event loads with a venueId, resolve the name
+  // Resolve selected listing when editing an existing event
   useEffect(() => {
     if (!value) { setSelected(null); return }
     const match = listings.find(l => l.id === value)
-    if (match) setSelected({ id: match.id, name: match.name })
+    if (match) setSelected({
+      id: match.id, name: match.name,
+      thumb: match.cardImage || match.heroImage || null,
+      city: match.city, country: match.country,
+      type: match.listingType || match.listing_type,
+    })
   }, [value, listings])
 
   const filtered = query.trim()
-    ? listings.filter(l => l.name?.toLowerCase().includes(query.toLowerCase())).slice(0, 8)
+    ? listings.filter(l => l.name?.toLowerCase().includes(query.toLowerCase()) || l.city?.toLowerCase().includes(query.toLowerCase())).slice(0, 8)
     : listings.slice(0, 8)
 
   const handleSelect = (l) => {
-    setSelected({ id: l.id, name: l.name })
+    const sel = {
+      id: l.id, name: l.name,
+      thumb: l.cardImage || l.heroImage || null,
+      city: l.city, country: l.country,
+      type: l.listingType || l.listing_type,
+    }
+    setSelected(sel)
     onChange(l.id)
+    if (onSelect) onSelect(l)
     setQuery('')
     setOpen(false)
   }
   const handleClear = () => {
     setSelected(null)
     onChange('')
+    if (onSelect) onSelect(null)
   }
 
   return (
@@ -667,65 +703,79 @@ function ListingPickerField({ label, value, onChange, hint, C }) {
       </label>
 
       {selected ? (
-        // Selected state — show name chip + clear
+        // ── Selected state: rich card with thumbnail ──
         <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          display: 'flex', alignItems: 'center', gap: 12,
           background: C.dark, border: `1px solid ${C.gold}50`,
-          borderRadius: 4, padding: '9px 12px',
+          borderRadius: 4, padding: '10px 12px',
         }}>
-          <div>
-            <span style={{ fontFamily: NU, fontSize: 13, color: C.off }}>{selected.name}</span>
-            <span style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginLeft: 8 }}>{selected.id.slice(0, 8)}…</span>
+          {selected.thumb && (
+            <div style={{ width: 56, height: 40, borderRadius: 3, overflow: 'hidden', flexShrink: 0, background: C.border }}>
+              <img src={selected.thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => e.target.style.display = 'none'} />
+            </div>
+          )}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: NU, fontSize: 13, color: C.off, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selected.name}</div>
+            <div style={{ fontFamily: NU, fontSize: 10, color: C.grey }}>
+              {[selected.city, selected.country].filter(Boolean).join(', ')}{selected.type ? ` · ${selected.type}` : ''}
+            </div>
           </div>
-          <button
-            onClick={handleClear}
-            style={{ fontFamily: NU, fontSize: 11, color: C.grey, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-          >✕ Remove</button>
+          <button onClick={handleClear} style={{ fontFamily: NU, fontSize: 11, color: C.grey, background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 }}>
+            ✕ Change
+          </button>
         </div>
       ) : (
-        // Search input
+        // ── Search input + dropdown ──
         <div style={{ position: 'relative' }}>
           <input
             value={query}
             onChange={e => { setQuery(e.target.value); setOpen(true) }}
             onFocus={() => setOpen(true)}
             onBlur={() => setTimeout(() => setOpen(false), 160)}
-            placeholder={loadingL ? 'Loading listings…' : 'Search by venue name…'}
+            placeholder={loadingL ? 'Loading listings…' : 'Search by venue name or location…'}
             style={{
               width: '100%', boxSizing: 'border-box',
               fontFamily: NU, fontSize: 13, color: C.off,
               background: C.dark, border: `1px solid ${C.border}`,
               borderRadius: 4, padding: '10px 12px', outline: 'none',
             }}
-            onMouseEnter={e => e.target.style.borderColor = C.gold}
-            onMouseLeave={e => { if (document.activeElement !== e.target) e.target.style.borderColor = C.border }}
+            onFocus={e => e.target.style.borderColor = C.gold}
+            onBlur={e => e.target.style.borderColor = C.border}
           />
           {open && filtered.length > 0 && (
             <div style={{
-              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200,
               background: C.card, border: `1px solid ${C.border}`, borderTop: 'none',
-              borderRadius: '0 0 4px 4px', maxHeight: 220, overflowY: 'auto',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+              borderRadius: '0 0 4px 4px', maxHeight: 280, overflowY: 'auto',
+              boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
             }}>
-              {filtered.map(l => (
-                <div
-                  key={l.id}
-                  onMouseDown={() => handleSelect(l)}
-                  style={{
-                    padding: '10px 14px', cursor: 'pointer',
-                    fontFamily: NU, fontSize: 13, color: C.off,
-                    borderBottom: `1px solid ${C.border}`,
-                    transition: 'background 0.1s',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = `${C.gold}12`}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                >
-                  <div style={{ fontSize: 13, color: C.off }}>{l.name}</div>
-                  <div style={{ fontSize: 10, color: C.grey, marginTop: 2 }}>
-                    {[l.city, l.country].filter(Boolean).join(', ')} · {l.listing_type || l.listingType}
+              {filtered.map(l => {
+                const thumb = l.cardImage || l.heroImage || null
+                return (
+                  <div
+                    key={l.id}
+                    onMouseDown={() => handleSelect(l)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', cursor: 'pointer', borderBottom: `1px solid ${C.border}` }}
+                    onMouseEnter={e => e.currentTarget.style.background = `${C.gold}12`}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    {/* Thumbnail */}
+                    <div style={{ width: 50, height: 36, borderRadius: 3, overflow: 'hidden', flexShrink: 0, background: C.border }}>
+                      {thumb
+                        ? <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => e.target.style.display = 'none'} />
+                        : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ fontSize: 14, opacity: 0.3 }}>🏛</span></div>
+                      }
+                    </div>
+                    {/* Info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: NU, fontSize: 13, color: C.off, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.name}</div>
+                      <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginTop: 2 }}>
+                        {[l.city, l.country].filter(Boolean).join(', ')}{(l.listingType || l.listing_type) ? ` · ${l.listingType || l.listing_type}` : ''}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
@@ -786,59 +836,84 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C }) {
       }}>
         {/* Header */}
         <div style={{
-          padding: '18px 28px 16px', borderBottom: `1px solid ${C.border}`,
+          padding: '14px 22px', borderBottom: `1px solid ${C.border}`,
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          position: 'sticky', top: 0, background: C.black, zIndex: 10,
+          position: 'sticky', top: 0, background: C.black, zIndex: 10, gap: 12,
         }}>
-          <div>
-            <h2 style={{ fontFamily: GD, fontSize: 20, color: C.off, margin: '0 0 3px', fontWeight: 400 }}>
-              {existingEvent ? 'Edit Event' : 'Create Event'}
-            </h2>
-            <p style={{ fontFamily: NU, fontSize: 11, color: C.grey, margin: 0 }}>
-              {form.title || 'New event'} · {(form.status || 'draft').charAt(0).toUpperCase() + (form.status || 'draft').slice(1)}
-            </p>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Event title */}
+            <div style={{ fontFamily: GD, fontSize: 17, color: form.title ? C.off : C.grey, fontWeight: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {form.title || 'Untitled Event'}
+            </div>
+            {/* Linked venue + status */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3, flexWrap: 'wrap' }}>
+              {(form._venueName || form.venueId) ? (
+                <span style={{ fontFamily: NU, fontSize: 10, color: C.gold, letterSpacing: '0.04em' }}>
+                  ◈ {form._venueName || `Venue ${form.venueId?.slice(0, 8)}…`}
+                </span>
+              ) : (
+                <span style={{ fontFamily: NU, fontSize: 10, color: '#ef4444', opacity: 0.7, letterSpacing: '0.04em' }}>⚠ No venue linked</span>
+              )}
+              <span style={{ fontFamily: NU, fontSize: 10, color: C.grey }}>·</span>
+              <span style={{ fontFamily: NU, fontSize: 10, color: C.grey, textTransform: 'capitalize' }}>{form.status || 'draft'}</span>
+            </div>
           </div>
-          <button
-            onClick={onCancel}
-            style={{ fontFamily: NU, fontSize: 12, color: C.grey, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 4, padding: '8px 16px', cursor: 'pointer' }}
-          >
+          <button onClick={onCancel} style={{ fontFamily: NU, fontSize: 11, color: C.grey, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 4, padding: '7px 14px', cursor: 'pointer', flexShrink: 0 }}>
             ← Events
           </button>
         </div>
 
-        {/* Step tabs */}
-        <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, padding: '0 28px' }}>
-          {BUILDER_STEPS.map((s, i) => {
-            const active = s.key === step
-            const done   = i < currentStepIdx
-            return (
-              <button
-                key={s.key}
-                onClick={() => setStep(s.key)}
-                style={{
-                  fontFamily: NU, fontSize: 11, fontWeight: 700,
-                  letterSpacing: '0.08em', textTransform: 'uppercase',
-                  padding: '11px 16px', cursor: 'pointer',
-                  background: 'transparent', border: 'none',
-                  borderBottom: `2px solid ${active ? C.gold : 'transparent'}`,
-                  color: active ? C.gold : done ? C.off : C.grey,
-                  display: 'flex', alignItems: 'center', gap: 6,
-                }}
-              >
-                <span style={{
-                  width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 8, fontWeight: 700,
-                  background: active ? C.gold : done ? `${C.gold}30` : C.border,
-                  color: active ? '#000' : done ? C.gold : C.grey,
-                }}>
-                  {done ? '✓' : s.num}
-                </span>
-                {s.label}
-              </button>
-            )
-          })}
-        </div>
+        {/* Step tabs with completion cues */}
+        {(() => {
+          // Per-step completion logic — did the user fill required fields?
+          const stepComplete = {
+            venue:    !!form.venueId,
+            basics:   !!form.title,
+            datetime: !!form.startDate,
+            details:  !!form.description,
+            media:    !!form.coverImageUrl,
+            booking:  true, // has defaults
+            settings: true, // has defaults
+          }
+          return (
+            <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, padding: '0 22px', overflowX: 'auto' }}>
+              {BUILDER_STEPS.map((s) => {
+                const active    = s.key === step
+                const complete  = stepComplete[s.key]
+                const dotColor  = active ? C.gold : complete ? '#22c55e' : C.border
+                const dotText   = active ? s.num : complete ? '✓' : s.num
+                const textColor = active ? C.gold : complete ? C.off : C.grey
+                return (
+                  <button
+                    key={s.key}
+                    onClick={() => setStep(s.key)}
+                    style={{
+                      fontFamily: NU, fontSize: 10, fontWeight: 700,
+                      letterSpacing: '0.08em', textTransform: 'uppercase',
+                      padding: '10px 14px', cursor: 'pointer',
+                      background: 'transparent', border: 'none',
+                      borderBottom: `2px solid ${active ? C.gold : 'transparent'}`,
+                      color: textColor, whiteSpace: 'nowrap',
+                      display: 'flex', alignItems: 'center', gap: 5,
+                    }}
+                  >
+                    <span style={{
+                      width: 15, height: 15, borderRadius: '50%', flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 7, fontWeight: 700,
+                      background: active ? C.gold : complete ? '#22c55e20' : C.border,
+                      color: active ? '#000' : complete ? '#22c55e' : C.grey,
+                      border: complete && !active ? '1px solid #22c55e40' : 'none',
+                    }}>
+                      {dotText}
+                    </span>
+                    {s.label}
+                  </button>
+                )
+              })}
+            </div>
+          )
+        })()}
 
         {/* Step content */}
         <div style={{ padding: '28px 28px 0', flex: 1 }}>
