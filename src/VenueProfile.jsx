@@ -7910,9 +7910,9 @@ export default function VenueProfile({ onBack = null, slug = null }) {
                         <div
                           key={ev.id}
                           onClick={() => setDrawerEvent(ev)}
-                          style={{ cursor: 'pointer', background: C.cardBg || '#fff', border: `1px solid ${C.border}`, borderRadius: 4, overflow: 'hidden', transition: 'border-color 0.2s' }}
+                          style={{ cursor: 'pointer', background: '#1a1a18', border: '1px solid #2a2a28', borderRadius: 4, overflow: 'hidden', transition: 'border-color 0.2s' }}
                           onMouseEnter={e => e.currentTarget.style.borderColor = '#C9A84C'}
-                          onMouseLeave={e => e.currentTarget.style.borderColor = C.border}
+                          onMouseLeave={e => e.currentTarget.style.borderColor = '#2a2a28'}
                         >
                           {ev.coverImageUrl && (
                             <div style={{ height: 160, overflow: 'hidden' }}>
@@ -7922,11 +7922,11 @@ export default function VenueProfile({ onBack = null, slug = null }) {
                           <div style={{ padding: '16px 18px' }}>
                             <div style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: '#C9A84C', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>
                               {ev.eventType?.replace(/_/g, ' ') || 'Event'}
-                              {ev.isVirtual && <span style={{ marginLeft: 8, color: '#60a5fa' }}>· Virtual</span>}
+                              {ev.isVirtual && <span style={{ marginLeft: 8, color: '#93c5fd' }}>· Virtual</span>}
                             </div>
-                            <div style={{ fontFamily: 'var(--font-heading-primary)', fontSize: 17, fontWeight: 400, color: C.text, marginBottom: 4, lineHeight: 1.3 }}>{ev.title}</div>
-                            {ev.subtitle && <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: C.muted, marginBottom: 8, lineHeight: 1.5 }}>{ev.subtitle}</div>}
-                            <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: C.muted, marginTop: 10 }}>{dateStr}{timeStr ? ` · ${timeStr}` : ''}</div>
+                            <div style={{ fontFamily: 'var(--font-heading-primary)', fontSize: 17, fontWeight: 400, color: '#f0ece4', marginBottom: 4, lineHeight: 1.3 }}>{ev.title}</div>
+                            {ev.subtitle && <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#999', marginBottom: 8, lineHeight: 1.5 }}>{ev.subtitle}</div>}
+                            <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#666', marginTop: 10 }}>{dateStr}{timeStr ? ` · ${timeStr}` : ''}</div>
                             <div style={{ marginTop: 14, fontFamily: 'var(--font-body)', fontSize: 10, color: '#C9A84C', letterSpacing: '0.1em', textTransform: 'uppercase', borderBottom: '1px solid #C9A84C', display: 'inline-block' }}>
                               {ev.bookingMode === 'external' ? 'Book Now →' : 'Register →'}
                             </div>

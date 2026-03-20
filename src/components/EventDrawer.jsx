@@ -326,7 +326,7 @@ export default function EventDrawer({ event, onClose }) {
           {event.description && (
             <div style={{ marginBottom: 24 }}>
               <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: GOLD, marginBottom: 10, fontWeight: 600 }}>About This Event</div>
-              <div style={{ fontFamily: NU, fontSize: 13, color: P.sub, lineHeight: 1.85, whiteSpace: 'pre-wrap' }}>{event.description}</div>
+              <div style={{ fontFamily: NU, fontSize: 13, color: P.sub, lineHeight: 1.85 }} dangerouslySetInnerHTML={{ __html: event.description }} />
             </div>
           )}
 
