@@ -4,6 +4,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useEffect, useCallback } from 'react';
+import { trackEvent } from '../services/userEventService';
 import {
   fetchEventBySlug,
   formatEventDate,
@@ -952,6 +953,12 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
     }).catch(() => { if (!cancelled) { setNotFound(true); setLoading(false); } });
     return () => { cancelled = true; };
   }, [slug, isPreview]);
+
+  // Page view tracking — skipped in preview mode
+  useEffect(() => {
+    if (isPreview || !event?.id) return;
+    trackEvent({ eventType: 'event_page_view', entityType: 'event', entityId: event.id, metadata: { slug: event.slug, eventTitle: event.title } });
+  }, [event?.id, isPreview]);
 
   // Venue fetch — skipped in preview mode
   useEffect(() => {

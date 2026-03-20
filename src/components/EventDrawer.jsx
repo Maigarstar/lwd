@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { formatEventDate, formatEventTime } from '../services/eventService';
 import { submitEventBooking } from '../services/eventBookingService';
+import { trackEvent } from '../services/userEventService';
 
 const GD   = 'var(--font-heading-primary)';
 const NU   = 'var(--font-body)';
@@ -50,7 +51,10 @@ function BookingForm({ event, onSuccess }) {
     setSubmitting(true); setError(null);
     try {
       const result = await submitEventBooking(form, event);
-      if (result.success) onSuccess(result);
+      if (result.success) {
+        trackEvent({ eventType: 'event_registration', entityType: 'event', entityId: event.id, metadata: { guestCount: form.guestCount, eventTitle: event.title, slug: event.slug } });
+        onSuccess(result);
+      }
       else { setError(result.error?.message || 'Booking failed. Please try again.'); setSubmitting(false); }
     } catch { setError('Something went wrong. Please try again.'); setSubmitting(false); }
   };
@@ -148,10 +152,11 @@ export default function EventDrawer({ event, onClose }) {
   const [booking, setBooking] = useState(null);
   const [visible, setVisible] = useState(false);
 
-  // Animate in when event is set
+  // Animate in when event is set + fire tracking
   useEffect(() => {
     if (event) {
       setBooking(null);
+      trackEvent({ eventType: 'event_drawer_open', entityType: 'event', entityId: event.id, metadata: { eventTitle: event.title, slug: event.slug, surface: 'venue_profile' } });
       // Tiny delay lets the element mount before the transform kicks in
       requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
     } else {
