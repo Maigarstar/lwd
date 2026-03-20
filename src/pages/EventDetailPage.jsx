@@ -1156,10 +1156,47 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
                 {event.locationName}{event.locationAddress && `, ${event.locationAddress}`}
               </DetailRow>
             ) : null}
-            {event.capacity && (
-              <DetailRow P={P} icon="👥">
-                {event.capacity} places available{event.waitlistEnabled && ' · Waitlist available if full'}
+            {event.isFree !== false && (
+              <DetailRow P={P} icon="🎟">
+                <span style={{ color: GOLD, fontWeight: 600 }}>Complimentary</span>
+                {' '}— no charge to attend
               </DetailRow>
+            )}
+            {event.isFree === false && event.ticketPrice && (
+              <DetailRow P={P} icon="🎟">
+                From <span style={{ color: GOLD, fontWeight: 600 }}>
+                  {event.ticketCurrency === 'GBP' ? '£' : event.ticketCurrency === 'EUR' ? '€' : '$'}{Number(event.ticketPrice).toLocaleString()}
+                </span> per guest
+                {event.ticketIncludes && <span style={{ color: P.textMuted }}> · {event.ticketIncludes}</span>}
+              </DetailRow>
+            )}
+            {event.capacity > 0 && (
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 6 }}>
+                <span style={{ color: GOLD, fontSize: 16, flexShrink: 0 }}>👥</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{
+                    fontFamily: NU, fontSize: 14,
+                    color: isLimited && remaining > 0 ? '#e87070' : P.text,
+                    marginBottom: remaining !== null ? 6 : 0,
+                  }}>
+                    {remaining === 0
+                      ? 'Fully booked — join the waitlist below'
+                      : remaining !== null
+                        ? <><span style={{ fontWeight: 700 }}>{remaining}</span> of {event.capacity} places remaining{isLimited ? ' — book soon' : ''}</>
+                        : `${event.capacity} places available${event.waitlistEnabled ? ' · Waitlist available if full' : ''}`}
+                  </div>
+                  {remaining !== null && event.capacity > 0 && (
+                    <div style={{ height: 3, background: P.border, borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%', borderRadius: 2,
+                        width: `${capacityPct}%`,
+                        background: isLimited ? '#e87070' : GOLD,
+                        transition: 'width 0.6s ease',
+                      }} />
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
 
