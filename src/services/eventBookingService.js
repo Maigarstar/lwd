@@ -133,6 +133,119 @@ function buildConfirmationEmail({ booking, event, reviewToken }) {
   }
 }
 
+// ─── Cancellation email builder ───────────────────────────────────────────────
+
+function buildCancellationEmail({ booking, event }) {
+  const dateStr = event.startDate
+    ? new Date(event.startDate + 'T00:00:00').toLocaleDateString('en-GB', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+      })
+    : ''
+
+  const html = `
+    <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; color: #1a1a1a;">
+      <div style="border-bottom: 2px solid #c9a96e; padding-bottom: 24px; margin-bottom: 32px;">
+        <p style="font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: #c9a96e; margin: 0 0 8px;">
+          Luxury Wedding Directory
+        </p>
+        <h1 style="font-size: 28px; font-weight: 400; margin: 0;">
+          Your booking has been cancelled
+        </h1>
+      </div>
+
+      <p style="font-size: 16px; line-height: 1.6;">
+        Dear ${booking.firstName},
+      </p>
+      <p style="font-size: 16px; line-height: 1.6;">
+        We're sorry to inform you that your booking for <strong>${event.title}</strong> has been cancelled.
+      </p>
+
+      <div style="background: #f9f6f0; border-left: 3px solid #c9a96e; padding: 20px 24px; margin: 32px 0;">
+        <p style="font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: #c9a96e; margin: 0 0 16px;">
+          Booking Details
+        </p>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: #888; padding: 6px 0; width: 40%;">Reference</td>
+            <td style="font-size: 15px; font-weight: 600; padding: 6px 0;">${booking.bookingRef || 'Your booking'}</td>
+          </tr>
+          <tr>
+            <td style="font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: #888; padding: 6px 0;">Event</td>
+            <td style="font-size: 15px; padding: 6px 0;">${event.title}</td>
+          </tr>
+          ${dateStr ? `<tr>
+            <td style="font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: #888; padding: 6px 0;">Date</td>
+            <td style="font-size: 15px; padding: 6px 0;">${dateStr}</td>
+          </tr>` : ''}
+        </table>
+      </div>
+
+      <p style="font-size: 14px; color: #666; line-height: 1.7;">
+        If you have any questions, please reply to this email.
+      </p>
+
+      <div style="border-top: 1px solid #e0dbd0; margin-top: 40px; padding-top: 20px;">
+        <p style="font-size: 11px; color: #aaa; letter-spacing: 0.1em; text-transform: uppercase; margin: 0;">
+          Luxury Wedding Directory · luxuryweddingdirectory.com
+        </p>
+      </div>
+    </div>
+  `
+
+  return {
+    to:      booking.email,
+    subject: `Cancelled: ${event.title} · ${booking.bookingRef || 'Your booking'}`,
+    html,
+  }
+}
+
+// ─── Send cancellation email (single booking) ─────────────────────────────────
+
+export async function sendBookingCancellationEmail(booking, event) {
+  try {
+    const emailPayload = buildCancellationEmail({ booking, event })
+    if (IS_DEV) {
+      console.log('[eventBookingService] Cancellation email (dev):', emailPayload)
+      return { success: true }
+    }
+    const { error } = await supabase.functions.invoke('send-email', { body: emailPayload })
+    if (error) console.warn('[eventBookingService] cancellation send-email failed:', error.message)
+    return { success: !error }
+  } catch (e) {
+    console.warn('[eventBookingService] sendBookingCancellationEmail:', e.message)
+    return { success: false }
+  }
+}
+
+// ─── Notify all attendees of event cancellation ────────────────────────────────
+
+export async function notifyEventCancellation(eventId, event) {
+  try {
+    const { data: rows } = await supabase
+      .from('event_bookings')
+      .select('id, first_name, last_name, email, booking_ref, guest_count, status')
+      .eq('event_id', eventId)
+      .in('status', ['confirmed', 'pending'])
+    if (!rows?.length) return { notified: 0 }
+    const results = await Promise.allSettled(
+      rows.map(row => sendBookingCancellationEmail({
+        id: row.id,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        email: row.email,
+        bookingRef: row.booking_ref,
+        guestCount: row.guest_count,
+      }, event))
+    )
+    const notified = results.filter(r => r.status === 'fulfilled' && r.value?.success).length
+    console.log(`[eventBookingService] notifyEventCancellation: notified ${notified}/${rows.length}`)
+    return { notified }
+  } catch (e) {
+    console.warn('[eventBookingService] notifyEventCancellation:', e.message)
+    return { notified: 0 }
+  }
+}
+
 // ─── Submit booking ───────────────────────────────────────────────────────────
 
 /**

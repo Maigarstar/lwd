@@ -17,8 +17,7 @@ import {
   fetchContent,
   fetchCampaigns,
 } from "../services/socialStudioService";
-import { fetchUpcomingEventsForVenue } from "../services/eventService";
-import { formatEventDate, formatEventTime } from "../services/eventService";
+import { fetchUpcomingEventsForVenue, fetchPortalEventBookings, formatEventDate, formatEventTime } from "../services/eventService";
 import { fetchListingByManagedAccountId } from "../services/listings.ts";
 import { useAdaptiveColor } from "../hooks/useAdaptiveColor";
 
@@ -515,15 +514,19 @@ function CampaignsPage({ account }) {
 
 // -- Events Page ---------------------------------------------------------------
 function EventsPage({ account, listing }) {
-  const [events, setEvents]   = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [events, setEvents]         = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [expandedId, setExpandedId] = useState(null);
+  const [bookings, setBookings]     = useState({});   // { [eventId]: [] }
+  const [loadingBkgs, setLoadingBkgs] = useState({}); // { [eventId]: bool }
+  const [showRequest, setShowRequest] = useState(false);
+  const [requestForm, setRequestForm] = useState({ eventType: '', preferredDate: '', notes: '' });
+  const [requestSent, setRequestSent] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const venueId = listing?.id || null;
-      const managedAccountId = account?.id || null;
-      // Try venue ID first, fall back to managed account
       const fetched = venueId
         ? await fetchUpcomingEventsForVenue(venueId, 20)
         : [];
@@ -541,75 +544,156 @@ function EventsPage({ account, listing }) {
     return e.startDate < new Date().toISOString().split('T')[0];
   });
 
+  const toggleBookings = async (eventId) => {
+    if (expandedId === eventId) { setExpandedId(null); return; }
+    setExpandedId(eventId);
+    if (!bookings[eventId]) {
+      setLoadingBkgs(prev => ({ ...prev, [eventId]: true }));
+      const rows = await fetchPortalEventBookings(eventId);
+      setBookings(prev => ({ ...prev, [eventId]: rows }));
+      setLoadingBkgs(prev => ({ ...prev, [eventId]: false }));
+    }
+  };
+
+  const STATUS_COLOUR = { confirmed: T.green, pending: T.amber, cancelled: T.red, waitlist: '#a78bfa' };
+
   function EventCard({ ev }) {
-    const dateStr = formatEventDate(ev.startDate);
-    const timeStr = ev.startTime ? formatEventTime(ev.startTime) : null;
+    const dateStr   = formatEventDate(ev.startDate);
+    const timeStr   = ev.startTime ? formatEventTime(ev.startTime) : null;
+    const isExpanded = expandedId === ev.id;
+    const evBookings = bookings[ev.id] || [];
+    const confirmed  = evBookings.filter(b => b.status === 'confirmed').length;
+    const totalGuests = evBookings.filter(b => b.status === 'confirmed').reduce((s, b) => s + (b.guest_count || 1), 0);
+
     return (
       <div style={{
-        background: T.card, border: `1px solid ${T.border}`, borderRadius: 4,
-        padding: "20px 24px", marginBottom: 12,
-        display: "flex", alignItems: "flex-start", gap: 20,
+        background: T.card, border: `1px solid ${isExpanded ? T.border2 : T.border}`,
+        borderRadius: 4, marginBottom: 12,
+        transition: 'border-color 0.2s',
       }}>
-        {/* Date badge */}
-        <div style={{
-          flexShrink: 0, width: 52, textAlign: "center",
-          background: T.border, borderRadius: 4, padding: "8px 6px",
-        }}>
-          <div style={{ fontFamily: SERIF, fontSize: 22, color: T.gold, lineHeight: 1 }}>
-            {ev.startDate ? new Date(ev.startDate + 'T00:00:00').getDate() : "—"}
+        {/* Main row */}
+        <div style={{ padding: "20px 24px", display: "flex", alignItems: "flex-start", gap: 20 }}>
+          {/* Date badge */}
+          <div style={{ flexShrink: 0, width: 52, textAlign: "center", background: T.border, borderRadius: 4, padding: "8px 6px" }}>
+            <div style={{ fontFamily: SERIF, fontSize: 22, color: T.gold, lineHeight: 1 }}>
+              {ev.startDate ? new Date(ev.startDate + 'T00:00:00').getDate() : "—"}
+            </div>
+            <div style={{ fontFamily: SANS, fontSize: 9, color: T.grey, letterSpacing: "0.1em", textTransform: "uppercase", marginTop: 2 }}>
+              {ev.startDate ? new Date(ev.startDate + 'T00:00:00').toLocaleDateString('en-GB', { month: 'short' }) : ""}
+            </div>
           </div>
-          <div style={{ fontFamily: SANS, fontSize: 9, color: T.grey, letterSpacing: "0.1em", textTransform: "uppercase", marginTop: 2 }}>
-            {ev.startDate ? new Date(ev.startDate + 'T00:00:00').toLocaleDateString('en-GB', { month: 'short' }) : ""}
+
+          {/* Content */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <span style={{ fontFamily: SERIF, fontSize: 17, color: T.off, fontWeight: 500 }}>{ev.title}</span>
+              {ev.isVirtual && (
+                <span style={{ fontFamily: SANS, fontSize: 9, color: T.blue, letterSpacing: "0.1em", textTransform: "uppercase",
+                  background: "rgba(96,165,250,0.12)", border: "1px solid rgba(96,165,250,0.25)", borderRadius: 2, padding: "2px 6px" }}>
+                  Virtual
+                </span>
+              )}
+              {ev.status === 'cancelled' && (
+                <span style={{ fontFamily: SANS, fontSize: 9, color: T.red, letterSpacing: "0.1em", textTransform: "uppercase",
+                  background: "rgba(248,113,113,0.12)", border: "1px solid rgba(248,113,113,0.25)", borderRadius: 2, padding: "2px 6px" }}>
+                  Cancelled
+                </span>
+              )}
+            </div>
+            {ev.subtitle && (
+              <div style={{ fontFamily: SANS, fontSize: 12, color: T.grey, marginBottom: 6 }}>{ev.subtitle}</div>
+            )}
+            <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+              {dateStr && (
+                <span style={{ fontFamily: SANS, fontSize: 11, color: T.grey2 }}>📅 {dateStr}{timeStr ? ` · ${timeStr}` : ""}</span>
+              )}
+              {ev.locationName && !ev.isVirtual && (
+                <span style={{ fontFamily: SANS, fontSize: 11, color: T.grey2 }}>📍 {ev.locationName}</span>
+              )}
+              {ev.capacity && (
+                <span style={{ fontFamily: SANS, fontSize: 11, color: T.grey2 }}>👥 {ev.capacity} capacity</span>
+              )}
+              {typeof ev.bookingCount === 'number' && (
+                <span style={{ fontFamily: SANS, fontSize: 11, color: T.green }}>✓ {ev.bookingCount} registered</span>
+              )}
+            </div>
+          </div>
+
+          {/* Right: type badge + bookings toggle */}
+          <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
+            <div style={{ fontFamily: SANS, fontSize: 9, color: T.gold, letterSpacing: "0.1em", textTransform: "uppercase",
+              background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.2)", borderRadius: 2, padding: "3px 8px" }}>
+              {ev.eventType?.replace(/_/g, ' ') || 'Event'}
+            </div>
+            {ev.bookingMode !== 'external' && (
+              <button
+                onClick={() => toggleBookings(ev.id)}
+                style={{
+                  fontFamily: SANS, fontSize: 10, color: isExpanded ? T.gold : T.grey,
+                  background: 'transparent', border: `1px solid ${isExpanded ? T.gold + '40' : T.border}`,
+                  borderRadius: 3, padding: '4px 10px', cursor: 'pointer',
+                  letterSpacing: '0.08em', textTransform: 'uppercase',
+                  transition: 'color 0.15s, border-color 0.15s',
+                }}
+              >
+                {isExpanded ? 'Hide' : 'Attendees'} {ev.bookingCount > 0 ? `· ${ev.bookingCount}` : ''}
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Content */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-            <span style={{ fontFamily: SERIF, fontSize: 17, color: T.off, fontWeight: 500 }}>{ev.title}</span>
-            {ev.isVirtual && (
-              <span style={{ fontFamily: SANS, fontSize: 9, color: T.blue, letterSpacing: "0.1em", textTransform: "uppercase",
-                background: "rgba(96,165,250,0.12)", border: "1px solid rgba(96,165,250,0.25)", borderRadius: 2, padding: "2px 6px" }}>
-                Virtual
-              </span>
-            )}
-          </div>
-          {ev.subtitle && (
-            <div style={{ fontFamily: SANS, fontSize: 12, color: T.grey, marginBottom: 6 }}>{ev.subtitle}</div>
-          )}
-          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-            {dateStr && (
-              <span style={{ fontFamily: SANS, fontSize: 11, color: T.grey2 }}>
-                📅 {dateStr}{timeStr ? ` · ${timeStr}` : ""}
-              </span>
-            )}
-            {ev.locationName && !ev.isVirtual && (
-              <span style={{ fontFamily: SANS, fontSize: 11, color: T.grey2 }}>
-                📍 {ev.locationName}
-              </span>
-            )}
-            {ev.capacity && (
-              <span style={{ fontFamily: SANS, fontSize: 11, color: T.grey2 }}>
-                👥 {ev.capacity} capacity
-              </span>
-            )}
-            {typeof ev.bookingCount === 'number' && (
-              <span style={{ fontFamily: SANS, fontSize: 11, color: T.green }}>
-                ✓ {ev.bookingCount} registered
-              </span>
-            )}
-          </div>
-        </div>
+        {/* Expanded bookings panel */}
+        {isExpanded && (
+          <div style={{ borderTop: `1px solid ${T.border}`, padding: '16px 24px 20px' }}>
+            {loadingBkgs[ev.id] ? (
+              <div style={{ fontFamily: SANS, fontSize: 12, color: T.grey2, padding: '12px 0' }}>Loading attendees…</div>
+            ) : evBookings.length === 0 ? (
+              <div style={{ fontFamily: SANS, fontSize: 12, color: T.grey2, padding: '12px 0' }}>No registrations yet.</div>
+            ) : (
+              <>
+                {/* Summary strip */}
+                <div style={{ display: 'flex', gap: 20, marginBottom: 16 }}>
+                  {[
+                    { label: 'Registered', val: confirmed,    colour: T.green },
+                    { label: 'Total guests', val: totalGuests, colour: T.gold },
+                    { label: 'All bookings', val: evBookings.length, colour: T.off },
+                  ].map(({ label, val, colour }) => (
+                    <div key={label} style={{ textAlign: 'center' }}>
+                      <div style={{ fontFamily: SERIF, fontSize: 20, color: colour }}>{val}</div>
+                      <div style={{ fontFamily: SANS, fontSize: 9, color: T.grey, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 2 }}>{label}</div>
+                    </div>
+                  ))}
+                </div>
 
-        {/* Type badge */}
-        <div style={{
-          flexShrink: 0, fontFamily: SANS, fontSize: 9, color: T.gold,
-          letterSpacing: "0.1em", textTransform: "uppercase",
-          background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.2)",
-          borderRadius: 2, padding: "3px 8px",
-        }}>
-          {ev.eventType?.replace(/_/g, ' ') || 'Event'}
-        </div>
+                {/* Attendee rows */}
+                <div style={{ borderRadius: 4, overflow: 'hidden', border: `1px solid ${T.border}` }}>
+                  {/* Header */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 60px 80px', gap: 12, padding: '7px 14px', background: T.bg }}>
+                    {['Name', 'Email', 'Guests', 'Status'].map(h => (
+                      <span key={h} style={{ fontFamily: SANS, fontSize: 9, color: T.grey, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 600 }}>{h}</span>
+                    ))}
+                  </div>
+                  {evBookings.map((b, i) => (
+                    <div key={b.id} style={{
+                      display: 'grid', gridTemplateColumns: '1fr 1fr 60px 80px', gap: 12,
+                      padding: '10px 14px', alignItems: 'center',
+                      borderTop: i > 0 ? `1px solid ${T.border}` : 'none',
+                    }}>
+                      <div style={{ fontFamily: SANS, fontSize: 13, color: T.off }}>{b.first_name} {b.last_name}</div>
+                      <div style={{ fontFamily: SANS, fontSize: 11, color: T.grey, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.email}</div>
+                      <div style={{ fontFamily: SERIF, fontSize: 16, color: T.off, textAlign: 'center' }}>{b.guest_count || 1}</div>
+                      <div style={{ fontFamily: SANS, fontSize: 9, fontWeight: 700, color: STATUS_COLOUR[b.status] || T.grey,
+                        background: `${STATUS_COLOUR[b.status] || T.grey}18`, border: `1px solid ${STATUS_COLOUR[b.status] || T.grey}35`,
+                        borderRadius: 3, padding: '3px 7px', letterSpacing: '0.08em', textTransform: 'uppercase', textAlign: 'center' }}>
+                        {b.status}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
     );
   }
@@ -617,28 +701,104 @@ function EventsPage({ account, listing }) {
   return (
     <div style={{ maxWidth: 760, margin: "0 auto" }}>
       {/* Header */}
-      <div style={{ marginBottom: 32 }}>
-        <div style={{ fontFamily: SANS, fontSize: 10, color: T.gold, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 8 }}>Events</div>
-        <h1 style={{ fontFamily: SERIF, fontSize: 28, color: T.off, fontWeight: 400, margin: "0 0 8px" }}>Your Upcoming Events</h1>
-        <p style={{ fontFamily: SANS, fontSize: 13, color: T.grey, margin: 0, lineHeight: 1.7 }}>
-          Manage open days, virtual tours, and exhibitions. Bookings are collected automatically.
-        </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32 }}>
+        <div>
+          <div style={{ fontFamily: SANS, fontSize: 10, color: T.gold, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 8 }}>Events</div>
+          <h1 style={{ fontFamily: SERIF, fontSize: 28, color: T.off, fontWeight: 400, margin: "0 0 8px" }}>Your Events</h1>
+          <p style={{ fontFamily: SANS, fontSize: 13, color: T.grey, margin: 0, lineHeight: 1.7 }}>
+            Manage open days, virtual tours, and exhibitions. Click Attendees to view registrations.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowRequest(r => !r)}
+          style={{
+            fontFamily: SANS, fontSize: 11, color: T.gold,
+            background: 'transparent', border: `1px solid ${T.gold}40`,
+            borderRadius: 3, padding: '8px 16px', cursor: 'pointer',
+            letterSpacing: '0.1em', textTransform: 'uppercase', flexShrink: 0, marginTop: 4,
+          }}
+        >
+          + Request Event
+        </button>
       </div>
+
+      {/* Request event form */}
+      {showRequest && (
+        <div style={{ background: T.card, border: `1px solid ${T.border2}`, borderRadius: 4, padding: '24px 28px', marginBottom: 32 }}>
+          {requestSent ? (
+            <div style={{ textAlign: 'center', padding: '12px 0' }}>
+              <div style={{ fontFamily: SERIF, fontSize: 20, color: T.gold, marginBottom: 8 }}>Request sent</div>
+              <p style={{ fontFamily: SANS, fontSize: 13, color: T.grey, margin: 0 }}>
+                Your account manager will be in touch to confirm details and set up the event.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div style={{ fontFamily: SANS, fontSize: 10, color: T.gold, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 16 }}>Request a New Event</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                <div>
+                  <div style={{ fontFamily: SANS, fontSize: 10, color: T.grey, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>Event Type</div>
+                  <select
+                    value={requestForm.eventType}
+                    onChange={e => setRequestForm(f => ({ ...f, eventType: e.target.value }))}
+                    style={{ width: '100%', background: T.bg, border: `1px solid ${T.border}`, borderRadius: 3, padding: '9px 12px', fontFamily: SANS, fontSize: 13, color: T.off, outline: 'none' }}
+                  >
+                    <option value="">Select type…</option>
+                    {['Open Day', 'Private Viewing', 'Wedding Fair', 'Masterclass', 'Showcase', 'Experience', 'Virtual Tour'].map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <div style={{ fontFamily: SANS, fontSize: 10, color: T.grey, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>Preferred Date</div>
+                  <input
+                    type="date"
+                    value={requestForm.preferredDate}
+                    onChange={e => setRequestForm(f => ({ ...f, preferredDate: e.target.value }))}
+                    style={{ width: '100%', boxSizing: 'border-box', background: T.bg, border: `1px solid ${T.border}`, borderRadius: 3, padding: '9px 12px', fontFamily: SANS, fontSize: 13, color: T.off, outline: 'none', colorScheme: 'dark' }}
+                  />
+                </div>
+              </div>
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontFamily: SANS, fontSize: 10, color: T.grey, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>Notes for your account manager</div>
+                <textarea
+                  value={requestForm.notes}
+                  onChange={e => setRequestForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="Expected capacity, theme, any special requirements…"
+                  rows={3}
+                  style={{ width: '100%', boxSizing: 'border-box', background: T.bg, border: `1px solid ${T.border}`, borderRadius: 3, padding: '9px 12px', fontFamily: SANS, fontSize: 13, color: T.off, outline: 'none', resize: 'vertical' }}
+                />
+              </div>
+              <button
+                onClick={() => {
+                  // For now: log the request and show confirmation
+                  // In future: submit via edge function → creates a CRM task/lead
+                  console.log('[Portal] Event request:', { account: account?.id, ...requestForm });
+                  setRequestSent(true);
+                  setTimeout(() => { setShowRequest(false); setRequestSent(false); setRequestForm({ eventType: '', preferredDate: '', notes: '' }); }, 4000);
+                }}
+                style={{
+                  fontFamily: SANS, fontSize: 11, color: '#1a1a1a',
+                  background: T.gold, border: 'none', borderRadius: 3,
+                  padding: '10px 24px', cursor: 'pointer',
+                  letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 700,
+                }}
+              >
+                Send Request
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <div style={{ fontFamily: SANS, fontSize: 13, color: T.grey2, padding: "40px 0", textAlign: "center" }}>Loading events…</div>
       ) : upcoming.length === 0 && past.length === 0 ? (
-        <div style={{
-          background: T.card, border: `1px solid ${T.border}`, borderRadius: 4,
-          padding: "48px 32px", textAlign: "center",
-        }}>
+        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 4, padding: "48px 32px", textAlign: "center" }}>
           <div style={{ fontFamily: SERIF, fontSize: 22, color: T.off, marginBottom: 12 }}>No events scheduled</div>
           <p style={{ fontFamily: SANS, fontSize: 13, color: T.grey, maxWidth: 360, margin: "0 auto 24px", lineHeight: 1.8 }}>
-            Your account manager can create and publish events for you — open days, showcases, virtual tours, and more.
+            Use the Request Event button above to ask your account manager to schedule an open day, showcase, or virtual tour.
           </p>
-          <div style={{ fontFamily: SANS, fontSize: 11, color: T.grey2, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-            Contact your account manager to get started
-          </div>
         </div>
       ) : (
         <>

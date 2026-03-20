@@ -223,3 +223,23 @@ export async function fetchPastEventsForVenue(venueId, limit = 6) {
   }
   return (data || []).map(dbToEvent)
 }
+
+/**
+ * Fetch bookings for an event — used by client portal.
+ * Uses anon client (RLS disabled on event_bookings for portal reads).
+ */
+export async function fetchPortalEventBookings(eventId) {
+  if (!isSupabaseAvailable()) return []
+  try {
+    const { data, error } = await supabase
+      .from('event_bookings')
+      .select('id, first_name, last_name, email, phone, guest_count, status, booking_ref, created_at')
+      .eq('event_id', eventId)
+      .order('created_at', { ascending: true })
+    if (error) throw error
+    return data || []
+  } catch (e) {
+    console.warn('[eventService] fetchPortalEventBookings:', e.message)
+    return []
+  }
+}

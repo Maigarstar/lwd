@@ -16,6 +16,7 @@ import {
   dbToEvent, eventToDb, slugifyTitle,
 } from '../../services/adminEventsService'
 import { supabase } from '../../lib/supabaseClient'
+import { sendBookingCancellationEmail, notifyEventCancellation } from '../../services/eventBookingService'
 import { fetchListings, fetchListingById } from '../../services/listings'
 import EventDetailPage from '../EventDetailPage'
 import { uploadMediaFile } from '../../utils/storageUpload'
@@ -1547,7 +1548,7 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = t
 
 // ─── Bookings Panel ───────────────────────────────────────────────────────────
 
-function BookingsPanel({ eventId, eventTitle, onClose, C }) {
+function BookingsPanel({ eventId, eventTitle, event = null, onClose, C }) {
   const [data, setData]       = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -1557,6 +1558,20 @@ function BookingsPanel({ eventId, eventTitle, onClose, C }) {
 
   const handleStatusChange = async (bookingId, newStatus) => {
     await adminUpdateBooking(bookingId, { status: newStatus })
+    // Send cancellation email if booking is being cancelled
+    if (newStatus === 'cancelled' && event) {
+      const booking = data?.bookings?.find(b => b.id === bookingId)
+      if (booking) {
+        sendBookingCancellationEmail({
+          id: booking.id,
+          firstName: booking.first_name,
+          lastName: booking.last_name,
+          email: booking.email,
+          bookingRef: booking.booking_ref,
+          guestCount: booking.guest_count,
+        }, event).catch(() => {})
+      }
+    }
     adminListBookings(eventId).then(d => setData(d))
   }
 
@@ -1753,8 +1768,11 @@ function EventsList({ onEdit, onViewBookings, onNew, C }) {
   }, [intelDays])
 
   const handleDelete = async (id, title) => {
-    if (!window.confirm(`Cancel event "${title}"? This will set its status to Cancelled.`)) return
+    if (!window.confirm(`Cancel event "${title}"? This will set its status to Cancelled and notify all confirmed attendees.`)) return
+    // Find the event object for the email
+    const ev = events.find(e => e.id === id)
     await adminDeleteEvent(id, false)
+    if (ev) notifyEventCancellation(id, ev).catch(() => {})
     load()
   }
 
@@ -1995,6 +2013,7 @@ export default function EventsModule({ C, darkMode = true, onBuilderModeChange, 
         <BookingsPanel
           eventId={bookingsEvent.id}
           eventTitle={bookingsEvent.title}
+          event={bookingsEvent}
           onClose={() => setView('list')}
           C={C}
         />
