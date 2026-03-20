@@ -22,6 +22,7 @@ import { fetchListingByManagedAccountId } from "../services/listings.ts";
 import { useAdaptiveColor } from "../hooks/useAdaptiveColor";
 import { getConnections, fetchSearchConsoleData, fetchAnalyticsData } from "../services/googleConnectionService";
 import { fetchEntityEvents } from "../services/adminUserEventsService";
+import { createLead } from "../services/leadEngineService";
 import { supabase } from "../lib/supabaseClient";
 
 // -- Fonts / tokens ------------------------------------------------------------
@@ -774,9 +775,27 @@ function EventsPage({ account, listing }) {
               </div>
               <button
                 onClick={() => {
-                  // For now: log the request and show confirmation
-                  // In future: submit via edge function → creates a CRM task/lead
-                  console.log('[Portal] Event request:', { account: account?.id, ...requestForm });
+                  // Fire-and-forget: create a CRM lead for the account manager to action
+                  createLead({
+                    leadSource:    'client_portal',
+                    leadChannel:   'portal_event_request',
+                    leadType:      'event_request',
+                    venueId:       listing?.id || null,
+                    firstName:     account?.contactName?.split(' ')[0] || account?.name || 'Portal',
+                    lastName:      account?.contactName?.split(' ').slice(1).join(' ') || 'Client',
+                    email:         account?.contactEmail || '',
+                    intentSummary: `Event request via client portal: ${requestForm.eventType || 'unspecified type'}${requestForm.preferredDate ? ` on ${requestForm.preferredDate}` : ''}`,
+                    message:       requestForm.notes || null,
+                    requirementsJson: {
+                      eventType:     requestForm.eventType,
+                      preferredDate: requestForm.preferredDate,
+                      notes:         requestForm.notes,
+                      accountId:     account?.id,
+                      venueName:     listing?.name,
+                    },
+                    tagsJson: ['event_request', 'portal'],
+                    consentDataProcessing: true,
+                  }).catch(() => {}); // fire-and-forget — never block confirmation
                   setRequestSent(true);
                   setTimeout(() => { setShowRequest(false); setRequestSent(false); setRequestForm({ eventType: '', preferredDate: '', notes: '' }); }, 4000);
                 }}
