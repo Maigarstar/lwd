@@ -21,6 +21,7 @@ import { fetchUpcomingEventsForVenue, fetchPortalEventBookings, formatEventDate,
 import { fetchListingByManagedAccountId } from "../services/listings.ts";
 import { useAdaptiveColor } from "../hooks/useAdaptiveColor";
 import { getConnections, fetchSearchConsoleData, fetchAnalyticsData } from "../services/googleConnectionService";
+import { fetchEntityEvents } from "../services/adminUserEventsService";
 import { supabase } from "../lib/supabaseClient";
 
 // -- Fonts / tokens ------------------------------------------------------------
@@ -840,6 +841,7 @@ function PerformancePage({ account, listing, summary }) {
   const [scData, setScData]       = useState(null);
   const [gaData, setGaData]       = useState(null);
   const [bookingCount, setBkCount]= useState(null);
+  const [entityData, setEntData]  = useState(null);
   const [dataLoading, setDLoding] = useState(true);
 
   // Real content metrics from summary
@@ -869,6 +871,7 @@ function PerformancePage({ account, listing, summary }) {
       setDLoding(true);
       setScData(null);
       setGaData(null);
+      setEntData(null);
 
       const start = startDate(days);
       const end   = new Date().toISOString().split("T")[0];
@@ -912,6 +915,13 @@ function PerformancePage({ account, listing, summary }) {
             .then(({ count }) => { if (!cancelled) setBkCount(count ?? 0); })
             .catch(() => {})
         );
+
+        // 5. Profile views + enquiry signals via user_events edge function
+        tasks.push(
+          fetchEntityEvents(listing.id, days)
+            .then(d => { if (!cancelled) setEntData(d); })
+            .catch(() => {})
+        );
       }
 
       await Promise.allSettled(tasks);
@@ -929,6 +939,14 @@ function PerformancePage({ account, listing, summary }) {
   const scTotals = scData && scData !== "error" ? scData?.totals : null;
   const scRows   = scData && scData !== "error" ? (scData?.rows || []) : [];
   const gaS      = gaData && gaData !== "error" ? gaData?.summary : null;
+
+  // Profile views + enquiry signals derived from entity_events
+  const profileViews      = entityData?.byType?.["profile_view"]       ?? null;
+  const enquiriesStarted  = entityData?.byType?.["enquiry_started"]    ?? null;
+  const enquiriesSubmitted= entityData?.byType?.["enquiry_submitted"]  ?? null;
+  const enqConversion     = enquiriesStarted > 0 && enquiriesSubmitted != null
+    ? `${Math.round((enquiriesSubmitted / enquiriesStarted) * 100)}%`
+    : null;
 
   // Est. pipeline: bookings × listing price × 8% conversion assumption
   const estPipeline = listing?.priceFrom && bookingCount > 0
@@ -1055,6 +1073,54 @@ function PerformancePage({ account, listing, summary }) {
           </div>
         </div>
       )}
+
+      {/* Profile Views */}
+      <div style={{ marginBottom: 36 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <SectionTitle style={{ margin: 0 }}>Profile Views</SectionTitle>
+          <span style={{
+            fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.1em",
+            textTransform: "uppercase", padding: "3px 10px", borderRadius: 20,
+            border: `1px solid ${profileViews > 0 ? T.gold + "44" : T.border}`,
+            color: profileViews > 0 ? T.gold : T.grey2,
+          }}>
+            {profileViews == null ? "Loading…" : profileViews > 0 ? "Active" : "Building"}
+          </span>
+        </div>
+        {profileViews == null ? (
+          <div style={{ padding: "20px 24px", background: T.card, border: `1px solid ${T.border}`, borderRadius: 6 }}>
+            <div style={{ fontFamily: SANS, fontSize: 13, color: T.grey2 }}>Loading profile data…</div>
+          </div>
+        ) : (
+          <>
+            <KpiGrid items={[
+              {
+                label: "Page Views",
+                value: profileViews.toLocaleString(),
+                color: T.gold,
+                note: `last ${days}d`,
+              },
+              {
+                label: "Enquiries Started",
+                value: enquiriesStarted != null ? enquiriesStarted.toLocaleString() : "-",
+                color: T.off,
+                note: "form opens",
+              },
+              {
+                label: "Enquiries Sent",
+                value: enquiriesSubmitted != null ? enquiriesSubmitted.toLocaleString() : "-",
+                color: enquiriesSubmitted > 0 ? T.green : T.grey2,
+                note: enqConversion ? `${enqConversion} conversion` : "submitted forms",
+              },
+            ]} />
+            {profileViews === 0 && (
+              <p style={{ fontFamily: SANS, fontSize: 11, color: T.grey2, marginTop: 12, lineHeight: 1.6 }}>
+                No profile views recorded yet for this period. Views will appear here once your listing receives visitors.
+              </p>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Content Impact */}
       <div style={{ marginBottom: 36 }}>
