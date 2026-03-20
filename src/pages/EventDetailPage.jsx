@@ -180,7 +180,7 @@ function Gallery({ urls, videoUrl, P }) {
         const thumb = videoThumb(videoUrl);
         return (
           <div style={{ marginBottom: 64, marginTop: 8 }}>
-            <Label>Watch</Label>
+            <Label>A Glimpse Inside</Label>
             <div
               onClick={() => setOpen(0)}
               style={{
@@ -246,8 +246,8 @@ function Gallery({ urls, videoUrl, P }) {
               );
             })}
           </div>
-          <div style={{ fontFamily: NU, fontSize: 11, color: P.textMuted, marginTop: 8, letterSpacing: '0.05em' }}>
-            Click to enlarge
+          <div style={{ fontFamily: NU, fontSize: 11, color: P.textMuted, marginTop: 10, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            Explore the gallery
           </div>
         </div>
       )}
@@ -777,7 +777,7 @@ function BookingForm({ event, onSuccess, P }) {
   return (
     <form onSubmit={handleSubmit}>
       {/* First + Last — side by side (plenty of room at 400px) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
         <div>
           <Label>First Name *</Label>
           <input style={inp} value={form.firstName} placeholder="Sofia"
@@ -794,7 +794,7 @@ function BookingForm({ event, onSuccess, P }) {
         </div>
       </div>
 
-      <div style={{ marginBottom: 10 }}>
+      <div style={{ marginBottom: 14 }}>
         <Label>Email Address *</Label>
         <input type="email" style={inp} value={form.email} placeholder="sofia@example.com"
           onChange={e => set('email', e.target.value)}
@@ -802,7 +802,7 @@ function BookingForm({ event, onSuccess, P }) {
           onBlur={e => e.target.style.borderColor = P.border} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
         <div>
           <Label>Phone (optional)</Label>
           <input type="tel" style={inp} value={form.phone} placeholder="+44 7700 000000"
@@ -1138,7 +1138,8 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
         ) : (
           <div style={{ width: '100%', height: '100%', background: isLight ? '#e8e0d0' : 'linear-gradient(135deg, #1a1710 0%, #111 100%)' }} />
         )}
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(10,8,6,0.92) 0%, rgba(10,8,6,0.3) 55%, transparent 100%)' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.94) 0%, rgba(0,0,0,0.48) 45%, rgba(0,0,0,0.12) 100%)' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.28) 0%, transparent 35%)' }} />
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: isPreview ? '20px 24px' : (isMobile ? '28px 20px' : '48px 60px') }}>
           <div style={{ fontFamily: NU, fontSize: 10, color: GOLD, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 10 }}>
             {event.eventType?.replace(/_/g, ' ') || 'Event'}{event.isVirtual && ' · Virtual'}
@@ -1147,7 +1148,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
             {event.title}
           </h1>
           {event.subtitle && (
-            <p style={{ fontFamily: NU, fontSize: isPreview ? 13 : (isMobile ? 14 : 17), color: 'rgba(245,240,232,0.65)', margin: 0, maxWidth: 600 }}>
+            <p style={{ fontFamily: NU, fontSize: isPreview ? 13 : (isMobile ? 14 : 17), color: 'rgba(245,240,232,0.82)', margin: 0, maxWidth: 600, lineHeight: 1.6 }}>
               {event.subtitle}
             </p>
           )}
@@ -1310,6 +1311,28 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
           {event.description && (
             <div style={{ marginBottom: 64 }}>
               <Label>About This Event</Label>
+              {/* Editorial intro line — subtitle if available, else derived from event type */}
+              {(() => {
+                const introMap = {
+                  open_day:         "An unmissable open day at one of the world\u2019s finest wedding venues.",
+                  wedding_show:     "A curated showcase for couples with an eye for the extraordinary.",
+                  private_showcase: "An exclusive private showcase, by invitation only.",
+                  virtual_event:    "A live virtual showcase from the comfort of your home.",
+                  masterclass:      "An intimate masterclass led by the venue\u2019s expert team.",
+                  gala:             "An exceptional gala event in one of Europe\u2019s most celebrated settings.",
+                };
+                const intro = event.subtitle || introMap[event.eventType] || "An exceptional event, exclusively for you.";
+                return (
+                  <p style={{
+                    fontFamily: GD, fontSize: 20, color: P.textSub,
+                    lineHeight: 1.7, margin: '0 0 24px', fontWeight: 400,
+                    borderLeft: `2px solid ${GOLD}`, paddingLeft: 18,
+                    fontStyle: 'italic',
+                  }}>
+                    {intro}
+                  </p>
+                );
+              })()}
               <div
                 className="event-desc-prose"
                 style={{ fontFamily: GD, fontSize: 18, color: P.text, lineHeight: 1.85 }}
@@ -1475,8 +1498,8 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
               border: `1px solid ${P.border}`,
               borderTop: `3px solid ${GOLD}`,
               borderRadius: 4,
-              padding: '28px 26px',
-              boxShadow: isLight ? '0 4px 24px rgba(0,0,0,0.08)' : '0 4px 24px rgba(0,0,0,0.3)',
+              padding: '34px 30px',
+              boxShadow: isLight ? '0 4px 32px rgba(0,0,0,0.09)' : '0 4px 32px rgba(0,0,0,0.35)',
               transition: 'background 0.3s, border-color 0.3s',
             }}>
               {isEventPast ? (
