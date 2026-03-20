@@ -72,6 +72,38 @@ function DetailRow({ icon, children, P }) {
   );
 }
 
+// ── Add to Calendar ───────────────────────────────────────────────────────────
+function AddToCalendar({ event, P }) {
+  const dlIcs = () => {
+    const blob = buildIcsBlob(event);
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `${event.slug || 'event'}.ics`; a.click();
+    URL.revokeObjectURL(url);
+  };
+  const btn = {
+    flex: 1, padding: '10px 0',
+    border: `1px solid ${P.border}`, borderRadius: 2,
+    fontFamily: NU, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase',
+    cursor: 'pointer', background: 'transparent', color: P.textSub, textAlign: 'center',
+    textDecoration: 'none', transition: 'border-color 0.15s, color 0.15s',
+  };
+  return (
+    <div style={{ display: 'flex', gap: 10, marginBottom: 40 }}>
+      <a href={googleCalendarUrl(event)} target="_blank" rel="noopener noreferrer" style={btn}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = P.border; e.currentTarget.style.color = P.textSub; }}>
+        📅 Add to Google Calendar
+      </a>
+      <button onClick={dlIcs} style={btn}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = P.border; e.currentTarget.style.color = P.textSub; }}>
+        🍎 Apple / iCal (.ics)
+      </button>
+    </div>
+  );
+}
+
 // ── Gallery helpers ───────────────────────────────────────────────────────────
 function ytId(url) {
   if (!url) return null;
@@ -1130,6 +1162,9 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
               </DetailRow>
             )}
           </div>
+
+          {/* Add to Calendar */}
+          {!isPreview && <AddToCalendar event={event} P={P} />}
 
           {/* Hosted by Venue */}
           {venue && (
