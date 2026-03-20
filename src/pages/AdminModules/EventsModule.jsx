@@ -14,6 +14,7 @@ import {
 } from '../../services/adminEventsService'
 import { fetchListings } from '../../services/listings'
 import EventDetailPage from '../EventDetailPage'
+import { uploadMediaFile } from '../../utils/storageUpload'
 
 const GD = 'var(--font-heading-primary)'
 const NU = 'var(--font-body)'
@@ -170,6 +171,54 @@ function InputField({ label, value, onChange, type = 'text', placeholder = '', h
         onBlur={e => e.target.style.borderColor = C.border}
       />
       {hint && <p style={{ fontFamily: NU, fontSize: 11, color: C.grey, margin: '4px 0 0' }}>{hint}</p>}
+    </div>
+  )
+}
+
+function DateField({ label, value, onChange, required, LS, C }) {
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <label style={{ display: 'block', fontFamily: NU, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.grey, fontWeight: 600, marginBottom: 6 }}>
+        {label}{required && <span style={{ color: '#ef4444', marginLeft: 3 }}>*</span>}
+      </label>
+      <input
+        type="date"
+        value={value || ''}
+        onChange={e => onChange(e.target.value)}
+        style={{
+          width: '100%', boxSizing: 'border-box',
+          fontFamily: NU, fontSize: 13, color: LS.text,
+          background: LS.bg, border: `1px solid ${LS.border}`,
+          borderRadius: 4, padding: '10px 12px', outline: 'none',
+          colorScheme: LS.text === '#222222' ? 'light' : 'dark',
+        }}
+        onFocus={e => e.target.style.borderColor = LS.gold}
+        onBlur={e => e.target.style.borderColor = LS.border}
+      />
+    </div>
+  )
+}
+
+function TimeField({ label, value, onChange, LS, C }) {
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <label style={{ display: 'block', fontFamily: NU, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.grey, fontWeight: 600, marginBottom: 6 }}>
+        {label}
+      </label>
+      <input
+        type="time"
+        value={value || ''}
+        onChange={e => onChange(e.target.value)}
+        style={{
+          width: '100%', boxSizing: 'border-box',
+          fontFamily: NU, fontSize: 13, color: LS.text,
+          background: LS.bg, border: `1px solid ${LS.border}`,
+          borderRadius: 4, padding: '10px 12px', outline: 'none',
+          colorScheme: LS.text === '#222222' ? 'light' : 'dark',
+        }}
+        onFocus={e => e.target.style.borderColor = LS.gold}
+        onBlur={e => e.target.style.borderColor = LS.border}
+      />
     </div>
   )
 }
@@ -787,6 +836,29 @@ function ListingPickerField({ label, value, onChange, onSelect, hint, C }) {
 }
 
 
+// ─── Builder section card & grid ──────────────────────────────────────────────
+
+function SCard({ title, hint, children, action, LS }) {
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <div style={{ background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ padding: '12px 20px', borderBottom: `1px solid ${LS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: LS.gold }}>{title}</div>
+            {hint && <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: LS.muted, marginTop: 3, lineHeight: 1.5 }}>{hint}</div>}
+          </div>
+          {action && <div>{action}</div>}
+        </div>
+        <div style={{ padding: 20 }}>{children}</div>
+      </div>
+    </div>
+  )
+}
+
+function Grid2({ children, gap = 16 }) {
+  return <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap }}>{children}</div>
+}
+
 // ─── Events Builder ───────────────────────────────────────────────────────────
 
 function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = true }) {
@@ -849,27 +921,6 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = t
   const showEditor  = viewMode === 'split' || viewMode === 'editor'
   const showPreview = viewMode === 'split' || viewMode === 'preview'
 
-  // ── Section card — matches Listing Builder card visual language ─────────────
-  const SCard = ({ title, hint, children }) => (
-    <div style={{ marginBottom: 24 }}>
-      <div style={{
-        background: LS.card, border: `1px solid ${LS.border}`,
-        borderRadius: 8, overflow: 'hidden',
-      }}>
-        <div style={{ padding: '12px 20px', borderBottom: `1px solid ${LS.border}` }}>
-          <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: LS.gold }}>{title}</div>
-          {hint && <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 3, lineHeight: 1.5 }}>{hint}</div>}
-        </div>
-        <div style={{ padding: 20 }}>{children}</div>
-      </div>
-    </div>
-  )
-
-  // ── Two-column grid ─────────────────────────────────────────────────────────
-  const Grid2 = ({ children, gap = 16 }) => (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap }}>{children}</div>
-  )
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
@@ -898,6 +949,11 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = t
             fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px',
             background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer',
           }}>Discard</button>
+          <button onClick={() => handleSave()} disabled={saving || !dirty} style={{
+            fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px',
+            background: 'transparent', color: LS.text, border: `1px solid ${LS.border}`, borderRadius: 6,
+            cursor: saving || !dirty ? 'not-allowed' : 'pointer', opacity: saving || !dirty ? 0.35 : 1,
+          }}>Save</button>
           <button onClick={() => handleSave('draft')} disabled={saving || !dirty} style={{
             fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px',
             background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6,
@@ -951,7 +1007,7 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = t
             </div>
 
             {/* ── 1. VENUE ──────────────────────────────────────────────────── */}
-            <SCard title="Venue" hint="Link this event to a venue listing on the directory">
+            <SCard title="Venue" hint="Link this event to a venue listing on the directory" LS={LS}>
               <ListingPickerField
                 label="Linked Venue"
                 value={form.venueId}
@@ -963,7 +1019,9 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = t
             </SCard>
 
             {/* ── 2. BASIC DETAILS ──────────────────────────────────────────── */}
-            <SCard title="Basic Details" hint="Title, event type and public URL">
+            <SCard title="Basic Details" hint="Title, event type and public URL" LS={LS}
+              action={<button style={{ fontFamily: NU, fontSize: 10, fontWeight: 600, padding: '4px 10px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 4, cursor: 'pointer', letterSpacing: '0.05em' }}>✦ AI</button>}
+            >
               <InputField label="Event Title *" value={form.title} onChange={handleTitleChange} placeholder="e.g. Open Day at Belmond Villa San Michele" required C={C} />
               <InputField label="Subtitle" value={form.subtitle} onChange={v => set('subtitle', v)} placeholder="An exclusive morning tour for invited couples" hint="Optional — shown beneath the title on the event page" C={C} />
               <Grid2>
@@ -988,12 +1046,12 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = t
             </SCard>
 
             {/* ── 3. DATE & TIME ────────────────────────────────────────────── */}
-            <SCard title="Date & Time" hint="When the event takes place">
+            <SCard title="Date & Time" hint="When the event takes place" LS={LS}>
               <Grid2>
-                <InputField label="Start Date *" value={form.startDate} onChange={v => set('startDate', v)} type="date" C={C} />
-                <InputField label="Start Time"   value={form.startTime} onChange={v => set('startTime', v)} type="time" C={C} />
-                <InputField label="End Date"     value={form.endDate}   onChange={v => set('endDate', v)}   type="date" C={C} />
-                <InputField label="End Time"     value={form.endTime}   onChange={v => set('endTime', v)}   type="time" C={C} />
+                <DateField label="Start Date *" value={form.startDate} onChange={v => set('startDate', v)} required LS={LS} C={C} />
+                <TimeField label="Start Time"   value={form.startTime} onChange={v => set('startTime', v)} LS={LS} C={C} />
+                <DateField label="End Date"     value={form.endDate}   onChange={v => set('endDate', v)}   LS={LS} C={C} />
+                <TimeField label="End Time"     value={form.endTime}   onChange={v => set('endTime', v)}   LS={LS} C={C} />
               </Grid2>
               <SelectField
                 label="Timezone"
@@ -1013,7 +1071,9 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = t
             </SCard>
 
             {/* ── 4. EVENT DETAILS ──────────────────────────────────────────── */}
-            <SCard title="Event Details" hint="Description and where it takes place">
+            <SCard title="Event Details" hint="Description and where it takes place" LS={LS}
+              action={<button style={{ fontFamily: NU, fontSize: 10, fontWeight: 600, padding: '4px 10px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 4, cursor: 'pointer', letterSpacing: '0.05em' }}>✦ AI</button>}
+            >
               <EventDescriptionEditor value={form.description} onChange={v => set('description', v)} C={C} />
               <Grid2>
                 <InputField label="Location Name"  value={form.locationName}    onChange={v => set('locationName', v)}    placeholder="e.g. Belmond Villa San Michele"          C={C} />
@@ -1022,7 +1082,7 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = t
             </SCard>
 
             {/* ── 5. VIRTUAL EVENT ──────────────────────────────────────────── */}
-            <SCard title="Virtual Event" hint="For online or hybrid events">
+            <SCard title="Virtual Event" hint="For online or hybrid events" LS={LS}>
               <Toggle label="This is a virtual event" checked={!!form.isVirtual} onChange={v => set('isVirtual', v)} hint="Show stream URL and virtual platform fields" C={C} />
               {form.isVirtual && (
                 <>
@@ -1034,13 +1094,43 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = t
             </SCard>
 
             {/* ── 6. MEDIA ──────────────────────────────────────────────────── */}
-            <SCard title="Media" hint="Cover image, video and gallery">
-              <InputField label="Cover Image URL" value={form.coverImageUrl || ''} onChange={v => set('coverImageUrl', v)} placeholder="https://…" hint="Hero image on the event page. Recommended: 1600×900px" C={C} />
-              {form.coverImageUrl && (
-                <div style={{ marginBottom: 18, borderRadius: 6, overflow: 'hidden', aspectRatio: '16/9', background: C.border }}>
-                  <img src={form.coverImageUrl} alt="Cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none' }} />
-                </div>
-              )}
+            <SCard title="Media" hint="Cover image, video and gallery" LS={LS}>
+              {/* Cover image upload */}
+              <div style={{ marginBottom: 18 }}>
+                <label style={{ display: 'block', fontFamily: NU, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.grey, fontWeight: 600, marginBottom: 6 }}>
+                  Cover Image (Hero)
+                </label>
+                {form.coverImageUrl ? (
+                  <div style={{ position: 'relative', borderRadius: 6, overflow: 'hidden', aspectRatio: '16/9', background: LS.border }}>
+                    <img src={form.coverImageUrl} alt="Cover" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.target.style.display = 'none' }} />
+                    <button
+                      onClick={() => set('coverImageUrl', '')}
+                      style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', fontFamily: NU, fontSize: 11, cursor: 'pointer' }}
+                    >✕ Remove</button>
+                  </div>
+                ) : (
+                  <label style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    gap: 8, padding: '32px 20px', borderRadius: 6, cursor: 'pointer',
+                    border: `2px dashed ${LS.border}`, background: LS.bg, color: LS.muted,
+                    fontFamily: NU, fontSize: 12, transition: 'border-color 0.2s',
+                  }}>
+                    <span style={{ fontSize: 24 }}>⬆</span>
+                    <span>Click to upload cover image</span>
+                    <span style={{ fontSize: 11, opacity: 0.6 }}>Recommended: 1600×900px · JPG, PNG, WebP</span>
+                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
+                      const file = e.target.files?.[0]; if (!file) return
+                      set('_coverUploading', true)
+                      try {
+                        const url = await uploadMediaFile(file, `events/${Date.now()}`)
+                        set('coverImageUrl', url)
+                      } catch(err) { console.error('Upload failed', err) }
+                      finally { set('_coverUploading', false) }
+                    }} />
+                  </label>
+                )}
+                {form._coverUploading && <p style={{ fontFamily: NU, fontSize: 11, color: LS.gold, margin: '6px 0 0' }}>Uploading…</p>}
+              </div>
               <InputField label="Video URL" value={form.videoUrl || ''} onChange={v => set('videoUrl', v || null)} placeholder="https://youtube.com/watch?v=…" hint="YouTube or Vimeo. Shown above gallery images on the event page." C={C} />
               {form.videoUrl && (
                 <Toggle label="Use video as hero (replaces cover image in the header)" checked={!!form.videoHeroMode} onChange={v => set('videoHeroMode', v)} C={C} />
@@ -1055,28 +1145,52 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = t
                   </div>
                 </div>
               )}
-              <div style={{ marginBottom: 6, fontFamily: NU, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.grey, fontWeight: 600 }}>Gallery Images</div>
-              <p style={{ fontFamily: NU, fontSize: 11, color: C.grey, margin: '0 0 8px' }}>One URL per line — max 6 images</p>
-              <textarea
-                value={(form.galleryUrls || []).join('\n')}
-                onChange={e => set('galleryUrls', e.target.value.split('\n').map(s => s.trim()).filter(Boolean).slice(0, 6))}
-                rows={4}
-                placeholder={'https://…\nhttps://…\nhttps://…'}
-                style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: NU, fontSize: 12, color: C.grey, background: C.dark, border: `1px solid ${C.border}`, borderRadius: 4, padding: '10px 12px', outline: 'none', lineHeight: 1.7 }}
-              />
-              {form.galleryUrls?.length > 0 && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginTop: 12 }}>
-                  {form.galleryUrls.map((url, i) => (
-                    <div key={i} style={{ aspectRatio: '3/2', borderRadius: 4, overflow: 'hidden', background: C.border }}>
-                      <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none' }} />
-                    </div>
-                  ))}
-                </div>
-              )}
+              {/* Gallery upload */}
+              <div>
+                <label style={{ display: 'block', fontFamily: NU, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.grey, fontWeight: 600, marginBottom: 6 }}>
+                  Gallery Images <span style={{ color: LS.muted, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(up to 6)</span>
+                </label>
+                {(form.galleryUrls?.length || 0) < 6 && (
+                  <label style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', marginBottom: 12,
+                    border: `2px dashed ${LS.border}`, borderRadius: 6, cursor: 'pointer',
+                    background: LS.bg, color: LS.muted, fontFamily: NU, fontSize: 12,
+                  }}>
+                    <span>⬆</span>
+                    <span>Add photos</span>
+                    <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={async e => {
+                      const files = Array.from(e.target.files || [])
+                      const remaining = 6 - (form.galleryUrls?.length || 0)
+                      const toUpload = files.slice(0, remaining)
+                      for (const file of toUpload) {
+                        try {
+                          const url = await uploadMediaFile(file, `events/gallery/${Date.now()}`)
+                          set('galleryUrls', [...(form.galleryUrls || []), url])
+                        } catch(err) { console.error('Gallery upload failed', err) }
+                      }
+                    }} />
+                  </label>
+                )}
+                {form.galleryUrls?.length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                    {form.galleryUrls.map((url, i) => (
+                      <div key={i} style={{ position: 'relative', aspectRatio: '3/2', borderRadius: 4, overflow: 'hidden', background: LS.border }}>
+                        <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.target.style.display = 'none' }} />
+                        <button
+                          onClick={() => set('galleryUrls', form.galleryUrls.filter((_, j) => j !== i))}
+                          style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: 3, width: 20, height: 20, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </SCard>
 
             {/* ── 7. GETTING THERE & PRACTICAL DETAILS ─────────────────────── */}
-            <SCard title="Getting There & Practical Details" hint="Concierge-style logistics shown on the event page below the map — helps couples plan their journey">
+            <SCard title="Getting There & Practical Details" hint="Concierge-style logistics shown on the event page below the map — helps couples plan their journey" LS={LS}
+              action={<button style={{ fontFamily: NU, fontSize: 10, fontWeight: 600, padding: '4px 10px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 4, cursor: 'pointer', letterSpacing: '0.05em' }}>✦ AI</button>}
+            >
               <Grid2>
                 <InputField label="Nearest Airport"      value={form.nearestAirport    || ''} onChange={v => set('nearestAirport', v)}     placeholder="Florence Airport"               C={C} />
                 <InputField label="Air Travel Time"      value={form.travelTime        || ''} onChange={v => set('travelTime', v)}          placeholder="approx. 1hr 15min by car"       C={C} />
@@ -1092,7 +1206,7 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = t
             </SCard>
 
             {/* ── 8. BOOKING ────────────────────────────────────────────────── */}
-            <SCard title="Booking" hint="How guests register or reserve their place">
+            <SCard title="Booking" hint="How guests register or reserve their place" LS={LS}>
               <SelectField label="Booking Mode" value={form.bookingMode || 'internal'} onChange={v => set('bookingMode', v)} options={BOOKING_MODES} C={C} />
               {form.bookingMode === 'external' && (
                 <InputField label="External Booking URL" value={form.externalBookingUrl || ''} onChange={v => set('externalBookingUrl', v)} placeholder="https://…" C={C} />
@@ -1116,7 +1230,7 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = t
             </SCard>
 
             {/* ── 9. SETTINGS ───────────────────────────────────────────────── */}
-            <SCard title="Settings" hint="Publication status and configuration">
+            <SCard title="Settings" hint="Publication status and configuration" LS={LS}>
               <SelectField
                 label="Status"
                 value={form.status || 'draft'}
