@@ -7906,17 +7906,57 @@ export default function VenueProfile({ onBack = null, slug = null }) {
                     {venueEvents.map(ev => {
                       const dateStr = formatEventDate(ev.startDate);
                       const timeStr = ev.startTime ? formatEventTime(ev.startTime) : null;
+                      // Urgency signal: capacity-based or default
+                      const spotsLeft = ev.capacity
+                        ? Math.max(0, ev.capacity - (ev.bookingCount || 0))
+                        : null;
+                      const isAlmostFull = spotsLeft !== null && spotsLeft <= Math.ceil(ev.capacity * 0.25);
+                      const urgencyLabel = isAlmostFull
+                        ? `${spotsLeft} place${spotsLeft === 1 ? '' : 's'} remaining`
+                        : ev.capacity
+                          ? `Limited to ${ev.capacity} guests`
+                          : 'Limited availability';
                       return (
                         <div
                           key={ev.id}
                           onClick={() => setDrawerEvent(ev)}
-                          style={{ cursor: 'pointer', background: '#1a1a18', border: '1px solid #2a2a28', borderRadius: 4, overflow: 'hidden', transition: 'border-color 0.2s' }}
-                          onMouseEnter={e => e.currentTarget.style.borderColor = '#C9A84C'}
-                          onMouseLeave={e => e.currentTarget.style.borderColor = '#2a2a28'}
+                          style={{ cursor: 'pointer', background: '#1a1a18', border: '1px solid #2a2a28', borderRadius: 4, overflow: 'hidden', transition: 'border-color 0.2s, transform 0.2s' }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = '#C9A84C'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = '#2a2a28'; e.currentTarget.style.transform = 'translateY(0)'; }}
                         >
                           {ev.coverImageUrl && (
-                            <div style={{ height: 160, overflow: 'hidden' }}>
+                            <div style={{ height: 160, overflow: 'hidden', position: 'relative' }}>
                               <img src={ev.coverImageUrl} alt={ev.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              {/* Urgency badge overlay */}
+                              <div style={{
+                                position: 'absolute', bottom: 10, right: 10,
+                                background: isAlmostFull ? 'rgba(239,68,68,0.88)' : 'rgba(0,0,0,0.62)',
+                                border: isAlmostFull ? '1px solid rgba(239,68,68,0.5)' : '1px solid rgba(255,255,255,0.15)',
+                                backdropFilter: 'blur(4px)',
+                                padding: '3px 8px', borderRadius: 2,
+                                fontFamily: 'var(--font-body)', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
+                                color: '#fff',
+                              }}>
+                                {urgencyLabel}
+                              </div>
+                            </div>
+                          )}
+                          {!ev.coverImageUrl && (
+                            <div style={{
+                              height: 48, background: '#141412',
+                              borderBottom: '1px solid #2a2a28',
+                              display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+                              padding: '0 14px',
+                            }}>
+                              <div style={{
+                                background: isAlmostFull ? 'rgba(239,68,68,0.2)' : 'rgba(201,168,76,0.12)',
+                                border: `1px solid ${isAlmostFull ? 'rgba(239,68,68,0.4)' : 'rgba(201,168,76,0.3)'}`,
+                                padding: '3px 8px', borderRadius: 2,
+                                fontFamily: 'var(--font-body)', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
+                                color: isAlmostFull ? '#fca5a5' : '#C9A84C',
+                              }}>
+                                {urgencyLabel}
+                              </div>
                             </div>
                           )}
                           <div style={{ padding: '16px 18px' }}>
@@ -7926,9 +7966,24 @@ export default function VenueProfile({ onBack = null, slug = null }) {
                             </div>
                             <div style={{ fontFamily: 'var(--font-heading-primary)', fontSize: 17, fontWeight: 400, color: '#f0ece4', marginBottom: 4, lineHeight: 1.3 }}>{ev.title}</div>
                             {ev.subtitle && <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#999', marginBottom: 8, lineHeight: 1.5 }}>{ev.subtitle}</div>}
-                            <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#666', marginTop: 10 }}>{dateStr}{timeStr ? ` · ${timeStr}` : ''}</div>
-                            <div style={{ marginTop: 14, fontFamily: 'var(--font-body)', fontSize: 10, color: '#C9A84C', letterSpacing: '0.1em', textTransform: 'uppercase', borderBottom: '1px solid #C9A84C', display: 'inline-block' }}>
-                              {ev.bookingMode === 'external' ? 'Book Now →' : 'Register →'}
+                            <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#666', marginTop: 8 }}>
+                              {dateStr}{timeStr ? ` · ${timeStr}` : ''}
+                              {ev.isFree === false && ev.ticketPrice && (
+                                <span style={{ marginLeft: 10, color: '#C9A84C' }}>From £{ev.ticketPrice}</span>
+                              )}
+                            </div>
+                            <div style={{
+                              marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                              paddingTop: 12, borderTop: '1px solid #2a2a28',
+                            }}>
+                              <div style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: '#C9A84C', letterSpacing: '0.1em', textTransform: 'uppercase', borderBottom: '1px solid #C9A84C', paddingBottom: 1 }}>
+                                {ev.bookingMode === 'external' ? 'Book Now →' : 'Reserve Your Place →'}
+                              </div>
+                              {ev.isFree !== false && (
+                                <div style={{ fontFamily: 'var(--font-body)', fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#555', background: '#242420', padding: '3px 7px', borderRadius: 2 }}>
+                                  Complimentary
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>

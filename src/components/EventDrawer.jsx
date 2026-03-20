@@ -5,7 +5,7 @@
 //   event = null → drawer is closed (hidden + no render cost)
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useEffect, useCallback } from 'react';
-import { formatEventDate, formatEventTime } from '../services/eventService';
+import { formatEventDate, formatEventTime, googleCalendarUrl, buildIcsBlob } from '../services/eventService';
 import { submitEventBooking } from '../services/eventBookingService';
 import { trackEvent } from '../services/userEventService';
 
@@ -34,6 +34,51 @@ const DARK = {
   inputBg: '#242420',
   backdrop: 'rgba(0,0,0,0.65)',
 };
+
+// ── Add to Calendar strip ─────────────────────────────────────────────────────
+function AddToCalendar({ event, P }) {
+  const dlIcs = () => {
+    const blob = buildIcsBlob(event);
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `${event.slug || 'event'}.ics`; a.click();
+    URL.revokeObjectURL(url);
+  };
+  const btnBase = {
+    flex: 1, padding: '9px 0', border: `1px solid ${P.border}`, borderRadius: 2,
+    fontFamily: NU, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase',
+    cursor: 'pointer', background: 'transparent', color: P.sub, textAlign: 'center', textDecoration: 'none',
+    transition: 'border-color 0.15s, color 0.15s',
+  };
+  return (
+    <div style={{ display: 'flex', gap: 8, marginBottom: 22 }}>
+      <a href={googleCalendarUrl(event)} target="_blank" rel="noopener noreferrer"
+        style={btnBase}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = P.border; e.currentTarget.style.color = P.sub; }}>
+        📅 Google
+      </a>
+      <button onClick={dlIcs} style={btnBase}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = P.border; e.currentTarget.style.color = P.sub; }}>
+        🍎 Apple / iCal
+      </button>
+    </div>
+  );
+}
+
+// ── Prose CSS (injected once into drawer) ─────────────────────────────────────
+const PROSE_CSS = `
+  .edrawer-prose p { margin: 0 0 14px; }
+  .edrawer-prose h2 { font-family: var(--font-heading-primary); font-size: 18px; font-weight: 400; margin: 24px 0 10px; }
+  .edrawer-prose h3 { font-family: var(--font-heading-primary); font-size: 15px; font-weight: 400; margin: 18px 0 6px; }
+  .edrawer-prose ul, .edrawer-prose ol { padding-left: 20px; margin: 0 0 14px; }
+  .edrawer-prose li { margin-bottom: 5px; line-height: 1.75; }
+  .edrawer-prose blockquote { border-left: 3px solid #c9a84c; margin: 16px 0; padding-left: 16px; opacity: 0.8; }
+  .edrawer-prose strong { font-weight: 700; }
+  .edrawer-prose a { color: #c9a84c; text-decoration: underline; }
+  .edrawer-prose p:last-child { margin-bottom: 0; }
+`;
 
 // ── Mini booking form ─────────────────────────────────────────────────────────
 function BookingForm({ event, onSuccess, P }) {
@@ -143,12 +188,18 @@ function BookingForm({ event, onSuccess, P }) {
 // ── Confirmed state ───────────────────────────────────────────────────────────
 function BookingConfirmed({ event, P }) {
   return (
-    <div style={{ textAlign: 'center', padding: '32px 0' }}>
-      <div style={{ fontSize: 36, marginBottom: 16 }}>✓</div>
+    <div style={{ textAlign: 'center', padding: '28px 0' }}>
+      <div style={{
+        width: 48, height: 48, borderRadius: '50%',
+        background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        margin: '0 auto 18px', fontSize: 20, color: '#4ade80',
+      }}>✓</div>
       <h3 style={{ fontFamily: GD, fontSize: 20, fontWeight: 400, color: P.text, margin: '0 0 8px' }}>You're registered</h3>
       <p style={{ fontFamily: NU, fontSize: 13, color: P.sub, lineHeight: 1.7, margin: '0 0 20px' }}>
         Thank you for registering for <strong>{event.title}</strong>. A confirmation has been sent to your email.
       </p>
+      <AddToCalendar event={event} P={P} />
       <a
         href={`/events/${event.slug}`}
         style={{ fontFamily: NU, fontSize: 12, color: GOLD, letterSpacing: '0.1em', textTransform: 'uppercase', textDecoration: 'none', borderBottom: `1px solid ${GOLD}`, paddingBottom: 2 }}
@@ -285,6 +336,7 @@ export default function EventDrawer({ event, onClose, darkMode = false }) {
 
         {/* ── Scrollable body ── */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '22px 24px 48px' }}>
+          <style>{PROSE_CSS}</style>
 
           {/* Date / time / location strip */}
           <div style={{ background: P.card, border: `1px solid ${P.border}`, borderRadius: 4, padding: '14px 18px', marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -322,6 +374,9 @@ export default function EventDrawer({ event, onClose, darkMode = false }) {
             )}
           </div>
 
+          {/* Save the date */}
+          <AddToCalendar event={event} P={P} />
+
           {/* Map embed */}
           {!event.isVirtual && (event.locationAddress || event.locationName) && (
             <div style={{ borderRadius: 4, overflow: 'hidden', border: `1px solid ${P.border}`, marginBottom: 20 }}>
@@ -339,7 +394,7 @@ export default function EventDrawer({ event, onClose, darkMode = false }) {
           {event.description && (
             <div style={{ marginBottom: 24 }}>
               <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: GOLD, marginBottom: 10, fontWeight: 600 }}>About This Event</div>
-              <div style={{ fontFamily: NU, fontSize: 13, color: P.sub, lineHeight: 1.85 }} dangerouslySetInnerHTML={{ __html: event.description }} />
+              <div className="edrawer-prose" style={{ fontFamily: NU, fontSize: 13, color: P.sub, lineHeight: 1.85 }} dangerouslySetInnerHTML={{ __html: event.description }} />
             </div>
           )}
 
