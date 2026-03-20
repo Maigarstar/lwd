@@ -16,6 +16,8 @@ import { createLead } from "./services/leadEngineService";
 import ExternalLinkModal from "./components/ExternalLinkModal";
 import { trackExternalClick, hasSeenModalThisSession, markModalSeen } from "./services/outboundClickService";
 import { trackProfileView, trackCompareAdd, trackCompareRemove, trackCompareView, trackComparePair } from "./services/userEventService";
+import { fetchUpcomingEventsForVenue, formatEventDate, formatEventTime } from './services/eventService';
+import EventDrawer from './components/EventDrawer';
 
 const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://www.luxuryweddingdirectory.co.uk';
 
@@ -1236,7 +1238,7 @@ function Hero({ venue, heroStyle, setHeroStyle, onEnquire, onBack }) {
 }
 
 // ─── STATS STRIP ─────────────────────────────────────────────────────────────
-function StatsStrip({ venue }) {
+function StatsStrip({ venue, nextEvent, onEventClick }) {
   const C = useT();
 
   // Capacity
@@ -1315,13 +1317,15 @@ function StatsStrip({ venue }) {
     },
   ].filter(s => !s.hide);
 
+  const nextEventDate = nextEvent ? formatEventDate(nextEvent.startDate) : null;
+
   return (
     <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "0 40px" }}>
       <div style={{ display: "flex", overflowX: "auto", gap: 0, scrollbarWidth: "none" }}>
         {stats.map((s, i) => (
           <div key={i} style={{
             flex: "0 0 auto", padding: "18px 28px",
-            borderRight: i < stats.length - 1 ? `1px solid ${C.border}` : "none",
+            borderRight: `1px solid ${C.border}`,
             minWidth: 120,
           }}>
             <div style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, letterSpacing: "0.7px", textTransform: "uppercase", marginBottom: 5 }}>{s.label}</div>
@@ -1329,7 +1333,43 @@ function StatsStrip({ venue }) {
             <div style={{ fontFamily: FB, fontSize: 11, color: C.textLight, marginTop: 4 }}>{s.sub}</div>
           </div>
         ))}
+
+        {/* Next Open Day — only when an upcoming event exists */}
+        {nextEvent && nextEventDate && (
+          <div
+            onClick={() => onEventClick?.(nextEvent)}
+            style={{
+              flex: "0 0 auto", padding: "18px 28px", minWidth: 140,
+              cursor: "pointer", position: "relative",
+              transition: "background 0.2s",
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = C.hover || 'rgba(201,168,76,0.04)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            <div style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, letterSpacing: "0.7px", textTransform: "uppercase", marginBottom: 5 }}>
+              Next Open Day
+            </div>
+            <div style={{ fontFamily: FB, fontSize: 15, fontWeight: 600, color: C.gold, lineHeight: 1.2 }}>
+              {nextEventDate}
+            </div>
+            <div style={{ fontFamily: FB, fontSize: 11, color: C.gold, marginTop: 5, display: 'flex', alignItems: 'center', gap: 4, opacity: 0.85 }}>
+              Register <span style={{ fontSize: 10 }}>→</span>
+            </div>
+            {/* Subtle animated bottom border as a signal */}
+            <div style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0, height: 2,
+              background: `linear-gradient(90deg, transparent, ${C.gold}, transparent)`,
+              animation: 'lwd-pulse-bar 2.5s ease-in-out infinite',
+            }} />
+          </div>
+        )}
       </div>
+      <style>{`
+        @keyframes lwd-pulse-bar {
+          0%, 100% { opacity: 0.3; }
+          50%       { opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }
@@ -7492,6 +7532,8 @@ export default function VenueProfile({ onBack = null, slug = null }) {
   const [rawListing, setRawListing] = useState(null);
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [venueEvents, setVenueEvents] = useState([]);
+  const [drawerEvent, setDrawerEvent] = useState(null);
 
   const C = darkMode ? DARK : LIGHT;
   const VV = dbVenue ? { ...VENUE, ...dbVenue } : VENUE;
@@ -7750,6 +7792,12 @@ export default function VenueProfile({ onBack = null, slug = null }) {
     return () => { ignore = true; };
   }, [slug]);
 
+  // Fetch upcoming events linked to this listing
+  useEffect(() => {
+    if (!VV.id) return;
+    fetchUpcomingEventsForVenue(VV.id, 6).then(evts => setVenueEvents(evts || []));
+  }, [VV.id]);
+
   const scrollToSection = (key) => {
     setActiveTab(key);
     const el = document.getElementById(key);
@@ -7824,7 +7872,7 @@ export default function VenueProfile({ onBack = null, slug = null }) {
       <div className="vp-root" style={{ background: C.bg, minHeight: "100vh", color: C.text }}>
         <HomeNav hasHero={true} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} />
         <Hero venue={VV} heroStyle={heroStyle} setHeroStyle={setHeroStyle} onEnquire={() => setEnquiryOpen(true)} onBack={onBack} />
-        <StatsStrip venue={VV} />
+        <StatsStrip venue={VV} nextEvent={venueEvents[0] || null} onEventClick={setDrawerEvent} />
         <StickyTabNav venue={VV} activeTab={activeTab} onTabClick={scrollToSection} saved={saved} setSaved={setSaved} onAddCompare={addCompare} compareList={compareList} />
 
         {/* Main layout */}
@@ -7844,6 +7892,48 @@ export default function VenueProfile({ onBack = null, slug = null }) {
               <WeddingWeekend venue={VV} />
               <ContactSection venue={VV} />
               {VV.access && Array.isArray(VV.access.airports) && VV.access.airports.length > 0 && <GettingHere access={VV.access} />}
+              {venueEvents.length > 0 && (
+                <div id="events" style={{ marginBottom: 48 }}>
+                  <div style={{ fontFamily: 'var(--font-heading-primary)', fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#C9A84C', marginBottom: 8 }}>Open Days &amp; Events</div>
+                  <h2 style={{ fontFamily: 'var(--font-heading-primary)', fontSize: 26, fontWeight: 400, margin: '0 0 6px', color: C.text }}>Join Us in Person</h2>
+                  <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: C.muted, margin: '0 0 24px', lineHeight: 1.6 }}>
+                    Experience {VV.name} first-hand. Register for an upcoming open day, private tour, or virtual showcase.
+                  </p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+                    {venueEvents.map(ev => {
+                      const dateStr = formatEventDate(ev.startDate);
+                      const timeStr = ev.startTime ? formatEventTime(ev.startTime) : null;
+                      return (
+                        <div
+                          key={ev.id}
+                          onClick={() => setDrawerEvent(ev)}
+                          style={{ cursor: 'pointer', background: C.cardBg || '#fff', border: `1px solid ${C.border}`, borderRadius: 4, overflow: 'hidden', transition: 'border-color 0.2s' }}
+                          onMouseEnter={e => e.currentTarget.style.borderColor = '#C9A84C'}
+                          onMouseLeave={e => e.currentTarget.style.borderColor = C.border}
+                        >
+                          {ev.coverImageUrl && (
+                            <div style={{ height: 160, overflow: 'hidden' }}>
+                              <img src={ev.coverImageUrl} alt={ev.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            </div>
+                          )}
+                          <div style={{ padding: '16px 18px' }}>
+                            <div style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: '#C9A84C', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>
+                              {ev.eventType?.replace(/_/g, ' ') || 'Event'}
+                              {ev.isVirtual && <span style={{ marginLeft: 8, color: '#60a5fa' }}>· Virtual</span>}
+                            </div>
+                            <div style={{ fontFamily: 'var(--font-heading-primary)', fontSize: 17, fontWeight: 400, color: C.text, marginBottom: 4, lineHeight: 1.3 }}>{ev.title}</div>
+                            {ev.subtitle && <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: C.muted, marginBottom: 8, lineHeight: 1.5 }}>{ev.subtitle}</div>}
+                            <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: C.muted, marginTop: 10 }}>{dateStr}{timeStr ? ` · ${timeStr}` : ''}</div>
+                            <div style={{ marginTop: 14, fontFamily: 'var(--font-body)', fontSize: 10, color: '#C9A84C', letterSpacing: '0.1em', textTransform: 'uppercase', borderBottom: '1px solid #C9A84C', display: 'inline-block' }}>
+                              {ev.bookingMode === 'external' ? 'Book Now →' : 'Register →'}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {VV.testimonials && Array.isArray(VV.testimonials) && VV.testimonials.length > 0 && <Reviews testimonials={VV.testimonials} venue={VV} venueSlug={slug} />}
               <FAQSection venue={VV} onAsk={() => setEnquiryOpen(true)} />
               <SimilarVenues venue={VV} />
@@ -7941,6 +8031,7 @@ export default function VenueProfile({ onBack = null, slug = null }) {
           </div>
         )}
         <VenueCookieBanner />
+        <EventDrawer event={drawerEvent} onClose={() => setDrawerEvent(null)} />
       </div>
     </Theme.Provider>
   );

@@ -13,6 +13,8 @@ import { buildCardImgs } from '../utils/mediaMappers';
 import VenueEnquireCard from '../components/cards/editorial/VenueEnquireCard';
 import PhotoGalleryGrid from '../components/cards/editorial/PhotoGalleryGrid';
 import { useBreakpoint } from '../hooks/useWindowWidth';
+import { fetchUpcomingEventsForVenue, formatEventDate, formatEventTime } from '../services/eventService';
+import EventDrawer from '../components/EventDrawer';
 
 // ── Design tokens ──────────────────────────────────────────────────────────
 const GD   = 'var(--font-heading-primary)';
@@ -415,14 +417,65 @@ function FaqSection({ faqCategories, faqTitle, faqSubtitle }) {
   );
 }
 
+// ─── EventsSection ───────────────────────────────────────────────────────────
+function EventsSection({ events, name, onEventClick }) {
+  const { isMobile } = useBreakpoint();
+  if (!events?.length) return null;
+  return (
+    <Sec id="events" style={{ background: '#0f0f0d' }}>
+      <SH eyebrow="Open Days & Events" title="Join Us in Person"
+        subtitle={`Experience ${name} first-hand. Register for an upcoming open day, private tour, or virtual showcase.`}
+        center light />
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+        {events.map(ev => {
+          const dateStr = formatEventDate(ev.startDate);
+          const timeStr = ev.startTime ? formatEventTime(ev.startTime) : null;
+          return (
+            <div
+              key={ev.id}
+              onClick={() => onEventClick(ev)}
+              style={{ cursor: 'pointer', background: '#1a1a18', border: '1px solid #2a2a28', borderRadius: 4, overflow: 'hidden', transition: 'border-color 0.2s' }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = GOLD}
+              onMouseLeave={e => e.currentTarget.style.borderColor = '#2a2a28'}
+            >
+              {ev.coverImageUrl && (
+                <div style={{ height: 160, overflow: 'hidden' }}>
+                  <img src={ev.coverImageUrl} alt={ev.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              )}
+              <div style={{ padding: '18px 20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                  <div style={{ fontFamily: NU, fontSize: 10, color: GOLD, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                    {ev.eventType?.replace(/_/g, ' ') || 'Event'}
+                  </div>
+                  {ev.isVirtual && <div style={{ fontFamily: NU, fontSize: 9, color: '#60a5fa', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Virtual</div>}
+                </div>
+                <div style={{ fontFamily: GD, fontSize: 18, color: '#f0ece4', fontWeight: 400, marginBottom: 6, lineHeight: 1.3 }}>{ev.title}</div>
+                {ev.subtitle && <div style={{ fontFamily: NU, fontSize: 12, color: '#888', marginBottom: 10, lineHeight: 1.5 }}>{ev.subtitle}</div>}
+                <div style={{ fontFamily: NU, fontSize: 11, color: '#666', marginTop: 12 }}>{dateStr}{timeStr ? ` · ${timeStr}` : ''}</div>
+                {ev.locationName && !ev.isVirtual && <div style={{ fontFamily: NU, fontSize: 11, color: '#555', marginTop: 3 }}>{ev.locationName}</div>}
+                <div style={{ marginTop: 16, display: 'inline-block', fontFamily: NU, fontSize: 10, color: GOLD, letterSpacing: '0.1em', textTransform: 'uppercase', borderBottom: `1px solid ${GOLD}` }}>
+                  {ev.bookingMode === 'external' ? 'Book Now →' : 'Register →'}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Sec>
+  );
+}
+
 // ─── ListingProfilePage ───────────────────────────────────────────────────────
 export default function ListingProfilePage({ slug, onBack }) {
   const [listing, setListing]   = useState(null);
   const [loading, setLoading]   = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [activeSection, setActiveSection] = useState('overview');
+  const [venueEvents, setVenueEvents] = useState([]);
+  const [drawerEvent, setDrawerEvent] = useState(null);
 
-  // Fetch
+  // Fetch listing
   useEffect(() => {
     let ignore = false;
     async function load() {
@@ -439,6 +492,12 @@ export default function ListingProfilePage({ slug, onBack }) {
     return () => { ignore = true; };
   }, [slug]);
 
+  // Fetch events for this listing (venue_id = listing.id)
+  useEffect(() => {
+    if (!listing?.id) return;
+    fetchUpcomingEventsForVenue(listing.id, 6).then(evts => setVenueEvents(evts || []));
+  }, [listing?.id]);
+
   // Scroll to top
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, [slug]);
 
@@ -451,7 +510,7 @@ export default function ListingProfilePage({ slug, onBack }) {
     const hasRooms  = listing.rooms_total || listing.rooms_suites || listing.rooms_description;
     const hasDining = listing.dining_style || listing.dining_description || listing.dining_chef_name;
     const hasFaq    = listing.faq_enabled && Array.isArray(listing.faq_categories) && listing.faq_categories.length > 0;
-    const ids = ['overview', spaces ? 'spaces' : null, hasRooms ? 'accommodation' : null, hasDining ? 'dining' : null, images.length > 0 ? 'gallery' : null, hasFaq ? 'faq' : null, 'enquire'].filter(Boolean);
+    const ids = ['overview', spaces ? 'spaces' : null, hasRooms ? 'accommodation' : null, hasDining ? 'dining' : null, images.length > 0 ? 'gallery' : null, hasFaq ? 'faq' : null, venueEvents.length > 0 ? 'events' : null, 'enquire'].filter(Boolean);
     const fn = () => {
       for (let i = ids.length - 1; i >= 0; i--) {
         const el = document.getElementById(ids[i]);
@@ -499,6 +558,7 @@ export default function ListingProfilePage({ slug, onBack }) {
     hasDining     ? { id: 'dining',        label: 'Dining' }        : null,
     images.length > 0 ? { id: 'gallery',  label: 'Gallery' }       : null,
     faqCategories ? { id: 'faq',          label: 'FAQ' }            : null,
+    venueEvents.length > 0 ? { id: 'events', label: 'Events' }     : null,
     { id: 'enquire', label: 'Enquire' },
   ].filter(Boolean);
 
@@ -515,7 +575,9 @@ export default function ListingProfilePage({ slug, onBack }) {
       {hasDining && <DiningSection diningStyle={listing.dining_style} diningChefName={listing.dining_chef_name} diningInHouse={listing.dining_in_house} diningExternal={listing.dining_external} diningMenuStyles={listing.dining_menu_styles} diningDietary={listing.dining_dietary} diningDescription={listing.dining_description} />}
       {images.length > 0 && <GallerySection images={images} name={name} />}
       {faqCategories && <FaqSection faqCategories={faqCategories} faqTitle={listing.faq_title} faqSubtitle={listing.faq_subtitle} />}
+      {venueEvents.length > 0 && <EventsSection events={venueEvents} name={name} onEventClick={setDrawerEvent} />}
       <VenueEnquireCard data={{ background: heroImage, headline: `Plan Your Wedding at ${name}`, subline: 'Our team will respond within 24 hours to discuss your vision.', venueName: name }} />
+      <EventDrawer event={drawerEvent} onClose={() => setDrawerEvent(null)} />
     </div>
   );
 }

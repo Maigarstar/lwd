@@ -895,7 +895,11 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = t
   }, [])
 
   const handleSave = async (publishOverride) => {
-    setSaving(true); setSaveErr(null)
+    setSaveErr(null)
+    // Required field validation
+    if (!form.title?.trim())     return setSaveErr('Title is required')
+    if (!form.startDate)         return setSaveErr('Start date is required — fill in the Date & Time section')
+    setSaving(true)
     try {
       const payload = { ...eventToDb(form) }
       if (publishOverride === 'published') payload.status = 'published'
@@ -906,7 +910,12 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = t
       } else {
         result = await adminCreateEvent(payload)
       }
-      if (result?.event) { setDirty(false); onSave(result.event) }
+      if (result?.event) {
+        setDirty(false)
+        // Sync status from DB so subsequent plain Saves don't revert to the old status
+        setForm(prev => ({ ...prev, status: result.event.status }))
+        onSave(result.event, publishOverride)
+      }
       else setSaveErr(result?.error || 'Save failed — please try again')
     } catch (e) { setSaveErr(e.message) }
     finally { setSaving(false) }
@@ -1079,6 +1088,19 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = t
                 <InputField label="Location Name"  value={form.locationName}    onChange={v => set('locationName', v)}    placeholder="e.g. Belmond Villa San Michele"          C={C} />
                 <InputField label="Full Address"   value={form.locationAddress} onChange={v => set('locationAddress', v)} placeholder="Via Doccia, 4, 50014 Fiesole FI, Italy"  C={C} />
               </Grid2>
+              {/* Live map preview */}
+              {!form.isVirtual && (form.locationAddress || form.locationName) && (
+                <div style={{ marginTop: 12, borderRadius: 6, overflow: 'hidden', border: `1px solid ${LS.border}` }}>
+                  <iframe
+                    key={form.locationAddress || form.locationName}
+                    title="Location map"
+                    width="100%" height="220"
+                    style={{ display: 'block', border: 'none' }}
+                    loading="lazy"
+                    src={`https://www.google.com/maps?q=${encodeURIComponent(form.locationAddress || form.locationName)}&output=embed&z=15`}
+                  />
+                </div>
+              )}
             </SCard>
 
             {/* ── 5. VIRTUAL EVENT ──────────────────────────────────────────── */}
@@ -1160,14 +1182,17 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = t
                     <span>Add photos</span>
                     <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={async e => {
                       const files = Array.from(e.target.files || [])
-                      const remaining = 6 - (form.galleryUrls?.length || 0)
+                      const existing = form.galleryUrls || []
+                      const remaining = 6 - existing.length
                       const toUpload = files.slice(0, remaining)
+                      const newUrls = []
                       for (const file of toUpload) {
                         try {
                           const url = await uploadMediaFile(file, `events/gallery/${Date.now()}`)
-                          set('galleryUrls', [...(form.galleryUrls || []), url])
+                          newUrls.push(url)
                         } catch(err) { console.error('Gallery upload failed', err) }
                       }
+                      if (newUrls.length > 0) set('galleryUrls', [...existing, ...newUrls])
                     }} />
                   </label>
                 )}
@@ -1600,12 +1625,12 @@ export default function EventsModule({ C, darkMode = true, onBuilderModeChange, 
 
   const handleViewBookings = (event) => { setBookingsEvent(event); setView('bookings') }
 
-  const handleSaved = () => {
+  const handleSaved = (savedEvent) => {
+    // Update editingEvent so new events get their DB id for subsequent saves
+    setEditingEvent(savedEvent)
     setSavedBanner(true)
     setTimeout(() => setSavedBanner(false), 3000)
-    setView('list')
-    setEditingEvent(null)
-    exitBuilder()
+    // Stay in builder — navigate away only on Discard (handleCancel)
   }
 
   const handleCancel = () => {
