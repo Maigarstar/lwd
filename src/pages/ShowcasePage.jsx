@@ -276,15 +276,13 @@ export default function ShowcasePage({ slug, onBack, onGoDestination, onNavigate
 
         if (sc) {
           setShowcase(sc);
-          // 2. If linked listing, load it too (raw DB row: listing_id)
+          // 2. Optionally enrich with linked listing (non-fatal — listing may not exist)
           const linkedSlug = sc.listing_id || sc.listingId || null;
-          if (linkedSlug) {
-            const lst = await fetchListingBySlug(linkedSlug);
+          try {
+            const lst = await fetchListingBySlug(linkedSlug || slug);
             if (!ignore && lst) setListing(lst);
-          } else {
-            // Try to load listing by same slug as fallback
-            const lst = await fetchListingBySlug(slug);
-            if (!ignore && lst) setListing(lst);
+          } catch (_) {
+            // No listing found — that's fine, showcase renders without it
           }
         } else {
           // No showcase record, try listing directly as fallback
