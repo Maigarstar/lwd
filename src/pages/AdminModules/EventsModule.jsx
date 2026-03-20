@@ -7,6 +7,9 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import TiptapUnderline from '@tiptap/extension-underline'
 import TiptapLink from '@tiptap/extension-link'
+import TiptapImage from '@tiptap/extension-image'
+import TiptapTextAlign from '@tiptap/extension-text-align'
+import TiptapPlaceholder from '@tiptap/extension-placeholder'
 import {
   adminListEvents, adminGetEvent, adminCreateEvent, adminUpdateEvent,
   adminDeleteEvent, adminListBookings, adminUpdateBooking,
@@ -253,47 +256,97 @@ function TextareaField({ label, value, onChange, placeholder = '', rows = 5, hin
   )
 }
 
-// ── WYSIWYG description editor (TipTap) ───────────────────────────────────────
+// ── Full WYSIWYG description editor (TipTap) ─────────────────────────────────
+// Bold · Italic · Underline · Strike · H1/H2/H3 · Align · Lists ·
+// Blockquote · HR · Inline code · Code block · Link · Image (upload) ·
+// HTML source view · Undo / Redo · Paste cleanup
 function EventDescriptionEditor({ value, onChange, C }) {
   const GOLD = C.gold
+  const [htmlMode, setHtmlMode] = useState(false)
+  const [rawHtml,  setRawHtml]  = useState('')
+  const imageInputRef = useRef(null)
+
+  // Strip Word / web inline junk on paste
+  const cleanPaste = html => html
+    .replace(/\s*style="[^"]*"/gi, '')
+    .replace(/\s*class="[^"]*"/gi, '')
+    .replace(/<o:p[^>]*>[\s\S]*?<\/o:p>/gi, '')
+    .replace(/<\/?w:[^>]*>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<font[^>]*>/gi, '').replace(/<\/font>/gi, '')
+    .replace(/<span\s*>/gi, '').replace(/<\/span>/gi, '')
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
       TiptapUnderline,
-      TiptapLink.configure({ openOnClick: false }),
+      TiptapLink.configure({ openOnClick: false, HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer' } }),
+      TiptapImage.configure({ inline: false, allowBase64: true }),
+      TiptapTextAlign.configure({ types: ['heading', 'paragraph'] }),
+      TiptapPlaceholder.configure({ placeholder: 'Write a compelling description of this event…' }),
     ],
     content: value || '',
-    onUpdate: ({ editor }) => onChange(editor.getHTML()),
+    editorProps: { transformPastedHTML: cleanPaste },
+    onUpdate: ({ editor }) => {
+      const html = editor.getHTML()
+      onChange(html === '<p></p>' ? '' : html)
+    },
   })
 
-  // Sync when an existing event loads into the form
+  // Sync when existing event loads into the form
   const prevValue = useRef(value)
   useEffect(() => {
-    if (!editor) return
+    if (!editor || editor.isDestroyed || htmlMode) return
     if (value !== prevValue.current) {
       prevValue.current = value
-      // Only override if the editor content actually differs (avoids cursor jump on every keystroke)
       if (editor.getHTML() !== value) editor.commands.setContent(value || '', false)
     }
-  }, [editor, value])
+  }, [editor, value, htmlMode])
 
-  const Btn = ({ label, title, isActive, action, style = {} }) => (
+  const handleLink = () => {
+    if (!editor) return
+    const existing = editor.getAttributes('link').href || ''
+    const url = window.prompt('Link URL (leave blank to remove)', existing || 'https://')
+    if (url === null) return
+    if (!url.trim()) editor.chain().focus().extendMarkRange('link').unsetLink().run()
+    else editor.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run()
+  }
+
+  const handleImageFile = (e) => {
+    const file = e.target.files?.[0]
+    if (!file || !editor) return
+    const reader = new FileReader()
+    reader.onload = ev => editor.chain().focus().setImage({ src: ev.target.result }).run()
+    reader.readAsDataURL(file)
+    if (imageInputRef.current) imageInputRef.current.value = ''
+  }
+
+  const is = (mark, attrs) => !!editor?.isActive(mark, attrs)
+
+  const TBtn = ({ label, title, active = false, disabled = false, action }) => (
     <button
       type="button"
       title={title}
-      onMouseDown={e => { e.preventDefault(); action() }}
+      disabled={disabled}
+      onMouseDown={e => { e.preventDefault(); if (!disabled) action() }}
       style={{
-        fontFamily: NU, fontSize: 11, fontWeight: 700,
-        padding: '3px 8px', borderRadius: 3, cursor: 'pointer',
-        border: isActive ? `1px solid ${GOLD}50` : '1px solid transparent',
-        background: isActive ? `${GOLD}18` : 'transparent',
-        color: isActive ? GOLD : C.grey,
-        ...style,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        width: 28, height: 28, padding: 0,
+        fontFamily: NU, fontSize: 11, fontWeight: 700, lineHeight: 1,
+        border: 'none', borderRadius: 3,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        background: active ? `${GOLD}20` : 'transparent',
+        color: active ? GOLD : C.grey,
+        opacity: disabled ? 0.3 : 1,
+        transition: 'background 0.12s, color 0.12s',
+        flexShrink: 0,
       }}
+      onMouseEnter={e => { if (!disabled && !active) e.currentTarget.style.background = `${C.off}10` }}
+      onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
     >{label}</button>
   )
-  const Sep = () => <div style={{ width: 1, height: 18, background: C.border, margin: '0 3px', alignSelf: 'center' }} />
+
+  const Sep = () => <div style={{ width: 1, height: 18, background: C.border, margin: '0 4px', alignSelf: 'center', flexShrink: 0 }} />
 
   return (
     <div style={{ marginBottom: 18 }}>
@@ -301,57 +354,147 @@ function EventDescriptionEditor({ value, onChange, C }) {
         Description
       </label>
 
-      {/* Toolbar */}
-      <div style={{
-        display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center',
-        padding: '6px 8px',
-        background: C.dark, border: `1px solid ${C.border}`, borderBottom: 'none',
-        borderRadius: '4px 4px 0 0',
-      }}>
-        <Btn label="B"   title="Bold"          isActive={editor?.isActive('bold')}          action={() => editor?.chain().focus().toggleBold().run()} style={{ fontStyle: 'normal', fontWeight: 900 }} />
-        <Btn label="I"   title="Italic"        isActive={editor?.isActive('italic')}        action={() => editor?.chain().focus().toggleItalic().run()} style={{ fontStyle: 'italic' }} />
-        <Btn label="U"   title="Underline"     isActive={editor?.isActive('underline')}     action={() => editor?.chain().focus().toggleUnderline().run()} style={{ textDecoration: 'underline' }} />
-        <Sep />
-        <Btn label="H2"  title="Heading 2"     isActive={editor?.isActive('heading', { level: 2 })} action={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} />
-        <Btn label="H3"  title="Heading 3"     isActive={editor?.isActive('heading', { level: 3 })} action={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()} />
-        <Sep />
-        <Btn label="• List"  title="Bullet list"   isActive={editor?.isActive('bulletList')}   action={() => editor?.chain().focus().toggleBulletList().run()} />
-        <Btn label="1. List" title="Ordered list"  isActive={editor?.isActive('orderedList')}  action={() => editor?.chain().focus().toggleOrderedList().run()} />
-        <Sep />
-        <Btn label="❝"   title="Blockquote"    isActive={editor?.isActive('blockquote')}    action={() => editor?.chain().focus().toggleBlockquote().run()} />
-      </div>
+      <div style={{ border: `1px solid ${C.border}`, borderRadius: 4, overflow: 'hidden' }}>
 
-      {/* Editor area */}
-      <style>{`
-        .event-desc-editor .ProseMirror {
-          outline: none;
-          min-height: 180px;
-          padding: 12px;
-          font-family: var(--font-body);
-          font-size: 13px;
-          line-height: 1.7;
-          color: ${C.off};
-        }
-        .event-desc-editor .ProseMirror p { margin: 0 0 10px; }
-        .event-desc-editor .ProseMirror h2 { font-size: 17px; font-weight: 600; margin: 16px 0 8px; color: ${C.off}; }
-        .event-desc-editor .ProseMirror h3 { font-size: 14px; font-weight: 600; margin: 14px 0 6px; color: ${C.off}; }
-        .event-desc-editor .ProseMirror ul, .event-desc-editor .ProseMirror ol { padding-left: 20px; margin: 0 0 10px; }
-        .event-desc-editor .ProseMirror li { margin-bottom: 4px; }
-        .event-desc-editor .ProseMirror blockquote { border-left: 2px solid ${GOLD}; margin: 12px 0; padding-left: 14px; color: ${C.grey}; }
-        .event-desc-editor .ProseMirror a { color: ${GOLD}; text-decoration: underline; }
-        .event-desc-editor .ProseMirror p.is-editor-empty:first-child::before {
-          content: attr(data-placeholder);
-          float: left; height: 0; pointer-events: none; color: ${C.grey};
-        }
-      `}</style>
-      <div
-        className="event-desc-editor"
-        style={{
-          background: C.dark, border: `1px solid ${C.border}`,
-          borderRadius: '0 0 4px 4px',
-        }}
-      >
-        <EditorContent editor={editor} />
+        {/* ── Toolbar ─────────────────────────────────────────────────────── */}
+        <div style={{
+          display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap',
+          padding: '5px 8px', background: C.dark,
+          borderBottom: `1px solid ${C.border}`, userSelect: 'none',
+        }}>
+          {/* History */}
+          <TBtn label="↩" title="Undo" disabled={!editor?.can().undo()} action={() => editor.chain().focus().undo().run()} />
+          <TBtn label="↪" title="Redo" disabled={!editor?.can().redo()} action={() => editor.chain().focus().redo().run()} />
+          <Sep />
+
+          {/* Marks */}
+          <TBtn label={<strong>B</strong>} title="Bold" active={is('bold')} action={() => editor.chain().focus().toggleBold().run()} />
+          <TBtn label={<em style={{ fontFamily: 'Georgia,serif' }}>I</em>} title="Italic" active={is('italic')} action={() => editor.chain().focus().toggleItalic().run()} />
+          <TBtn label={<span style={{ textDecoration: 'underline' }}>U</span>} title="Underline" active={is('underline')} action={() => editor.chain().focus().toggleUnderline().run()} />
+          <TBtn label={<s>S</s>} title="Strikethrough" active={is('strike')} action={() => editor.chain().focus().toggleStrike().run()} />
+          <Sep />
+
+          {/* Headings */}
+          <TBtn label="H1" title="Heading 1" active={is('heading', { level: 1 })} action={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} />
+          <TBtn label="H2" title="Heading 2" active={is('heading', { level: 2 })} action={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} />
+          <TBtn label="H3" title="Heading 3" active={is('heading', { level: 3 })} action={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} />
+          <Sep />
+
+          {/* Alignment */}
+          <TBtn label="⬛" title="Align left"    active={is({ textAlign: 'left' })}    action={() => editor.chain().focus().setTextAlign('left').run()}    />
+          <TBtn label="▦"  title="Align center"  active={is({ textAlign: 'center' })}  action={() => editor.chain().focus().setTextAlign('center').run()}  />
+          <TBtn label="⬛" title="Align right"   active={is({ textAlign: 'right' })}   action={() => editor.chain().focus().setTextAlign('right').run()}   />
+          <Sep />
+
+          {/* Lists */}
+          <TBtn label="≡•" title="Bullet list"   active={is('bulletList')}  action={() => editor.chain().focus().toggleBulletList().run()} />
+          <TBtn label="1≡" title="Ordered list"  active={is('orderedList')} action={() => editor.chain().focus().toggleOrderedList().run()} />
+          <Sep />
+
+          {/* Block elements */}
+          <TBtn label="❝" title="Blockquote"     active={is('blockquote')} action={() => editor.chain().focus().toggleBlockquote().run()} />
+          <TBtn label="—" title="Horizontal rule" active={false}            action={() => editor.chain().focus().setHorizontalRule().run()} />
+          <Sep />
+
+          {/* Code */}
+          <TBtn label={<code style={{ fontFamily: 'monospace', fontSize: 10, fontWeight: 700 }}>`c`</code>} title="Inline code"  active={is('code')}      action={() => editor.chain().focus().toggleCode().run()} />
+          <TBtn label={<span style={{ fontFamily: 'monospace', fontSize: 9,  fontWeight: 700 }}>{'</>'}</span>} title="Code block" active={is('codeBlock')} action={() => editor.chain().focus().toggleCodeBlock().run()} />
+          <Sep />
+
+          {/* Link + Image */}
+          <TBtn label="🔗" title="Insert / edit link"    active={is('link')} action={handleLink} />
+          <TBtn label="🖼" title="Insert image (upload)" active={false}      action={() => imageInputRef.current?.click()} />
+          <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageFile} style={{ display: 'none' }} />
+          <Sep />
+
+          {/* HTML source toggle */}
+          <TBtn
+            label={<span style={{ fontFamily: 'monospace', fontSize: 8, fontWeight: 700, letterSpacing: '-0.02em' }}>HTML</span>}
+            title={htmlMode ? 'Back to visual editor' : 'View / edit HTML source'}
+            active={htmlMode}
+            action={() => {
+              if (htmlMode) { editor.commands.setContent(rawHtml, true); setHtmlMode(false) }
+              else          { setRawHtml(editor.getHTML()); setHtmlMode(true) }
+            }}
+          />
+        </div>
+
+        {/* ── Editor / HTML source ─────────────────────────────────────────── */}
+        {htmlMode ? (
+          <div style={{ padding: 12, background: C.dark }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.1em' }}>HTML Source</span>
+              <button
+                type="button"
+                onClick={() => { editor.commands.setContent(rawHtml, true); setHtmlMode(false) }}
+                style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, padding: '4px 12px', background: GOLD, color: '#0e0c0a', border: 'none', borderRadius: 3, cursor: 'pointer' }}
+              >← Visual</button>
+            </div>
+            <textarea
+              value={rawHtml}
+              onChange={e => setRawHtml(e.target.value)}
+              spellCheck={false}
+              style={{
+                width: '100%', minHeight: 200, padding: '10px 12px', boxSizing: 'border-box',
+                fontSize: 11, fontFamily: "'SF Mono','Fira Code','Courier New',monospace",
+                lineHeight: 1.65, color: C.off, background: C.card,
+                border: `1px solid ${C.border}`, borderRadius: 3, resize: 'vertical',
+              }}
+            />
+            <p style={{ fontFamily: NU, fontSize: 10, color: C.grey, margin: '4px 0 0' }}>Edit raw HTML. Click "← Visual" to apply.</p>
+          </div>
+        ) : (
+          <>
+            <style>{`
+              .ev-rich-editor .ProseMirror {
+                outline: none; min-height: 220px;
+                padding: 14px 16px;
+                font-family: var(--font-body); font-size: 14px;
+                line-height: 1.8; color: ${C.off};
+              }
+              .ev-rich-editor .ProseMirror > * + * { margin-top: 0.9em; }
+              .ev-rich-editor .ProseMirror p { margin: 0; }
+              .ev-rich-editor .ProseMirror h1 { font-size: 22px; font-weight: 700; line-height: 1.25; color: ${C.off}; font-family: var(--font-heading-primary); }
+              .ev-rich-editor .ProseMirror h2 { font-size: 18px; font-weight: 700; line-height: 1.3;  color: ${C.off}; }
+              .ev-rich-editor .ProseMirror h3 { font-size: 15px; font-weight: 700; line-height: 1.35; color: ${C.off}; }
+              .ev-rich-editor .ProseMirror ul  { padding-left: 1.4em; list-style: disc; margin: 0; }
+              .ev-rich-editor .ProseMirror ol  { padding-left: 1.4em; list-style: decimal; margin: 0; }
+              .ev-rich-editor .ProseMirror li  { margin: 0.25em 0; }
+              .ev-rich-editor .ProseMirror blockquote {
+                border-left: 3px solid ${GOLD}; padding: 4px 0 4px 14px;
+                margin: 0; color: ${C.grey}; font-style: italic;
+              }
+              .ev-rich-editor .ProseMirror a   { color: ${GOLD}; text-decoration: underline; text-underline-offset: 2px; }
+              .ev-rich-editor .ProseMirror a:hover { opacity: 0.8; }
+              .ev-rich-editor .ProseMirror code {
+                font-family: 'SF Mono','Fira Code',monospace; font-size: 11px;
+                background: ${C.card}; color: ${GOLD};
+                padding: 1px 5px; border-radius: 3px;
+              }
+              .ev-rich-editor .ProseMirror pre {
+                background: ${C.card}; border-radius: 4px;
+                padding: 12px 14px; overflow: auto;
+              }
+              .ev-rich-editor .ProseMirror pre code { background: none; padding: 0; color: ${C.off}; font-size: 12px; }
+              .ev-rich-editor .ProseMirror hr     { border: none; border-top: 1px solid ${C.border}; margin: 1.4em 0; }
+              .ev-rich-editor .ProseMirror img    { max-width: 100%; border-radius: 4px; display: block; }
+              .ev-rich-editor .ProseMirror s      { opacity: 0.55; }
+              .ev-rich-editor .ProseMirror p.is-editor-empty:first-child::before {
+                content: attr(data-placeholder);
+                float: left; height: 0; pointer-events: none;
+                color: ${C.grey}; opacity: 0.5;
+              }
+              .ev-rich-editor .ProseMirror ::selection { background: ${GOLD}28; }
+            `}</style>
+            <div
+              className="ev-rich-editor"
+              style={{ background: C.dark, cursor: 'text' }}
+              onClick={() => editor?.chain().focus().run()}
+            >
+              <EditorContent editor={editor} />
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
