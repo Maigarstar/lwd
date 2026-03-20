@@ -130,21 +130,18 @@ function Gallery({ urls, videoUrl, P }) {
 
   return (
     <>
-      <div style={{ marginBottom: 44 }}>
-        <Label>Gallery</Label>
-
-        {/* ── Video row (full width, own grid) ── */}
-        {videoUrl && (() => {
-          const thumb = videoThumb(videoUrl);
-          const videoIdx = 0; // always index 0 in items
-          return (
+      {/* ── Video block ── */}
+      {videoUrl && (() => {
+        const thumb = videoThumb(videoUrl);
+        return (
+          <div style={{ marginBottom: 44 }}>
+            <Label>Video</Label>
             <div
-              onClick={() => setOpen(videoIdx)}
+              onClick={() => setOpen(0)}
               style={{
                 position: 'relative', width: '100%', aspectRatio: '16/9',
                 overflow: 'hidden', borderRadius: 4, cursor: 'pointer',
                 background: P.iframeBg, border: `1px solid ${P.border}`,
-                marginBottom: images.length ? 6 : 0,
                 transition: 'border-color 0.2s',
               }}
               onMouseEnter={e => e.currentTarget.style.borderColor = GOLD}
@@ -154,7 +151,6 @@ function Gallery({ urls, videoUrl, P }) {
                 <img src={thumb} alt="Video"
                   style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
               )}
-              {/* Play button overlay */}
               <div style={{
                 position: 'absolute', inset: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -165,20 +161,27 @@ function Gallery({ urls, videoUrl, P }) {
                   background: 'rgba(201,168,76,0.92)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-                  transition: 'transform 0.2s',
                 }}>
                   <span style={{ color: '#000', fontSize: 26, marginLeft: 4 }}>▶</span>
                 </div>
               </div>
             </div>
-          );
-        })()}
+          </div>
+        );
+      })()}
 
-        {/* ── Image grid (3-col, max 6 images) ── */}
-        {images.length > 0 && (
+      {/* ── Divider between video and gallery ── */}
+      {videoUrl && images.length > 0 && (
+        <div style={{ borderTop: `1px solid ${P.border}`, marginBottom: 44 }} />
+      )}
+
+      {/* ── Image gallery block ── */}
+      {images.length > 0 && (
+        <div style={{ marginBottom: 44 }}>
+          <Label>Gallery</Label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
             {images.map((src, i) => {
-              const itemIdx = videoUrl ? i + 1 : i; // offset by 1 if video is item[0]
+              const itemIdx = videoUrl ? i + 1 : i;
               return (
                 <div
                   key={i}
@@ -198,14 +201,11 @@ function Gallery({ urls, videoUrl, P }) {
               );
             })}
           </div>
-        )}
-
-        {items.length > 1 && (
           <div style={{ fontFamily: NU, fontSize: 11, color: P.textMuted, marginTop: 8, letterSpacing: '0.05em' }}>
-            Click to enlarge{videoUrl ? ' · ▶ play video' : ''}
+            Click to enlarge
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* ── Lightbox overlay ── */}
       {activeItem && (
