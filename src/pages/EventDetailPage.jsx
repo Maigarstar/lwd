@@ -179,7 +179,7 @@ function Gallery({ urls, videoUrl, P }) {
       {videoUrl && (() => {
         const thumb = videoThumb(videoUrl);
         return (
-          <div style={{ marginBottom: 64, marginTop: 8 }}>
+          <div style={{ marginBottom: 64, marginTop: 48 }}>
             <Label>A Glimpse Inside</Label>
             <div
               onClick={() => setOpen(0)}
@@ -222,8 +222,8 @@ function Gallery({ urls, videoUrl, P }) {
 
       {/* ── Image gallery block ── */}
       {images.length > 0 && (
-        <div style={{ marginBottom: 44 }}>
-          <Label>Gallery</Label>
+        <div style={{ marginBottom: 64, marginTop: videoUrl ? 0 : 8 }}>
+          <div style={{ fontFamily: NU, fontSize: 10, color: GOLD, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 16, fontWeight: 600 }}>Gallery</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
             {images.map((src, i) => {
               const itemIdx = videoUrl ? i + 1 : i;
@@ -246,8 +246,13 @@ function Gallery({ urls, videoUrl, P }) {
               );
             })}
           </div>
-          <div style={{ fontFamily: NU, fontSize: 11, color: P.textMuted, marginTop: 10, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            Explore the gallery
+          <div
+            style={{ fontFamily: NU, fontSize: 11, color: P.textSub, marginTop: 12, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', transition: 'color 0.15s', display: 'inline-block' }}
+            onClick={() => setOpen(0)}
+            onMouseEnter={e => e.currentTarget.style.color = GOLD}
+            onMouseLeave={e => e.currentTarget.style.color = P.textSub}
+          >
+            Explore the gallery ↗
           </div>
         </div>
       )}
@@ -349,12 +354,15 @@ function EventMap({ event, P }) {
   const src = `https://www.google.com/maps?q=${encodeURIComponent(addr)}&output=embed&z=15`;
 
   return (
-    <div style={{ marginBottom: 44 }}>
+    <div style={{ marginBottom: 56 }}>
       <Label>Location</Label>
       <div style={{
         borderRadius: 4, overflow: 'hidden',
         border: `1px solid ${P.border}`,
+        borderTop: `2px solid ${P.border2}`,
         background: P.iframeBg,
+        boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+        position: 'relative',
       }}>
         <iframe
           title="Event location"
@@ -366,6 +374,11 @@ function EventMap({ event, P }) {
           referrerPolicy="no-referrer-when-downgrade"
           allowFullScreen
         />
+        {/* Luxury frame — subtle gradient vignette over map */}
+        <div style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none',
+          background: 'linear-gradient(to bottom, rgba(0,0,0,0.06) 0%, transparent 20%, transparent 75%, rgba(0,0,0,0.14) 100%)',
+        }} />
       </div>
       <div style={{ fontFamily: NU, fontSize: 12, color: P.textSub, marginTop: 8, display: 'flex', gap: 6, alignItems: 'center' }}>
         <span>📍</span>
@@ -1106,6 +1119,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
         .event-desc-prose blockquote { border-left: 3px solid #c9a84c; margin: 20px 0; padding-left: 18px; opacity: 0.8; }
         .event-desc-prose strong { color: inherit; font-weight: 700; }
         .event-desc-prose a { color: #c9a84c; text-decoration: underline; }
+        @keyframes lwd-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
       `}</style>
 
       {/* ── Hero ── */}
@@ -1324,10 +1338,10 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
                 const intro = event.subtitle || introMap[event.eventType] || "An exceptional event, exclusively for you.";
                 return (
                   <p style={{
-                    fontFamily: GD, fontSize: 20, color: P.textSub,
-                    lineHeight: 1.7, margin: '0 0 24px', fontWeight: 400,
-                    borderLeft: `2px solid ${GOLD}`, paddingLeft: 18,
-                    fontStyle: 'italic',
+                    fontFamily: GD, fontSize: 23, color: P.textSub,
+                    lineHeight: 1.65, margin: '4px 0 28px', fontWeight: 400,
+                    borderLeft: `3px solid ${GOLD}`, paddingLeft: 20,
+                    fontStyle: 'italic', letterSpacing: '-0.01em',
                   }}>
                     {intro}
                   </p>
@@ -1426,6 +1440,19 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
                         ? `${remaining} of ${event.capacity} places still available. Complimentary to attend.`
                         : `${event.isFree !== false ? 'Complimentary to attend. ' : ''}Reserve your place at this exclusive event.`}
                 </div>
+                {/* Urgency chip */}
+                {remaining !== null && remaining > 0 && (
+                  <div style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10,
+                    fontFamily: NU, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase',
+                    color: isLimited ? '#e87070' : P.textMuted,
+                  }}>
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: isLimited ? '#e87070' : GOLD, display: 'inline-block', animation: isLimited ? 'lwd-pulse 2s ease-in-out infinite' : 'none' }} />
+                    {isLimited
+                      ? `${remaining} place${remaining !== 1 ? 's' : ''} remaining — act now`
+                      : `${remaining} of ${event.capacity} places available`}
+                  </div>
+                )}
               </div>
               <a
                 href="#booking-panel"
