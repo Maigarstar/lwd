@@ -9,6 +9,7 @@ import { fetchShowcaseBySlug }  from '../services/showcaseService';
 import { fetchListingBySlug }   from '../services/listings';
 import HomeNav                  from '../components/nav/HomeNav';
 import { buildCardImgs }        from '../utils/mediaMappers';
+import ShowcaseRenderer         from './ShowcaseRenderer';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -275,9 +276,10 @@ export default function ShowcasePage({ slug, onBack, onGoDestination, onNavigate
 
         if (sc) {
           setShowcase(sc);
-          // 2. If linked listing, load it too
-          if (sc.listingId) {
-            const lst = await fetchListingBySlug(sc.listingId);
+          // 2. If linked listing, load it too (raw DB row: listing_id)
+          const linkedSlug = sc.listing_id || sc.listingId || null;
+          if (linkedSlug) {
+            const lst = await fetchListingBySlug(linkedSlug);
             if (!ignore && lst) setListing(lst);
           } else {
             // Try to load listing by same slug as fallback
@@ -322,22 +324,49 @@ export default function ShowcasePage({ slug, onBack, onGoDestination, onNavigate
   if (loading)  return <LoadingSkeleton />;
   if (notFound) return <NotFound slug={slug} onBack={onBack} />;
 
-  const sections = showcase?.sections || ['Hero', 'Gallery', 'Overview', 'Enquire'];
+  // ── Dynamic renderer: use published_sections if populated ──────────────────
+  const publishedSections = showcase?.published_sections;
+  if (Array.isArray(publishedSections) && publishedSections.length > 0) {
+    const listingFirstImage = listing?.imgs?.[0] || null;
+    return (
+      <ShowcaseRenderer
+        sections={publishedSections}
+        showcase={showcase}
+        listingFirstImage={listingFirstImage}
+        isPreview={false}
+        onNavigateStandard={onNavigateStandard}
+        onBack={onBack}
+      />
+    );
+  }
+
+  // ── Legacy fallback: card-shape sections list ───────────────────────────────
+  // Normalise raw DB row into legacy card shape for the fallback renderer
+  const showcaseLegacy = showcase?._legacy ? showcase : {
+    ...showcase,
+    name:      showcase?.title      || showcase?.name      || '',
+    heroImage: showcase?.hero_image_url || showcase?.heroImage || '',
+    stats:     showcase?.key_stats  || showcase?.stats      || [],
+    sections:  showcase?.sections   || ['Hero', 'Gallery', 'Overview', 'Enquire'],
+    _legacy:   true,
+  };
+
+  const sections = showcaseLegacy.sections || ['Hero', 'Gallery', 'Overview', 'Enquire'];
 
   const renderSection = (sec) => {
     switch (sec) {
       case 'Hero':
-        return <HeroSection key="hero" showcase={showcase} listing={listing} onEnquire={() => setEnquireOpen(true)} isMobile={isMobile} />;
+        return <HeroSection key="hero" showcase={showcaseLegacy} listing={listing} onEnquire={() => setEnquireOpen(true)} isMobile={isMobile} />;
       case 'Stats':
-        return <StatsSection key="stats" stats={showcase?.stats} isMobile={isMobile} />;
+        return <StatsSection key="stats" stats={showcaseLegacy?.stats} isMobile={isMobile} />;
       case 'Overview':
         return <OverviewSection key="overview" listing={listing} isMobile={isMobile} />;
       case 'Gallery':
         return listing ? <GallerySection key="gallery" listing={listing} isMobile={isMobile} /> : null;
       case 'Enquire':
-        return <EnquireSection key="enquire" showcase={showcase} listing={listing} onEnquire={() => setEnquireOpen(true)} isMobile={isMobile} />;
+        return <EnquireSection key="enquire" showcase={showcaseLegacy} listing={listing} onEnquire={() => setEnquireOpen(true)} isMobile={isMobile} />;
       default:
-        // Generic placeholder for sections not yet fully implemented (Spaces, Dining, etc.)
+        // Generic placeholder for sections not yet fully implemented
         return (
           <div key={sec} style={{ padding: isMobile ? '48px 24px' : '64px 64px', borderTop: `1px solid ${C.border}` }}>
             <SectionLabel label={sec} />
@@ -348,7 +377,7 @@ export default function ShowcasePage({ slug, onBack, onGoDestination, onNavigate
 
   // Always inject Stats after Hero if key_stats exist and Stats not in sections list
   const sectionsToRender = [...sections];
-  if (showcase?.stats?.length > 0 && !sectionsToRender.includes('Stats')) {
+  if (showcaseLegacy?.stats?.length > 0 && !sectionsToRender.includes('Stats')) {
     const heroIdx = sectionsToRender.indexOf('Hero');
     if (heroIdx >= 0) sectionsToRender.splice(heroIdx + 1, 0, 'Stats');
   }
