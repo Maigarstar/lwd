@@ -4,6 +4,8 @@ import ShopTheStory, { ShopTheLook } from './ShopTheStory';
 import { getProductsByCollection, getProductById } from '../data/products';
 import { StyleAdvice, MoodBoard, DesignerSpotlight } from './FashionModules';
 import { getMagTheme, FD, FU, GOLD_CONST as GOLD } from '../magazineTheme';
+import ExternalLinkModal from '../../../components/ExternalLinkModal';
+import { trackExternalClick, hasSeenModalThisSession, markModalSeen } from '../../../services/outboundClickService';
 
 // ── Lazy-loaded editorial blocks ────────────────────────────────────────────
 const VideoEmbedBlock = lazy(() => import('./blocks/VideoEmbedBlock'));
@@ -243,6 +245,18 @@ function VideoGalleryBlock({ videos = [] }) {
 export default function ArticleBody({ content = [], isLight = true }) {
   const T = getMagTheme(isLight);
   const [lightbox, setLightbox] = useState(null); // { images, startIndex }
+  const [exitConfig, setExitConfig] = useState(null); // { url, name } for vendor credit modal
+
+  const handleVendorLink = useCallback((url, name) => {
+    if (!url) return;
+    const abs = url.startsWith('http') ? url : `https://${url}`;
+    if (!hasSeenModalThisSession(abs)) {
+      setExitConfig({ url: abs, name });
+    } else {
+      trackExternalClick({ entityType: 'magazine', entityId: null, venueId: null, linkType: 'website', url: abs });
+      window.open(abs, '_blank', 'noopener,noreferrer');
+    }
+  }, []);
 
   const TEXT  = T.text;
   const BODY  = isLight ? '#2a2620' : 'rgba(245,240,232,0.85)';
@@ -759,7 +773,10 @@ export default function ArticleBody({ content = [], isLight = true }) {
                     <div key={vi} style={{ textAlign: 'center' }}>
                       <div style={{ fontFamily: FU, fontSize: 8, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD, marginBottom: 4 }}>{v.role}</div>
                       {v.url ? (
-                        <a href={v.url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: FS, fontSize: 15, color: TEXT, textDecoration: 'none', borderBottom: `1px solid ${DIVBG}` }}>{v.name}</a>
+                        <button
+                          onClick={() => handleVendorLink(v.url, v.name)}
+                          style={{ fontFamily: FS, fontSize: 15, color: TEXT, textDecoration: 'none', borderBottom: `1px solid ${DIVBG}`, background: 'none', border: 'none', borderBottom: `1px solid ${DIVBG}`, cursor: 'pointer', padding: 0 }}
+                        >{v.name}</button>
                       ) : (
                         <span style={{ fontFamily: FS, fontSize: 15, color: TEXT }}>{v.name}</span>
                       )}
@@ -774,6 +791,18 @@ export default function ArticleBody({ content = [], isLight = true }) {
             return null;
         }
       })}
+
+      {exitConfig && (
+        <ExternalLinkModal
+          name={exitConfig.name}
+          url={exitConfig.url}
+          onClose={() => setExitConfig(null)}
+          onContinue={() => {
+            markModalSeen(exitConfig.url);
+            trackExternalClick({ entityType: 'magazine', entityId: null, venueId: null, linkType: 'website', url: exitConfig.url });
+          }}
+        />
+      )}
     </div>
   );
 }
