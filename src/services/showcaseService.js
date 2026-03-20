@@ -72,21 +72,113 @@ export async function fetchShowcases(type = null) {
   }
 }
 
-// ── Fetch single showcase by slug (used by dynamic ShowcasePage) ──────────────
-export async function fetchShowcaseBySlug(slug) {
+// ── Fetch single showcase by slug (for admin/internal use — returns card shape) ──
+export async function fetchShowcaseBySlugCard(slug) {
   if (!isSupabaseAvailable()) return null;
   try {
     const { data, error } = await supabase
       .from('venue_showcases')
       .select('*')
       .eq('slug', slug)
-      .single();
+      .maybeSingle();
     if (error) throw error;
     return data ? dbToCard(data) : null;
   } catch (err) {
-    console.error('[showcaseService] fetchShowcaseBySlug error:', err);
+    console.error('[showcaseService] fetchShowcaseBySlugCard error:', err);
     return null;
   }
+}
+
+// ── Fetch a single showcase by slug (for public rendering) ────────────────────
+// Returns the published_sections field for the public page renderer.
+// Returns null if not found or not published.
+export async function fetchShowcaseBySlug(slug) {
+  if (!isSupabaseAvailable() || !slug) return null;
+  try {
+    const { data, error } = await supabase
+      .from('venue_showcases')
+      .select('id, slug, title, type, status, hero_image_url, excerpt, key_stats, published_sections, listing_id, template_key, theme, seo_title, seo_description, og_image, published_at')
+      .eq('slug', slug)
+      .eq('status', 'published')
+      .maybeSingle();
+    if (error) { console.warn('[showcaseService] fetchShowcaseBySlug:', error.message); return null; }
+    return data;
+  } catch (e) {
+    console.warn('[showcaseService] fetchShowcaseBySlug:', e.message);
+    return null;
+  }
+}
+
+// ── Save draft (updates sections + updated_at, does NOT touch published_sections or published_at) ──
+export async function saveShowcaseDraft(id, updates) {
+  if (!isSupabaseAvailable()) throw new Error('Supabase not available');
+  const { error } = await supabase
+    .from('venue_showcases')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+// ── Publish showcase (snapshots sections → published_sections, sets published_at) ──
+export async function publishShowcase(id, sections) {
+  if (!isSupabaseAvailable()) throw new Error('Supabase not available');
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from('venue_showcases')
+    .update({
+      status:             'published',
+      sections,                          // keep working copy in sync
+      published_sections: sections,      // snapshot for public page
+      published_at:       now,
+      updated_at:         now,
+    })
+    .eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+// ── Duplicate a showcase ───────────────────────────────────────────────────────
+export async function duplicateShowcase(id) {
+  if (!isSupabaseAvailable()) throw new Error('Supabase not available');
+  const { data: source, error: fetchErr } = await supabase
+    .from('venue_showcases')
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (fetchErr) throw new Error(fetchErr.message);
+
+  const now = new Date().toISOString();
+  const newSlug = `${source.slug}-copy-${Date.now()}`;
+  const { data, error } = await supabase
+    .from('venue_showcases')
+    .insert({
+      type:               source.type,
+      title:              `${source.title} (Copy)`,
+      slug:               newSlug,
+      location:           source.location,
+      excerpt:            source.excerpt,
+      hero_image_url:     source.hero_image_url,
+      logo_url:           source.logo_url,
+      listing_id:         source.listing_id,
+      status:             'draft',
+      sections:           source.sections,
+      published_sections: [],
+      key_stats:          source.key_stats,
+      template_key:       source.template_key,
+      theme:              source.theme,
+      seo_title:          source.seo_title,
+      seo_description:    source.seo_description,
+      og_image:           source.og_image,
+      sort_order:         0,
+      created_at:         now,
+      updated_at:         now,
+    })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return dbToCard(data);
 }
 
 // ── Create new showcase ───────────────────────────────────────────────────────
