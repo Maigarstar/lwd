@@ -239,5 +239,42 @@ Deno.serve(async (req) => {
     return ok({ booking: data });
   }
 
+  // ── intel ─────────────────────────────────────────────────────────────────
+  if (action === "intel") {
+    const { days = 30, eventId } = body as { days?: number; eventId?: string };
+    const since = new Date(Date.now() - Number(days) * 86400000).toISOString();
+    const TYPES = ["event_drawer_open", "event_registration", "event_page_view", "event_cta_click"];
+
+    let q = supabase
+      .from("user_events")
+      .select("entity_id, event_type")
+      .in("event_type", TYPES)
+      .gte("created_at", since);
+
+    if (eventId) q = q.eq("entity_id", eventId);
+
+    const { data, error } = await q;
+    if (error) return err(error.message, 500);
+
+    // Group by entity_id + event_type
+    const byEvent: Record<string, Record<string, number>> = {};
+    const summary: Record<string, number> = {};
+
+    (data || []).forEach(({ entity_id, event_type }: { entity_id: string; event_type: string }) => {
+      if (entity_id) {
+        if (!byEvent[entity_id]) byEvent[entity_id] = {};
+        byEvent[entity_id][event_type] = (byEvent[entity_id][event_type] || 0) + 1;
+      }
+      summary[event_type] = (summary[event_type] || 0) + 1;
+    });
+
+    // Conversion rate
+    const opens = summary["event_drawer_open"] || 0;
+    const regs  = summary["event_registration"] || 0;
+    const conversionRate = opens > 0 ? Math.round((regs / opens) * 100) : 0;
+
+    return ok({ byEvent, summary, conversionRate, days });
+  }
+
   return err(`Unknown action: ${action}`);
 });
