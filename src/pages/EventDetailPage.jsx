@@ -31,8 +31,9 @@ function getPalette(isLight) {
   return isLight ? {
     bg:        '#faf8f5',
     card:      '#ffffff',
+    panelBg:   '#eee8dc',   // booking panel — clearly distinct from page bg
     border:    '#e8e0d4',
-    border2:   '#d4c8b8',
+    border2:   '#c8bba8',   // stronger border for light mode contrast
     text:      '#1a1a18',
     textSub:   '#5a5045',
     textMuted: '#9a8e80',
@@ -42,6 +43,7 @@ function getPalette(isLight) {
   } : {
     bg:        '#0e0c0a',
     card:      '#1a1710',
+    panelBg:   '#1a1710',   // same as card in dark — already strong enough
     border:    '#2a2520',
     border2:   '#3a3028',
     text:      '#c8bfa8',
@@ -58,7 +60,7 @@ function Label({ children }) {
   return (
     <div style={{
       fontFamily: NU, fontSize: 10, color: GOLD,
-      letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 8,
+      letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 14,
     }}>{children}</div>
   );
 }
@@ -346,7 +348,7 @@ function Gallery({ urls, videoUrl, P }) {
 }
 
 // ── Map embed (Google Maps, no API key) ───────────────────────────────────────
-function EventMap({ event, P }) {
+function EventMap({ event, P, isLight }) {
   if (event.isVirtual) return null;
   const addr = event.locationAddress || event.locationName;
   if (!addr) return null;
@@ -358,10 +360,10 @@ function EventMap({ event, P }) {
       <Label>Location</Label>
       <div style={{
         borderRadius: 4, overflow: 'hidden',
-        border: `1px solid ${P.border}`,
-        borderTop: `2px solid ${P.border2}`,
+        border: `1px solid ${P.border2}`,
+        borderTop: `2px solid ${GOLD}30`,
         background: P.iframeBg,
-        boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+        boxShadow: isLight ? '0 4px 20px rgba(0,0,0,0.1)' : '0 4px 20px rgba(0,0,0,0.3)',
         position: 'relative',
       }}>
         <iframe
@@ -419,7 +421,7 @@ function GettingThere({ event, P }) {
   );
 
   return (
-    <div style={{ marginBottom: 44 }}>
+    <div style={{ marginBottom: 64 }}>
       <Label>Getting There & Practical Details</Label>
 
       <div style={{ background: P.card, border: `1px solid ${P.border}`, borderRadius: 4, padding: '4px 20px 8px', overflow: 'hidden' }}>
@@ -522,7 +524,7 @@ function VenueReviewsStrip({ venueId, venueName: venueNameProp, P }) {
   const RG = '#c9a84c'; // review gold
 
   return (
-    <div style={{ marginBottom: 44 }}>
+    <div style={{ marginBottom: 64 }}>
       <Label>Venue Reviews</Label>
 
       {/* "Hosted at X, rated Y by couples" intro line */}
@@ -1359,7 +1361,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
           <Gallery urls={event.galleryUrls} videoUrl={event.videoUrl} P={P} />
 
           {/* Map */}
-          <EventMap event={event} P={P} />
+          <EventMap event={event} P={P} isLight={isLight} />
           <GettingThere event={event} P={P} />
 
           {/* Venue Reviews */}
@@ -1389,7 +1391,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
 
           {/* Replay */}
           {event.replayUrl && (
-            <div style={{ marginBottom: 44, padding: '16px 20px', background: P.card, border: `1px solid ${P.border}`, borderRadius: 4 }}>
+            <div style={{ marginBottom: 64, padding: '16px 20px', background: P.card, border: `1px solid ${P.border}`, borderRadius: 4 }}>
               <Label>Event Recording</Label>
               <a href={event.replayUrl} target="_blank" rel="noopener noreferrer"
                 style={{ fontFamily: NU, fontSize: 14, color: GOLD }}>
@@ -1416,10 +1418,11 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
             <div style={{
               marginBottom: 40,
               padding: '28px 32px',
-              background: P.sectionBg,
-              border: `1px solid ${isLimited && remaining > 0 ? `${GOLD}50` : P.border}`,
+              background: P.panelBg,
+              border: `1px solid ${isLimited && remaining > 0 ? `${GOLD}60` : P.border2}`,
               borderLeft: `3px solid ${isLimited && remaining > 0 ? '#e87070' : GOLD}`,
               borderRadius: 4,
+              boxShadow: isLight ? '0 2px 16px rgba(0,0,0,0.07)' : 'none',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               gap: 24, flexWrap: 'wrap',
             }}>
@@ -1481,7 +1484,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
           {/* On mobile the form renders here, below content */}
           {isMobile && showBookingPanel && (
             <div style={{ marginTop: 40 }}>
-              <div style={{ background: P.card, border: `1px solid ${P.border}`, borderRadius: 4, padding: '28px 22px' }}>
+              <div style={{ background: P.panelBg, border: `1px solid ${P.border2}`, borderTop: `3px solid ${GOLD}`, borderRadius: 4, padding: '28px 22px', boxShadow: isLight ? '0 4px 24px rgba(0,0,0,0.1)' : '0 4px 24px rgba(0,0,0,0.3)' }}>
                 {isEventPast ? (
                   <EventEndedPanel event={event} venue={venue} P={P} />
                 ) : booking ? <BookingConfirmed booking={booking} event={event} P={P} /> : (
@@ -1521,12 +1524,12 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
             position: 'sticky', top: 32, alignSelf: 'flex-start',
           }}>
             <div style={{
-              background: P.card,
-              border: `1px solid ${P.border}`,
+              background: P.panelBg,
+              border: `1px solid ${P.border2}`,
               borderTop: `3px solid ${GOLD}`,
               borderRadius: 4,
               padding: '34px 30px',
-              boxShadow: isLight ? '0 4px 32px rgba(0,0,0,0.09)' : '0 4px 32px rgba(0,0,0,0.35)',
+              boxShadow: isLight ? '0 6px 40px rgba(0,0,0,0.13)' : '0 4px 32px rgba(0,0,0,0.35)',
               transition: 'background 0.3s, border-color 0.3s',
             }}>
               {isEventPast ? (
