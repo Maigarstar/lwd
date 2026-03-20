@@ -11,18 +11,151 @@
 //   4. null
 // ─────────────────────────────────────────────────────────────────────────────
 
-import FeatureCard            from '../components/cards/editorial/FeatureCard';
-import QuoteCard              from '../components/cards/editorial/QuoteCard';
-import VenueStatsCard         from '../components/cards/editorial/VenueStatsCard';
-import MosaicCard             from '../components/cards/editorial/MosaicCard';
-import TwoColumnEditorialCard from '../components/cards/editorial/TwoColumnEditorialCard';
-import VenueEnquireCard       from '../components/cards/editorial/VenueEnquireCard';
-import { CarouselRow }        from '../components/cards/editorial/CarouselCard';
-import { SECTION_REGISTRY }   from '../services/showcaseRegistry';
+import { useState, useEffect }       from 'react';
+import FeatureCard                   from '../components/cards/editorial/FeatureCard';
+import QuoteCard                     from '../components/cards/editorial/QuoteCard';
+import VenueStatsCard                from '../components/cards/editorial/VenueStatsCard';
+import MosaicCard                    from '../components/cards/editorial/MosaicCard';
+import TwoColumnEditorialCard        from '../components/cards/editorial/TwoColumnEditorialCard';
+import VenueEnquireCard              from '../components/cards/editorial/VenueEnquireCard';
+import { CarouselRow }               from '../components/cards/editorial/CarouselCard';
+import { SECTION_REGISTRY }          from '../services/showcaseRegistry';
+import HomeNav                       from '../components/nav/HomeNav';
 
 const GD   = 'var(--font-heading-primary)';
 const NU   = 'var(--font-body)';
 const GOLD = '#C9A84C';
+
+// ── Section types that appear in the sticky sub-nav ───────────────────────────
+const NAV_ELIGIBLE = new Set(['intro', 'feature', 'mosaic', 'gallery', 'dining', 'spaces', 'wellness', 'weddings']);
+const TYPE_LABEL   = {
+  intro:    'Overview',
+  feature:  'Highlights',
+  mosaic:   'Gallery',
+  gallery:  'Gallery',
+  dining:   'Dining',
+  spaces:   'Spaces',
+  wellness: 'Wellness & Spa',
+  weddings: 'Weddings',
+};
+
+// ── Sticky section sub-nav ────────────────────────────────────────────────────
+// Appears after the hero scrolls out of view.
+// Auto-generated from eligible section types; labels use eyebrow if set.
+function SectionNav({ sections }) {
+  const [visible,  setVisible]  = useState(false);
+  const [activeId, setActiveId] = useState(null);
+
+  const navItems = sections
+    .filter(s => NAV_ELIGIBLE.has(s.type))
+    .map(s => ({
+      id:    s.id,
+      label: s.content?.eyebrow || TYPE_LABEL[s.type] || s.type,
+    }));
+
+  // Observe hero leaving viewport → show/hide SectionNav
+  useEffect(() => {
+    const hero = document.querySelector('[data-showcase-section="hero"]');
+    if (!hero) { setVisible(true); return; }
+    const obs = new IntersectionObserver(
+      ([entry]) => setVisible(!entry.isIntersecting),
+      { threshold: 0 }
+    );
+    obs.observe(hero);
+    return () => obs.disconnect();
+  }, [sections]);
+
+  // IntersectionObserver to track which section is in view
+  useEffect(() => {
+    if (!navItems.length) return;
+    const els = navItems
+      .map(item => document.getElementById(`sec-${item.id}`))
+      .filter(Boolean);
+    if (!els.length) return;
+    const obs = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            setActiveId(entry.target.id.replace('sec-', ''));
+          }
+        });
+      },
+      // Section is "active" when it occupies the upper-centre of the viewport
+      { rootMargin: '-15% 0px -65% 0px', threshold: 0 }
+    );
+    els.forEach(el => obs.observe(el));
+    return () => obs.disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sections]);
+
+  if (!navItems.length) return null;
+
+  const scrollTo = (id) => {
+    const el = document.getElementById(`sec-${id}`);
+    if (!el) return;
+    // offset accounts for HomeNav (64) + SectionNav (44)
+    const y = el.getBoundingClientRect().top + window.scrollY - 108;
+    window.scrollTo({ top: y, behavior: 'smooth' });
+  };
+
+  return (
+    <div
+      role="navigation"
+      aria-label="Showcase sections"
+      style={{
+        position:      'fixed',
+        top:           64,
+        left:          0,
+        right:         0,
+        zIndex:        690,
+        height:        44,
+        background:    'rgba(10,10,8,0.94)',
+        backdropFilter:'blur(14px)',
+        borderBottom:  '1px solid rgba(201,168,76,0.14)',
+        display:       'flex',
+        alignItems:    'center',
+        justifyContent:'center',
+        overflowX:     'auto',
+        // Fade + slide in when hero leaves viewport
+        opacity:       visible ? 1 : 0,
+        pointerEvents: visible ? 'auto' : 'none',
+        transform:     visible ? 'translateY(0)' : 'translateY(-6px)',
+        transition:    'opacity 0.35s ease, transform 0.35s ease',
+      }}
+    >
+      {navItems.map(item => {
+        const isActive = activeId === item.id;
+        return (
+          <button
+            key={item.id}
+            onClick={() => scrollTo(item.id)}
+            style={{
+              background:    'none',
+              border:        'none',
+              borderBottom:  isActive ? `2px solid ${GOLD}` : '2px solid transparent',
+              cursor:        'pointer',
+              padding:       '0 22px',
+              height:        44,
+              fontFamily:    NU,
+              fontSize:      10,
+              letterSpacing: '0.17em',
+              textTransform: 'uppercase',
+              fontWeight:    600,
+              color:         isActive ? GOLD : 'rgba(245,240,232,0.48)',
+              whiteSpace:    'nowrap',
+              flexShrink:    0,
+              transition:    'color 0.2s ease, border-color 0.2s ease',
+            }}
+            onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = 'rgba(245,240,232,0.82)'; }}
+            onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = 'rgba(245,240,232,0.48)'; }}
+          >
+            {item.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 // ── Media fallback resolver ───────────────────────────────────────────────────
 function resolveImage(sectionImage, showcaseHero, listingFirstImage) {
@@ -268,9 +401,11 @@ function SectionPlaceholder({ section }) {
 // ── Main renderer ─────────────────────────────────────────────────────────────
 export default function ShowcaseRenderer({
   sections = [],
-  showcase = {},          // { hero_image_url, title }
+  showcase = {},              // { hero_image_url, title }
   listingFirstImage = null,
-  isPreview = false,      // true when used inside studio
+  isPreview = false,          // true when used inside studio
+  onNavigateStandard = null,  // passed to HomeNav
+  onBack = null,              // reserved for future back button
 }) {
   const heroUrl = showcase.hero_image_url || null;
 
@@ -284,39 +419,79 @@ export default function ShowcaseRenderer({
       return <SectionPlaceholder key={section.id} section={section} />;
     }
 
+    // ── Resolve the inner section component ──────────────────────────────────
+    let inner;
     switch (type) {
       case 'hero':
-        return <HeroSection key={section.id} content={content} layout={layout} {...shared} />;
+        inner = <HeroSection content={content} layout={layout} {...shared} />;
+        break;
       case 'stats':
-        return <StatsSection key={section.id} content={content} layout={layout} />;
+        inner = <StatsSection content={content} layout={layout} />;
+        break;
       case 'intro':
-        return <IntroSection key={section.id} content={content} layout={layout} />;
+        inner = <IntroSection content={content} layout={layout} />;
+        break;
       case 'feature':
-        return <FeatureSection key={section.id} content={content} layout={layout} {...shared} />;
+        inner = <FeatureSection content={content} layout={layout} {...shared} />;
+        break;
       case 'quote':
-        return <QuoteSection key={section.id} content={content} layout={layout} />;
+        inner = <QuoteSection content={content} layout={layout} />;
+        break;
       case 'mosaic':
-        return <MosaicSection key={section.id} content={content} layout={layout} />;
+        inner = <MosaicSection content={content} layout={layout} />;
+        break;
       case 'gallery':
-        return <GallerySection key={section.id} content={content} />;
+        inner = <GallerySection content={content} />;
+        break;
       case 'dining':
       case 'spaces':
       case 'wellness':
       case 'weddings':
-        return <EditorialFeatureSection key={section.id} content={content} layout={layout} {...shared} eyebrowOverride={content.eyebrow} />;
+        inner = <EditorialFeatureSection content={content} layout={layout} {...shared} eyebrowOverride={content.eyebrow} />;
+        break;
       case 'image-full':
-        return <FullImageSection key={section.id} content={content} />;
+        inner = <FullImageSection content={content} />;
+        break;
       case 'cta':
-        return <CtaSection key={section.id} content={content} venueName={showcase.title} />;
+        inner = <CtaSection content={content} venueName={showcase.title} />;
+        break;
       case 'related':
-        return <RelatedSection key={section.id} content={content} />;
+        inner = <RelatedSection content={content} />;
+        break;
       default:
-        return isPreview ? <SectionPlaceholder key={section.id} section={section} /> : null;
+        inner = isPreview ? <SectionPlaceholder section={section} /> : null;
     }
+
+    if (!inner) return null;
+
+    // ── Wrap with anchor ID so SectionNav + smooth-scroll works ─────────────
+    // scroll-margin-top offsets HomeNav (64px) + SectionNav (44px) = 108px
+    return (
+      <div
+        key={section.id}
+        id={`sec-${section.id}`}
+        data-showcase-section={type}
+        style={{ scrollMarginTop: isPreview ? 0 : 108 }}
+      >
+        {inner}
+      </div>
+    );
   }
 
   return (
     <div style={{ background: '#0a0a08', color: '#f5f0e8', minHeight: '100vh' }}>
+
+      {/* ── Public chrome: main nav + section sub-nav ── */}
+      {!isPreview && (
+        <>
+          <HomeNav
+            hasHero
+            onNavigateStandard={onNavigateStandard}
+          />
+          <SectionNav sections={sections} />
+        </>
+      )}
+
       {sections.map((section) => renderSection(section))}
     </div>
   );
