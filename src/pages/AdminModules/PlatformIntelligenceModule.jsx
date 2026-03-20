@@ -23,6 +23,7 @@ import {
   fetchShortlistTop,
   fetchCompareTop,
 } from '../../services/adminUserEventsService';
+import { fetchEventIntel, adminListEvents, dbToEvent } from '../../services/adminEventsService';
 
 const GD = 'var(--font-heading-primary)';
 const NU = 'var(--font-body)';
@@ -897,6 +898,240 @@ function CompareIntelPanel({ days, C }) {
   );
 }
 
+// ── Event Analytics panel ─────────────────────────────────────────────────────
+
+function EventIntelPanel({ days, C }) {
+  const [intel,   setIntel]   = useState(null);
+  const [events,  setEvents]  = useState([]);   // lookup table: id → title
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    Promise.all([
+      fetchEventIntel(days),
+      adminListEvents({ limit: 200 }),
+    ]).then(([intelData, eventsData]) => {
+      if (cancelled) return;
+      setIntel(intelData);
+      // Build id → title lookup from events list
+      const lookup = {};
+      (eventsData?.events || []).forEach(e => {
+        const ev = dbToEvent(e);
+        if (ev?.id) lookup[ev.id] = ev.title || 'Untitled Event';
+      });
+      setEvents(lookup);
+      setLoading(false);
+    }).catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [days]);
+
+  if (loading) {
+    return (
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '48px', textAlign: 'center' }}>
+        <div style={{ fontFamily: NU, fontSize: 12, color: C.grey }}>Loading event analytics…</div>
+      </div>
+    );
+  }
+
+  if (!intel) {
+    return (
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '48px', textAlign: 'center' }}>
+        <div style={{ fontFamily: GD, fontSize: 16, color: C.off, marginBottom: 8 }}>No event data yet</div>
+        <div style={{ fontFamily: NU, fontSize: 12, color: C.grey }}>
+          Tracking begins once events are published and visitors interact with the event drawer, pages, and registration forms.
+        </div>
+      </div>
+    );
+  }
+
+  const s = intel.summary || {};
+  const pageViews  = s.event_page_view   || 0;
+  const drawerOpen = s.event_drawer_open || 0;
+  const regs       = s.event_registration || 0;
+  const ctaClicks  = s.event_cta_click   || 0;
+  const convRate   = intel.conversionRate ?? (drawerOpen > 0 ? Math.round((regs / drawerOpen) * 100) : 0);
+
+  // Per-event rows: sort by page views desc
+  const perEvent = Object.entries(intel.byEvent || {})
+    .map(([id, counts]) => ({
+      id,
+      title: events[id] || id.slice(0, 12) + '…',
+      pageViews:  counts.event_page_view    || 0,
+      drawerOpen: counts.event_drawer_open  || 0,
+      regs:       counts.event_registration || 0,
+      ctaClicks:  counts.event_cta_click    || 0,
+      rate: counts.event_drawer_open > 0
+        ? Math.round((counts.event_registration / counts.event_drawer_open) * 100)
+        : 0,
+    }))
+    .sort((a, b) => b.pageViews - a.pageViews);
+
+  const maxPageViews  = perEvent[0]?.pageViews  || 1;
+  const maxDrawerOpen = perEvent[0]?.drawerOpen || 1;
+
+  const rateColour = r => r >= 50 ? '#22c55e' : r >= 25 ? C.gold : r > 0 ? '#f59e0b' : C.grey;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* ── Platform KPIs ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+        <KpiCard
+          label="Event Page Views"
+          value={fmt(pageViews)}
+          sub={`Last ${days}d`}
+          accent="#60a5fa"
+          C={C}
+        />
+        <KpiCard
+          label="Drawer Opens"
+          value={fmt(drawerOpen)}
+          sub="Event card interactions"
+          accent={C.gold}
+          C={C}
+        />
+        <KpiCard
+          label="Registrations"
+          value={fmt(regs)}
+          sub={`Last ${days}d`}
+          accent="#22c55e"
+          C={C}
+        />
+        <KpiCard
+          label="Drawer → Registration"
+          value={`${convRate}%`}
+          sub="Conversion rate"
+          accent={rateColour(convRate)}
+          C={C}
+        />
+      </div>
+
+      {/* ── Platform funnel ── */}
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '20px 24px' }}>
+        <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.gold, fontWeight: 600, marginBottom: 18 }}>
+          Event Engagement Funnel
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 0 }}>
+          {[
+            { label: 'Page Views',   value: pageViews,  colour: '#60a5fa', base: pageViews || 1 },
+            { label: 'Drawer Opens', value: drawerOpen, colour: C.gold,    base: pageViews || 1 },
+            { label: 'CTA Clicks',   value: ctaClicks,  colour: '#f59e0b', base: pageViews || 1 },
+            { label: 'Registrations',value: regs,       colour: '#22c55e', base: pageViews || 1 },
+          ].map((step, i, arr) => {
+            const barH = pageViews ? Math.max(8, Math.round((step.value / pageViews) * 100)) : 0;
+            const dropRate = i > 0 && arr[i-1].value > 0
+              ? Math.round(((arr[i-1].value - step.value) / arr[i-1].value) * 100)
+              : null;
+            return (
+              <div key={step.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                {/* Arrow between steps */}
+                {i > 0 && (
+                  <div style={{ position: 'relative', width: '100%', textAlign: 'center', marginBottom: 4 }}>
+                    {dropRate !== null && dropRate > 0 && (
+                      <span style={{ fontFamily: NU, fontSize: 9, color: '#ef4444' }}>−{dropRate}%</span>
+                    )}
+                  </div>
+                )}
+                <div style={{ fontFamily: GD, fontSize: 22, color: step.colour, marginBottom: 8 }}>{fmt(step.value)}</div>
+                <div style={{ width: '80%', height: 8, background: C.border, borderRadius: 4, overflow: 'hidden', marginBottom: 8 }}>
+                  <div style={{ height: '100%', width: `${barH}%`, background: step.colour, borderRadius: 4, transition: 'width 0.6s ease' }} />
+                </div>
+                <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, textAlign: 'center' }}>{step.label}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Per-event table ── */}
+      {perEvent.length > 0 && (
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden' }}>
+          {/* Header */}
+          <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.gold, fontWeight: 600 }}>
+                Per-Event Breakdown
+              </div>
+              <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, marginTop: 3 }}>
+                {perEvent.length} event{perEvent.length !== 1 ? 's' : ''} with engagement data · sorted by page views
+              </div>
+            </div>
+          </div>
+
+          {/* Column labels */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 80px 80px 70px', gap: 12, padding: '8px 20px', borderBottom: `1px solid ${C.border}` }}>
+            {['Event', 'Views', 'Drawer', 'CTA', 'Registered', 'Conv.'].map(h => (
+              <span key={h} style={{ fontFamily: NU, fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.grey2 || C.grey, fontWeight: 600 }}>{h}</span>
+            ))}
+          </div>
+
+          {/* Rows */}
+          {perEvent.map(ev => (
+            <div key={ev.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 80px 80px 70px', gap: 12, padding: '14px 20px', alignItems: 'center' }}>
+
+                {/* Event name + bars */}
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontFamily: NU, fontSize: 12, color: C.off, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 5 }}>
+                    {ev.title}
+                  </div>
+                  {/* Page views bar */}
+                  <div style={{ height: 3, background: C.border, borderRadius: 2, overflow: 'hidden', marginBottom: 3 }}>
+                    <div style={{ height: '100%', width: `${(ev.pageViews / maxPageViews) * 100}%`, background: '#60a5fa', borderRadius: 2, transition: 'width 0.5s' }} />
+                  </div>
+                  {/* Drawer opens bar */}
+                  <div style={{ height: 3, background: C.border, borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${(ev.drawerOpen / maxDrawerOpen) * 100}%`, background: C.gold, borderRadius: 2, transition: 'width 0.5s' }} />
+                  </div>
+                </div>
+
+                {/* Views */}
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontFamily: GD, fontSize: 18, color: '#60a5fa' }}>{fmt(ev.pageViews)}</div>
+                </div>
+
+                {/* Drawer */}
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontFamily: GD, fontSize: 18, color: C.gold }}>{fmt(ev.drawerOpen)}</div>
+                </div>
+
+                {/* CTA */}
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontFamily: GD, fontSize: 18, color: '#f59e0b' }}>{fmt(ev.ctaClicks)}</div>
+                </div>
+
+                {/* Registrations */}
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontFamily: GD, fontSize: 18, color: '#22c55e' }}>{fmt(ev.regs)}</div>
+                </div>
+
+                {/* Conversion rate */}
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontFamily: NU, fontSize: 13, fontWeight: 700, color: rateColour(ev.rate) }}>
+                    {ev.drawerOpen > 0 ? `${ev.rate}%` : '—'}
+                  </div>
+                  <div style={{ fontFamily: NU, fontSize: 9, color: C.grey }}>conv.</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {perEvent.length === 0 && (
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '40px', textAlign: 'center' }}>
+          <div style={{ fontFamily: GD, fontSize: 15, color: C.off, marginBottom: 8 }}>No per-event data yet</div>
+          <div style={{ fontFamily: NU, fontSize: 12, color: C.grey }}>
+            Engagement data accumulates as visitors view, open drawers, and register for events.
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
 // ── Days filter pill ──────────────────────────────────────────────────────────
 
 function DaysPicker({ days, onChange, C }) {
@@ -964,6 +1199,7 @@ const TABS = [
   { key: 'enquiry',   label: 'Enquiry Funnel' },
   { key: 'shortlist', label: 'Shortlist Signals' },
   { key: 'compare',   label: 'Compare Intelligence' },
+  { key: 'events',    label: 'Event Analytics' },
 ];
 
 function TabBar({ active, onChange, C }) {
@@ -1109,6 +1345,7 @@ export default function PlatformIntelligenceModule({ C }) {
       {activeTab === 'enquiry'   && <EnquiryFunnelPanel days={days} C={C} />}
       {activeTab === 'shortlist' && <ShortlistPanel days={days} C={C} />}
       {activeTab === 'compare'   && <CompareIntelPanel days={days} C={C} />}
+      {activeTab === 'events'    && <EventIntelPanel days={days} C={C} />}
 
     </div>
   );

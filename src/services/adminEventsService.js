@@ -91,6 +91,26 @@ export async function adminUpdateBooking(bookingId, updates) {
   }
 }
 
+// ─── Analytics / Intel ────────────────────────────────────────────────────────
+
+/**
+ * Event engagement intelligence.
+ * Returns: { byEvent, summary, conversionRate, days }
+ *   summary keys: event_drawer_open, event_registration, event_page_view, event_cta_click
+ *   byEvent: { [eventId]: { event_drawer_open, event_registration, ... } }
+ *   conversionRate: drawer_open → registration %
+ */
+export async function fetchEventIntel(days = 30, eventId = null) {
+  try {
+    const payload = { action: 'intel', days }
+    if (eventId) payload.eventId = eventId
+    return await callEdge(payload)
+  } catch (e) {
+    console.warn('[adminEventsService] fetchEventIntel:', e.message)
+    return null
+  }
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 export function dbToEvent(row) {
