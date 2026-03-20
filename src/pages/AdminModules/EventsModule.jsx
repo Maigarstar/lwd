@@ -12,6 +12,8 @@ import {
   adminDeleteEvent, adminListBookings, adminUpdateBooking,
   dbToEvent, eventToDb, slugifyTitle,
 } from '../../services/adminEventsService'
+import { fetchListings } from '../../services/listings'
+import EventDetailPage from '../EventDetailPage'
 
 const GD = 'var(--font-heading-primary)'
 const NU = 'var(--font-body)'
@@ -65,11 +67,13 @@ function isPastEvent(event) {
 }
 
 const BUILDER_STEPS = [
-  { key: 'basics',   label: 'Basics',   num: 1 },
-  { key: 'details',  label: 'Details',  num: 2 },
-  { key: 'media',    label: 'Media',    num: 3 },
-  { key: 'settings', label: 'Settings', num: 4 },
-  { key: 'preview',  label: 'Preview',  num: 5 },
+  { key: 'venue',    label: 'Venue',    num: 1 },
+  { key: 'basics',   label: 'Basics',   num: 2 },
+  { key: 'datetime', label: 'Date & Time', num: 3 },
+  { key: 'details',  label: 'Details',  num: 4 },
+  { key: 'media',    label: 'Media',    num: 5 },
+  { key: 'booking',  label: 'Booking',  num: 6 },
+  { key: 'settings', label: 'Settings', num: 7 },
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -351,12 +355,40 @@ function Toggle({ label, checked, onChange, hint, C }) {
 
 // ─── Builder Steps ────────────────────────────────────────────────────────────
 
+// Step 1: Assign Venue
+function StepVenue({ form, set, C }) {
+  return (
+    <div>
+      <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, margin: '0 0 24px', lineHeight: 1.7 }}>
+        Link this event to a venue listing. The linked venue powers the Hosted by card, venue reviews strip, and the event's listing profile connection.
+      </p>
+      <ListingPickerField
+        label="Linked Venue"
+        value={form.venueId}
+        onChange={v => set('venueId', v)}
+        hint="Search by venue name or location. This links the event to a listing via venue_id."
+        C={C}
+      />
+      <p style={{ fontFamily: NU, fontSize: 11, color: C.grey, margin: '20px 0 0', lineHeight: 1.6, opacity: 0.7 }}>
+        You can also assign a Managed Account ID below if this event belongs to a specific account.
+      </p>
+      <InputField
+        label="Managed Account ID (optional)"
+        value={form.managedAccountId}
+        onChange={v => set('managedAccountId', v)}
+        placeholder="UUID of the managed account"
+        hint="Links the event to a venue owner account"
+        C={C}
+      />
+    </div>
+  )
+}
+
+// Step 2: Basics
 function StepBasics({ form, set, C }) {
   const handleTitleChange = (val) => {
     set('title', val)
-    if (!form._slugManual) {
-      set('slug', slugifyTitle(val))
-    }
+    if (!form._slugManual) set('slug', slugifyTitle(val))
   }
 
   return (
@@ -374,20 +406,24 @@ function StepBasics({ form, set, C }) {
         <button
           onClick={() => { set('slug', slugifyTitle(form.title, Date.now().toString(36).slice(-4))); set('_slugManual', false) }}
           style={{ fontFamily: NU, fontSize: 11, color: C.gold, background: 'transparent', border: `1px solid ${C.gold}40`, borderRadius: 4, padding: '10px 14px', cursor: 'pointer', marginBottom: 18, whiteSpace: 'nowrap' }}
-        >
-          ↺ Regenerate
-        </button>
+        >↺ Regenerate</button>
       </div>
 
       <SelectField label="Event Type" value={form.eventType} onChange={v => set('eventType', v)} options={EVENT_TYPES} C={C} />
+    </div>
+  )
+}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+// Step 3: Date & Time
+function StepDateTime({ form, set, C }) {
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 4 }}>
         <InputField label="Start Date" value={form.startDate} onChange={v => set('startDate', v)} type="date" required C={C} />
         <InputField label="Start Time" value={form.startTime} onChange={v => set('startTime', v)} type="time" C={C} />
         <InputField label="End Date" value={form.endDate} onChange={v => set('endDate', v)} type="date" C={C} />
         <InputField label="End Time" value={form.endTime} onChange={v => set('endTime', v)} type="time" C={C} />
       </div>
-
       <SelectField
         label="Timezone" value={form.timezone}
         onChange={v => set('timezone', v)}
@@ -406,14 +442,11 @@ function StepBasics({ form, set, C }) {
   )
 }
 
+// Step 4: Details (description + location + virtual)
 function StepDetails({ form, set, C }) {
   return (
     <div>
-      <EventDescriptionEditor
-        value={form.description}
-        onChange={v => set('description', v)}
-        C={C}
-      />
+      <EventDescriptionEditor value={form.description} onChange={v => set('description', v)} C={C} />
 
       <div style={{ background: C.dark, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px', marginBottom: 18 }}>
         <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.gold, fontWeight: 600, marginBottom: 14 }}>Location</div>
@@ -421,6 +454,24 @@ function StepDetails({ form, set, C }) {
         <InputField label="Full Address" value={form.locationAddress} onChange={v => set('locationAddress', v)} placeholder="Via Doccia, 4, 50014 Fiesole FI, Italy" C={C} />
       </div>
 
+      <div style={{ background: C.dark, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px' }}>
+        <Toggle label="This is a virtual event" checked={form.isVirtual} onChange={v => set('isVirtual', v)} hint="Show stream URL and virtual platform fields" C={C} />
+        {form.isVirtual && (
+          <>
+            <SelectField label="Virtual Platform" value={form.virtualPlatform} onChange={v => set('virtualPlatform', v)} options={VIRTUAL_PLATFORMS} C={C} />
+            <InputField label="Live Stream URL" value={form.streamUrl} onChange={v => set('streamUrl', v)} placeholder="https://youtube.com/embed/..." C={C} />
+            <InputField label="Replay URL (after event)" value={form.replayUrl} onChange={v => set('replayUrl', v)} placeholder="https://youtube.com/watch?v=..." C={C} />
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Step 6: Booking & Pricing
+function StepBooking({ form, set, C }) {
+  return (
+    <div>
       <div style={{ background: C.dark, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px', marginBottom: 18 }}>
         <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.gold, fontWeight: 600, marginBottom: 14 }}>Booking</div>
         <SelectField label="Booking Mode" value={form.bookingMode} onChange={v => set('bookingMode', v)} options={BOOKING_MODES} C={C} />
@@ -432,18 +483,13 @@ function StepDetails({ form, set, C }) {
       </div>
 
       <div style={{ background: C.dark, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px' }}>
-        <Toggle
-          label="This is a virtual event"
-          checked={form.isVirtual}
-          onChange={v => set('isVirtual', v)}
-          hint="Show stream URL and virtual platform fields"
-          C={C}
-        />
-        {form.isVirtual && (
+        <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.gold, fontWeight: 600, marginBottom: 14 }}>Pricing</div>
+        <Toggle label="Free event" checked={form.isFree !== false} onChange={v => set('isFree', v)} hint="Toggle off to mark as a paid event. Payment is handled directly by the venue." C={C} />
+        {form.isFree === false && (
           <>
-            <SelectField label="Virtual Platform" value={form.virtualPlatform} onChange={v => set('virtualPlatform', v)} options={VIRTUAL_PLATFORMS} C={C} />
-            <InputField label="Live Stream URL" value={form.streamUrl} onChange={v => set('streamUrl', v)} placeholder="https://youtube.com/embed/..." C={C} />
-            <InputField label="Replay URL (after event)" value={form.replayUrl} onChange={v => set('replayUrl', v)} placeholder="https://youtube.com/watch?v=..." C={C} />
+            <InputField label="Price per guest" value={form.ticketPrice || ''} onChange={v => set('ticketPrice', v ? parseFloat(v) : null)} type="number" placeholder="50" hint="e.g. 50 for £50 per guest" C={C} />
+            <SelectField label="Currency" value={form.ticketCurrency || 'GBP'} onChange={v => set('ticketCurrency', v)} options={[{value:'GBP',label:'GBP £'},{value:'EUR',label:'EUR €'},{value:'USD',label:'USD $'}]} C={C} />
+            <InputField label="What's included (optional)" value={form.ticketIncludes || ''} onChange={v => set('ticketIncludes', v)} placeholder="Includes drinks and canapés" C={C} />
           </>
         )}
       </div>
@@ -554,27 +600,12 @@ function StepSettings({ form, set, C }) {
       </div>
 
       <div style={{ background: C.dark, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px', marginBottom: 18 }}>
-        <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.gold, fontWeight: 600, marginBottom: 14 }}>Ticketing</div>
-        <Toggle
-          label="Free event"
-          checked={form.isFree !== false}
-          onChange={v => set('isFree', v)}
-          hint="Toggle off to mark as a paid event. Payment is handled directly by the venue."
-          C={C}
-        />
-        {form.isFree === false && (
-          <>
-            <InputField label="Price per guest" value={form.ticketPrice || ''} onChange={v => set('ticketPrice', v ? parseFloat(v) : null)} type="number" placeholder="50" hint="e.g. 50 for £50 per guest" C={C} />
-            <SelectField label="Currency" value={form.ticketCurrency || 'GBP'} onChange={v => set('ticketCurrency', v)} options={[{value:'GBP',label:'GBP £'},{value:'EUR',label:'EUR €'},{value:'USD',label:'USD $'}]} C={C} />
-            <InputField label="What's included (optional)" value={form.ticketIncludes || ''} onChange={v => set('ticketIncludes', v)} placeholder="Includes drinks and canapés" C={C} />
-          </>
-        )}
-      </div>
-
-      <div style={{ background: C.dark, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px', marginBottom: 18 }}>
-        <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.gold, fontWeight: 600, marginBottom: 14 }}>Assignment</div>
-        <InputField label="Managed Account ID" value={form.managedAccountId} onChange={v => set('managedAccountId', v)} placeholder="UUID of the managed account" hint="The venue owner's account this event belongs to" C={C} />
-        <InputField label="Venue ID" value={form.venueId} onChange={v => set('venueId', v)} placeholder="UUID of the venue listing" C={C} />
+        <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.gold, fontWeight: 600, marginBottom: 6 }}>Assignment</div>
+        <p style={{ fontFamily: NU, fontSize: 11, color: C.grey, margin: '0 0 14px', lineHeight: 1.5 }}>Venue is set in the Venue step. Change it there if needed.</p>
+        {form.venueId
+          ? <div style={{ fontFamily: NU, fontSize: 12, color: C.off, background: `${C.gold}10`, border: `1px solid ${C.gold}30`, borderRadius: 4, padding: '9px 12px' }}>✓ Venue linked · {form.venueId.slice(0, 8)}…</div>
+          : <div style={{ fontFamily: NU, fontSize: 12, color: '#ef4444', opacity: 0.8 }}>⚠ No venue assigned — go back to Venue step</div>
+        }
       </div>
 
       <div style={{ background: C.dark, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px' }}>
@@ -590,88 +621,126 @@ function StepSettings({ form, set, C }) {
   )
 }
 
-function StepPreview({ form, C }) {
-  const typeLabel = EVENT_TYPES.find(t => t.value === form.eventType)?.label || form.eventType
-  const formattedDate = form.startDate
-    ? new Date(form.startDate + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-    : 'Date TBC'
-  const timeStr = form.startTime ? form.startTime.slice(0, 5) : ''
+// ── Listing picker — search by name, select by id ─────────────────────────────
+function ListingPickerField({ label, value, onChange, hint, C }) {
+  const [listings,  setListings]  = useState([])
+  const [query,     setQuery]     = useState('')
+  const [selected,  setSelected]  = useState(null) // { id, name }
+  const [open,      setOpen]      = useState(false)
+  const [loadingL,  setLoadingL]  = useState(false)
+
+  // Load all listings once on mount
+  useEffect(() => {
+    setLoadingL(true)
+    fetchListings({ status: 'published' })
+      .then(data => setListings(data || []))
+      .catch(() => {})
+      .finally(() => setLoadingL(false))
+  }, [])
+
+  // When an existing event loads with a venueId, resolve the name
+  useEffect(() => {
+    if (!value) { setSelected(null); return }
+    const match = listings.find(l => l.id === value)
+    if (match) setSelected({ id: match.id, name: match.name })
+  }, [value, listings])
+
+  const filtered = query.trim()
+    ? listings.filter(l => l.name?.toLowerCase().includes(query.toLowerCase())).slice(0, 8)
+    : listings.slice(0, 8)
+
+  const handleSelect = (l) => {
+    setSelected({ id: l.id, name: l.name })
+    onChange(l.id)
+    setQuery('')
+    setOpen(false)
+  }
+  const handleClear = () => {
+    setSelected(null)
+    onChange('')
+  }
 
   return (
-    <div>
-      <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, margin: '0 0 20px' }}>
-        This is how your event page will appear to couples. Publish when ready.
-      </p>
+    <div style={{ marginBottom: 18, position: 'relative' }}>
+      <label style={{ display: 'block', fontFamily: NU, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.grey, fontWeight: 600, marginBottom: 6 }}>
+        {label}
+      </label>
 
-      {/* Hero */}
-      <div style={{
-        borderRadius: 8, overflow: 'hidden', position: 'relative',
-        aspectRatio: '16/7', background: C.dark, marginBottom: 24,
-      }}>
-        {form.coverImageUrl && (
-          <img src={form.coverImageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        )}
+      {selected ? (
+        // Selected state — show name chip + clear
         <div style={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.1) 60%)',
-          display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
-          padding: '28px 32px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: C.dark, border: `1px solid ${C.gold}50`,
+          borderRadius: 4, padding: '9px 12px',
         }}>
-          <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.gold, marginBottom: 8 }}>{typeLabel}</div>
-          <h2 style={{ fontFamily: GD, fontSize: 28, color: '#fff', margin: '0 0 6px', fontWeight: 400 }}>{form.title || 'Event Title'}</h2>
-          {form.subtitle && <p style={{ fontFamily: NU, fontSize: 14, color: 'rgba(255,255,255,0.8)', margin: 0 }}>{form.subtitle}</p>}
-          <div style={{ fontFamily: NU, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 12 }}>
-            {formattedDate}{timeStr && ` · ${timeStr}`}
-            {form.locationName && ` · ${form.locationName}`}
-          </div>
-        </div>
-      </div>
-
-      {/* Details row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
-        {[
-          { label: 'Date', value: formattedDate },
-          { label: 'Time', value: timeStr || '—' },
-          { label: 'Capacity', value: form.capacity ? `${form.capacity} guests` : 'Unlimited' },
-        ].map(({ label, value }) => (
-          <div key={label} style={{ background: C.dark, border: `1px solid ${C.border}`, borderRadius: 6, padding: '14px 16px' }}>
-            <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.grey, marginBottom: 6 }}>{label}</div>
-            <div style={{ fontFamily: GD, fontSize: 16, color: C.off }}>{value}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Description */}
-      {form.description && (
-        <div style={{ background: C.dark, border: `1px solid ${C.border}`, borderRadius: 6, padding: '20px 24px', marginBottom: 16 }}>
-          <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.gold, marginBottom: 10 }}>About This Event</div>
-          <div
-            style={{ fontFamily: NU, fontSize: 14, color: C.grey, lineHeight: 1.7, margin: 0 }}
-            dangerouslySetInnerHTML={{ __html: form.description }}
-          />
-        </div>
-      )}
-
-      {/* Virtual notice */}
-      {form.isVirtual && (
-        <div style={{ background: `${C.gold}0d`, border: `1px solid ${C.gold}30`, borderRadius: 6, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 18 }}>📡</span>
           <div>
-            <div style={{ fontFamily: NU, fontSize: 12, color: C.gold, fontWeight: 600 }}>Virtual Event</div>
-            <div style={{ fontFamily: NU, fontSize: 12, color: C.grey }}>
-              {VIRTUAL_PLATFORMS.find(p => p.value === form.virtualPlatform)?.label || 'Online'} · Stream link sent on booking
-            </div>
+            <span style={{ fontFamily: NU, fontSize: 13, color: C.off }}>{selected.name}</span>
+            <span style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginLeft: 8 }}>{selected.id.slice(0, 8)}…</span>
           </div>
+          <button
+            onClick={handleClear}
+            style={{ fontFamily: NU, fontSize: 11, color: C.grey, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+          >✕ Remove</button>
+        </div>
+      ) : (
+        // Search input
+        <div style={{ position: 'relative' }}>
+          <input
+            value={query}
+            onChange={e => { setQuery(e.target.value); setOpen(true) }}
+            onFocus={() => setOpen(true)}
+            onBlur={() => setTimeout(() => setOpen(false), 160)}
+            placeholder={loadingL ? 'Loading listings…' : 'Search by venue name…'}
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              fontFamily: NU, fontSize: 13, color: C.off,
+              background: C.dark, border: `1px solid ${C.border}`,
+              borderRadius: 4, padding: '10px 12px', outline: 'none',
+            }}
+            onMouseEnter={e => e.target.style.borderColor = C.gold}
+            onMouseLeave={e => { if (document.activeElement !== e.target) e.target.style.borderColor = C.border }}
+          />
+          {open && filtered.length > 0 && (
+            <div style={{
+              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+              background: C.card, border: `1px solid ${C.border}`, borderTop: 'none',
+              borderRadius: '0 0 4px 4px', maxHeight: 220, overflowY: 'auto',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            }}>
+              {filtered.map(l => (
+                <div
+                  key={l.id}
+                  onMouseDown={() => handleSelect(l)}
+                  style={{
+                    padding: '10px 14px', cursor: 'pointer',
+                    fontFamily: NU, fontSize: 13, color: C.off,
+                    borderBottom: `1px solid ${C.border}`,
+                    transition: 'background 0.1s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = `${C.gold}12`}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <div style={{ fontSize: 13, color: C.off }}>{l.name}</div>
+                  <div style={{ fontSize: 10, color: C.grey, marginTop: 2 }}>
+                    {[l.city, l.country].filter(Boolean).join(', ')} · {l.listing_type || l.listingType}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
+
+      {hint && <p style={{ fontFamily: NU, fontSize: 11, color: C.grey, margin: '4px 0 0' }}>{hint}</p>}
     </div>
   )
 }
 
+
 // ─── Events Builder ───────────────────────────────────────────────────────────
 
 function EventsBuilder({ event: existingEvent, onSave, onCancel, C }) {
-  const [step, setStep]       = useState('basics')
+  const [step, setStep]       = useState('venue')
   const [form, setForm]       = useState(existingEvent ? { ...dbToEvent(existingEvent), ...existingEvent } : emptyEvent())
   const [saving, setSaving]   = useState(false)
   const [saveErr, setSaveErr] = useState(null)
@@ -708,128 +777,171 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C }) {
   }
 
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
-        <div>
-          <h2 style={{ fontFamily: GD, fontSize: 22, color: C.off, margin: '0 0 4px', fontWeight: 400 }}>
-            {existingEvent ? 'Edit Event' : 'Create Event'}
-          </h2>
-          <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, margin: 0 }}>
-            {form.title || 'New event'} · {form.status ? form.status.charAt(0).toUpperCase() + form.status.slice(1) : 'Draft'}
-          </p>
-        </div>
-        <button onClick={onCancel} style={{ fontFamily: NU, fontSize: 12, color: C.grey, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 4, padding: '8px 16px', cursor: 'pointer' }}>
-          ← Back to Events
-        </button>
-      </div>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
 
-      {/* Step progress */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: 32, borderBottom: `1px solid ${C.border}` }}>
-        {BUILDER_STEPS.map((s, i) => {
-          const active = s.key === step
-          const done   = i < currentStepIdx
-          return (
-            <button
-              key={s.key}
-              onClick={() => setStep(s.key)}
-              style={{
-                fontFamily: NU, fontSize: 11, fontWeight: 700,
-                letterSpacing: '0.08em', textTransform: 'uppercase',
-                padding: '10px 20px', cursor: 'pointer',
-                background: 'transparent', border: 'none',
-                borderBottom: `2px solid ${active ? C.gold : 'transparent'}`,
-                color: active ? C.gold : done ? C.off : C.grey,
-                transition: 'all 0.15s',
-                display: 'flex', alignItems: 'center', gap: 6,
-              }}
-            >
-              <span style={{
-                width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 9, fontWeight: 700,
-                background: active ? C.gold : done ? `${C.gold}30` : C.border,
-                color: active ? '#000' : done ? C.gold : C.grey,
-              }}>
-                {done ? '✓' : s.num}
-              </span>
-              {s.label}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Step content */}
-      <div style={{ minHeight: 320 }}>
-        {step === 'basics'   && <StepBasics   form={form} set={set} C={C} />}
-        {step === 'details'  && <StepDetails  form={form} set={set} C={C} />}
-        {step === 'media'    && <StepMedia    form={form} set={set} C={C} />}
-        {step === 'settings' && <StepSettings form={form} set={set} C={C} />}
-        {step === 'preview'  && <StepPreview  form={form} C={C} />}
-      </div>
-
-      {/* Error */}
-      {saveErr && (
-        <div style={{ background: '#ef444414', border: '1px solid #ef444440', borderRadius: 4, padding: '10px 14px', marginTop: 16, fontFamily: NU, fontSize: 12, color: '#ef4444' }}>
-          {saveErr}
-        </div>
-      )}
-
-      {/* Navigation */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 32, paddingTop: 20, borderTop: `1px solid ${C.border}` }}>
-        <button
-          onClick={() => !isFirst && setStep(BUILDER_STEPS[currentStepIdx - 1].key)}
-          disabled={isFirst}
-          style={{
-            fontFamily: NU, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
-            padding: '10px 20px', borderRadius: 4, cursor: isFirst ? 'default' : 'pointer',
-            background: 'transparent', border: `1px solid ${isFirst ? C.border : C.border}`,
-            color: isFirst ? C.border : C.grey, transition: 'all 0.15s',
-          }}
-        >
-          ← Previous
-        </button>
-
-        <div style={{ display: 'flex', gap: 10 }}>
-          {/* Save draft at any step */}
+      {/* ── LEFT — editor panel ───────────────────────────────────────────── */}
+      <div style={{
+        flex: '0 0 52%', overflowY: 'auto', borderRight: `1px solid ${C.border}`,
+        display: 'flex', flexDirection: 'column',
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: '18px 28px 16px', borderBottom: `1px solid ${C.border}`,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          position: 'sticky', top: 0, background: C.black, zIndex: 10,
+        }}>
+          <div>
+            <h2 style={{ fontFamily: GD, fontSize: 20, color: C.off, margin: '0 0 3px', fontWeight: 400 }}>
+              {existingEvent ? 'Edit Event' : 'Create Event'}
+            </h2>
+            <p style={{ fontFamily: NU, fontSize: 11, color: C.grey, margin: 0 }}>
+              {form.title || 'New event'} · {(form.status || 'draft').charAt(0).toUpperCase() + (form.status || 'draft').slice(1)}
+            </p>
+          </div>
           <button
-            onClick={() => { set('status', 'draft'); handleSave() }}
-            disabled={saving}
+            onClick={onCancel}
+            style={{ fontFamily: NU, fontSize: 12, color: C.grey, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 4, padding: '8px 16px', cursor: 'pointer' }}
+          >
+            ← Events
+          </button>
+        </div>
+
+        {/* Step tabs */}
+        <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, padding: '0 28px' }}>
+          {BUILDER_STEPS.map((s, i) => {
+            const active = s.key === step
+            const done   = i < currentStepIdx
+            return (
+              <button
+                key={s.key}
+                onClick={() => setStep(s.key)}
+                style={{
+                  fontFamily: NU, fontSize: 11, fontWeight: 700,
+                  letterSpacing: '0.08em', textTransform: 'uppercase',
+                  padding: '11px 16px', cursor: 'pointer',
+                  background: 'transparent', border: 'none',
+                  borderBottom: `2px solid ${active ? C.gold : 'transparent'}`,
+                  color: active ? C.gold : done ? C.off : C.grey,
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}
+              >
+                <span style={{
+                  width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 8, fontWeight: 700,
+                  background: active ? C.gold : done ? `${C.gold}30` : C.border,
+                  color: active ? '#000' : done ? C.gold : C.grey,
+                }}>
+                  {done ? '✓' : s.num}
+                </span>
+                {s.label}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Step content */}
+        <div style={{ padding: '28px 28px 0', flex: 1 }}>
+          {step === 'venue'    && <StepVenue    form={form} set={set} C={C} />}
+          {step === 'basics'   && <StepBasics   form={form} set={set} C={C} />}
+          {step === 'datetime' && <StepDateTime form={form} set={set} C={C} />}
+          {step === 'details'  && <StepDetails  form={form} set={set} C={C} />}
+          {step === 'media'    && <StepMedia    form={form} set={set} C={C} />}
+          {step === 'booking'  && <StepBooking  form={form} set={set} C={C} />}
+          {step === 'settings' && <StepSettings form={form} set={set} C={C} />}
+        </div>
+
+        {/* Error */}
+        {saveErr && (
+          <div style={{ margin: '16px 28px 0', background: '#ef444414', border: '1px solid #ef444440', borderRadius: 4, padding: '10px 14px', fontFamily: NU, fontSize: 12, color: '#ef4444' }}>
+            {saveErr}
+          </div>
+        )}
+
+        {/* Navigation — sticky at bottom */}
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '18px 28px', borderTop: `1px solid ${C.border}`,
+          position: 'sticky', bottom: 0, background: C.black,
+        }}>
+          <button
+            onClick={() => !isFirst && setStep(BUILDER_STEPS[currentStepIdx - 1].key)}
+            disabled={isFirst}
             style={{
               fontFamily: NU, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
-              padding: '10px 20px', borderRadius: 4, cursor: saving ? 'default' : 'pointer',
-              background: 'transparent', border: `1px solid ${C.gold}40`, color: C.gold,
+              padding: '10px 18px', borderRadius: 4, cursor: isFirst ? 'default' : 'pointer',
+              background: 'transparent', border: `1px solid ${isFirst ? C.border : C.border}`,
+              color: isFirst ? C.border : C.grey,
             }}
           >
-            Save Draft
+            ← Previous
           </button>
 
-          {isLast ? (
+          <div style={{ display: 'flex', gap: 10 }}>
             <button
-              onClick={handleSave}
+              onClick={() => { set('status', 'draft'); handleSave() }}
               disabled={saving}
               style={{
                 fontFamily: NU, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
-                padding: '10px 24px', borderRadius: 4, cursor: saving ? 'default' : 'pointer',
-                background: C.gold, border: 'none', color: '#000',
+                padding: '10px 18px', borderRadius: 4, cursor: saving ? 'default' : 'pointer',
+                background: 'transparent', border: `1px solid ${C.gold}40`, color: C.gold,
               }}
             >
-              {saving ? 'Saving…' : (form.status === 'published' ? '✓ Publish Event' : 'Save Event')}
+              Save Draft
             </button>
-          ) : (
-            <button
-              onClick={() => setStep(BUILDER_STEPS[currentStepIdx + 1].key)}
-              style={{
-                fontFamily: NU, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
-                padding: '10px 24px', borderRadius: 4, cursor: 'pointer',
-                background: C.gold, border: 'none', color: '#000',
-              }}
-            >
-              Next →
-            </button>
-          )}
+
+            {isLast ? (
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                style={{
+                  fontFamily: NU, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
+                  padding: '10px 22px', borderRadius: 4, cursor: saving ? 'default' : 'pointer',
+                  background: C.gold, border: 'none', color: '#000',
+                }}
+              >
+                {saving ? 'Saving…' : (form.status === 'published' ? '✓ Publish Event' : 'Save Event')}
+              </button>
+            ) : (
+              <button
+                onClick={() => setStep(BUILDER_STEPS[currentStepIdx + 1].key)}
+                style={{
+                  fontFamily: NU, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
+                  padding: '10px 22px', borderRadius: 4, cursor: 'pointer',
+                  background: C.gold, border: 'none', color: '#000',
+                }}
+              >
+                Next →
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* ── RIGHT — live preview (actual EventDetailPage) ────────────────── */}
+      <div style={{ flex: '0 0 48%', overflowY: 'auto', background: '#0e0c0a' }}>
+        {/* Preview bar */}
+        <div style={{
+          position: 'sticky', top: 0, zIndex: 20,
+          background: '#111', borderBottom: '1px solid #2a2520',
+          padding: '10px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <span style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#c9a84c', fontWeight: 700 }}>
+            Live Preview
+          </span>
+          {form.slug && (
+            <a
+              href={`/events/${form.slug}`} target="_blank" rel="noopener noreferrer"
+              style={{ fontFamily: NU, fontSize: 10, color: '#5a5248', textDecoration: 'none', letterSpacing: '0.04em' }}
+            >
+              /events/{form.slug} ↗
+            </a>
+          )}
+        </div>
+        {/* Real event page rendered from draft state — no fetch, no nav */}
+        <EventDetailPage previewEvent={form} />
+      </div>
+
     </div>
   )
 }

@@ -806,19 +806,27 @@ function BookingConfirmed({ booking, event, P }) {
 }
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
-export default function EventDetailPage({ slug, onBack, footerNav }) {
+export default function EventDetailPage({ slug, onBack, footerNav, previewEvent = null }) {
   const { isMobile } = useBreakpoint();
+  const isPreview = !!previewEvent;
 
-  const [event, setEvent]       = useState(null);
-  const [loading, setLoading]   = useState(true);
+  const [event, setEvent]       = useState(isPreview ? previewEvent : null);
+  const [loading, setLoading]   = useState(!isPreview);
   const [notFound, setNotFound] = useState(false);
   const [booking, setBooking]   = useState(null);
   const [isLight, setIsLight]   = useState(false);
-  const [venue, setVenue] = useState(null);
+  const [venue, setVenue]       = useState(null);
 
   const P = getPalette(isLight);
 
+  // Keep preview event in sync with every form keystroke
   useEffect(() => {
+    if (isPreview) setEvent(previewEvent);
+  }, [isPreview, previewEvent]);
+
+  // Live fetch — skipped in preview mode
+  useEffect(() => {
+    if (isPreview) return;
     let cancelled = false;
     setLoading(true); setNotFound(false); setBooking(null);
     fetchEventBySlug(slug).then(ev => {
@@ -827,14 +835,15 @@ export default function EventDetailPage({ slug, onBack, footerNav }) {
       setLoading(false);
     }).catch(() => { if (!cancelled) { setNotFound(true); setLoading(false); } });
     return () => { cancelled = true; };
-  }, [slug]);
+  }, [slug, isPreview]);
 
+  // Venue fetch — skipped in preview mode
   useEffect(() => {
-    if (!event?.venueId) return;
+    if (isPreview || !event?.venueId) return;
     fetchListingById(event.venueId)
       .then(l => setVenue(l || null))
       .catch(() => {});
-  }, [event?.venueId]);
+  }, [event?.venueId, isPreview]);
 
   const dateStr    = event ? formatEventDate(event.startDate) : '';
   const timeStr    = event?.startTime ? formatEventTime(event.startTime) : null;
@@ -891,16 +900,18 @@ export default function EventDetailPage({ slug, onBack, footerNav }) {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: P.bg, fontFamily: NU, color: P.text, transition: 'background 0.3s, color 0.3s' }}>
+    <div style={{ background: P.bg, fontFamily: NU, color: P.text, transition: 'background 0.3s, color 0.3s', ...(isPreview ? {} : { minHeight: '100vh' }) }}>
 
-      {/* ── Nav ── */}
-      <HomeNav
-        darkMode={!isLight}
-        onToggleDark={() => setIsLight(l => !l)}
-        hasHero={hasHero}
-        onNavigateAbout={footerNav?.onNavigateAbout || (() => { window.location.href = '/about'; })}
-        onNavigateStandard={footerNav?.onNavigateStandard || (() => { window.location.href = '/the-lwd-standard'; })}
-      />
+      {/* ── Nav — hidden in preview mode ── */}
+      {!isPreview && (
+        <HomeNav
+          darkMode={!isLight}
+          onToggleDark={() => setIsLight(l => !l)}
+          hasHero={hasHero}
+          onNavigateAbout={footerNav?.onNavigateAbout || (() => { window.location.href = '/about'; })}
+          onNavigateStandard={footerNav?.onNavigateStandard || (() => { window.location.href = '/the-lwd-standard'; })}
+        />
+      )}
       <style>{`
         .event-desc-prose p { margin: 0 0 16px; }
         .event-desc-prose h2 { font-family: var(--font-heading-primary); font-size: 22px; font-weight: 400; margin: 28px 0 12px; }
@@ -1077,7 +1088,7 @@ export default function EventDetailPage({ slug, onBack, footerNav }) {
           <EventMap event={event} P={P} />
 
           {/* Venue Reviews */}
-          {event.venueId && <VenueReviewsStrip venueId={event.venueId} venueName={venue?.name} P={P} />}
+          {!isPreview && event.venueId && <VenueReviewsStrip venueId={event.venueId} venueName={venue?.name} P={P} />}
 
           {/* YouTube / stream embed */}
           {event.isVirtual && youtubeEmbedUrl && (
