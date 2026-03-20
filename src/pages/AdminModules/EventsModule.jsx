@@ -13,7 +13,7 @@ import {
   dbToEvent, eventToDb, slugifyTitle,
 } from '../../services/adminEventsService'
 import { supabase } from '../../lib/supabaseClient'
-import { fetchListings } from '../../services/listings'
+import { fetchListings, fetchListingById } from '../../services/listings'
 import EventDetailPage from '../EventDetailPage'
 import { uploadMediaFile } from '../../utils/storageUpload'
 
@@ -116,7 +116,10 @@ function emptyEvent() {
     // Getting There & Practical Details
     nearestAirport: '', travelTime: '', nearestTrainStation: '', trainTravelTime: '',
     transportNotes: '', parkingInfo: '', guestLogistics: '', directionsLink: '',
+    // Presentation customisation
+    editorialIntro: '', videoLabel: 'A Glimpse Inside', pricingLabel: '', ctaText: 'Secure your place', calendarEnabled: true,
     _venueName: '', // UI-only display, not persisted to DB
+    _venueObj: null, // UI-only full venue object for preview, not persisted to DB
   }
 }
 
@@ -922,6 +925,29 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = t
     finally { setSaving(false) }
   }
 
+  // Resolve _venueObj for existing events (loaded with a venueId but no _venueObj)
+  // Uses setForm directly to avoid marking the form dirty
+  useEffect(() => {
+    if (!form.venueId || form._venueObj) return
+    fetchListingById(form.venueId)
+      .then(l => {
+        if (!l) return
+        setForm(prev => ({
+          ...prev,
+          _venueName: prev._venueName || l.name || '',
+          _venueObj: {
+            id: l.id, name: l.name,
+            coverImg: l.cardImage || l.heroImage || null,
+            slug: l.slug || null,
+            shortDescription: l.shortDescription || l.short_description || null,
+            heroTagline: l.heroTagline || l.hero_tagline || null,
+            city: l.city, country: l.country,
+          },
+        }))
+      })
+      .catch(() => {})
+  }, [form.venueId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Auto-generate slug from title (only if slug hasn't been manually edited)
   const handleTitleChange = (val) => {
     set('title', val)
@@ -1022,7 +1048,17 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = t
                 label="Linked Venue"
                 value={form.venueId}
                 onChange={v => set('venueId', v)}
-                onSelect={l => set('_venueName', l?.name || '')}
+                onSelect={l => {
+                  set('_venueName', l?.name || '')
+                  set('_venueObj', l ? {
+                    id: l.id, name: l.name,
+                    coverImg: l.cardImage || l.heroImage || null,
+                    slug: l.slug || null,
+                    shortDescription: l.shortDescription || l.short_description || null,
+                    heroTagline: l.heroTagline || l.hero_tagline || null,
+                    city: l.city, country: l.country,
+                  } : null)
+                }}
                 hint="Search published listings by name or city. Powers the Hosted by card and venue profile connection."
                 C={C}
               />
@@ -1231,7 +1267,51 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = t
               <InputField label="Guest Logistics" value={form.guestLogistics || ''} onChange={v => set('guestLogistics', v)} placeholder="Smart casual dress. Lunch provided. Overnight stays on request." hint="Dress code, meals, accommodation, shuttle — anything that helps guests prepare" C={C} />
             </SCard>
 
-            {/* ── 8. BOOKING ────────────────────────────────────────────────── */}
+            {/* ── 8. PRESENTATION ───────────────────────────────────────────── */}
+            <SCard title="Presentation" hint="Customise the editorial feel and copy shown on the live event page" LS={LS}>
+              <TextareaField
+                label="Editorial Intro"
+                value={form.editorialIntro || ''}
+                onChange={v => set('editorialIntro', v)}
+                placeholder="An unmissable open day at one of the world's finest wedding venues."
+                hint="Pull-quote introduction shown above the event description. Falls back to subtitle, then an auto-generated line."
+                rows={3}
+                C={C}
+              />
+              <InputField
+                label="Video Section Label"
+                value={form.videoLabel || ''}
+                onChange={v => set('videoLabel', v)}
+                placeholder="A Glimpse Inside"
+                hint='Label shown above the video embed. Defaults to "A Glimpse Inside".'
+                C={C}
+              />
+              <InputField
+                label="Pricing Label"
+                value={form.pricingLabel || ''}
+                onChange={v => set('pricingLabel', v)}
+                placeholder="Per person · Per couple"
+                hint="Optional label shown next to the ticket price (e.g. Per person, Per couple)."
+                C={C}
+              />
+              <InputField
+                label="CTA Button Text"
+                value={form.ctaText || ''}
+                onChange={v => set('ctaText', v)}
+                placeholder="Secure your place"
+                hint='Label on the primary booking button. Defaults to "Secure your place".'
+                C={C}
+              />
+              <Toggle
+                label="Show Add to Calendar"
+                checked={form.calendarEnabled !== false}
+                onChange={v => set('calendarEnabled', v)}
+                hint="Display Google and Apple Calendar links on the event page so guests can save the date."
+                C={C}
+              />
+            </SCard>
+
+            {/* ── 9. BOOKING ────────────────────────────────────────────────── */}
             <SCard title="Booking" hint="How guests register or reserve their place" LS={LS}>
               <SelectField label="Booking Mode" value={form.bookingMode || 'internal'} onChange={v => set('bookingMode', v)} options={BOOKING_MODES} C={C} />
               {form.bookingMode === 'external' && (
@@ -1312,7 +1392,7 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = t
                 </div>
               </div>
             ) : (
-              <EventDetailPage previewEvent={form} previewDarkMode={darkMode} />
+              <EventDetailPage previewEvent={form} previewDarkMode={darkMode} previewVenue={form._venueObj} />
             )}
           </div>
         )}

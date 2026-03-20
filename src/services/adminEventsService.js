@@ -140,6 +140,11 @@ export function dbToEvent(row) {
     parkingInfo:         row.parking_info         || null,
     guestLogistics:      row.guest_logistics      || null,
     directionsLink:      row.directions_link      || null,
+    editorialIntro:     row.editorial_intro  || null,
+    videoLabel:         row.video_label      || 'A Glimpse Inside',
+    pricingLabel:       row.pricing_label    || null,
+    ctaText:            row.cta_text         || 'Secure your place',
+    calendarEnabled:    row.calendar_enabled !== false,
     createdAt:          row.created_at,
     updatedAt:          row.updated_at,
     bookingCount:       row.event_bookings?.[0]?.count ?? 0,
@@ -191,6 +196,11 @@ export function eventToDb(event) {
     parking_info:           event.parkingInfo         || null,
     guest_logistics:        event.guestLogistics      || null,
     directions_link:        event.directionsLink      || null,
+    editorial_intro:        event.editorialIntro      || null,
+    video_label:            event.videoLabel          || null,
+    pricing_label:          event.pricingLabel        || null,
+    cta_text:               event.ctaText             || null,
+    calendar_enabled:       event.calendarEnabled     !== false,
   }
 }
 

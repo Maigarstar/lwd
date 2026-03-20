@@ -146,7 +146,7 @@ function videoThumb(url) {
 // urls      — image URLs (max 6)
 // videoUrl  — optional single video (YouTube / Vimeo / direct file)
 // Layout: video on its own full-width row; images in separate 3-col grid below
-function Gallery({ urls, videoUrl, P }) {
+function Gallery({ urls, videoUrl, videoLabel, P }) {
   const images = (urls || []).slice(0, 6);
   // Unified items list for lightbox navigation: video first, then images
   const items = [
@@ -182,7 +182,7 @@ function Gallery({ urls, videoUrl, P }) {
         const thumb = videoThumb(videoUrl);
         return (
           <div style={{ marginBottom: 64, marginTop: 48 }}>
-            <Label>A Glimpse Inside</Label>
+            <Label>{videoLabel || 'A Glimpse Inside'}</Label>
             <div
               onClick={() => setOpen(0)}
               style={{
@@ -973,7 +973,7 @@ function BookingConfirmed({ booking, event, P }) {
 }
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
-export default function EventDetailPage({ slug, onBack, footerNav, previewEvent = null, previewDarkMode = true }) {
+export default function EventDetailPage({ slug, onBack, footerNav, previewEvent = null, previewDarkMode = true, previewVenue = null }) {
   const { isMobile: _isMobile } = useBreakpoint();
   const isPreview = !!previewEvent;
   // In the builder preview panel (≈50% viewport width), force compact/mobile layout
@@ -986,7 +986,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
   const [booking, setBooking]   = useState(null);
   // In preview mode, mirror the admin light/dark toggle; otherwise use internal state
   const [isLight, setIsLight]   = useState(isPreview ? !previewDarkMode : false);
-  const [venue, setVenue]       = useState(null);
+  const [venue, setVenue]       = useState(isPreview ? previewVenue : null);
   const [venueEvents, setVenueEvents] = useState([]);
   const [showFloating, setShowFloating] = useState(false);
 
@@ -1001,6 +1001,11 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
   useEffect(() => {
     if (isPreview) setEvent(previewEvent);
   }, [isPreview, previewEvent]);
+
+  // Keep preview venue in sync when admin changes venue selection
+  useEffect(() => {
+    if (isPreview) setVenue(previewVenue);
+  }, [isPreview, previewVenue]);
 
   // Live fetch — skipped in preview mode
   useEffect(() => {
@@ -1225,7 +1230,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
               <DetailRow P={P} icon="🎟">
                 From <span style={{ color: GOLD, fontWeight: 600 }}>
                   {event.ticketCurrency === 'GBP' ? '£' : event.ticketCurrency === 'EUR' ? '€' : '$'}{Number(event.ticketPrice).toLocaleString()}
-                </span> per guest
+                </span> {event.pricingLabel || 'per guest'}
                 {event.ticketIncludes && <span style={{ color: P.textMuted }}> · {event.ticketIncludes}</span>}
               </DetailRow>
             )}
@@ -1260,7 +1265,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
           </div>
 
           {/* Add to Calendar */}
-          {!isPreview && <AddToCalendar event={event} P={P} />}
+          {event.calendarEnabled !== false && <AddToCalendar event={event} P={P} />}
 
           {/* Hosted by Venue */}
           {venue && (
@@ -1337,7 +1342,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
                   masterclass:      "An intimate masterclass led by the venue\u2019s expert team.",
                   gala:             "An exceptional gala event in one of Europe\u2019s most celebrated settings.",
                 };
-                const intro = event.subtitle || introMap[event.eventType] || "An exceptional event, exclusively for you.";
+                const intro = event.editorialIntro || event.subtitle || introMap[event.eventType] || "An exceptional event, exclusively for you.";
                 return (
                   <p style={{
                     fontFamily: GD, fontSize: 23, color: P.textSub,
@@ -1358,7 +1363,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
           )}
 
           {/* Gallery (with lightbox) */}
-          <Gallery urls={event.galleryUrls} videoUrl={event.videoUrl} P={P} />
+          <Gallery urls={event.galleryUrls} videoUrl={event.videoUrl} videoLabel={event.videoLabel} P={P} />
 
           {/* Map */}
           <EventMap event={event} P={P} isLight={isLight} />
@@ -1432,7 +1437,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
                     ? 'Fully booked'
                     : isLimited && remaining !== null
                       ? `Only ${remaining} place${remaining !== 1 ? 's' : ''} left`
-                      : 'Secure your place'}
+                      : (event.ctaText || 'Secure your place')}
                 </div>
                 <div style={{ fontFamily: NU, fontSize: 12, color: P.textMuted, lineHeight: 1.6 }}>
                   {remaining === 0
@@ -1493,7 +1498,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
                     <div style={{ fontFamily: GD, fontSize: 18, color: P.text, marginBottom: 4, lineHeight: 1.3 }}>{event.title}</div>
                     {event.isFree === false && event.ticketPrice && (
                       <div style={{ fontFamily: NU, fontSize: 12, color: GOLD, marginBottom: 14 }}>
-                        From {event.ticketCurrency === 'GBP' ? '£' : event.ticketCurrency === 'EUR' ? '€' : '$'}{Number(event.ticketPrice).toLocaleString()} per guest
+                        From {event.ticketCurrency === 'GBP' ? '£' : event.ticketCurrency === 'EUR' ? '€' : '$'}{Number(event.ticketPrice).toLocaleString()} {event.pricingLabel || 'per guest'}
                         {event.ticketIncludes && <span style={{ color: P.textMuted }}> · {event.ticketIncludes}</span>}
                       </div>
                     )}
@@ -1542,7 +1547,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
                   </div>
                   {event.isFree === false && event.ticketPrice && (
                     <div style={{ fontFamily: NU, fontSize: 13, color: GOLD, marginBottom: 14, letterSpacing: '0.02em' }}>
-                      From {event.ticketCurrency === 'GBP' ? '£' : event.ticketCurrency === 'EUR' ? '€' : '$'}{Number(event.ticketPrice).toLocaleString()} per guest
+                      From {event.ticketCurrency === 'GBP' ? '£' : event.ticketCurrency === 'EUR' ? '€' : '$'}{Number(event.ticketPrice).toLocaleString()} {event.pricingLabel || 'per guest'}
                       {event.ticketIncludes && <span style={{ color: P.textMuted, fontWeight: 400 }}> · {event.ticketIncludes}</span>}
                     </div>
                   )}
