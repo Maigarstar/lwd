@@ -41,6 +41,7 @@ export function dbToEvent(row) {
     coverImageUrl:      row.cover_image_url,
     galleryUrls:        row.gallery_urls || [],
     videoUrl:           row.video_url || null,
+    videoHeroMode:      row.video_hero_mode || false,
     tagsJson:           row.tags_json || [],
     metaJson:           row.meta_json || {},
     createdAt:          row.created_at,

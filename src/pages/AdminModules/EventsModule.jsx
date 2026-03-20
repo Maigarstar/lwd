@@ -2,7 +2,11 @@
 // Admin Events hub — list view + embedded Events Builder
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useEditor, EditorContent } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
+import TiptapUnderline from '@tiptap/extension-underline'
+import TiptapLink from '@tiptap/extension-link'
 import {
   adminListEvents, adminGetEvent, adminCreateEvent, adminUpdateEvent,
   adminDeleteEvent, adminListBookings, adminUpdateBooking,
@@ -42,6 +46,7 @@ const STATUS_COLOURS = {
   published: '#22c55e',
   cancelled: '#ef4444',
   past:      '#64748b',
+  archived:  '#a78bfa',
 }
 
 const STATUS_LABELS = {
@@ -49,6 +54,14 @@ const STATUS_LABELS = {
   published: 'Published',
   cancelled: 'Cancelled',
   past:      'Past',
+  archived:  'Archived',
+}
+
+// An event is "past" when its end date (or start date) is before today
+function isPastEvent(event) {
+  const dateStr = event.endDate || event.startDate
+  if (!dateStr) return false
+  return new Date(dateStr + 'T23:59:59') < new Date()
 }
 
 const BUILDER_STEPS = [
@@ -60,6 +73,16 @@ const BUILDER_STEPS = [
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function ytId(url) {
+  if (!url) return null
+  const m = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/)
+  return m ? m[1] : null
+}
+function videoThumb(url) {
+  const yt = ytId(url)
+  return yt ? `https://img.youtube.com/vi/${yt}/hqdefault.jpg` : null
+}
 
 function fmt(n) {
   if (n == null) return '—'
@@ -81,7 +104,7 @@ function emptyEvent() {
     bookingMode: 'internal', externalBookingUrl: '',
     capacity: '', waitlistEnabled: false,
     isVirtual: false, virtualPlatform: '', streamUrl: '', replayUrl: '',
-    description: '', coverImageUrl: '', galleryUrls: [], tagsJson: [],
+    description: '', coverImageUrl: '', galleryUrls: [], videoUrl: null, videoHeroMode: false, tagsJson: [],
     managedAccountId: '', venueId: '', ownerId: '',
   }
 }
@@ -164,6 +187,110 @@ function TextareaField({ label, value, onChange, placeholder = '', rows = 5, hin
         onBlur={e => e.target.style.borderColor = C.border}
       />
       {hint && <p style={{ fontFamily: NU, fontSize: 11, color: C.grey, margin: '4px 0 0' }}>{hint}</p>}
+    </div>
+  )
+}
+
+// ── WYSIWYG description editor (TipTap) ───────────────────────────────────────
+function EventDescriptionEditor({ value, onChange, C }) {
+  const GOLD = C.gold
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      TiptapUnderline,
+      TiptapLink.configure({ openOnClick: false }),
+    ],
+    content: value || '',
+    onUpdate: ({ editor }) => onChange(editor.getHTML()),
+  })
+
+  // Sync when an existing event loads into the form
+  const prevValue = useRef(value)
+  useEffect(() => {
+    if (!editor) return
+    if (value !== prevValue.current) {
+      prevValue.current = value
+      // Only override if the editor content actually differs (avoids cursor jump on every keystroke)
+      if (editor.getHTML() !== value) editor.commands.setContent(value || '', false)
+    }
+  }, [editor, value])
+
+  const Btn = ({ label, title, isActive, action, style = {} }) => (
+    <button
+      type="button"
+      title={title}
+      onMouseDown={e => { e.preventDefault(); action() }}
+      style={{
+        fontFamily: NU, fontSize: 11, fontWeight: 700,
+        padding: '3px 8px', borderRadius: 3, cursor: 'pointer',
+        border: isActive ? `1px solid ${GOLD}50` : '1px solid transparent',
+        background: isActive ? `${GOLD}18` : 'transparent',
+        color: isActive ? GOLD : C.grey,
+        ...style,
+      }}
+    >{label}</button>
+  )
+  const Sep = () => <div style={{ width: 1, height: 18, background: C.border, margin: '0 3px', alignSelf: 'center' }} />
+
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <label style={{ display: 'block', fontFamily: NU, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.grey, fontWeight: 600, marginBottom: 6 }}>
+        Description
+      </label>
+
+      {/* Toolbar */}
+      <div style={{
+        display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center',
+        padding: '6px 8px',
+        background: C.dark, border: `1px solid ${C.border}`, borderBottom: 'none',
+        borderRadius: '4px 4px 0 0',
+      }}>
+        <Btn label="B"   title="Bold"          isActive={editor?.isActive('bold')}          action={() => editor?.chain().focus().toggleBold().run()} style={{ fontStyle: 'normal', fontWeight: 900 }} />
+        <Btn label="I"   title="Italic"        isActive={editor?.isActive('italic')}        action={() => editor?.chain().focus().toggleItalic().run()} style={{ fontStyle: 'italic' }} />
+        <Btn label="U"   title="Underline"     isActive={editor?.isActive('underline')}     action={() => editor?.chain().focus().toggleUnderline().run()} style={{ textDecoration: 'underline' }} />
+        <Sep />
+        <Btn label="H2"  title="Heading 2"     isActive={editor?.isActive('heading', { level: 2 })} action={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} />
+        <Btn label="H3"  title="Heading 3"     isActive={editor?.isActive('heading', { level: 3 })} action={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()} />
+        <Sep />
+        <Btn label="• List"  title="Bullet list"   isActive={editor?.isActive('bulletList')}   action={() => editor?.chain().focus().toggleBulletList().run()} />
+        <Btn label="1. List" title="Ordered list"  isActive={editor?.isActive('orderedList')}  action={() => editor?.chain().focus().toggleOrderedList().run()} />
+        <Sep />
+        <Btn label="❝"   title="Blockquote"    isActive={editor?.isActive('blockquote')}    action={() => editor?.chain().focus().toggleBlockquote().run()} />
+      </div>
+
+      {/* Editor area */}
+      <style>{`
+        .event-desc-editor .ProseMirror {
+          outline: none;
+          min-height: 180px;
+          padding: 12px;
+          font-family: var(--font-body);
+          font-size: 13px;
+          line-height: 1.7;
+          color: ${C.off};
+        }
+        .event-desc-editor .ProseMirror p { margin: 0 0 10px; }
+        .event-desc-editor .ProseMirror h2 { font-size: 17px; font-weight: 600; margin: 16px 0 8px; color: ${C.off}; }
+        .event-desc-editor .ProseMirror h3 { font-size: 14px; font-weight: 600; margin: 14px 0 6px; color: ${C.off}; }
+        .event-desc-editor .ProseMirror ul, .event-desc-editor .ProseMirror ol { padding-left: 20px; margin: 0 0 10px; }
+        .event-desc-editor .ProseMirror li { margin-bottom: 4px; }
+        .event-desc-editor .ProseMirror blockquote { border-left: 2px solid ${GOLD}; margin: 12px 0; padding-left: 14px; color: ${C.grey}; }
+        .event-desc-editor .ProseMirror a { color: ${GOLD}; text-decoration: underline; }
+        .event-desc-editor .ProseMirror p.is-editor-empty:first-child::before {
+          content: attr(data-placeholder);
+          float: left; height: 0; pointer-events: none; color: ${C.grey};
+        }
+      `}</style>
+      <div
+        className="event-desc-editor"
+        style={{
+          background: C.dark, border: `1px solid ${C.border}`,
+          borderRadius: '0 0 4px 4px',
+        }}
+      >
+        <EditorContent editor={editor} />
+      </div>
     </div>
   )
 }
@@ -281,11 +408,10 @@ function StepBasics({ form, set, C }) {
 function StepDetails({ form, set, C }) {
   return (
     <div>
-      <TextareaField
-        label="Description" value={form.description}
+      <EventDescriptionEditor
+        value={form.description}
         onChange={v => set('description', v)}
-        placeholder="Describe the event experience — what couples will see, who they'll meet, what to expect..."
-        rows={7} C={C}
+        C={C}
       />
 
       <div style={{ background: C.dark, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px', marginBottom: 18 }}>
@@ -345,6 +471,36 @@ function StepMedia({ form, set, C }) {
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               onError={e => { e.target.style.display = 'none' }}
             />
+          </div>
+        )}
+      </div>
+
+      <div style={{ background: C.dark, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px', marginBottom: 18 }}>
+        <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.gold, fontWeight: 600, marginBottom: 14 }}>Video</div>
+        <InputField
+          label="Video URL"
+          value={form.videoUrl || ''}
+          onChange={v => set('videoUrl', v || null)}
+          placeholder="https://youtube.com/watch?v=... or Vimeo URL"
+          hint="One video per event. YouTube and Vimeo supported. Shown above gallery images on the event page."
+          C={C}
+        />
+        {form.videoUrl && (
+          <Toggle
+            label="Use video as hero (replaces cover image in the header)"
+            checked={!!form.videoHeroMode}
+            onChange={v => set('videoHeroMode', v)}
+            C={C}
+          />
+        )}
+        {form.videoUrl && videoThumb(form.videoUrl) && (
+          <div style={{ marginTop: 12, borderRadius: 6, overflow: 'hidden', aspectRatio: '16/9', background: C.border, position: 'relative' }}>
+            <img src={videoThumb(form.videoUrl)} alt="Video preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none' }} />
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)' }}>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: `${C.gold}cc`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ color: '#000', fontSize: 16, marginLeft: 3 }}>▶</span>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -470,7 +626,10 @@ function StepPreview({ form, C }) {
       {form.description && (
         <div style={{ background: C.dark, border: `1px solid ${C.border}`, borderRadius: 6, padding: '20px 24px', marginBottom: 16 }}>
           <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.gold, marginBottom: 10 }}>About This Event</div>
-          <p style={{ fontFamily: NU, fontSize: 14, color: C.grey, lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}>{form.description}</p>
+          <div
+            style={{ fontFamily: NU, fontSize: 14, color: C.grey, lineHeight: 1.7, margin: 0 }}
+            dangerouslySetInnerHTML={{ __html: form.description }}
+          />
         </div>
       )}
 
@@ -767,6 +926,18 @@ function EventsList({ onEdit, onViewBookings, onNew, C }) {
     load()
   }
 
+  const handleArchive = async (event) => {
+    if (!window.confirm(`Archive "${event.title}"? It will be hidden from the public and marked as archived.`)) return
+    await adminUpdateEvent(event.id, { status: 'archived' })
+    load()
+  }
+
+  const handleHardDelete = async (event) => {
+    if (!window.confirm(`Permanently delete "${event.title}"? This cannot be undone.`)) return
+    await adminDeleteEvent(event.id, true)
+    load()
+  }
+
   const handlePublishToggle = async (event) => {
     const newStatus = event.status === 'published' ? 'draft' : 'published'
     await adminUpdateEvent(event.id, { status: newStatus })
@@ -797,7 +968,7 @@ function EventsList({ onEdit, onViewBookings, onNew, C }) {
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        {['', 'published', 'draft', 'cancelled'].map(s => (
+        {['', 'published', 'draft', 'cancelled', 'archived'].map(s => (
           <button
             key={s}
             onClick={() => setFilter(s)}
@@ -829,7 +1000,7 @@ function EventsList({ onEdit, onViewBookings, onNew, C }) {
       {!loading && events.length > 0 && (
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden' }}>
           {/* Column headers */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px 80px 60px 120px', gap: 12, padding: '8px 16px', borderBottom: `1px solid ${C.border}` }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px 80px 60px 160px', gap: 12, padding: '8px 16px', borderBottom: `1px solid ${C.border}` }}>
             {['Event', 'Date', 'Type', 'Status', 'Bookings', 'Actions'].map(h => (
               <span key={h} style={{ fontFamily: NU, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.grey2, fontWeight: 600 }}>{h}</span>
             ))}
@@ -838,7 +1009,7 @@ function EventsList({ onEdit, onViewBookings, onNew, C }) {
           {events.map(event => (
             <div
               key={event.id}
-              style={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px 80px 60px 120px', gap: 12, padding: '14px 16px', borderBottom: `1px solid ${C.border}`, alignItems: 'center' }}
+              style={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px 80px 60px 160px', gap: 12, padding: '14px 16px', borderBottom: `1px solid ${C.border}`, alignItems: 'center' }}
             >
               {/* Event name + cover */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
@@ -862,20 +1033,34 @@ function EventsList({ onEdit, onViewBookings, onNew, C }) {
               </div>
 
               {/* Actions */}
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                 <button onClick={() => onEdit(event)} style={{ fontFamily: NU, fontSize: 10, color: C.off, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 3, padding: '4px 8px', cursor: 'pointer' }}>Edit</button>
-                <button onClick={() => onViewBookings(event)} style={{ fontFamily: NU, fontSize: 10, color: C.gold, background: `${C.gold}0d`, border: `1px solid ${C.gold}30`, borderRadius: 3, padding: '4px 8px', cursor: 'pointer' }}>Bookings</button>
-                <button
-                  onClick={() => handlePublishToggle(event)}
-                  style={{
-                    fontFamily: NU, fontSize: 10, borderRadius: 3, padding: '4px 8px', cursor: 'pointer',
-                    background: event.status === 'published' ? '#ef444414' : '#22c55e14',
-                    border: `1px solid ${event.status === 'published' ? '#ef444440' : '#22c55e40'}`,
-                    color: event.status === 'published' ? '#ef4444' : '#22c55e',
-                  }}
-                >
-                  {event.status === 'published' ? 'Unpublish' : 'Publish'}
-                </button>
+
+                {/* Past or archived: Archive + Delete */}
+                {(isPastEvent(event) || event.status === 'archived') ? (
+                  <>
+                    {event.status !== 'archived' && (
+                      <button onClick={() => handleArchive(event)} style={{ fontFamily: NU, fontSize: 10, color: '#a78bfa', background: '#a78bfa14', border: '1px solid #a78bfa40', borderRadius: 3, padding: '4px 8px', cursor: 'pointer' }}>Archive</button>
+                    )}
+                    <button onClick={() => handleHardDelete(event)} style={{ fontFamily: NU, fontSize: 10, color: '#ef4444', background: '#ef444414', border: '1px solid #ef444440', borderRadius: 3, padding: '4px 8px', cursor: 'pointer' }}>Delete</button>
+                  </>
+                ) : (
+                  /* Active events: Bookings + Publish toggle */
+                  <>
+                    <button onClick={() => onViewBookings(event)} style={{ fontFamily: NU, fontSize: 10, color: C.gold, background: `${C.gold}0d`, border: `1px solid ${C.gold}30`, borderRadius: 3, padding: '4px 8px', cursor: 'pointer' }}>Bookings</button>
+                    <button
+                      onClick={() => handlePublishToggle(event)}
+                      style={{
+                        fontFamily: NU, fontSize: 10, borderRadius: 3, padding: '4px 8px', cursor: 'pointer',
+                        background: event.status === 'published' ? '#ef444414' : '#22c55e14',
+                        border: `1px solid ${event.status === 'published' ? '#ef444440' : '#22c55e40'}`,
+                        color: event.status === 'published' ? '#ef4444' : '#22c55e',
+                      }}
+                    >
+                      {event.status === 'published' ? 'Unpublish' : 'Publish'}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           ))}

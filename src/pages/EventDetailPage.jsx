@@ -93,12 +93,12 @@ function videoThumb(url) {
 }
 
 // ── Gallery lightbox ──────────────────────────────────────────────────────────
-// urls      — image URLs (max 5 if video present, max 6 if no video)
+// urls      — image URLs (max 6)
 // videoUrl  — optional single video (YouTube / Vimeo / direct file)
-// Grid: [video tile?] + image tiles → max 6 tiles total
+// Layout: video on its own full-width row; images in separate 3-col grid below
 function Gallery({ urls, videoUrl, P }) {
-  const imgSlots = videoUrl ? 5 : 6;
-  const images = (urls || []).slice(0, imgSlots);
+  const images = (urls || []).slice(0, 6);
+  // Unified items list for lightbox navigation: video first, then images
   const items = [
     ...(videoUrl ? [{ type: 'video', src: videoUrl }] : []),
     ...images.map(u => ({ type: 'image', src: u })),
@@ -129,53 +129,74 @@ function Gallery({ urls, videoUrl, P }) {
     <>
       <div style={{ marginBottom: 44 }}>
         <Label>Gallery</Label>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-          {items.map((item, i) => {
-            const thumb = item.type === 'video' ? videoThumb(item.src) : item.src;
-            return (
-              <div
-                key={i}
-                onClick={() => setOpen(i)}
-                style={{
-                  aspectRatio: '4/3', overflow: 'hidden', borderRadius: 3,
-                  background: P.iframeBg, cursor: 'pointer', position: 'relative',
-                  border: `1px solid ${P.border}`,
-                  transition: 'border-color 0.2s, transform 0.2s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.transform = 'scale(1.01)'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = P.border; e.currentTarget.style.transform = 'scale(1)'; }}
-              >
-                {thumb && (
-                  <img src={thumb} alt={item.type === 'video' ? 'Video' : `Gallery ${i + 1}`}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                )}
-                {item.type === 'video' && (
-                  <div style={{
-                    position: 'absolute', inset: 0,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: thumb ? 'rgba(0,0,0,0.32)' : P.iframeBg,
-                  }}>
-                    <div style={{
-                      width: 44, height: 44, borderRadius: '50%',
-                      background: 'rgba(201,168,76,0.9)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-                    }}>
-                      <span style={{ color: '#000', fontSize: 18, marginLeft: 3 }}>▶</span>
-                    </div>
-                    {!thumb && (
-                      <span style={{
-                        position: 'absolute', bottom: 8, left: 0, right: 0,
-                        textAlign: 'center', fontFamily: NU, fontSize: 10,
-                        color: P.textMuted, letterSpacing: '0.1em',
-                      }}>VIDEO</span>
-                    )}
-                  </div>
-                )}
+
+        {/* ── Video row (full width, own grid) ── */}
+        {videoUrl && (() => {
+          const thumb = videoThumb(videoUrl);
+          const videoIdx = 0; // always index 0 in items
+          return (
+            <div
+              onClick={() => setOpen(videoIdx)}
+              style={{
+                position: 'relative', width: '100%', aspectRatio: '16/9',
+                overflow: 'hidden', borderRadius: 4, cursor: 'pointer',
+                background: P.iframeBg, border: `1px solid ${P.border}`,
+                marginBottom: images.length ? 6 : 0,
+                transition: 'border-color 0.2s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = GOLD}
+              onMouseLeave={e => e.currentTarget.style.borderColor = P.border}
+            >
+              {thumb && (
+                <img src={thumb} alt="Video"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              )}
+              {/* Play button overlay */}
+              <div style={{
+                position: 'absolute', inset: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: thumb ? 'rgba(0,0,0,0.35)' : P.iframeBg,
+              }}>
+                <div style={{
+                  width: 64, height: 64, borderRadius: '50%',
+                  background: 'rgba(201,168,76,0.92)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                  transition: 'transform 0.2s',
+                }}>
+                  <span style={{ color: '#000', fontSize: 26, marginLeft: 4 }}>▶</span>
+                </div>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })()}
+
+        {/* ── Image grid (3-col, max 6 images) ── */}
+        {images.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+            {images.map((src, i) => {
+              const itemIdx = videoUrl ? i + 1 : i; // offset by 1 if video is item[0]
+              return (
+                <div
+                  key={i}
+                  onClick={() => setOpen(itemIdx)}
+                  style={{
+                    aspectRatio: '4/3', overflow: 'hidden', borderRadius: 3,
+                    background: P.iframeBg, cursor: 'zoom-in',
+                    border: `1px solid ${P.border}`,
+                    transition: 'border-color 0.2s, transform 0.2s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.transform = 'scale(1.01)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = P.border; e.currentTarget.style.transform = 'scale(1)'; }}
+                >
+                  <img src={src} alt={`Gallery ${i + 1}`}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {items.length > 1 && (
           <div style={{ fontFamily: NU, fontSize: 11, color: P.textMuted, marginTop: 8, letterSpacing: '0.05em' }}>
             Click to enlarge{videoUrl ? ' · ▶ play video' : ''}
@@ -537,7 +558,8 @@ export default function EventDetailPage({ slug, onBack, footerNav }) {
     .replace('youtu.be/', 'www.youtube.com/embed/')
     : null;
 
-  const hasHero = !!event?.coverImageUrl;
+  const useVideoHero = !!(event?.videoHeroMode && event?.videoUrl);
+  const hasHero = useVideoHero || !!event?.coverImageUrl;
   const showBookingPanel = event && (event.bookingMode === 'internal' || event.bookingMode === 'enquiry_only');
 
   if (loading) {
@@ -580,10 +602,34 @@ export default function EventDetailPage({ slug, onBack, footerNav }) {
 
       {/* ── Hero ── */}
       <div style={{ position: 'relative', height: isMobile ? 340 : 520, overflow: 'hidden', background: '#111' }}>
-        {hasHero
-          ? <img src={event.coverImageUrl} alt={event.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-          : <div style={{ width: '100%', height: '100%', background: isLight ? '#e8e0d0' : 'linear-gradient(135deg, #1a1710 0%, #111 100%)' }} />
-        }
+        {useVideoHero && ytId(event.videoUrl) ? (
+          // YouTube video hero: full-bleed autoplay muted loop
+          <iframe
+            src={`https://www.youtube.com/embed/${ytId(event.videoUrl)}?autoplay=1&mute=1&loop=1&playlist=${ytId(event.videoUrl)}&controls=0&disablekb=1&rel=0&showinfo=0&modestbranding=1&iv_load_policy=3`}
+            allow="autoplay; encrypted-media"
+            style={{
+              position: 'absolute',
+              top: '50%', left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '177.78vh',   // 16:9 at full height
+              minWidth: '100%',
+              height: '100%',
+              border: 'none',
+              pointerEvents: 'none',
+            }}
+          />
+        ) : useVideoHero && event.videoUrl ? (
+          // Direct video file hero
+          <video
+            src={event.videoUrl}
+            autoPlay muted loop playsInline
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+        ) : event.coverImageUrl ? (
+          <img src={event.coverImageUrl} alt={event.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        ) : (
+          <div style={{ width: '100%', height: '100%', background: isLight ? '#e8e0d0' : 'linear-gradient(135deg, #1a1710 0%, #111 100%)' }} />
+        )}
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(10,8,6,0.92) 0%, rgba(10,8,6,0.3) 55%, transparent 100%)' }} />
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: isMobile ? '28px 20px' : '48px 60px' }}>
           <div style={{ fontFamily: NU, fontSize: 10, color: GOLD, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 10 }}>
@@ -602,14 +648,14 @@ export default function EventDetailPage({ slug, onBack, footerNav }) {
 
       {/* ── Body: wide container, left + right columns ── */}
       <div style={{
-        maxWidth: 1120, margin: '0 auto',
+        maxWidth: 1240, margin: '0 auto',
         padding: isMobile ? '32px 18px' : '56px 40px',
         display: isMobile ? 'block' : 'flex',
-        gap: 52, alignItems: 'flex-start',
+        gap: 48, alignItems: 'flex-start',
       }}>
 
         {/* ───────── LEFT COLUMN ─────────────────────────────────────── */}
-        <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+        <div style={{ flex: '0 0 750px', minWidth: 0, maxWidth: '100%' }}>
 
           {/* Detail strip */}
           <div style={{
@@ -643,9 +689,11 @@ export default function EventDetailPage({ slug, onBack, footerNav }) {
           {event.description && (
             <div style={{ marginBottom: 44 }}>
               <Label>About This Event</Label>
-              <div style={{ fontFamily: GD, fontSize: 18, color: P.text, lineHeight: 1.85, whiteSpace: 'pre-wrap' }}>
-                {event.description}
-              </div>
+              <div
+                className="event-desc-prose"
+                style={{ fontFamily: GD, fontSize: 18, color: P.text, lineHeight: 1.85 }}
+                dangerouslySetInnerHTML={{ __html: event.description }}
+              />
             </div>
           )}
 

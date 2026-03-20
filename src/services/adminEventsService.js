@@ -125,6 +125,8 @@ export function dbToEvent(row) {
     description:        row.description,
     coverImageUrl:      row.cover_image_url,
     galleryUrls:        row.gallery_urls || [],
+    videoUrl:           row.video_url || null,
+    videoHeroMode:      row.video_hero_mode || false,
     tagsJson:           row.tags_json || [],
     createdAt:          row.created_at,
     updatedAt:          row.updated_at,
@@ -162,6 +164,8 @@ export function eventToDb(event) {
     description:           event.description         || null,
     cover_image_url:       event.coverImageUrl       || null,
     gallery_urls:          event.galleryUrls         || [],
+    video_url:             event.videoUrl            || null,
+    video_hero_mode:       event.videoHeroMode       || false,
     tags_json:             event.tagsJson            || [],
   }
 }
