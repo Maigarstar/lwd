@@ -38,7 +38,7 @@ export function dbToBooking(row) {
 
 // ─── Email builder ────────────────────────────────────────────────────────────
 
-function buildConfirmationEmail({ booking, event }) {
+function buildConfirmationEmail({ booking, event, reviewToken }) {
   const venueName = event.locationName || 'the venue'
   const dateStr   = event.startDate
     ? new Date(event.startDate + 'T00:00:00').toLocaleDateString('en-GB', {
@@ -103,6 +103,20 @@ function buildConfirmationEmail({ booking, event }) {
       <p style="font-size: 14px; color: #666; line-height: 1.7;">
         If you have any questions before the event, simply reply to this email and our team will be happy to help.
       </p>
+
+      ${reviewToken ? `
+      <div style="background: #f9f6f0; border: 1px solid #e0dbd0; border-radius: 4px; padding: 20px 24px; margin: 32px 0; text-align: center;">
+        <p style="font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: #c9a96e; margin: 0 0 10px;">
+          After the event
+        </p>
+        <p style="font-size: 14px; color: #555; margin: 0 0 16px; line-height: 1.5;">
+          We'd love to hear about your experience. Leave a review to help other couples discover this event.
+        </p>
+        <a href="https://luxuryweddingdirectory.com/review?token=${reviewToken}"
+           style="display: inline-block; background: #1a1a1a; color: #ffffff; font-size: 12px; letter-spacing: 0.15em; text-transform: uppercase; text-decoration: none; padding: 12px 28px; border-radius: 2px;">
+          Share Your Experience
+        </a>
+      </div>` : ''}
 
       <div style="border-top: 1px solid #e0dbd0; margin-top: 40px; padding-top: 20px;">
         <p style="font-size: 11px; color: #aaa; letter-spacing: 0.1em; text-transform: uppercase; margin: 0;">
@@ -202,7 +216,7 @@ export async function submitEventBooking(payload, event) {
 
     // 3. Send confirmation email
     const booking = dbToBooking({ ...bookingRow, id: bookingId, booking_ref: bookingRef })
-    const emailPayload = buildConfirmationEmail({ booking, event })
+    const emailPayload = buildConfirmationEmail({ booking, event, reviewToken })
 
     if (IS_DEV) {
       console.log('[eventBookingService] Confirmation email (dev):', emailPayload)

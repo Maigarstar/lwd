@@ -748,7 +748,7 @@ function EventEndedPanel({ event, venue, P }) {
 }
 
 // ── Booking Form ──────────────────────────────────────────────────────────────
-function BookingForm({ event, onSuccess, P }) {
+function BookingForm({ event, onSuccess, P, remaining = null }) {
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', phone: '',
     guestCount: 1, message: '',
@@ -763,6 +763,10 @@ function BookingForm({ event, onSuccess, P }) {
     e.preventDefault();
     if (!form.firstName || !form.lastName || !form.email) {
       setError('Please fill in your name and email address.');
+      return;
+    }
+    if (remaining === 0) {
+      setError('This event is now fully booked. Please contact us to join the waitlist.');
       return;
     }
     setSubmitting(true);
@@ -1049,6 +1053,104 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, [isPreview]);
+
+  // SEO meta — injected on live page, skipped in preview mode
+  useEffect(() => {
+    if (isPreview || !event) return;
+    const prevTitle = document.title;
+    const title     = event.title || 'Event';
+    const desc      = event.subtitle || event.description?.replace(/<[^>]*>/g, '').slice(0, 155) || '';
+    const img       = event.coverImageUrl || '';
+    const canonical = `https://luxuryweddingdirectory.com/events/${event.slug}`;
+
+    document.title = `${title} | Luxury Wedding Directory`;
+
+    const setMeta = (sel, content) => {
+      if (!content) return;
+      let el = document.querySelector(sel);
+      if (!el) { el = document.createElement('meta'); document.head.appendChild(el); }
+      const attr = sel.includes('[name') ? 'name' : 'property';
+      const key  = sel.match(/["']([^"']+)['"]/)?.[1];
+      if (key) el.setAttribute(attr, key);
+      el.setAttribute('content', content);
+    };
+
+    setMeta('[name="description"]',          desc);
+    setMeta('[property="og:title"]',         title);
+    setMeta('[property="og:description"]',   desc);
+    setMeta('[property="og:image"]',         img);
+    setMeta('[property="og:type"]',          'event');
+    setMeta('[property="og:url"]',           canonical);
+    setMeta('[name="twitter:card"]',         'summary_large_image');
+    setMeta('[name="twitter:title"]',        title);
+    setMeta('[name="twitter:description"]',  desc);
+    setMeta('[name="twitter:image"]',        img);
+
+    // Canonical link
+    let canonEl = document.querySelector('link[rel="canonical"]');
+    if (!canonEl) { canonEl = document.createElement('link'); canonEl.rel = 'canonical'; document.head.appendChild(canonEl); }
+    canonEl.href = canonical;
+
+    // schema.org/Event JSON-LD
+    const existingLd = document.querySelector('script[data-ldtype="event"]');
+    if (existingLd) existingLd.remove();
+    const ld = {
+      '@context': 'https://schema.org',
+      '@type':    'Event',
+      'name':     title,
+      'description': desc,
+      'image':    img || undefined,
+      'url':      canonical,
+      'eventStatus': 'https://schema.org/EventScheduled',
+      'eventAttendanceMode': event.isVirtual
+        ? 'https://schema.org/OnlineEventAttendanceMode'
+        : 'https://schema.org/OfflineEventAttendanceMode',
+      ...(event.startDate ? {
+        'startDate': event.startTime
+          ? `${event.startDate}T${event.startTime}`
+          : event.startDate,
+      } : {}),
+      ...(event.endDate ? {
+        'endDate': event.endTime
+          ? `${event.endDate}T${event.endTime}`
+          : event.endDate,
+      } : {}),
+      ...(!event.isVirtual && event.locationName ? {
+        'location': {
+          '@type':   'Place',
+          'name':    event.locationName,
+          'address': event.locationAddress || event.locationName,
+        },
+      } : {}),
+      ...(event.isVirtual ? {
+        'location': { '@type': 'VirtualLocation', 'url': event.streamUrl || canonical },
+      } : {}),
+      ...(event.isFree === false && event.ticketPrice ? {
+        'offers': {
+          '@type':         'Offer',
+          'price':         event.ticketPrice,
+          'priceCurrency': event.ticketCurrency || 'GBP',
+          'availability':  'https://schema.org/InStock',
+          'url':           canonical,
+        },
+      } : {}),
+      'organizer': {
+        '@type': 'Organization',
+        'name':  'Luxury Wedding Directory',
+        'url':   'https://luxuryweddingdirectory.com',
+      },
+    };
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.setAttribute('data-ldtype', 'event');
+    script.textContent = JSON.stringify(ld);
+    document.head.appendChild(script);
+
+    return () => {
+      document.title = prevTitle;
+      document.querySelector('script[data-ldtype="event"]')?.remove();
+    };
+  }, [isPreview, event?.id, event?.title, event?.slug]);
 
   const dateStr    = event ? formatEventDate(event.startDate) : '';
   const timeStr    = event?.startTime ? formatEventTime(event.startTime) : null;
@@ -1494,7 +1596,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
                   <EventEndedPanel event={event} venue={venue} P={P} />
                 ) : booking ? <BookingConfirmed booking={booking} event={event} P={P} /> : (
                   <>
-                    <Label>{event.bookingMode === 'enquiry_only' ? 'Enquire' : event.isFree === false ? 'Reserve Your Place' : 'Register Your Place'}</Label>
+                    <Label>{event.bookingMode === 'enquiry_only' ? 'Enquire' : event.ctaText || (event.isFree === false ? 'Reserve Your Place' : 'Register Your Place')}</Label>
                     <div style={{ fontFamily: GD, fontSize: 18, color: P.text, marginBottom: 4, lineHeight: 1.3 }}>{event.title}</div>
                     {event.isFree === false && event.ticketPrice && (
                       <div style={{ fontFamily: NU, fontSize: 12, color: GOLD, marginBottom: 14 }}>
@@ -1507,7 +1609,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
                         {dateStr}{timeStr ? ` · ${timeStr}` : ''}
                       </div>
                     )}
-                    <BookingForm event={event} onSuccess={r => setBooking(r)} P={P} />
+                    <BookingForm event={event} onSuccess={r => setBooking(r)} P={P} remaining={remaining} />
                   </>
                 )}
               </div>
@@ -1541,7 +1643,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
                 <EventEndedPanel event={event} venue={venue} P={P} />
               ) : booking ? <BookingConfirmed booking={booking} event={event} P={P} /> : (
                 <>
-                  <Label>{event.bookingMode === 'enquiry_only' ? 'Enquire' : event.isFree === false ? 'Reserve Your Place' : 'Register Your Place'}</Label>
+                  <Label>{event.bookingMode === 'enquiry_only' ? 'Enquire' : event.ctaText || (event.isFree === false ? 'Reserve Your Place' : 'Register Your Place')}</Label>
                   <div style={{ fontFamily: GD, fontSize: 20, color: P.text, marginBottom: 4, lineHeight: 1.3, transition: 'color 0.3s' }}>
                     {event.title}
                   </div>
@@ -1582,7 +1684,7 @@ export default function EventDetailPage({ slug, onBack, footerNav, previewEvent 
                       </div>
                     </div>
                   )}
-                  <BookingForm event={event} onSuccess={r => setBooking(r)} P={P} />
+                  <BookingForm event={event} onSuccess={r => setBooking(r)} P={P} remaining={remaining} />
                 </>
               )}
             </div>
