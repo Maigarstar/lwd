@@ -68,129 +68,202 @@ function DetailRow({ icon, children, P }) {
   );
 }
 
-// ── Gallery lightbox ──────────────────────────────────────────────────────────
-function Gallery({ urls, P }) {
-  const [open, setOpen] = useState(null); // index | null
+// ── Gallery helpers ───────────────────────────────────────────────────────────
+function ytId(url) {
+  if (!url) return null;
+  const m = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/);
+  return m ? m[1] : null;
+}
+function vimeoId(url) {
+  if (!url) return null;
+  const m = url.match(/vimeo\.com\/(\d+)/);
+  return m ? m[1] : null;
+}
+function videoEmbedUrl(url) {
+  const yt = ytId(url);
+  if (yt) return `https://www.youtube.com/embed/${yt}?autoplay=1&rel=0`;
+  const vi = vimeoId(url);
+  if (vi) return `https://player.vimeo.com/video/${vi}?autoplay=1`;
+  return null; // direct file — use <video>
+}
+function videoThumb(url) {
+  const yt = ytId(url);
+  if (yt) return `https://img.youtube.com/vi/${yt}/hqdefault.jpg`;
+  return null;
+}
 
-  const prev = useCallback(() => setOpen(i => (i > 0 ? i - 1 : urls.length - 1)), [urls.length]);
-  const next = useCallback(() => setOpen(i => (i < urls.length - 1 ? i + 1 : 0)), [urls.length]);
+// ── Gallery lightbox ──────────────────────────────────────────────────────────
+// urls      — image URLs (max 5 if video present, max 6 if no video)
+// videoUrl  — optional single video (YouTube / Vimeo / direct file)
+// Grid: [video tile?] + image tiles → max 6 tiles total
+function Gallery({ urls, videoUrl, P }) {
+  const imgSlots = videoUrl ? 5 : 6;
+  const images = (urls || []).slice(0, imgSlots);
+  const items = [
+    ...(videoUrl ? [{ type: 'video', src: videoUrl }] : []),
+    ...images.map(u => ({ type: 'image', src: u })),
+  ];
+
+  const [open, setOpen] = useState(null); // index into items[] | null
+
+  const prev = useCallback(() => setOpen(i => (i > 0 ? i - 1 : items.length - 1)), [items.length]);
+  const next = useCallback(() => setOpen(i => (i < items.length - 1 ? i + 1 : 0)), [items.length]);
 
   useEffect(() => {
     if (open === null) return;
     const onKey = (e) => {
-      if (e.key === 'Escape')      setOpen(null);
-      if (e.key === 'ArrowLeft')   prev();
-      if (e.key === 'ArrowRight')  next();
+      if (e.key === 'Escape')     setOpen(null);
+      if (e.key === 'ArrowLeft')  prev();
+      if (e.key === 'ArrowRight') next();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, prev, next]);
 
-  if (!urls?.length) return null;
+  if (!items.length) return null;
+
+  const activeItem = open !== null ? items[open] : null;
+  const embedUrl   = activeItem?.type === 'video' ? videoEmbedUrl(activeItem.src) : null;
 
   return (
     <>
       <div style={{ marginBottom: 44 }}>
         <Label>Gallery</Label>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 6,
-        }}>
-          {urls.map((url, i) => (
-            <div
-              key={i}
-              onClick={() => setOpen(i)}
-              style={{
-                aspectRatio: '4/3', overflow: 'hidden', borderRadius: 3,
-                background: P.iframeBg, cursor: 'zoom-in',
-                border: `1px solid ${P.border}`,
-                transition: 'border-color 0.2s, transform 0.2s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.transform = 'scale(1.01)'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = P.border; e.currentTarget.style.transform = 'scale(1)'; }}
-            >
-              <img
-                src={url} alt={`Gallery ${i + 1}`}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              />
-            </div>
-          ))}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+          {items.map((item, i) => {
+            const thumb = item.type === 'video' ? videoThumb(item.src) : item.src;
+            return (
+              <div
+                key={i}
+                onClick={() => setOpen(i)}
+                style={{
+                  aspectRatio: '4/3', overflow: 'hidden', borderRadius: 3,
+                  background: P.iframeBg, cursor: 'pointer', position: 'relative',
+                  border: `1px solid ${P.border}`,
+                  transition: 'border-color 0.2s, transform 0.2s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.transform = 'scale(1.01)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = P.border; e.currentTarget.style.transform = 'scale(1)'; }}
+              >
+                {thumb && (
+                  <img src={thumb} alt={item.type === 'video' ? 'Video' : `Gallery ${i + 1}`}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                )}
+                {item.type === 'video' && (
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: thumb ? 'rgba(0,0,0,0.32)' : P.iframeBg,
+                  }}>
+                    <div style={{
+                      width: 44, height: 44, borderRadius: '50%',
+                      background: 'rgba(201,168,76,0.9)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                    }}>
+                      <span style={{ color: '#000', fontSize: 18, marginLeft: 3 }}>▶</span>
+                    </div>
+                    {!thumb && (
+                      <span style={{
+                        position: 'absolute', bottom: 8, left: 0, right: 0,
+                        textAlign: 'center', fontFamily: NU, fontSize: 10,
+                        color: P.textMuted, letterSpacing: '0.1em',
+                      }}>VIDEO</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
-        {urls.length > 1 && (
+        {items.length > 1 && (
           <div style={{ fontFamily: NU, fontSize: 11, color: P.textMuted, marginTop: 8, letterSpacing: '0.05em' }}>
-            Click any image to enlarge
+            Click to enlarge{videoUrl ? ' · ▶ play video' : ''}
           </div>
         )}
       </div>
 
       {/* ── Lightbox overlay ── */}
-      {open !== null && (
+      {activeItem && (
         <div
           onClick={() => setOpen(null)}
           style={{
             position: 'fixed', inset: 0, zIndex: 9999,
-            background: 'rgba(0,0,0,0.92)',
+            background: 'rgba(0,0,0,0.95)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
         >
           {/* Close */}
-          <button
-            onClick={() => setOpen(null)}
-            style={{
-              position: 'absolute', top: 20, right: 24, background: 'none',
-              border: `1px solid rgba(255,255,255,0.2)`, borderRadius: '50%',
-              width: 40, height: 40, color: '#fff', fontSize: 18, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: NU,
-            }}
-          >✕</button>
+          <button onClick={() => setOpen(null)} style={{
+            position: 'absolute', top: 20, right: 24, background: 'none',
+            border: `1px solid rgba(255,255,255,0.2)`, borderRadius: '50%',
+            width: 40, height: 40, color: '#fff', fontSize: 18, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: NU,
+          }}>✕</button>
 
           {/* Counter */}
           <div style={{
             position: 'absolute', top: 22, left: '50%', transform: 'translateX(-50%)',
-            fontFamily: NU, fontSize: 12, color: 'rgba(255,255,255,0.5)',
-            letterSpacing: '0.15em',
+            fontFamily: NU, fontSize: 12, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.15em',
           }}>
-            {open + 1} / {urls.length}
+            {open + 1} / {items.length}
           </div>
 
           {/* Prev */}
-          {urls.length > 1 && (
-            <button
-              onClick={e => { e.stopPropagation(); prev(); }}
-              style={{
-                position: 'absolute', left: 20, background: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(255,255,255,0.15)', borderRadius: '50%',
-                width: 48, height: 48, color: '#fff', fontSize: 20, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-            >‹</button>
+          {items.length > 1 && (
+            <button onClick={e => { e.stopPropagation(); prev(); }} style={{
+              position: 'absolute', left: 20, background: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.15)', borderRadius: '50%',
+              width: 48, height: 48, color: '#fff', fontSize: 20, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>‹</button>
           )}
 
-          {/* Image */}
-          <img
-            src={urls[open]}
-            alt={`Gallery ${open + 1}`}
-            onClick={e => e.stopPropagation()}
-            style={{
-              maxWidth: 'calc(100vw - 120px)', maxHeight: 'calc(100vh - 100px)',
-              objectFit: 'contain', borderRadius: 4,
+          {/* Content */}
+          {activeItem.type === 'image' ? (
+            <img
+              src={activeItem.src}
+              alt={`Gallery ${open + 1}`}
+              onClick={e => e.stopPropagation()}
+              style={{
+                maxWidth: 'calc(100vw - 120px)', maxHeight: 'calc(100vh - 100px)',
+                objectFit: 'contain', borderRadius: 4,
+                boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
+              }}
+            />
+          ) : embedUrl ? (
+            <div onClick={e => e.stopPropagation()} style={{
+              width: 'min(900px, calc(100vw - 120px))',
+              aspectRatio: '16/9', borderRadius: 4, overflow: 'hidden',
               boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
-            }}
-          />
+            }}>
+              <iframe
+                src={embedUrl}
+                allow="autoplay; fullscreen; picture-in-picture"
+                allowFullScreen
+                style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+              />
+            </div>
+          ) : (
+            <video
+              src={activeItem.src}
+              controls autoPlay
+              onClick={e => e.stopPropagation()}
+              style={{
+                maxWidth: 'calc(100vw - 120px)', maxHeight: 'calc(100vh - 100px)',
+                borderRadius: 4, boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
+              }}
+            />
+          )}
 
           {/* Next */}
-          {urls.length > 1 && (
-            <button
-              onClick={e => { e.stopPropagation(); next(); }}
-              style={{
-                position: 'absolute', right: 20, background: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(255,255,255,0.15)', borderRadius: '50%',
-                width: 48, height: 48, color: '#fff', fontSize: 20, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-            >›</button>
+          {items.length > 1 && (
+            <button onClick={e => { e.stopPropagation(); next(); }} style={{
+              position: 'absolute', right: 20, background: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.15)', borderRadius: '50%',
+              width: 48, height: 48, color: '#fff', fontSize: 20, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>›</button>
           )}
         </div>
       )}
@@ -577,7 +650,7 @@ export default function EventDetailPage({ slug, onBack, footerNav }) {
           )}
 
           {/* Gallery (with lightbox) */}
-          <Gallery urls={event.galleryUrls} P={P} />
+          <Gallery urls={event.galleryUrls} videoUrl={event.videoUrl} P={P} />
 
           {/* Map */}
           <EventMap event={event} P={P} />
