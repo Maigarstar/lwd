@@ -5883,16 +5883,21 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
 
               {/* Sections chips */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
-                {v.sections.map((sec) => (
-                  <span key={sec} style={{
+                {(v.sections || []).map((sec, i) => {
+                  // sections may be strings (legacy) or objects {id,type,content,layout} (DB)
+                  const label = typeof sec === 'string' ? sec : (sec.content?.eyebrow || sec.type || `Section ${i + 1}`);
+                  const key   = typeof sec === 'string' ? sec : (sec.id || i);
+                  return (
+                  <span key={key} style={{
                     fontFamily: NU, fontSize: 10, fontWeight: 600,
                     color: C.grey, background: C.dark,
                     padding: '3px 8px', borderRadius: 3,
-                    letterSpacing: '0.06em',
+                    letterSpacing: '0.06em', textTransform: 'capitalize',
                   }}>
-                    {sec}
+                    {label}
                   </span>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Action buttons */}
