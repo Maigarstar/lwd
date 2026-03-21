@@ -24,8 +24,9 @@ export default function QuoteCard({ data = {} }) {
 
   // Panel background: accentBg prop, or subtle tone based on mode
   const bg = accentBg || (theme === 'light' ? '#f9f6f0' : C.dark);
+  const _abLc     = (accentBg || '').toLowerCase();
   const isLightBg = accentBg
-    ? (accentBg.startsWith('#f') || accentBg.startsWith('#e') || accentBg.startsWith('#d'))
+    ? (_abLc.startsWith('#f') || _abLc.startsWith('#e') || _abLc.startsWith('#d'))
     : theme === 'light';
   const textColor = isLightBg ? '#1a1209' : '#f5f0e8';
   const muteColor = isLightBg ? 'rgba(30,20,5,0.5)' : 'rgba(245,240,232,0.55)';

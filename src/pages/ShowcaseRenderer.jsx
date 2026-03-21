@@ -4,6 +4,12 @@
 //   - Public showcase page (/showcase/:slug) — reads published_sections
 //   - Showcase Studio right panel (preview) — reads sections (draft)
 //
+// Theme system:
+//   showcase.theme (DB jsonb column) overrides the default dark palette.
+//   Shape: { mode:'light'|'dark', bg, bg2, bg3, accent, navBg, navText,
+//             navActive, navBorder, heroOverlayOpacity }
+//   Anything omitted falls back to the palette defaults below.
+//
 // Media fallback hierarchy (auto-resolved per section):
 //   1. section.content.image
 //   2. showcase.hero_image_url
@@ -22,9 +28,46 @@ import { CarouselRow }               from '../components/cards/editorial/Carouse
 import { SECTION_REGISTRY }          from '../services/showcaseRegistry';
 import HomeNav                       from '../components/nav/HomeNav';
 
-const GD   = 'var(--font-heading-primary)';
-const NU   = 'var(--font-body)';
-const GOLD = '#C9A84C';
+const GD = 'var(--font-heading-primary)';
+const NU = 'var(--font-body)';
+
+// ── Default palettes ──────────────────────────────────────────────────────────
+const DARK_PALETTE = {
+  mode:               'dark',
+  bg:                 '#0a0a08',
+  bg2:                '#0f0e0c',
+  bg3:                '#1a1209',
+  accent:             '#C9A84C',
+  text:               '#f5f0e8',
+  muted:              'rgba(245,240,232,0.72)',
+  label:              '#C9A84C',
+  navBg:              'rgba(10,10,8,0.94)',
+  navBorder:          'rgba(201,168,76,0.14)',
+  navText:            'rgba(245,240,232,0.48)',
+  navActive:          '#C9A84C',
+  heroOverlayOpacity: 0.45,
+};
+
+const LIGHT_DEFAULTS = {
+  mode:               'light',
+  bg:                 '#FDFBF7',
+  bg2:                '#F5F0E8',
+  bg3:                '#EDE8DC',
+  accent:             '#B8962E',
+  text:               '#1C1410',
+  muted:              'rgba(28,20,16,0.55)',
+  label:              '#B8962E',
+  navBg:              'rgba(253,251,247,0.97)',
+  navBorder:          'rgba(184,150,46,0.18)',
+  navText:            'rgba(28,20,16,0.45)',
+  navActive:          '#B8962E',
+  heroOverlayOpacity: 0.38,
+};
+
+function buildPalette(themeJson) {
+  if (!themeJson || themeJson.mode !== 'light') return DARK_PALETTE;
+  return { ...LIGHT_DEFAULTS, ...themeJson };
+}
 
 // ── Section types that appear in the sticky sub-nav ───────────────────────────
 const NAV_ELIGIBLE = new Set(['intro', 'feature', 'mosaic', 'gallery', 'dining', 'spaces', 'wellness', 'weddings']);
@@ -40,9 +83,8 @@ const TYPE_LABEL   = {
 };
 
 // ── Sticky section sub-nav ────────────────────────────────────────────────────
-// Appears after the hero scrolls out of view.
-// Auto-generated from eligible section types; labels use eyebrow if set.
-function SectionNav({ sections }) {
+function SectionNav({ sections, palette }) {
+  const P = palette || DARK_PALETTE;
   const [visible,  setVisible]  = useState(false);
   const [activeId, setActiveId] = useState(null);
 
@@ -53,7 +95,6 @@ function SectionNav({ sections }) {
       label: s.content?.eyebrow || TYPE_LABEL[s.type] || s.type,
     }));
 
-  // Observe hero leaving viewport → show/hide SectionNav
   useEffect(() => {
     const hero = document.querySelector('[data-showcase-section="hero"]');
     if (!hero) { setVisible(true); return; }
@@ -65,7 +106,6 @@ function SectionNav({ sections }) {
     return () => obs.disconnect();
   }, [sections]);
 
-  // IntersectionObserver to track which section is in view
   useEffect(() => {
     if (!navItems.length) return;
     const els = navItems
@@ -75,12 +115,9 @@ function SectionNav({ sections }) {
     const obs = new IntersectionObserver(
       entries => {
         entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            setActiveId(entry.target.id.replace('sec-', ''));
-          }
+          if (entry.isIntersecting) setActiveId(entry.target.id.replace('sec-', ''));
         });
       },
-      // Section is "active" when it occupies the upper-centre of the viewport
       { rootMargin: '-15% 0px -65% 0px', threshold: 0 }
     );
     els.forEach(el => obs.observe(el));
@@ -93,7 +130,6 @@ function SectionNav({ sections }) {
   const scrollTo = (id) => {
     const el = document.getElementById(`sec-${id}`);
     if (!el) return;
-    // offset accounts for HomeNav (64) + SectionNav (44)
     const y = el.getBoundingClientRect().top + window.scrollY - 108;
     window.scrollTo({ top: y, behavior: 'smooth' });
   };
@@ -103,24 +139,23 @@ function SectionNav({ sections }) {
       role="navigation"
       aria-label="Showcase sections"
       style={{
-        position:      'fixed',
-        top:           64,
-        left:          0,
-        right:         0,
-        zIndex:        690,
-        height:        44,
-        background:    'rgba(10,10,8,0.94)',
-        backdropFilter:'blur(14px)',
-        borderBottom:  '1px solid rgba(201,168,76,0.14)',
-        display:       'flex',
-        alignItems:    'center',
-        justifyContent:'center',
-        overflowX:     'auto',
-        // Fade + slide in when hero leaves viewport
-        opacity:       visible ? 1 : 0,
-        pointerEvents: visible ? 'auto' : 'none',
-        transform:     visible ? 'translateY(0)' : 'translateY(-6px)',
-        transition:    'opacity 0.35s ease, transform 0.35s ease',
+        position:       'fixed',
+        top:            64,
+        left:           0,
+        right:          0,
+        zIndex:         690,
+        height:         44,
+        background:     P.navBg,
+        backdropFilter: 'blur(14px)',
+        borderBottom:   `1px solid ${P.navBorder}`,
+        display:        'flex',
+        alignItems:     'center',
+        justifyContent: 'center',
+        overflowX:      'auto',
+        opacity:        visible ? 1 : 0,
+        pointerEvents:  visible ? 'auto' : 'none',
+        transform:      visible ? 'translateY(0)' : 'translateY(-6px)',
+        transition:     'opacity 0.35s ease, transform 0.35s ease',
       }}
     >
       {navItems.map(item => {
@@ -132,7 +167,7 @@ function SectionNav({ sections }) {
             style={{
               background:    'none',
               border:        'none',
-              borderBottom:  isActive ? `2px solid ${GOLD}` : '2px solid transparent',
+              borderBottom:  isActive ? `2px solid ${P.navActive}` : '2px solid transparent',
               cursor:        'pointer',
               padding:       '0 22px',
               height:        44,
@@ -141,13 +176,17 @@ function SectionNav({ sections }) {
               letterSpacing: '0.17em',
               textTransform: 'uppercase',
               fontWeight:    600,
-              color:         isActive ? GOLD : 'rgba(245,240,232,0.48)',
+              color:         isActive ? P.navActive : P.navText,
               whiteSpace:    'nowrap',
               flexShrink:    0,
               transition:    'color 0.2s ease, border-color 0.2s ease',
             }}
-            onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = 'rgba(245,240,232,0.82)'; }}
-            onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = 'rgba(245,240,232,0.48)'; }}
+            onMouseEnter={e => {
+              if (!isActive) e.currentTarget.style.color = P.mode === 'light'
+                ? 'rgba(28,20,16,0.82)'
+                : 'rgba(245,240,232,0.82)';
+            }}
+            onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = P.navText; }}
           >
             {item.label}
           </button>
@@ -162,14 +201,20 @@ function resolveImage(sectionImage, showcaseHero, listingFirstImage) {
   return sectionImage || showcaseHero || listingFirstImage || null;
 }
 
-// ── Section renderers ─────────────────────────────────────────────────────────
+// ── Section renderers — each receives `palette` for theme-aware colours ───────
 
-function HeroSection({ content, layout, showcaseHero, listingFirstImage }) {
-  const image   = resolveImage(content.image, showcaseHero, listingFirstImage);
-  const opacity = content.overlay_opacity ?? 0.45;
+function HeroSection({ content, layout, showcaseHero, listingFirstImage, palette }) {
+  const P     = palette;
+  const image = resolveImage(content.image, showcaseHero, listingFirstImage);
+  const op    = content.overlay_opacity ?? P.heroOverlayOpacity;
 
   return (
-    <div style={{ position: 'relative', height: '92vh', minHeight: 520, overflow: 'hidden', background: '#0a0a08' }}>
+    <div style={{
+      position: 'relative',
+      height: '92vh', minHeight: 520,
+      overflow: 'hidden',
+      background: '#0a0a08',
+    }}>
       {image && (
         <img
           src={image}
@@ -179,7 +224,7 @@ function HeroSection({ content, layout, showcaseHero, listingFirstImage }) {
       )}
       <div style={{
         position: 'absolute', inset: 0,
-        background: `linear-gradient(to top, rgba(0,0,0,${opacity + 0.3}) 0%, rgba(0,0,0,${opacity}) 50%, rgba(0,0,0,${opacity - 0.2}) 100%)`,
+        background: `linear-gradient(to top, rgba(0,0,0,${op + 0.30}) 0%, rgba(0,0,0,${op}) 50%, rgba(0,0,0,${op - 0.20}) 100%)`,
       }} />
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0,
@@ -187,7 +232,7 @@ function HeroSection({ content, layout, showcaseHero, listingFirstImage }) {
       }}>
         <p style={{
           fontFamily: NU, fontSize: 10, letterSpacing: '0.22em',
-          textTransform: 'uppercase', color: GOLD,
+          textTransform: 'uppercase', color: P.label,
           margin: '0 0 16px', fontWeight: 600,
         }}>
           Luxury Wedding Directory
@@ -204,8 +249,8 @@ function HeroSection({ content, layout, showcaseHero, listingFirstImage }) {
           <p style={{
             fontFamily: NU,
             fontSize: 'clamp(15px, 1.5vw, 20px)',
-            color: 'rgba(245,240,232,0.75)',
-            margin: 0, maxWidth: 600, lineHeight: 1.65,
+            color: 'rgba(245,240,232,0.80)',
+            margin: 0, maxWidth: 620, lineHeight: 1.7,
           }}>
             {content.tagline}
           </p>
@@ -215,20 +260,22 @@ function HeroSection({ content, layout, showcaseHero, listingFirstImage }) {
   );
 }
 
-function IntroSection({ content, layout }) {
+function IntroSection({ content, layout, palette }) {
+  const P = palette;
   return (
     <TwoColumnEditorialCard data={{
       variant:  'centered',
       eyebrow:  content.eyebrow,
       title:    content.headline,
       body:     content.body ? [content.body] : [],
-      accentBg: layout?.accentBg || '#0f0e0c',
-      theme:    'dark',
+      accentBg: layout?.accentBg || P.bg,
+      theme:    P.mode,
     }} />
   );
 }
 
-function FeatureSection({ content, layout, showcaseHero, listingFirstImage }) {
+function FeatureSection({ content, layout, showcaseHero, listingFirstImage, palette }) {
+  const P     = palette;
   const image = resolveImage(content.image, showcaseHero, listingFirstImage);
   return (
     <FeatureCard data={{
@@ -237,13 +284,14 @@ function FeatureSection({ content, layout, showcaseHero, listingFirstImage }) {
       category: content.eyebrow,
       title:    content.headline,
       excerpt:  content.body,
-      accentBg: layout?.accentBg || '#1a1209',
-      theme:    'dark',
+      accentBg: layout?.accentBg || P.bg2,
+      theme:    P.mode,
     }} />
   );
 }
 
-function StatsSection({ content, layout }) {
+function StatsSection({ content, layout, palette }) {
+  const P = palette;
   return (
     <VenueStatsCard data={{
       variant:  layout?.variant || 'strip',
@@ -253,13 +301,14 @@ function StatsSection({ content, layout }) {
         label:    i.label,
         sublabel: i.sublabel || i.sub || '',
       })),
-      accentBg: layout?.accentBg || '#1a1209',
-      theme:    'dark',
+      accentBg: layout?.accentBg || P.bg3,
+      theme:    P.mode,
     }} />
   );
 }
 
-function QuoteSection({ content, layout }) {
+function QuoteSection({ content, layout, palette }) {
+  const P = palette;
   return (
     <QuoteCard data={{
       variant:         layout?.variant || 'centered',
@@ -267,18 +316,19 @@ function QuoteSection({ content, layout }) {
       attribution:     content.attribution,
       attributionRole: content.attributionRole,
       image:           content.image || null,
-      accentBg:        layout?.accentBg || '#1a1209',
-      theme:           'dark',
+      accentBg:        layout?.accentBg || P.bg2,
+      theme:           P.mode,
     }} />
   );
 }
 
-function MosaicSection({ content, layout }) {
+function MosaicSection({ content, layout, palette }) {
+  const P      = palette;
   const images = (content.images || []).filter(i => i.url).map(i => i.url);
   if (images.length < 2) {
     return (
-      <div style={{ background: '#111', padding: '60px 40px', textAlign: 'center' }}>
-        <p style={{ fontFamily: NU, fontSize: 13, color: 'rgba(255,255,255,0.3)' }}>
+      <div style={{ background: P.bg2, padding: '60px 40px', textAlign: 'center' }}>
+        <p style={{ fontFamily: NU, fontSize: 13, color: P.muted }}>
           Mosaic — add at least 2 images to preview
         </p>
       </div>
@@ -290,23 +340,24 @@ function MosaicSection({ content, layout }) {
       title:   content.title,
       excerpt: content.body,
       images:  images.slice(0, 4),
-      theme:   'dark',
+      theme:   P.mode,
     }} />
   );
 }
 
-function GallerySection({ content }) {
+function GallerySection({ content, palette }) {
+  const P     = palette;
   const items = (content.images || [])
     .filter(i => i.url)
     .map(i => ({ image: i.url, title: i.caption || '' }));
   if (!items.length) return null;
   return (
-    <div style={{ padding: '40px 0' }}>
+    <div style={{ padding: '60px 0', background: P.bg }}>
       {content.title && (
         <p style={{
           fontFamily: NU, fontSize: 10, letterSpacing: '0.18em',
-          textTransform: 'uppercase', color: GOLD, fontWeight: 600,
-          textAlign: 'center', margin: '0 0 24px',
+          textTransform: 'uppercase', color: P.accent, fontWeight: 600,
+          textAlign: 'center', margin: '0 0 32px',
         }}>
           {content.title}
         </p>
@@ -316,17 +367,18 @@ function GallerySection({ content }) {
   );
 }
 
-function EditorialFeatureSection({ content, layout, showcaseHero, listingFirstImage, eyebrowOverride }) {
+function EditorialFeatureSection({ content, layout, showcaseHero, listingFirstImage, palette }) {
+  const P     = palette;
   const image = resolveImage(content.image, showcaseHero, listingFirstImage);
   return (
     <FeatureCard data={{
       variant:  layout?.variant || 'image-left',
       image,
-      category: content.eyebrow || eyebrowOverride || '',
+      category: content.eyebrow || '',
       title:    content.headline,
       excerpt:  content.body,
-      accentBg: layout?.accentBg || '#1a1209',
-      theme:    'dark',
+      accentBg: layout?.accentBg || P.bg2,
+      theme:    P.mode,
     }} />
   );
 }
@@ -353,26 +405,31 @@ function FullImageSection({ content }) {
   );
 }
 
-function CtaSection({ content, venueName }) {
+function CtaSection({ content, venueName, palette }) {
+  const P = palette;
   return (
     <VenueEnquireCard data={{
       headline:    content.headline || 'Begin Your Story',
       subline:     content.subline  || '',
       background:  content.background || null,
       venueName:   content.venueName || venueName || '',
-      accentColor: GOLD,
+      accentColor: P.accent,
+      theme:       P.mode,
     }} />
   );
 }
 
-function RelatedSection({ content }) {
-  if (!content.items || content.items.length === 0) return null;
+function RelatedSection({ content, palette }) {
+  const P = palette;
   return (
-    <div style={{ padding: '60px 40px', background: '#0f0e0c', textAlign: 'center' }}>
-      <p style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD, fontWeight: 600, margin: '0 0 32px' }}>
+    <div style={{ padding: '60px 40px', background: P.bg2, textAlign: 'center' }}>
+      <p style={{
+        fontFamily: NU, fontSize: 10, letterSpacing: '0.18em',
+        textTransform: 'uppercase', color: P.accent, fontWeight: 600, margin: '0 0 32px',
+      }}>
         {content.title || 'You may also love'}
       </p>
-      <p style={{ fontFamily: NU, fontSize: 13, color: 'rgba(255,255,255,0.3)', margin: 0 }}>
+      <p style={{ fontFamily: NU, fontSize: 13, color: P.muted, margin: 0 }}>
         Related venues will appear here once linked.
       </p>
     </div>
@@ -380,18 +437,22 @@ function RelatedSection({ content }) {
 }
 
 // ── Section preview fallback (studio only) ────────────────────────────────────
-function SectionPlaceholder({ section }) {
+function SectionPlaceholder({ section, palette }) {
+  const P   = palette;
   const reg = SECTION_REGISTRY[section.type] || {};
   return (
     <div style={{
-      padding: '48px 40px', background: '#111110',
-      border: '1px dashed rgba(201,168,76,0.2)',
+      padding: '48px 40px', background: P.bg2,
+      border: `1px dashed ${P.accent}33`,
       textAlign: 'center',
     }}>
-      <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD, fontWeight: 600, marginBottom: 8 }}>
+      <div style={{
+        fontFamily: NU, fontSize: 10, letterSpacing: '0.18em',
+        textTransform: 'uppercase', color: P.accent, fontWeight: 600, marginBottom: 8,
+      }}>
         {reg.label || section.type}
       </div>
-      <div style={{ fontFamily: NU, fontSize: 13, color: 'rgba(255,255,255,0.3)' }}>
+      <div style={{ fontFamily: NU, fontSize: 13, color: P.muted }}>
         {reg.previewFallback || 'Add content to preview this section'}
       </div>
     </div>
@@ -401,71 +462,76 @@ function SectionPlaceholder({ section }) {
 // ── Main renderer ─────────────────────────────────────────────────────────────
 export default function ShowcaseRenderer({
   sections = [],
-  showcase = {},              // { hero_image_url, title }
+  showcase = {},              // { hero_image_url, title, theme }
   listingFirstImage = null,
-  isPreview = false,          // true when used inside studio
-  onNavigateStandard = null,  // passed to HomeNav
-  onBack = null,              // reserved for future back button
+  isPreview = false,
+  onNavigateStandard = null,
+  onBack = null,
 }) {
   const heroUrl = showcase.hero_image_url || null;
+  const palette = buildPalette(showcase.theme);
 
   function renderSection(section) {
     const { type, content = {}, layout = {} } = section;
-    const shared = { showcaseHero: heroUrl, listingFirstImage };
+    const shared = { showcaseHero: heroUrl, listingFirstImage, palette };
 
-    // In preview mode, show placeholder if section has no required content
-    const hasMinContent = content.title || content.headline || content.text || content.url || content.image || (content.items && content.items.length > 0) || (content.images && content.images.some(i => i.url));
+    const hasMinContent = content.title || content.headline || content.text
+      || content.url || content.image
+      || (content.items  && content.items.length  > 0)
+      || (content.images && content.images.some(i => i.url));
+
     if (isPreview && !hasMinContent && type !== 'cta' && type !== 'related') {
-      return <SectionPlaceholder key={section.id} section={section} />;
+      return <SectionPlaceholder key={section.id} section={section} palette={palette} />;
     }
 
-    // ── Resolve the inner section component ──────────────────────────────────
     let inner;
     switch (type) {
       case 'hero':
         inner = <HeroSection content={content} layout={layout} {...shared} />;
         break;
       case 'stats':
-        inner = <StatsSection content={content} layout={layout} />;
+        inner = <StatsSection content={content} layout={layout} palette={palette} />;
         break;
       case 'intro':
-        inner = <IntroSection content={content} layout={layout} />;
+        inner = <IntroSection content={content} layout={layout} palette={palette} />;
         break;
       case 'feature':
         inner = <FeatureSection content={content} layout={layout} {...shared} />;
         break;
       case 'quote':
-        inner = <QuoteSection content={content} layout={layout} />;
+        inner = <QuoteSection content={content} layout={layout} palette={palette} />;
         break;
       case 'mosaic':
-        inner = <MosaicSection content={content} layout={layout} />;
+        inner = <MosaicSection content={content} layout={layout} palette={palette} />;
         break;
       case 'gallery':
-        inner = <GallerySection content={content} />;
+        inner = <GallerySection content={content} palette={palette} />;
         break;
       case 'dining':
       case 'spaces':
       case 'wellness':
       case 'weddings':
-        inner = <EditorialFeatureSection content={content} layout={layout} {...shared} eyebrowOverride={content.eyebrow} />;
+        inner = <EditorialFeatureSection content={content} layout={layout} {...shared} />;
         break;
       case 'image-full':
         inner = <FullImageSection content={content} />;
         break;
       case 'cta':
-        inner = <CtaSection content={content} venueName={showcase.title} />;
+        inner = <CtaSection content={content} venueName={showcase.title} palette={palette} />;
         break;
       case 'related':
-        inner = <RelatedSection content={content} />;
+        inner = content.items?.length
+          ? <RelatedSection content={content} palette={palette} />
+          : null;
         break;
       default:
-        inner = isPreview ? <SectionPlaceholder section={section} /> : null;
+        inner = isPreview
+          ? <SectionPlaceholder section={section} palette={palette} />
+          : null;
     }
 
     if (!inner) return null;
 
-    // ── Wrap with anchor ID so SectionNav + smooth-scroll works ─────────────
-    // scroll-margin-top offsets HomeNav (64px) + SectionNav (44px) = 108px
     return (
       <div
         key={section.id}
@@ -479,20 +545,16 @@ export default function ShowcaseRenderer({
   }
 
   return (
-    <div style={{ background: '#0a0a08', color: '#f5f0e8', minHeight: '100vh' }}>
+    <div style={{ background: palette.bg, color: palette.text, minHeight: '100vh' }}>
 
-      {/* ── Public chrome: main nav + section sub-nav ── */}
       {!isPreview && (
         <>
-          <HomeNav
-            hasHero
-            onNavigateStandard={onNavigateStandard}
-          />
-          <SectionNav sections={sections} />
+          <HomeNav hasHero onNavigateStandard={onNavigateStandard} />
+          <SectionNav sections={sections} palette={palette} />
         </>
       )}
 
-      {sections.map((section) => renderSection(section))}
+      {sections.map(section => renderSection(section))}
     </div>
   );
 }

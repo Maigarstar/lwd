@@ -30,7 +30,8 @@ export default function FeatureCard({ data = {} }) {
   // Default to C.dark for the panel (works in both modes)
   const panelBg   = accentBg || C.dark;
   // Auto-detect if panel bg looks light (starts with #f or rgb > 200)
-  const isLightBg = accentBg && (accentBg.startsWith('#f') || accentBg.startsWith('#e') || accentBg.startsWith('#d'));
+  const _abLc     = (accentBg || '').toLowerCase();
+  const isLightBg = accentBg && (_abLc.startsWith('#f') || _abLc.startsWith('#e') || _abLc.startsWith('#d'));
   const textColor = isLightBg ? '#1a1a1a' : '#ffffff';
   const metaColor = isLightBg ? 'rgba(40,40,40,0.6)' : 'rgba(255,255,255,0.55)';
 
