@@ -497,6 +497,60 @@ export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavi
   const [stickyVisible, setStickyVisible] = useState(false);
   const venue = RITZ_VENUE;
 
+  // ── Schema.org JSON-LD (injected into <head>) ─────────────────────────────
+  useEffect(() => {
+    const schema = {
+      '@context': 'https://schema.org',
+      '@type': 'WebPage',
+      name: 'The Ritz London — Wedding Showcase',
+      description: RITZ_VENUE.tagline,
+      url: 'https://luxuryweddingdirectory.com/showcase/the-ritz-london',
+      about: {
+        '@type': 'EventVenue',
+        '@id': 'https://luxuryweddingdirectory.com/showcase/the-ritz-london#venue',
+        name: 'The Ritz London',
+        description: RITZ_VENUE.sectionIntros.overview,
+        url: 'https://www.theritzlondon.com',
+        telephone: RITZ_VENUE.contact.phone,
+        address: {
+          '@type': 'PostalAddress',
+          streetAddress: '150 Piccadilly',
+          addressLocality: 'London',
+          postalCode: 'W1J 9BR',
+          addressCountry: 'GB',
+        },
+        geo: {
+          '@type': 'GeoCoordinates',
+          latitude: 51.5065,
+          longitude: -0.1412,
+        },
+        maximumAttendeeCapacity: RITZ_AI_DATA.reception_capacity,
+        amenityFeature: [
+          { '@type': 'LocationFeatureSpecification', name: 'On-site accommodation', value: true },
+          { '@type': 'LocationFeatureSpecification', name: 'Exclusive use available', value: true },
+          { '@type': 'LocationFeatureSpecification', name: 'In-house catering',      value: true },
+        ],
+        aggregateRating: {
+          '@type': 'AggregateRating',
+          ratingValue: '5',
+          bestRating: '5',
+          ratingCount: '1',
+        },
+      },
+      publisher: {
+        '@type': 'Organization',
+        name: 'Luxury Wedding Directory',
+        url: 'https://luxuryweddingdirectory.com',
+      },
+    };
+    const el = document.createElement('script');
+    el.type = 'application/ld+json';
+    el.id   = 'schema-ritz-london';
+    el.text = JSON.stringify(schema);
+    document.head.appendChild(el);
+    return () => document.getElementById('schema-ritz-london')?.remove();
+  }, []);
+
   // Section scroll spy
   useEffect(() => {
     const sections = ['overview', 'rooms', 'dining', 'weddings', 'enquire'];
