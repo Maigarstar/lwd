@@ -238,13 +238,15 @@ function HeroSection({ content, layout, showcaseHero, listingFirstImage, palette
         position: 'absolute', bottom: 0, left: 0, right: 0,
         padding: 'clamp(32px, 5vw, 80px)',
       }}>
-        <p style={{
-          fontFamily: NU, fontSize: 10, letterSpacing: '0.22em',
-          textTransform: 'uppercase', color: P.label,
-          margin: '0 0 16px', fontWeight: 600,
-        }}>
-          Luxury Wedding Directory
-        </p>
+        {(content.eyebrow) && (
+          <p style={{
+            fontFamily: NU, fontSize: 10, letterSpacing: '0.22em',
+            textTransform: 'uppercase', color: P.label,
+            margin: '0 0 16px', fontWeight: 600,
+          }}>
+            {content.eyebrow}
+          </p>
+        )}
         <h1 style={{
           fontFamily: GD,
           fontSize: 'clamp(36px, 6vw, 88px)',
@@ -830,13 +832,127 @@ function SectionPlaceholder({ section, palette }) {
   );
 }
 
+// ── Breadcrumb bar (matches SixSensesShowcasePage pattern) ───────────────────
+function BreadcrumbBar({ showcase, listing, onBack, onGoDestination, palette }) {
+  const P         = palette;
+  const isLight   = P.mode === 'light';
+  const bg        = isLight ? '#F8F6F2' : '#111110';
+  const border    = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.07)';
+  const textCol   = isLight ? '#1C1410' : '#f5f0e8';
+  const mutedCol  = isLight ? 'rgba(28,20,16,0.45)' : 'rgba(245,240,232,0.42)';
+  const accentCol = P.accent;
+
+  // Build location crumb: prefer listing.city/country, fallback to last part of location string
+  const city    = listing?.city    || (typeof showcase?.location === 'object' ? showcase.location?.city    : null) || '';
+  const country = listing?.country || (typeof showcase?.location === 'object' ? showcase.location?.country : null) || '';
+  // If no structured data, try to extract city from location string (e.g. "150 Piccadilly, Mayfair, London W1J")
+  const locationStr = typeof showcase?.location === 'string' ? showcase.location : '';
+  const locationParts = locationStr.split(',').map(s => s.trim()).filter(Boolean);
+  const inferredCity = city || (locationParts.length >= 2 ? locationParts[locationParts.length - 2].replace(/\s+\w+\d.*/, '').trim() : '');
+  // Capitalise country: "uk" → "UK", "england" → "England"
+  const formatCountry = (c) => c.length <= 3 ? c.toUpperCase() : c.charAt(0).toUpperCase() + c.slice(1);
+  const inferredCountry = country ? formatCountry(country) : '';
+  const locationLabel = [inferredCity, inferredCountry].filter(Boolean).join(', ');
+
+  const venueName = showcase?.title || showcase?.name || listing?.name || '';
+  const venueSlug = showcase?.slug  || listing?.slug  || '';
+
+  return (
+    <div style={{
+      background: bg,
+      borderBottom: `1px solid ${border}`,
+      padding: '0 32px',
+      height: 40,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      position: 'relative',
+      zIndex: 10,
+    }}>
+      {/* Back to listing */}
+      <button
+        onClick={onBack}
+        style={{
+          fontFamily: NU, fontSize: 11, color: mutedCol,
+          background: 'none', border: 'none', cursor: 'pointer',
+          padding: 0, fontWeight: 400, letterSpacing: '0.02em',
+          transition: 'color 0.2s',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.color = textCol)}
+        onMouseLeave={e => (e.currentTarget.style.color = mutedCol)}
+      >
+        ← Back to listing
+      </button>
+      <span style={{ fontFamily: NU, fontSize: 10, color: mutedCol, userSelect: 'none' }}>›</span>
+      {/* Destinations */}
+      <button
+        onClick={() => onGoDestination?.('')}
+        style={{
+          fontFamily: NU, fontSize: 11, color: mutedCol,
+          background: 'none', border: 'none', cursor: 'pointer',
+          padding: 0, fontWeight: 400, letterSpacing: '0.02em',
+          transition: 'color 0.2s',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.color = textCol)}
+        onMouseLeave={e => (e.currentTarget.style.color = mutedCol)}
+      >
+        Destinations
+      </button>
+      {locationLabel && locationLabel !== 'Destinations' && (
+        <>
+          <span style={{ fontFamily: NU, fontSize: 10, color: mutedCol, userSelect: 'none' }}>›</span>
+          <button
+            onClick={() => onGoDestination?.(country?.toLowerCase().replace(/\s+/g, '-'))}
+            style={{
+              fontFamily: NU, fontSize: 11, color: mutedCol,
+              background: 'none', border: 'none', cursor: 'pointer',
+              padding: 0, fontWeight: 400, letterSpacing: '0.02em',
+              transition: 'color 0.2s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = textCol)}
+            onMouseLeave={e => (e.currentTarget.style.color = mutedCol)}
+          >
+            {locationLabel}
+          </button>
+        </>
+      )}
+      <span style={{ fontFamily: NU, fontSize: 10, color: mutedCol, userSelect: 'none' }}>›</span>
+      <span style={{ fontFamily: NU, fontSize: 11, color: textCol, fontWeight: 600, letterSpacing: '0.02em' }}>
+        {venueName}
+      </span>
+
+      {/* VIEW LISTING — far right */}
+      {venueSlug && (
+        <div style={{ marginLeft: 'auto', flexShrink: 0 }}>
+          <button
+            onClick={onBack}
+            style={{
+              fontFamily: NU, fontSize: 10, fontWeight: 700,
+              letterSpacing: '0.12em', textTransform: 'uppercase',
+              color: accentCol, background: 'none', border: `1px solid ${accentCol}`,
+              padding: '4px 12px', cursor: 'pointer',
+              transition: 'background 0.2s, color 0.2s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = accentCol; e.currentTarget.style.color = isLight ? '#fff' : '#0a0a08'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = accentCol; }}
+          >
+            VIEW LISTING ↗
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main renderer ─────────────────────────────────────────────────────────────
 export default function ShowcaseRenderer({
   sections = [],
   showcase = {},
+  listing = null,
   listingFirstImage = null,
   isPreview = false,
   onNavigateStandard = null,
+  onGoDestination = null,
   onBack = null,
 }) {
   const heroUrl = showcase.hero_image_url || null;
@@ -923,6 +1039,13 @@ export default function ShowcaseRenderer({
       {!isPreview && (
         <>
           <HomeNav hasHero onNavigateStandard={onNavigateStandard} />
+          <BreadcrumbBar
+            showcase={showcase}
+            listing={listing}
+            onBack={onBack}
+            onGoDestination={onGoDestination}
+            palette={palette}
+          />
           <SectionNav sections={sections} palette={palette} />
         </>
       )}

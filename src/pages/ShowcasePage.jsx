@@ -330,9 +330,11 @@ export default function ShowcasePage({ slug, onBack, onGoDestination, onNavigate
       <ShowcaseRenderer
         sections={publishedSections}
         showcase={showcase}
+        listing={listing}
         listingFirstImage={listingFirstImage}
         isPreview={false}
         onNavigateStandard={onNavigateStandard}
+        onGoDestination={onGoDestination}
         onBack={onBack}
       />
     );

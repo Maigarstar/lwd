@@ -188,13 +188,20 @@ export async function createShowcase(form, type = 'venue') {
     return { ...dbToCard({ ...formToDb(form, type), id: `temp-${Date.now()}`, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }), _offline: true };
   }
   try {
-    const { data, error } = await supabase
-      .from('venue_showcases')
-      .insert([formToDb(form, type)])
-      .select()
-      .single();
-    if (error) throw error;
-    return dbToCard(data);
+    // Call edge function to create showcase (uses service role, bypasses RLS)
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-showcase`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, ...formToDb(form, type) }),
+      }
+    );
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || 'Failed to create showcase');
+    }
+    return dbToCard(result.data);
   } catch (err) {
     console.error('[showcaseService] createShowcase error:', err);
     throw err;

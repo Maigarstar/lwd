@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useEffect, useRef } from 'react';
 import { fetchVenueIntelligence } from '../services/venueIntelligenceService';
+import { supabase } from '../lib/supabaseClient';
 
 import FeatureCard            from '../components/cards/editorial/FeatureCard';
 import QuoteCard              from '../components/cards/editorial/QuoteCard';
@@ -242,7 +243,7 @@ function Section({ id, bg = C.cream, children, pad }) {
 }
 
 // ── BreadcrumbBar ──────────────────────────────────────────────────────────────
-function BreadcrumbBar({ onBack, onGoDestination }) {
+function BreadcrumbBar({ onBack, onGoDestination, listingUrl }) {
   return (
     <div style={{
       background: C.cream,
@@ -288,7 +289,7 @@ function BreadcrumbBar({ onBack, onGoDestination }) {
       ))}
       <div style={{ marginLeft: 'auto', flexShrink: 0 }}>
         <a
-          href="/wedding-venues/the-ritz-london"
+          href={listingUrl || '/wedding-venues/the-ritz-london'}
           style={{
             fontFamily: NU, fontSize: 10, fontWeight: 700,
             letterSpacing: '0.12em', textTransform: 'uppercase',
@@ -500,10 +501,30 @@ export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavi
 
   // ── Live venue intelligence from DB (single source of truth) ─────────────
   const [viData, setViData] = useState(RITZ_AI_DATA); // static fallback on load
+  const [listingUrl, setListingUrl] = useState('/wedding-venues/the-ritz-london'); // fallback
+
   useEffect(() => {
+    // Fetch venue intelligence
     fetchVenueIntelligence('the-ritz-london').then(row => {
       if (row) setViData(row);
     });
+
+    // Fetch showcase listing_id to dynamically construct listing URL
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('venue_showcases')
+          .select('listing_id, listings(slug)')
+          .eq('slug', 'the-ritz-london')
+          .single();
+
+        if (data && data.listings?.slug) {
+          setListingUrl(`/wedding-venues/${data.listings.slug}`);
+        }
+      } catch (err) {
+        console.warn('[RitzLondonShowcasePage] Could not fetch listing_id:', err);
+      }
+    })();
   }, []);
 
   // ── Schema.org JSON-LD (injected into <head>) ─────────────────────────────
@@ -601,7 +622,7 @@ export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavi
       </div>
 
       {/* ── Breadcrumb ────────────────────────────────────────────────────── */}
-      <BreadcrumbBar onBack={onBack} onGoDestination={onGoDestination} />
+      <BreadcrumbBar onBack={onBack} onGoDestination={onGoDestination} listingUrl={listingUrl} />
 
       {/* ── Sticky venue nav ─────────────────────────────────────────────── */}
       <StickyVenueNav

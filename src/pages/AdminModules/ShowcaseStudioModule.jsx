@@ -22,6 +22,7 @@ import {
   saveShowcaseDraft,
   publishShowcase,
   duplicateShowcase,
+  createShowcase,
 } from '../../services/showcaseService';
 
 const GD = 'var(--font-heading-primary)';
@@ -295,13 +296,17 @@ function SectionEditor({ section, onChange, C }) {
 // ── Template picker modal ──────────────────────────────────────────────────────
 function TemplatePicker({ onSelect, onBlank, C }) {
   return (
-    <div style={{
+    <div
+      onClick={onBlank}
+      style={{
       position: 'fixed', inset: 0, zIndex: 200,
       background: 'rgba(0,0,0,0.85)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: 24,
     }}>
-      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: '36px 32px', maxWidth: 600, width: '100%' }}>
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: '36px 32px', maxWidth: 600, width: '100%' }}>
         <div style={{ fontFamily: GD, fontSize: 22, color: C.off, fontWeight: 400, marginBottom: 8 }}>
           Start with a template
         </div>
@@ -339,12 +344,16 @@ function TemplatePicker({ onSelect, onBlank, C }) {
 // ── Add section picker ────────────────────────────────────────────────────────
 function SectionPicker({ onAdd, onClose, C }) {
   return (
-    <div style={{
+    <div
+      onClick={onClose}
+      style={{
       position: 'fixed', inset: 0, zIndex: 200,
       background: 'rgba(0,0,0,0.85)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
     }}>
-      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: '32px', maxWidth: 520, width: '100%', maxHeight: '80vh', overflowY: 'auto' }}>
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: '32px', maxWidth: 520, width: '100%', maxHeight: '80vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div style={{ fontFamily: GD, fontSize: 20, color: C.off, fontWeight: 400 }}>Add Section</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.grey, fontSize: 18, cursor: 'pointer' }}>✕</button>
@@ -465,10 +474,22 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
   }
 
   async function handleSaveDraft() {
-    if (!showcase?.id) { notify('Save the showcase first via Publish', 'info'); return; }
     setSaving(true);
     try {
-      await saveShowcaseDraft(showcase.id, { sections, title: showcase.title, slug: showcase.slug, hero_image_url: showcase.hero_image_url });
+      // Create showcase if it doesn't have an ID yet
+      let showcaseId = showcase?.id;
+      if (!showcaseId) {
+        const created = await createShowcase({
+          name: showcase.title || 'Untitled Showcase',
+          slug: showcase.slug || `showcase-${Date.now()}`,
+          heroImage: showcase.hero_image_url || '',
+          sections: [],
+        });
+        showcaseId = created.id;
+        setShowcase(prev => ({ ...prev, id: created.id }));
+      }
+
+      await saveShowcaseDraft(showcaseId, { sections, title: showcase.title, slug: showcase.slug, hero_image_url: showcase.hero_image_url });
       setDirty(false);
       notify('Draft saved');
     } catch (e) {
@@ -479,12 +500,24 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
   }
 
   async function handlePublish() {
-    if (!showcase?.id) { notify('Cannot publish — no showcase ID', 'error'); return; }
     const { hasErrors } = validateShowcase(sections);
     if (hasErrors) { notify('Please fix validation errors before publishing', 'error'); return; }
     setPublishing(true);
     try {
-      await publishShowcase(showcase.id, sections);
+      // Create showcase if it doesn't have an ID yet
+      let showcaseId = showcase?.id;
+      if (!showcaseId) {
+        const created = await createShowcase({
+          name: showcase.title || 'Untitled Showcase',
+          slug: showcase.slug || `showcase-${Date.now()}`,
+          heroImage: showcase.hero_image_url || '',
+          sections: [],
+        });
+        showcaseId = created.id;
+        setShowcase(prev => ({ ...prev, id: created.id }));
+      }
+
+      await publishShowcase(showcaseId, sections);
       setDirty(false);
       notify('Published successfully');
     } catch (e) {
@@ -533,6 +566,7 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
         {/* Left */}
         <button onClick={handleDuplicate} style={btnOutline}>Duplicate</button>
         <button style={btnOutline}>AI Fill ✦</button>
+        <button onClick={() => setShowTemplate(true)} style={btnOutline}>Choose Template</button>
         <div style={{ flex: 1 }} />
         {/* Right */}
         <button onClick={handleDiscard} style={btnOutline}>Discard</button>
