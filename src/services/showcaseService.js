@@ -91,7 +91,7 @@ export async function fetchShowcaseBySlugCard(slug) {
 
 // ── Fetch a single showcase by slug (for public rendering) ────────────────────
 // Returns the published_sections field for the public page renderer.
-// Returns null if not found or not published.
+// Returns null if not found or not live.
 export async function fetchShowcaseBySlug(slug) {
   if (!isSupabaseAvailable() || !slug) return null;
   try {
@@ -99,7 +99,7 @@ export async function fetchShowcaseBySlug(slug) {
       .from('venue_showcases')
       .select('id, slug, title, type, status, hero_image_url, excerpt, key_stats, published_sections, listing_id, template_key, theme, seo_title, seo_description, og_image, published_at')
       .eq('slug', slug)
-      .eq('status', 'published')
+      .eq('status', 'live')
       .maybeSingle();
     if (error) { console.warn('[showcaseService] fetchShowcaseBySlug:', error.message); return null; }
     return data;
@@ -237,7 +237,8 @@ export async function updateShowcase(id, form) {
       sortOrder:     form.sortOrder    ?? 0,
       publishedAt:   form.publishedAt,
     };
-    console.log('[showcaseService] calling update edge function:', url, payload);
+    console.log('[showcaseService] calling update edge function:', url);
+    console.log('[showcaseService] payload:', JSON.stringify(payload, null, 2));
 
     const response = await fetch(url, {
       method: 'POST',

@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
     ...(body.sections !== undefined && { sections: body.sections || [] }),
     ...(body.stats !== undefined && { key_stats: body.stats || body.key_stats || [] }),
     ...(body.sortOrder !== undefined && { sort_order: Number(body.sortOrder || 0) }),
-    ...(body.status === "live" && body.publishedAt === undefined && { published_at: new Date().toISOString() }),
+    ...(body.status === "live" && !body.publishedAt && { published_at: new Date().toISOString() }),
     ...(body.templateKey !== undefined && { template_key: body.templateKey || null }),
     ...(body.theme !== undefined && { theme: body.theme || null }),
     ...(body.seoTitle !== undefined && { seo_title: body.seoTitle || null }),
