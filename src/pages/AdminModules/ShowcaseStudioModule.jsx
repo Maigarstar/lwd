@@ -570,6 +570,9 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
         <div style={{ flex: 1 }} />
         {/* Right */}
         <button onClick={handleDiscard} style={btnOutline}>Discard</button>
+        <button onClick={handleSaveDraft} disabled={saving} style={btnOutline}>
+          {saving ? 'Saving…' : 'Save'}
+        </button>
         <button onClick={handleSaveDraft} disabled={saving} style={btnSolid}>
           {saving ? 'Saving…' : 'Save Draft'}
         </button>
