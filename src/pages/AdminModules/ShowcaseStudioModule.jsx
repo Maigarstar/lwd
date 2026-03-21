@@ -587,7 +587,7 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
     flexShrink: 0, zIndex: 10,
   };
 
-  const btnSolid = { fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '7px 16px', background: C.off, color: C.bg, border: 'none', borderRadius: 3, cursor: 'pointer' };
+  const btnSolid = { fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '7px 16px', background: C.off, color: '#ffffff', border: 'none', borderRadius: 3, cursor: 'pointer' };
   const btnOutline = { ...btnSolid, background: 'none', color: C.off, border: `1px solid ${C.border}` };
   const btnGold = { ...btnSolid, background: GOLD, color: '#0a0906' };
   const btnLink = { fontFamily: NU, fontSize: 11, color: C.grey2, background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px', textDecoration: 'none' };
