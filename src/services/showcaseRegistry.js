@@ -4,9 +4,12 @@
 // validation rules, default content shape, and preview fallback behaviour.
 //
 // LOCKED ARCHITECTURE — do not add section types without updating this registry.
+//
+// VARIANT SYSTEM
+// Most section types support a layout.variant field that controls visual style.
+// Always drive visual differences through type + content + layout.
+// Never add per-venue conditional logic to the renderer.
 // ─────────────────────────────────────────────────────────────────────────────
-
-// ── Section type definitions ──────────────────────────────────────────────────
 
 export const SECTION_REGISTRY = {
 
@@ -29,6 +32,9 @@ export const SECTION_REGISTRY = {
   stats: {
     label:     'Key Stats',
     icon:      '◆',
+    // layout.variant: 'strip' | 'table'
+    // strip — horizontal bar of large numbers (default)
+    // table — key-value rows, editorial register, useful for detailed specs
     required:  ['items'],
     optional:  ['eyebrow', 'variant'],
     validation: {
@@ -49,6 +55,10 @@ export const SECTION_REGISTRY = {
   intro: {
     label:     'Editorial Intro',
     icon:      '¶',
+    // layout.variant: 'centered' | 'left-aligned' | 'narrow'
+    // centered     — heading + body centred, full-width dark/light block (default)
+    // left-aligned — heading left, body flows naturally, more editorial/newspaper
+    // narrow       — constrained max-width ~640px, intimate feel, cream bg
     required:  ['headline', 'body'],
     optional:  ['eyebrow'],
     validation: {},
@@ -64,6 +74,11 @@ export const SECTION_REGISTRY = {
   feature: {
     label:     'Feature Section',
     icon:      '▣',
+    // layout.variant: 'image-left' | 'image-right' | 'dark-block' | 'centered'
+    // image-left   — 60% image left, 40% dark text panel right (default)
+    // image-right  — 40% dark text panel left, 60% image right
+    // dark-block   — full-width dark storytelling block, image optional below text
+    // centered     — image behind as background, text centred with overlay
     required:  ['headline', 'image'],
     optional:  ['body', 'eyebrow'],
     validation: {},
@@ -75,6 +90,28 @@ export const SECTION_REGISTRY = {
     }),
     defaultLayout: () => ({ variant: 'image-left', accentBg: '#1a1209' }),
     previewFallback: 'Split-screen editorial feature — 60% image, 40% text panel',
+  },
+
+  'highlight-band': {
+    label:     'Highlight Band',
+    icon:      '◼',
+    // Full-width dark (or light) storytelling block.
+    // Used for emotional emphasis, narrative transitions, brand statements.
+    // Examples: "A Standard of Unparalleled Elegance", pre-section atmosphere builders.
+    // layout.theme: 'dark' | 'light' — overrides accentBg auto-detection
+    // layout.align: 'center' | 'left' — text alignment (default: center)
+    // layout.size: 'standard' | 'large' — heading size (large for impact moments)
+    required:  ['headline'],
+    optional:  ['eyebrow', 'body', 'divider'],
+    validation: {},
+    defaultContent: () => ({
+      eyebrow:  '',
+      headline: '',
+      body:     '',
+      divider:  true,
+    }),
+    defaultLayout: () => ({ accentBg: '#0f0e0c', theme: 'dark', align: 'center', size: 'standard' }),
+    previewFallback: 'Dark luxury storytelling band — emotional emphasis and narrative transitions',
   },
 
   quote: {
@@ -96,6 +133,10 @@ export const SECTION_REGISTRY = {
   mosaic: {
     label:     'Mosaic Gallery',
     icon:      '⊞',
+    // layout.pattern: 'grid' | 'asymmetrical' | 'stacked'
+    // grid          — 2×2 equal grid (default)
+    // asymmetrical  — 1 large portrait left + 2 stacked right (dramatic 2+1)
+    // stacked       — 4 images in a vertical column strip (editorial pacing)
     required:  ['images'],
     optional:  ['title', 'body'],
     validation: {
@@ -111,13 +152,17 @@ export const SECTION_REGISTRY = {
         { url: '', alt: '' },
       ],
     }),
-    defaultLayout: () => ({ variant: 'default' }),
+    defaultLayout: () => ({ pattern: 'grid' }),
     previewFallback: 'Four-image mosaic with editorial overlay',
   },
 
   gallery: {
     label:     'Image Gallery',
     icon:      '▦',
+    // layout.variant: 'carousel' | 'grid' | 'mixed'
+    // carousel — horizontal scroll carousel (default)
+    // grid     — 2+2 or 3-col responsive image grid
+    // mixed    — featured hero image above + carousel strip below
     required:  ['images'],
     optional:  ['title'],
     validation: {
@@ -127,7 +172,7 @@ export const SECTION_REGISTRY = {
       title:  '',
       images: [{ url: '', caption: '' }],
     }),
-    defaultLayout: () => ({}),
+    defaultLayout: () => ({ variant: 'carousel' }),
     previewFallback: 'Horizontal image carousel',
   },
 
@@ -237,7 +282,7 @@ export const SECTION_REGISTRY = {
     },
     defaultContent: () => ({
       title: 'You may also love',
-      items: [],   // array of listing_id strings
+      items: [],
     }),
     defaultLayout: () => ({}),
     previewFallback: 'Related venue suggestions — manual curation',
@@ -246,7 +291,7 @@ export const SECTION_REGISTRY = {
 
 // ── Ordered list for the section picker UI ────────────────────────────────────
 export const SECTION_TYPE_ORDER = [
-  'hero', 'stats', 'intro', 'feature', 'quote',
+  'hero', 'stats', 'intro', 'highlight-band', 'feature', 'quote',
   'mosaic', 'gallery', 'dining', 'spaces', 'wellness',
   'weddings', 'image-full', 'cta', 'related',
 ];
@@ -271,7 +316,6 @@ export function validateSection(section) {
   const errors = [];
   const c = section.content || {};
 
-  // Check required fields are non-empty
   for (const field of (reg.required || [])) {
     const val = c[field];
     const isEmpty = val == null || val === '' || (Array.isArray(val) && val.length === 0);
@@ -280,7 +324,6 @@ export function validateSection(section) {
     }
   }
 
-  // Check array validations
   const v = reg.validation || {};
   for (const [field, rules] of Object.entries(v)) {
     const arr = c[field];
@@ -320,8 +363,6 @@ export function validateShowcase(sections) {
 }
 
 // ── Template definitions ───────────────────────────────────────────────────────
-// Rule: every template creates fully valid starter sections — no empty shells.
-
 export const SHOWCASE_TEMPLATES = {
 
   island_resort: {
@@ -351,14 +392,15 @@ export const SHOWCASE_TEMPLATES = {
     icon:  '🏛',
     theme: 'dark',
     sections: () => [
-      { ...createSection('hero'),      content: { title: 'Your Hotel Name', tagline: 'A grand stage for extraordinary celebrations', image: '', overlay_opacity: 0.5 } },
-      { ...createSection('intro'),     content: { eyebrow: 'The Hotel', headline: 'Architecture That Speaks Before a Word Is Said', body: 'Introduce the hotel — its history, architectural character, and the sense of occasion it creates from the moment of arrival.' } },
-      { ...createSection('stats'),     content: { eyebrow: '', items: [{ value: '200', label: 'Max Guests', sublabel: '' }, { value: '6+', label: 'Event Spaces', sublabel: '' }, { value: '98', label: 'Rooms & Suites', sublabel: '' }] } },
-      { ...createSection('spaces'),    content: { eyebrow: 'Event Spaces', headline: 'Ballrooms, Galleries, and Private Salons', body: 'Describe the event spaces — their character, capacity, natural light, and what type of celebration suits each.', image: '' }, layout: { variant: 'image-left', accentBg: '#1a1209' } },
-      { ...createSection('feature'),   content: { eyebrow: 'Weddings', headline: 'Celebrations Written in History', body: 'Describe the wedding offering — ceremony rooms, reception spaces, planning team, and what couples experience.', image: '' }, layout: { variant: 'image-right', accentBg: '#0f0e0c' } },
-      { ...createSection('dining'),    content: { eyebrow: 'Dining', headline: 'Tables Worth Celebrating', body: 'Describe the culinary offering — restaurants, private dining rooms, wedding banquets, and the chef philosophy.', image: '' }, layout: { variant: 'image-left', accentBg: '#0f0e0c' } },
-      { ...createSection('quote'),     content: { text: 'There is no other room in the city that could have given us this.', attribution: 'Recent Couple', attributionRole: '' }, layout: { variant: 'centered', accentBg: '#1a1209' } },
-      { ...createSection('cta'),       content: { headline: 'Reserve Your Date at the Grand', subline: 'Limited dates available for exclusive venue hire.', background: '', venueName: '' } },
+      { ...createSection('hero'),            content: { title: 'Your Hotel Name', tagline: 'A grand stage for extraordinary celebrations', image: '', overlay_opacity: 0.5 } },
+      { ...createSection('intro'),           content: { eyebrow: 'The Hotel', headline: 'Architecture That Speaks Before a Word Is Said', body: 'Introduce the hotel — its history, architectural character, and the sense of occasion it creates from the moment of arrival.' }, layout: { variant: 'centered', accentBg: '#0f0e0c' } },
+      { ...createSection('stats'),           content: { eyebrow: '', items: [{ value: '200', label: 'Max Guests', sublabel: '' }, { value: '6+', label: 'Event Spaces', sublabel: '' }, { value: '98', label: 'Rooms & Suites', sublabel: '' }] } },
+      { ...createSection('highlight-band'), content: { eyebrow: 'The Standard', headline: 'A Standard of Unparalleled Elegance', body: 'Every detail considered. Every moment orchestrated. Every guest attended to as if they were the only one.', divider: true }, layout: { accentBg: '#0a0a08', theme: 'dark', align: 'center', size: 'large' } },
+      { ...createSection('spaces'),          content: { eyebrow: 'Event Spaces', headline: 'Ballrooms, Galleries, and Private Salons', body: 'Describe the event spaces — their character, capacity, natural light, and what type of celebration suits each.', image: '' }, layout: { variant: 'image-left', accentBg: '#1a1209' } },
+      { ...createSection('feature'),         content: { eyebrow: 'Weddings', headline: 'Celebrations Written in History', body: 'Describe the wedding offering — ceremony rooms, reception spaces, planning team, and what couples experience.', image: '' }, layout: { variant: 'image-right', accentBg: '#0f0e0c' } },
+      { ...createSection('dining'),          content: { eyebrow: 'Dining', headline: 'Tables Worth Celebrating', body: 'Describe the culinary offering — restaurants, private dining rooms, wedding banquets, and the chef philosophy.', image: '' }, layout: { variant: 'image-left', accentBg: '#0f0e0c' } },
+      { ...createSection('quote'),           content: { text: 'There is no other room in the city that could have given us this.', attribution: 'Recent Couple', attributionRole: '' }, layout: { variant: 'centered', accentBg: '#1a1209' } },
+      { ...createSection('cta'),             content: { headline: 'Reserve Your Date at the Grand', subline: 'Limited dates available for exclusive venue hire.', background: '', venueName: '' } },
     ],
   },
 
@@ -370,8 +412,9 @@ export const SHOWCASE_TEMPLATES = {
     theme: 'dark',
     sections: () => [
       { ...createSection('hero'),      content: { title: 'Your Castle Name', tagline: 'Where heritage meets romance in the heart of the countryside', image: '', overlay_opacity: 0.5 } },
-      { ...createSection('intro'),     content: { eyebrow: 'The Estate', headline: 'A Castle That Belongs in a Wedding Story', body: 'Describe the castle and its grounds — the history, the approach, the feeling of arrival, and what makes it unmistakably romantic.' } },
+      { ...createSection('intro'),     content: { eyebrow: 'The Estate', headline: 'A Castle That Belongs in a Wedding Story', body: 'Describe the castle and its grounds — the history, the approach, the feeling of arrival, and what makes it unmistakably romantic.' }, layout: { variant: 'left-aligned', accentBg: '#1a1209' } },
       { ...createSection('feature'),   content: { eyebrow: 'The Grounds', headline: 'Ceremony Beneath Open Skies', body: 'Describe the outdoor and indoor ceremony options — the landscapes, gardens, courtyards, or chapel.', image: '' }, layout: { variant: 'image-left', accentBg: '#1a1209' } },
+      { ...createSection('highlight-band'), content: { eyebrow: '', headline: 'Some places carry centuries of love stories. Yours begins here.', body: '', divider: false }, layout: { accentBg: '#0a0a08', theme: 'dark', align: 'center', size: 'large' } },
       { ...createSection('quote'),     content: { text: 'Walking through those gates on our wedding morning, I understood what people meant by once in a lifetime.', attribution: 'Recent Couple', attributionRole: '' }, layout: { variant: 'centered', accentBg: '#1a1209' } },
       { ...createSection('spaces'),    content: { eyebrow: 'Reception Spaces', headline: 'Grand Halls, Intimate Drawing Rooms', body: 'Describe the reception options — great halls, banqueting rooms, private dining spaces, and outdoor terraces.', image: '' }, layout: { variant: 'image-right', accentBg: '#0f0e0c' } },
       { ...createSection('dining'),    content: { eyebrow: 'Dining', headline: 'A Feast Worthy of the Setting', body: 'Describe the catering approach — estate produce, private chef partnerships, or preferred caterer relationships.', image: '' }, layout: { variant: 'image-left', accentBg: '#0f0e0c' } },
@@ -388,9 +431,9 @@ export const SHOWCASE_TEMPLATES = {
     sections: () => [
       { ...createSection('hero'),      content: { title: 'Your Villa Name', tagline: 'An intimate estate for celebrations that feel entirely yours', image: '', overlay_opacity: 0.45 } },
       { ...createSection('stats'),     content: { eyebrow: '', items: [{ value: '50', label: 'Max Guests', sublabel: 'intimate celebrations' }, { value: 'Private', label: 'Estate', sublabel: 'exclusively yours' }, { value: '7', label: 'Bedrooms', sublabel: '' }] } },
-      { ...createSection('intro'),     content: { eyebrow: 'The Villa', headline: 'Small Guest Lists. Unforgettable Moments.', body: 'Introduce the villa — its character, the sense of arrival, and why intimate celebrations here are something you cannot replicate at scale.' } },
+      { ...createSection('intro'),     content: { eyebrow: 'The Villa', headline: 'Small Guest Lists. Unforgettable Moments.', body: 'Introduce the villa — its character, the sense of arrival, and why intimate celebrations here are something you cannot replicate at scale.' }, layout: { variant: 'narrow', accentBg: '#1a1209' } },
       { ...createSection('feature'),   content: { eyebrow: 'The Setting', headline: 'A View Worth Falling in Love With', body: 'Describe the grounds, pool, terrace, views, and the atmosphere that makes the villa extraordinary.', image: '' }, layout: { variant: 'image-left', accentBg: '#1a1209' } },
-      { ...createSection('mosaic'),    content: { title: 'Every Detail Considered', body: 'A setting designed for moments that matter.', images: [{ url: '', alt: 'Villa exterior' }, { url: '', alt: 'Pool terrace' }, { url: '', alt: 'Interior' }, { url: '', alt: 'Garden' }] } },
+      { ...createSection('mosaic'),    content: { title: 'Every Detail Considered', body: 'A setting designed for moments that matter.', images: [{ url: '', alt: 'Villa exterior' }, { url: '', alt: 'Pool terrace' }, { url: '', alt: 'Interior' }, { url: '', alt: 'Garden' }] }, layout: { pattern: 'asymmetrical' } },
       { ...createSection('weddings'),  content: { eyebrow: 'Weddings', headline: 'Your Day, Your Way', body: 'Describe the wedding experience — flexibility, exclusivity, ceremony locations, and what couples love most about marrying here.', image: '' }, layout: { variant: 'image-right', accentBg: '#131c14' } },
       { ...createSection('quote'),     content: { text: 'We had always dreamed of a wedding that felt like us. This was it.', attribution: 'Recent Couple', attributionRole: '' }, layout: { variant: 'centered', accentBg: '#1a1209' } },
       { ...createSection('cta'),       content: { headline: 'Enquire About Your Date', subline: 'The villa hosts a limited number of weddings each year.', background: '', venueName: '' } },
