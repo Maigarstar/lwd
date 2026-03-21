@@ -67,7 +67,6 @@ import EditorialShowcase    from "./pages/EditorialShowcase.jsx";
 import ShowcasePage         from "./pages/ShowcasePage.jsx";
 import DdeShowcasePage          from "./pages/DdeShowcasePage.jsx";
 import SixSensesShowcasePage    from "./pages/SixSensesShowcasePage.jsx";
-import RitzLondonShowcasePage   from "./pages/RitzLondonShowcasePage.jsx";
 import VenueProfilePage         from "./pages/VenueProfilePage.jsx";
 import VenueReviewsPage         from "./pages/VenueReviewsPage.jsx";
 import EventDetailPage          from "./pages/EventDetailPage.jsx";
@@ -213,7 +212,6 @@ function pathToState(pathname) {
   // Venue showcase, static DDE page
   if (parts[0] === "showcase" && parts[1] === "domaine-des-etangs")       return { page: "dde-showcase" };
   if (parts[0] === "showcase" && parts[1] === "six-senses-krabey-island") return { page: "sskrabey-showcase" };
-  if (parts[0] === "showcase" && parts[1] === "the-ritz-london")         return { page: "ritz-showcase" };
   // Venue showcase, static Grand Tirolia editorial page
   if (parts[0] === "showcase" && parts[1] === "grand-tirolia-kitzbuehel") return { page: "gt-showcase" };
   // Venue showcase: /showcase/{slug}
@@ -497,17 +495,6 @@ function App() {
             onBack={goHome}
             onGoDestination={(countrySlug) => {
               if (countrySlug) { setActiveCountrySlug(countrySlug); setPage("italy"); }
-              else { setPage("home"); }
-            }}
-            onNavigateStandard={goStandard}
-            onNavigateAbout={goAbout}
-          />
-        )}
-        {page === "ritz-showcase" && (
-          <RitzLondonShowcasePage
-            onBack={goHome}
-            onGoDestination={(countrySlug) => {
-              if (countrySlug) { setActiveCountrySlug(countrySlug); setPage("venues"); }
               else { setPage("home"); }
             }}
             onNavigateStandard={goStandard}

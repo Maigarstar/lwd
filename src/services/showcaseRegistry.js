@@ -439,6 +439,34 @@ export const SHOWCASE_TEMPLATES = {
       { ...createSection('cta'),       content: { headline: 'Enquire About Your Date', subline: 'The villa hosts a limited number of weddings each year.', background: '', venueName: '' } },
     ],
   },
+
+  luxury_london_hotel: {
+    key:   'luxury_london_hotel',
+    label: 'Luxury London Hotel',
+    description: 'Five-star London hotel with Michelin dining, royal warrant, and iconic address. The Ritz-style editorial layout with highlight bands, dark dining section, and cream wedding section.',
+    icon:  '👑',
+    theme: 'light',
+    sections: () => [
+      { ...createSection('hero'),           content: { title: 'Your Hotel Name', tagline: '150 [Street] · [District] · London · Est. [Year]', image: '', overlay_opacity: 0.5 } },
+      { ...createSection('gallery'),        content: { title: 'Your Hotel Name', images: [{ url: '', caption: '' }, { url: '', caption: '' }, { url: '', caption: '' }, { url: '', caption: '' }] }, layout: { variant: 'grid' } },
+      { ...createSection('intro'),          content: { eyebrow: '[District] · London · Est. [Year]', headline: "London's [Superlative] Address", body: 'Introduce the hotel — its history, address, defining characteristics, and what places it in a category of its own.' }, layout: { variant: 'left-aligned', accentBg: '#faf9f6' } },
+      { ...createSection('stats'),          content: { eyebrow: '', items: [{ value: '136', label: 'Rooms & Suites', sublabel: '' }, { value: '1906', label: 'Established', sublabel: '' }, { value: '★★', label: 'Michelin Stars', sublabel: '' }, { value: 'Royal', label: 'Warrant', sublabel: '' }] }, layout: { variant: 'strip', accentBg: '#ffffff' } },
+      { ...createSection('feature'),        content: { eyebrow: 'The Story', headline: 'A Standard of Extraordinary', body: 'The deeper narrative — what this hotel stands for, who it serves, and why it has endured. The values behind the façade.', image: '' }, layout: { variant: 'image-left', accentBg: '#faf9f6' } },
+      { ...createSection('highlight-band'), content: { eyebrow: 'Accommodation', headline: '[N] Rooms. [Superlative] in the Heart of London.', body: 'Describe the rooms — the design inspiration, materials, details, and the sense of sanctuary each one creates.', divider: true }, layout: { accentBg: '#ffffff', theme: 'light', align: 'left', size: 'standard' } },
+      { ...createSection('feature'),        content: { eyebrow: 'Deluxe Rooms · [Service Included]', headline: 'Rooms of Extraordinary Refinement', body: 'Describe the standard rooms — their design, views, and service.', image: '' }, layout: { variant: 'image-left', accentBg: '#1C1828' } },
+      { ...createSection('feature'),        content: { eyebrow: 'Suites · [Flagship Suite Name]', headline: 'The [Flagship Suite]', body: 'Describe the suites — their scale, identity, and the story of who has stayed in them.', image: '' }, layout: { variant: 'image-right', accentBg: '#130f1e' } },
+      { ...createSection('mosaic'),         content: { title: 'Every Room a Private World', body: 'The details that define every room.', images: [{ url: '', alt: '' }, { url: '', alt: '' }, { url: '', alt: '' }, { url: '', alt: '' }] }, layout: { pattern: 'grid' } },
+      { ...createSection('highlight-band'), content: { eyebrow: 'Dining · [Awards] · [Restaurants]', headline: 'A Kitchen That Defines London', body: 'The dining philosophy — awards, chefs, restaurants, and what makes the table here an experience in its own right.', divider: true }, layout: { accentBg: '#1C1828', theme: 'dark', align: 'left', size: 'large' } },
+      { ...createSection('dining'),         content: { eyebrow: '[Restaurant Name] · [Awards] · [Chef]', headline: 'The Most Beautiful Dining Room in the City', body: 'The flagship restaurant — describe the room, the chef, the menu philosophy, and what makes a table here a complete occasion.', image: '' }, layout: { variant: 'image-right', accentBg: '#1a1525' } },
+      { ...createSection('quote'),          content: { text: '[Founder or iconic figure quote about the hotel]', attribution: '[Name]', attributionRole: '[Title, Year]' }, layout: { variant: 'centered', accentBg: '#130f1e' } },
+      { ...createSection('image-full'),     content: { url: '', alt: '[Iconic space name]', caption: '[Iconic space name] · [One line]', height: '400px' }, layout: {} },
+      { ...createSection('highlight-band'), content: { eyebrow: 'Weddings & Private Celebrations', headline: "London's Most Celebrated Wedding Address", body: 'The opening statement for the weddings section — what makes a wedding here singular.', divider: true }, layout: { accentBg: '#faf9f6', theme: 'light', align: 'center', size: 'large' } },
+      { ...createSection('image-full'),     content: { url: '', alt: 'Wedding at [Hotel Name]', height: '520px' }, layout: {} },
+      { ...createSection('weddings'),       content: { eyebrow: '[Wedding Room] · Private Dining & Celebrations', headline: 'An Occasion Unlike Any Other', body: 'The wedding experience — the private dining room, the planning team, the menu, the florals. Every detail.', image: '' }, layout: { variant: 'image-right', accentBg: '#f5f0e8' } },
+      { ...createSection('mosaic'),         content: { title: '', body: '', images: [{ url: '', alt: 'Wedding ceremony' }, { url: '', alt: 'Wedding couple' }, { url: '', alt: 'Wedding setup' }, { url: '', alt: 'Wedding detail' }] }, layout: { pattern: 'asymmetrical' } },
+      { ...createSection('cta'),            content: { headline: 'Begin Your [Hotel Name] Wedding Story', subline: 'Contact our dedicated wedding team to arrange a private consultation.', background: '', venueName: '' } },
+    ],
+  },
 };
 
 // ── Helper: get template sections (returns fresh array each call) ──────────────
