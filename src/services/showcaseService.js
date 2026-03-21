@@ -3,7 +3,17 @@
 // Supports: venue and planner showcase types
 // RLS disabled, anon key writes (matches magazine_posts pattern)
 // ─────────────────────────────────────────────────────────────────────────────
+// STATUS MAPPING NOTE:
+//   UI uses:  'draft' | 'live'
+//   DB uses:  'draft' | 'published' | 'archived'
+//   'live' ↔ 'published' are the same concept — map at every boundary.
+// ─────────────────────────────────────────────────────────────────────────────
 import { supabase, isSupabaseAvailable } from '../lib/supabaseClient';
+
+// Map UI status → DB status
+function toDbStatus(s) { return s === 'live' ? 'published' : (s || 'draft'); }
+// Map DB status → UI status
+function toUiStatus(s) { return s === 'published' ? 'live' : (s || 'draft'); }
 
 // ── Transform: DB row → admin card shape ─────────────────────────────────────
 function dbToCard(row) {
@@ -18,7 +28,7 @@ function dbToCard(row) {
     logo:         row.logo_url     || '',
     previewUrl:   row.preview_url  || '',
     listingId:    row.listing_id   || '',
-    status:       row.status       || 'draft',
+    status:       toUiStatus(row.status),             // 'published' → 'live'
     sections:     Array.isArray(row.sections)  ? row.sections  : [],
     stats:        Array.isArray(row.key_stats) ? row.key_stats : [],
     sortOrder:    row.sort_order   ?? 0,
@@ -33,6 +43,7 @@ function dbToCard(row) {
 // ── Transform: admin form → DB insert shape ───────────────────────────────────
 function formToDb(form, type = 'venue') {
   const now = new Date().toISOString();
+  const dbStatus = toDbStatus(form.status);
   return {
     type:            type,
     title:           form.name || form.title || '',
@@ -43,11 +54,11 @@ function formToDb(form, type = 'venue') {
     logo_url:        form.logo         || null,
     preview_url:     form.previewUrl   || null,
     listing_id:      form.listingId    || null,
-    status:          form.status       || 'draft',
+    status:          dbStatus,                        // 'live' → 'published'
     sections:        form.sections     || [],
     key_stats:       (form.stats || []).filter(s => s.value && s.label),
     sort_order:      form.sortOrder    ?? 0,
-    published_at:    form.status === 'live' ? now : null,
+    published_at:    dbStatus === 'published' ? now : null,
   };
 }
 
@@ -91,7 +102,7 @@ export async function fetchShowcaseBySlugCard(slug) {
 
 // ── Fetch a single showcase by slug (for public rendering) ────────────────────
 // Returns the published_sections field for the public page renderer.
-// Returns null if not found or not live.
+// Returns null if not found or not published.
 export async function fetchShowcaseBySlug(slug) {
   if (!isSupabaseAvailable() || !slug) return null;
   try {
@@ -99,7 +110,7 @@ export async function fetchShowcaseBySlug(slug) {
       .from('venue_showcases')
       .select('id, slug, title, type, status, hero_image_url, excerpt, key_stats, published_sections, listing_id, template_key, theme, seo_title, seo_description, og_image, published_at')
       .eq('slug', slug)
-      .eq('status', 'live')
+      .eq('status', 'published')
       .maybeSingle();
     if (error) { console.warn('[showcaseService] fetchShowcaseBySlug:', error.message); return null; }
     return data;
@@ -231,7 +242,7 @@ export async function updateShowcase(id, form) {
       logo:          form.logo         || null,
       previewUrl:    form.previewUrl   || null,
       listingId:     form.listingId    || null,
-      status:        form.status       || 'draft',
+      status:        toDbStatus(form.status),         // 'live' → 'published'
       sections:      form.sections     || [],
       stats:         (form.stats || []).filter(s => s.value && s.label),
       sortOrder:     form.sortOrder    ?? 0,
