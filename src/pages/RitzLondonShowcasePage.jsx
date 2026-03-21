@@ -15,6 +15,7 @@ import { CarouselRow }        from '../components/cards/editorial/CarouselCard';
 import VenueEnquireCard       from '../components/cards/editorial/VenueEnquireCard';
 import MediaBlock             from '../components/profile/MediaBlock';
 import { ThemeCtx, LIGHT }   from '../components/profile/ProfileDesignSystem';
+import { ShowcaseAtAGlance, ShowcasePricing, ShowcaseVerified } from '../components/showcase';
 import HomeNav                from '../components/nav/HomeNav';
 import { useBreakpoint }      from '../hooks/useWindowWidth';
 
@@ -150,6 +151,32 @@ const RITZ_VENUE = {
     email: 'weddings@theritzlondon.com',
     website: 'https://www.theritzlondon.com',
   },
+};
+
+// ── AI Data Layer (proof of concept — mirrors dev_ritz_london_ai_data.sql seed)
+// When this page becomes DB-driven, replace with: const aiData = showcaseRow;
+const RITZ_AI_DATA = {
+  ceremony_capacity:          70,
+  dining_capacity:            70,
+  reception_capacity:         120,
+  bedrooms:                   136,
+  exclusive_use:              true,
+  exclusive_use_notes:        'Full hotel buyout available by arrangement. Includes all 136 rooms and suites, private dining rooms, and The Ritz Restaurant.',
+  currency:                   'GBP',
+  venue_hire_from:            1500000,
+  typical_wedding_spend_min:  4500000,
+  typical_wedding_spend_max:  12000000,
+  minimum_spend:              2000000,
+  price_per_head_from:        25000,
+  pricing_notes:              'Weddings at The Ritz London are bespoke by nature. Venue hire is one element of the investment — the final figure is shaped by the number of guests, the rooms chosen, seasonal timing, bespoke menus crafted by John Williams MBE, floral design, and entertainment. The Ritz does not publish a fixed price list; all proposals are tailored following a consultation with the wedding team.',
+  pricing_includes:           ['Venue hire', 'White glove service', 'Personal butler for the couple', 'Table linen & silverware', 'Dedicated wedding coordinator', 'Menu tasting for two'],
+  pricing_excludes:           ['Floral design', 'Entertainment & music', 'Photography & videography', 'Guest accommodation', 'Transport', 'Wedding cake', 'Stationery & favours'],
+  catering_type:              'in_house_only',
+  outdoor_ceremony:           false,
+  on_site_accommodation:      true,
+  verified_at:                '2026-03-21T00:00:00Z',
+  last_confirmed_source:      'lwd_team',
+  verification_notes:         'Pricing ranges derived from LWD editorial research and industry benchmarks. Capacity figures from The Ritz London published materials.',
 };
 
 // ── SectionHeader (identical to Six Senses pattern) ────────────────────────────
@@ -549,12 +576,20 @@ export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavi
           title={venue.overview.headline}
           subtitle={venue.sectionIntros?.overview || venue.overview.intro}
         />
+        {/* Verified Details trust badge */}
+        <ShowcaseVerified data={RITZ_AI_DATA} accentColor={GOLD} theme="light" />
+
+        {/* Decorative stats strip */}
         <VenueStatsCard data={{
           variant:  'strip',
           accentBg: '#ffffff',
           theme:    'light',
           stats:    venue.keyStats,
         }} />
+
+        {/* AI-readable At a Glance block */}
+        <ShowcaseAtAGlance data={RITZ_AI_DATA} accentColor={GOLD} theme="light" />
+
         <div style={{ marginTop: 40 }}>
           <TwoColumnEditorialCard data={{
             variant:  'image-left',
@@ -568,6 +603,17 @@ export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavi
           }} />
         </div>
       </Section>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          PRICING & WHAT TO EXPECT — AI authority section
+      ═══════════════════════════════════════════════════════════════════ */}
+      <ShowcasePricing
+        data={RITZ_AI_DATA}
+        venueName="The Ritz London"
+        accentColor={GOLD}
+        theme="light"
+        bg={C.ivory}
+      />
 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 2 — ROOMS & SUITES
