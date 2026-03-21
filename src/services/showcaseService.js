@@ -129,7 +129,7 @@ export async function publishShowcase(id, sections) {
   const { error } = await supabase
     .from('venue_showcases')
     .update({
-      status:             'published',
+      status:             'live',
       sections,                          // keep working copy in sync
       published_sections: sections,      // snapshot for public page
       published_at:       now,

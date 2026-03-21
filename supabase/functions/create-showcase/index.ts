@@ -43,6 +43,7 @@ Deno.serve(async (req) => {
   try { body = await req.json(); }
   catch { return err("Invalid JSON"); }
 
+  const status = body.status || "draft";
   const showcaseRow = {
     type:            body.type || "venue",
     title:           body.title || body.name || "",
@@ -53,11 +54,11 @@ Deno.serve(async (req) => {
     logo_url:        body.logo || body.logo_url || null,
     preview_url:     body.previewUrl || body.preview_url || null,
     listing_id:      body.listingId || null,
-    status:          body.status || "draft",
+    status:          status,
     sections:        body.sections || [],
     key_stats:       body.stats || body.key_stats || [],
     sort_order:      Number(body.sortOrder || 0),
-    published_at:    null,
+    published_at:    status === "live" ? new Date().toISOString() : null,
     template_key:    body.templateKey || null,
     theme:           body.theme || null,
     seo_title:       body.seoTitle || null,
