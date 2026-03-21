@@ -195,7 +195,10 @@ export async function createShowcase(form, type = 'venue') {
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`
+      },
       body: JSON.stringify(payload),
     });
 
@@ -216,31 +219,44 @@ export async function createShowcase(form, type = 'venue') {
 export async function updateShowcase(id, form) {
   if (!isSupabaseAvailable()) return null;
   try {
-    const updates = {
-      title:          form.name || form.title || '',
-      slug:           form.slug,
-      location:       form.location     || null,
-      excerpt:        form.excerpt      || null,
-      hero_image_url: form.heroImage    || null,
-      logo_url:       form.logo         || null,
-      preview_url:    form.previewUrl   || null,
-      listing_id:     form.listingId    || null,
-      status:         form.status       || 'draft',
-      sections:       form.sections     || [],
-      key_stats:      (form.stats || []).filter(s => s.value && s.label),
-      sort_order:     form.sortOrder    ?? 0,
-      ...(form.status === 'live' && !form.publishedAt ? { published_at: new Date().toISOString() } : {}),
+    // Call edge function to update showcase (uses service role, bypasses RLS)
+    const url = `https://qpkggfibwreznussudfh.supabase.co/functions/v1/update-showcase`;
+    const payload = {
+      id,
+      name:          form.name || form.title || '',
+      slug:          form.slug,
+      location:      form.location     || null,
+      excerpt:       form.excerpt      || null,
+      heroImage:     form.heroImage    || null,
+      logo:          form.logo         || null,
+      previewUrl:    form.previewUrl   || null,
+      listingId:     form.listingId    || null,
+      status:        form.status       || 'draft',
+      sections:      form.sections     || [],
+      stats:         (form.stats || []).filter(s => s.value && s.label),
+      sortOrder:     form.sortOrder    ?? 0,
+      publishedAt:   form.publishedAt,
     };
-    const { data, error } = await supabase
-      .from('venue_showcases')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
-    if (error) throw error;
-    return dbToCard(data);
+    console.log('[showcaseService] calling update edge function:', url, payload);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const result = await response.json();
+    console.log('[showcaseService] update edge function response:', response.status, result);
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `Failed to update showcase: ${response.statusText}`);
+    }
+    return dbToCard(result.data);
   } catch (err) {
-    console.error('[showcaseService] updateShowcase error:', err);
+    console.error('[showcaseService] updateShowcase error:', err.message, err);
     throw err;
   }
 }
