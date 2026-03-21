@@ -23,6 +23,7 @@ import {
   publishShowcase,
   duplicateShowcase,
   createShowcase,
+  updateShowcase,
 } from '../../services/showcaseService';
 
 const GD = 'var(--font-heading-primary)';
@@ -499,6 +500,40 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
     }
   }
 
+  async function handleSave() {
+    setSaving(true);
+    try {
+      // Create showcase if it doesn't have an ID yet
+      let showcaseId = showcase?.id;
+      if (!showcaseId) {
+        const created = await createShowcase({
+          name: showcase.title || 'Untitled Showcase',
+          slug: showcase.slug || `showcase-${Date.now()}`,
+          heroImage: showcase.hero_image_url || '',
+          sections: sections,
+          status: 'draft',
+        });
+        showcaseId = created.id;
+        setShowcase(prev => ({ ...prev, id: created.id }));
+      } else {
+        // Update existing showcase
+        await updateShowcase(showcaseId, {
+          name: showcase.title,
+          slug: showcase.slug,
+          heroImage: showcase.hero_image_url,
+          sections: sections,
+          status: 'draft',
+        });
+      }
+      setDirty(false);
+      notify('Showcase saved');
+    } catch (e) {
+      notify(e.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handlePublish() {
     const { hasErrors } = validateShowcase(sections);
     if (hasErrors) { notify('Please fix validation errors before publishing', 'error'); return; }
@@ -570,7 +605,7 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
         <div style={{ flex: 1 }} />
         {/* Right */}
         <button onClick={handleDiscard} style={btnOutline}>Discard</button>
-        <button onClick={handleSaveDraft} disabled={saving} style={btnOutline}>
+        <button onClick={handleSave} disabled={saving} style={btnOutline}>
           {saving ? 'Saving…' : 'Save'}
         </button>
         <button onClick={handleSaveDraft} disabled={saving} style={btnSolid}>
