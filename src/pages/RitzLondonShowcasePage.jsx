@@ -13,6 +13,8 @@ import TwoColumnEditorialCard from '../components/cards/editorial/TwoColumnEdito
 import MosaicCard             from '../components/cards/editorial/MosaicCard';
 import { CarouselRow }        from '../components/cards/editorial/CarouselCard';
 import VenueEnquireCard       from '../components/cards/editorial/VenueEnquireCard';
+import MediaBlock             from '../components/profile/MediaBlock';
+import { ThemeCtx, LIGHT }   from '../components/profile/ProfileDesignSystem';
 import HomeNav                from '../components/nav/HomeNav';
 import { useBreakpoint }      from '../hooks/useWindowWidth';
 
@@ -521,63 +523,20 @@ export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavi
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <HeroSection venue={venue} />
 
-      {/* ── Gallery strip ─────────────────────────────────────────────── */}
+      {/* ── Gallery ───────────────────────────────────────────────────── */}
       <div style={{ background: C.white }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '24px 16px' : '28px 64px' }}>
-          {/* 2+2 photo grid, first 4 images */}
-          <div style={{ marginBottom: 24 }}>
-            <p style={{ fontFamily: GD, fontSize: isMobile ? 22 : 30, color: C.text, margin: '0 0 4px', fontWeight: 400 }}>
-              Gallery
-            </p>
-            <div style={{ width: 40, height: 1, background: GOLD, marginBottom: 16 }} />
-            <p style={{ fontFamily: NU, fontSize: 13, color: C.muted, margin: '0 0 20px' }}>
-              {venue.galleryImages.length} photographs
-            </p>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 4 }}>
-            {/* Large left image */}
-            <div style={{ position: 'relative', height: isMobile ? 260 : 560, overflow: 'hidden' }}>
-              <img
-                src={venue.galleryImages[0]?.src}
-                alt={venue.galleryImages[0]?.alt || 'The Ritz London'}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              />
-            </div>
-            {/* Right column: 2 stacked */}
-            <div style={{ display: 'grid', gridTemplateRows: '1fr 1fr', gap: 4, height: isMobile ? 'auto' : 560 }}>
-              <div style={{ position: 'relative', height: isMobile ? 180 : 'auto', overflow: 'hidden' }}>
-                <img
-                  src={venue.galleryImages[1]?.src}
-                  alt={venue.galleryImages[1]?.alt || 'The Ritz London'}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                />
-              </div>
-              <div style={{ position: 'relative', height: isMobile ? 180 : 'auto', overflow: 'hidden' }}>
-                <img
-                  src={venue.galleryImages[2]?.src}
-                  alt={venue.galleryImages[2]?.alt || 'The Ritz London'}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                />
-                {/* +N overlay */}
-                {venue.galleryImages.length > 3 && (
-                  <div style={{
-                    position: 'absolute', inset: 0,
-                    background: 'rgba(10,8,6,0.52)',
-                    display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer',
-                  }}>
-                    <span style={{ fontFamily: GD, fontSize: 36, color: '#fff', lineHeight: 1 }}>
-                      +{venue.galleryImages.length - 3}
-                    </span>
-                    <span style={{ fontFamily: NU, fontSize: 11, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 8 }}>
-                      View All Photos
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <ThemeCtx.Provider value={LIGHT}>
+            <MediaBlock
+              videos={[]}
+              gallery={(venue.galleryImages || []).map((img, i) => ({
+                id:    `ritz-img-${i}`,
+                src:   img.src || '',
+                alt:   img.alt || 'The Ritz London',
+                title: img.alt || '',
+              }))}
+            />
+          </ThemeCtx.Provider>
         </div>
       </div>
 
