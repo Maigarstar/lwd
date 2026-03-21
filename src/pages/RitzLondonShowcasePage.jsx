@@ -4,7 +4,8 @@
 // Route: /showcase/the-ritz-london
 // Layout: mirrors SixSensesShowcasePage.jsx exactly
 // ─────────────────────────────────────────────────────────────────────────────
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { fetchVenueIntelligence } from '../services/venueIntelligenceService';
 
 import FeatureCard            from '../components/cards/editorial/FeatureCard';
 import QuoteCard              from '../components/cards/editorial/QuoteCard';
@@ -497,6 +498,14 @@ export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavi
   const [stickyVisible, setStickyVisible] = useState(false);
   const venue = RITZ_VENUE;
 
+  // ── Live venue intelligence from DB (single source of truth) ─────────────
+  const [viData, setViData] = useState(RITZ_AI_DATA); // static fallback on load
+  useEffect(() => {
+    fetchVenueIntelligence('the-ritz-london').then(row => {
+      if (row) setViData(row);
+    });
+  }, []);
+
   // ── Schema.org JSON-LD (injected into <head>) ─────────────────────────────
   useEffect(() => {
     const schema = {
@@ -524,7 +533,7 @@ export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavi
           latitude: 51.5065,
           longitude: -0.1412,
         },
-        maximumAttendeeCapacity: RITZ_AI_DATA.reception_capacity,
+        maximumAttendeeCapacity: viData.reception_capacity,
         amenityFeature: [
           { '@type': 'LocationFeatureSpecification', name: 'On-site accommodation', value: true },
           { '@type': 'LocationFeatureSpecification', name: 'Exclusive use available', value: true },
@@ -631,7 +640,7 @@ export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavi
           subtitle={venue.sectionIntros?.overview || venue.overview.intro}
         />
         {/* Verified Details trust badge */}
-        <ShowcaseVerified data={RITZ_AI_DATA} accentColor={GOLD} theme="light" />
+        <ShowcaseVerified data={viData} accentColor={GOLD} theme="light" />
 
         {/* Decorative stats strip */}
         <VenueStatsCard data={{
@@ -642,7 +651,7 @@ export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavi
         }} />
 
         {/* AI-readable At a Glance block */}
-        <ShowcaseAtAGlance data={RITZ_AI_DATA} accentColor={GOLD} theme="light" />
+        <ShowcaseAtAGlance data={viData} accentColor={GOLD} theme="light" />
 
         <div style={{ marginTop: 40 }}>
           <TwoColumnEditorialCard data={{
@@ -662,7 +671,7 @@ export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavi
           PRICING & WHAT TO EXPECT — AI authority section
       ═══════════════════════════════════════════════════════════════════ */}
       <ShowcasePricing
-        data={RITZ_AI_DATA}
+        data={viData}
         venueName="The Ritz London"
         accentColor={GOLD}
         theme="light"
