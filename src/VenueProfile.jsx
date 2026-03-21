@@ -18,6 +18,8 @@ import { trackExternalClick, hasSeenModalThisSession, markModalSeen } from "./se
 import { trackProfileView, trackCompareAdd, trackCompareRemove, trackCompareView, trackComparePair, trackEvent } from "./services/userEventService";
 import { fetchUpcomingEventsForVenue, formatEventDate, formatEventTime } from './services/eventService';
 import EventDrawer from './components/EventDrawer';
+import { ShowcaseAtAGlance, ShowcasePricing, ShowcaseVerified } from './components/showcase';
+import { fetchVenueIntelligence } from './services/venueIntelligenceService';
 
 const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://www.luxuryweddingdirectory.co.uk';
 
@@ -7535,6 +7537,7 @@ export default function VenueProfile({ onBack = null, slug = null }) {
   const [rawListing, setRawListing] = useState(null);
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [viData, setViData] = useState(null); // venue_intelligence row
   const [venueEvents, setVenueEvents] = useState([]);
   const [drawerEvent, setDrawerEvent] = useState(null);
 
@@ -7556,6 +7559,12 @@ export default function VenueProfile({ onBack = null, slug = null }) {
       });
     }
   }, [slug, dbVenue]);
+
+  // Fetch venue intelligence — single source of truth for capacity + pricing
+  useEffect(() => {
+    if (!slug) return;
+    fetchVenueIntelligence(slug).then(row => { if (row) setViData(row); });
+  }, [slug]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -7887,6 +7896,30 @@ export default function VenueProfile({ onBack = null, slug = null }) {
               <ImageGallery gallery={VV.gallery} onOpenLight={i => setLightIdx(i)} />
               {VV.videos && VV.videos.length > 0 && <VideoGallery videos={VV.videos} venue={VV} />}
               <ExclusiveUse venue={VV} onEnquire={() => setEnquiryOpen(true)} />
+
+              {/* ── Venue Intelligence: At a Glance + Pricing + Verified ── */}
+              {viData && (
+                <>
+                  <ShowcaseVerified
+                    data={viData}
+                    accentColor={C.gold}
+                    theme={darkMode ? 'dark' : 'light'}
+                  />
+                  <ShowcaseAtAGlance
+                    data={viData}
+                    accentColor={C.gold}
+                    theme={darkMode ? 'dark' : 'light'}
+                  />
+                  <ShowcasePricing
+                    data={viData}
+                    venueName={VV.name}
+                    accentColor={C.gold}
+                    theme={darkMode ? 'dark' : 'light'}
+                    bg={darkMode ? undefined : '#faf9f6'}
+                  />
+                </>
+              )}
+
               <CateringSection venue={VV} />
               {VV.spaces && <SpacesSection spaces={VV.spaces} venue={VV} />}
               <RoomsSection venue={VV} />

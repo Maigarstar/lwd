@@ -3,7 +3,7 @@
 // This is the single source of truth for structured venue data.
 // Used by: listing pages, showcase pages, Aura AI layer.
 // ─────────────────────────────────────────────────────────────────────────────
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 
 // ── Formatters ─────────────────────────────────────────────────────────────────
 /** Convert pence (integer) to a display string: 250000 → "£2,500" */
