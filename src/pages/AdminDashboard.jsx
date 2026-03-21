@@ -5903,7 +5903,7 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
               {/* Action buttons */}
               <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                 <button
-                  onClick={() => window.open(v.previewUrl || `/venues/${v.slug}`, '_blank')}
+                  onClick={() => window.open(v.previewUrl || `/showcase/${v.slug}`, '_blank')}
                   style={{
                     flex: 1, background: C.gold, border: 'none',
                     color: '#fff', fontFamily: NU, fontSize: 12, fontWeight: 700,
