@@ -1067,10 +1067,10 @@ function SectionPlaceholder({ section, palette }) {
 function BreadcrumbBar({ showcase, listing, onBack, onGoDestination, palette }) {
   const P         = palette;
   const isLight   = P.mode === 'light';
-  const bg        = 'transparent';
-  const border    = 'none';
-  const textCol   = 'rgba(255,255,255,0.9)';
-  const mutedCol  = 'rgba(255,255,255,0.55)';
+  const bg        = 'rgba(249,247,242,0.97)';
+  const border    = '1px solid rgba(0,0,0,0.08)';
+  const textCol   = '#1a1a1a';
+  const mutedCol  = 'rgba(28,20,16,0.5)';
   const accentCol = P.accent;
 
   // Build location crumb: prefer listing.city/country, fallback to last part of location string
@@ -1339,24 +1339,25 @@ export default function ShowcaseRenderer({
   }
 
   return (
-    <div style={{ background: palette.bg, color: palette.text, minHeight: '100vh' }}>
+    <div style={{ background: palette.bg, color: palette.text, minHeight: '100vh', paddingTop: isPreview ? 0 : 64 }}>
       {!isPreview && (
         <>
-          {/* HomeNav + BreadcrumbBar stack — slides UP when SectionNav slides DOWN */}
+          {/* HomeNav — slides UP when SectionNav slides DOWN (IC Park Lane pattern) */}
           <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, zIndex: 699,
             transform:  sectionNavVisible ? 'translateY(-110%)' : 'translateY(0)',
             transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
           }}>
-            <BreadcrumbBar
-              showcase={showcase}
-              listing={listing}
-              onBack={onBack}
-              onGoDestination={onGoDestination}
-              palette={palette}
-            />
-            <HomeNav hasHero onNavigateStandard={onNavigateStandard} />
+            <HomeNav hasHero={false} onNavigateStandard={onNavigateStandard} />
           </div>
+          {/* BreadcrumbBar — in document flow, sits below HomeNav (paddingTop:64 offsets it) */}
+          <BreadcrumbBar
+            showcase={showcase}
+            listing={listing}
+            onBack={onBack}
+            onGoDestination={onGoDestination}
+            palette={palette}
+          />
           <SectionNav
             sections={sections}
             palette={palette}
