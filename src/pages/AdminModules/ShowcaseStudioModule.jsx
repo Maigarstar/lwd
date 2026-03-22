@@ -1402,7 +1402,7 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
         </div>
       )}
 
-      {/* ── Toolbar ── */}
+      {/* ── Toolbar (stable control centre) ── */}
       <div style={{
         height: 52, flexShrink: 0,
         background: C.sidebar,
@@ -1410,49 +1410,89 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
         display: 'flex', alignItems: 'center',
         padding: '0 20px', gap: 8, zIndex: 20,
       }}>
-        {/* Left */}
+        {/* Left: Content tools */}
         <button onClick={() => setShowAi(true)} style={btnSolid}>✦ Magic AI</button>
         <button style={{ ...btnOutline, opacity: 0.4, cursor: 'default' }} disabled>Fill with AI</button>
 
-        {/* Status indicator */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 16 }}>
+        {/* Status feedback (centre-left) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 12, minWidth: 180, height: 20 }}>
           {saveState === 'saving' && (
-            <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2 }}>Saving…</span>
+            <span style={{ fontFamily: NU, fontSize: 11, fontWeight: 500, color: C.grey2 }}>Saving…</span>
           )}
           {saveState === 'saved' && (
-            <span style={{ fontFamily: NU, fontSize: 10, color: '#22c55e', fontWeight: 600 }}>✓ Saved just now</span>
+            <span style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, color: '#22c55e' }}>✓ Saved successfully</span>
           )}
-          {saveState === 'dirty' && (
-            <span style={{ fontFamily: NU, fontSize: 10, color: GOLD, fontWeight: 600 }}>● Unsaved changes</span>
-          )}
-          {saveState === 'clean' && dirty && (
-            <span style={{ fontFamily: NU, fontSize: 10, color: GOLD, fontWeight: 600 }}>● Unsaved changes</span>
+          {(saveState === 'dirty' || (saveState === 'clean' && dirty)) && (
+            <span style={{ fontFamily: NU, fontSize: 11, fontWeight: 500, color: GOLD }}>● Unsaved changes</span>
           )}
         </div>
 
         <div style={{ flex: 1 }} />
 
-        {/* Right: Actions */}
-        <button onClick={handleSave} disabled={saving || !showcase?.id || !dirty} style={{ ...btnOutline, opacity: saving || !dirty ? 0.5 : 1 }}>
-          {saving ? 'Saving…' : 'Save'}
+        {/* Right: Action buttons (stable layout, no disappearing) */}
+        {/* Discard — always visible, tertiary */}
+        <button
+          onClick={handleDiscard}
+          disabled={!dirty}
+          style={{
+            ...btnOutline,
+            opacity: !dirty ? 0.4 : 1,
+            cursor: !dirty ? 'not-allowed' : 'pointer',
+          }}
+          title={!dirty ? 'No unsaved changes to discard' : 'Discard changes and return'}
+        >
+          Discard
         </button>
-        <button onClick={handleSaveDraft} disabled={saving} style={btnSolid}>
+
+        {/* Save Draft — always visible, secondary */}
+        <button
+          onClick={handleSaveDraft}
+          disabled={saving || publishing}
+          style={{
+            ...btnSolid,
+            opacity: (saving || publishing) ? 0.6 : 1,
+            cursor: (saving || publishing) ? 'not-allowed' : 'pointer',
+          }}
+          title="Save as draft (allows incomplete content)"
+        >
           {saving ? 'Saving…' : 'Save Draft'}
         </button>
-        <button onClick={handlePublish} disabled={publishing} style={btnGold}>
+
+        {/* Publish — always visible, primary */}
+        <button
+          onClick={handlePublish}
+          disabled={publishing || saving}
+          style={{
+            ...btnGold,
+            opacity: (publishing || saving) ? 0.6 : 1,
+            cursor: (publishing || saving) ? 'not-allowed' : 'pointer',
+          }}
+          title="Publish live (requires complete content)"
+        >
           {publishing ? 'Publishing…' : isLive ? 'Re-publish' : 'Publish'}
         </button>
-        {isLive && showcase?.slug && (
-          <button
-            onClick={() => window.open(`/showcase/${showcase.slug}`, '_blank')}
-            style={{ ...btnOutline, display: 'flex', alignItems: 'center', gap: 4 }}
-            title="View the live showcase"
-          >
-            View Live ↗
-          </button>
-        )}
 
+        {/* View Live — always visible, conditionally disabled */}
+        <button
+          onClick={() => isLive && showcase?.slug && window.open(`/showcase/${showcase.slug}`, '_blank')}
+          disabled={!isLive || !showcase?.slug}
+          style={{
+            ...btnOutline,
+            opacity: (!isLive || !showcase?.slug) ? 0.35 : 1,
+            cursor: (!isLive || !showcase?.slug) ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+          title={!isLive ? 'Publish first to view live' : 'Open the live showcase'}
+        >
+          View Live ↗
+        </button>
+
+        {/* Divider */}
         <div style={{ width: 1, height: 20, background: C.border, margin: '0 4px' }} />
+
+        {/* View modes */}
         {['editor','split','preview'].map(m => (
           <button key={m} onClick={() => setViewMode(m)} style={viewMode === m ? btnLinkOn : btnLink}>
             {m.charAt(0).toUpperCase() + m.slice(1)}
