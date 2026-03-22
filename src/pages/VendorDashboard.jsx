@@ -24,6 +24,7 @@ import {
   scoreColor as auditScoreColor,
 } from "../services/websiteAuditService";
 import AuditScoreRing from "../components/seo/AuditScoreRing";
+import { fetchVendorReviews, addReviewMessage, fetchReviewMessages } from "../services/adminReviewService";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -381,6 +382,120 @@ function ChatNotification({ notification, C, onAccept, onDismiss, isMobile }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Vendor Reviews Panel — reply-only, no moderation controls ────────────────
+function VendorReviewsPanel({ vendorId, C, GD, NU }) {
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [replyOpen, setReplyOpen] = useState(null); // reviewId
+  const [replyText, setReplyText] = useState('');
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    fetchVendorReviews(vendorId).then(data => { setReviews(data); setLoading(false); });
+  }, [vendorId]);
+
+  async function submitReply(reviewId) {
+    if (!replyText.trim()) return;
+    setSending(true);
+    try {
+      await addReviewMessage({ reviewId, senderType: 'owner', messageBody: replyText.trim() });
+      setReplyOpen(null); setReplyText('');
+      const updated = await fetchVendorReviews(vendorId);
+      setReviews(updated);
+    } catch (e) { console.error(e); }
+    finally { setSending(false); }
+  }
+
+  if (loading) return <div style={{ padding: 40, color: C.grey, fontFamily: NU, fontSize: 13 }}>Loading reviews…</div>;
+
+  return (
+    <div>
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '3px', textTransform: 'uppercase', color: C.gold, marginBottom: 8 }}>Guest Reviews</div>
+        <div style={{ fontFamily: GD, fontSize: 26, color: C.white, fontWeight: 300 }}>Your Reviews</div>
+        <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, marginTop: 4 }}>
+          Reply to guest reviews to improve your reply rate and reputation score.
+        </p>
+      </div>
+
+      {reviews.length === 0 && (
+        <div style={{ padding: '40px 24px', textAlign: 'center', border: `1px solid ${C.border}`, borderRadius: 4, color: C.grey, fontFamily: NU, fontSize: 13 }}>
+          No published reviews yet. Reviews appear here once approved by the LWD team.
+        </div>
+      )}
+
+      {reviews.map(r => {
+        const ownerReplies = (r.messages || []).filter(m => m.sender_type === 'owner' && !m.is_internal_note);
+        const hasReplied = ownerReplies.length > 0;
+        return (
+          <div key={r.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '18px 20px', marginBottom: 12 }}>
+            {/* Review header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+              <div>
+                <div style={{ fontFamily: NU, fontSize: 13, fontWeight: 700, color: C.white }}>{r.reviewer_name}</div>
+                <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginTop: 2 }}>
+                  {r.event_type && <span>{r.event_type} · </span>}
+                  {(r.review_date || r.published_at) && new Date(r.review_date || r.published_at).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontFamily: GD, fontSize: 20, fontWeight: 700, color: C.gold }}>{r.overall_rating}</span>
+                <span style={{ fontSize: 13, color: C.gold }}>{'★'.repeat(Math.round(r.overall_rating))}</span>
+                {hasReplied && (
+                  <span style={{ fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#15803d', padding: '2px 8px', border: '1px solid rgba(21,128,61,0.3)', borderRadius: 2 }}>
+                    ✓ Replied
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div style={{ fontFamily: GD, fontSize: 15, fontWeight: 500, color: C.white, marginBottom: 6 }}>{r.review_title}</div>
+            <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.7, margin: '0 0 14px' }}>{r.review_text}</p>
+
+            {/* Existing replies */}
+            {ownerReplies.map((msg, i) => (
+              <div key={i} style={{ padding: '10px 14px', background: `${C.gold}08`, borderLeft: `2px solid ${C.gold}40`, borderRadius: 2, marginBottom: 10 }}>
+                <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: C.gold, marginBottom: 5 }}>
+                  Your Reply · {new Date(msg.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </div>
+                <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.65, margin: 0 }}>{msg.message_body}</p>
+              </div>
+            ))}
+
+            {/* Reply form */}
+            {replyOpen === r.id ? (
+              <div>
+                <textarea
+                  value={replyText}
+                  onChange={e => setReplyText(e.target.value)}
+                  placeholder="Write a warm, professional reply to this guest…"
+                  rows={4}
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 3, border: `1px solid ${C.border}`, background: C.black, color: C.white, fontFamily: NU, fontSize: 12, outline: 'none', resize: 'vertical', marginBottom: 10 }}
+                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => submitReply(r.id)} disabled={sending || !replyText.trim()} style={{ padding: '9px 20px', borderRadius: 3, border: 'none', cursor: 'pointer', background: C.gold, color: '#fff', fontFamily: NU, fontSize: 11, fontWeight: 700, opacity: sending ? 0.6 : 1 }}>
+                    {sending ? 'Sending…' : 'Post Reply'}
+                  </button>
+                  <button onClick={() => { setReplyOpen(null); setReplyText(''); }} style={{ padding: '9px 16px', borderRadius: 3, border: `1px solid ${C.border}`, cursor: 'pointer', background: 'none', color: C.grey, fontFamily: NU, fontSize: 11 }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setReplyOpen(r.id); setReplyText(''); }}
+                style={{ fontFamily: NU, fontSize: 11, background: 'none', border: `1px solid ${C.border}`, borderRadius: 3, cursor: 'pointer', color: C.grey, padding: '7px 14px' }}
+              >
+                {hasReplied ? '+ Add Another Reply' : '↩ Reply to this review'}
+              </button>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1376,6 +1491,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
           </div>
           <div style={{ paddingTop: 8 }}>
             <DTab id="overview" icon="◈" label="Overview" />
+            <DTab id="reviews" icon="★" label="Reviews" />
             <DTab id="leads" icon="◇" label="Lead Inbox" />
             <DTab id="livechat" icon="◉" label="Live Conversations" />
             <DTab id="analytics" icon="◎" label="Analytics" />
@@ -1718,6 +1834,11 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
                 <MiniChart data={leadsData} labels={months} color={C.gold} />
               </div>
             </div>
+          )}
+
+          {/* REVIEWS — reply-only, no moderation */}
+          {dashTab === "reviews" && vendor?.id && (
+            <VendorReviewsPanel vendorId={vendor.id} C={C} GD={GD} NU={NU} />
           )}
 
           {/* LEADS */}

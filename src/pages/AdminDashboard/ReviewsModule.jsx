@@ -6,6 +6,7 @@ import {
   approveReview,
   rejectReview,
   softDeleteReview,
+  restoreReview,
   updateReview,
   toggleFeatured,
   setVerification,
@@ -359,7 +360,7 @@ function OwnerIdentityPanel({ listing, C }) {
 }
 
 // ─── Review card ──────────────────────────────────────────────────────────────
-function ReviewCard({ review, selected, onSelect, onApprove, onReject, onDelete, onToggleFeatured, onVerify, onUpdate, C }) {
+function ReviewCard({ review, selected, onSelect, onApprove, onReject, onDelete, onRestore, onToggleFeatured, onVerify, onUpdate, C }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(review.review_title || '');
@@ -421,6 +422,11 @@ function ReviewCard({ review, selected, onSelect, onApprove, onReject, onDelete,
               {review.entity_type}
             </span>
             <StatusBadge status={review.moderation_status} />
+            {review.listing?.reputation_score != null && (
+              <span style={{ fontFamily: NU, fontSize: 9, color: C.grey2, padding: '2px 6px', border: `1px solid ${C.border}`, borderRadius: 2 }}>
+                ⊙ Rep {review.listing.reputation_score}
+              </span>
+            )}
             {review.is_featured && (
               <span style={{ fontFamily: NU, fontSize: 9, color: C.gold, textTransform: 'uppercase', letterSpacing: '0.06em' }}>✦ Featured</span>
             )}
@@ -644,7 +650,13 @@ function ReviewCard({ review, selected, onSelect, onApprove, onReject, onDelete,
                 onClick={() => onVerify(review.id, !review.is_verified_booking)}
               />
               {/* Delete: danger outline — subtle, intentional */}
-              <ActionBtn label="Delete" color="#b91c1c" variant="danger" onClick={() => onDelete(review.id)} />
+              {!review.deleted_at && (
+                <ActionBtn label="Delete" color="#b91c1c" variant="danger" onClick={() => onDelete(review.id)} />
+              )}
+              {/* Restore: only shown in trash view */}
+              {review.deleted_at && onRestore && (
+                <ActionBtn label="↩ Restore" color="#15803d" variant="solid" onClick={() => onRestore(review.id)} />
+              )}
             </div>
 
             {/* Conversation thread */}
@@ -1490,9 +1502,15 @@ const ReviewsModule = () => {
   // Filters
   const [statusFilter, setStatusFilter] = useState('pending');
   const [entityTypeFilter, setEntityTypeFilter] = useState(null);
+  const [addedByAdminFilter, setAddedByAdminFilter] = useState(false);
+  const [showDeleted, setShowDeleted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedReviews, setSelectedReviews] = useState(new Set());
   const searchTimeout = useRef(null);
+
+  // Reject-with-reason state
+  const [rejectTarget, setRejectTarget] = useState(null); // { id }
+  const [rejectReason, setRejectReason] = useState('');
 
   // Pagination
   const [offset, setOffset] = useState(0);
@@ -1512,8 +1530,10 @@ const ReviewsModule = () => {
     try {
       const [{ reviews: data, total: count }, statsData] = await Promise.all([
         fetchAdminReviews({
-          status: statusFilter || null,
+          status: showDeleted ? null : (statusFilter || null),
           entityType: entityTypeFilter || null,
+          addedByAdmin: addedByAdminFilter ? true : null,
+          showDeleted,
           searchQuery: searchQuery || null,
           limit: PER_PAGE,
           offset,
@@ -1528,7 +1548,7 @@ const ReviewsModule = () => {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, entityTypeFilter, searchQuery, offset]);
+  }, [statusFilter, entityTypeFilter, addedByAdminFilter, showDeleted, searchQuery, offset]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -1547,9 +1567,23 @@ const ReviewsModule = () => {
     load();
   };
 
-  const handleReject = async (id) => {
-    await rejectReview(id);
+  const handleReject = (id) => {
+    setRejectTarget({ id });
+    setRejectReason('');
+  };
+
+  const confirmReject = async () => {
+    if (!rejectTarget) return;
+    await rejectReview(rejectTarget.id, rejectReason.trim() || null);
+    setRejectTarget(null);
+    setRejectReason('');
     notify('Review rejected');
+    load();
+  };
+
+  const handleRestore = async (id) => {
+    await restoreReview(id);
+    notify('Review restored');
     load();
   };
 
@@ -1624,6 +1658,7 @@ const ReviewsModule = () => {
     { value: 'awaiting_reply', label: 'Awaiting Reply', count: stats?.awaiting_reply ?? 0, accent: '#2563eb' },
     { value: 'replied',        label: 'Replied',        count: stats?.replied        ?? 0, accent: '#7c3aed' },
     { value: 'rejected',       label: 'Rejected',       count: stats?.rejected       ?? 0, accent: '#b91c1c' },
+    { value: '__deleted__',    label: 'Trash',          count: null,                        accent: '#6b7280' },
     { value: null,             label: 'All',            count: stats?.total          ?? 0, accent: C.gold    },
   ];
 
@@ -1655,15 +1690,21 @@ const ReviewsModule = () => {
       </div>
 
       {/* Stat tabs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8, marginBottom: 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8, marginBottom: 28 }}>
         {STATUS_TABS.map(t => (
           <StatCard
             key={String(t.value)}
             label={t.label}
-            value={t.count}
-            active={statusFilter === t.value}
+            value={t.count ?? '—'}
+            active={t.value === '__deleted__' ? showDeleted : (!showDeleted && statusFilter === t.value)}
             accent={t.accent}
-            onClick={() => { setStatusFilter(t.value); setOffset(0); }}
+            onClick={() => {
+              if (t.value === '__deleted__') {
+                setShowDeleted(true); setStatusFilter(null); setOffset(0);
+              } else {
+                setShowDeleted(false); setStatusFilter(t.value); setOffset(0);
+              }
+            }}
             C={C}
           />
         ))}
@@ -1696,10 +1737,48 @@ const ReviewsModule = () => {
           }}
         />
 
+        <button
+          onClick={() => { setAddedByAdminFilter(f => !f); setOffset(0); }}
+          style={{
+            fontFamily: NU, fontSize: 11, padding: '7px 12px', borderRadius: 3, cursor: 'pointer',
+            border: `1px solid ${addedByAdminFilter ? '#7c3aed60' : C.border}`,
+            background: addedByAdminFilter ? 'rgba(124,58,237,0.08)' : 'none',
+            color: addedByAdminFilter ? '#7c3aed' : C.grey, whiteSpace: 'nowrap',
+          }}
+        >
+          ⊕ Admin Added
+        </button>
+
         <span style={{ fontFamily: NU, fontSize: 11, color: C.grey2, whiteSpace: 'nowrap' }}>
           {total} result{total !== 1 ? 's' : ''}
         </span>
       </div>
+
+      {/* Reject-with-reason modal */}
+      {rejectTarget && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1300, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.7)' }}>
+          <div style={{ background: C.dark, border: `1px solid ${C.border}`, borderRadius: 4, padding: 28, width: 420, maxWidth: '90vw' }}>
+            <h3 style={{ fontFamily: ND, fontSize: 18, color: C.white, margin: '0 0 6px', fontWeight: 600 }}>Reject Review</h3>
+            <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, margin: '0 0 16px' }}>Optional: record the reason for rejection (internal audit trail only).</p>
+            <textarea
+              value={rejectReason}
+              onChange={e => setRejectReason(e.target.value)}
+              placeholder="e.g. Unable to verify reviewer identity, content policy violation…"
+              rows={3}
+              autoFocus
+              style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', borderRadius: 3, border: `1px solid ${C.border}`, background: C.black, color: C.white, fontFamily: NU, fontSize: 12, outline: 'none', resize: 'vertical', marginBottom: 16 }}
+            />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={confirmReject} style={{ flex: 1, padding: '10px 0', borderRadius: 3, border: 'none', cursor: 'pointer', background: '#b91c1c', color: '#fff', fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                Confirm Reject
+              </button>
+              <button onClick={() => setRejectTarget(null)} style={{ padding: '10px 20px', borderRadius: 3, border: `1px solid ${C.border}`, cursor: 'pointer', background: 'none', color: C.grey, fontFamily: NU, fontSize: 11 }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bulk action bar */}
       {selectedReviews.size > 0 && (
@@ -1758,6 +1837,7 @@ const ReviewsModule = () => {
             onApprove={handleApprove}
             onReject={handleReject}
             onDelete={handleDelete}
+            onRestore={handleRestore}
             onToggleFeatured={handleToggleFeatured}
             onVerify={handleVerify}
             onUpdate={handleUpdate}

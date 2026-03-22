@@ -17,6 +17,7 @@ import ExternalLinkModal from "./components/ExternalLinkModal";
 import { trackExternalClick, hasSeenModalThisSession, markModalSeen } from "./services/outboundClickService";
 import { trackProfileView, trackCompareAdd, trackCompareRemove, trackCompareView, trackComparePair, trackEvent } from "./services/userEventService";
 import { fetchUpcomingEventsForVenue, formatEventDate, formatEventTime } from './services/eventService';
+import ReviewsSection from './components/reviews/ReviewsSection';
 import EventDrawer from './components/EventDrawer';
 import { ShowcaseAtAGlance, ShowcasePricing, ShowcaseVerified } from './components/showcase';
 import { fetchVenueIntelligence } from './services/venueIntelligenceService';
@@ -8026,6 +8027,13 @@ export default function VenueProfile({ onBack = null, slug = null }) {
                 </div>
               )}
               {VV.testimonials && Array.isArray(VV.testimonials) && VV.testimonials.length > 0 && <Reviews testimonials={VV.testimonials} venue={VV} venueSlug={slug} />}
+              {dbVenue && dbVenue.id && (
+                <ReviewsSection
+                  entityType="venue"
+                  entityId={dbVenue.id}
+                  onOpenReviewForm={() => setEnquiryOpen(true)}
+                />
+              )}
               <FAQSection venue={VV} onAsk={() => setEnquiryOpen(true)} />
               <SimilarVenues venue={VV} />
               <RecentlyViewed venue={VV} />

@@ -73,11 +73,22 @@ export async function fetchApprovedReviews(entityType, entityId) {
   try {
     const { data, error } = await supabase
       .from('reviews')
-      .select('*')
+      .select(`
+        id, reviewer_name, reviewer_location, reviewer_role,
+        event_type, event_date, guest_count,
+        overall_rating, sub_ratings,
+        review_title, review_text,
+        is_verified, is_verified_booking, verification_source,
+        is_featured, featured_quote,
+        review_date, published_at, reply_count,
+        messages:review_messages(sender_type, message_body, created_at, is_internal_note)
+      `)
       .eq('entity_type', entityType)
       .eq('entity_id', entityId)
-      .eq('moderation_status', 'approved')
-      .order('published_at', { ascending: false });
+      .in('moderation_status', ['approved', 'awaiting_reply', 'replied'])
+      .eq('is_public', true)
+      .is('deleted_at', null)
+      .order('review_date', { ascending: false, nullsFirst: false });
 
     if (error) {
       console.error('Supabase error fetching approved reviews:', error);

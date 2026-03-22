@@ -45,11 +45,11 @@ const ReviewsSection = ({ entityType, entityId, onOpenReviewForm }) => {
   }
 
   const sortedReviews = [...reviews].sort((a, b) => {
-    if (sortBy === 'highest') {
-      return b.overall_rating - a.overall_rating;
-    }
-    // 'newest' - already ordered by published_at DESC from query
-    return new Date(b.published_at) - new Date(a.published_at);
+    if (sortBy === 'highest') return b.overall_rating - a.overall_rating;
+    // newest: prefer review_date (original), fallback to published_at
+    const dA = a.review_date || a.published_at;
+    const dB = b.review_date || b.published_at;
+    return new Date(dB) - new Date(dA);
   });
 
   if (loading) {

@@ -8,6 +8,8 @@ export async function fetchAdminReviews({
   status = null,
   entityType = null,
   searchQuery = null,
+  addedByAdmin = null,
+  showDeleted = false,
   limit = 20,
   offset = 0,
 } = {}) {
@@ -27,11 +29,17 @@ export async function fetchAdminReviews({
           review_count
         )
       `, { count: 'exact' })
-      .is('deleted_at', null)
       .order('created_at', { ascending: false });
+
+    if (showDeleted) {
+      query = query.not('deleted_at', 'is', null);
+    } else {
+      query = query.is('deleted_at', null);
+    }
 
     if (status) query = query.eq('moderation_status', status);
     if (entityType) query = query.eq('entity_type', entityType);
+    if (addedByAdmin !== null) query = query.eq('added_by_admin', addedByAdmin);
 
     if (searchQuery) {
       query = query.or(
@@ -131,20 +139,47 @@ export async function updateReview(reviewId, updates) {
 
 // ─── Moderation actions ───────────────────────────────────────────────────────
 
+async function sendReviewNotification(type, reviewData) {
+  // Fire-and-forget — never blocks moderation action
+  try {
+    if (!reviewData?.reviewer_email) return;
+    const subjects = {
+      approved: 'Your review has been published — Luxury Wedding Directory',
+      rejected: 'Update on your review — Luxury Wedding Directory',
+    };
+    const bodies = {
+      approved: `Hi ${reviewData.reviewer_name || 'there'},\n\nThank you — your review has been verified and published on the Luxury Wedding Directory.\n\nWe appreciate you sharing your experience.\n\nThe LWD Team`,
+      rejected: `Hi ${reviewData.reviewer_name || 'there'},\n\nThank you for submitting your review. After moderation, we were unable to publish it at this time.\n\nIf you have questions, please contact our team.\n\nThe LWD Team`,
+    };
+    const { supabase: sb } = await import('../lib/supabaseClient');
+    await sb.functions.invoke('send-email', {
+      body: {
+        to: reviewData.reviewer_email,
+        subject: subjects[type],
+        text: bodies[type],
+      },
+    });
+  } catch { /* silent — notification failure must never block moderation */ }
+}
+
 export async function approveReview(reviewId, adminNotes = null) {
-  return updateReview(reviewId, {
+  const data = await updateReview(reviewId, {
     moderation_status: 'approved',
     admin_notes: adminNotes,
     is_public: true,
   });
+  sendReviewNotification('approved', data);
+  return data;
 }
 
 export async function rejectReview(reviewId, adminNotes = '') {
-  return updateReview(reviewId, {
+  const data = await updateReview(reviewId, {
     moderation_status: 'rejected',
     admin_notes: adminNotes,
     is_public: false,
   });
+  sendReviewNotification('rejected', data);
+  return data;
 }
 
 export async function markAwaitingReply(reviewId) {
@@ -188,6 +223,42 @@ export async function hardDeleteReview(reviewId) {
   } catch (err) {
     console.error('hardDeleteReview error:', err);
     throw err;
+  }
+}
+
+export async function restoreReview(reviewId) {
+  try {
+    const { data, error } = await supabase
+      .from('reviews')
+      .update({ deleted_at: null, deletion_reason: null, updated_at: new Date().toISOString() })
+      .eq('id', reviewId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('restoreReview error:', err);
+    throw err;
+  }
+}
+
+// ─── Vendor-facing reviews (for vendor dashboard reply flow) ──────────────────
+
+export async function fetchVendorReviews(entityId, { limit = 20, offset = 0 } = {}) {
+  try {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('*, messages:review_messages(id, sender_type, message_body, created_at, is_internal_note)')
+      .eq('entity_id', entityId)
+      .in('moderation_status', ['approved', 'awaiting_reply', 'replied'])
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('fetchVendorReviews error:', err);
+    return [];
   }
 }
 
