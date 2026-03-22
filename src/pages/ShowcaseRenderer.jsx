@@ -283,7 +283,7 @@ function HeroSection({ content, layout, showcaseHero, listingFirstImage, palette
       }} />
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0,
-        padding: 'clamp(32px, 5vw, 80px)',
+        padding: 'clamp(20px, 3vw, 48px) clamp(32px, 5vw, 80px) clamp(24px, 3vw, 40px)',
       }}>
         {(content.eyebrow) && (
           <p style={{
@@ -326,9 +326,9 @@ function HeroSection({ content, layout, showcaseHero, listingFirstImage, palette
         {/* Stats bar — shown when content.stats array provided */}
         {content.stats && content.stats.length > 0 && (
           <div style={{
-            display: 'flex', gap: 0, marginTop: 40,
+            display: 'flex', gap: 0, marginTop: 20,
             borderTop: '1px solid rgba(245,240,232,0.18)',
-            paddingTop: 24, flexWrap: 'wrap',
+            paddingTop: 16, flexWrap: 'wrap',
           }}>
             {content.stats.map((stat, i) => (
               <div key={i} style={{
