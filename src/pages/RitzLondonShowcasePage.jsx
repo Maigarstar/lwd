@@ -17,7 +17,7 @@ import { CarouselRow }        from '../components/cards/editorial/CarouselCard';
 import VenueEnquireCard       from '../components/cards/editorial/VenueEnquireCard';
 import MediaBlock             from '../components/profile/MediaBlock';
 import { ThemeCtx, LIGHT }   from '../components/profile/ProfileDesignSystem';
-import { ShowcaseAtAGlance, ShowcasePricing, ShowcaseVerified } from '../components/showcase';
+import { ShowcaseAtAGlance, ShowcasePricing, ShowcaseVerified, ShowcaseFaq } from '../components/showcase';
 import HomeNav                from '../components/nav/HomeNav';
 import { useBreakpoint }      from '../hooks/useWindowWidth';
 
@@ -958,50 +958,42 @@ export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavi
           ))}
         </div>
 
-        {/* FAQs */}
-        <div style={{ marginTop: 64 }}>
-          <p style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', color: GOLD, textTransform: 'uppercase', margin: '0 0 32px' }}>
-            Weddings at The Ritz — Frequently Asked Questions
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '28px 48px' }}>
-            {[
-              {
-                q: 'What is the maximum capacity for a wedding at The Ritz?',
-                a: 'The William Kent Room accommodates up to 80 guests for a seated wedding breakfast. For larger celebrations, The Ritz can arrange exclusive use of multiple rooms and spaces throughout the hotel.',
-              },
-              {
-                q: 'Is exclusive use of The Ritz available?',
-                a: "Yes. The Ritz London offers exclusive use arrangements for private celebrations, allowing guests to experience the hotel's extraordinary spaces, dining, and service in complete privacy.",
-              },
-              {
-                q: 'Who plans the menu for a Ritz wedding?',
-                a: 'Every wedding menu is composed personally by Executive Chef John Williams MBE, in close consultation with the couple. The Ritz does not use standard banqueting menus — every occasion is unique.',
-              },
-              {
-                q: 'How far in advance should we enquire?',
-                a: 'Given the extraordinary demand for The Ritz as a wedding venue, we recommend enquiring at least 12–18 months in advance of your preferred date. Exclusive weekend dates are particularly sought-after.',
-              },
-              {
-                q: 'Can guests stay at The Ritz on the night of the wedding?',
-                a: "Yes. The wedding team will arrange accommodation for the couple and guests across the hotel's 136 rooms and suites, all attended by personal butlers throughout your stay.",
-              },
-              {
-                q: 'What ceremony formats does The Ritz offer?',
-                a: 'The Ritz holds a civil marriage licence and can host legal civil ceremonies on-site. Religious blessings and symbolic ceremonies are also available. The wedding concierge will advise on all arrangements.',
-              },
-            ].map((faq, i) => (
-              <div key={i} style={{ borderTop: `1px solid ${P.border}`, paddingTop: 20 }}>
-                <p style={{ fontFamily: NU, fontSize: 14, fontWeight: 700, color: P.text, margin: '0 0 8px', lineHeight: 1.5 }}>
-                  {faq.q}
-                </p>
-                <p style={{ fontFamily: NU, fontSize: 14, color: P.muted, margin: 0, lineHeight: 1.7 }}>
-                  {faq.a}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
       </Section>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          FAQs — accordion with JSON-LD FAQPage schema
+      ═══════════════════════════════════════════════════════════════════ */}
+      <ShowcaseFaq
+        eyebrow="Weddings at The Ritz — Frequently Asked Questions"
+        accentColor={GOLD}
+        theme={darkMode ? 'dark' : 'light'}
+        faqs={[
+          {
+            question: 'What is the maximum capacity for a wedding at The Ritz?',
+            answer: 'The William Kent Room accommodates up to 80 guests for a seated wedding breakfast. For larger celebrations, The Ritz can arrange exclusive use of multiple rooms and spaces throughout the hotel.',
+          },
+          {
+            question: 'Is exclusive use of The Ritz available?',
+            answer: "Yes. The Ritz London offers exclusive use arrangements for private celebrations, allowing guests to experience the hotel's extraordinary spaces, dining, and service in complete privacy.",
+          },
+          {
+            question: 'Who plans the menu for a Ritz wedding?',
+            answer: 'Every wedding menu is composed personally by Executive Chef John Williams MBE, in close consultation with the couple. The Ritz does not use standard banqueting menus — every occasion is unique.',
+          },
+          {
+            question: 'How far in advance should we enquire?',
+            answer: 'Given the extraordinary demand for The Ritz as a wedding venue, we recommend enquiring at least 12–18 months in advance of your preferred date. Exclusive weekend dates are particularly sought-after.',
+          },
+          {
+            question: 'Can guests stay at The Ritz on the night of the wedding?',
+            answer: "Yes. The wedding team will arrange accommodation for the couple and guests across the hotel's 136 rooms and suites, all attended by personal butlers throughout your stay.",
+          },
+          {
+            question: 'What ceremony formats does The Ritz offer?',
+            answer: 'The Ritz holds a civil marriage licence and can host legal civil ceremonies on-site. Religious blessings and symbolic ceremonies are also available. The wedding concierge will advise on all arrangements.',
+          },
+        ]}
+      />
 
       {/* ═══════════════════════════════════════════════════════════════════
           ENQUIRE

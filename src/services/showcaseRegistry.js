@@ -363,13 +363,33 @@ export const SECTION_REGISTRY = {
     defaultLayout: () => ({}),
     previewFallback: 'Video gallery — wedding films, estate tours and highlights',
   },
+
+  faq: {
+    label:     'FAQs',
+    icon:      '?',
+    // FAQ accordion section — collapses by default, JSON-LD FAQPage schema on mount.
+    // Each faq item: { question: string, answer: string }
+    required:  [],
+    optional:  ['eyebrow', 'headline', 'faqs'],
+    validation: {},
+    defaultContent: () => ({
+      eyebrow:  'Frequently Asked Questions',
+      headline: '',
+      faqs: [
+        { question: 'What is the maximum capacity?', answer: '' },
+        { question: 'Is exclusive use available?',  answer: '' },
+      ],
+    }),
+    defaultLayout: () => ({}),
+    previewFallback: 'FAQ accordion — questions and answers with JSON-LD schema',
+  },
 };
 
 // ── Ordered list for the section picker UI ────────────────────────────────────
 export const SECTION_TYPE_ORDER = [
   'hero', 'stats', 'intro', 'highlight-band', 'feature', 'quote',
   'mosaic', 'gallery', 'films', 'dining', 'spaces', 'wellness',
-  'weddings', 'pricing', 'verified', 'image-full', 'cta', 'related',
+  'weddings', 'faq', 'pricing', 'verified', 'image-full', 'cta', 'related',
 ];
 
 // ── Create a fresh section with defaults ──────────────────────────────────────

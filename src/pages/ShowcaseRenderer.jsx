@@ -28,6 +28,7 @@ import VenueStatsCard                from '../components/cards/editorial/VenueSt
 import MosaicCard                    from '../components/cards/editorial/MosaicCard';
 import TwoColumnEditorialCard        from '../components/cards/editorial/TwoColumnEditorialCard';
 import VenueEnquireCard              from '../components/cards/editorial/VenueEnquireCard';
+import { ShowcaseFaq }               from '../components/showcase';
 import { SECTION_REGISTRY }          from '../services/showcaseRegistry';
 import HomeNav                       from '../components/nav/HomeNav';
 import MediaBlock                    from '../components/profile/MediaBlock';
@@ -78,7 +79,7 @@ function buildPalette(themeJson) {
 // ── Section types that appear in the sticky sub-nav ───────────────────────────
 const NAV_ELIGIBLE = new Set([
   'intro', 'feature', 'mosaic', 'gallery', 'dining',
-  'spaces', 'wellness', 'weddings', 'highlight-band', 'films',
+  'spaces', 'wellness', 'weddings', 'highlight-band', 'films', 'faq',
 ]);
 const TYPE_LABEL = {
   intro:            'Overview',
@@ -91,6 +92,7 @@ const TYPE_LABEL = {
   wellness:         'Wellness & Spa',
   weddings:         'Weddings',
   'highlight-band': 'Our Story',
+  faq:              'FAQs',
 };
 
 // ── Sticky section sub-nav ────────────────────────────────────────────────────
@@ -1151,6 +1153,22 @@ function VerifiedSection({ content, layout, palette }) {
   );
 }
 
+// ── FaqSection — accordion with JSON-LD schema ───────────────────────────────
+function FaqSection({ content, layout, palette }) {
+  const P  = palette;
+  const bg = layout?.accentBg || (P.mode === 'light' ? '#faf9f6' : '#0f0e0c');
+  return (
+    <ShowcaseFaq
+      faqs={content.faqs || []}
+      eyebrow={content.eyebrow || 'Frequently Asked Questions'}
+      headline={content.headline || null}
+      accentColor={P.accent}
+      theme={P.mode}
+      bg={bg}
+    />
+  );
+}
+
 // ── Section preview fallback (studio only) ────────────────────────────────────
 function SectionPlaceholder({ section, palette }) {
   const P   = palette;
@@ -1427,6 +1445,9 @@ export default function ShowcaseRenderer({
         break;
       case 'verified':
         inner = <VerifiedSection content={content} layout={layout} palette={palette} />;
+        break;
+      case 'faq':
+        inner = <FaqSection content={content} layout={layout} palette={palette} />;
         break;
       case 'image-full':
         inner = <FullImageSection content={content} />;

@@ -1,9 +1,8 @@
 // ─── src/components/showcase/ShowcasePricing.jsx ─────────────────────────────
 // "Pricing & What to Expect" — honest, range-based pricing section.
 //
-// For luxury venues where brochure pricing is vague or withheld, this section
-// provides contextual clarity: what drives cost, what is/isn't included, and
-// a realistic spend range. Feeds AI models with extractable, trustworthy data.
+// Price figures are rendered at headline scale — matching the hero stats bar.
+// Includes/excludes are rendered as clean editorial lists, not pills.
 //
 // Props:
 //   data        — venue_showcases row (or subset)
@@ -25,19 +24,59 @@ function fmt(pence, currency = 'GBP') {
   }).format(amount);
 }
 
-function Tag({ label, bg, text }) {
+// A single headline price figure: label → big number → optional sub-label
+function PriceFigure({ label, value, sub, gold, text, muted }) {
+  if (!value) return null;
   return (
-    <span style={{
-      display: 'inline-block',
-      padding: '5px 12px',
-      margin: '4px 6px 4px 0',
-      borderRadius: 2,
-      background: bg,
-      fontFamily: NU, fontSize: 12, fontWeight: 500, color: text,
-      letterSpacing: '0.03em',
+    <div style={{ paddingRight: 8 }}>
+      <div style={{
+        fontFamily: NU, fontSize: 9, fontWeight: 700,
+        letterSpacing: '0.18em', textTransform: 'uppercase',
+        color: gold, marginBottom: 10,
+      }}>
+        {label}
+      </div>
+      <div style={{
+        fontFamily: GD,
+        fontSize: 'clamp(36px, 4.5vw, 56px)',
+        color: text, lineHeight: 1, marginBottom: 6,
+        fontWeight: 400,
+      }}>
+        {value}
+      </div>
+      {sub && (
+        <div style={{
+          fontFamily: NU, fontSize: 11, color: muted, letterSpacing: '0.04em',
+        }}>
+          {sub}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// A single item in the includes/excludes editorial list
+function ListItem({ item, gold, text, muted, isInclude }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'flex-start', gap: 12,
+      padding: '9px 0',
     }}>
-      {label}
-    </span>
+      <span style={{
+        fontFamily: NU, fontSize: 13,
+        color: isInclude ? gold : muted,
+        flexShrink: 0, marginTop: 1, lineHeight: 1,
+        opacity: isInclude ? 1 : 0.6,
+      }}>
+        {isInclude ? '—' : '○'}
+      </span>
+      <span style={{
+        fontFamily: NU, fontSize: 14, color: isInclude ? text : muted,
+        lineHeight: 1.5,
+      }}>
+        {item}
+      </span>
+    </div>
   );
 }
 
@@ -51,15 +90,12 @@ export default function ShowcasePricing({
   const { isMobile } = useBreakpoint();
 
   const isLight = theme === 'light';
-  const bg       = bgOverride || (isLight ? '#faf9f6' : '#130f1e');
-  const text     = isLight ? '#1a1209' : '#f5f0e8';
-  const muted    = isLight ? 'rgba(26,18,9,0.6)' : 'rgba(245,240,232,0.55)';
-  const border   = isLight ? '#e8e2d8' : 'rgba(245,240,232,0.1)';
-  const gold     = accentColor || '#C4A35A';
-  const tagBg    = isLight ? 'rgba(196,163,90,0.1)' : 'rgba(196,163,90,0.15)';
-  const tagText  = gold;
-  const exTagBg  = isLight ? 'rgba(26,18,9,0.06)' : 'rgba(245,240,232,0.08)';
-  const exTagTxt = muted;
+  const bg      = bgOverride || (isLight ? '#faf9f6' : '#130f1e');
+  const text    = isLight ? '#1a1209' : '#f5f0e8';
+  const muted   = isLight ? 'rgba(26,18,9,0.6)' : 'rgba(245,240,232,0.55)';
+  const border  = isLight ? '#e8e2d8' : 'rgba(245,240,232,0.1)';
+  const gold    = accentColor || '#C4A35A';
+  const divider = isLight ? 'rgba(26,18,9,0.12)' : 'rgba(245,240,232,0.12)';
 
   const {
     currency = 'GBP',
@@ -73,7 +109,7 @@ export default function ShowcasePricing({
     pricing_excludes = [],
   } = data;
 
-  // Build spend range sentence
+  // Spend range sentence — AI-extractable
   const hasSpend = typical_wedding_spend_min || typical_wedding_spend_max;
   const spendMin = fmt(typical_wedding_spend_min, currency);
   const spendMax = fmt(typical_wedding_spend_max, currency);
@@ -89,12 +125,19 @@ export default function ShowcasePricing({
 
   if (!hasAnyPricingData) return null;
 
+  // Build key price figures for the headline row
+  const priceFigures = [
+    venue_hire_from   && { label: 'Venue Hire From', value: fmt(venue_hire_from, currency),   sub: 'starting point' },
+    minimum_spend     && { label: 'Minimum Spend',   value: fmt(minimum_spend, currency),     sub: 'required investment' },
+    price_per_head_from && { label: 'Per Head From', value: fmt(price_per_head_from, currency), sub: 'per guest' },
+  ].filter(Boolean);
+
   return (
     <div style={{
       background: bg,
-      padding: isMobile ? '48px 20px' : '64px 64px',
+      padding: isMobile ? '56px 24px' : '80px 64px',
     }}>
-      <div style={{ maxWidth: 860, margin: '0 auto' }}>
+      <div style={{ maxWidth: 900, margin: '0 auto' }}>
 
         {/* Eyebrow + heading */}
         <p style={{
@@ -102,109 +145,111 @@ export default function ShowcasePricing({
           letterSpacing: '0.15em', textTransform: 'uppercase',
           color: gold, margin: '0 0 14px',
         }}>
-          Pricing & What to Expect
+          Pricing &amp; What to Expect
         </p>
         <h2 style={{
-          fontFamily: GD, fontSize: isMobile ? 26 : 36,
+          fontFamily: GD, fontSize: isMobile ? 26 : 38,
           color: text, margin: '0 0 8px', fontWeight: 400, lineHeight: 1.15,
         }}>
           Understanding the Investment
         </h2>
-        <div style={{ width: 40, height: 1, background: gold, margin: '0 0 32px' }} />
+        <div style={{ width: 40, height: 1, background: gold, margin: '0 0 36px' }} />
 
-        {/* Spend range summary — AI-extractable sentence */}
+        {/* Spend range summary — AI-extractable italic sentence */}
         {spendSentence && (
           <p style={{
-            fontFamily: NU, fontSize: 15, lineHeight: 1.75,
-            color: text, margin: '0 0 28px',
-            fontStyle: 'italic',
+            fontFamily: NU, fontSize: 15, lineHeight: 1.8,
+            color: text, margin: '0 0 28px', fontStyle: 'italic',
           }}>
             {spendSentence}
           </p>
         )}
 
-        {/* Pricing notes / context */}
+        {/* Pricing context / notes */}
         {pricing_notes && (
           <p style={{
-            fontFamily: NU, fontSize: 14, lineHeight: 1.75,
-            color: muted, margin: '0 0 36px',
+            fontFamily: NU, fontSize: 14, lineHeight: 1.8,
+            color: muted, margin: '0 0 48px',
           }}>
             {pricing_notes}
           </p>
         )}
 
-        {/* Key figures row */}
-        {(venue_hire_from || minimum_spend || price_per_head_from) && (
+        {/* ── Headline price figures ── */}
+        {priceFigures.length > 0 && (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: isMobile ? 16 : 24,
-            marginBottom: 36,
-            paddingTop: 28,
+            gridTemplateColumns: isMobile ? '1fr 1fr' : `repeat(${priceFigures.length}, 1fr)`,
+            gap: 0,
             borderTop: `1px solid ${border}`,
+            borderBottom: `1px solid ${border}`,
+            paddingTop: 32,
+            paddingBottom: 32,
+            marginBottom: 48,
           }}>
-            {venue_hire_from && (
-              <div>
-                <p style={{ fontFamily: NU, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: muted, margin: '0 0 6px' }}>
-                  Venue Hire From
-                </p>
-                <p style={{ fontFamily: GD, fontSize: 28, color: gold, margin: 0, fontWeight: 400, lineHeight: 1 }}>
-                  {fmt(venue_hire_from, currency)}
-                </p>
+            {priceFigures.map((fig, i) => (
+              <div key={i} style={{
+                paddingRight: i < priceFigures.length - 1 ? 32 : 0,
+                paddingLeft: i > 0 ? 32 : 0,
+                borderRight: i < priceFigures.length - 1 ? `1px solid ${divider}` : 'none',
+              }}>
+                <PriceFigure
+                  label={fig.label}
+                  value={fig.value}
+                  sub={fig.sub}
+                  gold={gold}
+                  text={text}
+                  muted={muted}
+                />
               </div>
-            )}
-            {minimum_spend && (
-              <div>
-                <p style={{ fontFamily: NU, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: muted, margin: '0 0 6px' }}>
-                  Minimum Spend
-                </p>
-                <p style={{ fontFamily: GD, fontSize: 28, color: text, margin: 0, fontWeight: 400, lineHeight: 1 }}>
-                  {fmt(minimum_spend, currency)}
-                </p>
-              </div>
-            )}
-            {price_per_head_from && (
-              <div>
-                <p style={{ fontFamily: NU, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: muted, margin: '0 0 6px' }}>
-                  Per Head From
-                </p>
-                <p style={{ fontFamily: GD, fontSize: 28, color: text, margin: 0, fontWeight: 400, lineHeight: 1 }}>
-                  {fmt(price_per_head_from, currency)}
-                </p>
-              </div>
-            )}
+            ))}
           </div>
         )}
 
-        {/* Includes / Excludes tags */}
+        {/* ── Includes / Excludes — two editorial columns with divider ── */}
         {((pricing_includes?.length > 0) || (pricing_excludes?.length > 0)) && (
           <div style={{
             display: isMobile ? 'block' : 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: 40,
-            paddingTop: 28,
-            borderTop: `1px solid ${border}`,
+            gridTemplateColumns: '1fr 1px 1fr',
+            gap: isMobile ? 0 : '0 40px',
+            paddingTop: 4,
           }}>
+            {/* Column 1: Typically Includes */}
             {pricing_includes?.length > 0 && (
               <div>
-                <p style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: muted, margin: '0 0 12px' }}>
+                <p style={{
+                  fontFamily: NU, fontSize: 10, fontWeight: 700,
+                  letterSpacing: '0.14em', textTransform: 'uppercase',
+                  color: gold, margin: '0 0 8px',
+                }}>
                   Typically Includes
                 </p>
                 <div>
                   {pricing_includes.map((item, i) => (
-                    <Tag key={i} label={item} bg={tagBg} text={tagText} />
+                    <ListItem key={i} item={item} gold={gold} text={text} muted={muted} isInclude={true} />
                   ))}
                 </div>
               </div>
             )}
+
+            {/* Vertical divider */}
+            {!isMobile && pricing_includes?.length > 0 && pricing_excludes?.length > 0 && (
+              <div style={{ background: divider, width: 1 }} />
+            )}
+
+            {/* Column 2: Additional Costs */}
             {pricing_excludes?.length > 0 && (
-              <div style={{ marginTop: isMobile ? 24 : 0 }}>
-                <p style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: muted, margin: '0 0 12px' }}>
+              <div style={{ marginTop: isMobile ? 32 : 0 }}>
+                <p style={{
+                  fontFamily: NU, fontSize: 10, fontWeight: 700,
+                  letterSpacing: '0.14em', textTransform: 'uppercase',
+                  color: muted, margin: '0 0 8px',
+                }}>
                   Additional Costs
                 </p>
                 <div>
                   {pricing_excludes.map((item, i) => (
-                    <Tag key={i} label={item} bg={exTagBg} text={exTagTxt} />
+                    <ListItem key={i} item={item} gold={gold} text={text} muted={muted} isInclude={false} />
                   ))}
                 </div>
               </div>
@@ -215,7 +260,7 @@ export default function ShowcasePricing({
         {/* Disclosure note */}
         <p style={{
           fontFamily: NU, fontSize: 11, color: muted,
-          margin: '28px 0 0', letterSpacing: '0.02em',
+          margin: '40px 0 0', letterSpacing: '0.02em',
           borderTop: `1px solid ${border}`, paddingTop: 20,
         }}>
           All pricing is indicative. Final investment varies by date, guest count, menu, and bespoke requirements. Contact the venue directly for a tailored proposal.
