@@ -846,7 +846,7 @@ function AddReviewPanel({ onClose, onSaved, C }) {
     reviewTitle:         '',
     reviewText:          '',
     overallRating:       5,
-    subRatings:          { venue: '', service: '', catering: '', atmosphere: '', value: '' },
+    subRatings:          { venue: null, service: null, catering: null, atmosphere: null, value: null },
     eventType:           '',
     eventDate:           '',
     guestCount:          '',
@@ -857,9 +857,37 @@ function AddReviewPanel({ onClose, onSaved, C }) {
     moderationStatus:    'approved',
     isPublic:            true,
     isFeatured:          false,
+    featuredQuote:       '',
+    useHighlightQuote:   false,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  // Authenticity checks (required before publishing)
+  const [checks, setChecks] = useState({ pasted: false, identity: false, verification: false, dateAccurate: false });
+  const toggleCheck = (k) => setChecks(c => ({ ...c, [k]: !c[k] }));
+  const allChecked = Object.values(checks).every(Boolean);
+
+  // Duplicate detection
+  const [dupWarning, setDupWarning] = useState(null);
+  useEffect(() => {
+    if (!listing || form.reviewerName.trim().length < 4) { setDupWarning(null); return; }
+    const t = setTimeout(async () => {
+      try {
+        const { reviews: hits } = await fetchAdminReviews({ searchQuery: form.reviewerName.trim(), limit: 5 });
+        const match = hits.find(r => r.entity_id === listing.id);
+        setDupWarning(match ? `A review from "${match.reviewer_name}" for this venue already exists (${match.moderation_status}).` : null);
+      } catch { /* silent */ }
+    }, 600);
+    return () => clearTimeout(t);
+  }, [form.reviewerName, listing]);
+
+  // Auto-suggest overall rating from sub-ratings
+  const filledSubs = Object.values(form.subRatings).filter(v => v !== null && v !== '');
+  const suggestedRating = filledSubs.length >= 2
+    ? Math.round((filledSubs.reduce((a, b) => a + Number(b), 0) / filledSubs.length) * 10) / 10
+    : null;
+  const suggestDiffers = suggestedRating !== null && suggestedRating !== form.overallRating;
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
   const setSub = (key, val) => setForm(f => ({ ...f, subRatings: { ...f.subRatings, [key]: val } }));
@@ -883,6 +911,9 @@ function AddReviewPanel({ onClose, onSaved, C }) {
     if (!form.reviewerName.trim()) { setError('Reviewer name is required.'); return; }
     if (!form.reviewTitle.trim()) { setError('Review title is required.'); return; }
     if (!form.reviewText.trim()) { setError('Review text is required.'); return; }
+    if (form.moderationStatus === 'approved' && !allChecked) {
+      setError('Please complete the authenticity confirmation before publishing.'); return;
+    }
 
     setSaving(true);
     setError(null);
@@ -912,6 +943,7 @@ function AddReviewPanel({ onClose, onSaved, C }) {
         moderationStatus:   form.moderationStatus,
         isPublic:           form.isPublic,
         isFeatured:         form.isFeatured,
+        featuredQuote:      (form.isFeatured && form.useHighlightQuote && form.featuredQuote.trim()) ? form.featuredQuote.trim() : null,
       });
       onSaved();
     } catch (e) {
@@ -985,55 +1017,74 @@ function AddReviewPanel({ onClose, onSaved, C }) {
           </div>
         </div>
 
-        {/* Preview pane */}
+        {/* Preview pane — listing context */}
         {showPreview && (
-          <div style={{ padding: '16px 24px', borderBottom: `1px solid ${C.border}`, background: `${C.gold}05` }}>
-            <div style={{ fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: C.gold, marginBottom: 12, fontWeight: 700 }}>
-              Public Preview
+          <div style={{ borderBottom: `1px solid ${C.border}` }}>
+            {/* Mock listing header strip */}
+            <div style={{ padding: '10px 24px', background: 'rgba(255,255,255,0.03)', borderBottom: `1px solid ${C.border}40`, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontFamily: ND, fontSize: 13, color: C.white, fontWeight: 600 }}>{listing?.name || 'Venue Name'}</span>
+              <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2 }}>·</span>
+              <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Reviews</span>
+              {listing && (
+                <span style={{ marginLeft: 'auto', fontFamily: NU, fontSize: 9, color: C.grey2, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '2px 8px', border: `1px solid ${C.border}`, borderRadius: 2 }}>
+                  Live listing context
+                </span>
+              )}
             </div>
-            <div style={{
-              background: C.card, borderRadius: 4, padding: '16px 18px',
-              border: `1px solid ${C.border}`,
-            }}>
-              {/* Reviewer + rating row */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <div>
-                  <div style={{ fontFamily: NU, fontSize: 13, fontWeight: 700, color: C.white }}>
-                    {form.reviewerName || 'Reviewer Name'}
-                  </div>
-                  <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginTop: 2 }}>
-                    {[
-                      form.reviewerRole ? ROLE_LABELS[form.reviewerRole] : null,
-                      form.reviewerLocation || null,
-                      form.reviewDate ? new Date(form.reviewDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : null,
-                    ].filter(Boolean).join(' · ')}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <span style={{ fontFamily: ND, fontSize: 18, color: C.gold, fontWeight: 600 }}>{form.overallRating}</span>
-                  <span style={{ fontFamily: NU, fontSize: 12, color: C.gold, marginLeft: 4 }}>{'★'.repeat(form.overallRating)}{'☆'.repeat(5 - form.overallRating)}</span>
-                </div>
+            {/* Review card in listing style */}
+            <div style={{ padding: '16px 24px', background: `${C.gold}03` }}>
+              <div style={{ fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: C.gold, marginBottom: 12, fontWeight: 700 }}>
+                Public Preview
               </div>
-              {/* Verified badge */}
-              {(form.isVerified || form.isVerifiedBooking) && (
-                <div style={{ marginBottom: 8 }}>
-                  <span style={{ fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.gold, padding: '2px 8px', border: `1px solid ${C.gold}40`, borderRadius: 2 }}>
-                    {form.isVerifiedBooking ? '◈ LWD Verified Booking' : '◈ LWD Verified Couple'}
+              <div style={{ borderLeft: `3px solid ${C.gold}30`, paddingLeft: 16 }}>
+                {/* Rating + date */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontFamily: ND, fontSize: 22, fontWeight: 700, color: C.gold }}>{form.overallRating}</span>
+                    <span style={{ fontFamily: NU, fontSize: 13, color: C.gold, opacity: 0.75 }}>{'★'.repeat(form.overallRating)}{'☆'.repeat(5 - form.overallRating)}</span>
+                  </div>
+                  <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2 }}>
+                    {form.reviewDate ? new Date(form.reviewDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Review date not set'}
                   </span>
                 </div>
-              )}
-              {/* Event context */}
-              {(form.eventType || form.eventDate || form.guestCount) && (
-                <div style={{ fontFamily: NU, fontSize: 10, color: C.grey2, marginBottom: 8 }}>
-                  {[form.eventType, form.eventDate ? new Date(form.eventDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : null, form.guestCount ? `${form.guestCount} guests` : null].filter(Boolean).join(' · ')}
+                {/* Verified badge */}
+                {(form.isVerified || form.isVerifiedBooking) && (
+                  <div style={{ marginBottom: 8 }}>
+                    <span style={{ fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.gold, padding: '2px 8px', border: `1px solid ${C.gold}40`, borderRadius: 2 }}>
+                      {form.isVerifiedBooking ? '◈ LWD Verified Booking' : '◈ LWD Verified Couple'}
+                    </span>
+                  </div>
+                )}
+                {/* Featured quote */}
+                {form.isFeatured && form.useHighlightQuote && form.featuredQuote && (
+                  <div style={{ fontFamily: ND, fontSize: 15, fontStyle: 'italic', color: C.gold, margin: '8px 0', lineHeight: 1.5 }}>
+                    "{form.featuredQuote}"
+                  </div>
+                )}
+                {/* Title */}
+                <div style={{ fontFamily: ND, fontSize: 16, fontWeight: 600, color: C.white, marginBottom: 6, lineHeight: 1.3 }}>
+                  {form.reviewTitle || <span style={{ color: C.grey2, fontStyle: 'italic' }}>Review title</span>}
                 </div>
-              )}
-              {/* Title + text */}
-              <div style={{ fontFamily: ND, fontSize: 14, fontWeight: 600, color: C.white, marginBottom: 5 }}>
-                "{form.reviewTitle || 'Review title will appear here'}"
-              </div>
-              <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, lineHeight: 1.65, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                {form.reviewText || 'Review text will appear here…'}
+                {/* Body */}
+                <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, lineHeight: 1.75, display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: 10 }}>
+                  {form.reviewText || <span style={{ color: C.grey2, fontStyle: 'italic' }}>Review text will appear here…</span>}
+                </div>
+                {/* Reviewer identity */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, color: C.white }}>{form.reviewerName || 'Reviewer'}</span>
+                  {[
+                    form.reviewerRole ? ROLE_LABELS[form.reviewerRole] : null,
+                    form.reviewerLocation || null,
+                  ].filter(Boolean).map((t, i) => (
+                    <span key={i} style={{ fontFamily: NU, fontSize: 10, color: C.grey2 }}>· {t}</span>
+                  ))}
+                </div>
+                {/* Event context */}
+                {(form.eventType || form.guestCount) && (
+                  <div style={{ fontFamily: NU, fontSize: 10, color: C.grey2, marginTop: 4 }}>
+                    {[form.eventType, form.guestCount ? `${form.guestCount} guests` : null].filter(Boolean).join(' · ')}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1096,7 +1147,7 @@ function AddReviewPanel({ onClose, onSaved, C }) {
             </select>
           </Field>
 
-          <div style={{ height: 1, background: C.border, margin: '16px 0' }} />
+          <div style={{ height: 1, background: `${C.border}80`, margin: '24px 0' }} />
 
           {/* ── Section: Reviewer ── */}
           <div style={{ fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: C.gold, marginBottom: 12, fontWeight: 700 }}>
@@ -1105,6 +1156,11 @@ function AddReviewPanel({ onClose, onSaved, C }) {
 
           <Field label="Full Name" hint="required">
             <input value={form.reviewerName} onChange={e => set('reviewerName', e.target.value)} placeholder="e.g. Alexandra & James Whitmore" style={inputStyle} />
+            {dupWarning && (
+              <div style={{ marginTop: 6, padding: '6px 10px', borderRadius: 3, background: 'rgba(180,120,0,0.08)', border: '1px solid rgba(180,120,0,0.25)', fontFamily: NU, fontSize: 10, color: '#c9900a' }}>
+                ⚠ {dupWarning}
+              </div>
+            )}
           </Field>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -1128,7 +1184,7 @@ function AddReviewPanel({ onClose, onSaved, C }) {
             </select>
           </Field>
 
-          <div style={{ height: 1, background: C.border, margin: '16px 0' }} />
+          <div style={{ height: 1, background: `${C.border}80`, margin: '24px 0' }} />
 
           {/* ── Section: Review Content ── */}
           <div style={{ fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: C.gold, marginBottom: 12, fontWeight: 700 }}>
@@ -1154,6 +1210,20 @@ function AddReviewPanel({ onClose, onSaved, C }) {
 
           <Field label="Overall Rating">
             <StarSelector value={form.overallRating} onChange={v => set('overallRating', v)} C={C} />
+            {suggestDiffers && (
+              <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2, fontStyle: 'italic' }}>
+                  Suggested {suggestedRating} based on sub-ratings
+                </span>
+                <button
+                  type="button"
+                  onClick={() => set('overallRating', suggestedRating)}
+                  style={{ background: 'none', border: `1px solid ${C.gold}50`, borderRadius: 2, cursor: 'pointer', fontFamily: NU, fontSize: 10, color: C.gold, padding: '2px 8px' }}
+                >
+                  Apply
+                </button>
+              </div>
+            )}
           </Field>
 
           <Field label="Review Date" hint="when client gave review">
@@ -1194,7 +1264,7 @@ function AddReviewPanel({ onClose, onSaved, C }) {
             </Field>
           </div>
 
-          <div style={{ height: 1, background: C.border, margin: '16px 0' }} />
+          <div style={{ height: 1, background: `${C.border}80`, margin: '24px 0' }} />
 
           {/* ── Section: Verification ── */}
           <div style={{ fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: C.gold, marginBottom: 12, fontWeight: 700 }}>
@@ -1252,10 +1322,18 @@ function AddReviewPanel({ onClose, onSaved, C }) {
                   <option key={s.value} value={s.value}>{s.label}</option>
                 ))}
               </select>
+              {form.verificationSource && (
+                <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.gold, padding: '2px 8px', border: `1px solid ${C.gold}40`, borderRadius: 2 }}>
+                    {VERIFICATION_SOURCES.find(s => s.value === form.verificationSource)?.label || form.verificationSource}
+                  </span>
+                  <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2 }}>will appear in admin audit trail</span>
+                </div>
+              )}
             </Field>
           )}
 
-          <div style={{ height: 1, background: C.border, margin: '16px 0' }} />
+          <div style={{ height: 1, background: `${C.border}80`, margin: '24px 0' }} />
 
           {/* ── Section: Status & Visibility ── */}
           <div style={{ fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: C.gold, marginBottom: 12, fontWeight: 700 }}>
@@ -1275,17 +1353,81 @@ function AddReviewPanel({ onClose, onSaved, C }) {
                 <input type="checkbox" checked={form.isPublic} onChange={e => set('isPublic', e.target.checked)} style={{ accentColor: C.gold, cursor: 'pointer' }} />
                 Public (visible on listing)
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: NU, fontSize: 12, color: C.white }}>
-                <input type="checkbox" checked={form.isFeatured} onChange={e => set('isFeatured', e.target.checked)} style={{ accentColor: C.gold, cursor: 'pointer' }} />
-                ✦ Featured review
-              </label>
             </div>
           </div>
+
+          {/* Featured editorial card */}
+          <div style={{
+            marginTop: 14, padding: '14px 14px', borderRadius: 3,
+            border: `1px solid ${form.isFeatured ? C.gold + '50' : C.border}`,
+            background: form.isFeatured ? `${C.gold}06` : 'transparent',
+            transition: 'all 0.18s',
+          }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+              <input type="checkbox" checked={form.isFeatured} onChange={e => set('isFeatured', e.target.checked)} style={{ accentColor: C.gold, cursor: 'pointer', marginTop: 2 }} />
+              <div>
+                <div style={{ fontFamily: NU, fontSize: 12, color: form.isFeatured ? C.gold : C.white, fontWeight: form.isFeatured ? 600 : 400 }}>
+                  ✦ Feature on listing and editorial
+                </div>
+                <div style={{ fontFamily: NU, fontSize: 10, color: C.grey2, marginTop: 2 }}>
+                  Displayed prominently on the venue page and eligible for editorial use
+                </div>
+              </div>
+            </label>
+            {form.isFeatured && (
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 8 }}>
+                  <input type="checkbox" checked={form.useHighlightQuote} onChange={e => set('useHighlightQuote', e.target.checked)} style={{ accentColor: C.gold, cursor: 'pointer' }} />
+                  <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>Extract a highlight quote for editorial use</span>
+                </label>
+                {form.useHighlightQuote && (
+                  <textarea
+                    value={form.featuredQuote}
+                    onChange={e => set('featuredQuote', e.target.value)}
+                    placeholder="Paste the standout sentence or phrase from this review…"
+                    rows={2}
+                    style={{ ...inputStyle, resize: 'vertical', fontStyle: 'italic', fontSize: 12 }}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Authenticity confirmation (required for publish) */}
+          {form.moderationStatus === 'approved' && (
+            <div style={{
+              marginTop: 24, padding: '14px 16px', borderRadius: 3,
+              border: `1px solid ${allChecked ? '#15803d40' : C.border}`,
+              background: allChecked ? 'rgba(21,128,61,0.05)' : `${C.gold}04`,
+            }}>
+              <div style={{ fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: allChecked ? '#15803d' : C.gold, marginBottom: 10, fontWeight: 700 }}>
+                {allChecked ? '✓ Authenticity Confirmed' : 'Confirm Review Authenticity'}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {[
+                  { key: 'pasted',       label: 'Review text copied from original source (email, WhatsApp, PDF)' },
+                  { key: 'identity',     label: 'Client identity confirmed — name matches contact record' },
+                  { key: 'verification', label: 'Verification type accurately reflects how we verified this review' },
+                  { key: 'dateAccurate', label: 'Review date reflects when the client gave this review, not today' },
+                ].map(({ key, label }) => (
+                  <label key={key} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={checks[key]}
+                      onChange={() => toggleCheck(key)}
+                      style={{ accentColor: '#15803d', cursor: 'pointer', marginTop: 2 }}
+                    />
+                    <span style={{ fontFamily: NU, fontSize: 11, color: checks[key] ? C.white : C.grey, lineHeight: 1.5 }}>{label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Audit note */}
           <div style={{
             padding: '10px 14px', background: `${C.gold}08`,
-            border: `1px solid ${C.gold}25`, borderRadius: 3, marginBottom: 20,
+            border: `1px solid ${C.gold}20`, borderRadius: 3, marginTop: 16, marginBottom: 20,
             fontFamily: NU, fontSize: 11, color: C.grey, lineHeight: 1.6,
           }}>
             This review will be marked <strong style={{ color: C.gold }}>Added by Admin</strong> in the system. The review date you set above will be used for public display — not the system entry date.
