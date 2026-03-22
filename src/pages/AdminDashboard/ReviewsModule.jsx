@@ -2,294 +2,657 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTheme } from '../../theme/ThemeContext';
 import {
   fetchAdminReviews,
+  getReviewStats,
   approveReview,
   rejectReview,
   softDeleteReview,
+  updateReview,
+  toggleFeatured,
+  setVerification,
+  markAwaitingReply,
   bulkApproveReviews,
   bulkRejectReviews,
   bulkSoftDeleteReviews,
-  getReviewStats,
-  updateReview,
+  fetchReviewMessages,
+  addReviewMessage,
+  deleteReviewMessage,
+  createReview,
+  searchListings,
 } from '../../services/adminReviewService';
 
-const NU = "'Inter', 'Helvetica Neue', sans-serif";
+// ─── Typography ───────────────────────────────────────────────────────────────
 const ND = "'Cormorant Garamond', 'Playfair Display', Georgia, serif";
+const NU = "'Inter', 'Helvetica Neue', sans-serif";
 
-// ── Status config — colours are intentionally semi-transparent so they work
-//    in both light and dark backgrounds without needing separate palettes.
-const STATUS_CFG = {
-  pending:  { label: 'Pending',  icon: '⏱', bg: 'rgba(180,120,0,0.12)',  text: '#c9900a', border: 'rgba(180,120,0,0.22)'  },
-  approved: { label: 'Approved', icon: '✓',  bg: 'rgba(21,128,61,0.12)',  text: '#15803d', border: 'rgba(21,128,61,0.22)'  },
-  rejected: { label: 'Rejected', icon: '✕',  bg: 'rgba(185,28,28,0.12)',  text: '#b91c1c', border: 'rgba(185,28,28,0.22)'  },
+// ─── Status config ────────────────────────────────────────────────────────────
+const STATUS = {
+  pending:        { label: 'Pending',         icon: '⏱', bg: 'rgba(180,120,0,0.10)',   text: '#c9900a', border: 'rgba(180,120,0,0.20)' },
+  approved:       { label: 'Approved',        icon: '✓',  bg: 'rgba(21,128,61,0.10)',   text: '#15803d', border: 'rgba(21,128,61,0.20)' },
+  rejected:       { label: 'Rejected',        icon: '✕',  bg: 'rgba(185,28,28,0.10)',   text: '#b91c1c', border: 'rgba(185,28,28,0.20)' },
+  awaiting_reply: { label: 'Awaiting Reply',  icon: '↩',  bg: 'rgba(37,99,235,0.10)',   text: '#2563eb', border: 'rgba(37,99,235,0.20)' },
+  replied:        { label: 'Replied',         icon: '✦',  bg: 'rgba(109,40,217,0.10)',  text: '#7c3aed', border: 'rgba(109,40,217,0.20)' },
 };
 
-// ── Toast ──────────────────────────────────────────────────────────────────────
-function Toast({ message, type, onDone }) {
-  useEffect(() => { const t = setTimeout(onDone, 2800); return () => clearTimeout(t); }, [onDone]);
-  const bg = type === 'ok' ? '#15803d' : type === 'warn' ? '#9a6f00' : '#b91c1c';
-  return (
-    <div style={{ position: 'fixed', bottom: 28, right: 28, zIndex: 9999, background: bg, color: '#fff', fontFamily: NU, fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', padding: '10px 18px', borderRadius: 4, boxShadow: '0 4px 20px rgba(0,0,0,0.25)' }}>
-      {message}
-    </div>
-  );
+// ─── Role labels ──────────────────────────────────────────────────────────────
+const ROLE_LABELS = {
+  couple: 'Couple', guest: 'Guest', planner: 'Planner',
+  vendor: 'Vendor', corporate: 'Corporate', other: 'Other',
+};
+
+// ─── Sub-rating labels ────────────────────────────────────────────────────────
+const SUB_KEYS = ['venue', 'service', 'catering', 'atmosphere', 'value'];
+const SUB_LABELS = { venue: 'Venue', service: 'Service', catering: 'Catering', atmosphere: 'Atmosphere', value: 'Value' };
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function stars(n) {
+  const full = Math.round(n || 0);
+  return '★'.repeat(full) + '☆'.repeat(5 - full);
 }
 
-// ── Stars ─────────────────────────────────────────────────────────────────────
-function Stars({ rating, max = 5, C }) {
-  return (
-    <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-      {Array.from({ length: max }).map((_, i) => (
-        <span key={i} style={{ fontSize: 13, color: i < rating ? C.gold : C.border, lineHeight: 1 }}>★</span>
-      ))}
-      <span style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginLeft: 4 }}>{rating}/{max}</span>
-    </div>
-  );
+function timeAgo(ts) {
+  if (!ts) return '';
+  const diff = Date.now() - new Date(ts).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(diff / 3600000);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(diff / 86400000);
+  if (days < 30) return `${days}d ago`;
+  return new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
 }
 
-// ── Status badge ──────────────────────────────────────────────────────────────
-function StatusBadge({ status }) {
-  const cfg = STATUS_CFG[status] || STATUS_CFG.pending;
+function fmtDate(ts) {
+  if (!ts) return '';
+  return new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// ─── LWD Verified Badge ───────────────────────────────────────────────────────
+// Badge hierarchy: Verified Booking > Verified Couple > no badge.
+// Only ONE badge shown per review. Verified Booking requires verification_source
+// in ('booking', 'enquiry'). Verified Couple requires is_verified + role='couple'
+// and is only shown when is_verified_booking is false.
+function LWDBadge({ review, C }) {
+  // Determine which badge to show (hierarchy: Booking > Couple > none)
+  let type = null;
+  if (review.is_verified_booking &&
+      (review.verification_source === 'booking' || review.verification_source === 'enquiry' || review.verification_source === 'manual')) {
+    type = 'booking';
+  } else if (review.is_verified && review.reviewer_role === 'couple' && !review.is_verified_booking) {
+    type = 'couple';
+  }
+  if (!type) return null;
+
+  const cfg = {
+    booking: { label: 'LWD Verified Booking', icon: '◈' },
+    couple:  { label: 'LWD Verified Couple',  icon: '◇' },
+  };
+  const b = cfg[type];
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 20, background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.text, fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>
-      <span>{cfg.icon}</span>
-      {cfg.label}
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '5px',
+      padding: '3px 9px', borderRadius: '2px',
+      border: `1px solid ${C.gold}33`,
+      background: `${C.gold}0a`,
+      color: C.gold, fontFamily: NU, fontSize: '10px',
+      fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
+    }}>
+      <span style={{ fontSize: '9px' }}>{b.icon}</span>
+      {b.label}
     </span>
   );
 }
 
-// ── Stat/tab card ─────────────────────────────────────────────────────────────
-function StatCard({ label, value, active, onClick, C }) {
-  const colorMap = { All: C.gold, Pending: '#c9900a', Approved: '#15803d', Rejected: '#b91c1c' };
-  const col = colorMap[label] || C.gold;
+// ─── Status badge ─────────────────────────────────────────────────────────────
+function StatusBadge({ status }) {
+  const s = STATUS[status] || STATUS.pending;
   return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: '16px 20px', flex: 1, minWidth: 100, textAlign: 'left',
-        background: active ? col : C.card, border: `1px solid ${active ? col : C.border}`,
-        borderRadius: 4, cursor: 'pointer', transition: 'all 0.18s',
-        boxShadow: active ? `0 4px 14px ${col}40` : 'none',
-      }}
-    >
-      <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: active ? 'rgba(255,255,255,0.75)' : col, marginBottom: 8 }}>
-        {label}
-      </div>
-      <div style={{ fontFamily: ND, fontSize: 30, fontWeight: 400, lineHeight: 1, color: active ? '#fff' : col }}>
-        {value ?? '—'}
-      </div>
-    </button>
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '5px',
+      padding: '3px 10px', borderRadius: '2px',
+      border: `1px solid ${s.border}`, background: s.bg,
+      color: s.text, fontFamily: NU, fontSize: '10px',
+      fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase',
+    }}>
+      <span>{s.icon}</span> {s.label}
+    </span>
   );
 }
 
-// ── Skeleton loading card ─────────────────────────────────────────────────────
-function SkeletonCard({ C }) {
-  const sh = { background: C.border, borderRadius: 2 };
+// ─── Sub-ratings bar ──────────────────────────────────────────────────────────
+function SubRatingsBar({ subRatings, C }) {
+  if (!subRatings || Object.keys(subRatings).length === 0) return null;
   return (
-    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '18px 20px' }}>
-      <div style={{ display: 'flex', gap: 14 }}>
-        <div style={{ width: 15, height: 15, ...sh, flexShrink: 0, marginTop: 2 }} />
-        <div style={{ flex: 1 }}>
-          <div style={{ height: 13, width: '38%', ...sh, marginBottom: 8 }} />
-          <div style={{ height: 10, width: '22%', ...sh, marginBottom: 12, opacity: 0.6 }} />
-          <div style={{ height: 12, width: '88%', ...sh, marginBottom: 6, opacity: 0.5 }} />
-          <div style={{ height: 12, width: '65%', ...sh, opacity: 0.4 }} />
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 24px', marginTop: '10px' }}>
+      {SUB_KEYS.filter(k => subRatings[k] != null).map(k => (
+        <div key={k} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontFamily: NU, fontSize: '10px', color: C.grey, textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: 72 }}>
+            {SUB_LABELS[k]}
+          </span>
+          <div style={{ flex: 1, height: 3, background: C.border, borderRadius: 2 }}>
+            <div style={{ width: `${(subRatings[k] / 5) * 100}%`, height: '100%', background: C.gold, borderRadius: 2, transition: 'width 0.3s' }} />
+          </div>
+          <span style={{ fontFamily: NU, fontSize: '11px', color: C.white, minWidth: 22, textAlign: 'right' }}>
+            {Number(subRatings[k]).toFixed(1)}
+          </span>
         </div>
-        <div style={{ width: 88 }}>
-          <div style={{ height: 14, ...sh, marginBottom: 10 }} />
-          <div style={{ height: 22, ...sh, borderRadius: 20 }} />
+      ))}
+    </div>
+  );
+}
+
+// ─── Conversation thread ──────────────────────────────────────────────────────
+function ConversationThread({ reviewId, C, onThreadLoaded }) {
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [replyText, setReplyText] = useState('');
+  const [noteText, setNoteText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [tab, setTab] = useState('reply'); // 'reply' | 'note'
+
+  useEffect(() => {
+    load();
+  }, [reviewId]);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const data = await fetchReviewMessages(reviewId);
+      setMessages(data);
+      onThreadLoaded?.(data.length);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSend(isNote) {
+    const body = isNote ? noteText.trim() : replyText.trim();
+    if (!body) return;
+    setSending(true);
+    try {
+      await addReviewMessage({
+        reviewId,
+        senderType: isNote ? 'admin' : 'admin',
+        senderName: 'Admin',
+        messageBody: body,
+        isInternalNote: isNote,
+      });
+      isNote ? setNoteText('') : setReplyText('');
+      await load();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function handleDelete(msgId) {
+    if (!window.confirm('Delete this message?')) return;
+    try {
+      await deleteReviewMessage(msgId);
+      await load();
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  const senderStyle = (type, isNote) => {
+    if (isNote) return { bg: `${C.gold}08`, border: `${C.gold}20`, label: 'Admin Note', labelColor: C.gold };
+    if (type === 'owner')    return { bg: `rgba(21,128,61,0.07)`,  border: 'rgba(21,128,61,0.18)',  label: 'Business Owner', labelColor: '#15803d' };
+    if (type === 'reviewer') return { bg: `rgba(37,99,235,0.07)`,  border: 'rgba(37,99,235,0.18)',  label: 'Reviewer',       labelColor: '#2563eb' };
+    return                          { bg: `rgba(109,40,217,0.07)`, border: 'rgba(109,40,217,0.18)', label: 'Admin',          labelColor: '#7c3aed' };
+  };
+
+  return (
+    <div style={{ marginTop: 16, borderTop: `1px solid ${C.border}`, paddingTop: 16 }}>
+      <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
+        Conversation Thread
+      </div>
+
+      {loading ? (
+        <div style={{ height: 40, background: C.border, borderRadius: 4, opacity: 0.4 }} />
+      ) : messages.length === 0 ? (
+        <div style={{ fontFamily: NU, fontSize: 12, color: C.grey2, marginBottom: 12, lineHeight: 1.6 }}>
+          No messages yet. Start the conversation with this reviewer, or add an internal note below.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+          {messages.map(msg => {
+            const s = senderStyle(msg.sender_type, msg.is_internal_note);
+            return (
+              <div key={msg.id} style={{
+                padding: '10px 14px', borderRadius: 4,
+                background: s.bg, border: `1px solid ${s.border}`,
+                position: 'relative',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, color: s.labelColor, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      {msg.is_internal_note ? '🔒 ' : ''}{s.label}
+                    </span>
+                    {msg.sender_name && (
+                      <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>— {msg.sender_name}</span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2 }}>{timeAgo(msg.created_at)}</span>
+                    <button onClick={() => handleDelete(msg.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey2, fontSize: 11, padding: '0 2px', lineHeight: 1 }}>✕</button>
+                  </div>
+                </div>
+                <p style={{ fontFamily: NU, fontSize: 12, color: C.white, margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                  {msg.message_body}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Add message */}
+      <div style={{ background: C.dark, borderRadius: 4, padding: 12, border: `1px solid ${C.border}` }}>
+        <div style={{ display: 'flex', gap: 0, marginBottom: 10, borderBottom: `1px solid ${C.border}` }}>
+          {[['reply', 'Admin Reply'], ['note', 'Internal Note']].map(([t, l]) => (
+            <button key={t} onClick={() => setTab(t)} style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontFamily: NU, fontSize: 11, fontWeight: tab === t ? 700 : 400,
+              color: tab === t ? C.gold : C.grey,
+              paddingBottom: 8, paddingRight: 16, paddingLeft: 0,
+              borderBottom: tab === t ? `2px solid ${C.gold}` : '2px solid transparent',
+              textTransform: 'uppercase', letterSpacing: '0.06em',
+              transition: 'color 0.15s',
+            }}>
+              {t === 'note' && '🔒 '}{l}
+            </button>
+          ))}
+        </div>
+        <textarea
+          value={tab === 'note' ? noteText : replyText}
+          onChange={e => tab === 'note' ? setNoteText(e.target.value) : setReplyText(e.target.value)}
+          placeholder={tab === 'note' ? 'Add an internal note (not visible to reviewer or business)...' : 'Write a reply from admin...'}
+          rows={3}
+          style={{
+            width: '100%', boxSizing: 'border-box', resize: 'vertical',
+            padding: '8px 10px', borderRadius: 3, fontFamily: NU, fontSize: 12,
+            background: C.black, border: `1px solid ${C.border}`, color: C.white,
+            outline: 'none',
+          }}
+        />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+          <button
+            onClick={() => handleSend(tab === 'note')}
+            disabled={sending || !(tab === 'note' ? noteText.trim() : replyText.trim())}
+            style={{
+              padding: '7px 18px', borderRadius: 3, border: 'none', cursor: 'pointer',
+              fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              background: sending ? C.border : C.gold,
+              color: sending ? C.grey : '#fff',
+              opacity: sending ? 0.6 : 1,
+              transition: 'opacity 0.15s',
+            }}
+          >
+            {sending ? 'Sending…' : (tab === 'note' ? 'Save Note' : 'Send Reply')}
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-// ── Review card ───────────────────────────────────────────────────────────────
-function ReviewCard({ review, selected, onSelect, onApprove, onReject, onDelete, onSave, toast, C }) {
+// ─── Owner identity panel ────────────────────────────────────────────────────
+function OwnerIdentityPanel({ listing, C }) {
+  if (!listing) return null;
+  const cp = listing.contact_profile || {};
+  const ownerName = cp.name || null;
+  const ownerTitle = cp.title || null;
+  const ownerEmail = cp.email || null;
+  const hasClaimed = !!listing.vendor_account_id;
+
+  if (!ownerName && !ownerEmail) return null;
+
+  return (
+    <div style={{
+      marginTop: 14, padding: '12px 16px',
+      background: C.dark,
+      border: `1px solid ${C.border}`,
+      borderLeft: `3px solid ${C.gold}35`,
+      borderRadius: 3,
+    }}>
+      <div style={{
+        fontFamily: NU, fontSize: 9, textTransform: 'uppercase',
+        letterSpacing: '0.12em', color: C.gold, opacity: 0.7, marginBottom: 8, fontWeight: 700,
+      }}>
+        Business Owner
+      </div>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        {ownerName && (
+          <span style={{ fontFamily: NU, fontSize: 12, fontWeight: 600, color: C.white }}>{ownerName}</span>
+        )}
+        {ownerTitle && (
+          <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>— {ownerTitle}</span>
+        )}
+        {hasClaimed && (
+          <span style={{
+            fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em',
+            color: '#15803d', border: '1px solid rgba(21,128,61,0.25)', borderRadius: 2,
+            padding: '2px 7px', background: 'rgba(21,128,61,0.06)',
+          }}>
+            Platform Account
+          </span>
+        )}
+        {!hasClaimed && (
+          <span style={{
+            fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em',
+            color: C.grey2, border: `1px solid ${C.border}`, borderRadius: 2,
+            padding: '2px 7px',
+          }}>
+            Unclaimed
+          </span>
+        )}
+      </div>
+      {ownerEmail && (
+        <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, marginTop: 4 }}>{ownerEmail}</div>
+      )}
+    </div>
+  );
+}
+
+// ─── Review card ──────────────────────────────────────────────────────────────
+function ReviewCard({ review, selected, onSelect, onApprove, onReject, onDelete, onToggleFeatured, onVerify, onUpdate, C }) {
   const [expanded, setExpanded] = useState(false);
-  const [editing,  setEditing]  = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(review.review_title || '');
   const [editText, setEditText] = useState(review.review_text || '');
-  const [saving,   setSaving]   = useState(false);
-  const textRef = useRef(null);
+  const [saving, setSaving] = useState(false);
+  // msgCount initialises from review.reply_count (DB), updated by thread load
+  const [msgCount, setMsgCount] = useState(review.reply_count ?? 0);
 
-  const isApproved = review.moderation_status === 'approved';
-  const isRejected = review.moderation_status === 'rejected';
+  const businessName = review.listing?.name || `[${review.entity_type}]`;
 
-  const date    = review.created_at  ? new Date(review.created_at).toLocaleDateString('en-GB',  { day: 'numeric', month: 'short', year: 'numeric' }) : null;
-  const updated = review.updated_at && review.updated_at !== review.created_at
-    ? new Date(review.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-    : null;
-
-  const doSave = async () => {
-    if (!editText.trim()) return;
+  async function handleSave() {
+    if (!editText.trim() || !editTitle.trim()) return;
     setSaving(true);
-    try { await onSave(review.id, editText); setEditing(false); toast('Review updated'); }
-    catch { toast('Save failed', 'error'); }
-    finally { setSaving(false); }
-  };
-
-  const doApprove = async (e) => { e.stopPropagation(); await onApprove(review.id); toast('Review approved'); };
-  const doReject  = async (e) => { e.stopPropagation(); await onReject(review.id);  toast('Review rejected', 'warn'); };
-  const doDelete  = async (e) => {
-    e.stopPropagation();
-    if (!window.confirm('Remove this review from public view?')) return;
-    await onDelete(review.id);
-    toast('Review removed', 'warn');
-  };
+    try {
+      await onUpdate(review.id, { review_title: editTitle, review_text: editText });
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div style={{
       background: C.card, border: `1px solid ${selected ? C.gold : C.border}`,
-      borderRadius: 4, overflow: 'hidden',
-      boxShadow: selected ? `0 0 0 2px ${C.gold}30` : expanded ? `0 4px 18px rgba(0,0,0,0.10)` : 'none',
-      transition: 'box-shadow 0.2s, border-color 0.2s',
+      borderRadius: 4, marginBottom: 8, overflow: 'hidden',
+      boxShadow: expanded
+        ? `0 4px 20px rgba(0,0,0,0.35), 0 0 0 1px ${C.gold}20`
+        : selected ? `0 0 0 1px ${C.gold}40` : 'none',
+      transition: 'border-color 0.2s, box-shadow 0.25s',
     }}>
-      {/* Main row */}
-      <div
-        onClick={() => setExpanded(v => !v)}
-        style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: '18px 20px', cursor: 'pointer' }}
-        onMouseEnter={e => { if (!expanded) e.currentTarget.style.background = C.dark; }}
-        onMouseLeave={e => { e.currentTarget.style.background = ''; }}
-      >
+      {/* Identity header block */}
+      <div style={{
+        padding: '14px 18px 12px',
+        borderBottom: `1px solid ${C.border}`,
+        display: 'flex', alignItems: 'flex-start', gap: 14,
+        background: expanded ? `rgba(255,255,255,0.02)` : 'transparent',
+        transition: 'background 0.2s',
+      }}>
         {/* Checkbox */}
-        <div onClick={e => { e.stopPropagation(); onSelect(review.id); }} style={{ paddingTop: 2, flexShrink: 0 }}>
-          <input type="checkbox" checked={selected} onChange={() => onSelect(review.id)} style={{ cursor: 'pointer', accentColor: C.gold, width: 15, height: 15 }} />
+        <div style={{ paddingTop: 3 }}>
+          <input
+            type="checkbox" checked={selected}
+            onChange={() => onSelect(review.id)}
+            style={{ cursor: 'pointer', accentColor: C.gold, width: 14, height: 14 }}
+          />
         </div>
 
-        {/* Reviewer + content */}
+        {/* Identity block */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Top meta */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 3 }}>
-            <span style={{ fontFamily: NU, fontSize: 13, fontWeight: 700, color: C.white, letterSpacing: '-0.01em' }}>
-              {review.reviewer_name || 'Anonymous'}
+          {/* Business name + type + status */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: ND, fontSize: 16, color: C.white, fontWeight: 600 }}>
+              {businessName}
             </span>
+            <span style={{
+              fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em',
+              color: C.grey, padding: '2px 7px', border: `1px solid ${C.border}`, borderRadius: 2,
+            }}>
+              {review.entity_type}
+            </span>
+            <StatusBadge status={review.moderation_status} />
+            {review.is_featured && (
+              <span style={{ fontFamily: NU, fontSize: 9, color: C.gold, textTransform: 'uppercase', letterSpacing: '0.06em' }}>✦ Featured</span>
+            )}
+            {review.added_by_admin && (
+              <span style={{
+                fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em',
+                color: '#7c3aed', padding: '2px 7px', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 2,
+              }}>
+                ⊕ Admin Added
+              </span>
+            )}
+          </div>
+
+          {/* Reviewer identity */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: NU, fontSize: 13, fontWeight: 700, color: C.white }}>
+              {review.reviewer_name}
+            </span>
+            {review.reviewer_role && (
+              <span style={{
+                fontFamily: NU, fontSize: 10, color: C.grey,
+                padding: '1px 7px', border: `1px solid ${C.border}`, borderRadius: 2,
+              }}>
+                {ROLE_LABELS[review.reviewer_role] || review.reviewer_role}
+              </span>
+            )}
             {review.reviewer_location && (
-              <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>
+              <span style={{ fontFamily: NU, fontSize: 11, color: C.grey2 }}>
                 {review.reviewer_location}
               </span>
             )}
-            {review.entity_type && (
-              <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: 2, background: `${C.gold}18`, color: C.gold }}>
-                {review.entity_type}
-              </span>
-            )}
+            <LWDBadge review={review} C={C} />
           </div>
+        </div>
 
-          {/* Email + date */}
-          <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, marginBottom: 9, lineHeight: 1.4 }}>
-            {review.reviewer_email}
-            {date    && <span style={{ marginLeft: 10, opacity: 0.7 }}>· {date}</span>}
-            {updated && <span style={{ marginLeft: 8, fontStyle: 'italic', opacity: 0.6 }}>· edited {updated}</span>}
-          </div>
+        {/* Expand toggle */}
+        <button
+          onClick={() => setExpanded(e => !e)}
+          style={{
+            background: 'none', border: `1px solid ${expanded ? C.gold + '60' : C.border}`,
+            borderRadius: 3, cursor: 'pointer',
+            color: expanded ? C.gold : C.grey, fontFamily: NU, fontSize: 11,
+            padding: '4px 12px', whiteSpace: 'nowrap', marginTop: 2,
+            transition: 'all 0.18s',
+          }}
+        >
+          {expanded ? '▲ Close' : '▼ Expand'}
+        </button>
+      </div>
 
-          {/* Review title */}
-          {review.review_title && (
-            <div style={{ fontFamily: ND, fontSize: 15, fontWeight: 600, color: C.white, marginBottom: 4, lineHeight: 1.3 }}>
-              {review.review_title}
+      {/* Content block — event context, rating, review text preview */}
+      <div style={{ padding: '12px 18px 14px 46px' }}>
+
+          {/* Event context — event_type · month/year · N guests */}
+          {(review.event_type || review.event_date || review.guest_count) && (
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              {review.event_type && (
+                <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>
+                  {review.event_type}
+                </span>
+              )}
+              {review.event_date && (
+                <>
+                  {review.event_type && <span style={{ color: C.grey2, fontSize: 10 }}>·</span>}
+                  <span style={{ fontFamily: NU, fontSize: 11, color: C.grey2 }}>
+                    {new Date(review.event_date).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+                  </span>
+                </>
+              )}
+              {review.guest_count > 0 && (
+                <>
+                  <span style={{ color: C.grey2, fontSize: 10 }}>·</span>
+                  <span style={{ fontFamily: NU, fontSize: 11, color: C.grey2 }}>
+                    {review.guest_count} guests
+                  </span>
+                </>
+              )}
             </div>
           )}
 
-          {/* Review text — truncated when collapsed */}
-          <div style={{ fontFamily: NU, fontSize: 13, color: C.grey, lineHeight: 1.7, maxWidth: 680 }}>
-            {expanded
-              ? review.review_text
-              : (review.review_text?.length > 160 ? review.review_text.slice(0, 160) + '…' : review.review_text)}
+          {/* Rating — score dominant, stars secondary */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <span style={{ fontFamily: ND, fontSize: 20, fontWeight: 700, color: C.gold, lineHeight: 1 }}>
+              {Number(review.overall_rating || 0).toFixed(1)}
+            </span>
+            <span style={{ color: C.gold, fontSize: 11, letterSpacing: 1, opacity: 0.75 }}>{stars(review.overall_rating)}</span>
+            {msgCount > 0 && (
+              <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2 }}>· {msgCount} msg{msgCount !== 1 ? 's' : ''}</span>
+            )}
+            <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2, marginLeft: 'auto' }}>
+              {timeAgo(review.created_at)}
+            </span>
           </div>
-        </div>
 
-        {/* Right — rating + status */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10, flexShrink: 0 }}>
-          <Stars rating={review.overall_rating || 0} C={C} />
-          <StatusBadge status={review.moderation_status} />
-          <div style={{ fontFamily: NU, fontSize: 10, color: C.grey2, opacity: 0.7 }}>
-            {expanded ? '↑ collapse' : '↓ expand'}
+          {/* Review title */}
+          <div style={{ fontFamily: ND, fontSize: 14, color: C.white, marginBottom: 4, fontStyle: 'italic' }}>
+            "{review.review_title}"
           </div>
-        </div>
+
+          {/* Review text preview (collapsed only) */}
+          {!expanded && (
+            <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, margin: 0, lineHeight: 1.6 }}>
+              {review.review_text?.length > 160
+                ? review.review_text.substring(0, 160) + '…'
+                : review.review_text}
+            </p>
+          )}
       </div>
 
       {/* Expanded panel */}
       {expanded && (
-        <div style={{ borderTop: `1px solid ${C.border}`, padding: '16px 20px 20px', background: C.dark }}>
+        <div style={{ padding: '0 18px 20px 46px', transition: 'all 0.2s' }}>
+          <div style={{ paddingTop: 14 }}>
 
-          {/* Edit area */}
-          {editing ? (
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.gold, marginBottom: 8 }}>
-                Editing Review Text
+            {/* Full review text / edit */}
+            {editing ? (
+              <div style={{ marginBottom: 14 }}>
+                <input
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  style={{
+                    width: '100%', boxSizing: 'border-box', marginBottom: 8,
+                    padding: '8px 10px', borderRadius: 3, fontFamily: ND, fontSize: 14,
+                    background: C.black, border: `1px solid ${C.border}`, color: C.white,
+                    outline: 'none',
+                  }}
+                />
+                <textarea
+                  value={editText}
+                  onChange={e => setEditText(e.target.value)}
+                  rows={6}
+                  style={{
+                    width: '100%', boxSizing: 'border-box', resize: 'vertical',
+                    padding: '8px 10px', borderRadius: 3, fontFamily: NU, fontSize: 12,
+                    background: C.black, border: `1px solid ${C.border}`, color: C.white,
+                    outline: 'none', lineHeight: 1.7,
+                  }}
+                />
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    style={{ padding: '7px 16px', borderRadius: 3, border: 'none', cursor: 'pointer', fontFamily: NU, fontSize: 11, fontWeight: 700, background: '#15803d', color: '#fff', opacity: saving ? 0.6 : 1 }}
+                  >
+                    {saving ? 'Saving…' : 'Save Changes'}
+                  </button>
+                  <button
+                    onClick={() => { setEditing(false); setEditTitle(review.review_title || ''); setEditText(review.review_text || ''); }}
+                    style={{ padding: '7px 16px', borderRadius: 3, border: `1px solid ${C.border}`, cursor: 'pointer', fontFamily: NU, fontSize: 11, fontWeight: 700, background: 'none', color: C.grey }}
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
-              <textarea
-                ref={textRef}
-                value={editText}
-                onChange={e => setEditText(e.target.value)}
-                rows={5}
-                style={{
-                  width: '100%', boxSizing: 'border-box', resize: 'vertical',
-                  padding: '12px 14px', fontFamily: NU, fontSize: 13, color: C.white,
-                  lineHeight: 1.65, background: C.card, border: `1px solid ${C.gold}50`,
-                  borderRadius: 3, outline: 'none',
-                }}
-                autoFocus
+            ) : (
+              <div style={{ marginBottom: 14 }}>
+                <p style={{ fontFamily: NU, fontSize: 13, color: C.white, margin: '0 0 10px', lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
+                  {review.review_text}
+                </p>
+              </div>
+            )}
+
+            {/* Sub-ratings */}
+            <SubRatingsBar subRatings={review.sub_ratings} C={C} />
+
+            {/* Owner identity */}
+            <OwnerIdentityPanel listing={review.listing} C={C} />
+
+            {/* Admin notes */}
+            {review.admin_notes && (
+              <div style={{ marginTop: 12, padding: '8px 12px', background: `${C.gold}08`, border: `1px solid ${C.gold}20`, borderRadius: 3 }}>
+                <span style={{ fontFamily: NU, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.gold }}>Admin Notes</span>
+                <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, margin: '4px 0 0', lineHeight: 1.6 }}>{review.admin_notes}</p>
+              </div>
+            )}
+
+            {/* Action bar
+                Edge case rules:
+                - pending → can Approve or Reject
+                - approved → can mark Awaiting Reply, Reject, Feature, Verify, Delete
+                - awaiting_reply → can Approve (re-approve), Reject, Delete
+                - replied → can Approve, Reject, Delete
+                - rejected → can Approve, Delete (no reject button shown when already rejected)
+                - All statuses: Edit Review always available
+                - Verify button: toggles is_verified_booking (LWD Verified Booking badge)
+            */}
+            <div style={{ display: 'flex', gap: 6, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+              {/* PRIMARY: Approve — visually dominant */}
+              {review.moderation_status !== 'approved' && (
+                <ActionBtn label="Approve" color="#15803d" variant="primary" onClick={() => onApprove(review.id)} />
+              )}
+              {/* Awaiting Reply: only from approved state */}
+              {review.moderation_status === 'approved' && (
+                <ActionBtn label="Flag Awaiting Reply" color="#2563eb" variant="solid" onClick={() => markAwaitingReply(review.id).then(load => load)} />
+              )}
+              {/* Reject: secondary solid */}
+              {review.moderation_status !== 'rejected' && (
+                <ActionBtn label="Reject" color="#b91c1c" variant="solid" onClick={() => onReject(review.id)} />
+              )}
+              {/* Edit: neutral ghost */}
+              <ActionBtn
+                label={editing ? 'Editing…' : 'Edit Review'}
+                color={C.grey2}
+                variant="ghost"
+                onClick={() => { setEditing(true); setEditTitle(review.review_title || ''); setEditText(review.review_text || ''); }}
               />
-              <div style={{ display: 'flex', gap: 8, marginTop: 10, justifyContent: 'flex-end' }}>
-                <button
-                  onClick={() => { setEditing(false); setEditText(review.review_text || ''); }}
-                  style={{ padding: '7px 16px', fontFamily: NU, fontSize: 11, fontWeight: 600, background: 'none', border: `1px solid ${C.border}`, borderRadius: 3, cursor: 'pointer', color: C.grey }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={doSave}
-                  disabled={saving}
-                  style={{ padding: '7px 18px', fontFamily: NU, fontSize: 11, fontWeight: 700, background: C.white, color: C.black, border: 'none', borderRadius: 3, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
-                >
-                  {saving ? 'Saving…' : 'Save Changes'}
-                </button>
-              </div>
+              {/* Feature: gold outline */}
+              {(review.moderation_status === 'approved' || review.moderation_status === 'replied') && (
+                <ActionBtn
+                  label={review.is_featured ? '★ Unfeature' : '☆ Feature'}
+                  color={C.gold}
+                  variant="outline"
+                  onClick={() => onToggleFeatured(review.id, !review.is_featured)}
+                />
+              )}
+              {/* Verify: ghost */}
+              <ActionBtn
+                label={review.is_verified_booking ? 'Remove Verified' : '◈ LWD Verified'}
+                color={C.grey2}
+                variant="ghost"
+                onClick={() => onVerify(review.id, !review.is_verified_booking)}
+              />
+              {/* Delete: danger outline — subtle, intentional */}
+              <ActionBtn label="Delete" color="#b91c1c" variant="danger" onClick={() => onDelete(review.id)} />
             </div>
-          ) : (
-            <div style={{ marginBottom: 16 }}>
-              <button
-                onClick={e => { e.stopPropagation(); setEditing(true); setTimeout(() => textRef.current?.focus(), 50); }}
-                style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, color: C.gold, background: 'none', border: `1px solid ${C.gold}40`, borderRadius: 3, padding: '5px 12px', cursor: 'pointer' }}
-              >
-                ✎  Edit Review Text
-              </button>
-            </div>
-          )}
 
-          {/* Action buttons */}
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            {!isApproved && (
-              <button
-                onClick={doApprove}
-                style={{ padding: '8px 20px', fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', background: '#15803d', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer' }}
-                onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-                onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-              >
-                ✓  Approve
-              </button>
-            )}
-            {!isRejected && (
-              <button
-                onClick={doReject}
-                style={{ padding: '8px 20px', fontFamily: NU, fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', background: 'none', color: '#b91c1c', border: '1px solid rgba(185,28,28,0.35)', borderRadius: 3, cursor: 'pointer' }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(185,28,28,0.08)'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
-              >
-                ✕  Reject
-              </button>
-            )}
-            {isApproved && (
-              <span style={{ fontFamily: NU, fontSize: 11, color: '#15803d', fontWeight: 700 }}>✓ Published</span>
-            )}
-            <div style={{ flex: 1 }} />
-            <button
-              onClick={doDelete}
-              style={{ padding: '6px 12px', fontFamily: NU, fontSize: 10, fontWeight: 600, background: 'none', color: C.grey2, border: `1px solid ${C.border}`, borderRadius: 3, cursor: 'pointer' }}
-              onMouseEnter={e => { e.currentTarget.style.color = '#b91c1c'; e.currentTarget.style.borderColor = 'rgba(185,28,28,0.3)'; }}
-              onMouseLeave={e => { e.currentTarget.style.color = C.grey2; e.currentTarget.style.borderColor = C.border; }}
-            >
-              Remove
-            </button>
+            {/* Conversation thread */}
+            <ConversationThread
+              reviewId={review.id}
+              C={C}
+              onThreadLoaded={setMsgCount}
+            />
           </div>
         </div>
       )}
@@ -297,58 +660,612 @@ function ReviewCard({ review, selected, onSelect, onApprove, onReject, onDelete,
   );
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
-export default function ReviewsModule() {
+// variant: 'primary' | 'danger' | 'outline' | 'ghost'
+function ActionBtn({ label, color, outline, variant, onClick }) {
+  const v = variant || (outline ? 'outline' : 'solid');
+  const styles = {
+    primary: {
+      padding: '6px 18px', background: color, border: 'none',
+      color: '#fff', fontWeight: 700, fontSize: 10,
+    },
+    solid: {
+      padding: '5px 14px', background: color, border: 'none',
+      color: '#fff', fontWeight: 700, fontSize: 10,
+    },
+    danger: {
+      padding: '5px 14px', background: 'none',
+      border: `1px solid ${color}45`, color: color,
+      fontWeight: 600, fontSize: 10,
+    },
+    outline: {
+      padding: '5px 14px', background: 'none',
+      border: `1px solid ${color}50`, color: color,
+      fontWeight: 600, fontSize: 10,
+    },
+    ghost: {
+      padding: '5px 14px', background: 'none',
+      border: `1px solid ${color}30`, color: color,
+      fontWeight: 600, fontSize: 10,
+    },
+  };
+  const s = styles[v] || styles.solid;
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        ...s, borderRadius: 3, cursor: 'pointer',
+        fontFamily: NU, letterSpacing: '0.05em', textTransform: 'uppercase',
+        transition: 'opacity 0.15s',
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+// ─── Skeleton card ────────────────────────────────────────────────────────────
+function SkeletonCard({ C }) {
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '18px', marginBottom: 8 }}>
+      <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ width: 14, height: 14, background: C.border, borderRadius: 2, marginTop: 2 }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ height: 14, background: C.border, borderRadius: 2, marginBottom: 8, width: '40%', opacity: 0.6 }} />
+          <div style={{ height: 11, background: C.border, borderRadius: 2, marginBottom: 6, width: '60%', opacity: 0.4 }} />
+          <div style={{ height: 11, background: C.border, borderRadius: 2, width: '80%', opacity: 0.3 }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Stat card ────────────────────────────────────────────────────────────────
+function StatCard({ label, value, active, accent, onClick, C }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '16px 20px', borderRadius: 4, cursor: 'pointer',
+        border: active ? `1px solid ${accent}60` : `1px solid ${C.border}`,
+        background: active ? `${accent}12` : C.card,
+        textAlign: 'left', transition: 'all 0.18s', width: '100%',
+        boxShadow: active ? `inset 3px 0 0 ${accent}` : 'none',
+      }}
+    >
+      <div style={{
+        fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em',
+        color: active ? accent : C.grey, marginBottom: 8, fontWeight: active ? 700 : 400,
+      }}>
+        {label}
+      </div>
+      <div style={{ fontFamily: ND, fontSize: 38, fontWeight: 600, color: active ? accent : C.white, lineHeight: 1 }}>
+        {value ?? '—'}
+      </div>
+    </button>
+  );
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function Toast({ message, onDone, C }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 2600);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div style={{
+      position: 'fixed', bottom: 32, right: 32, zIndex: 9999,
+      background: C.card, border: `1px solid ${C.gold}40`, borderRadius: 4,
+      padding: '12px 20px', boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+      fontFamily: NU, fontSize: 12, color: C.white, maxWidth: 320,
+    }}>
+      {message}
+    </div>
+  );
+}
+
+// ─── Verification source options ──────────────────────────────────────────────
+const VERIFICATION_SOURCES = [
+  { value: 'manual_verified',    label: 'Manual Verified' },
+  { value: 'email_verified',     label: 'Email Verified' },
+  { value: 'whatsapp_verified',  label: 'WhatsApp Verified' },
+  { value: 'imported_testimonial', label: 'Imported Testimonial' },
+  { value: 'booking',            label: 'Booking Record' },
+  { value: 'enquiry',            label: 'Enquiry Record' },
+  { value: 'manual',             label: 'Manual (unspecified)' },
+];
+
+// ─── Add Review Panel ─────────────────────────────────────────────────────────
+function AddReviewPanel({ onClose, onSaved, C }) {
+  const [listing, setListing] = useState(null);        // { id, name }
+  const [listingSearch, setListingSearch] = useState('');
+  const [listingResults, setListingResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const searchRef = useRef(null);
+
+  // Form state
+  const [form, setForm] = useState({
+    entityType:          'venue',
+    reviewerName:        '',
+    reviewerEmail:       '',
+    reviewerRole:        '',
+    reviewerLocation:    '',
+    reviewTitle:         '',
+    reviewText:          '',
+    overallRating:       5,
+    subRatings:          { venue: '', service: '', catering: '', atmosphere: '', value: '' },
+    eventType:           '',
+    eventDate:           '',
+    guestCount:          '',
+    reviewDate:          '',
+    isVerified:          false,
+    isVerifiedBooking:   false,
+    verificationSource:  'manual_verified',
+    moderationStatus:    'approved',
+    isPublic:            true,
+    isFeatured:          false,
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
+  const setSub = (key, val) => setForm(f => ({ ...f, subRatings: { ...f.subRatings, [key]: val } }));
+
+  // Venue search with debounce
+  useEffect(() => {
+    if (listingSearch.length < 2) { setListingResults([]); return; }
+    const t = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const results = await searchListings(listingSearch, 8);
+        setListingResults(results);
+      } catch (e) { console.error(e); }
+      finally { setSearching(false); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [listingSearch]);
+
+  async function handleSubmit() {
+    if (!listing) { setError('Please select a venue or vendor.'); return; }
+    if (!form.reviewerName.trim()) { setError('Reviewer name is required.'); return; }
+    if (!form.reviewTitle.trim()) { setError('Review title is required.'); return; }
+    if (!form.reviewText.trim()) { setError('Review text is required.'); return; }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const subRatings = {};
+      Object.entries(form.subRatings).forEach(([k, v]) => {
+        if (v !== '' && v !== null) subRatings[k] = parseFloat(v);
+      });
+      await createReview({
+        entityId:           listing.id,
+        entityType:         form.entityType,
+        reviewerName:       form.reviewerName.trim(),
+        reviewerEmail:      form.reviewerEmail.trim() || null,
+        reviewerRole:       form.reviewerRole || null,
+        reviewerLocation:   form.reviewerLocation.trim() || null,
+        reviewTitle:        form.reviewTitle.trim(),
+        reviewText:         form.reviewText.trim(),
+        overallRating:      parseFloat(form.overallRating),
+        subRatings:         Object.keys(subRatings).length ? subRatings : null,
+        eventType:          form.eventType.trim() || null,
+        eventDate:          form.eventDate || null,
+        guestCount:         form.guestCount ? parseInt(form.guestCount) : null,
+        reviewDate:         form.reviewDate || null,
+        isVerified:         form.isVerified,
+        isVerifiedBooking:  form.isVerifiedBooking,
+        verificationSource: form.isVerifiedBooking ? form.verificationSource : null,
+        moderationStatus:   form.moderationStatus,
+        isPublic:           form.isPublic,
+        isFeatured:         form.isFeatured,
+      });
+      onSaved();
+    } catch (e) {
+      setError(e.message || 'Failed to save review.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Input field helper
+  const Field = ({ label, hint, children }) => (
+    <div style={{ marginBottom: 14 }}>
+      <label style={{ display: 'block', fontFamily: NU, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: C.grey, marginBottom: 5 }}>
+        {label}
+        {hint && <span style={{ fontFamily: NU, fontSize: 10, textTransform: 'none', letterSpacing: 0, color: C.grey2, marginLeft: 6, fontStyle: 'italic' }}>{hint}</span>}
+      </label>
+      {children}
+    </div>
+  );
+
+  const inputStyle = {
+    width: '100%', boxSizing: 'border-box', padding: '8px 10px',
+    borderRadius: 3, background: C.black, border: `1px solid ${C.border}`,
+    color: C.white, fontFamily: NU, fontSize: 12, outline: 'none',
+  };
+  const selectStyle = { ...inputStyle, cursor: 'pointer' };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1200,
+      display: 'flex', alignItems: 'stretch',
+    }}>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{ flex: 1, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }}
+      />
+
+      {/* Panel */}
+      <div style={{
+        width: 520, maxWidth: '100vw', background: C.dark,
+        borderLeft: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column',
+        overflowY: 'auto',
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: '20px 24px 16px', borderBottom: `1px solid ${C.border}`,
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+          position: 'sticky', top: 0, background: C.dark, zIndex: 1,
+        }}>
+          <div>
+            <h2 style={{ fontFamily: ND, fontSize: 20, color: C.white, margin: '0 0 3px', fontWeight: 600 }}>
+              Add Client Review
+            </h2>
+            <p style={{ fontFamily: NU, fontSize: 11, color: C.grey, margin: 0 }}>
+              Upload a verified review received offline or via email / WhatsApp
+            </p>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 18, padding: '0 0 0 12px', lineHeight: 1 }}>✕</button>
+        </div>
+
+        {/* Form body */}
+        <div style={{ padding: '20px 24px', flex: 1 }}>
+
+          {/* ── Section: Business ── */}
+          <div style={{ fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: C.gold, marginBottom: 12, fontWeight: 700 }}>
+            Business
+          </div>
+
+          <Field label="Venue or Vendor" hint="required">
+            <div style={{ position: 'relative' }} ref={searchRef}>
+              {listing ? (
+                <div style={{
+                  ...inputStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  background: `${C.gold}0a`, border: `1px solid ${C.gold}40`,
+                }}>
+                  <span style={{ color: C.white }}>{listing.name}</span>
+                  <button onClick={() => { setListing(null); setListingSearch(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 12 }}>✕</button>
+                </div>
+              ) : (
+                <input
+                  value={listingSearch}
+                  onChange={e => setListingSearch(e.target.value)}
+                  placeholder="Search venue or vendor name…"
+                  style={inputStyle}
+                />
+              )}
+              {!listing && listingResults.length > 0 && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10,
+                  background: C.card, border: `1px solid ${C.border}`, borderTop: 'none',
+                  borderRadius: '0 0 3px 3px', maxHeight: 200, overflowY: 'auto',
+                }}>
+                  {listingResults.map(r => (
+                    <button key={r.id} onClick={() => { setListing(r); setListingSearch(''); setListingResults([]); }} style={{
+                      display: 'block', width: '100%', textAlign: 'left',
+                      padding: '9px 12px', background: 'none', border: 'none', cursor: 'pointer',
+                      fontFamily: NU, fontSize: 12, color: C.white,
+                      borderBottom: `1px solid ${C.border}`,
+                    }}>
+                      <span>{r.name}</span>
+                      <span style={{ color: C.grey2, fontSize: 10, marginLeft: 8 }}>{r.city}, {r.country}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {searching && <span style={{ position: 'absolute', right: 10, top: 9, fontFamily: NU, fontSize: 10, color: C.grey2 }}>…</span>}
+            </div>
+          </Field>
+
+          <Field label="Entity Type">
+            <select value={form.entityType} onChange={e => set('entityType', e.target.value)} style={selectStyle}>
+              <option value="venue">Venue</option>
+              <option value="planner">Planner</option>
+              <option value="vendor">Vendor</option>
+            </select>
+          </Field>
+
+          <div style={{ height: 1, background: C.border, margin: '16px 0' }} />
+
+          {/* ── Section: Reviewer ── */}
+          <div style={{ fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: C.gold, marginBottom: 12, fontWeight: 700 }}>
+            Reviewer
+          </div>
+
+          <Field label="Full Name" hint="required">
+            <input value={form.reviewerName} onChange={e => set('reviewerName', e.target.value)} placeholder="e.g. Alexandra & James Whitmore" style={inputStyle} />
+          </Field>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Email">
+              <input value={form.reviewerEmail} onChange={e => set('reviewerEmail', e.target.value)} placeholder="optional" style={inputStyle} />
+            </Field>
+            <Field label="Location">
+              <input value={form.reviewerLocation} onChange={e => set('reviewerLocation', e.target.value)} placeholder="e.g. London, UK" style={inputStyle} />
+            </Field>
+          </div>
+
+          <Field label="Role">
+            <select value={form.reviewerRole} onChange={e => set('reviewerRole', e.target.value)} style={selectStyle}>
+              <option value="">— Select role —</option>
+              <option value="couple">Couple</option>
+              <option value="guest">Guest</option>
+              <option value="planner">Planner</option>
+              <option value="vendor">Vendor</option>
+              <option value="corporate">Corporate</option>
+              <option value="other">Other</option>
+            </select>
+          </Field>
+
+          <div style={{ height: 1, background: C.border, margin: '16px 0' }} />
+
+          {/* ── Section: Review Content ── */}
+          <div style={{ fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: C.gold, marginBottom: 12, fontWeight: 700 }}>
+            Review
+          </div>
+
+          <Field label="Title" hint="required">
+            <input value={form.reviewTitle} onChange={e => set('reviewTitle', e.target.value)} placeholder="e.g. An island that felt entirely ours" style={inputStyle} />
+          </Field>
+
+          <Field label="Review Text" hint="required">
+            <textarea value={form.reviewText} onChange={e => set('reviewText', e.target.value)} rows={6} placeholder="Full review text from the client…" style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.7 }} />
+          </Field>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Overall Rating">
+              <select value={form.overallRating} onChange={e => set('overallRating', e.target.value)} style={selectStyle}>
+                {[5, 4.9, 4.8, 4.7, 4.6, 4.5, 4.4, 4.3, 4.2, 4.1, 4, 3.5, 3, 2.5, 2, 1.5, 1].map(v => (
+                  <option key={v} value={v}>{v} ★</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Review Date" hint="when client gave review">
+              <input type="date" value={form.reviewDate} onChange={e => set('reviewDate', e.target.value)} style={inputStyle} />
+            </Field>
+          </div>
+
+          {/* Sub-ratings */}
+          <Field label="Sub-Ratings" hint="all optional">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {SUB_KEYS.map(k => (
+                <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontFamily: NU, fontSize: 10, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: 72 }}>{k}</span>
+                  <input
+                    type="number" min="1" max="5" step="0.1"
+                    value={form.subRatings[k]}
+                    onChange={e => setSub(k, e.target.value)}
+                    placeholder="—"
+                    style={{ ...inputStyle, width: 64, padding: '6px 8px' }}
+                  />
+                </div>
+              ))}
+            </div>
+          </Field>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <Field label="Event Type">
+              <input value={form.eventType} onChange={e => set('eventType', e.target.value)} placeholder="e.g. Wedding" style={inputStyle} />
+            </Field>
+            <Field label="Event Date">
+              <input type="date" value={form.eventDate} onChange={e => set('eventDate', e.target.value)} style={inputStyle} />
+            </Field>
+            <Field label="Guest Count">
+              <input type="number" min="0" value={form.guestCount} onChange={e => set('guestCount', e.target.value)} placeholder="e.g. 88" style={inputStyle} />
+            </Field>
+          </div>
+
+          <div style={{ height: 1, background: C.border, margin: '16px 0' }} />
+
+          {/* ── Section: Verification ── */}
+          <div style={{ fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: C.gold, marginBottom: 12, fontWeight: 700 }}>
+            Verification
+          </div>
+
+          <div style={{ display: 'flex', gap: 20, marginBottom: 14 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: NU, fontSize: 12, color: C.white }}>
+              <input type="checkbox" checked={form.isVerified} onChange={e => set('isVerified', e.target.checked)} style={{ accentColor: C.gold, cursor: 'pointer' }} />
+              LWD Verified Couple
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: NU, fontSize: 12, color: C.white }}>
+              <input type="checkbox" checked={form.isVerifiedBooking} onChange={e => set('isVerifiedBooking', e.target.checked)} style={{ accentColor: C.gold, cursor: 'pointer' }} />
+              ◈ LWD Verified Booking
+            </label>
+          </div>
+
+          {form.isVerifiedBooking && (
+            <Field label="Verification Source">
+              <select value={form.verificationSource} onChange={e => set('verificationSource', e.target.value)} style={selectStyle}>
+                {VERIFICATION_SOURCES.map(s => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </Field>
+          )}
+
+          <div style={{ height: 1, background: C.border, margin: '16px 0' }} />
+
+          {/* ── Section: Status & Visibility ── */}
+          <div style={{ fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: C.gold, marginBottom: 12, fontWeight: 700 }}>
+            Status &amp; Visibility
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+            <Field label="Moderation Status">
+              <select value={form.moderationStatus} onChange={e => set('moderationStatus', e.target.value)} style={selectStyle}>
+                <option value="approved">Approved</option>
+                <option value="pending">Pending Review</option>
+                <option value="awaiting_reply">Awaiting Reply</option>
+              </select>
+            </Field>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 22 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: NU, fontSize: 12, color: C.white }}>
+                <input type="checkbox" checked={form.isPublic} onChange={e => set('isPublic', e.target.checked)} style={{ accentColor: C.gold, cursor: 'pointer' }} />
+                Public (visible on listing)
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: NU, fontSize: 12, color: C.white }}>
+                <input type="checkbox" checked={form.isFeatured} onChange={e => set('isFeatured', e.target.checked)} style={{ accentColor: C.gold, cursor: 'pointer' }} />
+                ✦ Featured review
+              </label>
+            </div>
+          </div>
+
+          {/* Audit note */}
+          <div style={{
+            padding: '10px 14px', background: `${C.gold}08`,
+            border: `1px solid ${C.gold}25`, borderRadius: 3, marginBottom: 20,
+            fontFamily: NU, fontSize: 11, color: C.grey, lineHeight: 1.6,
+          }}>
+            This review will be marked <strong style={{ color: C.gold }}>Added by Admin</strong> in the system. The review date you set above will be used for public display — not the system entry date.
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div style={{ padding: '9px 12px', background: 'rgba(185,28,28,0.1)', border: '1px solid rgba(185,28,28,0.25)', borderRadius: 3, marginBottom: 14, fontFamily: NU, fontSize: 12, color: '#f87171' }}>
+              {error}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              onClick={handleSubmit}
+              disabled={saving}
+              style={{
+                flex: 1, padding: '11px 0', borderRadius: 3, border: 'none', cursor: saving ? 'not-allowed' : 'pointer',
+                fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
+                background: saving ? C.border : '#15803d', color: '#fff', opacity: saving ? 0.6 : 1,
+                transition: 'opacity 0.15s',
+              }}
+            >
+              {saving ? 'Saving…' : 'Save Review'}
+            </button>
+            <button
+              onClick={onClose}
+              style={{
+                padding: '11px 20px', borderRadius: 3, border: `1px solid ${C.border}`, cursor: 'pointer',
+                fontFamily: NU, fontSize: 11, fontWeight: 600, background: 'none', color: C.grey,
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main module ──────────────────────────────────────────────────────────────
+const ReviewsModule = () => {
   const C = useTheme();
+  const [reviews, setReviews] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const [reviews,          setReviews]          = useState([]);
-  const [stats,            setStats]             = useState(null);
-  const [loading,          setLoading]           = useState(true);
-  const [statusFilter,     setStatusFilter]      = useState('pending');
-  const [entityTypeFilter, setEntityTypeFilter]  = useState('');
-  const [searchQuery,      setSearchQuery]       = useState('');
-  const [selectedReviews,  setSelectedReviews]   = useState(new Set());
-  const [offset,           setOffset]            = useState(0);
-  const [total,            setTotal]             = useState(0);
-  const [toast,            setToast]             = useState(null);
-  const itemsPerPage = 20;
+  // Filters
+  const [statusFilter, setStatusFilter] = useState('pending');
+  const [entityTypeFilter, setEntityTypeFilter] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedReviews, setSelectedReviews] = useState(new Set());
+  const searchTimeout = useRef(null);
 
-  const showToast = useCallback((message, type = 'ok') => setToast({ message, type }), []);
+  // Pagination
+  const [offset, setOffset] = useState(0);
+  const [total, setTotal] = useState(0);
+  const PER_PAGE = 20;
+
+  // Add review panel
+  const [showAddPanel, setShowAddPanel] = useState(false);
+
+  // Toast
+  const [toast, setToast] = useState(null);
+
+  const notify = (msg) => setToast(msg);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { reviews: data, total: count } = await fetchAdminReviews({
-        status:      statusFilter      || null,
-        entityType:  entityTypeFilter  || null,
-        searchQuery: searchQuery       || null,
-        limit: itemsPerPage,
-        offset,
-      });
+      const [{ reviews: data, total: count }, statsData] = await Promise.all([
+        fetchAdminReviews({
+          status: statusFilter || null,
+          entityType: entityTypeFilter || null,
+          searchQuery: searchQuery || null,
+          limit: PER_PAGE,
+          offset,
+        }),
+        getReviewStats(),
+      ]);
       setReviews(data);
       setTotal(count);
+      setStats(statsData);
     } catch (err) {
-      showToast(err.message, 'error');
+      console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, entityTypeFilter, searchQuery, offset, showToast]);
+  }, [statusFilter, entityTypeFilter, searchQuery, offset]);
 
-  const loadStats = useCallback(async () => {
-    try { const data = await getReviewStats(); setStats(data); } catch {}
-  }, []);
+  useEffect(() => { load(); }, [load]);
 
-  useEffect(() => { load(); },      [load]);
-  useEffect(() => { loadStats(); }, [loadStats]);
+  // Debounced search
+  const handleSearch = (val) => {
+    clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => {
+      setSearchQuery(val);
+      setOffset(0);
+    }, 350);
+  };
 
-  const refresh = useCallback(() => { load(); loadStats(); }, [load, loadStats]);
+  const handleApprove = async (id) => {
+    await approveReview(id);
+    notify('Review approved and published');
+    load();
+  };
 
-  const handleApprove = async (id) => { await approveReview(id);      refresh(); };
-  const handleReject  = async (id) => { await rejectReview(id);       refresh(); };
-  const handleDelete  = async (id) => { await softDeleteReview(id);   refresh(); };
-  const handleSave    = async (id, text) => { await updateReview(id, { review_text: text }); refresh(); };
+  const handleReject = async (id) => {
+    await rejectReview(id);
+    notify('Review rejected');
+    load();
+  };
 
-  const handleSelect = (id) => {
+  const handleDelete = async (id) => {
+    if (!window.confirm('Remove this review from public view? It will be kept in records.')) return;
+    await softDeleteReview(id);
+    notify('Review removed from public view');
+    load();
+  };
+
+  const handleToggleFeatured = async (id, val) => {
+    await toggleFeatured(id, val);
+    notify(val ? 'Review featured' : 'Review unfeatured');
+    load();
+  };
+
+  const handleVerify = async (id, val) => {
+    await setVerification(id, val, 'manual');
+    notify(val ? 'LWD Verified Booking badge applied' : 'Verification removed');
+    load();
+  };
+
+  const handleUpdate = async (id, updates) => {
+    await updateReview(id, updates);
+    notify('Review updated');
+    load();
+  };
+
+  const handleSelectReview = (id) => {
     setSelectedReviews(prev => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
@@ -357,182 +1274,233 @@ export default function ReviewsModule() {
   };
 
   const handleSelectAll = () => {
-    setSelectedReviews(prev =>
-      prev.size === reviews.length && reviews.length > 0
-        ? new Set()
-        : new Set(reviews.map(r => r.id))
+    setSelectedReviews(selectedReviews.size === reviews.length && reviews.length > 0
+      ? new Set()
+      : new Set(reviews.map(r => r.id))
     );
   };
 
   const handleBulkApprove = async () => {
-    const count = selectedReviews.size;
     await bulkApproveReviews(Array.from(selectedReviews));
     setSelectedReviews(new Set());
-    showToast(`${count} review(s) approved`);
-    refresh();
+    notify(`${selectedReviews.size} reviews approved`);
+    load();
   };
+
   const handleBulkReject = async () => {
-    const count = selectedReviews.size;
     await bulkRejectReviews(Array.from(selectedReviews));
     setSelectedReviews(new Set());
-    showToast(`${count} review(s) rejected`, 'warn');
-    refresh();
+    notify(`${selectedReviews.size} reviews rejected`);
+    load();
   };
+
   const handleBulkDelete = async () => {
-    const count = selectedReviews.size;
-    if (!window.confirm(`Remove ${count} review(s) from public view?`)) return;
+    if (!window.confirm(`Remove ${selectedReviews.size} review(s) from public view?`)) return;
     await bulkSoftDeleteReviews(Array.from(selectedReviews));
     setSelectedReviews(new Set());
-    showToast(`${count} review(s) removed`, 'warn');
-    refresh();
+    notify(`${selectedReviews.size} reviews removed`);
+    load();
   };
 
+  const pagesCount = Math.ceil(total / PER_PAGE);
+  const currentPage = Math.floor(offset / PER_PAGE) + 1;
+
   const STATUS_TABS = [
-    { key: '',         label: 'All',      count: stats?.total    },
-    { key: 'pending',  label: 'Pending',  count: stats?.pending  },
-    { key: 'approved', label: 'Approved', count: stats?.approved },
-    { key: 'rejected', label: 'Rejected', count: stats?.rejected },
+    { value: 'pending',        label: 'Pending',        count: stats?.pending        ?? 0, accent: '#c9900a' },
+    { value: 'approved',       label: 'Approved',       count: stats?.approved       ?? 0, accent: '#15803d' },
+    { value: 'awaiting_reply', label: 'Awaiting Reply', count: stats?.awaiting_reply ?? 0, accent: '#2563eb' },
+    { value: 'replied',        label: 'Replied',        count: stats?.replied        ?? 0, accent: '#7c3aed' },
+    { value: 'rejected',       label: 'Rejected',       count: stats?.rejected       ?? 0, accent: '#b91c1c' },
+    { value: null,             label: 'All',            count: stats?.total          ?? 0, accent: C.gold    },
   ];
 
-  const pagesCount  = Math.ceil(total / itemsPerPage);
-  const currentPage = Math.floor(offset / itemsPerPage) + 1;
-  const allSelected = selectedReviews.size === reviews.length && reviews.length > 0;
-
   return (
-    <div style={{ padding: '36px 40px', background: C.black, minHeight: '100%' }}>
-      {toast && <Toast message={toast.message} type={toast.type} onDone={() => setToast(null)} />}
+    <div style={{ padding: '32px 36px', minHeight: '100vh', background: C.black, color: C.white }}>
 
       {/* Header */}
-      <div style={{ marginBottom: 36 }}>
-        <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.gold, marginBottom: 10 }}>
-          Curation
+      <div style={{ marginBottom: 28, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div>
+          <h1 style={{ fontFamily: ND, fontSize: 28, fontWeight: 600, color: C.white, margin: '0 0 4px' }}>
+            Review Moderation Studio
+          </h1>
+          <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, margin: 0, letterSpacing: '0.02em' }}>
+            Review reputation, conversation threads, and moderation
+          </p>
         </div>
-        <h1 style={{ fontFamily: ND, fontSize: 34, fontWeight: 400, color: C.white, margin: '0 0 6px', lineHeight: 1.1 }}>
-          Review Moderation Studio
-        </h1>
-        <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, margin: 0, lineHeight: 1.6 }}>
-          Curate, edit, and publish customer reviews across all venues and listings.
-        </p>
+        <button
+          onClick={() => setShowAddPanel(true)}
+          style={{
+            fontFamily: NU, fontSize: 12, fontWeight: 600,
+            background: C.gold, color: '#fff',
+            border: 'none', borderRadius: 3, cursor: 'pointer',
+            padding: '9px 18px', letterSpacing: '0.02em', whiteSpace: 'nowrap',
+            marginTop: 4,
+          }}
+        >
+          + Add Review
+        </button>
       </div>
 
-      {/* Stat / tab cards */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 32, flexWrap: 'wrap' }}>
-        {STATUS_TABS.map(tab => (
+      {/* Stat tabs */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8, marginBottom: 28 }}>
+        {STATUS_TABS.map(t => (
           <StatCard
-            key={tab.key}
-            label={tab.label}
-            value={tab.count}
-            active={statusFilter === tab.key}
-            onClick={() => { setStatusFilter(tab.key); setOffset(0); setSelectedReviews(new Set()); }}
+            key={String(t.value)}
+            label={t.label}
+            value={t.count}
+            active={statusFilter === t.value}
+            accent={t.accent}
+            onClick={() => { setStatusFilter(t.value); setOffset(0); }}
             C={C}
           />
         ))}
       </div>
 
-      {/* Filters row */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+      {/* Filter bar */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <select
-          value={entityTypeFilter}
-          onChange={e => { setEntityTypeFilter(e.target.value); setOffset(0); }}
-          style={{ padding: '9px 14px', borderRadius: 3, border: `1px solid ${C.border}`, fontFamily: NU, fontSize: 12, color: C.white, background: C.card, cursor: 'pointer', outline: 'none' }}
+          value={entityTypeFilter || ''}
+          onChange={e => { setEntityTypeFilter(e.target.value || null); setOffset(0); }}
+          style={{
+            padding: '8px 12px', borderRadius: 3, border: `1px solid ${C.border}`,
+            background: C.card, color: C.white, fontFamily: NU, fontSize: 12, cursor: 'pointer',
+          }}
         >
-          <option value="">All Venue Types</option>
+          <option value="">All types</option>
           <option value="venue">Venue</option>
-          <option value="blog">Blog</option>
-          <option value="showcase">Showcase</option>
+          <option value="planner">Planner</option>
+          <option value="vendor">Vendor</option>
         </select>
 
         <input
           type="text"
-          placeholder="Search by name, email, or text…"
-          value={searchQuery}
-          onChange={e => { setSearchQuery(e.target.value); setOffset(0); }}
-          style={{ padding: '9px 14px', borderRadius: 3, border: `1px solid ${C.border}`, fontFamily: NU, fontSize: 12, color: C.white, background: C.card, flex: 1, minWidth: 200, outline: 'none' }}
+          placeholder="Search reviewer, business, or review text…"
+          onChange={e => handleSearch(e.target.value)}
+          style={{
+            flex: 1, minWidth: 220, padding: '8px 12px', borderRadius: 3,
+            border: `1px solid ${C.border}`, background: C.card, color: C.white,
+            fontFamily: NU, fontSize: 12, outline: 'none',
+          }}
         />
 
-        {reviews.length > 0 && (
-          <button
-            onClick={handleSelectAll}
-            style={{ padding: '9px 14px', fontFamily: NU, fontSize: 11, fontWeight: 600, color: allSelected ? C.gold : C.grey, background: 'none', border: `1px solid ${C.border}`, borderRadius: 3, cursor: 'pointer', whiteSpace: 'nowrap' }}
-          >
-            {allSelected ? 'Deselect All' : 'Select All'}
-          </button>
-        )}
+        <span style={{ fontFamily: NU, fontSize: 11, color: C.grey2, whiteSpace: 'nowrap' }}>
+          {total} result{total !== 1 ? 's' : ''}
+        </span>
       </div>
 
-      {/* Bulk actions bar */}
+      {/* Bulk action bar */}
       {selectedReviews.size > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '12px 18px', background: C.card, border: `1px solid ${C.gold}40`, borderRadius: 4, boxShadow: `0 2px 12px ${C.gold}18` }}>
-          <span style={{ fontFamily: NU, fontSize: 12, fontWeight: 700, color: C.gold, flex: 1 }}>
+        <div style={{
+          display: 'flex', gap: 8, alignItems: 'center', padding: '10px 14px',
+          background: `${C.gold}08`, border: `1px solid ${C.gold}30`,
+          borderRadius: 3, marginBottom: 12,
+        }}>
+          <span style={{ fontFamily: NU, fontSize: 11, color: C.gold, flex: 1, fontWeight: 600 }}>
             {selectedReviews.size} selected
           </span>
-          <button onClick={handleBulkApprove} style={{ padding: '7px 16px', fontFamily: NU, fontSize: 11, fontWeight: 700, background: '#15803d', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
-            ✓  Approve Selected
-          </button>
-          <button onClick={handleBulkReject} style={{ padding: '7px 16px', fontFamily: NU, fontSize: 11, fontWeight: 600, background: 'none', color: '#b91c1c', border: '1px solid rgba(185,28,28,0.35)', borderRadius: 3, cursor: 'pointer' }}>
-            ✕  Reject Selected
-          </button>
-          <button onClick={handleBulkDelete} style={{ padding: '7px 14px', fontFamily: NU, fontSize: 10, fontWeight: 600, background: 'none', color: C.grey2, border: `1px solid ${C.border}`, borderRadius: 3, cursor: 'pointer' }}>
-            Remove
-          </button>
+          <ActionBtn label="Approve All" color="#15803d" onClick={handleBulkApprove} />
+          <ActionBtn label="Reject All"  color="#b91c1c" onClick={handleBulkReject} />
+          <ActionBtn label="Delete All"  color={C.grey2}  outline onClick={handleBulkDelete} />
+          <ActionBtn label="Clear"       color={C.grey2}  outline onClick={() => setSelectedReviews(new Set())} />
         </div>
       )}
 
-      {/* Cards */}
-      {loading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {[1, 2, 3].map(i => <SkeletonCard key={i} C={C} />)}
+      {/* Select all row */}
+      {reviews.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, paddingLeft: 2 }}>
+          <input
+            type="checkbox"
+            checked={selectedReviews.size === reviews.length && reviews.length > 0}
+            onChange={handleSelectAll}
+            style={{ cursor: 'pointer', accentColor: C.gold }}
+          />
+          <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>
+            {selectedReviews.size === reviews.length ? 'Deselect all' : 'Select all on this page'}
+          </span>
         </div>
+      )}
+
+      {/* Review list */}
+      {loading ? (
+        <>
+          {[1, 2, 3].map(i => <SkeletonCard key={i} C={C} />)}
+        </>
       ) : reviews.length === 0 ? (
-        <div style={{ padding: '64px 40px', textAlign: 'center', background: C.card, border: `1px solid ${C.border}`, borderRadius: 4 }}>
-          <div style={{ fontFamily: ND, fontSize: 22, color: C.grey, marginBottom: 10 }}>No reviews found</div>
-          <div style={{ fontFamily: NU, fontSize: 12, color: C.grey2 }}>
-            {statusFilter === 'pending'
-              ? 'All caught up. No pending reviews to moderate.'
-              : 'Submissions matching your filters will appear here.'}
-          </div>
+        <div style={{
+          padding: '60px 32px', textAlign: 'center',
+          border: `1px solid ${C.border}`, borderRadius: 4, background: C.card,
+        }}>
+          <div style={{ fontFamily: ND, fontSize: 20, color: C.grey, marginBottom: 8 }}>No reviews found</div>
+          <p style={{ fontFamily: NU, fontSize: 12, color: C.grey2, margin: 0 }}>
+            {statusFilter ? `No ${statusFilter} reviews at the moment.` : 'No reviews match your filters.'}
+          </p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {reviews.map(review => (
-            <ReviewCard
-              key={review.id}
-              review={review}
-              selected={selectedReviews.has(review.id)}
-              onSelect={handleSelect}
-              onApprove={handleApprove}
-              onReject={handleReject}
-              onDelete={handleDelete}
-              onSave={handleSave}
-              toast={showToast}
-              C={C}
-            />
-          ))}
-        </div>
+        reviews.map(r => (
+          <ReviewCard
+            key={r.id}
+            review={r}
+            selected={selectedReviews.has(r.id)}
+            onSelect={handleSelectReview}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onDelete={handleDelete}
+            onToggleFeatured={handleToggleFeatured}
+            onVerify={handleVerify}
+            onUpdate={handleUpdate}
+            C={C}
+          />
+        ))
       )}
 
       {/* Pagination */}
       {pagesCount > 1 && (
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 32, alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 24, alignItems: 'center' }}>
           <button
-            onClick={() => setOffset(Math.max(0, offset - itemsPerPage))}
+            onClick={() => setOffset(Math.max(0, offset - PER_PAGE))}
             disabled={offset === 0}
-            style={{ padding: '8px 18px', fontFamily: NU, fontSize: 11, fontWeight: 600, border: `1px solid ${C.border}`, borderRadius: 3, cursor: offset === 0 ? 'not-allowed' : 'pointer', background: C.card, color: C.grey, opacity: offset === 0 ? 0.4 : 1 }}
+            style={{
+              padding: '7px 14px', border: `1px solid ${C.border}`, borderRadius: 3,
+              cursor: offset === 0 ? 'not-allowed' : 'pointer', fontFamily: NU, fontSize: 11,
+              background: 'none', color: C.grey, opacity: offset === 0 ? 0.4 : 1,
+            }}
           >
             ← Prev
           </button>
-          <span style={{ fontFamily: NU, fontSize: 12, color: C.grey }}>
+          <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>
             {currentPage} / {pagesCount}
           </span>
           <button
-            onClick={() => setOffset(offset + itemsPerPage)}
-            disabled={offset + itemsPerPage >= total}
-            style={{ padding: '8px 18px', fontFamily: NU, fontSize: 11, fontWeight: 600, border: `1px solid ${C.border}`, borderRadius: 3, cursor: offset + itemsPerPage >= total ? 'not-allowed' : 'pointer', background: C.card, color: C.grey, opacity: offset + itemsPerPage >= total ? 0.4 : 1 }}
+            onClick={() => setOffset(offset + PER_PAGE)}
+            disabled={offset + PER_PAGE >= total}
+            style={{
+              padding: '7px 14px', border: `1px solid ${C.border}`, borderRadius: 3,
+              cursor: offset + PER_PAGE >= total ? 'not-allowed' : 'pointer', fontFamily: NU, fontSize: 11,
+              background: 'none', color: C.grey, opacity: offset + PER_PAGE >= total ? 0.4 : 1,
+            }}
           >
             Next →
           </button>
         </div>
       )}
+
+      {/* Toast */}
+      {toast && <Toast message={toast} onDone={() => setToast(null)} C={C} />}
+
+      {/* Add Review Panel */}
+      {showAddPanel && (
+        <AddReviewPanel
+          onClose={() => setShowAddPanel(false)}
+          onSaved={() => {
+            setShowAddPanel(false);
+            notify('Review added successfully');
+            load();
+          }}
+          C={C}
+        />
+      )}
     </div>
   );
-}
+};
+
+export default ReviewsModule;
