@@ -254,7 +254,7 @@ function NotFound({ slug, onBack }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function ShowcasePage({ slug, onBack, onGoDestination, onNavigateStandard, onNavigateAbout }) {
+export default function ShowcasePage({ slug, darkMode, onToggleDark, onBack, onGoDestination, onNavigateStandard, onNavigateAbout }) {
   const isMobile = useIsMobile();
   const [showcase, setShowcase]   = useState(null);
   const [listing, setListing]     = useState(null);
@@ -333,6 +333,8 @@ export default function ShowcasePage({ slug, onBack, onGoDestination, onNavigate
         listing={listing}
         listingFirstImage={listingFirstImage}
         isPreview={false}
+        darkMode={darkMode}
+        onToggleDark={onToggleDark}
         onNavigateStandard={onNavigateStandard}
         onGoDestination={onGoDestination}
         onBack={onBack}

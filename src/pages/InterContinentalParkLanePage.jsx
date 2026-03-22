@@ -28,6 +28,7 @@ const GD   = 'var(--font-heading-primary)';
 const NU   = 'var(--font-body)';
 const GOLD = '#C4A05A';   // IC Park Lane champagne gold
 
+// Light palette (default)
 const C = {
   cream:    '#F9F7F2',
   ivory:    '#F1EDE5',
@@ -39,6 +40,20 @@ const C = {
   gold:     GOLD,
   navy:     '#0C1628',   // IC midnight navy — cooler, deeper than The Ritz
   navyDark: '#070E1C',   // deep contrast for dining/dark sections
+};
+
+// Dark palette (toggled via darkMode prop)
+const C_DARK = {
+  cream:    '#0a0a08',
+  ivory:    '#0f0e0c',
+  white:    '#131210',
+  dark:     '#f5f0e8',
+  text:     '#f5f0e8',
+  muted:    'rgba(245,240,232,0.52)',
+  border:   'rgba(255,255,255,0.1)',
+  gold:     GOLD,
+  navy:     '#0C1628',
+  navyDark: '#070E1C',
 };
 
 // ── Local image helper — /public/InterContinental-Istanbul/ ──────────────────
@@ -180,10 +195,10 @@ const IC_AI_DATA = {
 };
 
 // ── SectionHeader ─────────────────────────────────────────────────────────────
-function SectionHeader({ eyebrow, title, subtitle, light = false, center = false }) {
+function SectionHeader({ eyebrow, title, subtitle, light = false, center = false, P = C }) {
   const { isMobile } = useBreakpoint();
-  const textColor  = light ? '#f5f0e8' : C.text;
-  const mutedColor = light ? 'rgba(245,240,232,0.55)' : C.muted;
+  const textColor  = light ? '#f5f0e8' : P.text;
+  const mutedColor = light ? 'rgba(245,240,232,0.55)' : P.muted;
   return (
     <div style={{
       maxWidth: 840,
@@ -241,11 +256,11 @@ function Section({ id, bg = C.cream, children, pad }) {
 }
 
 // ── BreadcrumbBar ──────────────────────────────────────────────────────────────
-function BreadcrumbBar({ onBack, onGoDestination, listingUrl }) {
+function BreadcrumbBar({ onBack, onGoDestination, listingUrl, P = C }) {
   return (
     <div style={{
-      background: C.cream,
-      borderBottom: `1px solid ${C.border}`,
+      background: P.cream,
+      borderBottom: `1px solid ${P.border}`,
       padding: '0 32px',
       height: 40,
       display: 'flex',
@@ -262,23 +277,23 @@ function BreadcrumbBar({ onBack, onGoDestination, listingUrl }) {
       ].map((crumb, i) => (
         <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {i > 0 && (
-            <span style={{ fontFamily: NU, fontSize: 10, color: C.muted, userSelect: 'none' }}>›</span>
+            <span style={{ fontFamily: NU, fontSize: 10, color: P.muted, userSelect: 'none' }}>›</span>
           )}
           {crumb.current ? (
-            <span style={{ fontFamily: NU, fontSize: 11, color: C.text, fontWeight: 600, letterSpacing: '0.02em' }}>
+            <span style={{ fontFamily: NU, fontSize: 11, color: P.text, fontWeight: 600, letterSpacing: '0.02em' }}>
               {crumb.label}
             </span>
           ) : (
             <button
               onClick={crumb.onClick}
               style={{
-                fontFamily: NU, fontSize: 11, color: C.muted,
+                fontFamily: NU, fontSize: 11, color: P.muted,
                 background: 'none', border: 'none', cursor: 'pointer',
                 padding: 0, fontWeight: 400, letterSpacing: '0.02em',
                 transition: 'color 0.2s',
               }}
-              onMouseEnter={e => (e.currentTarget.style.color = C.text)}
-              onMouseLeave={e => (e.currentTarget.style.color = C.muted)}
+              onMouseEnter={e => (e.currentTarget.style.color = P.text)}
+              onMouseLeave={e => (e.currentTarget.style.color = P.muted)}
             >
               {crumb.label}
             </button>
@@ -314,7 +329,7 @@ const IC_NAV = [
   { id: 'weddings', label: 'Weddings'        },
 ];
 
-function StickyVenueNav({ activeSection, onScrollTo, onVisibilityChange }) {
+function StickyVenueNav({ activeSection, onScrollTo, onVisibilityChange, P = C }) {
   const { isMobile } = useBreakpoint();
   const [visible, setVisible] = useState(false);
 
@@ -328,12 +343,14 @@ function StickyVenueNav({ activeSection, onScrollTo, onVisibilityChange }) {
     return () => window.removeEventListener('scroll', onScroll);
   }, []); // eslint-disable-line
 
+  const navBg = P === C_DARK ? 'rgba(10,10,8,0.97)' : 'rgba(249,247,242,0.97)';
+
   return (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, zIndex: 900,
-      background: 'rgba(249,247,242,0.97)',
+      background: navBg,
       backdropFilter: 'blur(12px)',
-      borderBottom: `1px solid ${C.border}`,
+      borderBottom: `1px solid ${P.border}`,
       boxShadow: '0 2px 20px rgba(0,0,0,0.06)',
       transform: visible ? 'translateY(0)' : 'translateY(-100%)',
       transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -342,11 +359,11 @@ function StickyVenueNav({ activeSection, onScrollTo, onVisibilityChange }) {
       padding: isMobile ? '0 16px' : '0 32px',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, marginRight: 'auto' }}>
-        <span style={{ fontFamily: GD, fontSize: 15, color: C.text, letterSpacing: '0.01em' }}>
+        <span style={{ fontFamily: GD, fontSize: 15, color: P.text, letterSpacing: '0.01em' }}>
           InterContinental London Park Lane
         </span>
         {!isMobile && (
-          <span style={{ fontFamily: NU, fontSize: 11, color: C.muted, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+          <span style={{ fontFamily: NU, fontSize: 11, color: P.muted, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
             Hyde Park Corner
           </span>
         )}
@@ -362,7 +379,7 @@ function StickyVenueNav({ activeSection, onScrollTo, onVisibilityChange }) {
                 background: 'none', border: 'none',
                 fontFamily: NU, fontSize: 13,
                 fontWeight: activeSection === item.id ? 700 : 500,
-                color: activeSection === item.id ? C.text : C.muted,
+                color: activeSection === item.id ? P.text : P.muted,
                 cursor: 'pointer', padding: '6px 12px', borderRadius: 4,
                 transition: 'color 0.2s',
                 borderBottom: activeSection === item.id ? `2px solid ${GOLD}` : '2px solid transparent',
@@ -399,14 +416,14 @@ function StickyVenueNav({ activeSection, onScrollTo, onVisibilityChange }) {
             marginLeft: 8,
             fontFamily: NU, fontSize: 11, fontWeight: 600,
             letterSpacing: '0.08em', textTransform: 'uppercase',
-            color: C.muted, textDecoration: 'none',
+            color: P.muted, textDecoration: 'none',
             padding: '9px 14px', borderRadius: 4,
-            border: `1px solid ${C.border}`,
+            border: `1px solid ${P.border}`,
             transition: 'color 0.2s, border-color 0.2s',
             whiteSpace: 'nowrap',
           }}
-          onMouseEnter={e => { e.currentTarget.style.color = C.text; e.currentTarget.style.borderColor = C.text; }}
-          onMouseLeave={e => { e.currentTarget.style.color = C.muted; e.currentTarget.style.borderColor = C.border; }}
+          onMouseEnter={e => { e.currentTarget.style.color = P.text; e.currentTarget.style.borderColor = P.text; }}
+          onMouseLeave={e => { e.currentTarget.style.color = P.muted; e.currentTarget.style.borderColor = P.border; }}
         >
           Listing ↗
         </a>
@@ -487,9 +504,10 @@ function HeroSection({ venue }) {
 }
 
 // ── Main page ──────────────────────────────────────────────────────────────────
-export default function InterContinentalParkLanePage({ onBack, onGoDestination, onNavigateStandard, onNavigateAbout }) {
+export default function InterContinentalParkLanePage({ onBack, onGoDestination, onNavigateStandard, onNavigateAbout, darkMode = false, onToggleDark }) {
   const { isMobile } = useBreakpoint();
   const venue = IC_VENUE;
+  const P = darkMode ? C_DARK : C;  // dynamic palette — all section colours follow this
 
   const [activeSection, setActiveSection] = useState('overview');
   const [stickyVisible, setStickyVisible] = useState(false);
@@ -589,17 +607,17 @@ export default function InterContinentalParkLanePage({ onBack, onGoDestination, 
   };
 
   return (
-    <div style={{ background: C.cream, fontFamily: NU, paddingTop: 64 }}>
+    <div style={{ background: P.cream, color: P.text, fontFamily: NU, paddingTop: 64 }}>
 
-      {/* ── Site nav ─────────────────────────────────────────────────────── */}
+      {/* ── Site nav wrapper (slides up when sticky nav appears) ─────────── */}
       <div style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 699,
         transform: stickyVisible ? 'translateY(-110%)' : 'translateY(0)',
         transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
       }}>
         <HomeNav
-          darkMode={false}
-          onToggleDark={() => {}}
+          darkMode={darkMode}
+          onToggleDark={onToggleDark}
           onVendorLogin={null}
           onNavigateStandard={onNavigateStandard}
           onNavigateAbout={onNavigateAbout}
@@ -608,20 +626,21 @@ export default function InterContinentalParkLanePage({ onBack, onGoDestination, 
       </div>
 
       {/* ── Breadcrumb ───────────────────────────────────────────────────── */}
-      <BreadcrumbBar onBack={onBack} onGoDestination={onGoDestination} listingUrl={listingUrl} />
+      <BreadcrumbBar onBack={onBack} onGoDestination={onGoDestination} listingUrl={listingUrl} P={P} />
 
       {/* ── Sticky venue nav ─────────────────────────────────────────────── */}
       <StickyVenueNav
         activeSection={activeSection}
         onScrollTo={scrollTo}
         onVisibilityChange={setStickyVisible}
+        P={P}
       />
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <HeroSection venue={venue} />
 
       {/* ── Gallery ──────────────────────────────────────────────────────── */}
-      <div style={{ background: C.white }}>
+      <div style={{ background: P.white }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '24px 16px' : '28px 64px' }}>
           <ThemeCtx.Provider value={LIGHT}>
             <MediaBlock
@@ -640,33 +659,34 @@ export default function InterContinentalParkLanePage({ onBack, onGoDestination, 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 1 — OVERVIEW
       ═══════════════════════════════════════════════════════════════════ */}
-      <Section id="overview" bg={C.cream}>
+      <Section id="overview" bg={P.cream}>
         <SectionHeader
           eyebrow="Hyde Park Corner · Mayfair · London W1J"
           title={venue.overview.headline}
           subtitle={venue.sectionIntros?.overview || venue.overview.intro}
+          P={P}
         />
 
         {/* Verified Details trust badge */}
-        <ShowcaseVerified data={viData} accentColor={GOLD} theme="light" />
+        <ShowcaseVerified data={viData} accentColor={GOLD} theme={darkMode ? 'dark' : 'light'} />
 
         {/* Venue stats strip */}
         <VenueStatsCard data={{
           variant:  'strip',
-          accentBg: '#ffffff',
-          theme:    'light',
+          accentBg: darkMode ? '#131210' : '#ffffff',
+          theme:    darkMode ? 'dark' : 'light',
           stats:    venue.keyStats,
         }} />
 
         {/* AI-readable At a Glance block */}
-        <ShowcaseAtAGlance data={viData} accentColor={GOLD} theme="light" />
+        <ShowcaseAtAGlance data={viData} accentColor={GOLD} theme={darkMode ? 'dark' : 'light'} />
 
         {/* The IC Park Lane story */}
         <div style={{ marginTop: 40 }}>
           <TwoColumnEditorialCard data={{
             variant:  'image-left',
-            accentBg: C.cream,
-            theme:    'light',
+            accentBg: P.cream,
+            theme:    darkMode ? 'dark' : 'light',
             image:    venue.overview.storyImage,
             eyebrow:  venue.overview.storyEyebrow,
             title:    venue.overview.storyHeadline,
@@ -679,8 +699,8 @@ export default function InterContinentalParkLanePage({ onBack, onGoDestination, 
         <div style={{
           marginTop: 48,
           padding: isMobile ? '32px 24px' : '40px 52px',
-          background: C.ivory,
-          border: `1px solid ${C.border}`,
+          background: P.ivory,
+          border: `1px solid ${P.border}`,
           borderTop: `3px solid ${GOLD}`,
           borderRadius: 4,
           display: 'grid',
@@ -693,10 +713,10 @@ export default function InterContinentalParkLanePage({ onBack, onGoDestination, 
             { label: 'Mayfair, Belgravia & Knightsbridge', desc: "Three of London's most celebrated neighbourhoods — Bond Street shopping, the restaurants of Mayfair, Harrods, and the galleries of Belgravia — all within ten minutes on foot." },
           ].map((item, i) => (
             <div key={i}>
-              <p style={{ fontFamily: NU, fontWeight: 700, fontSize: 13, color: C.text, letterSpacing: '0.02em', margin: '0 0 8px' }}>
+              <p style={{ fontFamily: NU, fontWeight: 700, fontSize: 13, color: P.text, letterSpacing: '0.02em', margin: '0 0 8px' }}>
                 {item.label}
               </p>
-              <p style={{ fontFamily: NU, fontSize: 14, color: C.muted, margin: 0, lineHeight: 1.7 }}>
+              <p style={{ fontFamily: NU, fontSize: 14, color: P.muted, margin: 0, lineHeight: 1.7 }}>
                 {item.desc}
               </p>
             </div>
@@ -711,18 +731,19 @@ export default function InterContinentalParkLanePage({ onBack, onGoDestination, 
         data={viData}
         venueName="InterContinental London Park Lane"
         accentColor={GOLD}
-        theme="light"
-        bg={C.ivory}
+        theme={darkMode ? 'dark' : 'light'}
+        bg={P.ivory}
       />
 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 2 — ROOMS & SUITES
       ═══════════════════════════════════════════════════════════════════ */}
-      <Section id="rooms" bg={C.white}>
+      <Section id="rooms" bg={P.white}>
         <SectionHeader
           eyebrow="Accommodation"
           title="447 Rooms. Hyde Park from Every Angle."
           subtitle={venue.sectionIntros?.rooms}
+          P={P}
         />
 
         {/* Deluxe rooms feature */}
@@ -775,8 +796,8 @@ export default function InterContinentalParkLanePage({ onBack, onGoDestination, 
         {/* Rooms mosaic */}
         <div style={{ marginTop: 4 }}>
           <MosaicCard data={{
-            theme:    'light',
-            accentBg: C.ivory,
+            theme:    darkMode ? 'dark' : 'light',
+            accentBg: P.ivory,
             images:   [
               venue.rooms.clubLounge,
               venue.rooms.roomDetail1,
@@ -889,11 +910,12 @@ export default function InterContinentalParkLanePage({ onBack, onGoDestination, 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 4 — WEDDINGS & CELEBRATIONS
       ═══════════════════════════════════════════════════════════════════ */}
-      <Section id="weddings" bg={C.cream}>
+      <Section id="weddings" bg={P.cream}>
         <SectionHeader
           eyebrow="Weddings & Private Celebrations"
           title="London's Most Magnificent Hotel Ballroom"
           subtitle={venue.sectionIntros?.weddings}
+          P={P}
         />
 
         {/* Ballroom hero */}
@@ -921,8 +943,8 @@ export default function InterContinentalParkLanePage({ onBack, onGoDestination, 
         <div style={{ marginTop: 48 }}>
           <TwoColumnEditorialCard data={{
             variant:  'image-right',
-            accentBg: C.ivory,
-            theme:    'light',
+            accentBg: P.ivory,
+            theme:    darkMode ? 'dark' : 'light',
             image:    venue.weddings.ballroomDinner,
             eyebrow:  'The Ballroom · One Hamilton Place · 800 Guests Reception',
             title:    'An Occasion on an Extraordinary Scale',
@@ -975,10 +997,10 @@ export default function InterContinentalParkLanePage({ onBack, onGoDestination, 
             <div key={i} style={{ display: 'flex', gap: 16 }}>
               <div style={{ width: 2, background: GOLD, flexShrink: 0, marginTop: 3, alignSelf: 'stretch' }} />
               <div>
-                <p style={{ fontFamily: NU, fontWeight: 700, fontSize: 13, color: C.text, letterSpacing: '0.02em', margin: '0 0 6px' }}>
+                <p style={{ fontFamily: NU, fontWeight: 700, fontSize: 13, color: P.text, letterSpacing: '0.02em', margin: '0 0 6px' }}>
                   {item.label}
                 </p>
-                <p style={{ fontFamily: NU, fontSize: 14, color: C.muted, margin: 0, lineHeight: 1.65 }}>
+                <p style={{ fontFamily: NU, fontSize: 14, color: P.muted, margin: 0, lineHeight: 1.65 }}>
                   {item.desc}
                 </p>
               </div>
@@ -996,7 +1018,7 @@ export default function InterContinentalParkLanePage({ onBack, onGoDestination, 
         </div>
 
         {/* Event spaces at a glance */}
-        <div style={{ marginTop: 52, background: C.navy, borderRadius: 4, padding: isMobile ? '32px 24px' : '40px 52px' }}>
+        <div style={{ marginTop: 52, background: P.navy, borderRadius: 4, padding: isMobile ? '32px 24px' : '40px 52px' }}>
           <p style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', color: GOLD, textTransform: 'uppercase', margin: '0 0 28px' }}>
             Event Spaces — At a Glance
           </p>
@@ -1063,11 +1085,11 @@ export default function InterContinentalParkLanePage({ onBack, onGoDestination, 
                 a: 'Full hotel buyout is available by special arrangement for guests wishing to host an entirely private celebration across all 447 rooms, suites, and event spaces. The team will advise on availability and all associated details.',
               },
             ].map((faq, i) => (
-              <div key={i} style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20 }}>
-                <p style={{ fontFamily: NU, fontSize: 14, fontWeight: 700, color: C.text, margin: '0 0 8px', lineHeight: 1.5 }}>
+              <div key={i} style={{ borderTop: `1px solid ${P.border}`, paddingTop: 20 }}>
+                <p style={{ fontFamily: NU, fontSize: 14, fontWeight: 700, color: P.text, margin: '0 0 8px', lineHeight: 1.5 }}>
                   {faq.q}
                 </p>
-                <p style={{ fontFamily: NU, fontSize: 14, color: C.muted, margin: 0, lineHeight: 1.7 }}>
+                <p style={{ fontFamily: NU, fontSize: 14, color: P.muted, margin: 0, lineHeight: 1.7 }}>
                   {faq.a}
                 </p>
               </div>

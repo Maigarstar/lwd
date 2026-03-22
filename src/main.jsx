@@ -4,6 +4,7 @@ import { createRoot }           from "react-dom/client";
 import { HelmetProvider }       from "react-helmet-async";
 
 import { applyThemeToDocument } from "./theme/ThemeLoader";
+import { getDefaultMode } from "./theme/tokens";
 import { ShortlistProvider } from "./shortlist/ShortlistContext";
 import { ChatProvider }      from "./chat/ChatContext";
 import { VendorAuthProvider } from "./context/VendorAuthContext";
@@ -275,6 +276,9 @@ function App() {
   // Parse initial URL so direct links & refreshes work
   const initial = pathToState(window.location.pathname);
 
+  const [darkMode, setDarkMode] = useState(() => getDefaultMode() === 'dark');
+  const toggleDark = () => setDarkMode(d => !d);
+
   const [page, setPage] = useState(initial.page);
   const [categoryRegion, setCategoryRegion] = useState(null);
   const [activeCountrySlug, setActiveCountrySlug] = useState(initial.countrySlug || null);
@@ -490,6 +494,8 @@ function App() {
             }}
             onNavigateStandard={goStandard}
             onNavigateAbout={goAbout}
+            darkMode={darkMode}
+            onToggleDark={toggleDark}
           />
         )}
         {page === "gt-showcase" && (
@@ -506,6 +512,8 @@ function App() {
             }}
             onNavigateStandard={goStandard}
             onNavigateAbout={goAbout}
+            darkMode={darkMode}
+            onToggleDark={toggleDark}
           />
         )}
         {page === "ritz-showcase" && (
@@ -517,6 +525,8 @@ function App() {
             }}
             onNavigateStandard={goStandard}
             onNavigateAbout={goAbout}
+            darkMode={darkMode}
+            onToggleDark={toggleDark}
           />
         )}
         {page === "ic-park-lane-showcase" && (
@@ -528,11 +538,15 @@ function App() {
             }}
             onNavigateStandard={goStandard}
             onNavigateAbout={goAbout}
+            darkMode={darkMode}
+            onToggleDark={toggleDark}
           />
         )}
         {page === "showcase" && (
           <ShowcasePage
             slug={activeShowcaseSlug}
+            darkMode={darkMode}
+            onToggleDark={toggleDark}
             onBack={() => {
               setActiveVenueSlug(activeShowcaseSlug);
               setPage("venue-profile");

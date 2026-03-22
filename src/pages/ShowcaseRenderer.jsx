@@ -1064,13 +1064,12 @@ function SectionPlaceholder({ section, palette }) {
 }
 
 // ── Breadcrumb bar (matches SixSensesShowcasePage pattern) ───────────────────
-function BreadcrumbBar({ showcase, listing, onBack, onGoDestination, palette }) {
+function BreadcrumbBar({ showcase, listing, onBack, onGoDestination, palette, darkMode }) {
   const P         = palette;
-  const isLight   = P.mode === 'light';
-  const bg        = 'rgba(249,247,242,0.97)';
-  const border    = '1px solid rgba(0,0,0,0.08)';
-  const textCol   = '#1a1a1a';
-  const mutedCol  = 'rgba(28,20,16,0.5)';
+  const bg        = darkMode ? 'rgba(18,16,12,0.97)' : 'rgba(249,247,242,0.97)';
+  const border    = darkMode ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.08)';
+  const textCol   = darkMode ? '#f5f0e8' : '#1a1a1a';
+  const mutedCol  = darkMode ? 'rgba(245,240,232,0.45)' : 'rgba(28,20,16,0.5)';
   const accentCol = P.accent;
 
   // Build location crumb: prefer listing.city/country, fallback to last part of location string
@@ -1233,12 +1232,17 @@ export default function ShowcaseRenderer({
   interactive = false,
   selectedId = null,
   onSelectSection = null,
+  darkMode = false,
+  onToggleDark = null,
   onNavigateStandard = null,
   onGoDestination = null,
   onBack = null,
 }) {
   const heroUrl = showcase.hero_image_url || null;
-  const palette = buildPalette(showcase.theme);
+  // darkMode prop (from the nav toggle) overrides the showcase's stored theme
+  const palette = isPreview
+    ? buildPalette(showcase.theme)                    // studio preview: use showcase's own theme
+    : darkMode ? DARK_PALETTE : LIGHT_DEFAULTS;       // public page: follow the toggle
   const [sectionNavVisible, setSectionNavVisible] = useState(false);
 
   function renderSection(section) {
@@ -1344,14 +1348,14 @@ export default function ShowcaseRenderer({
         <>
           {/* White header block — HomeNav (fixed) + BreadcrumbBar (in flow).
               White background prevents dark palette.bg bleeding through the gap. */}
-          <div style={{ background: '#ffffff' }}>
+          <div style={{ background: darkMode ? 'rgba(11,9,6,0.97)' : '#ffffff' }}>
             {/* HomeNav — slides UP when SectionNav slides DOWN (IC Park Lane pattern) */}
             <div style={{
               position: 'fixed', top: 0, left: 0, right: 0, zIndex: 699,
               transform:  sectionNavVisible ? 'translateY(-110%)' : 'translateY(0)',
               transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
             }}>
-              <HomeNav hasHero={false} onNavigateStandard={onNavigateStandard} />
+              <HomeNav hasHero={false} darkMode={darkMode} onToggleDark={onToggleDark} onNavigateStandard={onNavigateStandard} />
             </div>
             {/* Spacer that matches HomeNav height so BreadcrumbBar sits flush below it */}
             <div style={{ height: 61 }} />
@@ -1362,6 +1366,7 @@ export default function ShowcaseRenderer({
               onBack={onBack}
               onGoDestination={onGoDestination}
               palette={palette}
+              darkMode={darkMode}
             />
           </div>
           <SectionNav

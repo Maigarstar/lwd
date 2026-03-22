@@ -39,6 +39,19 @@ const C = {
   navyDark: '#130f1e',       // deeper navy for contrast sections
 };
 
+const C_DARK = {
+  cream:    '#0a0a08',
+  ivory:    '#0f0e0c',
+  white:    '#131210',
+  dark:     '#f5f0e8',
+  text:     '#f5f0e8',
+  muted:    'rgba(245,240,232,0.52)',
+  border:   'rgba(255,255,255,0.1)',
+  gold:     GOLD,
+  navy:     '#1C1828',
+  navyDark: '#130f1e',
+};
+
 // ── Image helpers ─────────────────────────────────────────────────────────────
 // Images from the LWD 5-star directory listing for The Ritz London
 const S5 = (id) => `https://5starweddingdirectory.com/custom/domain_1/image_files/${id}`;
@@ -182,10 +195,10 @@ const RITZ_AI_DATA = {
 };
 
 // ── SectionHeader (identical to Six Senses pattern) ────────────────────────────
-function SectionHeader({ eyebrow, title, subtitle, light = false, center = false }) {
+function SectionHeader({ eyebrow, title, subtitle, light = false, center = false, P = C }) {
   const { isMobile } = useBreakpoint();
-  const textColor  = light ? '#f5f0e8' : C.text;
-  const mutedColor = light ? 'rgba(245,240,232,0.55)' : C.muted;
+  const textColor  = light ? '#f5f0e8' : P.text;
+  const mutedColor = light ? 'rgba(245,240,232,0.55)' : P.muted;
   return (
     <div style={{
       maxWidth: 840,
@@ -243,11 +256,11 @@ function Section({ id, bg = C.cream, children, pad }) {
 }
 
 // ── BreadcrumbBar ──────────────────────────────────────────────────────────────
-function BreadcrumbBar({ onBack, onGoDestination, listingUrl }) {
+function BreadcrumbBar({ onBack, onGoDestination, listingUrl, P = C }) {
   return (
     <div style={{
-      background: C.cream,
-      borderBottom: `1px solid ${C.border}`,
+      background: P.cream,
+      borderBottom: `1px solid ${P.border}`,
       padding: '0 32px',
       height: 40,
       display: 'flex',
@@ -264,23 +277,23 @@ function BreadcrumbBar({ onBack, onGoDestination, listingUrl }) {
       ].map((crumb, i) => (
         <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {i > 0 && (
-            <span style={{ fontFamily: NU, fontSize: 10, color: C.muted, userSelect: 'none' }}>›</span>
+            <span style={{ fontFamily: NU, fontSize: 10, color: P.muted, userSelect: 'none' }}>›</span>
           )}
           {crumb.current ? (
-            <span style={{ fontFamily: NU, fontSize: 11, color: C.text, fontWeight: 600, letterSpacing: '0.02em' }}>
+            <span style={{ fontFamily: NU, fontSize: 11, color: P.text, fontWeight: 600, letterSpacing: '0.02em' }}>
               {crumb.label}
             </span>
           ) : (
             <button
               onClick={crumb.onClick}
               style={{
-                fontFamily: NU, fontSize: 11, color: C.muted,
+                fontFamily: NU, fontSize: 11, color: P.muted,
                 background: 'none', border: 'none', cursor: 'pointer',
                 padding: 0, fontWeight: 400, letterSpacing: '0.02em',
                 transition: 'color 0.2s',
               }}
-              onMouseEnter={e => (e.currentTarget.style.color = C.text)}
-              onMouseLeave={e => (e.currentTarget.style.color = C.muted)}
+              onMouseEnter={e => (e.currentTarget.style.color = P.text)}
+              onMouseLeave={e => (e.currentTarget.style.color = P.muted)}
             >
               {crumb.label}
             </button>
@@ -316,7 +329,7 @@ const RITZ_NAV = [
   { id: 'weddings', label: 'Weddings'         },
 ];
 
-function StickyVenueNav({ activeSection, onScrollTo, onVisibilityChange }) {
+function StickyVenueNav({ activeSection, onScrollTo, onVisibilityChange, P = C }) {
   const { isMobile } = useBreakpoint();
   const [visible, setVisible] = useState(false);
 
@@ -333,9 +346,9 @@ function StickyVenueNav({ activeSection, onScrollTo, onVisibilityChange }) {
   return (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, zIndex: 900,
-      background: 'rgba(250,249,246,0.97)',
+      background: P === C_DARK ? 'rgba(10,10,8,0.97)' : 'rgba(249,247,242,0.97)',
       backdropFilter: 'blur(12px)',
-      borderBottom: `1px solid ${C.border}`,
+      borderBottom: `1px solid ${P.border}`,
       boxShadow: '0 2px 20px rgba(0,0,0,0.06)',
       transform: visible ? 'translateY(0)' : 'translateY(-100%)',
       transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -345,11 +358,11 @@ function StickyVenueNav({ activeSection, onScrollTo, onVisibilityChange }) {
     }}>
       {/* Name + brand */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, marginRight: 'auto' }}>
-        <span style={{ fontFamily: GD, fontSize: 15, color: C.text, letterSpacing: '0.01em' }}>
+        <span style={{ fontFamily: GD, fontSize: 15, color: P.text, letterSpacing: '0.01em' }}>
           The Ritz London
         </span>
         {!isMobile && (
-          <span style={{ fontFamily: NU, fontSize: 11, color: C.muted, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+          <span style={{ fontFamily: NU, fontSize: 11, color: P.muted, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
             150 Piccadilly
           </span>
         )}
@@ -366,7 +379,7 @@ function StickyVenueNav({ activeSection, onScrollTo, onVisibilityChange }) {
                 background: 'none', border: 'none',
                 fontFamily: NU, fontSize: 13,
                 fontWeight: activeSection === item.id ? 700 : 500,
-                color: activeSection === item.id ? C.text : C.muted,
+                color: activeSection === item.id ? P.text : P.muted,
                 cursor: 'pointer', padding: '6px 12px', borderRadius: 4,
                 transition: 'color 0.2s',
                 borderBottom: activeSection === item.id ? `2px solid ${GOLD}` : '2px solid transparent',
@@ -404,14 +417,14 @@ function StickyVenueNav({ activeSection, onScrollTo, onVisibilityChange }) {
             marginLeft: 8,
             fontFamily: NU, fontSize: 11, fontWeight: 600,
             letterSpacing: '0.08em', textTransform: 'uppercase',
-            color: C.muted, textDecoration: 'none',
+            color: P.muted, textDecoration: 'none',
             padding: '9px 14px', borderRadius: 4,
-            border: `1px solid ${C.border}`,
+            border: `1px solid ${P.border}`,
             transition: 'color 0.2s, border-color 0.2s',
             whiteSpace: 'nowrap',
           }}
-          onMouseEnter={e => { e.currentTarget.style.color = C.text; e.currentTarget.style.borderColor = C.text; }}
-          onMouseLeave={e => { e.currentTarget.style.color = C.muted; e.currentTarget.style.borderColor = C.border; }}
+          onMouseEnter={e => { e.currentTarget.style.color = P.text; e.currentTarget.style.borderColor = P.text; }}
+          onMouseLeave={e => { e.currentTarget.style.color = P.muted; e.currentTarget.style.borderColor = P.border; }}
         >
           Listing ↗
         </a>
@@ -493,11 +506,12 @@ function HeroSection({ venue }) {
 }
 
 // ── Main page ──────────────────────────────────────────────────────────────────
-export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavigateStandard, onNavigateAbout }) {
+export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavigateStandard, onNavigateAbout, darkMode = false, onToggleDark }) {
   const { isMobile } = useBreakpoint();
   const [activeSection, setActiveSection] = useState('overview');
   const [stickyVisible, setStickyVisible] = useState(false);
   const venue = RITZ_VENUE;
+  const P = darkMode ? C_DARK : C;
 
   // ── Live venue intelligence from DB (single source of truth) ─────────────
   const [viData, setViData] = useState(RITZ_AI_DATA); // static fallback on load
@@ -603,7 +617,7 @@ export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavi
   };
 
   return (
-    <div style={{ background: C.cream, fontFamily: NU, paddingTop: 64 }}>
+    <div style={{ background: P.cream, color: P.text, fontFamily: NU, paddingTop: 64 }}>
 
       {/* ── Site nav — slides away when StickyVenueNav takes over ─────────── */}
       <div style={{
@@ -612,8 +626,8 @@ export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavi
         transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
       }}>
         <HomeNav
-          darkMode={false}
-          onToggleDark={() => {}}
+          darkMode={darkMode}
+          onToggleDark={onToggleDark}
           onVendorLogin={null}
           onNavigateStandard={onNavigateStandard}
           onNavigateAbout={onNavigateAbout}
@@ -622,20 +636,21 @@ export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavi
       </div>
 
       {/* ── Breadcrumb ────────────────────────────────────────────────────── */}
-      <BreadcrumbBar onBack={onBack} onGoDestination={onGoDestination} listingUrl={listingUrl} />
+      <BreadcrumbBar onBack={onBack} onGoDestination={onGoDestination} listingUrl={listingUrl} P={P} />
 
       {/* ── Sticky venue nav ─────────────────────────────────────────────── */}
       <StickyVenueNav
         activeSection={activeSection}
         onScrollTo={scrollTo}
         onVisibilityChange={setStickyVisible}
+        P={P}
       />
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <HeroSection venue={venue} />
 
       {/* ── Gallery ───────────────────────────────────────────────────── */}
-      <div style={{ background: C.white }}>
+      <div style={{ background: P.white }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '24px 16px' : '28px 64px' }}>
           <ThemeCtx.Provider value={LIGHT}>
             <MediaBlock
@@ -654,31 +669,32 @@ export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavi
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 1 — OVERVIEW
       ═══════════════════════════════════════════════════════════════════ */}
-      <Section id="overview" bg={C.cream}>
+      <Section id="overview" bg={P.cream}>
         <SectionHeader
           eyebrow="Mayfair · London · Est. 1906"
           title={venue.overview.headline}
           subtitle={venue.sectionIntros?.overview || venue.overview.intro}
+          P={P}
         />
         {/* Verified Details trust badge */}
-        <ShowcaseVerified data={viData} accentColor={GOLD} theme="light" />
+        <ShowcaseVerified data={viData} accentColor={GOLD} theme={darkMode ? 'dark' : 'light'} />
 
         {/* Decorative stats strip */}
         <VenueStatsCard data={{
           variant:  'strip',
-          accentBg: '#ffffff',
-          theme:    'light',
+          accentBg: P.white,
+          theme:    darkMode ? 'dark' : 'light',
           stats:    venue.keyStats,
         }} />
 
         {/* AI-readable At a Glance block */}
-        <ShowcaseAtAGlance data={viData} accentColor={GOLD} theme="light" />
+        <ShowcaseAtAGlance data={viData} accentColor={GOLD} theme={darkMode ? 'dark' : 'light'} />
 
         <div style={{ marginTop: 40 }}>
           <TwoColumnEditorialCard data={{
             variant:  'image-left',
-            accentBg: C.cream,
-            theme:    'light',
+            accentBg: P.cream,
+            theme:    darkMode ? 'dark' : 'light',
             image:    venue.overview.storyImage,
             eyebrow:  venue.overview.storyEyebrow,
             title:    venue.overview.storyHeadline,
@@ -695,18 +711,19 @@ export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavi
         data={viData}
         venueName="The Ritz London"
         accentColor={GOLD}
-        theme="light"
-        bg={C.ivory}
+        theme={darkMode ? 'dark' : 'light'}
+        bg={P.ivory}
       />
 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 2 — ROOMS & SUITES
       ═══════════════════════════════════════════════════════════════════ */}
-      <Section id="rooms" bg={C.white}>
+      <Section id="rooms" bg={P.white}>
         <SectionHeader
           eyebrow="Accommodation"
           title="136 Rooms. Versailles in the Heart of London."
           subtitle={venue.sectionIntros?.rooms}
+          P={P}
         />
 
         {/* Deluxe Rooms feature */}
@@ -756,8 +773,8 @@ export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavi
         {/* Rooms mosaic grid */}
         <div style={{ marginTop: 4 }}>
           <MosaicCard data={{
-            theme:    'light',
-            accentBg: C.ivory,
+            theme:    darkMode ? 'dark' : 'light',
+            accentBg: P.ivory,
             images:   [
               venue.rooms.grandSuite,
               venue.rooms.detail1,
@@ -870,11 +887,12 @@ export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavi
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 4 — WEDDINGS & OCCASIONS
       ═══════════════════════════════════════════════════════════════════ */}
-      <Section id="weddings" bg={C.cream}>
+      <Section id="weddings" bg={P.cream}>
         <SectionHeader
           eyebrow="Weddings & Private Celebrations"
           title="London's Most Celebrated Wedding Address"
           subtitle={venue.sectionIntros?.weddings}
+          P={P}
         />
 
         {/* Hero wedding image */}
@@ -891,8 +909,8 @@ export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavi
         <div style={{ marginTop: 48 }}>
           <TwoColumnEditorialCard data={{
             variant:  'image-right',
-            accentBg: C.ivory,
-            theme:    'light',
+            accentBg: P.ivory,
+            theme:    darkMode ? 'dark' : 'light',
             image:    venue.weddings.reception,
             eyebrow:  'The William Kent Room · Private Dining & Celebrations',
             title:    'An Occasion Unlike Any Other',
@@ -920,10 +938,10 @@ export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavi
             <div key={i} style={{ display: 'flex', gap: 16 }}>
               <div style={{ width: 2, background: GOLD, flexShrink: 0, marginTop: 3, height: 'auto', alignSelf: 'stretch' }} />
               <div>
-                <p style={{ fontFamily: NU, fontWeight: 700, fontSize: 13, color: C.text, letterSpacing: '0.02em', margin: '0 0 6px' }}>
+                <p style={{ fontFamily: NU, fontWeight: 700, fontSize: 13, color: P.text, letterSpacing: '0.02em', margin: '0 0 6px' }}>
                   {item.label}
                 </p>
-                <p style={{ fontFamily: NU, fontSize: 14, color: C.muted, margin: 0, lineHeight: 1.65 }}>
+                <p style={{ fontFamily: NU, fontSize: 14, color: P.muted, margin: 0, lineHeight: 1.65 }}>
                   {item.desc}
                 </p>
               </div>
@@ -972,11 +990,11 @@ export default function RitzLondonShowcasePage({ onBack, onGoDestination, onNavi
                 a: 'The Ritz holds a civil marriage licence and can host legal civil ceremonies on-site. Religious blessings and symbolic ceremonies are also available. The wedding concierge will advise on all arrangements.',
               },
             ].map((faq, i) => (
-              <div key={i} style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20 }}>
-                <p style={{ fontFamily: NU, fontSize: 14, fontWeight: 700, color: C.text, margin: '0 0 8px', lineHeight: 1.5 }}>
+              <div key={i} style={{ borderTop: `1px solid ${P.border}`, paddingTop: 20 }}>
+                <p style={{ fontFamily: NU, fontSize: 14, fontWeight: 700, color: P.text, margin: '0 0 8px', lineHeight: 1.5 }}>
                   {faq.q}
                 </p>
-                <p style={{ fontFamily: NU, fontSize: 14, color: C.muted, margin: 0, lineHeight: 1.7 }}>
+                <p style={{ fontFamily: NU, fontSize: 14, color: P.muted, margin: 0, lineHeight: 1.7 }}>
                   {faq.a}
                 </p>
               </div>
