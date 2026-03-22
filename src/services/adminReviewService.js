@@ -19,7 +19,6 @@ export async function fetchAdminReviews({
     let query = supabase
       .from('reviews')
       .select('*', { count: 'exact' })
-      .is('deleted_at', null) // Exclude soft-deleted reviews
       .order('created_at', { ascending: false });
 
     // Apply filters
@@ -63,7 +62,6 @@ export async function getReviewById(reviewId) {
       .from('reviews')
       .select('*')
       .eq('id', reviewId)
-      .is('deleted_at', null)
       .single();
 
     if (error) throw error;
@@ -86,7 +84,6 @@ export async function updateReview(reviewId, updates) {
         updated_at: new Date().toISOString(),
       })
       .eq('id', reviewId)
-      .is('deleted_at', null)
       .select()
       .single();
 
@@ -162,7 +159,6 @@ export async function bulkApproveReviews(reviewIds, adminNotes = null) {
         updated_at: new Date().toISOString(),
       })
       .in('id', reviewIds)
-      .is('deleted_at', null)
       .select();
 
     if (error) throw error;
@@ -186,7 +182,6 @@ export async function bulkRejectReviews(reviewIds, adminNotes = '') {
         updated_at: new Date().toISOString(),
       })
       .in('id', reviewIds)
-      .is('deleted_at', null)
       .select();
 
     if (error) throw error;
@@ -210,7 +205,6 @@ export async function bulkSoftDeleteReviews(reviewIds, reason = null) {
         updated_at: new Date().toISOString(),
       })
       .in('id', reviewIds)
-      .is('deleted_at', null)
       .select();
 
     if (error) throw error;
@@ -228,8 +222,7 @@ export async function getReviewStats() {
   try {
     const { data, error } = await supabase
       .from('reviews')
-      .select('moderation_status, entity_type')
-      .is('deleted_at', null);
+      .select('moderation_status, entity_type');
 
     if (error) throw error;
 
