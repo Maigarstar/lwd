@@ -947,13 +947,14 @@ export async function fetchListingBySlug(slug: string) {
       .from('listings')
       .select()
       .eq('slug', slug)
-      .single()
+      .maybeSingle()
 
+    // maybeSingle() returns null (not an error) when no row found
     if (error) throw error
+    if (!listing) return null
     // Map raw DB data to camelCase frontend format (single point of conversion)
     return mapListingFromDb(listing)
   } catch (error) {
-    console.error('Error fetching listing by slug:', error)
     throw error
   }
 }

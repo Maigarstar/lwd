@@ -294,7 +294,7 @@ export async function fetchTemplates(type = null) {
       sections:    Array.isArray(row.sections) ? row.sections : [],
     }));
   } catch (err) {
-    console.error('[showcaseService] fetchTemplates error:', err);
+    // is_template column may not exist until migration is run — fail silently
     return [];
   }
 }
