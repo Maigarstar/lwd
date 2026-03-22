@@ -287,13 +287,73 @@ export const SECTION_REGISTRY = {
     defaultLayout: () => ({}),
     previewFallback: 'Related venue suggestions — manual curation',
   },
+
+  pricing: {
+    label:     'Pricing',
+    icon:      '£',
+    // Full pricing breakdown with includes/excludes lists and editorial guidance.
+    // price_from:    starting price (e.g. "£1,500,000")
+    // typical_min/max: range for typical total spend
+    // includes/excludes: arrays of strings
+    // guidance: closing editorial paragraph
+    required:  ['headline'],
+    optional:  ['eyebrow', 'body', 'price_from', 'price_context', 'typical_min', 'typical_max', 'typical_label', 'includes', 'excludes', 'guidance'],
+    validation: {},
+    defaultContent: () => ({
+      eyebrow:       'Pricing & What to Expect',
+      headline:      '',
+      body:          '',
+      price_from:    '',
+      price_context: 'Venue hire from',
+      typical_min:   '',
+      typical_max:   '',
+      typical_label: 'Typical total investment',
+      includes:      [],
+      excludes:      [],
+      guidance:      '',
+    }),
+    defaultLayout: () => ({}),
+    previewFallback: 'Pricing section — venue hire, typical investment, includes/excludes, editorial guidance',
+  },
+
+  verified: {
+    label:     'At a Glance',
+    icon:      '✓',
+    // Structured venue intelligence summary — capacity, pricing, style, best-for.
+    // Displayed as a 2-column key-value grid with a verified date badge.
+    required:  ['headline'],
+    optional:  ['eyebrow', 'venue_hire_from', 'typical_spend_min', 'typical_spend_max', 'ceremony_capacity', 'dining_capacity', 'reception_capacity', 'bedrooms', 'exclusive_use', 'catering', 'outdoor_ceremony', 'accommodation', 'location_summary', 'style', 'best_for', 'verified_date', 'verification_notes'],
+    validation: {},
+    defaultContent: () => ({
+      eyebrow:            'At a Glance',
+      headline:           'Venue Intelligence',
+      venue_hire_from:    '',
+      typical_spend_min:  '',
+      typical_spend_max:  '',
+      ceremony_capacity:  '',
+      dining_capacity:    '',
+      reception_capacity: '',
+      bedrooms:           '',
+      exclusive_use:      '',
+      catering:           '',
+      outdoor_ceremony:   '',
+      accommodation:      '',
+      location_summary:   '',
+      style:              '',
+      best_for:           '',
+      verified_date:      '',
+      verification_notes: '',
+    }),
+    defaultLayout: () => ({}),
+    previewFallback: 'Verified venue intelligence — structured capacity, pricing, and style summary',
+  },
 };
 
 // ── Ordered list for the section picker UI ────────────────────────────────────
 export const SECTION_TYPE_ORDER = [
   'hero', 'stats', 'intro', 'highlight-band', 'feature', 'quote',
   'mosaic', 'gallery', 'dining', 'spaces', 'wellness',
-  'weddings', 'image-full', 'cta', 'related',
+  'weddings', 'pricing', 'verified', 'image-full', 'cta', 'related',
 ];
 
 // ── Create a fresh section with defaults ──────────────────────────────────────

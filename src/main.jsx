@@ -67,7 +67,8 @@ import EditorialShowcase    from "./pages/EditorialShowcase.jsx";
 import ShowcasePage         from "./pages/ShowcasePage.jsx";
 import DdeShowcasePage          from "./pages/DdeShowcasePage.jsx";
 import SixSensesShowcasePage    from "./pages/SixSensesShowcasePage.jsx";
-import RitzLondonShowcasePage   from "./pages/RitzLondonShowcasePage.jsx";
+import RitzLondonShowcasePage            from "./pages/RitzLondonShowcasePage.jsx";
+import InterContinentalParkLanePage      from "./pages/InterContinentalParkLanePage.jsx";
 import VenueProfilePage         from "./pages/VenueProfilePage.jsx";
 import VenueReviewsPage         from "./pages/VenueReviewsPage.jsx";
 import EventDetailPage          from "./pages/EventDetailPage.jsx";
@@ -160,6 +161,7 @@ function stateToPath(pg, opts = {}) {
     case "listing-profile":  return `/wedding-venues/${opts.venueSlug || ''}`;
     case "dde-showcase":      return "/showcase/domaine-des-etangs";
     case "ritz-showcase":     return "/showcase/the-ritz-london";
+    case "ic-park-lane-showcase": return "/showcase/intercontinental-london-park-lane";
     case "gt-showcase":       return "/showcase/grand-tirolia-kitzbuehel";
     case "sskrabey-showcase": return "/showcase/six-senses-krabey-island";
     case "showcase":         return `/showcase/${opts.showcaseSlug || ''}`;
@@ -216,6 +218,7 @@ function pathToState(pathname) {
   if (parts[0] === "showcase" && parts[1] === "six-senses-krabey-island") return { page: "sskrabey-showcase" };
   // Venue showcase, static Ritz London editorial page
   if (parts[0] === "showcase" && parts[1] === "the-ritz-london")          return { page: "ritz-showcase" };
+  if (parts[0] === "showcase" && parts[1] === "intercontinental-london-park-lane") return { page: "ic-park-lane-showcase" };
   // Venue showcase, static Grand Tirolia editorial page
   if (parts[0] === "showcase" && parts[1] === "grand-tirolia-kitzbuehel") return { page: "gt-showcase" };
   // Venue showcase: /showcase/{slug}
@@ -510,6 +513,17 @@ function App() {
             onBack={goHome}
             onGoDestination={(countrySlug) => {
               if (countrySlug) { setActiveCountrySlug(countrySlug); setPage("italy"); }
+              else { setPage("home"); }
+            }}
+            onNavigateStandard={goStandard}
+            onNavigateAbout={goAbout}
+          />
+        )}
+        {page === "ic-park-lane-showcase" && (
+          <InterContinentalParkLanePage
+            onBack={goHome}
+            onGoDestination={(countrySlug) => {
+              if (countrySlug) { setActiveCountrySlug(countrySlug); setPage("uk"); }
               else { setPage("home"); }
             }}
             onNavigateStandard={goStandard}

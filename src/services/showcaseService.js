@@ -140,7 +140,7 @@ export async function publishShowcase(id, sections) {
   const { error } = await supabase
     .from('venue_showcases')
     .update({
-      status:             'live',
+      status:             'published',
       sections,                          // keep working copy in sync
       published_sections: sections,      // snapshot for public page
       published_at:       now,
@@ -271,6 +271,70 @@ export async function updateShowcase(id, form) {
     console.error('[showcaseService] updateShowcase error:', err.message, err);
     throw err;
   }
+}
+
+// ── Fetch templates (is_template = true) ─────────────────────────────────────
+export async function fetchTemplates(type = null) {
+  if (!isSupabaseAvailable()) return [];
+  try {
+    let q = supabase
+      .from('venue_showcases')
+      .select('id, title, slug, type, template_key, hero_image_url, sections, key_stats, location, excerpt')
+      .eq('is_template', true)
+      .order('sort_order', { ascending: true });
+    if (type) q = q.eq('type', type);
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data || []).map(row => ({
+      id:          row.id,
+      key:         row.template_key || row.slug,
+      label:       row.title,
+      type:        row.type,
+      heroImage:   row.hero_image_url || '',
+      sections:    Array.isArray(row.sections) ? row.sections : [],
+    }));
+  } catch (err) {
+    console.error('[showcaseService] fetchTemplates error:', err);
+    return [];
+  }
+}
+
+// ── Clone a template into a new draft showcase ────────────────────────────────
+export async function cloneTemplate(templateId, { title, slug }) {
+  if (!isSupabaseAvailable()) throw new Error('Supabase not available');
+  const { data: source, error: fetchErr } = await supabase
+    .from('venue_showcases')
+    .select('*')
+    .eq('id', templateId)
+    .single();
+  if (fetchErr) throw new Error(fetchErr.message);
+
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('venue_showcases')
+    .insert({
+      type:               source.type,
+      title:              title || `${source.title} (Copy)`,
+      slug:               slug || `${source.slug}-${Date.now()}`,
+      location:           source.location,
+      excerpt:            source.excerpt,
+      hero_image_url:     source.hero_image_url,
+      logo_url:           source.logo_url,
+      status:             'draft',
+      is_template:        false,
+      sections:           source.sections,
+      published_sections: [],
+      key_stats:          source.key_stats,
+      template_key:       source.template_key,
+      theme:              source.theme,
+      sort_order:         0,
+      created_at:         now,
+      updated_at:         now,
+    })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return dbToCard(data);
 }
 
 // ── Delete showcase ───────────────────────────────────────────────────────────

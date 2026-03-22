@@ -28,9 +28,10 @@ import VenueStatsCard                from '../components/cards/editorial/VenueSt
 import MosaicCard                    from '../components/cards/editorial/MosaicCard';
 import TwoColumnEditorialCard        from '../components/cards/editorial/TwoColumnEditorialCard';
 import VenueEnquireCard              from '../components/cards/editorial/VenueEnquireCard';
-import { CarouselRow }               from '../components/cards/editorial/CarouselCard';
 import { SECTION_REGISTRY }          from '../services/showcaseRegistry';
 import HomeNav                       from '../components/nav/HomeNav';
+import MediaBlock                    from '../components/profile/MediaBlock';
+import { ThemeCtx, LIGHT }           from '../components/profile/ProfileDesignSystem';
 
 const GD = 'var(--font-heading-primary)';
 const NU = 'var(--font-body)';
@@ -91,16 +92,18 @@ const TYPE_LABEL = {
 };
 
 // ── Sticky section sub-nav ────────────────────────────────────────────────────
-function SectionNav({ sections, palette }) {
-  const P = palette || DARK_PALETTE;
+function SectionNav({ sections, palette, showcase, onBack }) {
   const [visible,  setVisible]  = useState(false);
   const [activeId, setActiveId] = useState(null);
+
+  const GOLD = '#C4A05A';
+  const venueName = showcase?.title || showcase?.name || '';
 
   const navItems = sections
     .filter(s => NAV_ELIGIBLE.has(s.type))
     .map(s => ({
       id:    s.id,
-      label: s.content?.eyebrow || TYPE_LABEL[s.type] || s.type,
+      label: TYPE_LABEL[s.type] || s.type,
     }));
 
   useEffect(() => {
@@ -152,54 +155,87 @@ function SectionNav({ sections, palette }) {
         left:           0,
         right:          0,
         zIndex:         690,
-        height:         44,
-        background:     P.navBg,
+        height:         48,
+        background:     '#ffffff',
         backdropFilter: 'blur(14px)',
-        borderBottom:   `1px solid ${P.navBorder}`,
+        borderBottom:   '1px solid rgba(0,0,0,0.08)',
         display:        'flex',
         alignItems:     'center',
-        justifyContent: 'center',
-        overflowX:      'auto',
+        padding:        '0 32px',
+        gap:            0,
         opacity:        visible ? 1 : 0,
         pointerEvents:  visible ? 'auto' : 'none',
         transform:      visible ? 'translateY(0)' : 'translateY(-6px)',
         transition:     'opacity 0.35s ease, transform 0.35s ease',
       }}
     >
-      {navItems.map(item => {
-        const isActive = activeId === item.id;
-        return (
-          <button
-            key={item.id}
-            onClick={() => scrollTo(item.id)}
-            style={{
-              background:    'none',
-              border:        'none',
-              borderBottom:  isActive ? `2px solid ${P.navActive}` : '2px solid transparent',
-              cursor:        'pointer',
-              padding:       '0 22px',
-              height:        44,
-              fontFamily:    NU,
-              fontSize:      10,
-              letterSpacing: '0.17em',
-              textTransform: 'uppercase',
-              fontWeight:    600,
-              color:         isActive ? P.navActive : P.navText,
-              whiteSpace:    'nowrap',
-              flexShrink:    0,
-              transition:    'color 0.2s ease, border-color 0.2s ease',
-            }}
-            onMouseEnter={e => {
-              if (!isActive) e.currentTarget.style.color = P.mode === 'light'
-                ? 'rgba(28,20,16,0.82)'
-                : 'rgba(245,240,232,0.82)';
-            }}
-            onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = P.navText; }}
-          >
-            {item.label}
-          </button>
-        );
-      })}
+      {/* Venue name — left */}
+      {venueName && (
+        <span style={{
+          fontFamily: GD, fontSize: 15, fontWeight: 400,
+          color: '#1a1a1a', whiteSpace: 'nowrap', flexShrink: 0,
+          marginRight: 32, letterSpacing: '-0.01em',
+        }}>
+          {venueName}
+        </span>
+      )}
+
+      {/* Divider */}
+      {venueName && navItems.length > 0 && (
+        <div style={{ width: 1, height: 20, background: 'rgba(0,0,0,0.12)', flexShrink: 0, marginRight: 8 }} />
+      )}
+
+      {/* Section links — scrollable centre */}
+      <div style={{ display: 'flex', alignItems: 'center', overflowX: 'auto', flex: 1, scrollbarWidth: 'none' }}>
+        {navItems.map(item => {
+          const isActive = activeId === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => scrollTo(item.id)}
+              style={{
+                background:    'none',
+                border:        'none',
+                borderBottom:  isActive ? `2px solid ${GOLD}` : '2px solid transparent',
+                cursor:        'pointer',
+                padding:       '0 18px',
+                height:        48,
+                fontFamily:    NU,
+                fontSize:      11,
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                fontWeight:    isActive ? 700 : 500,
+                color:         isActive ? '#1a1a1a' : 'rgba(28,20,16,0.5)',
+                whiteSpace:    'nowrap',
+                flexShrink:    0,
+                transition:    'color 0.2s ease, border-color 0.2s ease',
+              }}
+              onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = '#1a1a1a'; }}
+              onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = 'rgba(28,20,16,0.5)'; }}
+            >
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ENQUIRE button — right */}
+      <button
+        onClick={onBack}
+        style={{
+          flexShrink: 0, marginLeft: 16,
+          background: GOLD, border: 'none',
+          borderRadius: 2, cursor: 'pointer',
+          padding: '8px 20px',
+          fontFamily: NU, fontSize: 11, fontWeight: 700,
+          letterSpacing: '0.1em', textTransform: 'uppercase',
+          color: '#ffffff', transition: 'background 0.2s',
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = '#b8924a'}
+        onMouseLeave={e => e.currentTarget.style.background = GOLD}
+      >
+        Enquire
+      </button>
     </div>
   );
 }
@@ -641,101 +677,106 @@ function MosaicSection({ content, layout, palette }) {
     );
   }
 
-  // grid (default) — 2×2 equal grid via MosaicCard
+  // grid (default) — clean 4-image grid, no floating text box
   return (
-    <MosaicCard data={{
-      variant: 'default',
-      title:   content.title,
-      excerpt: content.body,
-      images:  images.slice(0, 4),
-      theme:   P.mode,
-    }} />
+    <div style={{ background: P.bg }}>
+      {(content.title || content.body) && (
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '64px 64px 40px' }}>
+          {content.title && (
+            <h2 style={{ fontFamily: GD, fontSize: 'clamp(28px,3vw,42px)', fontWeight: 400, color: P.text, margin: '0 0 16px', letterSpacing: '-0.02em' }}>
+              {content.title}
+            </h2>
+          )}
+          {content.body && (
+            <p style={{ fontFamily: NU, fontSize: 15, color: P.muted, margin: 0, lineHeight: 1.7, maxWidth: 640 }}>
+              {content.body}
+            </p>
+          )}
+        </div>
+      )}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, lineHeight: 0 }}>
+        {images.slice(0, 4).map((url, i) => (
+          <div key={i} style={{ overflow: 'hidden', aspectRatio: '3/4' }}>
+            <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.6s ease' }}
+              onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.04)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
-// ── GallerySection — 3 variants ───────────────────────────────────────────────
-function GallerySection({ content, layout, palette }) {
-  const P       = palette;
-  const variant = layout?.variant || 'carousel';
-  const items   = (content.images || [])
-    .filter(i => i.url)
-    .map(i => ({ image: i.url, title: i.caption || '' }));
-
-  if (!items.length) return null;
-
-  // grid: 2+2 or 3-col responsive image grid
-  if (variant === 'grid') {
-    return (
-      <div style={{ padding: '60px 0', background: P.bg }}>
-        {content.title && (
-          <p style={{
-            fontFamily: NU, fontSize: 10, letterSpacing: '0.18em',
-            textTransform: 'uppercase', color: P.accent, fontWeight: 600,
-            textAlign: 'center', margin: '0 0 32px', padding: '0 24px',
-          }}>
-            {content.title}
-          </p>
-        )}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: items.length <= 4 ? '1fr 1fr' : 'repeat(3, 1fr)',
-          gap: 4,
-        }}>
-          {items.map((item, i) => (
-            <div key={i} style={{ overflow: 'hidden', aspectRatio: '4/3', lineHeight: 0 }}>
-              <img
-                src={item.image} alt={item.title}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // mixed: large hero image + carousel strip below
-  if (variant === 'mixed') {
-    const [hero, ...rest] = items;
-    return (
-      <div style={{ background: P.bg }}>
-        {content.title && (
-          <p style={{
-            fontFamily: NU, fontSize: 10, letterSpacing: '0.18em',
-            textTransform: 'uppercase', color: P.accent, fontWeight: 600,
-            textAlign: 'center', margin: '0', padding: '40px 24px 28px',
-          }}>
-            {content.title}
-          </p>
-        )}
-        <div style={{ overflow: 'hidden', aspectRatio: '16/7', lineHeight: 0 }}>
-          <img
-            src={hero.image} alt={hero.title}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-          />
-        </div>
-        {rest.length > 0 && (
-          <div style={{ paddingTop: 4 }}>
-            <CarouselRow items={rest} />
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // carousel (default)
+// ── ShowcaseLightbox — minimal fullscreen lightbox ────────────────────────────
+function ShowcaseLightbox({ images, idx, onClose, onPrev, onNext }) {
+  if (idx === null || idx === undefined || !images[idx]) return null;
   return (
-    <div style={{ padding: '60px 0', background: P.bg }}>
-      {content.title && (
-        <p style={{
-          fontFamily: NU, fontSize: 10, letterSpacing: '0.18em',
-          textTransform: 'uppercase', color: P.accent, fontWeight: 600,
-          textAlign: 'center', margin: '0 0 32px',
-        }}>
-          {content.title}
-        </p>
-      )}
-      <CarouselRow items={items} />
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        background: 'rgba(0,0,0,0.95)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
+    >
+      <button onClick={e => { e.stopPropagation(); onPrev(); }} style={{
+        position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)',
+        background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%',
+        width: 48, height: 48, cursor: 'pointer', color: '#fff', fontSize: 22, lineHeight: 1,
+      }}>‹</button>
+      <img
+        src={images[idx].url} alt={images[idx].caption || ''}
+        onClick={e => e.stopPropagation()}
+        style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: 2 }}
+      />
+      <button onClick={e => { e.stopPropagation(); onNext(); }} style={{
+        position: 'absolute', right: 24, top: '50%', transform: 'translateY(-50%)',
+        background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%',
+        width: 48, height: 48, cursor: 'pointer', color: '#fff', fontSize: 22, lineHeight: 1,
+      }}>›</button>
+      <button onClick={onClose} style={{
+        position: 'absolute', top: 20, right: 24,
+        background: 'none', border: 'none', color: '#fff', fontSize: 28, cursor: 'pointer', lineHeight: 1,
+      }}>×</button>
+      <div style={{
+        position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
+        fontFamily: NU, fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.15em',
+      }}>{idx + 1} / {images.length}</div>
+    </div>
+  );
+}
+
+// ── GallerySection — uses MediaBlock (same as IC Park Lane / Ritz) ────────────
+function GallerySection({ content, layout, palette }) {
+  const P      = palette;
+  const images = (content.images || []).filter(i => i.url);
+  if (!images.length) return null;
+
+  // Map to MediaBlock / ImageGallery format: { id, src, alt }
+  const galleryItems = images.map((item, i) => ({
+    id:  `showcase-img-${i}`,
+    src: item.url,
+    alt: item.caption || '',
+  }));
+
+  return (
+    <div style={{ background: '#ffffff' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '28px 64px 80px' }}>
+        {content.title && (
+          <p style={{
+            fontFamily: NU, fontSize: 10, letterSpacing: '0.18em',
+            textTransform: 'uppercase', color: P.accent, fontWeight: 600,
+            margin: '0 0 24px',
+          }}>
+            {content.title}
+          </p>
+        )}
+        {/* ThemeCtx.Provider supplies LIGHT theme so ImageGallery renders correctly */}
+        <ThemeCtx.Provider value={LIGHT}>
+          <MediaBlock videos={[]} gallery={galleryItems} />
+        </ThemeCtx.Provider>
+      </div>
     </div>
   );
 }
@@ -809,6 +850,187 @@ function RelatedSection({ content, palette }) {
   );
 }
 
+// ── PricingSection ────────────────────────────────────────────────────────────
+function PricingSection({ content, layout, palette }) {
+  const P       = palette;
+  const bg      = layout?.accentBg || (P.mode === 'light' ? '#FDFBF7' : P.bg);
+  const bgLc    = bg.toLowerCase();
+  const isLight = bgLc.startsWith('#f') || bgLc.startsWith('#e') || bgLc.startsWith('#d') || bgLc.startsWith('#fa') || bgLc.startsWith('#fd');
+  const textCol   = isLight ? '#1C1410' : '#f5f0e8';
+  const mutCol    = isLight ? 'rgba(28,20,16,0.6)' : 'rgba(245,240,232,0.65)';
+  const goldCol   = isLight ? '#B8962E' : P.accent;
+  const panelBg   = isLight ? 'rgba(28,20,16,0.04)' : 'rgba(255,255,255,0.04)';
+  const borderCol = isLight ? 'rgba(28,20,16,0.12)' : 'rgba(245,240,232,0.12)';
+
+  return (
+    <div style={{ background: bg, padding: 'clamp(56px, 8vw, 104px) clamp(24px, 6vw, 120px)' }}>
+      <div style={{ maxWidth: 920 }}>
+        {content.eyebrow && (
+          <p style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: goldCol, margin: '0 0 20px' }}>
+            {content.eyebrow}
+          </p>
+        )}
+        <h2 style={{ fontFamily: GD, fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 400, color: textCol, margin: '0 0 32px', lineHeight: 1.1 }}>
+          {content.headline}
+        </h2>
+
+        {/* Price highlights */}
+        {(content.price_from || content.typical_min || content.typical_max) && (
+          <div style={{ display: 'flex', gap: 40, marginBottom: 36, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            {content.price_from && (
+              <div>
+                <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: goldCol, marginBottom: 8 }}>
+                  {content.price_context || 'From'}
+                </div>
+                <div style={{ fontFamily: GD, fontSize: 'clamp(36px, 5vw, 56px)', color: textCol, lineHeight: 1 }}>
+                  {content.price_from}
+                </div>
+              </div>
+            )}
+            {(content.typical_min || content.typical_max) && (
+              <div>
+                <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: goldCol, marginBottom: 8 }}>
+                  {content.typical_label || 'Typical Total Investment'}
+                </div>
+                <div style={{ fontFamily: GD, fontSize: 'clamp(22px, 3vw, 36px)', color: textCol, lineHeight: 1 }}>
+                  {[content.typical_min, content.typical_max].filter(Boolean).join(' – ')}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {content.body && (
+          <p style={{ fontFamily: NU, fontSize: 16, lineHeight: 1.85, color: mutCol, margin: '0 0 40px', maxWidth: 760 }}>
+            {content.body}
+          </p>
+        )}
+
+        {/* Includes / Excludes */}
+        {(content.includes?.length > 0 || content.excludes?.length > 0) && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 36 }}>
+            {content.includes?.length > 0 && (
+              <div style={{ background: panelBg, borderRadius: 4, padding: '20px 24px' }}>
+                <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: goldCol, marginBottom: 16 }}>
+                  Included
+                </div>
+                {content.includes.map((item, i) => (
+                  <div key={i} style={{ fontFamily: NU, fontSize: 13, color: mutCol, display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 9, lineHeight: 1.5 }}>
+                    <span style={{ color: goldCol, flexShrink: 0, marginTop: 1 }}>✓</span>
+                    {item}
+                  </div>
+                ))}
+              </div>
+            )}
+            {content.excludes?.length > 0 && (
+              <div style={{ background: panelBg, borderRadius: 4, padding: '20px 24px' }}>
+                <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: mutCol, marginBottom: 16 }}>
+                  Not Included
+                </div>
+                {content.excludes.map((item, i) => (
+                  <div key={i} style={{ fontFamily: NU, fontSize: 13, color: mutCol, display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 9, lineHeight: 1.5 }}>
+                    <span style={{ flexShrink: 0, marginTop: 2, opacity: 0.4 }}>○</span>
+                    {item}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {content.guidance && (
+          <div style={{ borderTop: `1px solid ${borderCol}`, paddingTop: 24 }}>
+            <p style={{ fontFamily: NU, fontSize: 14, color: mutCol, lineHeight: 1.85, fontStyle: 'italic', margin: 0 }}>
+              {content.guidance}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── VerifiedSection (At a Glance) ────────────────────────────────────────────
+function VerifiedSection({ content, layout, palette }) {
+  const P       = palette;
+  const bg      = layout?.accentBg || (P.mode === 'light' ? '#faf9f6' : '#0f0e0c');
+  const bgLc    = bg.toLowerCase();
+  const isLight = bgLc.startsWith('#f') || bgLc.startsWith('#e') || bgLc.startsWith('#d') || bgLc.startsWith('#fa') || bgLc.startsWith('#fd');
+  const textCol   = isLight ? '#1C1410' : '#f5f0e8';
+  const mutCol    = isLight ? 'rgba(28,20,16,0.6)' : 'rgba(245,240,232,0.65)';
+  const goldCol   = isLight ? '#B8962E' : P.accent;
+  const borderCol = isLight ? 'rgba(28,20,16,0.1)' : 'rgba(245,240,232,0.1)';
+
+  const rows = [
+    ['Venue Hire From',    content.venue_hire_from],
+    ['Typical Spend',     content.typical_spend_min && content.typical_spend_max
+      ? `${content.typical_spend_min} – ${content.typical_spend_max}`
+      : (content.typical_spend_min || content.typical_spend_max)],
+    ['Ceremony',          content.ceremony_capacity ? `${content.ceremony_capacity} guests` : null],
+    ['Dining',            content.dining_capacity   ? `${content.dining_capacity} guests`   : null],
+    ['Reception',         content.reception_capacity ? `${content.reception_capacity} guests` : null],
+    ['Bedrooms',          content.bedrooms],
+    ['Exclusive Use',     content.exclusive_use],
+    ['Catering',          content.catering],
+    ['Outdoor Ceremony',  content.outdoor_ceremony],
+    ['Accommodation',     content.accommodation],
+    ['Location',          content.location_summary],
+    ['Style',             content.style],
+    ['Best For',          content.best_for],
+  ].filter(([, val]) => val);
+
+  // Ensure even number of rows so grid looks clean
+  const paddedRows = rows.length % 2 === 1 ? [...rows, [null, null]] : rows;
+
+  return (
+    <div style={{ background: bg, padding: 'clamp(56px, 8vw, 104px) clamp(24px, 6vw, 120px)' }}>
+      <div style={{ maxWidth: 920 }}>
+        {content.eyebrow && (
+          <p style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: goldCol, margin: '0 0 20px' }}>
+            {content.eyebrow}
+          </p>
+        )}
+        <h2 style={{ fontFamily: GD, fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 400, color: textCol, margin: '0 0 40px', lineHeight: 1.1 }}>
+          {content.headline}
+        </h2>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
+          {paddedRows.map(([label, val], i) => (
+            <div
+              key={i}
+              style={{
+                display: 'flex', flexDirection: 'column', gap: 5,
+                padding: '16px 0',
+                borderBottom: `1px solid ${borderCol}`,
+                borderRight:  i % 2 === 0 ? `1px solid ${borderCol}` : 'none',
+                paddingRight: i % 2 === 0 ? 32 : 0,
+                paddingLeft:  i % 2 === 1 ? 32 : 0,
+                opacity:      label ? 1 : 0,
+              }}
+            >
+              <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: goldCol }}>
+                {label}
+              </span>
+              <span style={{ fontFamily: NU, fontSize: 14, color: textCol, lineHeight: 1.55 }}>
+                {val}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {content.verified_date && (
+          <div style={{ marginTop: 28, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: goldCol }}>✓ Verified {content.verified_date}</span>
+            {content.verification_notes && (
+              <span style={{ fontFamily: NU, fontSize: 10, color: mutCol }}>· {content.verification_notes}</span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Section preview fallback (studio only) ────────────────────────────────────
 function SectionPlaceholder({ section, palette }) {
   const P   = palette;
@@ -836,10 +1058,10 @@ function SectionPlaceholder({ section, palette }) {
 function BreadcrumbBar({ showcase, listing, onBack, onGoDestination, palette }) {
   const P         = palette;
   const isLight   = P.mode === 'light';
-  const bg        = isLight ? '#F8F6F2' : '#111110';
-  const border    = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.07)';
-  const textCol   = isLight ? '#1C1410' : '#f5f0e8';
-  const mutedCol  = isLight ? 'rgba(28,20,16,0.45)' : 'rgba(245,240,232,0.42)';
+  const bg        = 'transparent';
+  const border    = 'none';
+  const textCol   = 'rgba(255,255,255,0.9)';
+  const mutedCol  = 'rgba(255,255,255,0.55)';
   const accentCol = P.accent;
 
   // Build location crumb: prefer listing.city/country, fallback to last part of location string
@@ -944,6 +1166,54 @@ function BreadcrumbBar({ showcase, listing, onBack, onGoDestination, palette }) 
   );
 }
 
+// ── Interactive canvas wrapper (studio click-to-select) ───────────────────────
+function SelectableWrapper({ section, selected, onSelect, palette, children }) {
+  const [hovered, setHovered] = useState(false);
+  const P      = palette || DARK_PALETTE;
+  const accent = P.accent || '#C9A84C';
+  const chipBg = selected ? accent : `${accent}cc`;
+
+  return (
+    <div
+      style={{
+        position:      'relative',
+        outline:       selected  ? `2px solid ${accent}`
+                       : hovered ? `2px dashed ${accent}55`
+                                 : '2px solid transparent',
+        outlineOffset: -2,
+        cursor:        'pointer',
+        transition:    'outline 0.12s ease',
+      }}
+      onClick={() => onSelect(section.id)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {(selected || hovered) && (
+        <div style={{
+          position:      'absolute',
+          top:            8,
+          right:          8,
+          zIndex:         200,
+          background:     chipBg,
+          color:          '#0a0a08',
+          fontFamily:     'var(--font-body)',
+          fontSize:       9,
+          fontWeight:     700,
+          letterSpacing:  '0.14em',
+          textTransform:  'uppercase',
+          padding:        '3px 8px',
+          borderRadius:   2,
+          pointerEvents:  'none',
+          userSelect:     'none',
+        }}>
+          {selected ? 'Editing' : 'Click to edit'}
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}
+
 // ── Main renderer ─────────────────────────────────────────────────────────────
 export default function ShowcaseRenderer({
   sections = [],
@@ -951,6 +1221,9 @@ export default function ShowcaseRenderer({
   listing = null,
   listingFirstImage = null,
   isPreview = false,
+  interactive = false,
+  selectedId = null,
+  onSelectSection = null,
   onNavigateStandard = null,
   onGoDestination = null,
   onBack = null,
@@ -1003,6 +1276,12 @@ export default function ShowcaseRenderer({
       case 'weddings':
         inner = <EditorialFeatureSection content={content} layout={layout} {...shared} />;
         break;
+      case 'pricing':
+        inner = <PricingSection content={content} layout={layout} palette={palette} />;
+        break;
+      case 'verified':
+        inner = <VerifiedSection content={content} layout={layout} palette={palette} />;
+        break;
       case 'image-full':
         inner = <FullImageSection content={content} />;
         break;
@@ -1022,16 +1301,31 @@ export default function ShowcaseRenderer({
 
     if (!inner) return null;
 
-    return (
+    const sectionContent = (
       <div
-        key={section.id}
         id={`sec-${section.id}`}
         data-showcase-section={type}
-        style={{ scrollMarginTop: isPreview ? 0 : 108 }}
+        style={{ scrollMarginTop: (isPreview || interactive) ? 0 : 108 }}
       >
         {inner}
       </div>
     );
+
+    if (interactive && onSelectSection) {
+      return (
+        <SelectableWrapper
+          key={section.id}
+          section={section}
+          selected={section.id === selectedId}
+          onSelect={onSelectSection}
+          palette={palette}
+        >
+          {sectionContent}
+        </SelectableWrapper>
+      );
+    }
+
+    return <div key={section.id}>{sectionContent}</div>;
   }
 
   return (
@@ -1046,7 +1340,7 @@ export default function ShowcaseRenderer({
             onGoDestination={onGoDestination}
             palette={palette}
           />
-          <SectionNav sections={sections} palette={palette} />
+          <SectionNav sections={sections} palette={palette} showcase={showcase} onBack={onBack} />
         </>
       )}
       {sections.map(section => renderSection(section))}

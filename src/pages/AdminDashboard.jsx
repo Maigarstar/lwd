@@ -5383,6 +5383,25 @@ const VENUE_PROFILES = [
     _static: true,
   },
   {
+    slug:       'intercontinental-london-park-lane',
+    name:       'InterContinental London Park Lane',
+    location:   'One Hamilton Place · Hyde Park Corner · London',
+    status:     'live',
+    heroImage:  '/InterContinental-Istanbul/1.jpg',
+    logo:       null,
+    previewUrl: '/showcase/intercontinental-london-park-lane',
+    stats:      [
+      { value: '447',      label: 'Rooms & Suites' },
+      { value: '5',        label: 'Event spaces' },
+      { value: '800',      label: 'Ballroom guests' },
+      { value: 'Michelin', label: 'Starred dining' },
+    ],
+    sections: ['Hero', 'Gallery', 'Overview', 'Rooms', 'Dining', 'Weddings', 'Enquire'],
+    lastUpdated: 'March 2026',
+    listingId:  null,
+    _static: true,
+  },
+  {
     slug:       'domaine-des-etangs-auberge-collection',
     name:       'Domaine des Etangs',
     location:   'Massignac · Charente · France',
@@ -5687,11 +5706,24 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
   const [editTarget, setEditTarget]             = useState(null);
   const [dbLoaded, setDbLoaded]                 = useState(false);
   const [saving, setSaving]                     = useState(false);
+  const [search, setSearch]                     = useState('');
+  const [statusFilter, setStatusFilter]         = useState('all');
+  const [deleteTarget, setDeleteTarget]         = useState(null);
+  const [deleting, setDeleting]                 = useState(false);
 
   const isVenues    = activeTab === 'venues';
   const profiles    = isVenues ? venueProfiles : plannerProfiles;
   const setProfiles = isVenues ? setVenueProfiles : setPlannerProfiles;
   const tab         = SHOWCASE_TABS.find(t => t.key === activeTab);
+
+  const filteredProfiles = profiles.filter(v => {
+    if (statusFilter !== 'all' && v.status !== statusFilter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!v.name?.toLowerCase().includes(q) && !v.location?.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
 
   // Load from Supabase on mount (both types at once)
   useEffect(() => {
@@ -5757,12 +5789,54 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
   };
 
   const openNew = () => {
-    setEditTarget(null);
-    setShowModal(true);
+    // Go straight to Studio — template picker appears on mount (showcaseId = null)
+    onNavigate && onNavigate('edit-showcase', { showcaseId: null });
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deleteShowcase(deleteTarget.id);
+      setProfiles(p => p.filter(v => v.id !== deleteTarget.id));
+    } catch (err) {
+      console.error('[ShowcaseAdmin] delete error:', err);
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
   };
 
   return (
     <div>
+      {/* Delete confirmation modal */}
+      {deleteTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: '32px 36px', maxWidth: 420, width: '90%' }}>
+            <p style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#ef4444', margin: '0 0 12px' }}>Delete Showcase</p>
+            <h3 style={{ fontFamily: GD, fontSize: 22, fontWeight: 400, color: C.off, margin: '0 0 10px' }}>{deleteTarget.name}</h3>
+            <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, margin: '0 0 28px', lineHeight: 1.6 }}>
+              This will permanently delete this showcase and cannot be undone. The associated listing will not be affected.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                style={{ flex: 1, background: 'none', border: `1px solid ${C.border2}`, color: C.grey, fontFamily: NU, fontSize: 12, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '10px 0', borderRadius: 4, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                style={{ flex: 1, background: '#ef4444', border: 'none', color: '#fff', fontFamily: NU, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '10px 0', borderRadius: 4, cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.6 : 1 }}
+              >
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showModal && (
         <NewShowcaseModal
           C={C}
@@ -5814,11 +5888,50 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
         ))}
       </div>
 
-      <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, margin: '-12px 0 24px', fontWeight: 300 }}>{tab.desc}</p>
+      <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, margin: '-12px 0 20px', fontWeight: 300 }}>{tab.desc}</p>
+
+      {/* Search + Filter bar */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 24, alignItems: 'center' }}>
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search by name or location…"
+          style={{
+            flex: 1, fontFamily: NU, fontSize: 13, color: C.off,
+            background: C.card, border: `1px solid ${C.border}`,
+            borderRadius: 4, padding: '9px 14px', outline: 'none',
+          }}
+        />
+        <select
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+          style={{
+            fontFamily: NU, fontSize: 12, color: C.off,
+            background: C.card, border: `1px solid ${C.border}`,
+            borderRadius: 4, padding: '9px 12px', cursor: 'pointer', outline: 'none',
+          }}
+        >
+          <option value="all">All statuses</option>
+          <option value="live">Live</option>
+          <option value="draft">Draft</option>
+        </select>
+        {(search || statusFilter !== 'all') && (
+          <button
+            onClick={() => { setSearch(''); setStatusFilter('all'); }}
+            style={{ fontFamily: NU, fontSize: 11, color: C.grey, background: 'none', border: `1px solid ${C.border}`, borderRadius: 4, padding: '9px 12px', cursor: 'pointer' }}
+          >
+            Clear
+          </button>
+        )}
+        <p style={{ fontFamily: NU, fontSize: 11, color: C.grey2, margin: 0, whiteSpace: 'nowrap' }}>
+          {filteredProfiles.length} of {profiles.length}
+        </p>
+      </div>
 
       {/* Profile cards grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 20 }}>
-        {profiles.map((v) => (
+        {filteredProfiles.map((v) => (
           <div
             key={v.slug}
             onMouseEnter={() => setHovered(v.slug)}
@@ -5901,20 +6014,37 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
               </div>
 
               {/* Action buttons */}
-              <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              {/* Open in Studio — primary CTA for all DB-backed showcases */}
+              {!v._static && (
                 <button
-                  onClick={() => window.open(v.previewUrl || `/showcase/${v.slug}`, '_blank')}
+                  onClick={() => onNavigate && onNavigate('edit-showcase', { showcaseId: v.id })}
                   style={{
-                    flex: 1, background: C.gold, border: 'none',
+                    width: '100%', background: C.off, border: 'none',
                     color: '#fff', fontFamily: NU, fontSize: 12, fontWeight: 700,
                     letterSpacing: '0.08em', textTransform: 'uppercase',
-                    padding: '9px 0', borderRadius: 4, cursor: 'pointer',
-                    transition: 'opacity 0.2s',
+                    padding: '10px 0', borderRadius: 4, cursor: 'pointer',
+                    marginBottom: 8, transition: 'opacity 0.2s',
                   }}
                   onMouseEnter={e => e.currentTarget.style.opacity = '0.82'}
                   onMouseLeave={e => e.currentTarget.style.opacity = '1'}
                 >
-                  Preview Page ↗
+                  ✦ Open in Studio
+                </button>
+              )}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                <button
+                  onClick={() => window.open(v.previewUrl || `/showcase/${v.slug}`, '_blank')}
+                  style={{
+                    flex: 1, background: 'none', border: `1px solid ${C.border2}`,
+                    color: C.grey, fontFamily: NU, fontSize: 12, fontWeight: 600,
+                    letterSpacing: '0.06em', textTransform: 'uppercase',
+                    padding: '9px 0', borderRadius: 4, cursor: 'pointer',
+                    transition: 'border-color 0.2s, color 0.2s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.grey; }}
+                >
+                  Preview ↗
                 </button>
                 <button
                   onClick={() => onNavigate && onNavigate('listing-studio', v.listingId ? { listingId: v.listingId } : {})}
@@ -5932,23 +6062,41 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
                   Listing Studio →
                 </button>
               </div>
-              {/* Edit button, only for DB records (not static hardcoded showcases) */}
+              {/* Edit + Delete — only for DB records */}
               {!v._static && (
-                <button
-                  onClick={() => openEdit(v)}
-                  style={{
-                    width: '100%', background: 'none',
-                    border: `1px solid ${C.border2}`, color: C.grey,
-                    fontFamily: NU, fontSize: 12, fontWeight: 600,
-                    letterSpacing: '0.06em', textTransform: 'uppercase',
-                    padding: '8px 0', borderRadius: 4, cursor: 'pointer',
-                    transition: 'border-color 0.2s, color 0.2s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.grey; }}
-                >
-                  ✎ Edit Showcase
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => openEdit(v)}
+                    style={{
+                      flex: 1, background: 'none',
+                      border: `1px solid ${C.border2}`, color: C.grey,
+                      fontFamily: NU, fontSize: 12, fontWeight: 600,
+                      letterSpacing: '0.06em', textTransform: 'uppercase',
+                      padding: '8px 0', borderRadius: 4, cursor: 'pointer',
+                      transition: 'border-color 0.2s, color 0.2s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.grey; }}
+                  >
+                    ✎ Edit Fields
+                  </button>
+                  <button
+                    onClick={() => setDeleteTarget(v)}
+                    style={{
+                      background: 'none',
+                      border: `1px solid ${C.border2}`, color: C.grey,
+                      fontFamily: NU, fontSize: 12, fontWeight: 600,
+                      letterSpacing: '0.06em', textTransform: 'uppercase',
+                      padding: '8px 14px', borderRadius: 4, cursor: 'pointer',
+                      transition: 'border-color 0.2s, color 0.2s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#ef4444'; e.currentTarget.style.color = '#ef4444'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.grey; }}
+                    title="Delete showcase"
+                  >
+                    ✕
+                  </button>
+                </div>
               )}
 
               <p style={{ fontFamily: NU, fontSize: 11, color: C.grey2, margin: '10px 0 0', fontWeight: 300 }}>
