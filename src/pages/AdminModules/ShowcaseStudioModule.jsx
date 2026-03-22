@@ -1040,6 +1040,8 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
   const [dropIdx,      setDropIdx]      = useState(null);
   const [showAi,       setShowAi]       = useState(false);
   const [returnPath,   setReturnPath]   = useState(null);
+  const [lastSavedTime, setLastSavedTime] = useState(null);
+  const [saveState,    setSaveState]    = useState('clean');  // clean | dirty | saving | saved
 
   useEffect(() => {
     try {
@@ -1055,6 +1057,18 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3500);
   }
+
+  // Warn before leaving with unsaved changes
+  useEffect(() => {
+    function handleBeforeUnload(e) {
+      if (dirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [dirty]);
 
   // Load showcase + DB templates on mount
   useEffect(() => {
@@ -1105,6 +1119,7 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
   function handleSectionChange(updated) {
     setSections(prev => prev.map(s => s.id === updated.id ? updated : s));
     setDirty(true);
+    setSaveState('dirty');
   }
 
   function handleAddSection(type) {
@@ -1112,12 +1127,14 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
     setSections(prev => [...prev, s]);
     setSelectedId(s.id);
     setDirty(true);
+    setSaveState('dirty');
   }
 
   function handleRemoveSection(id) {
     setSections(prev => prev.filter(s => s.id !== id));
     if (selectedId === id) setSelectedId(null);
     setDirty(true);
+    setSaveState('dirty');
   }
 
   function handleDuplicateSection(id) {
@@ -1132,6 +1149,7 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
     });
     setSelectedId(copy.id);
     setDirty(true);
+    setSaveState('dirty');
   }
 
   // ── DnD handlers ────────────────────────────────────────────────────────────
@@ -1156,6 +1174,7 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
       return next;
     });
     setDirty(true);
+    setSaveState('dirty');
     setDragIdx(null);
     setDropIdx(null);
   }
@@ -1173,6 +1192,7 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
     setShowcase(prev => ({ ...prev, template_key: key }));
     setShowTemplate(false);
     setDirty(true);
+    setSaveState('dirty');
   }
 
   async function handleApplyDbTemplate(tmpl) {
@@ -1190,11 +1210,44 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
     }));
     setShowTemplate(false);
     setDirty(true);
+    setSaveState('dirty');
   }
 
   // ── Save / publish ──────────────────────────────────────────────────────────
+  // Save: updates content without changing status (draft stays draft, live stays live)
+  async function handleSave() {
+    if (!showcase?.id) {
+      notify('Save a draft first', 'error');
+      return;
+    }
+    setSaving(true);
+    setSaveState('saving');
+    try {
+      await saveShowcaseDraft(showcase.id, {
+        sections,
+        title:          showcase.title,
+        slug:           showcase.slug,
+        hero_image_url: showcase.hero_image_url,
+        location:       showcase.location,
+        excerpt:        showcase.excerpt,
+      });
+      setDirty(false);
+      setSaveState('saved');
+      setLastSavedTime(new Date());
+      notify('Saved successfully');
+      setTimeout(() => setSaveState('clean'), 2000);
+    } catch (e) {
+      notify(e.message, 'error');
+      setSaveState('dirty');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Save Draft: always sets status to draft (allows incomplete content)
   async function handleSaveDraft() {
     setSaving(true);
+    setSaveState('saving');
     try {
       let id = showcase?.id;
       if (!id) {
@@ -1204,11 +1257,11 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
           heroImage: showcase.hero_image_url || '',
           location:  showcase.location || '',
           excerpt:   showcase.excerpt  || '',
-          sections:  [],
+          sections:  sections,
           status:    'draft',
         });
         id = created.id;
-        setShowcase(prev => ({ ...prev, id }));
+        setShowcase(prev => ({ ...prev, id, status: 'draft' }));
       } else {
         await saveShowcaseDraft(id, {
           sections,
@@ -1217,38 +1270,70 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
           hero_image_url: showcase.hero_image_url,
           location:       showcase.location,
           excerpt:        showcase.excerpt,
+          status:         'draft',
         });
+        setShowcase(prev => ({ ...prev, status: 'draft' }));
       }
       setDirty(false);
-      notify('Draft saved');
+      setSaveState('saved');
+      setLastSavedTime(new Date());
+      notify('Saved as draft');
+      setTimeout(() => setSaveState('clean'), 2000);
     } catch (e) {
       notify(e.message, 'error');
+      setSaveState('dirty');
     } finally {
       setSaving(false);
     }
   }
 
+  // Publish: sets status to live, requires validation
   async function handlePublish() {
     setPublishing(true);
     try {
+      // Validate sections before publishing
+      const validation = validateShowcase(sections);
+      if (validation.hasErrors) {
+        const errorCount = Object.keys(validation.errors).length;
+        notify(`${errorCount} section(s) have incomplete required fields`, 'error');
+        setPublishing(false);
+        return;
+      }
+
       let id = showcase?.id;
       if (!id) {
         const created = await createShowcase({
           name:      showcase.title || 'Untitled Showcase',
           slug:      showcase.slug  || `showcase-${Date.now()}`,
           heroImage: showcase.hero_image_url || '',
-          sections:  [],
+          sections:  sections,
           status:    'draft',
         });
         id = created.id;
         setShowcase(prev => ({ ...prev, id }));
       }
-      await publishShowcase(id, sections);
+
+      // Update to live status with published_at
+      await supabase
+        .from('venue_showcases')
+        .update({
+          status:             'published',
+          sections:           sections,
+          published_sections: sections,
+          published_at:       new Date().toISOString(),
+          updated_at:         new Date().toISOString(),
+        })
+        .eq('id', id);
+
       setShowcase(prev => ({ ...prev, status: 'live' }));
       setDirty(false);
+      setSaveState('saved');
+      setLastSavedTime(new Date());
       notify('Published successfully');
+      setTimeout(() => setSaveState('clean'), 2000);
     } catch (e) {
       notify(e.message, 'error');
+      setSaveState('dirty');
     } finally {
       setPublishing(false);
     }
@@ -1273,6 +1358,7 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
     setSelectedId(null);
     setShowAi(false);
     setDirty(true);
+    setSaveState('dirty');
     notify('Showcase generated ✓');
   }
 
@@ -1327,25 +1413,45 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
         {/* Left */}
         <button onClick={() => setShowAi(true)} style={btnSolid}>✦ Magic AI</button>
         <button style={{ ...btnOutline, opacity: 0.4, cursor: 'default' }} disabled>Fill with AI</button>
+
+        {/* Status indicator */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 16 }}>
+          {saveState === 'saving' && (
+            <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2 }}>Saving…</span>
+          )}
+          {saveState === 'saved' && (
+            <span style={{ fontFamily: NU, fontSize: 10, color: '#22c55e', fontWeight: 600 }}>✓ Saved just now</span>
+          )}
+          {saveState === 'dirty' && (
+            <span style={{ fontFamily: NU, fontSize: 10, color: GOLD, fontWeight: 600 }}>● Unsaved changes</span>
+          )}
+          {saveState === 'clean' && dirty && (
+            <span style={{ fontFamily: NU, fontSize: 10, color: GOLD, fontWeight: 600 }}>● Unsaved changes</span>
+          )}
+        </div>
+
         <div style={{ flex: 1 }} />
-        {/* View published page */}
-        {showcase?.slug && (
-          <button
-            onClick={() => window.open(`/showcase/${showcase.slug}`, '_blank')}
-            style={{ ...btnOutline, display: 'flex', alignItems: 'center', gap: 4 }}
-            title="View published showcase"
-          >
-            View ↗
-          </button>
-        )}
-        {/* Right */}
-        <button onClick={handleDiscard} style={btnOutline}>Discard</button>
+
+        {/* Right: Actions */}
+        <button onClick={handleSave} disabled={saving || !showcase?.id || !dirty} style={{ ...btnOutline, opacity: saving || !dirty ? 0.5 : 1 }}>
+          {saving ? 'Saving…' : 'Save'}
+        </button>
         <button onClick={handleSaveDraft} disabled={saving} style={btnSolid}>
           {saving ? 'Saving…' : 'Save Draft'}
         </button>
         <button onClick={handlePublish} disabled={publishing} style={btnGold}>
           {publishing ? 'Publishing…' : isLive ? 'Re-publish' : 'Publish'}
         </button>
+        {isLive && showcase?.slug && (
+          <button
+            onClick={() => window.open(`/showcase/${showcase.slug}`, '_blank')}
+            style={{ ...btnOutline, display: 'flex', alignItems: 'center', gap: 4 }}
+            title="View the live showcase"
+          >
+            View Live ↗
+          </button>
+        )}
+
         <div style={{ width: 1, height: 20, background: C.border, margin: '0 4px' }} />
         {['editor','split','preview'].map(m => (
           <button key={m} onClick={() => setViewMode(m)} style={viewMode === m ? btnLinkOn : btnLink}>
