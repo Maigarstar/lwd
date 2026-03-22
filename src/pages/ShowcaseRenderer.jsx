@@ -106,13 +106,8 @@ function SectionNav({ sections, palette, showcase, onBack, onVisibleChange }) {
 
   const navItems = sections
     .filter(s => NAV_ELIGIBLE.has(s.type))
-    .map(s => {
-      // Prefer the section's own eyebrow/title for unique labels; fall back to type label
-      const raw = s.content?.eyebrow || s.content?.title || TYPE_LABEL[s.type] || s.type;
-      // Truncate long labels so the nav doesn't overflow
-      const label = raw.length > 22 ? raw.slice(0, 20) + '…' : raw;
-      return { id: s.id, label };
-    })
+    // Always use clean TYPE_LABEL — never pull raw eyebrow/title into the nav bar
+    .map(s => ({ id: s.id, label: TYPE_LABEL[s.type] || s.type }))
     // De-duplicate identical labels by appending a number (1, 2…)
     .map((item, idx, arr) => {
       const sameLabel = arr.filter(x => x.label === item.label);
@@ -1347,21 +1342,21 @@ export default function ShowcaseRenderer({
     <div style={{ background: palette.bg, color: palette.text, minHeight: '100vh' }}>
       {!isPreview && (
         <>
-          {/* HomeNav slides UP when SectionNav slides DOWN — mirrors IC Park Lane pattern exactly */}
+          {/* HomeNav + BreadcrumbBar stack — slides UP when SectionNav slides DOWN */}
           <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, zIndex: 699,
             transform:  sectionNavVisible ? 'translateY(-110%)' : 'translateY(0)',
             transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
           }}>
+            <BreadcrumbBar
+              showcase={showcase}
+              listing={listing}
+              onBack={onBack}
+              onGoDestination={onGoDestination}
+              palette={palette}
+            />
             <HomeNav hasHero onNavigateStandard={onNavigateStandard} />
           </div>
-          <BreadcrumbBar
-            showcase={showcase}
-            listing={listing}
-            onBack={onBack}
-            onGoDestination={onGoDestination}
-            palette={palette}
-          />
           <SectionNav
             sections={sections}
             palette={palette}
