@@ -1368,7 +1368,7 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
 
   // ── Styles ──────────────────────────────────────────────────────────────────
   const btnBase = { fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', padding: '7px 16px', border: 'none', borderRadius: 3, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: '28px' };
-  const btnSolid   = { ...btnBase, background: C.off, color: C.white };
+  const btnSolid   = { ...btnBase, background: '#1a1a1a', color: '#ffffff' };
   const btnOutline = { ...btnBase, background: 'none', color: C.off, border: `1px solid ${C.border}` };
   const btnGold    = { ...btnBase, background: GOLD, color: '#0a0906' };
   const btnLink    = { fontFamily: NU, fontSize: 11, color: C.grey2, background: 'none', border: 'none', cursor: 'pointer', padding: '0 6px', whiteSpace: 'nowrap' };
@@ -1443,6 +1443,20 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
           title={!dirty ? 'No unsaved changes to discard' : 'Discard changes and return'}
         >
           Discard
+        </button>
+
+        {/* Save — always visible, secondary (preserves status) */}
+        <button
+          onClick={handleSave}
+          disabled={!dirty || saving || publishing || !showcase?.id}
+          style={{
+            ...btnOutline,
+            opacity: (!dirty || saving || publishing || !showcase?.id) ? 0.5 : 1,
+            cursor: (!dirty || saving || publishing || !showcase?.id) ? 'not-allowed' : 'pointer',
+          }}
+          title={!showcase?.id ? 'Save draft first' : !dirty ? 'No unsaved changes' : 'Save changes (keeps current status)'}
+        >
+          {saving ? 'Saving…' : 'Save'}
         </button>
 
         {/* Save Draft — always visible, secondary */}
