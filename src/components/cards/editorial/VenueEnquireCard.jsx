@@ -39,10 +39,24 @@ function Field({ label, type = 'text', name, half, value, onChange, as }) {
           style={base}
         />
       ) : (
-        <input
-          type={type} name={name} value={value} onChange={onChange}
-          style={base}
-        />
+        <>
+          {type === 'date' && (
+            <style>{`
+              input[type="date"]::-webkit-calendar-picker-indicator {
+                filter: sepia(1) saturate(1.5) hue-rotate(6deg) brightness(0.69);
+                cursor: pointer;
+                opacity: 0.85;
+              }
+              input[type="date"]::-webkit-calendar-picker-indicator:hover {
+                opacity: 1;
+              }
+            `}</style>
+          )}
+          <input
+            type={type} name={name} value={value} onChange={onChange}
+            style={base}
+          />
+        </>
       )}
     </div>
   );
