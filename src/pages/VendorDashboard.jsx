@@ -2141,6 +2141,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
         {isMobile && sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 7999 }} />}
         {/* Sidebar */}
         <div style={{
+          position: "relative",
           ...(isMobile ? {
             position: "fixed", top: 0, left: 0, bottom: 0, width: 280, zIndex: 8000,
             transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
@@ -2154,33 +2155,13 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
           }),
           background: C.dark, borderRight: `1px solid ${C.border}`, paddingTop: 24,
           boxShadow: "2px 0 8px rgba(0,0,0,0.3)",
-          overflow: "hidden",
+          overflow: "visible",
         }}>
-          {/* Close button on mobile only */}
-          {isMobile && <button onClick={() => setSidebarOpen(false)} style={{ position: "absolute", top: 12, right: 12, background: "none", border: "none", color: C.grey, fontSize: 18, cursor: "pointer", zIndex: 10 }}>✕</button>}
+          {/* Clip inner content but allow toggle to overflow */}
+          <div style={{ overflow: "hidden", flex: 1, display: "flex", flexDirection: "column" }}>
 
-          {/* Collapse button on desktop */}
-          {!isMobile && (
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              style={{
-                position: "absolute",
-                top: 24,
-                right: 8,
-                background: "none",
-                border: "none",
-                color: C.grey,
-                fontSize: 18,
-                cursor: "pointer",
-                padding: "4px 8px",
-                transition: "color 0.2s",
-              }}
-              onMouseEnter={e => e.target.style.color = C.gold}
-              onMouseLeave={e => e.target.style.color = C.grey}
-            >
-              ›
-            </button>
-          )}
+          {/* Close button on mobile */}
+          {isMobile && <button onClick={() => setSidebarOpen(false)} style={{ position: "absolute", top: 12, right: 12, background: "none", border: "none", color: C.grey, fontSize: 18, cursor: "pointer", zIndex: 10 }}>✕</button>}
 
           <div style={{ padding: sidebarOpen ? "0 20px 20px" : "0 12px 20px", borderBottom: `1px solid ${C.border}`, minWidth: 0 }}>
             {sidebarOpen && (
@@ -2223,6 +2204,40 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
               <div style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.6 }}>Unlimited leads {"\u00b7"} Top placement {"\u00b7"} Analytics</div>
               <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, marginTop: 8 }}>Renews 1 Mar 2026</div>
             </div>
+          )}
+          </div>{/* end inner overflow:hidden wrapper */}
+
+          {/* Desktop sidebar toggle — floats on right edge */}
+          {!isMobile && (
+            <button
+              onClick={() => setSidebarOpen(s => !s)}
+              title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+              style={{
+                position: "absolute",
+                top: "50%",
+                right: -14,
+                transform: "translateY(-50%)",
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                background: C.dark,
+                border: `1px solid ${C.border}`,
+                color: C.grey,
+                fontSize: 13,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 100,
+                transition: "color 0.2s, border-color 0.2s",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
+                lineHeight: 1,
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = C.gold; e.currentTarget.style.borderColor = C.gold; }}
+              onMouseLeave={e => { e.currentTarget.style.color = C.grey; e.currentTarget.style.borderColor = C.border; }}
+            >
+              {sidebarOpen ? "‹" : "›"}
+            </button>
           )}
         </div>
 
