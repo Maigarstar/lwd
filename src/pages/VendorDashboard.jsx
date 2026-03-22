@@ -395,6 +395,10 @@ function VendorReviewsPanel({ vendorId, vendor, C, GD, NU, enquiries = [] }) {
   const [sending, setSending] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [showScoreInfo, setShowScoreInfo] = useState(false);
+  const [reviewFilter, setReviewFilter] = useState('all');
+  const [reviewSort, setReviewSort] = useState('newest');
+  const [copiedMessage, setCopiedMessage] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Read previous stats from localStorage for delta comparison
   const _storedKey = `lwd_rep_${vendorId}`;
@@ -542,6 +546,43 @@ function VendorReviewsPanel({ vendorId, vendor, C, GD, NU, enquiries = [] }) {
     return date.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
   };
 
+  // Rating distribution (5★ → 1★)
+  const ratingDist = [5,4,3,2,1].map(star => {
+    const count = reviews.filter(r => Math.round(r.overall_rating) === star).length;
+    return { star, count, pct: totalReviews > 0 ? (count / totalReviews) * 100 : 0 };
+  });
+
+  // Sub-rating aggregates across all reviews
+  const subRatingAgg = (() => {
+    const acc = {};
+    reviews.forEach(r => {
+      Object.entries(r.sub_ratings || {}).forEach(([key, val]) => {
+        if (!acc[key]) acc[key] = { sum: 0, count: 0 };
+        acc[key].sum += Number(val);
+        acc[key].count++;
+      });
+    });
+    return Object.entries(acc)
+      .map(([key, { sum, count }]) => ({ label: key, avg: (sum / count).toFixed(1) }))
+      .sort((a, b) => parseFloat(b.avg) - parseFloat(a.avg));
+  })();
+
+  // Filtered + sorted reviews list
+  const filteredSortedReviews = (() => {
+    let list = [...reviews];
+    if (reviewFilter === 'awaiting') list = list.filter(r => !(r.messages || []).some(m => m.sender_type === 'owner' && !m.is_internal_note));
+    if (reviewFilter === 'replied') list = list.filter(r => (r.messages || []).some(m => m.sender_type === 'owner' && !m.is_internal_note));
+    if (reviewSort === 'newest') list.sort((a, b) => new Date(b.published_at || b.created_at) - new Date(a.published_at || a.created_at));
+    if (reviewSort === 'highest') list.sort((a, b) => (b.overall_rating || 0) - (a.overall_rating || 0));
+    if (reviewSort === 'lowest') list.sort((a, b) => (a.overall_rating || 0) - (b.overall_rating || 0));
+    return list;
+  })();
+
+  // Shareable review invite URL — links to vendor profile reviews section
+  const reviewInviteUrl = vendor?.slug
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/vendor/${vendor.slug}`
+    : null;
+
   // Review opportunities from enquiries (booked/confirmed)
   const reviewOpportunities = enquiries.filter(e =>
     ['booked', 'confirmed', 'completed'].includes(e.status)
@@ -592,16 +633,49 @@ function VendorReviewsPanel({ vendorId, vendor, C, GD, NU, enquiries = [] }) {
             <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.7, marginBottom: 20 }}>
               The most effective review requests are personal ones — a short, warm message tied to a couple's specific day, sent within a few weeks of their event.
             </p>
-            <div style={{ background: `${C.gold}08`, border: `1px solid ${C.gold}30`, borderRadius: 3, padding: '14px 16px', marginBottom: 20 }}>
-              <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: C.gold, marginBottom: 8 }}>Suggested message</div>
+            <div style={{ background: `${C.gold}08`, border: `1px solid ${C.gold}30`, borderRadius: 3, padding: '14px 16px', marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: C.gold }}>Suggested message</div>
+                <button
+                  onClick={() => {
+                    const link = reviewInviteUrl || '';
+                    const msg = `Hi [Name], we loved hosting your wedding and hope it was everything you dreamed of. If you have a moment, we'd be so grateful if you could share a few words about your experience — it means the world to us and helps other couples find us.${link ? `\n\nYou can leave your review here: ${link}` : ''}\n\nThank you so much.`;
+                    navigator.clipboard.writeText(msg).then(() => { setCopiedMessage(true); setTimeout(() => setCopiedMessage(false), 2500); }).catch(() => {});
+                  }}
+                  style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', padding: '4px 10px', borderRadius: 2, border: `1px solid ${C.gold}50`, background: copiedMessage ? `${C.gold}25` : `${C.gold}12`, color: copiedMessage ? C.gold : C.gold, cursor: 'pointer', transition: 'background 0.2s', whiteSpace: 'nowrap' }}
+                >
+                  {copiedMessage ? '✓ Copied!' : 'Copy message'}
+                </button>
+              </div>
               <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.7, margin: 0, fontStyle: 'italic' }}>
-                "Hi [Name], we loved hosting your wedding and hope it was everything you dreamed of. If you have a moment, we'd be so grateful if you could share a few words about your experience — your review helps other couples find us. Thank you so much."
+                "Hi [Name], we loved hosting your wedding and hope it was everything you dreamed of. If you have a moment, we'd be so grateful if you could share a few words about your experience — it means the world to us and helps other couples find us.{reviewInviteUrl && ` You can leave your review here: ${reviewInviteUrl}`}"
               </p>
             </div>
+
+            {/* Shareable link */}
+            {reviewInviteUrl && (
+              <div style={{ background: `${C.gold}05`, border: `1px solid ${C.border}`, borderRadius: 3, padding: '12px 14px', marginBottom: 16 }}>
+                <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: C.grey, marginBottom: 8 }}>Your review link</div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div style={{ flex: 1, fontFamily: NU, fontSize: 11, color: C.grey, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {reviewInviteUrl}
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(reviewInviteUrl).then(() => { setCopiedLink(true); setTimeout(() => setCopiedLink(false), 2500); }).catch(() => {});
+                    }}
+                    style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', padding: '5px 12px', borderRadius: 2, border: `1px solid ${C.gold}50`, background: copiedLink ? `${C.gold}25` : `${C.gold}12`, color: C.gold, cursor: 'pointer', flexShrink: 0, transition: 'background 0.2s', whiteSpace: 'nowrap' }}
+                  >
+                    {copiedLink ? '✓ Copied!' : 'Copy link'}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {[
-              'Send via email or WhatsApp — personal messages get far more responses than generic links',
-              'Aim to ask within 4–8 weeks of the event while the memory is fresh',
-              'Reviews submitted by couples are reviewed by LWD before publishing',
+              'Send via WhatsApp or email — a personal message gets far more responses than a generic link',
+              'Ask within 4–8 weeks of the event while the memory is fresh',
+              'Reviews submitted by couples are verified by LWD before publishing',
             ].map((tip, i) => (
               <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 8, alignItems: 'flex-start' }}>
                 <span style={{ color: C.gold, fontSize: 11, marginTop: 1, flexShrink: 0 }}>→</span>
@@ -812,6 +886,39 @@ function VendorReviewsPanel({ vendorId, vendor, C, GD, NU, enquiries = [] }) {
             </div>
           </div>
         )}
+
+        {/* Rating distribution + sub-rating aggregates */}
+        {totalReviews > 0 && (
+          <div style={{ paddingTop: 14, borderTop: `1px solid ${C.border}`, marginTop: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: subRatingAgg.length > 0 ? '1fr 1px 1fr' : '1fr', gap: '0 16px', alignItems: 'start' }}>
+              {/* Star breakdown */}
+              <div>
+                {ratingDist.map(({ star, count, pct }) => (
+                  <div key={star} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                    <span style={{ fontFamily: NU, fontSize: 9, color: C.grey, minWidth: 14, textAlign: 'right' }}>{star}★</span>
+                    <div style={{ flex: 1, height: 3, background: C.border, borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, background: pct > 0 ? C.gold : 'transparent', borderRadius: 2, transition: 'width 0.5s ease' }} />
+                    </div>
+                    <span style={{ fontFamily: NU, fontSize: 9, color: count > 0 ? C.white : C.border, minWidth: 12, textAlign: 'right' }}>{count}</span>
+                  </div>
+                ))}
+              </div>
+              {/* Vertical divider */}
+              {subRatingAgg.length > 0 && <div style={{ background: C.border }} />}
+              {/* Sub-rating averages */}
+              {subRatingAgg.length > 0 && (
+                <div>
+                  {subRatingAgg.map(({ label, avg }) => (
+                    <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5, gap: 8 }}>
+                      <span style={{ fontFamily: NU, fontSize: 9, color: C.grey, textTransform: 'capitalize' }}>{label}</span>
+                      <span style={{ fontFamily: NU, fontSize: 9, color: C.gold, fontWeight: 700 }}>{avg}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <Divider />
@@ -946,6 +1053,32 @@ function VendorReviewsPanel({ vendorId, vendor, C, GD, NU, enquiries = [] }) {
         </div>
       )}
 
+      {/* Filter + sort bar */}
+      {totalReviews > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {[
+              { key: 'all', label: `All (${totalReviews})` },
+              { key: 'awaiting', label: awaitingReply.length > 0 ? `Awaiting reply (${awaitingReply.length})` : 'Awaiting reply' },
+              { key: 'replied', label: 'Replied' },
+            ].map(({ key, label }) => (
+              <button key={key} onClick={() => setReviewFilter(key)} style={{ fontFamily: NU, fontSize: 10, fontWeight: reviewFilter === key ? 700 : 400, padding: '5px 12px', borderRadius: 2, border: `1px solid ${reviewFilter === key ? C.gold : C.border}`, background: reviewFilter === key ? `${C.gold}15` : 'transparent', color: reviewFilter === key ? C.gold : C.grey, cursor: 'pointer' }}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <select
+            value={reviewSort}
+            onChange={e => setReviewSort(e.target.value)}
+            style={{ fontFamily: NU, fontSize: 10, padding: '5px 10px', borderRadius: 2, border: `1px solid ${C.border}`, background: C.card, color: C.grey, cursor: 'pointer' }}
+          >
+            <option value="newest">Newest first</option>
+            <option value="highest">Highest rated</option>
+            <option value="lowest">Lowest rated</option>
+          </select>
+        </div>
+      )}
+
       {/* Empty state */}
       {totalReviews === 0 && (
         <div style={{ border: `1px solid ${C.border}`, borderRadius: 4, padding: '36px 28px', textAlign: 'center' }}>
@@ -977,8 +1110,15 @@ function VendorReviewsPanel({ vendorId, vendor, C, GD, NU, enquiries = [] }) {
         </div>
       )}
 
+      {/* No results for active filter */}
+      {totalReviews > 0 && filteredSortedReviews.length === 0 && (
+        <div style={{ padding: '20px 0', textAlign: 'center', fontFamily: NU, fontSize: 12, color: C.grey }}>
+          No reviews match this filter.
+        </div>
+      )}
+
       {/* Review cards */}
-      {reviews.map(r => {
+      {filteredSortedReviews.map(r => {
         const ownerReplies = (r.messages || []).filter(m => m.sender_type === 'owner' && !m.is_internal_note);
         const hasReplied = ownerReplies.length > 0;
         const needsReply = !hasReplied;
