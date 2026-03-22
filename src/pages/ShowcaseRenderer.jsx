@@ -34,6 +34,7 @@ import HomeNav                       from '../components/nav/HomeNav';
 import MediaBlock                    from '../components/profile/MediaBlock';
 import VideoGallery                  from '../components/profile/VideoGallery';
 import { ThemeCtx, LIGHT }           from '../components/profile/ProfileDesignSystem';
+import { useBreakpoint }             from '../hooks/useWindowWidth';
 
 const GD = 'var(--font-heading-primary)';
 const NU = 'var(--font-body)';
@@ -97,6 +98,7 @@ const TYPE_LABEL = {
 
 // ── Sticky section sub-nav ────────────────────────────────────────────────────
 function SectionNav({ sections, palette, showcase, onBack, onVisibleChange }) {
+  const { isMobile } = useBreakpoint();
   const [visible,  setVisible]  = useState(false);
 
   const setVisibleWithCallback = (v) => {
@@ -175,7 +177,7 @@ function SectionNav({ sections, palette, showcase, onBack, onVisibleChange }) {
         boxShadow:      '0 2px 20px rgba(0,0,0,0.06)',
         display:        'flex',
         alignItems:     'center',
-        padding:        '0 32px',
+        padding:        isMobile ? '0 16px' : '0 32px',
         gap:            0,
         pointerEvents:  visible ? 'auto' : 'none',
         transform:      visible ? 'translateY(0)' : 'translateY(-100%)',
@@ -183,7 +185,7 @@ function SectionNav({ sections, palette, showcase, onBack, onVisibleChange }) {
       }}
     >
       {/* Venue name — left */}
-      {venueName && (
+      {venueName && !isMobile && (
         <span style={{
           fontFamily: GD, fontSize: 15, fontWeight: 400,
           color: '#1a1a1a', whiteSpace: 'nowrap', flexShrink: 0,
@@ -194,7 +196,7 @@ function SectionNav({ sections, palette, showcase, onBack, onVisibleChange }) {
       )}
 
       {/* Divider */}
-      {venueName && navItems.length > 0 && (
+      {venueName && navItems.length > 0 && !isMobile && (
         <div style={{ width: 1, height: 20, background: 'rgba(0,0,0,0.12)', flexShrink: 0, marginRight: 8 }} />
       )}
 
@@ -211,7 +213,7 @@ function SectionNav({ sections, palette, showcase, onBack, onVisibleChange }) {
                 border:        'none',
                 borderBottom:  isActive ? `2px solid ${GOLD}` : '2px solid transparent',
                 cursor:        'pointer',
-                padding:       '0 18px',
+                padding:       isMobile ? '0 12px' : '0 18px',
                 height:        48,
                 fontFamily:    NU,
                 fontSize:      11,
@@ -239,8 +241,8 @@ function SectionNav({ sections, palette, showcase, onBack, onVisibleChange }) {
           flexShrink: 0, marginLeft: 16,
           background: GOLD, border: 'none',
           borderRadius: 2, cursor: 'pointer',
-          padding: '8px 20px',
-          fontFamily: NU, fontSize: 11, fontWeight: 700,
+          padding: isMobile ? '7px 12px' : '8px 20px',
+          fontFamily: NU, fontSize: isMobile ? 10 : 11, fontWeight: 700,
           letterSpacing: '0.1em', textTransform: 'uppercase',
           color: '#ffffff', transition: 'background 0.2s',
         }}
@@ -268,7 +270,7 @@ function HeroSection({ content, layout, showcaseHero, listingFirstImage, palette
   return (
     <div style={{
       position: 'relative',
-      height: '92vh', minHeight: 520,
+      height: '85vh', minHeight: 480,
       overflow: 'hidden',
       background: '#0a0a08',
     }}>
@@ -276,6 +278,7 @@ function HeroSection({ content, layout, showcaseHero, listingFirstImage, palette
         <img
           src={image}
           alt={content.title || ''}
+          loading="eager"
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
         />
       )}
@@ -632,6 +635,7 @@ function StatsSection({ content, layout, palette }) {
           {(content.items || []).map((item, i) => (
             <div key={i} style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+              flexWrap: 'wrap', gap: '4px 16px',
               padding: '16px 0',
               borderBottom: `1px solid ${brdCol}`,
             }}>
@@ -689,13 +693,14 @@ function QuoteSection({ content, layout, palette }) {
 
 // ── MosaicSection — 3 layout patterns ────────────────────────────────────────
 function MosaicSection({ content, layout, palette }) {
+  const { isMobile } = useBreakpoint();
   const P       = palette;
   const images  = (content.images || []).filter(i => i.url).map(i => i.url);
   const pattern = layout?.pattern || 'grid';
 
   if (images.length < 2) {
     return (
-      <div style={{ background: P.bg2, padding: '60px 40px', textAlign: 'center' }}>
+      <div style={{ background: P.bg2, padding: isMobile ? '40px 24px' : '60px 40px', textAlign: 'center' }}>
         <p style={{ fontFamily: NU, fontSize: 13, color: P.muted }}>
           Mosaic — add at least 2 images to preview
         </p>
@@ -703,17 +708,29 @@ function MosaicSection({ content, layout, palette }) {
     );
   }
 
-  // asymmetrical: 1 large portrait left + 2 stacked right (dramatic 2+1)
+  // asymmetrical: 1 large portrait left + 2 stacked right
+  // on mobile: vertical stack of all 3 images
   if (pattern === 'asymmetrical') {
+    if (isMobile) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, lineHeight: 0 }}>
+          {images.slice(0, 3).map((url, i) => (
+            <div key={i} style={{ overflow: 'hidden', aspectRatio: i === 0 ? '4/3' : '3/2' }}>
+              <img src={url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            </div>
+          ))}
+        </div>
+      );
+    }
     return (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, lineHeight: 0 }}>
         <div style={{ overflow: 'hidden', aspectRatio: '3/4' }}>
-          <img src={images[0]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          <img src={images[0]} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {images.slice(1, 3).map((url, i) => (
             <div key={i} style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
-              <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              <img src={url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             </div>
           ))}
         </div>
@@ -721,26 +738,27 @@ function MosaicSection({ content, layout, palette }) {
     );
   }
 
-  // stacked: 4 tall images in a horizontal strip (editorial pacing)
+  // stacked: 4 tall images — 2-col on mobile
   if (pattern === 'stacked') {
+    const cols = isMobile ? 2 : Math.min(images.length, 4);
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(images.length, 4)}, 1fr)`, gap: 4, lineHeight: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 4, lineHeight: 0 }}>
         {images.slice(0, 4).map((url, i) => (
           <div key={i} style={{ overflow: 'hidden', aspectRatio: '2/3' }}>
-            <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            <img src={url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           </div>
         ))}
       </div>
     );
   }
 
-  // grid (default) — clean 4-image grid, no floating text box
+  // grid (default) — 2-col on mobile, 4-col on desktop
   return (
     <div style={{ background: P.bg }}>
       {(content.title || content.body) && (
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '64px 64px 40px' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '32px 24px 20px' : '64px 64px 40px' }}>
           {content.title && (
-            <h2 style={{ fontFamily: GD, fontSize: 'clamp(28px,3vw,42px)', fontWeight: 400, color: P.text, margin: '0 0 16px', letterSpacing: '-0.02em' }}>
+            <h2 style={{ fontFamily: GD, fontSize: 'clamp(22px,3vw,42px)', fontWeight: 400, color: P.text, margin: '0 0 12px', letterSpacing: '-0.02em' }}>
               {content.title}
             </h2>
           )}
@@ -751,12 +769,12 @@ function MosaicSection({ content, layout, palette }) {
           )}
         </div>
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, lineHeight: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: 4, lineHeight: 0 }}>
         {images.slice(0, 4).map((url, i) => (
           <div key={i} style={{ overflow: 'hidden', aspectRatio: '3/4' }}>
-            <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.6s ease' }}
-              onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.04)'}
-              onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+            <img src={url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.6s ease' }}
+              onMouseEnter={e => !isMobile && (e.currentTarget.style.transform = 'scale(1.04)')}
+              onMouseLeave={e => !isMobile && (e.currentTarget.style.transform = 'scale(1)')}
             />
           </div>
         ))}
@@ -806,6 +824,7 @@ function ShowcaseLightbox({ images, idx, onClose, onPrev, onNext }) {
 
 // ── GallerySection — uses MediaBlock (same as IC Park Lane / Ritz) ────────────
 function GallerySection({ content, layout, palette }) {
+  const { isMobile } = useBreakpoint();
   const P      = palette;
   const images = (content.images || []).filter(i => i.url);
   if (!images.length) return null;
@@ -819,7 +838,7 @@ function GallerySection({ content, layout, palette }) {
 
   return (
     <div style={{ background: '#ffffff' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '28px 64px 80px' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '24px 16px 48px' : '28px 64px 80px' }}>
         {content.title && (
           <p style={{
             fontFamily: NU, fontSize: 10, letterSpacing: '0.18em',
@@ -840,6 +859,7 @@ function GallerySection({ content, layout, palette }) {
 
 // ── FilmsSection — inline YouTube/Vimeo player ───────────────────────────────
 function FilmsSection({ content, palette }) {
+  const { isMobile } = useBreakpoint();
   const P      = palette;
   const videos = content.videos || [];
   const [activeIdx, setActiveIdx] = useState(0);
@@ -854,8 +874,8 @@ function FilmsSection({ content, palette }) {
     : null;
 
   return (
-    <div style={{ background: P.bg, padding: '64px 0 80px' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 clamp(24px, 5vw, 64px)' }}>
+    <div style={{ background: P.bg, padding: isMobile ? '40px 0 56px' : '64px 0 80px' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '0 20px' : '0 clamp(24px, 5vw, 64px)' }}>
         {content.eyebrow && (
           <p style={{
             fontFamily: NU, fontSize: 10, fontWeight: 700,
@@ -885,7 +905,7 @@ function FilmsSection({ content, palette }) {
           <div style={{ display: 'flex', gap: 12, marginTop: 20, overflowX: 'auto' }}>
             {videos.map((v, i) => (
               <button key={v.id || i} onClick={() => setActiveIdx(i)} style={{
-                flexShrink: 0, width: 140, height: 80, padding: 0, border: 'none',
+                flexShrink: 0, width: isMobile ? 112 : 140, height: isMobile ? 63 : 80, padding: 0, border: 'none',
                 cursor: 'pointer', opacity: i === activeIdx ? 1 : 0.6,
                 outline: i === activeIdx ? `2px solid ${P.accent}` : 'none',
                 borderRadius: 2, overflow: 'hidden', background: '#000',
@@ -969,176 +989,251 @@ function RelatedSection({ content, palette }) {
   );
 }
 
-// ── PricingSection ────────────────────────────────────────────────────────────
+// ── PricingSection — editorial list design matching ShowcasePricing ───────────
 function PricingSection({ content, layout, palette }) {
-  const P       = palette;
-  const bg      = layout?.accentBg || (P.mode === 'light' ? '#FDFBF7' : P.bg);
-  const bgLc    = bg.toLowerCase();
-  const isLight = bgLc.startsWith('#f') || bgLc.startsWith('#e') || bgLc.startsWith('#d') || bgLc.startsWith('#fa') || bgLc.startsWith('#fd');
-  const textCol   = isLight ? '#1C1410' : '#f5f0e8';
-  const mutCol    = isLight ? 'rgba(28,20,16,0.6)' : 'rgba(245,240,232,0.65)';
+  const { isMobile } = useBreakpoint();
+  const P         = palette;
+  const lightMode = P.mode === 'light';
+  const bg        = layout?.accentBg || (lightMode ? '#faf9f6' : '#130f1e');
+  const textCol   = lightMode ? '#1a1209' : '#f5f0e8';
+  const mutCol    = lightMode ? 'rgba(26,18,9,0.6)' : 'rgba(245,240,232,0.55)';
   const goldCol   = P.accent;
-  const panelBg   = isLight ? 'rgba(28,20,16,0.04)' : 'rgba(255,255,255,0.04)';
-  const borderCol = isLight ? 'rgba(28,20,16,0.12)' : 'rgba(245,240,232,0.12)';
+  const borderCol = lightMode ? '#e8e2d8' : 'rgba(245,240,232,0.1)';
+  const divider   = lightMode ? 'rgba(26,18,9,0.12)' : 'rgba(245,240,232,0.12)';
+
+  // Support both content.includes/excludes (XO legacy) and content.pricing_includes/excludes
+  const includes = content.pricing_includes || content.includes || [];
+  const excludes = content.pricing_excludes || content.excludes || [];
+
+  // Headline price figures — support both pre-formatted strings and pence integers
+  function fmtPence(pence, cur = 'GBP') {
+    if (!pence && pence !== 0) return null;
+    if (typeof pence === 'string') return pence; // already formatted
+    const amount = Math.round(pence / 100);
+    return new Intl.NumberFormat('en-GB', { style: 'currency', currency: cur, maximumFractionDigits: 0 }).format(amount);
+  }
+  const cur = content.currency || 'GBP';
+  const priceFigures = [
+    content.venue_hire_from    && { label: 'Venue Hire From', value: fmtPence(content.venue_hire_from, cur),    sub: 'starting point' },
+    content.minimum_spend      && { label: 'Minimum Spend',   value: fmtPence(content.minimum_spend, cur),      sub: 'required investment' },
+    content.price_per_head_from && { label: 'Per Head From',  value: fmtPence(content.price_per_head_from, cur), sub: 'per guest' },
+    // Legacy pre-formatted fields
+    (!content.venue_hire_from && !content.minimum_spend && content.price_from) && { label: content.price_context || 'From', value: content.price_from, sub: null },
+  ].filter(Boolean);
+
+  const hasSpendRange = content.typical_min || content.typical_max;
+  const venueName = content.venue_name || 'This venue';
 
   return (
-    <div style={{ background: bg, padding: 'clamp(56px, 8vw, 104px) clamp(24px, 6vw, 120px)' }}>
-      <div style={{ maxWidth: 920 }}>
-        {content.eyebrow && (
-          <p style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: goldCol, margin: '0 0 20px' }}>
-            {content.eyebrow}
+    <div style={{ background: bg, padding: isMobile ? '48px 20px 56px' : 'clamp(56px, 8vw, 104px) clamp(24px, 6vw, 120px)' }}>
+      <div style={{ maxWidth: 900, margin: '0 auto' }}>
+
+        {/* Eyebrow + heading */}
+        <p style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: goldCol, margin: '0 0 14px' }}>
+          {content.eyebrow || 'Pricing & What to Expect'}
+        </p>
+        <h2 style={{ fontFamily: GD, fontSize: 'clamp(26px, 3.5vw, 42px)', color: textCol, margin: '0 0 8px', fontWeight: 400, lineHeight: 1.15 }}>
+          {content.headline || 'Understanding the Investment'}
+        </h2>
+        <div style={{ width: 40, height: 1, background: goldCol, margin: '0 0 36px' }} />
+
+        {/* Spend range summary */}
+        {hasSpendRange && (
+          <p style={{ fontFamily: NU, fontSize: 15, lineHeight: 1.8, color: textCol, margin: '0 0 28px', fontStyle: 'italic' }}>
+            Weddings at {venueName} typically represent a total investment of {[content.typical_min, content.typical_max].filter(Boolean).join(' to ')}, depending on guest count, season, and the level of bespoke elements chosen.
           </p>
         )}
-        <h2 style={{ fontFamily: GD, fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 400, color: textCol, margin: '0 0 32px', lineHeight: 1.1 }}>
-          {content.headline}
-        </h2>
 
-        {/* Price highlights */}
-        {(content.price_from || content.typical_min || content.typical_max) && (
-          <div style={{ display: 'flex', gap: 40, marginBottom: 36, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            {content.price_from && (
-              <div>
-                <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: goldCol, marginBottom: 8 }}>
-                  {content.price_context || 'From'}
-                </div>
-                <div style={{ fontFamily: GD, fontSize: 'clamp(36px, 5vw, 56px)', color: textCol, lineHeight: 1 }}>
-                  {content.price_from}
-                </div>
-              </div>
-            )}
-            {(content.typical_min || content.typical_max) && (
-              <div>
-                <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: goldCol, marginBottom: 8 }}>
-                  {content.typical_label || 'Typical Total Investment'}
-                </div>
-                <div style={{ fontFamily: GD, fontSize: 'clamp(22px, 3vw, 36px)', color: textCol, lineHeight: 1 }}>
-                  {[content.typical_min, content.typical_max].filter(Boolean).join(' – ')}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
+        {/* Intro body */}
         {content.body && (
-          <p style={{ fontFamily: NU, fontSize: 16, lineHeight: 1.85, color: mutCol, margin: '0 0 40px', maxWidth: 760 }}>
+          <p style={{ fontFamily: NU, fontSize: 14, lineHeight: 1.8, color: mutCol, margin: '0 0 40px' }}>
             {content.body}
           </p>
         )}
 
-        {/* Includes / Excludes */}
-        {(content.includes?.length > 0 || content.excludes?.length > 0) && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 36 }}>
-            {content.includes?.length > 0 && (
-              <div style={{ background: panelBg, borderRadius: 4, padding: '20px 24px' }}>
-                <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: goldCol, marginBottom: 16 }}>
-                  Included
+        {/* ── Headline price figures ── */}
+        {priceFigures.length > 0 && (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? `repeat(${Math.min(priceFigures.length, 2)}, 1fr)` : `repeat(${priceFigures.length}, 1fr)`,
+            gap: 0,
+            borderTop: `1px solid ${borderCol}`,
+            borderBottom: `1px solid ${borderCol}`,
+            paddingTop: 28,
+            paddingBottom: 28,
+            marginBottom: 48,
+          }}>
+            {priceFigures.map((fig, i) => (
+              <div key={i} style={{
+                paddingRight: i < priceFigures.length - 1 ? 28 : 0,
+                paddingLeft:  i > 0 ? 28 : 0,
+                borderRight:  i < priceFigures.length - 1 ? `1px solid ${divider}` : 'none',
+              }}>
+                <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: goldCol, marginBottom: 10 }}>
+                  {fig.label}
                 </div>
-                {content.includes.map((item, i) => (
-                  <div key={i} style={{ fontFamily: NU, fontSize: 13, color: mutCol, display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 9, lineHeight: 1.5 }}>
-                    <span style={{ color: goldCol, flexShrink: 0, marginTop: 1 }}>✓</span>
-                    {item}
+                <div style={{ fontFamily: GD, fontSize: 'clamp(32px, 4vw, 52px)', color: textCol, lineHeight: 1, marginBottom: 6, fontWeight: 400 }}>
+                  {fig.value}
+                </div>
+                {fig.sub && (
+                  <div style={{ fontFamily: NU, fontSize: 11, color: mutCol, letterSpacing: '0.04em' }}>
+                    {fig.sub}
                   </div>
-                ))}
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Includes / Excludes — two editorial columns with divider ── */}
+        {(includes.length > 0 || excludes.length > 0) && (
+          <div style={{ display: isMobile ? 'block' : 'grid', gridTemplateColumns: includes.length > 0 && excludes.length > 0 ? '1fr 1px 1fr' : '1fr', gap: isMobile ? 0 : '0 40px', paddingTop: 4 }}>
+
+            {/* Column 1: Typically Includes */}
+            {includes.length > 0 && (
+              <div>
+                <p style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: goldCol, margin: '0 0 8px' }}>
+                  Typically Includes
+                </p>
+                <div>
+                  {includes.map((item, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '9px 0' }}>
+                      <span style={{ fontFamily: NU, fontSize: 13, color: goldCol, flexShrink: 0, marginTop: 1, lineHeight: 1 }}>—</span>
+                      <span style={{ fontFamily: NU, fontSize: 14, color: textCol, lineHeight: 1.5 }}>{item}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
-            {content.excludes?.length > 0 && (
-              <div style={{ background: panelBg, borderRadius: 4, padding: '20px 24px' }}>
-                <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: mutCol, marginBottom: 16 }}>
-                  Not Included
+
+            {/* Vertical divider — desktop only */}
+            {!isMobile && includes.length > 0 && excludes.length > 0 && (
+              <div style={{ background: divider, width: 1 }} />
+            )}
+
+            {/* Column 2: Additional Costs */}
+            {excludes.length > 0 && (
+              <div style={{ marginTop: isMobile && includes.length > 0 ? 32 : 0 }}>
+                <p style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: mutCol, margin: '0 0 8px' }}>
+                  Additional Costs
+                </p>
+                <div>
+                  {excludes.map((item, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '9px 0' }}>
+                      <span style={{ fontFamily: NU, fontSize: 13, color: mutCol, flexShrink: 0, marginTop: 1, lineHeight: 1, opacity: 0.6 }}>○</span>
+                      <span style={{ fontFamily: NU, fontSize: 14, color: mutCol, lineHeight: 1.5 }}>{item}</span>
+                    </div>
+                  ))}
                 </div>
-                {content.excludes.map((item, i) => (
-                  <div key={i} style={{ fontFamily: NU, fontSize: 13, color: mutCol, display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 9, lineHeight: 1.5 }}>
-                    <span style={{ flexShrink: 0, marginTop: 2, opacity: 0.4 }}>○</span>
-                    {item}
-                  </div>
-                ))}
               </div>
             )}
           </div>
         )}
 
+        {/* Guidance note */}
         {content.guidance && (
-          <div style={{ borderTop: `1px solid ${borderCol}`, paddingTop: 24 }}>
+          <div style={{ borderTop: `1px solid ${divider}`, paddingTop: 24, marginTop: 32 }}>
             <p style={{ fontFamily: NU, fontSize: 14, color: mutCol, lineHeight: 1.85, fontStyle: 'italic', margin: 0 }}>
               {content.guidance}
             </p>
           </div>
         )}
+
+        {/* Disclosure */}
+        <p style={{ fontFamily: NU, fontSize: 11, color: mutCol, margin: '32px 0 0', letterSpacing: '0.02em', borderTop: `1px solid ${borderCol}`, paddingTop: 20 }}>
+          All pricing is indicative. Final investment varies by date, guest count, menu, and bespoke requirements. Contact the venue directly for a tailored proposal.
+        </p>
       </div>
     </div>
   );
 }
 
-// ── VerifiedSection (At a Glance) ────────────────────────────────────────────
+// ── VerifiedSection (At a Glance) — stat-first premium design ────────────────
 function VerifiedSection({ content, layout, palette }) {
+  const { isMobile } = useBreakpoint();
   const P       = palette;
-  const bg      = layout?.accentBg || (P.mode === 'light' ? '#faf9f6' : '#0f0e0c');
+  const bg      = layout?.accentBg || (P.mode === 'light' ? '#ffffff' : '#1a1410');
   const bgLc    = bg.toLowerCase();
-  const isLight = bgLc.startsWith('#f') || bgLc.startsWith('#e') || bgLc.startsWith('#d') || bgLc.startsWith('#fa') || bgLc.startsWith('#fd');
-  const textCol   = isLight ? '#1C1410' : '#f5f0e8';
-  const mutCol    = isLight ? 'rgba(28,20,16,0.6)' : 'rgba(245,240,232,0.65)';
+  const isLight = bgLc.startsWith('#f') || bgLc.startsWith('#e') || bgLc.startsWith('#d') || bgLc.startsWith('#1a') ? false
+    : (bgLc.startsWith('#ff') || bgLc.startsWith('#fa') || bgLc.startsWith('#fd') || bgLc.startsWith('#fe') || bg === '#ffffff' || bg === '#faf9f6' || bg === '#fdfbf7');
+  // Simpler: use palette mode
+  const lightMode = P.mode === 'light';
+  const textCol   = lightMode ? '#1a1209' : '#f5f0e8';
+  const mutCol    = lightMode ? 'rgba(26,18,9,0.55)' : 'rgba(245,240,232,0.5)';
   const goldCol   = P.accent;
-  const borderCol = isLight ? 'rgba(28,20,16,0.1)' : 'rgba(245,240,232,0.1)';
+  const borderCol = lightMode ? '#e8e2d8' : 'rgba(245,240,232,0.1)';
+  const bgFinal   = layout?.accentBg || (lightMode ? '#ffffff' : '#1a1410');
 
+  // ── Secondary detail rows ───────────────────────────────────────────────────
   const CATERING_LABELS = { in_house_only: 'In-house only', approved_list: 'Approved caterers', open: 'Open to external' };
-  const boolLabel = (v) => v === true ? 'Yes' : v === false ? 'No' : null;
-
-  const rows = [
-    ['Venue Hire From',    content.venue_hire_from],
-    ['Typical Spend',     content.typical_spend_min && content.typical_spend_max
+  const details = [
+    ['Ceremony',         content.ceremony_capacity],
+    ['Dining',           content.dining_capacity ? `${content.dining_capacity} guests` : null],
+    ['Reception',        content.reception_capacity ? `${content.reception_capacity} guests` : null],
+    ['Bedrooms',         content.bedrooms],
+    ['Exclusive Use',    content.exclusive_use],
+    ['Catering',         CATERING_LABELS[content.catering] || content.catering],
+    ['Outdoor Ceremony', content.outdoor_ceremony === true ? 'Available' : content.outdoor_ceremony === false ? 'Indoor only' : content.outdoor_ceremony],
+    ['Accommodation',    content.accommodation === true ? 'On-site' : content.accommodation === false ? 'Off-site only' : content.accommodation],
+    ['Location',         content.location_summary],
+    ['Style',            content.style],
+    ['Best For',         content.best_for],
+    ['Venue Hire From',  content.venue_hire_from],
+    ['Typical Spend',    content.typical_spend_min && content.typical_spend_max
       ? `${content.typical_spend_min} – ${content.typical_spend_max}`
       : (content.typical_spend_min || content.typical_spend_max)],
-    ['Ceremony',          content.ceremony_capacity],
-    ['Dining',            content.dining_capacity   ? `${content.dining_capacity} guests`   : null],
-    ['Reception',         content.reception_capacity ? `${content.reception_capacity} guests` : null],
-    ['Bedrooms',          content.bedrooms],
-    ['Exclusive Use',     content.exclusive_use],
-    ['Catering',          CATERING_LABELS[content.catering] || content.catering],
-    ['Outdoor Ceremony',  typeof content.outdoor_ceremony === 'boolean' ? boolLabel(content.outdoor_ceremony) : content.outdoor_ceremony],
-    ['Accommodation',     typeof content.accommodation === 'boolean' ? boolLabel(content.accommodation) : content.accommodation],
-    ['Location',          content.location_summary],
-    ['Style',             content.style],
-    ['Best For',          content.best_for],
   ].filter(([, val]) => val != null && val !== '');
 
-  // Ensure even number of rows so grid looks clean
-  const paddedRows = rows.length % 2 === 1 ? [...rows, [null, null]] : rows;
+  // Pad to even count for clean 2-col grid
+  const paddedDetails = details.length % 2 === 1 ? [...details, [null, null]] : details;
+
+  if (details.length === 0) return null;
 
   return (
-    <div style={{ background: bg, padding: 'clamp(56px, 8vw, 104px) clamp(24px, 6vw, 120px)' }}>
+    <div style={{ background: bgFinal, padding: isMobile ? '48px 20px 56px' : 'clamp(56px, 8vw, 104px) clamp(24px, 6vw, 120px)' }}>
       <div style={{ maxWidth: 920 }}>
-        {content.eyebrow && (
-          <p style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: goldCol, margin: '0 0 20px' }}>
-            {content.eyebrow}
-          </p>
-        )}
-        <h2 style={{ fontFamily: GD, fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 400, color: textCol, margin: '0 0 40px', lineHeight: 1.1 }}>
-          {content.headline}
-        </h2>
+        {/* Eyebrow */}
+        <p style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: goldCol, margin: '0 0 10px' }}>
+          {content.eyebrow || 'At a Glance'}
+        </p>
+        <div style={{ width: 32, height: 1, background: goldCol, marginBottom: content.headline ? 24 : 36 }} />
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
-          {paddedRows.map(([label, val], i) => (
-            <div
-              key={i}
-              style={{
-                display: 'flex', flexDirection: 'column', gap: 5,
-                padding: '16px 0',
-                borderBottom: `1px solid ${borderCol}`,
-                borderRight:  i % 2 === 0 ? `1px solid ${borderCol}` : 'none',
-                paddingRight: i % 2 === 0 ? 32 : 0,
-                paddingLeft:  i % 2 === 1 ? 32 : 0,
-                opacity:      label ? 1 : 0,
-              }}
-            >
-              <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: goldCol }}>
-                {label}
-              </span>
-              <span style={{ fontFamily: NU, fontSize: 14, color: textCol, lineHeight: 1.55 }}>
-                {val}
-              </span>
-            </div>
-          ))}
-        </div>
+        {content.headline && (
+          <h2 style={{ fontFamily: GD, fontSize: 'clamp(24px, 3vw, 38px)', fontWeight: 400, color: textCol, margin: '0 0 36px', lineHeight: 1.1 }}>
+            {content.headline}
+          </h2>
+        )}
+
+        {/* ── Details — 2-col label/value grid (1-col on mobile) ── */}
+        {(isMobile ? details : paddedDetails).length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 0 }}>
+            {(isMobile ? details : paddedDetails).map(([label, val], i) => {
+              const isLeft = isMobile ? true : i % 2 === 0;
+              const totalRows = (isMobile ? details : paddedDetails).length;
+              const isLastRow = isMobile ? i === totalRows - 1 : i >= totalRows - 2;
+              return (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: isMobile ? 16 : 20,
+                  padding: '13px 0',
+                  paddingRight: (!isMobile && isLeft) ? 40 : 0,
+                  paddingLeft:  (!isMobile && !isLeft) ? 40 : 0,
+                  borderRight:  (!isMobile && isLeft) ? `1px solid ${borderCol}` : 'none',
+                  borderBottom: !isLastRow ? `1px solid ${borderCol}` : 'none',
+                  opacity: label ? 1 : 0,
+                }}>
+                  {label && <>
+                    <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: mutCol, flexShrink: 0, width: isMobile ? 104 : 120, paddingTop: 1 }}>
+                      {label}
+                    </span>
+                    <span style={{ fontFamily: NU, fontSize: 13, color: textCol, lineHeight: 1.55, flex: 1 }}>
+                      {val}
+                    </span>
+                  </>}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {content.verified_date && (
           <div style={{ marginTop: 28, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -1175,7 +1270,7 @@ function SectionPlaceholder({ section, palette }) {
   const reg = SECTION_REGISTRY[section.type] || {};
   return (
     <div style={{
-      padding: '48px 40px', background: P.bg2,
+      padding: 'clamp(32px, 5vw, 48px) clamp(20px, 5vw, 40px)', background: P.bg2,
       border: `1px dashed ${P.accent}33`,
       textAlign: 'center',
     }}>
@@ -1194,6 +1289,7 @@ function SectionPlaceholder({ section, palette }) {
 
 // ── Breadcrumb bar (matches SixSensesShowcasePage pattern) ───────────────────
 function BreadcrumbBar({ showcase, listing, onBack, onGoDestination, palette, darkMode }) {
+  const { isMobile } = useBreakpoint();
   const P         = palette;
   const bg        = darkMode ? 'rgba(18,16,12,0.97)' : 'rgba(249,247,242,0.97)';
   const border    = darkMode ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.08)';
@@ -1220,8 +1316,9 @@ function BreadcrumbBar({ showcase, listing, onBack, onGoDestination, palette, da
     <div style={{
       background: bg,
       borderBottom: `1px solid ${border}`,
-      padding: '0 32px',
+      padding: isMobile ? '0 16px' : '0 32px',
       height: 40,
+      overflowX: 'hidden',
       display: 'flex',
       alignItems: 'center',
       gap: 6,
@@ -1235,29 +1332,31 @@ function BreadcrumbBar({ showcase, listing, onBack, onGoDestination, palette, da
           fontFamily: NU, fontSize: 11, color: mutedCol,
           background: 'none', border: 'none', cursor: 'pointer',
           padding: 0, fontWeight: 400, letterSpacing: '0.02em',
-          transition: 'color 0.2s',
+          transition: 'color 0.2s', flexShrink: 0,
         }}
         onMouseEnter={e => (e.currentTarget.style.color = textCol)}
         onMouseLeave={e => (e.currentTarget.style.color = mutedCol)}
       >
-        ← Back to listing
+        ← Back
       </button>
       <span style={{ fontFamily: NU, fontSize: 10, color: mutedCol, userSelect: 'none' }}>›</span>
-      {/* Destinations */}
-      <button
-        onClick={() => onGoDestination?.('')}
-        style={{
-          fontFamily: NU, fontSize: 11, color: mutedCol,
-          background: 'none', border: 'none', cursor: 'pointer',
-          padding: 0, fontWeight: 400, letterSpacing: '0.02em',
-          transition: 'color 0.2s',
-        }}
-        onMouseEnter={e => (e.currentTarget.style.color = textCol)}
-        onMouseLeave={e => (e.currentTarget.style.color = mutedCol)}
-      >
-        Destinations
-      </button>
-      {locationLabel && locationLabel !== 'Destinations' && (
+      {/* Destinations — hidden on mobile */}
+      {!isMobile && (
+        <button
+          onClick={() => onGoDestination?.('')}
+          style={{
+            fontFamily: NU, fontSize: 11, color: mutedCol,
+            background: 'none', border: 'none', cursor: 'pointer',
+            padding: 0, fontWeight: 400, letterSpacing: '0.02em',
+            transition: 'color 0.2s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.color = textCol)}
+          onMouseLeave={e => (e.currentTarget.style.color = mutedCol)}
+        >
+          Destinations
+        </button>
+      )}
+      {locationLabel && locationLabel !== 'Destinations' && !isMobile && (
         <>
           <span style={{ fontFamily: NU, fontSize: 10, color: mutedCol, userSelect: 'none' }}>›</span>
           <button
@@ -1275,8 +1374,11 @@ function BreadcrumbBar({ showcase, listing, onBack, onGoDestination, palette, da
           </button>
         </>
       )}
-      <span style={{ fontFamily: NU, fontSize: 10, color: mutedCol, userSelect: 'none' }}>›</span>
-      <span style={{ fontFamily: NU, fontSize: 11, color: textCol, fontWeight: 600, letterSpacing: '0.02em' }}>
+      {!isMobile && <span style={{ fontFamily: NU, fontSize: 10, color: mutedCol, userSelect: 'none' }}>›</span>}
+      <span style={{
+        fontFamily: NU, fontSize: 11, color: textCol, fontWeight: 600, letterSpacing: '0.02em',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: isMobile ? '40vw' : 'none',
+      }}>
         {venueName}
       </span>
 
@@ -1292,7 +1394,7 @@ function BreadcrumbBar({ showcase, listing, onBack, onGoDestination, palette, da
               padding: '4px 12px', cursor: 'pointer',
               transition: 'background 0.2s, color 0.2s',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = accentCol; e.currentTarget.style.color = isLight ? '#fff' : '#0a0a08'; }}
+            onMouseEnter={e => { e.currentTarget.style.background = accentCol; e.currentTarget.style.color = darkMode ? '#0a0a08' : '#fff'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = accentCol; }}
           >
             VIEW LISTING ↗
