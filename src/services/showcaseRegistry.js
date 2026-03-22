@@ -543,6 +543,166 @@ export const SHOWCASE_TEMPLATES = {
       { ...createSection('cta'),            content: { headline: 'Begin Your [Hotel Name] Wedding Story', subline: 'Contact our dedicated wedding team to arrange a private consultation.', background: '', venueName: '' } },
     ],
   },
+  luxury_venue_inc_video: {
+    key:   'luxury_venue_inc_video',
+    label: 'Luxury Venue-inc-Video',
+    description: 'Full-format luxury resort or destination venue. Hero with address + stats, At a Glance, Weddings, Feature, two Gallery sections, inline Film player, Spaces, Wellness, Understanding the Investment, and Enquiry form. Use for hotels, resorts, and large-scale destination venues with video content.',
+    icon:  '▶',
+    theme: 'light',
+    sections: () => [
+      {
+        ...createSection('hero'),
+        content: {
+          eyebrow:  'Destination · Country',
+          title:    'Your Venue Name',
+          address:  'Street Address · City · Region',
+          tagline:  'A single evocative sentence that captures the spirit of this venue and why couples choose it.',
+          image:    '',
+          overlay_opacity: 0.40,
+          stats: [
+            { value: '000',     label: 'Rooms & Suites' },
+            { value: '00,000',  label: 'Sq Metres Estate' },
+            { value: '000',     label: 'Wedding Guests' },
+            { value: '',        label: 'Signature Feature' },
+          ],
+        },
+      },
+      {
+        ...createSection('verified'),
+        content: {
+          eyebrow:           'At a Glance',
+          headline:          'Your Venue Name',
+          ceremony_capacity: '000 (Main Hall) · Outdoor option',
+          dining_capacity:   '000',
+          reception_capacity:'000',
+          bedrooms:          'Describe room types and count',
+          exclusive_use:     'Available on request',
+          catering:          'in_house_only',
+          outdoor_ceremony:  true,
+          accommodation:     true,
+          location_summary:  'City, Region, Country',
+          style:             'Describe the style and concept',
+          best_for:          'Destination weddings, large celebrations',
+          verified_date:     '',
+        },
+      },
+      {
+        ...createSection('weddings'),
+        content: {
+          eyebrow:  'Ceremonies',
+          headline: 'Your Perfect Setting',
+          body:     'Describe the ceremony options — indoor and outdoor, capacities, what makes each setting special, and the moments couples remember most.',
+          image:    '',
+        },
+        layout: { variant: 'image-right', accentBg: '#ffffff' },
+      },
+      {
+        ...createSection('feature'),
+        content: {
+          eyebrow:  'Tailored Perfection',
+          headline: 'Crafted by Expert Hands',
+          body:     'Describe the planning team, bespoke services, culinary offering, and how the venue makes every celebration feel uniquely personal.',
+          image:    '',
+        },
+        layout: { variant: 'image-left', accentBg: '#f5f7fc' },
+      },
+      {
+        ...createSection('gallery'),
+        content: {
+          title:  'The Estate',
+          images: [
+            { url: '', caption: '' },
+            { url: '', caption: '' },
+            { url: '', caption: '' },
+            { url: '', caption: '' },
+            { url: '', caption: '' },
+            { url: '', caption: '' },
+          ],
+        },
+      },
+      {
+        ...createSection('films'),
+        content: {
+          eyebrow: 'Films',
+          videos: [
+            {
+              id:         'film-1',
+              youtubeId:  '',
+              title:      'Venue Name — Wedding Film',
+              thumb:      '',
+              duration:   '',
+              type:       'wedding',
+            },
+          ],
+        },
+      },
+      {
+        ...createSection('spaces'),
+        content: {
+          eyebrow:  'Stay',
+          headline: 'Luxury Reimagined',
+          body:     'Describe the accommodation — room categories, suite highlights, views, and what the all-inclusive or overnight experience means for wedding guests.',
+          image:    '',
+        },
+        layout: { variant: 'image-right', accentBg: '#ffffff' },
+      },
+      {
+        ...createSection('wellness'),
+        content: {
+          eyebrow:  'Experience',
+          headline: 'Entertainment & Exquisite Experiences',
+          body:     'Describe the spa, entertainment, unique experiences — what guests do beyond the ceremony to make the whole celebration memorable.',
+          image:    '',
+        },
+        layout: { variant: 'image-left', accentBg: '#f5f7fc' },
+      },
+      {
+        ...createSection('gallery'),
+        content: {
+          title:  'Rooms & Details',
+          images: [
+            { url: '', caption: '' },
+            { url: '', caption: '' },
+            { url: '', caption: '' },
+            { url: '', caption: '' },
+            { url: '', caption: '' },
+            { url: '', caption: '' },
+          ],
+        },
+      },
+      {
+        ...createSection('pricing'),
+        content: {
+          eyebrow:  'Investment',
+          headline: 'Understanding the Investment',
+          guidance: 'Describe the pricing model — all-inclusive, bespoke packages, minimum spends. Give context so couples understand what shapes the investment.',
+          includes: [
+            'Full venue hire for ceremony and reception',
+            'Accommodation for all guests',
+            'Dedicated wedding planning specialists',
+            'Gourmet dining and premium beverages',
+            'Entertainment and evening programming',
+            'Spa, wellness and leisure access',
+          ],
+          excludes: [
+            'International travel and transfers',
+            'Bespoke floral and décor upgrades',
+            'Private excursions and special experiences',
+            'Premium spirits and fine wine upgrades',
+          ],
+        },
+      },
+      {
+        ...createSection('cta'),
+        content: {
+          headline:  'Begin Your Story at [Venue Name]',
+          subline:   'Speak with our dedicated wedding specialists to start planning your celebration.',
+          venueName: '',
+        },
+      },
+    ],
+  },
+
 };
 
 // ── Helper: get template sections (returns fresh array each call) ──────────────
