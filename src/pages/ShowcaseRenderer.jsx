@@ -92,8 +92,13 @@ const TYPE_LABEL = {
 };
 
 // ── Sticky section sub-nav ────────────────────────────────────────────────────
-function SectionNav({ sections, palette, showcase, onBack }) {
+function SectionNav({ sections, palette, showcase, onBack, onVisibleChange }) {
   const [visible,  setVisible]  = useState(false);
+
+  const setVisibleWithCallback = (v) => {
+    setVisible(v);
+    onVisibleChange?.(v);
+  };
   const [activeId, setActiveId] = useState(null);
 
   const GOLD = '#C4A05A';
@@ -101,21 +106,30 @@ function SectionNav({ sections, palette, showcase, onBack }) {
 
   const navItems = sections
     .filter(s => NAV_ELIGIBLE.has(s.type))
-    .map(s => ({
-      id:    s.id,
-      label: TYPE_LABEL[s.type] || s.type,
-    }));
+    .map(s => {
+      // Prefer the section's own eyebrow/title for unique labels; fall back to type label
+      const raw = s.content?.eyebrow || s.content?.title || TYPE_LABEL[s.type] || s.type;
+      // Truncate long labels so the nav doesn't overflow
+      const label = raw.length > 22 ? raw.slice(0, 20) + '…' : raw;
+      return { id: s.id, label };
+    })
+    // De-duplicate identical labels by appending a number (1, 2…)
+    .map((item, idx, arr) => {
+      const sameLabel = arr.filter(x => x.label === item.label);
+      if (sameLabel.length <= 1) return item;
+      const nth = sameLabel.indexOf(item) + 1;
+      return { ...item, label: `${item.label} ${nth}` };
+    });
 
   useEffect(() => {
-    const hero = document.querySelector('[data-showcase-section="hero"]');
-    if (!hero) { setVisible(true); return; }
-    const obs = new IntersectionObserver(
-      ([entry]) => setVisible(!entry.isIntersecting),
-      { threshold: 0 }
-    );
-    obs.observe(hero);
-    return () => obs.disconnect();
-  }, [sections]);
+    function check() {
+      setVisibleWithCallback(window.scrollY > window.innerHeight * 0.7);
+    }
+    check();
+    window.addEventListener('scroll', check, { passive: true });
+    return () => window.removeEventListener('scroll', check);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!navItems.length) return;
@@ -141,7 +155,7 @@ function SectionNav({ sections, palette, showcase, onBack }) {
   const scrollTo = (id) => {
     const el = document.getElementById(`sec-${id}`);
     if (!el) return;
-    const y = el.getBoundingClientRect().top + window.scrollY - 108;
+    const y = el.getBoundingClientRect().top + window.scrollY - 80;
     window.scrollTo({ top: y, behavior: 'smooth' });
   };
 
@@ -151,22 +165,22 @@ function SectionNav({ sections, palette, showcase, onBack }) {
       aria-label="Showcase sections"
       style={{
         position:       'fixed',
-        top:            64,
+        top:            0,
         left:           0,
         right:          0,
-        zIndex:         690,
-        height:         48,
-        background:     '#ffffff',
-        backdropFilter: 'blur(14px)',
+        zIndex:         900,
+        height:         56,
+        background:     'rgba(249,247,242,0.97)',
+        backdropFilter: 'blur(12px)',
         borderBottom:   '1px solid rgba(0,0,0,0.08)',
+        boxShadow:      '0 2px 20px rgba(0,0,0,0.06)',
         display:        'flex',
         alignItems:     'center',
         padding:        '0 32px',
         gap:            0,
-        opacity:        visible ? 1 : 0,
         pointerEvents:  visible ? 'auto' : 'none',
-        transform:      visible ? 'translateY(0)' : 'translateY(-6px)',
-        transition:     'opacity 0.35s ease, transform 0.35s ease',
+        transform:      visible ? 'translateY(0)' : 'translateY(-100%)',
+        transition:     'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
       }}
     >
       {/* Venue name — left */}
@@ -1230,6 +1244,7 @@ export default function ShowcaseRenderer({
 }) {
   const heroUrl = showcase.hero_image_url || null;
   const palette = buildPalette(showcase.theme);
+  const [sectionNavVisible, setSectionNavVisible] = useState(false);
 
   function renderSection(section) {
     const { type, content = {}, layout = {} } = section;
@@ -1332,7 +1347,14 @@ export default function ShowcaseRenderer({
     <div style={{ background: palette.bg, color: palette.text, minHeight: '100vh' }}>
       {!isPreview && (
         <>
-          <HomeNav hasHero onNavigateStandard={onNavigateStandard} />
+          {/* HomeNav slides UP when SectionNav slides DOWN — mirrors IC Park Lane pattern exactly */}
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, zIndex: 699,
+            transform:  sectionNavVisible ? 'translateY(-110%)' : 'translateY(0)',
+            transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}>
+            <HomeNav hasHero onNavigateStandard={onNavigateStandard} />
+          </div>
           <BreadcrumbBar
             showcase={showcase}
             listing={listing}
@@ -1340,7 +1362,13 @@ export default function ShowcaseRenderer({
             onGoDestination={onGoDestination}
             palette={palette}
           />
-          <SectionNav sections={sections} palette={palette} showcase={showcase} onBack={onBack} />
+          <SectionNav
+            sections={sections}
+            palette={palette}
+            showcase={showcase}
+            onBack={onBack}
+            onVisibleChange={setSectionNavVisible}
+          />
         </>
       )}
       {sections.map(section => renderSection(section))}
