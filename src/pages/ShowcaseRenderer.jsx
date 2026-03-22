@@ -298,10 +298,21 @@ function HeroSection({ content, layout, showcaseHero, listingFirstImage, palette
           fontFamily: GD,
           fontSize: 'clamp(36px, 6vw, 88px)',
           fontWeight: 400, color: '#f5f0e8',
-          margin: '0 0 16px', lineHeight: 1.05, letterSpacing: '-0.01em',
+          margin: '0 0 12px', lineHeight: 1.05, letterSpacing: '-0.01em',
         }}>
           {content.title || 'Venue Name'}
         </h1>
+        {content.address && (
+          <p style={{
+            fontFamily: NU,
+            fontSize: 'clamp(13px, 1.2vw, 16px)',
+            fontStyle: 'italic',
+            color: 'rgba(245,240,232,0.65)',
+            margin: '0 0 14px',
+          }}>
+            {content.address}
+          </p>
+        )}
         {content.tagline && (
           <p style={{
             fontFamily: NU,
@@ -792,11 +803,20 @@ function GallerySection({ content, layout, palette }) {
   );
 }
 
-// ── FilmsSection — VideoGallery with showcase branding ───────────────────────
+// ── FilmsSection — inline YouTube/Vimeo player ───────────────────────────────
 function FilmsSection({ content, palette }) {
   const P      = palette;
   const videos = content.videos || [];
+  const [activeIdx, setActiveIdx] = useState(0);
   if (!videos.length) return null;
+
+  const active = videos[activeIdx] || videos[0];
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const embedUrl = active.youtubeId
+    ? `https://www.youtube-nocookie.com/embed/${active.youtubeId}?rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(origin)}`
+    : active.vimeoId
+    ? `https://player.vimeo.com/video/${active.vimeoId}`
+    : null;
 
   return (
     <div style={{ background: P.bg, padding: '64px 0 80px' }}>
@@ -805,14 +825,41 @@ function FilmsSection({ content, palette }) {
           <p style={{
             fontFamily: NU, fontSize: 10, fontWeight: 700,
             letterSpacing: '0.18em', textTransform: 'uppercase',
-            color: P.accent, margin: '0 0 8px',
+            color: P.accent, margin: '0 0 28px',
           }}>
             {content.eyebrow}
           </p>
         )}
-        <ThemeCtx.Provider value={LIGHT}>
-          <VideoGallery videos={videos} />
-        </ThemeCtx.Provider>
+        {embedUrl && (
+          <div style={{ position: 'relative', width: '100%', paddingBottom: '56.25%', background: '#000', borderRadius: 2, overflow: 'hidden' }}>
+            <iframe
+              src={embedUrl}
+              title={active.title || 'Film'}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
+            />
+          </div>
+        )}
+        {active.title && (
+          <p style={{ fontFamily: GD, fontSize: 18, color: P.text, margin: '20px 0 4px' }}>
+            {active.title}
+          </p>
+        )}
+        {videos.length > 1 && (
+          <div style={{ display: 'flex', gap: 12, marginTop: 20, overflowX: 'auto' }}>
+            {videos.map((v, i) => (
+              <button key={v.id || i} onClick={() => setActiveIdx(i)} style={{
+                flexShrink: 0, width: 140, height: 80, padding: 0, border: 'none',
+                cursor: 'pointer', opacity: i === activeIdx ? 1 : 0.6,
+                outline: i === activeIdx ? `2px solid ${P.accent}` : 'none',
+                borderRadius: 2, overflow: 'hidden', background: '#000',
+              }}>
+                <img src={v.thumb} alt={v.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
