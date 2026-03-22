@@ -944,7 +944,7 @@ function CtaSection({ content, venueName, palette }) {
       subline:     content.subline  || '',
       background:  content.background || null,
       venueName:   content.venueName || venueName || '',
-      accentColor: P.accent,
+      // Always use LWD standard gold for the enquiry form — never the venue brand accent
       theme:       P.mode,
     }} />
   );
