@@ -394,6 +394,13 @@ function VendorReviewsPanel({ vendorId, vendor, C, GD, NU, enquiries = [] }) {
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showScoreInfo, setShowScoreInfo] = useState(false);
+
+  // Read previous stats from localStorage for delta comparison
+  const _storedKey = `lwd_rep_${vendorId}`;
+  const [prevStats] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(_storedKey) || 'null'); } catch { return null; }
+  });
 
   useEffect(() => {
     fetchVendorReviews(vendorId).then(data => { setReviews(data); setLoading(false); });
@@ -473,6 +480,68 @@ function VendorReviewsPanel({ vendorId, vendor, C, GD, NU, enquiries = [] }) {
   // Public listing URL
   const publicListingUrl = vendor?.slug ? `/vendor/${vendor.slug}` : null;
 
+  // ── Delta computations (vs. previous session) ─────────────────────────────
+  const fmtDelta = (val, prev, decimals = 1) => {
+    if (prev == null || val == null) return null;
+    const d = parseFloat((parseFloat(val) - parseFloat(prev)).toFixed(decimals));
+    if (Math.abs(d) < 0.05) return null;
+    return { value: d, label: (d > 0 ? '+' : '') + d.toFixed(decimals) };
+  };
+  const ratingDelta   = fmtDelta(avgRating, prevStats?.avgRating);
+  const reviewsDelta  = prevStats != null ? totalReviews - (prevStats.totalReviews || 0) : null;
+  const rateDelta     = prevStats != null ? responseRate - (prevStats.responseRate || 0) : null;
+  const scoreDelta    = fmtDelta(reputationScore, prevStats?.reputationScore);
+
+  // Save current stats to localStorage after data loads (for next session's deltas)
+  // (runs in render path — safe because localStorage is sync and cheap)
+  if (!loading && totalReviews > 0) {
+    try { localStorage.setItem(_storedKey, JSON.stringify({ avgRating, totalReviews, responseRate, reputationScore })); } catch {}
+  }
+
+  // ── Last activity dates ───────────────────────────────────────────────────
+  const lastReviewDate = reviews.length > 0
+    ? reviews.reduce((latest, r) => {
+        const d = new Date(r.published_at || r.created_at);
+        return d > latest ? d : latest;
+      }, new Date(0))
+    : null;
+  const lastReplyDate = (() => {
+    let latest = null;
+    reviews.forEach(r => {
+      (r.messages || []).filter(m => m.sender_type === 'owner').forEach(m => {
+        const d = new Date(m.created_at);
+        if (!latest || d > latest) latest = d;
+      });
+    });
+    return latest;
+  })();
+
+  // ── Score breakdown components (for tooltip) ──────────────────────────────
+  const scoreComponents = (() => {
+    if (!reputationScore) return null;
+    const now = Date.now();
+    const recentCount = reviews.filter(r => (now - new Date(r.review_date || r.published_at || r.created_at).getTime()) / 86400000 / 365 <= 1).length;
+    const verifiedCount = reviews.filter(r => r.is_verified || r.is_verified_booking).length;
+    return [
+      { label: '★ Rating quality',   weight: '50%', pts: (parseFloat(avgRating) * 0.50).toFixed(2) },
+      { label: '◷ Recency',          weight: '20%', pts: ((recentCount / totalReviews) * 5 * 0.20).toFixed(2) },
+      { label: '◈ Verified reviews', weight: '20%', pts: ((verifiedCount / totalReviews) * 5 * 0.20).toFixed(2) },
+      { label: '↩ Reply rate',       weight: '10%', pts: ((responseRate / 100) * 5 * 0.10).toFixed(2) },
+    ];
+  })();
+
+  // ── Relative time helper ─────────────────────────────────────────────────
+  const relTime = (date) => {
+    if (!date) return null;
+    const days = Math.floor((Date.now() - date.getTime()) / 86400000);
+    if (days === 0) return 'today';
+    if (days === 1) return 'yesterday';
+    if (days < 7) return `${days} days ago`;
+    if (days < 30) return `${Math.floor(days / 7)} ${Math.floor(days / 7) === 1 ? 'week' : 'weeks'} ago`;
+    if (days < 365) return `${Math.floor(days / 30)} ${Math.floor(days / 30) === 1 ? 'month' : 'months'} ago`;
+    return date.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+  };
+
   // Review opportunities from enquiries (booked/confirmed)
   const reviewOpportunities = enquiries.filter(e =>
     ['booked', 'confirmed', 'completed'].includes(e.status)
@@ -519,9 +588,9 @@ function VendorReviewsPanel({ vendorId, vendor, C, GD, NU, enquiries = [] }) {
           <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '32px 28px', maxWidth: 460, width: '100%' }}
             onClick={e => e.stopPropagation()}>
             <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: '2.5px', textTransform: 'uppercase', color: C.gold, marginBottom: 12, fontWeight: 700 }}>Request a Review</div>
-            <div style={{ fontFamily: GD, fontSize: 20, color: C.white, fontWeight: 300, marginBottom: 12 }}>How to collect your first reviews</div>
+            <div style={{ fontFamily: GD, fontSize: 20, color: C.white, fontWeight: 300, marginBottom: 12 }}>Building your review profile</div>
             <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.7, marginBottom: 20 }}>
-              The easiest way to get reviews is to ask recent couples directly. A personal message works best — keep it short, warm, and specific to their day.
+              The most effective review requests are personal ones — a short, warm message tied to a couple's specific day, sent within a few weeks of their event.
             </p>
             <div style={{ background: `${C.gold}08`, border: `1px solid ${C.gold}30`, borderRadius: 3, padding: '14px 16px', marginBottom: 20 }}>
               <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: C.gold, marginBottom: 8 }}>Suggested message</div>
@@ -603,11 +672,16 @@ function VendorReviewsPanel({ vendorId, vendor, C, GD, NU, enquiries = [] }) {
           {/* Avg Rating */}
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontFamily: GD, fontSize: 30, fontWeight: 300, color: avgRating ? C.gold : C.border, lineHeight: 1 }}>
-              {avgRating || '—'}
+              {avgRating ?? ''}
             </div>
             <div style={{ fontFamily: NU, fontSize: 9, color: C.grey, marginTop: 6, letterSpacing: '0.5px' }}>
               {avgRating ? '★ Avg Rating' : 'No rating yet'}
             </div>
+            {ratingDelta && (
+              <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, marginTop: 4, color: ratingDelta.value > 0 ? '#15803d' : '#b91c1c' }}>
+                {ratingDelta.label}
+              </div>
+            )}
           </div>
           {/* Review count */}
           <div style={{ textAlign: 'center', borderLeft: `1px solid ${C.border}` }}>
@@ -617,20 +691,64 @@ function VendorReviewsPanel({ vendorId, vendor, C, GD, NU, enquiries = [] }) {
             <div style={{ fontFamily: NU, fontSize: 9, color: C.grey, marginTop: 6, letterSpacing: '0.5px' }}>
               {totalReviews === 1 ? 'Review' : 'Reviews'}
             </div>
+            {reviewsDelta != null && reviewsDelta !== 0 && (
+              <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, marginTop: 4, color: reviewsDelta > 0 ? '#15803d' : '#b91c1c' }}>
+                {reviewsDelta > 0 ? `+${reviewsDelta}` : reviewsDelta} new
+              </div>
+            )}
           </div>
           {/* Response rate */}
           <div style={{ textAlign: 'center', borderLeft: `1px solid ${C.border}` }}>
             <div style={{ fontFamily: GD, fontSize: 30, fontWeight: 300, color: responseRate >= 80 ? '#15803d' : responseRate > 0 ? C.gold : C.border, lineHeight: 1 }}>
-              {totalReviews > 0 ? `${responseRate}%` : '—'}
+              {totalReviews > 0 ? `${responseRate}%` : ''}
             </div>
             <div style={{ fontFamily: NU, fontSize: 9, color: C.grey, marginTop: 6, letterSpacing: '0.5px' }}>Reply Rate</div>
+            {rateDelta != null && Math.abs(rateDelta) >= 1 && (
+              <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, marginTop: 4, color: rateDelta > 0 ? '#15803d' : '#b91c1c' }}>
+                {rateDelta > 0 ? `+${rateDelta}` : rateDelta}%
+              </div>
+            )}
           </div>
           {/* LWD Reputation Score */}
-          <div style={{ textAlign: 'center', borderLeft: `1px solid ${C.border}` }}>
+          <div style={{ textAlign: 'center', borderLeft: `1px solid ${C.border}`, position: 'relative' }}>
             <div style={{ fontFamily: GD, fontSize: 30, fontWeight: 300, color: reputationScore ? (parseFloat(reputationScore) >= 4 ? '#15803d' : parseFloat(reputationScore) >= 2.5 ? C.gold : C.grey) : C.border, lineHeight: 1 }}>
-              {reputationScore || '—'}
+              {reputationScore ?? ''}
             </div>
-            <div style={{ fontFamily: NU, fontSize: 9, color: C.grey, marginTop: 6, letterSpacing: '0.5px' }}>LWD Score /5</div>
+            <div style={{ fontFamily: NU, fontSize: 9, color: C.grey, marginTop: 6, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+              LWD Score /5
+              {reputationScore && (
+                <button
+                  onClick={() => setShowScoreInfo(s => !s)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 11, color: C.grey, lineHeight: 1, opacity: 0.7 }}
+                  title="How is this calculated?"
+                >ⓘ</button>
+              )}
+            </div>
+            {scoreDelta && (
+              <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, marginTop: 4, color: scoreDelta.value > 0 ? '#15803d' : '#b91c1c' }}>
+                {scoreDelta.label}
+              </div>
+            )}
+            {/* Score breakdown popover */}
+            {showScoreInfo && scoreComponents && (
+              <div
+                onClick={() => setShowScoreInfo(false)}
+                style={{ position: 'absolute', bottom: 'calc(100% + 8px)', right: 0, background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '14px 16px', width: 240, zIndex: 50, textAlign: 'left', boxShadow: '0 4px 20px rgba(0,0,0,0.35)' }}
+              >
+                <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: C.gold, marginBottom: 10 }}>Score Breakdown</div>
+                {scoreComponents.map(({ label, weight, pts }) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7, gap: 8 }}>
+                    <span style={{ fontFamily: NU, fontSize: 10, color: C.grey, flex: 1 }}>{label}</span>
+                    <span style={{ fontFamily: NU, fontSize: 9, color: C.grey, opacity: 0.55 }}>{weight}</span>
+                    <span style={{ fontFamily: NU, fontSize: 10, color: C.gold, fontWeight: 700, minWidth: 32, textAlign: 'right' }}>{pts}</span>
+                  </div>
+                ))}
+                <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 8, paddingTop: 8, display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontFamily: NU, fontSize: 10, color: C.white, fontWeight: 700 }}>Total</span>
+                  <span style={{ fontFamily: NU, fontSize: 10, color: C.gold, fontWeight: 700 }}>{reputationScore} / 5.0</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -725,18 +843,36 @@ function VendorReviewsPanel({ vendorId, vendor, C, GD, NU, enquiries = [] }) {
               Your review activity will appear here. Once your first review is published, you'll see new reviews, replies, and milestones in this feed.
             </div>
           </div>
-        ) : topActivity.map((act, i) => (
-          <div key={i} style={{ padding: '14px 24px', borderBottom: i < topActivity.length - 1 ? `1px solid ${C.border}` : 'none', display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: act.type === 'review' ? C.gold : '#2563eb', flexShrink: 0 }} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: NU, fontSize: 12, color: C.white }}>{act.label}</div>
-              {act.rating && <span style={{ fontFamily: NU, fontSize: 10, color: C.gold }}>{'★'.repeat(Math.round(act.rating))} {act.rating}</span>}
-            </div>
-            <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, whiteSpace: 'nowrap' }}>
-              {act.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-            </div>
-          </div>
-        ))}
+        ) : (
+          <>
+            {topActivity.map((act, i) => (
+              <div key={i} style={{ padding: '14px 24px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: act.type === 'review' ? C.gold : '#2563eb', flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: NU, fontSize: 12, color: C.white }}>{act.label}</div>
+                  {act.rating && <span style={{ fontFamily: NU, fontSize: 10, color: C.gold }}>{'★'.repeat(Math.round(act.rating))} {act.rating}</span>}
+                </div>
+                <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, whiteSpace: 'nowrap' }}>
+                  {act.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                </div>
+              </div>
+            ))}
+            {(lastReviewDate || lastReplyDate) && (
+              <div style={{ padding: '10px 24px', background: `${C.gold}04`, display: 'flex', gap: 20 }}>
+                {lastReviewDate && (
+                  <span style={{ fontFamily: NU, fontSize: 9, color: C.grey, letterSpacing: '0.3px' }}>
+                    Last review: <span style={{ color: C.white }}>{relTime(lastReviewDate)}</span>
+                  </span>
+                )}
+                {lastReplyDate && (
+                  <span style={{ fontFamily: NU, fontSize: 9, color: C.grey, letterSpacing: '0.3px' }}>
+                    Last reply: <span style={{ color: C.white }}>{relTime(lastReplyDate)}</span>
+                  </span>
+                )}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* ── Review Opportunities ──────────────────────────────────────────────── */}
