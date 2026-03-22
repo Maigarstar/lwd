@@ -393,6 +393,7 @@ function VendorReviewsPanel({ vendorId, C, GD, NU, enquiries = [] }) {
   const [replyOpen, setReplyOpen] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
+  const [showRequestModal, setShowRequestModal] = useState(false);
 
   useEffect(() => {
     fetchVendorReviews(vendorId).then(data => { setReviews(data); setLoading(false); });
@@ -430,6 +431,16 @@ function VendorReviewsPanel({ vendorId, C, GD, NU, enquiries = [] }) {
   const isTopRated = avgRating !== null && parseFloat(avgRating) >= 4.8 && totalReviews >= 5;
   const isResponsive = responseRate >= 80 && totalReviews > 0;
 
+  // Next milestone goal (one focused message)
+  const nextGoal = (() => {
+    if (totalReviews === 0) return 'Collect 5 reviews to unlock your first milestone badges.';
+    if (!isTopRated && totalReviews < 5) return `${5 - totalReviews} more ${5 - totalReviews === 1 ? 'review' : 'reviews'} to qualify for LWD Top Rated.`;
+    if (!isTopRated && parseFloat(avgRating) < 4.8) return `Maintain a 4.8+ rating across 5 reviews to earn LWD Top Rated.`;
+    if (!isResponsive && awaitingReply.length > 0) return `Reply to ${awaitingReply.length} unanswered ${awaitingReply.length === 1 ? 'review' : 'reviews'} to earn LWD Responsive.`;
+    if (isTopRated && isResponsive) return 'You\'re performing at the highest level. Keep the momentum going.';
+    return 'Keep collecting reviews to strengthen your reputation.';
+  })();
+
   // Review opportunities from enquiries (booked/confirmed)
   const reviewOpportunities = enquiries.filter(e =>
     ['booked', 'confirmed', 'completed'].includes(e.status)
@@ -438,7 +449,7 @@ function VendorReviewsPanel({ vendorId, C, GD, NU, enquiries = [] }) {
   // Recent activity (last 3 events across reviews + replies)
   const recentActivity = [];
   reviews.forEach(r => {
-    recentActivity.push({ type: 'review', date: new Date(r.published_at || r.created_at), label: `Review from ${r.reviewer_name}`, rating: r.overall_rating });
+    recentActivity.push({ type: 'review', date: new Date(r.published_at || r.created_at), label: `New review from ${r.reviewer_name}`, rating: r.overall_rating });
     (r.messages || []).filter(m => m.sender_type === 'owner').forEach(m => {
       recentActivity.push({ type: 'reply', date: new Date(m.created_at), label: `You replied to ${r.reviewer_name}` });
     });
@@ -448,9 +459,12 @@ function VendorReviewsPanel({ vendorId, C, GD, NU, enquiries = [] }) {
 
   if (loading) return <div style={{ padding: 40, color: C.grey, fontFamily: NU, fontSize: 13 }}>Loading…</div>;
 
-  const SectionLabel = ({ children }) => (
-    <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: '2.5px', textTransform: 'uppercase', color: C.gold, marginBottom: 14, fontWeight: 700 }}>
-      {children}
+  const SectionLabel = ({ children, action }) => (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+      <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: '2.5px', textTransform: 'uppercase', color: C.gold, fontWeight: 700 }}>
+        {children}
+      </div>
+      {action}
     </div>
   );
 
@@ -458,29 +472,79 @@ function VendorReviewsPanel({ vendorId, C, GD, NU, enquiries = [] }) {
     <div style={{ height: 1, background: C.border, margin: '28px 0' }} />
   );
 
+  const GhostBtn = ({ onClick, children }) => (
+    <button onClick={onClick} style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', padding: '5px 12px', borderRadius: 3, border: `1px solid ${C.gold}60`, background: `${C.gold}12`, color: C.gold, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+      {children}
+    </button>
+  );
+
   return (
     <div>
-      {/* Page title */}
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: '3px', textTransform: 'uppercase', color: C.gold, marginBottom: 8 }}>Client Feedback</div>
-        <div style={{ fontFamily: GD, fontSize: 26, color: C.white, fontWeight: 300 }}>Reputation Hub</div>
-        <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, marginTop: 4, lineHeight: 1.6 }}>
-          Manage your reputation, reply to clients, and track what couples are saying about you.
-        </p>
+      {/* ── Request a Review modal ─────────────────────────────────────────── */}
+      {showRequestModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+          onClick={() => setShowRequestModal(false)}>
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '32px 28px', maxWidth: 460, width: '100%' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: '2.5px', textTransform: 'uppercase', color: C.gold, marginBottom: 12, fontWeight: 700 }}>Request a Review</div>
+            <div style={{ fontFamily: GD, fontSize: 20, color: C.white, fontWeight: 300, marginBottom: 12 }}>How to collect your first reviews</div>
+            <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.7, marginBottom: 20 }}>
+              The easiest way to get reviews is to ask recent couples directly. A personal message works best — keep it short, warm, and specific to their day.
+            </p>
+            <div style={{ background: `${C.gold}08`, border: `1px solid ${C.gold}30`, borderRadius: 3, padding: '14px 16px', marginBottom: 20 }}>
+              <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: C.gold, marginBottom: 8 }}>Suggested message</div>
+              <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.7, margin: 0, fontStyle: 'italic' }}>
+                "Hi [Name], we loved hosting your wedding and hope it was everything you dreamed of. If you have a moment, we'd be so grateful if you could share a few words about your experience — your review helps other couples find us. Thank you so much."
+              </p>
+            </div>
+            {[
+              'Send via email or WhatsApp — personal messages get far more responses than generic links',
+              'Aim to ask within 4–8 weeks of the event while the memory is fresh',
+              'Reviews submitted by couples are reviewed by LWD before publishing',
+            ].map((tip, i) => (
+              <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 8, alignItems: 'flex-start' }}>
+                <span style={{ color: C.gold, fontSize: 11, marginTop: 1, flexShrink: 0 }}>→</span>
+                <span style={{ fontFamily: NU, fontSize: 11, color: C.grey, lineHeight: 1.6 }}>{tip}</span>
+              </div>
+            ))}
+            <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowRequestModal(false)} style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', padding: '10px 24px', borderRadius: 3, border: 'none', background: C.gold, color: '#fff', cursor: 'pointer' }}>
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Page header ───────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
+        <div>
+          <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: '3px', textTransform: 'uppercase', color: C.gold, marginBottom: 8 }}>Client Feedback</div>
+          <div style={{ fontFamily: GD, fontSize: 26, color: C.white, fontWeight: 300 }}>Reputation Hub</div>
+          <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, marginTop: 4, lineHeight: 1.6, maxWidth: 380 }}>
+            Your reviews build trust with every couple who visits your listing.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowRequestModal(true)}
+          style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', padding: '10px 20px', borderRadius: 3, border: 'none', background: C.gold, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, marginTop: 4 }}
+        >
+          + Request a Review
+        </button>
       </div>
 
       {/* ── Reputation Summary ─────────────────────────────────────────────── */}
       <SectionLabel>Your Reputation</SectionLabel>
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '20px 24px', marginBottom: 12 }}>
         {/* Stat row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: avgRating || isVerified || isTopRated || isResponsive ? 20 : 0 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
           {/* Rating */}
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontFamily: GD, fontSize: 34, fontWeight: 300, color: avgRating ? C.gold : C.border, lineHeight: 1 }}>
               {avgRating || '—'}
             </div>
             <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginTop: 6, letterSpacing: '0.5px' }}>
-              {avgRating ? '★ Rating' : 'No rating yet'}
+              {avgRating ? '★ Avg Rating' : 'No rating yet'}
             </div>
           </div>
           {/* Review count */}
@@ -489,7 +553,7 @@ function VendorReviewsPanel({ vendorId, C, GD, NU, enquiries = [] }) {
               {totalReviews}
             </div>
             <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginTop: 6, letterSpacing: '0.5px' }}>
-              {totalReviews === 1 ? 'Review' : 'Reviews'}
+              {totalReviews === 1 ? 'Published Review' : 'Published Reviews'}
             </div>
           </div>
           {/* Response rate */}
@@ -501,9 +565,19 @@ function VendorReviewsPanel({ vendorId, C, GD, NU, enquiries = [] }) {
           </div>
         </div>
 
-        {/* Badges */}
+        {/* Goal strip — always shown */}
+        <div style={{ padding: '12px 14px', background: `${C.gold}08`, border: `1px solid ${C.gold}20`, borderRadius: 3, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+            <span style={{ color: C.gold, fontSize: 12, flexShrink: 0, marginTop: 1 }}>{isTopRated && isResponsive ? '★' : '◎'}</span>
+            <span style={{ fontFamily: NU, fontSize: 11, color: C.grey, lineHeight: 1.6 }}>
+              <strong style={{ color: C.white, fontWeight: 600 }}>Next goal: </strong>{nextGoal}
+            </span>
+          </div>
+        </div>
+
+        {/* Badges earned */}
         {(isVerified || isTopRated || isResponsive) && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
             {isVerified && (
               <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: C.gold, padding: '4px 10px', border: `1px solid ${C.gold}50`, borderRadius: 2, background: `${C.gold}10` }}>
                 ◈ LWD Verified
@@ -522,13 +596,13 @@ function VendorReviewsPanel({ vendorId, C, GD, NU, enquiries = [] }) {
           </div>
         )}
 
-        {/* Pending badge hints (shown when not yet earned) */}
-        {!isVerified && !isTopRated && !isResponsive && totalReviews === 0 && (
+        {/* Locked badge targets (when none earned yet) */}
+        {!isVerified && !isTopRated && !isResponsive && (
           <div style={{ paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
-            <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginBottom: 8 }}>Badges you can earn:</div>
+            <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginBottom: 8 }}>Badges you can unlock:</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {['◈ LWD Verified', '★ LWD Top Rated', '↩ LWD Responsive'].map(b => (
-                <span key={b} style={{ fontFamily: NU, fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px', color: C.border, padding: '4px 10px', border: `1px solid ${C.border}`, borderRadius: 2, opacity: 0.6 }}>{b}</span>
+                <span key={b} style={{ fontFamily: NU, fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px', color: C.border, padding: '4px 10px', border: `1px solid ${C.border}`, borderRadius: 2, opacity: 0.55 }}>{b}</span>
               ))}
             </div>
           </div>
@@ -541,9 +615,9 @@ function VendorReviewsPanel({ vendorId, C, GD, NU, enquiries = [] }) {
       <SectionLabel>Why This Matters</SectionLabel>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 28 }}>
         {[
-          { icon: '↑', label: 'Visibility', body: 'Listings with reviews rank higher in our curated search.' },
-          { icon: '◎', label: 'Trust', body: 'Couples read 3+ reviews before sending an enquiry.' },
-          { icon: '→', label: 'Conversion', body: 'Replying to reviews increases enquiry conversion by up to 30%.' },
+          { icon: '↑', label: 'Visibility', body: 'Listings with 5+ reviews appear higher in curated search results and editorial features.' },
+          { icon: '◎', label: 'Trust', body: 'Most couples read 3+ reviews before deciding to enquire. Your first review is your most powerful.' },
+          { icon: '→', label: 'Conversion', body: 'Venues that reply to every review convert enquiries at a significantly higher rate.' },
         ].map(({ icon, label, body }) => (
           <div key={label} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '16px 18px' }}>
             <div style={{ fontFamily: GD, fontSize: 20, color: C.gold, marginBottom: 8 }}>{icon}</div>
@@ -560,13 +634,8 @@ function VendorReviewsPanel({ vendorId, C, GD, NU, enquiries = [] }) {
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, marginBottom: 28, overflow: 'hidden' }}>
         {topActivity.length === 0 ? (
           <div style={{ padding: '20px 24px' }}>
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 12 }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.border }} />
-              <span style={{ fontFamily: NU, fontSize: 12, color: C.grey }}>No reviews yet</span>
-            </div>
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.border }} />
-              <span style={{ fontFamily: NU, fontSize: 12, color: C.grey }}>No replies yet</span>
+            <div style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.7 }}>
+              Your review activity will appear here. Once your first review is published, you'll see new reviews, replies, and milestones in this feed.
             </div>
           </div>
         ) : topActivity.map((act, i) => (
@@ -588,45 +657,59 @@ function VendorReviewsPanel({ vendorId, C, GD, NU, enquiries = [] }) {
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, marginBottom: 28, overflow: 'hidden' }}>
         {reviewOpportunities.length === 0 ? (
           <div style={{ padding: '20px 24px' }}>
-            <div style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.6 }}>
-              When a booking is confirmed, couples appear here so you can invite them to leave a review.
+            <div style={{ fontFamily: NU, fontSize: 12, color: C.white, marginBottom: 6, fontWeight: 600 }}>Turn bookings into reviews</div>
+            <div style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.7 }}>
+              Confirmed bookings appear here so you can invite couples to share their experience. A timely, personal ask is the single most effective way to build your review profile.
             </div>
           </div>
-        ) : reviewOpportunities.map((enq, i) => (
-          <div key={enq.id || i} style={{ padding: '14px 24px', borderBottom: i < reviewOpportunities.length - 1 ? `1px solid ${C.border}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontFamily: NU, fontSize: 12, fontWeight: 600, color: C.white }}>
-                {enq.name || enq.couple_name || 'Couple'}
-              </div>
-              <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginTop: 2 }}>
-                {enq.event_date ? new Date(enq.event_date).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : 'Booking confirmed'}
-              </div>
+        ) : (
+          <>
+            <div style={{ padding: '12px 24px', borderBottom: `1px solid ${C.border}`, background: `${C.gold}06` }}>
+              <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>
+                You have <strong style={{ color: C.white }}>{reviewOpportunities.length} confirmed {reviewOpportunities.length === 1 ? 'booking' : 'bookings'}</strong> where you haven't yet received a review.
+              </span>
             </div>
-            <button style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', padding: '6px 14px', borderRadius: 3, border: `1px solid ${C.gold}60`, background: `${C.gold}12`, color: C.gold, cursor: 'pointer' }}>
-              Send Reminder
-            </button>
-          </div>
-        ))}
+            {reviewOpportunities.map((enq, i) => (
+              <div key={enq.id || i} style={{ padding: '14px 24px', borderBottom: i < reviewOpportunities.length - 1 ? `1px solid ${C.border}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <div style={{ fontFamily: NU, fontSize: 12, fontWeight: 600, color: C.white }}>
+                    {enq.name || enq.couple_name || 'Couple'}
+                  </div>
+                  <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginTop: 2 }}>
+                    {enq.event_date
+                      ? `${new Date(enq.event_date).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })} · Hasn't left a review yet`
+                      : 'Booking confirmed · Hasn\'t left a review yet'}
+                  </div>
+                </div>
+                <GhostBtn onClick={() => setShowRequestModal(true)}>Invite to Review</GhostBtn>
+              </div>
+            ))}
+          </>
+        )}
       </div>
 
       <Divider />
 
       {/* ── Reviews List ──────────────────────────────────────────────────────── */}
-      <SectionLabel>
+      <SectionLabel
+        action={totalReviews > 0 ? <GhostBtn onClick={() => setShowRequestModal(true)}>+ Request Another</GhostBtn> : null}
+      >
         {totalReviews > 0 ? `Your Reviews · ${totalReviews}` : 'Your Reviews'}
       </SectionLabel>
 
       {/* Awaiting reply callout */}
       {awaitingReply.length > 0 && (
-        <div style={{ background: `${C.gold}0C`, border: `1px solid ${C.gold}40`, borderRadius: 4, padding: '12px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 14, color: C.gold }}>↩</span>
-          <div>
-            <span style={{ fontFamily: NU, fontSize: 12, fontWeight: 700, color: C.gold }}>
-              {awaitingReply.length} {awaitingReply.length === 1 ? 'review awaits' : 'reviews await'} your reply
-            </span>
-            <span style={{ fontFamily: NU, fontSize: 11, color: C.grey, marginLeft: 6 }}>
-              — Replying improves your response rate and reputation score.
-            </span>
+        <div style={{ background: `${C.gold}0C`, border: `1px solid ${C.gold}40`, borderRadius: 4, padding: '14px 18px', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <span style={{ fontSize: 14, color: C.gold, flexShrink: 0 }}>↩</span>
+            <div>
+              <div style={{ fontFamily: NU, fontSize: 12, fontWeight: 700, color: C.gold, marginBottom: 3 }}>
+                {awaitingReply.length} {awaitingReply.length === 1 ? 'review' : 'reviews'} waiting for your reply
+              </div>
+              <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, lineHeight: 1.6 }}>
+                Couples who receive a reply are significantly more likely to recommend you. Most responses take less than 2 minutes to write.
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -634,18 +717,18 @@ function VendorReviewsPanel({ vendorId, C, GD, NU, enquiries = [] }) {
       {/* Empty state */}
       {totalReviews === 0 && (
         <div style={{ border: `1px solid ${C.border}`, borderRadius: 4, padding: '36px 28px', textAlign: 'center' }}>
-          <div style={{ fontFamily: GD, fontSize: 18, color: C.white, fontWeight: 300, marginBottom: 6 }}>
-            No published reviews yet
+          <div style={{ fontFamily: GD, fontSize: 20, color: C.white, fontWeight: 300, marginBottom: 8 }}>
+            Your first review is your most powerful
           </div>
-          <div style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.7, marginBottom: 24, maxWidth: 380, margin: '0 auto 24px' }}>
-            Reviews appear here once approved by the LWD team.
+          <div style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.7, maxWidth: 360, margin: '0 auto 24px' }}>
+            Couples trust venues with reviews 3× more. It takes a past client less than 2 minutes to share their experience — and it stays on your profile permanently.
           </div>
           <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '18px 20px', textAlign: 'left', marginBottom: 24, maxWidth: 400, marginInline: 'auto' }}>
-            <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: C.gold, marginBottom: 12 }}>Get your first reviews</div>
+            <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: C.gold, marginBottom: 12 }}>How to get started</div>
             {[
-              'Encourage recent couples to share their experience',
-              'Reviews improve your visibility and reputation score',
-              'Responding to reviews increases enquiry conversion',
+              'Reach out to recent couples personally — a WhatsApp or email works best',
+              'Ask within 4–8 weeks of their event, while the memory is fresh',
+              'Once submitted, LWD reviews your listing and publishes within 24–48 hours',
             ].map((tip, i) => (
               <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 8, alignItems: 'flex-start' }}>
                 <span style={{ color: C.gold, fontSize: 12, marginTop: 1, flexShrink: 0 }}>→</span>
@@ -653,8 +736,11 @@ function VendorReviewsPanel({ vendorId, C, GD, NU, enquiries = [] }) {
               </div>
             ))}
           </div>
-          <button style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', padding: '11px 28px', borderRadius: 3, border: 'none', background: C.gold, color: '#fff', cursor: 'pointer' }}>
-            Request a Review
+          <button
+            onClick={() => setShowRequestModal(true)}
+            style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', padding: '12px 32px', borderRadius: 3, border: 'none', background: C.gold, color: '#fff', cursor: 'pointer' }}
+          >
+            How to Request a Review
           </button>
         </div>
       )}
