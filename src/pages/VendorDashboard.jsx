@@ -387,7 +387,7 @@ function ChatNotification({ notification, C, onAccept, onDismiss, isMobile }) {
 }
 
 // ── Vendor Reviews Panel — Reputation & Client Feedback Hub ──────────────────
-function VendorReviewsPanel({ vendorId, C, GD, NU, enquiries = [] }) {
+function VendorReviewsPanel({ vendorId, vendor, C, GD, NU, enquiries = [] }) {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [replyOpen, setReplyOpen] = useState(null);
@@ -430,8 +430,37 @@ function VendorReviewsPanel({ vendorId, C, GD, NU, enquiries = [] }) {
   const isVerified = reviews.some(r => r.is_verified || r.is_verified_booking);
   const isTopRated = avgRating !== null && parseFloat(avgRating) >= 4.8 && totalReviews >= 5;
   const isResponsive = responseRate >= 80 && totalReviews > 0;
+  const anyBadge = isVerified || isTopRated || isResponsive;
 
-  // Next milestone goal (one focused message)
+  // LWD Reputation Score (v1 formula — out of 5.0)
+  // (avg_rating × 0.50) + (recency_ratio × 5 × 0.20) + (verified_ratio × 5 × 0.20) + (reply_rate/100 × 5 × 0.10)
+  const reputationScore = (() => {
+    if (totalReviews === 0) return null;
+    const ratingComp = parseFloat(avgRating) * 0.50;
+    const now = Date.now();
+    const recentCount = reviews.filter(r => {
+      const d = new Date(r.review_date || r.published_at || r.created_at).getTime();
+      return (now - d) / (1000 * 60 * 60 * 24 * 365) <= 1;
+    }).length;
+    const recencyComp = (recentCount / totalReviews) * 5 * 0.20;
+    const verifiedCount = reviews.filter(r => r.is_verified || r.is_verified_booking).length;
+    const verifiedComp = (verifiedCount / totalReviews) * 5 * 0.20;
+    const replyComp = (responseRate / 100) * 5 * 0.10;
+    return Math.min(ratingComp + recencyComp + verifiedComp + replyComp, 5).toFixed(1);
+  })();
+
+  // Goal progress (for progress bar)
+  const goalProgress = (() => {
+    if (totalReviews < 5)
+      return { current: totalReviews, target: 5, label: `${totalReviews} / 5 reviews`, pct: (totalReviews / 5) * 100 };
+    if (!isTopRated && parseFloat(avgRating || 0) < 4.8)
+      return { current: parseFloat(avgRating), target: 4.8, label: `${avgRating} / 4.8★ avg rating`, pct: Math.min((parseFloat(avgRating) / 4.8) * 100, 99) };
+    if (!isResponsive)
+      return { current: responseRate, target: 80, label: `${responseRate}% / 80% reply rate`, pct: Math.min((responseRate / 80) * 100, 99) };
+    return { current: 100, target: 100, label: 'All milestones reached', pct: 100 };
+  })();
+
+  // Next milestone goal text
   const nextGoal = (() => {
     if (totalReviews === 0) return 'Collect 5 reviews to unlock your first milestone badges.';
     if (!isTopRated && totalReviews < 5) return `${5 - totalReviews} more ${5 - totalReviews === 1 ? 'review' : 'reviews'} to qualify for LWD Top Rated.`;
@@ -440,6 +469,9 @@ function VendorReviewsPanel({ vendorId, C, GD, NU, enquiries = [] }) {
     if (isTopRated && isResponsive) return 'You\'re performing at the highest level. Keep the momentum going.';
     return 'Keep collecting reviews to strengthen your reputation.';
   })();
+
+  // Public listing URL
+  const publicListingUrl = vendor?.slug ? `/vendor/${vendor.slug}` : null;
 
   // Review opportunities from enquiries (booked/confirmed)
   const reviewOpportunities = enquiries.filter(e =>
@@ -525,79 +557,134 @@ function VendorReviewsPanel({ vendorId, C, GD, NU, enquiries = [] }) {
             Your reviews build trust with every couple who visits your listing.
           </p>
         </div>
-        <button
-          onClick={() => setShowRequestModal(true)}
-          style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', padding: '10px 20px', borderRadius: 3, border: 'none', background: C.gold, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, marginTop: 4 }}
-        >
-          + Request a Review
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end', flexShrink: 0, marginTop: 4 }}>
+          <button
+            onClick={() => setShowRequestModal(true)}
+            style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', padding: '10px 20px', borderRadius: 3, border: 'none', background: C.gold, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            + Request a Review
+          </button>
+          {publicListingUrl ? (
+            <a
+              href={publicListingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontFamily: NU, fontSize: 10, fontWeight: 600, color: C.grey, textDecoration: 'none', letterSpacing: '0.3px', display: 'flex', alignItems: 'center', gap: 4 }}
+            >
+              ↗ View Public Profile
+            </a>
+          ) : (
+            <span style={{ fontFamily: NU, fontSize: 10, color: C.border, letterSpacing: '0.3px', cursor: 'default' }}>
+              ↗ View Public Profile
+            </span>
+          )}
+        </div>
       </div>
 
       {/* ── Reputation Summary ─────────────────────────────────────────────── */}
       <SectionLabel>Your Reputation</SectionLabel>
+
+      {/* Milestone reward banner — shown when any badge is earned */}
+      {anyBadge && (
+        <div style={{ background: `${C.gold}10`, border: `1px solid ${C.gold}40`, borderRadius: 4, padding: '12px 18px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 16, color: C.gold }}>★</span>
+          <div>
+            <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, color: C.gold, marginBottom: 2 }}>
+              {isTopRated && isResponsive ? 'You\'ve reached the highest tier — LWD Top Rated & Responsive' : isTopRated ? 'Milestone reached — LWD Top Rated' : isResponsive ? 'Milestone reached — LWD Responsive' : 'LWD Verified status active on your listing'}
+            </div>
+            <div style={{ fontFamily: NU, fontSize: 10, color: C.grey }}>Your badge is displayed on your public listing and in curated search results.</div>
+          </div>
+        </div>
+      )}
+
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '20px 24px', marginBottom: 12 }}>
-        {/* Stat row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
-          {/* Rating */}
+        {/* Stat row — 4 columns */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
+          {/* Avg Rating */}
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontFamily: GD, fontSize: 34, fontWeight: 300, color: avgRating ? C.gold : C.border, lineHeight: 1 }}>
+            <div style={{ fontFamily: GD, fontSize: 30, fontWeight: 300, color: avgRating ? C.gold : C.border, lineHeight: 1 }}>
               {avgRating || '—'}
             </div>
-            <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginTop: 6, letterSpacing: '0.5px' }}>
+            <div style={{ fontFamily: NU, fontSize: 9, color: C.grey, marginTop: 6, letterSpacing: '0.5px' }}>
               {avgRating ? '★ Avg Rating' : 'No rating yet'}
             </div>
           </div>
           {/* Review count */}
-          <div style={{ textAlign: 'center', borderLeft: `1px solid ${C.border}`, borderRight: `1px solid ${C.border}` }}>
-            <div style={{ fontFamily: GD, fontSize: 34, fontWeight: 300, color: totalReviews > 0 ? C.white : C.border, lineHeight: 1 }}>
+          <div style={{ textAlign: 'center', borderLeft: `1px solid ${C.border}` }}>
+            <div style={{ fontFamily: GD, fontSize: 30, fontWeight: 300, color: totalReviews > 0 ? C.white : C.border, lineHeight: 1 }}>
               {totalReviews}
             </div>
-            <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginTop: 6, letterSpacing: '0.5px' }}>
-              {totalReviews === 1 ? 'Published Review' : 'Published Reviews'}
+            <div style={{ fontFamily: NU, fontSize: 9, color: C.grey, marginTop: 6, letterSpacing: '0.5px' }}>
+              {totalReviews === 1 ? 'Review' : 'Reviews'}
             </div>
           </div>
           {/* Response rate */}
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontFamily: GD, fontSize: 34, fontWeight: 300, color: responseRate >= 80 ? '#15803d' : responseRate > 0 ? C.gold : C.border, lineHeight: 1 }}>
+          <div style={{ textAlign: 'center', borderLeft: `1px solid ${C.border}` }}>
+            <div style={{ fontFamily: GD, fontSize: 30, fontWeight: 300, color: responseRate >= 80 ? '#15803d' : responseRate > 0 ? C.gold : C.border, lineHeight: 1 }}>
               {totalReviews > 0 ? `${responseRate}%` : '—'}
             </div>
-            <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginTop: 6, letterSpacing: '0.5px' }}>Response Rate</div>
+            <div style={{ fontFamily: NU, fontSize: 9, color: C.grey, marginTop: 6, letterSpacing: '0.5px' }}>Reply Rate</div>
+          </div>
+          {/* LWD Reputation Score */}
+          <div style={{ textAlign: 'center', borderLeft: `1px solid ${C.border}` }}>
+            <div style={{ fontFamily: GD, fontSize: 30, fontWeight: 300, color: reputationScore ? (parseFloat(reputationScore) >= 4 ? '#15803d' : parseFloat(reputationScore) >= 2.5 ? C.gold : C.grey) : C.border, lineHeight: 1 }}>
+              {reputationScore || '—'}
+            </div>
+            <div style={{ fontFamily: NU, fontSize: 9, color: C.grey, marginTop: 6, letterSpacing: '0.5px' }}>LWD Score /5</div>
           </div>
         </div>
 
-        {/* Goal strip — always shown */}
-        <div style={{ padding: '12px 14px', background: `${C.gold}08`, border: `1px solid ${C.gold}20`, borderRadius: 3, marginBottom: 16 }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-            <span style={{ color: C.gold, fontSize: 12, flexShrink: 0, marginTop: 1 }}>{isTopRated && isResponsive ? '★' : '◎'}</span>
-            <span style={{ fontFamily: NU, fontSize: 11, color: C.grey, lineHeight: 1.6 }}>
-              <strong style={{ color: C.white, fontWeight: 600 }}>Next goal: </strong>{nextGoal}
+        {/* Next Goal — with progress bar */}
+        <div style={{ padding: '14px 16px', background: `${C.gold}08`, border: `1px solid ${C.gold}20`, borderRadius: 3, marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <span style={{ color: C.gold, fontSize: 11, flexShrink: 0 }}>{goalProgress.pct >= 100 ? '★' : '◎'}</span>
+              <span style={{ fontFamily: NU, fontSize: 11, color: C.white, fontWeight: 600 }}>
+                {goalProgress.pct >= 100 ? 'All milestones reached' : 'Next goal'}
+              </span>
+            </div>
+            <span style={{ fontFamily: NU, fontSize: 10, color: C.gold, fontWeight: 700, letterSpacing: '0.3px' }}>
+              {goalProgress.label}
             </span>
           </div>
+          {/* Progress bar */}
+          <div style={{ height: 4, background: `${C.gold}20`, borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              width: `${Math.min(goalProgress.pct, 100)}%`,
+              background: goalProgress.pct >= 100 ? '#15803d' : C.gold,
+              borderRadius: 2,
+              transition: 'width 0.6s ease',
+            }} />
+          </div>
+          {goalProgress.pct < 100 && (
+            <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginTop: 8, lineHeight: 1.5 }}>{nextGoal}</div>
+          )}
         </div>
 
         {/* Badges earned */}
-        {(isVerified || isTopRated || isResponsive) && (
+        {anyBadge && (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
             {isVerified && (
-              <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: C.gold, padding: '4px 10px', border: `1px solid ${C.gold}50`, borderRadius: 2, background: `${C.gold}10` }}>
+              <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: C.gold, padding: '4px 10px', border: `1px solid ${C.gold}60`, borderRadius: 2, background: `${C.gold}12`, boxShadow: `0 0 8px ${C.gold}20` }}>
                 ◈ LWD Verified
               </span>
             )}
             {isTopRated && (
-              <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#15803d', padding: '4px 10px', border: '1px solid rgba(21,128,61,0.3)', borderRadius: 2, background: 'rgba(21,128,61,0.06)' }}>
+              <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#15803d', padding: '4px 10px', border: '1px solid rgba(21,128,61,0.4)', borderRadius: 2, background: 'rgba(21,128,61,0.08)', boxShadow: '0 0 8px rgba(21,128,61,0.15)' }}>
                 ★ LWD Top Rated
               </span>
             )}
             {isResponsive && (
-              <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#2563eb', padding: '4px 10px', border: '1px solid rgba(37,99,235,0.3)', borderRadius: 2, background: 'rgba(37,99,235,0.06)' }}>
+              <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#2563eb', padding: '4px 10px', border: '1px solid rgba(37,99,235,0.4)', borderRadius: 2, background: 'rgba(37,99,235,0.08)', boxShadow: '0 0 8px rgba(37,99,235,0.12)' }}>
                 ↩ LWD Responsive
               </span>
             )}
           </div>
         )}
 
-        {/* Locked badge targets (when none earned yet) */}
-        {!isVerified && !isTopRated && !isResponsive && (
+        {/* Locked badge targets */}
+        {!anyBadge && (
           <div style={{ paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
             <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginBottom: 8 }}>Badges you can unlock:</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -692,7 +779,16 @@ function VendorReviewsPanel({ vendorId, C, GD, NU, enquiries = [] }) {
 
       {/* ── Reviews List ──────────────────────────────────────────────────────── */}
       <SectionLabel
-        action={totalReviews > 0 ? <GhostBtn onClick={() => setShowRequestModal(true)}>+ Request Another</GhostBtn> : null}
+        action={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {awaitingReply.length > 0 && (
+              <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', color: C.gold, padding: '3px 9px', border: `1px solid ${C.gold}50`, borderRadius: 10, background: `${C.gold}12` }}>
+                {awaitingReply.length} awaiting reply
+              </span>
+            )}
+            {totalReviews > 0 && <GhostBtn onClick={() => setShowRequestModal(true)}>+ Request Another</GhostBtn>}
+          </div>
+        }
       >
         {totalReviews > 0 ? `Your Reviews · ${totalReviews}` : 'Your Reviews'}
       </SectionLabel>
@@ -2173,7 +2269,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
 
           {/* REVIEWS — reputation hub, reply-only, no moderation */}
           {dashTab === "reviews" && vendor?.id && (
-            <VendorReviewsPanel vendorId={vendor.id} C={C} GD={GD} NU={NU} enquiries={enquiries} />
+            <VendorReviewsPanel vendorId={vendor.id} vendor={vendor} C={C} GD={GD} NU={NU} enquiries={enquiries} />
           )}
 
           {/* LEADS */}
