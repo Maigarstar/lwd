@@ -763,6 +763,59 @@ function Toast({ message, onDone, C }) {
   );
 }
 
+// ─── Star Rating Selector (overall) ───────────────────────────────────────────
+function StarSelector({ value, onChange, C }) {
+  const [hovered, setHovered] = useState(null);
+  const display = hovered ?? value;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+      {[1, 2, 3, 4, 5].map(n => (
+        <button
+          key={n}
+          type="button"
+          onMouseEnter={() => setHovered(n)}
+          onMouseLeave={() => setHovered(null)}
+          onClick={() => onChange(n)}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 32, lineHeight: 1, padding: '2px 3px',
+            color: n <= display ? C.gold : `${C.border}`,
+            transition: 'color 0.1s',
+          }}
+        >★</button>
+      ))}
+      <span style={{ fontFamily: ND, fontSize: 26, fontWeight: 600, color: C.gold, marginLeft: 10 }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+// ─── Mini Star Selector (sub-ratings) ─────────────────────────────────────────
+function MiniStarSelector({ value, onChange, C }) {
+  const [hovered, setHovered] = useState(null);
+  const display = hovered ?? value ?? 0;
+  return (
+    <div style={{ display: 'flex', gap: 1 }}>
+      {[1, 2, 3, 4, 5].map(n => (
+        <button
+          key={n}
+          type="button"
+          onMouseEnter={() => setHovered(n)}
+          onMouseLeave={() => setHovered(null)}
+          onClick={() => onChange(n === value ? null : n)}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 17, lineHeight: 1, padding: '1px 1px',
+            color: n <= display ? C.gold : C.border,
+            transition: 'color 0.1s',
+          }}
+        >★</button>
+      ))}
+    </div>
+  );
+}
+
 // ─── Verification source options ──────────────────────────────────────────────
 const VERIFICATION_SOURCES = [
   { value: 'manual_verified',    label: 'Manual Verified' },
@@ -780,6 +833,7 @@ function AddReviewPanel({ onClose, onSaved, C }) {
   const [listingSearch, setListingSearch] = useState('');
   const [listingResults, setListingResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const searchRef = useRef(null);
 
   // Form state
@@ -916,8 +970,74 @@ function AddReviewPanel({ onClose, onSaved, C }) {
               Upload a verified review received offline or via email / WhatsApp
             </p>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 18, padding: '0 0 0 12px', lineHeight: 1 }}>✕</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              onClick={() => setShowPreview(p => !p)}
+              style={{
+                background: 'none', border: `1px solid ${showPreview ? C.gold + '60' : C.border}`,
+                borderRadius: 3, cursor: 'pointer', color: showPreview ? C.gold : C.grey,
+                fontFamily: NU, fontSize: 11, padding: '5px 12px', transition: 'all 0.15s',
+              }}
+            >
+              {showPreview ? '✕ Close Preview' : '⊙ Preview'}
+            </button>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 18, padding: 0, lineHeight: 1 }}>✕</button>
+          </div>
         </div>
+
+        {/* Preview pane */}
+        {showPreview && (
+          <div style={{ padding: '16px 24px', borderBottom: `1px solid ${C.border}`, background: `${C.gold}05` }}>
+            <div style={{ fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: C.gold, marginBottom: 12, fontWeight: 700 }}>
+              Public Preview
+            </div>
+            <div style={{
+              background: C.card, borderRadius: 4, padding: '16px 18px',
+              border: `1px solid ${C.border}`,
+            }}>
+              {/* Reviewer + rating row */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                <div>
+                  <div style={{ fontFamily: NU, fontSize: 13, fontWeight: 700, color: C.white }}>
+                    {form.reviewerName || 'Reviewer Name'}
+                  </div>
+                  <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginTop: 2 }}>
+                    {[
+                      form.reviewerRole ? ROLE_LABELS[form.reviewerRole] : null,
+                      form.reviewerLocation || null,
+                      form.reviewDate ? new Date(form.reviewDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : null,
+                    ].filter(Boolean).join(' · ')}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ fontFamily: ND, fontSize: 18, color: C.gold, fontWeight: 600 }}>{form.overallRating}</span>
+                  <span style={{ fontFamily: NU, fontSize: 12, color: C.gold, marginLeft: 4 }}>{'★'.repeat(form.overallRating)}{'☆'.repeat(5 - form.overallRating)}</span>
+                </div>
+              </div>
+              {/* Verified badge */}
+              {(form.isVerified || form.isVerifiedBooking) && (
+                <div style={{ marginBottom: 8 }}>
+                  <span style={{ fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.gold, padding: '2px 8px', border: `1px solid ${C.gold}40`, borderRadius: 2 }}>
+                    {form.isVerifiedBooking ? '◈ LWD Verified Booking' : '◈ LWD Verified Couple'}
+                  </span>
+                </div>
+              )}
+              {/* Event context */}
+              {(form.eventType || form.eventDate || form.guestCount) && (
+                <div style={{ fontFamily: NU, fontSize: 10, color: C.grey2, marginBottom: 8 }}>
+                  {[form.eventType, form.eventDate ? new Date(form.eventDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : null, form.guestCount ? `${form.guestCount} guests` : null].filter(Boolean).join(' · ')}
+                </div>
+              )}
+              {/* Title + text */}
+              <div style={{ fontFamily: ND, fontSize: 14, fontWeight: 600, color: C.white, marginBottom: 5 }}>
+                "{form.reviewTitle || 'Review title will appear here'}"
+              </div>
+              <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, lineHeight: 1.65, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                {form.reviewText || 'Review text will appear here…'}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Form body */}
         <div style={{ padding: '20px 24px', flex: 1 }}>
@@ -1016,39 +1136,47 @@ function AddReviewPanel({ onClose, onSaved, C }) {
           </div>
 
           <Field label="Title" hint="required">
-            <input value={form.reviewTitle} onChange={e => set('reviewTitle', e.target.value)} placeholder="e.g. An island that felt entirely ours" style={inputStyle} />
+            <input
+              value={form.reviewTitle}
+              onChange={e => set('reviewTitle', e.target.value)}
+              placeholder="e.g. An island that felt entirely ours"
+              style={{
+                ...inputStyle,
+                fontFamily: ND, fontSize: 16, fontWeight: 600,
+                padding: '10px 12px', letterSpacing: '0.01em',
+              }}
+            />
           </Field>
 
           <Field label="Review Text" hint="required">
             <textarea value={form.reviewText} onChange={e => set('reviewText', e.target.value)} rows={6} placeholder="Full review text from the client…" style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.7 }} />
           </Field>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Field label="Overall Rating">
-              <select value={form.overallRating} onChange={e => set('overallRating', e.target.value)} style={selectStyle}>
-                {[5, 4.9, 4.8, 4.7, 4.6, 4.5, 4.4, 4.3, 4.2, 4.1, 4, 3.5, 3, 2.5, 2, 1.5, 1].map(v => (
-                  <option key={v} value={v}>{v} ★</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Review Date" hint="when client gave review">
-              <input type="date" value={form.reviewDate} onChange={e => set('reviewDate', e.target.value)} style={inputStyle} />
-            </Field>
-          </div>
+          <Field label="Overall Rating">
+            <StarSelector value={form.overallRating} onChange={v => set('overallRating', v)} C={C} />
+          </Field>
+
+          <Field label="Review Date" hint="when client gave review">
+            <input type="date" value={form.reviewDate} onChange={e => set('reviewDate', e.target.value)} style={inputStyle} />
+          </Field>
 
           {/* Sub-ratings */}
-          <Field label="Sub-Ratings" hint="all optional">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <Field label="Sub-Ratings" hint="all optional — click to rate">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {SUB_KEYS.map(k => (
-                <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontFamily: NU, fontSize: 10, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: 72 }}>{k}</span>
-                  <input
-                    type="number" min="1" max="5" step="0.1"
-                    value={form.subRatings[k]}
-                    onChange={e => setSub(k, e.target.value)}
-                    placeholder="—"
-                    style={{ ...inputStyle, width: 64, padding: '6px 8px' }}
-                  />
+                <div key={k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontFamily: NU, fontSize: 10, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.07em', width: 80 }}>
+                    {SUB_LABELS[k]}
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <MiniStarSelector value={form.subRatings[k] || null} onChange={v => setSub(k, v)} C={C} />
+                    {form.subRatings[k] && (
+                      <span style={{ fontFamily: NU, fontSize: 11, color: C.gold, minWidth: 16 }}>{form.subRatings[k]}</span>
+                    )}
+                    {!form.subRatings[k] && (
+                      <span style={{ fontFamily: NU, fontSize: 11, color: C.border, minWidth: 16 }}>—</span>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -1073,15 +1201,48 @@ function AddReviewPanel({ onClose, onSaved, C }) {
             Verification
           </div>
 
-          <div style={{ display: 'flex', gap: 20, marginBottom: 14 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: NU, fontSize: 12, color: C.white }}>
-              <input type="checkbox" checked={form.isVerified} onChange={e => set('isVerified', e.target.checked)} style={{ accentColor: C.gold, cursor: 'pointer' }} />
-              LWD Verified Couple
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: NU, fontSize: 12, color: C.white }}>
-              <input type="checkbox" checked={form.isVerifiedBooking} onChange={e => set('isVerifiedBooking', e.target.checked)} style={{ accentColor: C.gold, cursor: 'pointer' }} />
-              ◈ LWD Verified Booking
-            </label>
+          <p style={{ fontFamily: NU, fontSize: 10, color: C.grey2, margin: '0 0 12px', fontStyle: 'italic' }}>
+            Select one verification type — only the highest applies
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+            {[
+              { value: 'none',    label: 'No verification',       sub: 'Unverified submission' },
+              { value: 'couple',  label: 'LWD Verified Couple',   sub: 'Identity confirmed, not a booking record' },
+              { value: 'booking', label: '◈ LWD Verified Booking', sub: 'Confirmed via booking or enquiry record' },
+            ].map(opt => {
+              const current =
+                form.isVerifiedBooking ? 'booking' :
+                form.isVerified ? 'couple' : 'none';
+              const selected = current === opt.value;
+              return (
+                <label
+                  key={opt.value}
+                  style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer',
+                    padding: '10px 12px', borderRadius: 3,
+                    border: `1px solid ${selected ? C.gold + '50' : C.border}`,
+                    background: selected ? `${C.gold}08` : 'transparent',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="verification_type"
+                    checked={selected}
+                    onChange={() => {
+                      set('isVerified', opt.value === 'couple');
+                      set('isVerifiedBooking', opt.value === 'booking');
+                    }}
+                    style={{ accentColor: C.gold, marginTop: 2, cursor: 'pointer' }}
+                  />
+                  <div>
+                    <div style={{ fontFamily: NU, fontSize: 12, color: C.white, fontWeight: selected ? 600 : 400 }}>{opt.label}</div>
+                    <div style={{ fontFamily: NU, fontSize: 10, color: C.grey2, marginTop: 2 }}>{opt.sub}</div>
+                  </div>
+                </label>
+              );
+            })}
           </div>
 
           {form.isVerifiedBooking && (
@@ -1138,29 +1299,39 @@ function AddReviewPanel({ onClose, onSaved, C }) {
           )}
 
           {/* Actions */}
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              onClick={handleSubmit}
-              disabled={saving}
-              style={{
-                flex: 1, padding: '11px 0', borderRadius: 3, border: 'none', cursor: saving ? 'not-allowed' : 'pointer',
-                fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
-                background: saving ? C.border : '#15803d', color: '#fff', opacity: saving ? 0.6 : 1,
-                transition: 'opacity 0.15s',
-              }}
-            >
-              {saving ? 'Saving…' : 'Save Review'}
-            </button>
-            <button
-              onClick={onClose}
-              style={{
-                padding: '11px 20px', borderRadius: 3, border: `1px solid ${C.border}`, cursor: 'pointer',
-                fontFamily: NU, fontSize: 11, fontWeight: 600, background: 'none', color: C.grey,
-              }}
-            >
-              Cancel
-            </button>
-          </div>
+          {(() => {
+            const isPublish = form.moderationStatus === 'approved' && form.isPublic;
+            const isDraft = form.moderationStatus === 'pending';
+            const btnLabel = saving ? 'Saving…' : isPublish ? 'Publish Review' : isDraft ? 'Save as Draft' : 'Save Review';
+            const btnBg = saving ? C.border : isPublish ? '#15803d' : isDraft ? C.card : '#1a1a1a';
+            const btnBorder = isDraft ? `1px solid ${C.border}` : 'none';
+            return (
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  onClick={handleSubmit}
+                  disabled={saving}
+                  style={{
+                    flex: 1, padding: '11px 0', borderRadius: 3, border: btnBorder,
+                    cursor: saving ? 'not-allowed' : 'pointer',
+                    fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
+                    background: btnBg, color: '#fff', opacity: saving ? 0.6 : 1,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {btnLabel}
+                </button>
+                <button
+                  onClick={onClose}
+                  style={{
+                    padding: '11px 20px', borderRadius: 3, border: `1px solid ${C.border}`, cursor: 'pointer',
+                    fontFamily: NU, fontSize: 11, fontWeight: 600, background: 'none', color: C.grey,
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>
