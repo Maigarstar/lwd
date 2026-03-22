@@ -1367,10 +1367,11 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
   const isLive    = showcase?.status === 'live' || showcase?.status === 'published';
 
   // ── Styles ──────────────────────────────────────────────────────────────────
-  const btnSolid   = { fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', padding: '7px 16px', background: C.off, color: C.white, border: 'none', borderRadius: 3, cursor: 'pointer' };
-  const btnOutline = { ...btnSolid, background: 'none', color: C.off, border: `1px solid ${C.border}` };
-  const btnGold    = { ...btnSolid, background: GOLD, color: '#0a0906' };
-  const btnLink    = { fontFamily: NU, fontSize: 11, color: C.grey2, background: 'none', border: 'none', cursor: 'pointer', padding: '0 6px' };
+  const btnBase = { fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', padding: '7px 16px', border: 'none', borderRadius: 3, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: '28px' };
+  const btnSolid   = { ...btnBase, background: C.off, color: C.white };
+  const btnOutline = { ...btnBase, background: 'none', color: C.off, border: `1px solid ${C.border}` };
+  const btnGold    = { ...btnBase, background: GOLD, color: '#0a0906' };
+  const btnLink    = { fontFamily: NU, fontSize: 11, color: C.grey2, background: 'none', border: 'none', cursor: 'pointer', padding: '0 6px', whiteSpace: 'nowrap' };
   const btnLinkOn  = { ...btnLink, color: C.off, textDecoration: 'underline' };
 
   return (
