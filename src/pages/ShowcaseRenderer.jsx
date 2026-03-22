@@ -1339,25 +1339,31 @@ export default function ShowcaseRenderer({
   }
 
   return (
-    <div style={{ background: palette.bg, color: palette.text, minHeight: '100vh', paddingTop: isPreview ? 0 : 64 }}>
+    <div style={{ background: palette.bg, color: palette.text, minHeight: '100vh' }}>
       {!isPreview && (
         <>
-          {/* HomeNav — slides UP when SectionNav slides DOWN (IC Park Lane pattern) */}
-          <div style={{
-            position: 'fixed', top: 0, left: 0, right: 0, zIndex: 699,
-            transform:  sectionNavVisible ? 'translateY(-110%)' : 'translateY(0)',
-            transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-          }}>
-            <HomeNav hasHero={false} onNavigateStandard={onNavigateStandard} />
+          {/* White header block — HomeNav (fixed) + BreadcrumbBar (in flow).
+              White background prevents dark palette.bg bleeding through the gap. */}
+          <div style={{ background: '#ffffff' }}>
+            {/* HomeNav — slides UP when SectionNav slides DOWN (IC Park Lane pattern) */}
+            <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, zIndex: 699,
+              transform:  sectionNavVisible ? 'translateY(-110%)' : 'translateY(0)',
+              transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}>
+              <HomeNav hasHero={false} onNavigateStandard={onNavigateStandard} />
+            </div>
+            {/* Spacer that matches HomeNav height so BreadcrumbBar sits flush below it */}
+            <div style={{ height: 61 }} />
+            {/* BreadcrumbBar — in document flow, flush below HomeNav */}
+            <BreadcrumbBar
+              showcase={showcase}
+              listing={listing}
+              onBack={onBack}
+              onGoDestination={onGoDestination}
+              palette={palette}
+            />
           </div>
-          {/* BreadcrumbBar — in document flow, sits below HomeNav (paddingTop:64 offsets it) */}
-          <BreadcrumbBar
-            showcase={showcase}
-            listing={listing}
-            onBack={onBack}
-            onGoDestination={onGoDestination}
-            palette={palette}
-          />
           <SectionNav
             sections={sections}
             palette={palette}
