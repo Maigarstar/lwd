@@ -323,6 +323,39 @@ function HeroSection({ content, layout, showcaseHero, listingFirstImage, palette
             {content.tagline}
           </p>
         )}
+        {/* Stats bar — shown when content.stats array provided */}
+        {content.stats && content.stats.length > 0 && (
+          <div style={{
+            display: 'flex', gap: 0, marginTop: 40,
+            borderTop: '1px solid rgba(245,240,232,0.18)',
+            paddingTop: 24, flexWrap: 'wrap',
+          }}>
+            {content.stats.map((stat, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'baseline', gap: 8,
+                paddingRight: 32, marginBottom: 8,
+                borderRight: i < content.stats.length - 1 ? '1px solid rgba(245,240,232,0.18)' : 'none',
+                marginRight: i < content.stats.length - 1 ? 32 : 0,
+              }}>
+                <span style={{
+                  fontFamily: GD,
+                  fontSize: 'clamp(22px, 3vw, 40px)',
+                  fontWeight: 400, color: '#f5f0e8',
+                  lineHeight: 1, letterSpacing: '-0.01em',
+                }}>
+                  {stat.value}
+                </span>
+                <span style={{
+                  fontFamily: NU, fontSize: 10, fontWeight: 700,
+                  letterSpacing: '0.14em', textTransform: 'uppercase',
+                  color: 'rgba(245,240,232,0.55)',
+                }}>
+                  {stat.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
