@@ -541,6 +541,13 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
   const [editingId, setEditingIdRaw] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem(SESSION_KEY))?.editingId || null; } catch { return null; }
   });
+  const [returnPath, setReturnPath] = useState(() => {
+    try {
+      const p = sessionStorage.getItem('lwd_admin_return_path');
+      if (p) { sessionStorage.removeItem('lwd_admin_return_path'); return p; }
+    } catch {}
+    return null;
+  });
 
   const setMode = (m) => {
     setModeRaw(m);
@@ -697,6 +704,32 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
           {saveToast.msg}
         </div>
       )}
+      {/* Return to live page strip */}
+      {returnPath && mode === 'article-edit' && (
+        <div style={{
+          height: 28, flexShrink: 0,
+          background: 'rgba(201,168,76,0.08)',
+          borderBottom: '1px solid rgba(201,168,76,0.16)',
+          display: 'flex', alignItems: 'center',
+          padding: '0 20px', gap: 10,
+        }}>
+          <button
+            onClick={() => { window.location.href = returnPath }}
+            style={{
+              fontFamily: FU, fontSize: 10, fontWeight: 600,
+              letterSpacing: '0.06em', textTransform: 'uppercase',
+              color: S.gold, background: 'none', border: 'none',
+              cursor: 'pointer', padding: 0,
+            }}
+          >
+            ← Back to live page
+          </button>
+          <span style={{ fontFamily: FU, fontSize: 10, color: S.muted }}>
+            {returnPath}
+          </span>
+        </div>
+      )}
+
       {/* Top bar, hidden in full-screen editors (they have their own toolbars) */}
       {mode !== 'article-edit' && mode !== 'homepage' && mode !== 'category' && <div style={{
         height: 52, flexShrink: 0,

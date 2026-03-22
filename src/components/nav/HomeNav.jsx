@@ -1,5 +1,6 @@
 // ─── src/components/nav/HomeNav.jsx ──────────────────────────────────────────
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { createClient } from "@supabase/supabase-js";
 import { useTheme } from "../../theme/ThemeContext";
 import MegaMenuPanel from "./MegaMenuPanel";
@@ -172,10 +173,11 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
 
     const handleClick = () => {
       const target = branding.logo_link_target || "/";
-      if (target === "/" || target === "") {
+      const normalised = target === "" ? "/" : target;
+      if (normalised === "/" && window.location.pathname === "/") {
         window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
-        window.location.href = target;
+        window.location.href = normalised;
       }
     };
 
@@ -467,132 +469,149 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
             background: "none",
             border: "none",
             cursor: "pointer",
-            padding: 6,
+            padding: "8px 6px",
             flexDirection: "column",
             gap: 5,
+            minWidth: 44,
+            minHeight: 44,
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
-          <span style={{ width: 22, height: 1.5, background: "#f5f0e8", borderRadius: 1, display: "block" }} />
-          <span style={{ width: 16, height: 1.5, background: "#C9A84C", borderRadius: 1, display: "block", marginLeft: "auto" }} />
-          <span style={{ width: 22, height: 1.5, background: "#f5f0e8", borderRadius: 1, display: "block" }} />
+          <span style={{ width: 22, height: 1.5, background: brandColor, borderRadius: 1, display: "block" }} />
+          <span style={{ width: 16, height: 1.5, background: C.gold, borderRadius: 1, display: "block", marginLeft: "auto" }} />
+          <span style={{ width: 22, height: 1.5, background: brandColor, borderRadius: 1, display: "block" }} />
         </button>
       </nav>
 
-      {/* ── Mobile Side Drawer ── */}
-      {/* Backdrop */}
-      <div
-        className="home-nav-drawer-backdrop"
-        onClick={() => setDrawerOpen(false)}
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 800,
-          background: "rgba(0,0,0,0.6)",
-          backdropFilter: "blur(4px)",
-          opacity: drawerOpen ? 1 : 0,
-          pointerEvents: drawerOpen ? "auto" : "none",
-          transition: "opacity 0.3s ease",
-        }}
-      />
-      {/* Drawer panel */}
-      <div
-        className="home-nav-drawer"
-        style={{
-          position: "fixed",
-          top: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 801,
-          width: 300,
-          maxWidth: "85vw",
-          background: darkMode ? "rgba(12,11,8,0.98)" : "rgba(8,7,5,0.98)",
-          backdropFilter: "blur(24px)",
-          transform: drawerOpen ? "translateX(0)" : "translateX(100%)",
-          transition: "transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
-          display: "flex",
-          flexDirection: "column",
-          padding: "0 0 40px",
-          overflowY: "auto",
-        }}
-      >
-        {/* Drawer header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 24px", borderBottom: "1px solid rgba(201,168,76,0.15)" }}>
-          <span style={{ fontFamily: GD, fontSize: 16, color: "#f5f0e8", fontWeight: 600 }}>
-            Menu
-          </span>
-          <button
+      {/* ── Mobile Side Drawer — rendered via portal so it escapes any
+           ancestor transform/stacking context (e.g. showcase page wrapper) ── */}
+      {createPortal(
+        <>
+          {/* Backdrop */}
+          <div
+            className="home-nav-drawer-backdrop"
             onClick={() => setDrawerOpen(false)}
-            aria-label="Close menu"
             style={{
-              background: "none",
-              border: "none",
-              color: "rgba(245,240,232,0.5)",
-              fontSize: 22,
-              cursor: "pointer",
-              padding: 4,
-              lineHeight: 1,
+              position: "fixed",
+              inset: 0,
+              zIndex: 1200,
+              background: "rgba(0,0,0,0.6)",
+              backdropFilter: "blur(4px)",
+              opacity: drawerOpen ? 1 : 0,
+              pointerEvents: drawerOpen ? "auto" : "none",
+              transition: "opacity 0.3s ease",
             }}
-          >
-            ×
-          </button>
-        </div>
-
-        {/* Nav links */}
-        <div style={{ padding: "16px 0" }}>
-          {navItems.map((item) => {
-            const handler = resolveHandler(item, handlers);
-            return (
-            <button
-              key={item.id}
-              onClick={() => { setDrawerOpen(false); handler?.(); }}
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "left",
-                background: "none",
-                border: "none",
-                cursor: handler ? "pointer" : "default",
-                padding: "14px 28px",
-                fontSize: 15,
-                fontWeight: 400,
-                color: "rgba(245,240,232,0.7)",
-                fontFamily: NU,
-                letterSpacing: "0.3px",
-                transition: "color 0.2s, background 0.2s",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = C.gold; e.currentTarget.style.background = "rgba(201,168,76,0.06)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(245,240,232,0.7)"; e.currentTarget.style.background = "transparent"; }}
-            >
-              {item.label}
-            </button>
-          );})}
-        </div>
-
-        {/* Divider */}
-        <div style={{ height: 1, background: "rgba(201,168,76,0.12)", margin: "0 24px" }} />
-
-        {/* Dark mode toggle */}
-        <div style={{ padding: "20px 24px" }}>
-          <button
-            onClick={() => { onToggleDark?.(); }}
+          />
+          {/* Drawer panel */}
+          <div
+            className="home-nav-drawer"
             style={{
+              position: "fixed",
+              top: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 1201,
+              width: 300,
+              maxWidth: "85vw",
+              background: darkMode ? "rgba(12,11,8,0.98)" : "rgba(8,7,5,0.98)",
+              backdropFilter: "blur(24px)",
+              transform: drawerOpen ? "translateX(0)" : "translateX(100%)",
+              transition: "transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
               display: "flex",
-              alignItems: "center",
-              gap: 10,
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              color: "rgba(245,240,232,0.5)",
-              fontFamily: NU,
-              fontSize: 13,
-              padding: 0,
+              flexDirection: "column",
+              padding: "0 0 40px",
+              overflowY: "auto",
             }}
           >
-            <span style={{ fontSize: 16 }}>{darkMode ? "☀" : "☽"}</span>
-            <span>{darkMode ? "Light Mode" : "Dark Mode"}</span>
-          </button>
-        </div>
-      </div>
+            {/* Drawer header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 24px", borderBottom: "1px solid rgba(201,168,76,0.15)" }}>
+              <span style={{ fontFamily: GD, fontSize: 16, color: "#f5f0e8", fontWeight: 600 }}>
+                Menu
+              </span>
+              <button
+                onClick={() => setDrawerOpen(false)}
+                aria-label="Close menu"
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "rgba(245,240,232,0.5)",
+                  fontSize: 22,
+                  cursor: "pointer",
+                  padding: 4,
+                  lineHeight: 1,
+                  minWidth: 44,
+                  minHeight: 44,
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Nav links */}
+            <div style={{ padding: "16px 0" }}>
+              {navItems.map((item) => {
+                const handler = resolveHandler(item, handlers);
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => { setDrawerOpen(false); handler?.(); }}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      textAlign: "left",
+                      background: "none",
+                      border: "none",
+                      cursor: handler ? "pointer" : "default",
+                      padding: "16px 28px",
+                      fontSize: 15,
+                      fontWeight: 400,
+                      color: "rgba(245,240,232,0.7)",
+                      fontFamily: NU,
+                      letterSpacing: "0.3px",
+                      transition: "color 0.2s, background 0.2s",
+                      minHeight: 52,
+                    }}
+                    onTouchStart={(e) => { e.currentTarget.style.color = C.gold; e.currentTarget.style.background = "rgba(201,168,76,0.06)"; }}
+                    onTouchEnd={(e) => { e.currentTarget.style.color = "rgba(245,240,232,0.7)"; e.currentTarget.style.background = "transparent"; }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = C.gold; e.currentTarget.style.background = "rgba(201,168,76,0.06)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(245,240,232,0.7)"; e.currentTarget.style.background = "transparent"; }}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Divider */}
+            <div style={{ height: 1, background: "rgba(201,168,76,0.12)", margin: "0 24px" }} />
+
+            {/* Dark mode toggle */}
+            <div style={{ padding: "20px 24px" }}>
+              <button
+                onClick={() => { onToggleDark?.(); }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "rgba(245,240,232,0.5)",
+                  fontFamily: NU,
+                  fontSize: 13,
+                  padding: 0,
+                  minHeight: 44,
+                }}
+              >
+                <span style={{ fontSize: 16 }}>{darkMode ? "☀" : "☽"}</span>
+                <span>{darkMode ? "Light Mode" : "Dark Mode"}</span>
+              </button>
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
     </>
   );
 }

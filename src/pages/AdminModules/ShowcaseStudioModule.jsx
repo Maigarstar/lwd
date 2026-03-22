@@ -1039,6 +1039,14 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
   const [dragIdx,      setDragIdx]      = useState(null);
   const [dropIdx,      setDropIdx]      = useState(null);
   const [showAi,       setShowAi]       = useState(false);
+  const [returnPath,   setReturnPath]   = useState(null);
+
+  useEffect(() => {
+    try {
+      const path = sessionStorage.getItem('lwd_admin_return_path');
+      if (path) { setReturnPath(path); sessionStorage.removeItem('lwd_admin_return_path'); }
+    } catch {}
+  }, []);
 
   const saveTimer = useRef(null);
 
@@ -1281,6 +1289,32 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: C.bg, overflow: 'hidden' }}>
+
+      {/* ── Return to live page strip ── */}
+      {returnPath && (
+        <div style={{
+          height: 28, flexShrink: 0,
+          background: `${GOLD}14`,
+          borderBottom: `1px solid ${GOLD}28`,
+          display: 'flex', alignItems: 'center',
+          padding: '0 20px',
+        }}>
+          <button
+            onClick={() => { window.location.href = returnPath; }}
+            style={{
+              fontFamily: NU, fontSize: 10, fontWeight: 600,
+              letterSpacing: '0.06em', textTransform: 'uppercase',
+              color: GOLD, background: 'none', border: 'none',
+              cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 5,
+            }}
+          >
+            ← Back to live page
+          </button>
+          <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2, marginLeft: 8 }}>
+            {returnPath}
+          </span>
+        </div>
+      )}
 
       {/* ── Toolbar ── */}
       <div style={{

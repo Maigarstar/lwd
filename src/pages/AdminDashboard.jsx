@@ -11,7 +11,7 @@ import { ITALY_COUNTRY } from "../data/italy/country.js";
 import { ITALY_REGIONS } from "../data/italy/regions.js";
 import { ITALY_CITIES } from "../data/italy/cities.js";
 import { REGION_AUTO_THRESHOLD, evaluateRegionActivation } from "../engine/activation.js";
-import { fetchListings, isSupabaseAvailable, createListing, deleteListing } from "../services/listings";
+import { fetchListings, fetchListingBySlug, isSupabaseAvailable, createListing, deleteListing } from "../services/listings";
 import { fetchShowcases, createShowcase, updateShowcase, deleteShowcase } from "../services/showcaseService";
 import { uploadMediaFile } from "../utils/storageUpload";
 import categoryCssRaw from "../category.css?raw";
@@ -52,6 +52,7 @@ import MenuBranding from "./AdminModules/menu/MenuBranding";
 import PlatformIntelligenceModule from "./AdminModules/PlatformIntelligenceModule";
 import EventsModule from "./AdminModules/EventsModule";
 import { fetchClickSummary, fetchBatchClickCounts } from "../services/adminOutboundClicksService";
+import { fetchPostBySlug } from "../services/magazineService";
 import VenueIntakeStudio from "./admin/VenueIntakeStudio";
 import { POSTS } from "./Magazine/data/posts";
 import { PRODUCTS, COLLECTIONS, formatPrice } from "./Magazine/data/products";
@@ -8459,6 +8460,56 @@ export default function AdminDashboard({ onBack, onNavigate }) {
   const [listingStudioListingId, setListingStudioListingId] = useState(initialLS.id);
   const [eventsBuilderActive, setEventsBuilderActive] = useState(false);
   const [activeShowcaseId, setActiveShowcaseId] = useState(null);
+
+  useEffect(() => {
+    let intent = null;
+    try { intent = JSON.parse(sessionStorage.getItem('lwd_admin_edit_intent') || 'null'); } catch {}
+    if (!intent) return;
+    sessionStorage.removeItem('lwd_admin_edit_intent');
+
+    if (intent.returnPath) {
+      try { sessionStorage.setItem('lwd_admin_return_path', intent.returnPath); } catch {}
+    }
+
+    if (intent.type === 'showcase' && intent.slug) {
+      fetchShowcases().then(all => {
+        const found = all.find(s => s.slug === intent.slug);
+        if (found) {
+          setActiveShowcaseId(found.id);
+          setActiveTab('showcase-studio');
+        } else {
+          setActiveTab('venue-profiles');
+        }
+      }).catch(() => setActiveTab('venue-profiles'));
+    } else if (intent.type === 'showcase-static') {
+      setActiveTab('venue-profiles');
+    } else if (intent.type === 'listing' && intent.slug) {
+      fetchListingBySlug(intent.slug).then(listing => {
+        if (listing?.id) {
+          setListingStudioMode('edit');
+          setListingStudioListingId(listing.id);
+          window.location.hash = `listing-studio/${listing.id}`;
+          setActiveTabState('listing-studio');
+        } else {
+          setActiveTab('listings');
+        }
+      }).catch(() => setActiveTab('listings'));
+    } else if (intent.type === 'article' && intent.slug) {
+      fetchPostBySlug(intent.slug).then(post => {
+        if (post?.id) {
+          try {
+            sessionStorage.setItem('magazineStudio_nav', JSON.stringify({ mode: 'article-edit', editingId: post.id }));
+          } catch {}
+          setActiveTab('magazine-studio');
+        } else {
+          setActiveTab('magazine-studio');
+        }
+      }).catch(() => setActiveTab('magazine-studio'));
+    } else if (intent.type === 'event' && intent.slug) {
+      try { sessionStorage.setItem('lwd_event_open_slug', intent.slug); } catch {}
+      setActiveTab('event-studio');
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getInitialPageEditorId = () => {
     const hash = window.location.hash.slice(1);

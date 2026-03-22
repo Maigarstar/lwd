@@ -14,6 +14,7 @@ import ProtectedCoupleRoute  from "./components/ProtectedCoupleRoute";
 import AuraChat              from "./chat/AuraChat";
 import CookieBanner          from "./components/CookieBanner";
 import SiteFooter            from "./components/sections/SiteFooter.jsx";
+import GlobalAdminBar        from "./components/admin/GlobalAdminBar.jsx";
 
 // ── Apply saved theme CSS variables BEFORE React renders ─────────────────────
 applyThemeToDocument();
@@ -794,6 +795,18 @@ function App() {
         {page !== "admin" && page !== "vendor" && page !== "vendor-login" && page !== "vendor-activate" && page !== "vendor-confirm-email" && page !== "vendor-forgot-password" && page !== "vendor-reset-password" && page !== "couple-signup" && page !== "couple-login" && page !== "couple-confirm-email" && page !== "couple-forgot-password" && page !== "couple-reset-password" && page !== "join" && (
           <AuraChat onNavigateHome={goHome} />
         )}
+
+        {/* ── Global admin edit bar — visible on live pages for authenticated admins ── */}
+        <GlobalAdminBar
+          page={page}
+          slugs={{
+            showcaseSlug: activeShowcaseSlug,
+            venueSlug:    activeVenueSlug,
+            magazineSlug: activeMagazineSlug,
+            eventSlug:    activeEventSlug,
+          }}
+          onOpenAdmin={goAdmin}
+        />
 
         {/* ── GDPR cookie banner ── */}
         <CookieBanner />

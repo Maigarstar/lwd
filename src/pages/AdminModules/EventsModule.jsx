@@ -1945,6 +1945,7 @@ export default function EventsModule({ C, darkMode = true, onBuilderModeChange, 
   const [editingEvent, setEditingEvent] = useState(null)
   const [bookingsEvent, setBookingsEvent] = useState(null)
   const [savedBanner, setSavedBanner]   = useState(false)
+  const [returnPath,  setReturnPath]    = useState(null)
 
   const enterBuilder = () => { onBuilderModeChange?.(true) }
   const exitBuilder  = () => { onBuilderModeChange?.(false) }
@@ -1957,6 +1958,26 @@ export default function EventsModule({ C, darkMode = true, onBuilderModeChange, 
       return () => onBuilderModeChange?.(false)
     }
   }, [startInBuilder]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Return path — set by GlobalAdminBar sessionStorage bridge
+  useEffect(() => {
+    try {
+      const path = sessionStorage.getItem('lwd_admin_return_path')
+      if (path) { setReturnPath(path); sessionStorage.removeItem('lwd_admin_return_path') }
+    } catch {}
+  }, [])
+
+  // Deep-link: open specific event by slug on mount (written by GlobalAdminBar → AdminDashboard pickup)
+  useEffect(() => {
+    let slug = null
+    try { slug = sessionStorage.getItem('lwd_event_open_slug'); sessionStorage.removeItem('lwd_event_open_slug') } catch {}
+    if (!slug) return
+    adminListEvents({ upcoming: false }).then(d => {
+      const all = (d.events || []).map(dbToEvent)
+      const found = all.find(e => e.slug === slug)
+      if (found) { setEditingEvent(found); setView('builder'); enterBuilder() }
+    }).catch(() => {})
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleEdit = (event) => { setEditingEvent(event); setView('builder'); enterBuilder() }
   const handleNew  = ()      => { setEditingEvent(null);  setView('builder'); enterBuilder() }
@@ -1978,6 +1999,31 @@ export default function EventsModule({ C, darkMode = true, onBuilderModeChange, 
 
   return (
     <div style={view === 'builder' ? { display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: C.black } : { maxWidth: 1100 }}>
+      {/* Return to live page strip */}
+      {returnPath && view === 'builder' && (
+        <div style={{
+          height: 28, flexShrink: 0,
+          background: 'rgba(201,168,76,0.08)',
+          borderBottom: '1px solid rgba(201,168,76,0.16)',
+          display: 'flex', alignItems: 'center',
+          padding: '0 20px', gap: 10,
+        }}>
+          <button
+            onClick={() => { window.location.href = returnPath }}
+            style={{
+              fontFamily: 'var(--font-body)', fontSize: 10, fontWeight: 600,
+              letterSpacing: '0.06em', textTransform: 'uppercase',
+              color: '#C9A84C', background: 'none', border: 'none',
+              cursor: 'pointer', padding: 0,
+            }}
+          >
+            ← Back to live page
+          </button>
+          <span style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: C.grey2 }}>
+            {returnPath}
+          </span>
+        </div>
+      )}
       {/* Save banner */}
       {savedBanner && (
         <div style={{
