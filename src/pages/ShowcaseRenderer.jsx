@@ -31,6 +31,7 @@ import VenueEnquireCard              from '../components/cards/editorial/VenueEn
 import { SECTION_REGISTRY }          from '../services/showcaseRegistry';
 import HomeNav                       from '../components/nav/HomeNav';
 import MediaBlock                    from '../components/profile/MediaBlock';
+import VideoGallery                  from '../components/profile/VideoGallery';
 import { ThemeCtx, LIGHT }           from '../components/profile/ProfileDesignSystem';
 
 const GD = 'var(--font-heading-primary)';
@@ -77,13 +78,14 @@ function buildPalette(themeJson) {
 // ── Section types that appear in the sticky sub-nav ───────────────────────────
 const NAV_ELIGIBLE = new Set([
   'intro', 'feature', 'mosaic', 'gallery', 'dining',
-  'spaces', 'wellness', 'weddings', 'highlight-band',
+  'spaces', 'wellness', 'weddings', 'highlight-band', 'films',
 ]);
 const TYPE_LABEL = {
   intro:            'Overview',
   feature:          'Highlights',
   mosaic:           'Gallery',
   gallery:          'Gallery',
+  films:            'Films',
   dining:           'Dining',
   spaces:           'Spaces',
   wellness:         'Wellness & Spa',
@@ -101,7 +103,7 @@ function SectionNav({ sections, palette, showcase, onBack, onVisibleChange }) {
   };
   const [activeId, setActiveId] = useState(null);
 
-  const GOLD = '#C4A05A';
+  const GOLD = palette?.navActive || palette?.accent || '#C4A05A';
   const venueName = showcase?.title || showcase?.name || '';
 
   const navItems = sections
@@ -341,7 +343,7 @@ function IntroSection({ content, layout, palette }) {
     const isLight = bgLc.startsWith('#f') || bgLc.startsWith('#e') || bgLc.startsWith('#d') || bgLc.startsWith('#fa') || bgLc.startsWith('#fd');
     const textCol = isLight ? '#1C1410' : '#f5f0e8';
     const mutCol  = isLight ? 'rgba(28,20,16,0.6)' : 'rgba(245,240,232,0.65)';
-    const goldCol = isLight ? '#B8962E' : P.accent;
+    const goldCol = P.accent;
     return (
       <div style={{ background: bg, padding: 'clamp(48px, 7vw, 96px) clamp(24px, 6vw, 120px)' }}>
         <div style={{ maxWidth: 860 }}>
@@ -382,7 +384,7 @@ function IntroSection({ content, layout, palette }) {
   const isLight = bgLc.startsWith('#f') || bgLc.startsWith('#e') || bgLc.startsWith('#d') || bgLc.startsWith('#fa') || bgLc.startsWith('#fd');
   const textCol = isLight ? '#1C1410' : '#f5f0e8';
   const mutCol  = isLight ? 'rgba(28,20,16,0.6)' : 'rgba(245,240,232,0.65)';
-  const goldCol = isLight ? '#B8962E' : P.accent;
+  const goldCol = P.accent;
   return (
     <div style={{ background: bg, padding: 'clamp(56px, 8vw, 104px) clamp(24px, 6vw, 80px)', display: 'flex', justifyContent: 'center' }}>
       <div style={{ maxWidth: 640, width: '100%' }}>
@@ -430,7 +432,7 @@ function FeatureSection({ content, layout, showcaseHero, listingFirstImage, pale
     const isLight = bgLc.startsWith('#f') || bgLc.startsWith('#e') || bgLc.startsWith('#d');
     const textCol = isLight ? '#1C1410' : '#f5f0e8';
     const mutCol  = isLight ? 'rgba(28,20,16,0.6)' : 'rgba(245,240,232,0.65)';
-    const goldCol = isLight ? '#B8962E' : P.accent;
+    const goldCol = P.accent;
     return (
       <div style={{ background: bg, padding: 'clamp(56px, 8vw, 104px) clamp(24px, 6vw, 120px)' }}>
         <div style={{ maxWidth: 860 }}>
@@ -497,7 +499,7 @@ function HighlightBandSection({ content, layout, palette }) {
   const bgIsLight = bgLc.startsWith('#f') || bgLc.startsWith('#e') || bgLc.startsWith('#d') || bgLc.startsWith('#fa') || bgLc.startsWith('#fd');
   const textCol   = bgIsLight ? '#1C1410' : '#f5f0e8';
   const mutCol    = bgIsLight ? 'rgba(28,20,16,0.58)' : 'rgba(245,240,232,0.62)';
-  const goldCol   = bgIsLight ? '#B8962E' : P.accent;
+  const goldCol   = P.accent;
 
   return (
     <div style={{
@@ -568,7 +570,7 @@ function StatsSection({ content, layout, palette }) {
     const textCol = isLight ? '#1C1410' : '#f5f0e8';
     const mutCol  = isLight ? 'rgba(28,20,16,0.55)' : 'rgba(245,240,232,0.55)';
     const brdCol  = isLight ? 'rgba(28,20,16,0.1)' : 'rgba(245,240,232,0.1)';
-    const goldCol = isLight ? '#B8962E' : P.accent;
+    const goldCol = P.accent;
     return (
       <div style={{ background: bg, padding: 'clamp(48px, 6vw, 80px) clamp(24px, 6vw, 120px)' }}>
         <div style={{ maxWidth: 720, margin: '0 auto' }}>
@@ -790,6 +792,32 @@ function GallerySection({ content, layout, palette }) {
   );
 }
 
+// ── FilmsSection — VideoGallery with showcase branding ───────────────────────
+function FilmsSection({ content, palette }) {
+  const P      = palette;
+  const videos = content.videos || [];
+  if (!videos.length) return null;
+
+  return (
+    <div style={{ background: P.bg, padding: '64px 0 80px' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 clamp(24px, 5vw, 64px)' }}>
+        {content.eyebrow && (
+          <p style={{
+            fontFamily: NU, fontSize: 10, fontWeight: 700,
+            letterSpacing: '0.18em', textTransform: 'uppercase',
+            color: P.accent, margin: '0 0 8px',
+          }}>
+            {content.eyebrow}
+          </p>
+        )}
+        <ThemeCtx.Provider value={LIGHT}>
+          <VideoGallery videos={videos} />
+        </ThemeCtx.Provider>
+      </div>
+    </div>
+  );
+}
+
 function EditorialFeatureSection({ content, layout, showcaseHero, listingFirstImage, palette }) {
   const P     = palette;
   const image = resolveImage(content.image, showcaseHero, listingFirstImage);
@@ -867,7 +895,7 @@ function PricingSection({ content, layout, palette }) {
   const isLight = bgLc.startsWith('#f') || bgLc.startsWith('#e') || bgLc.startsWith('#d') || bgLc.startsWith('#fa') || bgLc.startsWith('#fd');
   const textCol   = isLight ? '#1C1410' : '#f5f0e8';
   const mutCol    = isLight ? 'rgba(28,20,16,0.6)' : 'rgba(245,240,232,0.65)';
-  const goldCol   = isLight ? '#B8962E' : P.accent;
+  const goldCol   = P.accent;
   const panelBg   = isLight ? 'rgba(28,20,16,0.04)' : 'rgba(255,255,255,0.04)';
   const borderCol = isLight ? 'rgba(28,20,16,0.12)' : 'rgba(245,240,232,0.12)';
 
@@ -967,26 +995,29 @@ function VerifiedSection({ content, layout, palette }) {
   const isLight = bgLc.startsWith('#f') || bgLc.startsWith('#e') || bgLc.startsWith('#d') || bgLc.startsWith('#fa') || bgLc.startsWith('#fd');
   const textCol   = isLight ? '#1C1410' : '#f5f0e8';
   const mutCol    = isLight ? 'rgba(28,20,16,0.6)' : 'rgba(245,240,232,0.65)';
-  const goldCol   = isLight ? '#B8962E' : P.accent;
+  const goldCol   = P.accent;
   const borderCol = isLight ? 'rgba(28,20,16,0.1)' : 'rgba(245,240,232,0.1)';
+
+  const CATERING_LABELS = { in_house_only: 'In-house only', approved_list: 'Approved caterers', open: 'Open to external' };
+  const boolLabel = (v) => v === true ? 'Yes' : v === false ? 'No' : null;
 
   const rows = [
     ['Venue Hire From',    content.venue_hire_from],
     ['Typical Spend',     content.typical_spend_min && content.typical_spend_max
       ? `${content.typical_spend_min} – ${content.typical_spend_max}`
       : (content.typical_spend_min || content.typical_spend_max)],
-    ['Ceremony',          content.ceremony_capacity ? `${content.ceremony_capacity} guests` : null],
+    ['Ceremony',          content.ceremony_capacity],
     ['Dining',            content.dining_capacity   ? `${content.dining_capacity} guests`   : null],
     ['Reception',         content.reception_capacity ? `${content.reception_capacity} guests` : null],
     ['Bedrooms',          content.bedrooms],
     ['Exclusive Use',     content.exclusive_use],
-    ['Catering',          content.catering],
-    ['Outdoor Ceremony',  content.outdoor_ceremony],
-    ['Accommodation',     content.accommodation],
+    ['Catering',          CATERING_LABELS[content.catering] || content.catering],
+    ['Outdoor Ceremony',  typeof content.outdoor_ceremony === 'boolean' ? boolLabel(content.outdoor_ceremony) : content.outdoor_ceremony],
+    ['Accommodation',     typeof content.accommodation === 'boolean' ? boolLabel(content.accommodation) : content.accommodation],
     ['Location',          content.location_summary],
     ['Style',             content.style],
     ['Best For',          content.best_for],
-  ].filter(([, val]) => val);
+  ].filter(([, val]) => val != null && val !== '');
 
   // Ensure even number of rows so grid looks clean
   const paddedRows = rows.length % 2 === 1 ? [...rows, [null, null]] : rows;
@@ -1239,10 +1270,28 @@ export default function ShowcaseRenderer({
   onBack = null,
 }) {
   const heroUrl = showcase.hero_image_url || null;
-  // darkMode prop (from the nav toggle) overrides the showcase's stored theme
-  const palette = isPreview
-    ? buildPalette(showcase.theme)                    // studio preview: use showcase's own theme
-    : darkMode ? DARK_PALETTE : LIGHT_DEFAULTS;       // public page: follow the toggle
+  // Palette logic:
+  //   Studio preview → always use the showcase's authored theme
+  //   Public page    → dark/light toggle picks the base palette,
+  //                    but showcase.theme can inject brand accent + bg overrides
+  const palette = (() => {
+    if (isPreview) return buildPalette(showcase.theme);
+    const base = darkMode ? DARK_PALETTE : LIGHT_DEFAULTS;
+    // theme can be a JSON string (TEXT column) or a parsed object (JSONB)
+    let t = showcase.theme;
+    if (typeof t === 'string') { try { t = JSON.parse(t); } catch (_) { t = null; } }
+    if (!t || !t.accent) return base;
+    const accent = darkMode ? (t.darkAccent || t.accent) : t.accent;
+    return {
+      ...base,
+      accent,
+      label:     accent,
+      navActive: accent,
+      ...(t.bg  && !darkMode && { bg:  t.bg  }),
+      ...(t.bg2 && !darkMode && { bg2: t.bg2 }),
+      ...(t.bg3 && !darkMode && { bg3: t.bg3 }),
+    };
+  })();
   const [sectionNavVisible, setSectionNavVisible] = useState(false);
 
   function renderSection(section) {
@@ -1283,6 +1332,9 @@ export default function ShowcaseRenderer({
         break;
       case 'gallery':
         inner = <GallerySection content={content} layout={layout} palette={palette} />;
+        break;
+      case 'films':
+        inner = <FilmsSection content={content} palette={palette} />;
         break;
       case 'dining':
       case 'spaces':

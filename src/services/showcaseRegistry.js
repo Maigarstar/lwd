@@ -347,12 +347,28 @@ export const SECTION_REGISTRY = {
     defaultLayout: () => ({}),
     previewFallback: 'Verified venue intelligence — structured capacity, pricing, and style summary',
   },
+
+  films: {
+    label:     'Films',
+    icon:      '▶',
+    // Video gallery section — uses VideoGallery component.
+    // Each video: { id, youtubeId?, vimeoId?, title, thumb, duration?, type? }
+    required:  [],
+    optional:  ['eyebrow', 'videos'],
+    validation: {},
+    defaultContent: () => ({
+      eyebrow: 'Films',
+      videos:  [],
+    }),
+    defaultLayout: () => ({}),
+    previewFallback: 'Video gallery — wedding films, estate tours and highlights',
+  },
 };
 
 // ── Ordered list for the section picker UI ────────────────────────────────────
 export const SECTION_TYPE_ORDER = [
   'hero', 'stats', 'intro', 'highlight-band', 'feature', 'quote',
-  'mosaic', 'gallery', 'dining', 'spaces', 'wellness',
+  'mosaic', 'gallery', 'films', 'dining', 'spaces', 'wellness',
   'weddings', 'pricing', 'verified', 'image-full', 'cta', 'related',
 ];
 
