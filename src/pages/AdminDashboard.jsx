@@ -116,8 +116,8 @@ const DEFAULT_FONTS = {
 
 // Sitewide defaults
 const DEFAULT_SITE_SETTINGS = {
-  defaultMode: "dark",       // "dark" | "light", sitewide default
-  adminDefaultMode: "dark",  // admin panel default
+  defaultMode: "light",      // "dark" | "light", sitewide default
+  adminDefaultMode: "light", // admin panel default
   lightOnly: false,          // true = lock site to light mode, hide dark toggle
   borderRadiusCard: 6,       // px, cards, modals, panels (0–24)
   borderRadiusImage: 6,      // px, destination/category/venue images (0–24)
@@ -170,7 +170,7 @@ const THEME_PRESETS = {
       green: "#15803d", blue: "#1d4ed8", rose: "#be123c",
     },
     fonts: { heading: "Gilda Display", body: "Nunito", headingSize: 32, headingWeight: 400, bodySize: 15, bodyWeight: 400, googleUrl: "https://fonts.googleapis.com/css2?family=Gilda+Display&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Nunito:wght@300;400;600;700;800&display=swap" },
-    site: { defaultMode: "dark", adminDefaultMode: "dark", lightOnly: false, borderRadiusCard: 6, borderRadiusImage: 6, borderRadiusInput: 4 },
+    site: { defaultMode: "light", adminDefaultMode: "light", lightOnly: false, borderRadiusCard: 6, borderRadiusImage: 6, borderRadiusInput: 4 },
   },
   fivestar: {
     name: "5 Star Weddings",
@@ -188,7 +188,7 @@ const THEME_PRESETS = {
       green: "#15803d", blue: "#1d4ed8", rose: "#be123c",
     },
     fonts: { heading: "Playfair Display", body: "Lato", headingSize: 34, headingWeight: 500, bodySize: 15, bodyWeight: 400, googleUrl: "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Lato:wght@300;400;700;900&display=swap" },
-    site: { defaultMode: "dark", adminDefaultMode: "dark", lightOnly: false, borderRadiusCard: 8, borderRadiusImage: 8, borderRadiusInput: 4 },
+    site: { defaultMode: "light", adminDefaultMode: "light", lightOnly: false, borderRadiusCard: 8, borderRadiusImage: 8, borderRadiusInput: 4 },
   },
   minimal: {
     name: "Minimal",
@@ -206,7 +206,7 @@ const THEME_PRESETS = {
       green: "#15803d", blue: "#1d4ed8", rose: "#be123c",
     },
     fonts: { heading: "Inter", body: "Inter", headingSize: 30, headingWeight: 600, bodySize: 15, bodyWeight: 400, googleUrl: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" },
-    site: { defaultMode: "dark", adminDefaultMode: "dark", lightOnly: false, borderRadiusCard: 0, borderRadiusImage: 0, borderRadiusInput: 2 },
+    site: { defaultMode: "light", adminDefaultMode: "light", lightOnly: false, borderRadiusCard: 0, borderRadiusImage: 0, borderRadiusInput: 2 },
   },
   highcontrast: {
     name: "High Contrast",
@@ -224,7 +224,7 @@ const THEME_PRESETS = {
       green: "#006400", blue: "#00008b", rose: "#cc0000",
     },
     fonts: { heading: "DM Sans", body: "DM Sans", headingSize: 28, headingWeight: 700, bodySize: 16, bodyWeight: 400, googleUrl: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" },
-    site: { defaultMode: "dark", adminDefaultMode: "dark", lightOnly: false, borderRadiusCard: 4, borderRadiusImage: 4, borderRadiusInput: 4 },
+    site: { defaultMode: "light", adminDefaultMode: "light", lightOnly: false, borderRadiusCard: 4, borderRadiusImage: 4, borderRadiusInput: 4 },
   },
 };
 

@@ -62,7 +62,7 @@ export function getLightPalette() {
 export function getDefaultMode() {
   const saved = _loadOverrides();
   if (saved?.site?.lightOnly) return "light";
-  return saved?.site?.defaultMode || "dark";
+  return saved?.site?.defaultMode || "light";
 }
 
 /** Returns true if the site is locked to light mode only */

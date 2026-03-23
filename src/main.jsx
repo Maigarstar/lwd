@@ -291,18 +291,8 @@ function App() {
   // Parse initial URL so direct links & refreshes work
   const initial = pathToState(window.location.pathname);
 
-  const [darkMode, setDarkMode] = useState(() => {
-    try {
-      const persisted = localStorage.getItem('lwd_user_theme');
-      if (persisted !== null) return persisted === 'dark';
-    } catch {}
-    return getDefaultMode() === 'dark';
-  });
-  const toggleDark = () => {
-    const next = !darkMode;
-    setDarkMode(next);
-    try { localStorage.setItem('lwd_user_theme', next ? 'dark' : 'light'); } catch {}
-  };
+  const [darkMode, setDarkMode] = useState(() => getDefaultMode() === 'dark');
+  const toggleDark = () => setDarkMode(d => !d);
 
   const [page, setPage] = useState(initial.page);
   const [categoryRegion, setCategoryRegion] = useState(null);
