@@ -31,64 +31,71 @@ const PAGE_META = {
 
 // ── Content prose styles ──────────────────────────────────────────────────────
 const PROSE_STYLES = `
+  /* Hide duplicate h1 — title already shown in hero */
+  .cms-public-content > h1:first-child {
+    display: none;
+  }
   .cms-public-content h1 {
     font-family: var(--font-heading-primary);
-    font-size: clamp(22px, 2.2vw, 28px);
+    font-size: clamp(20px, 2vw, 26px);
     font-weight: 600;
     color: #f5f0e8;
-    margin: 0 0 18px;
+    margin: 56px 0 16px;
     letter-spacing: -0.01em;
     line-height: 1.25;
   }
   .cms-public-content h2 {
     font-family: var(--font-heading-primary);
-    font-size: clamp(18px, 1.8vw, 22px);
+    font-size: clamp(17px, 1.6vw, 21px);
     font-weight: 600;
     color: #f5f0e8;
-    margin: 44px 0 14px;
+    margin: 56px 0 14px;
     letter-spacing: -0.01em;
     line-height: 1.3;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,0.06);
   }
   .cms-public-content h3 {
     font-family: var(--font-heading-primary);
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
     color: #C9A84C;
-    margin: 30px 0 10px;
+    margin: 36px 0 10px;
     letter-spacing: 0.01em;
   }
   .cms-public-content p {
     font-family: var(--font-body);
     font-size: 15px;
-    color: rgba(245,240,232,0.68);
-    line-height: 1.88;
+    color: rgba(245,240,232,0.65);
+    line-height: 1.9;
     margin: 0 0 18px;
   }
   .cms-public-content a {
     color: #C9A84C;
     text-decoration: none;
-    border-bottom: 1px solid rgba(201,168,76,0.3);
-    transition: border-color 0.2s;
+    border-bottom: 1px solid rgba(201,168,76,0.35);
+    transition: border-color 0.2s, color 0.2s;
   }
   .cms-public-content a:hover {
-    border-color: #C9A84C;
+    color: #dbb96a;
+    border-color: #dbb96a;
   }
   .cms-public-content ul,
   .cms-public-content ol {
     font-family: var(--font-body);
-    padding-left: 24px;
-    margin: 0 0 18px;
+    padding-left: 22px;
+    margin: 0 0 22px;
   }
   .cms-public-content li {
     font-size: 15px;
-    color: rgba(245,240,232,0.68);
-    line-height: 1.75;
-    margin-bottom: 7px;
+    color: rgba(245,240,232,0.65);
+    line-height: 1.8;
+    margin-bottom: 8px;
   }
   .cms-public-content hr {
     border: none;
-    border-top: 1px solid rgba(255,255,255,0.08);
-    margin: 36px 0;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    margin: 48px 0;
   }
   .cms-public-content strong {
     color: #f5f0e8;
@@ -99,14 +106,62 @@ const PROSE_STYLES = `
     color: rgba(245,240,232,0.8);
   }
   .cms-public-content blockquote {
-    border-left: 3px solid #C9A84C;
-    margin: 24px 0;
-    padding: 10px 22px;
-    color: rgba(245,240,232,0.55);
+    border-left: 2px solid #C9A84C;
+    margin: 28px 0;
+    padding: 12px 24px;
+    color: rgba(245,240,232,0.5);
     font-style: italic;
     font-family: var(--font-body);
     font-size: 14px;
-    line-height: 1.8;
+    line-height: 1.85;
+  }
+  /* Styled contact / info block */
+  .cms-public-content .lwd-contact-block {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-left: 2px solid rgba(201,168,76,0.4);
+    border-radius: 6px;
+    padding: 22px 26px;
+    margin: 24px 0 28px;
+  }
+  .cms-public-content .lwd-contact-block p {
+    margin: 0 0 6px;
+    font-size: 14px;
+    color: rgba(245,240,232,0.6);
+  }
+  .cms-public-content .lwd-contact-block p:last-child { margin: 0; }
+  .cms-public-content .lwd-contact-block strong {
+    color: rgba(245,240,232,0.85);
+  }
+  /* Support page anchor nav */
+  .cms-anchor-nav {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 0 0 40px;
+    padding: 18px 22px;
+    background: rgba(201,168,76,0.05);
+    border: 1px solid rgba(201,168,76,0.15);
+    border-radius: 6px;
+  }
+  .cms-anchor-nav a {
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(201,168,76,0.8) !important;
+    border-bottom: none !important;
+    padding: 5px 12px;
+    background: rgba(201,168,76,0.08);
+    border-radius: 3px;
+    transition: background 0.2s, color 0.2s;
+    text-decoration: none;
+  }
+  .cms-anchor-nav a:hover {
+    background: rgba(201,168,76,0.15) !important;
+    color: #C9A84C !important;
+    border-bottom: none !important;
   }
 `;
 
@@ -165,7 +220,7 @@ export default function CmsPage({ pageKey, onBack, footerNav }) {
     <HelmetProvider>
       <ThemeCtx.Provider value={C}>
         <Helmet>
-          <title>{pageTitle} — Luxury Wedding Directory</title>
+          <title>{pageTitle}{' \u2014 '}Luxury Wedding Directory</title>
           {pageDesc && <meta name="description" content={pageDesc} />}
           <meta name="robots" content={isPreview ? 'noindex' : 'index,follow'} />
         </Helmet>
@@ -220,7 +275,7 @@ export default function CmsPage({ pageKey, onBack, footerNav }) {
               background: C.black,
               padding: 'clamp(100px, 12vw, 148px) clamp(24px, 5vw, 60px) clamp(60px, 7vw, 88px)',
             }}>
-              <div style={{ maxWidth: 860, margin: '0 auto' }}>
+              <div style={{ maxWidth: 740, margin: '0 auto' }}>
 
                 {loading ? (
                   <>
@@ -286,7 +341,7 @@ export default function CmsPage({ pageKey, onBack, footerNav }) {
               padding: 'clamp(48px, 6vw, 88px) clamp(24px, 5vw, 60px)',
               flex: 1,
             }}>
-              <div style={{ maxWidth: 860, margin: '0 auto' }}>
+              <div style={{ maxWidth: 740, margin: '0 auto' }}>
 
                 {loading && (
                   <>
