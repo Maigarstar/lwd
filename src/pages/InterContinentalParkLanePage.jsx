@@ -56,8 +56,9 @@ const C_DARK = {
   navyDark: '#070E1C',
 };
 
-// ── Local image helper — /public/InterContinental-Istanbul/ ──────────────────
-const IMG = (n) => `/InterContinental-Istanbul/${n}.jpg`;
+// ── Local image helper — /public/parklane.intercontinental/ ──────────────────
+const PL  = (n) => `/parklane.intercontinental/sitemgr_photo_${n}.jpg`;
+const IMG = (n) => `/InterContinental-Istanbul/${n}.jpg`; // legacy fallback
 
 // ── Venue data ─────────────────────────────────────────────────────────────────
 const IC_VENUE = {
@@ -72,8 +73,8 @@ const IC_VENUE = {
   },
   priceFrom: 'POA',
 
-  // Hero — hotel exterior / Hyde Park Corner elevation
-  heroImage: IMG(1),
+  // Hero — editorial woman in white gown, luxury IC Park Lane interior
+  heroImage: PL('23363'),
 
   heroStats: [
     { value: '447',       label: 'Rooms & Suites'  },
@@ -441,11 +442,13 @@ function HeroSection({ venue }) {
         position: 'absolute', inset: 0,
         backgroundImage: `url("${venue.heroImage}")`,
         backgroundSize: 'cover',
-        backgroundPosition: 'center 40%',
+        backgroundPosition: isMobile ? 'center 20%' : 'center 40%',
       }} />
       <div style={{
         position: 'absolute', inset: 0,
-        background: 'linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.04) 35%, rgba(0,0,0,0.72) 100%)',
+        background: isMobile
+          ? 'linear-gradient(to bottom, rgba(0,0,0,0.06) 0%, rgba(0,0,0,0.02) 30%, rgba(0,0,0,0.82) 100%)'
+          : 'linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.04) 35%, rgba(0,0,0,0.72) 100%)',
       }} />
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0,

@@ -266,11 +266,17 @@ function HeroSection({ content, layout, showcaseHero, listingFirstImage, palette
   const P     = palette;
   const image = resolveImage(content.image, showcaseHero, listingFirstImage);
   const op    = content.overlay_opacity ?? P.heroOverlayOpacity;
+  const { isMobile } = useBreakpoint();
+
+  // Focal point: use authored value if set, otherwise bias mobile toward top
+  // to favour architecture/venue over a centre crop that often misses key details
+  const focalPoint = content.focal_point
+    || (isMobile ? 'center 30%' : 'center center');
 
   return (
     <div style={{
       position: 'relative',
-      height: '85vh', minHeight: 480,
+      height: isMobile ? '100svh' : '85vh', minHeight: isMobile ? 600 : 480,
       overflow: 'hidden',
       background: '#0a0a08',
     }}>
@@ -279,12 +285,17 @@ function HeroSection({ content, layout, showcaseHero, listingFirstImage, palette
           src={image}
           alt={content.title || ''}
           loading="eager"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          style={{
+            position: 'absolute', inset: 0, width: '100%', height: '100%',
+            objectFit: 'cover', objectPosition: focalPoint,
+          }}
         />
       )}
       <div style={{
         position: 'absolute', inset: 0,
-        background: `linear-gradient(to top, rgba(0,0,0,${op + 0.30}) 0%, rgba(0,0,0,${op}) 50%, rgba(0,0,0,${op - 0.20}) 100%)`,
+        background: isMobile
+          ? `linear-gradient(to top, rgba(0,0,0,${op + 0.55}) 0%, rgba(0,0,0,${op + 0.10}) 55%, rgba(0,0,0,${Math.max(0, op - 0.25)}) 100%)`
+          : `linear-gradient(to top, rgba(0,0,0,${op + 0.30}) 0%, rgba(0,0,0,${op}) 50%, rgba(0,0,0,${op - 0.20}) 100%)`,
       }} />
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0,
