@@ -112,10 +112,9 @@ export async function fetchApprovedReviews(entityType, entityId) {
       `)
       .eq('entity_type', entityType)
       .eq('entity_id', entityId)
-      .in('moderation_status', ['approved', 'awaiting_reply', 'replied'])
-      .eq('is_public', true)
+      .eq('moderation_status', 'approved')
       .is('deleted_at', null)
-      .order('review_date', { ascending: false, nullsFirst: false });
+      .order('published_at', { ascending: false, nullsFirst: false });
 
     if (error) {
       console.error('Supabase error fetching approved reviews:', error);
