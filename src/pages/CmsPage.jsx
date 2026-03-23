@@ -14,7 +14,6 @@ import { Helmet, HelmetProvider } from 'react-helmet-async';
 import { ThemeCtx } from '../theme/ThemeContext';
 import { getDarkPalette } from '../theme/tokens';
 import HomeNav from '../components/nav/HomeNav';
-import SiteFooter from '../components/sections/SiteFooter';
 import { fetchPage, fetchPageDraft } from '../services/cmsService';
 
 const C = getDarkPalette();
@@ -343,7 +342,6 @@ export default function CmsPage({ pageKey, onBack, footerNav }) {
             </section>
           </main>
 
-          <SiteFooter footerNav={footerNav} />
         </div>
       </ThemeCtx.Provider>
     </HelmetProvider>
