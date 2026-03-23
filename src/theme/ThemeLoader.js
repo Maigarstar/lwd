@@ -21,8 +21,8 @@ const DEFAULT_FONTS = {
 };
 
 const DEFAULT_SITE_SETTINGS = {
-  defaultMode: "light",
-  adminDefaultMode: "light",
+  defaultMode: "dark",
+  adminDefaultMode: "dark",
   lightOnly: false,
   borderRadiusCard: 6,
   borderRadiusImage: 6,
