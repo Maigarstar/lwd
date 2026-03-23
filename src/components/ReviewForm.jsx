@@ -353,7 +353,7 @@ export default function ReviewForm({ entityType = 'vendor', entityId, entityName
             value={form.review_date ? form.review_date.slice(0, 7) : ''}
             max={new Date().toISOString().slice(0, 7)}
             onChange={e => set('review_date', e.target.value ? `${e.target.value}-01` : '')}
-            style={inputStyle(false, C)}
+            style={{ ...inputStyle(false, C), colorScheme: darkMode ? 'dark' : 'light' }}
             onFocus={e => { e.target.style.borderColor = C.gold; }}
             onBlur={e => { e.target.style.borderColor = C.border; }}
           />
