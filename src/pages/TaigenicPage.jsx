@@ -569,7 +569,7 @@ export default function TaigenicPage({ onBack, footerNav }) {
 
               {/* ── Advertising CTA — secondary tier ── */}
               <p style={{
-                fontFamily: NU, fontSize: 12, color: MUTED,
+                fontFamily: NU, fontSize: 12, color: GREY,
                 margin: "0 auto 14px", maxWidth: 460, lineHeight: 1.6,
               }}>
                 For venues and brands seeking visibility, editorial features, and qualified enquiries through our platform.
