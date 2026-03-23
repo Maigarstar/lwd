@@ -379,14 +379,40 @@ export default function TaigenicPage({ onBack, footerNav }) {
                 Available to licence.
               </p>
 
-              {/* Positioning line — signature statement */}
-              <p style={{
-                fontFamily: GD, fontSize: "clamp(15px, 1.5vw, 18px)", fontStyle: "italic",
-                color: GOLD, opacity: 0.9, maxWidth: 620, margin: "52px auto 0",
-                lineHeight: 1.65, letterSpacing: "0.01em",
-              }}>
-                "Taigenic is not a feature. It is the intelligence layer behind every meaningful interaction on LWD."
-              </p>
+              {/* Positioning line — signature statement with LWD brand watermark */}
+              <div style={{ position: "relative", margin: "52px auto 0", maxWidth: 700 }}>
+
+                {/* LWD background brand mark */}
+                <div aria-hidden="true" style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  fontFamily: GD,
+                  fontSize: "clamp(100px, 18vw, 200px)",
+                  fontWeight: 400,
+                  letterSpacing: "0.18em",
+                  color: GOLD,
+                  opacity: 0.04,
+                  whiteSpace: "nowrap",
+                  pointerEvents: "none",
+                  userSelect: "none",
+                  lineHeight: 1,
+                }}>
+                  LWD
+                </div>
+
+                {/* Quote text — sits above the watermark */}
+                <p style={{
+                  position: "relative",
+                  fontFamily: GD, fontSize: "clamp(15px, 1.5vw, 18px)", fontStyle: "italic",
+                  color: GOLD, opacity: 0.9, margin: 0,
+                  lineHeight: 1.65, letterSpacing: "0.01em",
+                  padding: "28px 0",
+                }}>
+                  "Taigenic is not a feature. It is the intelligence layer behind every meaningful interaction on LWD."
+                </p>
+              </div>
 
               <Divider margin="48px auto 0" />
             </div>
