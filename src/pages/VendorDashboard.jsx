@@ -2050,33 +2050,6 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12 }}>
-          <button
-            onClick={() => {
-              const root = document.documentElement;
-              const currentMode = root.getAttribute("data-lwd-mode") || "light";
-              const newMode = currentMode === "dark" ? "light" : "dark";
-              root.setAttribute("data-lwd-mode", newMode);
-              localStorage.setItem("lwd_user_theme", newMode);
-              setTimeout(() => { window.location.reload(); }, 50);
-            }}
-            style={{
-              background: currentTheme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
-              border: `1px solid ${C.border2}`,
-              borderRadius: "var(--lwd-radius-input)",
-              color: C.gold,
-              width: 32,
-              height: 32,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              fontSize: 14,
-              transition: "all 0.25s ease",
-            }}
-            title={currentTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          >
-            {currentTheme === "dark" ? "\u2600" : "\u263E"}
-          </button>
           <div
             style={{
               width: 8,
@@ -2205,6 +2178,47 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
               <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, marginTop: 8 }}>Renews 1 Mar 2026</div>
             </div>
           )}
+
+          {/* Theme toggle — bottom of sidebar */}
+          <button
+            onClick={() => {
+              const root = document.documentElement;
+              const currentMode = root.getAttribute("data-lwd-mode") || "light";
+              const newMode = currentMode === "dark" ? "light" : "dark";
+              root.setAttribute("data-lwd-mode", newMode);
+              localStorage.setItem("lwd_user_theme", newMode);
+              setTimeout(() => { window.location.reload(); }, 50);
+            }}
+            title={currentTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              width: "100%",
+              padding: sidebarOpen ? "10px 20px" : "10px 14px",
+              justifyContent: sidebarOpen ? "flex-start" : "center",
+              background: "none",
+              border: "none",
+              borderTop: `1px solid ${C.border}`,
+              color: C.grey2,
+              cursor: "pointer",
+              fontFamily: NU,
+              fontSize: 12,
+              letterSpacing: "0.03em",
+              transition: "color 0.2s",
+              marginTop: 8,
+              flexShrink: 0,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = C.gold; }}
+            onMouseLeave={e => { e.currentTarget.style.color = C.grey2; }}
+          >
+            <span style={{ fontSize: 14, lineHeight: 1 }}>
+              {currentTheme === "dark" ? "\u2600" : "\u263E"}
+            </span>
+            {sidebarOpen && (
+              <span>{currentTheme === "dark" ? "Light mode" : "Dark mode"}</span>
+            )}
+          </button>
           </div>{/* end inner overflow:hidden wrapper */}
 
           {/* Desktop sidebar toggle — floats on right edge */}
