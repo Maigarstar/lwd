@@ -6024,14 +6024,14 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
                 <button
                   onClick={() => onNavigate && onNavigate('edit-showcase', { showcaseId: v.id })}
                   style={{
-                    width: '100%', background: C.off, border: 'none',
-                    color: C.black, fontFamily: NU, fontSize: 12, fontWeight: 700,
-                    letterSpacing: '0.08em', textTransform: 'uppercase',
-                    padding: '10px 0', borderRadius: 4, cursor: 'pointer',
-                    marginBottom: 8, transition: 'opacity 0.2s',
+                    width: '100%', background: 'none', border: `1px solid ${C.gold}`,
+                    color: C.gold, fontFamily: NU, fontSize: 12, fontWeight: 600,
+                    letterSpacing: '0.06em', textTransform: 'uppercase',
+                    padding: '9px 0', borderRadius: 4, cursor: 'pointer',
+                    marginBottom: 8, transition: 'border-color 0.2s, color 0.2s, background 0.2s',
                   }}
-                  onMouseEnter={e => e.currentTarget.style.opacity = '0.82'}
-                  onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.08)'; e.currentTarget.style.borderColor = C.gold2 || '#e8c97a'; e.currentTarget.style.color = '#ffffff'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
                 >
                   ✦ Open in Studio
                 </button>
