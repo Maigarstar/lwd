@@ -14,6 +14,7 @@ import HomeNav from '../components/nav/HomeNav';
 import { fetchListingBySlug } from '../services/listings';
 import { fetchApprovedReviews } from '../services/reviewService';
 import ReviewForm from '../components/ReviewForm';
+import SiteFooter from '../components/sections/SiteFooter';
 
 const GD = 'var(--font-heading-primary)';
 const NU = 'var(--font-body)';
@@ -352,6 +353,8 @@ const PublicVendorProfilePage = ({ vendorSlug, onBack, footerNav = {} }) => {
           onClose={() => setFormOpen(false)}
         />
       </Modal>
+
+      <SiteFooter />
     </div>
   );
 };
