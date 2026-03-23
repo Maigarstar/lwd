@@ -7,12 +7,27 @@
 // Phase 1: hardcoded, controlled layout. CMS layer added later if needed.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ThemeCtx } from "../theme/ThemeContext";
 import { getDarkPalette } from "../theme/tokens";
 import { useChat } from "../chat/ChatContext";
 import HomeNav from "../components/nav/HomeNav";
+import { supabase } from "../lib/supabaseClient";
+import { sendEmail } from "../services/emailSendService";
 // Note: SiteFooter is rendered globally by main.jsx — do NOT add it here.
+
+// ── Taigenic pipeline constants (fixed UUIDs — seeded in 20260324_taigenic_pipeline.sql) ──
+const TAIGENIC_PIPELINE_ID  = "a1000000-0000-0000-0000-000000000003";
+const TAIGENIC_STAGE_NEW    = "b1000000-0000-0000-0000-000000000020";
+const NOTIFY_EMAIL          = "taiwoadedayo@gmail.com";
+
+// ── Enquiry type config — drives CTA labels, form pre-selection, pipeline tagging ──
+const ENQUIRY_TYPES = {
+  licence:     { label: "Licence Aura",    tag: "licence",     pipelineStage: "New Enquiry" },
+  partnership: { label: "Partner with us", tag: "partnership", pipelineStage: "New Enquiry" },
+  demo:        { label: "Request a demo",  tag: "demo",        pipelineStage: "New Enquiry" },
+  advertising: { label: "Advertise with us", tag: "advertising", pipelineStage: "New Enquiry" },
+};
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -138,16 +153,113 @@ function Pillar({ number, title, desc }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Component
 // ─────────────────────────────────────────────────────────────────────────────
+const EMPTY_FORM = { name: "", company: "", email: "", phone: "", website: "", message: "" };
+
 export default function TaigenicPage({ onBack, footerNav }) {
   const { setChatContext } = useChat();
+  const [activeType, setActiveType]   = useState(null);   // 'licence' | 'partnership' | 'demo' | 'advertising'
+  const [form, setForm]               = useState(EMPTY_FORM);
+  const [errors, setErrors]           = useState({});
+  const [submitting, setSubmitting]   = useState(false);
+  const [submitted, setSubmitted]     = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const formRef = useRef(null);
 
   useEffect(() => {
     setChatContext?.({ page: "taigenic" });
   }, [setChatContext]);
 
-  function handleEnquiry(type) {
-    const subject = encodeURIComponent(`Taigenic Partnership — ${type}`);
-    window.open(`mailto:contact@5starweddingdirectory.com?subject=${subject}`, "_blank");
+  // Scroll form into view when it opens
+  useEffect(() => {
+    if (activeType && formRef.current) {
+      setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 80);
+    }
+  }, [activeType]);
+
+  function openForm(type) {
+    setActiveType(type);
+    setSubmitted(false);
+    setSubmitError(null);
+    setErrors({});
+    setForm(EMPTY_FORM);
+  }
+
+  function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
+
+  function validate() {
+    const e = {};
+    if (!form.name.trim())    e.name    = "Required";
+    if (!form.company.trim()) e.company = "Required";
+    if (!form.email.trim() || !/\S+@\S+\.\S+/.test(form.email)) e.email = "Valid email required";
+    return e;
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    const errs = validate();
+    if (Object.keys(errs).length) { setErrors(errs); return; }
+    setSubmitting(true);
+    setSubmitError(null);
+
+    const typeLabel = ENQUIRY_TYPES[activeType]?.label || activeType;
+
+    try {
+      // 1. Insert prospect into pipeline
+      const { error: dbErr } = await supabase.from("prospects").insert([{
+        company_name:   form.company,
+        contact_name:   form.name,
+        email:          form.email,
+        phone:          form.phone || null,
+        website:        form.website || null,
+        notes:          form.message || null,
+        source:         "Taigenic Landing Page",
+        venue_type:     activeType,           // repurposed as enquiry_type
+        pipeline_stage: "New Enquiry",
+        pipeline_id:    TAIGENIC_PIPELINE_ID,
+        stage_id:       TAIGENIC_STAGE_NEW,
+        status:         "active",
+      }]);
+      if (dbErr) throw dbErr;
+
+      // 2. Send Gmail notification (fire-and-forget)
+      sendEmail({
+        subject:   `New Taigenic Enquiry — ${typeLabel} — ${form.company}`,
+        fromName:  "Taigenic Notifications",
+        fromEmail: "hello@luxuryweddingdirectory.co.uk",
+        recipients: [{ email: NOTIFY_EMAIL, name: "Taiwo" }],
+        type:      "campaign",
+        html: `
+<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a1a18">
+  <div style="background:#0d0c0a;padding:24px 32px;border-radius:4px 4px 0 0">
+    <p style="color:#c9a84c;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;margin:0 0 8px">Taigenic · New B2B Enquiry</p>
+    <h1 style="color:#f2ede5;font-size:22px;margin:0;font-weight:400">${typeLabel}</h1>
+  </div>
+  <div style="background:#f9f7f4;padding:32px;border-radius:0 0 4px 4px">
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <tr><td style="padding:8px 0;color:#6b6560;width:120px">Name</td><td style="padding:8px 0;font-weight:500">${form.name}</td></tr>
+      <tr><td style="padding:8px 0;color:#6b6560">Company</td><td style="padding:8px 0;font-weight:500">${form.company}</td></tr>
+      <tr><td style="padding:8px 0;color:#6b6560">Email</td><td style="padding:8px 0"><a href="mailto:${form.email}" style="color:#9d873e">${form.email}</a></td></tr>
+      ${form.phone ? `<tr><td style="padding:8px 0;color:#6b6560">Phone</td><td style="padding:8px 0">${form.phone}</td></tr>` : ""}
+      ${form.website ? `<tr><td style="padding:8px 0;color:#6b6560">Website</td><td style="padding:8px 0"><a href="${form.website}" style="color:#9d873e">${form.website}</a></td></tr>` : ""}
+      <tr><td style="padding:8px 0;color:#6b6560">Enquiry type</td><td style="padding:8px 0"><strong>${typeLabel}</strong></td></tr>
+      <tr><td style="padding:8px 0;color:#6b6560">Source</td><td style="padding:8px 0">Taigenic Landing Page</td></tr>
+    </table>
+    ${form.message ? `<div style="margin-top:20px;padding:16px;background:#fff;border-radius:3px;border:1px solid #e8e3dc"><p style="color:#6b6560;font-size:11px;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.1em">Message</p><p style="margin:0;line-height:1.7">${form.message}</p></div>` : ""}
+    <div style="margin-top:24px;padding-top:20px;border-top:1px solid #e8e3dc;font-size:12px;color:#9c9690">
+      <p style="margin:0">This lead has been saved to the Taigenic B2B pipeline in admin → Sales Pipeline.</p>
+      <p style="margin:4px 0 0">Submitted: ${new Date().toLocaleString("en-GB", { dateStyle: "full", timeStyle: "short" })}</p>
+    </div>
+  </div>
+</div>`,
+      }).catch(err => console.warn("[TaigenicPage] Email notification failed:", err));
+
+      setSubmitted(true);
+    } catch (err) {
+      console.error("[TaigenicPage] Submit failed:", err);
+      setSubmitError("Something went wrong. Please email us directly at contact@5starweddingdirectory.com");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -387,17 +499,16 @@ export default function TaigenicPage({ onBack, footerNav }) {
           </section>
 
           {/* ────────────────────────────────────────────────────────────────────
-              SECTION 5 — Licensing / Partnership CTA
+              SECTION 5 — B2B CTA + Inline enquiry form
           ──────────────────────────────────────────────────────────────────── */}
           <section style={{
             background: BG,
-            padding: "120px 60px",
+            padding: "120px 60px 100px",
             textAlign: "center",
-            // Subtle gold radial glow at centre
             backgroundImage: "radial-gradient(ellipse 60% 40% at 50% 100%, rgba(201,168,76,0.05) 0%, transparent 70%)",
           }}>
-            <div style={{ maxWidth: 680, margin: "0 auto" }}>
-              <Label text="Licence & Partnership" />
+            <div style={{ maxWidth: 700, margin: "0 auto" }}>
+              <Label text="Work with us" />
 
               <h2 style={{
                 fontFamily: GD, fontSize: "clamp(28px, 3vw, 48px)", fontWeight: 400,
@@ -409,101 +520,243 @@ export default function TaigenicPage({ onBack, footerNav }) {
               <p style={{
                 fontFamily: NU, fontSize: 15, color: GREY,
                 lineHeight: 1.85, fontWeight: 300,
-                maxWidth: 520, margin: "0 auto 16px",
+                maxWidth: 520, margin: "0 auto 48px",
               }}>
                 Taigenic is available to licence for premium hospitality platforms,
                 wedding directories, event businesses, and luxury brands.
-              </p>
-              <p style={{
-                fontFamily: NU, fontSize: 14, color: MUTED,
-                lineHeight: 1.75, fontWeight: 300,
-                maxWidth: 460, margin: "0 auto 56px",
-              }}>
-                Integration is handled by our team. Go live in weeks, not months.
+                Integration is handled by our team — live in weeks, not months.
               </p>
 
-              {/* Three CTA options */}
-              <div style={{
-                display: "flex", gap: 14,
-                justifyContent: "center",
-                flexWrap: "wrap",
-              }}>
-                {/* Primary */}
-                <button
-                  onClick={() => handleEnquiry("Licence Enquiry")}
-                  style={{
-                    background: GOLD, color: "#0a0805",
-                    border: "none", borderRadius: 3,
-                    padding: "14px 32px", cursor: "pointer",
-                    fontFamily: NU, fontSize: 10, fontWeight: 700,
-                    letterSpacing: "0.2em", textTransform: "uppercase",
-                    transition: "opacity 0.2s",
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.opacity = "0.88"}
-                  onMouseLeave={e => e.currentTarget.style.opacity = "1"}
-                >
+              {/* ── Primary CTAs — Licence, Partner, Demo ── */}
+              <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginBottom: 20 }}>
+
+                {/* Licence Aura — gold primary */}
+                <button onClick={() => openForm("licence")} style={{
+                  background: activeType === "licence" ? "rgba(201,168,76,0.15)" : GOLD,
+                  color: activeType === "licence" ? GOLD : "#0a0805",
+                  border: activeType === "licence" ? `1px solid ${GOLD}` : "none",
+                  borderRadius: 3, padding: "14px 32px", cursor: "pointer",
+                  fontFamily: NU, fontSize: 10, fontWeight: 700,
+                  letterSpacing: "0.2em", textTransform: "uppercase", transition: "all 0.2s",
+                }}>
                   Licence Aura
                 </button>
 
-                {/* Secondary */}
-                <button
-                  onClick={() => handleEnquiry("Partnership")}
-                  style={{
-                    background: "transparent", color: GOLD,
-                    border: `1px solid ${BORDER_GOLD}`,
-                    borderRadius: 3,
-                    padding: "14px 32px", cursor: "pointer",
-                    fontFamily: NU, fontSize: 10, fontWeight: 700,
-                    letterSpacing: "0.2em", textTransform: "uppercase",
-                    transition: "all 0.2s",
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = "rgba(201,168,76,0.08)";
-                    e.currentTarget.style.borderColor = GOLD;
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.borderColor = BORDER_GOLD;
-                  }}
-                >
+                {/* Partner with us — gold outline */}
+                <button onClick={() => openForm("partnership")} style={{
+                  background: activeType === "partnership" ? "rgba(201,168,76,0.1)" : "transparent",
+                  color: GOLD,
+                  border: `1px solid ${activeType === "partnership" ? GOLD : BORDER_GOLD}`,
+                  borderRadius: 3, padding: "14px 32px", cursor: "pointer",
+                  fontFamily: NU, fontSize: 10, fontWeight: 700,
+                  letterSpacing: "0.2em", textTransform: "uppercase", transition: "all 0.2s",
+                }}>
                   Partner with us
                 </button>
 
-                {/* Tertiary */}
-                <button
-                  onClick={() => handleEnquiry("Demo Request")}
-                  style={{
-                    background: "transparent", color: MUTED,
-                    border: `1px solid ${BORDER}`,
-                    borderRadius: 3,
-                    padding: "14px 32px", cursor: "pointer",
-                    fontFamily: NU, fontSize: 10, fontWeight: 700,
-                    letterSpacing: "0.2em", textTransform: "uppercase",
-                    transition: "all 0.2s",
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.color = OFF;
-                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.color = MUTED;
-                    e.currentTarget.style.borderColor = BORDER;
-                  }}
-                >
+                {/* Request a demo — gold outline */}
+                <button onClick={() => openForm("demo")} style={{
+                  background: activeType === "demo" ? "rgba(201,168,76,0.1)" : "transparent",
+                  color: GOLD,
+                  border: `1px solid ${activeType === "demo" ? GOLD : BORDER_GOLD}`,
+                  borderRadius: 3, padding: "14px 32px", cursor: "pointer",
+                  fontFamily: NU, fontSize: 10, fontWeight: 700,
+                  letterSpacing: "0.2em", textTransform: "uppercase", transition: "all 0.2s",
+                }}>
                   Request a demo
                 </button>
               </div>
 
-              <Divider margin="60px auto 0" />
-
-              {/* Small print */}
+              {/* ── Advertising CTA — secondary tier ── */}
               <p style={{
-                fontFamily: NU, fontSize: 11, color: MUTED,
-                margin: "20px 0 0", lineHeight: 1.6,
+                fontFamily: NU, fontSize: 12, color: MUTED,
+                margin: "0 auto 14px", maxWidth: 460, lineHeight: 1.6,
               }}>
-                Enquiries are handled directly by the Taigenic team.
-                Response within 2 business days.
+                For venues and brands seeking visibility, editorial features, and qualified enquiries through our platform.
               </p>
+              <button onClick={() => openForm("advertising")} style={{
+                background: activeType === "advertising" ? "rgba(255,255,255,0.05)" : "transparent",
+                color: activeType === "advertising" ? OFF : MUTED,
+                border: `1px solid ${activeType === "advertising" ? "rgba(255,255,255,0.2)" : BORDER}`,
+                borderRadius: 3, padding: "12px 28px", cursor: "pointer",
+                fontFamily: NU, fontSize: 10, fontWeight: 600,
+                letterSpacing: "0.18em", textTransform: "uppercase", transition: "all 0.2s",
+              }}>
+                Advertise with us
+              </button>
+
+              {/* ── Inline form — slides in when a CTA is clicked ── */}
+              {activeType && (
+                <div ref={formRef} style={{
+                  marginTop: 52,
+                  background: PANEL,
+                  border: `1px solid ${BORDER_GOLD}`,
+                  borderRadius: 4,
+                  padding: "40px 40px 36px",
+                  textAlign: "left",
+                }}>
+                  {/* Form header */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+                    <div>
+                      <p style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.28em", textTransform: "uppercase", color: GOLD, margin: "0 0 6px" }}>
+                        {ENQUIRY_TYPES[activeType]?.label}
+                      </p>
+                      <p style={{ fontFamily: NU, fontSize: 13, color: GREY, margin: 0, lineHeight: 1.6 }}>
+                        Fill in your details and we'll be in touch within 2 business days.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => { setActiveType(null); setSubmitted(false); }}
+                      style={{ background: "none", border: "none", color: MUTED, cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "0 0 0 16px" }}
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  {submitted ? (
+                    /* ── Success state ── */
+                    <div style={{ textAlign: "center", padding: "32px 0" }}>
+                      <div style={{ fontSize: 22, color: GOLD, marginBottom: 16 }}>✦</div>
+                      <h3 style={{ fontFamily: GD, fontSize: 20, fontWeight: 400, color: OFF, margin: "0 0 12px" }}>
+                        Enquiry received.
+                      </h3>
+                      <p style={{ fontFamily: NU, fontSize: 14, color: GREY, lineHeight: 1.75, maxWidth: 380, margin: "0 auto 24px" }}>
+                        Thank you, {form.name.split(" ")[0]}. Your enquiry has been received and added to our pipeline.
+                        Our team will be in touch shortly.
+                      </p>
+                      <button
+                        onClick={() => { setActiveType(null); setSubmitted(false); }}
+                        style={{ background: "none", border: `1px solid ${BORDER_GOLD}`, color: GOLD, borderRadius: 3,
+                          padding: "10px 24px", cursor: "pointer", fontFamily: NU, fontSize: 10,
+                          letterSpacing: "0.18em", textTransform: "uppercase" }}
+                      >
+                        Close
+                      </button>
+                    </div>
+                  ) : (
+                    /* ── Form fields ── */
+                    <form onSubmit={handleSubmit} noValidate>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px 24px" }} className="taigenic-form-grid">
+
+                        {/* Name */}
+                        <div>
+                          <label style={{ fontFamily: NU, fontSize: 10, color: MUTED, display: "block", marginBottom: 6, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                            Your name <span style={{ color: GOLD }}>*</span>
+                          </label>
+                          <input
+                            type="text" value={form.name}
+                            onChange={e => set("name", e.target.value)}
+                            placeholder="Jane Smith"
+                            style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid ${errors.name ? "#e05c4a" : BORDER}`, borderRadius: 3, padding: "10px 12px", color: OFF, fontFamily: NU, fontSize: 13, outline: "none", boxSizing: "border-box" }}
+                          />
+                          {errors.name && <p style={{ fontFamily: NU, fontSize: 11, color: "#e05c4a", margin: "5px 0 0" }}>{errors.name}</p>}
+                        </div>
+
+                        {/* Company */}
+                        <div>
+                          <label style={{ fontFamily: NU, fontSize: 10, color: MUTED, display: "block", marginBottom: 6, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                            Company <span style={{ color: GOLD }}>*</span>
+                          </label>
+                          <input
+                            type="text" value={form.company}
+                            onChange={e => set("company", e.target.value)}
+                            placeholder="Acme Hospitality Group"
+                            style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid ${errors.company ? "#e05c4a" : BORDER}`, borderRadius: 3, padding: "10px 12px", color: OFF, fontFamily: NU, fontSize: 13, outline: "none", boxSizing: "border-box" }}
+                          />
+                          {errors.company && <p style={{ fontFamily: NU, fontSize: 11, color: "#e05c4a", margin: "5px 0 0" }}>{errors.company}</p>}
+                        </div>
+
+                        {/* Email */}
+                        <div>
+                          <label style={{ fontFamily: NU, fontSize: 10, color: MUTED, display: "block", marginBottom: 6, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                            Email <span style={{ color: GOLD }}>*</span>
+                          </label>
+                          <input
+                            type="email" value={form.email}
+                            onChange={e => set("email", e.target.value)}
+                            placeholder="jane@yourcompany.com"
+                            style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid ${errors.email ? "#e05c4a" : BORDER}`, borderRadius: 3, padding: "10px 12px", color: OFF, fontFamily: NU, fontSize: 13, outline: "none", boxSizing: "border-box" }}
+                          />
+                          {errors.email && <p style={{ fontFamily: NU, fontSize: 11, color: "#e05c4a", margin: "5px 0 0" }}>{errors.email}</p>}
+                        </div>
+
+                        {/* Phone */}
+                        <div>
+                          <label style={{ fontFamily: NU, fontSize: 10, color: MUTED, display: "block", marginBottom: 6, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                            Phone <span style={{ color: MUTED, fontWeight: 400 }}>optional</span>
+                          </label>
+                          <input
+                            type="tel" value={form.phone}
+                            onChange={e => set("phone", e.target.value)}
+                            placeholder="+44 7700 000000"
+                            style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid ${BORDER}`, borderRadius: 3, padding: "10px 12px", color: OFF, fontFamily: NU, fontSize: 13, outline: "none", boxSizing: "border-box" }}
+                          />
+                        </div>
+
+                        {/* Website */}
+                        <div style={{ gridColumn: "1 / -1" }}>
+                          <label style={{ fontFamily: NU, fontSize: 10, color: MUTED, display: "block", marginBottom: 6, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                            Website <span style={{ color: MUTED, fontWeight: 400 }}>optional</span>
+                          </label>
+                          <input
+                            type="url" value={form.website}
+                            onChange={e => set("website", e.target.value)}
+                            placeholder="https://yourplatform.com"
+                            style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid ${BORDER}`, borderRadius: 3, padding: "10px 12px", color: OFF, fontFamily: NU, fontSize: 13, outline: "none", boxSizing: "border-box" }}
+                          />
+                        </div>
+
+                        {/* Message */}
+                        <div style={{ gridColumn: "1 / -1" }}>
+                          <label style={{ fontFamily: NU, fontSize: 10, color: MUTED, display: "block", marginBottom: 6, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                            Message <span style={{ color: MUTED, fontWeight: 400 }}>optional</span>
+                          </label>
+                          <textarea
+                            value={form.message}
+                            onChange={e => set("message", e.target.value)}
+                            rows={4}
+                            placeholder="Tell us about your platform, what you're looking for, and any specific requirements…"
+                            style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid ${BORDER}`, borderRadius: 3, padding: "10px 12px", color: OFF, fontFamily: NU, fontSize: 13, outline: "none", boxSizing: "border-box", resize: "vertical", lineHeight: 1.65 }}
+                          />
+                        </div>
+                      </div>
+
+                      {submitError && (
+                        <p style={{ fontFamily: NU, fontSize: 12, color: "#e05c4a", margin: "16px 0 0", lineHeight: 1.5 }}>{submitError}</p>
+                      )}
+
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 24 }}>
+                        <p style={{ fontFamily: NU, fontSize: 11, color: MUTED, margin: 0, lineHeight: 1.5 }}>
+                          This enquiry will be added to our Taigenic B2B pipeline.
+                        </p>
+                        <button
+                          type="submit"
+                          disabled={submitting}
+                          style={{
+                            background: submitting ? BORDER : GOLD,
+                            color: "#0a0805", border: "none", borderRadius: 3,
+                            padding: "12px 32px", cursor: submitting ? "default" : "pointer",
+                            fontFamily: NU, fontSize: 10, fontWeight: 700,
+                            letterSpacing: "0.2em", textTransform: "uppercase", transition: "all 0.2s",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {submitting ? "Sending…" : "Submit Enquiry"}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              )}
+
+              {!activeType && (
+                <>
+                  <Divider margin="52px auto 0" />
+                  <p style={{ fontFamily: NU, fontSize: 11, color: MUTED, margin: "20px 0 0", lineHeight: 1.6 }}>
+                    All enquiries are handled directly by the Taigenic team. Response within 2 business days.
+                  </p>
+                </>
+              )}
             </div>
           </section>
 
@@ -518,6 +771,21 @@ export default function TaigenicPage({ onBack, footerNav }) {
             grid-template-columns: 1fr !important;
             gap: 60px 0 !important;
           }
+          .taigenic-form-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+        .taigenic-form-grid input,
+        .taigenic-form-grid textarea {
+          color: #f2ede5 !important;
+        }
+        .taigenic-form-grid input::placeholder,
+        .taigenic-form-grid textarea::placeholder {
+          color: rgba(242,237,229,0.3);
+        }
+        .taigenic-form-grid input:focus,
+        .taigenic-form-grid textarea:focus {
+          border-color: rgba(201,168,76,0.5) !important;
         }
       `}</style>
 
