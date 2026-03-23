@@ -218,10 +218,7 @@ export default function HomeFooter({ onListBusiness, onNavigateStandard, onNavig
               color: "rgba(255,255,255,0.2)",
             }}
           >
-            © {new Date().getFullYear()} Luxury Wedding Directory · Powered by Taigenic.ai
-          </span>
-          <span style={{ fontFamily: NU, fontSize: 10, color: "rgba(255,255,255,0.2)" }}>
-            Part of 5 Star Weddings Ltd 2006–{new Date().getFullYear()}
+            © 2026 LuxuryWeddingDirectory.com · Est. 2006 · All rights reserved
           </span>
           <div className="home-footer-legal-links" style={{ display: "flex", gap: 20 }}>
             {["Privacy", "Terms", "Cookies", "Sitemap", "Admin"].map((l) => (
