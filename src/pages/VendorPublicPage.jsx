@@ -35,6 +35,24 @@ const LIGHT = {
   greenBd:    'rgba(45,106,79,0.2)',
 };
 
+const DARK = {
+  bg:         '#0f0e0c',
+  bgAlt:      '#161410',
+  surface:    '#1a1814',
+  border:     'rgba(255,255,255,0.08)',
+  border2:    'rgba(255,255,255,0.14)',
+  gold:       '#c9a84c',
+  goldLight:  'rgba(201,168,76,0.08)',
+  goldBorder: 'rgba(201,168,76,0.22)',
+  text:       '#f0ebe3',
+  textMid:    'rgba(240,235,227,0.75)',
+  textLight:  'rgba(240,235,227,0.55)',
+  textMuted:  'rgba(240,235,227,0.35)',
+  green:      '#4caf82',
+  greenBg:    'rgba(76,175,130,0.1)',
+  greenBd:    'rgba(76,175,130,0.25)',
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtDate(iso) {
   if (!iso) return null;
@@ -255,8 +273,8 @@ function RatingSummary({ reviews, C }) {
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-export default function VendorPublicPage({ vendorSlug, onBack }) {
-  const C = LIGHT;
+export default function VendorPublicPage({ vendorSlug, onBack, darkMode = false, onToggleDark }) {
+  const C = darkMode ? DARK : LIGHT;
   const reviewsRef = useRef(null);
   const writeReviewRef = useRef(null);
 
@@ -320,7 +338,7 @@ export default function VendorPublicPage({ vendorSlug, onBack }) {
   // ── Loading ───────────────────────────────────────────────────────────────
   if (loading) return (
     <div style={{ background: C.bg, minHeight: '100vh' }}>
-      <HomeNav hasHero={false} />
+      <HomeNav hasHero={false} darkMode={darkMode} onToggleDark={onToggleDark} />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
         <span style={{ fontFamily: NU, fontSize: 13, color: C.textMuted }}>Loading…</span>
       </div>
@@ -330,7 +348,7 @@ export default function VendorPublicPage({ vendorSlug, onBack }) {
   // ── Not found ─────────────────────────────────────────────────────────────
   if (notFound || !listing) return (
     <div style={{ background: C.bg, minHeight: '100vh' }}>
-      <HomeNav hasHero={false} />
+      <HomeNav hasHero={false} darkMode={darkMode} onToggleDark={onToggleDark} />
       <div style={{ maxWidth: 600, margin: '100px auto', padding: '0 24px', textAlign: 'center' }}>
         <div style={{ fontFamily: GD, fontSize: 26, color: C.text, marginBottom: 12 }}>Vendor not found</div>
         <p style={{ fontFamily: NU, fontSize: 13, color: C.textLight }}>This vendor profile doesn't exist or has been removed.</p>
@@ -343,7 +361,7 @@ export default function VendorPublicPage({ vendorSlug, onBack }) {
 
   return (
     <div style={{ background: C.bg, minHeight: '100vh' }}>
-      <HomeNav hasHero={false} />
+      <HomeNav hasHero={false} darkMode={darkMode} onToggleDark={onToggleDark} />
 
       {/* Spacer below fixed nav */}
       <div style={{ height: 61 }} />
@@ -414,23 +432,24 @@ export default function VendorPublicPage({ vendorSlug, onBack }) {
             </h2>
           </div>
 
-          {/* Write a Review CTA — always visible */}
-          <div id="write-a-review" ref={writeReviewRef}>
-            <button
-              onClick={() => setFormOpen(true)}
-              style={{
-                fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-                letterSpacing: '1px', padding: '11px 22px', borderRadius: 3,
-                background: C.text, color: '#fff', border: 'none', cursor: 'pointer',
-                transition: 'opacity 0.15s',
-                flexShrink: 0,
-              }}
-              onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
-              onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
-            >
-              + Write a review
-            </button>
-          </div>
+          {/* Top-right CTA — only when reviews exist */}
+          {reviews.length > 0 && (
+            <div id="write-a-review" ref={writeReviewRef}>
+              <button
+                onClick={() => setFormOpen(true)}
+                style={{
+                  fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+                  letterSpacing: '1px', padding: '11px 22px', borderRadius: 3,
+                  background: C.text, color: '#fff', border: 'none', cursor: 'pointer',
+                  transition: 'opacity 0.15s', flexShrink: 0,
+                }}
+                onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
+                onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+              >
+                + Write a review
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Rating distribution */}
@@ -442,24 +461,30 @@ export default function VendorPublicPage({ vendorSlug, onBack }) {
             <ReviewCard key={r.id} review={r} vendorName={listing.name} C={C} />
           ))
         ) : (
-          /* Empty state */
+          /* Empty state — single gold CTA, no competing button */
           <div style={{
             background: C.surface, border: `1px dashed ${C.border2}`,
-            borderRadius: 4, padding: '48px 32px', textAlign: 'center',
+            borderRadius: 4, padding: '52px 32px', textAlign: 'center',
           }}>
+            <div style={{ fontSize: 28, marginBottom: 14, opacity: 0.3 }}>✦</div>
             <div style={{ fontFamily: GD, fontSize: 22, color: C.textMid, marginBottom: 10 }}>
               No reviews yet
             </div>
-            <p style={{ fontFamily: NU, fontSize: 13, color: C.textLight, lineHeight: 1.6, maxWidth: 400, margin: '0 auto 24px' }}>
-              {listing.name} hasn't received any reviews on LWD yet. If you've worked with them, share your experience.
+            <p style={{ fontFamily: NU, fontSize: 13, color: C.textLight, lineHeight: 1.65, maxWidth: 420, margin: '0 auto 8px' }}>
+              {listing.name} hasn't received any reviews on LWD yet.
+            </p>
+            <p style={{ fontFamily: NU, fontSize: 12, color: C.textMuted, lineHeight: 1.5, maxWidth: 360, margin: '0 auto 28px' }}>
+              Couples rely on reviews like yours to make confident decisions.
             </p>
             <button
               onClick={() => setFormOpen(true)}
               style={{
                 fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-                letterSpacing: '1px', padding: '11px 24px', borderRadius: 3,
+                letterSpacing: '1px', padding: '13px 28px', borderRadius: 3,
                 background: C.gold, color: '#fff', border: 'none', cursor: 'pointer',
               }}
+              onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
             >
               + Write the first review
             </button>

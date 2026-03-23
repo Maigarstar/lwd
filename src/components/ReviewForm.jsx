@@ -44,14 +44,22 @@ const VENDOR_SUB_RATINGS = [
 // ── Interactive star row ───────────────────────────────────────────────────────
 function StarPicker({ value, onChange, size = 28 }) {
   const [hovered, setHovered] = useState(0);
+  const [clicked, setClicked] = useState(0);
   const active = hovered || value;
+
+  function handleClick(s) {
+    onChange(s);
+    setClicked(s);
+    setTimeout(() => setClicked(0), 300);
+  }
+
   return (
     <div style={{ display: 'flex', gap: 4 }}>
       {[1, 2, 3, 4, 5].map(s => (
         <button
           key={s}
           type="button"
-          onClick={() => onChange(s)}
+          onClick={() => handleClick(s)}
           onMouseEnter={() => setHovered(s)}
           onMouseLeave={() => setHovered(0)}
           style={{
@@ -59,8 +67,8 @@ function StarPicker({ value, onChange, size = 28 }) {
             padding: 2, lineHeight: 1,
             fontSize: size,
             color: s <= active ? C.gold : C.border,
-            transition: 'color 0.12s, transform 0.1s',
-            transform: s <= active ? 'scale(1.1)' : 'scale(1)',
+            transition: 'color 0.12s, transform 0.15s',
+            transform: s === clicked ? 'scale(1.35)' : s <= active ? 'scale(1.1)' : 'scale(1)',
           }}
           aria-label={`${s} star${s > 1 ? 's' : ''}`}
         >★</button>
@@ -72,21 +80,30 @@ function StarPicker({ value, onChange, size = 28 }) {
 // ── Small inline star picker for sub-ratings ──────────────────────────────────
 function SubStars({ value, onChange }) {
   const [hovered, setHovered] = useState(0);
+  const [clicked, setClicked] = useState(0);
   const active = hovered || value;
+
+  function handleClick(s) {
+    onChange(value === s ? 0 : s);
+    setClicked(s);
+    setTimeout(() => setClicked(0), 250);
+  }
+
   return (
     <div style={{ display: 'flex', gap: 3 }}>
       {[1, 2, 3, 4, 5].map(s => (
         <button
           key={s}
           type="button"
-          onClick={() => onChange(value === s ? 0 : s)}
+          onClick={() => handleClick(s)}
           onMouseEnter={() => setHovered(s)}
           onMouseLeave={() => setHovered(0)}
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
             padding: 1, lineHeight: 1, fontSize: 16,
             color: s <= active ? C.gold : '#d8d3cc',
-            transition: 'color 0.1s',
+            transition: 'color 0.1s, transform 0.12s',
+            transform: s === clicked ? 'scale(1.3)' : s <= active ? 'scale(1.05)' : 'scale(1)',
           }}
         >★</button>
       ))}
@@ -188,22 +205,32 @@ export default function ReviewForm({ entityType = 'vendor', entityId, entityName
   // ── Success state ───────────────────────────────────────────────────────────
   if (step === 'success') {
     return (
-      <div style={{ padding: '36px 32px', textAlign: 'center' }}>
-        <div style={{ fontSize: 40, marginBottom: 16 }}>✦</div>
-        <div style={{ fontFamily: GD, fontSize: 22, color: C.text, marginBottom: 10 }}>
+      <div style={{ padding: '40px 32px 36px', textAlign: 'center' }}>
+        <div style={{ fontSize: 36, marginBottom: 16, color: C.gold }}>✦</div>
+        <div style={{ fontFamily: GD, fontSize: 24, color: C.text, marginBottom: 10 }}>
           Thank you for your review
         </div>
-        <p style={{ fontFamily: NU, fontSize: 13, color: C.textLight, lineHeight: 1.6, maxWidth: 380, margin: '0 auto 20px' }}>
-          Your review has been submitted and will appear once reviewed by the LWD team.
-          {verified && (
-            <span style={{ display: 'block', marginTop: 10, padding: '8px 12px', background: C.greenBg, borderRadius: 3, color: C.green, fontWeight: 600 }}>
-              ◈ Your booking has been verified — your review will carry a Verified Booking badge.
-            </span>
-          )}
+        <p style={{ fontFamily: NU, fontSize: 13, color: C.textMid, lineHeight: 1.65, maxWidth: 380, margin: '0 auto 16px' }}>
+          Your review has been submitted for editorial approval. Once verified by the LWD team it will appear on this profile.
         </p>
+
+        {verified && (
+          <div style={{ display: 'inline-block', margin: '0 auto 16px', padding: '9px 14px', background: C.greenBg, border: `1px solid rgba(45,106,79,0.2)`, borderRadius: 3, color: C.green, fontFamily: NU, fontSize: 12, fontWeight: 600 }}>
+            ◈ Your booking has been verified — your review will carry a Verified Booking badge.
+          </div>
+        )}
+
+        <div style={{ margin: '0 auto 24px', padding: '12px 16px', background: C.goldLight, border: `1px solid ${C.goldBorder}`, borderRadius: 3, maxWidth: 380 }}>
+          <p style={{ fontFamily: NU, fontSize: 11, color: C.textMid, lineHeight: 1.55, margin: 0 }}>
+            <strong style={{ color: C.gold }}>LWD Review Standards</strong> — All reviews are verified by our editorial team. Confirmed bookings receive a ◈ Verified Booking badge.
+          </p>
+        </div>
+
         <button
           onClick={onClose}
-          style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', padding: '10px 24px', background: C.text, color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer' }}
+          style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', padding: '11px 28px', background: C.text, color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer' }}
+          onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
+          onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
         >
           Done
         </button>
@@ -252,8 +279,11 @@ export default function ReviewForm({ entityType = 'vendor', entityId, entityName
           <div style={{ fontFamily: GD, fontSize: 22, color: C.text }}>
             Share your experience with {entityName}
           </div>
-          <p style={{ fontFamily: NU, fontSize: 12, color: C.textLight, margin: '6px 0 0', lineHeight: 1.5 }}>
-            Your review helps couples find the right people for their wedding day. Reviews are verified by the LWD team before publishing.
+          <p style={{ fontFamily: NU, fontSize: 12, color: C.textMuted, margin: '5px 0 0', lineHeight: 1.5, fontStyle: 'italic' }}>
+            Couples rely on reviews like yours to make confident decisions.
+          </p>
+          <p style={{ fontFamily: NU, fontSize: 11, color: C.textLight, margin: '8px 0 0', lineHeight: 1.5 }}>
+            Reviews are verified by the LWD editorial team before publishing.
           </p>
         </div>
 
@@ -316,8 +346,13 @@ export default function ReviewForm({ entityType = 'vendor', entityId, entityName
           />
         </Field>
 
-        {/* Review body */}
-        <Field label="Your review" required hint={`${form.review_text.length} / 800`} error={errors.review_text}>
+        {/* Review body — character counter changes colour near limit */}
+        <Field
+          label="Your review"
+          required
+          hint={<span style={{ color: form.review_text.length >= 750 ? C.error : form.review_text.length >= 600 ? '#b07d2a' : C.textMuted, fontWeight: form.review_text.length >= 600 ? 600 : 400, transition: 'color 0.2s' }}>{form.review_text.length} / 800</span>}
+          error={errors.review_text}
+        >
           <textarea
             placeholder="Tell couples what made this vendor special — the details that would help someone else decide…"
             value={form.review_text}

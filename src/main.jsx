@@ -765,7 +765,7 @@ function App() {
           <VendorResetPassword />
         )}
         {page === "vendor-public" && (
-          <VendorPublicPage vendorSlug={activeVendorSlug} onBack={goHome} />
+          <VendorPublicPage vendorSlug={activeVendorSlug} onBack={goHome} darkMode={darkMode} onToggleDark={toggleDark} />
         )}
         {page === "vendor" && (
           <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>}>

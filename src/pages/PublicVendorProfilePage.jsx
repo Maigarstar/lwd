@@ -296,7 +296,7 @@ const PublicVendorProfilePage = ({ vendorSlug, onBack, footerNav = {} }) => {
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '36px 24px 80px' }}>
         <div id="reviews" />
 
-        {/* Section header + Write a Review CTA */}
+        {/* Section header — top-right CTA only shown once reviews exist */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, gap: 16, flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: C.gold, marginBottom: 4 }}>Client Reviews</div>
@@ -305,16 +305,18 @@ const PublicVendorProfilePage = ({ vendorSlug, onBack, footerNav = {} }) => {
             </h2>
           </div>
 
-          <div id="write-a-review" ref={writeReviewRef}>
-            <button
-              onClick={() => setFormOpen(true)}
-              style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', padding: '11px 22px', borderRadius: 3, background: C.text, color: '#fff', border: 'none', cursor: 'pointer', flexShrink: 0 }}
-              onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
-              onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
-            >
-              + Write a review
-            </button>
-          </div>
+          {reviews.length > 0 && (
+            <div id="write-a-review" ref={writeReviewRef}>
+              <button
+                onClick={() => setFormOpen(true)}
+                style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', padding: '11px 22px', borderRadius: 3, background: C.text, color: '#fff', border: 'none', cursor: 'pointer', flexShrink: 0 }}
+                onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
+                onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+              >
+                + Write a review
+              </button>
+            </div>
+          )}
         </div>
 
         <RatingSummary reviews={reviews} />
@@ -322,14 +324,21 @@ const PublicVendorProfilePage = ({ vendorSlug, onBack, footerNav = {} }) => {
         {reviews.length > 0 ? (
           reviews.map(r => <ReviewCard key={r.id} review={r} vendorName={listing.name} />)
         ) : (
-          <div style={{ background: C.surface, border: `1px dashed ${C.border2}`, borderRadius: 4, padding: '48px 32px', textAlign: 'center' }}>
+          /* Empty state — single gold CTA, no competing button */
+          <div style={{ background: C.surface, border: `1px dashed ${C.border2}`, borderRadius: 4, padding: '52px 32px', textAlign: 'center' }}>
+            <div style={{ fontSize: 28, marginBottom: 14, opacity: 0.35 }}>✦</div>
             <div style={{ fontFamily: GD, fontSize: 22, color: C.textMid, marginBottom: 10 }}>No reviews yet</div>
-            <p style={{ fontFamily: NU, fontSize: 13, color: C.textLight, lineHeight: 1.6, maxWidth: 400, margin: '0 auto 24px' }}>
-              {listing.name} hasn't received any reviews on LWD yet. Your experience helps couples decide.
+            <p style={{ fontFamily: NU, fontSize: 13, color: C.textLight, lineHeight: 1.65, maxWidth: 420, margin: '0 auto 8px' }}>
+              {listing.name} hasn't received any reviews on LWD yet.
+            </p>
+            <p style={{ fontFamily: NU, fontSize: 12, color: C.textMuted, lineHeight: 1.5, maxWidth: 360, margin: '0 auto 28px' }}>
+              Couples rely on reviews like yours to make confident decisions.
             </p>
             <button
               onClick={() => setFormOpen(true)}
-              style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', padding: '11px 24px', borderRadius: 3, background: C.gold, color: '#fff', border: 'none', cursor: 'pointer' }}
+              style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', padding: '13px 28px', borderRadius: 3, background: C.gold, color: '#fff', border: 'none', cursor: 'pointer' }}
+              onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
             >
               + Write the first review
             </button>
