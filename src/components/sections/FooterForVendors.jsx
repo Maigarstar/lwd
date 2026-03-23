@@ -1,374 +1,271 @@
-// ─── src/components/sections/FooterForVendors.jsx ──────────────────────────────────
-// Vendors-focused footer, appears on VendorDashboard and vendor-oriented pages
-// Emphasizes business growth, lead management, and B2B opportunities
-import { useTheme } from "../../theme/ThemeContext";
+// ─── src/components/sections/FooterForVendors.jsx ────────────────────────────
+// Minimal vendor portal footer — utility bar, not a marketing footer.
+// Single horizontal strip: brand | context | links
+// + bottom line: Powered by Taigenic.ai · AI insights active
+// ─────────────────────────────────────────────────────────────────────────────
 
-const GD = "var(--font-heading-primary)";
-const NU = "var(--font-body)";
+const NU = 'var(--font-body)';
+const GD = 'var(--font-heading-primary)';
 
-// ── Navigation columns (vendors-focused) ───────────────────────────────────────
-const NAV_COLS = [
-  {
-    title: "Grow Your Business",
-    links: [
-      { text: "List Your Business" },
-      { text: "Pricing Plans" },
-      { text: "Premium Features" },
-      { text: "Lead Management" },
-      { text: "Analytics Dashboard" },
-      { text: "Inquiry Tools" },
-      { text: "Reviews & Ratings" },
-    ],
-  },
-  {
-    title: "Resources",
-    links: [
-      { text: "Vendor Blog" },
-      { text: "Success Stories" },
-      { text: "Marketing Tips" },
-      { text: "SEO Tools" },
-      { text: "Performance Guides" },
-      { text: "Best Practices" },
-    ],
-  },
-  {
-    title: "Support",
-    links: [
-      { text: "Help Center" },
-      { text: "Vendor Community" },
-      { text: "Account Settings" },
-      { text: "Billing & Payments" },
-      { text: "Contact Support" },
-      { text: "Documentation" },
-    ],
-  },
+// ── Tab → context label mapping ───────────────────────────────────────────────
+const TAB_CONTEXT = {
+  overview:     { label: 'Dashboard Overview',     sub: 'Performance at a glance' },
+  reviews:      { label: 'Reputation Hub',         sub: 'Reviews & client feedback' },
+  leads:        { label: 'Lead Inbox',             sub: 'Enquiries and new leads' },
+  inquiries:    { label: 'Lead Inbox',             sub: 'Enquiries and new leads' },
+  livechat:     { label: 'Live Conversations',     sub: 'Real-time client messaging' },
+  analytics:    { label: 'Analytics',              sub: 'Performance insights & trends' },
+  ai:           { label: 'AI Insights',            sub: 'AI-powered recommendations' },
+  profile:      { label: 'My Profile',             sub: 'Listing & brand presence' },
+  seo:          { label: 'SEO Tools',              sub: 'Visibility & search optimisation' },
+  billing:      { label: 'Billing',                sub: 'Plans & payments' },
+  calendar:     { label: 'Calendar',               sub: 'Event scheduling' },
+  awards:       { label: 'Artistry Awards',        sub: 'Industry recognition' },
+};
+
+const LINKS = [
+  { label: 'Privacy',  href: '/privacy' },
+  { label: 'Terms',    href: '/terms' },
+  { label: 'Support',  href: '/support' },
 ];
 
-// ── Social icons ────────────────────────────────────────────────────────────
-const SOCIALS = [
-  { label: "Instagram", code: "IG" },
-  { label: "TikTok", code: "TK" },
-  { label: "LinkedIn", code: "IN" },
-  { label: "Facebook", code: "FB" },
-];
+// ── Sub-component: footer link with gold hover ────────────────────────────────
+function FooterLink({ label, href }) {
+  return (
+    <a
+      href={href}
+      style={{
+        fontFamily: NU,
+        fontSize: 11,
+        color: 'rgba(255,255,255,0.28)',
+        textDecoration: 'none',
+        letterSpacing: '0.04em',
+        transition: 'color 0.2s',
+        cursor: 'pointer',
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.color = 'rgba(201,168,76,0.9)';
+        e.currentTarget.style.textDecoration = 'underline';
+        e.currentTarget.style.textUnderlineOffset = '3px';
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.color = 'rgba(255,255,255,0.28)';
+        e.currentTarget.style.textDecoration = 'none';
+      }}
+    >
+      {label}
+    </a>
+  );
+}
 
-const WA_URL =
-  "https://wa.me/447960497211?text=Hello%20Luxury%20Wedding%20Directory%2C%20I%20am%20interested%20in%20listing%20my%20business";
-
-// ── Component ────────────────────────────────────────────────────────────────
-export default function FooterForVendors() {
-  const C = useTheme();
+// ── Main component ────────────────────────────────────────────────────────────
+export default function FooterForVendors({ dashTab = 'overview', darkMode = true }) {
+  const ctx = TAB_CONTEXT[dashTab] || TAB_CONTEXT.overview;
 
   return (
     <footer
-      className="footer-vendors"
-      aria-label="Vendors footer"
+      aria-label="Vendor portal footer"
       style={{
-        width: "100%",
-        boxSizing: "border-box",
-        background: "#0a0a08",
-        color: "rgba(255,255,255,0.7)",
-        borderTop: "1px solid rgba(201,168,76,0.12)",
-        padding: "60px 60px 36px",
-        marginTop: 0,
+        width: '100%',
+        boxSizing: 'border-box',
+        background: darkMode ? '#0d0d0b' : '#1a1a18',
+        borderTop: '1px solid rgba(255,255,255,0.07)',
+        flexShrink: 0,
       }}
     >
-      {/* ── Accent divider ─────────────────────────────────────────────────── */}
+      {/* ── Main bar ─────────────────────────────────────────────────────── */}
       <div
-        aria-hidden="true"
         style={{
-          height: 1,
-          background: `linear-gradient(90deg, transparent, ${C.gold}, rgba(116,129,114,0.6), transparent)`,
-          marginBottom: 48,
+          maxWidth: '100%',
+          padding: '0 32px',
+          height: 52,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 16,
         }}
-      />
-
-      {/* ── Main Footer Grid ──────────────────────────────────────────────── */}
-      <div style={{ maxWidth: 1400, margin: "0 auto" }}>
-        <div
-          className="footer-vendors-grid"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "2fr 1fr 1fr 1fr",
-            gap: 48,
-            marginBottom: 48,
-          }}
-        >
-          {/* ── Brand column ── */}
-          <div>
-            <div
-              style={{
-                fontFamily: GD,
-                fontSize: 10,
-                color: C.gold,
-                letterSpacing: "0.22em",
-                textTransform: "uppercase",
-                lineHeight: 1.7,
-                marginBottom: 6,
-              }}
-            >
-              Your B2B
-              <br />
-              Growth Platform
-            </div>
-            <div
-              style={{
-                fontFamily: NU,
-                fontSize: 9,
-                letterSpacing: "3px",
-                textTransform: "uppercase",
-                color: "rgba(255,255,255,0.35)",
-                marginBottom: 20,
-              }}
-            >
-              Premium Luxury Network
-            </div>
-
-            {/* Gold divider */}
-            <div
-              aria-hidden="true"
-              style={{
-                width: 40,
-                height: 1,
-                background: `linear-gradient(90deg, ${C.gold}, transparent)`,
-                marginBottom: 18,
-              }}
-            />
-
-            <p
-              style={{
-                fontFamily: NU,
-                fontSize: 13,
-                color: "rgba(255,255,255,0.38)",
-                lineHeight: 1.85,
-                maxWidth: 300,
-                margin: 0,
-                marginBottom: 18,
-              }}
-            >
-              Connect with high-intent couples searching for premium wedding
-              services. Manage leads, showcase your work, and grow your luxury
-              wedding business.
-            </p>
-
-            {/* Vendor benefits */}
-            <div style={{ marginBottom: 22 }}>
-              <div
-                style={{
-                  fontFamily: NU,
-                  fontSize: 10,
-                  letterSpacing: "0.2em",
-                  textTransform: "uppercase",
-                  color: "rgba(255,255,255,0.45)",
-                  marginBottom: 8,
-                }}
-              >
-                Why Vendors Partner With Us
-              </div>
-              <ul
-                style={{
-                  fontFamily: NU,
-                  fontSize: 12,
-                  color: "rgba(255,255,255,0.45)",
-                  lineHeight: 1.8,
-                  margin: 0,
-                  paddingLeft: 0,
-                  listStyle: "none",
-                }}
-              >
-                <li>✦ High-intent couple leads</li>
-                <li>✦ Professional inquiry management</li>
-                <li>✦ Real-time analytics</li>
-                <li>✦ Brand visibility & reviews</li>
-              </ul>
-            </div>
-
-            {/* Social icons */}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {SOCIALS.map(({ label, code }) => (
-                <div
-                  key={code}
-                  role="link"
-                  aria-label={label}
-                  tabIndex={0}
-                  style={{
-                    width: 36,
-                    height: 36,
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    borderRadius: "var(--lwd-radius-input)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    fontFamily: NU,
-                    letterSpacing: "0.5px",
-                    color: "rgba(255,255,255,0.35)",
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = C.gold;
-                    e.currentTarget.style.color = C.gold;
-                    e.currentTarget.style.background = "rgba(201,168,76,0.08)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
-                    e.currentTarget.style.color = "rgba(255,255,255,0.35)";
-                    e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-                  }}
-                >
-                  {code}
-                </div>
-              ))}
-
-              {/* WhatsApp */}
-              <a
-                href={WA_URL}
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Chat with us on WhatsApp"
-                style={{
-                  width: 36,
-                  height: 36,
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  borderRadius: "var(--lwd-radius-input)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "rgba(255,255,255,0.35)",
-                  cursor: "pointer",
-                  transition: "all 0.2s",
-                  textDecoration: "none",
-                  fontSize: 16,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = C.gold;
-                  e.currentTarget.style.color = C.gold;
-                  e.currentTarget.style.background = "rgba(201,168,76,0.08)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
-                  e.currentTarget.style.color = "rgba(255,255,255,0.35)";
-                  e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-                }}
-              >
-                💬
-              </a>
-            </div>
-          </div>
-
-          {/* ── Nav columns ── */}
-          {NAV_COLS.map(({ title, links }) => (
-            <div key={title}>
-              <div
-                style={{
-                  fontFamily: NU,
-                  fontSize: 9,
-                  letterSpacing: "0.25em",
-                  textTransform: "uppercase",
-                  color: "rgba(255,255,255,0.5)",
-                  marginBottom: 18,
-                  fontWeight: 600,
-                }}
-              >
-                {title}
-              </div>
-              {links.map(({ text }) => (
-                <div
-                  key={text}
-                  role="link"
-                  tabIndex={0}
-                  style={{
-                    fontFamily: NU,
-                    fontSize: 12,
-                    color: "rgba(255,255,255,0.3)",
-                    marginBottom: 9,
-                    cursor: "pointer",
-                    transition: "color 0.2s",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = C.gold;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = "rgba(255,255,255,0.3)";
-                  }}
-                >
-                  {text}
-                </div>
-              ))}
-            </div>
-          ))}
+      >
+        {/* LEFT — brand */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <span
+            style={{
+              fontFamily: GD,
+              fontSize: 13,
+              color: 'rgba(201,168,76,0.85)',
+              letterSpacing: '0.08em',
+              lineHeight: 1,
+            }}
+          >
+            LWD
+          </span>
+          <span
+            style={{
+              width: 1,
+              height: 12,
+              background: 'rgba(255,255,255,0.12)',
+              display: 'inline-block',
+              flexShrink: 0,
+            }}
+          />
+          <span
+            style={{
+              fontFamily: NU,
+              fontSize: 10,
+              color: 'rgba(255,255,255,0.3)',
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+            }}
+          >
+            Vendor Portal
+          </span>
         </div>
 
-        {/* ── Legal bar ─────────────────────────────────────────────────── */}
+        {/* CENTER — contextual tab label */}
         <div
-          className="footer-vendors-legal"
           style={{
-            borderTop: "1px solid rgba(255,255,255,0.06)",
-            paddingTop: 24,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            flexWrap: "wrap",
-            gap: 12,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flex: 1,
+            justifyContent: 'center',
           }}
         >
-          <div>
-            <div
-              style={{
-                fontFamily: NU,
-                fontSize: 11,
-                color: "rgba(255,255,255,0.45)",
-              }}
-            >
-              © 2026 LuxuryWeddingDirectory.com · All rights reserved
-            </div>
-            <div
-              style={{
-                fontFamily: NU,
-                fontSize: 10,
-                color: "rgba(255,255,255,0.35)",
-                marginTop: 4,
-              }}
-            >
-              Trusted by premium wedding vendors worldwide.
-            </div>
-          </div>
-
-          <div
-            className="footer-vendors-legal-links"
-            style={{ display: "flex", gap: 20 }}
+          <span
+            style={{
+              fontFamily: NU,
+              fontSize: 11,
+              color: 'rgba(255,255,255,0.38)',
+              letterSpacing: '0.06em',
+              whiteSpace: 'nowrap',
+            }}
           >
-            {["Privacy", "Terms", "Cookies", "Partner Info"].map((l) => (
-              <span
-                key={l}
-                role="link"
-                tabIndex={0}
-                onClick={() => {
-                  if (l === "Cookies") window.dispatchEvent(new Event("lwd:show-cookies"));
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && l === "Cookies") window.dispatchEvent(new Event("lwd:show-cookies"));
-                }}
-                style={{
-                  fontFamily: NU,
-                  fontSize: 11,
-                  color: "rgba(255,255,255,0.2)",
-                  cursor: "pointer",
-                  transition: "color 0.2s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = C.gold)}
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.color = "rgba(255,255,255,0.2)")
-                }
-              >
-                {l}
-              </span>
-            ))}
-          </div>
+            {ctx.label}
+          </span>
+          <span
+            style={{
+              width: 1,
+              height: 10,
+              background: 'rgba(255,255,255,0.1)',
+              display: 'inline-block',
+              flexShrink: 0,
+            }}
+          />
+          <span
+            style={{
+              fontFamily: NU,
+              fontSize: 11,
+              color: 'rgba(255,255,255,0.2)',
+              letterSpacing: '0.03em',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {ctx.sub}
+          </span>
+        </div>
+
+        {/* RIGHT — utility links */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 16,
+            flexShrink: 0,
+          }}
+        >
+          {LINKS.map((l, i) => (
+            <span key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <FooterLink label={l.label} href={l.href} />
+              {i < LINKS.length - 1 && (
+                <span
+                  style={{
+                    width: 1,
+                    height: 10,
+                    background: 'rgba(255,255,255,0.08)',
+                    display: 'inline-block',
+                  }}
+                />
+              )}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Bottom strip — Taigenic AI layer ─────────────────────────────── */}
+      <div
+        style={{
+          borderTop: '1px solid rgba(255,255,255,0.04)',
+          padding: '6px 32px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+        }}
+      >
+        {/* Left: copyright */}
+        <span
+          style={{
+            fontFamily: NU,
+            fontSize: 10,
+            color: 'rgba(255,255,255,0.15)',
+            letterSpacing: '0.03em',
+          }}
+        >
+          © 2026 LuxuryWeddingDirectory.com
+        </span>
+
+        {/* Right: Taigenic + AI indicator */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span
+            style={{
+              fontFamily: NU,
+              fontSize: 10,
+              color: 'rgba(255,255,255,0.18)',
+              letterSpacing: '0.05em',
+            }}
+          >
+            Powered by
+          </span>
+          <span
+            style={{
+              fontFamily: NU,
+              fontSize: 10,
+              color: 'rgba(201,168,76,0.55)',
+              letterSpacing: '0.06em',
+              fontWeight: 600,
+            }}
+          >
+            Taigenic.ai
+          </span>
+          <span
+            style={{
+              width: 1,
+              height: 8,
+              background: 'rgba(255,255,255,0.08)',
+              display: 'inline-block',
+            }}
+          />
+          {/* Live indicator dot */}
+          <span
+            style={{
+              width: 5,
+              height: 5,
+              borderRadius: '50%',
+              background: 'rgba(201,168,76,0.6)',
+              display: 'inline-block',
+              flexShrink: 0,
+              boxShadow: '0 0 4px rgba(201,168,76,0.4)',
+            }}
+          />
+          <span
+            style={{
+              fontFamily: NU,
+              fontSize: 10,
+              color: 'rgba(255,255,255,0.18)',
+              letterSpacing: '0.05em',
+            }}
+          >
+            AI insights active
+          </span>
         </div>
       </div>
     </footer>

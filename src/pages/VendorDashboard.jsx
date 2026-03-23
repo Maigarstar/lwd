@@ -3904,7 +3904,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
     </div>
 
     {/* Footer */}
-    <FooterForVendors />
+    <FooterForVendors dashTab={dashTab} darkMode={currentTheme === 'dark'} />
 
     </ThemeCtx.Provider>
   );
