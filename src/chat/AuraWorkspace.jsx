@@ -574,7 +574,17 @@ export default function AuraWorkspace({ onBack, onHome, onVenues, onLogin }) {
               <Icon name="alertTriangle" size={10} style={{ marginRight: 3, opacity: 0.6 }} /> Aura can make mistakes, always verify details directly with venues &amp; vendors.
             </span>
             <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10, color: darkMode ? "rgba(255,255,255,0.22)" : "rgba(26,23,20,0.45)", fontFamily: "var(--font-body)" }}>
-              <span>Powered by <span style={{ color: GOLD, opacity: 0.8 }}>Taigenic.ai</span></span>
+              <span>Powered by{" "}
+                <span
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => { window.history.pushState({}, "", "/taigenic"); window.dispatchEvent(new PopStateEvent("popstate")); }}
+                  onKeyDown={e => e.key === "Enter" && (window.history.pushState({}, "", "/taigenic"), window.dispatchEvent(new PopStateEvent("popstate")))}
+                  style={{ color: GOLD, opacity: 0.8, cursor: "pointer", textDecoration: "underline", textDecorationColor: "rgba(201,168,76,0.35)" }}
+                >
+                  Taigenic.ai
+                </span>
+              </span>
               <FooterLink label="Privacy" />
               <FooterLink label="Terms" />
               <FooterLink label="Cookies" />

@@ -30,6 +30,7 @@ import RegionPage             from "./pages/RegionPage.jsx";
 import RegionCategoryPage     from "./pages/RegionCategoryPage.jsx";
 import LWDStandard            from "./pages/LWDStandard.jsx";
 import AboutLWD               from "./pages/AboutLWD.jsx";
+import TaigenicPage           from "./pages/TaigenicPage.jsx";
 import ContactLWD             from "./pages/ContactLWD.jsx";
 import LWDPartnership         from "./pages/LWDPartnership.jsx";
 import CmsPage                from "./pages/CmsPage.jsx";
@@ -127,6 +128,7 @@ function stateToPath(pg, opts = {}) {
     case "venue":            return "/venue";
     case "standard":         return "/the-lwd-standard";
     case "about":            return "/about";
+    case "taigenic":         return "/taigenic";
     case "contact":          return "/contact";
     case "privacy":          return "/privacy";
     case "terms":            return "/terms";
@@ -187,7 +189,7 @@ function pathToState(pathname) {
     venue: "venue", category: "category", "the-lwd-standard": "standard",
     about: "about", contact: "contact", partnership: "partnership",
     privacy: "privacy", terms: "terms", cookies: "cookies", "reviews-policy": "reviews-policy", support: "support",
-    usa: "usa", italy: "italy", admin: "admin", vendor: "vendor", couple: "couple", "real-weddings": "real-weddings", shortlist: "shortlist", "getting-married": "getting-married", join: "join", "artistry-awards": "artistry-awards", "partner-enquiry": "partner-enquiry",
+    usa: "usa", italy: "italy", admin: "admin", vendor: "vendor", couple: "couple", "real-weddings": "real-weddings", shortlist: "shortlist", "getting-married": "getting-married", join: "join", "artistry-awards": "artistry-awards", "partner-enquiry": "partner-enquiry", taigenic: "taigenic",
   };
   const parts = clean.split("/");
   // Unsubscribe landing page
@@ -702,6 +704,9 @@ function App() {
         )}
         {page === "about" && (
           <AboutLWD onBack={goHome} onViewCategory={goCategory} onViewStandard={goStandard} onViewContact={goContact} onViewPartnership={goPartnership} footerNav={footerNav} />
+        )}
+        {page === "taigenic" && (
+          <TaigenicPage onBack={goHome} footerNav={footerNav} />
         )}
         {page === "contact" && (
           <ContactLWD onBack={goHome} onViewCategory={goCategory} onViewStandard={goStandard} onViewAbout={goAbout} onViewPartnership={goPartnership} footerNav={footerNav} />
