@@ -206,11 +206,11 @@ export default function FooterForVendors({ dashTab = 'overview', darkMode = true
           style={{
             fontFamily: NU,
             fontSize: 10,
-            color: 'rgba(255,255,255,0.15)',
+            color: 'rgba(255,255,255,0.42)',
             letterSpacing: '0.03em',
           }}
         >
-          © 2026 LuxuryWeddingDirectory.com
+          © {new Date().getFullYear()} Luxury Wedding Directory · Part of 5 Star Weddings Ltd 2006–{new Date().getFullYear()}
         </span>
 
         {/* Right: Taigenic + AI indicator */}
@@ -219,7 +219,7 @@ export default function FooterForVendors({ dashTab = 'overview', darkMode = true
             style={{
               fontFamily: NU,
               fontSize: 10,
-              color: 'rgba(255,255,255,0.18)',
+              color: 'rgba(255,255,255,0.38)',
               letterSpacing: '0.05em',
             }}
           >
@@ -229,7 +229,7 @@ export default function FooterForVendors({ dashTab = 'overview', darkMode = true
             style={{
               fontFamily: NU,
               fontSize: 10,
-              color: 'rgba(201,168,76,0.55)',
+              color: 'rgba(201,168,76,0.8)',
               letterSpacing: '0.06em',
               fontWeight: 600,
             }}
@@ -260,7 +260,7 @@ export default function FooterForVendors({ dashTab = 'overview', darkMode = true
             style={{
               fontFamily: NU,
               fontSize: 10,
-              color: 'rgba(255,255,255,0.18)',
+              color: 'rgba(255,255,255,0.38)',
               letterSpacing: '0.05em',
             }}
           >
