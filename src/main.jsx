@@ -67,6 +67,7 @@ import FashionLandingPage   from "./pages/Magazine/FashionLandingPage.jsx";
 const MagazineStudio         = lazy(() => import("./pages/MagazineStudio/index.jsx"));
 import EditorialShowcase    from "./pages/EditorialShowcase.jsx";
 import ShowcasePage         from "./pages/ShowcasePage.jsx";
+import VendorPublicPage     from "./pages/VendorPublicPage.jsx";
 import DdeShowcasePage          from "./pages/DdeShowcasePage.jsx";
 import SixSensesShowcasePage    from "./pages/SixSensesShowcasePage.jsx";
 import RitzLondonShowcasePage            from "./pages/RitzLondonShowcasePage.jsx";
@@ -156,6 +157,7 @@ function stateToPath(pg, opts = {}) {
     case "magazine-fashion": return "/magazine/fashion";
     case "magazine-article": return `/magazine/${opts.magazineSlug || ''}`;
     case "magazine-studio":  return "/magazine-studio";
+    case "vendor-public":    return `/vendor/${opts.vendorSlug || ''}`;
     case "venue-profile":    return `/venues/${opts.venueSlug || 'grand-tirolia'}`;
     case "venue-reviews":    return `/venues/${opts.venueSlug || ''}/reviews`;
     case "event-detail":     return `/events/${opts.eventSlug || ''}`;
@@ -196,6 +198,11 @@ function pathToState(pathname) {
   if (parts[0] === "vendor" && parts[1] === "confirm-email" && parts.length === 2) return { page: "vendor-confirm-email" };
   if (parts[0] === "vendor" && parts[1] === "forgot-password" && parts.length === 2) return { page: "vendor-forgot-password" };
   if (parts[0] === "vendor" && parts[1] === "reset-password" && parts.length === 2) return { page: "vendor-reset-password" };
+  // Public vendor profile: /vendor/{slug} — must come after all auth subroutes
+  const VENDOR_AUTH_WORDS = ['login','signup','activate','confirm-email','forgot-password','reset-password','dashboard'];
+  if (parts[0] === "vendor" && parts.length === 2 && !VENDOR_AUTH_WORDS.includes(parts[1])) {
+    return { page: "vendor-public", vendorSlug: parts[1] };
+  }
   // Handle admin auth subroutes
   if (parts[0] === "admin" && parts[1] === "login" && parts.length === 2) return { page: "admin-login" };
   if (parts[0] === "admin" && parts[1] === "oauth" && parts[2] === "callback") return { page: "admin-oauth-callback" };
@@ -292,6 +299,7 @@ function App() {
   const [activeMagazineCategoryId, setActiveMagazineCategoryId] = useState(initial.magazineCategoryId || null);
   const [activeMagazineSlug, setActiveMagazineSlug] = useState(initial.magazineSlug || null);
   const [activeVenueSlug, setActiveVenueSlug] = useState(initial.venueSlug || null);
+  const [activeVendorSlug, setActiveVendorSlug] = useState(initial.vendorSlug || null);
   const [activeShowcaseSlug, setActiveShowcaseSlug] = useState(initial.showcaseSlug || null);
   const [activeEventSlug, setActiveEventSlug] = useState(initial.eventSlug || null);
   const [magazineLight, setMagazineLight] = useState(true);
@@ -315,13 +323,14 @@ function App() {
       magazineCategoryId: activeMagazineCategoryId,
       magazineSlug: activeMagazineSlug,
       venueSlug: activeVenueSlug,
+      vendorSlug: activeVendorSlug,
       showcaseSlug: activeShowcaseSlug,
       eventSlug: activeEventSlug,
     });
     if (window.location.pathname !== path) {
       window.history.pushState(null, "", path);
     }
-  }, [page, activeCountrySlug, activeRegionSlug, activeCategorySlug, activePlannerSlug, activeWeddingSlug, activationToken, activeMagazineCategoryId, activeMagazineSlug, activeVenueSlug, activeShowcaseSlug, activeEventSlug]);
+  }, [page, activeCountrySlug, activeRegionSlug, activeCategorySlug, activePlannerSlug, activeWeddingSlug, activationToken, activeMagazineCategoryId, activeMagazineSlug, activeVenueSlug, activeVendorSlug, activeShowcaseSlug, activeEventSlug]);
 
   // ── Popstate: back / forward browser buttons ─────────────────────────────
   useEffect(() => {
@@ -337,6 +346,7 @@ function App() {
       setActiveMagazineCategoryId(s.magazineCategoryId || null);
       setActiveMagazineSlug(s.magazineSlug || null);
       setActiveVenueSlug(s.venueSlug || null);
+      setActiveVendorSlug(s.vendorSlug || null);
       setActiveShowcaseSlug(s.showcaseSlug || null);
       setActiveEventSlug(s.eventSlug || null);
       setCategoryRegion(null);
@@ -731,6 +741,9 @@ function App() {
         )}
         {page === "vendor-reset-password" && (
           <VendorResetPassword />
+        )}
+        {page === "vendor-public" && (
+          <VendorPublicPage vendorSlug={activeVendorSlug} onBack={goHome} />
         )}
         {page === "vendor" && (
           <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>}>
