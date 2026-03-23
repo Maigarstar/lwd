@@ -16,7 +16,7 @@ import { submitReview } from '../services/reviewService';
 const GD = 'var(--font-heading-primary)';
 const NU = 'var(--font-body)';
 
-const C = {
+const LIGHT = {
   bg:         '#faf9f7',
   surface:    '#ffffff',
   border:     '#e8e3dc',
@@ -31,6 +31,31 @@ const C = {
   greenBg:    'rgba(45,106,79,0.07)',
   error:      '#c0392b',
   errorBg:    'rgba(192,57,43,0.07)',
+  inputBg:    '#ffffff',
+  inputText:  '#1a1a18',
+  btn:        '#1a1a18',
+  btnText:    '#ffffff',
+};
+
+const DARK = {
+  bg:         '#141210',
+  surface:    '#1a1814',
+  border:     'rgba(255,255,255,0.1)',
+  gold:       '#c9a84c',
+  goldLight:  'rgba(201,168,76,0.08)',
+  goldBorder: 'rgba(201,168,76,0.22)',
+  text:       '#f0ebe3',
+  textMid:    'rgba(240,235,227,0.75)',
+  textLight:  'rgba(240,235,227,0.55)',
+  textMuted:  'rgba(240,235,227,0.35)',
+  green:      '#4caf82',
+  greenBg:    'rgba(76,175,130,0.1)',
+  error:      '#e05c4a',
+  errorBg:    'rgba(224,92,74,0.1)',
+  inputBg:    'rgba(255,255,255,0.05)',
+  inputText:  '#f0ebe3',
+  btn:        '#c9a84c',
+  btnText:    '#1a1610',
 };
 
 // ── Sub-ratings config for vendor context ─────────────────────────────────────
@@ -42,7 +67,7 @@ const VENDOR_SUB_RATINGS = [
 ];
 
 // ── Interactive star row ───────────────────────────────────────────────────────
-function StarPicker({ value, onChange, size = 28 }) {
+function StarPicker({ value, onChange, size = 28, C }) {
   const [hovered, setHovered] = useState(0);
   const [clicked, setClicked] = useState(0);
   const active = hovered || value;
@@ -78,7 +103,7 @@ function StarPicker({ value, onChange, size = 28 }) {
 }
 
 // ── Small inline star picker for sub-ratings ──────────────────────────────────
-function SubStars({ value, onChange }) {
+function SubStars({ value, onChange, C }) {
   const [hovered, setHovered] = useState(0);
   const [clicked, setClicked] = useState(0);
   const active = hovered || value;
@@ -101,7 +126,7 @@ function SubStars({ value, onChange }) {
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
             padding: 1, lineHeight: 1, fontSize: 16,
-            color: s <= active ? C.gold : '#d8d3cc',
+            color: s <= active ? C.gold : C.border,
             transition: 'color 0.1s, transform 0.12s',
             transform: s === clicked ? 'scale(1.3)' : s <= active ? 'scale(1.05)' : 'scale(1)',
           }}
@@ -112,7 +137,7 @@ function SubStars({ value, onChange }) {
 }
 
 // ── Field wrapper ──────────────────────────────────────────────────────────────
-function Field({ label, hint, required, error, children }) {
+function Field({ label, hint, required, error, C, children }) {
   return (
     <div style={{ marginBottom: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
@@ -127,13 +152,13 @@ function Field({ label, hint, required, error, children }) {
   );
 }
 
-const inputStyle = (err) => ({
+const inputStyle = (err, C) => ({
   width: '100%',
   padding: '10px 12px',
   fontFamily: NU,
   fontSize: 13,
-  color: C.text,
-  background: C.surface,
+  color: C.inputText,
+  background: C.inputBg,
   border: `1px solid ${err ? C.error : C.border}`,
   borderRadius: 3,
   outline: 'none',
@@ -142,7 +167,8 @@ const inputStyle = (err) => ({
 });
 
 // ── Main component ─────────────────────────────────────────────────────────────
-export default function ReviewForm({ entityType = 'vendor', entityId, entityName = 'this vendor', onSuccess, onClose }) {
+export default function ReviewForm({ entityType = 'vendor', entityId, entityName = 'this vendor', onSuccess, onClose, darkMode = false }) {
+  const C = darkMode ? DARK : LIGHT;
   const [step, setStep] = useState('form'); // 'form' | 'success' | 'error'
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState(null);
@@ -269,7 +295,7 @@ export default function ReviewForm({ entityType = 'vendor', entityId, entityName
   // ── Form ────────────────────────────────────────────────────────────────────
   return (
     <form onSubmit={handleSubmit} noValidate>
-      <div style={{ padding: '28px 32px 32px', maxHeight: '80vh', overflowY: 'auto' }}>
+      <div style={{ padding: '28px 32px 32px', maxHeight: '80vh', overflowY: 'auto', background: C.surface, borderRadius: 6 }}>
 
         {/* Header */}
         <div style={{ marginBottom: 24, paddingBottom: 20, borderBottom: `1px solid ${C.border}` }}>
@@ -289,58 +315,58 @@ export default function ReviewForm({ entityType = 'vendor', entityId, entityName
 
         {/* Overall rating — most prominent */}
         <div style={{ marginBottom: 24 }}>
-          <Field label="Overall rating" required error={errors.rating}>
-            <StarPicker value={rating} onChange={v => { setRating(v); setErrors(e => ({ ...e, rating: null })); }} />
+          <Field C={C} label="Overall rating" required error={errors.rating}>
+            <StarPicker C={C} value={rating} onChange={v => { setRating(v); setErrors(e => ({ ...e, rating: null })); }} />
           </Field>
         </div>
 
         {/* Your names */}
-        <Field label="Your names" required error={errors.reviewer_name}>
+        <Field C={C} label="Your names" required error={errors.reviewer_name}>
           <input
             type="text"
             placeholder="e.g. Sophie & James"
             value={form.reviewer_name}
             onChange={e => { set('reviewer_name', e.target.value); setErrors(x => ({ ...x, reviewer_name: null })); }}
-            style={inputStyle(errors.reviewer_name)}
+            style={inputStyle(errors.reviewer_name, C)}
             onFocus={e => { e.target.style.borderColor = C.gold; }}
             onBlur={e => { e.target.style.borderColor = errors.reviewer_name ? C.error : C.border; }}
           />
         </Field>
 
         {/* Email — private */}
-        <Field label="Email address" required hint="Private — not published" error={errors.reviewer_email}>
+        <Field C={C} label="Email address" required hint="Private — not published" error={errors.reviewer_email}>
           <input
             type="email"
             placeholder="your@email.com"
             value={form.reviewer_email}
             onChange={e => { set('reviewer_email', e.target.value); setErrors(x => ({ ...x, reviewer_email: null })); }}
-            style={inputStyle(errors.reviewer_email)}
+            style={inputStyle(errors.reviewer_email, C)}
             onFocus={e => { e.target.style.borderColor = C.gold; }}
             onBlur={e => { e.target.style.borderColor = errors.reviewer_email ? C.error : C.border; }}
           />
         </Field>
 
         {/* Wedding / stay date — couple-friendly label */}
-        <Field label="When was your wedding or stay?" hint="Optional">
+        <Field C={C} label="When was your wedding or stay?" hint="Optional">
           <input
             type="month"
             value={form.review_date ? form.review_date.slice(0, 7) : ''}
             max={new Date().toISOString().slice(0, 7)}
             onChange={e => set('review_date', e.target.value ? `${e.target.value}-01` : '')}
-            style={inputStyle(false)}
+            style={inputStyle(false, C)}
             onFocus={e => { e.target.style.borderColor = C.gold; }}
             onBlur={e => { e.target.style.borderColor = C.border; }}
           />
         </Field>
 
         {/* Headline */}
-        <Field label="Headline" required error={errors.review_title}>
+        <Field C={C} label="Headline" required error={errors.review_title}>
           <input
             type="text"
             placeholder="Summarise your experience in one line"
             value={form.review_title}
             onChange={e => { set('review_title', e.target.value); setErrors(x => ({ ...x, review_title: null })); }}
-            style={inputStyle(errors.review_title)}
+            style={inputStyle(errors.review_title, C)}
             onFocus={e => { e.target.style.borderColor = C.gold; }}
             onBlur={e => { e.target.style.borderColor = errors.review_title ? C.error : C.border; }}
           />
@@ -348,6 +374,7 @@ export default function ReviewForm({ entityType = 'vendor', entityId, entityName
 
         {/* Review body — character counter changes colour near limit */}
         <Field
+          C={C}
           label="Your review"
           required
           hint={<span style={{ color: form.review_text.length >= 750 ? C.error : form.review_text.length >= 600 ? '#b07d2a' : C.textMuted, fontWeight: form.review_text.length >= 600 ? 600 : 400, transition: 'color 0.2s' }}>{form.review_text.length} / 800</span>}
@@ -359,7 +386,7 @@ export default function ReviewForm({ entityType = 'vendor', entityId, entityName
             maxLength={800}
             rows={5}
             onChange={e => { set('review_text', e.target.value); setErrors(x => ({ ...x, review_text: null })); }}
-            style={{ ...inputStyle(errors.review_text), resize: 'vertical', minHeight: 120 }}
+            style={{ ...inputStyle(errors.review_text, C), resize: 'vertical', minHeight: 120 }}
             onFocus={e => { e.target.style.borderColor = C.gold; }}
             onBlur={e => { e.target.style.borderColor = errors.review_text ? C.error : C.border; }}
           />
@@ -374,20 +401,20 @@ export default function ReviewForm({ entityType = 'vendor', entityId, entityName
             {VENDOR_SUB_RATINGS.map(({ key, label }) => (
               <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 3 }}>
                 <span style={{ fontFamily: NU, fontSize: 11, color: C.textMid }}>{label}</span>
-                <SubStars value={subRatings[key] || 0} onChange={v => setSubRatings(s => ({ ...s, [key]: v }))} />
+                <SubStars C={C} value={subRatings[key] || 0} onChange={v => setSubRatings(s => ({ ...s, [key]: v }))} />
               </div>
             ))}
           </div>
         </div>
 
         {/* Location — optional */}
-        <Field label="Where are you based?" hint="Optional">
+        <Field C={C} label="Where are you based?" hint="Optional">
           <input
             type="text"
             placeholder="e.g. London, UK"
             value={form.reviewer_location}
             onChange={e => set('reviewer_location', e.target.value)}
-            style={inputStyle(false)}
+            style={inputStyle(false, C)}
             onFocus={e => { e.target.style.borderColor = C.gold; }}
             onBlur={e => { e.target.style.borderColor = C.border; }}
           />
@@ -413,8 +440,8 @@ export default function ReviewForm({ entityType = 'vendor', entityId, entityName
             style={{
               fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px',
               padding: '11px 28px', borderRadius: 3, border: 'none',
-              background: submitting ? C.border : C.text,
-              color: '#fff',
+              background: submitting ? C.border : C.btn,
+              color: submitting ? C.textMuted : C.btnText,
               cursor: submitting ? 'default' : 'pointer',
               transition: 'background 0.2s',
             }}

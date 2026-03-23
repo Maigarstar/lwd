@@ -77,7 +77,7 @@ function Stars({ rating = 5, size = 13, color = '#9d873e' }) {
 }
 
 // ── Modal shell ───────────────────────────────────────────────────────────────
-function Modal({ open, onClose, children }) {
+function Modal({ open, onClose, darkMode, children }) {
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden';
@@ -93,7 +93,8 @@ function Modal({ open, onClose, children }) {
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 2000,
-        background: 'rgba(10,8,6,0.55)', backdropFilter: 'blur(4px)',
+        background: darkMode ? 'rgba(4,3,2,0.82)' : 'rgba(10,8,6,0.55)',
+        backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: 16,
       }}
@@ -101,13 +102,15 @@ function Modal({ open, onClose, children }) {
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          background: LIGHT.surface,
-          borderRadius: 4,
+          background: darkMode ? '#1a1814' : LIGHT.surface,
+          borderRadius: 6,
           width: '100%',
           maxWidth: 560,
           maxHeight: '90vh',
           overflowY: 'auto',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+          boxShadow: darkMode
+            ? '0 0 0 1px rgba(201,168,76,0.35), 0 0 60px rgba(201,168,76,0.18), 0 0 120px rgba(201,168,76,0.08), 0 24px 80px rgba(0,0,0,0.75)'
+            : '0 20px 60px rgba(0,0,0,0.25)',
           position: 'relative',
         }}
       >
@@ -117,7 +120,7 @@ function Modal({ open, onClose, children }) {
           style={{
             position: 'absolute', top: 12, right: 14,
             background: 'none', border: 'none', cursor: 'pointer',
-            fontFamily: NU, fontSize: 20, color: LIGHT.textLight, lineHeight: 1,
+            fontFamily: NU, fontSize: 20, color: darkMode ? DARK.textLight : LIGHT.textLight, lineHeight: 1,
           }}
           aria-label="Close"
         >×</button>
@@ -466,7 +469,7 @@ export default function VendorPublicPage({ vendorSlug, onBack, darkMode = false,
             background: C.surface, border: `1px dashed ${C.border2}`,
             borderRadius: 4, padding: '52px 32px', textAlign: 'center',
           }}>
-            <div style={{ fontSize: 28, marginBottom: 14, opacity: 0.3 }}>✦</div>
+            <div style={{ fontSize: 28, marginBottom: 14, color: C.gold }}>✦</div>
             <div style={{ fontFamily: GD, fontSize: 22, color: C.textMid, marginBottom: 10 }}>
               No reviews yet
             </div>
@@ -500,13 +503,14 @@ export default function VendorPublicPage({ vendorSlug, onBack, darkMode = false,
       </div>
 
       {/* ── Review Form Modal ─────────────────────────────────────────────── */}
-      <Modal open={formOpen} onClose={() => setFormOpen(false)}>
+      <Modal open={formOpen} onClose={() => setFormOpen(false)} darkMode={darkMode}>
         <ReviewForm
           entityType={listing.entityType || 'vendor'}
           entityId={listing.id}
           entityName={listing.name}
           onSuccess={handleReviewSuccess}
           onClose={() => setFormOpen(false)}
+          darkMode={darkMode}
         />
       </Modal>
     </div>
