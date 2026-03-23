@@ -41,8 +41,8 @@ const BORDER  = "rgba(255,255,255,0.06)";
 const BORDER_GOLD = "rgba(201,168,76,0.2)";
 const GOLD    = "#c9a84c";
 const OFF     = "#f2ede5";
-const GREY    = "rgba(242,237,229,0.55)";
-const MUTED   = "rgba(242,237,229,0.3)";
+const GREY    = "rgba(242,237,229,0.78)";
+const MUTED   = "rgba(242,237,229,0.55)";
 
 // ── Shared label ──────────────────────────────────────────────────────────────
 function Label({ text }) {
