@@ -30,11 +30,18 @@ const LINKS = [
   { label: 'Support',  href: '/support' },
 ];
 
-// ── Sub-component: footer link with gold hover ────────────────────────────────
+// ── Sub-component: footer link with gold hover — SPA-safe navigation ─────────
 function FooterLink({ label, href }) {
+  const handleClick = (e) => {
+    e.preventDefault();
+    window.history.pushState({}, '', href);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  };
+
   return (
     <a
       href={href}
+      onClick={handleClick}
       style={{
         fontFamily: NU,
         fontSize: 11,

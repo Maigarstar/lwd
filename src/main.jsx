@@ -32,6 +32,7 @@ import LWDStandard            from "./pages/LWDStandard.jsx";
 import AboutLWD               from "./pages/AboutLWD.jsx";
 import ContactLWD             from "./pages/ContactLWD.jsx";
 import LWDPartnership         from "./pages/LWDPartnership.jsx";
+import CmsPage                from "./pages/CmsPage.jsx";
 import USAPage                from "./pages/USAPage.jsx";
 import ItalyPage              from "./pages/ItalyPage.jsx";
 const AdminDashboard         = lazy(() => import("./pages/AdminDashboard.jsx"));
@@ -127,6 +128,11 @@ function stateToPath(pg, opts = {}) {
     case "standard":         return "/the-lwd-standard";
     case "about":            return "/about";
     case "contact":          return "/contact";
+    case "privacy":          return "/privacy";
+    case "terms":            return "/terms";
+    case "cookies":          return "/cookies";
+    case "reviews-policy":   return "/reviews-policy";
+    case "support":          return "/support";
     case "unsubscribe":      return "/unsubscribe";
     case "partnership":      return "/partnership";
     case "usa":              return "/usa";
@@ -180,6 +186,7 @@ function pathToState(pathname) {
   const statics = {
     venue: "venue", category: "category", "the-lwd-standard": "standard",
     about: "about", contact: "contact", partnership: "partnership",
+    privacy: "privacy", terms: "terms", cookies: "cookies", "reviews-policy": "reviews-policy", support: "support",
     usa: "usa", italy: "italy", admin: "admin", vendor: "vendor", couple: "couple", "real-weddings": "real-weddings", shortlist: "shortlist", "getting-married": "getting-married", join: "join", "artistry-awards": "artistry-awards", "partner-enquiry": "partner-enquiry",
   };
   const parts = clean.split("/");
@@ -698,6 +705,21 @@ function App() {
         )}
         {page === "contact" && (
           <ContactLWD onBack={goHome} onViewCategory={goCategory} onViewStandard={goStandard} onViewAbout={goAbout} onViewPartnership={goPartnership} footerNav={footerNav} />
+        )}
+        {page === "privacy" && (
+          <CmsPage pageKey="privacy" onBack={goHome} footerNav={footerNav} />
+        )}
+        {page === "terms" && (
+          <CmsPage pageKey="terms" onBack={goHome} footerNav={footerNav} />
+        )}
+        {page === "cookies" && (
+          <CmsPage pageKey="cookies" onBack={goHome} footerNav={footerNav} />
+        )}
+        {page === "reviews-policy" && (
+          <CmsPage pageKey="reviews-policy" onBack={goHome} footerNav={footerNav} />
+        )}
+        {page === "support" && (
+          <CmsPage pageKey="support" onBack={goHome} footerNav={footerNav} />
         )}
         {page === "unsubscribe" && (
           <UnsubscribePage />

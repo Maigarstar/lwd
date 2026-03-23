@@ -51,6 +51,7 @@ import FooterModule from "./AdminModules/FooterModule";
 import MenuBranding from "./AdminModules/menu/MenuBranding";
 import PlatformIntelligenceModule from "./AdminModules/PlatformIntelligenceModule";
 import EventsModule from "./AdminModules/EventsModule";
+import SiteContentModule from "./AdminModules/SiteContentModule";
 import { fetchClickSummary, fetchBatchClickCounts } from "../services/adminOutboundClicksService";
 import { fetchPostBySlug } from "../services/magazineService";
 import VenueIntakeStudio from "./admin/VenueIntakeStudio";
@@ -318,6 +319,7 @@ const NAV_SECTIONS = [
       { key: "magazine",         label: "The Magazine",      icon: "◈" },
       { key: "magazine-studio",  label: "Magazine Studio",   icon: "✦" },
       { key: "reusable-blocks",  label: "Reusable Blocks",   icon: "⊞" },
+      { key: "site-content",     label: "Site Content",      icon: "≡" },
     ],
   },
 ];
@@ -9020,6 +9022,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "branding":        return <MenuBranding C={C} />;
       case "menu":            return <MenuModule C={C} />;
       case "footer":          return <FooterModule C={C} />;
+      case "site-content":    return <SiteContentModule key="site-content" C={C} darkMode={darkMode} />;
       default:              return <OverviewModule C={C} />;
     }
   };
@@ -9031,7 +9034,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         @media (max-width: 768px) {
           .admin-sidebar { display: flex !important; position: fixed !important; z-index: 999; left: 0; top: 0; width: 220px !important; height: 100vh !important; transform: translateX(${sidebarOpen ? "0" : "-100%"}); transition: transform 0.3s ease !important; box-shadow: ${sidebarOpen ? "6px 0 32px rgba(0,0,0,0.7)" : "none"}; border-right: ${sidebarOpen ? "1px solid rgba(201,168,76,0.25)" : "none"} !important; }
           .admin-sidebar-overlay { display: ${sidebarOpen ? "block" : "none"}; position: fixed; inset: 0; z-index: 998; background: rgba(0,0,0,0.5); }
-          .admin-main { padding: ${activeTab === 'magazine-studio' || activeTab === 'page-editor' || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'showcase-studio' || listingStudioMode || eventsBuilderActive ? '0' : '56px 16px 20px'} !important; }
+          .admin-main { padding: ${activeTab === 'magazine-studio' || activeTab === 'page-editor' || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || listingStudioMode || eventsBuilderActive ? '0' : '56px 16px 20px'} !important; }
           .admin-hamburger { display: flex !important; }
           .admin-collapse-btn { display: none !important; }
           .admin-grid-2col { grid-template-columns: 1fr !important; }
@@ -9249,7 +9252,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         </aside>
 
         {/* ── Main content ── */}
-        <main className="admin-main" style={{ flex: 1, minHeight: 0, padding: listingStudioMode || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || eventsBuilderActive ? 0 : "40px 48px", overflow: activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || eventsBuilderActive || activeTab === 'event-studio' ? "hidden" : "auto", display: eventsBuilderActive || activeTab === 'event-studio' || activeTab === 'showcase-studio' ? "flex" : undefined, flexDirection: eventsBuilderActive || activeTab === 'event-studio' || activeTab === 'showcase-studio' ? "column" : undefined, transition: "background 0.3s" }}>
+        <main className="admin-main" style={{ flex: 1, minHeight: 0, padding: listingStudioMode || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || eventsBuilderActive ? 0 : "40px 48px", overflow: activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || eventsBuilderActive || activeTab === 'event-studio' ? "hidden" : "auto", display: eventsBuilderActive || activeTab === 'event-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' ? "flex" : undefined, flexDirection: eventsBuilderActive || activeTab === 'event-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' ? "column" : undefined, transition: "background 0.3s" }}>
           {/* Magazine Studio, full-screen inside admin layout */}
           {activeTab === 'magazine-studio' ? (
             <MagazineStudio
