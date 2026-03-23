@@ -826,7 +826,10 @@ function App() {
           <NotFoundPage onNavigateHome={goHome} onNavigateCategory={goCategory} />
         )}
 
-        {/* ── Global site footer ── */}
+        {/* ── Global site footer ──
+            Rendered here for ALL pages except auth/dashboard pages listed below.
+            RULE: Never import or render <SiteFooter> inside a page component that
+            is served through this main.jsx render tree — it will double-render. ── */}
         {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","event-review"].includes(page) && (
           <SiteFooter onNavigateAdmin={goAdmin} />
         )}

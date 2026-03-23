@@ -12,7 +12,7 @@ import { ThemeCtx } from "../theme/ThemeContext";
 import { getDarkPalette } from "../theme/tokens";
 import { useChat } from "../chat/ChatContext";
 import HomeNav from "../components/nav/HomeNav";
-import SiteFooter from "../components/sections/SiteFooter";
+// Note: SiteFooter is rendered globally by main.jsx — do NOT add it here.
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -508,9 +508,6 @@ export default function TaigenicPage({ onBack, footerNav }) {
           </section>
 
         </main>
-
-        {/* Standard LWD footer — keeps the experience connected to the platform */}
-        <SiteFooter {...footerNav} />
 
       </div>
 
