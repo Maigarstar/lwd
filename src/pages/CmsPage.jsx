@@ -12,11 +12,10 @@
 import { useState, useEffect } from 'react';
 import { Helmet, HelmetProvider } from 'react-helmet-async';
 import { ThemeCtx } from '../theme/ThemeContext';
-import { getDarkPalette } from '../theme/tokens';
+import { getDarkPalette, getLightPalette } from '../theme/tokens';
 import HomeNav from '../components/nav/HomeNav';
 import { fetchPage, fetchPageDraft } from '../services/cmsService';
 
-const C = getDarkPalette();
 const GD = 'var(--font-heading-primary)';
 const NU = 'var(--font-body)';
 
@@ -29,17 +28,28 @@ const PAGE_META = {
   support:          { eyebrow: 'Support', category: 'Help Centre' },
 };
 
-// ── Content prose styles ──────────────────────────────────────────────────────
-const PROSE_STYLES = `
+// ── Content prose styles (theme-aware) ───────────────────────────────────────
+function getProseStyles(isDark) {
+  const heading  = isDark ? '#f5f0e8'                : '#111111';
+  const body     = isDark ? 'rgba(245,240,232,0.65)' : 'rgba(17,17,17,0.65)';
+  const bodyEm   = isDark ? 'rgba(245,240,232,0.8)'  : 'rgba(17,17,17,0.8)';
+  const bodyBq   = isDark ? 'rgba(245,240,232,0.5)'  : 'rgba(17,17,17,0.5)';
+  const strong   = isDark ? '#f5f0e8'                : '#111111';
+  const cbText   = isDark ? 'rgba(245,240,232,0.6)'  : 'rgba(17,17,17,0.6)';
+  const cbStrong = isDark ? 'rgba(245,240,232,0.85)' : 'rgba(17,17,17,0.85)';
+  const h2Border = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+  const hrBorder = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
+  const cbBg     = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)';
+  const cbBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+
+  return `
   /* Hide duplicate h1 — title already shown in hero */
-  .cms-public-content > h1:first-child {
-    display: none;
-  }
+  .cms-public-content > h1:first-child { display: none; }
   .cms-public-content h1 {
     font-family: var(--font-heading-primary);
     font-size: clamp(20px, 2vw, 26px);
     font-weight: 600;
-    color: #f5f0e8;
+    color: ${heading};
     margin: 56px 0 16px;
     letter-spacing: -0.01em;
     line-height: 1.25;
@@ -48,12 +58,12 @@ const PROSE_STYLES = `
     font-family: var(--font-heading-primary);
     font-size: clamp(17px, 1.6vw, 21px);
     font-weight: 600;
-    color: #f5f0e8;
+    color: ${heading};
     margin: 56px 0 14px;
     letter-spacing: -0.01em;
     line-height: 1.3;
     padding-top: 8px;
-    border-top: 1px solid rgba(255,255,255,0.06);
+    border-top: 1px solid ${h2Border};
   }
   .cms-public-content h3 {
     font-family: var(--font-heading-primary);
@@ -66,7 +76,7 @@ const PROSE_STYLES = `
   .cms-public-content p {
     font-family: var(--font-body);
     font-size: 15px;
-    color: rgba(245,240,232,0.65);
+    color: ${body};
     line-height: 1.9;
     margin: 0 0 18px;
   }
@@ -76,101 +86,73 @@ const PROSE_STYLES = `
     border-bottom: 1px solid rgba(201,168,76,0.35);
     transition: border-color 0.2s, color 0.2s;
   }
-  .cms-public-content a:hover {
-    color: #dbb96a;
-    border-color: #dbb96a;
-  }
-  .cms-public-content ul,
-  .cms-public-content ol {
+  .cms-public-content a:hover { color: #dbb96a; border-color: #dbb96a; }
+  .cms-public-content ul, .cms-public-content ol {
     font-family: var(--font-body);
     padding-left: 22px;
     margin: 0 0 22px;
   }
   .cms-public-content li {
     font-size: 15px;
-    color: rgba(245,240,232,0.65);
+    color: ${body};
     line-height: 1.8;
     margin-bottom: 8px;
   }
   .cms-public-content hr {
     border: none;
-    border-top: 1px solid rgba(255,255,255,0.07);
+    border-top: 1px solid ${hrBorder};
     margin: 48px 0;
   }
-  .cms-public-content strong {
-    color: #f5f0e8;
-    font-weight: 600;
-  }
-  .cms-public-content em {
-    font-style: italic;
-    color: rgba(245,240,232,0.8);
-  }
+  .cms-public-content strong { color: ${strong}; font-weight: 600; }
+  .cms-public-content em { font-style: italic; color: ${bodyEm}; }
   .cms-public-content blockquote {
     border-left: 2px solid #C9A84C;
     margin: 28px 0;
     padding: 12px 24px;
-    color: rgba(245,240,232,0.5);
+    color: ${bodyBq};
     font-style: italic;
     font-family: var(--font-body);
     font-size: 14px;
     line-height: 1.85;
   }
-  /* Styled contact / info block */
   .cms-public-content .lwd-contact-block {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: ${cbBg};
+    border: 1px solid ${cbBorder};
     border-left: 2px solid rgba(201,168,76,0.4);
     border-radius: 6px;
     padding: 22px 26px;
     margin: 24px 0 28px;
   }
-  .cms-public-content .lwd-contact-block p {
-    margin: 0 0 6px;
-    font-size: 14px;
-    color: rgba(245,240,232,0.6);
-  }
+  .cms-public-content .lwd-contact-block p { margin: 0 0 6px; font-size: 14px; color: ${cbText}; }
   .cms-public-content .lwd-contact-block p:last-child { margin: 0; }
-  .cms-public-content .lwd-contact-block strong {
-    color: rgba(245,240,232,0.85);
-  }
-  /* Support page anchor nav */
+  .cms-public-content .lwd-contact-block strong { color: ${cbStrong}; }
   .cms-anchor-nav {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin: 0 0 40px;
-    padding: 18px 22px;
+    display: flex; gap: 10px; flex-wrap: wrap;
+    margin: 0 0 40px; padding: 18px 22px;
     background: rgba(201,168,76,0.05);
     border: 1px solid rgba(201,168,76,0.15);
     border-radius: 6px;
   }
   .cms-anchor-nav a {
-    font-family: var(--font-body);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: rgba(201,168,76,0.8) !important;
-    border-bottom: none !important;
-    padding: 5px 12px;
-    background: rgba(201,168,76,0.08);
-    border-radius: 3px;
-    transition: background 0.2s, color 0.2s;
-    text-decoration: none;
+    font-family: var(--font-body); font-size: 11px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: rgba(201,168,76,0.8) !important; border-bottom: none !important;
+    padding: 5px 12px; background: rgba(201,168,76,0.08);
+    border-radius: 3px; transition: background 0.2s, color 0.2s; text-decoration: none;
   }
   .cms-anchor-nav a:hover {
     background: rgba(201,168,76,0.15) !important;
-    color: #C9A84C !important;
-    border-bottom: none !important;
+    color: #C9A84C !important; border-bottom: none !important;
   }
 `;
+}
 
 // ── Skeleton loader ───────────────────────────────────────────────────────────
-function SkeletonLine({ width = '100%', height = 14, margin = '0 0 12px' }) {
+function SkeletonLine({ width = '100%', height = 14, margin = '0 0 12px', isDark = true }) {
   return (
     <div style={{
       width, height, margin,
-      background: 'rgba(255,255,255,0.06)',
+      background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
       borderRadius: 4,
       animation: 'lwd-shimmer 1.4s ease-in-out infinite',
     }} />
@@ -186,7 +168,8 @@ function formatDate(iso) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function CmsPage({ pageKey, onBack, footerNav }) {
+export default function CmsPage({ pageKey, onBack, footerNav, darkMode = true }) {
+  const C  = darkMode ? getDarkPalette() : getLightPalette();
   const [page, setPage]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
@@ -222,11 +205,14 @@ export default function CmsPage({ pageKey, onBack, footerNav }) {
         <Helmet>
           <title>{pageTitle}{' \u2014 '}Luxury Wedding Directory</title>
           {pageDesc && <meta name="description" content={pageDesc} />}
-          <meta name="robots" content={isPreview ? 'noindex' : 'index,follow'} />
+          {isPreview
+            ? <meta name="robots" content="noindex,nofollow" />
+            : page && <meta name="robots" content={`${page.noindex ? 'noindex' : 'index'},${page.nofollow ? 'nofollow' : 'follow'}`} />
+          }
         </Helmet>
 
         <style>{`
-          ${PROSE_STYLES}
+          ${getProseStyles(darkMode)}
           @keyframes lwd-shimmer {
             0%, 100% { opacity: 0.5; }
             50%       { opacity: 1; }
@@ -236,7 +222,7 @@ export default function CmsPage({ pageKey, onBack, footerNav }) {
         <div style={{ background: C.black, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
 
           <HomeNav
-            darkMode={true}
+            darkMode={darkMode}
             onToggleDark={() => {}}
             onVendorLogin={onBack}
             onNavigateStandard={footerNav?.onNavigateStandard}
@@ -279,9 +265,9 @@ export default function CmsPage({ pageKey, onBack, footerNav }) {
 
                 {loading ? (
                   <>
-                    <SkeletonLine width={100} height={10} margin="0 0 16px" />
-                    <SkeletonLine width="60%" height={32} margin="0 0 18px" />
-                    <SkeletonLine width={180} height={12} margin="0" />
+                    <SkeletonLine isDark={darkMode} width={100} height={10} margin="0 0 16px" />
+                    <SkeletonLine isDark={darkMode} width="60%" height={32} margin="0 0 18px" />
+                    <SkeletonLine isDark={darkMode} width={180} height={12} margin="0" />
                   </>
                 ) : error ? null : (
                   <>
@@ -337,7 +323,7 @@ export default function CmsPage({ pageKey, onBack, footerNav }) {
             {/* ── Content section ── */}
             <section style={{
               background: C.card,
-              borderTop: '1px solid rgba(255,255,255,0.05)',
+              borderTop: `1px solid ${darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)'}`,
               padding: 'clamp(48px, 6vw, 88px) clamp(24px, 5vw, 60px)',
               flex: 1,
             }}>
@@ -345,16 +331,16 @@ export default function CmsPage({ pageKey, onBack, footerNav }) {
 
                 {loading && (
                   <>
-                    <SkeletonLine height={12} margin="0 0 10px" />
-                    <SkeletonLine width="90%" height={12} margin="0 0 10px" />
-                    <SkeletonLine width="80%" height={12} margin="0 0 28px" />
-                    <SkeletonLine width={140} height={16} margin="0 0 14px" />
-                    <SkeletonLine height={12} margin="0 0 10px" />
-                    <SkeletonLine width="85%" height={12} margin="0 0 10px" />
-                    <SkeletonLine width="75%" height={12} margin="0 0 28px" />
-                    <SkeletonLine width={140} height={16} margin="0 0 14px" />
-                    <SkeletonLine height={12} margin="0 0 10px" />
-                    <SkeletonLine width="92%" height={12} margin="0 0 10px" />
+                    <SkeletonLine isDark={darkMode} height={12} margin="0 0 10px" />
+                    <SkeletonLine isDark={darkMode} width="90%" height={12} margin="0 0 10px" />
+                    <SkeletonLine isDark={darkMode} width="80%" height={12} margin="0 0 28px" />
+                    <SkeletonLine isDark={darkMode} width={140} height={16} margin="0 0 14px" />
+                    <SkeletonLine isDark={darkMode} height={12} margin="0 0 10px" />
+                    <SkeletonLine isDark={darkMode} width="85%" height={12} margin="0 0 10px" />
+                    <SkeletonLine isDark={darkMode} width="75%" height={12} margin="0 0 28px" />
+                    <SkeletonLine isDark={darkMode} width={140} height={16} margin="0 0 14px" />
+                    <SkeletonLine isDark={darkMode} height={12} margin="0 0 10px" />
+                    <SkeletonLine isDark={darkMode} width="92%" height={12} margin="0 0 10px" />
                   </>
                 )}
 

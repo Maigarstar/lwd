@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabaseClient';
 export async function fetchPage(pageKey) {
   const { data, error } = await supabase
     .from('cms_pages')
-    .select('id, page_key, page_type, title, slug, seo_title, meta_description, summary, content_html, last_updated, status')
+    .select('id, page_key, page_type, title, slug, seo_title, meta_description, summary, content_html, last_updated, status, noindex, nofollow')
     .eq('page_key', pageKey)
     .eq('status', 'published')
     .single();
@@ -20,7 +20,7 @@ export async function fetchPage(pageKey) {
 export async function fetchPageDraft(pageKey) {
   const { data, error } = await supabase
     .from('cms_pages')
-    .select('id, page_key, page_type, title, slug, seo_title, meta_description, summary, content_html, published_html, last_updated, status, created_at, updated_at')
+    .select('id, page_key, page_type, title, slug, seo_title, meta_description, summary, content_html, published_html, last_updated, status, created_at, updated_at, noindex, nofollow')
     .eq('page_key', pageKey)
     .single();
 
@@ -41,19 +41,17 @@ export async function fetchAllPages() {
 
 // ── Admin: auto-save draft (silent, debounced) ────────────────────────────────
 export async function saveDraft(pageKey, updates) {
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('cms_pages')
     .update({
       ...updates,
       status: 'draft',
       updated_at: new Date().toISOString(),
     })
-    .eq('page_key', pageKey)
-    .select('id, page_key, status, updated_at')
-    .single();
+    .eq('page_key', pageKey);
 
   if (error) throw error;
-  return data;
+  return { page_key: pageKey, status: 'draft' };
 }
 
 // ── Admin: publish page ────────────────────────────────────────────────────────
@@ -62,8 +60,8 @@ export async function saveDraft(pageKey, updates) {
 export async function publishPage(pageKey, contentHtml, meta = {}) {
   const now = new Date().toISOString();
 
-  // 1. Update the page
-  const { data: page, error: pageError } = await supabase
+  // 1. Update the page (no .select().single() — RLS blocks read-back of non-published rows)
+  const { error: pageError } = await supabase
     .from('cms_pages')
     .update({
       content_html: contentHtml,
@@ -71,13 +69,13 @@ export async function publishPage(pageKey, contentHtml, meta = {}) {
       status: 'published',
       last_updated: now,
       updated_at: now,
-      ...(meta.title ? { title: meta.title } : {}),
-      ...(meta.seo_title ? { seo_title: meta.seo_title } : {}),
+      ...(meta.title            ? { title:            meta.title            } : {}),
+      ...(meta.seo_title        ? { seo_title:        meta.seo_title        } : {}),
       ...(meta.meta_description ? { meta_description: meta.meta_description } : {}),
+      ...(meta.noindex  !== undefined ? { noindex:  meta.noindex  } : {}),
+      ...(meta.nofollow !== undefined ? { nofollow: meta.nofollow } : {}),
     })
-    .eq('page_key', pageKey)
-    .select()
-    .single();
+    .eq('page_key', pageKey);
 
   if (pageError) throw pageError;
 
@@ -86,32 +84,33 @@ export async function publishPage(pageKey, contentHtml, meta = {}) {
   await supabase.from('cms_page_versions').insert({
     page_key: pageKey,
     content_html: contentHtml,
-    title: page.title,
+    title: meta.title || pageKey,
     version_label: versionLabel,
     created_by: 'admin',
   });
 
-  return page;
+  // Return a synthetic object the component expects
+  return { page_key: pageKey, status: 'published', last_updated: now, title: meta.title };
 }
 
 // ── Admin: save draft with metadata ───────────────────────────────────────────
 export async function saveDraftFull(pageKey, payload) {
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('cms_pages')
     .update({
-      content_html: payload.content_html,
-      title: payload.title,
-      seo_title: payload.seo_title,
+      content_html:     payload.content_html,
+      title:            payload.title,
+      seo_title:        payload.seo_title,
       meta_description: payload.meta_description,
-      status: 'draft',
-      updated_at: new Date().toISOString(),
+      noindex:          payload.noindex  ?? false,
+      nofollow:         payload.nofollow ?? false,
+      status:           'draft',
+      updated_at:       new Date().toISOString(),
     })
-    .eq('page_key', pageKey)
-    .select()
-    .single();
+    .eq('page_key', pageKey);
 
   if (error) throw error;
-  return data;
+  return { page_key: pageKey, status: 'draft' };
 }
 
 // ── Admin: fetch version history ─────────────────────────────────────────────
@@ -138,25 +137,23 @@ export async function revertToVersion(pageKey, versionId) {
 
   if (vErr) throw vErr;
 
-  // Update the page draft (does not publish — admin reviews before publishing)
-  const { data, error } = await supabase
+  // Update the page draft (no .select().single() — RLS blocks read-back)
+  const { error } = await supabase
     .from('cms_pages')
     .update({
       content_html: version.content_html,
-      status: 'draft',
-      updated_at: new Date().toISOString(),
+      status:       'draft',
+      updated_at:   new Date().toISOString(),
     })
-    .eq('page_key', pageKey)
-    .select()
-    .single();
+    .eq('page_key', pageKey);
 
   if (error) throw error;
-  return { page: data, restoredHtml: version.content_html };
+  return { page: { page_key: pageKey, status: 'draft' }, restoredHtml: version.content_html };
 }
 
 // ── Admin: revert to last published snapshot ─────────────────────────────────
 export async function revertToLastPublished(pageKey) {
-  // Get current published_html
+  // Get current published_html (published pages are readable by anon)
   const { data: current, error: fetchErr } = await supabase
     .from('cms_pages')
     .select('published_html, title')
@@ -166,20 +163,18 @@ export async function revertToLastPublished(pageKey) {
   if (fetchErr) throw fetchErr;
   if (!current.published_html) throw new Error('No published version found to revert to.');
 
-  // Set content_html = published_html
-  const { data, error } = await supabase
+  // Set content_html = published_html (no .select().single() — RLS blocks read-back)
+  const { error } = await supabase
     .from('cms_pages')
     .update({
       content_html: current.published_html,
-      status: 'draft',
-      updated_at: new Date().toISOString(),
+      status:       'draft',
+      updated_at:   new Date().toISOString(),
     })
-    .eq('page_key', pageKey)
-    .select()
-    .single();
+    .eq('page_key', pageKey);
 
   if (error) throw error;
-  return { page: data, restoredHtml: current.published_html };
+  return { page: { page_key: pageKey, status: 'draft' }, restoredHtml: current.published_html };
 }
 
 // ── AI content assist ─────────────────────────────────────────────────────────
@@ -202,9 +197,9 @@ export async function aiContentAssist({ action, content, selection, customPrompt
     body: JSON.stringify({
       action,
       content,
-      selection: selection || '',
+      selection:    selection || '',
       customPrompt: customPrompt || '',
-      page_key: pageKey || '',
+      page_key:     pageKey || '',
     }),
   });
 

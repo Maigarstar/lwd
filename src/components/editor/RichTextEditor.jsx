@@ -8,6 +8,7 @@
 //   placeholder  string   — placeholder text
 //   readOnly     bool
 //   C            object   — theme palette (getDarkPalette())
+//   darkMode     bool     — true (default) = dark, false = light
 //   onSelectionUpdate fn  — called with { text, html } when selection changes
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -23,63 +24,6 @@ import { useEffect, useRef, useCallback } from 'react';
 const GD = 'var(--font-heading-primary)';
 const NU = 'var(--font-body)';
 
-// ── Toolbar button ────────────────────────────────────────────────────────────
-function TBtn({ onClick, active, disabled, title, children }) {
-  return (
-    <button
-      type="button"
-      title={title}
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        padding: '4px 8px',
-        minWidth: 28,
-        height: 28,
-        background: active ? 'rgba(201,168,76,0.18)' : 'transparent',
-        border: active ? '1px solid rgba(201,168,76,0.4)' : '1px solid transparent',
-        borderRadius: 4,
-        color: active ? '#C9A84C' : disabled ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.6)',
-        fontSize: 12,
-        fontWeight: 600,
-        fontFamily: NU,
-        cursor: disabled ? 'default' : 'pointer',
-        transition: 'all 0.15s',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-      }}
-      onMouseEnter={e => {
-        if (!disabled) {
-          e.currentTarget.style.background = active ? 'rgba(201,168,76,0.22)' : 'rgba(255,255,255,0.06)';
-          e.currentTarget.style.color = '#C9A84C';
-        }
-      }}
-      onMouseLeave={e => {
-        if (!disabled) {
-          e.currentTarget.style.background = active ? 'rgba(201,168,76,0.18)' : 'transparent';
-          e.currentTarget.style.color = active ? '#C9A84C' : 'rgba(255,255,255,0.6)';
-        }
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-// ── Divider ───────────────────────────────────────────────────────────────────
-function TDiv() {
-  return (
-    <span style={{
-      width: 1, height: 20,
-      background: 'rgba(255,255,255,0.1)',
-      flexShrink: 0,
-      alignSelf: 'center',
-      margin: '0 4px',
-    }} />
-  );
-}
-
 // ── Main component ────────────────────────────────────────────────────────────
 export default function RichTextEditor({
   content = '',
@@ -87,12 +31,82 @@ export default function RichTextEditor({
   placeholder = 'Start writing…',
   readOnly = false,
   C,
+  darkMode = true,
   onSelectionUpdate,
 }) {
   const gold = C?.gold || '#C9A84C';
   const bg = C?.card || '#141414';
   const border = C?.border || '#1e1e1e';
   const off = C?.off || '#f5f0e8';
+
+  const isDark       = darkMode !== false;
+  const bodyText     = isDark ? 'rgba(245,240,232,0.72)' : 'rgba(17,17,17,0.72)';
+  const bodyListText = isDark ? 'rgba(245,240,232,0.72)' : 'rgba(17,17,17,0.72)';
+  const hrBorder     = isDark ? 'rgba(255,255,255,0.1)'  : 'rgba(0,0,0,0.1)';
+  const bqColor      = isDark ? 'rgba(245,240,232,0.55)' : 'rgba(17,17,17,0.55)';
+  const placeholder_ = isDark ? 'rgba(255,255,255,0.2)'  : 'rgba(0,0,0,0.25)';
+  const tbBtnColor   = isDark ? 'rgba(255,255,255,0.6)'  : 'rgba(0,0,0,0.65)';
+  const tbBtnDisabled = isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)';
+  const tbDivider    = isDark ? 'rgba(255,255,255,0.1)'  : 'rgba(0,0,0,0.1)';
+  const tbBg         = isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)';
+  const tbHoverBg    = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+
+  // ── Toolbar button (defined inside to close over isDark-derived colors) ───
+  function TBtn({ onClick, active, disabled, title, children }) {
+    return (
+      <button
+        type="button"
+        title={title}
+        onClick={onClick}
+        disabled={disabled}
+        style={{
+          padding: '4px 8px',
+          minWidth: 28,
+          height: 28,
+          background: active ? 'rgba(201,168,76,0.18)' : 'transparent',
+          border: active ? '1px solid rgba(201,168,76,0.4)' : '1px solid transparent',
+          borderRadius: 4,
+          color: active ? '#C9A84C' : disabled ? tbBtnDisabled : tbBtnColor,
+          fontSize: 12,
+          fontWeight: 600,
+          fontFamily: NU,
+          cursor: disabled ? 'default' : 'pointer',
+          transition: 'all 0.15s',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+        onMouseEnter={e => {
+          if (!disabled) {
+            e.currentTarget.style.background = active ? 'rgba(201,168,76,0.22)' : tbHoverBg;
+            e.currentTarget.style.color = '#C9A84C';
+          }
+        }}
+        onMouseLeave={e => {
+          if (!disabled) {
+            e.currentTarget.style.background = active ? 'rgba(201,168,76,0.18)' : 'transparent';
+            e.currentTarget.style.color = active ? '#C9A84C' : tbBtnColor;
+          }
+        }}
+      >
+        {children}
+      </button>
+    );
+  }
+
+  // ── Divider (defined inside to close over tbDivider) ─────────────────────
+  function TDiv() {
+    return (
+      <span style={{
+        width: 1, height: 20,
+        background: tbDivider,
+        flexShrink: 0,
+        alignSelf: 'center',
+        margin: '0 4px',
+      }} />
+    );
+  }
 
   const editor = useEditor({
     extensions: [
@@ -155,7 +169,7 @@ export default function RichTextEditor({
   if (!editor) return null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: bg }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, background: bg }}>
       {/* ── Toolbar ── */}
       {!readOnly && (
         <div
@@ -166,7 +180,7 @@ export default function RichTextEditor({
             gap: 2,
             padding: '8px 12px',
             borderBottom: `1px solid ${border}`,
-            background: 'rgba(255,255,255,0.02)',
+            background: tbBg,
             flexShrink: 0,
           }}
         >
@@ -259,12 +273,12 @@ export default function RichTextEditor({
       )}
 
       {/* ── Editor content ── */}
-      <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', position: 'relative' }}>
         <style>{`
           .lwd-rich-editor .ProseMirror {
             outline: none;
             min-height: 480px;
-            padding: 36px 48px;
+            padding: 36px 48px 160px;
             max-width: 860px;
             margin: 0 auto;
             color: ${off};
@@ -298,7 +312,7 @@ export default function RichTextEditor({
           }
           .lwd-rich-editor .ProseMirror p {
             margin: 0 0 16px;
-            color: rgba(245,240,232,0.72);
+            color: ${bodyText};
           }
           .lwd-rich-editor .ProseMirror a {
             color: ${gold};
@@ -316,11 +330,11 @@ export default function RichTextEditor({
           }
           .lwd-rich-editor .ProseMirror li {
             margin-bottom: 6px;
-            color: rgba(245,240,232,0.72);
+            color: ${bodyListText};
           }
           .lwd-rich-editor .ProseMirror hr {
             border: none;
-            border-top: 1px solid rgba(255,255,255,0.1);
+            border-top: 1px solid ${hrBorder};
             margin: 32px 0;
           }
           .lwd-rich-editor .ProseMirror strong {
@@ -334,11 +348,11 @@ export default function RichTextEditor({
             border-left: 3px solid ${gold};
             margin: 20px 0;
             padding: 8px 20px;
-            color: rgba(245,240,232,0.55);
+            color: ${bqColor};
             font-style: italic;
           }
           .lwd-rich-editor .ProseMirror p.is-editor-empty:first-child::before {
-            color: rgba(255,255,255,0.2);
+            color: ${placeholder_};
             content: attr(data-placeholder);
             float: left;
             height: 0;
@@ -350,6 +364,25 @@ export default function RichTextEditor({
         `}</style>
         <div className="lwd-rich-editor">
           <EditorContent editor={editor} />
+        </div>
+        {/* ── End of content marker ── */}
+        <div style={{
+          maxWidth: 860,
+          margin: '0 auto',
+          padding: '0 48px 40px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
+        }}>
+          <div style={{ flex: 1, height: 1, background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)' }} />
+          <span style={{
+            fontSize: 10,
+            fontFamily: NU,
+            letterSpacing: '0.14em',
+            textTransform: 'uppercase',
+            color: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.22)',
+          }}>End of content</span>
+          <div style={{ flex: 1, height: 1, background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)' }} />
         </div>
       </div>
     </div>

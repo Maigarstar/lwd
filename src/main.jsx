@@ -707,19 +707,19 @@ function App() {
           <ContactLWD onBack={goHome} onViewCategory={goCategory} onViewStandard={goStandard} onViewAbout={goAbout} onViewPartnership={goPartnership} footerNav={footerNav} />
         )}
         {page === "privacy" && (
-          <CmsPage pageKey="privacy" onBack={goHome} footerNav={footerNav} />
+          <CmsPage pageKey="privacy" onBack={goHome} footerNav={footerNav} darkMode={darkMode} />
         )}
         {page === "terms" && (
-          <CmsPage pageKey="terms" onBack={goHome} footerNav={footerNav} />
+          <CmsPage pageKey="terms" onBack={goHome} footerNav={footerNav} darkMode={darkMode} />
         )}
         {page === "cookies" && (
-          <CmsPage pageKey="cookies" onBack={goHome} footerNav={footerNav} />
+          <CmsPage pageKey="cookies" onBack={goHome} footerNav={footerNav} darkMode={darkMode} />
         )}
         {page === "reviews-policy" && (
-          <CmsPage pageKey="reviews-policy" onBack={goHome} footerNav={footerNav} />
+          <CmsPage pageKey="reviews-policy" onBack={goHome} footerNav={footerNav} darkMode={darkMode} />
         )}
         {page === "support" && (
-          <CmsPage pageKey="support" onBack={goHome} footerNav={footerNav} />
+          <CmsPage pageKey="support" onBack={goHome} footerNav={footerNav} darkMode={darkMode} />
         )}
         {page === "unsubscribe" && (
           <UnsubscribePage />

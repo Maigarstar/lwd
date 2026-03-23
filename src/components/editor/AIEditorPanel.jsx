@@ -26,6 +26,7 @@ export default function AIEditorPanel({
   pageKey,
   onApply,
   C,
+  darkMode,
 }) {
   const [scope, setScope] = useState('selection'); // 'selection' | 'full'
   const [loading, setLoading] = useState(false);
@@ -38,6 +39,25 @@ export default function AIEditorPanel({
   const card   = C?.card   || '#141414';
   const border = C?.border || '#1e1e1e';
   const off    = C?.off    || '#f5f0e8';
+
+  // ── Theme-aware color variables ──────────────────────────────────────────
+  const isDark      = darkMode !== false;
+  const textMuted   = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.55)';
+  const textFaint   = isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.4)';
+  const sectionLbl  = isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.45)';
+  const inputBg     = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)';
+  const btnText     = isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.7)';
+  const btnTextDis  = isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.3)';
+  const btnGenDis   = isDark ? 'rgba(255,255,255,0.2)'  : 'rgba(0,0,0,0.25)';
+  const scopeUnsel  = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.55)';
+  const discardText = isDark ? 'rgba(255,255,255,0.4)'  : 'rgba(0,0,0,0.45)';
+  const loadingText = isDark ? 'rgba(255,255,255,0.4)'  : 'rgba(0,0,0,0.45)';
+  const resultSelLbl = isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.45)';
+  const previewBg   = isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)';
+  // AI result preview prose
+  const previewH    = isDark ? '#f5f0e8'                : '#111111';
+  const previewP    = isDark ? 'rgba(245,240,232,0.7)'  : 'rgba(17,17,17,0.7)';
+  const previewHR   = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
 
   const hasSelection = Boolean(selectionText && selectionText.trim());
   const effectiveScope = hasSelection ? scope : 'full';
@@ -87,6 +107,7 @@ export default function AIEditorPanel({
       display: 'flex',
       flexDirection: 'column',
       gap: 0,
+      paddingBottom: 48,
     }}>
       {/* ── Header ── */}
       <div style={{
@@ -101,7 +122,7 @@ export default function AIEditorPanel({
           color: gold,
           marginBottom: 4,
         }}>AI Tools</div>
-        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5 }}>
+        <div style={{ fontSize: 11, color: sectionLbl, lineHeight: 1.5 }}>
           Powered by Taigenic.ai
         </div>
       </div>
@@ -109,7 +130,7 @@ export default function AIEditorPanel({
       {/* ── Scope selector (only shown if text is selected) ── */}
       {hasSelection && (
         <div style={{ padding: '12px 20px', borderBottom: `1px solid ${border}` }}>
-          <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', marginBottom: 8 }}>
+          <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: sectionLbl, marginBottom: 8 }}>
             Apply to
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -124,10 +145,10 @@ export default function AIEditorPanel({
                 style={{
                   flex: 1,
                   padding: '6px 10px',
-                  background: scope === v ? 'rgba(201,168,76,0.12)' : 'rgba(255,255,255,0.03)',
+                  background: scope === v ? 'rgba(201,168,76,0.12)' : inputBg,
                   border: `1px solid ${scope === v ? 'rgba(201,168,76,0.4)' : border}`,
                   borderRadius: 4,
-                  color: scope === v ? gold : 'rgba(255,255,255,0.45)',
+                  color: scope === v ? gold : scopeUnsel,
                   fontSize: 11,
                   fontFamily: NU,
                   cursor: 'pointer',
@@ -141,7 +162,7 @@ export default function AIEditorPanel({
 
       {!hasSelection && (
         <div style={{ padding: '10px 20px', borderBottom: `1px solid ${border}` }}>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.28)', fontStyle: 'italic' }}>
+          <div style={{ fontSize: 11, color: textFaint, fontStyle: 'italic' }}>
             Select text in the editor to target a specific section, or apply to the full content below.
           </div>
         </div>
@@ -163,10 +184,10 @@ export default function AIEditorPanel({
               padding: '9px 12px',
               background: activeAction === key && loading
                 ? 'rgba(201,168,76,0.1)'
-                : 'rgba(255,255,255,0.03)',
+                : inputBg,
               border: `1px solid ${activeAction === key && loading ? 'rgba(201,168,76,0.3)' : border}`,
               borderRadius: 6,
-              color: loading ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.65)',
+              color: loading ? btnTextDis : btnText,
               fontSize: 12,
               fontFamily: NU,
               textAlign: 'left',
@@ -182,9 +203,9 @@ export default function AIEditorPanel({
             }}
             onMouseLeave={e => {
               if (!loading) {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                e.currentTarget.style.background = inputBg;
                 e.currentTarget.style.borderColor = border;
-                e.currentTarget.style.color = 'rgba(255,255,255,0.65)';
+                e.currentTarget.style.color = btnText;
               }
             }}
           >
@@ -196,7 +217,7 @@ export default function AIEditorPanel({
 
       {/* ── Generate from prompt ── */}
       <div style={{ padding: '16px 20px', borderBottom: `1px solid ${border}` }}>
-        <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', marginBottom: 8 }}>
+        <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: sectionLbl, marginBottom: 8 }}>
           Generate from prompt
         </div>
         <textarea
@@ -206,7 +227,7 @@ export default function AIEditorPanel({
           rows={3}
           style={{
             width: '100%',
-            background: 'rgba(255,255,255,0.03)',
+            background: inputBg,
             border: `1px solid ${border}`,
             borderRadius: 6,
             color: off,
@@ -229,10 +250,10 @@ export default function AIEditorPanel({
             marginTop: 8,
             width: '100%',
             padding: '9px',
-            background: generatePrompt.trim() && !loading ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.04)',
+            background: generatePrompt.trim() && !loading ? 'rgba(201,168,76,0.15)' : inputBg,
             border: `1px solid ${generatePrompt.trim() && !loading ? 'rgba(201,168,76,0.35)' : border}`,
             borderRadius: 6,
-            color: generatePrompt.trim() && !loading ? gold : 'rgba(255,255,255,0.2)',
+            color: generatePrompt.trim() && !loading ? gold : btnGenDis,
             fontSize: 12,
             fontFamily: NU,
             fontWeight: 600,
@@ -266,7 +287,7 @@ export default function AIEditorPanel({
               50% { opacity: 1; transform: scale(1.1); }
             }
           `}</style>
-          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontStyle: 'italic' }}>
+          <span style={{ fontSize: 12, color: loadingText, fontStyle: 'italic' }}>
             AI is thinking…
           </span>
         </div>
@@ -325,7 +346,7 @@ export default function AIEditorPanel({
               AI Suggestion
             </span>
             {result.usedSelection && (
-              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>
+              <span style={{ fontSize: 10, color: resultSelLbl }}>
                 Selected text
               </span>
             )}
@@ -336,7 +357,7 @@ export default function AIEditorPanel({
             className="lwd-ai-preview"
             style={{
               padding: '14px 16px',
-              background: 'rgba(255,255,255,0.02)',
+              background: previewBg,
               maxHeight: 280,
               overflowY: 'auto',
             }}
@@ -344,16 +365,16 @@ export default function AIEditorPanel({
             <style>{`
               .lwd-ai-preview h1, .lwd-ai-preview h2, .lwd-ai-preview h3 {
                 font-family: var(--font-heading-primary);
-                color: #f5f0e8;
+                color: ${previewH};
                 margin: 0 0 10px;
                 font-size: 14px;
               }
-              .lwd-ai-preview p { font-size: 12px; color: rgba(245,240,232,0.7); line-height: 1.7; margin: 0 0 10px; font-family: var(--font-body); }
+              .lwd-ai-preview p { font-size: 12px; color: ${previewP}; line-height: 1.7; margin: 0 0 10px; font-family: var(--font-body); }
               .lwd-ai-preview ul, .lwd-ai-preview ol { padding-left: 18px; margin: 0 0 10px; }
-              .lwd-ai-preview li { font-size: 12px; color: rgba(245,240,232,0.7); margin-bottom: 4px; font-family: var(--font-body); }
+              .lwd-ai-preview li { font-size: 12px; color: ${previewP}; margin-bottom: 4px; font-family: var(--font-body); }
               .lwd-ai-preview a { color: #C9A84C; }
-              .lwd-ai-preview hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 12px 0; }
-              .lwd-ai-preview strong { color: #f5f0e8; font-weight: 600; }
+              .lwd-ai-preview hr { border: none; border-top: 1px solid ${previewHR}; margin: 12px 0; }
+              .lwd-ai-preview strong { color: ${previewH}; font-weight: 600; }
             `}</style>
             <div dangerouslySetInnerHTML={{ __html: result.html }} />
           </div>
@@ -391,7 +412,7 @@ export default function AIEditorPanel({
                 background: 'transparent',
                 border: `1px solid ${border}`,
                 borderRadius: 6,
-                color: 'rgba(255,255,255,0.4)',
+                color: discardText,
                 fontSize: 12,
                 fontFamily: NU,
                 cursor: 'pointer',

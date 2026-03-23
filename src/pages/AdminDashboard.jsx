@@ -8510,6 +8510,9 @@ export default function AdminDashboard({ onBack, onNavigate }) {
     } else if (intent.type === 'event' && intent.slug) {
       try { sessionStorage.setItem('lwd_event_open_slug', intent.slug); } catch {}
       setActiveTab('event-studio');
+    } else if (intent.type === 'cms-page' && intent.pageKey) {
+      try { sessionStorage.setItem('lwd_cms_edit_pagekey', intent.pageKey); } catch {}
+      setActiveTab('site-content');
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

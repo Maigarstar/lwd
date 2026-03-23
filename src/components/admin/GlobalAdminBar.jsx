@@ -22,6 +22,14 @@ const STATIC_SHOWCASE_SLUGS = {
   'sskrabey-showcase':      'six-senses-krabey-island',
 };
 
+const CMS_PAGE_LABELS = {
+  'privacy':        'Edit Privacy Policy',
+  'terms':          'Edit Terms',
+  'cookies':        'Edit Cookies',
+  'reviews-policy': 'Edit Reviews Policy',
+  'support':        'Edit Support',
+};
+
 function getEditContext(page, { showcaseSlug, venueSlug, magazineSlug, eventSlug }) {
   if (STATIC_SHOWCASE_SLUGS[page]) {
     return {
@@ -30,6 +38,9 @@ function getEditContext(page, { showcaseSlug, venueSlug, magazineSlug, eventSlug
       slug:     STATIC_SHOWCASE_SLUGS[page],
       disabled: true,
     };
+  }
+  if (CMS_PAGE_LABELS[page]) {
+    return { type: 'cms-page', label: CMS_PAGE_LABELS[page], pageKey: page, disabled: false };
   }
   switch (page) {
     case 'showcase':
@@ -75,7 +86,8 @@ export default function GlobalAdminBar({ page, slugs = {}, onOpenAdmin }) {
     try {
       sessionStorage.setItem('lwd_admin_edit_intent', JSON.stringify({
         type:       ctx.type,
-        slug:       ctx.slug,
+        slug:       ctx.slug       || null,
+        pageKey:    ctx.pageKey    || null,
         returnPath,
       }));
     } catch {}

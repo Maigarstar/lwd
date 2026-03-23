@@ -199,10 +199,22 @@ export default function SiteFooter({
   // Grid columns: brand (wider) + one per nav col
   const gridTemplateColumns = `2fr ${navCols.map(() => "1fr").join(" ")}`;
 
+  // SPA-safe link navigation — internal paths use pushState, external use href
+  function spaNavigate(url) {
+    if (!url || url === "#") return;
+    if (url.startsWith("/")) {
+      window.history.pushState({}, "", url);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+      window.scrollTo({ top: 0, behavior: "instant" });
+    } else {
+      window.location.href = url;
+    }
+  }
+
   // Link click handler: URL-first, then callback fallback
   function handleLinkClick(item) {
     if (item.url && item.url !== "#") {
-      window.location.href = item.url;
+      spaNavigate(item.url);
       return;
     }
   }
@@ -636,9 +648,9 @@ export default function SiteFooter({
                   role="link"
                   tabIndex={0}
                   onClick={() => {
-                    if (label === "Admin")   onNavigateAdmin?.();
-                    if (label === "Cookies") window.dispatchEvent(new Event("lwd:show-cookies"));
-                    else if (item.url && item.url !== "") window.location.href = item.url;
+                    if (label === "Admin")   { onNavigateAdmin?.(); return; }
+                    if (label === "Cookies") { window.dispatchEvent(new Event("lwd:show-cookies")); return; }
+                    if (item.url && item.url !== "") spaNavigate(item.url);
                   }}
                   onKeyDown={e => {
                     if (e.key === "Enter" && label === "Admin") onNavigateAdmin?.();

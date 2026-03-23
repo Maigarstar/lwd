@@ -94,11 +94,38 @@ function Toast({ message, type = 'success', onDone }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // LIST VIEW
 // ══════════════════════════════════════════════════════════════════════════════
-function ListView({ pages, loading, onEdit, C }) {
+function ListView({ pages, loading, onEdit, C, darkMode }) {
   const border = C?.border || '#1e1e1e';
   const card   = C?.card   || '#141414';
   const off    = C?.off    || '#f5f0e8';
   const gold   = C?.gold   || '#C9A84C';
+
+  const isDark     = darkMode !== false;
+  const textMuted  = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.55)';
+  const textFaint  = isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.38)';
+  const sectionLbl = isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.45)';
+  const inputBg    = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
+  const btnBg      = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
+  const btnBorder  = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)';
+  const hoverBg    = isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.025)';
+  const dividerColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
+
+  // Per-row publish state
+  const [publishingKey, setPublishingKey] = useState(null);
+  const [publishedFlash, setPublishedFlash] = useState(null);
+
+  async function handlePublishRow(pageKey) {
+    setPublishingKey(pageKey);
+    try {
+      await publishPage(pageKey);
+      setPublishedFlash(pageKey);
+      setTimeout(() => setPublishedFlash(k => k === pageKey ? null : k), 2000);
+    } catch (err) {
+      // Silent fail — user can open editor to publish with full error handling
+    } finally {
+      setPublishingKey(null);
+    }
+  }
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '48px 40px' }}>
@@ -110,7 +137,7 @@ function ListView({ pages, loading, onEdit, C }) {
         <h1 style={{ fontFamily: GD, fontSize: 26, fontWeight: 600, color: off, margin: 0, letterSpacing: '-0.01em' }}>
           Legal &amp; Support Pages
         </h1>
-        <p style={{ fontFamily: NU, fontSize: 13, color: 'rgba(255,255,255,0.38)', marginTop: 8, lineHeight: 1.6 }}>
+        <p style={{ fontFamily: NU, fontSize: 13, color: textMuted, marginTop: 8, lineHeight: 1.6 }}>
           Edit and publish content for all policy and support pages. Changes go live immediately on publish.
         </p>
       </div>
@@ -125,13 +152,13 @@ function ListView({ pages, loading, onEdit, C }) {
         {/* Table header */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 90px 160px 100px',
+          gridTemplateColumns: '1fr 90px 160px 200px',
           padding: '12px 24px',
           borderBottom: `1px solid ${border}`,
           fontSize: 10,
           letterSpacing: '0.14em',
           textTransform: 'uppercase',
-          color: 'rgba(255,255,255,0.3)',
+          color: sectionLbl,
           fontFamily: NU,
         }}>
           <span>Page</span>
@@ -141,7 +168,7 @@ function ListView({ pages, loading, onEdit, C }) {
         </div>
 
         {loading ? (
-          <div style={{ padding: '40px 24px', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontFamily: NU, fontSize: 13 }}>
+          <div style={{ padding: '40px 24px', textAlign: 'center', color: textFaint, fontFamily: NU, fontSize: 13 }}>
             Loading pages…
           </div>
         ) : (
@@ -150,19 +177,21 @@ function ListView({ pages, loading, onEdit, C }) {
             const updatedDate = p.last_updated
               ? new Date(p.last_updated).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
               : '—';
+            const isPublishing = publishingKey === p.page_key;
+            const didFlash = publishedFlash === p.page_key;
 
             return (
               <div
                 key={p.page_key}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '1fr 90px 160px 100px',
+                  gridTemplateColumns: '1fr 90px 160px 200px',
                   alignItems: 'center',
                   padding: '16px 24px',
                   borderBottom: i < pages.length - 1 ? `1px solid ${border}` : 'none',
                   transition: 'background 0.15s',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
+                onMouseEnter={e => { e.currentTarget.style.background = hoverBg; }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
               >
                 {/* Title + slug */}
@@ -170,7 +199,7 @@ function ListView({ pages, loading, onEdit, C }) {
                   <div style={{ fontFamily: NU, fontSize: 14, fontWeight: 600, color: off, marginBottom: 3 }}>
                     {p.title}
                   </div>
-                  <div style={{ fontFamily: NU, fontSize: 11, color: 'rgba(255,255,255,0.28)' }}>
+                  <div style={{ fontFamily: NU, fontSize: 11, color: textFaint }}>
                     {p.slug}
                   </div>
                 </div>
@@ -179,9 +208,9 @@ function ListView({ pages, loading, onEdit, C }) {
                 <div>
                   <span style={{
                     fontSize: 10, fontFamily: NU, letterSpacing: '0.1em', textTransform: 'uppercase',
-                    color: 'rgba(255,255,255,0.35)',
-                    background: 'rgba(255,255,255,0.05)',
-                    border: `1px solid rgba(255,255,255,0.08)`,
+                    color: sectionLbl,
+                    background: inputBg,
+                    border: `1px solid ${dividerColor}`,
                     padding: '2px 7px', borderRadius: 4,
                   }}>
                     {meta.type || p.page_type}
@@ -191,11 +220,35 @@ function ListView({ pages, loading, onEdit, C }) {
                 {/* Last updated + status */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <StatusBadge status={p.status} />
-                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.28)', fontFamily: NU }}>{updatedDate}</span>
+                  <span style={{ fontSize: 11, color: textFaint, fontFamily: NU }}>{updatedDate}</span>
                 </div>
 
-                {/* Edit button */}
-                <div style={{ textAlign: 'right' }}>
+                {/* Action buttons */}
+                <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                  {/* Publish / Re-publish button */}
+                  <button
+                    type="button"
+                    onClick={() => handlePublishRow(p.page_key)}
+                    disabled={isPublishing}
+                    style={{
+                      padding: '7px 12px',
+                      background: 'transparent',
+                      border: '1px solid rgba(201,168,76,0.25)',
+                      borderRadius: 6,
+                      color: didFlash ? '#4ade80' : gold,
+                      fontSize: 11,
+                      fontFamily: NU,
+                      fontWeight: 600,
+                      cursor: isPublishing ? 'wait' : 'pointer',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => { if (!isPublishing) e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.25)'; }}
+                  >
+                    {didFlash ? '✓' : isPublishing ? 'Publishing…' : p.status === 'published' ? 'Re-publish' : 'Publish'}
+                  </button>
+
+                  {/* Edit button */}
                   <button
                     type="button"
                     onClick={() => onEdit(p.page_key)}
@@ -229,12 +282,22 @@ function ListView({ pages, loading, onEdit, C }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // EDITOR VIEW
 // ══════════════════════════════════════════════════════════════════════════════
-function EditorView({ pageKey, onBack, C }) {
+function EditorView({ pageKey, onBack, C, darkMode }) {
   const gold   = C?.gold   || '#C9A84C';
   const card   = C?.card   || '#141414';
   const border = C?.border || '#1e1e1e';
   const off    = C?.off    || '#f5f0e8';
   const black  = C?.black  || '#080808';
+
+  const isDark      = darkMode !== false;
+  const textMuted  = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.55)';
+  const textFaint  = isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.38)';
+  const sectionLbl = isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.45)';
+  const inputBg    = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
+  const btnBg      = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
+  const btnBorder  = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)';
+  const hoverBg    = isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.025)';
+  const dividerColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
 
   const [page, setPage]             = useState(null);
   const [content, setContent]       = useState('');
@@ -253,6 +316,8 @@ function EditorView({ pageKey, onBack, C }) {
   const [versions, setVersions]     = useState([]);
   const [showVersions, setShowVersions] = useState(false);
   const [autoSaveMsg, setAutoSaveMsg]   = useState('');
+  const [noIndex, setNoIndex]   = useState(false);
+  const [noFollow, setNoFollow] = useState(false);
 
   const autoSaveTimer = useRef(null);
   const autoSaveMsgTimer = useRef(null);
@@ -268,6 +333,8 @@ function EditorView({ pageKey, onBack, C }) {
         setTitle(data.title || '');
         setSeoTitle(data.seo_title || '');
         setMetaDesc(data.meta_description || '');
+        setNoIndex(data.noindex || false);
+        setNoFollow(data.nofollow || false);
         setStatus(data.status || 'draft');
         setLastUpdated(data.last_updated);
       } catch (err) {
@@ -314,6 +381,8 @@ function EditorView({ pageKey, onBack, C }) {
         title,
         seo_title: seoTitle,
         meta_description: metaDesc,
+        noindex: noIndex,
+        nofollow: noFollow,
       });
       setStatus('draft');
       setToast({ message: 'Draft saved', type: 'success' });
@@ -328,7 +397,7 @@ function EditorView({ pageKey, onBack, C }) {
   async function handlePublish() {
     setPublishing(true);
     try {
-      const updated = await publishPage(pageKey, content, { title, seo_title: seoTitle, meta_description: metaDesc });
+      const updated = await publishPage(pageKey, content, { title, seo_title: seoTitle, meta_description: metaDesc, noindex: noIndex, nofollow: noFollow });
       setStatus('published');
       setLastUpdated(updated.last_updated);
       setToast({ message: 'Published successfully', type: 'success' });
@@ -383,14 +452,14 @@ function EditorView({ pageKey, onBack, C }) {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'rgba(255,255,255,0.25)', fontFamily: NU, fontSize: 13 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: textFaint, fontFamily: NU, fontSize: 13 }}>
         Loading editor…
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: black }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, background: black }}>
       {/* ── Fixed toolbar ── */}
       <div style={{
         display: 'flex',
@@ -411,13 +480,13 @@ function EditorView({ pageKey, onBack, C }) {
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
               background: 'none', border: 'none',
-              color: 'rgba(255,255,255,0.45)', fontSize: 12, fontFamily: NU,
+              color: textMuted, fontSize: 12, fontFamily: NU,
               cursor: 'pointer', padding: '4px 8px',
               borderRadius: 4, flexShrink: 0,
               transition: 'color 0.15s',
             }}
             onMouseEnter={e => { e.currentTarget.style.color = off; }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = textMuted; }}
           >
             ← All Pages
           </button>
@@ -427,7 +496,7 @@ function EditorView({ pageKey, onBack, C }) {
           </span>
           <StatusBadge status={status} />
           {autoSaveMsg && (
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', fontFamily: NU, fontStyle: 'italic', flexShrink: 0 }}>
+            <span style={{ fontSize: 11, color: textFaint, fontFamily: NU, fontStyle: 'italic', flexShrink: 0 }}>
               {autoSaveMsg}
             </span>
           )}
@@ -443,12 +512,12 @@ function EditorView({ pageKey, onBack, C }) {
               background: 'transparent',
               border: `1px solid ${border}`,
               borderRadius: 6,
-              color: 'rgba(255,255,255,0.5)',
+              color: textMuted,
               fontSize: 12, fontFamily: NU,
               cursor: 'pointer', transition: 'all 0.15s',
             }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; e.currentTarget.style.color = off; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = textMuted; }}
           >
             Preview ↗
           </button>
@@ -457,15 +526,18 @@ function EditorView({ pageKey, onBack, C }) {
             onClick={handleSaveDraft}
             disabled={saving}
             style={{
-              padding: '7px 16px',
-              background: 'rgba(255,255,255,0.06)',
-              border: `1px solid rgba(255,255,255,0.12)`,
+              padding: '7px 20px',
+              background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.18)'}`,
               borderRadius: 6,
-              color: off, fontSize: 12, fontFamily: NU, fontWeight: 600,
+              color: off, fontSize: 12, fontFamily: NU, fontWeight: 700,
               cursor: saving ? 'wait' : 'pointer', transition: 'all 0.15s',
+              letterSpacing: '0.02em',
             }}
+            onMouseEnter={e => { if (!saving) { e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.13)'; } }}
+            onMouseLeave={e => { e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'; }}
           >
-            {saving ? 'Saving…' : 'Save Draft'}
+            {saving ? 'Saving…' : 'Save'}
           </button>
           <button
             type="button"
@@ -488,31 +560,32 @@ function EditorView({ pageKey, onBack, C }) {
       </div>
 
       {/* ── Body: left panel + editor + AI panel ── */}
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
 
-        {/* ── Left sidebar: settings + versions ── */}
+        {/* ── Left sidebar: settings + versions + AI panel ── */}
         <div style={{
           width: 300,
           flexShrink: 0,
+          minHeight: 0,
           borderRight: `1px solid ${border}`,
           overflowY: 'auto',
           background: card,
         }}>
           {/* Page settings */}
           <div style={{ padding: '20px', borderBottom: `1px solid ${border}` }}>
-            <div style={{ fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', fontFamily: NU, marginBottom: 14 }}>
+            <div style={{ fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: sectionLbl, fontFamily: NU, marginBottom: 14 }}>
               Page Settings
             </div>
 
             <label style={{ display: 'block', marginBottom: 12 }}>
-              <span style={{ display: 'block', fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: NU, marginBottom: 5 }}>Page Title</span>
+              <span style={{ display: 'block', fontSize: 11, color: sectionLbl, fontFamily: NU, marginBottom: 5 }}>Page Title</span>
               <input
                 value={title}
                 onChange={e => setTitle(e.target.value)}
                 style={{
                   width: '100%', boxSizing: 'border-box',
                   padding: '8px 10px',
-                  background: 'rgba(255,255,255,0.04)',
+                  background: inputBg,
                   border: `1px solid ${border}`,
                   borderRadius: 6,
                   color: off, fontSize: 13, fontFamily: NU,
@@ -524,13 +597,13 @@ function EditorView({ pageKey, onBack, C }) {
             </label>
 
             <div style={{ marginBottom: 12 }}>
-              <span style={{ display: 'block', fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: NU, marginBottom: 5 }}>Status</span>
+              <span style={{ display: 'block', fontSize: 11, color: sectionLbl, fontFamily: NU, marginBottom: 5 }}>Status</span>
               <StatusBadge status={status} />
             </div>
 
             <div>
-              <span style={{ display: 'block', fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: NU, marginBottom: 4 }}>Last Updated</span>
-              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', fontFamily: NU }}>
+              <span style={{ display: 'block', fontSize: 11, color: sectionLbl, fontFamily: NU, marginBottom: 4 }}>Last Updated</span>
+              <span style={{ fontSize: 12, color: textMuted, fontFamily: NU }}>
                 {lastUpdated ? new Date(lastUpdated).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
               </span>
             </div>
@@ -538,12 +611,12 @@ function EditorView({ pageKey, onBack, C }) {
 
           {/* SEO */}
           <div style={{ padding: '20px', borderBottom: `1px solid ${border}` }}>
-            <div style={{ fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', fontFamily: NU, marginBottom: 14 }}>
+            <div style={{ fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: sectionLbl, fontFamily: NU, marginBottom: 14 }}>
               SEO
             </div>
 
             <label style={{ display: 'block', marginBottom: 12 }}>
-              <span style={{ display: 'block', fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: NU, marginBottom: 5 }}>SEO Title</span>
+              <span style={{ display: 'block', fontSize: 11, color: sectionLbl, fontFamily: NU, marginBottom: 5 }}>SEO Title</span>
               <input
                 value={seoTitle}
                 onChange={e => setSeoTitle(e.target.value)}
@@ -551,7 +624,7 @@ function EditorView({ pageKey, onBack, C }) {
                 style={{
                   width: '100%', boxSizing: 'border-box',
                   padding: '8px 10px',
-                  background: 'rgba(255,255,255,0.04)',
+                  background: inputBg,
                   border: `1px solid ${border}`,
                   borderRadius: 6,
                   color: off, fontSize: 12, fontFamily: NU,
@@ -563,7 +636,7 @@ function EditorView({ pageKey, onBack, C }) {
             </label>
 
             <label style={{ display: 'block', marginBottom: 12 }}>
-              <span style={{ display: 'block', fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: NU, marginBottom: 5 }}>Meta Description</span>
+              <span style={{ display: 'block', fontSize: 11, color: sectionLbl, fontFamily: NU, marginBottom: 5 }}>Meta Description</span>
               <textarea
                 value={metaDesc}
                 onChange={e => setMetaDesc(e.target.value)}
@@ -572,7 +645,7 @@ function EditorView({ pageKey, onBack, C }) {
                 style={{
                   width: '100%', boxSizing: 'border-box',
                   padding: '8px 10px',
-                  background: 'rgba(255,255,255,0.04)',
+                  background: inputBg,
                   border: `1px solid ${border}`,
                   borderRadius: 6,
                   color: off, fontSize: 12, fontFamily: NU,
@@ -583,12 +656,37 @@ function EditorView({ pageKey, onBack, C }) {
               />
             </label>
 
-            <div>
-              <span style={{ display: 'block', fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: NU, marginBottom: 5 }}>Slug</span>
+            {/* Robots meta */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: sectionLbl, fontFamily: NU, marginBottom: 8 }}>Search Engines</div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={noIndex}
+                  onChange={e => setNoIndex(e.target.checked)}
+                  style={{ accentColor: gold, width: 14, height: 14, cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: 12, fontFamily: NU, color: noIndex ? gold : textMuted }}>No Index</span>
+                <span style={{ fontSize: 10, fontFamily: NU, color: textFaint }}>— hide from Google</span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={noFollow}
+                  onChange={e => setNoFollow(e.target.checked)}
+                  style={{ accentColor: gold, width: 14, height: 14, cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: 12, fontFamily: NU, color: noFollow ? gold : textMuted }}>No Follow</span>
+                <span style={{ fontSize: 10, fontFamily: NU, color: textFaint }}>— don't follow links</span>
+              </label>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <span style={{ display: 'block', fontSize: 11, color: sectionLbl, fontFamily: NU, marginBottom: 5 }}>Slug</span>
               <span style={{
                 display: 'inline-block',
                 padding: '4px 10px',
-                background: 'rgba(255,255,255,0.04)',
+                background: inputBg,
                 border: `1px solid ${border}`,
                 borderRadius: 4,
                 fontSize: 11, fontFamily: 'monospace',
@@ -597,6 +695,28 @@ function EditorView({ pageKey, onBack, C }) {
                 {page?.slug || `/${pageKey}`}
               </span>
             </div>
+
+            {/* Save button */}
+            <button
+              type="button"
+              onClick={handleSaveDraft}
+              disabled={saving}
+              style={{
+                width: '100%',
+                padding: '9px',
+                background: saving ? inputBg : btnBg,
+                border: `1px solid ${btnBorder}`,
+                borderRadius: 6,
+                color: off,
+                fontSize: 12, fontFamily: NU, fontWeight: 600,
+                cursor: saving ? 'wait' : 'pointer',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { if (!saving) { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.4)'; e.currentTarget.style.color = gold; } }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = btnBorder; e.currentTarget.style.color = off; }}
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
           </div>
 
           {/* Version history */}
@@ -605,7 +725,7 @@ function EditorView({ pageKey, onBack, C }) {
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               marginBottom: 12,
             }}>
-              <div style={{ fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', fontFamily: NU }}>
+              <div style={{ fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: sectionLbl, fontFamily: NU }}>
                 Version History
               </div>
               <button
@@ -613,7 +733,7 @@ function EditorView({ pageKey, onBack, C }) {
                 onClick={() => setShowVersions(v => !v)}
                 style={{
                   background: 'none', border: 'none',
-                  color: 'rgba(255,255,255,0.35)', fontSize: 11, fontFamily: NU,
+                  color: sectionLbl, fontSize: 11, fontFamily: NU,
                   cursor: 'pointer',
                 }}
               >
@@ -628,17 +748,17 @@ function EditorView({ pageKey, onBack, C }) {
                 style={{
                   width: '100%',
                   padding: '7px 12px',
-                  background: 'rgba(255,255,255,0.03)',
+                  background: inputBg,
                   border: `1px solid ${border}`,
                   borderRadius: 6,
-                  color: 'rgba(255,255,255,0.45)',
+                  color: textMuted,
                   fontSize: 11, fontFamily: NU,
                   cursor: 'pointer', marginBottom: 10,
                   transition: 'all 0.15s',
                   textAlign: 'left',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = off; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = textMuted; }}
               >
                 ↩ Revert to Last Published
               </button>
@@ -647,7 +767,7 @@ function EditorView({ pageKey, onBack, C }) {
             {showVersions && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {versions.length === 0 ? (
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', fontFamily: NU, fontStyle: 'italic' }}>
+                  <div style={{ fontSize: 11, color: textFaint, fontFamily: NU, fontStyle: 'italic' }}>
                     No versions yet. Versions are created on publish.
                   </div>
                 ) : (
@@ -655,15 +775,15 @@ function EditorView({ pageKey, onBack, C }) {
                     <div key={v.id} style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       padding: '8px 10px',
-                      background: 'rgba(255,255,255,0.02)',
+                      background: hoverBg,
                       border: `1px solid ${border}`,
                       borderRadius: 6,
                     }}>
                       <div>
-                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontFamily: NU }}>
+                        <div style={{ fontSize: 11, color: textMuted, fontFamily: NU }}>
                           {v.version_label || 'Version'}
                         </div>
-                        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', fontFamily: NU, marginTop: 2 }}>
+                        <div style={{ fontSize: 10, color: textFaint, fontFamily: NU, marginTop: 2 }}>
                           {new Date(v.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </div>
@@ -675,12 +795,12 @@ function EditorView({ pageKey, onBack, C }) {
                           background: 'none',
                           border: `1px solid ${border}`,
                           borderRadius: 4,
-                          color: 'rgba(255,255,255,0.35)',
+                          color: sectionLbl,
                           fontSize: 10, fontFamily: NU,
                           cursor: 'pointer', transition: 'all 0.15s',
                         }}
                         onMouseEnter={e => { e.currentTarget.style.borderColor = gold; e.currentTarget.style.color = gold; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = 'rgba(255,255,255,0.35)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = sectionLbl; }}
                       >
                         Restore
                       </button>
@@ -698,16 +818,18 @@ function EditorView({ pageKey, onBack, C }) {
             pageKey={pageKey}
             onApply={handleAIApply}
             C={C}
+            darkMode={darkMode}
           />
         </div>
 
         {/* ── Main editor area ── */}
-        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: black }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: black }}>
           <RichTextEditor
             content={content}
             onChange={handleContentChange}
             placeholder="Start writing your content here…"
             C={C}
+            darkMode={darkMode}
             onSelectionUpdate={({ text }) => setSelectionText(text)}
           />
         </div>
@@ -731,7 +853,16 @@ function EditorView({ pageKey, onBack, C }) {
 export default function SiteContentModule({ C, darkMode }) {
   const [pages, setPages]               = useState([]);
   const [loadingList, setLoadingList]   = useState(true);
-  const [editingPageKey, setEditingPageKey] = useState(null);
+
+  // Auto-open editor if arriving via front-end "Edit Page" button
+  const getInitialEditKey = () => {
+    try {
+      const key = sessionStorage.getItem('lwd_cms_edit_pagekey');
+      if (key) { sessionStorage.removeItem('lwd_cms_edit_pagekey'); return key; }
+    } catch {}
+    return null;
+  };
+  const [editingPageKey, setEditingPageKey] = useState(getInitialEditKey);
 
   useEffect(() => {
     setLoadingList(true);
@@ -748,6 +879,7 @@ export default function SiteContentModule({ C, darkMode }) {
         pageKey={editingPageKey}
         onBack={() => setEditingPageKey(null)}
         C={C}
+        darkMode={darkMode}
       />
     );
   }
@@ -758,6 +890,7 @@ export default function SiteContentModule({ C, darkMode }) {
       loading={loadingList}
       onEdit={setEditingPageKey}
       C={C}
+      darkMode={darkMode}
     />
   );
 }
