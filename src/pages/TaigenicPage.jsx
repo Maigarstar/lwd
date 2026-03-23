@@ -73,14 +73,22 @@ function CapCard({ icon, title, body }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        background: hovered ? "rgba(201,168,76,0.04)" : CARD_BG,
-        border: `1px solid ${hovered ? BORDER_GOLD : BORDER}`,
+        background: hovered ? "rgba(201,168,76,0.05)" : CARD_BG,
+        border: `1px solid ${hovered ? "rgba(201,168,76,0.35)" : BORDER}`,
         borderRadius: 4,
         padding: "36px 32px",
-        transition: "all 0.25s ease",
+        transition: "transform 0.28s ease, box-shadow 0.28s ease, background 0.28s ease, border-color 0.28s ease",
+        transform: hovered ? "translateY(-4px)" : "translateY(0)",
+        boxShadow: hovered ? "0 12px 40px rgba(201,168,76,0.07)" : "none",
       }}
     >
-      <div style={{ fontSize: 22, color: GOLD, marginBottom: 18, opacity: 0.85 }}>{icon}</div>
+      <div style={{
+        fontSize: 22, color: GOLD, marginBottom: 18,
+        opacity: hovered ? 1 : 0.75,
+        transition: "opacity 0.28s ease",
+      }}>
+        {icon}
+      </div>
       <h3 style={{
         fontFamily: GD, fontSize: 17, fontWeight: 400, color: OFF,
         margin: "0 0 14px", lineHeight: 1.3,
@@ -97,15 +105,56 @@ function CapCard({ icon, title, body }) {
   );
 }
 
-// ── Stat block (designed for live data later) ─────────────────────────────────
+// ── Stat block with count-up animation ────────────────────────────────────────
 function Stat({ value, label }) {
+  // Parse "500+", "12k+", "3.4k+", "98%" into numeric + suffix
+  const match = value.match(/^([\d.]+)(.*)/);
+  const num    = match ? parseFloat(match[1]) : 0;
+  const suffix = match ? match[2] : "";
+  const isDecimal = value.includes(".");
+
+  const [display, setDisplay] = useState("0" + suffix);
+  const ref      = useRef(null);
+  const animated = useRef(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !animated.current) {
+          animated.current = true;
+          const duration   = 2200;
+          const steps      = 70;
+          const stepMs     = duration / steps;
+          let step = 0;
+          const timer = setInterval(() => {
+            step++;
+            // Ease-out curve: slow down as it approaches the final value
+            const eased   = 1 - Math.pow(1 - step / steps, 2.5);
+            const current = num * eased;
+            const fmt     = isDecimal ? current.toFixed(1) : Math.round(current).toString();
+            setDisplay(fmt + suffix);
+            if (step >= steps) {
+              clearInterval(timer);
+              setDisplay(value); // lock to exact final value
+            }
+          }, stepMs);
+        }
+      },
+      { threshold: 0.4 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
-    <div style={{ textAlign: "center" }}>
+    <div ref={ref} style={{ textAlign: "center" }}>
       <div style={{
         fontFamily: GD, fontSize: "clamp(32px, 3.5vw, 48px)", fontWeight: 400,
         color: GOLD, lineHeight: 1, marginBottom: 10,
       }}>
-        {value}
+        {display}
       </div>
       <div style={{
         fontFamily: NU, fontSize: 11, color: MUTED,
@@ -223,7 +272,7 @@ export default function TaigenicPage({ onBack, footerNav }) {
 
       // 2. Send Gmail notification (fire-and-forget)
       sendEmail({
-        subject:   `New Taigenic Enquiry — ${typeLabel} — ${form.company}`,
+        subject:   `New Taigenic Enquiry: ${typeLabel} from ${form.company}`,
         fromName:  "Taigenic Notifications",
         fromEmail: "hello@luxuryweddingdirectory.co.uk",
         recipients: [{ email: NOTIFY_EMAIL, name: "Taiwo" }],
@@ -313,7 +362,7 @@ export default function TaigenicPage({ onBack, footerNav }) {
               </h1>
 
               <p style={{
-                fontFamily: NU, fontSize: 16, color: GREY,
+                fontFamily: NU, fontSize: 16, color: "rgba(242,237,229,0.62)",
                 lineHeight: 1.85, fontWeight: 300,
                 maxWidth: 560, margin: "0 auto 20px",
               }}>
@@ -322,15 +371,24 @@ export default function TaigenicPage({ onBack, footerNav }) {
               </p>
 
               <p style={{
-                fontFamily: NU, fontSize: 14, color: MUTED,
+                fontFamily: NU, fontSize: 14, color: "rgba(242,237,229,0.42)",
                 lineHeight: 1.75, fontWeight: 300,
-                maxWidth: 480, margin: "0 auto",
+                maxWidth: 480, margin: "0 auto 0",
               }}>
                 Built for hospitality. Designed for high-intent audiences.
                 Available to licence.
               </p>
 
-              <Divider margin="52px auto 0" />
+              {/* Positioning line — signature statement */}
+              <p style={{
+                fontFamily: GD, fontSize: "clamp(15px, 1.5vw, 18px)", fontStyle: "italic",
+                color: GOLD, opacity: 0.9, maxWidth: 620, margin: "52px auto 0",
+                lineHeight: 1.65, letterSpacing: "0.01em",
+              }}>
+                "Taigenic is not a feature. It is the intelligence layer behind every meaningful interaction on LWD."
+              </p>
+
+              <Divider margin="48px auto 0" />
             </div>
           </section>
 
@@ -359,12 +417,12 @@ export default function TaigenicPage({ onBack, footerNav }) {
                 <CapCard
                   icon="◈"
                   title="Conversational Discovery"
-                  body="Aura helps users navigate venues, suppliers, and options through natural language. No filters. No forms. Intelligent, contextual guidance that responds to intent, style, and budget — in the moment."
+                  body="Aura helps users navigate venues, suppliers, and options through natural language. No filters. No forms. Intelligent, contextual guidance that responds to intent, style, and budget, in the moment."
                 />
                 <CapCard
                   icon="⟡"
                   title="Lead Intelligence"
-                  body="Taigenic scores, routes, and surfaces leads based on signal quality, not volume. Every enquiry is assessed for intent, enriched with context, and routed to the right destination — in real time."
+                  body="Taigenic scores, routes, and surfaces leads based on signal quality, not volume. Every enquiry is assessed for intent, enriched with context, and routed to the right destination in real time."
                 />
                 <CapCard
                   icon="◇"
@@ -418,10 +476,10 @@ export default function TaigenicPage({ onBack, footerNav }) {
               </div>
 
               <p style={{
-                fontFamily: NU, fontSize: 11, color: MUTED,
-                marginTop: 16, letterSpacing: "0.05em",
+                fontFamily: NU, fontSize: 12, color: GREY,
+                marginTop: 20, letterSpacing: "0.03em",
               }}>
-                Metrics updated quarterly. Last reviewed Q1 2026.
+                Live platform data, updated continuously.
               </p>
             </div>
           </section>
@@ -456,18 +514,11 @@ export default function TaigenicPage({ onBack, footerNav }) {
                 </h2>
                 <p style={{
                   fontFamily: NU, fontSize: 14, color: GREY,
-                  lineHeight: 1.85, fontWeight: 300, margin: "0 0 16px",
-                }}>
-                  Taigenic is built on a layered architecture that separates
-                  understanding from delivery — so every interaction feels
-                  natural, and every lead arrives qualified.
-                </p>
-                <p style={{
-                  fontFamily: NU, fontSize: 14, color: GREY,
                   lineHeight: 1.85, fontWeight: 300, margin: 0,
                 }}>
-                  The system integrates with your existing platform, data, and
-                  workflows without requiring structural change.
+                  Taigenic sits behind the platform, understanding intent,
+                  guiding users, and turning interactions into qualified opportunities.
+                  No complexity, just better outcomes.
                 </p>
               </div>
 
@@ -512,10 +563,17 @@ export default function TaigenicPage({ onBack, footerNav }) {
 
               <h2 style={{
                 fontFamily: GD, fontSize: "clamp(28px, 3vw, 48px)", fontWeight: 400,
-                color: OFF, margin: "0 0 24px", lineHeight: 1.15,
+                color: OFF, margin: "0 0 12px", lineHeight: 1.15,
               }}>
                 Bring Aura to your platform.
               </h2>
+
+              <p style={{
+                fontFamily: NU, fontSize: 13, color: MUTED,
+                letterSpacing: "0.06em", margin: "0 0 28px",
+              }}>
+                Select how you want to work with us.
+              </p>
 
               <p style={{
                 fontFamily: NU, fontSize: 15, color: GREY,
@@ -524,7 +582,7 @@ export default function TaigenicPage({ onBack, footerNav }) {
               }}>
                 Taigenic is available to licence for premium hospitality platforms,
                 wedding directories, event businesses, and luxury brands.
-                Integration is handled by our team — live in weeks, not months.
+                Integration is handled by our team. Live in weeks, not months.
               </p>
 
               {/* ── Primary CTAs — Licence, Partner, Demo ── */}
@@ -567,23 +625,36 @@ export default function TaigenicPage({ onBack, footerNav }) {
                 </button>
               </div>
 
-              {/* ── Advertising CTA — secondary tier ── */}
-              <p style={{
-                fontFamily: NU, fontSize: 12, color: GREY,
-                margin: "0 auto 14px", maxWidth: 460, lineHeight: 1.6,
+              {/* ── Advertising — tertiary, clearly separated ── */}
+              <div style={{
+                marginTop: 32,
+                paddingTop: 28,
+                borderTop: `1px solid ${BORDER}`,
               }}>
-                For venues and brands seeking visibility, editorial features, and qualified enquiries through our platform.
-              </p>
-              <button onClick={() => openForm("advertising")} style={{
-                background: activeType === "advertising" ? "rgba(255,255,255,0.05)" : "transparent",
-                color: activeType === "advertising" ? OFF : MUTED,
-                border: `1px solid ${activeType === "advertising" ? "rgba(255,255,255,0.2)" : BORDER}`,
-                borderRadius: 3, padding: "12px 28px", cursor: "pointer",
-                fontFamily: NU, fontSize: 10, fontWeight: 600,
-                letterSpacing: "0.18em", textTransform: "uppercase", transition: "all 0.2s",
-              }}>
-                Advertise with us
-              </button>
+                <p style={{
+                  fontFamily: NU, fontSize: 12, color: GREY,
+                  margin: "0 auto 16px", maxWidth: 460, lineHeight: 1.65,
+                }}>
+                  For venues and brands seeking visibility, editorial features, and qualified enquiries through our platform.
+                </p>
+                <button onClick={() => openForm("advertising")} style={{
+                  background: "none",
+                  color: activeType === "advertising" ? GOLD : MUTED,
+                  border: "none",
+                  padding: "6px 0",
+                  cursor: "pointer",
+                  fontFamily: NU, fontSize: 10, fontWeight: 600,
+                  letterSpacing: "0.2em", textTransform: "uppercase",
+                  textDecoration: activeType === "advertising" ? "underline" : "none",
+                  textDecorationColor: GOLD,
+                  transition: "color 0.2s",
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = GREY}
+                onMouseLeave={e => e.currentTarget.style.color = activeType === "advertising" ? GOLD : MUTED}
+                >
+                  Advertise with us →
+                </button>
+              </div>
 
               {/* ── Inline form — slides in when a CTA is clicked ── */}
               {activeType && (
@@ -615,19 +686,31 @@ export default function TaigenicPage({ onBack, footerNav }) {
 
                   {submitted ? (
                     /* ── Success state ── */
-                    <div style={{ textAlign: "center", padding: "32px 0" }}>
-                      <div style={{ fontSize: 22, color: GOLD, marginBottom: 16 }}>✦</div>
-                      <h3 style={{ fontFamily: GD, fontSize: 20, fontWeight: 400, color: OFF, margin: "0 0 12px" }}>
-                        Enquiry received.
+                    <div style={{ textAlign: "center", padding: "40px 0 32px" }}>
+                      {/* Confirmation icon */}
+                      <div style={{
+                        width: 48, height: 48, borderRadius: "50%",
+                        border: `1px solid ${BORDER_GOLD}`,
+                        background: "rgba(201,168,76,0.06)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        margin: "0 auto 24px",
+                        fontSize: 18, color: GOLD,
+                      }}>
+                        ✦
+                      </div>
+                      <h3 style={{ fontFamily: GD, fontSize: 22, fontWeight: 400, color: OFF, margin: "0 0 14px", lineHeight: 1.2 }}>
+                        Enquiry received
                       </h3>
-                      <p style={{ fontFamily: NU, fontSize: 14, color: GREY, lineHeight: 1.75, maxWidth: 380, margin: "0 auto 24px" }}>
-                        Thank you, {form.name.split(" ")[0]}. Your enquiry has been received and added to our pipeline.
-                        Our team will be in touch shortly.
+                      <p style={{ fontFamily: NU, fontSize: 14, color: GREY, lineHeight: 1.8, maxWidth: 360, margin: "0 auto 8px" }}>
+                        Our team will review your request and be in touch shortly.
+                      </p>
+                      <p style={{ fontFamily: NU, fontSize: 12, color: MUTED, lineHeight: 1.6, maxWidth: 320, margin: "0 auto 28px" }}>
+                        A confirmation has been logged to our pipeline under {ENQUIRY_TYPES[activeType]?.label}.
                       </p>
                       <button
                         onClick={() => { setActiveType(null); setSubmitted(false); }}
                         style={{ background: "none", border: `1px solid ${BORDER_GOLD}`, color: GOLD, borderRadius: 3,
-                          padding: "10px 24px", cursor: "pointer", fontFamily: NU, fontSize: 10,
+                          padding: "10px 28px", cursor: "pointer", fontFamily: NU, fontSize: 10,
                           letterSpacing: "0.18em", textTransform: "uppercase" }}
                       >
                         Close
@@ -725,10 +808,7 @@ export default function TaigenicPage({ onBack, footerNav }) {
                         <p style={{ fontFamily: NU, fontSize: 12, color: "#e05c4a", margin: "16px 0 0", lineHeight: 1.5 }}>{submitError}</p>
                       )}
 
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 24 }}>
-                        <p style={{ fontFamily: NU, fontSize: 11, color: MUTED, margin: 0, lineHeight: 1.5 }}>
-                          This enquiry will be added to our Taigenic B2B pipeline.
-                        </p>
+                      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 24 }}>
                         <button
                           type="submit"
                           disabled={submitting}
@@ -738,11 +818,20 @@ export default function TaigenicPage({ onBack, footerNav }) {
                             padding: "12px 32px", cursor: submitting ? "default" : "pointer",
                             fontFamily: NU, fontSize: 10, fontWeight: 700,
                             letterSpacing: "0.2em", textTransform: "uppercase", transition: "all 0.2s",
-                            flexShrink: 0,
                           }}
                         >
                           {submitting ? "Sending…" : "Submit Enquiry"}
                         </button>
+                      </div>
+
+                      {/* Reassurance lines */}
+                      <div style={{ marginTop: 14, textAlign: "right" }}>
+                        <p style={{ fontFamily: NU, fontSize: 11, color: MUTED, margin: "0 0 3px", lineHeight: 1.5 }}>
+                          We typically respond within 24 hours.
+                        </p>
+                        <p style={{ fontFamily: NU, fontSize: 11, color: "rgba(242,237,229,0.32)", margin: 0, lineHeight: 1.5 }}>
+                          Your details are handled with complete discretion.
+                        </p>
                       </div>
                     </form>
                   )}
@@ -761,6 +850,21 @@ export default function TaigenicPage({ onBack, footerNav }) {
           </section>
 
         </main>
+
+        {/* ── Closing line before footer ── */}
+        <div style={{
+          background: BG,
+          borderTop: `1px solid ${BORDER}`,
+          padding: "32px 60px",
+          textAlign: "center",
+        }}>
+          <p style={{
+            fontFamily: GD, fontSize: 13, fontStyle: "italic",
+            color: MUTED, margin: 0, letterSpacing: "0.04em",
+          }}>
+            Powering the future of luxury discovery.
+          </p>
+        </div>
 
       </div>
 
