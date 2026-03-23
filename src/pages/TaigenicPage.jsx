@@ -392,12 +392,14 @@ export default function TaigenicPage({ onBack, footerNav }) {
                   fontSize: "clamp(100px, 18vw, 200px)",
                   fontWeight: 400,
                   letterSpacing: "0.18em",
-                  color: GOLD,
-                  opacity: 0.04,
+                  color: "#b8922e",
+                  opacity: 0.12,
                   whiteSpace: "nowrap",
                   pointerEvents: "none",
                   userSelect: "none",
                   lineHeight: 1,
+                  filter: "blur(2px)",
+                  mixBlendMode: "screen",
                 }}>
                   LWD
                 </div>
