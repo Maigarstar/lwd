@@ -385,13 +385,13 @@ export default function TaigenicPage({ onBack, footerNav }) {
                 {/* LWD background brand mark */}
                 <div aria-hidden="true" style={{
                   position: "absolute",
-                  top: "50%",
+                  top: "38%",
                   left: "50%",
                   transform: "translate(-50%, -50%)",
                   fontFamily: GD,
                   fontSize: "clamp(100px, 18vw, 200px)",
                   fontWeight: 400,
-                  letterSpacing: "0.18em",
+                  letterSpacing: "0.28em",
                   color: "#b8922e",
                   opacity: 0.12,
                   whiteSpace: "nowrap",
@@ -400,6 +400,8 @@ export default function TaigenicPage({ onBack, footerNav }) {
                   lineHeight: 1,
                   filter: "blur(2px)",
                   mixBlendMode: "screen",
+                  WebkitMaskImage: "radial-gradient(ellipse 75% 65% at 50% 50%, black 20%, transparent 80%)",
+                  maskImage: "radial-gradient(ellipse 75% 65% at 50% 50%, black 20%, transparent 80%)",
                 }}>
                   LWD
                 </div>
