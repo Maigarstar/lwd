@@ -58,6 +58,8 @@ import VenueIntakeStudio from "./admin/VenueIntakeStudio";
 import { POSTS } from "./Magazine/data/posts";
 import { PRODUCTS, COLLECTIONS, formatPrice } from "./Magazine/data/products";
 import { CATEGORIES } from "./Magazine/data/categories";
+import { HeroEditor, FeaturedEditor, GeographyEditor } from "../components/admin/LocationContentEditor";
+import { fetchLocationContent, saveLocationContent } from "../services/locationContentService";
 
 // Font tokens, resolved via CSS custom properties set on admin root
 const GD = "var(--font-heading-primary)";
@@ -256,6 +258,7 @@ const NAV_SECTIONS = [
       { key: "partnerships",    label: "Partnerships",      icon: "✦" },
       { key: "countries",       label: "Countries",         icon: "◎" },
       { key: "regions",         label: "Regions",           icon: "◇" },
+      { key: "locations",       label: "Locations",         icon: "◎" },
       { key: "index",           label: "Index Health",      icon: "▧" },
     ],
   },
@@ -6435,6 +6438,256 @@ function PartnerEnquiriesModule({ C }) {
   );
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// Location Studio — follows exact EventsBuilder pattern
+// ═════════════════════════════════════════════════════════════════════════════
+
+function LocSCard({ title, hint, children, LS }) {
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <div style={{ background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ padding: '12px 20px', borderBottom: `1px solid ${LS.border}` }}>
+          <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: LS.gold }}>{title}</div>
+          {hint && <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 3, lineHeight: 1.5 }}>{hint}</div>}
+        </div>
+        <div style={{ padding: 20 }}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
+  useEffect(() => {
+    onBuilderModeChange?.(true);
+    return () => onBuilderModeChange?.(false);
+  }, []);
+
+  const LS = darkMode ? {
+    bg: C.black, card: C.card, border: C.border, text: C.off,
+    muted: C.grey, gold: C.gold, btn: C.off, btnTxt: C.black,
+  } : {
+    bg: '#F2EFE9', card: '#F8F6F2', border: '#D9D2C6', text: '#222222',
+    muted: '#777777', gold: '#8A6A18', btn: '#1a1a1a', btnTxt: '#ffffff',
+  };
+
+  const [viewMode, setViewMode]   = useState('split');
+  const [saving, setSaving]       = useState(false);
+  const [dirty, setDirty]         = useState(false);
+  const [saveErr, setSaveErr]     = useState(null);
+  const [locationType, setLocationType] = useState('country');
+  const [countrySlug, setCountrySlug]   = useState('');
+  const [regionSlug, setRegionSlug]     = useState('');
+  const [form, setForm] = useState({
+    heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '',
+    ctaText: 'Explore Venues', ctaLink: '#',
+    featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Top Wedding Planners',
+    mapLat: '', mapLng: '', mapZoom: '8',
+  });
+
+  const set = useCallback((key, val) => {
+    setForm(prev => ({ ...prev, [key]: val }));
+    setDirty(true);
+  }, []);
+
+  const locationKey = useMemo(() => {
+    if (locationType === 'country' && countrySlug) return `country:${countrySlug}`;
+    if (locationType === 'region' && countrySlug && regionSlug) return `region:${countrySlug}:${regionSlug}`;
+    return null;
+  }, [locationType, countrySlug, regionSlug]);
+
+  const locationName = useMemo(() => {
+    if (locationType === 'country') return DIRECTORY_COUNTRIES.find(c => c.slug === countrySlug)?.name || '';
+    if (locationType === 'region') return DIRECTORY_REGIONS.find(r => r.slug === regionSlug)?.name || '';
+    return '';
+  }, [locationType, countrySlug, regionSlug]);
+
+  useEffect(() => {
+    if (!locationKey) return;
+    fetchLocationContent(locationKey).then(data => {
+      if (data) {
+        setForm({
+          heroTitle:           data.hero_title || '',
+          heroSubtitle:        data.hero_subtitle || '',
+          heroImage:           data.hero_image || '',
+          heroVideo:           data.hero_video || '',
+          ctaText:             data.cta_text || 'Explore Venues',
+          ctaLink:             data.cta_link || '#',
+          featuredVenuesTitle: data.featured_venues_title || 'Signature Venues',
+          featuredVendorsTitle:data.featured_vendors_title || 'Top Wedding Planners',
+          mapLat:              data.map_lat != null ? String(data.map_lat) : '',
+          mapLng:              data.map_lng != null ? String(data.map_lng) : '',
+          mapZoom:             data.map_zoom != null ? String(data.map_zoom) : '8',
+        });
+      } else {
+        setForm({ heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '', ctaText: 'Explore Venues', ctaLink: '#', featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Top Wedding Planners', mapLat: '', mapLng: '', mapZoom: '8' });
+      }
+      setDirty(false);
+    });
+  }, [locationKey]);
+
+  const handleSave = async (publishOverride) => {
+    if (!locationKey) return setSaveErr('Select a location first');
+    setSaving(true); setSaveErr(null);
+    try {
+      await saveLocationContent({
+        locationKey, locationType, countrySlug,
+        regionSlug: locationType === 'region' ? regionSlug : null,
+        heroTitle: form.heroTitle || locationName,
+        heroSubtitle: form.heroSubtitle, heroImage: form.heroImage, heroVideo: form.heroVideo,
+        ctaText: form.ctaText, ctaLink: form.ctaLink,
+        featuredVenuesTitle: form.featuredVenuesTitle, featuredVendorsTitle: form.featuredVendorsTitle,
+        featuredVenueIds: [], featuredVendorIds: [],
+        mapLat: form.mapLat, mapLng: form.mapLng, mapZoom: form.mapZoom,
+        discoveryFilters: { showCapacityFilter: true, showStyleFilter: true, showPriceFilter: true, defaultSort: 'recommended' },
+        ...(publishOverride ? { published: publishOverride === 'published' } : {}),
+      });
+      setDirty(false);
+    } catch (err) {
+      setSaveErr('Save failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inp = (key, placeholder, multiline) => {
+    const base = { fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', boxSizing: 'border-box', outline: 'none' };
+    if (multiline) return <textarea value={form[key] || ''} onChange={e => set(key, e.target.value)} placeholder={placeholder} rows={3} style={{ ...base, resize: 'vertical', minHeight: 72 }} />;
+    return <input value={form[key] || ''} onChange={e => set(key, e.target.value)} placeholder={placeholder} style={base} />;
+  };
+
+  const lbl = (text) => <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: LS.muted, marginBottom: 6 }}>{text}</div>;
+
+  const showEditor  = viewMode === 'split' || viewMode === 'editor';
+  const showPreview = viewMode === 'split' || viewMode === 'preview';
+
+  const regionOptions = DIRECTORY_REGIONS.filter(r => r.countrySlug === countrySlug);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+
+      {/* ── TOP BAR — exact same as EventsBuilder ─────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '10px 24px', borderBottom: `1px solid ${LS.border}`, background: LS.bg, flexShrink: 0, zIndex: 20, gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: 'pointer' }}>Magic AI</button>
+          <button style={{ fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px', background: 'transparent', color: LS.text, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer' }}>Fill with AI</button>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
+          {saveErr && <span style={{ fontFamily: NU, fontSize: 11, color: '#ef4444' }}>{saveErr}</span>}
+          <button onClick={() => { setDirty(false); }} style={{ fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer' }}>Discard</button>
+          <button onClick={() => handleSave('draft')} disabled={saving || !dirty} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving || !dirty ? 'not-allowed' : 'pointer', opacity: saving || !dirty ? 0.35 : 1 }}>{saving ? 'Saving…' : 'Save Draft'}</button>
+          <button onClick={() => handleSave('published')} disabled={saving} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>{saving ? 'Publishing…' : 'Publish'}</button>
+          <div style={{ width: 1, height: 16, background: LS.border, marginLeft: 4 }} />
+          {['split', 'editor', 'preview'].map(m => (
+            <span key={m} onClick={() => setViewMode(m)} style={{ fontFamily: NU, fontSize: 11, fontWeight: viewMode === m ? 700 : 500, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', color: viewMode === m ? LS.text : LS.muted, borderBottom: viewMode === m ? `1px solid ${LS.text}` : '1px solid transparent', paddingBottom: 1 }}>
+              {m === 'split' ? 'Split' : m === 'editor' ? 'Editor' : 'Preview'}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* ── PANELS ──────────────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+        {/* LEFT — editor */}
+        {showEditor && (
+          <div style={{ flex: viewMode === 'editor' ? '1' : '0 0 50%', overflowY: 'auto', background: LS.bg, borderRight: showPreview ? `1px solid ${LS.border}` : 'none', padding: '28px 32px 80px' }}>
+            {/* Asset h1 — location name, not "Location Studio" */}
+            <div style={{ marginBottom: 24 }}>
+              <h1 style={{ fontSize: 26, fontWeight: 600, color: LS.text, margin: '0 0 6px 0', lineHeight: 1.2, fontFamily: GD }}>
+                {locationName || 'Select a location'}
+              </h1>
+              <div style={{ fontSize: 14, color: LS.muted, fontFamily: NU }}>
+                {locationType.charAt(0).toUpperCase() + locationType.slice(1)} · {locationKey || 'No location selected'}
+              </div>
+            </div>
+
+            {/* Location Picker */}
+            <LocSCard title="Location" hint="Select which page you are editing" LS={LS}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <div>
+                  {lbl('Type')}
+                  <select value={locationType} onChange={e => { setLocationType(e.target.value); setRegionSlug(''); }} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' }}>
+                    <option value="country">Country</option>
+                    <option value="region">Region</option>
+                  </select>
+                </div>
+                <div>
+                  {lbl('Country')}
+                  <select value={countrySlug} onChange={e => { setCountrySlug(e.target.value); setRegionSlug(''); }} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' }}>
+                    <option value="">Select country</option>
+                    {DIRECTORY_COUNTRIES.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              {locationType === 'region' && countrySlug && (
+                <div>
+                  {lbl('Region')}
+                  <select value={regionSlug} onChange={e => setRegionSlug(e.target.value)} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' }}>
+                    <option value="">Select region</option>
+                    {regionOptions.map(r => <option key={r.slug} value={r.slug}>{r.name}</option>)}
+                  </select>
+                </div>
+              )}
+            </LocSCard>
+
+            {/* Hero Section */}
+            <LocSCard title="Hero" hint="Headline text and background image shown at the top of this location page" LS={LS}>
+              <div style={{ marginBottom: 12 }}>{lbl('Hero Title')}{inp('heroTitle', locationName || 'e.g. Weddings in Tuscany')}</div>
+              <div style={{ marginBottom: 12 }}>{lbl('Hero Subtitle')}{inp('heroSubtitle', 'A curated guide to luxury wedding celebrations…', true)}</div>
+              <div style={{ marginBottom: 12 }}>{lbl('Hero Image URL')}{inp('heroImage', 'https://images.example.com/hero.jpg')}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>{lbl('CTA Button Text')}{inp('ctaText', 'Explore Venues')}</div>
+                <div>{lbl('CTA Button Link')}{inp('ctaLink', '#search')}</div>
+              </div>
+            </LocSCard>
+
+            {/* Featured */}
+            <LocSCard title="Featured" hint="Override the featured venues and vendors shown on this location page" LS={LS}>
+              <div style={{ marginBottom: 12 }}>{lbl('Featured Venues Section Title')}{inp('featuredVenuesTitle', 'Signature Venues')}</div>
+              <div>{lbl('Featured Vendors Section Title')}{inp('featuredVendorsTitle', 'Top Wedding Planners')}</div>
+              <div style={{ marginTop: 12, padding: '10px 14px', background: LS.bg, border: `1px solid ${LS.border}`, borderRadius: 6 }}>
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted }}>Individual venue/vendor selection will be added when the Featured picker is wired up.</div>
+              </div>
+            </LocSCard>
+
+            {/* Geography */}
+            <LocSCard title="Geography" hint="Map centre and zoom for the location discovery map" LS={LS}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                <div>{lbl('Latitude')}{inp('mapLat', '43.7696')}</div>
+                <div>{lbl('Longitude')}{inp('mapLng', '11.2558')}</div>
+                <div>{lbl('Zoom')}{inp('mapZoom', '8')}</div>
+              </div>
+            </LocSCard>
+          </div>
+        )}
+
+        {/* RIGHT — preview */}
+        {showPreview && (
+          <div style={{ flex: viewMode === 'preview' ? '1' : '0 0 50%', overflowY: 'auto', background: LS.card, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '12px 20px', borderBottom: `1px solid ${LS.border}`, background: LS.bg, flexShrink: 0 }}>
+              <span style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: LS.muted }}>Live Preview</span>
+              {locationKey && <span style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginLeft: 8 }}>— {locationKey}</span>}
+            </div>
+            {locationKey ? (
+              <iframe
+                key={locationKey}
+                src={`/${countrySlug}${locationType === 'region' ? `/${regionSlug}` : ''}`}
+                style={{ flex: 1, border: 'none', width: '100%' }}
+                title="Location preview"
+              />
+            ) : (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontFamily: GD, fontSize: 18, color: LS.muted }}>Live preview will appear here</div>
+                <div style={{ fontFamily: NU, fontSize: 13, color: LS.muted }}>Select a location →</div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Displays all leads from the lead engine with filters, scoring, and detail view
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -8463,6 +8716,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
   const [listingStudioMode, setListingStudioMode] = useState(initialLS.mode); // 'new', 'edit', or null
   const [listingStudioListingId, setListingStudioListingId] = useState(initialLS.id);
   const [eventsBuilderActive, setEventsBuilderActive] = useState(false);
+  const [locationStudioActive, setLocationStudioActive] = useState(false);
   const [activeShowcaseId, setActiveShowcaseId] = useState(null);
 
   useEffect(() => {
@@ -8976,6 +9230,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "enquiries":     return <AdminAllLeads C={C} />;
       case "countries":     return <CountriesModule C={C} />;
       case "regions":       return <RegionsModule C={C} />;
+      case "locations":     return <LocationsModule key="locations" C={C} darkMode={darkMode} onBuilderModeChange={setLocationStudioActive} />;
       case "leads":         return <LeadsModule C={C} />;
       case "marketing":      return <EmailMarketingModule C={C} onNavigate={setActiveTab} />;
       case "email-marketing": return <EmailMarketingModule C={C} onNavigate={setActiveTab} />;
@@ -9039,7 +9294,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         @media (max-width: 768px) {
           .admin-sidebar { display: flex !important; position: fixed !important; z-index: 999; left: 0; top: 0; width: 220px !important; height: 100vh !important; transform: translateX(${sidebarOpen ? "0" : "-100%"}); transition: transform 0.3s ease !important; box-shadow: ${sidebarOpen ? "6px 0 32px rgba(0,0,0,0.7)" : "none"}; border-right: ${sidebarOpen ? "1px solid rgba(201,168,76,0.25)" : "none"} !important; }
           .admin-sidebar-overlay { display: ${sidebarOpen ? "block" : "none"}; position: fixed; inset: 0; z-index: 998; background: rgba(0,0,0,0.5); }
-          .admin-main { padding: ${activeTab === 'magazine-studio' || activeTab === 'page-editor' || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || listingStudioMode || eventsBuilderActive ? '0' : '56px 16px 20px'} !important; }
+          .admin-main { padding: ${activeTab === 'magazine-studio' || activeTab === 'page-editor' || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || listingStudioMode || eventsBuilderActive || locationStudioActive ? '0' : '56px 16px 20px'} !important; }
           .admin-hamburger { display: flex !important; }
           .admin-collapse-btn { display: none !important; }
           .admin-grid-2col { grid-template-columns: 1fr !important; }
@@ -9257,7 +9512,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         </aside>
 
         {/* ── Main content ── */}
-        <main className="admin-main" style={{ flex: 1, minHeight: 0, padding: listingStudioMode || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || eventsBuilderActive ? 0 : "40px 48px", overflow: activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || eventsBuilderActive || activeTab === 'event-studio' ? "hidden" : "auto", display: eventsBuilderActive || activeTab === 'event-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' ? "flex" : undefined, flexDirection: eventsBuilderActive || activeTab === 'event-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' ? "column" : undefined, transition: "background 0.3s" }}>
+        <main className="admin-main" style={{ flex: 1, minHeight: 0, padding: listingStudioMode || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || eventsBuilderActive || locationStudioActive ? 0 : "40px 48px", overflow: activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || eventsBuilderActive || locationStudioActive || activeTab === 'event-studio' ? "hidden" : "auto", display: eventsBuilderActive || locationStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'showcase-studio' || activeTab === 'site-content' ? "flex" : undefined, flexDirection: eventsBuilderActive || locationStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'showcase-studio' || activeTab === 'site-content' ? "column" : undefined, transition: "background 0.3s" }}>
           {/* Magazine Studio, full-screen inside admin layout */}
           {activeTab === 'magazine-studio' ? (
             <MagazineStudio
@@ -9294,7 +9549,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
             </Suspense>
           ) : (
             <>
-              {!['page-editor', 'listing-studio', 'event-studio', 'magazine-studio', 'venue-intake', 'showcase-studio'].includes(activeTab) && !listingStudioMode && !eventsBuilderActive && (
+              {!['page-editor', 'listing-studio', 'event-studio', 'magazine-studio', 'venue-intake', 'showcase-studio', 'locations'].includes(activeTab) && !listingStudioMode && !eventsBuilderActive && !locationStudioActive && (
                 <div style={{ marginBottom: 36 }}>
                   <h1 style={{
                     fontFamily: GD, fontSize: 24, fontWeight: 400,
