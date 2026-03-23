@@ -6023,7 +6023,7 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
                   onClick={() => onNavigate && onNavigate('edit-showcase', { showcaseId: v.id })}
                   style={{
                     width: '100%', background: C.off, border: 'none',
-                    color: '#fff', fontFamily: NU, fontSize: 12, fontWeight: 700,
+                    color: C.black, fontFamily: NU, fontSize: 12, fontWeight: 700,
                     letterSpacing: '0.08em', textTransform: 'uppercase',
                     padding: '10px 0', borderRadius: 4, cursor: 'pointer',
                     marginBottom: 8, transition: 'opacity 0.2s',
