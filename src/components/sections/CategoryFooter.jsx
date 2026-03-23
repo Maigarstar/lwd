@@ -214,6 +214,9 @@ export default function CategoryFooter({ onBack }) {
           © {new Date().getFullYear()} Luxury Wedding Directory · Italy ·{" "}
           <span style={{ color: "#C9A84C" }}>142</span> Curated Venues
         </div>
+        <div style={{ fontSize: 10, color: "#555555", fontFamily: "var(--font-body)", letterSpacing: "0.3px", marginTop: 3 }}>
+          Powered by Taigenic.ai · Part of 5 Star Weddings Ltd 2006–{new Date().getFullYear()}
+        </div>
         <div style={{ display: "flex", gap: 20 }}>
           {["Privacy Policy", "Terms of Use", "Cookie Settings"].map((l) => (
             <button

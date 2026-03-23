@@ -333,7 +333,7 @@ export default function FooterForCouples({ onViewCategory = () => {} }) {
                 color: "rgba(255,255,255,0.45)",
               }}
             >
-              © 2026 LuxuryWeddingDirectory.com · All rights reserved
+              © {new Date().getFullYear()} Luxury Wedding Directory · Powered by Taigenic.ai
             </div>
             <div
               style={{
@@ -343,7 +343,7 @@ export default function FooterForCouples({ onViewCategory = () => {} }) {
                 marginTop: 4,
               }}
             >
-              Helping couples plan their dream weddings worldwide.
+              Part of 5 Star Weddings Ltd 2006–{new Date().getFullYear()}
             </div>
           </div>
 
