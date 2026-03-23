@@ -1,26 +1,27 @@
 // ─── src/components/sections/FooterForVendors.jsx ────────────────────────────
 // Minimal vendor portal footer — utility bar, not a marketing footer.
 // Single horizontal strip: brand | context | links
-// + bottom line: Powered by Taigenic.ai · AI insights active
+// + bottom line: Powered by Taigenic.ai · AI insights enabled
 // ─────────────────────────────────────────────────────────────────────────────
 
 const NU = 'var(--font-body)';
 const GD = 'var(--font-heading-primary)';
 
 // ── Tab → context label mapping ───────────────────────────────────────────────
+// Shorter, more editorial — less words = more luxury
 const TAB_CONTEXT = {
-  overview:     { label: 'Dashboard Overview',     sub: 'Performance at a glance' },
-  reviews:      { label: 'Reputation Hub',         sub: 'Reviews & client feedback' },
-  leads:        { label: 'Lead Inbox',             sub: 'Enquiries and new leads' },
-  inquiries:    { label: 'Lead Inbox',             sub: 'Enquiries and new leads' },
-  livechat:     { label: 'Live Conversations',     sub: 'Real-time client messaging' },
-  analytics:    { label: 'Analytics',              sub: 'Performance insights & trends' },
-  ai:           { label: 'AI Insights',            sub: 'AI-powered recommendations' },
-  profile:      { label: 'My Profile',             sub: 'Listing & brand presence' },
-  seo:          { label: 'SEO Tools',              sub: 'Visibility & search optimisation' },
-  billing:      { label: 'Billing',                sub: 'Plans & payments' },
-  calendar:     { label: 'Calendar',               sub: 'Event scheduling' },
-  awards:       { label: 'Artistry Awards',        sub: 'Industry recognition' },
+  overview:     { label: 'Performance Overview',     sub: 'Your business at a glance' },
+  reviews:      { label: 'Reputation Hub',           sub: 'Reviews & client feedback' },
+  leads:        { label: 'Lead Management',          sub: 'Enquiries and new leads' },
+  inquiries:    { label: 'Lead Management',          sub: 'Enquiries and new leads' },
+  livechat:     { label: 'Live Conversations',       sub: 'Real-time client messaging' },
+  analytics:    { label: 'Performance Analytics',   sub: 'Insights & trends' },
+  ai:           { label: 'AI Insights',              sub: 'Powered by Taigenic.ai' },
+  profile:      { label: 'Your Profile',             sub: 'Listing & brand presence' },
+  seo:          { label: 'Search Visibility',        sub: 'SEO & discoverability' },
+  billing:      { label: 'Billing',                  sub: 'Plans & payments' },
+  calendar:     { label: 'Calendar',                 sub: 'Event scheduling' },
+  awards:       { label: 'Artistry Awards',          sub: 'Industry recognition' },
 };
 
 const LINKS = [
@@ -40,13 +41,14 @@ function FooterLink({ label, href }) {
         color: 'rgba(255,255,255,0.28)',
         textDecoration: 'none',
         letterSpacing: '0.04em',
-        transition: 'color 0.2s',
+        transition: 'color 0.2s, text-decoration-color 0.2s',
         cursor: 'pointer',
+        textUnderlineOffset: '3px',
       }}
       onMouseEnter={e => {
         e.currentTarget.style.color = 'rgba(201,168,76,0.9)';
         e.currentTarget.style.textDecoration = 'underline';
-        e.currentTarget.style.textUnderlineOffset = '3px';
+        e.currentTarget.style.textDecorationColor = 'rgba(201,168,76,0.5)';
       }}
       onMouseLeave={e => {
         e.currentTarget.style.color = 'rgba(255,255,255,0.28)';
@@ -163,17 +165,17 @@ export default function FooterForVendors({ dashTab = 'overview', darkMode = true
           </span>
         </div>
 
-        {/* RIGHT — utility links */}
+        {/* RIGHT — utility links (increased spacing) */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 16,
+            gap: 20,
             flexShrink: 0,
           }}
         >
           {LINKS.map((l, i) => (
-            <span key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <span key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
               <FooterLink label={l.label} href={l.href} />
               {i < LINKS.length - 1 && (
                 <span
@@ -201,16 +203,16 @@ export default function FooterForVendors({ dashTab = 'overview', darkMode = true
           gap: 12,
         }}
       >
-        {/* Left: copyright */}
+        {/* Left: copyright — lighter, cleaner */}
         <span
           style={{
             fontFamily: NU,
             fontSize: 10,
-            color: 'rgba(255,255,255,0.42)',
+            color: 'rgba(255,255,255,0.32)',
             letterSpacing: '0.03em',
           }}
         >
-          © {new Date().getFullYear()} Luxury Wedding Directory · Part of 5 Star Weddings Ltd 2006–{new Date().getFullYear()}
+          © {new Date().getFullYear()} Luxury Wedding Directory · 5 Star Weddings Ltd
         </span>
 
         {/* Right: Taigenic + AI indicator */}
@@ -264,7 +266,7 @@ export default function FooterForVendors({ dashTab = 'overview', darkMode = true
               letterSpacing: '0.05em',
             }}
           >
-            AI insights active
+            AI insights enabled
           </span>
         </div>
       </div>
