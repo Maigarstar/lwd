@@ -1,8 +1,6 @@
 // ─── src/components/modals/QuickViewModal.jsx ─────────────────────────────────
 import { useState, useEffect, useRef, useCallback } from "react";
 import LoginGateModal from "./LoginGateModal";
-import CuratedIndexBadge from "../ui/CuratedIndexBadge";
-import { StarRating } from "../../chat/Icons";
 
 // ── URL helpers ───────────────────────────────────────────────────────────────
 const extractYouTubeId = (url) => {
@@ -549,42 +547,20 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
                 </button>
               </div>
 
-              {/* Name + verified badge */}
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
-                <h2
-                  style={{
-                    fontFamily:    "var(--font-heading-primary)",
-                    fontSize:      26,
-                    fontWeight:    500,
-                    color:         "#f5f0e8",
-                    lineHeight:    1.1,
-                    letterSpacing: "-0.2px",
-                    flex:          1,
-                  }}
-                >
-                  {item.name}
-                </h2>
-                {item.verified && (
-                  <span
-                    aria-label="Verified"
-                    style={{
-                      display:      "flex",
-                      alignItems:   "center",
-                      gap:          3,
-                      fontSize:     9,
-                      color:        "#22c55e",
-                      border:       "1px solid rgba(34,197,94,0.25)",
-                      padding:      "3px 7px",
-                      borderRadius: 20,
-                      whiteSpace:   "nowrap",
-                      marginTop:    4,
-                      flexShrink:   0,
-                    }}
-                  >
-                    ✓ Verified
-                  </span>
-                )}
-              </div>
+              {/* Name */}
+              <h2
+                style={{
+                  fontFamily:    "var(--font-heading-primary)",
+                  fontSize:      26,
+                  fontWeight:    500,
+                  color:         "#f5f0e8",
+                  lineHeight:    1.1,
+                  marginBottom:  6,
+                  letterSpacing: "-0.2px",
+                }}
+              >
+                {item.name}
+              </h2>
 
               {/* Location */}
               <div
@@ -592,7 +568,7 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
                   fontFamily:   "var(--font-body)",
                   fontSize:     12,
                   color:        "rgba(245,240,232,0.42)",
-                  marginBottom: 10,
+                  marginBottom: 12,
                   display:      "flex",
                   alignItems:   "center",
                   gap:          5,
@@ -602,13 +578,6 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
                 {item.city}, {item.region}
                 {!isVendor && item.country && ` · ${item.country}`}
               </div>
-
-              {/* Curated Index Badge */}
-              {item.lwdScore && (
-                <div style={{ marginBottom: 10 }}>
-                  <CuratedIndexBadge score={item.lwdScore} />
-                </div>
-              )}
 
               {/* Rating */}
               {item.rating > 0 && (
@@ -621,7 +590,11 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
                   }}
                   aria-label={`Rating: ${item.rating} out of 5`}
                 >
-                  <StarRating rating={item.rating} size={11} />
+                  <span style={{ display: "inline-flex", gap: 1 }}>
+                    {[1,2,3,4,5].map(s => (
+                      <span key={s} style={{ color: s <= Math.round(item.rating) ? "#C9A84C" : "rgba(201,168,76,0.22)", fontSize: 12 }}>★</span>
+                    ))}
+                  </span>
                   <span
                     style={{
                       fontFamily: "var(--font-body)",
