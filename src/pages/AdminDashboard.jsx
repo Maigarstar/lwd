@@ -80,9 +80,11 @@ const DEFAULT_ADMIN_LIGHT_C = {
   green:   "#15803d",
   blue:    "#1d4ed8",
   rose:    "#be123c",
+  bg:      "#ffffff",
+  sidebar: "#f4efe9",
 };
 
-const DEFAULT_DARK_C = { ...DARK_C };
+const DEFAULT_DARK_C = { ...DARK_C, bg: DARK_C.dark, sidebar: DARK_C.dark };
 
 // Token labels, tells the user WHERE each colour is used
 const TOKEN_LABELS = {
@@ -6023,7 +6025,7 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
                   onClick={() => onNavigate && onNavigate('edit-showcase', { showcaseId: v.id })}
                   style={{
                     width: '100%', background: C.off, border: 'none',
-                    color: C.black, fontFamily: NU, fontSize: 12, fontWeight: 700,
+                    color: '#fff', fontFamily: NU, fontSize: 12, fontWeight: 700,
                     letterSpacing: '0.08em', textTransform: 'uppercase',
                     padding: '10px 0', borderRadius: 4, cursor: 'pointer',
                     marginBottom: 8, transition: 'opacity 0.2s',
