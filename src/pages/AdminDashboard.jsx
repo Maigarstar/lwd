@@ -58,8 +58,8 @@ import VenueIntakeStudio from "./admin/VenueIntakeStudio";
 import { POSTS } from "./Magazine/data/posts";
 import { PRODUCTS, COLLECTIONS, formatPrice } from "./Magazine/data/products";
 import { CATEGORIES } from "./Magazine/data/categories";
-import { HeroEditor, FeaturedEditor, GeographyEditor } from "../components/admin/LocationContentEditor";
 import { fetchLocationContent, saveLocationContent } from "../services/locationContentService";
+import LocationPage from "./LocationPage";
 
 // Font tokens, resolved via CSS custom properties set on admin root
 const GD = "var(--font-heading-primary)";
@@ -6456,6 +6456,10 @@ function LocSCard({ title, hint, children, LS }) {
   );
 }
 
+function LocGrid2({ children, gap = 16 }) {
+  return <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap }}>{children}</div>;
+}
+
 function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
   useEffect(() => {
     onBuilderModeChange?.(true);
@@ -6470,17 +6474,21 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
     muted: '#777777', gold: '#8A6A18', btn: '#1a1a1a', btnTxt: '#ffffff',
   };
 
-  const [viewMode, setViewMode]   = useState('split');
-  const [saving, setSaving]       = useState(false);
-  const [dirty, setDirty]         = useState(false);
-  const [saveErr, setSaveErr]     = useState(null);
+  const [viewMode, setViewMode]     = useState('split');
+  const [saving, setSaving]         = useState(false);
+  const [dirty, setDirty]           = useState(false);
+  const [saveErr, setSaveErr]       = useState(null);
+  const [published, setPublished]   = useState(false);
   const [locationType, setLocationType] = useState('country');
   const [countrySlug, setCountrySlug]   = useState('');
   const [regionSlug, setRegionSlug]     = useState('');
+  const [citySlug, setCitySlug]         = useState('');
+  const [venueList, setVenueList]       = useState([]);
   const [form, setForm] = useState({
     heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '',
     ctaText: 'Explore Venues', ctaLink: '#',
     featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Top Wedding Planners',
+    featuredVenueIds: [], featuredVendorIds: [],
     mapLat: '', mapLng: '', mapZoom: '8',
   });
 
@@ -6492,55 +6500,75 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
   const locationKey = useMemo(() => {
     if (locationType === 'country' && countrySlug) return `country:${countrySlug}`;
     if (locationType === 'region' && countrySlug && regionSlug) return `region:${countrySlug}:${regionSlug}`;
+    if (locationType === 'city' && countrySlug && regionSlug && citySlug) return `city:${countrySlug}:${regionSlug}:${citySlug}`;
     return null;
-  }, [locationType, countrySlug, regionSlug]);
+  }, [locationType, countrySlug, regionSlug, citySlug]);
+
+  const locationSlug = locationType === 'city' ? citySlug : locationType === 'region' ? regionSlug : countrySlug;
 
   const locationName = useMemo(() => {
     if (locationType === 'country') return DIRECTORY_COUNTRIES.find(c => c.slug === countrySlug)?.name || '';
     if (locationType === 'region') return DIRECTORY_REGIONS.find(r => r.slug === regionSlug)?.name || '';
+    if (locationType === 'city') return DIRECTORY_CITIES.find(c => c.slug === citySlug)?.name || '';
     return '';
-  }, [locationType, countrySlug, regionSlug]);
+  }, [locationType, countrySlug, regionSlug, citySlug]);
 
+  // Load content when location key changes
   useEffect(() => {
     if (!locationKey) return;
     fetchLocationContent(locationKey).then(data => {
       if (data) {
         setForm({
-          heroTitle:           data.hero_title || '',
-          heroSubtitle:        data.hero_subtitle || '',
-          heroImage:           data.hero_image || '',
-          heroVideo:           data.hero_video || '',
-          ctaText:             data.cta_text || 'Explore Venues',
-          ctaLink:             data.cta_link || '#',
-          featuredVenuesTitle: data.featured_venues_title || 'Signature Venues',
-          featuredVendorsTitle:data.featured_vendors_title || 'Top Wedding Planners',
-          mapLat:              data.map_lat != null ? String(data.map_lat) : '',
-          mapLng:              data.map_lng != null ? String(data.map_lng) : '',
-          mapZoom:             data.map_zoom != null ? String(data.map_zoom) : '8',
+          heroTitle:            data.hero_title || '',
+          heroSubtitle:         data.hero_subtitle || '',
+          heroImage:            data.hero_image || '',
+          heroVideo:            data.hero_video || '',
+          ctaText:              data.cta_text || 'Explore Venues',
+          ctaLink:              data.cta_link || '#',
+          featuredVenuesTitle:  data.featured_venues_title || 'Signature Venues',
+          featuredVendorsTitle: data.featured_vendors_title || 'Top Wedding Planners',
+          featuredVenueIds:     Array.isArray(data.featured_venues) ? data.featured_venues : (typeof data.featured_venues === 'string' ? JSON.parse(data.featured_venues || '[]') : []),
+          featuredVendorIds:    Array.isArray(data.featured_vendors) ? data.featured_vendors : (typeof data.featured_vendors === 'string' ? JSON.parse(data.featured_vendors || '[]') : []),
+          mapLat:               data.map_lat != null ? String(data.map_lat) : '',
+          mapLng:               data.map_lng != null ? String(data.map_lng) : '',
+          mapZoom:              data.map_zoom != null ? String(data.map_zoom) : '8',
         });
+        setPublished(!!data.published);
       } else {
-        setForm({ heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '', ctaText: 'Explore Venues', ctaLink: '#', featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Top Wedding Planners', mapLat: '', mapLng: '', mapZoom: '8' });
+        setForm({ heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '', ctaText: 'Explore Venues', ctaLink: '#', featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Top Wedding Planners', featuredVenueIds: [], featuredVendorIds: [], mapLat: '', mapLng: '', mapZoom: '8' });
+        setPublished(false);
       }
       setDirty(false);
     });
   }, [locationKey]);
 
+  // Load venues for featured picker when location changes
+  useEffect(() => {
+    if (!countrySlug) { setVenueList([]); return; }
+    const filters = { status: 'active', country_slug: countrySlug };
+    if (regionSlug) filters.region_slug = regionSlug;
+    fetchListings(filters).then(data => setVenueList(Array.isArray(data) ? data : [])).catch(() => setVenueList([]));
+  }, [countrySlug, regionSlug]);
+
   const handleSave = async (publishOverride) => {
     if (!locationKey) return setSaveErr('Select a location first');
     setSaving(true); setSaveErr(null);
+    const newPublished = publishOverride === 'published' ? true : publishOverride === 'draft' ? false : published;
     try {
       await saveLocationContent({
         locationKey, locationType, countrySlug,
-        regionSlug: locationType === 'region' ? regionSlug : null,
+        regionSlug: (locationType === 'region' || locationType === 'city') ? regionSlug : null,
+        citySlug: locationType === 'city' ? citySlug : null,
         heroTitle: form.heroTitle || locationName,
         heroSubtitle: form.heroSubtitle, heroImage: form.heroImage, heroVideo: form.heroVideo,
         ctaText: form.ctaText, ctaLink: form.ctaLink,
         featuredVenuesTitle: form.featuredVenuesTitle, featuredVendorsTitle: form.featuredVendorsTitle,
-        featuredVenueIds: [], featuredVendorIds: [],
+        featuredVenueIds: form.featuredVenueIds, featuredVendorIds: form.featuredVendorIds,
         mapLat: form.mapLat, mapLng: form.mapLng, mapZoom: form.mapZoom,
         discoveryFilters: { showCapacityFilter: true, showStyleFilter: true, showPriceFilter: true, defaultSort: 'recommended' },
-        ...(publishOverride ? { published: publishOverride === 'published' } : {}),
+        published: newPublished,
       });
+      setPublished(newPublished);
       setDirty(false);
     } catch (err) {
       setSaveErr('Save failed');
@@ -6549,23 +6577,45 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
     }
   };
 
+  const toggleFeaturedVenue = (id) => {
+    const ids = form.featuredVenueIds || [];
+    const next = ids.includes(id) ? ids.filter(x => x !== id) : ids.length < 6 ? [...ids, id] : ids;
+    set('featuredVenueIds', next);
+  };
+
   const inp = (key, placeholder, multiline) => {
     const base = { fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', boxSizing: 'border-box', outline: 'none' };
     if (multiline) return <textarea value={form[key] || ''} onChange={e => set(key, e.target.value)} placeholder={placeholder} rows={3} style={{ ...base, resize: 'vertical', minHeight: 72 }} />;
     return <input value={form[key] || ''} onChange={e => set(key, e.target.value)} placeholder={placeholder} style={base} />;
   };
-
   const lbl = (text) => <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: LS.muted, marginBottom: 6 }}>{text}</div>;
 
   const showEditor  = viewMode === 'split' || viewMode === 'editor';
   const showPreview = viewMode === 'split' || viewMode === 'preview';
-
   const regionOptions = DIRECTORY_REGIONS.filter(r => r.countrySlug === countrySlug);
+  const cityOptions   = DIRECTORY_CITIES.filter(c => c.regionSlug === regionSlug);
+
+  // Build locationContent object for live preview
+  const previewContent = {
+    heroTitle: form.heroTitle || locationName,
+    heroSubtitle: form.heroSubtitle,
+    heroImage: form.heroImage,
+    heroVideo: form.heroVideo,
+    ctaText: form.ctaText,
+    ctaLink: form.ctaLink,
+    featuredVenuesTitle: form.featuredVenuesTitle,
+    featuredVendorsTitle: form.featuredVendorsTitle,
+    mapLat: form.mapLat,
+    mapLng: form.mapLng,
+    mapZoom: form.mapZoom ? parseInt(form.mapZoom) : 8,
+  };
+
+  const selStyle = { fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
-      {/* ── TOP BAR — exact same as EventsBuilder ─────────────────────────────── */}
+      {/* ── TOP BAR ───────────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', padding: '10px 24px', borderBottom: `1px solid ${LS.border}`, background: LS.bg, flexShrink: 0, zIndex: 20, gap: 8 }}>
         <div style={{ display: 'flex', gap: 8 }}>
           <button style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: 'pointer' }}>Magic AI</button>
@@ -6573,9 +6623,11 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
           {saveErr && <span style={{ fontFamily: NU, fontSize: 11, color: '#ef4444' }}>{saveErr}</span>}
-          <button onClick={() => { setDirty(false); }} style={{ fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer' }}>Discard</button>
+          <button onClick={() => setDirty(false)} style={{ fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer' }}>Discard</button>
           <button onClick={() => handleSave('draft')} disabled={saving || !dirty} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving || !dirty ? 'not-allowed' : 'pointer', opacity: saving || !dirty ? 0.35 : 1 }}>{saving ? 'Saving…' : 'Save Draft'}</button>
-          <button onClick={() => handleSave('published')} disabled={saving} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>{saving ? 'Publishing…' : 'Publish'}</button>
+          <button onClick={() => handleSave('published')} disabled={saving} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: published ? LS.gold : LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>
+            {saving ? 'Publishing…' : published ? '✓ Published' : 'Publish'}
+          </button>
           <div style={{ width: 1, height: 16, background: LS.border, marginLeft: 4 }} />
           {['split', 'editor', 'preview'].map(m => (
             <span key={m} onClick={() => setViewMode(m)} style={{ fontFamily: NU, fontSize: 11, fontWeight: viewMode === m ? 700 : 500, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', color: viewMode === m ? LS.text : LS.muted, borderBottom: viewMode === m ? `1px solid ${LS.text}` : '1px solid transparent', paddingBottom: 1 }}>
@@ -6591,67 +6643,101 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
         {/* LEFT — editor */}
         {showEditor && (
           <div style={{ flex: viewMode === 'editor' ? '1' : '0 0 50%', overflowY: 'auto', background: LS.bg, borderRight: showPreview ? `1px solid ${LS.border}` : 'none', padding: '28px 32px 80px' }}>
-            {/* Asset h1 — location name, not "Location Studio" */}
+
+            {/* h1 = location name + status badge */}
             <div style={{ marginBottom: 24 }}>
-              <h1 style={{ fontSize: 26, fontWeight: 600, color: LS.text, margin: '0 0 6px 0', lineHeight: 1.2, fontFamily: GD }}>
-                {locationName || 'Select a location'}
-              </h1>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+                <h1 style={{ fontSize: 26, fontWeight: 600, color: LS.text, margin: 0, lineHeight: 1.2, fontFamily: GD }}>
+                  {locationName || 'Select a location'}
+                </h1>
+                {locationKey && (
+                  <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '3px 8px', borderRadius: 4, background: published ? 'rgba(34,197,94,0.15)' : `${LS.border}`, color: published ? '#22c55e' : LS.muted }}>
+                    {published ? 'Live' : 'Draft'}
+                  </span>
+                )}
+              </div>
               <div style={{ fontSize: 14, color: LS.muted, fontFamily: NU }}>
-                {locationType.charAt(0).toUpperCase() + locationType.slice(1)} · {locationKey || 'No location selected'}
+                {locationType.charAt(0).toUpperCase() + locationType.slice(1)}{locationKey ? ` · ${locationKey}` : ''}
               </div>
             </div>
 
             {/* Location Picker */}
             <LocSCard title="Location" hint="Select which page you are editing" LS={LS}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <LocGrid2 gap={12}>
                 <div>
                   {lbl('Type')}
-                  <select value={locationType} onChange={e => { setLocationType(e.target.value); setRegionSlug(''); }} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' }}>
+                  <select value={locationType} onChange={e => { setLocationType(e.target.value); setRegionSlug(''); setCitySlug(''); }} style={selStyle}>
                     <option value="country">Country</option>
                     <option value="region">Region</option>
+                    <option value="city">City</option>
                   </select>
                 </div>
                 <div>
                   {lbl('Country')}
-                  <select value={countrySlug} onChange={e => { setCountrySlug(e.target.value); setRegionSlug(''); }} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' }}>
+                  <select value={countrySlug} onChange={e => { setCountrySlug(e.target.value); setRegionSlug(''); setCitySlug(''); }} style={selStyle}>
                     <option value="">Select country</option>
                     {DIRECTORY_COUNTRIES.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
                   </select>
                 </div>
-              </div>
-              {locationType === 'region' && countrySlug && (
-                <div>
+              </LocGrid2>
+              {(locationType === 'region' || locationType === 'city') && countrySlug && (
+                <div style={{ marginTop: 12 }}>
                   {lbl('Region')}
-                  <select value={regionSlug} onChange={e => setRegionSlug(e.target.value)} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' }}>
+                  <select value={regionSlug} onChange={e => { setRegionSlug(e.target.value); setCitySlug(''); }} style={selStyle}>
                     <option value="">Select region</option>
                     {regionOptions.map(r => <option key={r.slug} value={r.slug}>{r.name}</option>)}
                   </select>
                 </div>
               )}
+              {locationType === 'city' && regionSlug && (
+                <div style={{ marginTop: 12 }}>
+                  {lbl('City')}
+                  <select value={citySlug} onChange={e => setCitySlug(e.target.value)} style={selStyle}>
+                    <option value="">Select city</option>
+                    {cityOptions.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+                  </select>
+                </div>
+              )}
             </LocSCard>
 
-            {/* Hero Section */}
-            <LocSCard title="Hero" hint="Headline text and background image shown at the top of this location page" LS={LS}>
+            {/* Hero */}
+            <LocSCard title="Hero" hint="Headline text and background image shown at the top of this page" LS={LS}>
               <div style={{ marginBottom: 12 }}>{lbl('Hero Title')}{inp('heroTitle', locationName || 'e.g. Weddings in Tuscany')}</div>
               <div style={{ marginBottom: 12 }}>{lbl('Hero Subtitle')}{inp('heroSubtitle', 'A curated guide to luxury wedding celebrations…', true)}</div>
               <div style={{ marginBottom: 12 }}>{lbl('Hero Image URL')}{inp('heroImage', 'https://images.example.com/hero.jpg')}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <LocGrid2 gap={12}>
                 <div>{lbl('CTA Button Text')}{inp('ctaText', 'Explore Venues')}</div>
                 <div>{lbl('CTA Button Link')}{inp('ctaLink', '#search')}</div>
-              </div>
+              </LocGrid2>
             </LocSCard>
 
             {/* Featured */}
-            <LocSCard title="Featured" hint="Override the featured venues and vendors shown on this location page" LS={LS}>
-              <div style={{ marginBottom: 12 }}>{lbl('Featured Venues Section Title')}{inp('featuredVenuesTitle', 'Signature Venues')}</div>
-              <div>{lbl('Featured Vendors Section Title')}{inp('featuredVendorsTitle', 'Top Wedding Planners')}</div>
-              <div style={{ marginTop: 12, padding: '10px 14px', background: LS.bg, border: `1px solid ${LS.border}`, borderRadius: 6 }}>
-                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted }}>Individual venue/vendor selection will be added when the Featured picker is wired up.</div>
-              </div>
+            <LocSCard title="Featured" hint="Pin up to 6 venues to the top of this location page" LS={LS}>
+              <div style={{ marginBottom: 12 }}>{lbl('Section Title')}{inp('featuredVenuesTitle', 'Signature Venues')}</div>
+              {venueList.length > 0 ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {venueList.slice(0, 24).map(v => {
+                    const checked = (form.featuredVenueIds || []).includes(v.id);
+                    return (
+                      <label key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: checked ? `${LS.gold}18` : LS.card, border: `1px solid ${checked ? LS.gold : LS.border}`, borderRadius: 6, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={checked} onChange={() => toggleFeaturedVenue(v.id)} style={{ accentColor: LS.gold, flexShrink: 0 }} />
+                        <span style={{ fontFamily: NU, fontSize: 12, color: LS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, padding: '10px 0' }}>
+                  {countrySlug ? 'No venues found for this location.' : 'Select a country to load venues.'}
+                </div>
+              )}
+              {(form.featuredVenueIds || []).length > 0 && (
+                <div style={{ marginTop: 8, fontFamily: NU, fontSize: 11, color: LS.gold }}>{form.featuredVenueIds.length} / 6 selected</div>
+              )}
             </LocSCard>
 
             {/* Geography */}
-            <LocSCard title="Geography" hint="Map centre and zoom for the location discovery map" LS={LS}>
+            <LocSCard title="Geography" hint="Map centre and zoom for the discovery map on this page" LS={LS}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
                 <div>{lbl('Latitude')}{inp('mapLat', '43.7696')}</div>
                 <div>{lbl('Longitude')}{inp('mapLng', '11.2558')}</div>
@@ -6661,20 +6747,35 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
           </div>
         )}
 
-        {/* RIGHT — preview */}
+        {/* RIGHT — live preview via LocationPage component */}
         {showPreview && (
-          <div style={{ flex: viewMode === 'preview' ? '1' : '0 0 50%', overflowY: 'auto', background: LS.card, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: '12px 20px', borderBottom: `1px solid ${LS.border}`, background: LS.bg, flexShrink: 0 }}>
+          <div style={{ flex: viewMode === 'preview' ? '1' : '0 0 50%', overflow: 'hidden', background: LS.card, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '12px 20px', borderBottom: `1px solid ${LS.border}`, background: LS.bg, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: LS.muted }}>Live Preview</span>
-              {locationKey && <span style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginLeft: 8 }}>— {locationKey}</span>}
+              {locationKey && <span style={{ fontFamily: NU, fontSize: 11, color: LS.muted }}>— {locationKey}</span>}
             </div>
             {locationKey ? (
-              <iframe
-                key={locationKey}
-                src={`/${countrySlug}${locationType === 'region' ? `/${regionSlug}` : ''}`}
-                style={{ flex: 1, border: 'none', width: '100%' }}
-                title="Location preview"
-              />
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <LocationPage
+                  key={locationKey}
+                  locationType={locationType}
+                  locationSlug={locationSlug}
+                  countries={DIRECTORY_COUNTRIES}
+                  regions={DIRECTORY_REGIONS}
+                  cities={DIRECTORY_CITIES}
+                  venues={venueList}
+                  vendors={[]}
+                  locationContent={previewContent}
+                  featuredVenueIds={form.featuredVenueIds || []}
+                  featuredVendorIds={form.featuredVendorIds || []}
+                  previewDarkMode={darkMode}
+                  onBack={() => {}}
+                  onViewVenue={() => {}}
+                  onViewRegion={() => {}}
+                  onViewCountry={() => {}}
+                  onViewCategory={() => {}}
+                />
+              </div>
             ) : (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
                 <div style={{ fontFamily: GD, fontSize: 18, color: LS.muted }}>Live preview will appear here</div>
