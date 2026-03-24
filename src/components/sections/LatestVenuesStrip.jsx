@@ -34,7 +34,7 @@ export default function LatestVenuesStrip({
   const cardW = isMobile ? 300 : 340;
 
   return (
-    <div style={{ background: C.bg }}>
+    <>
       {/* ── Divider ── */}
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 48px" }}>
         <div style={{ height: 1, background: C.border }} />
@@ -107,6 +107,6 @@ export default function LatestVenuesStrip({
           ))}
         </SliderNav>
       </div>
-    </div>
+    </>
   );
 }
