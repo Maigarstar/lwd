@@ -839,7 +839,7 @@ function App() {
             Rendered here for ALL pages except auth/dashboard pages listed below.
             RULE: Never import or render <SiteFooter> inside a page component that
             is served through this main.jsx render tree — it will double-render. ── */}
-        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","event-review"].includes(page) && (
+        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","event-review","italy"].includes(page) && (
           <SiteFooter onNavigateAdmin={goAdmin} />
         )}
 
