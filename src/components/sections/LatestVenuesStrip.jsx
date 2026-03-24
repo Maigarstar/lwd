@@ -7,6 +7,7 @@ import SliderNav from "../ui/SliderNav";
 import LuxuryVenueCard from "../cards/LuxuryVenueCard";
 import GCard from "../cards/GCard";
 import GCardMobile from "../cards/GCardMobile";
+import HCard from "../cards/HCard";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -20,6 +21,8 @@ export default function LatestVenuesStrip({
   onQuickView,
   isMobile = false,
   cardStyle = "luxury", // "luxury" | "standard"
+  viewMode = "grid",
+  onViewMode,
 }) {
   const C = useTheme();
   const [qvItem, setQvItem] = useState(null);
@@ -75,37 +78,51 @@ export default function LatestVenuesStrip({
         className="lwd-venue-list-wrap"
         style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 56px" }}
       >
-        <SliderNav
-          className="lwd-venue-grid"
-          cardWidth={cardW}
-          gap={isMobile ? 12 : 16}
-        >
-          {venues.map((v) => (
-            <div
-              key={v.id}
-              className="lwd-venue-card"
-              style={{ flex: `0 0 ${cardW}px`, scrollSnapAlign: "start" }}
-            >
-              {cardStyle === "luxury" ? (
-                <LuxuryVenueCard
-                  v={v}
-                  onView={onViewVenue}
-                  isMobile={isMobile}
-                  quickViewItem={qvItem}
-                  setQuickViewItem={setQvItem}
-                />
-              ) : isMobile ? (
-                <GCardMobile v={v} onView={onViewVenue} />
-              ) : (
-                <GCard
-                  v={v}
-                  onView={onViewVenue}
-                  onQuickView={onQuickView || setQvItem}
-                />
-              )}
-            </div>
-          ))}
-        </SliderNav>
+        {viewMode === "grid" ? (
+          <SliderNav
+            className="lwd-venue-grid"
+            cardWidth={cardW}
+            gap={isMobile ? 12 : 16}
+          >
+            {venues.map((v) => (
+              <div
+                key={v.id}
+                className="lwd-venue-card"
+                style={{ flex: `0 0 ${cardW}px`, scrollSnapAlign: "start" }}
+              >
+                {cardStyle === "luxury" ? (
+                  <LuxuryVenueCard
+                    v={v}
+                    onView={onViewVenue}
+                    isMobile={isMobile}
+                    quickViewItem={qvItem}
+                    setQuickViewItem={setQvItem}
+                  />
+                ) : isMobile ? (
+                  <GCardMobile v={v} onView={onViewVenue} />
+                ) : (
+                  <GCard
+                    v={v}
+                    onView={onViewVenue}
+                    onQuickView={onQuickView || setQvItem}
+                  />
+                )}
+              </div>
+            ))}
+          </SliderNav>
+        ) : (
+          <div aria-label="Venues list" style={{ maxWidth: 1280, margin: "0 auto" }}>
+            {venues.map((v) => (
+              <HCard
+                key={v.id}
+                v={v}
+                onView={onViewVenue}
+                onQuickView={onQuickView || setQvItem}
+                onSave={() => {}}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

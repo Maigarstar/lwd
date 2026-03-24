@@ -522,6 +522,8 @@ export default function LocationPage({
           onQuickView={setQvItem}
           isMobile={isMobile}
           cardStyle={_locationContent?.latestVenuesCardStyle || 'luxury'}
+          viewMode={viewMode}
+          onViewMode={setViewMode}
         />
         )}
 
@@ -536,6 +538,8 @@ export default function LocationPage({
           onQuickView={setQvItem}
           isMobile={isMobile}
           cardStyle={_locationContent?.latestVendorsCardStyle || 'luxury'}
+          viewMode={viewMode}
+          onViewMode={setViewMode}
         />
         )}
 
@@ -545,22 +549,36 @@ export default function LocationPage({
             <h3 style={{ fontFamily: "'Neue Haas Display', serif", fontSize: 20, marginBottom: 24, textAlign: "center" }}>
               {_locationContent?.featuredVenuesTitle || "Signature Venues"}
             </h3>
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(300px, 1fr))",
-              gap: 20,
-              maxWidth: "1400px",
-              margin: "0 auto",
-            }}>
-              {featuredVenues.map(venue => (
-                <LuxuryVenueCard
-                  key={venue.id}
-                  venue={venue}
-                  onClick={() => onViewVenue && onViewVenue(venue.id)}
-                  C={C}
-                />
-              ))}
-            </div>
+            {viewMode === "grid" ? (
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(300px, 1fr))",
+                gap: 20,
+                maxWidth: "1400px",
+                margin: "0 auto",
+              }}>
+                {featuredVenues.map(venue => (
+                  <LuxuryVenueCard
+                    key={venue.id}
+                    venue={venue}
+                    onClick={() => onViewVenue && onViewVenue(venue.id)}
+                    C={C}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+                {featuredVenues.map(venue => (
+                  <HCard
+                    key={venue.id}
+                    v={venue}
+                    onView={() => onViewVenue && onViewVenue(venue.id)}
+                    onQuickView={setQvItem}
+                    onSave={() => {}}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -628,22 +646,36 @@ export default function LocationPage({
             <h3 style={{ fontFamily: "'Neue Haas Display', serif", fontSize: 20, marginBottom: 24, textAlign: "center" }}>
               {_locationContent?.featuredVendorsTitle || "Top Wedding Planners"}
             </h3>
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(300px, 1fr))",
-              gap: 20,
-              maxWidth: "1400px",
-              margin: "0 auto",
-            }}>
-              {featuredVendors.map(vendor => (
-                <LuxuryVendorCard
-                  key={vendor.id}
-                  vendor={vendor}
-                  onClick={() => onViewVenue && onViewVenue(vendor.id)}
-                  C={C}
-                />
-              ))}
-            </div>
+            {viewMode === "grid" ? (
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(300px, 1fr))",
+                gap: 20,
+                maxWidth: "1400px",
+                margin: "0 auto",
+              }}>
+                {featuredVendors.map(vendor => (
+                  <LuxuryVendorCard
+                    key={vendor.id}
+                    vendor={vendor}
+                    onClick={() => onViewVenue && onViewVenue(vendor.id)}
+                    C={C}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+                {featuredVendors.map(vendor => (
+                  <HCard
+                    key={vendor.id}
+                    v={vendor}
+                    onView={() => onViewVenue && onViewVenue(vendor.id)}
+                    onQuickView={setQvItem}
+                    onSave={() => {}}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
