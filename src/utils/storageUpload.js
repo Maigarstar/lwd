@@ -206,7 +206,8 @@ export async function uploadPendingFiles(items = [], onProgress) {
     onProgress?.(`Uploading image ${i + 1} of ${pending.length}…`);
 
     try {
-      urlMap[item.id] = await uploadMediaFile(item.file, item.id);
+      const result = await uploadMediaFile(item.file, item.id);
+      urlMap[item.id] = typeof result === 'string' ? result : result.url;
       console.log(`[storage] ✓ Uploaded ${item.file.name} → ${urlMap[item.id]}`);
     } catch (err) {
       console.error(`[storage] ✗ Failed to upload ${item.file.name}:`, err.message);
