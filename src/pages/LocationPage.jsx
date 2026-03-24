@@ -413,7 +413,7 @@ export default function LocationPage({
 
   return (
     <ThemeCtx.Provider value={C}>
-      <div style={{ background: C.bg, color: C.text, minHeight: "100vh" }}>
+      <div style={{ background: C.black, color: C.white, minHeight: "100vh" }}>
 
         {/* Fixed Navigation */}
         <CatNav
@@ -514,7 +514,7 @@ export default function LocationPage({
         )}
 
         {/* Search & Filters */}
-        <div style={{ padding: "20px", background: C.bg }}>
+        <div style={{ padding: "20px", background: C.card }}>
           <CountrySearchBar
             filters={filters}
             onFiltersChange={setFilters}
@@ -527,7 +527,7 @@ export default function LocationPage({
 
         {/* Featured Venues Section */}
         {featuredVenues.length > 0 && (
-          <div style={{ padding: "40px 20px", background: C.bg }}>
+          <div style={{ padding: "40px 20px", background: C.card }}>
             <h3 style={{ fontFamily: "'Neue Haas Display', serif", fontSize: 20, marginBottom: 24, textAlign: "center" }}>
               {_locationContent?.featuredVenuesTitle || "Signature Venues"}
             </h3>
@@ -564,7 +564,7 @@ export default function LocationPage({
         )}
 
         {/* Main Venue Grid */}
-        <div style={{ padding: "40px 20px", background: C.bg }}>
+        <div style={{ padding: "40px 20px", background: C.card }}>
           <h3 style={{ fontFamily: "'Neue Haas Display', serif", fontSize: 18, marginBottom: 20, textAlign: "center" }}>
             All Venues
           </h3>
