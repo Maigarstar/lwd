@@ -6493,6 +6493,8 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
     mapLat: '', mapLng: '', mapZoom: '8',
   });
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [showMagicPanel, setShowMagicPanel] = useState(false);
+  const [magicContext, setMagicContext] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   const heroUploadRef = useRef(null);
 
@@ -6595,6 +6597,7 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
     if (imgs.length >= 8) return;
     setUploadingImage(true);
     try {
+      const { supabase } = await import('../lib/supabaseClient');
       const ext = file.name.split('.').pop();
       const path = `locations/${locationKey.replace(/:/g, '/')}/${Date.now()}.${ext}`;
       const { error } = await supabase.storage.from('listing-media').upload(path, file, { upsert: false, cacheControl: '31536000' });
@@ -6614,6 +6617,7 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
     if (!locationKey || aiGenerating) return;
     setAiGenerating(true);
     try {
+      const { supabase } = await import('../lib/supabaseClient');
       const { data, error } = await supabase.functions.invoke('ai-generate', {
         body: {
           feature: 'location_content',
@@ -6682,8 +6686,8 @@ Do not include any explanation — only the JSON object.`,
       {/* ── TOP BAR ───────────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', padding: '10px 24px', borderBottom: `1px solid ${LS.border}`, background: LS.bg, flexShrink: 0, zIndex: 20, gap: 8 }}>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: 'pointer' }}>Magic AI</button>
-          <button onClick={handleFillWithAI} disabled={!locationKey || aiGenerating} style={{ fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px', background: 'transparent', color: !locationKey || aiGenerating ? LS.muted : LS.text, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: !locationKey || aiGenerating ? 'not-allowed' : 'pointer', opacity: !locationKey ? 0.4 : 1 }}>{aiGenerating ? '⟳ Generating…' : '✦ Fill with AI'}</button>
+          <button onClick={() => { if (locationKey) setShowMagicPanel(p => !p); }} disabled={!locationKey} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: showMagicPanel ? LS.gold : LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: locationKey ? 'pointer' : 'not-allowed', opacity: locationKey ? 1 : 0.4 }}>✦ Magic AI</button>
+          <button onClick={handleFillWithAI} disabled={!locationKey || aiGenerating} style={{ fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px', background: 'transparent', color: !locationKey || aiGenerating ? LS.muted : LS.text, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: !locationKey || aiGenerating ? 'not-allowed' : 'pointer', opacity: !locationKey ? 0.4 : 1 }}>{aiGenerating ? '⟳ Generating…' : 'Fill with AI'}</button>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
           {saveErr && <span style={{ fontFamily: NU, fontSize: 11, color: '#ef4444' }}>{saveErr}</span>}
@@ -6700,6 +6704,71 @@ Do not include any explanation — only the JSON object.`,
           ))}
         </div>
       </div>
+
+      {/* ── MAGIC AI PANEL ───────────────────────────────────────────────────────── */}
+      {showMagicPanel && (
+        <div style={{ background: darkMode ? 'rgba(201,168,76,0.07)' : '#F8F5EE', borderTop: `2px solid ${LS.gold}`, borderBottom: `1px solid ${LS.border}`, padding: '16px 24px', display: 'flex', gap: 12, alignItems: 'flex-start', flexShrink: 0 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.gold, marginBottom: 6 }}>✦ Magic AI — {locationName}</div>
+            <textarea
+              value={magicContext}
+              onChange={e => setMagicContext(e.target.value)}
+              placeholder={`Optional: add context to guide the AI (e.g. "focus on vineyard weddings and Tuscan landscapes, elegant tone")`}
+              rows={2}
+              style={{ width: '100%', boxSizing: 'border-box', fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, resize: 'none', outline: 'none' }}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 18 }}>
+            <button
+              onClick={async () => {
+                if (aiGenerating) return;
+                setAiGenerating(true);
+                try {
+                  const { supabase } = await import('../lib/supabaseClient');
+                  const { data, error } = await supabase.functions.invoke('ai-generate', {
+                    body: {
+                      feature: 'location_magic',
+                      systemPrompt: `You are a senior editorial writer for Luxury Wedding Directory, an exclusive destination wedding platform. Write elegant, aspirational, high-converting copy. Be specific, evocative, and never generic. Match the tone of premium travel editorial.`,
+                      userPrompt: `Generate complete editorial content for the ${locationName} location page.${magicContext ? ` Context: ${magicContext}` : ''}
+
+Return ONLY a valid JSON object with these exact keys:
+{
+  "heroTitle": "3-6 word headline (e.g. Weddings in Tuscany)",
+  "heroSubtitle": "1-2 sentences, max 25 words, evocative and specific to this location",
+  "featuredVenuesTitle": "2-4 word section heading (e.g. Signature Estates)",
+  "ctaText": "2-4 word CTA (e.g. Explore Venues)"
+}
+No explanation. Only the JSON.`,
+                    },
+                  });
+                  if (error) throw error;
+                  const raw = (data?.text || '').trim();
+                  const match = raw.match(/\{[\s\S]*\}/);
+                  if (match) {
+                    const p = JSON.parse(match[0]);
+                    setForm(prev => ({
+                      ...prev,
+                      heroTitle:           p.heroTitle           || prev.heroTitle,
+                      heroSubtitle:        p.heroSubtitle        || prev.heroSubtitle,
+                      featuredVenuesTitle: p.featuredVenuesTitle || prev.featuredVenuesTitle,
+                      ctaText:             p.ctaText             || prev.ctaText,
+                    }));
+                    setDirty(true);
+                    setShowMagicPanel(false);
+                  }
+                } catch (e) {
+                  console.error('[Magic AI]', e);
+                } finally {
+                  setAiGenerating(false);
+                }
+              }}
+              disabled={aiGenerating}
+              style={{ fontFamily: NU, fontSize: 12, fontWeight: 700, padding: '8px 18px', background: LS.gold, color: '#fff', border: 'none', borderRadius: 6, cursor: aiGenerating ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
+            >{aiGenerating ? '⟳ Generating…' : 'Generate'}</button>
+            <button onClick={() => setShowMagicPanel(false)} style={{ fontFamily: NU, fontSize: 12, padding: '6px 12px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer' }}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       {/* ── PANELS ──────────────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
