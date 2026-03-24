@@ -6486,11 +6486,15 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
   const [venueList, setVenueList]       = useState([]);
   const [form, setForm] = useState({
     heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '',
+    heroImages: [],
     ctaText: 'Explore Venues', ctaLink: '#',
     featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Top Wedding Planners',
     featuredVenueIds: [], featuredVendorIds: [],
     mapLat: '', mapLng: '', mapZoom: '8',
   });
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const heroUploadRef = useRef(null);
 
   const set = useCallback((key, val) => {
     setForm(prev => ({ ...prev, [key]: val }));
@@ -6532,10 +6536,11 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
           mapLat:               data.map_lat != null ? String(data.map_lat) : '',
           mapLng:               data.map_lng != null ? String(data.map_lng) : '',
           mapZoom:              data.map_zoom != null ? String(data.map_zoom) : '8',
+          heroImages:           Array.isArray(data.metadata?.heroImages) ? data.metadata.heroImages : [],
         });
         setPublished(!!data.published);
       } else {
-        setForm({ heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '', ctaText: 'Explore Venues', ctaLink: '#', featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Top Wedding Planners', featuredVenueIds: [], featuredVendorIds: [], mapLat: '', mapLng: '', mapZoom: '8' });
+        setForm({ heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '', heroImages: [], ctaText: 'Explore Venues', ctaLink: '#', featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Top Wedding Planners', featuredVenueIds: [], featuredVendorIds: [], mapLat: '', mapLng: '', mapZoom: '8' });
         setPublished(false);
       }
       setDirty(false);
@@ -6566,6 +6571,7 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
         featuredVenueIds: form.featuredVenueIds, featuredVendorIds: form.featuredVendorIds,
         mapLat: form.mapLat, mapLng: form.mapLng, mapZoom: form.mapZoom,
         discoveryFilters: { showCapacityFilter: true, showStyleFilter: true, showPriceFilter: true, defaultSort: 'recommended' },
+        metadata: { heroImages: form.heroImages || [] },
         published: newPublished,
       });
       setPublished(newPublished);
@@ -6581,6 +6587,64 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
     const ids = form.featuredVenueIds || [];
     const next = ids.includes(id) ? ids.filter(x => x !== id) : ids.length < 6 ? [...ids, id] : ids;
     set('featuredVenueIds', next);
+  };
+
+  const uploadHeroImage = async (file) => {
+    if (!file || !locationKey) return;
+    const imgs = form.heroImages || [];
+    if (imgs.length >= 8) return;
+    setUploadingImage(true);
+    try {
+      const ext = file.name.split('.').pop();
+      const path = `locations/${locationKey.replace(/:/g, '/')}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from('listing-media').upload(path, file, { upsert: false, cacheControl: '31536000' });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from('listing-media').getPublicUrl(path);
+      const next = [...imgs, publicUrl];
+      setForm(prev => ({ ...prev, heroImages: next, heroImage: prev.heroImage || publicUrl }));
+      setDirty(true);
+    } catch (e) {
+      console.error('[Location Studio] Image upload failed:', e);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleFillWithAI = async () => {
+    if (!locationKey || aiGenerating) return;
+    setAiGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-generate', {
+        body: {
+          feature: 'location_content',
+          systemPrompt: `You are an editor for Luxury Wedding Directory, an exclusive platform for high-end destination weddings. Write elegant, aspirational copy for location pages. Be concise and evocative. Never use clichés.`,
+          userPrompt: `Generate editorial content for the ${locationName} location page. Return ONLY a JSON object with these exact keys:
+{
+  "heroTitle": "short headline (3-6 words, no quotes in value)",
+  "heroSubtitle": "one sentence (max 20 words), evocative and elegant",
+  "featuredVenuesTitle": "2-4 word section heading for featured venues"
+}
+Do not include any explanation — only the JSON object.`,
+        },
+      });
+      if (error) throw error;
+      const raw = (data?.text || '').trim();
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        setForm(prev => ({
+          ...prev,
+          heroTitle:           parsed.heroTitle          || prev.heroTitle,
+          heroSubtitle:        parsed.heroSubtitle       || prev.heroSubtitle,
+          featuredVenuesTitle: parsed.featuredVenuesTitle || prev.featuredVenuesTitle,
+        }));
+        setDirty(true);
+      }
+    } catch (e) {
+      console.error('[Location Studio] AI generation failed:', e);
+    } finally {
+      setAiGenerating(false);
+    }
   };
 
   const inp = (key, placeholder, multiline) => {
@@ -6619,7 +6683,7 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
       <div style={{ display: 'flex', alignItems: 'center', padding: '10px 24px', borderBottom: `1px solid ${LS.border}`, background: LS.bg, flexShrink: 0, zIndex: 20, gap: 8 }}>
         <div style={{ display: 'flex', gap: 8 }}>
           <button style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: 'pointer' }}>Magic AI</button>
-          <button style={{ fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px', background: 'transparent', color: LS.text, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer' }}>Fill with AI</button>
+          <button onClick={handleFillWithAI} disabled={!locationKey || aiGenerating} style={{ fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px', background: 'transparent', color: !locationKey || aiGenerating ? LS.muted : LS.text, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: !locationKey || aiGenerating ? 'not-allowed' : 'pointer', opacity: !locationKey ? 0.4 : 1 }}>{aiGenerating ? '⟳ Generating…' : '✦ Fill with AI'}</button>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
           {saveErr && <span style={{ fontFamily: NU, fontSize: 11, color: '#ef4444' }}>{saveErr}</span>}
@@ -6701,10 +6765,40 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
             </LocSCard>
 
             {/* Hero */}
-            <LocSCard title="Hero" hint="Headline text and background image shown at the top of this page" LS={LS}>
+            <LocSCard title="Hero" hint="Headline text and background shown at the top of this page" LS={LS}>
               <div style={{ marginBottom: 12 }}>{lbl('Hero Title')}{inp('heroTitle', locationName || 'e.g. Weddings in Tuscany')}</div>
               <div style={{ marginBottom: 12 }}>{lbl('Hero Subtitle')}{inp('heroSubtitle', 'A curated guide to luxury wedding celebrations…', true)}</div>
-              <div style={{ marginBottom: 12 }}>{lbl('Hero Image URL')}{inp('heroImage', 'https://images.example.com/hero.jpg')}</div>
+
+              {/* Image upload grid */}
+              <div style={{ marginBottom: 12 }}>
+                {lbl(`Hero Images (${(form.heroImages || []).length}/8)`)}
+                <input ref={heroUploadRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={async e => { for (const f of Array.from(e.target.files || [])) await uploadHeroImage(f); e.target.value = ''; }} />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 8 }}>
+                  {(form.heroImages || []).map((url, i) => {
+                    const active = form.heroImage === url;
+                    return (
+                      <div key={i} onClick={() => set('heroImage', url)} style={{ position: 'relative', aspectRatio: '16/9', borderRadius: 4, overflow: 'hidden', border: `2px solid ${active ? LS.gold : LS.border}`, cursor: 'pointer' }}>
+                        <img src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        {active && <div style={{ position: 'absolute', top: 3, left: 3, background: LS.gold, borderRadius: 2, padding: '1px 5px', fontSize: 8, fontFamily: NU, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active</div>}
+                        <button onClick={e => { e.stopPropagation(); const next = (form.heroImages || []).filter(u => u !== url); const newActive = form.heroImage === url ? (next[0] || '') : form.heroImage; setForm(prev => ({ ...prev, heroImages: next, heroImage: newActive })); setDirty(true); }} style={{ position: 'absolute', top: 3, right: 3, background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>✕</button>
+                      </div>
+                    );
+                  })}
+                  {(form.heroImages || []).length < 8 && (
+                    <button onClick={() => heroUploadRef.current?.click()} disabled={uploadingImage || !locationKey} style={{ aspectRatio: '16/9', border: `1px dashed ${LS.border}`, borderRadius: 4, background: 'transparent', color: LS.muted, fontFamily: NU, fontSize: 11, cursor: uploadingImage || !locationKey ? 'not-allowed' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
+                      <span style={{ fontSize: 16 }}>{uploadingImage ? '⟳' : '+'}</span>
+                      <span>{uploadingImage ? 'Uploading…' : 'Add Photo'}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Video URL */}
+              <div style={{ marginBottom: 12 }}>
+                {lbl('Hero Video URL (optional — overrides image)')}
+                {inp('heroVideo', 'https://cdn.example.com/hero.mp4')}
+              </div>
+
               <LocGrid2 gap={12}>
                 <div>{lbl('CTA Button Text')}{inp('ctaText', 'Explore Venues')}</div>
                 <div>{lbl('CTA Button Link')}{inp('ctaLink', '#search')}</div>

@@ -87,6 +87,8 @@ export async function saveLocationContent(contentData) {
       mapLng,
       mapZoom,
       discoveryFilters,
+      metadata,
+      published,
     } = contentData;
 
     // Check if location exists
@@ -117,7 +119,8 @@ export async function saveLocationContent(contentData) {
         showPriceFilter: true,
         defaultSort: "recommended",
       }),
-      published: false,
+      metadata: metadata ? JSON.stringify(metadata) : JSON.stringify({}),
+      published: published !== undefined ? published : false,
     };
 
     let result;
