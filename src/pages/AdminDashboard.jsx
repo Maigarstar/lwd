@@ -7822,10 +7822,10 @@ No explanation. Only the JSON.`,
             )}
           </div>
         )}
+        {/* Toast notification */}
+        {toast && <LocationToast msg={toast} onDone={() => setToast(null)} />}
       </div>
     </div>
-    {/* Toast notification */}
-    {toast && <LocationToast msg={toast} onDone={() => setToast(null)} />}
   );
 }
 
