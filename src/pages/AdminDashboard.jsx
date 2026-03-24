@@ -6538,6 +6538,7 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
   const [dirty, setDirty]           = useState(false);
   const [saveErr, setSaveErr]       = useState(null);
   const [published, setPublished]   = useState(false);
+  const [toast, setToast]           = useState(null);
   const [locationType, setLocationType] = useState('country');
   const [countrySlug, setCountrySlug]   = useState('');
   const [regionSlug, setRegionSlug]     = useState('');
@@ -6744,6 +6745,7 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
       });
       setPublished(newPublished);
       setDirty(false);
+      setToast(newPublished ? 'Location published ✓' : 'Location saved ✓');
     } catch (err) {
       setSaveErr('Save failed');
     } finally {
@@ -7822,6 +7824,8 @@ No explanation. Only the JSON.`,
         )}
       </div>
     </div>
+    {/* Toast notification */}
+    {toast && <LocationToast msg={toast} onDone={() => setToast(null)} />}
   );
 }
 
@@ -9792,6 +9796,34 @@ function SidebarGroup({ section, activeTab, setActiveTab }) {
           })}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Toast Notification Component
+// ═════════════════════════════════════════════════════════════════════════════
+
+function LocationToast({ msg, onDone }) {
+  setTimeout(onDone, 2200);
+  return (
+    <div style={{
+      position: 'fixed',
+      bottom: 28,
+      right: 28,
+      background: '#8a6d1b',
+      border: '1px solid #a07d15',
+      borderRadius: 4,
+      padding: '10px 18px',
+      fontFamily: 'var(--font-body)',
+      fontSize: 12,
+      fontWeight: 600,
+      color: '#fff',
+      zIndex: 9999,
+      pointerEvents: 'none',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+    }}>
+      {msg}
     </div>
   );
 }
