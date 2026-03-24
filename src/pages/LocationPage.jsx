@@ -144,7 +144,8 @@ export default function LocationPage({
   const _locationContent = useMemo(() => {
     if (locationContent) return locationContent;
     if (!_fetchedContent) return {};
-    const m = _fetchedContent.metadata || {};
+    const raw = _fetchedContent.metadata || {};
+    const m = typeof raw === 'string' ? JSON.parse(raw) : raw;
     return {
       heroTitle:    _fetchedContent.hero_title    || "",
       heroSubtitle: _fetchedContent.hero_subtitle || "",
