@@ -486,7 +486,7 @@ export default function LocationPage({
         )}
 
         {/* Search & Filters — Sticky */}
-        <div style={{ position: "sticky", top: 61, zIndex: 100, padding: "20px", background: C.card, borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ position: "sticky", top: 61, zIndex: 100, background: C.card, borderBottom: `1px solid ${C.border}` }}>
           <CountrySearchBar
             filters={filters}
             onFiltersChange={setFilters}
