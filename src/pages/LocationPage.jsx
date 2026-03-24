@@ -27,9 +27,10 @@ import QuickViewModal  from "../components/modals/QuickViewModal";
 import LuxuryVenueCard from "../components/cards/LuxuryVenueCard";
 import LuxuryVendorCard from "../components/cards/LuxuryVendorCard";
 
-// ── Data ────────────────────────────────────────────────────────────────────
-// Import directory data (will be in AdminDashboard)
-// For now, we'll receive it as props or fetch from context
+// ── Data services (self-fetch when rendered standalone) ─────────────────────
+import { COUNTRIES, REGIONS, CITIES } from "../data/geo";
+import { fetchListings } from "../services/listings";
+import { fetchLocationContent, buildLocationKey } from "../services/locationContentService";
 
 // ── Mobile detection hook ─────────────────────────────────────────────────
 function useIsMobile(bp = 768) {
@@ -87,73 +88,175 @@ export default function LocationPage({
   const C = darkMode ? getDarkPalette() : getLightPalette();
   const { setChatContext } = useChat();
 
+  // ── Self-fetch: venues, vendors, locationContent when rendered standalone ───
+  const [_fetchedVenues,  setFetchedVenues]  = useState([]);
+  const [_fetchedVendors, setFetchedVendors] = useState([]);
+  const [_fetchedContent, setFetchedContent] = useState(null);
+
+  useEffect(() => {
+    if (!locationSlug) return;
+    // Only self-fetch if parent hasn't injected data
+    if (venues.length === 0) {
+      const filters = {};
+      if (locationType === "country") filters.country_slug = locationSlug;
+      else if (locationType === "region") filters.region_slug = locationSlug;
+      else if (locationType === "city")   filters.city_slug   = locationSlug;
+      fetchListings({ ...filters, status: "active" })
+        .then(d => setFetchedVenues(Array.isArray(d) ? d : []))
+        .catch(() => {});
+    }
+    if (locationContent && Object.keys(locationContent).length > 0) return;
+    // Build location key for Supabase fetch
+    let key = null;
+    if (locationType === "country") key = buildLocationKey("country", locationSlug);
+    else if (locationType === "region") {
+      const r = REGIONS.find(r => r.slug === locationSlug);
+      if (r) key = buildLocationKey("region", locationSlug, r.countrySlug);
+    } else if (locationType === "city") {
+      const c = CITIES.find(c => c.slug === locationSlug);
+      if (c) key = buildLocationKey("city", locationSlug, c.countrySlug, c.regionSlug);
+    }
+    if (key) {
+      fetchLocationContent(key)
+        .then(d => { if (d) setFetchedContent(d); })
+        .catch(() => {});
+    }
+  }, [locationSlug, locationType]);
+
+  // Merge injected props with self-fetched data
+  const _venues  = venues.length  > 0 ? venues  : _fetchedVenues;
+  const _vendors = vendors.length > 0 ? vendors : _fetchedVendors;
+
+  // Merge locationContent: injected prop takes priority, then fetched, then empty
+  const _locationContent = (locationContent && Object.keys(locationContent).length > 0)
+    ? locationContent
+    : _fetchedContent
+      ? {
+          heroTitle:    _fetchedContent.hero_title    || "",
+          heroSubtitle: _fetchedContent.hero_subtitle || "",
+          heroImage:    _fetchedContent.hero_image    || "",
+          heroVideo:    _fetchedContent.hero_video    || "",
+          heroImages:   _fetchedContent.metadata?.heroImages   || [],
+          ctaText:      _fetchedContent.cta_text      || "Explore Venues",
+          ctaLink:      _fetchedContent.cta_link      || "#",
+          infoVibes:    _fetchedContent.metadata?.infoVibes    || [],
+          infoServices: _fetchedContent.metadata?.infoServices || [],
+          infoRegions:  _fetchedContent.metadata?.infoRegions  || [],
+          seoContent:   _fetchedContent.metadata?.seoContent   || "",
+          seoFaqs:      _fetchedContent.metadata?.seoFaqs      || [],
+          seoHeading:   _fetchedContent.metadata?.seoHeading   || "",
+          showEditorialSplit:  _fetchedContent.metadata?.showEditorialSplit  !== false,
+          showLatestVenues:    _fetchedContent.metadata?.showLatestVenues    !== false,
+          showLatestVendors:   _fetchedContent.metadata?.showLatestVendors   !== false,
+          showPlanningGuide:   _fetchedContent.metadata?.showPlanningGuide   !== false,
+          showMotto:           _fetchedContent.metadata?.showMotto           !== false,
+          motto:               _fetchedContent.metadata?.motto               || "",
+          mottoSubline:        _fetchedContent.metadata?.mottoSubline        || "",
+          mottoBgImage:        _fetchedContent.metadata?.mottoBgImage        || "",
+          mottoOverlay:        _fetchedContent.metadata?.mottoOverlay        ?? 0.55,
+          editorialPara1:      _fetchedContent.metadata?.editorialPara1      || "",
+          editorialPara2:      _fetchedContent.metadata?.editorialPara2      || "",
+          editorialEyebrow:    _fetchedContent.metadata?.editorialEyebrow    || "",
+          editorialHeadingPrefix: _fetchedContent.metadata?.editorialHeadingPrefix || "",
+          editorialCtaText:    _fetchedContent.metadata?.editorialCtaText    || "",
+          editorialBlocks:     _fetchedContent.metadata?.editorialBlocks     || [],
+          editorialVenueMode:  _fetchedContent.metadata?.editorialVenueMode  || "latest",
+          latestVenuesHeading: _fetchedContent.metadata?.latestVenuesHeading || "",
+          latestVenuesSub:     _fetchedContent.metadata?.latestVenuesSub     || "",
+          latestVenuesCount:   _fetchedContent.metadata?.latestVenuesCount   || 12,
+          latestVenuesMode:    _fetchedContent.metadata?.latestVenuesMode    || "latest",
+          latestVenuesCardStyle: _fetchedContent.metadata?.latestVenuesCardStyle || "luxury",
+          latestVenuesSelected:  _fetchedContent.metadata?.latestVenuesSelected  || [],
+          latestVendorsHeading: _fetchedContent.metadata?.latestVendorsHeading || "",
+          latestVendorsSub:    _fetchedContent.metadata?.latestVendorsSub    || "",
+          latestVendorsCount:  _fetchedContent.metadata?.latestVendorsCount  || 12,
+          latestVendorsMode:   _fetchedContent.metadata?.latestVendorsMode   || "latest",
+          latestVendorsCardStyle: _fetchedContent.metadata?.latestVendorsCardStyle || "luxury",
+          latestVendorsSelected:  _fetchedContent.metadata?.latestVendorsSelected  || [],
+          featuredVenueIds:    _fetchedContent.featured_venues  || [],
+          featuredVendorIds:   _fetchedContent.featured_vendors || [],
+          mapLat:   _fetchedContent.map_lat  || null,
+          mapLng:   _fetchedContent.map_lng  || null,
+          mapZoom:  _fetchedContent.map_zoom || 8,
+        }
+      : {};
+
+  // Use geo constants as fallback when parent doesn't inject geo arrays
+  const _countries = countries.length > 0 ? countries : COUNTRIES;
+  const _regions   = regions.length   > 0 ? regions   : REGIONS;
+  const _cities    = cities.length    > 0 ? cities    : CITIES;
+
   // ── Resolve current location ────────────────────────────────────────────────
   const currentLocation = useMemo(() => {
     if (locationType === "country") {
-      return countries.find(c => c.slug === locationSlug);
+      return _countries.find(c => c.slug === locationSlug);
     } else if (locationType === "region") {
-      return regions.find(r => r.slug === locationSlug);
+      return _regions.find(r => r.slug === locationSlug);
     } else if (locationType === "city") {
-      return cities.find(c => c.slug === locationSlug);
+      return _cities.find(c => c.slug === locationSlug);
     }
     return null;
-  }, [locationType, locationSlug, countries, regions, cities]);
+  }, [locationType, locationSlug, _countries, _regions, _cities]);
 
   // ── Get parent location for breadcrumbs ─────────────────────────────────────
   const parentLocation = useMemo(() => {
     if (!currentLocation) return null;
     if (locationType === "region") {
-      return countries.find(c => c.slug === currentLocation.countrySlug);
+      return _countries.find(c => c.slug === currentLocation.countrySlug);
     } else if (locationType === "city") {
-      return regions.find(r => r.slug === currentLocation.regionSlug);
+      return _regions.find(r => r.slug === currentLocation.regionSlug);
     }
     return null;
-  }, [currentLocation, locationType, countries, regions]);
+  }, [currentLocation, locationType, _countries, _regions]);
+
+  // Merged featured IDs: from injected props OR fetched content
+  const _featuredVenueIds  = featuredVenueIds.length  > 0 ? featuredVenueIds  : (_locationContent?.featuredVenueIds  || []);
+  const _featuredVendorIds = featuredVendorIds.length > 0 ? featuredVendorIds : (_locationContent?.featuredVendorIds || []);
 
   // ── Get featured venues/vendors for this location ────────────────────────────
   const featuredVenues = useMemo(() => {
     if (locationType === "country") {
-      return venues
-        .filter(v => v.countrySlug === currentLocation?.slug && featuredVenueIds.includes(v.id))
+      return _venues
+        .filter(v => v.countrySlug === currentLocation?.slug && _featuredVenueIds.includes(v.id))
         .slice(0, 6);
     } else if (locationType === "region") {
-      return venues
-        .filter(v => v.regionSlug === currentLocation?.slug && featuredVenueIds.includes(v.id))
+      return _venues
+        .filter(v => v.regionSlug === currentLocation?.slug && _featuredVenueIds.includes(v.id))
         .slice(0, 6);
     } else if (locationType === "city") {
-      return venues
-        .filter(v => v.citySlug === currentLocation?.slug && featuredVenueIds.includes(v.id))
+      return _venues
+        .filter(v => v.citySlug === currentLocation?.slug && _featuredVenueIds.includes(v.id))
         .slice(0, 4);
     }
     return [];
-  }, [currentLocation, locationType, venues, featuredVenueIds]);
+  }, [currentLocation, locationType, _venues, _featuredVenueIds]);
 
   const featuredVendors = useMemo(() => {
     if (locationType === "country") {
-      return vendors
-        .filter(v => v.countrySlug === currentLocation?.slug && featuredVendorIds.includes(v.id))
+      return _vendors
+        .filter(v => v.countrySlug === currentLocation?.slug && _featuredVendorIds.includes(v.id))
         .slice(0, 6);
     } else if (locationType === "region") {
-      return vendors
-        .filter(v => v.regionSlug === currentLocation?.slug && featuredVendorIds.includes(v.id))
+      return _vendors
+        .filter(v => v.regionSlug === currentLocation?.slug && _featuredVendorIds.includes(v.id))
         .slice(0, 6);
     } else if (locationType === "city") {
-      return vendors
-        .filter(v => v.citySlug === currentLocation?.slug && featuredVendorIds.includes(v.id))
+      return _vendors
+        .filter(v => v.citySlug === currentLocation?.slug && _featuredVendorIds.includes(v.id))
         .slice(0, 4);
     }
     return [];
-  }, [currentLocation, locationType, vendors, featuredVendorIds]);
+  }, [currentLocation, locationType, _vendors, _featuredVendorIds]);
 
   // ── Get filterable venues for this location ─────────────────────────────────
   const locationVenues = useMemo(() => {
     let filtered = [];
     if (locationType === "country") {
-      filtered = venues.filter(v => v.countrySlug === currentLocation?.slug);
+      filtered = _venues.filter(v => v.countrySlug === currentLocation?.slug);
     } else if (locationType === "region") {
-      filtered = venues.filter(v => v.regionSlug === currentLocation?.slug);
+      filtered = _venues.filter(v => v.regionSlug === currentLocation?.slug);
     } else if (locationType === "city") {
-      filtered = venues.filter(v => v.citySlug === currentLocation?.slug);
+      filtered = _venues.filter(v => v.citySlug === currentLocation?.slug);
     }
 
     // Apply search query
@@ -165,69 +268,63 @@ export default function LocationPage({
     }
 
     return filtered;
-  }, [currentLocation, locationType, venues, searchQuery]);
+  }, [currentLocation, locationType, _venues, searchQuery]);
 
   // ── Compute editorial split venues (Latest / Random / Featured) ─────────────
   const editorialVenues = useMemo(() => {
-    const mode = locationContent?.editorialVenueMode || 'latest';
+    const mode = _locationContent?.editorialVenueMode || 'latest';
     if (mode === 'featured' && featuredVenues.length >= 5) return featuredVenues.slice(0, 5);
     if (mode === 'random' && locationVenues.length >= 5) {
       const shuffled = [...locationVenues].sort(() => Math.random() - 0.5);
       return shuffled.slice(0, 5);
     }
-    // 'latest' — first 5 in order
     return locationVenues.slice(0, 5);
-  }, [locationVenues, featuredVenues, locationContent?.editorialVenueMode]);
+  }, [locationVenues, featuredVenues, _locationContent?.editorialVenueMode]);
 
   // ── Compute Latest Venues strip venues ──────────────────────────────────────
   const latestVenuesVenues = useMemo(() => {
-    const mode  = locationContent?.latestVenuesMode  || 'latest';
-    const count = locationContent?.latestVenuesCount || 12;
+    const mode  = _locationContent?.latestVenuesMode  || 'latest';
+    const count = _locationContent?.latestVenuesCount || 12;
 
     if (mode === 'selected') {
-      const ids = locationContent?.latestVenuesSelected || [];
-      // Preserve the exact order admin set; match against ALL venues (not just location-filtered)
-      return ids
-        .map(id => venues.find(v => v.id === id))
-        .filter(Boolean);
+      const ids = _locationContent?.latestVenuesSelected || [];
+      return ids.map(id => _venues.find(v => v.id === id)).filter(Boolean);
     }
     if (mode === 'featured' && featuredVenues.length > 0) return featuredVenues.slice(0, count);
     if (mode === 'random' && locationVenues.length > 0) {
       return [...locationVenues].sort(() => Math.random() - 0.5).slice(0, count);
     }
     return locationVenues.slice(0, count);
-  }, [locationVenues, featuredVenues, venues, locationContent?.latestVenuesMode, locationContent?.latestVenuesCount, locationContent?.latestVenuesSelected]);
+  }, [locationVenues, featuredVenues, _venues, _locationContent?.latestVenuesMode, _locationContent?.latestVenuesCount, _locationContent?.latestVenuesSelected]);
 
   // ── Get vendors for this location ────────────────────────────────────────────
   const locationVendors = useMemo(() => {
     let filtered = [];
     if (locationType === "country") {
-      filtered = vendors.filter(v => v.countrySlug === currentLocation?.slug);
+      filtered = _vendors.filter(v => v.countrySlug === currentLocation?.slug);
     } else if (locationType === "region") {
-      filtered = vendors.filter(v => v.regionSlug === currentLocation?.slug);
+      filtered = _vendors.filter(v => v.regionSlug === currentLocation?.slug);
     } else if (locationType === "city") {
-      filtered = vendors.filter(v => v.citySlug === currentLocation?.slug);
+      filtered = _vendors.filter(v => v.citySlug === currentLocation?.slug);
     }
     return filtered;
-  }, [currentLocation, locationType, vendors]);
+  }, [currentLocation, locationType, _vendors]);
 
   // ── Compute Latest Vendors strip vendors ─────────────────────────────────────
   const latestVendorsVenues = useMemo(() => {
-    const mode  = locationContent?.latestVendorsMode  || 'latest';
-    const count = locationContent?.latestVendorsCount || 12;
+    const mode  = _locationContent?.latestVendorsMode  || 'latest';
+    const count = _locationContent?.latestVendorsCount || 12;
 
     if (mode === 'selected') {
-      const ids = locationContent?.latestVendorsSelected || [];
-      return ids
-        .map(id => vendors.find(v => v.id === id))
-        .filter(Boolean);
+      const ids = _locationContent?.latestVendorsSelected || [];
+      return ids.map(id => _vendors.find(v => v.id === id)).filter(Boolean);
     }
     if (mode === 'featured' && featuredVendors.length > 0) return featuredVendors.slice(0, count);
     if (mode === 'random' && locationVendors.length > 0) {
       return [...locationVendors].sort(() => Math.random() - 0.5).slice(0, count);
     }
     return locationVendors.slice(0, count);
-  }, [locationVendors, featuredVendors, vendors, locationContent?.latestVendorsMode, locationContent?.latestVendorsCount, locationContent?.latestVendorsSelected]);
+  }, [locationVendors, featuredVendors, _vendors, _locationContent?.latestVendorsMode, _locationContent?.latestVendorsCount, _locationContent?.latestVendorsSelected]);
 
   // ── Hero section content ────────────────────────────────────────────────────
   const heroData = useMemo(() => {
@@ -242,15 +339,15 @@ export default function LocationPage({
     }
 
     return {
-      title: locationContent?.heroTitle || currentLocation.name,
-      subtitle: locationContent?.heroSubtitle || currentLocation.description || "",
-      backgroundImage: locationContent?.heroImage || "",
-      backgroundVideo: locationContent?.heroVideo || "",
-      ctaText: locationContent?.ctaText || "Explore Venues",
-      ctaLink: locationContent?.ctaLink || "#",
+      title: _locationContent?.heroTitle || currentLocation.name,
+      subtitle: _locationContent?.heroSubtitle || currentLocation.description || "",
+      backgroundImage: _locationContent?.heroImage || "",
+      backgroundVideo: _locationContent?.heroVideo || "",
+      ctaText: _locationContent?.ctaText || "Explore Venues",
+      ctaLink: _locationContent?.ctaLink || "#",
       eyebrow,
     };
-  }, [currentLocation, locationType, parentLocation, locationContent]);
+  }, [currentLocation, locationType, parentLocation, _locationContent]);
 
   // ── SEO content ─────────────────────────────────────────────────────────────
   const seoData = useMemo(() => {
@@ -262,10 +359,10 @@ export default function LocationPage({
       keywords: (currentLocation.focusKeywords || []).join(", "),
       ogTitle: currentLocation.ogTitle || currentLocation.name,
       ogDescription: currentLocation.ogDescription || currentLocation.description || "",
-      ogImage: currentLocation.thumbnail || locationContent?.heroImage || "",
+      ogImage: currentLocation.thumbnail || _locationContent?.heroImage || "",
       noIndex: noIndex,
     };
-  }, [currentLocation, locationContent, noIndex]);
+  }, [currentLocation, _locationContent, noIndex]);
 
   // ── Feed location content into Aura's context ───────────────────────────────
   useEffect(() => {
@@ -277,15 +374,15 @@ export default function LocationPage({
       locationContent: {
         name: currentLocation.name,
         type: locationType,
-        editorial: locationContent?.seoContent || currentLocation.evergreenContent || "",
-        faqs: Array.isArray(locationContent?.seoFaqs) ? locationContent.seoFaqs : [],
-        vibes: Array.isArray(locationContent?.infoVibes) ? locationContent.infoVibes : [],
-        services: Array.isArray(locationContent?.infoServices) ? locationContent.infoServices : [],
-        heroSubtitle: locationContent?.heroSubtitle || "",
+        editorial: _locationContent?.seoContent || currentLocation.evergreenContent || "",
+        faqs: Array.isArray(_locationContent?.seoFaqs) ? _locationContent.seoFaqs : [],
+        vibes: Array.isArray(_locationContent?.infoVibes) ? _locationContent.infoVibes : [],
+        services: Array.isArray(_locationContent?.infoServices) ? _locationContent.infoServices : [],
+        heroSubtitle: _locationContent?.heroSubtitle || "",
         focusKeywords: (currentLocation.focusKeywords || []).join(", "),
       },
     });
-  }, [currentLocation, locationType, parentLocation, locationContent, setChatContext]);
+  }, [currentLocation, locationType, parentLocation, _locationContent, setChatContext]);
 
   // ── Scroll tracking for nav slide-up effect ─────────────────────────────────
   useEffect(() => {
@@ -351,59 +448,59 @@ export default function LocationPage({
         {locationType === "country" && (
           <InfoStrip
             regionNames={
-              (Array.isArray(locationContent?.infoRegions) && locationContent.infoRegions.length > 0)
-                ? locationContent.infoRegions
-                : regions.filter(r => r.countrySlug === currentLocation.slug).map(r => r.name)
+              (Array.isArray(_locationContent?.infoRegions) && _locationContent.infoRegions.length > 0)
+                ? _locationContent.infoRegions
+                : _regions.filter(r => r.countrySlug === currentLocation.slug).map(r => r.name)
             }
-            vibes={locationContent?.infoVibes}
-            services={locationContent?.infoServices}
+            vibes={_locationContent?.infoVibes}
+            services={_locationContent?.infoServices}
             C={C}
           />
         )}
 
         {/* Editorial Split — "The Art of the {Location} Wedding" */}
-        {locationContent?.showEditorialSplit !== false && editorialVenues.length >= 5 && (
+        {_locationContent?.showEditorialSplit !== false && editorialVenues.length >= 5 && (
           <LatestSplit
             venues={editorialVenues}
             locationName={currentLocation.name}
-            eyebrow={locationContent?.editorialEyebrow || ''}
-            headingPrefix={locationContent?.editorialHeadingPrefix || ''}
-            ctaText={locationContent?.editorialCtaText || ''}
-            para1={locationContent?.editorialPara1 || ""}
-            para2={locationContent?.editorialPara2 || ""}
+            eyebrow={_locationContent?.editorialEyebrow || ''}
+            headingPrefix={_locationContent?.editorialHeadingPrefix || ''}
+            ctaText={_locationContent?.editorialCtaText || ''}
+            para1={_locationContent?.editorialPara1 || ""}
+            para2={_locationContent?.editorialPara2 || ""}
             infoBlocks={
-              Array.isArray(locationContent?.editorialBlocks)
-                ? locationContent.editorialBlocks
+              Array.isArray(_locationContent?.editorialBlocks)
+                ? _locationContent.editorialBlocks
                 : []
             }
           />
         )}
 
         {/* Latest Venues Strip */}
-        {locationContent?.showLatestVenues !== false && (
+        {_locationContent?.showLatestVenues !== false && (
         <LatestVenuesStrip
           venues={latestVenuesVenues}
-          heading={locationContent?.latestVenuesHeading || ''}
-          subtext={locationContent?.latestVenuesSub || ''}
+          heading={_locationContent?.latestVenuesHeading || ''}
+          subtext={_locationContent?.latestVenuesSub || ''}
           locationName={currentLocation.name}
           onViewVenue={onViewVenue}
           onQuickView={setQvItem}
           isMobile={isMobile}
-          cardStyle={locationContent?.latestVenuesCardStyle || 'luxury'}
+          cardStyle={_locationContent?.latestVenuesCardStyle || 'luxury'}
         />
         )}
 
         {/* Latest Vendors Strip */}
-        {locationContent?.showLatestVendors !== false && (
+        {_locationContent?.showLatestVendors !== false && (
         <LatestVendorsStrip
           vendors={latestVendorsVenues}
-          heading={locationContent?.latestVendorsHeading || ''}
-          subtext={locationContent?.latestVendorsSub || ''}
+          heading={_locationContent?.latestVendorsHeading || ''}
+          subtext={_locationContent?.latestVendorsSub || ''}
           locationName={currentLocation.name}
           onViewVendor={onViewVenue}
           onQuickView={setQvItem}
           isMobile={isMobile}
-          cardStyle={locationContent?.latestVendorsCardStyle || 'luxury'}
+          cardStyle={_locationContent?.latestVendorsCardStyle || 'luxury'}
         />
         )}
 
@@ -423,7 +520,7 @@ export default function LocationPage({
         {featuredVenues.length > 0 && (
           <div style={{ padding: "40px 20px", background: C.bg }}>
             <h3 style={{ fontFamily: "'Neue Haas Display', serif", fontSize: 20, marginBottom: 24, textAlign: "center" }}>
-              {locationContent?.featuredVenuesTitle || "Signature Venues"}
+              {_locationContent?.featuredVenuesTitle || "Signature Venues"}
             </h3>
             <div style={{
               display: "grid",
@@ -449,9 +546,9 @@ export default function LocationPage({
           <MapSection
             title={`Explore ${currentLocation.name}`}
             venues={locationVenues.slice(0, 20)}
-            lat={parseFloat(locationContent?.mapLat || currentLocation.mapLat || "0")}
-            lng={parseFloat(locationContent?.mapLng || currentLocation.mapLng || "0")}
-            zoom={locationContent?.mapZoom || 8}
+            lat={parseFloat(_locationContent?.mapLat || currentLocation.mapLat || "0")}
+            lng={parseFloat(_locationContent?.mapLng || currentLocation.mapLng || "0")}
+            zoom={_locationContent?.mapZoom || 8}
             C={C}
             onMarkerClick={(venueId) => onViewVenue && onViewVenue(venueId)}
           />
@@ -503,7 +600,7 @@ export default function LocationPage({
         {featuredVendors.length > 0 && (
           <div style={{ padding: "40px 20px", background: C.card, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
             <h3 style={{ fontFamily: "'Neue Haas Display', serif", fontSize: 20, marginBottom: 24, textAlign: "center" }}>
-              {locationContent?.featuredVendorsTitle || "Top Wedding Planners"}
+              {_locationContent?.featuredVendorsTitle || "Top Wedding Planners"}
             </h3>
             <div style={{
               display: "grid",
@@ -525,33 +622,33 @@ export default function LocationPage({
         )}
 
         {/* SEO Block / Planning Guide */}
-        {seoData && locationContent?.showPlanningGuide !== false && (
+        {seoData && _locationContent?.showPlanningGuide !== false && (
           <SEOBlock
             title={currentLocation.name}
-            seoHeading={locationContent?.seoHeading || ''}
-            content={locationContent?.seoContent || currentLocation.evergreenContent || ""}
-            faqs={locationContent?.seoFaqs}
-            regionNames={regions
+            seoHeading={_locationContent?.seoHeading || ''}
+            content={_locationContent?.seoContent || currentLocation.evergreenContent || ""}
+            faqs={_locationContent?.seoFaqs}
+            regionNames={_regions
               .filter(r => r.countrySlug === currentLocation.slug)
               .map(r => r.name)}
             venueCount={locationVenues.length}
-            regionCount={regions.filter(r => r.countrySlug === currentLocation.slug).length}
+            regionCount={_regions.filter(r => r.countrySlug === currentLocation.slug).length}
             C={C}
           />
         )}
 
         {/* Motto / Quote Banner */}
-        {locationContent?.showMotto !== false && (
+        {_locationContent?.showMotto !== false && (
           <MottoStrip
             motto={
-              locationContent?.motto ||
+              _locationContent?.motto ||
               `${currentLocation.name}, where every moment becomes a memory worth keeping forever.`
             }
-            subline={locationContent?.mottoSubline || ''}
-            backgroundImage={locationContent?.mottoBgImage || ''}
+            subline={_locationContent?.mottoSubline || ''}
+            backgroundImage={_locationContent?.mottoBgImage || ''}
             overlayOpacity={
-              locationContent?.mottoOverlay != null
-                ? parseFloat(locationContent.mottoOverlay)
+              _locationContent?.mottoOverlay != null
+                ? parseFloat(_locationContent.mottoOverlay)
                 : 0.55
             }
           />

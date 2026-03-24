@@ -36,6 +36,7 @@ import LWDPartnership         from "./pages/LWDPartnership.jsx";
 import CmsPage                from "./pages/CmsPage.jsx";
 import USAPage                from "./pages/USAPage.jsx";
 import ItalyPage              from "./pages/ItalyPage.jsx";
+import LocationPage           from "./pages/LocationPage.jsx";
 const AdminDashboard         = lazy(() => import("./pages/AdminDashboard.jsx"));
 import AdminLogin             from "./pages/AdminLogin.jsx";
 import GoogleOAuthCallback    from "./pages/GoogleOAuthCallback.jsx";
@@ -733,7 +734,15 @@ function App() {
           <LWDPartnership onBack={goHome} onViewCategory={goCategory} onViewStandard={goStandard} onViewAbout={goAbout} onViewContact={goContact} footerNav={footerNav} />
         )}
         {page === "italy" && (
-          <ItalyPage onBack={goHome} onViewVenue={goVenue} onViewRegion={goRegion} onViewCategory={goCategory} initialRegion={categoryRegion} initialSearchQuery={categorySearchQuery} footerNav={footerNav} />
+          <LocationPage
+            locationType="country"
+            locationSlug="italy"
+            onBack={goHome}
+            onViewVenue={goVenue}
+            onViewRegion={goRegion}
+            onViewCategory={goCategory}
+            footerNav={footerNav}
+          />
         )}
         {page === "usa" && (
           <USAPage onBack={goHome} onViewRegion={goRegion} onViewCategory={goCategory} onViewStandard={goStandard} onViewAbout={goAbout} footerNav={footerNav} />
