@@ -1,10 +1,14 @@
 // ─── src/components/sections/MottoStrip.jsx ──────────────────────────────────
 // Full-width editorial quote/motto strip — sits below SEO block, above footer.
 // Supports: plain dark bg OR background image with overlay density control.
+// ALWAYS renders as dark section with white text (editorial contrast).
 import { useTheme } from "../../theme/ThemeContext";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
+
+// Hardcoded dark background — this section is always dark regardless of theme
+const MOTTO_BG = "#1a1714";
 
 export default function MottoStrip({
   motto,
@@ -24,9 +28,9 @@ export default function MottoStrip({
       style={{
         position: "relative",
         overflow: "hidden",
-        background: hasImage ? "transparent" : C.dark,
-        borderTop: `1px solid ${C.border}`,
-        borderBottom: `1px solid ${C.border}`,
+        background: hasImage ? "transparent" : MOTTO_BG,
+        borderTop: `1px solid rgba(201,168,76,0.15)`,
+        borderBottom: `1px solid rgba(201,168,76,0.15)`,
       }}
     >
       {/* Background image */}
