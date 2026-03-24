@@ -6688,7 +6688,7 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
     setSaving(true); setSaveErr(null);
     const newPublished = publishOverride === 'published' ? true : publishOverride === 'draft' ? false : published;
     try {
-      await saveLocationContent({
+      const result = await saveLocationContent({
         locationKey, locationType, countrySlug,
         regionSlug: (locationType === 'region' || locationType === 'city') ? regionSlug : null,
         citySlug: locationType === 'city' ? citySlug : null,
@@ -6743,11 +6743,15 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
         },
         published: newPublished,
       });
+      if (result.error) {
+        setSaveErr(`Save failed: ${result.error.message || 'Database error'}`);
+        return;
+      }
       setPublished(newPublished);
       setDirty(false);
       setToast(newPublished ? 'Location published ✓' : 'Location saved ✓');
     } catch (err) {
-      setSaveErr('Save failed');
+      setSaveErr(`Save failed: ${err.message || 'Unknown error'}`);
     } finally {
       setSaving(false);
     }
