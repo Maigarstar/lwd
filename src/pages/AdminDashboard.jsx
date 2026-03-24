@@ -6696,6 +6696,14 @@ Do not include any explanation — only the JSON object.`,
           <button onClick={() => handleSave('published')} disabled={saving} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: published ? LS.gold : LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>
             {saving ? 'Publishing…' : published ? '✓ Published' : 'Publish'}
           </button>
+          {locationKey && (
+            <a
+              href={`/${locationType === 'country' ? countrySlug : locationType === 'region' ? `${countrySlug}/${regionSlug}` : `${countrySlug}/${regionSlug}/${citySlug}`}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontFamily: NU, fontSize: 12, fontWeight: 500, padding: '6px 12px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}
+            >↗ Live Page</a>
+          )}
           <div style={{ width: 1, height: 16, background: LS.border, marginLeft: 4 }} />
           {['split', 'editor', 'preview'].map(m => (
             <span key={m} onClick={() => setViewMode(m)} style={{ fontFamily: NU, fontSize: 11, fontWeight: viewMode === m ? 700 : 500, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', color: viewMode === m ? LS.text : LS.muted, borderBottom: viewMode === m ? `1px solid ${LS.text}` : '1px solid transparent', paddingBottom: 1 }}>
@@ -6765,7 +6773,8 @@ No explanation. Only the JSON.`,
               disabled={aiGenerating}
               style={{ fontFamily: NU, fontSize: 12, fontWeight: 700, padding: '8px 18px', background: LS.gold, color: '#fff', border: 'none', borderRadius: 6, cursor: aiGenerating ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
             >{aiGenerating ? '⟳ Generating…' : 'Generate'}</button>
-            <button onClick={() => setShowMagicPanel(false)} style={{ fontFamily: NU, fontSize: 12, padding: '6px 12px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer' }}>Cancel</button>
+            <button onClick={async () => { setShowMagicPanel(false); await handleSave('draft'); }} disabled={saving || !locationKey} style={{ fontFamily: NU, fontSize: 12, fontWeight: 600, padding: '8px 18px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving || !locationKey ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>{saving ? 'Saving…' : 'Save Draft'}</button>
+            <button onClick={() => setShowMagicPanel(false)} style={{ fontFamily: NU, fontSize: 12, padding: '6px 12px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer' }}>Close</button>
           </div>
         </div>
       )}
