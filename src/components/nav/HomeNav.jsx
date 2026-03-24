@@ -1,14 +1,9 @@
 // ─── src/components/nav/HomeNav.jsx ──────────────────────────────────────────
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "../../lib/supabaseClient";
 import { useTheme } from "../../theme/ThemeContext";
 import MegaMenuPanel from "./MegaMenuPanel";
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
 
 // ── Site branding defaults ────────────────────────────────────────────────────
 const DEFAULT_BRANDING = {

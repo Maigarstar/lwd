@@ -4,12 +4,7 @@
 // Panel styling comes entirely from the nav item's design settings.
 
 import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
+import { supabase } from "../../lib/supabaseClient";
 
 const SERIF = "'Cormorant Garamond', Georgia, serif";
 const SANS  = "'Inter', system-ui, sans-serif";
