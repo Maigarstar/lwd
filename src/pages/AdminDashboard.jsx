@@ -6792,12 +6792,26 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
       const { supabase } = await import('../lib/supabaseClient');
       const ext = file.name.split('.').pop();
       const path = `locations/${locationKey.replace(/:/g, '/')}/${Date.now()}_motto.${ext}`;
-      const { error } = await supabase.storage.from('listing-media').upload(path, file, { upsert: false, cacheControl: '31536000' });
-      if (error) throw error;
-      const { data: { publicUrl } } = supabase.storage.from('listing-media').getPublicUrl(path);
+      console.log('[Location Studio] Uploading motto image to:', path);
+
+      const { error, data } = await supabase.storage.from('listing-media').upload(path, file, { upsert: false, cacheControl: '31536000' });
+      if (error) {
+        console.error('[Location Studio] Upload error:', error);
+        throw new Error(`Upload failed: ${error.message}`);
+      }
+
+      console.log('[Location Studio] Upload successful:', data);
+
+      const { data: urlData } = supabase.storage.from('listing-media').getPublicUrl(path);
+      const publicUrl = urlData.publicUrl;
+      console.log('[Location Studio] Public URL:', publicUrl);
+
       set('mottoBgImage', publicUrl);
+      setDirty(true);
+      setToast('✓ Motto image uploaded successfully');
     } catch (e) {
       console.error('[Location Studio] Motto image upload failed:', e);
+      setToast('✗ Failed to upload image: ' + (e.message || 'Unknown error'));
     } finally {
       setUploadingMottoImage(false);
     }
