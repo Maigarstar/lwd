@@ -7804,6 +7804,7 @@ No explanation. Only the JSON.`,
                   featuredVenueIds={form.featuredVenueIds || []}
                   featuredVendorIds={form.featuredVendorIds || []}
                   previewDarkMode={darkMode}
+                  hideNav={true}
                   onBack={() => {}}
                   onViewVenue={() => {}}
                   onViewRegion={() => {}}

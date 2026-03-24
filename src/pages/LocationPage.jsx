@@ -73,6 +73,7 @@ export default function LocationPage({
   // UI
   noIndex = false,
   footerNav = {},
+  hideNav = false, // When true, hides CatNav (for admin preview mode)
 }) {
   // ── State ──────────────────────────────────────────────────────────────────
   const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
@@ -417,13 +418,15 @@ export default function LocationPage({
     <ThemeCtx.Provider value={C}>
       <div style={{ background: C.black, color: C.white, minHeight: "100vh" }}>
 
-        {/* Fixed Navigation */}
-        <CatNav
-          onBack={onBack}
-          scrolled={scrolled}
-          darkMode={darkMode}
-          onToggleDark={() => setDarkMode(d => !d)}
-        />
+        {/* Fixed Navigation — hidden in admin preview mode */}
+        {!hideNav && (
+          <CatNav
+            onBack={onBack}
+            scrolled={scrolled}
+            darkMode={darkMode}
+            onToggleDark={() => setDarkMode(d => !d)}
+          />
+        )}
 
         {/* Hero Section */}
         {heroData && (
