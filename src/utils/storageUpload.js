@@ -28,27 +28,41 @@ const BUCKET = 'listing-media';
  * @param {string} mediaId, the item's id (nanoid), used as the filename
  */
 export async function uploadMediaFile(file, mediaId) {
+  console.log('[uploadMediaFile] Starting upload:', { fileName: file.name, fileSize: file.size, fileType: file.type, mediaId });
+
   const rawExt = file.name.split('.').pop()?.toLowerCase() || '';
   const ext    = ['jpg','jpeg','png','webp','gif','mp4','webm','mov'].includes(rawExt)
     ? rawExt
     : (file.type.startsWith('video') ? 'mp4' : 'jpg');
 
   const path = `${mediaId}.${ext}`;
+  console.log('[uploadMediaFile] Upload path:', path, 'Bucket:', BUCKET);
 
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, file, {
-      cacheControl:  '31536000',   // 1 year, images don't change at a given path
-      upsert:        true,         // overwrite if the same media_id is re-uploaded
-      contentType:   file.type || 'image/jpeg',
-    });
+  try {
+    const { error: uploadError, data: uploadData } = await supabase.storage
+      .from(BUCKET)
+      .upload(path, file, {
+        cacheControl:  '31536000',   // 1 year, images don't change at a given path
+        upsert:        true,         // overwrite if the same media_id is re-uploaded
+        contentType:   file.type || 'image/jpeg',
+      });
 
-  if (uploadError) {
-    throw new Error(`Storage upload failed for "${file.name}": ${uploadError.message}`);
+    console.log('[uploadMediaFile] Upload response:', { uploadError, uploadData });
+
+    if (uploadError) {
+      console.error('[uploadMediaFile] Upload error details:', uploadError);
+      throw new Error(`Storage upload failed for "${file.name}": ${uploadError.message}`);
+    }
+
+    console.log('[uploadMediaFile] Upload successful');
+
+    const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    console.log('[uploadMediaFile] Public URL:', data.publicUrl);
+    return data.publicUrl;
+  } catch (err) {
+    console.error('[uploadMediaFile] Exception:', err);
+    throw err;
   }
-
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return data.publicUrl;
 }
 
 // ─── Batch upload ─────────────────────────────────────────────────────────
