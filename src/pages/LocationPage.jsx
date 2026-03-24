@@ -467,8 +467,8 @@ export default function LocationPage({
           />
         )}
 
-        {/* Editorial Split — "The Art of the {Location} Wedding" */}
-        {_locationContent?.showEditorialSplit !== false && editorialVenues.length >= 5 && (
+        {/* Editorial Split — "The Art of the {Location} Wedding" — Hidden when map is open */}
+        {viewMode !== "map" && _locationContent?.showEditorialSplit !== false && editorialVenues.length >= 5 && (
           <LatestSplit
             venues={editorialVenues}
             locationName={currentLocation.name}
@@ -494,11 +494,23 @@ export default function LocationPage({
             onViewMode={setViewMode}
             sortMode={sortMode}
             onSortChange={setSortMode}
+            total={locationVenues.length}
+            mapContent={
+              <MapSection
+                title={`Explore ${currentLocation.name}`}
+                venues={locationVenues.slice(0, 20)}
+                lat={parseFloat(_locationContent?.mapLat || currentLocation.mapLat || "0")}
+                lng={parseFloat(_locationContent?.mapLng || currentLocation.mapLng || "0")}
+                zoom={_locationContent?.mapZoom || 8}
+                C={C}
+                onMarkerClick={(venueId) => onViewVenue && onViewVenue(venueId)}
+              />
+            }
           />
         </div>
 
-        {/* Latest Venues Strip */}
-        {_locationContent?.showLatestVenues !== false && (
+        {/* Latest Venues Strip — Hidden when map is open */}
+        {viewMode !== "map" && _locationContent?.showLatestVenues !== false && (
         <LatestVenuesStrip
           venues={latestVenuesVenues}
           heading={_locationContent?.latestVenuesHeading || ''}
@@ -511,8 +523,8 @@ export default function LocationPage({
         />
         )}
 
-        {/* Latest Vendors Strip */}
-        {_locationContent?.showLatestVendors !== false && (
+        {/* Latest Vendors Strip — Hidden when map is open */}
+        {viewMode !== "map" && _locationContent?.showLatestVendors !== false && (
         <LatestVendorsStrip
           vendors={latestVendorsVenues}
           heading={_locationContent?.latestVendorsHeading || ''}
@@ -525,8 +537,8 @@ export default function LocationPage({
         />
         )}
 
-        {/* Featured Venues Section */}
-        {featuredVenues.length > 0 && (
+        {/* Featured Venues Section — Hidden when map is open */}
+        {viewMode !== "map" && featuredVenues.length > 0 && (
           <div style={{ padding: "40px 20px", background: C.card }}>
             <h3 style={{ fontFamily: "'Neue Haas Display', serif", fontSize: 20, marginBottom: 24, textAlign: "center" }}>
               {_locationContent?.featuredVenuesTitle || "Signature Venues"}
@@ -550,20 +562,8 @@ export default function LocationPage({
           </div>
         )}
 
-        {/* Map Section */}
-        {locationType !== "city" && (
-          <MapSection
-            title={`Explore ${currentLocation.name}`}
-            venues={locationVenues.slice(0, 20)}
-            lat={parseFloat(_locationContent?.mapLat || currentLocation.mapLat || "0")}
-            lng={parseFloat(_locationContent?.mapLng || currentLocation.mapLng || "0")}
-            zoom={_locationContent?.mapZoom || 8}
-            C={C}
-            onMarkerClick={(venueId) => onViewVenue && onViewVenue(venueId)}
-          />
-        )}
-
-        {/* Main Venue Grid */}
+        {/* Main Venue Grid — Hidden when map is open */}
+        {viewMode !== "map" && (
         <div style={{ padding: "40px 20px", background: C.card }}>
           <h3 style={{ fontFamily: "'Neue Haas Display', serif", fontSize: 18, marginBottom: 20, textAlign: "center" }}>
             All Venues
@@ -607,9 +607,10 @@ export default function LocationPage({
             </div>
           )}
         </div>
+        )}
 
-        {/* Featured Vendors Section */}
-        {featuredVendors.length > 0 && (
+        {/* Featured Vendors Section — Hidden when map is open */}
+        {viewMode !== "map" && featuredVendors.length > 0 && (
           <div style={{ padding: "40px 20px", background: C.card, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
             <h3 style={{ fontFamily: "'Neue Haas Display', serif", fontSize: 20, marginBottom: 24, textAlign: "center" }}>
               {_locationContent?.featuredVendorsTitle || "Top Wedding Planners"}
