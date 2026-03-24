@@ -23,9 +23,11 @@ import CatNav          from "../components/nav/CatNav";
 import CountrySearchBar from "../components/filters/CountrySearchBar";
 import GCard           from "../components/cards/GCard";
 import GCardMobile     from "../components/cards/GCardMobile";
+import HCard           from "../components/cards/HCard";
 import QuickViewModal  from "../components/modals/QuickViewModal";
 import LuxuryVenueCard from "../components/cards/LuxuryVenueCard";
 import LuxuryVendorCard from "../components/cards/LuxuryVendorCard";
+import SliderNav       from "../components/ui/SliderNav";
 
 // ── Data services (self-fetch when rendered standalone) ─────────────────────
 import { COUNTRIES, REGIONS, CITIES } from "../data/geo";
@@ -568,25 +570,36 @@ export default function LocationPage({
           <h3 style={{ fontFamily: "'Neue Haas Display', serif", fontSize: 18, marginBottom: 20, textAlign: "center" }}>
             All Venues
           </h3>
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(250px, 1fr))",
-            gap: 20,
-            maxWidth: "1400px",
-            margin: "0 auto",
-          }}>
-            {locationVenues.slice(0, visibleCount).filter(venue => venue?.imgs?.length > 0).map(venue => (
-              isMobile
-                ? <GCardMobile key={venue.id} v={venue} onView={onViewVenue} />
-                : <GCard
-                    key={venue.id}
-                    v={venue}
-                    onView={onViewVenue}
-                    onQuickView={setQvItem}
-                    onSave={() => {}}
-                  />
-            ))}
-          </div>
+          {viewMode === "grid" ? (
+            <SliderNav className="lwd-venue-grid" cardWidth={isMobile ? 300 : 340} gap={isMobile ? 12 : 16}>
+              {locationVenues.slice(0, visibleCount).filter(venue => venue?.imgs?.length > 0).map(venue => (
+                <div key={venue.id} className="lwd-venue-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 340px", scrollSnapAlign: "start" }}>
+                  {isMobile ? (
+                    <GCardMobile v={venue} onView={onViewVenue} />
+                  ) : (
+                    <GCard
+                      v={venue}
+                      onView={onViewVenue}
+                      onQuickView={setQvItem}
+                      onSave={() => {}}
+                    />
+                  )}
+                </div>
+              ))}
+            </SliderNav>
+          ) : (
+            <div aria-label="Venue list" style={{ maxWidth: 1280, margin: "0 auto" }}>
+              {locationVenues.slice(0, visibleCount).filter(venue => venue?.imgs?.length > 0).map(venue => (
+                <HCard
+                  key={venue.id}
+                  v={venue}
+                  onView={onViewVenue}
+                  onQuickView={setQvItem}
+                  onSave={() => {}}
+                />
+              ))}
+            </div>
+          )}
 
           {visibleCount < locationVenues.length && (
             <div style={{ textAlign: "center", marginTop: 30 }}>
