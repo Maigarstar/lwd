@@ -100,12 +100,22 @@ export default function LocationPage({
     if (!locationSlug) return;
     // Only self-fetch if parent hasn't injected data
     if (!venues || venues.length === 0) {
-      const filters = {};
+      const filters = { listing_type: 'venue' };
       if (locationType === "country") filters.country_slug = locationSlug;
       else if (locationType === "region") filters.region_slug = locationSlug;
       else if (locationType === "city")   filters.city_slug   = locationSlug;
       fetchListings({ ...filters, status: "published" })
         .then(d => setFetchedVenues(Array.isArray(d) ? d : []))
+        .catch(() => {});
+    }
+    // Fetch vendors separately
+    if (!vendors || vendors.length === 0) {
+      const vendorFilters = { listing_type: 'vendor' };
+      if (locationType === "country") vendorFilters.country_slug = locationSlug;
+      else if (locationType === "region") vendorFilters.region_slug = locationSlug;
+      else if (locationType === "city")   vendorFilters.city_slug   = locationSlug;
+      fetchListings({ ...vendorFilters, status: "published" })
+        .then(d => setFetchedVendors(Array.isArray(d) ? d : []))
         .catch(() => {});
     }
     if (locationContent) return;
