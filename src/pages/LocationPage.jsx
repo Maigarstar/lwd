@@ -485,6 +485,18 @@ export default function LocationPage({
           />
         )}
 
+        {/* Search & Filters — Sticky */}
+        <div style={{ position: "sticky", top: 61, zIndex: 100, padding: "20px", background: C.card, borderBottom: `1px solid ${C.border}` }}>
+          <CountrySearchBar
+            filters={filters}
+            onFiltersChange={setFilters}
+            viewMode={viewMode}
+            onViewMode={setViewMode}
+            sortMode={sortMode}
+            onSortChange={setSortMode}
+          />
+        </div>
+
         {/* Latest Venues Strip */}
         {_locationContent?.showLatestVenues !== false && (
         <LatestVenuesStrip
@@ -512,18 +524,6 @@ export default function LocationPage({
           cardStyle={_locationContent?.latestVendorsCardStyle || 'luxury'}
         />
         )}
-
-        {/* Search & Filters */}
-        <div style={{ padding: "20px", background: C.card }}>
-          <CountrySearchBar
-            filters={filters}
-            onFiltersChange={setFilters}
-            viewMode={viewMode}
-            onViewMode={setViewMode}
-            sortMode={sortMode}
-            onSortChange={setSortMode}
-          />
-        </div>
 
         {/* Featured Venues Section */}
         {featuredVenues.length > 0 && (
