@@ -1,7 +1,20 @@
 // ─── src/components/hero/Hero.jsx ────────────────────────────────────────────
 import { useState, useEffect } from "react";
 
-export default function Hero({ count }) {
+const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1920&q=80";
+
+export default function Hero({
+  count,
+  title,
+  subtitle,
+  backgroundImage,
+  backgroundVideo,
+  ctaText,
+  ctaLink,
+  eyebrow,
+  C,
+  onBack,
+}) {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -9,9 +22,21 @@ export default function Hero({ count }) {
     return () => clearTimeout(t);
   }, []);
 
+  const bg = backgroundImage || DEFAULT_IMAGE;
+
+  // Parse title: if it contains the location name, italicise the last word
+  const renderTitle = () => {
+    if (!title) return <>Weddings in <em style={{ fontStyle: "italic", color: "rgba(201,168,76,0.95)" }}>Italy</em></>;
+    // Split into words — italicise last word
+    const words = title.trim().split(" ");
+    if (words.length === 1) return <em style={{ fontStyle: "italic", color: "rgba(201,168,76,0.95)" }}>{title}</em>;
+    const last = words.pop();
+    return <>{words.join(" ")} <em style={{ fontStyle: "italic", color: "rgba(201,168,76,0.95)" }}>{last}</em></>;
+  };
+
   return (
     <section
-      aria-label="Venues in Italy hero"
+      aria-label={`${title || "Weddings"} hero`}
       style={{
         position: "relative",
         height: "72vh",
@@ -20,21 +45,33 @@ export default function Hero({ count }) {
         background: "#0a0806",
       }}
     >
+      {/* Background video */}
+      {backgroundVideo && (
+        <video
+          autoPlay muted loop playsInline
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.55 }}
+        >
+          <source src={backgroundVideo} />
+        </video>
+      )}
+
       {/* Background image */}
-      <img
-        src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1920&q=80"
-        alt="A luxurious Italian wedding venue with rolling vineyard hills"
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          opacity: 0.55,
-          transform: "scale(1.04)",
-          transition: "transform 8s ease",
-        }}
-      />
+      {!backgroundVideo && (
+        <img
+          src={bg}
+          alt={title || "Luxury wedding venue"}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            opacity: 0.55,
+            transform: "scale(1.04)",
+            transition: "transform 8s ease",
+          }}
+        />
+      )}
 
       {/* Gradient overlays */}
       <div
@@ -86,25 +123,27 @@ export default function Hero({ count }) {
           transition: "all 0.9s ease",
         }}
       >
-        {/* Category label */}
-        <div
-          style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}
-          aria-hidden="true"
-        >
-          <div style={{ width: 32, height: 1, background: "rgba(201,168,76,0.6)" }} />
-          <span
-            style={{
-              fontSize: 10,
-              letterSpacing: "4px",
-              textTransform: "uppercase",
-              color: "rgba(201,168,76,0.9)",
-              fontFamily: "var(--font-body)",
-              fontWeight: 600,
-            }}
+        {/* Eyebrow / Category label */}
+        {eyebrow !== false && (
+          <div
+            style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}
+            aria-hidden="true"
           >
-            Venues · Italy
-          </span>
-        </div>
+            <div style={{ width: 32, height: 1, background: "rgba(201,168,76,0.6)" }} />
+            <span
+              style={{
+                fontSize: 10,
+                letterSpacing: "4px",
+                textTransform: "uppercase",
+                color: "rgba(201,168,76,0.9)",
+                fontFamily: "var(--font-body)",
+                fontWeight: 600,
+              }}
+            >
+              {eyebrow || "Venues · Italy"}
+            </span>
+          </div>
+        )}
 
         {/* Title */}
         <h1
@@ -119,13 +158,10 @@ export default function Hero({ count }) {
             maxWidth: 700,
           }}
         >
-          Weddings in{" "}
-          <em style={{ fontStyle: "italic", color: "rgba(201,168,76,0.95)" }}>
-            Italy
-          </em>
+          {renderTitle()}
         </h1>
 
-        {/* Tagline */}
+        {/* Subtitle / Tagline */}
         <p
           style={{
             fontSize: 16,
@@ -137,8 +173,7 @@ export default function Hero({ count }) {
             marginBottom: 20,
           }}
         >
-          Discover {count} extraordinary venues, from Tuscan vineyards and Venetian
-          palazzos to cliffside estates on the Amalfi Coast.
+          {subtitle || `Discover ${count || ""} extraordinary venues, from Tuscan vineyards and Venetian palazzos to cliffside estates on the Amalfi Coast.`}
         </p>
 
         {/* Trust line */}
@@ -166,7 +201,7 @@ export default function Hero({ count }) {
             { val: count, label: "Curated Venues" },
             { val: "9",   label: "Regions Covered" },
             { val: "100%",label: "Personally Verified" },
-            { val: " - ",   label: "Limited Annual Availability" },
+            { val: " - ",  label: "Limited Annual Availability" },
           ].map((s, i) => (
             <div
               key={i}
@@ -201,6 +236,31 @@ export default function Hero({ count }) {
             </div>
           ))}
         </div>
+
+        {/* CTA */}
+        {ctaText && ctaLink && ctaLink !== "#" && (
+          <div style={{ marginTop: 36 }}>
+            <a
+              href={ctaLink}
+              style={{
+                display: "inline-block",
+                padding: "14px 32px",
+                background: "rgba(201,168,76,0.15)",
+                border: "1px solid rgba(201,168,76,0.5)",
+                color: "#C9A84C",
+                fontFamily: "var(--font-body)",
+                fontSize: 12,
+                fontWeight: 600,
+                letterSpacing: "2px",
+                textTransform: "uppercase",
+                textDecoration: "none",
+                borderRadius: 2,
+              }}
+            >
+              {ctaText}
+            </a>
+          </div>
+        )}
       </div>
 
       {/* Scroll indicator */}
