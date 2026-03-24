@@ -119,11 +119,22 @@ export function ChatProvider({ children }) {
       activeContext.region   && `Specifically in ${activeContext.region}.`,
     ].filter(Boolean).join(' ');
 
+    // Inject location content data so Aura knows about this specific destination
+    const loc = activeContext.locationContent;
+    const locationLines = loc ? [
+      loc.editorial && `About ${loc.name}: ${loc.editorial}`,
+      loc.vibes?.length     && `Signature vibes for ${loc.name}: ${loc.vibes.join(', ')}.`,
+      loc.services?.length  && `Elite services available in ${loc.name}: ${loc.services.join(', ')}.`,
+      loc.focusKeywords     && `Key search terms for this destination: ${loc.focusKeywords}.`,
+      loc.faqs?.length      && `Common questions and answers for ${loc.name}: ${loc.faqs.map(f => `Q: ${f.q} A: ${f.a}`).join(' | ')}.`,
+    ].filter(Boolean).join(' ') : '';
+
     const systemPrompt = [
       `You are Aura, the AI wedding concierge for Luxury Wedding Directory — the world's finest curated collection of luxury wedding venues and vendors.`,
       `Your tone is warm, assured, and quietly expert — like a trusted specialist, not a chatbot.`,
       `Keep every response to 2–4 sentences. Be specific, never generic. Help the couple make a decision.`,
       ctxLines,
+      locationLines,
       `If they're comparing venues, highlight the genuine differences. If they have a question, answer it directly.`,
       `Never say you're an AI model. You are Aura.`,
     ].filter(Boolean).join(' ');

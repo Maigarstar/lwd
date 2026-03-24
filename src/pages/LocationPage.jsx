@@ -12,7 +12,10 @@ import { getDarkPalette, getLightPalette, getDefaultMode } from "../theme/tokens
 import { useChat }     from "../chat/ChatContext";
 import Hero            from "../components/hero/Hero";
 import InfoStrip       from "../components/sections/InfoStrip";
-import LatestSplit     from "../components/sections/LatestSplit";
+import LatestSplit          from "../components/sections/LatestSplit";
+import LatestVenuesStrip    from "../components/sections/LatestVenuesStrip";
+import LatestVendorsStrip   from "../components/sections/LatestVendorsStrip";
+import MottoStrip           from "../components/sections/MottoStrip";
 import MapSection      from "../components/sections/MapSection";
 import SEOBlock        from "../components/sections/SEOBlock";
 import SiteFooter      from "../components/sections/SiteFooter";
@@ -82,6 +85,7 @@ export default function LocationPage({
 
   const isMobile = useIsMobile();
   const C = darkMode ? getDarkPalette() : getLightPalette();
+  const { setChatContext } = useChat();
 
   // ── Resolve current location ────────────────────────────────────────────────
   const currentLocation = useMemo(() => {
@@ -163,9 +167,79 @@ export default function LocationPage({
     return filtered;
   }, [currentLocation, locationType, venues, searchQuery]);
 
+  // ── Compute editorial split venues (Latest / Random / Featured) ─────────────
+  const editorialVenues = useMemo(() => {
+    const mode = locationContent?.editorialVenueMode || 'latest';
+    if (mode === 'featured' && featuredVenues.length >= 5) return featuredVenues.slice(0, 5);
+    if (mode === 'random' && locationVenues.length >= 5) {
+      const shuffled = [...locationVenues].sort(() => Math.random() - 0.5);
+      return shuffled.slice(0, 5);
+    }
+    // 'latest' — first 5 in order
+    return locationVenues.slice(0, 5);
+  }, [locationVenues, featuredVenues, locationContent?.editorialVenueMode]);
+
+  // ── Compute Latest Venues strip venues ──────────────────────────────────────
+  const latestVenuesVenues = useMemo(() => {
+    const mode  = locationContent?.latestVenuesMode  || 'latest';
+    const count = locationContent?.latestVenuesCount || 12;
+
+    if (mode === 'selected') {
+      const ids = locationContent?.latestVenuesSelected || [];
+      // Preserve the exact order admin set; match against ALL venues (not just location-filtered)
+      return ids
+        .map(id => venues.find(v => v.id === id))
+        .filter(Boolean);
+    }
+    if (mode === 'featured' && featuredVenues.length > 0) return featuredVenues.slice(0, count);
+    if (mode === 'random' && locationVenues.length > 0) {
+      return [...locationVenues].sort(() => Math.random() - 0.5).slice(0, count);
+    }
+    return locationVenues.slice(0, count);
+  }, [locationVenues, featuredVenues, venues, locationContent?.latestVenuesMode, locationContent?.latestVenuesCount, locationContent?.latestVenuesSelected]);
+
+  // ── Get vendors for this location ────────────────────────────────────────────
+  const locationVendors = useMemo(() => {
+    let filtered = [];
+    if (locationType === "country") {
+      filtered = vendors.filter(v => v.countrySlug === currentLocation?.slug);
+    } else if (locationType === "region") {
+      filtered = vendors.filter(v => v.regionSlug === currentLocation?.slug);
+    } else if (locationType === "city") {
+      filtered = vendors.filter(v => v.citySlug === currentLocation?.slug);
+    }
+    return filtered;
+  }, [currentLocation, locationType, vendors]);
+
+  // ── Compute Latest Vendors strip vendors ─────────────────────────────────────
+  const latestVendorsVenues = useMemo(() => {
+    const mode  = locationContent?.latestVendorsMode  || 'latest';
+    const count = locationContent?.latestVendorsCount || 12;
+
+    if (mode === 'selected') {
+      const ids = locationContent?.latestVendorsSelected || [];
+      return ids
+        .map(id => vendors.find(v => v.id === id))
+        .filter(Boolean);
+    }
+    if (mode === 'featured' && featuredVendors.length > 0) return featuredVendors.slice(0, count);
+    if (mode === 'random' && locationVendors.length > 0) {
+      return [...locationVendors].sort(() => Math.random() - 0.5).slice(0, count);
+    }
+    return locationVendors.slice(0, count);
+  }, [locationVendors, featuredVendors, vendors, locationContent?.latestVendorsMode, locationContent?.latestVendorsCount, locationContent?.latestVendorsSelected]);
+
   // ── Hero section content ────────────────────────────────────────────────────
   const heroData = useMemo(() => {
     if (!currentLocation) return null;
+
+    // Build eyebrow: "Venues · Italy", "Venues · Tuscany, Italy", "Venues · Siena, Tuscany"
+    let eyebrow = `Venues · ${currentLocation.name}`;
+    if (locationType === "region" && parentLocation) {
+      eyebrow = `Venues · ${currentLocation.name}, ${parentLocation.name}`;
+    } else if (locationType === "city" && parentLocation) {
+      eyebrow = `Venues · ${currentLocation.name}, ${parentLocation.name}`;
+    }
 
     return {
       title: locationContent?.heroTitle || currentLocation.name,
@@ -174,8 +248,9 @@ export default function LocationPage({
       backgroundVideo: locationContent?.heroVideo || "",
       ctaText: locationContent?.ctaText || "Explore Venues",
       ctaLink: locationContent?.ctaLink || "#",
+      eyebrow,
     };
-  }, [currentLocation, locationContent]);
+  }, [currentLocation, locationType, parentLocation, locationContent]);
 
   // ── SEO content ─────────────────────────────────────────────────────────────
   const seoData = useMemo(() => {
@@ -191,6 +266,26 @@ export default function LocationPage({
       noIndex: noIndex,
     };
   }, [currentLocation, locationContent, noIndex]);
+
+  // ── Feed location content into Aura's context ───────────────────────────────
+  useEffect(() => {
+    if (!currentLocation) return;
+    setChatContext({
+      page: `${locationType}-location`,
+      country: locationType === "country" ? currentLocation.name : parentLocation?.name || "",
+      region: locationType === "region" ? currentLocation.name : locationType === "city" ? parentLocation?.name : "",
+      locationContent: {
+        name: currentLocation.name,
+        type: locationType,
+        editorial: locationContent?.seoContent || currentLocation.evergreenContent || "",
+        faqs: Array.isArray(locationContent?.seoFaqs) ? locationContent.seoFaqs : [],
+        vibes: Array.isArray(locationContent?.infoVibes) ? locationContent.infoVibes : [],
+        services: Array.isArray(locationContent?.infoServices) ? locationContent.infoServices : [],
+        heroSubtitle: locationContent?.heroSubtitle || "",
+        focusKeywords: (currentLocation.focusKeywords || []).join(", "),
+      },
+    });
+  }, [currentLocation, locationType, parentLocation, locationContent, setChatContext]);
 
   // ── Scroll tracking for nav slide-up effect ─────────────────────────────────
   useEffect(() => {
@@ -231,6 +326,7 @@ export default function LocationPage({
             backgroundVideo={heroData.backgroundVideo}
             ctaText={heroData.ctaText}
             ctaLink={heroData.ctaLink}
+            eyebrow={heroData.eyebrow}
             C={C}
             onBack={onBack}
           />
@@ -254,10 +350,61 @@ export default function LocationPage({
         {/* Info Strip */}
         {locationType === "country" && (
           <InfoStrip
-            title={`${locationVenues.length} Luxury Venues in ${currentLocation.name}`}
-            subtitle="Browse curated wedding destinations across the country"
+            regionNames={
+              (Array.isArray(locationContent?.infoRegions) && locationContent.infoRegions.length > 0)
+                ? locationContent.infoRegions
+                : regions.filter(r => r.countrySlug === currentLocation.slug).map(r => r.name)
+            }
+            vibes={locationContent?.infoVibes}
+            services={locationContent?.infoServices}
             C={C}
           />
+        )}
+
+        {/* Editorial Split — "The Art of the {Location} Wedding" */}
+        {locationContent?.showEditorialSplit !== false && editorialVenues.length >= 5 && (
+          <LatestSplit
+            venues={editorialVenues}
+            locationName={currentLocation.name}
+            eyebrow={locationContent?.editorialEyebrow || ''}
+            headingPrefix={locationContent?.editorialHeadingPrefix || ''}
+            ctaText={locationContent?.editorialCtaText || ''}
+            para1={locationContent?.editorialPara1 || ""}
+            para2={locationContent?.editorialPara2 || ""}
+            infoBlocks={
+              Array.isArray(locationContent?.editorialBlocks)
+                ? locationContent.editorialBlocks
+                : []
+            }
+          />
+        )}
+
+        {/* Latest Venues Strip */}
+        {locationContent?.showLatestVenues !== false && (
+        <LatestVenuesStrip
+          venues={latestVenuesVenues}
+          heading={locationContent?.latestVenuesHeading || ''}
+          subtext={locationContent?.latestVenuesSub || ''}
+          locationName={currentLocation.name}
+          onViewVenue={onViewVenue}
+          onQuickView={setQvItem}
+          isMobile={isMobile}
+          cardStyle={locationContent?.latestVenuesCardStyle || 'luxury'}
+        />
+        )}
+
+        {/* Latest Vendors Strip */}
+        {locationContent?.showLatestVendors !== false && (
+        <LatestVendorsStrip
+          vendors={latestVendorsVenues}
+          heading={locationContent?.latestVendorsHeading || ''}
+          subtext={locationContent?.latestVendorsSub || ''}
+          locationName={currentLocation.name}
+          onViewVendor={onViewVenue}
+          onQuickView={setQvItem}
+          isMobile={isMobile}
+          cardStyle={locationContent?.latestVendorsCardStyle || 'luxury'}
+        />
         )}
 
         {/* Search & Filters */}
@@ -377,12 +524,36 @@ export default function LocationPage({
           </div>
         )}
 
-        {/* SEO Block */}
-        {seoData && (
+        {/* SEO Block / Planning Guide */}
+        {seoData && locationContent?.showPlanningGuide !== false && (
           <SEOBlock
             title={currentLocation.name}
-            content={currentLocation.evergreenContent || ""}
+            seoHeading={locationContent?.seoHeading || ''}
+            content={locationContent?.seoContent || currentLocation.evergreenContent || ""}
+            faqs={locationContent?.seoFaqs}
+            regionNames={regions
+              .filter(r => r.countrySlug === currentLocation.slug)
+              .map(r => r.name)}
+            venueCount={locationVenues.length}
+            regionCount={regions.filter(r => r.countrySlug === currentLocation.slug).length}
             C={C}
+          />
+        )}
+
+        {/* Motto / Quote Banner */}
+        {locationContent?.showMotto !== false && (
+          <MottoStrip
+            motto={
+              locationContent?.motto ||
+              `${currentLocation.name}, where every moment becomes a memory worth keeping forever.`
+            }
+            subline={locationContent?.mottoSubline || ''}
+            backgroundImage={locationContent?.mottoBgImage || ''}
+            overlayOpacity={
+              locationContent?.mottoOverlay != null
+                ? parseFloat(locationContent.mottoOverlay)
+                : 0.55
+            }
           />
         )}
 

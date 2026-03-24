@@ -6442,15 +6442,39 @@ function PartnerEnquiriesModule({ C }) {
 // Location Studio — follows exact EventsBuilder pattern
 // ═════════════════════════════════════════════════════════════════════════════
 
-function LocSCard({ title, hint, children, LS }) {
+function LocSCard({ title, hint, children, LS, enabled, onToggle }) {
+  const hasToggle = onToggle !== undefined;
+  const isOn = enabled !== false;
   return (
-    <div style={{ marginBottom: 24 }}>
-      <div style={{ background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8, overflow: 'hidden' }}>
-        <div style={{ padding: '12px 20px', borderBottom: `1px solid ${LS.border}` }}>
-          <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: LS.gold }}>{title}</div>
-          {hint && <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 3, lineHeight: 1.5 }}>{hint}</div>}
+    <div style={{ marginBottom: 24, opacity: hasToggle && !isOn ? 0.55 : 1, transition: 'opacity 0.2s' }}>
+      <div style={{ background: LS.card, border: `1px solid ${isOn ? LS.border : LS.border}`, borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ padding: '12px 20px', borderBottom: `1px solid ${LS.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: LS.gold }}>{title}</div>
+            {hint && <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 3, lineHeight: 1.5 }}>{hint}</div>}
+          </div>
+          {hasToggle && (
+            <button
+              onClick={onToggle}
+              title={isOn ? 'Hide this section on the page' : 'Show this section on the page'}
+              style={{
+                flexShrink: 0, padding: '4px 12px', fontSize: 10, fontFamily: NU, fontWeight: 700,
+                letterSpacing: '0.08em', textTransform: 'uppercase', borderRadius: 20,
+                border: `1px solid ${isOn ? LS.gold : LS.border}`,
+                background: isOn ? `${LS.gold}20` : 'transparent',
+                color: isOn ? LS.gold : LS.muted, cursor: 'pointer', transition: 'all 0.2s',
+              }}
+            >
+              {isOn ? 'ON' : 'OFF'}
+            </button>
+          )}
         </div>
-        <div style={{ padding: 20 }}>{children}</div>
+        {(!hasToggle || isOn) && <div style={{ padding: 20 }}>{children}</div>}
+        {hasToggle && !isOn && (
+          <div style={{ padding: '12px 20px', fontFamily: NU, fontSize: 12, color: LS.muted, fontStyle: 'italic' }}>
+            Section hidden — toggle ON to show on the page and edit content
+          </div>
+        )}
       </div>
     </div>
   );
@@ -6458,6 +6482,41 @@ function LocSCard({ title, hint, children, LS }) {
 
 function LocGrid2({ children, gap = 16 }) {
   return <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap }}>{children}</div>;
+}
+
+// Auto-compute regions/cities for the info strip based on location type
+function autoInfoRegions(locationType, countrySlug, regionSlug) {
+  if (locationType === 'country' && countrySlug) {
+    return DIRECTORY_REGIONS.filter(r => r.countrySlug === countrySlug).map(r => r.name).join(', ');
+  }
+  if (locationType === 'region' && regionSlug) {
+    return DIRECTORY_CITIES.filter(c => c.regionSlug === regionSlug).map(c => c.name).join(', ');
+  }
+  return '';
+}
+
+// Auto-populate SEO body text from the directory evergreenContent
+function autoEvergreenContent(locationType, countrySlug, regionSlug, citySlug) {
+  if (locationType === 'country') return DIRECTORY_COUNTRIES.find(c => c.slug === countrySlug)?.evergreenContent || '';
+  if (locationType === 'region') return DIRECTORY_REGIONS.find(r => r.slug === regionSlug)?.description || '';
+  if (locationType === 'city') return DIRECTORY_CITIES.find(c => c.slug === citySlug)?.description || '';
+  return '';
+}
+
+// Auto-generate location-aware FAQs
+function autoSeoFaqs(locationType, countrySlug, regionSlug, citySlug) {
+  const loc = locationType === 'country'
+    ? DIRECTORY_COUNTRIES.find(c => c.slug === countrySlug)?.name
+    : locationType === 'region'
+      ? DIRECTORY_REGIONS.find(r => r.slug === regionSlug)?.name
+      : DIRECTORY_CITIES.find(c => c.slug === citySlug)?.name;
+  const n = loc || 'this destination';
+  return [
+    { q: `When is the best time to get married in ${n}?`, a: `The ideal season varies. We recommend consulting with our local experts who can advise on weather patterns, peak availability and local considerations specific to ${n}.` },
+    { q: `How far in advance should I book a ${n} venue?`, a: `Our most sought-after venues in ${n} typically book 18–24 months in advance for peak season dates. We recommend beginning your search at least 18 months before your intended wedding date.` },
+    { q: `Do I need a local or symbolic ceremony in ${n}?`, a: `Requirements vary by country. Many couples opt for a symbolic ceremony at the destination followed by a legal ceremony at home. Our team can advise on the exact requirements for ${n}.` },
+    { q: `What is the average cost of a luxury wedding venue in ${n}?`, a: `Premium exclusive-use venues in ${n} typically range from £10,000 to £40,000 for venue hire alone, excluding catering, florals and accommodation. Pricing varies by location and season.` },
+  ];
 }
 
 function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
@@ -6484,6 +6543,8 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
   const [regionSlug, setRegionSlug]     = useState('');
   const [citySlug, setCitySlug]         = useState('');
   const [venueList, setVenueList]       = useState([]);
+  const [venuePickerSearch, setVenuePickerSearch] = useState('');
+  const [vendorPickerSearch, setVendorPickerSearch] = useState('');
   const [form, setForm] = useState({
     heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '',
     heroImages: [],
@@ -6491,12 +6552,35 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
     featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Top Wedding Planners',
     featuredVenueIds: [], featuredVendorIds: [],
     mapLat: '', mapLng: '', mapZoom: '8',
+    infoVibes: '', infoServices: '', infoRegions: '',
+    seoContent: '',
+    seoFaqs: [{ q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }],
+    showEditorialSplit: true, showLatestVenues: true, showLatestVendors: true, showPlanningGuide: true, showMotto: true,
+    motto: '', mottoSubline: '', mottoBgImage: '', mottoOverlay: '0.55',
+    editorialEyebrow: '', editorialHeadingPrefix: '', editorialCtaText: '',
+    editorialPara1: '', editorialPara2: '',
+    editorialBlock1Icon: '🏰', editorialBlock1Text: '',
+    editorialBlock2Icon: '🌿', editorialBlock2Text: '',
+    editorialBlock3Icon: '🌅', editorialBlock3Text: '',
+    editorialBlock4Icon: '✨', editorialBlock4Text: '',
+    editorialVenueMode: 'latest',
+    seoHeading: '',
+    latestVenuesHeading: '', latestVenuesSub: '',
+    latestVenuesCount: '12', latestVenuesMode: 'latest',
+    latestVenuesCardStyle: 'luxury',
+    latestVenuesSelected: [],
+    latestVendorsHeading: '', latestVendorsSub: '',
+    latestVendorsCount: '12', latestVendorsMode: 'latest',
+    latestVendorsCardStyle: 'luxury',
+    latestVendorsSelected: [],
   });
   const [aiGenerating, setAiGenerating] = useState(false);
   const [showMagicPanel, setShowMagicPanel] = useState(false);
   const [magicContext, setMagicContext] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingMottoImage, setUploadingMottoImage] = useState(false);
   const heroUploadRef = useRef(null);
+  const mottoUploadRef = useRef(null);
 
   const set = useCallback((key, val) => {
     setForm(prev => ({ ...prev, [key]: val }));
@@ -6539,10 +6623,51 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
           mapLng:               data.map_lng != null ? String(data.map_lng) : '',
           mapZoom:              data.map_zoom != null ? String(data.map_zoom) : '8',
           heroImages:           Array.isArray(data.metadata?.heroImages) ? data.metadata.heroImages : [],
+          infoVibes:            Array.isArray(data.metadata?.infoVibes) ? data.metadata.infoVibes.join(', ') : '',
+          infoServices:         Array.isArray(data.metadata?.infoServices) ? data.metadata.infoServices.join(', ') : '',
+          infoRegions:          Array.isArray(data.metadata?.infoRegions) ? data.metadata.infoRegions.join(', ') : autoInfoRegions(locationType, countrySlug, regionSlug),
+          seoContent:           data.metadata?.seoContent || autoEvergreenContent(locationType, countrySlug, regionSlug, citySlug),
+          seoFaqs:              Array.isArray(data.metadata?.seoFaqs) && data.metadata.seoFaqs.length > 0 ? data.metadata.seoFaqs : autoSeoFaqs(locationType, countrySlug, regionSlug, citySlug),
+          editorialPara1:       data.metadata?.editorialPara1 || '',
+          editorialPara2:       data.metadata?.editorialPara2 || '',
+          editorialBlock1Icon:  data.metadata?.editorialBlocks?.[0]?.icon || '🏰',
+          editorialBlock1Text:  data.metadata?.editorialBlocks?.[0]?.text || '',
+          editorialBlock2Icon:  data.metadata?.editorialBlocks?.[1]?.icon || '🌿',
+          editorialBlock2Text:  data.metadata?.editorialBlocks?.[1]?.text || '',
+          editorialBlock3Icon:  data.metadata?.editorialBlocks?.[2]?.icon || '🌅',
+          editorialBlock3Text:  data.metadata?.editorialBlocks?.[2]?.text || '',
+          editorialBlock4Icon:  data.metadata?.editorialBlocks?.[3]?.icon || '✨',
+          editorialBlock4Text:  data.metadata?.editorialBlocks?.[3]?.text || '',
+          editorialVenueMode:   data.metadata?.editorialVenueMode || 'latest',
+          showEditorialSplit:   data.metadata?.showEditorialSplit !== false,
+          showLatestVenues:     data.metadata?.showLatestVenues !== false,
+          showLatestVendors:    data.metadata?.showLatestVendors !== false,
+          showPlanningGuide:    data.metadata?.showPlanningGuide !== false,
+          showMotto:            data.metadata?.showMotto !== false,
+          motto:                data.metadata?.motto || '',
+          mottoSubline:         data.metadata?.mottoSubline || '',
+          mottoBgImage:         data.metadata?.mottoBgImage || '',
+          mottoOverlay:         data.metadata?.mottoOverlay ?? '0.55',
+          editorialEyebrow:     data.metadata?.editorialEyebrow || '',
+          editorialHeadingPrefix: data.metadata?.editorialHeadingPrefix || '',
+          editorialCtaText:     data.metadata?.editorialCtaText || '',
+          seoHeading:           data.metadata?.seoHeading || '',
+          latestVenuesHeading:  data.metadata?.latestVenuesHeading || '',
+          latestVenuesSub:      data.metadata?.latestVenuesSub || '',
+          latestVenuesCount:    data.metadata?.latestVenuesCount != null ? String(data.metadata.latestVenuesCount) : '12',
+          latestVenuesMode:     data.metadata?.latestVenuesMode || 'latest',
+          latestVenuesCardStyle: data.metadata?.latestVenuesCardStyle || 'luxury',
+          latestVenuesSelected: Array.isArray(data.metadata?.latestVenuesSelected) ? data.metadata.latestVenuesSelected : [],
+          latestVendorsHeading:  data.metadata?.latestVendorsHeading || '',
+          latestVendorsSub:      data.metadata?.latestVendorsSub || '',
+          latestVendorsCount:    data.metadata?.latestVendorsCount != null ? String(data.metadata.latestVendorsCount) : '12',
+          latestVendorsMode:     data.metadata?.latestVendorsMode || 'latest',
+          latestVendorsCardStyle: data.metadata?.latestVendorsCardStyle || 'luxury',
+          latestVendorsSelected: Array.isArray(data.metadata?.latestVendorsSelected) ? data.metadata.latestVendorsSelected : [],
         });
         setPublished(!!data.published);
       } else {
-        setForm({ heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '', heroImages: [], ctaText: 'Explore Venues', ctaLink: '#', featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Top Wedding Planners', featuredVenueIds: [], featuredVendorIds: [], mapLat: '', mapLng: '', mapZoom: '8' });
+        setForm({ heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '', heroImages: [], ctaText: 'Explore Venues', ctaLink: '#', featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Top Wedding Planners', featuredVenueIds: [], featuredVendorIds: [], mapLat: '', mapLng: '', mapZoom: '8', infoVibes: '', infoServices: '', infoRegions: autoInfoRegions(locationType, countrySlug, regionSlug), seoContent: autoEvergreenContent(locationType, countrySlug, regionSlug, citySlug), seoFaqs: autoSeoFaqs(locationType, countrySlug, regionSlug, citySlug), editorialPara1: '', editorialPara2: '', editorialBlock1Icon: '🏰', editorialBlock1Text: '', editorialBlock2Icon: '🌿', editorialBlock2Text: '', editorialBlock3Icon: '🌅', editorialBlock3Text: '', editorialBlock4Icon: '✨', editorialBlock4Text: '', editorialVenueMode: 'latest', showEditorialSplit: true, showLatestVenues: true, showLatestVendors: true, showPlanningGuide: true, showMotto: true, motto: '', mottoSubline: '', mottoBgImage: '', mottoOverlay: '0.55', editorialEyebrow: '', editorialHeadingPrefix: '', editorialCtaText: '', seoHeading: '', latestVenuesHeading: '', latestVenuesSub: '', latestVenuesCount: '12', latestVenuesMode: 'latest', latestVenuesCardStyle: 'luxury', latestVenuesSelected: [], latestVendorsHeading: '', latestVendorsSub: '', latestVendorsCount: '12', latestVendorsMode: 'latest', latestVendorsCardStyle: 'luxury', latestVendorsSelected: [] });
         setPublished(false);
       }
       setDirty(false);
@@ -6573,7 +6698,48 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
         featuredVenueIds: form.featuredVenueIds, featuredVendorIds: form.featuredVendorIds,
         mapLat: form.mapLat, mapLng: form.mapLng, mapZoom: form.mapZoom,
         discoveryFilters: { showCapacityFilter: true, showStyleFilter: true, showPriceFilter: true, defaultSort: 'recommended' },
-        metadata: { heroImages: form.heroImages || [] },
+        metadata: {
+          heroImages: form.heroImages || [],
+          infoRegions: form.infoRegions ? form.infoRegions.split(',').map(s => s.trim()).filter(Boolean) : [],
+          infoVibes: form.infoVibes ? form.infoVibes.split(',').map(s => s.trim()).filter(Boolean) : [],
+          infoServices: form.infoServices ? form.infoServices.split(',').map(s => s.trim()).filter(Boolean) : [],
+          seoContent: form.seoContent || '',
+          seoFaqs: (form.seoFaqs || []).filter(f => f.q || f.a),
+          editorialPara1: form.editorialPara1 || '',
+          editorialPara2: form.editorialPara2 || '',
+          editorialBlocks: [
+            { icon: form.editorialBlock1Icon || '🏰', text: form.editorialBlock1Text || '' },
+            { icon: form.editorialBlock2Icon || '🌿', text: form.editorialBlock2Text || '' },
+            { icon: form.editorialBlock3Icon || '🌅', text: form.editorialBlock3Text || '' },
+            { icon: form.editorialBlock4Icon || '✨', text: form.editorialBlock4Text || '' },
+          ],
+          editorialVenueMode: form.editorialVenueMode || 'latest',
+          showEditorialSplit: form.showEditorialSplit !== false,
+          showLatestVenues:   form.showLatestVenues !== false,
+          showLatestVendors:  form.showLatestVendors !== false,
+          showPlanningGuide:  form.showPlanningGuide !== false,
+          showMotto:          form.showMotto !== false,
+          motto:              form.motto || '',
+          mottoSubline:       form.mottoSubline || '',
+          mottoBgImage:       form.mottoBgImage || '',
+          mottoOverlay:       form.mottoOverlay ?? '0.55',
+          editorialEyebrow: form.editorialEyebrow || '',
+          editorialHeadingPrefix: form.editorialHeadingPrefix || '',
+          editorialCtaText: form.editorialCtaText || '',
+          seoHeading: form.seoHeading || '',
+          latestVenuesHeading: form.latestVenuesHeading || '',
+          latestVenuesSub: form.latestVenuesSub || '',
+          latestVenuesCount: parseInt(form.latestVenuesCount) || 12,
+          latestVenuesMode: form.latestVenuesMode || 'latest',
+          latestVenuesCardStyle: form.latestVenuesCardStyle || 'luxury',
+          latestVenuesSelected: form.latestVenuesSelected || [],
+          latestVendorsHeading: form.latestVendorsHeading || '',
+          latestVendorsSub:     form.latestVendorsSub || '',
+          latestVendorsCount:   parseInt(form.latestVendorsCount) || 12,
+          latestVendorsMode:    form.latestVendorsMode || 'latest',
+          latestVendorsCardStyle: form.latestVendorsCardStyle || 'luxury',
+          latestVendorsSelected: form.latestVendorsSelected || [],
+        },
         published: newPublished,
       });
       setPublished(newPublished);
@@ -6610,6 +6776,24 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
       console.error('[Location Studio] Image upload failed:', e);
     } finally {
       setUploadingImage(false);
+    }
+  };
+
+  const uploadMottoImage = async (file) => {
+    if (!file || !locationKey) return;
+    setUploadingMottoImage(true);
+    try {
+      const { supabase } = await import('../lib/supabaseClient');
+      const ext = file.name.split('.').pop();
+      const path = `locations/${locationKey.replace(/:/g, '/')}/${Date.now()}_motto.${ext}`;
+      const { error } = await supabase.storage.from('listing-media').upload(path, file, { upsert: false, cacheControl: '31536000' });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from('listing-media').getPublicUrl(path);
+      set('mottoBgImage', publicUrl);
+    } catch (e) {
+      console.error('[Location Studio] Motto image upload failed:', e);
+    } finally {
+      setUploadingMottoImage(false);
     }
   };
 
@@ -6676,6 +6860,45 @@ Do not include any explanation — only the JSON object.`,
     mapLat: form.mapLat,
     mapLng: form.mapLng,
     mapZoom: form.mapZoom ? parseInt(form.mapZoom) : 8,
+    infoRegions: form.infoRegions ? form.infoRegions.split(',').map(s => s.trim()).filter(Boolean) : [],
+    infoVibes: form.infoVibes ? form.infoVibes.split(',').map(s => s.trim()).filter(Boolean) : [],
+    infoServices: form.infoServices ? form.infoServices.split(',').map(s => s.trim()).filter(Boolean) : [],
+    seoContent: form.seoContent || '',
+    seoFaqs: form.seoFaqs || [],
+    editorialPara1: form.editorialPara1 || '',
+    editorialPara2: form.editorialPara2 || '',
+    editorialBlocks: [
+      { icon: form.editorialBlock1Icon || '🏰', text: form.editorialBlock1Text || '' },
+      { icon: form.editorialBlock2Icon || '🌿', text: form.editorialBlock2Text || '' },
+      { icon: form.editorialBlock3Icon || '🌅', text: form.editorialBlock3Text || '' },
+      { icon: form.editorialBlock4Icon || '✨', text: form.editorialBlock4Text || '' },
+    ],
+    editorialVenueMode: form.editorialVenueMode || 'latest',
+    showEditorialSplit: form.showEditorialSplit !== false,
+    showLatestVenues:   form.showLatestVenues !== false,
+    showLatestVendors:  form.showLatestVendors !== false,
+    showPlanningGuide:  form.showPlanningGuide !== false,
+    showMotto:          form.showMotto !== false,
+    motto:              form.motto || '',
+    mottoSubline:       form.mottoSubline || '',
+    mottoBgImage:       form.mottoBgImage || '',
+    mottoOverlay:       parseFloat(form.mottoOverlay) || 0.55,
+    editorialEyebrow: form.editorialEyebrow || '',
+    editorialHeadingPrefix: form.editorialHeadingPrefix || '',
+    editorialCtaText: form.editorialCtaText || '',
+    seoHeading: form.seoHeading || '',
+    latestVenuesHeading: form.latestVenuesHeading || '',
+    latestVenuesSub: form.latestVenuesSub || '',
+    latestVenuesCount: parseInt(form.latestVenuesCount) || 12,
+    latestVenuesMode: form.latestVenuesMode || 'latest',
+    latestVenuesCardStyle: form.latestVenuesCardStyle || 'luxury',
+    latestVenuesSelected: form.latestVenuesSelected || [],
+    latestVendorsHeading: form.latestVendorsHeading || '',
+    latestVendorsSub:     form.latestVendorsSub || '',
+    latestVendorsCount:   parseInt(form.latestVendorsCount) || 12,
+    latestVendorsMode:    form.latestVendorsMode || 'latest',
+    latestVendorsCardStyle: form.latestVendorsCardStyle || 'luxury',
+    latestVendorsSelected: form.latestVendorsSelected || [],
   };
 
   const selStyle = { fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' };
@@ -6693,6 +6916,7 @@ Do not include any explanation — only the JSON object.`,
           {saveErr && <span style={{ fontFamily: NU, fontSize: 11, color: '#ef4444' }}>{saveErr}</span>}
           <button onClick={() => setDirty(false)} style={{ fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer' }}>Discard</button>
           <button onClick={() => handleSave('draft')} disabled={saving || !locationKey} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving || !locationKey ? 'not-allowed' : 'pointer', opacity: saving || !locationKey ? 0.35 : 1 }}>{saving ? 'Saving…' : 'Save Draft'}</button>
+          <button onClick={() => handleSave('draft')} disabled={saving || !locationKey} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving || !locationKey ? 'not-allowed' : 'pointer', opacity: saving || !locationKey ? 0.35 : 1 }}>{saving ? 'Saving…' : 'Save'}</button>
           <button onClick={() => handleSave('published')} disabled={saving} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: published ? LS.gold : LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>
             {saving ? 'Publishing…' : published ? '✓ Published' : 'Publish'}
           </button>
@@ -6773,7 +6997,6 @@ No explanation. Only the JSON.`,
               disabled={aiGenerating}
               style={{ fontFamily: NU, fontSize: 12, fontWeight: 700, padding: '8px 18px', background: LS.gold, color: '#fff', border: 'none', borderRadius: 6, cursor: aiGenerating ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
             >{aiGenerating ? '⟳ Generating…' : 'Generate'}</button>
-            <button onClick={async () => { setShowMagicPanel(false); await handleSave('draft'); }} disabled={saving || !locationKey} style={{ fontFamily: NU, fontSize: 12, fontWeight: 600, padding: '8px 18px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving || !locationKey ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>{saving ? 'Saving…' : 'Save Draft'}</button>
             <button onClick={() => setShowMagicPanel(false)} style={{ fontFamily: NU, fontSize: 12, padding: '6px 12px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer' }}>Close</button>
           </div>
         </div>
@@ -6907,6 +7130,646 @@ No explanation. Only the JSON.`,
                 <div style={{ marginTop: 8, fontFamily: NU, fontSize: 11, color: LS.gold }}>{form.featuredVenueIds.length} / 6 selected</div>
               )}
             </LocSCard>
+
+            {/* Info Strip */}
+            <LocSCard title="Info Strip" hint="Three tag columns shown below the hero — all auto-populated, all editable." LS={LS}>
+              <div style={{ marginBottom: 12 }}>
+                {lbl('Regions / Areas')}
+                {inp('infoRegions', 'e.g. Barbados, St Lucia, Jamaica, Antigua')}
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>
+                  {form.infoRegions ? form.infoRegions.split(',').map(s => s.trim()).filter(Boolean).map((v, i) => (
+                    <span key={i} style={{ display: 'inline-block', marginRight: 6, marginBottom: 4, padding: '2px 8px', background: `${LS.gold}18`, border: `1px solid ${LS.gold}44`, borderRadius: 3, color: LS.gold, fontSize: 11 }}>{v}</span>
+                  )) : <span style={{ opacity: 0.5 }}>Auto from directory</span>}
+                </div>
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                {lbl('Signature Vibes')}
+                {inp('infoVibes', 'e.g. Beach Weddings, Garden Party, Tropical Luxury')}
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>
+                  {form.infoVibes ? form.infoVibes.split(',').map(s => s.trim()).filter(Boolean).map((v, i) => (
+                    <span key={i} style={{ display: 'inline-block', marginRight: 6, marginBottom: 4, padding: '2px 8px', background: `${LS.gold}18`, border: `1px solid ${LS.gold}44`, borderRadius: 3, color: LS.gold, fontSize: 11 }}>{v}</span>
+                  )) : <span style={{ opacity: 0.5 }}>No vibes set</span>}
+                </div>
+              </div>
+              <div>
+                {lbl('Elite Services')}
+                {inp('infoServices', 'e.g. Private Beach Access, Destination Concierge, All-Inclusive')}
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>
+                  {form.infoServices ? form.infoServices.split(',').map(s => s.trim()).filter(Boolean).map((v, i) => (
+                    <span key={i} style={{ display: 'inline-block', marginRight: 6, marginBottom: 4, padding: '2px 8px', background: `${LS.gold}18`, border: `1px solid ${LS.gold}44`, borderRadius: 3, color: LS.gold, fontSize: 11 }}>{v}</span>
+                  )) : <span style={{ opacity: 0.5 }}>No services set</span>}
+                </div>
+              </div>
+            </LocSCard>
+
+            {/* Planning Guide */}
+            <LocSCard title="Planning Guide" hint="Auto-populated from the directory — edit freely. Max 3 paragraphs (separate with a blank line). FAQs auto-use the location name." LS={LS} enabled={form.showPlanningGuide !== false} onToggle={() => set('showPlanningGuide', !form.showPlanningGuide)}>
+              <div style={{ marginBottom: 16 }}>
+                {lbl('Section Title')}
+                {inp('seoHeading', `Planning Your ${locationName || 'Italy'} Wedding`)}
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Auto: "Planning Your {locationName} Wedding" — override the full title here</div>
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                {lbl('Body Text')}
+                <textarea
+                  value={form.seoContent || ''}
+                  onChange={e => set('seoContent', e.target.value)}
+                  placeholder="Editorial body text — up to 3 paragraphs separated by blank lines"
+                  rows={6}
+                  style={{ fontFamily: NU, fontSize: 13, padding: '10px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', lineHeight: 1.6 }}
+                />
+              </div>
+              {(form.seoFaqs || [{ q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }]).map((faq, i) => (
+                <div key={i} style={{ marginBottom: 16, padding: '12px 14px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 6 }}>
+                  <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: LS.gold, marginBottom: 8 }}>FAQ {i + 1}</div>
+                  <div style={{ marginBottom: 8 }}>
+                    {lbl('Question')}
+                    <input
+                      value={faq.q || ''}
+                      onChange={e => { const faqs = [...(form.seoFaqs || [])]; faqs[i] = { ...faqs[i], q: e.target.value }; set('seoFaqs', faqs); }}
+                      placeholder={`e.g. When is the best time to get married in ${locationName || 'this destination'}?`}
+                      style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' }}
+                    />
+                  </div>
+                  {lbl('Answer')}
+                  <textarea
+                    value={faq.a || ''}
+                    onChange={e => { const faqs = [...(form.seoFaqs || [])]; faqs[i] = { ...faqs[i], a: e.target.value }; set('seoFaqs', faqs); }}
+                    placeholder="Answer..."
+                    rows={3}
+                    style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }}
+                  />
+                </div>
+              ))}
+            </LocSCard>
+
+            {/* Motto Banner */}
+            <LocSCard title="Motto Banner" hint="Full-width editorial quote strip — appears below the Planning Guide. Auto-fills from the location name. Optionally add a background image and control the overlay darkness." LS={LS} enabled={form.showMotto !== false} onToggle={() => set('showMotto', !form.showMotto)}>
+              {/* Motto text */}
+              <div style={{ marginBottom: 14 }}>
+                {lbl('Quote / Motto')}
+                <textarea
+                  value={form.motto || ''}
+                  onChange={e => set('motto', e.target.value)}
+                  placeholder={`${locationName || 'Italy'}, where every moment becomes a memory worth keeping forever.`}
+                  rows={3}
+                  style={{ fontFamily: NU, fontSize: 13, padding: '10px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', lineHeight: 1.6, fontStyle: 'italic' }}
+                />
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Auto: "{locationName || 'Italy'}, where every moment becomes a memory worth keeping forever."</div>
+              </div>
+              {/* Sub-line */}
+              <div style={{ marginBottom: 14 }}>
+                {lbl('Sub-line (optional)')}
+                {inp('mottoSubline', 'e.g. Luxury Wedding Directory · Italy')}
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Appears below the quote in small caps — leave blank to hide</div>
+              </div>
+              {/* Background image — upload, pick from listings, or paste URL */}
+              <div style={{ marginBottom: 14 }}>
+                {lbl('Background Image')}
+                {/* Hidden file input */}
+                <input
+                  ref={mottoUploadRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={async e => { const f = e.target.files?.[0]; if (f) await uploadMottoImage(f); e.target.value = ''; }}
+                />
+                {/* Upload button */}
+                <button
+                  onClick={() => mottoUploadRef.current?.click()}
+                  disabled={uploadingMottoImage || !locationKey}
+                  style={{ width: '100%', padding: '9px 12px', border: `1px dashed ${LS.border}`, borderRadius: 6, background: 'transparent', color: uploadingMottoImage ? LS.muted : LS.gold, fontFamily: NU, fontSize: 12, fontWeight: 600, letterSpacing: '0.5px', cursor: uploadingMottoImage || !locationKey ? 'not-allowed' : 'pointer', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                >
+                  <span style={{ fontSize: 15 }}>{uploadingMottoImage ? '⟳' : '↑'}</span>
+                  {uploadingMottoImage ? 'Uploading…' : 'Upload Image'}
+                </button>
+                {/* Preview strip */}
+                {form.mottoBgImage && (
+                  <div style={{ position: 'relative', width: '100%', height: 100, borderRadius: 6, overflow: 'hidden', marginBottom: 10, border: `1px solid ${LS.gold}` }}>
+                    <img src={form.mottoBgImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <button
+                      onClick={() => set('mottoBgImage', '')}
+                      style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(0,0,0,0.7)', border: 'none', borderRadius: 4, color: '#fff', fontSize: 11, padding: '3px 8px', cursor: 'pointer', fontFamily: NU }}
+                    >✕ Remove</button>
+                  </div>
+                )}
+                {/* Listing thumbnails */}
+                {venueList.length > 0 ? (
+                  <>
+                    <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginBottom: 8 }}>Pick from listings — click any image to use as background</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 10 }}>
+                      {venueList.slice(0, 20).map(v => {
+                        // imgs[0] is an object {id, src, alt} — extract src string
+                        const rawImg = v.imgs?.[0];
+                        const imgSrc = typeof rawImg === 'string'
+                          ? rawImg
+                          : (rawImg?.src || rawImg?.url || v.heroImage || v.image || '');
+                        if (!imgSrc || typeof imgSrc !== 'string') return null;
+                        const selected = form.mottoBgImage === imgSrc;
+                        return (
+                          <div
+                            key={v.id || imgSrc}
+                            onClick={() => set('mottoBgImage', selected ? '' : imgSrc)}
+                            title={typeof v.name === 'string' ? v.name : ''}
+                            style={{
+                              height: 60, borderRadius: 5, overflow: 'hidden', cursor: 'pointer',
+                              border: `2px solid ${selected ? LS.gold : 'transparent'}`,
+                              boxShadow: selected ? `0 0 0 1px ${LS.gold}` : 'none',
+                              transition: 'border 0.15s',
+                              position: 'relative',
+                            }}
+                          >
+                            <img src={imgSrc} alt={typeof v.name === 'string' ? v.name : ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            {selected && (
+                              <div style={{ position: 'absolute', inset: 0, background: `${LS.gold}33`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <span style={{ fontSize: 14, color: '#fff' }}>✓</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginBottom: 8 }}>
+                    {countrySlug ? 'No listing images available.' : 'Select a country to load listing images.'}
+                  </div>
+                )}
+                {/* Manual URL fallback */}
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginBottom: 4 }}>Or paste a URL directly:</div>
+                <input
+                  value={form.mottoBgImage || ''}
+                  onChange={e => set('mottoBgImage', e.target.value)}
+                  placeholder="https://..."
+                  style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' }}
+                />
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Leave blank for plain dark background</div>
+              </div>
+              {/* Overlay density */}
+              <div>
+                {lbl(`Overlay Density — ${Math.round((parseFloat(form.mottoOverlay) || 0.55) * 100)}%`)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+                  <span style={{ fontFamily: NU, fontSize: 11, color: LS.muted }}>Light</span>
+                  <input
+                    type="range"
+                    min={0} max={1} step={0.05}
+                    value={form.mottoOverlay ?? '0.55'}
+                    onChange={e => set('mottoOverlay', e.target.value)}
+                    style={{ flex: 1, accentColor: LS.gold }}
+                  />
+                  <span style={{ fontFamily: NU, fontSize: 11, color: LS.muted }}>Dark</span>
+                </div>
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Only applies when a background image is set</div>
+              </div>
+            </LocSCard>
+
+            {/* Editorial Split */}
+            <LocSCard title="Editorial Split" hint={`"The Art of the ${locationName || 'Location'} Wedding" section — 5-image grid + 2 editorial paragraphs + 4 info blocks. Venue display: Latest, Random or Featured.`} LS={LS} enabled={form.showEditorialSplit !== false} onToggle={() => set('showEditorialSplit', !form.showEditorialSplit)}>
+              {/* Venue display mode */}
+              <div style={{ marginBottom: 16 }}>
+                {lbl('Venue Display Mode')}
+                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                  {['latest', 'random', 'featured'].map(mode => (
+                    <button
+                      key={mode}
+                      onClick={() => set('editorialVenueMode', mode)}
+                      style={{
+                        padding: '6px 16px', fontSize: 12, fontFamily: NU, fontWeight: 600,
+                        borderRadius: 6, border: `1px solid ${form.editorialVenueMode === mode ? LS.gold : LS.border}`,
+                        background: form.editorialVenueMode === mode ? `${LS.gold}18` : 'transparent',
+                        color: form.editorialVenueMode === mode ? LS.gold : LS.muted,
+                        cursor: 'pointer', textTransform: 'capitalize', letterSpacing: '0.05em',
+                      }}
+                    >
+                      {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 6 }}>
+                  Latest = newest 5 · Random = shuffled 5 · Featured = your featured picks
+                </div>
+              </div>
+
+              {/* ── Auto text controls ── */}
+              <div style={{ marginBottom: 12 }}>
+                {lbl('Eyebrow')}
+                {inp('editorialEyebrow', `Why ${locationName || 'Italy'}`)}
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Auto: "Why {locationName}" — override here</div>
+              </div>
+
+              <div style={{ marginBottom: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  {lbl('Heading Prefix')}
+                  {(() => {
+                    const v = form.editorialHeadingPrefix || '';
+                    return <input value={v} onChange={e => set('editorialHeadingPrefix', e.target.value)} placeholder="The Art of the" style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' }} />;
+                  })()}
+                  <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Auto: "The Art of the"</div>
+                </div>
+                <div>
+                  {lbl('CTA Button Text')}
+                  {inp('editorialCtaText', `Browse All ${locationName || 'Italy'} Venues →`)}
+                  <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Auto: "Browse All {locationName || 'Italy'} Venues →"</div>
+                </div>
+              </div>
+
+              <div aria-hidden="true" style={{ height: 1, background: LS.border, margin: '4px 0 16px' }} />
+
+              {/* Paragraph 1 */}
+              <div style={{ marginBottom: 12 }}>
+                {lbl('Paragraph 1')}
+                <textarea
+                  value={form.editorialPara1 || ''}
+                  onChange={e => set('editorialPara1', e.target.value)}
+                  placeholder={`${locationName || 'This destination'} is one of the world's most sought-after wedding destinations…`}
+                  rows={3}
+                  style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }}
+                />
+              </div>
+
+              {/* Paragraph 2 */}
+              <div style={{ marginBottom: 20 }}>
+                {lbl('Paragraph 2')}
+                <textarea
+                  value={form.editorialPara2 || ''}
+                  onChange={e => set('editorialPara2', e.target.value)}
+                  placeholder="Our curated collection represents only the finest estates, villas and private venues…"
+                  rows={3}
+                  style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }}
+                />
+              </div>
+
+              {/* Info blocks */}
+              <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: LS.gold, marginBottom: 10 }}>Info Blocks (2×2 grid)</div>
+              {[
+                ['editorialBlock1Icon', 'editorialBlock1Text'],
+                ['editorialBlock2Icon', 'editorialBlock2Text'],
+                ['editorialBlock3Icon', 'editorialBlock3Text'],
+                ['editorialBlock4Icon', 'editorialBlock4Text'],
+              ].map(([iconKey, textKey], i) => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '52px 1fr', gap: 8, marginBottom: 10 }}>
+                  <input
+                    value={form[iconKey] || ''}
+                    onChange={e => set(iconKey, e.target.value)}
+                    placeholder="🏰"
+                    style={{ fontFamily: NU, fontSize: 20, padding: '6px 8px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, textAlign: 'center' }}
+                  />
+                  <input
+                    value={form[textKey] || ''}
+                    onChange={e => set(textKey, e.target.value)}
+                    placeholder={['Historic villa estates', 'Private & exclusive settings', 'Stunning scenery & landscapes', 'World-class catering & service'][i]}
+                    style={{ fontFamily: NU, fontSize: 13, padding: '6px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' }}
+                  />
+                </div>
+              ))}
+            </LocSCard>
+
+            {/* Latest Venues Strip */}
+            {(() => {
+              const selectedIds = form.latestVenuesSelected || [];
+              const filteredForPicker = venueList.filter(v =>
+                !selectedIds.includes(v.id) &&
+                (v.name || '').toLowerCase().includes(venuePickerSearch.toLowerCase())
+              ).slice(0, 8);
+              const selectedVenues = selectedIds.map(id => venueList.find(v => v.id === id)).filter(Boolean);
+
+              const toggleVenue = (id) => {
+                const cur = form.latestVenuesSelected || [];
+                if (cur.includes(id)) set('latestVenuesSelected', cur.filter(x => x !== id));
+                else set('latestVenuesSelected', [...cur, id]);
+              };
+              const removeVenue = (id) => set('latestVenuesSelected', (form.latestVenuesSelected || []).filter(x => x !== id));
+              const moveVenue = (id, dir) => {
+                const arr = [...(form.latestVenuesSelected || [])];
+                const idx = arr.indexOf(id);
+                if (idx < 0) return;
+                const next = idx + dir;
+                if (next < 0 || next >= arr.length) return;
+                [arr[idx], arr[next]] = [arr[next], arr[idx]];
+                set('latestVenuesSelected', arr);
+              };
+
+              return (
+                <LocSCard title="Latest Venues Strip" hint={`The "${locationName || 'Latest'} Venues." card slider. Choose Latest, Random, or hand-pick Selectable venues.`} LS={LS} enabled={form.showLatestVenues !== false} onToggle={() => set('showLatestVenues', !form.showLatestVenues)}>
+
+                  {/* ── Venue Mode — 4 options ── */}
+                  <div style={{ marginBottom: 16 }}>
+                    {lbl('Venue Mode')}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+                      {[
+                        ['latest',   'Latest',    'Newest venues first'],
+                        ['random',   'Random',    'Reshuffled on each load'],
+                        ['featured', 'Featured',  'Your pinned venue picks'],
+                        ['selected', 'Selectable','Hand-pick exactly which venues appear'],
+                      ].map(([val, label, tip]) => (
+                        <button
+                          key={val}
+                          title={tip}
+                          onClick={() => set('latestVenuesMode', val)}
+                          style={{
+                            padding: '6px 16px', fontSize: 12, fontFamily: NU, fontWeight: 600,
+                            borderRadius: 6, border: `1px solid ${form.latestVenuesMode === val ? LS.gold : LS.border}`,
+                            background: form.latestVenuesMode === val ? `${LS.gold}18` : 'transparent',
+                            color: form.latestVenuesMode === val ? LS.gold : LS.muted,
+                            cursor: 'pointer', letterSpacing: '0.04em',
+                          }}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 6 }}>
+                      {form.latestVenuesMode === 'latest'   && 'Shows the most recently added venues for this location.'}
+                      {form.latestVenuesMode === 'random'   && 'A different selection appears on every page load — keeps it fresh.'}
+                      {form.latestVenuesMode === 'featured' && 'Uses venues from your Featured Venues list above.'}
+                      {form.latestVenuesMode === 'selected' && 'You control exactly which venues appear and in what order.'}
+                    </div>
+                  </div>
+
+                  {/* ── Venue Picker (only in Selected mode) ── */}
+                  {form.latestVenuesMode === 'selected' && (
+                    <div style={{ marginBottom: 20, padding: '14px 16px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8 }}>
+                      <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: LS.gold, marginBottom: 12 }}>
+                        Curated Venue Selection
+                      </div>
+
+                      {/* Selected venues — ordered list with reorder + remove */}
+                      {selectedVenues.length > 0 && (
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginBottom: 8 }}>
+                            {selectedVenues.length} venue{selectedVenues.length !== 1 ? 's' : ''} selected — drag to reorder
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {selectedVenues.map((v, i) => (
+                              <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: LS.bg, border: `1px solid ${LS.gold}44`, borderRadius: 6 }}>
+                                <span style={{ fontFamily: NU, fontSize: 11, color: LS.gold, fontWeight: 700, width: 18, flexShrink: 0, textAlign: 'center' }}>{i + 1}</span>
+                                <span style={{ fontFamily: NU, fontSize: 12, color: LS.text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {v.name}
+                                  {v.region && <span style={{ color: LS.muted, marginLeft: 6 }}>· {v.region}</span>}
+                                </span>
+                                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                                  <button onClick={() => moveVenue(v.id, -1)} disabled={i === 0}
+                                    style={{ padding: '2px 6px', fontSize: 11, background: 'none', border: `1px solid ${LS.border}`, borderRadius: 4, color: i === 0 ? LS.muted : LS.text, cursor: i === 0 ? 'default' : 'pointer', opacity: i === 0 ? 0.3 : 1 }}>↑</button>
+                                  <button onClick={() => moveVenue(v.id, 1)} disabled={i === selectedVenues.length - 1}
+                                    style={{ padding: '2px 6px', fontSize: 11, background: 'none', border: `1px solid ${LS.border}`, borderRadius: 4, color: i === selectedVenues.length - 1 ? LS.muted : LS.text, cursor: i === selectedVenues.length - 1 ? 'default' : 'pointer', opacity: i === selectedVenues.length - 1 ? 0.3 : 1 }}>↓</button>
+                                  <button onClick={() => removeVenue(v.id)}
+                                    style={{ padding: '2px 8px', fontSize: 11, background: 'none', border: `1px solid #c0392b44`, borderRadius: 4, color: '#e74c3c', cursor: 'pointer' }}>×</button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Search + add venues */}
+                      <div style={{ marginBottom: 8 }}>
+                        <input
+                          value={venuePickerSearch}
+                          onChange={e => setVenuePickerSearch(e.target.value)}
+                          placeholder="Search venues to add…"
+                          style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' }}
+                        />
+                      </div>
+                      {venuePickerSearch && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 220, overflowY: 'auto' }}>
+                          {filteredForPicker.length === 0 && (
+                            <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, padding: '8px 0', textAlign: 'center' }}>No venues match "{venuePickerSearch}"</div>
+                          )}
+                          {filteredForPicker.map(v => (
+                            <button
+                              key={v.id}
+                              onClick={() => { toggleVenue(v.id); setVenuePickerSearch(''); }}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
+                                background: 'transparent', border: `1px solid ${LS.border}`, borderRadius: 6,
+                                cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s',
+                              }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = LS.gold; e.currentTarget.style.background = `${LS.gold}10`; }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = LS.border; e.currentTarget.style.background = 'transparent'; }}
+                            >
+                              {v.imgs?.[0] && (
+                                <img src={typeof v.imgs[0] === 'string' ? v.imgs[0] : v.imgs[0]?.src || ''} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
+                              )}
+                              <div>
+                                <div style={{ fontFamily: NU, fontSize: 12, color: LS.text, fontWeight: 600 }}>{v.name}</div>
+                                {v.region && <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted }}>{v.region}</div>}
+                              </div>
+                              <span style={{ marginLeft: 'auto', fontSize: 16, color: LS.gold }}>+</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {!venuePickerSearch && selectedVenues.length === 0 && (
+                        <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, textAlign: 'center', padding: '8px 0' }}>
+                          Search above to add venues to this slider
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Card count (hidden in Selected mode — count = selected.length) ── */}
+                  {form.latestVenuesMode !== 'selected' && (
+                    <div style={{ marginBottom: 16 }}>
+                      {lbl('Number of Cards')}
+                      <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                        {['6', '9', '12', '18', '24'].map(n => (
+                          <button
+                            key={n}
+                            onClick={() => set('latestVenuesCount', n)}
+                            style={{
+                              padding: '6px 14px', fontSize: 12, fontFamily: NU, fontWeight: 600,
+                              borderRadius: 6, border: `1px solid ${form.latestVenuesCount === n ? LS.gold : LS.border}`,
+                              background: form.latestVenuesCount === n ? `${LS.gold}18` : 'transparent',
+                              color: form.latestVenuesCount === n ? LS.gold : LS.muted,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Card style ── */}
+                  <div style={{ marginBottom: 16 }}>
+                    {lbl('Card Style')}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                      {[['luxury', 'Luxury (cinematic)'], ['standard', 'Standard (GCard)']].map(([val, label]) => (
+                        <button
+                          key={val}
+                          onClick={() => set('latestVenuesCardStyle', val)}
+                          style={{
+                            padding: '6px 16px', fontSize: 12, fontFamily: NU, fontWeight: 600,
+                            borderRadius: 6, border: `1px solid ${form.latestVenuesCardStyle === val ? LS.gold : LS.border}`,
+                            background: form.latestVenuesCardStyle === val ? `${LS.gold}18` : 'transparent',
+                            color: form.latestVenuesCardStyle === val ? LS.gold : LS.muted,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ── Heading ── */}
+                  <div style={{ marginBottom: 12 }}>
+                    {lbl('Section Heading')}
+                    {inp('latestVenuesHeading', 'Latest Venues.')}
+                    <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Leave blank to use "Latest Venues."</div>
+                  </div>
+
+                  {/* ── Subtext ── */}
+                  <div>
+                    {lbl('Subtext')}
+                    <textarea
+                      value={form.latestVenuesSub || ''}
+                      onChange={e => set('latestVenuesSub', e.target.value)}
+                      placeholder={`Newly added${locationName ? ` ${locationName}` : ''} villas, palazzi, and estates, each personally vetted by our editorial team.`}
+                      rows={2}
+                      style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }}
+                    />
+                    <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Leave blank to auto-generate from location name</div>
+                  </div>
+                </LocSCard>
+              );
+            })()}
+
+            {/* Latest Vendors Strip */}
+            {(() => {
+              const selectedIds = form.latestVendorsSelected || [];
+              const vendorPool = venueList;
+              const filteredForPicker = vendorPool.filter(v =>
+                !selectedIds.includes(v.id) &&
+                (v.name || '').toLowerCase().includes(vendorPickerSearch.toLowerCase()) &&
+                (v.type === 'vendor' || v.category)
+              ).slice(0, 8);
+              const selectedVendors = selectedIds.map(id => vendorPool.find(v => v.id === id)).filter(Boolean);
+
+              const toggleVendor = (id) => {
+                const cur = form.latestVendorsSelected || [];
+                if (cur.includes(id)) set('latestVendorsSelected', cur.filter(x => x !== id));
+                else set('latestVendorsSelected', [...cur, id]);
+              };
+              const removeVendor = (id) => set('latestVendorsSelected', (form.latestVendorsSelected || []).filter(x => x !== id));
+              const moveVendor = (id, dir) => {
+                const arr = [...(form.latestVendorsSelected || [])];
+                const idx = arr.indexOf(id);
+                if (idx < 0) return;
+                const next = idx + dir;
+                if (next < 0 || next >= arr.length) return;
+                [arr[idx], arr[next]] = [arr[next], arr[idx]];
+                set('latestVendorsSelected', arr);
+              };
+
+              return (
+                <LocSCard title="Latest Vendors Strip" hint={`The "Latest Vendors." card slider beneath venues. Same controls as the venue slider.`} LS={LS} enabled={form.showLatestVendors !== false} onToggle={() => set('showLatestVendors', !form.showLatestVendors)}>
+
+                  {/* ── Vendor Mode ── */}
+                  <div style={{ marginBottom: 16 }}>
+                    {lbl('Vendor Mode')}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+                      {[
+                        ['latest',   'Latest',    'Newest vendors first'],
+                        ['random',   'Random',    'Reshuffled on each load'],
+                        ['featured', 'Featured',  'Your pinned vendor picks'],
+                        ['selected', 'Selectable','Hand-pick exactly which vendors appear'],
+                      ].map(([val, label, tip]) => (
+                        <button key={val} title={tip} onClick={() => set('latestVendorsMode', val)}
+                          style={{ padding: '6px 16px', fontSize: 12, fontFamily: NU, fontWeight: 600, borderRadius: 6, border: `1px solid ${form.latestVendorsMode === val ? LS.gold : LS.border}`, background: form.latestVendorsMode === val ? `${LS.gold}18` : 'transparent', color: form.latestVendorsMode === val ? LS.gold : LS.muted, cursor: 'pointer', letterSpacing: '0.04em' }}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 6 }}>
+                      {form.latestVendorsMode === 'selected' && 'You control exactly which vendors appear and in what order.'}
+                      {form.latestVendorsMode !== 'selected' && 'Latest = newest · Random = reshuffled each load · Featured = pinned picks'}
+                    </div>
+                  </div>
+
+                  {/* ── Vendor Picker (Selected mode only) ── */}
+                  {form.latestVendorsMode === 'selected' && (
+                    <div style={{ marginBottom: 20, padding: '14px 16px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8 }}>
+                      <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: LS.gold, marginBottom: 12 }}>Curated Vendor Selection</div>
+                      {selectedVendors.length > 0 && (
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginBottom: 8 }}>{selectedVendors.length} vendor{selectedVendors.length !== 1 ? 's' : ''} selected</div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {selectedVendors.map((v, i) => (
+                              <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: LS.bg, border: `1px solid ${LS.gold}44`, borderRadius: 6 }}>
+                                <span style={{ fontFamily: NU, fontSize: 11, color: LS.gold, fontWeight: 700, width: 18, flexShrink: 0, textAlign: 'center' }}>{i + 1}</span>
+                                <span style={{ fontFamily: NU, fontSize: 12, color: LS.text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.name}{v.region && <span style={{ color: LS.muted, marginLeft: 6 }}>· {v.region}</span>}</span>
+                                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                                  <button onClick={() => moveVendor(v.id, -1)} disabled={i === 0} style={{ padding: '2px 6px', fontSize: 11, background: 'none', border: `1px solid ${LS.border}`, borderRadius: 4, color: i === 0 ? LS.muted : LS.text, cursor: i === 0 ? 'default' : 'pointer', opacity: i === 0 ? 0.3 : 1 }}>↑</button>
+                                  <button onClick={() => moveVendor(v.id, 1)} disabled={i === selectedVendors.length - 1} style={{ padding: '2px 6px', fontSize: 11, background: 'none', border: `1px solid ${LS.border}`, borderRadius: 4, color: i === selectedVendors.length - 1 ? LS.muted : LS.text, cursor: i === selectedVendors.length - 1 ? 'default' : 'pointer', opacity: i === selectedVendors.length - 1 ? 0.3 : 1 }}>↓</button>
+                                  <button onClick={() => removeVendor(v.id)} style={{ padding: '2px 8px', fontSize: 11, background: 'none', border: `1px solid #c0392b44`, borderRadius: 4, color: '#e74c3c', cursor: 'pointer' }}>×</button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <input value={vendorPickerSearch} onChange={e => setVendorPickerSearch(e.target.value)} placeholder="Search vendors to add…" style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', marginBottom: 8 }} />
+                      {vendorPickerSearch && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 220, overflowY: 'auto' }}>
+                          {filteredForPicker.length === 0 && <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, padding: '8px 0', textAlign: 'center' }}>No vendors match "{vendorPickerSearch}"</div>}
+                          {filteredForPicker.map(v => (
+                            <button key={v.id} onClick={() => { toggleVendor(v.id); setVendorPickerSearch(''); }} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'transparent', border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer', textAlign: 'left' }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = LS.gold; e.currentTarget.style.background = `${LS.gold}10`; }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = LS.border; e.currentTarget.style.background = 'transparent'; }}>
+                              {v.imgs?.[0] && <img src={typeof v.imgs[0] === 'string' ? v.imgs[0] : v.imgs[0]?.src || ''} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />}
+                              <div><div style={{ fontFamily: NU, fontSize: 12, color: LS.text, fontWeight: 600 }}>{v.name}</div>{v.region && <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted }}>{v.region}</div>}</div>
+                              <span style={{ marginLeft: 'auto', fontSize: 16, color: LS.gold }}>+</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Card count ── */}
+                  {form.latestVendorsMode !== 'selected' && (
+                    <div style={{ marginBottom: 16 }}>
+                      {lbl('Number of Cards')}
+                      <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                        {['6', '9', '12', '18', '24'].map(n => (
+                          <button key={n} onClick={() => set('latestVendorsCount', n)}
+                            style={{ padding: '6px 14px', fontSize: 12, fontFamily: NU, fontWeight: 600, borderRadius: 6, border: `1px solid ${form.latestVendorsCount === n ? LS.gold : LS.border}`, background: form.latestVendorsCount === n ? `${LS.gold}18` : 'transparent', color: form.latestVendorsCount === n ? LS.gold : LS.muted, cursor: 'pointer' }}>{n}</button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Card style ── */}
+                  <div style={{ marginBottom: 16 }}>
+                    {lbl('Card Style')}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                      {[['luxury', 'Luxury (cinematic)'], ['standard', 'Standard (GCard)']].map(([val, label]) => (
+                        <button key={val} onClick={() => set('latestVendorsCardStyle', val)}
+                          style={{ padding: '6px 16px', fontSize: 12, fontFamily: NU, fontWeight: 600, borderRadius: 6, border: `1px solid ${form.latestVendorsCardStyle === val ? LS.gold : LS.border}`, background: form.latestVendorsCardStyle === val ? `${LS.gold}18` : 'transparent', color: form.latestVendorsCardStyle === val ? LS.gold : LS.muted, cursor: 'pointer' }}>{label}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ── Heading ── */}
+                  <div style={{ marginBottom: 12 }}>
+                    {lbl('Section Heading')}
+                    {inp('latestVendorsHeading', 'Latest Vendors.')}
+                    <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Leave blank to use "Latest Vendors."</div>
+                  </div>
+
+                  {/* ── Subtext ── */}
+                  <div>
+                    {lbl('Subtext')}
+                    <textarea value={form.latestVendorsSub || ''} onChange={e => set('latestVendorsSub', e.target.value)}
+                      placeholder={`Planners, photographers, florists, and culinary artists — the professionals behind${locationName ? ` ${locationName}'s` : ''} finest celebrations.`}
+                      rows={2} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }} />
+                    <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Leave blank to auto-generate from location name</div>
+                  </div>
+                </LocSCard>
+              );
+            })()}
 
             {/* Geography */}
             <LocSCard title="Geography" hint="Map centre and zoom for the discovery map on this page" LS={LS}>

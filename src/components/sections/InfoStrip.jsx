@@ -2,11 +2,7 @@
 import { useState } from "react";
 import { useTheme } from "../../theme/ThemeContext";
 
-const COLS = [
-  {
-    label: "Regions",
-    items: ["Tuscany", "Lake Como", "Venice", "Amalfi Coast", "Puglia", "Sicily", "Rome"],
-  },
+const DEFAULT_COLS = [
   {
     label: "Signature Vibe",
     items: [
@@ -14,25 +10,37 @@ const COLS = [
       "Romantic Destination",
       "Black Tie Elegance",
       "Garden Party",
-      "Vineyard & Estate",
+      "Intimate & Elopement",
     ],
   },
   {
     label: "Elite Services",
     items: [
       "Exclusive Estate Hire",
-      "Private Vineyard Ceremonies",
-      "Michelin-Star Dining",
-      "Historic Villa Access",
       "Dedicated Concierge",
+      "Michelin-Star Dining",
+      "Private Ceremonies",
+      "Luxury Transport",
     ],
   },
 ];
 
-export default function InfoStrip() {
+export default function InfoStrip({ regionNames = [], vibes, services, cols }) {
   const C = useTheme();
-  // Track hovered tag as "colIdx-itemIdx"
   const [hovered, setHovered] = useState(null);
+
+  // Build columns dynamically
+  const COLS = cols || [
+    ...(regionNames.length > 0 ? [{ label: "Regions", items: regionNames }] : []),
+    {
+      label: "Signature Vibe",
+      items: (Array.isArray(vibes) && vibes.length > 0) ? vibes : DEFAULT_COLS[0].items,
+    },
+    {
+      label: "Elite Services",
+      items: (Array.isArray(services) && services.length > 0) ? services : DEFAULT_COLS[1].items,
+    },
+  ];
 
   return (
     <div
