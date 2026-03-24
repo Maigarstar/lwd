@@ -5469,7 +5469,8 @@ function NewShowcaseModal({ C, onClose, onSave, type = 'venue', initialData = nu
     setHeroUploadErr('');
     try {
       const id = `showcase-hero-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      const url = await uploadMediaFile(file, id);
+      const result = await uploadMediaFile(file, id);
+      const url = typeof result === 'string' ? result : result.url;
       set('heroImage', url);
     } catch (err) {
       setHeroUploadErr('Upload failed, try again or paste a URL');
@@ -6792,12 +6793,19 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
       console.log('[Location Studio] Uploading motto image:', file.name);
       // Use the existing uploadMediaFile utility which is battle-tested
       const mediaId = `motto-${locationKey.replace(/:/g, '-')}-${Date.now()}`;
-      const publicUrl = await uploadMediaFile(file, mediaId);
+      const result = await uploadMediaFile(file, mediaId);
+
+      // Handle both string (non-image) and object (image with thumbnail) returns
+      const publicUrl = typeof result === 'string' ? result : result.url;
+      const thumbnailUrl = (typeof result === 'object' && result.thumbnailUrl) ? result.thumbnailUrl : null;
+
       console.log('[Location Studio] Public URL:', publicUrl);
+      if (thumbnailUrl) console.log('[Location Studio] Thumbnail URL:', thumbnailUrl);
 
       set('mottoBgImage', publicUrl);
+      if (thumbnailUrl) set('mottoBgImageThumb', thumbnailUrl);
       setDirty(true);
-      setToast('✓ Motto image uploaded successfully');
+      setToast('✓ Motto image uploaded successfully (with thumbnail)');
     } catch (e) {
       console.error('[Location Studio] Motto image upload failed:', e);
       setToast('✗ Failed to upload image: ' + (e.message || 'Unknown error'));

@@ -401,7 +401,8 @@ export const useListingForm = (listingId = null) => {
         try {
           setUploadProgress('Uploading contact photo…');
           const photoId = `contact-${slug}-${Date.now()}`;
-          contactPhotoUrl = await uploadMediaFile(contactPhotoFile, photoId);
+          const result = await uploadMediaFile(contactPhotoFile, photoId);
+          contactPhotoUrl = typeof result === 'string' ? result : result.url;
           handleChange('contact_profile', {
             ...formData.contact_profile,
             photo_file: null,

@@ -16,29 +16,108 @@
 import { supabase } from '../lib/supabaseClient';
 
 const BUCKET = 'listing-media';
+const THUMBNAIL_WIDTH = 400;
+const THUMBNAIL_HEIGHT = 300;
+const THUMBNAIL_QUALITY = 0.8;
+
+// ─── Thumbnail generation ─────────────────────────────────────────────────
+
+/**
+ * Generate a thumbnail from an image file using Canvas API
+ * @param {File} file - Image file to create thumbnail from
+ * @param {number} maxWidth - Max width for thumbnail (default 400)
+ * @param {number} maxHeight - Max height for thumbnail (default 300)
+ * @param {number} quality - JPEG quality 0-1 (default 0.8)
+ * @returns {Promise<Blob>} Thumbnail blob
+ */
+async function generateThumbnail(file, maxWidth = THUMBNAIL_WIDTH, maxHeight = THUMBNAIL_HEIGHT, quality = THUMBNAIL_QUALITY) {
+  console.log('[generateThumbnail] Creating thumbnail:', { fileName: file.name, maxWidth, maxHeight });
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      const img = new Image();
+
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Calculate dimensions while maintaining aspect ratio
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error('Failed to get canvas context');
+
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) throw new Error('Failed to create blob from canvas');
+              console.log('[generateThumbnail] Thumbnail created:', { size: blob.size, type: blob.type });
+              resolve(blob);
+            },
+            'image/jpeg',
+            quality
+          );
+        } catch (err) {
+          console.error('[generateThumbnail] Canvas error:', err);
+          reject(err);
+        }
+      };
+
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = event.target.result;
+    };
+
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}
 
 // ─── Single file upload ───────────────────────────────────────────────────
 
 /**
- * Upload one File to Supabase Storage.
- * Returns the permanent public URL on success.
+ * Upload one File to Supabase Storage (with automatic thumbnail generation).
+ * Returns an object with both original and thumbnail URLs on success.
+ * For non-image files (videos), only uploads original file.
  * Throws on network or storage error.
  *
  * @param {File}   file   , the File object from the input / drop event
  * @param {string} mediaId, the item's id (nanoid), used as the filename
+ * @returns {Promise<string|{url: string, thumbnailUrl: string}>} Public URL(s)
  */
 export async function uploadMediaFile(file, mediaId) {
   console.log('[uploadMediaFile] Starting upload:', { fileName: file.name, fileSize: file.size, fileType: file.type, mediaId });
 
   const rawExt = file.name.split('.').pop()?.toLowerCase() || '';
-  const ext    = ['jpg','jpeg','png','webp','gif','mp4','webm','mov'].includes(rawExt)
+  const isImage = ['jpg','jpeg','png','webp','gif'].includes(rawExt) || file.type.startsWith('image/');
+  const ext = ['jpg','jpeg','png','webp','gif','mp4','webm','mov'].includes(rawExt)
     ? rawExt
     : (file.type.startsWith('video') ? 'mp4' : 'jpg');
 
   const path = `${mediaId}.${ext}`;
-  console.log('[uploadMediaFile] Upload path:', path, 'Bucket:', BUCKET);
+  const thumbPath = isImage ? `${mediaId}_thumb.jpg` : null;
+
+  console.log('[uploadMediaFile] Upload paths:', { path, thumbPath, isImage });
 
   try {
+    // Upload original file
     const { error: uploadError, data: uploadData } = await supabase.storage
       .from(BUCKET)
       .upload(path, file, {
@@ -54,11 +133,46 @@ export async function uploadMediaFile(file, mediaId) {
       throw new Error(`Storage upload failed for "${file.name}": ${uploadError.message}`);
     }
 
-    console.log('[uploadMediaFile] Upload successful');
+    const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    const publicUrl = urlData.publicUrl;
+    console.log('[uploadMediaFile] Original URL:', publicUrl);
 
-    const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-    console.log('[uploadMediaFile] Public URL:', data.publicUrl);
-    return data.publicUrl;
+    // Generate and upload thumbnail for images
+    let thumbnailUrl = null;
+    if (isImage && thumbPath) {
+      try {
+        console.log('[uploadMediaFile] Generating thumbnail...');
+        const thumbBlob = await generateThumbnail(file);
+
+        const { error: thumbError } = await supabase.storage
+          .from(BUCKET)
+          .upload(thumbPath, thumbBlob, {
+            cacheControl: '31536000',
+            upsert: true,
+            contentType: 'image/jpeg',
+          });
+
+        if (thumbError) {
+          console.warn('[uploadMediaFile] Thumbnail upload failed (non-fatal):', thumbError);
+        } else {
+          const { data: thumbUrlData } = supabase.storage.from(BUCKET).getPublicUrl(thumbPath);
+          thumbnailUrl = thumbUrlData.publicUrl;
+          console.log('[uploadMediaFile] Thumbnail URL:', thumbnailUrl);
+        }
+      } catch (err) {
+        console.warn('[uploadMediaFile] Thumbnail generation failed (non-fatal):', err);
+        // Non-fatal: continue even if thumbnail fails
+      }
+    }
+
+    console.log('[uploadMediaFile] Upload complete');
+
+    // Return both URLs for images, just original for videos
+    if (thumbnailUrl) {
+      return { url: publicUrl, thumbnailUrl };
+    }
+    return publicUrl;
+
   } catch (err) {
     console.error('[uploadMediaFile] Exception:', err);
     throw err;

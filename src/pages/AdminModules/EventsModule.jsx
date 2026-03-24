@@ -1325,7 +1325,8 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = t
                       const file = e.target.files?.[0]; if (!file) return
                       set('_coverUploading', true)
                       try {
-                        const url = await uploadMediaFile(file, `events/${Date.now()}`)
+                        const result = await uploadMediaFile(file, `events/${Date.now()}`)
+                        const url = typeof result === 'string' ? result : result.url
                         set('coverImageUrl', url)
                       } catch(err) { console.error('Upload failed', err) }
                       finally { set('_coverUploading', false) }
@@ -1369,7 +1370,8 @@ function EventsBuilder({ event: existingEvent, onSave, onCancel, C, darkMode = t
                       const newUrls = []
                       for (const file of toUpload) {
                         try {
-                          const url = await uploadMediaFile(file, `events/gallery/${Date.now()}`)
+                          const result = await uploadMediaFile(file, `events/gallery/${Date.now()}`)
+                          const url = typeof result === 'string' ? result : result.url
                           newUrls.push(url)
                         } catch(err) { console.error('Gallery upload failed', err) }
                       }
