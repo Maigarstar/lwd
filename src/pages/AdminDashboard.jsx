@@ -6789,26 +6789,10 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
     if (!file || !locationKey) return;
     setUploadingMottoImage(true);
     try {
-      const { supabase } = await import('../lib/supabaseClient');
-      const rawExt = file.name.split('.').pop()?.toLowerCase() || '';
-      const ext = ['jpg','jpeg','png','webp','gif'].includes(rawExt) ? rawExt : 'jpg';
-      const path = `locations/${locationKey.replace(/:/g, '/')}/${Date.now()}_motto.${ext}`;
-      console.log('[Location Studio] Uploading motto image to:', path, 'Type:', file.type);
-
-      const { error, data } = await supabase.storage.from('listing-media').upload(path, file, {
-        upsert: true,
-        cacheControl: '31536000',
-        contentType: file.type || 'image/jpeg'
-      });
-      if (error) {
-        console.error('[Location Studio] Upload error:', error);
-        throw new Error(`Upload failed: ${error.message}`);
-      }
-
-      console.log('[Location Studio] Upload successful:', data);
-
-      const { data: urlData } = supabase.storage.from('listing-media').getPublicUrl(path);
-      const publicUrl = urlData.publicUrl;
+      console.log('[Location Studio] Uploading motto image:', file.name);
+      // Use the existing uploadMediaFile utility which is battle-tested
+      const mediaId = `motto-${locationKey.replace(/:/g, '-')}-${Date.now()}`;
+      const publicUrl = await uploadMediaFile(file, mediaId);
       console.log('[Location Studio] Public URL:', publicUrl);
 
       set('mottoBgImage', publicUrl);
