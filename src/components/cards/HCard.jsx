@@ -68,11 +68,11 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
             background: "#0a0806",
           }}
         >
-          {v.imgs.map((src, i) => (
+          {v.imgs.map((imgObj, i) => (
             <img
               key={i}
-              src={src}
-              alt={i === 0 ? `${v.name} main photo` : `${v.name} photo ${i + 1}`}
+              src={typeof imgObj === 'string' ? imgObj : imgObj.src}
+              alt={typeof imgObj === 'string' ? `${v.name} photo` : (imgObj.alt || `${v.name} photo ${i + 1}`)}
               loading="lazy"
               style={{
                 position: "absolute",
