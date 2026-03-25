@@ -259,6 +259,7 @@ const NAV_SECTIONS = [
       { key: "countries",       label: "Countries",         icon: "◎" },
       { key: "regions",         label: "Regions",           icon: "◇" },
       { key: "locations",       label: "Locations",         icon: "◎" },
+      { key: "cities",          label: "Cities",            icon: "◎" },
       { key: "index",           label: "Index Health",      icon: "▧" },
     ],
   },
@@ -7275,6 +7276,639 @@ No explanation. Only the JSON.`,
   );
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// CITY STUDIO — Simplified location editor for cities only
+// Same toolbar & structure as Location Studio, but simpler form (no Info Strip)
+// ═════════════════════════════════════════════════════════════════════════════
+
+function CityStudio({ C, darkMode = true, onBuilderModeChange }) {
+  useEffect(() => {
+    onBuilderModeChange?.(true);
+    return () => onBuilderModeChange?.(false);
+  }, [onBuilderModeChange]);
+
+  const NU = 'var(--font-body)';
+  const GD = 'var(--font-serif)';
+  const LS = darkMode ? { bg: '#1a1a1a', card: '#242424', border: '#333', text: '#f5f5f5', muted: '#999', gold: '#C9A84C', btn: '#1a1a1a', btnTxt: '#f5f5f5' } : { bg: '#F2EFE9', card: '#F8F6F2', border: '#D9D2C6', text: '#222222', muted: '#777777', gold: '#8A6A18', btn: '#1a1a1a', btnTxt: '#ffffff' };
+
+  // ── State ──
+  const [countrySlug, setCountrySlug] = useState('');
+  const [regionSlug, setRegionSlug] = useState('');
+  const [citySlug, setCitySlug] = useState('');
+  const [form, setForm] = useState({});
+  const [published, setPublished] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [viewMode, setViewMode] = useState('split');
+  const [showMagicPanel, setShowMagicPanel] = useState(false);
+  const [magicContext, setMagicContext] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingMottoImage, setUploadingMottoImage] = useState(false);
+  const [venueList, setVenueList] = useState([]);
+  const [venuePickerSearch, setVenuePickerSearch] = useState('');
+
+  const heroUploadRef = useRef(null);
+  const mottoUploadRef = useRef(null);
+
+  const city = DIRECTORY_CITIES.find(c => c.slug === citySlug && c.countrySlug === countrySlug && c.regionSlug === regionSlug);
+  const cityName = city?.name || citySlug?.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') || '';
+  const locationType = 'city';
+  const locationKey = citySlug && countrySlug && regionSlug ? `city:${countrySlug}:${regionSlug}:${citySlug}` : null;
+
+  const set = (key, val) => {
+    setForm(p => ({ ...p, [key]: val }));
+    setDirty(true);
+  };
+
+  // Fetch location content
+  useEffect(() => {
+    if (!locationKey) return;
+    fetchLocationContent(locationKey).then(data => {
+      if (data) {
+        setForm({
+          heroTitle: data.hero_title || '',
+          heroSubtitle: data.hero_subtitle || '',
+          heroImage: data.hero_image || '',
+          heroVideo: data.hero_video || '',
+          ctaText: data.cta_text || 'Explore Venues',
+          ctaLink: data.cta_link || '#',
+          featuredVenuesTitle: data.featured_venues_title || 'Signature Venues',
+          featuredVendorsTitle: data.featured_vendors_title || 'Top Wedding Planners',
+          featuredVenueIds: Array.isArray(data.featured_venues) ? data.featured_venues : (typeof data.featured_venues === 'string' ? JSON.parse(data.featured_venues || '[]') : []),
+          featuredVendorIds: Array.isArray(data.featured_vendors) ? data.featured_vendors : (typeof data.featured_vendors === 'string' ? JSON.parse(data.featured_vendors || '[]') : []),
+          heroImages: Array.isArray(data.metadata?.heroImages) ? data.metadata.heroImages : [],
+          editorialPara1: data.metadata?.editorialPara1 || '',
+          editorialPara2: data.metadata?.editorialPara2 || '',
+          editorialBlock1Icon: data.metadata?.editorialBlocks?.[0]?.icon || '🏰',
+          editorialBlock1Text: data.metadata?.editorialBlocks?.[0]?.text || '',
+          editorialBlock2Icon: data.metadata?.editorialBlocks?.[1]?.icon || '🌿',
+          editorialBlock2Text: data.metadata?.editorialBlocks?.[1]?.text || '',
+          editorialBlock3Icon: data.metadata?.editorialBlocks?.[2]?.icon || '🌅',
+          editorialBlock3Text: data.metadata?.editorialBlocks?.[2]?.text || '',
+          editorialBlock4Icon: data.metadata?.editorialBlocks?.[3]?.icon || '✨',
+          editorialBlock4Text: data.metadata?.editorialBlocks?.[3]?.text || '',
+          editorialVenueMode: data.metadata?.editorialVenueMode || 'latest',
+          showEditorialSplit: data.metadata?.showEditorialSplit !== false,
+          showLatestVenues: data.metadata?.showLatestVenues !== false,
+          showLatestVendors: data.metadata?.showLatestVendors !== false,
+          showPlanningGuide: data.metadata?.showPlanningGuide !== false,
+          showMotto: data.metadata?.showMotto !== false,
+          motto: data.metadata?.motto || '',
+          mottoSubline: data.metadata?.mottoSubline || '',
+          mottoBgImage: data.metadata?.mottoBgImage || '',
+          mottoOverlay: data.metadata?.mottoOverlay ?? '0.55',
+          editorialEyebrow: data.metadata?.editorialEyebrow || '',
+          editorialHeadingPrefix: data.metadata?.editorialHeadingPrefix || '',
+          editorialCtaText: data.metadata?.editorialCtaText || '',
+          seoHeading: data.metadata?.seoHeading || '',
+          seoContent: data.metadata?.seoContent || '',
+          seoFaqs: Array.isArray(data.metadata?.seoFaqs) && data.metadata.seoFaqs.length > 0 ? data.metadata.seoFaqs : [],
+          latestVenuesHeading: data.metadata?.latestVenuesHeading || '',
+          latestVenuesSub: data.metadata?.latestVenuesSub || '',
+          latestVenuesCount: data.metadata?.latestVenuesCount != null ? String(data.metadata.latestVenuesCount) : '12',
+          latestVenuesMode: data.metadata?.latestVenuesMode || 'latest',
+          latestVenuesCardStyle: data.metadata?.latestVenuesCardStyle || 'luxury',
+          latestVenuesSelected: Array.isArray(data.metadata?.latestVenuesSelected) ? data.metadata.latestVenuesSelected : [],
+          latestVendorsHeading: data.metadata?.latestVendorsHeading || '',
+          latestVendorsSub: data.metadata?.latestVendorsSub || '',
+          latestVendorsCount: data.metadata?.latestVendorsCount != null ? String(data.metadata.latestVendorsCount) : '12',
+          latestVendorsMode: data.metadata?.latestVendorsMode || 'latest',
+          latestVendorsCardStyle: data.metadata?.latestVendorsCardStyle || 'luxury',
+          latestVendorsSelected: Array.isArray(data.metadata?.latestVendorsSelected) ? data.metadata.latestVendorsSelected : [],
+        });
+        setPublished(!!data.published);
+      } else {
+        setForm({
+          heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '', heroImages: [], ctaText: 'Explore Venues', ctaLink: '#',
+          featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Top Wedding Planners', featuredVenueIds: [], featuredVendorIds: [],
+          editorialPara1: '', editorialPara2: '', editorialBlock1Icon: '🏰', editorialBlock1Text: '', editorialBlock2Icon: '🌿', editorialBlock2Text: '', editorialBlock3Icon: '🌅', editorialBlock3Text: '', editorialBlock4Icon: '✨', editorialBlock4Text: '',
+          editorialVenueMode: 'latest', showEditorialSplit: true, showLatestVenues: true, showLatestVendors: true, showPlanningGuide: true, showMotto: true,
+          motto: '', mottoSubline: '', mottoBgImage: '', mottoOverlay: '0.55', editorialEyebrow: '', editorialHeadingPrefix: '', editorialCtaText: '',
+          seoHeading: '', seoContent: '', seoFaqs: [],
+          latestVenuesHeading: '', latestVenuesSub: '', latestVenuesCount: '12', latestVenuesMode: 'latest', latestVenuesCardStyle: 'luxury', latestVenuesSelected: [],
+          latestVendorsHeading: '', latestVendorsSub: '', latestVendorsCount: '12', latestVendorsMode: 'latest', latestVendorsCardStyle: 'luxury', latestVendorsSelected: [],
+        });
+        setPublished(false);
+      }
+      setDirty(false);
+    });
+  }, [locationKey]);
+
+  // Load venues
+  useEffect(() => {
+    if (!countrySlug) { setVenueList([]); return; }
+    const filters = { status: 'active', country_slug: countrySlug, city_slug: citySlug };
+    fetchListings(filters).then(data => setVenueList(Array.isArray(data) ? data : [])).catch(() => setVenueList([]));
+  }, [countrySlug, citySlug]);
+
+  const handleSave = async (publishOverride) => {
+    if (!locationKey) return setSaveErr('Select a city first');
+    setSaving(true); setSaveErr(null);
+    const newPublished = publishOverride === 'published' ? true : publishOverride === 'draft' ? false : published;
+    try {
+      const result = await saveLocationContent({
+        locationKey, locationType, countrySlug, regionSlug, citySlug,
+        heroTitle: form.heroTitle || cityName,
+        heroSubtitle: form.heroSubtitle, heroImage: form.heroImage, heroVideo: form.heroVideo,
+        ctaText: form.ctaText, ctaLink: form.ctaLink,
+        featuredVenuesTitle: form.featuredVenuesTitle, featuredVendorsTitle: form.featuredVendorsTitle,
+        featuredVenueIds: form.featuredVenueIds, featuredVendorIds: form.featuredVendorIds,
+        metadata: {
+          heroImages: form.heroImages || [],
+          editorialPara1: form.editorialPara1 || '',
+          editorialPara2: form.editorialPara2 || '',
+          editorialBlocks: [
+            { icon: form.editorialBlock1Icon || '🏰', text: form.editorialBlock1Text || '' },
+            { icon: form.editorialBlock2Icon || '🌿', text: form.editorialBlock2Text || '' },
+            { icon: form.editorialBlock3Icon || '🌅', text: form.editorialBlock3Text || '' },
+            { icon: form.editorialBlock4Icon || '✨', text: form.editorialBlock4Text || '' },
+          ],
+          editorialVenueMode: form.editorialVenueMode || 'latest',
+          showEditorialSplit: form.showEditorialSplit !== false,
+          showLatestVenues: form.showLatestVenues !== false,
+          showLatestVendors: form.showLatestVendors !== false,
+          showPlanningGuide: form.showPlanningGuide !== false,
+          showMotto: form.showMotto !== false,
+          motto: form.motto || '',
+          mottoSubline: form.mottoSubline || '',
+          mottoBgImage: form.mottoBgImage || '',
+          mottoOverlay: form.mottoOverlay ?? '0.55',
+          editorialEyebrow: form.editorialEyebrow || '',
+          editorialHeadingPrefix: form.editorialHeadingPrefix || '',
+          editorialCtaText: form.editorialCtaText || '',
+          seoHeading: form.seoHeading || '',
+          seoContent: form.seoContent || '',
+          seoFaqs: (form.seoFaqs || []).filter(f => f.q || f.a),
+          latestVenuesHeading: form.latestVenuesHeading || '',
+          latestVenuesSub: form.latestVenuesSub || '',
+          latestVenuesCount: parseInt(form.latestVenuesCount) || 12,
+          latestVenuesMode: form.latestVenuesMode || 'latest',
+          latestVenuesCardStyle: form.latestVenuesCardStyle || 'luxury',
+          latestVenuesSelected: form.latestVenuesSelected || [],
+          latestVendorsHeading: form.latestVendorsHeading || '',
+          latestVendorsSub: form.latestVendorsSub || '',
+          latestVendorsCount: parseInt(form.latestVendorsCount) || 12,
+          latestVendorsMode: form.latestVendorsMode || 'latest',
+          latestVendorsCardStyle: form.latestVendorsCardStyle || 'luxury',
+          latestVendorsSelected: form.latestVendorsSelected || [],
+        },
+        published: newPublished,
+      });
+      if (result.error) {
+        setSaveErr(`Save failed: ${result.error.message || 'Database error'}`);
+        return;
+      }
+      setPublished(newPublished);
+      setDirty(false);
+      setToast(newPublished ? 'City published ✓' : 'City saved ✓');
+    } catch (err) {
+      setSaveErr(`Save failed: ${err.message || 'Unknown error'}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleFeaturedVenue = (id) => {
+    const ids = form.featuredVenueIds || [];
+    const next = ids.includes(id) ? ids.filter(x => x !== id) : ids.length < 4 ? [...ids, id] : ids;
+    set('featuredVenueIds', next);
+  };
+
+  const uploadHeroImage = async (file) => {
+    if (!file || !locationKey) return;
+    const imgs = form.heroImages || [];
+    if (imgs.length >= 8) return;
+    setUploadingImage(true);
+    try {
+      const { supabase } = await import('../lib/supabaseClient');
+      const ext = file.name.split('.').pop();
+      const path = `locations/${locationKey.replace(/:/g, '/')}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from('listing-media').upload(path, file, { upsert: false, cacheControl: '31536000' });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from('listing-media').getPublicUrl(path);
+      const next = [...imgs, publicUrl];
+      setForm(prev => ({ ...prev, heroImages: next, heroImage: prev.heroImage || publicUrl }));
+      setDirty(true);
+    } catch (e) {
+      console.error('[City Studio] Image upload failed:', e);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const uploadMottoImage = async (file) => {
+    if (!file || !locationKey) return;
+    setUploadingMottoImage(true);
+    try {
+      const mediaId = `motto-${locationKey.replace(/:/g, '-')}-${Date.now()}`;
+      const publicUrl = await uploadMediaFile(file, mediaId);
+      set('mottoBgImage', publicUrl);
+      setDirty(true);
+      setToast('✓ Motto image uploaded successfully');
+    } catch (e) {
+      console.error('[City Studio] Motto image upload failed:', e);
+      setToast('✗ Failed to upload image: ' + (e.message || 'Unknown error'));
+    } finally {
+      setUploadingMottoImage(false);
+    }
+  };
+
+  const handleFillWithAI = async () => {
+    if (!locationKey || aiGenerating) return;
+    setAiGenerating(true);
+    try {
+      const { supabase } = await import('../lib/supabaseClient');
+      const { data, error } = await supabase.functions.invoke('ai-generate', {
+        body: {
+          feature: 'location_content',
+          systemPrompt: `You are an editor for Luxury Wedding Directory. Write elegant, aspirational copy for city pages. Be concise and evocative.`,
+          userPrompt: `Generate editorial content for ${cityName}. Return ONLY a JSON object:
+{
+  "heroTitle": "short headline (3-6 words)",
+  "heroSubtitle": "one sentence (max 20 words)",
+  "featuredVenuesTitle": "2-4 word section heading"
+}
+No explanation. Only the JSON.`,
+        },
+      });
+      if (error) throw error;
+      const raw = (data?.text || '').trim();
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        setForm(prev => ({
+          ...prev,
+          heroTitle: parsed.heroTitle || prev.heroTitle,
+          heroSubtitle: parsed.heroSubtitle || prev.heroSubtitle,
+          featuredVenuesTitle: parsed.featuredVenuesTitle || prev.featuredVenuesTitle,
+        }));
+        setDirty(true);
+      }
+    } catch (e) {
+      console.error('[City Studio] AI generation failed:', e);
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
+  const inp = (key, placeholder, multiline) => {
+    const base = { fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', boxSizing: 'border-box', outline: 'none' };
+    if (multiline) return <textarea value={form[key] || ''} onChange={e => set(key, e.target.value)} placeholder={placeholder} rows={3} style={{ ...base, resize: 'vertical', minHeight: 72 }} />;
+    return <input value={form[key] || ''} onChange={e => set(key, e.target.value)} placeholder={placeholder} style={base} />;
+  };
+  const lbl = (text) => <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: LS.muted, marginBottom: 6 }}>{text}</div>;
+
+  const showEditor = viewMode === 'split' || viewMode === 'editor';
+  const showPreview = viewMode === 'split' || viewMode === 'preview';
+  const selStyle = { fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' };
+
+  // Build locationContent for preview
+  const previewContent = {
+    heroTitle: form.heroTitle || cityName,
+    heroSubtitle: form.heroSubtitle,
+    heroImage: form.heroImage,
+    heroVideo: form.heroVideo,
+    ctaText: form.ctaText,
+    ctaLink: form.ctaLink,
+    featuredVenuesTitle: form.featuredVenuesTitle,
+    featuredVendorsTitle: form.featuredVendorsTitle,
+    showEditorialSplit: form.showEditorialSplit !== false,
+    editorialVenueMode: form.editorialVenueMode || 'latest',
+    editorialEyebrow: form.editorialEyebrow || '',
+    editorialHeadingPrefix: form.editorialHeadingPrefix || '',
+    editorialCtaText: form.editorialCtaText || '',
+    editorialPara1: form.editorialPara1 || '',
+    editorialPara2: form.editorialPara2 || '',
+    editorialBlocks: [
+      { icon: form.editorialBlock1Icon || '🏰', text: form.editorialBlock1Text || '' },
+      { icon: form.editorialBlock2Icon || '🌿', text: form.editorialBlock2Text || '' },
+      { icon: form.editorialBlock3Icon || '🌅', text: form.editorialBlock3Text || '' },
+      { icon: form.editorialBlock4Icon || '✨', text: form.editorialBlock4Text || '' },
+    ],
+    showLatestVenues: form.showLatestVenues !== false,
+    latestVenuesHeading: form.latestVenuesHeading || '',
+    latestVenuesSub: form.latestVenuesSub || '',
+    latestVenuesCount: parseInt(form.latestVenuesCount) || 12,
+    latestVenuesMode: form.latestVenuesMode || 'latest',
+    latestVenuesCardStyle: form.latestVenuesCardStyle || 'luxury',
+    showLatestVendors: form.showLatestVendors !== false,
+    latestVendorsHeading: form.latestVendorsHeading || '',
+    latestVendorsSub: form.latestVendorsSub || '',
+    latestVendorsCount: parseInt(form.latestVendorsCount) || 12,
+    latestVendorsMode: form.latestVendorsMode || 'latest',
+    latestVendorsCardStyle: form.latestVendorsCardStyle || 'luxury',
+    showPlanningGuide: form.showPlanningGuide !== false,
+    seoHeading: form.seoHeading || '',
+    seoContent: form.seoContent || '',
+    seoFaqs: form.seoFaqs || [],
+    showMotto: form.showMotto !== false,
+    motto: form.motto || `${cityName}, where every moment becomes a memory worth keeping forever.`,
+    mottoSubline: form.mottoSubline || '',
+    mottoBgImage: form.mottoBgImage || '',
+    mottoOverlay: parseFloat(form.mottoOverlay) || 0.55,
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {/* ── TOP BAR ─────────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '10px 24px', borderBottom: `1px solid ${LS.border}`, background: LS.bg, flexShrink: 0, zIndex: 20, gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => { if (locationKey) setShowMagicPanel(p => !p); }} disabled={!locationKey} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: showMagicPanel ? LS.gold : LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: locationKey ? 'pointer' : 'not-allowed', opacity: locationKey ? 1 : 0.4 }}>✦ Magic AI</button>
+          <button onClick={handleFillWithAI} disabled={!locationKey || aiGenerating} style={{ fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px', background: 'transparent', color: !locationKey || aiGenerating ? LS.muted : LS.text, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: !locationKey || aiGenerating ? 'not-allowed' : 'pointer', opacity: !locationKey ? 0.4 : 1 }}>{aiGenerating ? '⟳ Generating…' : 'Fill with AI'}</button>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
+          {saveErr && <span style={{ fontFamily: NU, fontSize: 11, color: '#ef4444' }}>{saveErr}</span>}
+          <button onClick={() => setDirty(false)} style={{ fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer' }}>Discard</button>
+          <button onClick={() => handleSave('draft')} disabled={saving || !locationKey} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving || !locationKey ? 'not-allowed' : 'pointer', opacity: saving || !locationKey ? 0.35 : 1 }}>{saving ? 'Saving…' : 'Save Draft'}</button>
+          <button onClick={() => handleSave(null)} disabled={saving || !locationKey} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving || !locationKey ? 'not-allowed' : 'pointer', opacity: saving || !locationKey ? 0.35 : 1 }}>{saving ? 'Saving…' : 'Save'}</button>
+          <button onClick={() => handleSave('published')} disabled={saving} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: published ? LS.gold : LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>
+            {saving ? 'Publishing…' : published ? '✓ Published' : 'Publish'}
+          </button>
+          {locationKey && (
+            <a href={`/${countrySlug}/${regionSlug}/${citySlug}`} target="_blank" rel="noopener noreferrer" style={{ fontFamily: NU, fontSize: 12, fontWeight: 500, padding: '6px 12px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>↗ Live Page</a>
+          )}
+          <div style={{ width: 1, height: 16, background: LS.border, marginLeft: 4 }} />
+          {['split', 'editor', 'preview'].map(m => (
+            <span key={m} onClick={() => setViewMode(m)} style={{ fontFamily: NU, fontSize: 11, fontWeight: viewMode === m ? 700 : 500, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', color: viewMode === m ? LS.text : LS.muted, borderBottom: viewMode === m ? `1px solid ${LS.text}` : '1px solid transparent', paddingBottom: 1 }}>
+              {m === 'split' ? 'Split' : m === 'editor' ? 'Editor' : 'Preview'}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* ── MAGIC AI PANEL ──────────────────────────────────────────────────── */}
+      {showMagicPanel && (
+        <div style={{ background: darkMode ? 'rgba(201,168,76,0.07)' : '#F8F5EE', borderTop: `2px solid ${LS.gold}`, borderBottom: `1px solid ${LS.border}`, padding: '16px 24px', display: 'flex', gap: 12, alignItems: 'flex-start', flexShrink: 0 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.gold, marginBottom: 6 }}>✦ Magic AI — {cityName}</div>
+            <textarea value={magicContext} onChange={e => setMagicContext(e.target.value)} placeholder={`Optional context (e.g. "focus on historic churches and luxury gardens")`} rows={2} style={{ width: '100%', boxSizing: 'border-box', fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, resize: 'none', outline: 'none' }} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 18 }}>
+            <button onClick={handleFillWithAI} disabled={aiGenerating} style={{ fontFamily: NU, fontSize: 12, fontWeight: 700, padding: '8px 18px', background: LS.gold, color: '#fff', border: 'none', borderRadius: 6, cursor: aiGenerating ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>{aiGenerating ? '⟳ Generating…' : 'Generate'}</button>
+            <button onClick={() => setShowMagicPanel(false)} style={{ fontFamily: NU, fontSize: 12, padding: '6px 12px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer' }}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── PANELS ──────────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+        {/* LEFT — editor */}
+        {showEditor && (
+          <div style={{ flex: viewMode === 'editor' ? '1' : '0 0 50%', overflowY: 'auto', background: LS.bg, borderRight: showPreview ? `1px solid ${LS.border}` : 'none', padding: '28px 32px 80px' }}>
+
+            {/* h1 = city name + status */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+                <h1 style={{ fontSize: 26, fontWeight: 600, color: LS.text, margin: 0, lineHeight: 1.2, fontFamily: GD }}>
+                  {cityName || 'Select a city'}
+                </h1>
+                {locationKey && (
+                  <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '3px 8px', borderRadius: 4, background: published ? 'rgba(34,197,94,0.15)' : `${LS.border}`, color: published ? '#22c55e' : LS.muted }}>
+                    {published ? 'Live' : 'Draft'}
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 14, color: LS.muted, fontFamily: NU }}>
+                City{locationKey ? ` · ${locationKey}` : ''}
+              </div>
+            </div>
+
+            {/* Location Picker — Country → Region → City (2-column layout) */}
+            <div style={{ marginBottom: 24, padding: '16px 18px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8 }}>
+              <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.muted, marginBottom: 12 }}>Location</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {/* Country */}
+                <div>
+                  {lbl('Country')}
+                  <select value={countrySlug} onChange={e => { setCountrySlug(e.target.value); setRegionSlug(''); setCitySlug(''); }} style={selStyle}>
+                    <option value="">Select country</option>
+                    {DIRECTORY_COUNTRIES.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+                  </select>
+                </div>
+                {/* Region */}
+                <div>
+                  {lbl('Region')}
+                  <select value={regionSlug} onChange={e => { setRegionSlug(e.target.value); setCitySlug(''); }} style={countrySlug ? selStyle : { ...selStyle, opacity: 0.5, pointerEvents: 'none' }} disabled={!countrySlug}>
+                    <option value="">Select region</option>
+                    {countrySlug && DIRECTORY_CITIES.filter(c => c.countrySlug === countrySlug).map(c => c.regionSlug).filter((v, i, a) => a.indexOf(v) === i).map(regionSlug => {
+                      const region = DIRECTORY_REGIONS.find(r => r.slug === regionSlug && r.countrySlug === countrySlug);
+                      return <option key={regionSlug} value={regionSlug}>{region?.name || regionSlug}</option>;
+                    })}
+                  </select>
+                </div>
+                {/* City */}
+                <div style={{ gridColumn: countrySlug && regionSlug ? '1 / -1' : 'auto' }}>
+                  {lbl('City')}
+                  <select value={citySlug} onChange={e => setCitySlug(e.target.value)} style={countrySlug && regionSlug ? selStyle : { ...selStyle, opacity: 0.5, pointerEvents: 'none' }} disabled={!countrySlug || !regionSlug}>
+                    <option value="">Select city</option>
+                    {countrySlug && regionSlug && DIRECTORY_CITIES.filter(c => c.countrySlug === countrySlug && c.regionSlug === regionSlug).map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Hero */}
+            <div style={{ marginBottom: 24, padding: '16px 18px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8 }}>
+              <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.muted, marginBottom: 12 }}>Hero</div>
+              <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, marginBottom: 12 }}>Headline and background</div>
+              <div style={{ marginBottom: 12 }}>{lbl('Title')}{inp('heroTitle', cityName || 'e.g. Weddings in Rome')}</div>
+              <div style={{ marginBottom: 12 }}>{lbl('Subtitle')}{inp('heroSubtitle', 'A curated guide to luxury wedding venues…', true)}</div>
+
+              {/* Images */}
+              <div style={{ marginBottom: 12 }}>
+                {lbl(`Images (${(form.heroImages || []).length}/8)`)}
+                <input ref={heroUploadRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={async e => { for (const f of Array.from(e.target.files || [])) await uploadHeroImage(f); e.target.value = ''; }} />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 8 }}>
+                  {(form.heroImages || []).map((url, i) => {
+                    const active = form.heroImage === url;
+                    return (
+                      <div key={i} onClick={() => set('heroImage', url)} style={{ position: 'relative', aspectRatio: '16/9', borderRadius: 4, overflow: 'hidden', border: `2px solid ${active ? LS.gold : LS.border}`, cursor: 'pointer' }}>
+                        <img src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        {active && <div style={{ position: 'absolute', top: 3, left: 3, background: LS.gold, borderRadius: 2, padding: '1px 5px', fontSize: 8, fontFamily: NU, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active</div>}
+                        <button onClick={e => { e.stopPropagation(); const next = (form.heroImages || []).filter(u => u !== url); const newActive = form.heroImage === url ? (next[0] || '') : form.heroImage; setForm(prev => ({ ...prev, heroImages: next, heroImage: newActive })); setDirty(true); }} style={{ position: 'absolute', top: 3, right: 3, background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>✕</button>
+                      </div>
+                    );
+                  })}
+                  {(form.heroImages || []).length < 8 && (
+                    <button onClick={() => heroUploadRef.current?.click()} disabled={uploadingImage || !locationKey} style={{ aspectRatio: '16/9', border: `1px dashed ${LS.border}`, borderRadius: 4, background: 'transparent', color: LS.muted, fontFamily: NU, fontSize: 11, cursor: uploadingImage || !locationKey ? 'not-allowed' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
+                      <span style={{ fontSize: 16 }}>{uploadingImage ? '⟳' : '+'}</span>
+                      <span>{uploadingImage ? 'Uploading…' : 'Add Photo'}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 12 }}>
+                {lbl('CTA Text')}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>{inp('ctaText', 'Explore Venues')}</div>
+                  <div>{lbl('CTA Link')}{inp('ctaLink', '#search')}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Featured — max 4 for cities */}
+            <div style={{ marginBottom: 24, padding: '16px 18px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8 }}>
+              <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.muted, marginBottom: 12 }}>Featured</div>
+              <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, marginBottom: 12 }}>Pin up to 4 venues to the top</div>
+              <div style={{ marginBottom: 12 }}>{lbl('Section Title')}{inp('featuredVenuesTitle', 'Signature Venues')}</div>
+              {venueList.length > 0 ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+                  {venueList.slice(0, 20).map(v => {
+                    const checked = (form.featuredVenueIds || []).includes(v.id);
+                    return (
+                      <label key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: checked ? `${LS.gold}18` : LS.bg, border: `1px solid ${checked ? LS.gold : LS.border}`, borderRadius: 6, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={checked} onChange={() => toggleFeaturedVenue(v.id)} style={{ accentColor: LS.gold, flexShrink: 0 }} />
+                        <span style={{ fontFamily: NU, fontSize: 12, color: LS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, padding: '10px 0', marginBottom: 12 }}>
+                  No venues found for this city.
+                </div>
+              )}
+              {(form.featuredVenueIds || []).length > 0 && (
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.gold }}>{form.featuredVenueIds.length} / 4 selected</div>
+              )}
+            </div>
+
+            {/* Editorial Split */}
+            <div style={{ marginBottom: 24, padding: '16px 18px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8, opacity: form.showEditorialSplit !== false ? 1 : 0.6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.muted }}>Editorial Split</div>
+                  <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, marginTop: 4 }}>5-image grid + editorial copy</div>
+                </div>
+                <input type="checkbox" checked={form.showEditorialSplit !== false} onChange={() => set('showEditorialSplit', !form.showEditorialSplit)} style={{ accentColor: LS.gold, width: 18, height: 18, cursor: 'pointer' }} />
+              </div>
+              {form.showEditorialSplit && (
+                <>
+                  <div style={{ marginBottom: 12 }}>{lbl('Eyebrow')}{inp('editorialEyebrow', `Why ${cityName || 'here'}`)}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                    <div>{lbl('Heading Prefix')}{inp('editorialHeadingPrefix', 'The Art of the')}</div>
+                    <div>{lbl('CTA Text')}{inp('editorialCtaText', `Browse All ${cityName || 'Venues'} →`)}</div>
+                  </div>
+                  <div style={{ marginBottom: 12 }}>{lbl('Paragraph 1')}{inp('editorialPara1', '', true)}</div>
+                  <div style={{ marginBottom: 12 }}>{lbl('Paragraph 2')}{inp('editorialPara2', '', true)}</div>
+                </>
+              )}
+            </div>
+
+            {/* Latest Venues */}
+            <div style={{ marginBottom: 24, padding: '16px 18px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8, opacity: form.showLatestVenues !== false ? 1 : 0.6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.muted }}>Latest Venues Strip</div>
+                  <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, marginTop: 4 }}>Venue card slider</div>
+                </div>
+                <input type="checkbox" checked={form.showLatestVenues !== false} onChange={() => set('showLatestVenues', !form.showLatestVenues)} style={{ accentColor: LS.gold, width: 18, height: 18, cursor: 'pointer' }} />
+              </div>
+              {form.showLatestVenues && (
+                <>
+                  <div style={{ marginBottom: 12 }}>{lbl('Heading')}{inp('latestVenuesHeading', '')}</div>
+                  <div style={{ marginBottom: 12 }}>{lbl('Subtext')}{inp('latestVenuesSub', '')}</div>
+                  <div style={{ marginBottom: 12 }}>{lbl('Count')}{inp('latestVenuesCount', '12')}</div>
+                </>
+              )}
+            </div>
+
+            {/* Latest Vendors */}
+            <div style={{ marginBottom: 24, padding: '16px 18px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8, opacity: form.showLatestVendors !== false ? 1 : 0.6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.muted }}>Latest Vendors Strip</div>
+                  <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, marginTop: 4 }}>Vendor card slider</div>
+                </div>
+                <input type="checkbox" checked={form.showLatestVendors !== false} onChange={() => set('showLatestVendors', !form.showLatestVendors)} style={{ accentColor: LS.gold, width: 18, height: 18, cursor: 'pointer' }} />
+              </div>
+              {form.showLatestVendors && (
+                <>
+                  <div style={{ marginBottom: 12 }}>{lbl('Heading')}{inp('latestVendorsHeading', '')}</div>
+                  <div style={{ marginBottom: 12 }}>{lbl('Subtext')}{inp('latestVendorsSub', '')}</div>
+                  <div style={{ marginBottom: 12 }}>{lbl('Count')}{inp('latestVendorsCount', '12')}</div>
+                </>
+              )}
+            </div>
+
+            {/* Planning Guide / SEO */}
+            <div style={{ marginBottom: 24, padding: '16px 18px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8, opacity: form.showPlanningGuide !== false ? 1 : 0.6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.muted }}>Planning Guide</div>
+                  <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, marginTop: 4 }}>SEO content & FAQs</div>
+                </div>
+                <input type="checkbox" checked={form.showPlanningGuide !== false} onChange={() => set('showPlanningGuide', !form.showPlanningGuide)} style={{ accentColor: LS.gold, width: 18, height: 18, cursor: 'pointer' }} />
+              </div>
+              {form.showPlanningGuide && (
+                <>
+                  <div style={{ marginBottom: 12 }}>{lbl('Section Title')}{inp('seoHeading', `Planning Your ${cityName} Wedding`)}</div>
+                  <div style={{ marginBottom: 12 }}>{lbl('Body Text')}{inp('seoContent', '', true)}</div>
+                </>
+              )}
+            </div>
+
+            {/* Motto Banner */}
+            <div style={{ marginBottom: 24, padding: '16px 18px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8, opacity: form.showMotto !== false ? 1 : 0.6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.muted }}>Motto Banner</div>
+                  <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, marginTop: 4 }}>Full-width quote strip</div>
+                </div>
+                <input type="checkbox" checked={form.showMotto !== false} onChange={() => set('showMotto', !form.showMotto)} style={{ accentColor: LS.gold, width: 18, height: 18, cursor: 'pointer' }} />
+              </div>
+              {form.showMotto && (
+                <>
+                  <div style={{ marginBottom: 12 }}>{lbl('Quote')}{inp('motto', `${cityName}, where every moment becomes a memory worth keeping forever.`, true)}</div>
+                  <div style={{ marginBottom: 12 }}>{lbl('Sub-line (optional)')}{inp('mottoSubline', 'e.g. Luxury Wedding Directory · ' + cityName)}</div>
+                  <div style={{ marginBottom: 12 }}>
+                    {lbl('Background Image')}
+                    <input ref={mottoUploadRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => { const f = e.target.files?.[0]; if (f) await uploadMottoImage(f); e.target.value = ''; }} />
+                    <button onClick={() => mottoUploadRef.current?.click()} disabled={uploadingMottoImage || !locationKey} style={{ width: '100%', padding: '9px 12px', border: `1px dashed ${LS.border}`, borderRadius: 6, background: 'transparent', color: uploadingMottoImage ? LS.muted : LS.gold, fontFamily: NU, fontSize: 12, fontWeight: 600, cursor: uploadingMottoImage || !locationKey ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 15 }}>{uploadingMottoImage ? '⟳' : '↑'}</span>
+                      {uploadingMottoImage ? 'Uploading…' : 'Upload Image'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+          </div>
+        )}
+
+        {/* RIGHT — preview */}
+        {showPreview && (
+          <div style={{ flex: viewMode === 'preview' ? '1' : '0 0 50%', overflowY: 'auto', background: LS.bg, padding: '0' }}>
+            {locationKey ? (
+              <LocationPage
+                key={`city-${citySlug}`}
+                locationType="city"
+                locationSlug={citySlug}
+                locationContent={previewContent}
+                hideNav={true}
+                noIndex={true}
+              />
+            ) : (
+              <div style={{ padding: '40px 20px', textAlign: 'center', color: LS.muted, minHeight: '100vh', background: LS.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 20, marginBottom: 12 }}>Live preview will appear here</div>
+                  <div style={{ fontSize: 14 }}>Start by selecting a city →</div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
 // Displays all leads from the lead engine with filters, scoring, and detail view
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -9332,6 +9966,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
   const [listingStudioListingId, setListingStudioListingId] = useState(initialLS.id);
   const [eventsBuilderActive, setEventsBuilderActive] = useState(false);
   const [locationStudioActive, setLocationStudioActive] = useState(false);
+  const [cityStudioActive, setCityStudioActive] = useState(false);
   const [activeShowcaseId, setActiveShowcaseId] = useState(null);
 
   useEffect(() => {
@@ -9846,6 +10481,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "countries":     return <CountriesModule C={C} />;
       case "regions":       return <RegionsModule C={C} />;
       case "locations":     return <LocationsModule key="locations" C={C} darkMode={darkMode} onBuilderModeChange={setLocationStudioActive} />;
+      case "cities":        return <CityStudio key="cities" C={C} darkMode={darkMode} onBuilderModeChange={setCityStudioActive} />;
       case "leads":         return <LeadsModule C={C} />;
       case "marketing":      return <EmailMarketingModule C={C} onNavigate={setActiveTab} />;
       case "email-marketing": return <EmailMarketingModule C={C} onNavigate={setActiveTab} />;
@@ -9909,7 +10545,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         @media (max-width: 768px) {
           .admin-sidebar { display: flex !important; position: fixed !important; z-index: 999; left: 0; top: 0; width: 220px !important; height: 100vh !important; transform: translateX(${sidebarOpen ? "0" : "-100%"}); transition: transform 0.3s ease !important; box-shadow: ${sidebarOpen ? "6px 0 32px rgba(0,0,0,0.7)" : "none"}; border-right: ${sidebarOpen ? "1px solid rgba(201,168,76,0.25)" : "none"} !important; }
           .admin-sidebar-overlay { display: ${sidebarOpen ? "block" : "none"}; position: fixed; inset: 0; z-index: 998; background: rgba(0,0,0,0.5); }
-          .admin-main { padding: ${activeTab === 'magazine-studio' || activeTab === 'page-editor' || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || listingStudioMode || eventsBuilderActive || locationStudioActive ? '0' : '56px 16px 20px'} !important; }
+          .admin-main { padding: ${activeTab === 'magazine-studio' || activeTab === 'page-editor' || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || listingStudioMode || eventsBuilderActive || locationStudioActive || cityStudioActive ? '0' : '56px 16px 20px'} !important; }
           .admin-hamburger { display: flex !important; }
           .admin-collapse-btn { display: none !important; }
           .admin-grid-2col { grid-template-columns: 1fr !important; }
@@ -10127,7 +10763,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         </aside>
 
         {/* ── Main content ── */}
-        <main className="admin-main" style={{ flex: 1, minHeight: 0, padding: listingStudioMode || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || eventsBuilderActive || locationStudioActive ? 0 : "40px 48px", overflow: activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || eventsBuilderActive || locationStudioActive || activeTab === 'event-studio' ? "hidden" : "auto", display: eventsBuilderActive || locationStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'showcase-studio' || activeTab === 'site-content' ? "flex" : undefined, flexDirection: eventsBuilderActive || locationStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'showcase-studio' || activeTab === 'site-content' ? "column" : undefined, transition: "background 0.3s" }}>
+        <main className="admin-main" style={{ flex: 1, minHeight: 0, padding: listingStudioMode || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || eventsBuilderActive || locationStudioActive || cityStudioActive ? 0 : "40px 48px", overflow: activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || eventsBuilderActive || locationStudioActive || cityStudioActive || activeTab === 'event-studio' ? "hidden" : "auto", display: eventsBuilderActive || locationStudioActive || cityStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'showcase-studio' || activeTab === 'site-content' ? "flex" : undefined, flexDirection: eventsBuilderActive || locationStudioActive || cityStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'showcase-studio' || activeTab === 'site-content' ? "column" : undefined, transition: "background 0.3s" }}>
           {/* Magazine Studio, full-screen inside admin layout */}
           {activeTab === 'magazine-studio' ? (
             <MagazineStudio
@@ -10164,7 +10800,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
             </Suspense>
           ) : (
             <>
-              {!['page-editor', 'listing-studio', 'event-studio', 'magazine-studio', 'venue-intake', 'showcase-studio', 'locations'].includes(activeTab) && !listingStudioMode && !eventsBuilderActive && !locationStudioActive && (
+              {!['page-editor', 'listing-studio', 'event-studio', 'magazine-studio', 'venue-intake', 'showcase-studio', 'locations', 'cities'].includes(activeTab) && !listingStudioMode && !eventsBuilderActive && !locationStudioActive && !cityStudioActive && (
                 <div style={{ marginBottom: 36 }}>
                   <h1 style={{
                     fontFamily: GD, fontSize: 24, fontWeight: 400,
