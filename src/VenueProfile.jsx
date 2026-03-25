@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, createContext, useContext } from "react";
 import { getDefaultMode } from "./theme/tokens";
 import GCardMobile from "./components/cards/GCardMobile";
 import SliderNav from "./components/ui/SliderNav";
-import { fetchListingBySlug } from './services/listings';
+import { fetchListingBySlug, fetchListingById } from './services/listings';
 import { fetchApprovedReviews } from './services/reviewService';
 import { buildCardImgs, mapMediaItemToGalleryPhoto, buildVenueVideos } from './utils/mediaMappers';
 import ReviewSubmitForm from './components/reviews/ReviewSubmitForm';
@@ -11,8 +11,27 @@ import SeoHead from './components/seo/SeoHead';
 import JsonLd from './components/seo/JsonLd';
 import { buildVenueSchema, buildBreadcrumbSchema, buildFaqSchema } from './utils/structuredData';
 import HomeNav from "./components/nav/HomeNav";
+import { useChat } from "./chat/ChatContext";
+import { createLead } from "./services/leadEngineService";
+import ExternalLinkModal from "./components/ExternalLinkModal";
+import { trackExternalClick, hasSeenModalThisSession, markModalSeen } from "./services/outboundClickService";
+import { trackProfileView, trackCompareAdd, trackCompareRemove, trackCompareView, trackComparePair, trackEvent } from "./services/userEventService";
+import { fetchUpcomingEventsForVenue, formatEventDate, formatEventTime } from './services/eventService';
+import ReviewsSection from './components/reviews/ReviewsSection';
+import EventDrawer from './components/EventDrawer';
+import { ShowcaseAtAGlance, ShowcasePricing, ShowcaseVerified } from './components/showcase';
+import { fetchVenueIntelligence } from './services/venueIntelligenceService';
 
 const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://www.luxuryweddingdirectory.co.uk';
+
+// Ensures external URLs always have a protocol, without doubling it up
+// e.g. "auberge.com/..." → "https://auberge.com/..."
+//      "https://auberge.com/..." → "https://auberge.com/..." (unchanged)
+const toAbsoluteUrl = (url) => {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url)) return url;
+  return `https://${url}`;
+};
 
 function useIsMobile(bp = 768) {
   const [mobile, setMobile] = useState(() => window.innerWidth <= bp);
@@ -449,10 +468,10 @@ function Stars({ rating, size = 13 }) {
 function SectionHeading({ title, subtitle }) {
   const C = useT();
   return (
-    <div style={{ marginBottom: 36, textAlign: 'left', width: '100%' }}>
-      <h2 style={{ fontFamily: FD, fontSize: 32, fontWeight: 400, color: C.text, letterSpacing: "-0.3px", lineHeight: 1.15, marginBottom: 10 }}>{title}</h2>
+    <div style={{ marginBottom: 40, textAlign: 'left', width: '100%' }}>
+      <h2 style={{ fontFamily: FD, fontSize: 34, fontWeight: 400, color: C.text, letterSpacing: "-0.4px", lineHeight: 1.1, marginBottom: 12 }}>{title}</h2>
       <div style={{ width: 48, height: 2, backgroundImage: `linear-gradient(90deg, ${C.gold}, ${C.green})` }} />
-      {subtitle && <p style={{ fontFamily: FB, fontSize: 15, color: C.textLight, marginTop: 12, lineHeight: 1.6 }}>{subtitle}</p>}
+      {subtitle && <p style={{ fontFamily: FB, fontSize: 14, color: C.textMuted, marginTop: 12, lineHeight: 1.65, letterSpacing: '0.1px' }}>{subtitle}</p>}
     </div>
   );
 }
@@ -1222,7 +1241,7 @@ function Hero({ venue, heroStyle, setHeroStyle, onEnquire, onBack }) {
 }
 
 // ─── STATS STRIP ─────────────────────────────────────────────────────────────
-function StatsStrip({ venue }) {
+function StatsStrip({ venue, nextEvent, onEventClick }) {
   const C = useT();
 
   // Capacity
@@ -1262,21 +1281,21 @@ function StatsStrip({ venue }) {
       hide: !venue.priceFrom,
     },
     {
-      label: "Max Guests",
-      value: maxGuests ? maxGuests.toString() : null,
-      sub: maxDinner ? `${maxDinner} seated` : "guests",
-      hide: !maxGuests,
+      label: "Up to",
+      value: maxGuests ? `${maxGuests}` : (sleepsValue ? `${sleepsValue}` : null),
+      sub: "guests",
+      hide: !maxGuests && !sleepsValue,
     },
     {
       label: "Rooms",
-      value: totalRooms ? totalRooms.toString() : (sleepsValue ? sleepsValue.toString() : null),
-      sub: sleepsValue && totalRooms ? `sleeps ${sleepsValue}` : "for guests",
-      hide: !totalRooms && !sleepsValue,
+      value: totalRooms ? totalRooms.toString() : null,
+      sub: sleepsValue ? `sleeps ${sleepsValue}` : "for guests",
+      hide: !totalRooms,
     },
     {
       label: "Event Spaces",
       value: spacesCount ? spacesCount.toString() : null,
-      sub: "distinct settings",
+      sub: "ceremony settings",
       hide: !spacesCount,
     },
     {
@@ -1284,13 +1303,14 @@ function StatsStrip({ venue }) {
       value: ceremonyTypes,
       sub: "settings available",
       hide: !ceremonyTypes,
-      small: true, // text value, not a number — render smaller
+      small: true,
     },
     {
-      label: "Response Time",
-      value: venue.responseTime,
-      sub: venue.responseRate ? `${venue.responseRate}% reply rate` : "typical",
-      hide: !venue.responseTime,
+      label: "Exclusive Use",
+      value: venue.exclusiveUse ? "Available" : null,
+      sub: "full venue buyout",
+      hide: !venue.exclusiveUse,
+      small: true,
     },
     {
       label: "Rating",
@@ -1300,13 +1320,15 @@ function StatsStrip({ venue }) {
     },
   ].filter(s => !s.hide);
 
+  const nextEventDate = nextEvent ? formatEventDate(nextEvent.startDate) : null;
+
   return (
     <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "0 40px" }}>
       <div style={{ display: "flex", overflowX: "auto", gap: 0, scrollbarWidth: "none" }}>
         {stats.map((s, i) => (
           <div key={i} style={{
             flex: "0 0 auto", padding: "18px 28px",
-            borderRight: i < stats.length - 1 ? `1px solid ${C.border}` : "none",
+            borderRight: `1px solid ${C.border}`,
             minWidth: 120,
           }}>
             <div style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, letterSpacing: "0.7px", textTransform: "uppercase", marginBottom: 5 }}>{s.label}</div>
@@ -1314,7 +1336,46 @@ function StatsStrip({ venue }) {
             <div style={{ fontFamily: FB, fontSize: 11, color: C.textLight, marginTop: 4 }}>{s.sub}</div>
           </div>
         ))}
+
+        {/* Next Open Day — only when an upcoming event exists */}
+        {nextEvent && nextEventDate && (
+          <div
+            onClick={() => {
+              trackEvent({ eventType: 'event_cta_click', entityType: 'event', entityId: nextEvent.id, metadata: { surface: 'stats_strip', eventTitle: nextEvent.title } })
+              onEventClick?.(nextEvent)
+            }}
+            style={{
+              flex: "0 0 auto", padding: "18px 28px", minWidth: 140,
+              cursor: "pointer", position: "relative",
+              transition: "background 0.2s",
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = C.hover || 'rgba(201,168,76,0.04)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            <div style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, letterSpacing: "0.7px", textTransform: "uppercase", marginBottom: 5 }}>
+              Next Open Day
+            </div>
+            <div style={{ fontFamily: FB, fontSize: 15, fontWeight: 600, color: C.gold, lineHeight: 1.2 }}>
+              {nextEventDate}
+            </div>
+            <div style={{ fontFamily: FB, fontSize: 11, color: C.gold, marginTop: 5, display: 'flex', alignItems: 'center', gap: 4, opacity: 0.85 }}>
+              Register <span style={{ fontSize: 10 }}>→</span>
+            </div>
+            {/* Subtle animated bottom border as a signal */}
+            <div style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0, height: 2,
+              background: `linear-gradient(90deg, transparent, ${C.gold}, transparent)`,
+              animation: 'lwd-pulse-bar 2.5s ease-in-out infinite',
+            }} />
+          </div>
+        )}
       </div>
+      <style>{`
+        @keyframes lwd-pulse-bar {
+          0%, 100% { opacity: 0.3; }
+          50%       { opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }
@@ -1458,6 +1519,19 @@ function OpeningHoursWidget({ openingHours }) {
 
 function SidebarContact({ venue }) {
   const C = useT();
+  const [exitConfig, setExitConfig] = useState(null);
+
+  const handleWebsiteClick = () => {
+    const url = toAbsoluteUrl(venue.contact.website);
+    const trackData = { entityType: 'venue', entityId: venue.id, venueId: venue.id, linkType: 'website', url };
+    if (!hasSeenModalThisSession(url)) {
+      setExitConfig({ url, name: venue.name });
+    } else {
+      trackExternalClick(trackData);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   return (
     <div style={{ border: `1px solid ${C.border}`, background: C.surface }}>
       {/* Mini map */}
@@ -1486,20 +1560,33 @@ function SidebarContact({ venue }) {
             onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.text; }}
           ><Icon name="phone" size={12} /> Call</a>
-          <a href={`https://${venue.contact.website}`} target="_blank" rel="noopener noreferrer" style={{
+          <button onClick={venue.contact.website ? handleWebsiteClick : undefined} style={{
             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             padding: "9px 8px", border: `1px solid ${C.border2}`, borderRadius: "var(--lwd-radius-input)",
             fontFamily: FB, fontSize: 11, fontWeight: 700, color: C.text,
-            textDecoration: "none", letterSpacing: "0.4px", textTransform: "uppercase",
+            background: "none", cursor: "pointer",
+            letterSpacing: "0.4px", textTransform: "uppercase",
             transition: "all 0.2s",
           }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.text; }}
-          ><Icon name="globe" size={12} /> Website</a>
+          ><Icon name="globe" size={12} /> Website</button>
         </div>
       </div>
       {/* Opening hours */}
       <OpeningHoursWidget openingHours={venue.openingHours} />
+
+      {exitConfig && (
+        <ExternalLinkModal
+          name={exitConfig.name}
+          url={exitConfig.url}
+          onClose={() => setExitConfig(null)}
+          onContinue={() => {
+            markModalSeen(exitConfig.url);
+            trackExternalClick({ entityType: 'venue', entityId: venue.id, venueId: venue.id, linkType: 'website', url: exitConfig.url });
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -2916,7 +3003,19 @@ function ContactSection({ venue }) {
   const C = useT();
   const [emailRevealed, setEmailRevealed] = useState(false);
   const [mapLoaded, setMapLoaded]         = useState(false);
+  const [exitConfig, setExitConfig]       = useState(null);
   if (!venue.contact) return null;
+
+  const handleWebsiteClick = () => {
+    const url = toAbsoluteUrl(venue.contact.website);
+    const trackData = { entityType: 'venue', entityId: venue.id, venueId: venue.id, linkType: 'website', url };
+    if (!hasSeenModalThisSession(url)) {
+      setExitConfig({ url, name: venue.name });
+    } else {
+      trackExternalClick(trackData);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
   const addr = venue.contact.address || {};
   const rm   = venue.contact.responseMetrics || {};
 
@@ -2964,8 +3063,8 @@ function ContactSection({ venue }) {
       <div className="vp-contact-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
 
         {/* ── Contact details ── */}
-        <div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 0, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+        <div style={{ display: "flex", flexDirection: "column", height: 400 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 0, border: `1px solid ${C.border}`, overflow: "hidden", flex: 1 }}>
             {addressFormatted && contactRow("pin", "Address",
               <div style={{ fontFamily: FB, fontSize: 14, color: C.textMid, lineHeight: 1.6 }}>{addressFormatted}</div>,
               { topAlign: true }
@@ -2983,10 +3082,58 @@ function ContactSection({ venue }) {
                     cursor: "pointer", letterSpacing: "0.3px",
                   }}>Click to reveal email</button>
             )}
-            {venue.contact.website && contactRow("globe", "Website",
-              <div style={{ fontFamily: FB, fontSize: 14, color: C.gold, fontWeight: 600 }}>{venue.contact.website}</div>,
-              { href: `https://${venue.contact.website}`, target: "_blank", rel: "noopener noreferrer", last: true }
+            {venue.contact.website && (
+              <div
+                onClick={handleWebsiteClick}
+                style={{
+                  padding: "18px 20px", display: "flex", gap: 14, alignItems: "center",
+                  cursor: "pointer", transition: "background 0.2s",
+                  borderBottom: `1px solid ${C.border}`,
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = C.bgAlt}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >
+                <Icon name="globe" size={15} color={C.textMuted} />
+                <div>
+                  <div style={{ fontFamily: FB, fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: C.textMuted, marginBottom: 3 }}>Website</div>
+                  <div style={{ fontFamily: FB, fontSize: 14, color: C.gold, fontWeight: 600 }}>{venue.contact.website}</div>
+                </div>
+              </div>
             )}
+
+            {/* ── Social media links ── */}
+            {(() => {
+              const s = venue.contact?.social || {};
+              const links = [
+                { key: 'instagram', label: 'Instagram', icon: 'M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z' },
+                { key: 'facebook', label: 'Facebook', icon: 'M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z' },
+                { key: 'linkedin', label: 'LinkedIn', icon: 'M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z' },
+                { key: 'tiktok', label: 'TikTok', icon: 'M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z' },
+                { key: 'twitter', label: 'X (Twitter)', icon: 'M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z' },
+                { key: 'pinterest', label: 'Pinterest', icon: 'M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 01.083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z' },
+                { key: 'youtube', label: 'YouTube', icon: 'M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z' },
+              ].filter(l => s[l.key]);
+              if (!links.length) return null;
+              return (
+                <div style={{ padding: "16px 20px", borderTop: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontFamily: FB, fontSize: 10, color: C.textMuted, letterSpacing: "0.7px", textTransform: "uppercase", marginRight: 4 }}>Follow</span>
+                  {links.map(l => (
+                    <button key={l.key} onClick={() => {
+                      trackExternalClick({ entityType: 'venue', entityId: venue.id, venueId: venue.id, linkType: l.key, url: s[l.key] });
+                      window.open(s[l.key], '_blank', 'noopener,noreferrer');
+                    }} title={l.label}
+                      style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: C.textMuted, transition: "color 0.2s", display: "flex" }}
+                      onMouseEnter={e => e.currentTarget.style.color = C.gold}
+                      onMouseLeave={e => e.currentTarget.style.color = C.textMuted}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ display: "block" }}>
+                        <path d={l.icon} />
+                      </svg>
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
 
           {rm.averageResponseHours && (
@@ -3014,7 +3161,7 @@ function ContactSection({ venue }) {
               </span>
               {nearestAirport && (
                 <span style={{ fontFamily: FB, fontSize: 12, color: C.textMuted }}>
-                  · {nearestAirport} nearest airport
+                  · {nearestAirport} nearest airport{venue.access?.transferTime ? ` · ${venue.access.transferTime} transfer` : ''}
                 </span>
               )}
             </div>
@@ -3030,10 +3177,10 @@ function ContactSection({ venue }) {
 
           {/* Map container — fixed height so iframe always renders */}
           <div style={{
-            position: "relative", height: 340, overflow: "hidden",
+            position: "relative", height: 400, overflow: "hidden",
             border: `1px solid ${C.border}`,
             borderRadius: "var(--lwd-radius-input)",
-            boxShadow: "0 2px 16px rgba(0,0,0,0.06)",
+            boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
             background: C.bgAlt,
           }}>
             {/* Loading shimmer — hidden once map fires onLoad */}
@@ -3052,7 +3199,7 @@ function ContactSection({ venue }) {
             <iframe
               title="Venue location"
               width="100%"
-              height="340"
+              height="400"
               style={{ display: "block", border: "none", opacity: mapLoaded ? 1 : 0, transition: "opacity 0.4s ease" }}
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
@@ -3063,6 +3210,18 @@ function ContactSection({ venue }) {
         </div>
 
       </div>
+
+      {exitConfig && (
+        <ExternalLinkModal
+          name={exitConfig.name}
+          url={exitConfig.url}
+          onClose={() => setExitConfig(null)}
+          onContinue={() => {
+            markModalSeen(exitConfig.url);
+            trackExternalClick({ entityType: 'venue', entityId: venue.id, venueId: venue.id, linkType: 'website', url: exitConfig.url });
+          }}
+        />
+      )}
     </section>
   );
 }
@@ -5541,8 +5700,1192 @@ function MobileLeadBar({ venue }) {
   );
 }
 
+// ─── COMPARE MODAL ───────────────────────────────────────────────────────────
+
+const VENUE_TYPE_LABELS = {
+  venue:       'Venue',
+  villa:       'Villa',
+  castle:      'Castle',
+  hotel:       'Hotel',
+  manor:       'Manor House',
+  chateau:     'Château',
+  barn:        'Barn',
+  garden:      'Garden',
+  beach:       'Beach',
+  vineyard:    'Vineyard',
+  estate:      'Estate',
+  palazzo:     'Palazzo',
+  resort:      'Resort',
+  farmhouse:   'Farmhouse',
+  penthouse:   'Penthouse',
+  lodge:       'Lodge',
+  yacht:       'Yacht',
+  island:      'Private Island',
+  rooftop:     'Rooftop',
+  loft:        'Loft',
+  gallery:     'Gallery',
+  spa:         'Spa & Retreat',
+};
+
+function CompareStat({ label, value, accent, C }) {
+  return (
+    <div style={{
+      display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+      padding: '14px 0', borderBottom: `1px solid rgba(255,255,255,0.07)`,
+    }}>
+      <span style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.38)', fontWeight: 600 }}>
+        {label}
+      </span>
+      <span style={{ fontFamily: FB, fontSize: 13, color: accent || 'rgba(255,255,255,0.82)', fontWeight: 500, textAlign: 'right', maxWidth: '60%' }}>
+        {value || <span style={{ color: 'rgba(255,255,255,0.22)', fontStyle: 'italic', fontWeight: 400 }}>—</span>}
+      </span>
+    </div>
+  );
+}
+
+function CompareVenueColumn({ venue, isLast, highlight, C, onClose, onEnquire }) {
+  const [hovered,    setHovered]    = useState(false);
+  const [activeIdx,  setActiveIdx]  = useState(0);
+  const [arrowHover, setArrowHover] = useState(null); // 'prev' | 'next' | null
+
+  // ── Build full gallery from richest available source ──────────────────────
+  const galleryImgs = (() => {
+    if (Array.isArray(venue?.imgs) && venue.imgs.length > 0) {
+      return venue.imgs
+        .map(i => ({ src: i.src || i.url, alt: i.alt_text || venue.name }))
+        .filter(i => i.src)
+        .slice(0, 20);
+    }
+    if (Array.isArray(venue?.heroImages) && venue.heroImages.length > 0) {
+      return venue.heroImages
+        .filter(h => h?.url)
+        .map(h => ({ src: h.url, alt: venue.name }));
+    }
+    const single = venue?.heroImage || venue?.cardImage || null;
+    return single ? [{ src: single, alt: venue?.name || '' }] : [];
+  })();
+
+  const totalImgs  = galleryImgs.length;
+  const currentImg = galleryImgs[activeIdx] || null;
+
+  const goPrev = (e) => {
+    e.stopPropagation();
+    setActiveIdx(i => (i - 1 + totalImgs) % totalImgs);
+  };
+  const goNext = (e) => {
+    e.stopPropagation();
+    setActiveIdx(i => (i + 1) % totalImgs);
+  };
+
+  const locationParts = [venue?.city, venue?.region, venue?.country].filter(Boolean);
+  const location = locationParts.join(', ');
+  const flag = COUNTRY_FLAG[venue?.country] || '';
+  const price = venue?.priceFrom
+    ? `${venue.priceCurrency || '€'}${Number(venue.priceFrom).toLocaleString()}`
+    : null;
+  const capacity = venue?.capacity ? `Up to ${Number(venue.capacity).toLocaleString()} guests` : null;
+  const type = VENUE_TYPE_LABELS[venue?.listingType?.toLowerCase?.()] ||
+    (venue?.listingType ? venue.listingType.charAt(0).toUpperCase() + venue.listingType.slice(1) : null);
+  const rating = venue?.rating ? Number(venue.rating).toFixed(1) : null;
+  const reviews = venue?.reviewCount ?? venue?.reviews ?? null;
+  const exclusiveUse = venue?.exclusiveUseEnabled ?? venue?.exclusiveUse?.enabled ?? null;
+  const slug = venue?.slug || null;
+  const profileUrl = slug ? `/venues/${slug}` : null;
+
+  if (!venue || (!venue.name && !currentImg)) {
+    return (
+      <div style={{
+        borderRight: isLast ? 'none' : `1px solid rgba(184,160,90,0.12)`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 500,
+      }}>
+        <div style={{ fontFamily: FB, fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>Unable to load</div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        borderRight: isLast ? 'none' : `1px solid rgba(184,160,90,0.12)`,
+        display: 'flex', flexDirection: 'column',
+        position: 'relative',
+        background: hovered ? '#111110' : '#0f0f0d',
+        transform: hovered ? 'translateY(-2px)' : 'translateY(0)',
+        transition: 'transform 0.22s cubic-bezier(0.25,0.46,0.45,0.94), background 0.2s ease',
+        boxShadow: hovered ? '0 12px 40px rgba(0,0,0,0.5)' : 'none',
+        zIndex: hovered ? 2 : 1,
+      }}
+    >
+
+      {/* Highlight badge */}
+      {highlight && (
+        <div style={{
+          position: 'absolute', top: 16, left: 16, zIndex: 4,
+          background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(10px)',
+          border: `1px solid ${C.gold}`,
+          padding: '3px 10px', borderRadius: 2,
+          fontFamily: FB, fontSize: 9, fontWeight: 700,
+          letterSpacing: '0.14em', textTransform: 'uppercase', color: C.gold,
+        }}>
+          {highlight}
+        </div>
+      )}
+
+      {/* ── Gallery ── */}
+      <div style={{ position: 'relative', height: 340, flexShrink: 0, overflow: 'hidden', background: '#1a1a18' }}>
+
+        {/* Slides — instant crossfade */}
+        {galleryImgs.map((img, i) => (
+          <img
+            key={i}
+            src={img.src}
+            alt={img.alt}
+            style={{
+              position: 'absolute', inset: 0,
+              width: '100%', height: '100%', objectFit: 'cover',
+              opacity: i === activeIdx ? 1 : 0,
+              transition: 'opacity 0.38s ease',
+              pointerEvents: 'none',
+            }}
+          />
+        ))}
+
+        {/* Fallback placeholder */}
+        {galleryImgs.length === 0 && (
+          <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #1a1a18 0%, #2a2a24 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontFamily: FD, fontSize: 32, color: 'rgba(184,160,90,0.2)' }}>✦</span>
+          </div>
+        )}
+
+        {/* Gradient overlay */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.86) 0%, rgba(0,0,0,0.1) 50%, transparent 100%)', zIndex: 1 }} />
+
+        {/* Prev / Next arrows — shown only when >1 image and card is hovered */}
+        {totalImgs > 1 && (
+          <>
+            <button
+              onClick={goPrev}
+              onMouseEnter={() => setArrowHover('prev')}
+              onMouseLeave={() => setArrowHover(null)}
+              aria-label="Previous photo"
+              style={{
+                position: 'absolute', left: 10, top: '50%',
+                transform: `translateY(-50%) ${arrowHover === 'prev' ? 'scale(1.1)' : 'scale(1)'}`,
+                zIndex: 3,
+                width: 32, height: 32, borderRadius: '50%',
+                background: arrowHover === 'prev' ? 'rgba(0,0,0,0.72)' : 'rgba(0,0,0,0.48)',
+                border: '1px solid rgba(255,255,255,0.18)',
+                color: '#fff', fontSize: 14, lineHeight: 1,
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                opacity: hovered ? 1 : 0,
+                transition: 'opacity 0.2s ease, background 0.15s, transform 0.15s',
+                backdropFilter: 'blur(8px)',
+              }}
+            >
+              ‹
+            </button>
+            <button
+              onClick={goNext}
+              onMouseEnter={() => setArrowHover('next')}
+              onMouseLeave={() => setArrowHover(null)}
+              aria-label="Next photo"
+              style={{
+                position: 'absolute', right: 10, top: '50%',
+                transform: `translateY(-50%) ${arrowHover === 'next' ? 'scale(1.1)' : 'scale(1)'}`,
+                zIndex: 3,
+                width: 32, height: 32, borderRadius: '50%',
+                background: arrowHover === 'next' ? 'rgba(0,0,0,0.72)' : 'rgba(0,0,0,0.48)',
+                border: '1px solid rgba(255,255,255,0.18)',
+                color: '#fff', fontSize: 14, lineHeight: 1,
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                opacity: hovered ? 1 : 0,
+                transition: 'opacity 0.2s ease, background 0.15s, transform 0.15s',
+                backdropFilter: 'blur(8px)',
+              }}
+            >
+              ›
+            </button>
+          </>
+        )}
+
+        {/* Photo count badge — top right */}
+        {totalImgs > 1 && (
+          <div style={{
+            position: 'absolute', top: 14, right: 14, zIndex: 3,
+            background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            padding: '3px 9px', borderRadius: 20,
+            fontFamily: FB, fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.75)',
+            letterSpacing: '0.04em',
+          }}>
+            {activeIdx + 1} / {totalImgs}
+          </div>
+        )}
+
+        {/* Dot indicators — sit just above the name/rating overlay */}
+        {totalImgs > 1 && totalImgs <= 12 && (
+          <div style={{
+            position: 'absolute', bottom: 92, left: 0, right: 0,
+            display: 'flex', justifyContent: 'center', gap: 5, zIndex: 3,
+          }}>
+            {galleryImgs.map((_, i) => (
+              <button
+                key={i}
+                onClick={(e) => { e.stopPropagation(); setActiveIdx(i); }}
+                aria-label={`Photo ${i + 1}`}
+                style={{
+                  width: i === activeIdx ? 18 : 5,
+                  height: 5, borderRadius: 3,
+                  background: i === activeIdx ? C.gold : 'rgba(255,255,255,0.35)',
+                  border: 'none', cursor: 'pointer', padding: 0,
+                  transition: 'width 0.3s ease, background 0.2s ease',
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Name / rating overlay */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '24px 24px 20px', zIndex: 2 }}>
+          {rating && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 7 }}>
+              <span style={{ color: C.gold, fontSize: 10 }}>★</span>
+              <span style={{ fontFamily: FB, fontSize: 11, color: 'rgba(255,255,255,0.9)', fontWeight: 700 }}>
+                {rating}
+              </span>
+              {reviews > 0 && (
+                <span style={{ fontFamily: FB, fontSize: 10, color: 'rgba(255,255,255,0.45)' }}>
+                  · {reviews} review{reviews !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+          )}
+          <div style={{ fontFamily: FD, fontSize: 22, color: '#fff', fontWeight: 400, lineHeight: 1.2, marginBottom: 5 }}>
+            {venue.name}
+          </div>
+          {location && (
+            <div style={{ fontFamily: FB, fontSize: 11, color: 'rgba(255,255,255,0.52)', letterSpacing: '0.02em' }}>
+              {flag && <span style={{ marginRight: 5 }}>{flag}</span>}
+              {location}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div style={{ padding: '20px 24px 16px', flex: 1, background: 'transparent' }}>
+        {/* Price — decision anchor, prominent */}
+        <div style={{
+          padding: '16px 0 14px',
+          borderBottom: `1px solid rgba(255,255,255,0.07)`,
+          marginBottom: 2,
+        }}>
+          <div style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.38)', fontWeight: 600, marginBottom: 6 }}>
+            Starting From
+          </div>
+          <div style={{ fontFamily: FD, fontSize: 28, color: C.gold, fontWeight: 400, letterSpacing: '0.01em', lineHeight: 1 }}>
+            {price || <span style={{ fontFamily: FB, fontSize: 13, color: 'rgba(255,255,255,0.22)', fontStyle: 'italic', fontWeight: 400 }}>Price on request</span>}
+          </div>
+        </div>
+
+        <CompareStat label="Capacity" value={capacity} C={C} />
+        <CompareStat label="Venue Type" value={type} C={C} />
+        <CompareStat
+          label="Exclusive Use"
+          value={
+            exclusiveUse === true  ? (
+              <span style={{ color: '#6fcf67', fontWeight: 700 }}>✓ Available</span>
+            ) : exclusiveUse === false ? (
+              <span style={{ color: 'rgba(255,255,255,0.28)' }}>
+                <span style={{ marginRight: 5, fontSize: 11 }}>×</span>Not offered
+              </span>
+            ) : null
+          }
+          C={C}
+        />
+      </div>
+
+      {/* CTAs */}
+      <div style={{ padding: '20px 24px 30px', display: 'flex', flexDirection: 'column', gap: 10, background: 'transparent' }}>
+        {/* Primary — Send Enquiry */}
+        <button
+          onClick={() => onEnquire && onEnquire(venue)}
+          style={{
+            display: 'block', width: '100%', textAlign: 'center',
+            padding: '13px 16px',
+            background: C.gold,
+            border: 'none',
+            borderRadius: 'var(--lwd-radius-input)',
+            color: '#0f0d0a', fontFamily: FB, fontSize: 12, fontWeight: 700,
+            letterSpacing: '0.06em', textTransform: 'uppercase',
+            cursor: 'pointer',
+            transition: 'background 0.15s, transform 0.15s, box-shadow 0.15s',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.background = '#b8922a';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+            e.currentTarget.style.boxShadow = '0 6px 20px rgba(201,168,76,0.35)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = C.gold;
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+        >
+          Send Enquiry →
+        </button>
+
+        {/* Secondary — View Profile */}
+        {profileUrl && (
+          <a
+            href={profileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'block', textAlign: 'center',
+              padding: '11px 16px',
+              background: 'transparent',
+              border: `1px solid rgba(255,255,255,0.14)`,
+              borderRadius: 'var(--lwd-radius-input)',
+              color: 'rgba(255,255,255,0.45)', fontFamily: FB, fontSize: 11, fontWeight: 500,
+              letterSpacing: '0.04em',
+              textDecoration: 'none', cursor: 'pointer',
+              transition: 'border-color 0.15s, color 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.32)'; e.currentTarget.style.color = 'rgba(255,255,255,0.72)'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.14)'; e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; }}
+          >
+            View Full Profile
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── MINI CALENDAR ────────────────────────────────────────────────────────────
+const CAL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const CAL_DAYS   = ['Mo','Tu','We','Th','Fr','Sa','Su'];
+
+function MiniCalendar({ anchorRect, selected, onChange, onClose }) {
+  const initMonth = () => {
+    const base = selected || new Date();
+    return new Date(base.getFullYear(), base.getMonth(), 1);
+  };
+  const [month, setMonth] = useState(initMonth);
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e) => { if (!e.target.closest('[data-lwdcal]')) onClose(); };
+    const t = setTimeout(() => document.addEventListener('mousedown', handler), 0);
+    return () => { clearTimeout(t); document.removeEventListener('mousedown', handler); };
+  }, [onClose]);
+
+  const prevMonth = (e) => { e.stopPropagation(); setMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1)); };
+  const nextMonth = (e) => { e.stopPropagation(); setMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1)); };
+
+  const today      = new Date();
+  const firstDow   = (month.getDay() + 6) % 7; // Mon=0
+  const daysInMo   = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+  const cells      = [...Array(firstDow).fill(null), ...Array.from({ length: daysInMo }, (_, i) => i + 1)];
+
+  const isSel  = (d) => d && selected && selected.getFullYear() === month.getFullYear() && selected.getMonth() === month.getMonth() && d === selected.getDate();
+  const isToday = (d) => d && today.getFullYear() === month.getFullYear() && today.getMonth() === month.getMonth() && d === today.getDate();
+
+  const pick = (d) => {
+    if (!d) return;
+    onChange(new Date(month.getFullYear(), month.getMonth(), d));
+    onClose();
+  };
+
+  // Position: below the anchor, flip up if too close to bottom
+  const viewH = window.innerHeight;
+  const calH  = 280;
+  const top   = anchorRect.bottom + 6 + calH > viewH ? anchorRect.top - calH - 6 : anchorRect.bottom + 6;
+  const left  = Math.min(anchorRect.left, window.innerWidth - 268);
+
+  const navBtn = {
+    background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)',
+    fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: '2px 6px',
+    transition: 'color 0.15s',
+  };
+
+  return (
+    <div
+      data-lwdcal=""
+      onClick={e => e.stopPropagation()}
+      style={{
+        position: 'fixed', top, left, zIndex: 9999,
+        width: 256,
+        background: '#0d0d0b',
+        border: '1px solid rgba(184,160,90,0.28)',
+        borderRadius: 10,
+        padding: '14px 14px 16px',
+        boxShadow: '0 28px 70px rgba(0,0,0,0.85)',
+        animation: 'lwd-modal-in 0.15s ease',
+      }}
+    >
+      {/* Month nav */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <button style={navBtn} onClick={prevMonth}
+          onMouseEnter={e => e.currentTarget.style.color = '#C9A84C'}
+          onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.5)'}
+        >‹</button>
+        <span style={{ fontFamily: FB, fontSize: 12, color: '#fff', fontWeight: 600, letterSpacing: '0.04em' }}>
+          {CAL_MONTHS[month.getMonth()]} {month.getFullYear()}
+        </span>
+        <button style={navBtn} onClick={nextMonth}
+          onMouseEnter={e => e.currentTarget.style.color = '#C9A84C'}
+          onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.5)'}
+        >›</button>
+      </div>
+
+      {/* Day headers */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 4 }}>
+        {CAL_DAYS.map(d => (
+          <div key={d} style={{ fontFamily: FB, fontSize: 9, color: 'rgba(255,255,255,0.28)', textAlign: 'center', padding: '2px 0', letterSpacing: '0.06em' }}>
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* Date cells */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+        {cells.map((d, i) => (
+          <button
+            key={i}
+            onClick={() => pick(d)}
+            disabled={!d}
+            style={{
+              height: 30, borderRadius: 6, border: 'none',
+              background: isSel(d)   ? '#C9A84C'
+                        : isToday(d) ? 'rgba(201,168,76,0.14)'
+                        : 'transparent',
+              outline: isToday(d) && !isSel(d) ? '1px solid rgba(201,168,76,0.32)' : 'none',
+              color: isSel(d) ? '#0f0d0a' : d ? 'rgba(255,255,255,0.78)' : 'transparent',
+              fontFamily: FB, fontSize: 12,
+              fontWeight: isSel(d) ? 700 : 400,
+              cursor: d ? 'pointer' : 'default',
+              transition: 'background 0.12s, color 0.12s',
+            }}
+            onMouseEnter={e => { if (d && !isSel(d)) e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+            onMouseLeave={e => { if (d && !isSel(d)) e.currentTarget.style.background = isToday(d) ? 'rgba(201,168,76,0.14)' : 'transparent'; }}
+          >
+            {d || ''}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── COMPARE ENQUIRY FORM ─────────────────────────────────────────────────────
+// Dark single-page form that floats above the compare modal.
+// Compare grid stays visible in the background through the semi-opaque overlay.
+const BASE_MSG = "We are currently exploring venues for our wedding and would love to learn more about your availability, pricing, and options.";
+
+function buildMessage(date, guests) {
+  const d = date?.trim();
+  const g = guests?.trim();
+  if (!d && !g) return BASE_MSG;
+  const datePart   = d ? ` on ${d}` : '';
+  const guestPart  = g ? ` for around ${g} guests` : '';
+  return `We are currently exploring venues for our wedding${datePart}${guestPart} and would love to learn more about your availability, pricing, and options.`;
+}
+
+function CompareEnquiryForm({ venue, onClose }) {
+  const { openMiniBar, sessionId } = useChat();
+  const [form,        setForm]        = useState({ name1: '', name2: '', email: '', phone: '', date: '', guests: '', message: BASE_MSG });
+  const [sent,        setSent]        = useState(false);
+  const [submitting,  setSubmitting]  = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [msgEdited,   setMsgEdited]   = useState(false);
+  const [calOpen,     setCalOpen]     = useState(false);
+  const [calAnchor,   setCalAnchor]   = useState(null);
+  const [selDate,     setSelDate]     = useState(null);
+  const dateFieldRef = useRef(null);
+  const textareaRef  = useRef(null);
+
+  // Place cursor at end of prefilled message when form mounts
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const len = ta.value.length;
+    ta.setSelectionRange(len, len);
+    // don't auto-focus on mount — let user tab in naturally
+  }, []);
+
+  // Rebuild message whenever date/guests change — only if user hasn't manually edited
+  const { date, guests } = form;
+  useEffect(() => {
+    if (msgEdited) return;
+    setForm(f => ({ ...f, message: buildMessage(date, guests) }));
+  }, [date, guests, msgEdited]);
+
+  const openCal = () => {
+    if (dateFieldRef.current) setCalAnchor(dateFieldRef.current.getBoundingClientRect());
+    setCalOpen(true);
+  };
+
+  const pickDate = (d) => {
+    setSelDate(d);
+    const label = `${d.getDate()} ${CAL_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+    setForm(f => ({ ...f, date: label }));
+    setCalOpen(false);
+  };
+
+  const clearDate = (e) => {
+    e.stopPropagation();
+    setSelDate(null);
+    setForm(f => ({ ...f, date: '' }));
+  };
+
+  const heroSrc = venue?.imgs?.[0]?.src || venue?.heroImage || venue?.cardImage || null;
+  const loc     = [venue?.city, venue?.country].filter(Boolean).join(', ');
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const canSubmit = !!(form.name1 && form.email) && !submitting;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const result = await createLead({
+        leadSource:   'Compare Enquiry',
+        leadChannel:  'compare_modal',
+        leadType:     'venue_enquiry',
+        listingId:    String(venue.id),
+        venueId:      String(venue.id),
+        firstName:    form.name1.trim() || undefined,
+        lastName:     form.name2.trim() || undefined,
+        fullName:     [form.name1.trim(), form.name2.trim()].filter(Boolean).join(' & ') || undefined,
+        email:        form.email.trim(),
+        phone:        form.phone.trim() || undefined,
+        weddingDate:  form.date.trim()   || undefined,
+        guestCount:   form.guests.trim() || undefined,
+        message:      form.message.trim(),
+        auraSessionId: sessionId || undefined,
+        intentSummary: `Venue enquiry from Compare modal for ${venue.name}`,
+        requirementsJson: { source: 'compare_modal', venue_name: venue.name },
+        tagsJson:     ['compare_enquiry'],
+        consentDataProcessing: true,
+      });
+      if (!result.success) {
+        console.error('[CompareEnquiryForm] createLead failed:', result.error);
+        throw new Error(`DB error: ${result.error?.message || result.error?.code || JSON.stringify(result.error)}`);
+      }
+      setSent(true);
+    } catch (err) {
+      console.error('[CompareEnquiryForm] submit failed:', err?.message, err);
+      setSubmitError('Something went wrong. Please try again or contact us directly.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // ── Design tokens ─────────────────────────────────────────────────────────
+  const GOLD        = '#C9A84C';
+  const GOLD_DIM    = 'rgba(201,168,76,0.55)';
+  const GOLD_GLOW   = 'rgba(201,168,76,0.18)';
+
+  const inputBase = {
+    width: '100%', padding: '12px 16px',
+    background: 'rgba(255,255,255,0.04)',         // darker resting — stays in the dark system
+    border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: 'var(--lwd-radius-input)',
+    color: 'rgba(255,255,255,0.92)',              // text high-contrast, background not
+    fontFamily: FB, fontSize: 13,
+    outline: 'none', boxSizing: 'border-box',
+    transition: 'border-color 0.18s, background 0.18s, box-shadow 0.18s',
+  };
+  const FOCUS_SHADOW = `0 0 0 3px rgba(201,168,76,0.16), inset 0 1px 0 rgba(255,255,255,0.03)`;
+  const focusStyle = (e) => {
+    e.currentTarget.style.borderColor = 'rgba(201,168,76,0.52)';
+    e.currentTarget.style.background  = 'rgba(255,255,255,0.06)';  // slight lift, not a flash
+    e.currentTarget.style.boxShadow   = FOCUS_SHADOW;
+  };
+  const blurStyle = (e) => {
+    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+    e.currentTarget.style.background  = 'rgba(255,255,255,0.04)';
+    e.currentTarget.style.boxShadow   = 'none';
+  };
+
+  const mkLabel = (text) => (
+    <div style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)', fontWeight: 700, marginBottom: 7 }}>
+      {text}
+    </div>
+  );
+  const mkField = (k, label, type = 'text') => (
+    <div>
+      {mkLabel(label)}
+      <input type={type} value={form[k]} onChange={e => set(k, e.target.value)}
+        onFocus={focusStyle} onBlur={blurStyle}
+        style={inputBase} />
+    </div>
+  );
+
+  // ── Layout styles ──────────────────────────────────────────────────────────
+  const overlayStyle = {
+    position: 'fixed', inset: 0, zIndex: 1100,
+    background: 'rgba(0,0,0,0.72)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    padding: 'clamp(8px, 3vw, 24px)',
+    backdropFilter: 'blur(6px)',
+  };
+  const panelStyle = {
+    // Warm near-black with very subtle gold undertone
+    background: 'linear-gradient(170deg, #111009 0%, #0c0c0a 50%, #0f0d08 100%)',
+    border: '1px solid rgba(201,168,76,0.32)',
+    borderRadius: 'clamp(10px, 2vw, 16px)',
+    width: '100%', maxWidth: 500,
+    maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto',
+    // Multi-layer glow: close bloom + wide ambient + depth shadow
+    boxShadow: [
+      `inset 0 1px 0 rgba(255,255,255,0.06)`,           // top inner light edge
+      `0 0 0 1px rgba(201,168,76,0.08)`,                // halo ring — very quiet
+      `0 0 28px 4px rgba(201,168,76,0.10)`,             // close bloom — softer than CTA
+      `0 0 80px 24px rgba(201,168,76,0.05)`,            // mid ambient — wide & faint
+      `0 0 160px 60px rgba(201,168,76,0.025)`,          // far ambient — just a hint
+      `0 60px 160px rgba(0,0,0,0.97)`,                  // depth shadow
+    ].join(', '),
+    animation: 'lwd-modal-in 0.28s cubic-bezier(0.22, 1, 0.36, 1)',
+  };
+
+  // ── Confirmation screen ───────────────────────────────────────────────────
+  if (sent) return (
+    <div onClick={onClose} style={overlayStyle}>
+      <div onClick={e => e.stopPropagation()} style={{ ...panelStyle, maxWidth: 460 }}>
+
+        {/* Hero image carries through to confirmation */}
+        {heroSrc && (
+          <div style={{ position: 'relative', height: 120, overflow: 'hidden', borderRadius: '16px 16px 0 0' }}>
+            <img src={heroSrc} alt={venue.name} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.6)' }} />
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(12,12,10,1) 0%, rgba(0,0,0,0.1) 100%)' }} />
+          </div>
+        )}
+
+        <div style={{ padding: heroSrc ? '0 44px 52px' : '60px 44px 52px', textAlign: 'center' }}>
+          {/* Gold ring icon — floats on the hero seam */}
+          <div style={{
+            width: 64, height: 64, borderRadius: '50%',
+            background: `linear-gradient(135deg, ${GOLD} 0%, #a87d2a 100%)`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 26, color: '#0f0d0a', fontWeight: 700,
+            margin: heroSrc ? '-32px auto 28px' : '0 auto 28px',
+            position: 'relative', zIndex: 1,
+            boxShadow: `0 0 0 6px rgba(12,12,10,1), 0 0 0 10px rgba(201,168,76,0.14), 0 0 40px rgba(201,168,76,0.4)`,
+          }}>✦</div>
+
+          <div style={{ fontFamily: FD, fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase', color: GOLD, fontWeight: 400, marginBottom: 14, opacity: 0.85 }}>
+            One step closer
+          </div>
+          <div style={{ fontFamily: FD, fontSize: 28, color: '#fff', marginBottom: 16, lineHeight: 1.25, letterSpacing: '0.01em' }}>
+            Your enquiry is on its way
+          </div>
+          <div style={{ fontFamily: FB, fontSize: 13, color: 'rgba(255,255,255,0.48)', lineHeight: 1.85, marginBottom: 36, maxWidth: 320, margin: '0 auto 36px' }}>
+            You've taken a beautiful first step.<br />
+            The team at <span style={{ color: 'rgba(255,255,255,0.78)', fontWeight: 500 }}>{venue.name}</span> will reach out personally to discuss your wedding.
+          </div>
+
+          <button onClick={onClose} style={{
+            padding: '15px 52px',
+            background: `linear-gradient(135deg, #d4a93e 0%, ${GOLD} 45%, #b8882a 100%)`,
+            border: 'none', borderRadius: 'var(--lwd-radius-input)',
+            color: '#0a0800', fontFamily: FB, fontSize: 12, fontWeight: 800,
+            letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
+            boxShadow: `0 2px 0 rgba(0,0,0,0.2), 0 6px 28px rgba(201,168,76,0.38), inset 0 1px 0 rgba(255,255,255,0.18)`,
+            transition: 'transform 0.18s, box-shadow 0.18s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 2px 0 rgba(0,0,0,0.2), 0 14px 36px rgba(201,168,76,0.52), inset 0 1px 0 rgba(255,255,255,0.18)'; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 0 rgba(0,0,0,0.2), 0 6px 28px rgba(201,168,76,0.38), inset 0 1px 0 rgba(255,255,255,0.18)'; }}
+          >
+            Back to comparison
+          </button>
+
+          <div style={{ fontFamily: FB, fontSize: 10, color: 'rgba(255,255,255,0.25)', marginTop: 16, lineHeight: 1.7, letterSpacing: '0.01em' }}>
+            You can continue exploring or send another enquiry
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div onClick={onClose} style={overlayStyle}>
+      <div onClick={e => e.stopPropagation()} style={panelStyle}>
+
+      {/* ── Hero banner — tall, cinematic ── */}
+      <div style={{ position: 'relative', height: 150, overflow: 'hidden', borderRadius: '16px 16px 0 0', flexShrink: 0 }}>
+        {heroSrc
+          ? <img src={heroSrc} alt={venue.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #1a1a14 0%, #252518 100%)' }} />
+        }
+        {/* Cinematic gradient — deep at bottom, clear at top */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.3) 55%, rgba(0,0,0,0.1) 100%)' }} />
+        {/* Venue info */}
+        <div style={{ position: 'absolute', bottom: 16, left: 22, right: 52 }}>
+          <div style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: GOLD, fontWeight: 700, marginBottom: 5, opacity: 0.9 }}>
+            Venue Enquiry
+          </div>
+          <div style={{ fontFamily: FD, fontSize: 21, color: '#fff', lineHeight: 1.2, marginBottom: 3 }}>{venue.name}</div>
+          {loc && <div style={{ fontFamily: FB, fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.02em' }}>{loc}</div>}
+        </div>
+        <button onClick={onClose} aria-label="Close" style={{
+          position: 'absolute', top: 10, right: 10,
+          width: 28, height: 28, borderRadius: '50%',
+          background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.12)',
+          color: 'rgba(255,255,255,0.5)', fontSize: 15, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'all 0.15s',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.7)'; e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.45)'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; }}
+        >×</button>
+      </div>
+
+      {/* Gold accent bar — full gradient, 3px */}
+      <div style={{ height: 3, background: `linear-gradient(90deg, ${GOLD} 0%, rgba(184,160,90,0.6) 60%, rgba(184,160,90,0.05) 100%)` }} />
+
+      {/* ── Form body ── */}
+      <div style={{ padding: 'clamp(16px, 4vw, 28px) clamp(16px, 5vw, 28px) 8px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+        {/* Section title */}
+        <div style={{ marginBottom: 4 }}>
+          <div style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.24em', textTransform: 'uppercase', color: GOLD, fontWeight: 700, opacity: 0.8, marginBottom: 7 }}>
+            Begin your enquiry
+          </div>
+          <div style={{ fontFamily: FD, fontSize: 20, color: '#fff', lineHeight: 1.2, letterSpacing: '0.01em', marginBottom: 8 }}>
+            Tell us about your wedding
+          </div>
+          <div style={{ fontFamily: FB, fontSize: 11, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.01em', lineHeight: 1.5 }}>
+            Your enquiry will be sent directly to this venue
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          {mkField('name1', 'Your name *')}
+          {mkField('name2', "Partner's name")}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          {mkField('email', 'Email *', 'email')}
+          {mkField('phone', 'Phone', 'tel')}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          {/* Date — calendar picker */}
+          <div>
+            {mkLabel('Wedding date')}
+            <div
+              ref={dateFieldRef}
+              onClick={openCal}
+              style={{
+                ...inputBase,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                cursor: 'pointer', userSelect: 'none',
+                borderColor:  calOpen ? 'rgba(201,168,76,0.52)' : 'rgba(255,255,255,0.1)',
+                background:   calOpen ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.04)',
+                boxShadow:    calOpen ? FOCUS_SHADOW : 'none',
+              }}
+            >
+              <span style={{ color: form.date ? '#fff' : 'rgba(255,255,255,0.32)', fontSize: 13 }}>
+                {form.date || 'Select a date'}
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {form.date && (
+                  <span onClick={clearDate}
+                    style={{ color: 'rgba(255,255,255,0.3)', fontSize: 15, lineHeight: 1, cursor: 'pointer', padding: '0 2px' }}
+                    onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.3)'}
+                  >×</span>
+                )}
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ color: GOLD, opacity: 0.65, flexShrink: 0 }}>
+                  <rect x="1" y="3" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="M5 1v4M11 1v4M1 7h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </span>
+            </div>
+          </div>
+          {mkField('guests', 'Estimated guests')}
+        </div>
+
+        {/* Calendar popup */}
+        {calOpen && calAnchor && (
+          <MiniCalendar anchorRect={calAnchor} selected={selDate} onChange={pickDate} onClose={() => setCalOpen(false)} />
+        )}
+
+        {/* Divider — transition to personal message */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12, margin: '4px 0',
+        }}>
+          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
+          <span style={{ fontFamily: FB, fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)', whiteSpace: 'nowrap' }}>Your message</span>
+          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
+        </div>
+
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 7 }}>
+            {mkLabel('Message')}
+            <span style={{ fontFamily: FB, fontSize: 9, color: 'rgba(255,255,255,0.24)', letterSpacing: '0.02em', fontStyle: 'italic' }}>
+              Add any details to personalise
+            </span>
+          </div>
+          <textarea
+            ref={textareaRef}
+            value={form.message}
+            onChange={e => { setMsgEdited(true); set('message', e.target.value); }}
+            onFocus={e => {
+              focusStyle(e);
+              if (!msgEdited) { const len = e.target.value.length; e.target.setSelectionRange(len, len); }
+            }}
+            onBlur={blurStyle}
+            rows={4}
+            style={{ ...inputBase, resize: 'vertical', lineHeight: 1.7, fontSize: 13 }}
+          />
+        </div>
+
+      </div>
+
+      {/* ── Sticky CTA ── */}
+      <div style={{
+        position: 'sticky', bottom: 0,
+        background: 'linear-gradient(to bottom, transparent 0%, #0c0c0a 28%)',
+        padding: '28px 28px 20px',
+        display: 'flex', flexDirection: 'column', gap: 11,
+      }}>
+        <button
+          disabled={!canSubmit}
+          onClick={handleSubmit}
+          style={{
+            padding: '16px 24px', width: '100%',
+            background: canSubmit
+              ? `linear-gradient(135deg, #d4a93e 0%, ${GOLD} 45%, #b8882a 100%)`
+              : 'rgba(201,168,76,0.12)',
+            border: canSubmit ? 'none' : `1px solid rgba(201,168,76,0.18)`,
+            borderRadius: 'var(--lwd-radius-input)',
+            color: canSubmit ? '#0a0800' : 'rgba(255,255,255,0.25)',
+            fontFamily: FB, fontSize: 13, fontWeight: 800,
+            letterSpacing: '0.1em', textTransform: 'uppercase',
+            cursor: canSubmit ? 'pointer' : 'default',
+            boxShadow: canSubmit
+              ? `0 2px 0 rgba(0,0,0,0.2), 0 6px 28px rgba(201,168,76,0.38), inset 0 1px 0 rgba(255,255,255,0.18)`
+              : 'none',
+            transition: 'all 0.18s',
+            position: 'relative',
+          }}
+          onMouseEnter={e => { if (canSubmit) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 2px 0 rgba(0,0,0,0.2), 0 14px 36px rgba(201,168,76,0.52), inset 0 1px 0 rgba(255,255,255,0.18)'; } }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = canSubmit ? '0 2px 0 rgba(0,0,0,0.2), 0 6px 28px rgba(201,168,76,0.38), inset 0 1px 0 rgba(255,255,255,0.18)' : 'none'; }}
+        >
+          {submitting ? 'Sending…' : 'Send Enquiry →'}
+        </button>
+        {submitError && (
+          <div style={{ fontFamily: FB, fontSize: 11, color: '#e57373', textAlign: 'center', lineHeight: 1.5 }}>
+            {submitError}
+          </div>
+        )}
+        <div style={{ fontFamily: FB, fontSize: 11, color: 'rgba(255,255,255,0.55)', textAlign: 'center', lineHeight: 1.65, letterSpacing: '0.01em' }}>
+          Your details are shared only with this venue and handled in confidence.
+        </div>
+
+        {/* Aura soft link */}
+        <div style={{ textAlign: 'center', marginTop: 10 }}>
+          <button
+            type="button"
+            onClick={openMiniBar}
+            style={{
+              background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+              fontFamily: FB, fontSize: 11, letterSpacing: '0.03em',
+              color: 'rgba(201,168,76,0.55)',
+              transition: 'color 0.18s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#C9A84C'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(201,168,76,0.55)'; }}
+          >
+            ✦ Have questions before sending? Chat with Aura
+          </button>
+        </div>
+      </div>
+
+    </div>
+    </div>
+  );
+}
+
+function CompareModal({ items, onClose }) {
+  const C = DARK; // modal is always dark
+  const { openWorkspace, sendMessage, setChatContext, messages } = useChat();
+  const [venues,       setVenues]       = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [enquiryVenue, setEnquiryVenue] = useState(null); // full venue object for in-modal enquiry
+
+  // Lock body scroll
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  // Escape to close (only close compare if no enquiry form is open)
+  useEffect(() => {
+    const handler = e => {
+      if (e.key === 'Escape') {
+        if (enquiryVenue) setEnquiryVenue(null);
+        else onClose();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose, enquiryVenue]);
+
+  // Listen for Aura workspace "Enquire" button dispatches
+  useEffect(() => {
+    const handler = e => {
+      const venue = venues.find(v => String(v.id) === String(e.detail?.venueId));
+      if (venue) setEnquiryVenue(venue);
+    };
+    window.addEventListener('lwd:aura-enquire', handler);
+    return () => window.removeEventListener('lwd:aura-enquire', handler);
+  }, [venues]);
+
+  // Fetch all venues
+  useEffect(() => {
+    if (!items.length) return;
+    let cancelled = false;
+    setLoading(true);
+    Promise.all(
+      items.map(item =>
+        fetchListingById(String(item.id)).catch(() => ({ id: item.id, name: item.name }))
+      )
+    ).then(results => {
+      if (!cancelled) { setVenues(results); setLoading(false); }
+    });
+    return () => { cancelled = true; };
+  }, [items]);
+
+  // Compute highlight badges — best rating, best price
+  const highlights = {};
+  if (venues.length >= 2) {
+    const ratings = venues.map((v, i) => ({ i, val: v?.rating ? Number(v.rating) : -1 }));
+    const prices  = venues.map((v, i) => ({ i, val: v?.priceFrom ? Number(v.priceFrom) : Infinity }));
+    const topRated  = ratings.reduce((a, b) => b.val > a.val ? b : a);
+    const bestValue = prices.reduce((a, b) => b.val < a.val ? b : a);
+    if (topRated.val  > 0)          highlights[topRated.i]  = 'Highest Rated';
+    if (bestValue.val < Infinity && bestValue.i !== topRated.i) highlights[bestValue.i] = 'Most Affordable';
+  }
+
+  const count = items.length;
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 960,
+        background: 'rgba(0,0,0,0.97)',
+        display: 'flex', flexDirection: 'column',
+        animation: 'fadeIn 0.2s ease',
+      }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      {/* ── Header ── */}
+      <div style={{
+        flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '28px 44px',
+        borderBottom: `1px solid rgba(184,160,90,0.15)`,
+        background: 'rgba(10,10,8,0.97)',
+        backdropFilter: 'blur(20px)',
+      }}>
+        <div>
+          <div style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.24em', textTransform: 'uppercase', color: C.gold, fontWeight: 700, marginBottom: 8 }}>
+            Venue Comparison
+          </div>
+          <div style={{ fontFamily: FD, fontSize: 26, color: '#fff', fontWeight: 400, letterSpacing: '0.01em' }}>
+            {count === 1 ? 'Venue in Review' : `Comparing ${count} Venues`}
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          aria-label="Close comparison"
+          style={{
+            width: 44, height: 44, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.14)',
+            color: 'rgba(255,255,255,0.7)', fontSize: 20, lineHeight: 1,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'all 0.2s', flexShrink: 0,
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = '#fff'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
+        >
+          ×
+        </button>
+      </div>
+
+      {/* ── Body ── */}
+      <div style={{ flex: 1, overflow: 'auto', padding: 'clamp(16px, 4vw, 44px)' }}>
+        {loading ? (
+          <div style={{
+            height: '100%', minHeight: 400,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16,
+          }}>
+            <div style={{ fontFamily: FD, fontSize: 20, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.04em' }}>
+              Curating your comparison…
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              {items.map((_, i) => (
+                <div key={i} style={{
+                  width: 5, height: 5, borderRadius: '50%',
+                  background: 'rgba(184,160,90,0.5)',
+                  animation: `dotPulse 1.4s ease-in-out ${i * 0.18}s infinite`,
+                }} />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${count}, minmax(260px, 1fr))`,
+            border: `1px solid rgba(184,160,90,0.18)`,
+            borderRadius: 14,
+            overflow: 'hidden',
+            boxShadow: '0 40px 100px rgba(0,0,0,0.75)',
+          }}>
+            {venues.map((venue, i) => (
+              <CompareVenueColumn
+                key={venue?.id || i}
+                venue={venue}
+                isLast={i === venues.length - 1}
+                highlight={highlights[i] || null}
+                C={C}
+                onClose={onClose}
+                onEnquire={(v) => setEnquiryVenue(v)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Footer note */}
+        {!loading && (
+          <div style={{ textAlign: 'center', marginTop: 28 }}>
+            <span style={{ fontFamily: FB, fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>
+              Add up to 3 venues to compare · Click outside or press Esc to close
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* ── Aura strip ── */}
+      <div style={{
+        flexShrink: 0,
+        borderTop: '1px solid rgba(255,255,255,0.05)',
+        padding: '13px 44px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(8,8,6,0.6)',
+      }}>
+        <button
+          type="button"
+          onClick={() => {
+            // Set context — pass the full venue objects so the panel pins them
+            setChatContext({ page: 'compare', country: venues[0]?.country || null, region: venues[0]?.destination || null, compareVenues: venues });
+            // Open the full workspace — this is a decision environment, not a quick question
+            openWorkspace();
+            if (venues.length > 1) {
+              // Only send the intro message once — don't repeat it every time the user reopens Aura
+              const alreadySent = messages.some(m => m.from === 'user' && m.text?.startsWith("I'm comparing these venues:"));
+              if (!alreadySent) {
+                const venueSummaries = venues.map(v => {
+                  const parts = [v.name];
+                  if (v.type)                     parts.push(v.type);
+                  if (v.destination || v.country) parts.push(v.destination || v.country);
+                  if (v.capacity)                 parts.push(`up to ${v.capacity} guests`);
+                  return parts.join(', ');
+                });
+                sendMessage(`I'm comparing these venues: ${venueSummaries.join(' · ')}. Can you help me understand which might be the better fit for our wedding?`);
+              }
+            }
+          }}
+          style={{
+            background: 'none', border: 'none', padding: '4px 0', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 8,
+            transition: 'opacity 0.18s',
+            opacity: 0.65,
+          }}
+          onMouseEnter={e => { e.currentTarget.style.opacity = '1'; }}
+          onMouseLeave={e => { e.currentTarget.style.opacity = '0.65'; }}
+        >
+          <span style={{
+            width: 22, height: 22, borderRadius: '50%',
+            background: 'rgba(201,168,76,0.12)',
+            border: '1px solid rgba(201,168,76,0.25)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 10, color: '#C9A84C', flexShrink: 0,
+          }}>✦</span>
+          <span style={{
+            fontFamily: FB, fontSize: 12, color: 'rgba(255,255,255,0.65)',
+            letterSpacing: '0.02em',
+          }}>
+            Not sure which to choose?{' '}
+            <span style={{ color: '#C9A84C' }}>Ask Aura →</span>
+          </span>
+        </button>
+      </div>
+
+      {/* ── Company footer ── */}
+      <div style={{
+        flexShrink: 0,
+        borderTop: '1px solid rgba(184,160,90,0.1)',
+        background: 'rgba(8,8,6,0.98)',
+        backdropFilter: 'blur(12px)',
+        padding: '16px 44px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        gap: 24,
+      }}>
+        {/* Left: wordmark + tagline */}
+        <div>
+          <div style={{ fontFamily: FD, fontSize: 14, color: 'rgba(255,255,255,0.65)', letterSpacing: '0.04em', marginBottom: 3 }}>
+            Luxury Wedding Directory
+          </div>
+          <div style={{ fontFamily: FB, fontSize: 10, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.02em' }}>
+            The world's finest venues and vendors, carefully selected
+          </div>
+        </div>
+
+        {/* Right: legal links + copyright */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 7 }}>
+          <div style={{ display: 'flex', gap: 20 }}>
+            {['Privacy', 'Terms', 'Cookies', 'Contact'].map(lbl => (
+              <a
+                key={lbl}
+                href={`/${lbl.toLowerCase()}`}
+                style={{ fontFamily: FB, fontSize: 10, color: 'rgba(255,255,255,0.28)', textDecoration: 'none', letterSpacing: '0.02em', transition: 'color 0.15s' }}
+                onMouseEnter={e => e.currentTarget.style.color = '#C9A84C'}
+                onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.28)'}
+              >
+                {lbl}
+              </a>
+            ))}
+          </div>
+          <div style={{ fontFamily: FB, fontSize: 10, color: 'rgba(255,255,255,0.16)', letterSpacing: '0.01em' }}>
+            &copy; {new Date().getFullYear()} Luxury Wedding Directory &middot; A brand of 5 Star Weddings Ltd
+          </div>
+        </div>
+      </div>
+
+      {/* In-modal enquiry form — dark single-page form, compare grid stays visible behind */}
+      {enquiryVenue && (
+        <CompareEnquiryForm
+          venue={enquiryVenue}
+          onClose={() => setEnquiryVenue(null)}
+        />
+      )}
+    </div>
+  );
+}
+
 // ─── COMPARE BAR ─────────────────────────────────────────────────────────────
-function CompareBar({ items, onRemove, onClear }) {
+function CompareBar({ items, onRemove, onClear, onCompare }) {
   const C = useT();
   if (!items.length) return null;
   return (
@@ -5564,15 +6907,32 @@ function CompareBar({ items, onRemove, onClear }) {
       )}
       <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
         <button onClick={onClear} style={{ padding: "6px 14px", background: "none", border: "1px solid rgba(255,255,255,0.25)", borderRadius: "var(--lwd-radius-input)", color: "rgba(255,255,255,0.6)", fontFamily: FB, fontSize: 12, cursor: "pointer" }}>Clear</button>
-        <button style={{ padding: "6px 20px", background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)", color: "#fff", fontFamily: FB, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Compare Now →</button>
+        <button onClick={onCompare} style={{ padding: "6px 20px", background: C.gold, border: "none", borderRadius: "var(--lwd-radius-input)", color: "#fff", fontFamily: FB, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Compare Now →</button>
       </div>
     </div>
   );
 }
 
+// ─── AURA PRESENCE ────────────────────────────────────────────────────────────
+// Time-based availability: 09:00–18:00 UTC Mon–Fri = online
+function getAuraStatus() {
+  const now     = new Date();
+  const hour    = now.getUTCHours();
+  const weekday = now.getUTCDay(); // 0=Sun,6=Sat
+  const online  = weekday >= 1 && weekday <= 5 && hour >= 9 && hour < 18;
+  return {
+    online,
+    dotColor:  online ? '#4caf7d' : 'rgba(184,160,90,0.55)',
+    ringColor: online ? 'rgba(76,175,125,0.2)' : 'rgba(184,160,90,0.12)',
+    label:     online ? 'Online' : 'Typically responds within 24h',
+    labelColor:online ? '#4caf7d' : 'rgba(184,160,90,0.7)',
+  };
+}
+
 // ─── FLOATING AURA CHAT ──────────────────────────────────────────────────────
 function AuraChat({ venue }) {
   const C = useT();
+  const aura = getAuraStatus();
   // mode: "closed" | "modal" | "full"
   const [mode, setMode] = useState("closed");
   const [msgs, setMsgs] = useState([
@@ -5764,8 +7124,8 @@ function AuraChat({ venue }) {
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             <div style={{
               width: 8, height: 8, borderRadius: "50%",
-              background: "#4caf7d",
-              boxShadow: "0 0 0 3px rgba(76,175,125,0.2)",
+              background: aura.dotColor,
+              boxShadow: `0 0 0 3px ${aura.ringColor}`,
             }} />
             <div style={{
               width: 30, height: 30, borderRadius: "50%",
@@ -5830,9 +7190,9 @@ function AuraChat({ venue }) {
             }}>✦</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: FD, fontSize: 16, color: C.text, letterSpacing: "0.02em" }}>Aura</div>
-              <div style={{ fontFamily: FB, fontSize: 11, color: C.green, display: "flex", alignItems: "center", gap: 5, marginTop: 1 }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#4caf7d", display: "inline-block" }} />
-                LWD AI · Knows {venue.name}
+              <div style={{ fontFamily: FB, fontSize: 11, color: aura.labelColor, display: "flex", alignItems: "center", gap: 5, marginTop: 1 }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: aura.dotColor, display: "inline-block" }} />
+                {aura.label} · Knows {venue.name}
               </div>
             </div>
             {/* Expand button */}
@@ -5930,9 +7290,9 @@ function AuraChat({ venue }) {
                 }}>✦</div>
                 <div>
                   <div style={{ fontFamily: FD, fontSize: 14, color: "#f5f2ec", letterSpacing: "0.04em" }}>Aura</div>
-                  <div style={{ fontFamily: FB, fontSize: 10, color: "#4caf7d", display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#4caf7d", display: "inline-block" }} />
-                    Online
+                  <div style={{ fontFamily: FB, fontSize: 10, color: aura.labelColor, display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ width: 5, height: 5, borderRadius: "50%", background: aura.dotColor, display: "inline-block" }} />
+                    {aura.label}
                   </div>
                 </div>
               </div>
@@ -6137,12 +7497,39 @@ function VenueCookieBanner() {
   );
 }
 
+// ─── COMPARE LIST PERSISTENCE ─────────────────────────────────────────────────
+// Stored in sessionStorage so it survives slug changes and page navigations
+// within the same browser session.
+const COMPARE_STORAGE_KEY = 'lwd_compare_list';
+
+function loadCompareList() {
+  try { return JSON.parse(sessionStorage.getItem(COMPARE_STORAGE_KEY)) || []; }
+  catch { return []; }
+}
+
+function saveCompareList(list) {
+  try { sessionStorage.setItem(COMPARE_STORAGE_KEY, JSON.stringify(list)); }
+  catch {}
+}
+
 // ─── MAIN EXPORT ─────────────────────────────────────────────────────────────
-export default function VenueProfile({ onBack = null, slug = null }) {
-  const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
+export default function VenueProfile({ onBack = null, slug = null, countrySlug = null, regionSlug = null, categorySlug = null }) {
+  // Always default to light mode on venue profiles — dark is opt-in via toggle
+  const [darkMode, setDarkMode] = useState(false);
   const [saved, setSaved] = useState(false);
   const [lightIdx, setLightIdx] = useState(null);
-  const [compareList, setCompareList] = useState([]);
+  const [compareList, setCompareList] = useState(() => loadCompareList());
+  const [showCompareModal, setShowCompareModal] = useState(false);
+
+  // Sync compareList to sessionStorage + notify global Aura button to shift up
+  useEffect(() => {
+    saveCompareList(compareList);
+    window.dispatchEvent(new CustomEvent('lwd:compare-bar', { detail: { active: compareList.length > 0 } }));
+    // Cleanup: broadcast inactive when this component unmounts
+    return () => {
+      window.dispatchEvent(new CustomEvent('lwd:compare-bar', { detail: { active: false } }));
+    };
+  }, [compareList]);
   const [heroStyle, setHeroStyle] = useState("cinematic");
   const [enquiryOpen, setEnquiryOpen] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
@@ -6151,6 +7538,9 @@ export default function VenueProfile({ onBack = null, slug = null }) {
   const [rawListing, setRawListing] = useState(null);
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [viData, setViData] = useState(null); // venue_intelligence row
+  const [venueEvents, setVenueEvents] = useState([]);
+  const [drawerEvent, setDrawerEvent] = useState(null);
 
   const C = darkMode ? DARK : LIGHT;
   const VV = dbVenue ? { ...VENUE, ...dbVenue } : VENUE;
@@ -6160,8 +7550,22 @@ export default function VenueProfile({ onBack = null, slug = null }) {
   useEffect(() => {
     if (dbVenue && dbVenue.name && slug) {
       recordVenueView(VV, slug);
+      // Track profile_view in unified event system (once per real data load)
+      trackProfileView({
+        entityType:    'venue',
+        entityId:      dbVenue.id   || null,
+        entityName:    dbVenue.name || null,
+        slug,
+        sourceSurface: 'venue_profile',
+      });
     }
   }, [slug, dbVenue]);
+
+  // Fetch venue intelligence — single source of truth for capacity + pricing
+  useEffect(() => {
+    if (!slug) return;
+    fetchVenueIntelligence(slug).then(row => { if (row) setViData(row); });
+  }, [slug]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -6289,6 +7693,7 @@ export default function VenueProfile({ onBack = null, slug = null }) {
             phone:   listing.phone   || listing.contactProfile?.phone   || null,
             email:   listing.email   || listing.contactProfile?.email   || null,
             website: listing.website || listing.contactProfile?.website || null,
+            social:  listing.contactProfile?.social || null,
             responseMetrics: {
               averageResponseHours: null,
               responseRatePercent:  null,
@@ -6400,6 +7805,27 @@ export default function VenueProfile({ onBack = null, slug = null }) {
     return () => { ignore = true; };
   }, [slug]);
 
+  // Fetch upcoming events linked to this listing
+  useEffect(() => {
+    if (!VV.id) return;
+    fetchUpcomingEventsForVenue(VV.id, 6).then(evts => setVenueEvents(evts || []));
+  }, [VV.id]);
+
+  // Silently replace URL bar with canonical hierarchical path once listing loads
+  useEffect(() => {
+    if (!rawListing || !slug) return;
+    const cs  = rawListing.country_slug  || rawListing.countrySlug  || countrySlug;
+    const rs  = rawListing.region_slug   || rawListing.regionSlug   || regionSlug;
+    const cat = rawListing.category_slug || rawListing.categorySlug || categorySlug || 'wedding-venues';
+    if (!cs) return;
+    const canonical = (cs && rs && cat)
+      ? `/${cs}/${rs}/${cat}/${slug}`
+      : `/${cs}/${cat}/${slug}`;
+    if (window.location.pathname !== canonical) {
+      window.history.replaceState(null, '', canonical);
+    }
+  }, [rawListing, slug, countrySlug, regionSlug, categorySlug]);
+
   const scrollToSection = (key) => {
     setActiveTab(key);
     const el = document.getElementById(key);
@@ -6415,7 +7841,16 @@ export default function VenueProfile({ onBack = null, slug = null }) {
 
   const addCompare = () => {
     if (!compareList.find(v => v.id === VV.id)) {
-      setCompareList(l => [...l, { id: VV.id, name: VV.name }]);
+      setCompareList(l => {
+        const updated = [...l, { id: VV.id, name: VV.name }].slice(0, 3);
+        trackCompareAdd({
+          venueId:       VV.id,
+          venueName:     VV.name,
+          compareList:   l,           // peers already in bar before this add
+          sourceSurface: 'venue_profile',
+        });
+        return updated;
+      });
     }
   };
 
@@ -6442,30 +7877,45 @@ export default function VenueProfile({ onBack = null, slug = null }) {
     <Theme.Provider value={C}>
       <GlobalStyles />
       {/* SEO head - only when real listing data is loaded */}
-      {rawListing && (
-        <>
-          <SeoHead
-            title={rawListing.seoTitle || rawListing.name}
-            description={rawListing.seoDescription || rawListing.shortDescription || rawListing.cardSummary}
-            keywords={rawListing.seoKeywords}
-            canonicalUrl={`${SITE_URL}/wedding-venues/${slug}`}
-            ogImage={rawListing.heroImage || rawListing.imgs?.[0]?.src || rawListing.imgs?.[0]}
-          />
-          <JsonLd schema={buildVenueSchema(rawListing)} />
-          <JsonLd schema={buildBreadcrumbSchema([
-            { name: 'Home', url: '/' },
-            { name: rawListing.country || 'Venues', url: '/' },
-            { name: rawListing.name, url: `/wedding-venues/${slug}` },
-          ])} />
-          {rawListing.faqEnabled !== false && rawListing.faqCategories && rawListing.faqCategories.length > 0 && (
-            <JsonLd schema={buildFaqSchema(rawListing.faqCategories)} />
-          )}
-        </>
-      )}
+      {rawListing && (() => {
+        const cs  = rawListing.country_slug  || rawListing.countrySlug  || countrySlug;
+        const rs  = rawListing.region_slug   || rawListing.regionSlug   || regionSlug;
+        const cat = rawListing.category_slug || rawListing.categorySlug || categorySlug || 'wedding-venues';
+        const canonicalUrl = (cs && rs && cat)
+          ? `${SITE_URL}/${cs}/${rs}/${cat}/${slug}`
+          : (cs && cat)
+            ? `${SITE_URL}/${cs}/${cat}/${slug}`
+            : `${SITE_URL}/wedding-venues/${slug}`;
+        const countryUrl  = cs ? `/${cs}` : '/';
+        const regionUrl   = (cs && rs) ? `/${cs}/${rs}` : countryUrl;
+        const categoryUrl = (cs && rs && cat) ? `/${cs}/${rs}/${cat}` : '/';
+        return (
+          <>
+            <SeoHead
+              title={rawListing.seoTitle || rawListing.name}
+              description={rawListing.seoDescription || rawListing.shortDescription || rawListing.cardSummary}
+              keywords={rawListing.seoKeywords}
+              canonicalUrl={canonicalUrl}
+              ogImage={rawListing.heroImage || rawListing.imgs?.[0]?.src || rawListing.imgs?.[0]}
+            />
+            <JsonLd schema={buildVenueSchema(rawListing)} />
+            <JsonLd schema={buildBreadcrumbSchema([
+              { name: 'Home', url: '/' },
+              { name: rawListing.country || 'Venues', url: countryUrl },
+              ...(rs ? [{ name: rawListing.region || rs, url: regionUrl }] : []),
+              { name: cat.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), url: categoryUrl },
+              { name: rawListing.name, url: canonicalUrl },
+            ])} />
+            {rawListing.faqEnabled !== false && rawListing.faqCategories && rawListing.faqCategories.length > 0 && (
+              <JsonLd schema={buildFaqSchema(rawListing.faqCategories)} />
+            )}
+          </>
+        );
+      })()}
       <div className="vp-root" style={{ background: C.bg, minHeight: "100vh", color: C.text }}>
         <HomeNav hasHero={true} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} />
         <Hero venue={VV} heroStyle={heroStyle} setHeroStyle={setHeroStyle} onEnquire={() => setEnquiryOpen(true)} onBack={onBack} />
-        <StatsStrip venue={VV} />
+        <StatsStrip venue={VV} nextEvent={venueEvents[0] || null} onEventClick={setDrawerEvent} />
         <StickyTabNav venue={VV} activeTab={activeTab} onTabClick={scrollToSection} saved={saved} setSaved={setSaved} onAddCompare={addCompare} compareList={compareList} />
 
         {/* Main layout */}
@@ -6477,6 +7927,30 @@ export default function VenueProfile({ onBack = null, slug = null }) {
               <ImageGallery gallery={VV.gallery} onOpenLight={i => setLightIdx(i)} />
               {VV.videos && VV.videos.length > 0 && <VideoGallery videos={VV.videos} venue={VV} />}
               <ExclusiveUse venue={VV} onEnquire={() => setEnquiryOpen(true)} />
+
+              {/* ── Venue Intelligence: At a Glance + Pricing + Verified ── */}
+              {viData && (
+                <>
+                  <ShowcaseVerified
+                    data={viData}
+                    accentColor={C.gold}
+                    theme={darkMode ? 'dark' : 'light'}
+                  />
+                  <ShowcaseAtAGlance
+                    data={viData}
+                    accentColor={C.gold}
+                    theme={darkMode ? 'dark' : 'light'}
+                  />
+                  <ShowcasePricing
+                    data={viData}
+                    venueName={VV.name}
+                    accentColor={C.gold}
+                    theme={darkMode ? 'dark' : 'light'}
+                    bg={darkMode ? undefined : '#faf9f6'}
+                  />
+                </>
+              )}
+
               <CateringSection venue={VV} />
               {VV.spaces && <SpacesSection spaces={VV.spaces} venue={VV} />}
               <RoomsSection venue={VV} />
@@ -6485,7 +7959,111 @@ export default function VenueProfile({ onBack = null, slug = null }) {
               <WeddingWeekend venue={VV} />
               <ContactSection venue={VV} />
               {VV.access && Array.isArray(VV.access.airports) && VV.access.airports.length > 0 && <GettingHere access={VV.access} />}
+              {venueEvents.length > 0 && (
+                <div id="events" style={{ marginBottom: 48 }}>
+                  <div style={{ fontFamily: 'var(--font-heading-primary)', fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#C9A84C', marginBottom: 8 }}>Open Days &amp; Events</div>
+                  <h2 style={{ fontFamily: 'var(--font-heading-primary)', fontSize: 26, fontWeight: 400, margin: '0 0 6px', color: C.text }}>Join Us in Person</h2>
+                  <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: C.muted, margin: '0 0 24px', lineHeight: 1.6 }}>
+                    Experience {VV.name} first-hand. Register for an upcoming open day, private tour, or virtual showcase.
+                  </p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+                    {venueEvents.map(ev => {
+                      const dateStr = formatEventDate(ev.startDate);
+                      const timeStr = ev.startTime ? formatEventTime(ev.startTime) : null;
+                      // Urgency signal: capacity-based or default
+                      const spotsLeft = ev.capacity
+                        ? Math.max(0, ev.capacity - (ev.bookingCount || 0))
+                        : null;
+                      const isAlmostFull = spotsLeft !== null && spotsLeft <= Math.ceil(ev.capacity * 0.25);
+                      const urgencyLabel = isAlmostFull
+                        ? `${spotsLeft} place${spotsLeft === 1 ? '' : 's'} remaining`
+                        : ev.capacity
+                          ? `Limited to ${ev.capacity} guests`
+                          : 'Limited availability';
+                      return (
+                        <div
+                          key={ev.id}
+                          onClick={() => setDrawerEvent(ev)}
+                          style={{ cursor: 'pointer', background: '#1a1a18', border: '1px solid #2a2a28', borderRadius: 4, overflow: 'hidden', transition: 'border-color 0.2s, transform 0.2s' }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = '#C9A84C'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = '#2a2a28'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                        >
+                          {ev.coverImageUrl && (
+                            <div style={{ height: 160, overflow: 'hidden', position: 'relative' }}>
+                              <img src={ev.coverImageUrl} alt={ev.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              {/* Urgency badge overlay */}
+                              <div style={{
+                                position: 'absolute', bottom: 10, right: 10,
+                                background: isAlmostFull ? 'rgba(239,68,68,0.88)' : 'rgba(0,0,0,0.62)',
+                                border: isAlmostFull ? '1px solid rgba(239,68,68,0.5)' : '1px solid rgba(255,255,255,0.15)',
+                                backdropFilter: 'blur(4px)',
+                                padding: '3px 8px', borderRadius: 2,
+                                fontFamily: 'var(--font-body)', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
+                                color: '#fff',
+                              }}>
+                                {urgencyLabel}
+                              </div>
+                            </div>
+                          )}
+                          {!ev.coverImageUrl && (
+                            <div style={{
+                              height: 48, background: '#141412',
+                              borderBottom: '1px solid #2a2a28',
+                              display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+                              padding: '0 14px',
+                            }}>
+                              <div style={{
+                                background: isAlmostFull ? 'rgba(239,68,68,0.2)' : 'rgba(201,168,76,0.12)',
+                                border: `1px solid ${isAlmostFull ? 'rgba(239,68,68,0.4)' : 'rgba(201,168,76,0.3)'}`,
+                                padding: '3px 8px', borderRadius: 2,
+                                fontFamily: 'var(--font-body)', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
+                                color: isAlmostFull ? '#fca5a5' : '#C9A84C',
+                              }}>
+                                {urgencyLabel}
+                              </div>
+                            </div>
+                          )}
+                          <div style={{ padding: '16px 18px' }}>
+                            <div style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: '#C9A84C', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>
+                              {ev.eventType?.replace(/_/g, ' ') || 'Event'}
+                              {ev.isVirtual && <span style={{ marginLeft: 8, color: '#93c5fd' }}>· Virtual</span>}
+                            </div>
+                            <div style={{ fontFamily: 'var(--font-heading-primary)', fontSize: 17, fontWeight: 400, color: '#f0ece4', marginBottom: 4, lineHeight: 1.3 }}>{ev.title}</div>
+                            {ev.subtitle && <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#999', marginBottom: 8, lineHeight: 1.5 }}>{ev.subtitle}</div>}
+                            <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#666', marginTop: 8 }}>
+                              {dateStr}{timeStr ? ` · ${timeStr}` : ''}
+                              {ev.isFree === false && ev.ticketPrice && (
+                                <span style={{ marginLeft: 10, color: '#C9A84C' }}>From £{ev.ticketPrice}</span>
+                              )}
+                            </div>
+                            <div style={{
+                              marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                              paddingTop: 12, borderTop: '1px solid #2a2a28',
+                            }}>
+                              <div style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: '#C9A84C', letterSpacing: '0.1em', textTransform: 'uppercase', borderBottom: '1px solid #C9A84C', paddingBottom: 1 }}>
+                                {ev.bookingMode === 'external' ? 'Book Now →' : 'Reserve Your Place →'}
+                              </div>
+                              {ev.isFree !== false && (
+                                <div style={{ fontFamily: 'var(--font-body)', fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#555', background: '#242420', padding: '3px 7px', borderRadius: 2 }}>
+                                  Complimentary
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {VV.testimonials && Array.isArray(VV.testimonials) && VV.testimonials.length > 0 && <Reviews testimonials={VV.testimonials} venue={VV} venueSlug={slug} />}
+              {dbVenue && dbVenue.id && (
+                <ReviewsSection
+                  entityType="venue"
+                  entityId={dbVenue.id}
+                  onOpenReviewForm={() => setEnquiryOpen(true)}
+                />
+              )}
               <FAQSection venue={VV} onAsk={() => setEnquiryOpen(true)} />
               <SimilarVenues venue={VV} />
               <RecentlyViewed venue={VV} />
@@ -6518,9 +8096,30 @@ export default function VenueProfile({ onBack = null, slug = null }) {
         </div>
 
         <MobileLeadBar venue={VV} />
-        <CompareBar items={compareList} onRemove={id => setCompareList(l => l.filter(v => v.id !== id))} onClear={() => setCompareList([])} />
+        <CompareBar
+          items={compareList}
+          onRemove={id => {
+            const removed = compareList.find(v => v.id === id);
+            setCompareList(l => l.filter(v => v.id !== id));
+            if (removed) {
+              trackCompareRemove({ venueId: id, venueName: removed.name, compareList, sourceSurface: 'compare_bar' });
+            }
+          }}
+          onClear={() => setCompareList([])}
+          onCompare={() => {
+            trackCompareView({ compareList, sourceSurface: 'compare_bar' });
+            trackComparePair({ compareList, sourceSurface: 'compare_bar' });
+            setShowCompareModal(true);
+          }}
+        />
         <Lightbox gallery={VV.gallery} idx={lightIdx} setLightIdx={setLightIdx} onClose={() => setLightIdx(null)} onPrev={() => setLightIdx(i => (i - 1 + (VV.gallery?.length || 1)) % (VV.gallery?.length || 1))} onNext={() => setLightIdx(i => (i + 1) % (VV.gallery?.length || 1))} engagement={VV.engagement?.photos} />
         {enquiryOpen && <EnquiryModal venue={VV} onClose={() => setEnquiryOpen(false)} />}
+        {showCompareModal && compareList.length > 0 && (
+          <CompareModal
+            items={compareList}
+            onClose={() => setShowCompareModal(false)}
+          />
+        )}
         {showReviewForm && (
           <div
             style={{
@@ -6561,6 +8160,7 @@ export default function VenueProfile({ onBack = null, slug = null }) {
           </div>
         )}
         <VenueCookieBanner />
+        <EventDrawer event={drawerEvent} onClose={() => setDrawerEvent(null)} darkMode={darkMode} />
       </div>
     </Theme.Provider>
   );

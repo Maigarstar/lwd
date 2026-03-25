@@ -263,7 +263,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=900&q=80"] },
   // ── London ──────────────────────────────────────────────────────────────────
   { id:101, name:"Spencer House",                region:"London",       city:"Mayfair",
-    countrySlug:"uk", regionSlug:"london", citySlug:"mayfair",
+    countrySlug:"england", regionSlug:"london", citySlug:"mayfair",
     lat: 51.5046, lng: -0.1395, online: true,
     styles:["Black Tie","Historic","Elegant"],           capacity:250,
     priceLabel:"££££", priceFrom:"£28,000", rating:4.9, reviews:97,
@@ -276,7 +276,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=900&q=80"] },
 
   { id:102, name:"Kew Gardens Orangery",         region:"London",       city:"Richmond",
-    countrySlug:"uk", regionSlug:"london", citySlug:"richmond",
+    countrySlug:"england", regionSlug:"london", citySlug:"richmond",
     lat: 51.4787, lng: -0.2956, online: true,
     styles:["Garden","Romantic","Classic"],               capacity:150,
     priceLabel:"£££",  priceFrom:"£16,000", rating:4.8, reviews:134,
@@ -289,7 +289,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1490750967868-88df5691cc00?auto=format&fit=crop&w=900&q=80"] },
 
   { id:103, name:"The Ned",                      region:"London",       city:"City of London",
-    countrySlug:"uk", regionSlug:"london",
+    countrySlug:"england", regionSlug:"london",
     lat: 51.5131, lng: -0.0880, online: true,
     styles:["Black Tie","Historic","Intimate"],            capacity:120,
     priceLabel:"££££", priceFrom:"£22,000", rating:4.9, reviews:78,
@@ -302,7 +302,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=900&q=80"] },
 
   { id:104, name:"Syon Park",                    region:"London",       city:"Brentford",
-    countrySlug:"uk", regionSlug:"london",
+    countrySlug:"england", regionSlug:"london",
     lat: 51.4747, lng: -0.3106, online: false,
     styles:["Garden","Historic","Elegant"],                capacity:200,
     priceLabel:"££££", priceFrom:"£20,000", rating:4.8, reviews:112,
@@ -315,7 +315,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1590523741831-ab7e8b8f9c7f?auto=format&fit=crop&w=900&q=80"] },
 
   { id:105, name:"Claridge's Ballroom",          region:"London",       city:"Mayfair",
-    countrySlug:"uk", regionSlug:"london", citySlug:"mayfair",
+    countrySlug:"england", regionSlug:"london", citySlug:"mayfair",
     lat: 51.5124, lng: -0.1470, online: true,
     styles:["Black Tie","Art Deco","Elegant"],              capacity:300,
     priceLabel:"££££", priceFrom:"£35,000", rating:5.0, reviews:63,
@@ -328,7 +328,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1444201983204-c43cbd584d93?auto=format&fit=crop&w=900&q=80"] },
 
   { id:106, name:"Hampstead Pergola",            region:"London",       city:"Hampstead",
-    countrySlug:"uk", regionSlug:"london", citySlug:"hampstead",
+    countrySlug:"england", regionSlug:"london", citySlug:"hampstead",
     lat: 51.5633, lng: -0.1781, online: false,
     styles:["Garden","Romantic","Bohemian"],                capacity:80,
     priceLabel:"£££",  priceFrom:"£12,000", rating:4.7, reviews:89,
@@ -341,7 +341,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1464207687429-7505649dae38?auto=format&fit=crop&w=900&q=80"] },
 
   { id:107, name:"The Savoy",                     region:"London",       city:"Strand",
-    countrySlug:"uk", regionSlug:"london", citySlug:"strand",
+    countrySlug:"england", regionSlug:"london", citySlug:"strand",
     lat: 51.5103, lng: -0.1204, online: true,
     styles:["Art Deco","Black Tie","Elegant"],                capacity:400,
     priceLabel:"££££", priceFrom:"£42,000", rating:5.0, reviews:105,
@@ -354,7 +354,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=900&q=80"] },
 
   { id:108, name:"Fulham Palace",                  region:"London",       city:"Fulham",
-    countrySlug:"uk", regionSlug:"london", citySlug:"fulham",
+    countrySlug:"england", regionSlug:"london", citySlug:"fulham",
     lat: 51.4696, lng: -0.2156, online: true,
     styles:["Historic","Garden","Romantic"],                   capacity:180,
     priceLabel:"£££",  priceFrom:"£14,000", rating:4.8, reviews:91,
@@ -367,7 +367,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=80"] },
 
   { id:109, name:"One Marylebone",                 region:"London",       city:"Marylebone",
-    countrySlug:"uk", regionSlug:"london", citySlug:"marylebone",
+    countrySlug:"england", regionSlug:"london", citySlug:"marylebone",
     lat: 51.5230, lng: -0.1595, online: true,
     styles:["Modern","Elegant","Intimate"],                    capacity:220,
     priceLabel:"££££", priceFrom:"£25,000", rating:4.9, reviews:76,
@@ -380,7 +380,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?auto=format&fit=crop&w=900&q=80"] },
 
   { id:110, name:"The Hurlingham Club",            region:"London",       city:"Fulham",
-    countrySlug:"uk", regionSlug:"london", citySlug:"fulham",
+    countrySlug:"england", regionSlug:"london", citySlug:"fulham",
     lat: 51.4679, lng: -0.2045, online: false,
     styles:["Garden","Classic","Elegant"],                     capacity:350,
     priceLabel:"££££", priceFrom:"£30,000", rating:4.9, reviews:58,
@@ -393,7 +393,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=900&q=80"] },
 
   { id:111, name:"Strawberry Hill House",          region:"London",       city:"Twickenham",
-    countrySlug:"uk", regionSlug:"london", citySlug:"twickenham",
+    countrySlug:"england", regionSlug:"london", citySlug:"twickenham",
     lat: 51.4348, lng: -0.3367, online: true,
     styles:["Gothic","Historic","Romantic"],                   capacity:120,
     priceLabel:"£££",  priceFrom:"£18,000", rating:4.8, reviews:67,
@@ -406,7 +406,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1534430480587-fd02834b5ee0?auto=format&fit=crop&w=900&q=80"] },
 
   { id:112, name:"Eltham Palace",                  region:"London",       city:"Greenwich",
-    countrySlug:"uk", regionSlug:"london", citySlug:"greenwich",
+    countrySlug:"england", regionSlug:"london", citySlug:"greenwich",
     lat: 51.4510, lng: 0.0503, online: true,
     styles:["Art Deco","Historic","Garden"],                   capacity:160,
     priceLabel:"£££",  priceFrom:"£15,000", rating:4.7, reviews:82,

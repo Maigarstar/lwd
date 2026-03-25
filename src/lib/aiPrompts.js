@@ -364,7 +364,7 @@ Return ONLY a valid JSON object in this exact format:
   "address_line2": "Second line if any, otherwise empty string",
   "city": "City or town name",
   "postcode": "Postcode or ZIP code",
-  "country": "One of: italy, france, spain, greece, portugal, uk, us, caribbean, or empty string",
+  "country": "One of: italy, france, spain, greece, portugal, england, scotland, wales, us, caribbean, or empty string",
   "region": "Region, county, or area name, or empty string"
 }
 

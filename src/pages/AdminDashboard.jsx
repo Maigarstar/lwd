@@ -7,11 +7,11 @@
 import { useState, useRef, useEffect, useCallback, useMemo, Suspense } from "react";
 import { ThemeCtx } from "../theme/ThemeContext";
 import { DARK_C } from "../theme/tokens";
-import { ITALY_COUNTRY } from "../data/italy/country.js";
+import { DIRECTORY_COUNTRIES } from "../data/countryRegistry.js";
 import { ITALY_REGIONS } from "../data/italy/regions.js";
 import { ITALY_CITIES } from "../data/italy/cities.js";
 import { REGION_AUTO_THRESHOLD, evaluateRegionActivation } from "../engine/activation.js";
-import { fetchListings, isSupabaseAvailable, createListing, deleteListing } from "../services/listings";
+import { fetchListings, fetchListingsAdmin, fetchListingBySlugAdmin, isSupabaseAvailable, createListing, deleteListing } from "../services/listings";
 import { fetchShowcases, createShowcase, updateShowcase, deleteShowcase } from "../services/showcaseService";
 import { uploadMediaFile } from "../utils/storageUpload";
 import categoryCssRaw from "../category.css?raw";
@@ -37,9 +37,29 @@ import ReviewsModule from "./AdminDashboard/ReviewsModule";
 import CRMModule from "./AdminModules/CRMModule";
 import EmailMarketingModule from "./AdminModules/EmailMarketingModule";
 import EmailBuilderModule from "./AdminModules/EmailBuilderModule";
+import SalesPipelineModule from "./AdminModules/SalesPipelineModule";
+import PipelineBuilderModule from "./AdminModules/PipelineBuilderModule";
+import PlatformSettingsModule from "./AdminModules/PlatformSettingsModule";
+import TeamModule from "./AdminModules/TeamModule";
+import SeoModule from "./AdminModules/SeoModule";
+import ConnectedDataModule from "./AdminModules/ConnectedDataModule";
+import SocialStudioModule from "./AdminModules/SocialStudioModule";
+import ShowcaseStudioModule from "./AdminModules/ShowcaseStudioModule";
+import ManagedAccountsModule from "./AdminModules/ManagedAccountsModule";
+import MenuModule from "./AdminModules/MenuModule";
+import FooterModule from "./AdminModules/FooterModule";
+import MenuBranding from "./AdminModules/menu/MenuBranding";
+import PlatformIntelligenceModule from "./AdminModules/PlatformIntelligenceModule";
+import EventsModule from "./AdminModules/EventsModule";
+import SiteContentModule from "./AdminModules/SiteContentModule";
+import { fetchClickSummary, fetchBatchClickCounts } from "../services/adminOutboundClicksService";
+import { fetchPostBySlug } from "../services/magazineService";
+import VenueIntakeStudio from "./admin/VenueIntakeStudio";
 import { POSTS } from "./Magazine/data/posts";
 import { PRODUCTS, COLLECTIONS, formatPrice } from "./Magazine/data/products";
 import { CATEGORIES } from "./Magazine/data/categories";
+import { fetchLocationContent, saveLocationContent } from "../services/locationContentService";
+import LocationPage from "./LocationPage";
 
 // Font tokens, resolved via CSS custom properties set on admin root
 const GD = "var(--font-heading-primary)";
@@ -62,9 +82,11 @@ const DEFAULT_ADMIN_LIGHT_C = {
   green:   "#15803d",
   blue:    "#1d4ed8",
   rose:    "#be123c",
+  bg:      "#ffffff",
+  sidebar: "#f4efe9",
 };
 
-const DEFAULT_DARK_C = { ...DARK_C };
+const DEFAULT_DARK_C = { ...DARK_C, bg: DARK_C.dark, sidebar: DARK_C.dark };
 
 // Token labels, tells the user WHERE each colour is used
 const TOKEN_LABELS = {
@@ -213,12 +235,22 @@ const THEME_PRESETS = {
 // ── Sidebar navigation with grouped sections ───────────────────────────────
 const NAV_SECTIONS = [
   {
+    group: "Managed Accounts",
+    items: [
+      { key: "managed-accounts", label: "Managed Accounts",  icon: "◈" },
+    ],
+  },
+  {
     group: "Platform",
     items: [
       { key: "overview",        label: "Overview",          icon: "◈" },
       { key: "listings",        label: "Listings",          icon: "⊞" },
       { key: "listing-studio",  label: "Listing Studio",    icon: "✎" },
+      { key: "venue-intake",    label: "Venue Intake Studio", icon: "⬆" },
       { key: "venue-profiles",    label: "Showcase Profiles",  icon: "⌂" },
+      { key: "showcase-studio",   label: "Showcase Studio",    icon: "✦" },
+      { key: "events",            label: "Events",             icon: "◈" },
+      { key: "event-studio",      label: "Event Studio",       icon: "✎" },
       { key: "reviews",         label: "Reviews",           icon: "★" },
       { key: "vendor-accounts", label: "Vendor Accounts",   icon: "👤" },
       { key: "categories",      label: "Categories",        icon: "▦" },
@@ -226,15 +258,16 @@ const NAV_SECTIONS = [
       { key: "partnerships",    label: "Partnerships",      icon: "✦" },
       { key: "countries",       label: "Countries",         icon: "◎" },
       { key: "regions",         label: "Regions",           icon: "◇" },
+      { key: "locations",       label: "Locations",         icon: "◎" },
       { key: "index",           label: "Index Health",      icon: "▧" },
     ],
   },
   {
     group: "Growth",
     items: [
-      { key: "leads",        label: "Leads",             icon: "⊛" },
-      { key: "seo",          label: "SEO",               icon: "⊡" },
-      { key: "crm",          label: "CRM",               icon: "⊕" },
+      { key: "leads",            label: "Leads",             icon: "⊛" },
+      { key: "seo",              label: "SEO",               icon: "⊡" },
+      { key: "crm",              label: "CRM",               icon: "⊕" },
     ],
   },
   {
@@ -248,9 +281,12 @@ const NAV_SECTIONS = [
   {
     group: "Internal Sales",
     items: [
-      { key: "partner-enquiries", label: "Partner Enquiries", icon: "⊛" },
-      { key: "sales-pipeline",    label: "Sales Pipeline",    icon: "◆" },
-      { key: "advertise-leads",   label: "Advertise Leads",   icon: "⊡" },
+      { key: "partner-enquiries",  label: "Partner Enquiries", icon: "⊛" },
+      { key: "sales-pipeline",     label: "Sales Pipeline",    icon: "◆" },
+      { key: "pipeline-builder",   label: "Pipeline Builder",  icon: "⊞" },
+      { key: "advertise-leads",    label: "Advertise Leads",   icon: "⊡" },
+      { key: "team",               label: "Team Seats",        icon: "⊕" },
+      { key: "platform-settings",  label: "Platform Settings", icon: "⚙" },
     ],
   },
   {
@@ -263,25 +299,32 @@ const NAV_SECTIONS = [
   {
     group: "Intelligence",
     items: [
-      { key: "aura",         label: "Aura Analytics",    icon: "✧" },
-      { key: "api",          label: "API Management",    icon: "⟐" },
-      { key: "ai-settings",  label: "AI Settings",       icon: "⚙" },
+      { key: "aura",                   label: "Aura Analytics",         icon: "✧" },
+      { key: "api",                    label: "API Management",         icon: "⟐" },
+      { key: "ai-settings",           label: "AI Settings",            icon: "⚙" },
+      { key: "connected-data",         label: "Connected Data",        icon: "◉" },
+      { key: "platform-intelligence",  label: "Platform Intelligence", icon: "⬡" },
     ],
   },
   {
     group: "Design",
     items: [
+      { key: "branding",     label: "Logo & Identity",   icon: "✦" },
       { key: "styles",       label: "Style Editor",      icon: "◑" },
+      { key: "menu",         label: "Menu Builder",      icon: "≡" },
+      { key: "footer",       label: "Brand Footer",      icon: "▭" },
     ],
   },
   {
     group: "Content",
     items: [
-      { key: "page-studio",  label: "Page Studio",       icon: "⟡" },
-      { key: "homepage-manager", label: "Homepage Manager", icon: "⌂" },
+      { key: "homepage-manager", label: "Homepage Manager",  icon: "⌂" },
+      { key: "social-studio",    label: "Social Studio",     icon: "◉" },
+      { key: "page-studio",      label: "Page Studio",       icon: "⟡" },
       { key: "magazine",         label: "The Magazine",      icon: "◈" },
       { key: "magazine-studio",  label: "Magazine Studio",   icon: "✦" },
       { key: "reusable-blocks",  label: "Reusable Blocks",   icon: "⊞" },
+      { key: "site-content",     label: "Site Content",      icon: "≡" },
     ],
   },
 ];
@@ -294,6 +337,7 @@ const GROUP_ICON_PATHS = {
   Growth:       'M23 6l-9.5 9.5-5-5L1 18M17 6h6v6',
   Engagement:   'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z',
   Intelligence: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
+  Branding:     'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
   Design:       'M12 20h9M16.5 3.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z',
   Content:      'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6',
   Marketing:        'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
@@ -465,7 +509,7 @@ const STRUCTURED_DATA_MAP = {
 
 // ── SEO landing page plan, generated from taxonomy ───────────────────────
 // These pages are where authority compounds. Listings are important, but clusters win.
-const SEO_COUNTRIES = ["italy", "france", "uk", "spain", "greece", "portugal", "usa", "caribbean", "mexico", "thailand", "bali", "south-africa", "maldives", "switzerland", "austria"];
+const SEO_COUNTRIES = ["italy", "france", "england", "spain", "greece", "portugal", "usa", "caribbean", "mexico", "thailand", "bali", "south-africa", "maldives", "switzerland", "austria"];
 
 // Generates: /italy, /france, /uk ...
 // Generates: /italy/wedding-venues, /italy/wedding-planners, /france/photographers ...
@@ -615,569 +659,9 @@ const DIRECTORY_CATEGORIES = [
 ];
 
 // ═════════════════════════════════════════════════════════════════════════════
-// Country Taxonomy, Geography-first SEO architecture
+// Country Taxonomy — imported from src/data/countryRegistry.js (single source of truth)
+// See DIRECTORY_COUNTRIES import at top of file.
 // ═════════════════════════════════════════════════════════════════════════════
-const DIRECTORY_COUNTRIES = [
-  ITALY_COUNTRY,
-  {
-    id: "france", slug: "france", name: "France", iso2: "FR", listingCount: 12,
-    seoTitleTemplate: "Luxury Wedding Vendors in France | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues and vendors across France. Châteaux, Provence estates and Parisian elegance, editorially selected.",
-    evergreenContent: "France embodies romance at every scale, from intimate Provençal farmhouses to grand Loire Valley châteaux. The French wedding tradition marries gastronomy, fashion and architecture into celebrations of unparalleled sophistication.",
-    focusKeywords: ["luxury wedding france", "french chateau wedding", "provence wedding", "destination wedding france", "paris wedding planner"],
-    aiSummary: "Second-largest European destination market. Château weddings dominate search. Provence and Paris drive the highest conversion rates.",
-    intentSignals: { high: ["chateau wedding france cost", "provence wedding planner book", "paris luxury wedding venue hire"], mid: ["best french wedding venues", "provence wedding inspiration", "france destination wedding packages"], low: ["french wedding traditions", "getting married in france requirements", "wedding in france ideas"] },
-  },
-  {
-    id: "uk", slug: "uk", name: "United Kingdom", iso2: "GB", listingCount: 14,
-    seoTitleTemplate: "Luxury Wedding Vendors in the UK | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues and vendors across the United Kingdom. Country houses, castles and contemporary spaces, editorially selected.",
-    evergreenContent: "The United Kingdom offers an unrivalled range of wedding settings, from the rolling hills of the Cotswolds to the Scottish Highlands. Historic country houses, royal estates and converted barns form the backbone of the British luxury wedding market.",
-    focusKeywords: ["luxury wedding uk", "country house wedding", "castle wedding uk", "wedding venues england", "london wedding planner"],
-    aiSummary: "Largest domestic market. Country houses and barn venues lead search. Strong year-round demand with summer peak. London planners service both domestic and destination.",
-    intentSignals: { high: ["book country house wedding venue", "luxury wedding planner london", "castle wedding venue hire uk"], mid: ["best wedding venues uk", "cotswolds wedding ideas", "country wedding venues england"], low: ["uk wedding traditions", "average wedding cost uk", "wedding planning checklist uk"] },
-  },
-  {
-    id: "spain", slug: "spain", name: "Spain", iso2: "ES", listingCount: 8,
-    seoTitleTemplate: "Luxury Wedding Vendors in Spain | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across Spain. Andalusian fincas, Balearic islands and Barcelona elegance, editorially selected.",
-    evergreenContent: "Spain offers sun-drenched celebrations blending Moorish architecture, Mediterranean coastline and world-class gastronomy. From the white villages of Andalusia to the bohemian glamour of Ibiza, Spanish weddings are a feast for every sense.",
-    focusKeywords: ["luxury wedding spain", "spanish finca wedding", "ibiza wedding venue", "marbella wedding", "barcelona wedding planner"],
-    aiSummary: "Fast-growing destination market. Mallorca and Marbella drive highest search volume. Ibiza captures younger luxury demographic. Year-round viability.",
-    intentSignals: { high: ["finca wedding spain book", "marbella luxury wedding venue", "ibiza wedding planner hire"], mid: ["best wedding venues spain", "mallorca wedding guide", "andalusia wedding inspiration"], low: ["spanish wedding customs", "getting married in spain", "spain wedding ideas"] },
-  },
-  {
-    id: "usa", slug: "usa", name: "United States", iso2: "US", listingCount: 6,
-    seoTitleTemplate: "Luxury Wedding Vendors in the USA | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues and vendors across the United States. East Coast estates, Californian vineyards and city grandeur, editorially selected.",
-    evergreenContent: "The United States encompasses extraordinary diversity, from the Gilded Age estates of the Hudson Valley to Napa Valley vineyards and the Art Deco glamour of Miami. American luxury weddings blend scale, creativity and world-class vendor talent.",
-    focusKeywords: ["luxury wedding usa", "new york wedding venue", "napa valley wedding", "hamptons wedding", "luxury wedding planner nyc"],
-    aiSummary: "High-value market with premium vendor ecosystem. New York tri-state area dominates. California wine country and Florida emerging strongly.",
-    intentSignals: { high: ["luxury wedding venue new york book", "napa valley wedding planner hire", "hamptons estate wedding cost"], mid: ["best luxury wedding venues usa", "california winery wedding guide", "new york wedding ideas"], low: ["american wedding traditions", "average luxury wedding cost us", "wedding planning tips usa"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // EUROPE, Extended
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "portugal", slug: "portugal", name: "Portugal", iso2: "PT", listingCount: 9,
-    seoTitleTemplate: "Luxury Wedding Vendors in Portugal | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across Portugal. Algarve coastlines, Sintra palaces and Douro vineyards, editorially selected.",
-    evergreenContent: "Portugal blends Atlantic drama with Moorish heritage. Sun-drenched Algarve cliffs, Sintra's fairy-tale palaces and the terraced vineyards of the Douro Valley create a wedding destination of remarkable range and warmth.",
-    focusKeywords: ["luxury wedding portugal", "algarve wedding venue", "sintra wedding", "portugal destination wedding", "lisbon wedding planner"],
-    aiSummary: "Fast-growing European destination. Algarve leads volume. Sintra drives highest-value weddings. Strong UK market.",
-    intentSignals: { high: ["algarve wedding venue book", "sintra palace wedding hire"], mid: ["best portugal wedding venues", "algarve wedding guide"], low: ["portugal wedding traditions", "getting married in portugal"] },
-  },
-  {
-    id: "greece", slug: "greece", name: "Greece", iso2: "GR", listingCount: 11,
-    seoTitleTemplate: "Luxury Wedding Vendors in Greece | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues and vendors across Greece. Santorini sunsets, Mykonos glamour and Athenian elegance, editorially selected.",
-    evergreenContent: "Greece is synonymous with romance, whitewashed Cycladic villages, ancient temples and Aegean sunsets that define the destination wedding dream. From Santorini's caldera to Crete's rugged coastline, every island tells a love story.",
-    focusKeywords: ["luxury wedding greece", "santorini wedding venue", "mykonos wedding", "greek island wedding", "athens wedding planner"],
-    aiSummary: "Top 3 global destination market. Santorini dominates luxury tier. Mykonos captures fashion-forward segment. Strong year-round demand.",
-    intentSignals: { high: ["santorini wedding venue book", "mykonos wedding planner hire"], mid: ["best greek island wedding venues", "greece destination wedding cost"], low: ["greek wedding traditions", "getting married in greece"] },
-  },
-  {
-    id: "ireland", slug: "ireland", name: "Ireland", iso2: "IE", listingCount: 7,
-    seoTitleTemplate: "Luxury Wedding Vendors in Ireland | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues and vendors across Ireland. Castle estates, coastal cliffs and Georgian grandeur, editorially selected.",
-    evergreenContent: "Ireland offers wild Atlantic beauty and aristocratic elegance. Castle hotels, Georgian estates and clifftop ceremonies along the Wild Atlantic Way create a uniquely atmospheric wedding destination.",
-    focusKeywords: ["luxury wedding ireland", "castle wedding ireland", "irish wedding venue", "ireland destination wedding"],
-    aiSummary: "Castle weddings dominate. Strong US-Irish heritage market. Kerry and Dublin lead demand.",
-    intentSignals: { high: ["irish castle wedding venue book", "ireland wedding planner hire"], mid: ["best wedding venues ireland", "castle wedding ireland cost"], low: ["irish wedding traditions", "getting married in ireland"] },
-  },
-  {
-    id: "croatia", slug: "croatia", name: "Croatia", iso2: "HR", listingCount: 6,
-    seoTitleTemplate: "Luxury Wedding Vendors in Croatia | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across Croatia. Dubrovnik walled city, Adriatic islands and Istrian hilltop villages, editorially selected.",
-    evergreenContent: "Croatia has emerged as a Mediterranean jewel, Dubrovnik's medieval grandeur, the lavender-scented islands of Hvar and Vis, and Istria's truffle-rich hilltop villages offer European luxury at compelling value.",
-    focusKeywords: ["luxury wedding croatia", "dubrovnik wedding venue", "hvar wedding", "croatia destination wedding"],
-    aiSummary: "Fastest-growing Mediterranean destination. Dubrovnik anchors luxury tier. Island weddings trending strongly.",
-    intentSignals: { high: ["dubrovnik wedding venue book", "hvar wedding planner"], mid: ["best croatia wedding venues", "dubrovnik wedding cost"], low: ["croatia wedding ideas", "getting married in croatia"] },
-  },
-  {
-    id: "switzerland", slug: "switzerland", name: "Switzerland", iso2: "CH", listingCount: 5,
-    seoTitleTemplate: "Luxury Wedding Vendors in Switzerland | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues and vendors across Switzerland. Alpine grandeur, lake palaces and five-star elegance, editorially selected.",
-    evergreenContent: "Switzerland offers unmatched Alpine luxury, palatial lakeside hotels, mountain-top ceremonies with panoramic views and world-class gastronomy. From Lake Geneva's glamour to the Engadine's pristine beauty.",
-    focusKeywords: ["luxury wedding switzerland", "swiss wedding venue", "lake geneva wedding", "alpine wedding switzerland"],
-    aiSummary: "Ultra-premium market. Highest per-wedding spend in Europe. Palace hotel weddings dominate. Winter and summer seasons.",
-    intentSignals: { high: ["lake geneva wedding venue book", "swiss alpine wedding planner"], mid: ["best switzerland wedding venues", "swiss wedding cost"], low: ["swiss wedding traditions", "getting married in switzerland"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // MIDDLE EAST & NORTH AFRICA
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "uae", slug: "uae", name: "United Arab Emirates", iso2: "AE", listingCount: 8,
-    seoTitleTemplate: "Luxury Wedding Vendors in the UAE | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across the UAE. Dubai opulence, Abu Dhabi grandeur and desert romance, editorially selected.",
-    evergreenContent: "The UAE delivers wedding luxury at a scale found nowhere else, from Dubai's glittering skyline venues and private island resorts to Abu Dhabi's palatial hotels. Desert ceremonies under starlit skies add an Arabian Nights dimension.",
-    focusKeywords: ["luxury wedding dubai", "dubai wedding venue", "abu dhabi wedding", "uae wedding planner", "desert wedding dubai"],
-    aiSummary: "Highest-spend market globally. Dubai dominates with palace and beachfront venues. Year-round with winter peak. Strong South Asian and Middle Eastern demand.",
-    intentSignals: { high: ["dubai luxury wedding venue book", "abu dhabi palace wedding hire"], mid: ["best dubai wedding venues", "uae destination wedding packages"], low: ["dubai wedding ideas", "getting married in dubai"] },
-  },
-  {
-    id: "morocco", slug: "morocco", name: "Morocco", iso2: "MA", listingCount: 5,
-    seoTitleTemplate: "Luxury Wedding Vendors in Morocco | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues and vendors across Morocco. Marrakech riads, Atlas Mountain retreats and Saharan luxury, editorially selected.",
-    evergreenContent: "Morocco enchants with sensory richness, Marrakech's rose-scented riads, the snow-capped Atlas Mountains and Saharan desert camps under infinite stars create celebrations of extraordinary atmosphere.",
-    focusKeywords: ["luxury wedding morocco", "marrakech wedding venue", "morocco destination wedding", "riad wedding marrakech"],
-    aiSummary: "Experiential luxury market. Marrakech dominates. Multi-day celebration format drives high spend. Autumn and spring peaks.",
-    intentSignals: { high: ["marrakech riad wedding venue book", "morocco wedding planner hire"], mid: ["best morocco wedding venues", "marrakech wedding cost"], low: ["moroccan wedding traditions", "getting married in morocco"] },
-  },
-  {
-    id: "turkey", slug: "turkey", name: "Turkey", iso2: "TR", listingCount: 6,
-    seoTitleTemplate: "Luxury Wedding Vendors in Turkey | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues and vendors across Turkey. Istanbul palaces, Cappadocia hot-air balloon ceremonies and Bodrum coastal glamour, editorially selected.",
-    evergreenContent: "Turkey bridges continents and cultures, Istanbul's Ottoman palaces, Cappadocia's surreal lunar landscapes and the turquoise Aegean coast of Bodrum offer luxury weddings of cinematic proportions.",
-    focusKeywords: ["luxury wedding turkey", "istanbul wedding venue", "cappadocia wedding", "bodrum wedding", "turkey destination wedding"],
-    aiSummary: "Emerging luxury destination with strong value proposition. Istanbul cultural weddings and Cappadocia experiential weddings drive demand.",
-    intentSignals: { high: ["istanbul palace wedding venue book", "cappadocia wedding planner"], mid: ["best turkey wedding venues", "bodrum wedding guide"], low: ["turkish wedding traditions", "getting married in turkey"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // ASIA & INDIAN OCEAN
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "thailand", slug: "thailand", name: "Thailand", iso2: "TH", listingCount: 7,
-    seoTitleTemplate: "Luxury Wedding Vendors in Thailand | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across Thailand. Tropical beach ceremonies, jungle temples and five-star island resorts, editorially selected.",
-    evergreenContent: "Thailand offers tropical luxury with spiritual depth, private island resorts in Koh Samui, Phuket's clifftop venues, and Chiang Mai's temple-set ceremonies create celebrations infused with warmth and beauty.",
-    focusKeywords: ["luxury wedding thailand", "koh samui wedding venue", "phuket wedding", "thailand beach wedding", "chiang mai wedding"],
-    aiSummary: "Leading Asian beach destination. Koh Samui and Phuket dominate luxury tier. Strong Australian, European and American demand.",
-    intentSignals: { high: ["koh samui luxury wedding venue book", "phuket wedding planner hire"], mid: ["best thailand wedding venues", "thai beach wedding cost"], low: ["thai wedding traditions", "getting married in thailand"] },
-  },
-  {
-    id: "indonesia", slug: "indonesia", name: "Indonesia", iso2: "ID", listingCount: 8,
-    seoTitleTemplate: "Luxury Wedding Vendors in Indonesia | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues and vendors across Indonesia. Bali clifftop temples, jungle villas and private island escapes, editorially selected.",
-    evergreenContent: "Bali stands alone as Asia's most magnetic wedding destination, volcanic cliffside temples, emerald rice terrace villas, and world-class resort infrastructure create celebrations of spiritual beauty and tropical luxury.",
-    focusKeywords: ["luxury wedding bali", "bali wedding venue", "uluwatu wedding", "ubud wedding", "indonesia destination wedding"],
-    aiSummary: "Bali dominates entirely. Uluwatu cliff venues and Ubud jungle settings lead. Year-round with dry season peak April-October.",
-    intentSignals: { high: ["bali clifftop wedding venue book", "ubud villa wedding hire"], mid: ["best bali wedding venues", "bali wedding planner cost"], low: ["balinese wedding traditions", "getting married in bali"] },
-  },
-  {
-    id: "india", slug: "india", name: "India", iso2: "IN", listingCount: 10,
-    seoTitleTemplate: "Luxury Wedding Vendors in India | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues and vendors across India. Rajasthan palaces, Goa beaches and Kerala backwaters, editorially selected.",
-    evergreenContent: "India elevates weddings to an art form, Rajasthan's maharaja palaces, Goa's tropical glamour and Kerala's tranquil backwaters create celebrations of unmatched colour, scale and cultural richness.",
-    focusKeywords: ["luxury wedding india", "palace wedding rajasthan", "udaipur wedding venue", "goa wedding", "india destination wedding"],
-    aiSummary: "Largest wedding market by volume. Rajasthan palace weddings command premium. Multi-day celebrations drive highest total spend globally.",
-    intentSignals: { high: ["udaipur palace wedding venue book", "jaipur wedding planner hire"], mid: ["best india palace wedding venues", "rajasthan wedding cost"], low: ["indian wedding traditions", "destination wedding in india"] },
-  },
-  {
-    id: "japan", slug: "japan", name: "Japan", iso2: "JP", listingCount: 4,
-    seoTitleTemplate: "Luxury Wedding Vendors in Japan | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across Japan. Kyoto temples, Tokyo modernity and cherry blossom ceremonies, editorially selected.",
-    evergreenContent: "Japan merges ancient ceremony with exquisite precision, Kyoto's temple gardens, Tokyo's skyline venues and the ephemeral beauty of cherry blossom season create weddings of profound elegance.",
-    focusKeywords: ["luxury wedding japan", "kyoto wedding venue", "tokyo wedding", "japan destination wedding", "cherry blossom wedding"],
-    aiSummary: "Ultra-niche luxury market. Cherry blossom season (March-April) drives international demand. Kyoto dominates aesthetic appeal.",
-    intentSignals: { high: ["kyoto temple wedding venue book", "japan wedding planner hire"], mid: ["best japan wedding venues", "tokyo luxury wedding"], low: ["japanese wedding traditions", "getting married in japan"] },
-  },
-  {
-    id: "srilanka", slug: "sri-lanka", name: "Sri Lanka", iso2: "LK", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in Sri Lanka | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues and vendors across Sri Lanka. Colonial tea estates, tropical beaches and ancient temples, editorially selected.",
-    evergreenContent: "Sri Lanka offers intimate luxury amid extraordinary biodiversity, colonial hill-country tea estates, southern coastal boutique hotels and ancient temple settings create understated celebrations of natural beauty.",
-    focusKeywords: ["luxury wedding sri lanka", "sri lanka wedding venue", "galle wedding", "sri lanka destination wedding"],
-    aiSummary: "Emerging boutique destination. Galle coast leads. Strong UK and Australian demand. Intimate weddings dominate.",
-    intentSignals: { high: ["galle fort wedding venue book", "sri lanka wedding planner"], mid: ["best sri lanka wedding venues"], low: ["sri lanka wedding ideas"] },
-  },
-  {
-    id: "maldives", slug: "maldives", name: "Maldives", iso2: "MV", listingCount: 4,
-    seoTitleTemplate: "Luxury Wedding Vendors in the Maldives | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues across the Maldives. Overwater villas, private island ceremonies and sandbank receptions, editorially selected.",
-    evergreenContent: "The Maldives represents the pinnacle of private island luxury, overwater villa ceremonies, sandbank receptions at sunset and the Indian Ocean's most pristine turquoise waters create an unrivalled intimate escape.",
-    focusKeywords: ["luxury wedding maldives", "maldives wedding venue", "overwater villa wedding", "private island wedding maldives"],
-    aiSummary: "Ultra-premium micro-destination. Resort-exclusive weddings. Highest per-night spend. Honeymoon-wedding combination market.",
-    intentSignals: { high: ["maldives overwater wedding venue book", "private island wedding maldives"], mid: ["best maldives wedding resorts"], low: ["maldives wedding ideas"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // AMERICAS, Extended
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "mexico", slug: "mexico", name: "Mexico", iso2: "MX", listingCount: 8,
-    seoTitleTemplate: "Luxury Wedding Vendors in Mexico | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across Mexico. Tulum jungle cenotes, Los Cabos oceanfront and colonial San Miguel, editorially selected.",
-    evergreenContent: "Mexico marries ancient culture with modern luxury, Tulum's jungle cenotes, Los Cabos' desert-meets-ocean drama and San Miguel de Allende's colonial splendour create Latin America's most diverse wedding destination.",
-    focusKeywords: ["luxury wedding mexico", "tulum wedding venue", "los cabos wedding", "san miguel de allende wedding", "mexico destination wedding"],
-    aiSummary: "Largest Latin American luxury market. Strong US demand drives Tulum and Los Cabos. San Miguel captures cultural-luxury segment.",
-    intentSignals: { high: ["tulum wedding venue book", "los cabos wedding planner hire"], mid: ["best mexico wedding venues", "tulum wedding cost"], low: ["mexican wedding traditions", "destination wedding mexico"] },
-  },
-  {
-    id: "caribbean", slug: "caribbean", name: "Caribbean", iso2: "CB", listingCount: 7,
-    seoTitleTemplate: "Luxury Wedding Vendors in the Caribbean | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues across the Caribbean. Private island resorts, plantation estates and tropical beach ceremonies, editorially selected.",
-    evergreenContent: "The Caribbean archipelago offers island-hopping luxury, from Barbados' coral-stone plantation houses to St. Lucia's volcanic twin Pitons, Jamaica's cliff resorts and Antigua's 365 beaches.",
-    focusKeywords: ["luxury wedding caribbean", "barbados wedding venue", "st lucia wedding", "jamaica wedding", "caribbean destination wedding"],
-    aiSummary: "Multi-island destination market. Barbados and St. Lucia lead luxury tier. Strong US East Coast and UK demand. Winter peak season.",
-    intentSignals: { high: ["barbados luxury wedding venue book", "st lucia wedding planner hire"], mid: ["best caribbean wedding venues", "island wedding caribbean cost"], low: ["caribbean wedding ideas", "beach wedding caribbean"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // AFRICA
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "southafrica", slug: "south-africa", name: "South Africa", iso2: "ZA", listingCount: 7,
-    seoTitleTemplate: "Luxury Wedding Vendors in South Africa | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across South Africa. Cape Town wine estates, safari lodges and Garden Route beauty, editorially selected.",
-    evergreenContent: "South Africa delivers the African dream wedding, Cape Town's vineyard estates beneath Table Mountain, safari lodges where elephants roam and the lush Garden Route coastline create celebrations of cinematic scale.",
-    focusKeywords: ["luxury wedding south africa", "cape town wedding venue", "winelands wedding", "safari wedding south africa", "south africa destination wedding"],
-    aiSummary: "Africa's leading luxury market. Cape Winelands dominate venue search. Safari-wedding combination drives international demand.",
-    intentSignals: { high: ["cape town wine estate wedding book", "south africa safari wedding venue"], mid: ["best south africa wedding venues", "cape town wedding cost"], low: ["south african wedding traditions", "getting married in south africa"] },
-  },
-  {
-    id: "kenya", slug: "kenya", name: "Kenya", iso2: "KE", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in Kenya | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues in Kenya. Safari lodges, Indian Ocean beaches and Great Rift Valley estates, editorially selected.",
-    evergreenContent: "Kenya combines safari grandeur with coastal paradise, Masai Mara lodge ceremonies, Diani Beach oceanfront celebrations and Great Rift Valley estates set against Africa's most dramatic landscapes.",
-    focusKeywords: ["luxury wedding kenya", "safari wedding kenya", "diani beach wedding", "kenya destination wedding"],
-    aiSummary: "Safari-wedding niche. Small but ultra-premium market. Masai Mara and Diani Beach lead. Strong conservation-luxury positioning.",
-    intentSignals: { high: ["kenya safari lodge wedding book", "diani beach wedding planner"], mid: ["best kenya wedding venues"], low: ["kenya wedding ideas"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // OCEANIA
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "australia", slug: "australia", name: "Australia", iso2: "AU", listingCount: 8,
-    seoTitleTemplate: "Luxury Wedding Vendors in Australia | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues and vendors across Australia. Hunter Valley vineyards, Byron Bay beaches and Sydney Harbour glamour, editorially selected.",
-    evergreenContent: "Australia offers weddings of extraordinary natural scale, Sydney Harbour's iconic backdrop, Hunter Valley's vineyard estates, Byron Bay's bohemian coastal charm and the ancient landscapes of the Barossa Valley.",
-    focusKeywords: ["luxury wedding australia", "sydney wedding venue", "hunter valley wedding", "byron bay wedding", "melbourne wedding planner"],
-    aiSummary: "Largest Oceania market. Sydney and Melbourne anchor urban demand. Hunter Valley and Byron Bay lead destination segment.",
-    intentSignals: { high: ["sydney harbour wedding venue book", "hunter valley wedding planner hire"], mid: ["best australia wedding venues", "byron bay wedding cost"], low: ["australian wedding traditions", "getting married in australia"] },
-  },
-  {
-    id: "newzealand", slug: "new-zealand", name: "New Zealand", iso2: "NZ", listingCount: 4,
-    seoTitleTemplate: "Luxury Wedding Vendors in New Zealand | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in New Zealand. Queenstown mountains, Hawke's Bay vineyards and Waiheke Island escapes, editorially selected.",
-    evergreenContent: "New Zealand delivers Lord of the Rings grandeur, Queenstown's alpine lakes, Hawke's Bay's Art Deco wine country and Waiheke Island's vineyard terraces create epic celebrations amid pristine wilderness.",
-    focusKeywords: ["luxury wedding new zealand", "queenstown wedding venue", "waiheke island wedding", "new zealand destination wedding"],
-    aiSummary: "Adventure-luxury niche. Queenstown dominates international search. Strong Australian and US elopement market.",
-    intentSignals: { high: ["queenstown wedding venue book", "new zealand wedding planner hire"], mid: ["best new zealand wedding venues", "queenstown wedding cost"], low: ["nz wedding traditions", "getting married in new zealand"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // EUROPE, From existing platform + additions
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "austria", slug: "austria", name: "Austria", iso2: "AT", listingCount: 5,
-    seoTitleTemplate: "Luxury Wedding Vendors in Austria | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues across Austria. Viennese palaces, Alpine lakeside ceremonies and Salzburg's baroque elegance, editorially selected.",
-    evergreenContent: "Austria combines imperial grandeur with Alpine splendour, Vienna's palatial ballrooms, Salzburg's baroque churches and the crystalline lakes of the Salzkammergut create celebrations of refined European elegance.",
-    focusKeywords: ["luxury wedding austria", "vienna wedding venue", "salzburg wedding", "alpine wedding austria", "austria destination wedding"],
-    aiSummary: "Palace and Alpine dual market. Vienna drives city weddings. Salzburg and Salzkammergut lead destination segment. Strong German-speaking demand.",
-    intentSignals: { high: ["vienna palace wedding venue book", "salzburg wedding planner hire"], mid: ["best austria wedding venues", "alpine wedding austria cost"], low: ["austrian wedding traditions", "getting married in austria"] },
-  },
-  {
-    id: "germany", slug: "germany", name: "Germany", iso2: "DE", listingCount: 5,
-    seoTitleTemplate: "Luxury Wedding Vendors in Germany | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues across Germany. Bavarian castles, Rhine Valley estates and Berlin elegance, editorially selected.",
-    evergreenContent: "Germany offers fairy-tale grandeur, Bavarian castle turrets, Rhine Valley vineyard estates, Black Forest retreats and Berlin's contemporary art spaces create an unexpectedly diverse wedding destination.",
-    focusKeywords: ["luxury wedding germany", "castle wedding germany", "bavarian wedding", "germany destination wedding"],
-    aiSummary: "Castle wedding market growing. Bavaria dominates destination search. Berlin captures modern-luxury segment. Primarily domestic demand.",
-    intentSignals: { high: ["bavarian castle wedding book", "germany wedding planner"], mid: ["best germany wedding venues", "castle wedding germany cost"], low: ["german wedding traditions"] },
-  },
-  {
-    id: "cyprus", slug: "cyprus", name: "Cyprus", iso2: "CY", listingCount: 6,
-    seoTitleTemplate: "Luxury Wedding Vendors in Cyprus | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues across Cyprus. Paphos clifftops, Limassol beach clubs and Troodos mountain retreats, editorially selected.",
-    evergreenContent: "Cyprus blends Greek warmth with year-round Mediterranean sunshine, Paphos's ancient clifftop terraces, Limassol's glamorous marina and the cedar-forested Troodos Mountains offer celebrations infused with mythological romance.",
-    focusKeywords: ["luxury wedding cyprus", "paphos wedding venue", "limassol wedding", "cyprus destination wedding", "ayia napa wedding"],
-    aiSummary: "Strong British expat and destination market. Paphos leads luxury tier. Year-round season. Competitive pricing drives volume.",
-    intentSignals: { high: ["paphos wedding venue book", "cyprus wedding planner hire"], mid: ["best cyprus wedding venues", "limassol wedding guide"], low: ["cyprus wedding traditions", "getting married in cyprus"] },
-  },
-  {
-    id: "malta", slug: "malta", name: "Malta", iso2: "MT", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in Malta | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in Malta. Baroque palazzi, fortified citadels and Mediterranean terraces, editorially selected.",
-    evergreenContent: "Malta packs extraordinary heritage into a tiny archipelago, Knights of St John fortifications, baroque churches, honey-stone palazzi and the ancient temples of Gozo create an intimate Mediterranean gem.",
-    focusKeywords: ["luxury wedding malta", "malta wedding venue", "gozo wedding", "malta destination wedding"],
-    aiSummary: "Compact island destination. Baroque venue niche. Strong UK market. Year-round viability. Gozo for intimate weddings.",
-    intentSignals: { high: ["malta wedding venue book", "malta wedding planner"], mid: ["best malta wedding venues"], low: ["malta wedding ideas"] },
-  },
-  {
-    id: "montenegro", slug: "montenegro", name: "Montenegro", iso2: "ME", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in Montenegro | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues in Montenegro. Bay of Kotor fjords, Adriatic island ceremonies and medieval citadels, editorially selected.",
-    evergreenContent: "Montenegro's dramatic Adriatic coastline rivals anywhere in the Mediterranean, the fjord-like Bay of Kotor, the fortified island of Sveti Stefan and the medieval walls of Budva create a boutique alternative to Croatia.",
-    focusKeywords: ["luxury wedding montenegro", "kotor wedding venue", "sveti stefan wedding", "montenegro destination wedding"],
-    aiSummary: "Emerging boutique destination. Aman Sveti Stefan effect drives luxury awareness. Bay of Kotor is primary draw. Growing fast.",
-    intentSignals: { high: ["kotor bay wedding venue book", "sveti stefan wedding"], mid: ["best montenegro wedding venues"], low: ["montenegro wedding ideas"] },
-  },
-  {
-    id: "slovenia", slug: "slovenia", name: "Slovenia", iso2: "SI", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in Slovenia | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues in Slovenia. Lake Bled island church, Alpine valleys and Ljubljana elegance, editorially selected.",
-    evergreenContent: "Slovenia's Lake Bled, with its island church and Alpine backdrop, has become one of Europe's most iconic wedding images. Ljubljana's charming old town and the Julian Alps complete a fairy-tale setting.",
-    focusKeywords: ["luxury wedding slovenia", "lake bled wedding", "slovenia wedding venue", "bled church wedding"],
-    aiSummary: "Single-venue phenomenon. Lake Bled dominates global search. Ljubljana emerging as city-wedding base. Very niche but high-intent.",
-    intentSignals: { high: ["lake bled wedding venue book", "slovenia wedding planner"], mid: ["best slovenia wedding venues"], low: ["slovenia wedding ideas"] },
-  },
-  {
-    id: "iceland", slug: "iceland", name: "Iceland", iso2: "IS", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Iceland | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in Iceland. Glacier ceremonies, volcanic landscapes and Northern Lights elopements, editorially selected.",
-    evergreenContent: "Iceland offers otherworldly romance, black sand beach ceremonies, glacier-edge vows, volcanic hot spring receptions and the ethereal glow of the Northern Lights create truly once-in-a-lifetime celebrations.",
-    focusKeywords: ["iceland wedding", "iceland elopement", "northern lights wedding", "glacier wedding iceland"],
-    aiSummary: "Adventure-elopement market leader. Northern Lights season (Oct-Mar) drives demand. Small luxury-lodge infrastructure. Social media amplification huge.",
-    intentSignals: { high: ["iceland elopement planner book", "northern lights wedding venue"], mid: ["best iceland wedding venues"], low: ["iceland wedding ideas"] },
-  },
-  {
-    id: "netherlands", slug: "netherlands", name: "Netherlands", iso2: "NL", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in the Netherlands | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues in the Netherlands. Amsterdam canal houses, tulip field ceremonies and Dutch castle estates, editorially selected.",
-    evergreenContent: "The Netherlands delivers understated elegance, Amsterdam's candlelit canal houses, Dutch Golden Age castles, tulip-bordered estates and the minimalist grandeur of contemporary Dutch design.",
-    focusKeywords: ["luxury wedding netherlands", "amsterdam wedding venue", "dutch castle wedding", "netherlands wedding"],
-    aiSummary: "Amsterdam canal house market strong. Castle weddings outside city growing. Tulip season (April-May) drives destination interest.",
-    intentSignals: { high: ["amsterdam wedding venue book", "dutch castle wedding hire"], mid: ["best netherlands wedding venues"], low: ["dutch wedding traditions"] },
-  },
-  {
-    id: "denmark", slug: "denmark", name: "Denmark", iso2: "DK", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Denmark | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in Denmark. Copenhagen's Scandi elegance and Danish manor houses, editorially selected.",
-    evergreenContent: "Denmark embodies Scandinavian design excellence, Copenhagen's Nyhavn waterfront, minimalist manor houses and the hygge-infused intimacy of Danish celebrations create weddings of quiet sophistication.",
-    focusKeywords: ["luxury wedding denmark", "copenhagen wedding venue", "danish castle wedding"],
-    aiSummary: "Copenhagen dominates. Scandinavian design-led market. Intimate celebrations trending. Summer season.",
-    intentSignals: { high: ["copenhagen wedding venue book"], mid: ["best denmark wedding venues"], low: ["danish wedding traditions"] },
-  },
-  {
-    id: "sweden", slug: "sweden", name: "Sweden", iso2: "SE", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Sweden | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues in Sweden. Stockholm archipelago, Swedish manor estates and midsummer celebrations, editorially selected.",
-    evergreenContent: "Sweden offers Nordic elegance at scale, Stockholm's waterfront palaces, archipelago island ceremonies, rural manor houses and the magical light of midsummer create distinctly atmospheric celebrations.",
-    focusKeywords: ["luxury wedding sweden", "stockholm wedding venue", "swedish castle wedding"],
-    aiSummary: "Stockholm anchors demand. Midsummer weddings are cultural draw. Manor house and archipelago venues lead.",
-    intentSignals: { high: ["stockholm wedding venue book"], mid: ["best sweden wedding venues"], low: ["swedish wedding traditions"] },
-  },
-  {
-    id: "norway", slug: "norway", name: "Norway", iso2: "NO", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Norway | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues in Norway. Fjord ceremonies, stave churches and midnight sun celebrations, editorially selected.",
-    evergreenContent: "Norway delivers nature at its most dramatic, fjord-edge ceremonies, medieval stave churches, mountain lodge retreats and the ethereal midnight sun create celebrations of raw, epic beauty.",
-    focusKeywords: ["luxury wedding norway", "fjord wedding", "norway destination wedding"],
-    aiSummary: "Fjord-wedding niche growing. Bergen and Lofoten lead. Adventure-elopement crossover. Summer midnight-sun season.",
-    intentSignals: { high: ["norway fjord wedding venue"], mid: ["best norway wedding venues"], low: ["norwegian wedding traditions"] },
-  },
-  {
-    id: "hungary", slug: "hungary", name: "Hungary", iso2: "HU", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Hungary | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in Hungary. Budapest thermal palaces and Hungarian wine country estates, editorially selected.",
-    evergreenContent: "Budapest's thermal bath palaces, Danube-spanning bridges and Art Nouveau grandeur make Hungary an increasingly sought-after European wedding destination with exceptional value.",
-    focusKeywords: ["luxury wedding hungary", "budapest wedding venue", "hungarian castle wedding"],
-    aiSummary: "Budapest-centric market. Palace and thermal spa venues unique selling point. Outstanding value positioning.",
-    intentSignals: { high: ["budapest palace wedding venue"], mid: ["best hungary wedding venues"], low: ["hungarian wedding traditions"] },
-  },
-  {
-    id: "czechrepublic", slug: "czech-republic", name: "Czech Republic", iso2: "CZ", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Czech Republic | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues in the Czech Republic. Prague castle views and Bohemian château estates, editorially selected.",
-    evergreenContent: "Prague's Gothic spires, Baroque palaces and cobblestone squares create one of Europe's most romantic cityscapes. Beyond the capital, Bohemian châteaux and Moravian vineyards offer pastoral elegance.",
-    focusKeywords: ["luxury wedding prague", "prague wedding venue", "czech castle wedding"],
-    aiSummary: "Prague dominates entirely. Castle and palace venues drive international demand. Strong value proposition vs Western Europe.",
-    intentSignals: { high: ["prague castle wedding venue book"], mid: ["best czech republic wedding venues"], low: ["czech wedding traditions"] },
-  },
-  {
-    id: "poland", slug: "poland", name: "Poland", iso2: "PL", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Poland | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues in Poland. Kraków's medieval grandeur and Polish palace estates, editorially selected.",
-    evergreenContent: "Poland surprises with aristocratic elegance, Kraków's medieval market square, Wieliczka's salt cathedral, and the restored palace estates of the Polish countryside offer celebrations of unexpected grandeur.",
-    focusKeywords: ["luxury wedding poland", "krakow wedding venue", "polish palace wedding"],
-    aiSummary: "Kraków leads. Palace restoration creating new luxury supply. Strong value market. Growing international interest.",
-    intentSignals: { high: ["krakow wedding venue book"], mid: ["best poland wedding venues"], low: ["polish wedding traditions"] },
-  },
-  {
-    id: "romania", slug: "romania", name: "Romania", iso2: "RO", listingCount: 1,
-    seoTitleTemplate: "Luxury Wedding Vendors in Romania | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in Romania. Transylvanian castles and Carpathian mountain retreats, editorially selected.",
-    evergreenContent: "Romania's Transylvanian castles, Carpathian mountain lodges and painted monasteries offer a wildly romantic and refreshingly undiscovered European wedding destination.",
-    focusKeywords: ["luxury wedding romania", "transylvania castle wedding"],
-    aiSummary: "Pre-market luxury. Transylvanian castles drive awareness. Very early stage but architecture is extraordinary.",
-    intentSignals: { high: [], mid: ["romania castle wedding venue"], low: ["romania wedding ideas"] },
-  },
-  {
-    id: "gibraltar", slug: "gibraltar", name: "Gibraltar", iso2: "GI", listingCount: 1,
-    seoTitleTemplate: "Luxury Wedding Vendors in Gibraltar | LWD",
-    metaDescriptionTemplate: "Explore luxury wedding venues in Gibraltar. Rock of Gibraltar ceremonies and Mediterranean elopements, editorially selected.",
-    evergreenContent: "Gibraltar offers Mediterranean elopement elegance, the iconic Rock backdrop, botanical gardens and sun-drenched terraces overlooking the Strait create compact celebrations with maximum drama.",
-    focusKeywords: ["gibraltar wedding", "gibraltar elopement", "rock of gibraltar wedding"],
-    aiSummary: "Elopement micro-destination. Legal simplicity drives demand. Very small market but loyal repeat planners.",
-    intentSignals: { high: ["gibraltar wedding venue"], mid: [], low: ["gibraltar wedding ideas"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // MIDDLE EAST, Extended
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "jordan", slug: "jordan", name: "Jordan", iso2: "JO", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Jordan | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in Jordan. Petra's rose-red ruins and Dead Sea desert luxury, editorially selected.",
-    evergreenContent: "Jordan offers ancient wonder, Petra's Treasury carved from rose-red sandstone, Dead Sea floating ceremonies and Wadi Rum's Martian desert landscapes create celebrations of Biblical drama.",
-    focusKeywords: ["luxury wedding jordan", "petra wedding", "dead sea wedding", "jordan destination wedding"],
-    aiSummary: "Ultra-experiential niche. Petra and Dead Sea unique globally. Very small but high-spend market. Adventure-luxury crossover.",
-    intentSignals: { high: ["petra wedding venue book"], mid: ["best jordan wedding venues"], low: ["jordan wedding ideas"] },
-  },
-  {
-    id: "qatar", slug: "qatar", name: "Qatar", iso2: "QA", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Qatar | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues in Qatar. Doha's futuristic skyline and desert palace celebrations, editorially selected.",
-    evergreenContent: "Qatar represents the new face of Gulf luxury, Doha's futuristic Museum of Islamic Art, desert palace hotels and the world's most ambitious hospitality infrastructure create celebrations of ultra-modern opulence.",
-    focusKeywords: ["luxury wedding qatar", "doha wedding venue", "qatar destination wedding"],
-    aiSummary: "Ultra-premium Gulf market. Post-World Cup infrastructure boom. Doha competing with Dubai for regional dominance.",
-    intentSignals: { high: ["doha luxury wedding venue"], mid: ["best qatar wedding venues"], low: ["qatar wedding ideas"] },
-  },
-  {
-    id: "oman", slug: "oman", name: "Oman", iso2: "OM", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Oman | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues in Oman. Muscat's royal grandeur and Arabian desert camp celebrations, editorially selected.",
-    evergreenContent: "Oman offers Arabia's most understated luxury, Muscat's Sultan Qaboos Grand Mosque, the dramatic Hajar Mountains, fjord-like Musandam Peninsula and vast Wahiba Sands desert camps.",
-    focusKeywords: ["luxury wedding oman", "muscat wedding venue", "oman desert wedding"],
-    aiSummary: "Boutique alternative to Dubai. Authentic Arabian positioning. Emerging luxury resort infrastructure. Very exclusive.",
-    intentSignals: { high: ["oman luxury wedding venue"], mid: ["best oman wedding venues"], low: ["oman wedding ideas"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // ASIA, Extended
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "malaysia", slug: "malaysia", name: "Malaysia", iso2: "MY", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in Malaysia | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in Malaysia. Langkawi island resorts, KL skyscrapers and Borneo jungle lodges, editorially selected.",
-    evergreenContent: "Malaysia blends tropical paradise with cosmopolitan flair, Langkawi's eagle-kissed islands, Kuala Lumpur's Twin Tower skyline, Penang's colonial charm and Borneo's ancient rainforest lodges.",
-    focusKeywords: ["luxury wedding malaysia", "langkawi wedding venue", "kl wedding", "malaysia destination wedding"],
-    aiSummary: "Langkawi leads destination segment. KL for urban luxury. Strong regional (Singaporean, Australian) demand.",
-    intentSignals: { high: ["langkawi resort wedding book", "kl wedding planner"], mid: ["best malaysia wedding venues"], low: ["malaysian wedding traditions"] },
-  },
-  {
-    id: "singapore", slug: "singapore", name: "Singapore", iso2: "SG", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in Singapore | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues in Singapore. Marina Bay glamour, colonial Raffles elegance and tropical garden ceremonies, editorially selected.",
-    evergreenContent: "Singapore condenses Asian luxury into a city-state, Marina Bay Sands' infinity pool terraces, the colonial grandeur of Raffles Hotel and the UNESCO Botanic Gardens create celebrations of immaculate precision.",
-    focusKeywords: ["luxury wedding singapore", "singapore wedding venue", "marina bay wedding", "raffles wedding"],
-    aiSummary: "Asia's highest per-wedding spend city. Hotel and garden venues dominate. Year-round. Strong expat and regional demand.",
-    intentSignals: { high: ["singapore luxury wedding venue book", "raffles wedding planner"], mid: ["best singapore wedding venues"], low: ["singapore wedding ideas"] },
-  },
-  {
-    id: "philippines", slug: "philippines", name: "Philippines", iso2: "PH", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in the Philippines | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues in the Philippines. Palawan lagoons, Boracay beaches and Cebu island luxury, editorially selected.",
-    evergreenContent: "The Philippines offers 7,641 islands of tropical possibility, Palawan's emerald lagoons, Boracay's powder-white beaches and Cebu's coral-fringed resort coastline create island wedding paradise.",
-    focusKeywords: ["luxury wedding philippines", "palawan wedding", "boracay wedding venue", "philippines destination wedding"],
-    aiSummary: "Island-resort destination. Palawan luxury segment growing. Boracay high-volume. Strong domestic and expat market.",
-    intentSignals: { high: ["palawan resort wedding book"], mid: ["best philippines wedding venues"], low: ["philippine wedding traditions"] },
-  },
-  {
-    id: "vietnam", slug: "vietnam", name: "Vietnam", iso2: "VN", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Vietnam | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in Vietnam. Hoi An lantern-lit ceremonies and Ha Long Bay floating celebrations, editorially selected.",
-    evergreenContent: "Vietnam enchants with atmospheric beauty, Hoi An's lantern-draped ancient town, Ha Long Bay's emerald karst seascape and the terraced mountains of Sapa create celebrations of profound cultural richness.",
-    focusKeywords: ["luxury wedding vietnam", "hoi an wedding venue", "vietnam destination wedding"],
-    aiSummary: "Emerging destination. Hoi An dominates luxury search. Ha Long Bay experiential niche. Outstanding value positioning.",
-    intentSignals: { high: ["hoi an wedding venue book"], mid: ["best vietnam wedding venues"], low: ["vietnam wedding ideas"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // AMERICAS, Extended
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "canada", slug: "canada", name: "Canada", iso2: "CA", listingCount: 4,
-    seoTitleTemplate: "Luxury Wedding Vendors in Canada | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues across Canada. Rocky Mountain lodges, Niagara vineyards and Whistler alpine elegance, editorially selected.",
-    evergreenContent: "Canada delivers nature at a grand scale, Banff's turquoise glacier lakes, Whistler's mountain-top ceremonies, Niagara's vineyard estates and the cosmopolitan elegance of Toronto and Montreal.",
-    focusKeywords: ["luxury wedding canada", "banff wedding venue", "whistler wedding", "canada destination wedding"],
-    aiSummary: "Rocky Mountain weddings drive international demand. Banff and Whistler lead. Toronto/Montreal for urban luxury. Summer season.",
-    intentSignals: { high: ["banff wedding venue book", "whistler wedding planner"], mid: ["best canada wedding venues"], low: ["canadian wedding traditions"] },
-  },
-  {
-    id: "costarica", slug: "costa-rica", name: "Costa Rica", iso2: "CR", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in Costa Rica | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues in Costa Rica. Rainforest canopy ceremonies, Pacific beach villas and volcanic hot springs, editorially selected.",
-    evergreenContent: "Costa Rica pioneers eco-luxury weddings, rainforest canopy walkways, Pacific sunset cliff ceremonies, volcanic hot spring receptions and wildlife-rich cloud forest lodges create celebrations connected to nature.",
-    focusKeywords: ["luxury wedding costa rica", "costa rica wedding venue", "eco wedding costa rica"],
-    aiSummary: "Eco-luxury niche leader. Pacific coast and Arenal volcano lead. Strong US demand. Year-round tropical season.",
-    intentSignals: { high: ["costa rica luxury wedding venue book"], mid: ["best costa rica wedding venues"], low: ["costa rica wedding ideas"] },
-  },
-  {
-    id: "brazil", slug: "brazil", name: "Brazil", iso2: "BR", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in Brazil | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in Brazil. Rio's Sugarloaf drama, Trancoso beach luxury and São Paulo sophistication, editorially selected.",
-    evergreenContent: "Brazil celebrates with infectious joy, Rio de Janeiro's Sugarloaf Mountain views, Trancoso's bohemian-luxe beach, São Paulo's fashion-forward elegance and the colonial charm of Bahia.",
-    focusKeywords: ["luxury wedding brazil", "rio wedding venue", "trancoso wedding", "brazil destination wedding"],
-    aiSummary: "Largest Latin American domestic market. Trancoso drives destination luxury. Rio iconic but urban. Growing international interest.",
-    intentSignals: { high: ["rio wedding venue book", "trancoso wedding planner"], mid: ["best brazil wedding venues"], low: ["brazilian wedding traditions"] },
-  },
-  {
-    id: "colombia", slug: "colombia", name: "Colombia", iso2: "CO", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Colombia | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues in Colombia. Cartagena's walled-city romance and Caribbean island escapes, editorially selected.",
-    evergreenContent: "Colombia's colonial jewel Cartagena, with its pastel-walled old city, rooftop terraces and nearby Rosario Islands, has emerged as Latin America's most romantic luxury wedding destination.",
-    focusKeywords: ["luxury wedding colombia", "cartagena wedding venue", "colombia destination wedding"],
-    aiSummary: "Cartagena dominates entirely. Colonial-city wedding niche growing fast. Strong US demand. Year-round Caribbean climate.",
-    intentSignals: { high: ["cartagena wedding venue book"], mid: ["best colombia wedding venues"], low: ["colombian wedding traditions"] },
-  },
-  {
-    id: "argentina", slug: "argentina", name: "Argentina", iso2: "AR", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Argentina | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues in Argentina. Buenos Aires tango elegance and Mendoza wine country, editorially selected.",
-    evergreenContent: "Argentina marries passionate culture with natural grandeur, Buenos Aires' tango-infused elegance, Mendoza's Andes-backed vineyards and Patagonia's glacial wilderness create celebrations of South American sophistication.",
-    focusKeywords: ["luxury wedding argentina", "buenos aires wedding", "mendoza winery wedding"],
-    aiSummary: "Buenos Aires urban-luxury plus Mendoza wine country. Niche but growing. Tango cultural element unique differentiator.",
-    intentSignals: { high: ["buenos aires wedding venue book"], mid: ["best argentina wedding venues"], low: ["argentine wedding traditions"] },
-  },
-  {
-    id: "bahamas", slug: "bahamas", name: "Bahamas", iso2: "BS", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in the Bahamas | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in the Bahamas. Private island escapes, Nassau elegance and Exuma swimming pigs, editorially selected.",
-    evergreenContent: "The Bahamas defines tropical luxury, the pink sands of Harbour Island, Exuma's swimming pigs cays, Nassau's Atlantis grandeur and private island buyouts create the ultimate Caribbean wedding escape.",
-    focusKeywords: ["luxury wedding bahamas", "bahamas wedding venue", "harbour island wedding", "exuma wedding"],
-    aiSummary: "Ultra-luxury Caribbean. Private island and resort-exclusive model. Strong US East Coast and celebrity demand.",
-    intentSignals: { high: ["bahamas private island wedding book", "harbour island wedding venue"], mid: ["best bahamas wedding venues"], low: ["bahamas wedding ideas"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // INDIAN OCEAN, Extended
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "mauritius", slug: "mauritius", name: "Mauritius", iso2: "MU", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in Mauritius | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues in Mauritius. Le Morne peninsula, Grand Baie resorts and tropical garden ceremonies, editorially selected.",
-    evergreenContent: "Mauritius blends tropical paradise with French-Creole sophistication, Le Morne's dramatic basalt rock, Grand Baie's resort coastline and sugar-plantation estates create a refined Indian Ocean wedding destination.",
-    focusKeywords: ["luxury wedding mauritius", "mauritius wedding venue", "mauritius beach wedding", "mauritius destination wedding"],
-    aiSummary: "Premium Indian Ocean destination. Resort-wedding model dominates. Strong South African, UK and French demand. Year-round.",
-    intentSignals: { high: ["mauritius resort wedding book", "mauritius wedding planner"], mid: ["best mauritius wedding venues"], low: ["mauritius wedding ideas"] },
-  },
-  {
-    id: "seychelles", slug: "seychelles", name: "Seychelles", iso2: "SC", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Seychelles | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in Seychelles. Granite boulder beaches, private island resorts and coral reef ceremonies, editorially selected.",
-    evergreenContent: "Seychelles offers prehistoric beauty, giant granite boulders framing pristine beaches, private island resorts, lush jungle mountains and the world's most exclusive honeymoon-wedding combination destination.",
-    focusKeywords: ["luxury wedding seychelles", "seychelles wedding venue", "seychelles beach wedding"],
-    aiSummary: "Ultra-exclusive island market. Private island resorts lead. Honeymoon-wedding combination dominant model. Very high per-night spend.",
-    intentSignals: { high: ["seychelles private island wedding"], mid: ["best seychelles wedding venues"], low: ["seychelles wedding ideas"] },
-  },
-  {
-    id: "fiji", slug: "fiji", name: "Fiji", iso2: "FJ", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Fiji | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues in Fiji. Private island buyouts, coral reef ceremonies and traditional Fijian blessings, editorially selected.",
-    evergreenContent: "Fiji's 333 islands offer the South Pacific dream, private island resort buyouts, coral reef snorkelling receptions, traditional Fijian warrior blessings and some of the world's friendliest hospitality.",
-    focusKeywords: ["luxury wedding fiji", "fiji wedding venue", "fiji island wedding", "fiji destination wedding"],
-    aiSummary: "Pacific island premium destination. Private island model. Strong Australian and NZ demand. Traditional blessing ceremonies unique.",
-    intentSignals: { high: ["fiji private island wedding book"], mid: ["best fiji wedding venues"], low: ["fiji wedding ideas"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // AFRICA, Extended
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "tanzania", slug: "tanzania", name: "Tanzania", iso2: "TZ", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Tanzania | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in Tanzania. Zanzibar spice island, Serengeti safari lodges and Kilimanjaro views, editorially selected.",
-    evergreenContent: "Tanzania pairs wildlife spectacle with island paradise, Serengeti safari lodge ceremonies, Ngorongoro Crater rim celebrations and Zanzibar's Stone Town spice-scented lanes and white-sand beaches.",
-    focusKeywords: ["luxury wedding tanzania", "zanzibar wedding venue", "serengeti wedding", "tanzania safari wedding"],
-    aiSummary: "Zanzibar beach + Serengeti safari dual proposition. Small but ultra-premium. Strong honeymoon-wedding combination.",
-    intentSignals: { high: ["zanzibar wedding venue book", "serengeti lodge wedding"], mid: ["best tanzania wedding venues"], low: ["tanzania wedding ideas"] },
-  },
-  {
-    id: "egypt", slug: "egypt", name: "Egypt", iso2: "EG", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Egypt | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues in Egypt. Pyramids of Giza backdrop, Red Sea resorts and Nile cruise celebrations, editorially selected.",
-    evergreenContent: "Egypt offers 5,000 years of romance, the Pyramids of Giza as wedding backdrop, Nile felucca receptions, Red Sea resort luxury and the ancient temples of Luxor create celebrations of monumental drama.",
-    focusKeywords: ["luxury wedding egypt", "pyramids wedding", "red sea wedding", "egypt destination wedding"],
-    aiSummary: "Iconic backdrop market. Pyramid-view ceremonies unique globally. Red Sea resort weddings growing. Nile cruise receptions niche.",
-    intentSignals: { high: ["egypt pyramids wedding venue"], mid: ["best egypt wedding venues"], low: ["egypt wedding ideas"] },
-  },
-];
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Region Taxonomy, Sub-geography layer for SEO clustering + AI precision
@@ -1198,11 +682,11 @@ const DIRECTORY_REGIONS = [
   { id: "bordeaux", countrySlug: "france", slug: "bordeaux", name: "Bordeaux", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "World-class wine estates and neoclassical architecture along the Garonne.", focusKeywords: ["bordeaux wedding"], aiSummary: "Wine tourism crossover. Growing but niche.", intentSignals: { high: [], mid: ["bordeaux wedding venues"], low: ["bordeaux wedding ideas"] } },
 
   // ── UK ───────────────────────────────────────────────────────────────────
-  { id: "cotswolds", countrySlug: "uk", slug: "cotswolds", name: "Cotswolds", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: true, listingCount: 5, description: "Honey-stone villages, rolling hills and quintessential English country houses.", focusKeywords: ["cotswolds wedding", "cotswolds wedding venue", "country wedding cotswolds"], aiSummary: "Top UK region by search volume. Country house and barn venues dominate. Year-round demand.", intentSignals: { high: ["cotswolds wedding venue book", "cotswolds wedding planner"], mid: ["best cotswolds wedding venues"], low: ["cotswolds wedding inspiration"] } },
-  { id: "london", countrySlug: "uk", slug: "london", name: "London", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 4, description: "Grand hotels, museum spaces and rooftop terraces across the capital.", focusKeywords: ["london wedding venue", "luxury wedding london", "london wedding planner"], aiSummary: "Highest vendor density. Hotel and unique venue weddings lead. Strong corporate-adjacent market.", intentSignals: { high: ["luxury london wedding venue hire", "london wedding planner book"], mid: ["best london wedding venues"], low: ["london wedding ideas"] } },
-  { id: "surrey", countrySlug: "uk", slug: "surrey", name: "Surrey", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Loseley Park, Surrey Hills AONB and grand estates within easy reach of London. Home counties elegance.", focusKeywords: ["surrey wedding venue"], aiSummary: "London commuter belt convenience. Grand estate venues. Surrey Hills scenic beauty. High listing quality.", intentSignals: { high: [], mid: ["best surrey wedding venues"], low: ["surrey wedding ideas"] } },
-  { id: "berkshire", countrySlug: "uk", slug: "berkshire", name: "Berkshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Cliveden, Windsor Castle and Coworth Park. Royal Berkshire grandeur and Thames-side celebrations.", focusKeywords: ["berkshire wedding venue"], aiSummary: "Cliveden and Coworth Park anchor ultra-luxury. Windsor Castle association. Royal county prestige.", intentSignals: { high: ["berkshire wedding venue book"], mid: ["best berkshire wedding venues"], low: ["berkshire wedding ideas"] } },
-  { id: "lake-district", countrySlug: "uk", slug: "lake-district", name: "Lake District", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Romantic lakeside settings amid England's most celebrated national park.", focusKeywords: ["lake district wedding"], aiSummary: "Niche romantic segment. Growing slowly. Intimate weddings dominate.", intentSignals: { high: [], mid: ["lake district wedding venues"], low: ["lake district wedding ideas"] } },
+  { id: "cotswolds", countrySlug: "england", slug: "cotswolds", name: "Cotswolds", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: true, listingCount: 5, description: "Honey-stone villages, rolling hills and quintessential English country houses.", focusKeywords: ["cotswolds wedding", "cotswolds wedding venue", "country wedding cotswolds"], aiSummary: "Top UK region by search volume. Country house and barn venues dominate. Year-round demand.", intentSignals: { high: ["cotswolds wedding venue book", "cotswolds wedding planner"], mid: ["best cotswolds wedding venues"], low: ["cotswolds wedding inspiration"] } },
+  { id: "london", countrySlug: "england", slug: "london", name: "London", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 4, description: "Grand hotels, museum spaces and rooftop terraces across the capital.", focusKeywords: ["london wedding venue", "luxury wedding london", "london wedding planner"], aiSummary: "Highest vendor density. Hotel and unique venue weddings lead. Strong corporate-adjacent market.", intentSignals: { high: ["luxury london wedding venue hire", "london wedding planner book"], mid: ["best london wedding venues"], low: ["london wedding ideas"] } },
+  { id: "surrey", countrySlug: "england", slug: "surrey", name: "Surrey", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Loseley Park, Surrey Hills AONB and grand estates within easy reach of London. Home counties elegance.", focusKeywords: ["surrey wedding venue"], aiSummary: "London commuter belt convenience. Grand estate venues. Surrey Hills scenic beauty. High listing quality.", intentSignals: { high: [], mid: ["best surrey wedding venues"], low: ["surrey wedding ideas"] } },
+  { id: "berkshire", countrySlug: "england", slug: "berkshire", name: "Berkshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Cliveden, Windsor Castle and Coworth Park. Royal Berkshire grandeur and Thames-side celebrations.", focusKeywords: ["berkshire wedding venue"], aiSummary: "Cliveden and Coworth Park anchor ultra-luxury. Windsor Castle association. Royal county prestige.", intentSignals: { high: ["berkshire wedding venue book"], mid: ["best berkshire wedding venues"], low: ["berkshire wedding ideas"] } },
+  { id: "lake-district", countrySlug: "england", slug: "lake-district", name: "Lake District", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Romantic lakeside settings amid England's most celebrated national park.", focusKeywords: ["lake district wedding"], aiSummary: "Niche romantic segment. Growing slowly. Intimate weddings dominate.", intentSignals: { high: [], mid: ["lake district wedding venues"], low: ["lake district wedding ideas"] } },
 
   // ── Spain ─────────────────────────────────────────────────────────────────
   { id: "mallorca", countrySlug: "spain", slug: "mallorca", name: "Mallorca", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "Mediterranean fincas, mountain-top monasteries and beach clubs across the Balearics' largest island.", focusKeywords: ["mallorca wedding", "mallorca finca wedding", "balearic wedding"], aiSummary: "Leading Spanish island destination. Finca weddings dominate. Strong German and British demand.", intentSignals: { high: ["mallorca finca wedding venue book", "mallorca wedding planner"], mid: ["best mallorca wedding venues"], low: ["mallorca wedding ideas"] } },
@@ -1216,61 +700,61 @@ const DIRECTORY_REGIONS = [
   { id: "florida", countrySlug: "usa", slug: "florida", name: "Florida", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Art Deco Miami, Palm Beach estates and tropical garden celebrations.", focusKeywords: ["florida luxury wedding"], aiSummary: "Emerging luxury segment. Palm Beach drives high-end demand. Winter season.", intentSignals: { high: [], mid: ["florida luxury wedding venues"], low: ["florida wedding ideas"] } },
 
   // ── UK, Comprehensive England ──────────────────────────────────────
-  { id: "hampshire", countrySlug: "uk", slug: "hampshire", name: "Hampshire", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 4, description: "Georgian manor houses, Winchester Cathedral and the rolling Hampshire countryside. Southern England's elegant heartland.", focusKeywords: ["hampshire wedding venue", "winchester wedding"], aiSummary: "Strong country house market. New Forest boutique segment growing. Winchester cathedral weddings anchor.", intentSignals: { high: ["hampshire wedding venue book"], mid: ["best hampshire wedding venues"], low: ["hampshire wedding ideas"] } },
-  { id: "devon", countrySlug: "uk", slug: "devon", name: "Devon", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "South Devon coast, Dartmouth, Salcombe, Exeter and Dartmoor. Dramatic clifftop venues and enchanted woodland estates.", focusKeywords: ["devon wedding venue", "south devon wedding"], aiSummary: "South Devon coast leads luxury demand. Dartmouth and Salcombe anchor maritime weddings. Dartmoor dramatic.", intentSignals: { high: ["devon wedding venue book"], mid: ["best devon wedding venues"], low: ["devon wedding ideas"] } },
-  { id: "cornwall", countrySlug: "uk", slug: "cornwall", name: "Cornwall", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "St Ives, Padstow, Falmouth and the dramatic Cornish coast. Tin mine heritage and beach ceremony paradise.", focusKeywords: ["cornwall wedding venue", "cornwall beach wedding"], aiSummary: "Cornwall leads destination search in Southwest England. Beach and clifftop venues dominate. Strong summer peak.", intentSignals: { high: ["cornwall wedding venue book"], mid: ["best cornwall wedding venues"], low: ["cornwall wedding ideas"] } },
-  { id: "kent", countrySlug: "uk", slug: "kent", name: "Kent", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: true, listingCount: 4, description: "The Garden of England, Canterbury Cathedral, Leeds Castle and hop-garden barn conversions.", focusKeywords: ["kent wedding venue", "canterbury wedding", "leeds castle wedding"], aiSummary: "Garden of England positioning. Castle and barn venues lead. Canterbury Cathedral ceremonies prestigious.", intentSignals: { high: ["kent wedding venue book", "leeds castle wedding hire"], mid: ["best kent wedding venues"], low: ["kent wedding ideas"] } },
-  { id: "sussex", countrySlug: "uk", slug: "sussex", name: "Sussex", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 4, description: "Brighton's Regency glamour, Goodwood estate and the rolling South Downs. Coastal chic meets country grandeur.", focusKeywords: ["sussex wedding venue", "brighton wedding", "chichester wedding"], aiSummary: "Brighton urban-beach market plus South Downs country estates. Goodwood and Cowdray anchor luxury tier.", intentSignals: { high: ["sussex wedding venue book", "brighton wedding planner"], mid: ["best sussex wedding venues"], low: ["sussex wedding ideas"] } },
-  { id: "norfolk", countrySlug: "uk", slug: "norfolk", name: "Norfolk", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Norfolk Broads, Burnham Market, Holkham and Norwich Cathedral. Big skies and medieval wool churches.", focusKeywords: ["norfolk wedding venue"], aiSummary: "Barn conversion boom. Burnham Market luxury cluster. Sandringham association drives prestige. Quieter refined market.", intentSignals: { high: ["norfolk wedding venue book"], mid: ["best norfolk wedding venues"], low: ["norfolk wedding ideas"] } },
-  { id: "suffolk", countrySlug: "uk", slug: "suffolk", name: "Suffolk", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Aldeburgh, Southwold, the Heritage Coast and Snape Maltings. Refined coastal charm and gentle countryside.", focusKeywords: ["suffolk wedding venue"], aiSummary: "Heritage Coast beauty. Snape Maltings concert hall venue unique. Refined and understated market.", intentSignals: { high: [], mid: ["best suffolk wedding venues"], low: ["suffolk wedding ideas"] } },
-  { id: "yorkshire", countrySlug: "uk", slug: "yorkshire", name: "Yorkshire", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: true, listingCount: 4, description: "From the Yorkshire Dales and North York Moors to Harrogate's spa elegance and York's medieval grandeur.", focusKeywords: ["yorkshire wedding venue", "harrogate wedding", "york wedding venue"], aiSummary: "Harrogate-York corridor dominates. Castle Howard iconic. Dales barn conversions trending. Strong northern market.", intentSignals: { high: ["yorkshire wedding venue book", "castle howard wedding"], mid: ["best yorkshire wedding venues"], low: ["yorkshire wedding ideas"] } },
-  { id: "oxfordshire", countrySlug: "uk", slug: "oxfordshire", name: "Oxfordshire", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: true, listingCount: 4, description: "Blenheim Palace, dreaming Oxford spires, Henley Royal Regatta and the rolling Chiltern Hills.", focusKeywords: ["oxfordshire wedding venue", "blenheim palace wedding", "henley wedding"], aiSummary: "Blenheim anchors ultra-luxury. Oxford college venues unique. Henley riverside summer weddings. Premium home counties market.", intentSignals: { high: ["oxfordshire wedding venue book", "blenheim palace wedding hire"], mid: ["best oxfordshire wedding venues"], low: ["oxfordshire wedding ideas"] } },
-  { id: "somerset", countrySlug: "uk", slug: "somerset", name: "Somerset", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Glastonbury, Exmoor, Bruton and Babington House. Mystical landscapes and creative-luxury country estates.", focusKeywords: ["somerset wedding venue"], aiSummary: "Babington House Soho House effect. Bruton creative-luxury emerging. Glastonbury mystique. Growing market.", intentSignals: { high: [], mid: ["best somerset wedding venues"], low: ["somerset wedding ideas"] } },
-  { id: "bath-region", countrySlug: "uk", slug: "bath", name: "Bath", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Georgian crescents, Roman baths, the Royal Crescent and Assembly Rooms. England's most beautiful city.", focusKeywords: ["bath wedding venue", "bath spa wedding"], aiSummary: "Georgian architecture unmatched. Assembly Rooms and Royal Crescent. Spa integration unique selling point.", intentSignals: { high: ["bath wedding venue book"], mid: ["best bath wedding venues"], low: ["bath wedding ideas"] } },
-  { id: "wiltshire", countrySlug: "uk", slug: "wiltshire", name: "Wiltshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Castle Combe, Salisbury Cathedral and Bowood House. Picture-perfect villages and ancient grandeur.", focusKeywords: ["wiltshire wedding venue"], aiSummary: "Castle Combe iconic village. Salisbury Cathedral ceremonies. Bowood House estate. Quieter luxury market.", intentSignals: { high: [], mid: ["best wiltshire wedding venues"], low: ["wiltshire wedding ideas"] } },
-  { id: "dorset", countrySlug: "uk", slug: "dorset", name: "Dorset", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Jurassic Coast, Lulworth Cove, Bournemouth and Corfe Castle. Dramatic coastal geology and harbour charm.", focusKeywords: ["dorset wedding venue"], aiSummary: "Jurassic Coast outdoor weddings growing. Lulworth Cove dramatic ceremony location. Corfe Castle picturesque.", intentSignals: { high: [], mid: ["best dorset wedding venues"], low: ["dorset wedding ideas"] } },
-  { id: "cheshire", countrySlug: "uk", slug: "cheshire", name: "Cheshire", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "Peckforton Castle, Tatton Park and the affluent Golden Triangle. The Northwest's most prestigious wedding county.", focusKeywords: ["cheshire wedding venue", "peckforton castle wedding", "tatton park wedding"], aiSummary: "Northwest luxury hub. Castle and stately home venues dominate. Affluent local market plus destination appeal.", intentSignals: { high: ["cheshire wedding venue book", "peckforton castle wedding hire"], mid: ["best cheshire wedding venues"], low: ["cheshire wedding ideas"] } },
-  { id: "northumberland", countrySlug: "uk", slug: "northumberland", name: "Northumberland", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Alnwick Castle, Bamburgh beach and the wild beauty of Hadrian's Wall country across Northumberland.", focusKeywords: ["northumberland wedding venue", "alnwick castle wedding", "durham wedding"], aiSummary: "Castle wedding stronghold. Alnwick Harry Potter association. Remote luxury growing. Smaller but distinctive market.", intentSignals: { high: ["alnwick castle wedding venue"], mid: ["best northumberland wedding venues"], low: ["northumberland wedding ideas"] } },
-  { id: "durham", countrySlug: "uk", slug: "durham", name: "Durham", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Durham Cathedral, the castle, Lumley Castle and the historic university city on the River Wear.", focusKeywords: ["durham wedding venue"], aiSummary: "Durham Cathedral ceremonies prestigious. Lumley Castle anchor. Historic university city. Smaller northern market.", intentSignals: { high: [], mid: ["best durham wedding venues"], low: ["durham wedding ideas"] } },
-  { id: "warwickshire", countrySlug: "uk", slug: "warwickshire", name: "Warwickshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "Shakespeare's Stratford-upon-Avon, Warwick Castle and the grand estates of Warwickshire.", focusKeywords: ["warwickshire wedding venue", "stratford upon avon wedding", "warwick castle wedding"], aiSummary: "Shakespeare connection unique. Warwick Castle ceremonies. Strong regional market. Midlands hub.", intentSignals: { high: ["warwickshire wedding venue book"], mid: ["best warwickshire wedding venues"], low: ["warwickshire wedding ideas"] } },
-  { id: "west-midlands", countrySlug: "uk", slug: "west-midlands", name: "West Midlands", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Birmingham's Edgbaston elegance, Aston Hall and the industrial heritage of England's second city.", focusKeywords: ["birmingham wedding venue"], aiSummary: "Birmingham urban weddings growing. Edgbaston venue cluster. Aston Hall grandeur. Industrial-chic conversions.", intentSignals: { high: [], mid: ["best birmingham wedding venues"], low: ["birmingham wedding ideas"] } },
-  { id: "derbyshire", countrySlug: "uk", slug: "derbyshire", name: "Derbyshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Chatsworth House grandeur, the Peak District, Buxton's Georgian spa town elegance and the Derwent Valley's mills.", focusKeywords: ["derbyshire wedding venue", "chatsworth wedding", "peak district wedding"], aiSummary: "Chatsworth dominates. Peak District outdoor weddings growing. Buxton spa town niche. Quieter luxury.", intentSignals: { high: ["chatsworth wedding venue"], mid: ["best derbyshire wedding venues"], low: ["peak district wedding ideas"] } },
-  { id: "buckinghamshire", countrySlug: "uk", slug: "buckinghamshire", name: "Buckinghamshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "Waddesdon Manor's Rothschild grandeur, Cliveden's Thameside terraces and the Chiltern Hills.", focusKeywords: ["buckinghamshire wedding venue", "waddesdon manor wedding", "cliveden wedding"], aiSummary: "Waddesdon and Cliveden anchor ultra-luxury. Close to London premium. Chiltern barn conversions growing.", intentSignals: { high: ["buckinghamshire wedding venue book"], mid: ["best buckinghamshire wedding venues"], low: ["buckinghamshire wedding ideas"] } },
-  { id: "hertfordshire", countrySlug: "uk", slug: "hertfordshire", name: "Hertfordshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "Home counties elegance, Hatfield House, the Hertfordshire countryside and grand country house venues.", focusKeywords: ["hertfordshire wedding venue"], aiSummary: "London-adjacent convenience. Country house market strong. TOWIE effect drives Essex awareness. Volume market.", intentSignals: { high: [], mid: ["best hertfordshire wedding venues"], low: ["hertfordshire wedding ideas"] } },
-  { id: "essex", countrySlug: "uk", slug: "essex", name: "Essex", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Hedingham Castle, Layer Marney Tower and coastal marshes. Historic fortifications and Thames estuary charm.", focusKeywords: ["essex wedding venue"], aiSummary: "Castle and tower venues distinctive. Layer Marney Tower unique. TOWIE effect drives awareness. Volume market.", intentSignals: { high: [], mid: ["best essex wedding venues"], low: ["essex wedding ideas"] } },
-  { id: "lancashire", countrySlug: "uk", slug: "lancashire", name: "Lancashire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "The Ribble Valley's country houses, Lancashire's moorland estates and historic mill conversions.", focusKeywords: ["lancashire wedding venue"], aiSummary: "Manchester urban weddings plus Ribble Valley country houses. Industrial-chic venue conversions trending.", intentSignals: { high: [], mid: ["best lancashire wedding venues"], low: ["lancashire wedding ideas"] } },
-  { id: "manchester", countrySlug: "uk", slug: "manchester", name: "Greater Manchester", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Industrial-chic conversions, The Midland Hotel and the creative energy of England's northern powerhouse.", focusKeywords: ["manchester wedding venue"], aiSummary: "Manchester urban weddings growing fast. Industrial-chic venue conversions trending. Northern powerhouse.", intentSignals: { high: [], mid: ["best manchester wedding venues"], low: ["manchester wedding ideas"] } },
+  { id: "hampshire", countrySlug: "england", slug: "hampshire", name: "Hampshire", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 4, description: "Georgian manor houses, Winchester Cathedral and the rolling Hampshire countryside. Southern England's elegant heartland.", focusKeywords: ["hampshire wedding venue", "winchester wedding"], aiSummary: "Strong country house market. New Forest boutique segment growing. Winchester cathedral weddings anchor.", intentSignals: { high: ["hampshire wedding venue book"], mid: ["best hampshire wedding venues"], low: ["hampshire wedding ideas"] } },
+  { id: "devon", countrySlug: "england", slug: "devon", name: "Devon", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "South Devon coast, Dartmouth, Salcombe, Exeter and Dartmoor. Dramatic clifftop venues and enchanted woodland estates.", focusKeywords: ["devon wedding venue", "south devon wedding"], aiSummary: "South Devon coast leads luxury demand. Dartmouth and Salcombe anchor maritime weddings. Dartmoor dramatic.", intentSignals: { high: ["devon wedding venue book"], mid: ["best devon wedding venues"], low: ["devon wedding ideas"] } },
+  { id: "cornwall", countrySlug: "england", slug: "cornwall", name: "Cornwall", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "St Ives, Padstow, Falmouth and the dramatic Cornish coast. Tin mine heritage and beach ceremony paradise.", focusKeywords: ["cornwall wedding venue", "cornwall beach wedding"], aiSummary: "Cornwall leads destination search in Southwest England. Beach and clifftop venues dominate. Strong summer peak.", intentSignals: { high: ["cornwall wedding venue book"], mid: ["best cornwall wedding venues"], low: ["cornwall wedding ideas"] } },
+  { id: "kent", countrySlug: "england", slug: "kent", name: "Kent", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: true, listingCount: 4, description: "The Garden of England, Canterbury Cathedral, Leeds Castle and hop-garden barn conversions.", focusKeywords: ["kent wedding venue", "canterbury wedding", "leeds castle wedding"], aiSummary: "Garden of England positioning. Castle and barn venues lead. Canterbury Cathedral ceremonies prestigious.", intentSignals: { high: ["kent wedding venue book", "leeds castle wedding hire"], mid: ["best kent wedding venues"], low: ["kent wedding ideas"] } },
+  { id: "sussex", countrySlug: "england", slug: "sussex", name: "Sussex", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 4, description: "Brighton's Regency glamour, Goodwood estate and the rolling South Downs. Coastal chic meets country grandeur.", focusKeywords: ["sussex wedding venue", "brighton wedding", "chichester wedding"], aiSummary: "Brighton urban-beach market plus South Downs country estates. Goodwood and Cowdray anchor luxury tier.", intentSignals: { high: ["sussex wedding venue book", "brighton wedding planner"], mid: ["best sussex wedding venues"], low: ["sussex wedding ideas"] } },
+  { id: "norfolk", countrySlug: "england", slug: "norfolk", name: "Norfolk", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Norfolk Broads, Burnham Market, Holkham and Norwich Cathedral. Big skies and medieval wool churches.", focusKeywords: ["norfolk wedding venue"], aiSummary: "Barn conversion boom. Burnham Market luxury cluster. Sandringham association drives prestige. Quieter refined market.", intentSignals: { high: ["norfolk wedding venue book"], mid: ["best norfolk wedding venues"], low: ["norfolk wedding ideas"] } },
+  { id: "suffolk", countrySlug: "england", slug: "suffolk", name: "Suffolk", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Aldeburgh, Southwold, the Heritage Coast and Snape Maltings. Refined coastal charm and gentle countryside.", focusKeywords: ["suffolk wedding venue"], aiSummary: "Heritage Coast beauty. Snape Maltings concert hall venue unique. Refined and understated market.", intentSignals: { high: [], mid: ["best suffolk wedding venues"], low: ["suffolk wedding ideas"] } },
+  { id: "yorkshire", countrySlug: "england", slug: "yorkshire", name: "Yorkshire", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: true, listingCount: 4, description: "From the Yorkshire Dales and North York Moors to Harrogate's spa elegance and York's medieval grandeur.", focusKeywords: ["yorkshire wedding venue", "harrogate wedding", "york wedding venue"], aiSummary: "Harrogate-York corridor dominates. Castle Howard iconic. Dales barn conversions trending. Strong northern market.", intentSignals: { high: ["yorkshire wedding venue book", "castle howard wedding"], mid: ["best yorkshire wedding venues"], low: ["yorkshire wedding ideas"] } },
+  { id: "oxfordshire", countrySlug: "england", slug: "oxfordshire", name: "Oxfordshire", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: true, listingCount: 4, description: "Blenheim Palace, dreaming Oxford spires, Henley Royal Regatta and the rolling Chiltern Hills.", focusKeywords: ["oxfordshire wedding venue", "blenheim palace wedding", "henley wedding"], aiSummary: "Blenheim anchors ultra-luxury. Oxford college venues unique. Henley riverside summer weddings. Premium home counties market.", intentSignals: { high: ["oxfordshire wedding venue book", "blenheim palace wedding hire"], mid: ["best oxfordshire wedding venues"], low: ["oxfordshire wedding ideas"] } },
+  { id: "somerset", countrySlug: "england", slug: "somerset", name: "Somerset", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Glastonbury, Exmoor, Bruton and Babington House. Mystical landscapes and creative-luxury country estates.", focusKeywords: ["somerset wedding venue"], aiSummary: "Babington House Soho House effect. Bruton creative-luxury emerging. Glastonbury mystique. Growing market.", intentSignals: { high: [], mid: ["best somerset wedding venues"], low: ["somerset wedding ideas"] } },
+  { id: "bath-region", countrySlug: "england", slug: "bath", name: "Bath", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Georgian crescents, Roman baths, the Royal Crescent and Assembly Rooms. England's most beautiful city.", focusKeywords: ["bath wedding venue", "bath spa wedding"], aiSummary: "Georgian architecture unmatched. Assembly Rooms and Royal Crescent. Spa integration unique selling point.", intentSignals: { high: ["bath wedding venue book"], mid: ["best bath wedding venues"], low: ["bath wedding ideas"] } },
+  { id: "wiltshire", countrySlug: "england", slug: "wiltshire", name: "Wiltshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Castle Combe, Salisbury Cathedral and Bowood House. Picture-perfect villages and ancient grandeur.", focusKeywords: ["wiltshire wedding venue"], aiSummary: "Castle Combe iconic village. Salisbury Cathedral ceremonies. Bowood House estate. Quieter luxury market.", intentSignals: { high: [], mid: ["best wiltshire wedding venues"], low: ["wiltshire wedding ideas"] } },
+  { id: "dorset", countrySlug: "england", slug: "dorset", name: "Dorset", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Jurassic Coast, Lulworth Cove, Bournemouth and Corfe Castle. Dramatic coastal geology and harbour charm.", focusKeywords: ["dorset wedding venue"], aiSummary: "Jurassic Coast outdoor weddings growing. Lulworth Cove dramatic ceremony location. Corfe Castle picturesque.", intentSignals: { high: [], mid: ["best dorset wedding venues"], low: ["dorset wedding ideas"] } },
+  { id: "cheshire", countrySlug: "england", slug: "cheshire", name: "Cheshire", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "Peckforton Castle, Tatton Park and the affluent Golden Triangle. The Northwest's most prestigious wedding county.", focusKeywords: ["cheshire wedding venue", "peckforton castle wedding", "tatton park wedding"], aiSummary: "Northwest luxury hub. Castle and stately home venues dominate. Affluent local market plus destination appeal.", intentSignals: { high: ["cheshire wedding venue book", "peckforton castle wedding hire"], mid: ["best cheshire wedding venues"], low: ["cheshire wedding ideas"] } },
+  { id: "northumberland", countrySlug: "england", slug: "northumberland", name: "Northumberland", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Alnwick Castle, Bamburgh beach and the wild beauty of Hadrian's Wall country across Northumberland.", focusKeywords: ["northumberland wedding venue", "alnwick castle wedding", "durham wedding"], aiSummary: "Castle wedding stronghold. Alnwick Harry Potter association. Remote luxury growing. Smaller but distinctive market.", intentSignals: { high: ["alnwick castle wedding venue"], mid: ["best northumberland wedding venues"], low: ["northumberland wedding ideas"] } },
+  { id: "durham", countrySlug: "england", slug: "durham", name: "Durham", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Durham Cathedral, the castle, Lumley Castle and the historic university city on the River Wear.", focusKeywords: ["durham wedding venue"], aiSummary: "Durham Cathedral ceremonies prestigious. Lumley Castle anchor. Historic university city. Smaller northern market.", intentSignals: { high: [], mid: ["best durham wedding venues"], low: ["durham wedding ideas"] } },
+  { id: "warwickshire", countrySlug: "england", slug: "warwickshire", name: "Warwickshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "Shakespeare's Stratford-upon-Avon, Warwick Castle and the grand estates of Warwickshire.", focusKeywords: ["warwickshire wedding venue", "stratford upon avon wedding", "warwick castle wedding"], aiSummary: "Shakespeare connection unique. Warwick Castle ceremonies. Strong regional market. Midlands hub.", intentSignals: { high: ["warwickshire wedding venue book"], mid: ["best warwickshire wedding venues"], low: ["warwickshire wedding ideas"] } },
+  { id: "west-midlands", countrySlug: "england", slug: "west-midlands", name: "West Midlands", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Birmingham's Edgbaston elegance, Aston Hall and the industrial heritage of England's second city.", focusKeywords: ["birmingham wedding venue"], aiSummary: "Birmingham urban weddings growing. Edgbaston venue cluster. Aston Hall grandeur. Industrial-chic conversions.", intentSignals: { high: [], mid: ["best birmingham wedding venues"], low: ["birmingham wedding ideas"] } },
+  { id: "derbyshire", countrySlug: "england", slug: "derbyshire", name: "Derbyshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Chatsworth House grandeur, the Peak District, Buxton's Georgian spa town elegance and the Derwent Valley's mills.", focusKeywords: ["derbyshire wedding venue", "chatsworth wedding", "peak district wedding"], aiSummary: "Chatsworth dominates. Peak District outdoor weddings growing. Buxton spa town niche. Quieter luxury.", intentSignals: { high: ["chatsworth wedding venue"], mid: ["best derbyshire wedding venues"], low: ["peak district wedding ideas"] } },
+  { id: "buckinghamshire", countrySlug: "england", slug: "buckinghamshire", name: "Buckinghamshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "Waddesdon Manor's Rothschild grandeur, Cliveden's Thameside terraces and the Chiltern Hills.", focusKeywords: ["buckinghamshire wedding venue", "waddesdon manor wedding", "cliveden wedding"], aiSummary: "Waddesdon and Cliveden anchor ultra-luxury. Close to London premium. Chiltern barn conversions growing.", intentSignals: { high: ["buckinghamshire wedding venue book"], mid: ["best buckinghamshire wedding venues"], low: ["buckinghamshire wedding ideas"] } },
+  { id: "hertfordshire", countrySlug: "england", slug: "hertfordshire", name: "Hertfordshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "Home counties elegance, Hatfield House, the Hertfordshire countryside and grand country house venues.", focusKeywords: ["hertfordshire wedding venue"], aiSummary: "London-adjacent convenience. Country house market strong. TOWIE effect drives Essex awareness. Volume market.", intentSignals: { high: [], mid: ["best hertfordshire wedding venues"], low: ["hertfordshire wedding ideas"] } },
+  { id: "essex", countrySlug: "england", slug: "essex", name: "Essex", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Hedingham Castle, Layer Marney Tower and coastal marshes. Historic fortifications and Thames estuary charm.", focusKeywords: ["essex wedding venue"], aiSummary: "Castle and tower venues distinctive. Layer Marney Tower unique. TOWIE effect drives awareness. Volume market.", intentSignals: { high: [], mid: ["best essex wedding venues"], low: ["essex wedding ideas"] } },
+  { id: "lancashire", countrySlug: "england", slug: "lancashire", name: "Lancashire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "The Ribble Valley's country houses, Lancashire's moorland estates and historic mill conversions.", focusKeywords: ["lancashire wedding venue"], aiSummary: "Manchester urban weddings plus Ribble Valley country houses. Industrial-chic venue conversions trending.", intentSignals: { high: [], mid: ["best lancashire wedding venues"], low: ["lancashire wedding ideas"] } },
+  { id: "manchester", countrySlug: "england", slug: "manchester", name: "Greater Manchester", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Industrial-chic conversions, The Midland Hotel and the creative energy of England's northern powerhouse.", focusKeywords: ["manchester wedding venue"], aiSummary: "Manchester urban weddings growing fast. Industrial-chic venue conversions trending. Northern powerhouse.", intentSignals: { high: [], mid: ["best manchester wedding venues"], low: ["manchester wedding ideas"] } },
 
-  { id: "gloucestershire", countrySlug: "uk", slug: "gloucestershire", name: "Gloucestershire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Forest of Dean, the Severn Valley and Cheltenham's Regency elegance. Gateway to the Cotswolds.", focusKeywords: ["gloucestershire wedding venue"], aiSummary: "Forest of Dean woodland venues. Cheltenham Regency architecture. Cotswolds gateway. Growing market.", intentSignals: { high: [], mid: ["best gloucestershire wedding venues"], low: ["gloucestershire wedding ideas"] } },
-  { id: "cambridgeshire", countrySlug: "uk", slug: "cambridgeshire", name: "Cambridgeshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Cambridge's ancient colleges, the Backs river meadows and Ely Cathedral's fenland grandeur.", focusKeywords: ["cambridgeshire wedding venue", "cambridge wedding"], aiSummary: "Cambridge college venues unique. Ely Cathedral prestigious. Fenland country house market. Academic prestige.", intentSignals: { high: [], mid: ["best cambridgeshire wedding venues"], low: ["cambridge wedding ideas"] } },
-  { id: "lincolnshire", countrySlug: "uk", slug: "lincolnshire", name: "Lincolnshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Lincoln Cathedral, the Wolds' rolling chalk hills and the historic market towns of rural England.", focusKeywords: ["lincolnshire wedding venue"], aiSummary: "Lincoln Cathedral anchor. Wolds countryside. Rural estate venues. Quieter traditional market.", intentSignals: { high: [], mid: ["lincolnshire wedding venue"], low: ["lincolnshire wedding ideas"] } },
-  { id: "nottinghamshire", countrySlug: "uk", slug: "nottinghamshire", name: "Nottinghamshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Nottingham Castle, Sherwood Forest's ancient oaks and the grand ducal estates of the Dukeries.", focusKeywords: ["nottinghamshire wedding venue"], aiSummary: "Robin Hood heritage marketing. Nottingham Castle redevelopment. Clumber Park and Thoresby. Midlands market.", intentSignals: { high: [], mid: ["best nottinghamshire wedding venues"], low: ["nottinghamshire wedding ideas"] } },
-  { id: "leicestershire", countrySlug: "uk", slug: "leicestershire", name: "Leicestershire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Belvoir Castle, Bradgate Park and the hunting shires of the English Midlands.", focusKeywords: ["leicestershire wedding venue"], aiSummary: "Belvoir Castle grandeur. Hunting shire heritage. Midlands accessibility. Traditional estate market.", intentSignals: { high: [], mid: ["leicestershire wedding venue"], low: ["leicestershire wedding ideas"] } },
-  { id: "shropshire", countrySlug: "uk", slug: "shropshire", name: "Shropshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Ludlow's medieval castle town, the Ironbridge Gorge and the rolling Shropshire Hills.", focusKeywords: ["shropshire wedding venue"], aiSummary: "Ludlow foodie reputation. Ironbridge industrial heritage. Shropshire Hills AONB. Welsh Marches charm.", intentSignals: { high: [], mid: ["shropshire wedding venue"], low: ["shropshire wedding ideas"] } },
-  { id: "worcestershire", countrySlug: "uk", slug: "worcestershire", name: "Worcestershire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "The Malvern Hills, Worcester Cathedral and the fruit orchards of the Vale of Evesham.", focusKeywords: ["worcestershire wedding venue"], aiSummary: "Malvern Hills scenic backdrop. Worcester Cathedral ceremonies. Elgar country heritage. Rural charm.", intentSignals: { high: [], mid: ["worcestershire wedding venue"], low: ["worcestershire wedding ideas"] } },
-  { id: "herefordshire", countrySlug: "uk", slug: "herefordshire", name: "Herefordshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "The Black Mountains, Hereford Cathedral's Mappa Mundi and cider-apple orchards along the River Wye.", focusKeywords: ["herefordshire wedding venue"], aiSummary: "Black Mountains dramatic. River Wye beauty. Cider heritage. Very rural luxury niche.", intentSignals: { high: [], mid: ["herefordshire wedding venue"], low: ["herefordshire wedding ideas"] } },
-  { id: "staffordshire", countrySlug: "uk", slug: "staffordshire", name: "Staffordshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Alton Towers estate, Shugborough Hall and the Staffordshire Moorlands' heather-clad peaks.", focusKeywords: ["staffordshire wedding venue"], aiSummary: "Alton Towers estate unique venue. Shugborough Hall grandeur. Moorlands scenic. Midlands market.", intentSignals: { high: [], mid: ["staffordshire wedding venue"], low: ["staffordshire wedding ideas"] } },
-  { id: "northamptonshire", countrySlug: "uk", slug: "northamptonshire", name: "Northamptonshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Althorp House, the Spires of Northampton and the grand estates of the Shires.", focusKeywords: ["northamptonshire wedding venue"], aiSummary: "Althorp House (Spencer family) prestigious. Grand estate market. Central England accessibility.", intentSignals: { high: [], mid: ["northamptonshire wedding venue"], low: ["northamptonshire wedding ideas"] } },
-  { id: "bedfordshire", countrySlug: "uk", slug: "bedfordshire", name: "Bedfordshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Woburn Abbey, Luton Hoo and the Chiltern Hills' beechwood countryside north of London.", focusKeywords: ["bedfordshire wedding venue"], aiSummary: "Woburn Abbey anchor. Luton Hoo luxury. London accessible. Chiltern Hills scenic.", intentSignals: { high: [], mid: ["bedfordshire wedding venue"], low: ["bedfordshire wedding ideas"] } },
-  { id: "isle-of-wight", countrySlug: "uk", slug: "isle-of-wight", name: "Isle of Wight", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Queen Victoria's Osborne House, Cowes sailing week and the island's fossil-rich coastline.", focusKeywords: ["isle of wight wedding venue"], aiSummary: "Osborne House royal association. Island exclusivity. Cowes sailing heritage. Boutique niche.", intentSignals: { high: [], mid: ["isle of wight wedding venue"], low: ["isle of wight wedding ideas"] } },
-  { id: "bristol", countrySlug: "uk", slug: "bristol", name: "Bristol", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Clifton Suspension Bridge, the harbourside and Brunel's SS Great Britain. Creative urban energy.", focusKeywords: ["bristol wedding venue"], aiSummary: "Creative-industrial venue conversions. Clifton Village elegance. Harbourside development. Growing urban market.", intentSignals: { high: [], mid: ["best bristol wedding venues"], low: ["bristol wedding ideas"] } },
-  { id: "merseyside", countrySlug: "uk", slug: "merseyside", name: "Merseyside", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Liverpool's Albert Dock, the Liver Building and the cultural renaissance of England's maritime city.", focusKeywords: ["liverpool wedding venue"], aiSummary: "Albert Dock and waterfront venues. Beatles heritage tourism. Cultural capital. Growing market.", intentSignals: { high: [], mid: ["best liverpool wedding venues"], low: ["liverpool wedding ideas"] } },
-  { id: "cumbria", countrySlug: "uk", slug: "cumbria", name: "Cumbria", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "The Lake District's romantic lakeside settings, Carlisle Castle and the Eden Valley's pastoral beauty.", focusKeywords: ["cumbria wedding venue"], aiSummary: "Lake District overlap. Romantic lakeside venues. Carlisle Castle anchor. Intimate celebrations.", intentSignals: { high: [], mid: ["cumbria wedding venue"], low: ["cumbria wedding ideas"] } },
-  { id: "rutland", countrySlug: "uk", slug: "rutland", name: "Rutland", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "England's smallest county, Rutland Water, the market town of Oakham and unspoilt ironstone villages.", focusKeywords: ["rutland wedding venue"], aiSummary: "England's smallest county. Exclusive and intimate. Rutland Water scenic. Very niche boutique market.", intentSignals: { high: [], mid: ["rutland wedding venue"], low: ["rutland wedding ideas"] } },
+  { id: "gloucestershire", countrySlug: "england", slug: "gloucestershire", name: "Gloucestershire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Forest of Dean, the Severn Valley and Cheltenham's Regency elegance. Gateway to the Cotswolds.", focusKeywords: ["gloucestershire wedding venue"], aiSummary: "Forest of Dean woodland venues. Cheltenham Regency architecture. Cotswolds gateway. Growing market.", intentSignals: { high: [], mid: ["best gloucestershire wedding venues"], low: ["gloucestershire wedding ideas"] } },
+  { id: "cambridgeshire", countrySlug: "england", slug: "cambridgeshire", name: "Cambridgeshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Cambridge's ancient colleges, the Backs river meadows and Ely Cathedral's fenland grandeur.", focusKeywords: ["cambridgeshire wedding venue", "cambridge wedding"], aiSummary: "Cambridge college venues unique. Ely Cathedral prestigious. Fenland country house market. Academic prestige.", intentSignals: { high: [], mid: ["best cambridgeshire wedding venues"], low: ["cambridge wedding ideas"] } },
+  { id: "lincolnshire", countrySlug: "england", slug: "lincolnshire", name: "Lincolnshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Lincoln Cathedral, the Wolds' rolling chalk hills and the historic market towns of rural England.", focusKeywords: ["lincolnshire wedding venue"], aiSummary: "Lincoln Cathedral anchor. Wolds countryside. Rural estate venues. Quieter traditional market.", intentSignals: { high: [], mid: ["lincolnshire wedding venue"], low: ["lincolnshire wedding ideas"] } },
+  { id: "nottinghamshire", countrySlug: "england", slug: "nottinghamshire", name: "Nottinghamshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Nottingham Castle, Sherwood Forest's ancient oaks and the grand ducal estates of the Dukeries.", focusKeywords: ["nottinghamshire wedding venue"], aiSummary: "Robin Hood heritage marketing. Nottingham Castle redevelopment. Clumber Park and Thoresby. Midlands market.", intentSignals: { high: [], mid: ["best nottinghamshire wedding venues"], low: ["nottinghamshire wedding ideas"] } },
+  { id: "leicestershire", countrySlug: "england", slug: "leicestershire", name: "Leicestershire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Belvoir Castle, Bradgate Park and the hunting shires of the English Midlands.", focusKeywords: ["leicestershire wedding venue"], aiSummary: "Belvoir Castle grandeur. Hunting shire heritage. Midlands accessibility. Traditional estate market.", intentSignals: { high: [], mid: ["leicestershire wedding venue"], low: ["leicestershire wedding ideas"] } },
+  { id: "shropshire", countrySlug: "england", slug: "shropshire", name: "Shropshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Ludlow's medieval castle town, the Ironbridge Gorge and the rolling Shropshire Hills.", focusKeywords: ["shropshire wedding venue"], aiSummary: "Ludlow foodie reputation. Ironbridge industrial heritage. Shropshire Hills AONB. Welsh Marches charm.", intentSignals: { high: [], mid: ["shropshire wedding venue"], low: ["shropshire wedding ideas"] } },
+  { id: "worcestershire", countrySlug: "england", slug: "worcestershire", name: "Worcestershire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "The Malvern Hills, Worcester Cathedral and the fruit orchards of the Vale of Evesham.", focusKeywords: ["worcestershire wedding venue"], aiSummary: "Malvern Hills scenic backdrop. Worcester Cathedral ceremonies. Elgar country heritage. Rural charm.", intentSignals: { high: [], mid: ["worcestershire wedding venue"], low: ["worcestershire wedding ideas"] } },
+  { id: "herefordshire", countrySlug: "england", slug: "herefordshire", name: "Herefordshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "The Black Mountains, Hereford Cathedral's Mappa Mundi and cider-apple orchards along the River Wye.", focusKeywords: ["herefordshire wedding venue"], aiSummary: "Black Mountains dramatic. River Wye beauty. Cider heritage. Very rural luxury niche.", intentSignals: { high: [], mid: ["herefordshire wedding venue"], low: ["herefordshire wedding ideas"] } },
+  { id: "staffordshire", countrySlug: "england", slug: "staffordshire", name: "Staffordshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Alton Towers estate, Shugborough Hall and the Staffordshire Moorlands' heather-clad peaks.", focusKeywords: ["staffordshire wedding venue"], aiSummary: "Alton Towers estate unique venue. Shugborough Hall grandeur. Moorlands scenic. Midlands market.", intentSignals: { high: [], mid: ["staffordshire wedding venue"], low: ["staffordshire wedding ideas"] } },
+  { id: "northamptonshire", countrySlug: "england", slug: "northamptonshire", name: "Northamptonshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Althorp House, the Spires of Northampton and the grand estates of the Shires.", focusKeywords: ["northamptonshire wedding venue"], aiSummary: "Althorp House (Spencer family) prestigious. Grand estate market. Central England accessibility.", intentSignals: { high: [], mid: ["northamptonshire wedding venue"], low: ["northamptonshire wedding ideas"] } },
+  { id: "bedfordshire", countrySlug: "england", slug: "bedfordshire", name: "Bedfordshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Woburn Abbey, Luton Hoo and the Chiltern Hills' beechwood countryside north of London.", focusKeywords: ["bedfordshire wedding venue"], aiSummary: "Woburn Abbey anchor. Luton Hoo luxury. London accessible. Chiltern Hills scenic.", intentSignals: { high: [], mid: ["bedfordshire wedding venue"], low: ["bedfordshire wedding ideas"] } },
+  { id: "isle-of-wight", countrySlug: "england", slug: "isle-of-wight", name: "Isle of Wight", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Queen Victoria's Osborne House, Cowes sailing week and the island's fossil-rich coastline.", focusKeywords: ["isle of wight wedding venue"], aiSummary: "Osborne House royal association. Island exclusivity. Cowes sailing heritage. Boutique niche.", intentSignals: { high: [], mid: ["isle of wight wedding venue"], low: ["isle of wight wedding ideas"] } },
+  { id: "bristol", countrySlug: "england", slug: "bristol", name: "Bristol", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Clifton Suspension Bridge, the harbourside and Brunel's SS Great Britain. Creative urban energy.", focusKeywords: ["bristol wedding venue"], aiSummary: "Creative-industrial venue conversions. Clifton Village elegance. Harbourside development. Growing urban market.", intentSignals: { high: [], mid: ["best bristol wedding venues"], low: ["bristol wedding ideas"] } },
+  { id: "merseyside", countrySlug: "england", slug: "merseyside", name: "Merseyside", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Liverpool's Albert Dock, the Liver Building and the cultural renaissance of England's maritime city.", focusKeywords: ["liverpool wedding venue"], aiSummary: "Albert Dock and waterfront venues. Beatles heritage tourism. Cultural capital. Growing market.", intentSignals: { high: [], mid: ["best liverpool wedding venues"], low: ["liverpool wedding ideas"] } },
+  { id: "cumbria", countrySlug: "england", slug: "cumbria", name: "Cumbria", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "The Lake District's romantic lakeside settings, Carlisle Castle and the Eden Valley's pastoral beauty.", focusKeywords: ["cumbria wedding venue"], aiSummary: "Lake District overlap. Romantic lakeside venues. Carlisle Castle anchor. Intimate celebrations.", intentSignals: { high: [], mid: ["cumbria wedding venue"], low: ["cumbria wedding ideas"] } },
+  { id: "rutland", countrySlug: "england", slug: "rutland", name: "Rutland", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "England's smallest county, Rutland Water, the market town of Oakham and unspoilt ironstone villages.", focusKeywords: ["rutland wedding venue"], aiSummary: "England's smallest county. Exclusive and intimate. Rutland Water scenic. Very niche boutique market.", intentSignals: { high: [], mid: ["rutland wedding venue"], low: ["rutland wedding ideas"] } },
 
   // ── UK, Scotland ───────────────────────────────────────────────────
-  { id: "scotland", countrySlug: "uk", slug: "scotland", name: "Scotland", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 8, description: "Castle estates, Highland lochs, Edinburgh's Georgian grandeur and Glasgow's creative energy. Scotland's most celebrated wedding destinations.", focusKeywords: ["scotland wedding venue", "scottish castle wedding", "luxury wedding scotland", "edinburgh wedding"], aiSummary: "Castle weddings drive international demand. Edinburgh urban-luxury hub. Highland elopements trending. Strong US-Irish heritage market. Seasonal May-September peak.", intentSignals: { high: ["scottish castle wedding venue book", "edinburgh wedding planner"], mid: ["best scotland wedding venues", "highland castle wedding"], low: ["scotland wedding ideas", "scottish wedding traditions"] } },
+  { id: "scotland", countrySlug: "england", slug: "scotland", name: "Scotland", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 8, description: "Castle estates, Highland lochs, Edinburgh's Georgian grandeur and Glasgow's creative energy. Scotland's most celebrated wedding destinations.", focusKeywords: ["scotland wedding venue", "scottish castle wedding", "luxury wedding scotland", "edinburgh wedding"], aiSummary: "Castle weddings drive international demand. Edinburgh urban-luxury hub. Highland elopements trending. Strong US-Irish heritage market. Seasonal May-September peak.", intentSignals: { high: ["scottish castle wedding venue book", "edinburgh wedding planner"], mid: ["best scotland wedding venues", "highland castle wedding"], low: ["scotland wedding ideas", "scottish wedding traditions"] } },
 
   // ── UK, Wales ──────────────────────────────────────────────────────
-  { id: "wales", countrySlug: "uk", slug: "wales", name: "Wales", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 4, description: "Pembrokeshire's dramatic coast, Snowdonia's mountain grandeur, Cardiff's cosmopolitan charm and ancient castle estates across the principality.", focusKeywords: ["wales wedding venue", "welsh castle wedding", "pembrokeshire wedding", "snowdonia wedding"], aiSummary: "Castle concentration unique. Pembrokeshire coast and Snowdonia mountains drive landscape weddings. Growing destination appeal. Underpriced vs English equivalents.", intentSignals: { high: ["wales castle wedding venue book"], mid: ["best wales wedding venues", "pembrokeshire wedding venue"], low: ["wales wedding ideas"] } },
+  { id: "wales", countrySlug: "england", slug: "wales", name: "Wales", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 4, description: "Pembrokeshire's dramatic coast, Snowdonia's mountain grandeur, Cardiff's cosmopolitan charm and ancient castle estates across the principality.", focusKeywords: ["wales wedding venue", "welsh castle wedding", "pembrokeshire wedding", "snowdonia wedding"], aiSummary: "Castle concentration unique. Pembrokeshire coast and Snowdonia mountains drive landscape weddings. Growing destination appeal. Underpriced vs English equivalents.", intentSignals: { high: ["wales castle wedding venue book"], mid: ["best wales wedding venues", "pembrokeshire wedding venue"], low: ["wales wedding ideas"] } },
 
 
   // ── UK, Northern Ireland ───────────────────────────────────────────
-  { id: "northern-ireland", countrySlug: "uk", slug: "northern-ireland", name: "Northern Ireland", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Giant's Causeway drama, the Antrim Coast, Belfast's Titanic Quarter renaissance and ancient castle estates across the province.", focusKeywords: ["northern ireland wedding venue", "belfast wedding", "antrim coast wedding"], aiSummary: "Giant's Causeway ceremonies iconic. Belfast Titanic Quarter modern venue cluster. Game of Thrones tourism crossover. Small but distinctive market.", intentSignals: { high: ["northern ireland wedding venue book"], mid: ["best belfast wedding venues"], low: ["northern ireland wedding ideas"] } },
+  { id: "northern-ireland", countrySlug: "england", slug: "northern-ireland", name: "Northern Ireland", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Giant's Causeway drama, the Antrim Coast, Belfast's Titanic Quarter renaissance and ancient castle estates across the province.", focusKeywords: ["northern ireland wedding venue", "belfast wedding", "antrim coast wedding"], aiSummary: "Giant's Causeway ceremonies iconic. Belfast Titanic Quarter modern venue cluster. Game of Thrones tourism crossover. Small but distinctive market.", intentSignals: { high: ["northern ireland wedding venue book"], mid: ["best belfast wedding venues"], low: ["northern ireland wedding ideas"] } },
 
 
   // ── UK, Channel Islands ────────────────────────────────────────────
-  { id: "channel-islands", countrySlug: "uk", slug: "channel-islands", name: "Channel Islands", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "Jersey and Guernsey's French-inflected island charm, granite manor houses, sheltered bays, world-class seafood and a gentle pace of island life.", focusKeywords: ["channel islands wedding venue", "jersey wedding", "guernsey wedding"], aiSummary: "Boutique island destinations. Tax-efficient incentive. French-British cultural blend. Jersey leads with Guernsey micro-destination niche.", intentSignals: { high: ["jersey wedding venue book"], mid: ["best channel islands wedding venues"], low: ["channel islands wedding ideas"] } },
+  { id: "channel-islands", countrySlug: "england", slug: "channel-islands", name: "Channel Islands", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "Jersey and Guernsey's French-inflected island charm, granite manor houses, sheltered bays, world-class seafood and a gentle pace of island life.", focusKeywords: ["channel islands wedding venue", "jersey wedding", "guernsey wedding"], aiSummary: "Boutique island destinations. Tax-efficient incentive. French-British cultural blend. Jersey leads with Guernsey micro-destination niche.", intentSignals: { high: ["jersey wedding venue book"], mid: ["best channel islands wedding venues"], low: ["channel islands wedding ideas"] } },
 
 
   // ── Ireland ─────────────────────────────────────────────────────────
@@ -1481,9 +965,9 @@ const DIRECTORY_CITIES = [
   { id: "saint-remy", regionSlug: "provence", countrySlug: "france", slug: "saint-remy-de-provence", name: "Saint-Rémy-de-Provence", listingCount: 2, lat: "43.7890", lng: "4.8312", description: "Van Gogh's beloved village, intimate Provençal charm at its finest.", focusKeywords: ["saint remy wedding"], aiSummary: "Boutique destination. Strong UK/US demand." },
 
   // ── UK > Cotswolds ───────────────────────────────────────────────────────
-  { id: "chipping-campden", regionSlug: "cotswolds", countrySlug: "uk", slug: "chipping-campden", name: "Chipping Campden", listingCount: 2, lat: "52.0545", lng: "-1.7811", description: "Perfectly preserved market town at the northern edge of the Cotswolds.", focusKeywords: ["chipping campden wedding"], aiSummary: "Quintessential Cotswolds. Country house venues dominate." },
-  { id: "burford", regionSlug: "cotswolds", countrySlug: "uk", slug: "burford", name: "Burford", listingCount: 2, lat: "51.8087", lng: "-1.6368", description: "Gateway to the Cotswolds, ancient stone-built high street and surrounding estates.", focusKeywords: ["burford wedding venue"], aiSummary: "Strong local venue cluster. Barn and manor house mix." },
-  { id: "stow-on-the-wold", regionSlug: "cotswolds", countrySlug: "uk", slug: "stow-on-the-wold", name: "Stow-on-the-Wold", listingCount: 1, lat: "51.9315", lng: "-1.7233", description: "Hilltop market town, the highest point of the Cotswolds with sweeping views.", focusKeywords: ["stow on the wold wedding"], aiSummary: "Niche positioning. Nearby estate venues drive demand." },
+  { id: "chipping-campden", regionSlug: "cotswolds", countrySlug: "england", slug: "chipping-campden", name: "Chipping Campden", listingCount: 2, lat: "52.0545", lng: "-1.7811", description: "Perfectly preserved market town at the northern edge of the Cotswolds.", focusKeywords: ["chipping campden wedding"], aiSummary: "Quintessential Cotswolds. Country house venues dominate." },
+  { id: "burford", regionSlug: "cotswolds", countrySlug: "england", slug: "burford", name: "Burford", listingCount: 2, lat: "51.8087", lng: "-1.6368", description: "Gateway to the Cotswolds, ancient stone-built high street and surrounding estates.", focusKeywords: ["burford wedding venue"], aiSummary: "Strong local venue cluster. Barn and manor house mix." },
+  { id: "stow-on-the-wold", regionSlug: "cotswolds", countrySlug: "england", slug: "stow-on-the-wold", name: "Stow-on-the-Wold", listingCount: 1, lat: "51.9315", lng: "-1.7233", description: "Hilltop market town, the highest point of the Cotswolds with sweeping views.", focusKeywords: ["stow on the wold wedding"], aiSummary: "Niche positioning. Nearby estate venues drive demand." },
 
   // ── Spain > Mallorca ─────────────────────────────────────────────────────
   { id: "deia", regionSlug: "mallorca", countrySlug: "spain", slug: "deia", name: "Deià", listingCount: 1, lat: "39.7472", lng: "2.7500", description: "Artist village in the Serra de Tramuntana, cliffside terraces above the Mediterranean.", focusKeywords: ["deia wedding", "deia mallorca wedding"], aiSummary: "Ultra-luxury niche. La Residencia effect. Limited capacity." },
@@ -1494,91 +978,91 @@ const DIRECTORY_CITIES = [
   { id: "manhattan", regionSlug: "new-york", countrySlug: "usa", slug: "manhattan", name: "Manhattan", listingCount: 1, lat: "40.7831", lng: "-73.9712", description: "The world's most iconic skyline, rooftop terraces, museum galas and hotel ballrooms.", focusKeywords: ["manhattan wedding venue", "nyc wedding"], aiSummary: "Highest price point. Museum and hotel venues lead. Year-round." },
 
   // ── UK, London ─────────────────────────────────────────────────────
-  { id: "mayfair", regionSlug: "london", countrySlug: "uk", slug: "mayfair", name: "Mayfair", listingCount: 2, lat: "51.5100", lng: "-0.1480", description: "The Ritz, Claridge's and Grosvenor Square, London's most prestigious wedding quarter.", focusKeywords: ["mayfair wedding venue", "claridges wedding"], aiSummary: "Ultra-premium. Claridge's and The Ritz anchor. Corporate-luxury crossover." },
-  { id: "chelsea", regionSlug: "london", countrySlug: "uk", slug: "chelsea", name: "Chelsea & Kensington", listingCount: 1, lat: "51.4875", lng: "-0.1687", description: "Royal borough elegance, Chelsea Physic Garden, Kensington Palace orangery and museum venues.", focusKeywords: ["chelsea wedding venue", "kensington wedding"], aiSummary: "Royal borough prestige. V&A and Natural History Museum event spaces." },
-  { id: "richmond", regionSlug: "london", countrySlug: "uk", slug: "richmond", name: "Richmond & Kew", listingCount: 1, lat: "51.4613", lng: "-0.3037", description: "Richmond Park deer herds, Kew Gardens' temperate house and Thames riverside elegance.", focusKeywords: ["richmond wedding venue", "kew gardens wedding"], aiSummary: "Garden-setting weddings. Kew Gardens and Petersham Nurseries. Riverside charm." },
-  { id: "shoreditch", regionSlug: "london", countrySlug: "uk", slug: "shoreditch", name: "Shoreditch & East London", listingCount: 1, lat: "51.5245", lng: "-0.0780", description: "Industrial-chic warehouses, rooftop terraces and the creative energy of East London.", focusKeywords: ["shoreditch wedding venue", "east london wedding"], aiSummary: "Industrial-chic market leader. Warehouse conversions. Creative crowd." },
-  { id: "greenwich", regionSlug: "london", countrySlug: "uk", slug: "greenwich", name: "Greenwich", listingCount: 1, lat: "51.4769", lng: "-0.0005", description: "Royal Naval College, the Painted Hall and panoramic Thames views from the Prime Meridian.", focusKeywords: ["greenwich wedding venue"], aiSummary: "Painted Hall ceremonies stunning. Royal Naval College grandeur. River views." },
+  { id: "mayfair", regionSlug: "london", countrySlug: "england", slug: "mayfair", name: "Mayfair", listingCount: 2, lat: "51.5100", lng: "-0.1480", description: "The Ritz, Claridge's and Grosvenor Square, London's most prestigious wedding quarter.", focusKeywords: ["mayfair wedding venue", "claridges wedding"], aiSummary: "Ultra-premium. Claridge's and The Ritz anchor. Corporate-luxury crossover." },
+  { id: "chelsea", regionSlug: "london", countrySlug: "england", slug: "chelsea", name: "Chelsea & Kensington", listingCount: 1, lat: "51.4875", lng: "-0.1687", description: "Royal borough elegance, Chelsea Physic Garden, Kensington Palace orangery and museum venues.", focusKeywords: ["chelsea wedding venue", "kensington wedding"], aiSummary: "Royal borough prestige. V&A and Natural History Museum event spaces." },
+  { id: "richmond", regionSlug: "london", countrySlug: "england", slug: "richmond", name: "Richmond & Kew", listingCount: 1, lat: "51.4613", lng: "-0.3037", description: "Richmond Park deer herds, Kew Gardens' temperate house and Thames riverside elegance.", focusKeywords: ["richmond wedding venue", "kew gardens wedding"], aiSummary: "Garden-setting weddings. Kew Gardens and Petersham Nurseries. Riverside charm." },
+  { id: "shoreditch", regionSlug: "london", countrySlug: "england", slug: "shoreditch", name: "Shoreditch & East London", listingCount: 1, lat: "51.5245", lng: "-0.0780", description: "Industrial-chic warehouses, rooftop terraces and the creative energy of East London.", focusKeywords: ["shoreditch wedding venue", "east london wedding"], aiSummary: "Industrial-chic market leader. Warehouse conversions. Creative crowd." },
+  { id: "greenwich", regionSlug: "london", countrySlug: "england", slug: "greenwich", name: "Greenwich", listingCount: 1, lat: "51.4769", lng: "-0.0005", description: "Royal Naval College, the Painted Hall and panoramic Thames views from the Prime Meridian.", focusKeywords: ["greenwich wedding venue"], aiSummary: "Painted Hall ceremonies stunning. Royal Naval College grandeur. River views." },
 
   // ── UK, Hampshire ──────────────────────────────────────
-  { id: "winchester", regionSlug: "hampshire", countrySlug: "uk", slug: "winchester", name: "Winchester", listingCount: 2, lat: "51.0632", lng: "-1.3081", description: "England's ancient capital, the Cathedral, Great Hall and water meadows of the Itchen.", focusKeywords: ["winchester wedding venue", "winchester cathedral wedding"], aiSummary: "Cathedral city prestige. Great Hall round table. Historic grandeur." },
-  { id: "new-forest-town", regionSlug: "hampshire", countrySlug: "uk", slug: "new-forest", name: "New Forest", listingCount: 1, lat: "50.8670", lng: "-1.5729", description: "Ancient royal hunting ground, wild ponies, thatched villages and boutique country hotels.", focusKeywords: ["new forest wedding venue"], aiSummary: "Boutique country hotels. Forest ceremony settings. Intimate luxury." },
-  { id: "lymington", regionSlug: "hampshire", countrySlug: "uk", slug: "lymington", name: "Lymington", listingCount: 1, lat: "50.7585", lng: "-1.5433", description: "Georgian sailing town on the Solent, marina views and coastal elegance.", focusKeywords: ["lymington wedding venue"], aiSummary: "Coastal Hampshire charm. Sailing culture. Solent views." },
+  { id: "winchester", regionSlug: "hampshire", countrySlug: "england", slug: "winchester", name: "Winchester", listingCount: 2, lat: "51.0632", lng: "-1.3081", description: "England's ancient capital, the Cathedral, Great Hall and water meadows of the Itchen.", focusKeywords: ["winchester wedding venue", "winchester cathedral wedding"], aiSummary: "Cathedral city prestige. Great Hall round table. Historic grandeur." },
+  { id: "new-forest-town", regionSlug: "hampshire", countrySlug: "england", slug: "new-forest", name: "New Forest", listingCount: 1, lat: "50.8670", lng: "-1.5729", description: "Ancient royal hunting ground, wild ponies, thatched villages and boutique country hotels.", focusKeywords: ["new forest wedding venue"], aiSummary: "Boutique country hotels. Forest ceremony settings. Intimate luxury." },
+  { id: "lymington", regionSlug: "hampshire", countrySlug: "england", slug: "lymington", name: "Lymington", listingCount: 1, lat: "50.7585", lng: "-1.5433", description: "Georgian sailing town on the Solent, marina views and coastal elegance.", focusKeywords: ["lymington wedding venue"], aiSummary: "Coastal Hampshire charm. Sailing culture. Solent views." },
 
   // ── UK, Devon & Cornwall (split) ────────────────────────────────────────────
-  { id: "st-ives", regionSlug: "cornwall", countrySlug: "uk", slug: "st-ives", name: "St Ives", listingCount: 1, lat: "50.2111", lng: "-5.4806", description: "Tate gallery town, turquoise harbour, golden beaches and artists' studios.", focusKeywords: ["st ives wedding venue"], aiSummary: "Artistic coastal charm. Tate St Ives association. Beach ceremonies." },
-  { id: "padstow", regionSlug: "cornwall", countrySlug: "uk", slug: "padstow", name: "Padstow & Rock", listingCount: 1, lat: "50.5409", lng: "-4.9373", description: "Rick Stein's fishing village, the Camel estuary and Daymer Bay's golden sands.", focusKeywords: ["padstow wedding venue", "cornwall coast wedding"], aiSummary: "Foodie destination. Camel estuary venues. North Cornwall coast." },
-  { id: "dartmouth", regionSlug: "devon", countrySlug: "uk", slug: "dartmouth", name: "Dartmouth", listingCount: 1, lat: "50.3512", lng: "-3.5789", description: "Naval college, Dart estuary and the South Devon coast's most glamorous harbour town.", focusKeywords: ["dartmouth wedding venue"], aiSummary: "South Devon anchor. Naval college ceremonies. River Dart views." },
-  { id: "salcombe", regionSlug: "devon", countrySlug: "uk", slug: "salcombe", name: "Salcombe", listingCount: 1, lat: "50.2386", lng: "-3.7700", description: "The Chelsea-on-Sea of Devon, sheltered estuary, sandy coves and sailing luxury.", focusKeywords: ["salcombe wedding venue"], aiSummary: "Affluent sailing town. Estuary venues. Beach cove ceremonies." },
-  { id: "falmouth", regionSlug: "cornwall", countrySlug: "uk", slug: "falmouth", name: "Falmouth", listingCount: 1, lat: "50.1522", lng: "-5.0710", description: "Cornwall's maritime capital, Pendennis Castle, deep-water harbour and sub-tropical gardens.", focusKeywords: ["falmouth wedding venue"], aiSummary: "Pendennis Castle ceremonies. Sub-tropical Trebah Gardens. Maritime charm." },
+  { id: "st-ives", regionSlug: "cornwall", countrySlug: "england", slug: "st-ives", name: "St Ives", listingCount: 1, lat: "50.2111", lng: "-5.4806", description: "Tate gallery town, turquoise harbour, golden beaches and artists' studios.", focusKeywords: ["st ives wedding venue"], aiSummary: "Artistic coastal charm. Tate St Ives association. Beach ceremonies." },
+  { id: "padstow", regionSlug: "cornwall", countrySlug: "england", slug: "padstow", name: "Padstow & Rock", listingCount: 1, lat: "50.5409", lng: "-4.9373", description: "Rick Stein's fishing village, the Camel estuary and Daymer Bay's golden sands.", focusKeywords: ["padstow wedding venue", "cornwall coast wedding"], aiSummary: "Foodie destination. Camel estuary venues. North Cornwall coast." },
+  { id: "dartmouth", regionSlug: "devon", countrySlug: "england", slug: "dartmouth", name: "Dartmouth", listingCount: 1, lat: "50.3512", lng: "-3.5789", description: "Naval college, Dart estuary and the South Devon coast's most glamorous harbour town.", focusKeywords: ["dartmouth wedding venue"], aiSummary: "South Devon anchor. Naval college ceremonies. River Dart views." },
+  { id: "salcombe", regionSlug: "devon", countrySlug: "england", slug: "salcombe", name: "Salcombe", listingCount: 1, lat: "50.2386", lng: "-3.7700", description: "The Chelsea-on-Sea of Devon, sheltered estuary, sandy coves and sailing luxury.", focusKeywords: ["salcombe wedding venue"], aiSummary: "Affluent sailing town. Estuary venues. Beach cove ceremonies." },
+  { id: "falmouth", regionSlug: "cornwall", countrySlug: "england", slug: "falmouth", name: "Falmouth", listingCount: 1, lat: "50.1522", lng: "-5.0710", description: "Cornwall's maritime capital, Pendennis Castle, deep-water harbour and sub-tropical gardens.", focusKeywords: ["falmouth wedding venue"], aiSummary: "Pendennis Castle ceremonies. Sub-tropical Trebah Gardens. Maritime charm." },
 
   // ── UK, Kent ────────────────────────────────────────────────────────
-  { id: "canterbury", regionSlug: "kent", countrySlug: "uk", slug: "canterbury", name: "Canterbury", listingCount: 1, lat: "51.2802", lng: "1.0789", description: "Cathedral city of pilgrimage, UNESCO World Heritage and medieval close grandeur.", focusKeywords: ["canterbury wedding venue", "canterbury cathedral wedding"], aiSummary: "Cathedral ceremonies prestigious. UNESCO heritage. Medieval city charm." },
-  { id: "tunbridge-wells", regionSlug: "kent", countrySlug: "uk", slug: "tunbridge-wells", name: "Tunbridge Wells", listingCount: 1, lat: "51.1320", lng: "0.2637", description: "Regency spa town elegance and the surrounding High Weald countryside estates.", focusKeywords: ["tunbridge wells wedding venue"], aiSummary: "Spa town elegance. High Weald country houses. London commuter premium." },
+  { id: "canterbury", regionSlug: "kent", countrySlug: "england", slug: "canterbury", name: "Canterbury", listingCount: 1, lat: "51.2802", lng: "1.0789", description: "Cathedral city of pilgrimage, UNESCO World Heritage and medieval close grandeur.", focusKeywords: ["canterbury wedding venue", "canterbury cathedral wedding"], aiSummary: "Cathedral ceremonies prestigious. UNESCO heritage. Medieval city charm." },
+  { id: "tunbridge-wells", regionSlug: "kent", countrySlug: "england", slug: "tunbridge-wells", name: "Tunbridge Wells", listingCount: 1, lat: "51.1320", lng: "0.2637", description: "Regency spa town elegance and the surrounding High Weald countryside estates.", focusKeywords: ["tunbridge wells wedding venue"], aiSummary: "Spa town elegance. High Weald country houses. London commuter premium." },
 
   // ── UK, Sussex ──────────────────────────────────────────────────────
-  { id: "brighton", regionSlug: "sussex", countrySlug: "uk", slug: "brighton", name: "Brighton", listingCount: 2, lat: "50.8225", lng: "-0.1372", description: "Regency seaside glamour, the Royal Pavilion, Lanes and cosmopolitan beach culture.", focusKeywords: ["brighton wedding venue", "brighton pavilion wedding"], aiSummary: "Royal Pavilion iconic. Bohemian-chic market. Beach and urban combined." },
-  { id: "chichester", regionSlug: "sussex", countrySlug: "uk", slug: "chichester", name: "Chichester & Goodwood", listingCount: 1, lat: "50.8365", lng: "-0.7792", description: "Goodwood House, Chichester Cathedral and the South Downs rolling chalk hills.", focusKeywords: ["chichester wedding venue", "goodwood wedding"], aiSummary: "Goodwood estate anchor. South Downs backdrop. Cathedral city." },
-  { id: "arundel", regionSlug: "sussex", countrySlug: "uk", slug: "arundel", name: "Arundel", listingCount: 1, lat: "50.8556", lng: "-0.5539", description: "Fairy-tale castle silhouette, the Arun valley and quintessential English countryside.", focusKeywords: ["arundel castle wedding"], aiSummary: "Arundel Castle ceremonies dramatic. English countryside quintessence." },
+  { id: "brighton", regionSlug: "sussex", countrySlug: "england", slug: "brighton", name: "Brighton", listingCount: 2, lat: "50.8225", lng: "-0.1372", description: "Regency seaside glamour, the Royal Pavilion, Lanes and cosmopolitan beach culture.", focusKeywords: ["brighton wedding venue", "brighton pavilion wedding"], aiSummary: "Royal Pavilion iconic. Bohemian-chic market. Beach and urban combined." },
+  { id: "chichester", regionSlug: "sussex", countrySlug: "england", slug: "chichester", name: "Chichester & Goodwood", listingCount: 1, lat: "50.8365", lng: "-0.7792", description: "Goodwood House, Chichester Cathedral and the South Downs rolling chalk hills.", focusKeywords: ["chichester wedding venue", "goodwood wedding"], aiSummary: "Goodwood estate anchor. South Downs backdrop. Cathedral city." },
+  { id: "arundel", regionSlug: "sussex", countrySlug: "england", slug: "arundel", name: "Arundel", listingCount: 1, lat: "50.8556", lng: "-0.5539", description: "Fairy-tale castle silhouette, the Arun valley and quintessential English countryside.", focusKeywords: ["arundel castle wedding"], aiSummary: "Arundel Castle ceremonies dramatic. English countryside quintessence." },
 
   // ── UK, Norfolk & Suffolk (split) ───────────────────────────────────────────
-  { id: "burnham-market", regionSlug: "norfolk", countrySlug: "uk", slug: "burnham-market", name: "Burnham Market", listingCount: 1, lat: "52.9441", lng: "0.7370", description: "Chelsea-on-Sea of Norfolk, Holkham beach, salt marshes and affluent village charm.", focusKeywords: ["burnham market wedding venue", "norfolk coast wedding"], aiSummary: "Holkham Hall anchor. North Norfolk coast. Affluent local market." },
-  { id: "norwich", regionSlug: "norfolk", countrySlug: "uk", slug: "norwich", name: "Norwich", listingCount: 1, lat: "52.6309", lng: "1.2974", description: "Medieval cathedral city, Norwich Castle, the Broads and a thriving arts scene.", focusKeywords: ["norwich wedding venue"], aiSummary: "Cathedral city. Norfolk Broads waterway ceremonies. Arts community." },
-  { id: "aldeburgh-southwold", regionSlug: "suffolk", countrySlug: "uk", slug: "aldeburgh", name: "Aldeburgh & Southwold", listingCount: 1, lat: "52.1534", lng: "1.6015", description: "Suffolk's Heritage Coast, Snape Maltings, Aldeburgh beach and genteel Southwold.", focusKeywords: ["suffolk wedding venue", "aldeburgh wedding"], aiSummary: "Snape Maltings concert hall venue unique. Heritage Coast beauty. Refined market." },
+  { id: "burnham-market", regionSlug: "norfolk", countrySlug: "england", slug: "burnham-market", name: "Burnham Market", listingCount: 1, lat: "52.9441", lng: "0.7370", description: "Chelsea-on-Sea of Norfolk, Holkham beach, salt marshes and affluent village charm.", focusKeywords: ["burnham market wedding venue", "norfolk coast wedding"], aiSummary: "Holkham Hall anchor. North Norfolk coast. Affluent local market." },
+  { id: "norwich", regionSlug: "norfolk", countrySlug: "england", slug: "norwich", name: "Norwich", listingCount: 1, lat: "52.6309", lng: "1.2974", description: "Medieval cathedral city, Norwich Castle, the Broads and a thriving arts scene.", focusKeywords: ["norwich wedding venue"], aiSummary: "Cathedral city. Norfolk Broads waterway ceremonies. Arts community." },
+  { id: "aldeburgh-southwold", regionSlug: "suffolk", countrySlug: "england", slug: "aldeburgh", name: "Aldeburgh & Southwold", listingCount: 1, lat: "52.1534", lng: "1.6015", description: "Suffolk's Heritage Coast, Snape Maltings, Aldeburgh beach and genteel Southwold.", focusKeywords: ["suffolk wedding venue", "aldeburgh wedding"], aiSummary: "Snape Maltings concert hall venue unique. Heritage Coast beauty. Refined market." },
 
   // ── UK, Yorkshire ───────────────────────────────────────────────────
-  { id: "york", regionSlug: "yorkshire", countrySlug: "uk", slug: "york", name: "York", listingCount: 2, lat: "53.9600", lng: "-1.0873", description: "York Minster grandeur, medieval Shambles and the historic Treasurer's House.", focusKeywords: ["york wedding venue", "york minster wedding"], aiSummary: "York Minster ceremonies iconic. Medieval city backdrop. Strong northern hub." },
-  { id: "harrogate", regionSlug: "yorkshire", countrySlug: "uk", slug: "harrogate", name: "Harrogate", listingCount: 1, lat: "53.9921", lng: "-1.5418", description: "Victorian spa town, the Stray's elegant crescents and the Yorkshire Dales on the doorstep.", focusKeywords: ["harrogate wedding venue"], aiSummary: "Spa town elegance. Gateway to Yorkshire Dales. Strong spa-hotel market." },
-  { id: "helmsley", regionSlug: "yorkshire", countrySlug: "uk", slug: "helmsley", name: "Helmsley & Castle Howard", listingCount: 1, lat: "54.2461", lng: "-1.0601", description: "Castle Howard's Baroque magnificence and the picturesque market town beneath the North York Moors.", focusKeywords: ["castle howard wedding", "helmsley wedding venue"], aiSummary: "Castle Howard Brideshead association. North York Moors setting. Ultra-luxury." },
+  { id: "york", regionSlug: "yorkshire", countrySlug: "england", slug: "york", name: "York", listingCount: 2, lat: "53.9600", lng: "-1.0873", description: "York Minster grandeur, medieval Shambles and the historic Treasurer's House.", focusKeywords: ["york wedding venue", "york minster wedding"], aiSummary: "York Minster ceremonies iconic. Medieval city backdrop. Strong northern hub." },
+  { id: "harrogate", regionSlug: "yorkshire", countrySlug: "england", slug: "harrogate", name: "Harrogate", listingCount: 1, lat: "53.9921", lng: "-1.5418", description: "Victorian spa town, the Stray's elegant crescents and the Yorkshire Dales on the doorstep.", focusKeywords: ["harrogate wedding venue"], aiSummary: "Spa town elegance. Gateway to Yorkshire Dales. Strong spa-hotel market." },
+  { id: "helmsley", regionSlug: "yorkshire", countrySlug: "england", slug: "helmsley", name: "Helmsley & Castle Howard", listingCount: 1, lat: "54.2461", lng: "-1.0601", description: "Castle Howard's Baroque magnificence and the picturesque market town beneath the North York Moors.", focusKeywords: ["castle howard wedding", "helmsley wedding venue"], aiSummary: "Castle Howard Brideshead association. North York Moors setting. Ultra-luxury." },
 
   // ── UK, Oxfordshire ─────────────────────────────────────────────────
-  { id: "oxford", regionSlug: "oxfordshire", countrySlug: "uk", slug: "oxford", name: "Oxford", listingCount: 2, lat: "51.7520", lng: "-1.2577", description: "Dreaming spires, Bodleian Library, college quads and the Radcliffe Camera's rotunda.", focusKeywords: ["oxford wedding venue", "oxford college wedding"], aiSummary: "College venue weddings unique globally. Bodleian and Ashmolean. Academic prestige." },
-  { id: "henley", regionSlug: "oxfordshire", countrySlug: "uk", slug: "henley-on-thames", name: "Henley-on-Thames", listingCount: 1, lat: "51.5360", lng: "-0.9027", description: "Royal Regatta town, Thames-side marquees, Georgian bridges and country house hotels.", focusKeywords: ["henley wedding venue", "henley regatta wedding"], aiSummary: "Regatta association. Thames-side venues. Summer peak. Affluent market." },
-  { id: "woodstock", regionSlug: "oxfordshire", countrySlug: "uk", slug: "woodstock", name: "Woodstock & Blenheim", listingCount: 1, lat: "51.8472", lng: "-1.3534", description: "Blenheim Palace, Churchill's birthplace and England's grandest Baroque country house.", focusKeywords: ["blenheim palace wedding", "woodstock wedding venue"], aiSummary: "Blenheim Palace single-handedly dominates. England's most prestigious wedding venue." },
+  { id: "oxford", regionSlug: "oxfordshire", countrySlug: "england", slug: "oxford", name: "Oxford", listingCount: 2, lat: "51.7520", lng: "-1.2577", description: "Dreaming spires, Bodleian Library, college quads and the Radcliffe Camera's rotunda.", focusKeywords: ["oxford wedding venue", "oxford college wedding"], aiSummary: "College venue weddings unique globally. Bodleian and Ashmolean. Academic prestige." },
+  { id: "henley", regionSlug: "oxfordshire", countrySlug: "england", slug: "henley-on-thames", name: "Henley-on-Thames", listingCount: 1, lat: "51.5360", lng: "-0.9027", description: "Royal Regatta town, Thames-side marquees, Georgian bridges and country house hotels.", focusKeywords: ["henley wedding venue", "henley regatta wedding"], aiSummary: "Regatta association. Thames-side venues. Summer peak. Affluent market." },
+  { id: "woodstock", regionSlug: "oxfordshire", countrySlug: "england", slug: "woodstock", name: "Woodstock & Blenheim", listingCount: 1, lat: "51.8472", lng: "-1.3534", description: "Blenheim Palace, Churchill's birthplace and England's grandest Baroque country house.", focusKeywords: ["blenheim palace wedding", "woodstock wedding venue"], aiSummary: "Blenheim Palace single-handedly dominates. England's most prestigious wedding venue." },
 
   // ── UK, Somerset & Bath (split) ──────────────────────────────────────────────
-  { id: "bath", regionSlug: "bath-region", countrySlug: "uk", slug: "bath", name: "Bath", listingCount: 2, lat: "51.3811", lng: "-2.3590", description: "Georgian crescents, Roman baths and the Thermae Spa, England's most beautiful city.", focusKeywords: ["bath wedding venue", "bath spa wedding"], aiSummary: "Georgian architecture unmatched. Assembly Rooms and Royal Crescent. Spa integration." },
-  { id: "bruton", regionSlug: "somerset", countrySlug: "uk", slug: "bruton", name: "Bruton & Frome", listingCount: 1, lat: "51.1105", lng: "-2.4498", description: "Somerset's creative heart, Hauser & Wirth gallery, Babington House and artisan culture.", focusKeywords: ["bruton wedding venue", "babington house wedding"], aiSummary: "Babington House Soho House effect. Creative luxury. Gallery culture." },
+  { id: "bath", regionSlug: "bath-region", countrySlug: "england", slug: "bath", name: "Bath", listingCount: 2, lat: "51.3811", lng: "-2.3590", description: "Georgian crescents, Roman baths and the Thermae Spa, England's most beautiful city.", focusKeywords: ["bath wedding venue", "bath spa wedding"], aiSummary: "Georgian architecture unmatched. Assembly Rooms and Royal Crescent. Spa integration." },
+  { id: "bruton", regionSlug: "somerset", countrySlug: "england", slug: "bruton", name: "Bruton & Frome", listingCount: 1, lat: "51.1105", lng: "-2.4498", description: "Somerset's creative heart, Hauser & Wirth gallery, Babington House and artisan culture.", focusKeywords: ["bruton wedding venue", "babington house wedding"], aiSummary: "Babington House Soho House effect. Creative luxury. Gallery culture." },
 
   // ── UK, Cheshire ─────────────────────────────────────────────────────
-  { id: "chester", regionSlug: "cheshire", countrySlug: "uk", slug: "chester", name: "Chester", listingCount: 1, lat: "53.1905", lng: "-2.8911", description: "Roman city walls, Tudor Rows and the Chester Grosvenor's five-star grandeur.", focusKeywords: ["chester wedding venue"], aiSummary: "Roman-Tudor heritage. Chester Grosvenor anchor. Northwest city hub." },
-  { id: "knutsford", regionSlug: "cheshire", countrySlug: "uk", slug: "knutsford", name: "Knutsford & Tatton", listingCount: 1, lat: "53.3021", lng: "-2.3735", description: "Tatton Park's deer park, Knutsford's antique charm and the Cheshire Golden Triangle.", focusKeywords: ["tatton park wedding", "knutsford wedding venue"], aiSummary: "Tatton Park ceremonies. Golden Triangle affluence. Northwest premium." },
+  { id: "chester", regionSlug: "cheshire", countrySlug: "england", slug: "chester", name: "Chester", listingCount: 1, lat: "53.1905", lng: "-2.8911", description: "Roman city walls, Tudor Rows and the Chester Grosvenor's five-star grandeur.", focusKeywords: ["chester wedding venue"], aiSummary: "Roman-Tudor heritage. Chester Grosvenor anchor. Northwest city hub." },
+  { id: "knutsford", regionSlug: "cheshire", countrySlug: "scotland", slug: "knutsford", name: "Knutsford & Tatton", listingCount: 1, lat: "53.3021", lng: "-2.3735", description: "Tatton Park's deer park, Knutsford's antique charm and the Cheshire Golden Triangle.", focusKeywords: ["tatton park wedding", "knutsford wedding venue"], aiSummary: "Tatton Park ceremonies. Golden Triangle affluence. Northwest premium." },
 
-  { id: "edinburgh-old-town", regionSlug: "scotland", countrySlug: "uk", slug: "edinburgh-old-town", name: "Edinburgh Old Town", listingCount: 2, lat: "55.9502", lng: "-3.1901", description: "Castle esplanade, the Royal Mile and the medieval close network beneath Arthur's Seat.", focusKeywords: ["edinburgh castle wedding", "royal mile wedding venue"], aiSummary: "Castle esplanade ceremonies. Royal Mile venues. Medieval atmosphere." },
-  { id: "leith", regionSlug: "scotland", countrySlug: "uk", slug: "leith", name: "Leith & Newhaven", listingCount: 1, lat: "55.9769", lng: "-3.1705", description: "Edinburgh's waterfront renaissance, the Royal Yacht Britannia and converted warehouse spaces.", focusKeywords: ["leith wedding venue", "royal yacht britannia wedding"], aiSummary: "Royal Yacht Britannia unique. Waterfront warehouse conversions. Maritime charm." },
+  { id: "edinburgh-old-town", regionSlug: "scotland", countrySlug: "scotland", slug: "edinburgh-old-town", name: "Edinburgh Old Town", listingCount: 2, lat: "55.9502", lng: "-3.1901", description: "Castle esplanade, the Royal Mile and the medieval close network beneath Arthur's Seat.", focusKeywords: ["edinburgh castle wedding", "royal mile wedding venue"], aiSummary: "Castle esplanade ceremonies. Royal Mile venues. Medieval atmosphere." },
+  { id: "leith", regionSlug: "scotland", countrySlug: "scotland", slug: "leith", name: "Leith & Newhaven", listingCount: 1, lat: "55.9769", lng: "-3.1705", description: "Edinburgh's waterfront renaissance, the Royal Yacht Britannia and converted warehouse spaces.", focusKeywords: ["leith wedding venue", "royal yacht britannia wedding"], aiSummary: "Royal Yacht Britannia unique. Waterfront warehouse conversions. Maritime charm." },
 
-  { id: "inverness", regionSlug: "scotland", countrySlug: "uk", slug: "inverness", name: "Inverness & Loch Ness", listingCount: 1, lat: "57.4778", lng: "-4.2247", description: "Capital of the Highlands, Loch Ness mystery, Culloden battlefield and castle estates.", focusKeywords: ["inverness wedding venue", "loch ness wedding"], aiSummary: "Highland capital. Loch Ness tourism crossover. Castle estate venues." },
-  { id: "skye", regionSlug: "scotland", countrySlug: "uk", slug: "isle-of-skye", name: "Isle of Skye", listingCount: 1, lat: "57.2740", lng: "-6.2156", description: "Cuillin mountain drama, fairy pools and the most photographed landscapes in Scotland.", focusKeywords: ["isle of skye wedding", "skye elopement"], aiSummary: "Elopement paradise. Fairy Pools ceremonies. Most Instagrammed Scottish location." },
+  { id: "inverness", regionSlug: "scotland", countrySlug: "scotland", slug: "inverness", name: "Inverness & Loch Ness", listingCount: 1, lat: "57.4778", lng: "-4.2247", description: "Capital of the Highlands, Loch Ness mystery, Culloden battlefield and castle estates.", focusKeywords: ["inverness wedding venue", "loch ness wedding"], aiSummary: "Highland capital. Loch Ness tourism crossover. Castle estate venues." },
+  { id: "skye", regionSlug: "scotland", countrySlug: "scotland", slug: "isle-of-skye", name: "Isle of Skye", listingCount: 1, lat: "57.2740", lng: "-6.2156", description: "Cuillin mountain drama, fairy pools and the most photographed landscapes in Scotland.", focusKeywords: ["isle of skye wedding", "skye elopement"], aiSummary: "Elopement paradise. Fairy Pools ceremonies. Most Instagrammed Scottish location." },
 
-  { id: "gleneagles", regionSlug: "scotland", countrySlug: "uk", slug: "gleneagles", name: "Gleneagles", listingCount: 1, lat: "56.2844", lng: "-3.7489", description: "Scotland's grandest resort, championship golf, falconry and Highland estate luxury.", focusKeywords: ["gleneagles wedding"], aiSummary: "Single-resort destination. Scotland's most prestigious. Ultra-premium." },
+  { id: "gleneagles", regionSlug: "scotland", countrySlug: "scotland", slug: "gleneagles", name: "Gleneagles", listingCount: 1, lat: "56.2844", lng: "-3.7489", description: "Scotland's grandest resort, championship golf, falconry and Highland estate luxury.", focusKeywords: ["gleneagles wedding"], aiSummary: "Single-resort destination. Scotland's most prestigious. Ultra-premium." },
 
   // ── UK > Scotland ──────────────────────────────────────────────────
-  { id: "city-edinburgh", regionSlug: "scotland", countrySlug: "uk", slug: "edinburgh", name: "Edinburgh", listingCount: 4, lat: "55.9533", lng: "-3.1883", description: "Castle skyline, Georgian New Town grandeur, Calton Hill panoramas and Scotland's cultural capital.", focusKeywords: ["edinburgh wedding venue", "edinburgh castle wedding"], aiSummary: "Scotland's urban luxury hub. Castle and hotel venues dominate. Strong international draw." },
-  { id: "city-glasgow", regionSlug: "scotland", countrySlug: "uk", slug: "glasgow", name: "Glasgow", listingCount: 2, lat: "55.8642", lng: "-4.2518", description: "Charles Rennie Mackintosh architecture, Kelvingrove grandeur and Scotland's creative powerhouse.", focusKeywords: ["glasgow wedding venue"], aiSummary: "Creative-industrial venue scene. Mackintosh architectural heritage. Scotland's largest city." },
-  { id: "city-scottish-highlands", regionSlug: "scotland", countrySlug: "uk", slug: "scottish-highlands", name: "Scottish Highlands", listingCount: 3, lat: "57.1200", lng: "-4.7100", description: "Castle estates, lochs and dramatic mountain scenery, epic celebrations in Britain's last wilderness.", focusKeywords: ["highland castle wedding", "scottish highland wedding"], aiSummary: "Castle weddings drive demand. Strong international interest. Elopement paradise. Seasonal May-September." },
-  { id: "city-fife", regionSlug: "scotland", countrySlug: "uk", slug: "fife", name: "Fife", listingCount: 1, lat: "56.2082", lng: "-3.1495", description: "The Kingdom of Fife, St Andrews links, East Neuk fishing villages and Falkland Palace.", focusKeywords: ["fife wedding venue", "st andrews wedding"], aiSummary: "St Andrews anchor. East Neuk coastal charm. Royal associations." },
-  { id: "city-perthshire", regionSlug: "scotland", countrySlug: "uk", slug: "perthshire", name: "Perthshire", listingCount: 3, lat: "56.4000", lng: "-3.4300", description: "Gleneagles resort, Highland Perthshire lochs and the ancient cathedral city of Dunkeld.", focusKeywords: ["perthshire wedding venue", "gleneagles wedding"], aiSummary: "Gleneagles anchors ultra-luxury. Bridge between Lowlands and Highlands." },
-  { id: "city-aberdeenshire", regionSlug: "scotland", countrySlug: "uk", slug: "aberdeenshire", name: "Aberdeenshire", listingCount: 2, lat: "57.1500", lng: "-2.1100", description: "Balmoral's Royal Deeside, Cairngorms granite mountains and Northeast Scotland's castle trail.", focusKeywords: ["aberdeenshire castle wedding"], aiSummary: "Castle trail concentration. Balmoral association. Intimate and exclusive." },
-  { id: "city-angus", regionSlug: "scotland", countrySlug: "uk", slug: "angus", name: "Angus", listingCount: 1, lat: "56.7300", lng: "-2.9200", description: "Glamis Castle birthplace of legends, rolling farmland and the Angus Glens.", focusKeywords: ["angus wedding venue"], aiSummary: "Glamis Castle anchor. Rural Scottish charm." },
-  { id: "city-argyll", regionSlug: "scotland", countrySlug: "uk", slug: "argyll", name: "Argyll", listingCount: 1, lat: "56.2500", lng: "-5.2500", description: "West coast sea lochs, Inveraray Castle and the islands of Mull and Iona.", focusKeywords: ["argyll wedding venue"], aiSummary: "West coast beauty. Inveraray Castle. Island ceremonies." },
-  { id: "city-ayrshire", regionSlug: "scotland", countrySlug: "uk", slug: "ayrshire", name: "Ayrshire", listingCount: 1, lat: "55.4600", lng: "-4.6300", description: "Burns country, Turnberry resort and the Ayrshire coast's links golf heritage.", focusKeywords: ["ayrshire wedding venue"], aiSummary: "Turnberry resort. Burns heritage. Coastal links setting." },
-  { id: "city-dumfriesshire", regionSlug: "scotland", countrySlug: "uk", slug: "dumfriesshire", name: "Dumfriesshire", listingCount: 1, lat: "55.0700", lng: "-3.6100", description: "Gretna Green's romantic legacy, Drumlanrig Castle and the Scottish Borders countryside.", focusKeywords: ["gretna green wedding"], aiSummary: "Gretna Green elopement capital. Drumlanrig Castle. Borders romance." },
-  { id: "city-east-lothian", regionSlug: "scotland", countrySlug: "uk", slug: "east-lothian", name: "East Lothian", listingCount: 1, lat: "55.9500", lng: "-2.7700", description: "Golden beaches, golf links and country estates just east of Edinburgh.", focusKeywords: ["east lothian wedding venue"], aiSummary: "Edinburgh overflow. Archerfield and golf estates." },
-  { id: "city-west-lothian", regionSlug: "scotland", countrySlug: "uk", slug: "west-lothian", name: "West Lothian", listingCount: 1, lat: "55.9100", lng: "-3.5500", description: "Hopetoun House grandeur and Linlithgow Palace's royal heritage.", focusKeywords: ["west lothian wedding venue"], aiSummary: "Hopetoun House anchor. Royal palace heritage. Edinburgh adjacent." },
+  { id: "city-edinburgh", regionSlug: "scotland", countrySlug: "scotland", slug: "edinburgh", name: "Edinburgh", listingCount: 4, lat: "55.9533", lng: "-3.1883", description: "Castle skyline, Georgian New Town grandeur, Calton Hill panoramas and Scotland's cultural capital.", focusKeywords: ["edinburgh wedding venue", "edinburgh castle wedding"], aiSummary: "Scotland's urban luxury hub. Castle and hotel venues dominate. Strong international draw." },
+  { id: "city-glasgow", regionSlug: "scotland", countrySlug: "scotland", slug: "glasgow", name: "Glasgow", listingCount: 2, lat: "55.8642", lng: "-4.2518", description: "Charles Rennie Mackintosh architecture, Kelvingrove grandeur and Scotland's creative powerhouse.", focusKeywords: ["glasgow wedding venue"], aiSummary: "Creative-industrial venue scene. Mackintosh architectural heritage. Scotland's largest city." },
+  { id: "city-scottish-highlands", regionSlug: "scotland", countrySlug: "scotland", slug: "scottish-highlands", name: "Scottish Highlands", listingCount: 3, lat: "57.1200", lng: "-4.7100", description: "Castle estates, lochs and dramatic mountain scenery, epic celebrations in Britain's last wilderness.", focusKeywords: ["highland castle wedding", "scottish highland wedding"], aiSummary: "Castle weddings drive demand. Strong international interest. Elopement paradise. Seasonal May-September." },
+  { id: "city-fife", regionSlug: "scotland", countrySlug: "scotland", slug: "fife", name: "Fife", listingCount: 1, lat: "56.2082", lng: "-3.1495", description: "The Kingdom of Fife, St Andrews links, East Neuk fishing villages and Falkland Palace.", focusKeywords: ["fife wedding venue", "st andrews wedding"], aiSummary: "St Andrews anchor. East Neuk coastal charm. Royal associations." },
+  { id: "city-perthshire", regionSlug: "scotland", countrySlug: "scotland", slug: "perthshire", name: "Perthshire", listingCount: 3, lat: "56.4000", lng: "-3.4300", description: "Gleneagles resort, Highland Perthshire lochs and the ancient cathedral city of Dunkeld.", focusKeywords: ["perthshire wedding venue", "gleneagles wedding"], aiSummary: "Gleneagles anchors ultra-luxury. Bridge between Lowlands and Highlands." },
+  { id: "city-aberdeenshire", regionSlug: "scotland", countrySlug: "scotland", slug: "aberdeenshire", name: "Aberdeenshire", listingCount: 2, lat: "57.1500", lng: "-2.1100", description: "Balmoral's Royal Deeside, Cairngorms granite mountains and Northeast Scotland's castle trail.", focusKeywords: ["aberdeenshire castle wedding"], aiSummary: "Castle trail concentration. Balmoral association. Intimate and exclusive." },
+  { id: "city-angus", regionSlug: "scotland", countrySlug: "scotland", slug: "angus", name: "Angus", listingCount: 1, lat: "56.7300", lng: "-2.9200", description: "Glamis Castle birthplace of legends, rolling farmland and the Angus Glens.", focusKeywords: ["angus wedding venue"], aiSummary: "Glamis Castle anchor. Rural Scottish charm." },
+  { id: "city-argyll", regionSlug: "scotland", countrySlug: "scotland", slug: "argyll", name: "Argyll", listingCount: 1, lat: "56.2500", lng: "-5.2500", description: "West coast sea lochs, Inveraray Castle and the islands of Mull and Iona.", focusKeywords: ["argyll wedding venue"], aiSummary: "West coast beauty. Inveraray Castle. Island ceremonies." },
+  { id: "city-ayrshire", regionSlug: "scotland", countrySlug: "scotland", slug: "ayrshire", name: "Ayrshire", listingCount: 1, lat: "55.4600", lng: "-4.6300", description: "Burns country, Turnberry resort and the Ayrshire coast's links golf heritage.", focusKeywords: ["ayrshire wedding venue"], aiSummary: "Turnberry resort. Burns heritage. Coastal links setting." },
+  { id: "city-dumfriesshire", regionSlug: "scotland", countrySlug: "scotland", slug: "dumfriesshire", name: "Dumfriesshire", listingCount: 1, lat: "55.0700", lng: "-3.6100", description: "Gretna Green's romantic legacy, Drumlanrig Castle and the Scottish Borders countryside.", focusKeywords: ["gretna green wedding"], aiSummary: "Gretna Green elopement capital. Drumlanrig Castle. Borders romance." },
+  { id: "city-east-lothian", regionSlug: "scotland", countrySlug: "scotland", slug: "east-lothian", name: "East Lothian", listingCount: 1, lat: "55.9500", lng: "-2.7700", description: "Golden beaches, golf links and country estates just east of Edinburgh.", focusKeywords: ["east lothian wedding venue"], aiSummary: "Edinburgh overflow. Archerfield and golf estates." },
+  { id: "city-west-lothian", regionSlug: "scotland", countrySlug: "scotland", slug: "west-lothian", name: "West Lothian", listingCount: 1, lat: "55.9100", lng: "-3.5500", description: "Hopetoun House grandeur and Linlithgow Palace's royal heritage.", focusKeywords: ["west lothian wedding venue"], aiSummary: "Hopetoun House anchor. Royal palace heritage. Edinburgh adjacent." },
 
   // ── UK > Wales ─────────────────────────────────────────────────────
-  { id: "city-pembrokeshire", regionSlug: "wales", countrySlug: "uk", slug: "pembrokeshire", name: "Pembrokeshire", listingCount: 2, lat: "51.8000", lng: "-4.9700", description: "The Pembrokeshire Coast National Park, Tenby's pastel harbour and golden beach coves.", focusKeywords: ["pembrokeshire wedding venue"], aiSummary: "Coastal beauty. Tenby and coast lead. Growing destination appeal." },
-  { id: "city-cardiff", regionSlug: "wales", countrySlug: "uk", slug: "cardiff", name: "Cardiff", listingCount: 1, lat: "51.4816", lng: "-3.1791", description: "Cardiff Castle, the Millennium Centre and Wales's cosmopolitan capital.", focusKeywords: ["cardiff wedding venue"], aiSummary: "Welsh capital. Castle ceremonies. Urban-luxury hub." },
-  { id: "city-snowdonia", regionSlug: "wales", countrySlug: "uk", slug: "snowdonia", name: "Snowdonia", listingCount: 2, lat: "52.9200", lng: "-3.8900", description: "Mountain grandeur, Portmeirion's Italianate village and the castles of Edward I.", focusKeywords: ["snowdonia wedding venue", "portmeirion wedding"], aiSummary: "Portmeirion iconic. Castle weddings unique. Mountain photography." },
-  { id: "city-carmarthenshire", regionSlug: "wales", countrySlug: "uk", slug: "carmarthenshire", name: "Carmarthenshire", listingCount: 1, lat: "51.8500", lng: "-4.2900", description: "The Garden of Wales, Aberglasney Gardens, Dinefwr Park and the Towy Valley.", focusKeywords: ["carmarthenshire wedding venue"], aiSummary: "Garden of Wales. Rural estate weddings." },
-  { id: "city-powys", regionSlug: "wales", countrySlug: "uk", slug: "powys", name: "Powys", listingCount: 1, lat: "52.3000", lng: "-3.4500", description: "Mid-Wales countryside, Lake Vyrnwy and the Brecon Beacons mountain range.", focusKeywords: ["powys wedding venue"], aiSummary: "Brecon Beacons setting. Lake Vyrnwy romantic. Rural luxury." },
+  { id: "city-pembrokeshire", regionSlug: "wales", countrySlug: "wales", slug: "pembrokeshire", name: "Pembrokeshire", listingCount: 2, lat: "51.8000", lng: "-4.9700", description: "The Pembrokeshire Coast National Park, Tenby's pastel harbour and golden beach coves.", focusKeywords: ["pembrokeshire wedding venue"], aiSummary: "Coastal beauty. Tenby and coast lead. Growing destination appeal." },
+  { id: "city-cardiff", regionSlug: "wales", countrySlug: "wales", slug: "cardiff", name: "Cardiff", listingCount: 1, lat: "51.4816", lng: "-3.1791", description: "Cardiff Castle, the Millennium Centre and Wales's cosmopolitan capital.", focusKeywords: ["cardiff wedding venue"], aiSummary: "Welsh capital. Castle ceremonies. Urban-luxury hub." },
+  { id: "city-snowdonia", regionSlug: "wales", countrySlug: "wales", slug: "snowdonia", name: "Snowdonia", listingCount: 2, lat: "52.9200", lng: "-3.8900", description: "Mountain grandeur, Portmeirion's Italianate village and the castles of Edward I.", focusKeywords: ["snowdonia wedding venue", "portmeirion wedding"], aiSummary: "Portmeirion iconic. Castle weddings unique. Mountain photography." },
+  { id: "city-carmarthenshire", regionSlug: "wales", countrySlug: "wales", slug: "carmarthenshire", name: "Carmarthenshire", listingCount: 1, lat: "51.8500", lng: "-4.2900", description: "The Garden of Wales, Aberglasney Gardens, Dinefwr Park and the Towy Valley.", focusKeywords: ["carmarthenshire wedding venue"], aiSummary: "Garden of Wales. Rural estate weddings." },
+  { id: "city-powys", regionSlug: "wales", countrySlug: "wales", slug: "powys", name: "Powys", listingCount: 1, lat: "52.3000", lng: "-3.4500", description: "Mid-Wales countryside, Lake Vyrnwy and the Brecon Beacons mountain range.", focusKeywords: ["powys wedding venue"], aiSummary: "Brecon Beacons setting. Lake Vyrnwy romantic. Rural luxury." },
 
   // ── UK > Northern Ireland ──────────────────────────────────────────
-  { id: "city-antrim", regionSlug: "northern-ireland", countrySlug: "uk", slug: "antrim", name: "Antrim", listingCount: 2, lat: "54.7200", lng: "-6.2100", description: "Giant's Causeway, the dramatic Antrim Coast Road and Belfast's Titanic Quarter.", focusKeywords: ["antrim wedding venue", "belfast wedding"], aiSummary: "Giant's Causeway ceremonies iconic. Belfast modern venue cluster." },
+  { id: "city-antrim", regionSlug: "northern-ireland", countrySlug: "northern-ireland", slug: "antrim", name: "Antrim", listingCount: 2, lat: "54.7200", lng: "-6.2100", description: "Giant's Causeway, the dramatic Antrim Coast Road and Belfast's Titanic Quarter.", focusKeywords: ["antrim wedding venue", "belfast wedding"], aiSummary: "Giant's Causeway ceremonies iconic. Belfast modern venue cluster." },
 
   // ── UK > Channel Islands ───────────────────────────────────────────
-  { id: "city-jersey", regionSlug: "channel-islands", countrySlug: "uk", slug: "jersey", name: "Jersey", listingCount: 2, lat: "49.2144", lng: "-2.1312", description: "French-inflected Channel Island charm, granite manor houses and sheltered bays.", focusKeywords: ["jersey wedding venue"], aiSummary: "Boutique island destination. Tax-efficient. French-British blend." },
-  { id: "city-guernsey", regionSlug: "channel-islands", countrySlug: "uk", slug: "guernsey", name: "Guernsey", listingCount: 1, lat: "49.4548", lng: "-2.5383", description: "Victor Hugo's island of exile, dramatic cliffs, hidden coves and gentle island pace.", focusKeywords: ["guernsey wedding venue"], aiSummary: "Micro-destination. Intimate elopement market. Sark car-free unique." },
+  { id: "city-jersey", regionSlug: "channel-islands", countrySlug: "england", slug: "jersey", name: "Jersey", listingCount: 2, lat: "49.2144", lng: "-2.1312", description: "French-inflected Channel Island charm, granite manor houses and sheltered bays.", focusKeywords: ["jersey wedding venue"], aiSummary: "Boutique island destination. Tax-efficient. French-British blend." },
+  { id: "city-guernsey", regionSlug: "channel-islands", countrySlug: "england", slug: "guernsey", name: "Guernsey", listingCount: 1, lat: "49.4548", lng: "-2.5383", description: "Victor Hugo's island of exile, dramatic cliffs, hidden coves and gentle island pace.", focusKeywords: ["guernsey wedding venue"], aiSummary: "Micro-destination. Intimate elopement market. Sark car-free unique." },
 
   // ── Ireland, Dublin ──────────────────────────────────────────────────
   { id: "dublin-city", regionSlug: "dublin", countrySlug: "ireland", slug: "dublin", name: "Dublin", listingCount: 2, lat: "53.3498", lng: "-6.2603", description: "Georgian squares, Trinity College, the Shelbourne Hotel and Dublin Castle's State Apartments.", focusKeywords: ["dublin wedding venue", "dublin castle wedding"], aiSummary: "Ireland's urban luxury hub. Georgian hotel and castle venues. Year-round." },
@@ -1644,11 +1128,11 @@ const MOCK_LISTINGS = [
   { id: 1, name: "Villa Balbiano", slug: "villa-balbiano-lake-como", category: "wedding-venues", subCategory: "Country Houses", destination: "Italy", countrySlug: "italy", regionSlug: "lake-como", status: "Active", tier: "signature", lwdScore: 9.6, enquiries: 34, listed: "15 Jan 2025", lastUpdated: "27 Feb", expires: "15 Jan 2026" },
   { id: 2, name: "Château de Vaux", slug: "chateau-de-vaux-ile-de-france", category: "wedding-venues", subCategory: "Castles & Estates", destination: "France", countrySlug: "france", regionSlug: "paris-ile-de-france", status: "Active", tier: "signature", lwdScore: 9.4, enquiries: 28, listed: "10 Jan 2025", lastUpdated: "26 Feb", expires: "10 Jan 2026" },
   { id: 3, name: "Fiore Events", slug: "fiore-events-tuscany", category: "wedding-planners", subCategory: "Full Planning", destination: "Italy", countrySlug: "italy", regionSlug: "tuscany", status: "Active", tier: "curated", lwdScore: 9.2, enquiries: 19, listed: "20 Jan 2025", lastUpdated: "25 Feb", expires: "20 Jan 2026" },
-  { id: 4, name: "Coworth Park", slug: "coworth-park-berkshire", category: "wedding-venues", subCategory: "Hotel Venues", destination: "UK", countrySlug: "uk", regionSlug: "berkshire", status: "Active", tier: "signature", lwdScore: 9.5, enquiries: 41, listed: "05 Jan 2025", lastUpdated: "27 Feb", expires: "05 Jan 2026" },
+  { id: 4, name: "Coworth Park", slug: "coworth-park-berkshire", category: "wedding-venues", subCategory: "Hotel Venues", destination: "UK", countrySlug: "england", regionSlug: "berkshire", status: "Active", tier: "signature", lwdScore: 9.5, enquiries: 41, listed: "05 Jan 2025", lastUpdated: "27 Feb", expires: "05 Jan 2026" },
   { id: 5, name: "Lena Karelova", slug: "lena-karelova-barcelona", category: "photographers", subCategory: "Fine Art", destination: "Spain", countrySlug: "spain", regionSlug: "barcelona", status: "Active", tier: "curated", lwdScore: 9.1, enquiries: 16, listed: "25 Jan 2025", lastUpdated: "24 Feb", expires: "25 Jan 2026" },
-  { id: 6, name: "The Grand Pavilion", slug: "the-grand-pavilion-surrey", category: "wedding-venues", subCategory: "Country Houses", destination: "UK", countrySlug: "uk", regionSlug: "surrey", status: "Active", tier: "signature", lwdScore: 9.2, enquiries: 23, listed: "08 Jan 2025", lastUpdated: "27 Feb", expires: "08 Jan 2026" },
+  { id: 6, name: "The Grand Pavilion", slug: "the-grand-pavilion-surrey", category: "wedding-venues", subCategory: "Country Houses", destination: "UK", countrySlug: "england", regionSlug: "surrey", status: "Active", tier: "signature", lwdScore: 9.2, enquiries: 23, listed: "08 Jan 2025", lastUpdated: "27 Feb", expires: "08 Jan 2026" },
   { id: 7, name: "Putnam & Putnam", slug: "putnam-putnam-new-york", category: "florists", subCategory: "Luxury Floral Design", destination: "USA", countrySlug: "usa", regionSlug: "new-york", status: "Pending", tier: "curated", lwdScore: 8.8, enquiries: 8, listed: "18 Feb 2025", lastUpdated: "23 Feb", expires: "18 Feb 2026" },
-  { id: 8, name: "Aynhoe Park", slug: "aynhoe-park-oxfordshire", category: "wedding-venues", subCategory: "Country Houses", destination: "UK", countrySlug: "uk", regionSlug: "cotswolds", status: "Review", tier: "signature", lwdScore: 9.3, enquiries: 31, listed: "12 Jan 2025", lastUpdated: "26 Feb", expires: "12 Jan 2026" },
+  { id: 8, name: "Aynhoe Park", slug: "aynhoe-park-oxfordshire", category: "wedding-venues", subCategory: "Country Houses", destination: "UK", countrySlug: "england", regionSlug: "cotswolds", status: "Review", tier: "signature", lwdScore: 9.3, enquiries: 31, listed: "12 Jan 2025", lastUpdated: "26 Feb", expires: "12 Jan 2026" },
   { id: 9, name: "Soirée Events", slug: "soiree-events-provence", category: "wedding-planners", subCategory: "Destination Specialists", destination: "France", countrySlug: "france", regionSlug: "provence", status: "Active", tier: "curated", lwdScore: 8.9, enquiries: 12, listed: "22 Jan 2025", lastUpdated: "22 Feb", expires: "22 Jan 2026" },
   { id: 10, name: "Borgo Santo Pietro", slug: "borgo-santo-pietro-tuscany", category: "wedding-venues", subCategory: "Country Houses", destination: "Italy", countrySlug: "italy", regionSlug: "tuscany", status: "Paused", tier: "standard", lwdScore: 8.4, enquiries: 5, listed: "28 Dec 2024", lastUpdated: "18 Feb", expires: "28 Dec 2025" },
   { id: 11, name: "New Luxury Villa", slug: "new-luxury-villa-amalfi", category: "wedding-venues", subCategory: "Country Houses", destination: "Italy", countrySlug: "italy", regionSlug: "amalfi-coast", status: "Draft", tier: "platinum", lwdScore: 0, enquiries: 0, listed: "06 Mar 2025", lastUpdated: "06 Mar", expires: "06 Mar 2026" },
@@ -1741,15 +1225,39 @@ function CapacityBar({ filled, total, color, C }) {
 // Overview Module
 // ═════════════════════════════════════════════════════════════════════════════
 function OverviewModule({ C }) {
+  const [clickSummary, setClickSummary] = useState(null);
+  const [clickLoading, setClickLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchClickSummary(30).then(d => {
+      if (!cancelled) { setClickSummary(d); setClickLoading(false); }
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const clickValue = clickLoading ? "…" : clickSummary?.total != null
+    ? clickSummary.total >= 1000 ? `${(clickSummary.total / 1000).toFixed(1)}k` : String(clickSummary.total)
+    : "—";
+  const clickSub = clickSummary
+    ? `${clickSummary.summary?.website ?? 0} site · ${clickSummary.summary?.social ?? 0} social`
+    : "30 days";
+
+  const allStats = [
+    ...STATS,
+    { label: "Outbound Clicks (30d)", value: clickValue, sub: clickSub, accent: C.gold },
+  ];
+
   return (
     <div>
-      <div className="admin-stats-grid admin-grid-4col" style={{
-        display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20, marginBottom: 40,
+      <div className="admin-stats-grid" style={{
+        display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 20, marginBottom: 40,
       }}>
-        {STATS.map((s) => (
+        {allStats.map((s) => (
           <div key={s.label} style={{
             background: C.card, border: `1px solid ${C.border}`,
             borderRadius: 4, padding: "24px 20px",
+            borderTop: s.accent ? `3px solid ${s.accent}` : undefined,
           }}>
             <p style={{
               fontFamily: NU, fontSize: 10, letterSpacing: "0.2em",
@@ -5323,6 +4831,25 @@ const VENUE_PROFILES = [
     _static: true,
   },
   {
+    slug:       'intercontinental-london-park-lane',
+    name:       'InterContinental London Park Lane',
+    location:   'One Hamilton Place · Hyde Park Corner · London',
+    status:     'live',
+    heroImage:  '/InterContinental-Istanbul/1.jpg',
+    logo:       null,
+    previewUrl: '/showcase/intercontinental-london-park-lane',
+    stats:      [
+      { value: '447',      label: 'Rooms & Suites' },
+      { value: '5',        label: 'Event spaces' },
+      { value: '800',      label: 'Ballroom guests' },
+      { value: 'Michelin', label: 'Starred dining' },
+    ],
+    sections: ['Hero', 'Gallery', 'Overview', 'Rooms', 'Dining', 'Weddings', 'Enquire'],
+    lastUpdated: 'March 2026',
+    listingId:  null,
+    _static: true,
+  },
+  {
     slug:       'domaine-des-etangs-auberge-collection',
     name:       'Domaine des Etangs',
     location:   'Massignac · Charente · France',
@@ -5627,11 +5154,24 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
   const [editTarget, setEditTarget]             = useState(null);
   const [dbLoaded, setDbLoaded]                 = useState(false);
   const [saving, setSaving]                     = useState(false);
+  const [search, setSearch]                     = useState('');
+  const [statusFilter, setStatusFilter]         = useState('all');
+  const [deleteTarget, setDeleteTarget]         = useState(null);
+  const [deleting, setDeleting]                 = useState(false);
 
   const isVenues    = activeTab === 'venues';
   const profiles    = isVenues ? venueProfiles : plannerProfiles;
   const setProfiles = isVenues ? setVenueProfiles : setPlannerProfiles;
   const tab         = SHOWCASE_TABS.find(t => t.key === activeTab);
+
+  const filteredProfiles = profiles.filter(v => {
+    if (statusFilter !== 'all' && v.status !== statusFilter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!v.name?.toLowerCase().includes(q) && !v.location?.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
 
   // Load from Supabase on mount (both types at once)
   useEffect(() => {
@@ -5697,12 +5237,54 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
   };
 
   const openNew = () => {
-    setEditTarget(null);
-    setShowModal(true);
+    // Go straight to Studio — template picker appears on mount (showcaseId = null)
+    onNavigate && onNavigate('edit-showcase', { showcaseId: null });
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deleteShowcase(deleteTarget.id);
+      setProfiles(p => p.filter(v => v.id !== deleteTarget.id));
+    } catch (err) {
+      console.error('[ShowcaseAdmin] delete error:', err);
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
   };
 
   return (
     <div>
+      {/* Delete confirmation modal */}
+      {deleteTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: '32px 36px', maxWidth: 420, width: '90%' }}>
+            <p style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#ef4444', margin: '0 0 12px' }}>Delete Showcase</p>
+            <h3 style={{ fontFamily: GD, fontSize: 22, fontWeight: 400, color: C.off, margin: '0 0 10px' }}>{deleteTarget.name}</h3>
+            <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, margin: '0 0 28px', lineHeight: 1.6 }}>
+              This will permanently delete this showcase and cannot be undone. The associated listing will not be affected.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                style={{ flex: 1, background: 'none', border: `1px solid ${C.border2}`, color: C.grey, fontFamily: NU, fontSize: 12, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '10px 0', borderRadius: 4, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                style={{ flex: 1, background: '#ef4444', border: 'none', color: '#fff', fontFamily: NU, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '10px 0', borderRadius: 4, cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.6 : 1 }}
+              >
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showModal && (
         <NewShowcaseModal
           C={C}
@@ -5754,11 +5336,50 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
         ))}
       </div>
 
-      <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, margin: '-12px 0 24px', fontWeight: 300 }}>{tab.desc}</p>
+      <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, margin: '-12px 0 20px', fontWeight: 300 }}>{tab.desc}</p>
+
+      {/* Search + Filter bar */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 24, alignItems: 'center' }}>
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search by name or location…"
+          style={{
+            flex: 1, fontFamily: NU, fontSize: 13, color: C.off,
+            background: C.card, border: `1px solid ${C.border}`,
+            borderRadius: 4, padding: '9px 14px', outline: 'none',
+          }}
+        />
+        <select
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+          style={{
+            fontFamily: NU, fontSize: 12, color: C.off,
+            background: C.card, border: `1px solid ${C.border}`,
+            borderRadius: 4, padding: '9px 12px', cursor: 'pointer', outline: 'none',
+          }}
+        >
+          <option value="all">All statuses</option>
+          <option value="live">Live</option>
+          <option value="draft">Draft</option>
+        </select>
+        {(search || statusFilter !== 'all') && (
+          <button
+            onClick={() => { setSearch(''); setStatusFilter('all'); }}
+            style={{ fontFamily: NU, fontSize: 11, color: C.grey, background: 'none', border: `1px solid ${C.border}`, borderRadius: 4, padding: '9px 12px', cursor: 'pointer' }}
+          >
+            Clear
+          </button>
+        )}
+        <p style={{ fontFamily: NU, fontSize: 11, color: C.grey2, margin: 0, whiteSpace: 'nowrap' }}>
+          {filteredProfiles.length} of {profiles.length}
+        </p>
+      </div>
 
       {/* Profile cards grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 20 }}>
-        {profiles.map((v) => (
+        {filteredProfiles.map((v) => (
           <div
             key={v.slug}
             onMouseEnter={() => setHovered(v.slug)}
@@ -5823,33 +5444,55 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
 
               {/* Sections chips */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
-                {v.sections.map((sec) => (
-                  <span key={sec} style={{
+                {(v.sections || []).map((sec, i) => {
+                  // sections may be strings (legacy) or objects {id,type,content,layout} (DB)
+                  const label = typeof sec === 'string' ? sec : (sec.content?.eyebrow || sec.type || `Section ${i + 1}`);
+                  const key   = typeof sec === 'string' ? sec : (sec.id || i);
+                  return (
+                  <span key={key} style={{
                     fontFamily: NU, fontSize: 10, fontWeight: 600,
                     color: C.grey, background: C.dark,
                     padding: '3px 8px', borderRadius: 3,
-                    letterSpacing: '0.06em',
+                    letterSpacing: '0.06em', textTransform: 'capitalize',
                   }}>
-                    {sec}
+                    {label}
                   </span>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Action buttons */}
+              {/* Open in Studio — primary CTA for all DB-backed showcases */}
+              {!v._static && (
+                <button
+                  onClick={() => onNavigate && onNavigate('edit-showcase', { showcaseId: v.id })}
+                  style={{
+                    width: '100%', background: 'none', border: `1px solid ${C.gold}`,
+                    color: C.gold, fontFamily: NU, fontSize: 12, fontWeight: 600,
+                    letterSpacing: '0.06em', textTransform: 'uppercase',
+                    padding: '9px 0', borderRadius: 4, cursor: 'pointer',
+                    marginBottom: 8, transition: 'border-color 0.2s, color 0.2s, background 0.2s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.08)'; e.currentTarget.style.borderColor = C.gold2 || '#e8c97a'; e.currentTarget.style.color = '#ffffff'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
+                >
+                  ✦ Open in Studio
+                </button>
+              )}
               <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                 <button
-                  onClick={() => window.open(v.previewUrl || `/venues/${v.slug}`, '_blank')}
+                  onClick={() => window.open(v.previewUrl || `/showcase/${v.slug}`, '_blank')}
                   style={{
-                    flex: 1, background: C.gold, border: 'none',
-                    color: '#fff', fontFamily: NU, fontSize: 12, fontWeight: 700,
-                    letterSpacing: '0.08em', textTransform: 'uppercase',
+                    flex: 1, background: 'none', border: `1px solid ${C.border2}`,
+                    color: C.grey, fontFamily: NU, fontSize: 12, fontWeight: 600,
+                    letterSpacing: '0.06em', textTransform: 'uppercase',
                     padding: '9px 0', borderRadius: 4, cursor: 'pointer',
-                    transition: 'opacity 0.2s',
+                    transition: 'border-color 0.2s, color 0.2s',
                   }}
-                  onMouseEnter={e => e.currentTarget.style.opacity = '0.82'}
-                  onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.grey; }}
                 >
-                  Preview Page ↗
+                  Preview ↗
                 </button>
                 <button
                   onClick={() => onNavigate && onNavigate('listing-studio', v.listingId ? { listingId: v.listingId } : {})}
@@ -5867,23 +5510,41 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
                   Listing Studio →
                 </button>
               </div>
-              {/* Edit button, only for DB records (not static hardcoded showcases) */}
+              {/* Edit + Delete — only for DB records */}
               {!v._static && (
-                <button
-                  onClick={() => openEdit(v)}
-                  style={{
-                    width: '100%', background: 'none',
-                    border: `1px solid ${C.border2}`, color: C.grey,
-                    fontFamily: NU, fontSize: 12, fontWeight: 600,
-                    letterSpacing: '0.06em', textTransform: 'uppercase',
-                    padding: '8px 0', borderRadius: 4, cursor: 'pointer',
-                    transition: 'border-color 0.2s, color 0.2s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.grey; }}
-                >
-                  ✎ Edit Showcase
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => openEdit(v)}
+                    style={{
+                      flex: 1, background: 'none',
+                      border: `1px solid ${C.border2}`, color: C.grey,
+                      fontFamily: NU, fontSize: 12, fontWeight: 600,
+                      letterSpacing: '0.06em', textTransform: 'uppercase',
+                      padding: '8px 0', borderRadius: 4, cursor: 'pointer',
+                      transition: 'border-color 0.2s, color 0.2s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.grey; }}
+                  >
+                    ✎ Edit Fields
+                  </button>
+                  <button
+                    onClick={() => setDeleteTarget(v)}
+                    style={{
+                      background: 'none',
+                      border: `1px solid ${C.border2}`, color: C.grey,
+                      fontFamily: NU, fontSize: 12, fontWeight: 600,
+                      letterSpacing: '0.06em', textTransform: 'uppercase',
+                      padding: '8px 14px', borderRadius: 4, cursor: 'pointer',
+                      transition: 'border-color 0.2s, color 0.2s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#ef4444'; e.currentTarget.style.color = '#ef4444'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.grey; }}
+                    title="Delete showcase"
+                  >
+                    ✕
+                  </button>
+                </div>
               )}
 
               <p style={{ fontFamily: NU, fontSize: 11, color: C.grey2, margin: '10px 0 0', fontWeight: 300 }}>
@@ -6213,6 +5874,1403 @@ function PartnerEnquiriesModule({ C }) {
           Select an enquiry to view details
         </div>
       )}
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Location Studio — follows exact EventsBuilder pattern
+// ═════════════════════════════════════════════════════════════════════════════
+
+function LocSCard({ title, hint, children, LS, enabled, onToggle }) {
+  const hasToggle = onToggle !== undefined;
+  const isOn = enabled !== false;
+  return (
+    <div style={{ marginBottom: 24, opacity: hasToggle && !isOn ? 0.55 : 1, transition: 'opacity 0.2s' }}>
+      <div style={{ background: LS.card, border: `1px solid ${isOn ? LS.border : LS.border}`, borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ padding: '12px 20px', borderBottom: `1px solid ${LS.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: LS.gold }}>{title}</div>
+            {hint && <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 3, lineHeight: 1.5 }}>{hint}</div>}
+          </div>
+          {hasToggle && (
+            <button
+              onClick={onToggle}
+              title={isOn ? 'Hide this section on the page' : 'Show this section on the page'}
+              style={{
+                flexShrink: 0, padding: '4px 12px', fontSize: 10, fontFamily: NU, fontWeight: 700,
+                letterSpacing: '0.08em', textTransform: 'uppercase', borderRadius: 20,
+                border: `1px solid ${isOn ? LS.gold : LS.border}`,
+                background: isOn ? `${LS.gold}20` : 'transparent',
+                color: isOn ? LS.gold : LS.muted, cursor: 'pointer', transition: 'all 0.2s',
+              }}
+            >
+              {isOn ? 'ON' : 'OFF'}
+            </button>
+          )}
+        </div>
+        {(!hasToggle || isOn) && <div style={{ padding: 20 }}>{children}</div>}
+        {hasToggle && !isOn && (
+          <div style={{ padding: '12px 20px', fontFamily: NU, fontSize: 12, color: LS.muted, fontStyle: 'italic' }}>
+            Section hidden — toggle ON to show on the page and edit content
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LocGrid2({ children, gap = 16 }) {
+  return <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap }}>{children}</div>;
+}
+
+// Auto-compute regions/cities for the info strip based on location type
+function autoInfoRegions(locationType, countrySlug, regionSlug) {
+  if (locationType === 'country' && countrySlug) {
+    return DIRECTORY_REGIONS.filter(r => r.countrySlug === countrySlug).map(r => r.name).join(', ');
+  }
+  if (locationType === 'region' && regionSlug) {
+    return DIRECTORY_CITIES.filter(c => c.regionSlug === regionSlug).map(c => c.name).join(', ');
+  }
+  return '';
+}
+
+// Auto-populate SEO body text from the directory evergreenContent
+function autoEvergreenContent(locationType, countrySlug, regionSlug, citySlug) {
+  if (locationType === 'country') return DIRECTORY_COUNTRIES.find(c => c.slug === countrySlug)?.evergreenContent || '';
+  if (locationType === 'region') return DIRECTORY_REGIONS.find(r => r.slug === regionSlug)?.description || '';
+  if (locationType === 'city') return DIRECTORY_CITIES.find(c => c.slug === citySlug)?.description || '';
+  return '';
+}
+
+// Auto-generate location-aware FAQs
+function autoSeoFaqs(locationType, countrySlug, regionSlug, citySlug) {
+  const loc = locationType === 'country'
+    ? DIRECTORY_COUNTRIES.find(c => c.slug === countrySlug)?.name
+    : locationType === 'region'
+      ? DIRECTORY_REGIONS.find(r => r.slug === regionSlug)?.name
+      : DIRECTORY_CITIES.find(c => c.slug === citySlug)?.name;
+  const n = loc || 'this destination';
+  return [
+    { q: `When is the best time to get married in ${n}?`, a: `The ideal season varies. We recommend consulting with our local experts who can advise on weather patterns, peak availability and local considerations specific to ${n}.` },
+    { q: `How far in advance should I book a ${n} venue?`, a: `Our most sought-after venues in ${n} typically book 18–24 months in advance for peak season dates. We recommend beginning your search at least 18 months before your intended wedding date.` },
+    { q: `Do I need a local or symbolic ceremony in ${n}?`, a: `Requirements vary by country. Many couples opt for a symbolic ceremony at the destination followed by a legal ceremony at home. Our team can advise on the exact requirements for ${n}.` },
+    { q: `What is the average cost of a luxury wedding venue in ${n}?`, a: `Premium exclusive-use venues in ${n} typically range from £10,000 to £40,000 for venue hire alone, excluding catering, florals and accommodation. Pricing varies by location and season.` },
+  ];
+}
+
+function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
+  useEffect(() => {
+    onBuilderModeChange?.(true);
+    return () => onBuilderModeChange?.(false);
+  }, []);
+
+  const LS = darkMode ? {
+    bg: C.black, card: C.card, border: C.border, text: C.off,
+    muted: C.grey, gold: C.gold, btn: C.off, btnTxt: C.black,
+  } : {
+    bg: '#F2EFE9', card: '#F8F6F2', border: '#D9D2C6', text: '#222222',
+    muted: '#777777', gold: '#8A6A18', btn: '#1a1a1a', btnTxt: '#ffffff',
+  };
+
+  const [viewMode, setViewMode]     = useState('split');
+  const [saving, setSaving]         = useState(false);
+  const [dirty, setDirty]           = useState(false);
+  const [saveErr, setSaveErr]       = useState(null);
+  const [published, setPublished]   = useState(false);
+  const [toast, setToast]           = useState(null);
+  const [locationType, setLocationType] = useState('country');
+  const [countrySlug, setCountrySlug]   = useState('');
+  const [regionSlug, setRegionSlug]     = useState('');
+  const [citySlug, setCitySlug]         = useState('');
+  const [venueList, setVenueList]       = useState([]);
+  const [venuePickerSearch, setVenuePickerSearch] = useState('');
+  const [vendorPickerSearch, setVendorPickerSearch] = useState('');
+  const [form, setForm] = useState({
+    heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '',
+    heroImages: [],
+    ctaText: 'Explore Venues', ctaLink: '#',
+    featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Top Wedding Planners',
+    featuredVenueIds: [], featuredVendorIds: [],
+    mapLat: '', mapLng: '', mapZoom: '8',
+    infoVibes: '', infoServices: '', infoRegions: '',
+    seoContent: '',
+    seoFaqs: [{ q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }],
+    showEditorialSplit: true, showLatestVenues: true, showLatestVendors: true, showPlanningGuide: true, showMotto: true,
+    motto: '', mottoSubline: '', mottoBgImage: '', mottoOverlay: '0.55',
+    editorialEyebrow: '', editorialHeadingPrefix: '', editorialCtaText: '',
+    editorialPara1: '', editorialPara2: '',
+    editorialBlock1Icon: '🏰', editorialBlock1Text: '',
+    editorialBlock2Icon: '🌿', editorialBlock2Text: '',
+    editorialBlock3Icon: '🌅', editorialBlock3Text: '',
+    editorialBlock4Icon: '✨', editorialBlock4Text: '',
+    editorialVenueMode: 'latest',
+    seoHeading: '',
+    latestVenuesHeading: '', latestVenuesSub: '',
+    latestVenuesCount: '12', latestVenuesMode: 'latest',
+    latestVenuesCardStyle: 'luxury',
+    latestVenuesSelected: [],
+    latestVendorsHeading: '', latestVendorsSub: '',
+    latestVendorsCount: '12', latestVendorsMode: 'latest',
+    latestVendorsCardStyle: 'luxury',
+    latestVendorsSelected: [],
+  });
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [showMagicPanel, setShowMagicPanel] = useState(false);
+  const [magicContext, setMagicContext] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingMottoImage, setUploadingMottoImage] = useState(false);
+  const heroUploadRef = useRef(null);
+  const mottoUploadRef = useRef(null);
+
+  const set = useCallback((key, val) => {
+    setForm(prev => ({ ...prev, [key]: val }));
+    setDirty(true);
+  }, []);
+
+  const locationKey = useMemo(() => {
+    if (locationType === 'country' && countrySlug) return `country:${countrySlug}`;
+    if (locationType === 'region' && countrySlug && regionSlug) return `region:${countrySlug}:${regionSlug}`;
+    if (locationType === 'city' && countrySlug && regionSlug && citySlug) return `city:${countrySlug}:${regionSlug}:${citySlug}`;
+    return null;
+  }, [locationType, countrySlug, regionSlug, citySlug]);
+
+  const locationSlug = locationType === 'city' ? citySlug : locationType === 'region' ? regionSlug : countrySlug;
+
+  const locationName = useMemo(() => {
+    if (locationType === 'country') return DIRECTORY_COUNTRIES.find(c => c.slug === countrySlug)?.name || '';
+    if (locationType === 'region') return DIRECTORY_REGIONS.find(r => r.slug === regionSlug)?.name || '';
+    if (locationType === 'city') return DIRECTORY_CITIES.find(c => c.slug === citySlug)?.name || '';
+    return '';
+  }, [locationType, countrySlug, regionSlug, citySlug]);
+
+  // Load content when location key changes
+  useEffect(() => {
+    if (!locationKey) return;
+    fetchLocationContent(locationKey).then(data => {
+      if (data) {
+        setForm({
+          heroTitle:            data.hero_title || '',
+          heroSubtitle:         data.hero_subtitle || '',
+          heroImage:            data.hero_image || '',
+          heroVideo:            data.hero_video || '',
+          ctaText:              data.cta_text || 'Explore Venues',
+          ctaLink:              data.cta_link || '#',
+          featuredVenuesTitle:  data.featured_venues_title || 'Signature Venues',
+          featuredVendorsTitle: data.featured_vendors_title || 'Top Wedding Planners',
+          featuredVenueIds:     Array.isArray(data.featured_venues) ? data.featured_venues : (typeof data.featured_venues === 'string' ? JSON.parse(data.featured_venues || '[]') : []),
+          featuredVendorIds:    Array.isArray(data.featured_vendors) ? data.featured_vendors : (typeof data.featured_vendors === 'string' ? JSON.parse(data.featured_vendors || '[]') : []),
+          mapLat:               data.map_lat != null ? String(data.map_lat) : '',
+          mapLng:               data.map_lng != null ? String(data.map_lng) : '',
+          mapZoom:              data.map_zoom != null ? String(data.map_zoom) : '8',
+          heroImages:           Array.isArray(data.metadata?.heroImages) ? data.metadata.heroImages : [],
+          infoVibes:            Array.isArray(data.metadata?.infoVibes) ? data.metadata.infoVibes.join(', ') : '',
+          infoServices:         Array.isArray(data.metadata?.infoServices) ? data.metadata.infoServices.join(', ') : '',
+          infoRegions:          Array.isArray(data.metadata?.infoRegions) ? data.metadata.infoRegions.join(', ') : autoInfoRegions(locationType, countrySlug, regionSlug),
+          seoContent:           data.metadata?.seoContent || autoEvergreenContent(locationType, countrySlug, regionSlug, citySlug),
+          seoFaqs:              Array.isArray(data.metadata?.seoFaqs) && data.metadata.seoFaqs.length > 0 ? data.metadata.seoFaqs : autoSeoFaqs(locationType, countrySlug, regionSlug, citySlug),
+          editorialPara1:       data.metadata?.editorialPara1 || '',
+          editorialPara2:       data.metadata?.editorialPara2 || '',
+          editorialBlock1Icon:  data.metadata?.editorialBlocks?.[0]?.icon || '🏰',
+          editorialBlock1Text:  data.metadata?.editorialBlocks?.[0]?.text || '',
+          editorialBlock2Icon:  data.metadata?.editorialBlocks?.[1]?.icon || '🌿',
+          editorialBlock2Text:  data.metadata?.editorialBlocks?.[1]?.text || '',
+          editorialBlock3Icon:  data.metadata?.editorialBlocks?.[2]?.icon || '🌅',
+          editorialBlock3Text:  data.metadata?.editorialBlocks?.[2]?.text || '',
+          editorialBlock4Icon:  data.metadata?.editorialBlocks?.[3]?.icon || '✨',
+          editorialBlock4Text:  data.metadata?.editorialBlocks?.[3]?.text || '',
+          editorialVenueMode:   data.metadata?.editorialVenueMode || 'latest',
+          showEditorialSplit:   data.metadata?.showEditorialSplit !== false,
+          showLatestVenues:     data.metadata?.showLatestVenues !== false,
+          showLatestVendors:    data.metadata?.showLatestVendors !== false,
+          showPlanningGuide:    data.metadata?.showPlanningGuide !== false,
+          showMotto:            data.metadata?.showMotto !== false,
+          motto:                data.metadata?.motto || '',
+          mottoSubline:         data.metadata?.mottoSubline || '',
+          mottoBgImage:         data.metadata?.mottoBgImage || '',
+          mottoOverlay:         data.metadata?.mottoOverlay ?? '0.55',
+          editorialEyebrow:     data.metadata?.editorialEyebrow || '',
+          editorialHeadingPrefix: data.metadata?.editorialHeadingPrefix || '',
+          editorialCtaText:     data.metadata?.editorialCtaText || '',
+          seoHeading:           data.metadata?.seoHeading || '',
+          latestVenuesHeading:  data.metadata?.latestVenuesHeading || '',
+          latestVenuesSub:      data.metadata?.latestVenuesSub || '',
+          latestVenuesCount:    data.metadata?.latestVenuesCount != null ? String(data.metadata.latestVenuesCount) : '12',
+          latestVenuesMode:     data.metadata?.latestVenuesMode || 'latest',
+          latestVenuesCardStyle: data.metadata?.latestVenuesCardStyle || 'luxury',
+          latestVenuesSelected: Array.isArray(data.metadata?.latestVenuesSelected) ? data.metadata.latestVenuesSelected : [],
+          latestVendorsHeading:  data.metadata?.latestVendorsHeading || '',
+          latestVendorsSub:      data.metadata?.latestVendorsSub || '',
+          latestVendorsCount:    data.metadata?.latestVendorsCount != null ? String(data.metadata.latestVendorsCount) : '12',
+          latestVendorsMode:     data.metadata?.latestVendorsMode || 'latest',
+          latestVendorsCardStyle: data.metadata?.latestVendorsCardStyle || 'luxury',
+          latestVendorsSelected: Array.isArray(data.metadata?.latestVendorsSelected) ? data.metadata.latestVendorsSelected : [],
+        });
+        setPublished(!!data.published);
+      } else {
+        setForm({ heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '', heroImages: [], ctaText: 'Explore Venues', ctaLink: '#', featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Top Wedding Planners', featuredVenueIds: [], featuredVendorIds: [], mapLat: '', mapLng: '', mapZoom: '8', infoVibes: '', infoServices: '', infoRegions: autoInfoRegions(locationType, countrySlug, regionSlug), seoContent: autoEvergreenContent(locationType, countrySlug, regionSlug, citySlug), seoFaqs: autoSeoFaqs(locationType, countrySlug, regionSlug, citySlug), editorialPara1: '', editorialPara2: '', editorialBlock1Icon: '🏰', editorialBlock1Text: '', editorialBlock2Icon: '🌿', editorialBlock2Text: '', editorialBlock3Icon: '🌅', editorialBlock3Text: '', editorialBlock4Icon: '✨', editorialBlock4Text: '', editorialVenueMode: 'latest', showEditorialSplit: true, showLatestVenues: true, showLatestVendors: true, showPlanningGuide: true, showMotto: true, motto: '', mottoSubline: '', mottoBgImage: '', mottoOverlay: '0.55', editorialEyebrow: '', editorialHeadingPrefix: '', editorialCtaText: '', seoHeading: '', latestVenuesHeading: '', latestVenuesSub: '', latestVenuesCount: '12', latestVenuesMode: 'latest', latestVenuesCardStyle: 'luxury', latestVenuesSelected: [], latestVendorsHeading: '', latestVendorsSub: '', latestVendorsCount: '12', latestVendorsMode: 'latest', latestVendorsCardStyle: 'luxury', latestVendorsSelected: [] });
+        setPublished(false);
+      }
+      setDirty(false);
+    });
+  }, [locationKey]);
+
+  // Load venues for featured picker when location changes
+  useEffect(() => {
+    if (!countrySlug) { setVenueList([]); return; }
+    const filters = { status: 'active', country_slug: countrySlug };
+    if (regionSlug) filters.region_slug = regionSlug;
+    fetchListingsAdmin(filters).then(data => setVenueList(Array.isArray(data) ? data : [])).catch(() => setVenueList([]));
+  }, [countrySlug, regionSlug]);
+
+  const handleSave = async (publishOverride) => {
+    if (!locationKey) return setSaveErr('Select a location first');
+    setSaving(true); setSaveErr(null);
+    const newPublished = publishOverride === 'published' ? true : publishOverride === 'draft' ? false : published;
+    try {
+      const result = await saveLocationContent({
+        locationKey, locationType, countrySlug,
+        regionSlug: (locationType === 'region' || locationType === 'city') ? regionSlug : null,
+        citySlug: locationType === 'city' ? citySlug : null,
+        heroTitle: form.heroTitle || locationName,
+        heroSubtitle: form.heroSubtitle, heroImage: form.heroImage, heroVideo: form.heroVideo,
+        ctaText: form.ctaText, ctaLink: form.ctaLink,
+        featuredVenuesTitle: form.featuredVenuesTitle, featuredVendorsTitle: form.featuredVendorsTitle,
+        featuredVenueIds: form.featuredVenueIds, featuredVendorIds: form.featuredVendorIds,
+        mapLat: form.mapLat, mapLng: form.mapLng, mapZoom: form.mapZoom,
+        discoveryFilters: { showCapacityFilter: true, showStyleFilter: true, showPriceFilter: true, defaultSort: 'recommended' },
+        metadata: {
+          heroImages: form.heroImages || [],
+          infoRegions: form.infoRegions ? form.infoRegions.split(',').map(s => s.trim()).filter(Boolean) : [],
+          infoVibes: form.infoVibes ? form.infoVibes.split(',').map(s => s.trim()).filter(Boolean) : [],
+          infoServices: form.infoServices ? form.infoServices.split(',').map(s => s.trim()).filter(Boolean) : [],
+          seoContent: form.seoContent || '',
+          seoFaqs: (form.seoFaqs || []).filter(f => f.q || f.a),
+          editorialPara1: form.editorialPara1 || '',
+          editorialPara2: form.editorialPara2 || '',
+          editorialBlocks: [
+            { icon: form.editorialBlock1Icon || '🏰', text: form.editorialBlock1Text || '' },
+            { icon: form.editorialBlock2Icon || '🌿', text: form.editorialBlock2Text || '' },
+            { icon: form.editorialBlock3Icon || '🌅', text: form.editorialBlock3Text || '' },
+            { icon: form.editorialBlock4Icon || '✨', text: form.editorialBlock4Text || '' },
+          ],
+          editorialVenueMode: form.editorialVenueMode || 'latest',
+          showEditorialSplit: form.showEditorialSplit !== false,
+          showLatestVenues:   form.showLatestVenues !== false,
+          showLatestVendors:  form.showLatestVendors !== false,
+          showPlanningGuide:  form.showPlanningGuide !== false,
+          showMotto:          form.showMotto !== false,
+          motto:              form.motto || '',
+          mottoSubline:       form.mottoSubline || '',
+          mottoBgImage:       form.mottoBgImage || '',
+          mottoOverlay:       form.mottoOverlay ?? '0.55',
+          editorialEyebrow: form.editorialEyebrow || '',
+          editorialHeadingPrefix: form.editorialHeadingPrefix || '',
+          editorialCtaText: form.editorialCtaText || '',
+          seoHeading: form.seoHeading || '',
+          latestVenuesHeading: form.latestVenuesHeading || '',
+          latestVenuesSub: form.latestVenuesSub || '',
+          latestVenuesCount: parseInt(form.latestVenuesCount) || 12,
+          latestVenuesMode: form.latestVenuesMode || 'latest',
+          latestVenuesCardStyle: form.latestVenuesCardStyle || 'luxury',
+          latestVenuesSelected: form.latestVenuesSelected || [],
+          latestVendorsHeading: form.latestVendorsHeading || '',
+          latestVendorsSub:     form.latestVendorsSub || '',
+          latestVendorsCount:   parseInt(form.latestVendorsCount) || 12,
+          latestVendorsMode:    form.latestVendorsMode || 'latest',
+          latestVendorsCardStyle: form.latestVendorsCardStyle || 'luxury',
+          latestVendorsSelected: form.latestVendorsSelected || [],
+        },
+        published: newPublished,
+      });
+      if (result.error) {
+        setSaveErr(`Save failed: ${result.error.message || 'Database error'}`);
+        return;
+      }
+      setPublished(newPublished);
+      setDirty(false);
+      setToast(newPublished ? 'Location published ✓' : 'Location saved ✓');
+    } catch (err) {
+      setSaveErr(`Save failed: ${err.message || 'Unknown error'}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleFeaturedVenue = (id) => {
+    const ids = form.featuredVenueIds || [];
+    const next = ids.includes(id) ? ids.filter(x => x !== id) : ids.length < 6 ? [...ids, id] : ids;
+    set('featuredVenueIds', next);
+  };
+
+  const uploadHeroImage = async (file) => {
+    if (!file || !locationKey) return;
+    const imgs = form.heroImages || [];
+    if (imgs.length >= 8) return;
+    setUploadingImage(true);
+    try {
+      const { supabase } = await import('../lib/supabaseClient');
+      const ext = file.name.split('.').pop();
+      const path = `locations/${locationKey.replace(/:/g, '/')}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from('listing-media').upload(path, file, { upsert: false, cacheControl: '31536000' });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from('listing-media').getPublicUrl(path);
+      const next = [...imgs, publicUrl];
+      setForm(prev => ({ ...prev, heroImages: next, heroImage: prev.heroImage || publicUrl }));
+      setDirty(true);
+    } catch (e) {
+      console.error('[Location Studio] Image upload failed:', e);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const uploadMottoImage = async (file) => {
+    if (!file || !locationKey) return;
+    setUploadingMottoImage(true);
+    try {
+      console.log('[Location Studio] Uploading motto image:', file.name);
+      const mediaId = `motto-${locationKey.replace(/:/g, '-')}-${Date.now()}`;
+      const publicUrl = await uploadMediaFile(file, mediaId);
+      console.log('[Location Studio] Public URL:', publicUrl);
+
+      set('mottoBgImage', publicUrl);
+      setDirty(true);
+      setToast('✓ Motto image uploaded successfully');
+    } catch (e) {
+      console.error('[Location Studio] Motto image upload failed:', e);
+      setToast('✗ Failed to upload image: ' + (e.message || 'Unknown error'));
+    } finally {
+      setUploadingMottoImage(false);
+    }
+  };
+
+  const handleFillWithAI = async () => {
+    if (!locationKey || aiGenerating) return;
+    setAiGenerating(true);
+    try {
+      const { supabase } = await import('../lib/supabaseClient');
+      const { data, error } = await supabase.functions.invoke('ai-generate', {
+        body: {
+          feature: 'location_content',
+          systemPrompt: `You are an editor for Luxury Wedding Directory, an exclusive platform for high-end destination weddings. Write elegant, aspirational copy for location pages. Be concise and evocative. Never use clichés.`,
+          userPrompt: `Generate editorial content for the ${locationName} location page. Return ONLY a JSON object with these exact keys:
+{
+  "heroTitle": "short headline (3-6 words, no quotes in value)",
+  "heroSubtitle": "one sentence (max 20 words), evocative and elegant",
+  "featuredVenuesTitle": "2-4 word section heading for featured venues"
+}
+Do not include any explanation — only the JSON object.`,
+        },
+      });
+      if (error) throw error;
+      const raw = (data?.text || '').trim();
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        setForm(prev => ({
+          ...prev,
+          heroTitle:           parsed.heroTitle          || prev.heroTitle,
+          heroSubtitle:        parsed.heroSubtitle       || prev.heroSubtitle,
+          featuredVenuesTitle: parsed.featuredVenuesTitle || prev.featuredVenuesTitle,
+        }));
+        setDirty(true);
+      }
+    } catch (e) {
+      console.error('[Location Studio] AI generation failed:', e);
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
+  const inp = (key, placeholder, multiline) => {
+    const base = { fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', boxSizing: 'border-box', outline: 'none' };
+    if (multiline) return <textarea value={form[key] || ''} onChange={e => set(key, e.target.value)} placeholder={placeholder} rows={3} style={{ ...base, resize: 'vertical', minHeight: 72 }} />;
+    return <input value={form[key] || ''} onChange={e => set(key, e.target.value)} placeholder={placeholder} style={base} />;
+  };
+  const lbl = (text) => <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: LS.muted, marginBottom: 6 }}>{text}</div>;
+
+  const showEditor  = viewMode === 'split' || viewMode === 'editor';
+  const showPreview = viewMode === 'split' || viewMode === 'preview';
+  const regionOptions = DIRECTORY_REGIONS.filter(r => r.countrySlug === countrySlug);
+  const cityOptions   = DIRECTORY_CITIES.filter(c => c.regionSlug === regionSlug);
+
+  // Build locationContent object for live preview
+  const previewContent = {
+    heroTitle: form.heroTitle || locationName,
+    heroSubtitle: form.heroSubtitle,
+    heroImage: form.heroImage,
+    heroVideo: form.heroVideo,
+    ctaText: form.ctaText,
+    ctaLink: form.ctaLink,
+    featuredVenuesTitle: form.featuredVenuesTitle,
+    featuredVendorsTitle: form.featuredVendorsTitle,
+    mapLat: form.mapLat,
+    mapLng: form.mapLng,
+    mapZoom: form.mapZoom ? parseInt(form.mapZoom) : 8,
+    infoRegions: form.infoRegions ? form.infoRegions.split(',').map(s => s.trim()).filter(Boolean) : [],
+    infoVibes: form.infoVibes ? form.infoVibes.split(',').map(s => s.trim()).filter(Boolean) : [],
+    infoServices: form.infoServices ? form.infoServices.split(',').map(s => s.trim()).filter(Boolean) : [],
+    seoContent: form.seoContent || '',
+    seoFaqs: form.seoFaqs || [],
+    editorialPara1: form.editorialPara1 || '',
+    editorialPara2: form.editorialPara2 || '',
+    editorialBlocks: [
+      { icon: form.editorialBlock1Icon || '🏰', text: form.editorialBlock1Text || '' },
+      { icon: form.editorialBlock2Icon || '🌿', text: form.editorialBlock2Text || '' },
+      { icon: form.editorialBlock3Icon || '🌅', text: form.editorialBlock3Text || '' },
+      { icon: form.editorialBlock4Icon || '✨', text: form.editorialBlock4Text || '' },
+    ],
+    editorialVenueMode: form.editorialVenueMode || 'latest',
+    showEditorialSplit: form.showEditorialSplit !== false,
+    showLatestVenues:   form.showLatestVenues !== false,
+    showLatestVendors:  form.showLatestVendors !== false,
+    showPlanningGuide:  form.showPlanningGuide !== false,
+    showMotto:          form.showMotto !== false,
+    motto:              form.motto || '',
+    mottoSubline:       form.mottoSubline || '',
+    mottoBgImage:       form.mottoBgImage || '',
+    mottoOverlay:       parseFloat(form.mottoOverlay) || 0.55,
+    editorialEyebrow: form.editorialEyebrow || '',
+    editorialHeadingPrefix: form.editorialHeadingPrefix || '',
+    editorialCtaText: form.editorialCtaText || '',
+    seoHeading: form.seoHeading || '',
+    latestVenuesHeading: form.latestVenuesHeading || '',
+    latestVenuesSub: form.latestVenuesSub || '',
+    latestVenuesCount: parseInt(form.latestVenuesCount) || 12,
+    latestVenuesMode: form.latestVenuesMode || 'latest',
+    latestVenuesCardStyle: form.latestVenuesCardStyle || 'luxury',
+    latestVenuesSelected: form.latestVenuesSelected || [],
+    latestVendorsHeading: form.latestVendorsHeading || '',
+    latestVendorsSub:     form.latestVendorsSub || '',
+    latestVendorsCount:   parseInt(form.latestVendorsCount) || 12,
+    latestVendorsMode:    form.latestVendorsMode || 'latest',
+    latestVendorsCardStyle: form.latestVendorsCardStyle || 'luxury',
+    latestVendorsSelected: form.latestVendorsSelected || [],
+  };
+
+  const selStyle = { fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+
+      {/* ── TOP BAR ───────────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '10px 24px', borderBottom: `1px solid ${LS.border}`, background: LS.bg, flexShrink: 0, zIndex: 20, gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => { if (locationKey) setShowMagicPanel(p => !p); }} disabled={!locationKey} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: showMagicPanel ? LS.gold : LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: locationKey ? 'pointer' : 'not-allowed', opacity: locationKey ? 1 : 0.4 }}>✦ Magic AI</button>
+          <button onClick={handleFillWithAI} disabled={!locationKey || aiGenerating} style={{ fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px', background: 'transparent', color: !locationKey || aiGenerating ? LS.muted : LS.text, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: !locationKey || aiGenerating ? 'not-allowed' : 'pointer', opacity: !locationKey ? 0.4 : 1 }}>{aiGenerating ? '⟳ Generating…' : 'Fill with AI'}</button>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
+          {saveErr && <span style={{ fontFamily: NU, fontSize: 11, color: '#ef4444' }}>{saveErr}</span>}
+          <button onClick={() => setDirty(false)} style={{ fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer' }}>Discard</button>
+          <button onClick={() => handleSave('draft')} disabled={saving || !locationKey} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving || !locationKey ? 'not-allowed' : 'pointer', opacity: saving || !locationKey ? 0.35 : 1 }}>{saving ? 'Saving…' : 'Save Draft'}</button>
+          <button onClick={() => handleSave(null)} disabled={saving || !locationKey} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving || !locationKey ? 'not-allowed' : 'pointer', opacity: saving || !locationKey ? 0.35 : 1 }}>{saving ? 'Saving…' : 'Save'}</button>
+          <button onClick={() => handleSave('published')} disabled={saving} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: published ? LS.gold : LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>
+            {saving ? 'Publishing…' : published ? '✓ Published' : 'Publish'}
+          </button>
+          {locationKey && (
+            <a
+              href={`/${locationType === 'country' ? countrySlug : locationType === 'region' ? `${countrySlug}/${regionSlug}` : `${countrySlug}/${regionSlug}/${citySlug}`}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontFamily: NU, fontSize: 12, fontWeight: 500, padding: '6px 12px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}
+            >↗ Live Page</a>
+          )}
+          <div style={{ width: 1, height: 16, background: LS.border, marginLeft: 4 }} />
+          {['split', 'editor', 'preview'].map(m => (
+            <span key={m} onClick={() => setViewMode(m)} style={{ fontFamily: NU, fontSize: 11, fontWeight: viewMode === m ? 700 : 500, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', color: viewMode === m ? LS.text : LS.muted, borderBottom: viewMode === m ? `1px solid ${LS.text}` : '1px solid transparent', paddingBottom: 1 }}>
+              {m === 'split' ? 'Split' : m === 'editor' ? 'Editor' : 'Preview'}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* ── MAGIC AI PANEL ───────────────────────────────────────────────────────── */}
+      {showMagicPanel && (
+        <div style={{ background: darkMode ? 'rgba(201,168,76,0.07)' : '#F8F5EE', borderTop: `2px solid ${LS.gold}`, borderBottom: `1px solid ${LS.border}`, padding: '16px 24px', display: 'flex', gap: 12, alignItems: 'flex-start', flexShrink: 0 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.gold, marginBottom: 6 }}>✦ Magic AI — {locationName}</div>
+            <textarea
+              value={magicContext}
+              onChange={e => setMagicContext(e.target.value)}
+              placeholder={`Optional: add context to guide the AI (e.g. "focus on vineyard weddings and Tuscan landscapes, elegant tone")`}
+              rows={2}
+              style={{ width: '100%', boxSizing: 'border-box', fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, resize: 'none', outline: 'none' }}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 18 }}>
+            <button
+              onClick={async () => {
+                if (aiGenerating) return;
+                setAiGenerating(true);
+                try {
+                  const { supabase } = await import('../lib/supabaseClient');
+                  const { data, error } = await supabase.functions.invoke('ai-generate', {
+                    body: {
+                      feature: 'location_magic',
+                      systemPrompt: `You are a senior editorial writer for Luxury Wedding Directory, an exclusive destination wedding platform. Write elegant, aspirational, high-converting copy. Be specific, evocative, and never generic. Match the tone of premium travel editorial.`,
+                      userPrompt: `Generate complete editorial content for the ${locationName} location page.${magicContext ? ` Context: ${magicContext}` : ''}
+
+Return ONLY a valid JSON object with these exact keys:
+{
+  "heroTitle": "3-6 word headline (e.g. Weddings in Tuscany)",
+  "heroSubtitle": "1-2 sentences, max 25 words, evocative and specific to this location",
+  "featuredVenuesTitle": "2-4 word section heading (e.g. Signature Estates)",
+  "ctaText": "2-4 word CTA (e.g. Explore Venues)"
+}
+No explanation. Only the JSON.`,
+                    },
+                  });
+                  if (error) throw error;
+                  const raw = (data?.text || '').trim();
+                  const match = raw.match(/\{[\s\S]*\}/);
+                  if (match) {
+                    const p = JSON.parse(match[0]);
+                    setForm(prev => ({
+                      ...prev,
+                      heroTitle:           p.heroTitle           || prev.heroTitle,
+                      heroSubtitle:        p.heroSubtitle        || prev.heroSubtitle,
+                      featuredVenuesTitle: p.featuredVenuesTitle || prev.featuredVenuesTitle,
+                      ctaText:             p.ctaText             || prev.ctaText,
+                    }));
+                    setDirty(true);
+                    setShowMagicPanel(false);
+                  }
+                } catch (e) {
+                  console.error('[Magic AI]', e);
+                } finally {
+                  setAiGenerating(false);
+                }
+              }}
+              disabled={aiGenerating}
+              style={{ fontFamily: NU, fontSize: 12, fontWeight: 700, padding: '8px 18px', background: LS.gold, color: '#fff', border: 'none', borderRadius: 6, cursor: aiGenerating ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
+            >{aiGenerating ? '⟳ Generating…' : 'Generate'}</button>
+            <button onClick={() => setShowMagicPanel(false)} style={{ fontFamily: NU, fontSize: 12, padding: '6px 12px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer' }}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── PANELS ──────────────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+        {/* LEFT — editor */}
+        {showEditor && (
+          <div style={{ flex: viewMode === 'editor' ? '1' : '0 0 50%', overflowY: 'auto', background: LS.bg, borderRight: showPreview ? `1px solid ${LS.border}` : 'none', padding: '28px 32px 80px' }}>
+
+            {/* h1 = location name + status badge */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+                <h1 style={{ fontSize: 26, fontWeight: 600, color: LS.text, margin: 0, lineHeight: 1.2, fontFamily: GD }}>
+                  {locationName || 'Select a location'}
+                </h1>
+                {locationKey && (
+                  <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '3px 8px', borderRadius: 4, background: published ? 'rgba(34,197,94,0.15)' : `${LS.border}`, color: published ? '#22c55e' : LS.muted }}>
+                    {published ? 'Live' : 'Draft'}
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 14, color: LS.muted, fontFamily: NU }}>
+                {locationType.charAt(0).toUpperCase() + locationType.slice(1)}{locationKey ? ` · ${locationKey}` : ''}
+              </div>
+            </div>
+
+            {/* Location Picker */}
+            <LocSCard title="Location" hint="Select which page you are editing" LS={LS}>
+              <LocGrid2 gap={12}>
+                <div>
+                  {lbl('Type')}
+                  <select value={locationType} onChange={e => { setLocationType(e.target.value); setRegionSlug(''); setCitySlug(''); }} style={selStyle}>
+                    <option value="country">Country</option>
+                    <option value="region">Region</option>
+                    <option value="city">City</option>
+                  </select>
+                </div>
+                <div>
+                  {lbl('Country')}
+                  <select value={countrySlug} onChange={e => { setCountrySlug(e.target.value); setRegionSlug(''); setCitySlug(''); }} style={selStyle}>
+                    <option value="">Select country</option>
+                    {DIRECTORY_COUNTRIES.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+                  </select>
+                </div>
+              </LocGrid2>
+              {(locationType === 'region' || locationType === 'city') && countrySlug && (
+                <div style={{ marginTop: 12 }}>
+                  {lbl('Region')}
+                  <select value={regionSlug} onChange={e => { setRegionSlug(e.target.value); setCitySlug(''); }} style={selStyle}>
+                    <option value="">Select region</option>
+                    {regionOptions.map(r => <option key={r.slug} value={r.slug}>{r.name}</option>)}
+                  </select>
+                </div>
+              )}
+              {locationType === 'city' && regionSlug && (
+                <div style={{ marginTop: 12 }}>
+                  {lbl('City')}
+                  <select value={citySlug} onChange={e => setCitySlug(e.target.value)} style={selStyle}>
+                    <option value="">Select city</option>
+                    {cityOptions.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+                  </select>
+                </div>
+              )}
+            </LocSCard>
+
+            {/* Hero */}
+            <LocSCard title="Hero" hint="Headline text and background shown at the top of this page" LS={LS}>
+              <div style={{ marginBottom: 12 }}>{lbl('Hero Title')}{inp('heroTitle', locationName || 'e.g. Weddings in Tuscany')}</div>
+              <div style={{ marginBottom: 12 }}>{lbl('Hero Subtitle')}{inp('heroSubtitle', 'A curated guide to luxury wedding celebrations…', true)}</div>
+
+              {/* Image upload grid */}
+              <div style={{ marginBottom: 12 }}>
+                {lbl(`Hero Images (${(form.heroImages || []).length}/8)`)}
+                <input ref={heroUploadRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={async e => { for (const f of Array.from(e.target.files || [])) await uploadHeroImage(f); e.target.value = ''; }} />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 8 }}>
+                  {(form.heroImages || []).map((url, i) => {
+                    const active = form.heroImage === url;
+                    return (
+                      <div key={i} onClick={() => set('heroImage', url)} style={{ position: 'relative', aspectRatio: '16/9', borderRadius: 4, overflow: 'hidden', border: `2px solid ${active ? LS.gold : LS.border}`, cursor: 'pointer' }}>
+                        <img src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        {active && <div style={{ position: 'absolute', top: 3, left: 3, background: LS.gold, borderRadius: 2, padding: '1px 5px', fontSize: 8, fontFamily: NU, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active</div>}
+                        <button onClick={e => { e.stopPropagation(); const next = (form.heroImages || []).filter(u => u !== url); const newActive = form.heroImage === url ? (next[0] || '') : form.heroImage; setForm(prev => ({ ...prev, heroImages: next, heroImage: newActive })); setDirty(true); }} style={{ position: 'absolute', top: 3, right: 3, background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>✕</button>
+                      </div>
+                    );
+                  })}
+                  {(form.heroImages || []).length < 8 && (
+                    <button onClick={() => heroUploadRef.current?.click()} disabled={uploadingImage || !locationKey} style={{ aspectRatio: '16/9', border: `1px dashed ${LS.border}`, borderRadius: 4, background: 'transparent', color: LS.muted, fontFamily: NU, fontSize: 11, cursor: uploadingImage || !locationKey ? 'not-allowed' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
+                      <span style={{ fontSize: 16 }}>{uploadingImage ? '⟳' : '+'}</span>
+                      <span>{uploadingImage ? 'Uploading…' : 'Add Photo'}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Video URL */}
+              <div style={{ marginBottom: 12 }}>
+                {lbl('Hero Video URL (optional — overrides image)')}
+                {inp('heroVideo', 'https://cdn.example.com/hero.mp4')}
+              </div>
+
+              <LocGrid2 gap={12}>
+                <div>{lbl('CTA Button Text')}{inp('ctaText', 'Explore Venues')}</div>
+                <div>{lbl('CTA Button Link')}{inp('ctaLink', '#search')}</div>
+              </LocGrid2>
+            </LocSCard>
+
+            {/* Featured */}
+            <LocSCard title="Featured" hint="Pin up to 6 venues to the top of this location page" LS={LS}>
+              <div style={{ marginBottom: 12 }}>{lbl('Section Title')}{inp('featuredVenuesTitle', 'Signature Venues')}</div>
+              {venueList.length > 0 ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {venueList.slice(0, 24).map(v => {
+                    const checked = (form.featuredVenueIds || []).includes(v.id);
+                    return (
+                      <label key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: checked ? `${LS.gold}18` : LS.card, border: `1px solid ${checked ? LS.gold : LS.border}`, borderRadius: 6, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={checked} onChange={() => toggleFeaturedVenue(v.id)} style={{ accentColor: LS.gold, flexShrink: 0 }} />
+                        <span style={{ fontFamily: NU, fontSize: 12, color: LS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, padding: '10px 0' }}>
+                  {countrySlug ? 'No venues found for this location.' : 'Select a country to load venues.'}
+                </div>
+              )}
+              {(form.featuredVenueIds || []).length > 0 && (
+                <div style={{ marginTop: 8, fontFamily: NU, fontSize: 11, color: LS.gold }}>{form.featuredVenueIds.length} / 6 selected</div>
+              )}
+            </LocSCard>
+
+            {/* Info Strip */}
+            <LocSCard title="Info Strip" hint="Three tag columns shown below the hero — all auto-populated, all editable." LS={LS}>
+              <div style={{ marginBottom: 12 }}>
+                {lbl('Regions / Areas')}
+                {inp('infoRegions', 'e.g. Barbados, St Lucia, Jamaica, Antigua')}
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>
+                  {form.infoRegions ? form.infoRegions.split(',').map(s => s.trim()).filter(Boolean).map((v, i) => (
+                    <span key={i} style={{ display: 'inline-block', marginRight: 6, marginBottom: 4, padding: '2px 8px', background: `${LS.gold}18`, border: `1px solid ${LS.gold}44`, borderRadius: 3, color: LS.gold, fontSize: 11 }}>{v}</span>
+                  )) : <span style={{ opacity: 0.5 }}>Auto from directory</span>}
+                </div>
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                {lbl('Signature Vibes')}
+                {inp('infoVibes', 'e.g. Beach Weddings, Garden Party, Tropical Luxury')}
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>
+                  {form.infoVibes ? form.infoVibes.split(',').map(s => s.trim()).filter(Boolean).map((v, i) => (
+                    <span key={i} style={{ display: 'inline-block', marginRight: 6, marginBottom: 4, padding: '2px 8px', background: `${LS.gold}18`, border: `1px solid ${LS.gold}44`, borderRadius: 3, color: LS.gold, fontSize: 11 }}>{v}</span>
+                  )) : <span style={{ opacity: 0.5 }}>No vibes set</span>}
+                </div>
+              </div>
+              <div>
+                {lbl('Elite Services')}
+                {inp('infoServices', 'e.g. Private Beach Access, Destination Concierge, All-Inclusive')}
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>
+                  {form.infoServices ? form.infoServices.split(',').map(s => s.trim()).filter(Boolean).map((v, i) => (
+                    <span key={i} style={{ display: 'inline-block', marginRight: 6, marginBottom: 4, padding: '2px 8px', background: `${LS.gold}18`, border: `1px solid ${LS.gold}44`, borderRadius: 3, color: LS.gold, fontSize: 11 }}>{v}</span>
+                  )) : <span style={{ opacity: 0.5 }}>No services set</span>}
+                </div>
+              </div>
+            </LocSCard>
+
+            {/* Planning Guide */}
+            <LocSCard title="Planning Guide" hint="Auto-populated from the directory — edit freely. Max 3 paragraphs (separate with a blank line). FAQs auto-use the location name." LS={LS} enabled={form.showPlanningGuide !== false} onToggle={() => set('showPlanningGuide', !form.showPlanningGuide)}>
+              <div style={{ marginBottom: 16 }}>
+                {lbl('Section Title')}
+                {inp('seoHeading', `Planning Your ${locationName || 'Italy'} Wedding`)}
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Auto: "Planning Your {locationName} Wedding" — override the full title here</div>
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                {lbl('Body Text')}
+                <textarea
+                  value={form.seoContent || ''}
+                  onChange={e => set('seoContent', e.target.value)}
+                  placeholder="Editorial body text — up to 3 paragraphs separated by blank lines"
+                  rows={6}
+                  style={{ fontFamily: NU, fontSize: 13, padding: '10px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', lineHeight: 1.6 }}
+                />
+              </div>
+              {(form.seoFaqs || [{ q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }]).map((faq, i) => (
+                <div key={i} style={{ marginBottom: 16, padding: '12px 14px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 6 }}>
+                  <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: LS.gold, marginBottom: 8 }}>FAQ {i + 1}</div>
+                  <div style={{ marginBottom: 8 }}>
+                    {lbl('Question')}
+                    <input
+                      value={faq.q || ''}
+                      onChange={e => { const faqs = [...(form.seoFaqs || [])]; faqs[i] = { ...faqs[i], q: e.target.value }; set('seoFaqs', faqs); }}
+                      placeholder={`e.g. When is the best time to get married in ${locationName || 'this destination'}?`}
+                      style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' }}
+                    />
+                  </div>
+                  {lbl('Answer')}
+                  <textarea
+                    value={faq.a || ''}
+                    onChange={e => { const faqs = [...(form.seoFaqs || [])]; faqs[i] = { ...faqs[i], a: e.target.value }; set('seoFaqs', faqs); }}
+                    placeholder="Answer..."
+                    rows={3}
+                    style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }}
+                  />
+                </div>
+              ))}
+            </LocSCard>
+
+            {/* Motto Banner */}
+            <LocSCard title="Motto Banner" hint="Full-width editorial quote strip — appears below the Planning Guide. Auto-fills from the location name. Optionally add a background image and control the overlay darkness." LS={LS} enabled={form.showMotto !== false} onToggle={() => set('showMotto', !form.showMotto)}>
+              {/* Motto text */}
+              <div style={{ marginBottom: 14 }}>
+                {lbl('Quote / Motto')}
+                <textarea
+                  value={form.motto || ''}
+                  onChange={e => set('motto', e.target.value)}
+                  placeholder={`${locationName || 'Italy'}, where every moment becomes a memory worth keeping forever.`}
+                  rows={3}
+                  style={{ fontFamily: NU, fontSize: 13, padding: '10px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', lineHeight: 1.6, fontStyle: 'italic' }}
+                />
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Auto: "{locationName || 'Italy'}, where every moment becomes a memory worth keeping forever."</div>
+              </div>
+              {/* Sub-line */}
+              <div style={{ marginBottom: 14 }}>
+                {lbl('Sub-line (optional)')}
+                {inp('mottoSubline', 'e.g. Luxury Wedding Directory · Italy')}
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Appears below the quote in small caps — leave blank to hide</div>
+              </div>
+              {/* Background image — upload, pick from listings, or paste URL */}
+              <div style={{ marginBottom: 14 }}>
+                {lbl('Background Image')}
+                {/* Hidden file input */}
+                <input
+                  ref={mottoUploadRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={async e => { const f = e.target.files?.[0]; if (f) await uploadMottoImage(f); e.target.value = ''; }}
+                />
+                {/* Upload button */}
+                <button
+                  onClick={() => mottoUploadRef.current?.click()}
+                  disabled={uploadingMottoImage || !locationKey}
+                  style={{ width: '100%', padding: '9px 12px', border: `1px dashed ${LS.border}`, borderRadius: 6, background: 'transparent', color: uploadingMottoImage ? LS.muted : LS.gold, fontFamily: NU, fontSize: 12, fontWeight: 600, letterSpacing: '0.5px', cursor: uploadingMottoImage || !locationKey ? 'not-allowed' : 'pointer', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                >
+                  <span style={{ fontSize: 15 }}>{uploadingMottoImage ? '⟳' : '↑'}</span>
+                  {uploadingMottoImage ? 'Uploading…' : 'Upload Image'}
+                </button>
+                {/* Preview strip */}
+                {form.mottoBgImage && (
+                  <div style={{ position: 'relative', width: '100%', height: 100, borderRadius: 6, overflow: 'hidden', marginBottom: 10, border: `1px solid ${LS.gold}` }}>
+                    <img src={form.mottoBgImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <button
+                      onClick={() => set('mottoBgImage', '')}
+                      style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(0,0,0,0.7)', border: 'none', borderRadius: 4, color: '#fff', fontSize: 11, padding: '3px 8px', cursor: 'pointer', fontFamily: NU }}
+                    >✕ Remove</button>
+                  </div>
+                )}
+                {/* Listing thumbnails */}
+                {venueList.length > 0 ? (
+                  <>
+                    <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginBottom: 8 }}>Pick from listings — click any image to use as background</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 10 }}>
+                      {venueList.slice(0, 20).map(v => {
+                        // imgs[0] is an object {id, src, alt} — extract src string
+                        const rawImg = v.imgs?.[0];
+                        const imgSrc = typeof rawImg === 'string'
+                          ? rawImg
+                          : (rawImg?.src || rawImg?.url || v.heroImage || v.image || '');
+                        if (!imgSrc || typeof imgSrc !== 'string') return null;
+                        const selected = form.mottoBgImage === imgSrc;
+                        return (
+                          <div
+                            key={v.id || imgSrc}
+                            onClick={() => set('mottoBgImage', selected ? '' : imgSrc)}
+                            title={typeof v.name === 'string' ? v.name : ''}
+                            style={{
+                              height: 60, borderRadius: 5, overflow: 'hidden', cursor: 'pointer',
+                              border: `2px solid ${selected ? LS.gold : 'transparent'}`,
+                              boxShadow: selected ? `0 0 0 1px ${LS.gold}` : 'none',
+                              transition: 'border 0.15s',
+                              position: 'relative',
+                            }}
+                          >
+                            <img src={imgSrc} alt={typeof v.name === 'string' ? v.name : ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            {selected && (
+                              <div style={{ position: 'absolute', inset: 0, background: `${LS.gold}33`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <span style={{ fontSize: 14, color: '#fff' }}>✓</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginBottom: 8 }}>
+                    {countrySlug ? 'No listing images available.' : 'Select a country to load listing images.'}
+                  </div>
+                )}
+                {/* Manual URL fallback */}
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginBottom: 4 }}>Or paste a URL directly:</div>
+                <input
+                  value={form.mottoBgImage || ''}
+                  onChange={e => set('mottoBgImage', e.target.value)}
+                  placeholder="https://..."
+                  style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' }}
+                />
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Leave blank for plain dark background</div>
+              </div>
+              {/* Overlay density */}
+              <div>
+                {lbl(`Overlay Density — ${Math.round((parseFloat(form.mottoOverlay) || 0.55) * 100)}%`)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+                  <span style={{ fontFamily: NU, fontSize: 11, color: LS.muted }}>Light</span>
+                  <input
+                    type="range"
+                    min={0} max={1} step={0.05}
+                    value={form.mottoOverlay ?? '0.55'}
+                    onChange={e => set('mottoOverlay', e.target.value)}
+                    style={{ flex: 1, accentColor: LS.gold }}
+                  />
+                  <span style={{ fontFamily: NU, fontSize: 11, color: LS.muted }}>Dark</span>
+                </div>
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Only applies when a background image is set</div>
+              </div>
+            </LocSCard>
+
+            {/* Editorial Split */}
+            <LocSCard title="Editorial Split" hint={`"The Art of the ${locationName || 'Location'} Wedding" section — 5-image grid + 2 editorial paragraphs + 4 info blocks. Venue display: Latest, Random or Featured.`} LS={LS} enabled={form.showEditorialSplit !== false} onToggle={() => set('showEditorialSplit', !form.showEditorialSplit)}>
+              {/* Venue display mode */}
+              <div style={{ marginBottom: 16 }}>
+                {lbl('Venue Display Mode')}
+                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                  {['latest', 'random', 'featured'].map(mode => (
+                    <button
+                      key={mode}
+                      onClick={() => set('editorialVenueMode', mode)}
+                      style={{
+                        padding: '6px 16px', fontSize: 12, fontFamily: NU, fontWeight: 600,
+                        borderRadius: 6, border: `1px solid ${form.editorialVenueMode === mode ? LS.gold : LS.border}`,
+                        background: form.editorialVenueMode === mode ? `${LS.gold}18` : 'transparent',
+                        color: form.editorialVenueMode === mode ? LS.gold : LS.muted,
+                        cursor: 'pointer', textTransform: 'capitalize', letterSpacing: '0.05em',
+                      }}
+                    >
+                      {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 6 }}>
+                  Latest = newest 5 · Random = shuffled 5 · Featured = your featured picks
+                </div>
+              </div>
+
+              {/* ── Auto text controls ── */}
+              <div style={{ marginBottom: 12 }}>
+                {lbl('Eyebrow')}
+                {inp('editorialEyebrow', `Why ${locationName || 'Italy'}`)}
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Auto: "Why {locationName}" — override here</div>
+              </div>
+
+              <div style={{ marginBottom: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  {lbl('Heading Prefix')}
+                  {(() => {
+                    const v = form.editorialHeadingPrefix || '';
+                    return <input value={v} onChange={e => set('editorialHeadingPrefix', e.target.value)} placeholder="The Art of the" style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' }} />;
+                  })()}
+                  <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Auto: "The Art of the"</div>
+                </div>
+                <div>
+                  {lbl('CTA Button Text')}
+                  {inp('editorialCtaText', `Browse All ${locationName || 'Italy'} Venues →`)}
+                  <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Auto: "Browse All {locationName || 'Italy'} Venues →"</div>
+                </div>
+              </div>
+
+              <div aria-hidden="true" style={{ height: 1, background: LS.border, margin: '4px 0 16px' }} />
+
+              {/* Paragraph 1 */}
+              <div style={{ marginBottom: 12 }}>
+                {lbl('Paragraph 1')}
+                <textarea
+                  value={form.editorialPara1 || ''}
+                  onChange={e => set('editorialPara1', e.target.value)}
+                  placeholder={`${locationName || 'This destination'} is one of the world's most sought-after wedding destinations…`}
+                  rows={3}
+                  style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }}
+                />
+              </div>
+
+              {/* Paragraph 2 */}
+              <div style={{ marginBottom: 20 }}>
+                {lbl('Paragraph 2')}
+                <textarea
+                  value={form.editorialPara2 || ''}
+                  onChange={e => set('editorialPara2', e.target.value)}
+                  placeholder="Our curated collection represents only the finest estates, villas and private venues…"
+                  rows={3}
+                  style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }}
+                />
+              </div>
+
+              {/* Info blocks */}
+              <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: LS.gold, marginBottom: 10 }}>Info Blocks (2×2 grid)</div>
+              {[
+                ['editorialBlock1Icon', 'editorialBlock1Text'],
+                ['editorialBlock2Icon', 'editorialBlock2Text'],
+                ['editorialBlock3Icon', 'editorialBlock3Text'],
+                ['editorialBlock4Icon', 'editorialBlock4Text'],
+              ].map(([iconKey, textKey], i) => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '52px 1fr', gap: 8, marginBottom: 10 }}>
+                  <input
+                    value={form[iconKey] || ''}
+                    onChange={e => set(iconKey, e.target.value)}
+                    placeholder="🏰"
+                    style={{ fontFamily: NU, fontSize: 20, padding: '6px 8px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, textAlign: 'center' }}
+                  />
+                  <input
+                    value={form[textKey] || ''}
+                    onChange={e => set(textKey, e.target.value)}
+                    placeholder={['Historic villa estates', 'Private & exclusive settings', 'Stunning scenery & landscapes', 'World-class catering & service'][i]}
+                    style={{ fontFamily: NU, fontSize: 13, padding: '6px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' }}
+                  />
+                </div>
+              ))}
+            </LocSCard>
+
+            {/* Latest Venues Strip */}
+            {(() => {
+              const selectedIds = form.latestVenuesSelected || [];
+              const filteredForPicker = venueList.filter(v =>
+                !selectedIds.includes(v.id) &&
+                (v.name || '').toLowerCase().includes(venuePickerSearch.toLowerCase())
+              ).slice(0, 8);
+              const selectedVenues = selectedIds.map(id => venueList.find(v => v.id === id)).filter(Boolean);
+
+              const toggleVenue = (id) => {
+                const cur = form.latestVenuesSelected || [];
+                if (cur.includes(id)) set('latestVenuesSelected', cur.filter(x => x !== id));
+                else set('latestVenuesSelected', [...cur, id]);
+              };
+              const removeVenue = (id) => set('latestVenuesSelected', (form.latestVenuesSelected || []).filter(x => x !== id));
+              const moveVenue = (id, dir) => {
+                const arr = [...(form.latestVenuesSelected || [])];
+                const idx = arr.indexOf(id);
+                if (idx < 0) return;
+                const next = idx + dir;
+                if (next < 0 || next >= arr.length) return;
+                [arr[idx], arr[next]] = [arr[next], arr[idx]];
+                set('latestVenuesSelected', arr);
+              };
+
+              return (
+                <LocSCard title="Latest Venues Strip" hint={`The "${locationName || 'Latest'} Venues." card slider. Choose Latest, Random, or hand-pick Selectable venues.`} LS={LS} enabled={form.showLatestVenues !== false} onToggle={() => set('showLatestVenues', !form.showLatestVenues)}>
+
+                  {/* ── Venue Mode — 4 options ── */}
+                  <div style={{ marginBottom: 16 }}>
+                    {lbl('Venue Mode')}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+                      {[
+                        ['latest',   'Latest',    'Newest venues first'],
+                        ['random',   'Random',    'Reshuffled on each load'],
+                        ['featured', 'Featured',  'Your pinned venue picks'],
+                        ['selected', 'Selectable','Hand-pick exactly which venues appear'],
+                      ].map(([val, label, tip]) => (
+                        <button
+                          key={val}
+                          title={tip}
+                          onClick={() => set('latestVenuesMode', val)}
+                          style={{
+                            padding: '6px 16px', fontSize: 12, fontFamily: NU, fontWeight: 600,
+                            borderRadius: 6, border: `1px solid ${form.latestVenuesMode === val ? LS.gold : LS.border}`,
+                            background: form.latestVenuesMode === val ? `${LS.gold}18` : 'transparent',
+                            color: form.latestVenuesMode === val ? LS.gold : LS.muted,
+                            cursor: 'pointer', letterSpacing: '0.04em',
+                          }}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 6 }}>
+                      {form.latestVenuesMode === 'latest'   && 'Shows the most recently added venues for this location.'}
+                      {form.latestVenuesMode === 'random'   && 'A different selection appears on every page load — keeps it fresh.'}
+                      {form.latestVenuesMode === 'featured' && 'Uses venues from your Featured Venues list above.'}
+                      {form.latestVenuesMode === 'selected' && 'You control exactly which venues appear and in what order.'}
+                    </div>
+                  </div>
+
+                  {/* ── Venue Picker (only in Selected mode) ── */}
+                  {form.latestVenuesMode === 'selected' && (
+                    <div style={{ marginBottom: 20, padding: '14px 16px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8 }}>
+                      <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: LS.gold, marginBottom: 12 }}>
+                        Curated Venue Selection
+                      </div>
+
+                      {/* Selected venues — ordered list with reorder + remove */}
+                      {selectedVenues.length > 0 && (
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginBottom: 8 }}>
+                            {selectedVenues.length} venue{selectedVenues.length !== 1 ? 's' : ''} selected — drag to reorder
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {selectedVenues.map((v, i) => (
+                              <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: LS.bg, border: `1px solid ${LS.gold}44`, borderRadius: 6 }}>
+                                <span style={{ fontFamily: NU, fontSize: 11, color: LS.gold, fontWeight: 700, width: 18, flexShrink: 0, textAlign: 'center' }}>{i + 1}</span>
+                                <span style={{ fontFamily: NU, fontSize: 12, color: LS.text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {v.name}
+                                  {v.region && <span style={{ color: LS.muted, marginLeft: 6 }}>· {v.region}</span>}
+                                </span>
+                                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                                  <button onClick={() => moveVenue(v.id, -1)} disabled={i === 0}
+                                    style={{ padding: '2px 6px', fontSize: 11, background: 'none', border: `1px solid ${LS.border}`, borderRadius: 4, color: i === 0 ? LS.muted : LS.text, cursor: i === 0 ? 'default' : 'pointer', opacity: i === 0 ? 0.3 : 1 }}>↑</button>
+                                  <button onClick={() => moveVenue(v.id, 1)} disabled={i === selectedVenues.length - 1}
+                                    style={{ padding: '2px 6px', fontSize: 11, background: 'none', border: `1px solid ${LS.border}`, borderRadius: 4, color: i === selectedVenues.length - 1 ? LS.muted : LS.text, cursor: i === selectedVenues.length - 1 ? 'default' : 'pointer', opacity: i === selectedVenues.length - 1 ? 0.3 : 1 }}>↓</button>
+                                  <button onClick={() => removeVenue(v.id)}
+                                    style={{ padding: '2px 8px', fontSize: 11, background: 'none', border: `1px solid #c0392b44`, borderRadius: 4, color: '#e74c3c', cursor: 'pointer' }}>×</button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Search + add venues */}
+                      <div style={{ marginBottom: 8 }}>
+                        <input
+                          value={venuePickerSearch}
+                          onChange={e => setVenuePickerSearch(e.target.value)}
+                          placeholder="Search venues to add…"
+                          style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' }}
+                        />
+                      </div>
+                      {venuePickerSearch && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 220, overflowY: 'auto' }}>
+                          {filteredForPicker.length === 0 && (
+                            <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, padding: '8px 0', textAlign: 'center' }}>No venues match "{venuePickerSearch}"</div>
+                          )}
+                          {filteredForPicker.map(v => (
+                            <button
+                              key={v.id}
+                              onClick={() => { toggleVenue(v.id); setVenuePickerSearch(''); }}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
+                                background: 'transparent', border: `1px solid ${LS.border}`, borderRadius: 6,
+                                cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s',
+                              }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = LS.gold; e.currentTarget.style.background = `${LS.gold}10`; }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = LS.border; e.currentTarget.style.background = 'transparent'; }}
+                            >
+                              {v.imgs?.[0] && (
+                                <img src={typeof v.imgs[0] === 'string' ? v.imgs[0] : v.imgs[0]?.src || ''} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
+                              )}
+                              <div>
+                                <div style={{ fontFamily: NU, fontSize: 12, color: LS.text, fontWeight: 600 }}>{v.name}</div>
+                                {v.region && <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted }}>{v.region}</div>}
+                              </div>
+                              <span style={{ marginLeft: 'auto', fontSize: 16, color: LS.gold }}>+</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {!venuePickerSearch && selectedVenues.length === 0 && (
+                        <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, textAlign: 'center', padding: '8px 0' }}>
+                          Search above to add venues to this slider
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Card count (hidden in Selected mode — count = selected.length) ── */}
+                  {form.latestVenuesMode !== 'selected' && (
+                    <div style={{ marginBottom: 16 }}>
+                      {lbl('Number of Cards')}
+                      <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                        {['6', '9', '12', '18', '24'].map(n => (
+                          <button
+                            key={n}
+                            onClick={() => set('latestVenuesCount', n)}
+                            style={{
+                              padding: '6px 14px', fontSize: 12, fontFamily: NU, fontWeight: 600,
+                              borderRadius: 6, border: `1px solid ${form.latestVenuesCount === n ? LS.gold : LS.border}`,
+                              background: form.latestVenuesCount === n ? `${LS.gold}18` : 'transparent',
+                              color: form.latestVenuesCount === n ? LS.gold : LS.muted,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Card style ── */}
+                  <div style={{ marginBottom: 16 }}>
+                    {lbl('Card Style')}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                      {[['luxury', 'Luxury (cinematic)'], ['standard', 'Standard (GCard)']].map(([val, label]) => (
+                        <button
+                          key={val}
+                          onClick={() => set('latestVenuesCardStyle', val)}
+                          style={{
+                            padding: '6px 16px', fontSize: 12, fontFamily: NU, fontWeight: 600,
+                            borderRadius: 6, border: `1px solid ${form.latestVenuesCardStyle === val ? LS.gold : LS.border}`,
+                            background: form.latestVenuesCardStyle === val ? `${LS.gold}18` : 'transparent',
+                            color: form.latestVenuesCardStyle === val ? LS.gold : LS.muted,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ── Heading ── */}
+                  <div style={{ marginBottom: 12 }}>
+                    {lbl('Section Heading')}
+                    {inp('latestVenuesHeading', 'Latest Venues.')}
+                    <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Leave blank to use "Latest Venues."</div>
+                  </div>
+
+                  {/* ── Subtext ── */}
+                  <div>
+                    {lbl('Subtext')}
+                    <textarea
+                      value={form.latestVenuesSub || ''}
+                      onChange={e => set('latestVenuesSub', e.target.value)}
+                      placeholder={`Newly added${locationName ? ` ${locationName}` : ''} villas, palazzi, and estates, each personally vetted by our editorial team.`}
+                      rows={2}
+                      style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }}
+                    />
+                    <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Leave blank to auto-generate from location name</div>
+                  </div>
+                </LocSCard>
+              );
+            })()}
+
+            {/* Latest Vendors Strip */}
+            {(() => {
+              const selectedIds = form.latestVendorsSelected || [];
+              const vendorPool = venueList;
+              const filteredForPicker = vendorPool.filter(v =>
+                !selectedIds.includes(v.id) &&
+                (v.name || '').toLowerCase().includes(vendorPickerSearch.toLowerCase()) &&
+                (v.type === 'vendor' || v.category)
+              ).slice(0, 8);
+              const selectedVendors = selectedIds.map(id => vendorPool.find(v => v.id === id)).filter(Boolean);
+
+              const toggleVendor = (id) => {
+                const cur = form.latestVendorsSelected || [];
+                if (cur.includes(id)) set('latestVendorsSelected', cur.filter(x => x !== id));
+                else set('latestVendorsSelected', [...cur, id]);
+              };
+              const removeVendor = (id) => set('latestVendorsSelected', (form.latestVendorsSelected || []).filter(x => x !== id));
+              const moveVendor = (id, dir) => {
+                const arr = [...(form.latestVendorsSelected || [])];
+                const idx = arr.indexOf(id);
+                if (idx < 0) return;
+                const next = idx + dir;
+                if (next < 0 || next >= arr.length) return;
+                [arr[idx], arr[next]] = [arr[next], arr[idx]];
+                set('latestVendorsSelected', arr);
+              };
+
+              return (
+                <LocSCard title="Latest Vendors Strip" hint={`The "Latest Vendors." card slider beneath venues. Same controls as the venue slider.`} LS={LS} enabled={form.showLatestVendors !== false} onToggle={() => set('showLatestVendors', !form.showLatestVendors)}>
+
+                  {/* ── Vendor Mode ── */}
+                  <div style={{ marginBottom: 16 }}>
+                    {lbl('Vendor Mode')}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+                      {[
+                        ['latest',   'Latest',    'Newest vendors first'],
+                        ['random',   'Random',    'Reshuffled on each load'],
+                        ['featured', 'Featured',  'Your pinned vendor picks'],
+                        ['selected', 'Selectable','Hand-pick exactly which vendors appear'],
+                      ].map(([val, label, tip]) => (
+                        <button key={val} title={tip} onClick={() => set('latestVendorsMode', val)}
+                          style={{ padding: '6px 16px', fontSize: 12, fontFamily: NU, fontWeight: 600, borderRadius: 6, border: `1px solid ${form.latestVendorsMode === val ? LS.gold : LS.border}`, background: form.latestVendorsMode === val ? `${LS.gold}18` : 'transparent', color: form.latestVendorsMode === val ? LS.gold : LS.muted, cursor: 'pointer', letterSpacing: '0.04em' }}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 6 }}>
+                      {form.latestVendorsMode === 'selected' && 'You control exactly which vendors appear and in what order.'}
+                      {form.latestVendorsMode !== 'selected' && 'Latest = newest · Random = reshuffled each load · Featured = pinned picks'}
+                    </div>
+                  </div>
+
+                  {/* ── Vendor Picker (Selected mode only) ── */}
+                  {form.latestVendorsMode === 'selected' && (
+                    <div style={{ marginBottom: 20, padding: '14px 16px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8 }}>
+                      <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: LS.gold, marginBottom: 12 }}>Curated Vendor Selection</div>
+                      {selectedVendors.length > 0 && (
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginBottom: 8 }}>{selectedVendors.length} vendor{selectedVendors.length !== 1 ? 's' : ''} selected</div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {selectedVendors.map((v, i) => (
+                              <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: LS.bg, border: `1px solid ${LS.gold}44`, borderRadius: 6 }}>
+                                <span style={{ fontFamily: NU, fontSize: 11, color: LS.gold, fontWeight: 700, width: 18, flexShrink: 0, textAlign: 'center' }}>{i + 1}</span>
+                                <span style={{ fontFamily: NU, fontSize: 12, color: LS.text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.name}{v.region && <span style={{ color: LS.muted, marginLeft: 6 }}>· {v.region}</span>}</span>
+                                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                                  <button onClick={() => moveVendor(v.id, -1)} disabled={i === 0} style={{ padding: '2px 6px', fontSize: 11, background: 'none', border: `1px solid ${LS.border}`, borderRadius: 4, color: i === 0 ? LS.muted : LS.text, cursor: i === 0 ? 'default' : 'pointer', opacity: i === 0 ? 0.3 : 1 }}>↑</button>
+                                  <button onClick={() => moveVendor(v.id, 1)} disabled={i === selectedVendors.length - 1} style={{ padding: '2px 6px', fontSize: 11, background: 'none', border: `1px solid ${LS.border}`, borderRadius: 4, color: i === selectedVendors.length - 1 ? LS.muted : LS.text, cursor: i === selectedVendors.length - 1 ? 'default' : 'pointer', opacity: i === selectedVendors.length - 1 ? 0.3 : 1 }}>↓</button>
+                                  <button onClick={() => removeVendor(v.id)} style={{ padding: '2px 8px', fontSize: 11, background: 'none', border: `1px solid #c0392b44`, borderRadius: 4, color: '#e74c3c', cursor: 'pointer' }}>×</button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <input value={vendorPickerSearch} onChange={e => setVendorPickerSearch(e.target.value)} placeholder="Search vendors to add…" style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', marginBottom: 8 }} />
+                      {vendorPickerSearch && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 220, overflowY: 'auto' }}>
+                          {filteredForPicker.length === 0 && <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, padding: '8px 0', textAlign: 'center' }}>No vendors match "{vendorPickerSearch}"</div>}
+                          {filteredForPicker.map(v => (
+                            <button key={v.id} onClick={() => { toggleVendor(v.id); setVendorPickerSearch(''); }} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'transparent', border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer', textAlign: 'left' }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = LS.gold; e.currentTarget.style.background = `${LS.gold}10`; }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = LS.border; e.currentTarget.style.background = 'transparent'; }}>
+                              {v.imgs?.[0] && <img src={typeof v.imgs[0] === 'string' ? v.imgs[0] : v.imgs[0]?.src || ''} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />}
+                              <div><div style={{ fontFamily: NU, fontSize: 12, color: LS.text, fontWeight: 600 }}>{v.name}</div>{v.region && <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted }}>{v.region}</div>}</div>
+                              <span style={{ marginLeft: 'auto', fontSize: 16, color: LS.gold }}>+</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Card count ── */}
+                  {form.latestVendorsMode !== 'selected' && (
+                    <div style={{ marginBottom: 16 }}>
+                      {lbl('Number of Cards')}
+                      <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                        {['6', '9', '12', '18', '24'].map(n => (
+                          <button key={n} onClick={() => set('latestVendorsCount', n)}
+                            style={{ padding: '6px 14px', fontSize: 12, fontFamily: NU, fontWeight: 600, borderRadius: 6, border: `1px solid ${form.latestVendorsCount === n ? LS.gold : LS.border}`, background: form.latestVendorsCount === n ? `${LS.gold}18` : 'transparent', color: form.latestVendorsCount === n ? LS.gold : LS.muted, cursor: 'pointer' }}>{n}</button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Card style ── */}
+                  <div style={{ marginBottom: 16 }}>
+                    {lbl('Card Style')}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                      {[['luxury', 'Luxury (cinematic)'], ['standard', 'Standard (GCard)']].map(([val, label]) => (
+                        <button key={val} onClick={() => set('latestVendorsCardStyle', val)}
+                          style={{ padding: '6px 16px', fontSize: 12, fontFamily: NU, fontWeight: 600, borderRadius: 6, border: `1px solid ${form.latestVendorsCardStyle === val ? LS.gold : LS.border}`, background: form.latestVendorsCardStyle === val ? `${LS.gold}18` : 'transparent', color: form.latestVendorsCardStyle === val ? LS.gold : LS.muted, cursor: 'pointer' }}>{label}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ── Heading ── */}
+                  <div style={{ marginBottom: 12 }}>
+                    {lbl('Section Heading')}
+                    {inp('latestVendorsHeading', 'Latest Vendors.')}
+                    <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Leave blank to use "Latest Vendors."</div>
+                  </div>
+
+                  {/* ── Subtext ── */}
+                  <div>
+                    {lbl('Subtext')}
+                    <textarea value={form.latestVendorsSub || ''} onChange={e => set('latestVendorsSub', e.target.value)}
+                      placeholder={`Planners, photographers, florists, and culinary artists — the professionals behind${locationName ? ` ${locationName}'s` : ''} finest celebrations.`}
+                      rows={2} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }} />
+                    <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Leave blank to auto-generate from location name</div>
+                  </div>
+                </LocSCard>
+              );
+            })()}
+
+            {/* Geography */}
+            <LocSCard title="Geography" hint="Map centre and zoom for the discovery map on this page" LS={LS}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                <div>{lbl('Latitude')}{inp('mapLat', '43.7696')}</div>
+                <div>{lbl('Longitude')}{inp('mapLng', '11.2558')}</div>
+                <div>{lbl('Zoom')}{inp('mapZoom', '8')}</div>
+              </div>
+            </LocSCard>
+          </div>
+        )}
+
+        {/* RIGHT — live preview via LocationPage component */}
+        {showPreview && (
+          <div style={{ flex: viewMode === 'preview' ? '1' : '0 0 50%', overflow: 'hidden', background: LS.card, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '12px 20px', borderBottom: `1px solid ${LS.border}`, background: LS.bg, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: LS.muted }}>Live Preview</span>
+              {locationKey && <span style={{ fontFamily: NU, fontSize: 11, color: LS.muted }}>— {locationKey}</span>}
+            </div>
+            {locationKey ? (
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <LocationPage
+                  key={locationKey}
+                  locationType={locationType}
+                  locationSlug={locationSlug}
+                  countries={DIRECTORY_COUNTRIES}
+                  regions={DIRECTORY_REGIONS}
+                  cities={DIRECTORY_CITIES}
+                  venues={venueList}
+                  vendors={[]}
+                  locationContent={previewContent}
+                  featuredVenueIds={form.featuredVenueIds || []}
+                  featuredVendorIds={form.featuredVendorIds || []}
+                  previewDarkMode={darkMode}
+                  hideNav={true}
+                  onBack={() => {}}
+                  onViewVenue={() => {}}
+                  onViewRegion={() => {}}
+                  onViewCountry={() => {}}
+                  onViewCategory={() => {}}
+                />
+              </div>
+            ) : (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontFamily: GD, fontSize: 18, color: LS.muted }}>Live preview will appear here</div>
+                <div style={{ fontFamily: NU, fontSize: 13, color: LS.muted }}>Select a location →</div>
+              </div>
+            )}
+          </div>
+        )}
+        {/* Toast notification */}
+        {toast && <LocationToast msg={toast} onDone={() => setToast(null)} />}
+      </div>
     </div>
   );
 }
@@ -8189,6 +9247,34 @@ function SidebarGroup({ section, activeTab, setActiveTab }) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// Toast Notification Component
+// ═════════════════════════════════════════════════════════════════════════════
+
+function LocationToast({ msg, onDone }) {
+  setTimeout(onDone, 2200);
+  return (
+    <div style={{
+      position: 'fixed',
+      bottom: 28,
+      right: 28,
+      background: '#8a6d1b',
+      border: '1px solid #a07d15',
+      borderRadius: 4,
+      padding: '10px 18px',
+      fontFamily: 'var(--font-body)',
+      fontSize: 12,
+      fontWeight: 600,
+      color: '#fff',
+      zIndex: 9999,
+      pointerEvents: 'none',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+    }}>
+      {msg}
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 // Main Component
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -8244,6 +9330,62 @@ export default function AdminDashboard({ onBack, onNavigate }) {
 
   const [listingStudioMode, setListingStudioMode] = useState(initialLS.mode); // 'new', 'edit', or null
   const [listingStudioListingId, setListingStudioListingId] = useState(initialLS.id);
+  const [eventsBuilderActive, setEventsBuilderActive] = useState(false);
+  const [locationStudioActive, setLocationStudioActive] = useState(false);
+  const [activeShowcaseId, setActiveShowcaseId] = useState(null);
+
+  useEffect(() => {
+    let intent = null;
+    try { intent = JSON.parse(sessionStorage.getItem('lwd_admin_edit_intent') || 'null'); } catch {}
+    if (!intent) return;
+    sessionStorage.removeItem('lwd_admin_edit_intent');
+
+    if (intent.returnPath) {
+      try { sessionStorage.setItem('lwd_admin_return_path', intent.returnPath); } catch {}
+    }
+
+    if (intent.type === 'showcase' && intent.slug) {
+      fetchShowcases().then(all => {
+        const found = all.find(s => s.slug === intent.slug);
+        if (found) {
+          setActiveShowcaseId(found.id);
+          setActiveTab('showcase-studio');
+        } else {
+          setActiveTab('venue-profiles');
+        }
+      }).catch(() => setActiveTab('venue-profiles'));
+    } else if (intent.type === 'showcase-static') {
+      setActiveTab('venue-profiles');
+    } else if (intent.type === 'listing' && intent.slug) {
+      fetchListingBySlugAdmin(intent.slug).then(listing => {
+        if (listing?.id) {
+          setListingStudioMode('edit');
+          setListingStudioListingId(listing.id);
+          window.location.hash = `listing-studio/${listing.id}`;
+          setActiveTabState('listing-studio');
+        } else {
+          setActiveTab('listings');
+        }
+      }).catch(() => setActiveTab('listings'));
+    } else if (intent.type === 'article' && intent.slug) {
+      fetchPostBySlug(intent.slug).then(post => {
+        if (post?.id) {
+          try {
+            sessionStorage.setItem('magazineStudio_nav', JSON.stringify({ mode: 'article-edit', editingId: post.id }));
+          } catch {}
+          setActiveTab('magazine-studio');
+        } else {
+          setActiveTab('magazine-studio');
+        }
+      }).catch(() => setActiveTab('magazine-studio'));
+    } else if (intent.type === 'event' && intent.slug) {
+      try { sessionStorage.setItem('lwd_event_open_slug', intent.slug); } catch {}
+      setActiveTab('event-studio');
+    } else if (intent.type === 'cms-page' && intent.pageKey) {
+      try { sessionStorage.setItem('lwd_cms_edit_pagekey', intent.pageKey); } catch {}
+      setActiveTab('site-content');
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getInitialPageEditorId = () => {
     const hash = window.location.hash.slice(1);
@@ -8284,6 +9426,20 @@ export default function AdminDashboard({ onBack, onNavigate }) {
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
+
+  // ── lwd-nav custom event: cross-module navigation ──────────────────────────
+  // Fired by child modules (e.g. VisibilityDetailPanel "Connect" link,
+  // Prospect Outreach "Open" button) to navigate to a different admin tab.
+  // Payload: { tab: string, prospectId?: string, seoTab?: string }
+  useEffect(() => {
+    const handleLwdNav = (e) => {
+      const { tab } = e.detail || {};
+      if (!tab) return;
+      setActiveTab(tab);
+    };
+    window.addEventListener('lwd-nav', handleLwdNav);
+    return () => window.removeEventListener('lwd-nav', handleLwdNav);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Theme customisation state (persisted to localStorage) ──
   const [customDark, setCustomDark] = useState(() => {
@@ -8447,6 +9603,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
     const [actionFeedback, setActionFeedback] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [clickCounts, setClickCounts] = useState({});
 
     useEffect(() => {
       const loadListings = async () => {
@@ -8458,8 +9615,17 @@ export default function AdminDashboard({ onBack, onNavigate }) {
             setListings([]);
             return;
           }
-          const data = await fetchListings();
-          setListings(data && data.length > 0 ? data : []);
+          const data = await fetchListingsAdmin();
+          const rows = data && data.length > 0 ? data : [];
+          setListings(rows);
+
+          // Batch-load outbound click counts (fire-and-forget — never blocks UI)
+          if (rows.length > 0) {
+            const ids = rows.map(l => l.id).filter(Boolean);
+            fetchBatchClickCounts(ids, 30).then(res => {
+              if (res?.counts) setClickCounts(res.counts);
+            });
+          }
         } catch (error) {
           setError("Failed to load listings: " + error.message);
           setListings([]);
@@ -8597,6 +9763,17 @@ export default function AdminDashboard({ onBack, onNavigate }) {
                         <span style={{ width: 6, height: 6, borderRadius: "50%", background: dot, display: "inline-block" }} />
                         {l.status || 'Draft'}
                       </span>
+                      {clickCounts[l.id] != null && clickCounts[l.id] > 0 && (
+                        <span title="Outbound clicks (30d)" style={{
+                          fontFamily: NU, fontSize: 9, fontWeight: 700,
+                          letterSpacing: "0.08em",
+                          color: C.gold, background: `${C.gold}14`,
+                          border: `1px solid ${C.gold}30`,
+                          padding: "2px 7px", borderRadius: 10,
+                        }}>
+                          ↗ {clickCounts[l.id]}
+                        </span>
+                      )}
                     </div>
                     <div style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>
                       {[l.city, l.region, l.country].filter(Boolean).join(' · ')}
@@ -8657,28 +9834,40 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "listings":       return <ListingsModule C={C} />;
       case "venue-profiles": return <VenueProfilesAdminModule C={C} onNavigate={(action, params) => {
         if (action === 'listing-studio') { setActiveTab('listing-studio'); }
+        if (action === 'edit-showcase') { setActiveShowcaseId(params?.showcaseId || null); setActiveTab('showcase-studio'); }
       }} />;
+      case "showcase-studio": return <ShowcaseStudioModule key="showcase-studio" C={C} showcaseId={activeShowcaseId} onBack={() => setActiveTab('venue-profiles')} />;
       case "reviews": return <ReviewsModule />;
       case "listing-studio": return null; // Handled in main render logic
+      case "venue-intake":   return <VenueIntakeStudio C={C} />;
       case "vendor-accounts": return <VendorAccountsPage C={C} />;
       case "categories":    return <CategoriesModule C={C} />;
       case "enquiries":     return <AdminAllLeads C={C} />;
       case "countries":     return <CountriesModule C={C} />;
       case "regions":       return <RegionsModule C={C} />;
+      case "locations":     return <LocationsModule key="locations" C={C} darkMode={darkMode} onBuilderModeChange={setLocationStudioActive} />;
       case "leads":         return <LeadsModule C={C} />;
       case "marketing":      return <EmailMarketingModule C={C} onNavigate={setActiveTab} />;
       case "email-marketing": return <EmailMarketingModule C={C} onNavigate={setActiveTab} />;
       case "newsletter":     return <EmailMarketingModule C={C} defaultTab="newsletter" onNavigate={setActiveTab} />;
       case "email-builder":      return <EmailBuilderModule C={C} onBack={() => setActiveTab('email-marketing')} />;
       case "newsletter-builder": return <EmailBuilderModule C={C} mode="newsletter" onBack={() => setActiveTab('newsletter')} />;
-      case "seo":           return <PlaceholderModule title="SEO Command Centre" C={C} />;
-      case "crm":           return <CRMModule C={C} />;
+      case "seo":           return <SeoModule C={C} />;
+      case "crm":               return <CRMModule C={C} />;
+      case "events":            return <EventsModule key="events" C={C} darkMode={darkMode} onBuilderModeChange={setEventsBuilderActive} />;
+      case "event-studio":      return <EventsModule key="event-studio" C={C} darkMode={darkMode} onBuilderModeChange={setEventsBuilderActive} startInBuilder />;
+      case "managed-accounts":  return <ManagedAccountsModule C={C} />;
       case "partner-enquiries": return <PartnerEnquiriesModule C={C} />;
-      case "sales-pipeline":    return <PlaceholderModule title="Sales Pipeline" C={C} />;
+      case "sales-pipeline":    return <SalesPipelineModule C={C} />;
+      case "pipeline-builder":  return <PipelineBuilderModule C={C} />;
+      case "platform-settings": return <PlatformSettingsModule C={C} />;
+      case "team":              return <TeamModule C={C} />;
       case "advertise-leads":   return <PartnerEnquiriesModule C={C} filterType="advertise" />;
       case "aura":          return <AuraAnalyticsModule C={C} />;
       case "api":           return <APIManagementModule C={C} />;
-      case "ai-settings":   return <AISettingsPage C={C} />;
+      case "ai-settings":     return <AISettingsPage C={C} />;
+      case "connected-data":          return <ConnectedDataModule C={C} NU={NU} GD={GD} />;
+      case "platform-intelligence":  return <PlatformIntelligenceModule C={C} />;
       case "styles":        return <StyleEditorModule C={C} darkPalette={customDark} lightPalette={customLight} fonts={customFonts} customCss={customCss} siteSettings={siteSettings} auditLog={auditLog} onUpdatePalette={handleUpdatePalette} onUpdateFonts={handleUpdateFonts} onUpdateCss={handleUpdateCss} onUpdateSiteSettings={handleUpdateSiteSettings} onSave={handleSaveThemeLogged} onRevert={handleRevertTheme} onExport={handleExportTheme} onImport={handleImportTheme} onApplyPreset={handleApplyPreset} saveStatus={saveStatus} />;
       case "page-studio":   return <PageStudioHome C={C} NU={NU} GD={GD} onNavigate={(action, params) => {
         if (action === "page-editor" && params?.pageId) {
@@ -8703,7 +9892,12 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         else onNavigate(action);
       }} />;
       case "magazine-studio": return null; // Handled in main render logic
+      case "social-studio":   return <SocialStudioModule C={C} />;
       case "reusable-blocks": return <ReusableBlocksModule C={C} NU={NU} GD={GD} />;
+      case "branding":        return <MenuBranding C={C} />;
+      case "menu":            return <MenuModule C={C} />;
+      case "footer":          return <FooterModule C={C} />;
+      case "site-content":    return <SiteContentModule key="site-content" C={C} darkMode={darkMode} />;
       default:              return <OverviewModule C={C} />;
     }
   };
@@ -8715,7 +9909,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         @media (max-width: 768px) {
           .admin-sidebar { display: flex !important; position: fixed !important; z-index: 999; left: 0; top: 0; width: 220px !important; height: 100vh !important; transform: translateX(${sidebarOpen ? "0" : "-100%"}); transition: transform 0.3s ease !important; box-shadow: ${sidebarOpen ? "6px 0 32px rgba(0,0,0,0.7)" : "none"}; border-right: ${sidebarOpen ? "1px solid rgba(201,168,76,0.25)" : "none"} !important; }
           .admin-sidebar-overlay { display: ${sidebarOpen ? "block" : "none"}; position: fixed; inset: 0; z-index: 998; background: rgba(0,0,0,0.5); }
-          .admin-main { padding: ${activeTab === 'magazine-studio' || activeTab === 'page-editor' || activeTab === 'listing-studio' || listingStudioMode ? '0' : '56px 16px 20px'} !important; }
+          .admin-main { padding: ${activeTab === 'magazine-studio' || activeTab === 'page-editor' || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || listingStudioMode || eventsBuilderActive || locationStudioActive ? '0' : '56px 16px 20px'} !important; }
           .admin-hamburger { display: flex !important; }
           .admin-collapse-btn { display: none !important; }
           .admin-grid-2col { grid-template-columns: 1fr !important; }
@@ -8933,7 +10127,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         </aside>
 
         {/* ── Main content ── */}
-        <main className="admin-main" style={{ flex: 1, minHeight: 0, padding: listingStudioMode || activeTab === 'listing-studio' || activeTab === 'page-editor' || activeTab === 'magazine-studio' ? 0 : "40px 48px", overflow: activeTab === 'page-editor' || activeTab === 'magazine-studio' ? "hidden" : "auto", transition: "background 0.3s" }}>
+        <main className="admin-main" style={{ flex: 1, minHeight: 0, padding: listingStudioMode || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || eventsBuilderActive || locationStudioActive ? 0 : "40px 48px", overflow: activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || eventsBuilderActive || locationStudioActive || activeTab === 'event-studio' ? "hidden" : "auto", display: eventsBuilderActive || locationStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'showcase-studio' || activeTab === 'site-content' ? "flex" : undefined, flexDirection: eventsBuilderActive || locationStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'showcase-studio' || activeTab === 'site-content' ? "column" : undefined, transition: "background 0.3s" }}>
           {/* Magazine Studio, full-screen inside admin layout */}
           {activeTab === 'magazine-studio' ? (
             <MagazineStudio
@@ -8970,7 +10164,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
             </Suspense>
           ) : (
             <>
-              {activeTab !== 'page-editor' && (
+              {!['page-editor', 'listing-studio', 'event-studio', 'magazine-studio', 'venue-intake', 'showcase-studio', 'locations'].includes(activeTab) && !listingStudioMode && !eventsBuilderActive && !locationStudioActive && (
                 <div style={{ marginBottom: 36 }}>
                   <h1 style={{
                     fontFamily: GD, fontSize: 24, fontWeight: 400,
@@ -9277,14 +10471,8 @@ function MagazineAdminModule({ C, onNavigate }) {
     <div style={{ padding: 'clamp(24px, 3vw, 40px)', maxWidth: 1100 }}>
       <div style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <div style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: GOLD_M, marginBottom: 6 }}>
-            Content · The Magazine
-          </div>
-          <h2 style={{ fontFamily: GD_A, fontSize: 'clamp(22px, 3vw, 30px)', fontWeight: 400, color: C.heading, margin: 0 }}>
-            The Magazine
-          </h2>
-          <p style={{ fontFamily: NU_A, fontSize: 13, color: C.grey, margin: '6px 0 0' }}>
-            AI-driven editorial · feeds into the Aura AI search engine
+          <p style={{ fontFamily: NU_A, fontSize: 13, color: C.grey, margin: 0 }}>
+            AI-driven editorial - feeds into the Aura AI search engine
           </p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -9314,9 +10502,9 @@ function MagazineAdminModule({ C, onNavigate }) {
 
       <div className="admin-grid-4col" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
         {stats.map(s => (
-          <div key={s.label} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px' }}>
+          <div key={s.label} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px' }}>
             <div style={{ fontFamily: NU_A, fontSize: 10, color: C.grey, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>{s.label}</div>
-            <div style={{ fontFamily: GD_A, fontSize: 28, fontWeight: 400, color: C.heading }}>{s.value}</div>
+            <div style={{ fontFamily: GD_A, fontSize: 28, fontWeight: 400, color: C.off }}>{s.value}</div>
           </div>
         ))}
       </div>
@@ -9348,13 +10536,13 @@ function MagazineAdminModule({ C, onNavigate }) {
         <div>
           <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search articles..." style={{
-              fontFamily: NU_A, fontSize: 12, color: C.text,
-              background: C.surface, border: `1px solid ${C.border}`,
+              fontFamily: NU_A, fontSize: 12, color: C.white,
+              background: C.card, border: `1px solid ${C.border}`,
               borderRadius: 4, padding: '8px 14px', outline: 'none', minWidth: 220,
             }} />
             <select value={filterCat} onChange={e => setFilterCat(e.target.value)} style={{
-              fontFamily: NU_A, fontSize: 12, color: C.text,
-              background: C.surface, border: `1px solid ${C.border}`,
+              fontFamily: NU_A, fontSize: 12, color: C.white,
+              background: C.card, border: `1px solid ${C.border}`,
               borderRadius: 4, padding: '8px 14px', outline: 'none',
             }}>
               <option value="all">All Categories</option>
@@ -9365,7 +10553,7 @@ function MagazineAdminModule({ C, onNavigate }) {
             </span>
           </div>
           <div style={{ border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 130px 90px 70px 90px', padding: '10px 16px', background: C.surface, borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 130px 90px 70px 90px', padding: '10px 16px', background: C.card, borderBottom: `1px solid ${C.border}` }}>
               {['', 'Title', 'Category', 'Author', 'Read', 'Status'].map(h => (
                 <span key={h} style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.grey }}>{h}</span>
               ))}
@@ -9375,11 +10563,11 @@ function MagazineAdminModule({ C, onNavigate }) {
                 display: 'grid', gridTemplateColumns: '40px 1fr 130px 90px 70px 90px',
                 padding: '12px 16px', alignItems: 'center',
                 borderBottom: i < filtered.length - 1 ? `1px solid ${C.border}` : 'none',
-                background: i % 2 === 0 ? 'transparent' : `${C.surface}60`,
+                background: i % 2 === 0 ? 'transparent' : `${C.card}60`,
               }}>
                 <div style={{ width: 28, height: 28, borderRadius: 2, backgroundImage: `url(${post.coverImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
                 <div>
-                  <div style={{ fontFamily: NU_A, fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 8 }}>
+                  <div style={{ fontFamily: NU_A, fontSize: 12, fontWeight: 600, color: C.white, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 8 }}>
                     {post.title}
                   </div>
                   <div style={{ fontFamily: NU_A, fontSize: 10, color: C.grey }}>/{post.slug}</div>
@@ -9403,13 +10591,13 @@ function MagazineAdminModule({ C, onNavigate }) {
         <div>
           <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
             <input value={productSearch} onChange={e => setProductSearch(e.target.value)} placeholder="Search products..." style={{
-              fontFamily: NU_A, fontSize: 12, color: C.text,
-              background: C.surface, border: `1px solid ${C.border}`,
+              fontFamily: NU_A, fontSize: 12, color: C.white,
+              background: C.card, border: `1px solid ${C.border}`,
               borderRadius: 4, padding: '8px 14px', outline: 'none', minWidth: 220,
             }} />
             <select value={productCat} onChange={e => setProductCat(e.target.value)} style={{
-              fontFamily: NU_A, fontSize: 12, color: C.text,
-              background: C.surface, border: `1px solid ${C.border}`,
+              fontFamily: NU_A, fontSize: 12, color: C.white,
+              background: C.card, border: `1px solid ${C.border}`,
               borderRadius: 4, padding: '8px 14px', outline: 'none',
             }}>
               <option value="all">All Categories</option>
@@ -9428,17 +10616,17 @@ function MagazineAdminModule({ C, onNavigate }) {
             {PRODUCTS
               .filter(p => (productCat === 'all' || p.category === productCat) && (!productSearch || p.title.toLowerCase().includes(productSearch.toLowerCase()) || p.brand.toLowerCase().includes(productSearch.toLowerCase())))
               .map(p => (
-                <div key={p.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden', display: 'flex' }}>
+                <div key={p.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden', display: 'flex' }}>
                   <div style={{ width: 80, flexShrink: 0, backgroundImage: `url(${p.image})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
                   <div style={{ padding: '14px 16px', flex: 1, minWidth: 0 }}>
                     <div style={{ fontFamily: NU_A, fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD_M, marginBottom: 4 }}>
                       {p.brand}
                     </div>
-                    <div style={{ fontFamily: NU_A, fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div style={{ fontFamily: NU_A, fontSize: 13, fontWeight: 600, color: C.white, marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {p.title}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                      <span style={{ fontFamily: NU_A, fontSize: 12, fontWeight: 600, color: C.text }}>{formatPrice(p.salePrice || p.price)}</span>
+                      <span style={{ fontFamily: NU_A, fontSize: 12, fontWeight: 600, color: C.white }}>{formatPrice(p.salePrice || p.price)}</span>
                       {p.salePrice && <span style={{ fontFamily: NU_A, fontSize: 11, color: C.grey, textDecoration: 'line-through' }}>{formatPrice(p.price)}</span>}
                       {p.badge && <span style={{ fontFamily: NU_A, fontSize: 8, fontWeight: 700, letterSpacing: '0.1em', color: '#fff', background: GOLD_M, padding: '2px 6px', borderRadius: 2 }}>{p.badge}</span>}
                     </div>
@@ -9446,8 +10634,8 @@ function MagazineAdminModule({ C, onNavigate }) {
                       via {p.retailer} · {p.category}
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.text, background: C.bg, border: `1px solid ${C.border}`, padding: '5px 10px', borderRadius: 3, cursor: 'pointer' }}>Edit</button>
-                      <button style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.text, background: C.bg, border: `1px solid ${C.border}`, padding: '5px 10px', borderRadius: 3, cursor: 'pointer' }}>Duplicate</button>
+                      <button style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.white, background: C.dark, border: `1px solid ${C.border}`, padding: '5px 10px', borderRadius: 3, cursor: 'pointer' }}>Edit</button>
+                      <button style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.white, background: C.dark, border: `1px solid ${C.border}`, padding: '5px 10px', borderRadius: 3, cursor: 'pointer' }}>Duplicate</button>
                     </div>
                   </div>
                 </div>
@@ -9455,12 +10643,12 @@ function MagazineAdminModule({ C, onNavigate }) {
             }
           </div>
 
-          <div style={{ marginTop: 24, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: 20 }}>
+          <div style={{ marginTop: 24, background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: 20 }}>
             <div style={{ fontFamily: NU_A, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.grey, marginBottom: 12 }}>Collections</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px,1fr))', gap: 12 }}>
               {Object.entries(COLLECTIONS).map(([id, col]) => (
-                <div key={id} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 4, padding: '12px 14px' }}>
-                  <div style={{ fontFamily: NU_A, fontSize: 11, fontWeight: 600, color: C.text, marginBottom: 4 }}>{col.label}</div>
+                <div key={id} style={{ background: C.dark, border: `1px solid ${C.border}`, borderRadius: 4, padding: '12px 14px' }}>
+                  <div style={{ fontFamily: NU_A, fontSize: 11, fontWeight: 600, color: C.white, marginBottom: 4 }}>{col.label}</div>
                   <div style={{ fontFamily: NU_A, fontSize: 10, color: C.grey }}>{col.productIds.length} products</div>
                 </div>
               ))}
@@ -9474,10 +10662,10 @@ function MagazineAdminModule({ C, onNavigate }) {
           {CATEGORIES.map(cat => {
             const count = POSTS.filter(p => p.category === cat.id).length;
             return (
-              <div key={cat.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+              <div key={cat.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
                 <div style={{ width: 44, height: 44, flexShrink: 0, borderRadius: 4, backgroundImage: `url(${cat.heroImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
                 <div>
-                  <div style={{ fontFamily: NU_A, fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 3 }}>{cat.label}</div>
+                  <div style={{ fontFamily: NU_A, fontSize: 12, fontWeight: 600, color: C.white, marginBottom: 3 }}>{cat.label}</div>
                   <div style={{ fontFamily: NU_A, fontSize: 10, color: C.grey, marginBottom: 6 }}>{count} article{count !== 1 ? 's' : ''}</div>
                   <div style={{ fontFamily: NU_A, fontSize: 10, color: GOLD_M, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{cat.defaultCardStyle}</div>
                 </div>

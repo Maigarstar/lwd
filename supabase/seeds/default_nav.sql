@@ -205,7 +205,7 @@ INSERT INTO nav_items (
   false, 'left', 2, '2-col', true),
 
 ('a0000002-0000-0000-0000-000000000004',
-  'UK & Ireland', '/uk', 'uk', 'link', 4, true,
+  'England', '/england', 'england', 'link', 4, true,
   'a0000001-0000-0000-0000-000000000002',
   false, 'gold', false, false, 'columns', 'manual', 'classic-luxury', 'slide-down',
   '#1a1510', '#f5efe4', '#c9a84c', '#c9a84c', '#2a2218', 'luxury', 8, 28,
