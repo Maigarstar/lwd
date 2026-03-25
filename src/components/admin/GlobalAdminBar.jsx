@@ -45,9 +45,6 @@ function getEditContext(page, { showcaseSlug, venueSlug, magazineSlug, eventSlug
   switch (page) {
     case 'showcase':
       return { type: 'showcase', label: 'Edit Showcase', slug: showcaseSlug, disabled: false };
-    case 'venue-profile':
-    case 'listing-profile':
-      return { type: 'listing', label: 'Edit Listing', slug: venueSlug, disabled: false };
     case 'magazine-article':
       return { type: 'article', label: 'Edit Article', slug: magazineSlug, disabled: false };
     case 'event-detail':

@@ -42,7 +42,7 @@ export default function AuraLauncher() {
       aria-label="Open Aura chat assistant"
       style={{
         position:       "fixed",
-        bottom:         compareBarUp ? 92 : 28,
+        bottom:         compareBarUp ? 110 : 80,
         right:          28,
         zIndex:         900,
         transition:     "bottom 0.3s cubic-bezier(0.25,0.46,0.45,0.94), background 0.2s ease, transform 0.2s ease, padding 0.5s cubic-bezier(0.25,0.46,0.45,0.94), gap 0.5s cubic-bezier(0.25,0.46,0.45,0.94), box-shadow 0.2s ease",
