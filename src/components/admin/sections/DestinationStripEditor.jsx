@@ -9,7 +9,9 @@ export default function DestinationStripEditor({ content, updateField }) {
     { id: "spain", label: "Spain" },
     { id: "portugal", label: "Portugal" },
     { id: "greece", label: "Greece" },
-    { id: "uk", label: "United Kingdom" },
+    { id: "england", label: "England" },
+    { id: "scotland", label: "Scotland" },
+    { id: "wales", label: "Wales" },
     { id: "switzerland", label: "Switzerland" },
   ];
 

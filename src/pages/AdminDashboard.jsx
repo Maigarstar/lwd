@@ -7,11 +7,11 @@
 import { useState, useRef, useEffect, useCallback, useMemo, Suspense } from "react";
 import { ThemeCtx } from "../theme/ThemeContext";
 import { DARK_C } from "../theme/tokens";
-import { ITALY_COUNTRY } from "../data/italy/country.js";
+import { DIRECTORY_COUNTRIES } from "../data/countryRegistry.js";
 import { ITALY_REGIONS } from "../data/italy/regions.js";
 import { ITALY_CITIES } from "../data/italy/cities.js";
 import { REGION_AUTO_THRESHOLD, evaluateRegionActivation } from "../engine/activation.js";
-import { fetchListings, fetchListingBySlug, isSupabaseAvailable, createListing, deleteListing } from "../services/listings";
+import { fetchListings, fetchListingsAdmin, fetchListingBySlugAdmin, isSupabaseAvailable, createListing, deleteListing } from "../services/listings";
 import { fetchShowcases, createShowcase, updateShowcase, deleteShowcase } from "../services/showcaseService";
 import { uploadMediaFile } from "../utils/storageUpload";
 import categoryCssRaw from "../category.css?raw";
@@ -509,7 +509,7 @@ const STRUCTURED_DATA_MAP = {
 
 // ── SEO landing page plan, generated from taxonomy ───────────────────────
 // These pages are where authority compounds. Listings are important, but clusters win.
-const SEO_COUNTRIES = ["italy", "france", "uk", "spain", "greece", "portugal", "usa", "caribbean", "mexico", "thailand", "bali", "south-africa", "maldives", "switzerland", "austria"];
+const SEO_COUNTRIES = ["italy", "france", "england", "spain", "greece", "portugal", "usa", "caribbean", "mexico", "thailand", "bali", "south-africa", "maldives", "switzerland", "austria"];
 
 // Generates: /italy, /france, /uk ...
 // Generates: /italy/wedding-venues, /italy/wedding-planners, /france/photographers ...
@@ -659,569 +659,9 @@ const DIRECTORY_CATEGORIES = [
 ];
 
 // ═════════════════════════════════════════════════════════════════════════════
-// Country Taxonomy, Geography-first SEO architecture
+// Country Taxonomy — imported from src/data/countryRegistry.js (single source of truth)
+// See DIRECTORY_COUNTRIES import at top of file.
 // ═════════════════════════════════════════════════════════════════════════════
-const DIRECTORY_COUNTRIES = [
-  ITALY_COUNTRY,
-  {
-    id: "france", slug: "france", name: "France", iso2: "FR", listingCount: 12,
-    seoTitleTemplate: "Luxury Wedding Vendors in France | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues and vendors across France. Châteaux, Provence estates and Parisian elegance, editorially selected.",
-    evergreenContent: "France embodies romance at every scale, from intimate Provençal farmhouses to grand Loire Valley châteaux. The French wedding tradition marries gastronomy, fashion and architecture into celebrations of unparalleled sophistication.",
-    focusKeywords: ["luxury wedding france", "french chateau wedding", "provence wedding", "destination wedding france", "paris wedding planner"],
-    aiSummary: "Second-largest European destination market. Château weddings dominate search. Provence and Paris drive the highest conversion rates.",
-    intentSignals: { high: ["chateau wedding france cost", "provence wedding planner book", "paris luxury wedding venue hire"], mid: ["best french wedding venues", "provence wedding inspiration", "france destination wedding packages"], low: ["french wedding traditions", "getting married in france requirements", "wedding in france ideas"] },
-  },
-  {
-    id: "uk", slug: "uk", name: "United Kingdom", iso2: "GB", listingCount: 14,
-    seoTitleTemplate: "Luxury Wedding Vendors in the UK | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues and vendors across the United Kingdom. Country houses, castles and contemporary spaces, editorially selected.",
-    evergreenContent: "The United Kingdom offers an unrivalled range of wedding settings, from the rolling hills of the Cotswolds to the Scottish Highlands. Historic country houses, royal estates and converted barns form the backbone of the British luxury wedding market.",
-    focusKeywords: ["luxury wedding uk", "country house wedding", "castle wedding uk", "wedding venues england", "london wedding planner"],
-    aiSummary: "Largest domestic market. Country houses and barn venues lead search. Strong year-round demand with summer peak. London planners service both domestic and destination.",
-    intentSignals: { high: ["book country house wedding venue", "luxury wedding planner london", "castle wedding venue hire uk"], mid: ["best wedding venues uk", "cotswolds wedding ideas", "country wedding venues england"], low: ["uk wedding traditions", "average wedding cost uk", "wedding planning checklist uk"] },
-  },
-  {
-    id: "spain", slug: "spain", name: "Spain", iso2: "ES", listingCount: 8,
-    seoTitleTemplate: "Luxury Wedding Vendors in Spain | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across Spain. Andalusian fincas, Balearic islands and Barcelona elegance, editorially selected.",
-    evergreenContent: "Spain offers sun-drenched celebrations blending Moorish architecture, Mediterranean coastline and world-class gastronomy. From the white villages of Andalusia to the bohemian glamour of Ibiza, Spanish weddings are a feast for every sense.",
-    focusKeywords: ["luxury wedding spain", "spanish finca wedding", "ibiza wedding venue", "marbella wedding", "barcelona wedding planner"],
-    aiSummary: "Fast-growing destination market. Mallorca and Marbella drive highest search volume. Ibiza captures younger luxury demographic. Year-round viability.",
-    intentSignals: { high: ["finca wedding spain book", "marbella luxury wedding venue", "ibiza wedding planner hire"], mid: ["best wedding venues spain", "mallorca wedding guide", "andalusia wedding inspiration"], low: ["spanish wedding customs", "getting married in spain", "spain wedding ideas"] },
-  },
-  {
-    id: "usa", slug: "usa", name: "United States", iso2: "US", listingCount: 6,
-    seoTitleTemplate: "Luxury Wedding Vendors in the USA | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues and vendors across the United States. East Coast estates, Californian vineyards and city grandeur, editorially selected.",
-    evergreenContent: "The United States encompasses extraordinary diversity, from the Gilded Age estates of the Hudson Valley to Napa Valley vineyards and the Art Deco glamour of Miami. American luxury weddings blend scale, creativity and world-class vendor talent.",
-    focusKeywords: ["luxury wedding usa", "new york wedding venue", "napa valley wedding", "hamptons wedding", "luxury wedding planner nyc"],
-    aiSummary: "High-value market with premium vendor ecosystem. New York tri-state area dominates. California wine country and Florida emerging strongly.",
-    intentSignals: { high: ["luxury wedding venue new york book", "napa valley wedding planner hire", "hamptons estate wedding cost"], mid: ["best luxury wedding venues usa", "california winery wedding guide", "new york wedding ideas"], low: ["american wedding traditions", "average luxury wedding cost us", "wedding planning tips usa"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // EUROPE, Extended
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "portugal", slug: "portugal", name: "Portugal", iso2: "PT", listingCount: 9,
-    seoTitleTemplate: "Luxury Wedding Vendors in Portugal | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across Portugal. Algarve coastlines, Sintra palaces and Douro vineyards, editorially selected.",
-    evergreenContent: "Portugal blends Atlantic drama with Moorish heritage. Sun-drenched Algarve cliffs, Sintra's fairy-tale palaces and the terraced vineyards of the Douro Valley create a wedding destination of remarkable range and warmth.",
-    focusKeywords: ["luxury wedding portugal", "algarve wedding venue", "sintra wedding", "portugal destination wedding", "lisbon wedding planner"],
-    aiSummary: "Fast-growing European destination. Algarve leads volume. Sintra drives highest-value weddings. Strong UK market.",
-    intentSignals: { high: ["algarve wedding venue book", "sintra palace wedding hire"], mid: ["best portugal wedding venues", "algarve wedding guide"], low: ["portugal wedding traditions", "getting married in portugal"] },
-  },
-  {
-    id: "greece", slug: "greece", name: "Greece", iso2: "GR", listingCount: 11,
-    seoTitleTemplate: "Luxury Wedding Vendors in Greece | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues and vendors across Greece. Santorini sunsets, Mykonos glamour and Athenian elegance, editorially selected.",
-    evergreenContent: "Greece is synonymous with romance, whitewashed Cycladic villages, ancient temples and Aegean sunsets that define the destination wedding dream. From Santorini's caldera to Crete's rugged coastline, every island tells a love story.",
-    focusKeywords: ["luxury wedding greece", "santorini wedding venue", "mykonos wedding", "greek island wedding", "athens wedding planner"],
-    aiSummary: "Top 3 global destination market. Santorini dominates luxury tier. Mykonos captures fashion-forward segment. Strong year-round demand.",
-    intentSignals: { high: ["santorini wedding venue book", "mykonos wedding planner hire"], mid: ["best greek island wedding venues", "greece destination wedding cost"], low: ["greek wedding traditions", "getting married in greece"] },
-  },
-  {
-    id: "ireland", slug: "ireland", name: "Ireland", iso2: "IE", listingCount: 7,
-    seoTitleTemplate: "Luxury Wedding Vendors in Ireland | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues and vendors across Ireland. Castle estates, coastal cliffs and Georgian grandeur, editorially selected.",
-    evergreenContent: "Ireland offers wild Atlantic beauty and aristocratic elegance. Castle hotels, Georgian estates and clifftop ceremonies along the Wild Atlantic Way create a uniquely atmospheric wedding destination.",
-    focusKeywords: ["luxury wedding ireland", "castle wedding ireland", "irish wedding venue", "ireland destination wedding"],
-    aiSummary: "Castle weddings dominate. Strong US-Irish heritage market. Kerry and Dublin lead demand.",
-    intentSignals: { high: ["irish castle wedding venue book", "ireland wedding planner hire"], mid: ["best wedding venues ireland", "castle wedding ireland cost"], low: ["irish wedding traditions", "getting married in ireland"] },
-  },
-  {
-    id: "croatia", slug: "croatia", name: "Croatia", iso2: "HR", listingCount: 6,
-    seoTitleTemplate: "Luxury Wedding Vendors in Croatia | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across Croatia. Dubrovnik walled city, Adriatic islands and Istrian hilltop villages, editorially selected.",
-    evergreenContent: "Croatia has emerged as a Mediterranean jewel, Dubrovnik's medieval grandeur, the lavender-scented islands of Hvar and Vis, and Istria's truffle-rich hilltop villages offer European luxury at compelling value.",
-    focusKeywords: ["luxury wedding croatia", "dubrovnik wedding venue", "hvar wedding", "croatia destination wedding"],
-    aiSummary: "Fastest-growing Mediterranean destination. Dubrovnik anchors luxury tier. Island weddings trending strongly.",
-    intentSignals: { high: ["dubrovnik wedding venue book", "hvar wedding planner"], mid: ["best croatia wedding venues", "dubrovnik wedding cost"], low: ["croatia wedding ideas", "getting married in croatia"] },
-  },
-  {
-    id: "switzerland", slug: "switzerland", name: "Switzerland", iso2: "CH", listingCount: 5,
-    seoTitleTemplate: "Luxury Wedding Vendors in Switzerland | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues and vendors across Switzerland. Alpine grandeur, lake palaces and five-star elegance, editorially selected.",
-    evergreenContent: "Switzerland offers unmatched Alpine luxury, palatial lakeside hotels, mountain-top ceremonies with panoramic views and world-class gastronomy. From Lake Geneva's glamour to the Engadine's pristine beauty.",
-    focusKeywords: ["luxury wedding switzerland", "swiss wedding venue", "lake geneva wedding", "alpine wedding switzerland"],
-    aiSummary: "Ultra-premium market. Highest per-wedding spend in Europe. Palace hotel weddings dominate. Winter and summer seasons.",
-    intentSignals: { high: ["lake geneva wedding venue book", "swiss alpine wedding planner"], mid: ["best switzerland wedding venues", "swiss wedding cost"], low: ["swiss wedding traditions", "getting married in switzerland"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // MIDDLE EAST & NORTH AFRICA
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "uae", slug: "uae", name: "United Arab Emirates", iso2: "AE", listingCount: 8,
-    seoTitleTemplate: "Luxury Wedding Vendors in the UAE | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across the UAE. Dubai opulence, Abu Dhabi grandeur and desert romance, editorially selected.",
-    evergreenContent: "The UAE delivers wedding luxury at a scale found nowhere else, from Dubai's glittering skyline venues and private island resorts to Abu Dhabi's palatial hotels. Desert ceremonies under starlit skies add an Arabian Nights dimension.",
-    focusKeywords: ["luxury wedding dubai", "dubai wedding venue", "abu dhabi wedding", "uae wedding planner", "desert wedding dubai"],
-    aiSummary: "Highest-spend market globally. Dubai dominates with palace and beachfront venues. Year-round with winter peak. Strong South Asian and Middle Eastern demand.",
-    intentSignals: { high: ["dubai luxury wedding venue book", "abu dhabi palace wedding hire"], mid: ["best dubai wedding venues", "uae destination wedding packages"], low: ["dubai wedding ideas", "getting married in dubai"] },
-  },
-  {
-    id: "morocco", slug: "morocco", name: "Morocco", iso2: "MA", listingCount: 5,
-    seoTitleTemplate: "Luxury Wedding Vendors in Morocco | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues and vendors across Morocco. Marrakech riads, Atlas Mountain retreats and Saharan luxury, editorially selected.",
-    evergreenContent: "Morocco enchants with sensory richness, Marrakech's rose-scented riads, the snow-capped Atlas Mountains and Saharan desert camps under infinite stars create celebrations of extraordinary atmosphere.",
-    focusKeywords: ["luxury wedding morocco", "marrakech wedding venue", "morocco destination wedding", "riad wedding marrakech"],
-    aiSummary: "Experiential luxury market. Marrakech dominates. Multi-day celebration format drives high spend. Autumn and spring peaks.",
-    intentSignals: { high: ["marrakech riad wedding venue book", "morocco wedding planner hire"], mid: ["best morocco wedding venues", "marrakech wedding cost"], low: ["moroccan wedding traditions", "getting married in morocco"] },
-  },
-  {
-    id: "turkey", slug: "turkey", name: "Turkey", iso2: "TR", listingCount: 6,
-    seoTitleTemplate: "Luxury Wedding Vendors in Turkey | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues and vendors across Turkey. Istanbul palaces, Cappadocia hot-air balloon ceremonies and Bodrum coastal glamour, editorially selected.",
-    evergreenContent: "Turkey bridges continents and cultures, Istanbul's Ottoman palaces, Cappadocia's surreal lunar landscapes and the turquoise Aegean coast of Bodrum offer luxury weddings of cinematic proportions.",
-    focusKeywords: ["luxury wedding turkey", "istanbul wedding venue", "cappadocia wedding", "bodrum wedding", "turkey destination wedding"],
-    aiSummary: "Emerging luxury destination with strong value proposition. Istanbul cultural weddings and Cappadocia experiential weddings drive demand.",
-    intentSignals: { high: ["istanbul palace wedding venue book", "cappadocia wedding planner"], mid: ["best turkey wedding venues", "bodrum wedding guide"], low: ["turkish wedding traditions", "getting married in turkey"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // ASIA & INDIAN OCEAN
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "thailand", slug: "thailand", name: "Thailand", iso2: "TH", listingCount: 7,
-    seoTitleTemplate: "Luxury Wedding Vendors in Thailand | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across Thailand. Tropical beach ceremonies, jungle temples and five-star island resorts, editorially selected.",
-    evergreenContent: "Thailand offers tropical luxury with spiritual depth, private island resorts in Koh Samui, Phuket's clifftop venues, and Chiang Mai's temple-set ceremonies create celebrations infused with warmth and beauty.",
-    focusKeywords: ["luxury wedding thailand", "koh samui wedding venue", "phuket wedding", "thailand beach wedding", "chiang mai wedding"],
-    aiSummary: "Leading Asian beach destination. Koh Samui and Phuket dominate luxury tier. Strong Australian, European and American demand.",
-    intentSignals: { high: ["koh samui luxury wedding venue book", "phuket wedding planner hire"], mid: ["best thailand wedding venues", "thai beach wedding cost"], low: ["thai wedding traditions", "getting married in thailand"] },
-  },
-  {
-    id: "indonesia", slug: "indonesia", name: "Indonesia", iso2: "ID", listingCount: 8,
-    seoTitleTemplate: "Luxury Wedding Vendors in Indonesia | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues and vendors across Indonesia. Bali clifftop temples, jungle villas and private island escapes, editorially selected.",
-    evergreenContent: "Bali stands alone as Asia's most magnetic wedding destination, volcanic cliffside temples, emerald rice terrace villas, and world-class resort infrastructure create celebrations of spiritual beauty and tropical luxury.",
-    focusKeywords: ["luxury wedding bali", "bali wedding venue", "uluwatu wedding", "ubud wedding", "indonesia destination wedding"],
-    aiSummary: "Bali dominates entirely. Uluwatu cliff venues and Ubud jungle settings lead. Year-round with dry season peak April-October.",
-    intentSignals: { high: ["bali clifftop wedding venue book", "ubud villa wedding hire"], mid: ["best bali wedding venues", "bali wedding planner cost"], low: ["balinese wedding traditions", "getting married in bali"] },
-  },
-  {
-    id: "india", slug: "india", name: "India", iso2: "IN", listingCount: 10,
-    seoTitleTemplate: "Luxury Wedding Vendors in India | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues and vendors across India. Rajasthan palaces, Goa beaches and Kerala backwaters, editorially selected.",
-    evergreenContent: "India elevates weddings to an art form, Rajasthan's maharaja palaces, Goa's tropical glamour and Kerala's tranquil backwaters create celebrations of unmatched colour, scale and cultural richness.",
-    focusKeywords: ["luxury wedding india", "palace wedding rajasthan", "udaipur wedding venue", "goa wedding", "india destination wedding"],
-    aiSummary: "Largest wedding market by volume. Rajasthan palace weddings command premium. Multi-day celebrations drive highest total spend globally.",
-    intentSignals: { high: ["udaipur palace wedding venue book", "jaipur wedding planner hire"], mid: ["best india palace wedding venues", "rajasthan wedding cost"], low: ["indian wedding traditions", "destination wedding in india"] },
-  },
-  {
-    id: "japan", slug: "japan", name: "Japan", iso2: "JP", listingCount: 4,
-    seoTitleTemplate: "Luxury Wedding Vendors in Japan | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across Japan. Kyoto temples, Tokyo modernity and cherry blossom ceremonies, editorially selected.",
-    evergreenContent: "Japan merges ancient ceremony with exquisite precision, Kyoto's temple gardens, Tokyo's skyline venues and the ephemeral beauty of cherry blossom season create weddings of profound elegance.",
-    focusKeywords: ["luxury wedding japan", "kyoto wedding venue", "tokyo wedding", "japan destination wedding", "cherry blossom wedding"],
-    aiSummary: "Ultra-niche luxury market. Cherry blossom season (March-April) drives international demand. Kyoto dominates aesthetic appeal.",
-    intentSignals: { high: ["kyoto temple wedding venue book", "japan wedding planner hire"], mid: ["best japan wedding venues", "tokyo luxury wedding"], low: ["japanese wedding traditions", "getting married in japan"] },
-  },
-  {
-    id: "srilanka", slug: "sri-lanka", name: "Sri Lanka", iso2: "LK", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in Sri Lanka | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues and vendors across Sri Lanka. Colonial tea estates, tropical beaches and ancient temples, editorially selected.",
-    evergreenContent: "Sri Lanka offers intimate luxury amid extraordinary biodiversity, colonial hill-country tea estates, southern coastal boutique hotels and ancient temple settings create understated celebrations of natural beauty.",
-    focusKeywords: ["luxury wedding sri lanka", "sri lanka wedding venue", "galle wedding", "sri lanka destination wedding"],
-    aiSummary: "Emerging boutique destination. Galle coast leads. Strong UK and Australian demand. Intimate weddings dominate.",
-    intentSignals: { high: ["galle fort wedding venue book", "sri lanka wedding planner"], mid: ["best sri lanka wedding venues"], low: ["sri lanka wedding ideas"] },
-  },
-  {
-    id: "maldives", slug: "maldives", name: "Maldives", iso2: "MV", listingCount: 4,
-    seoTitleTemplate: "Luxury Wedding Vendors in the Maldives | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues across the Maldives. Overwater villas, private island ceremonies and sandbank receptions, editorially selected.",
-    evergreenContent: "The Maldives represents the pinnacle of private island luxury, overwater villa ceremonies, sandbank receptions at sunset and the Indian Ocean's most pristine turquoise waters create an unrivalled intimate escape.",
-    focusKeywords: ["luxury wedding maldives", "maldives wedding venue", "overwater villa wedding", "private island wedding maldives"],
-    aiSummary: "Ultra-premium micro-destination. Resort-exclusive weddings. Highest per-night spend. Honeymoon-wedding combination market.",
-    intentSignals: { high: ["maldives overwater wedding venue book", "private island wedding maldives"], mid: ["best maldives wedding resorts"], low: ["maldives wedding ideas"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // AMERICAS, Extended
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "mexico", slug: "mexico", name: "Mexico", iso2: "MX", listingCount: 8,
-    seoTitleTemplate: "Luxury Wedding Vendors in Mexico | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across Mexico. Tulum jungle cenotes, Los Cabos oceanfront and colonial San Miguel, editorially selected.",
-    evergreenContent: "Mexico marries ancient culture with modern luxury, Tulum's jungle cenotes, Los Cabos' desert-meets-ocean drama and San Miguel de Allende's colonial splendour create Latin America's most diverse wedding destination.",
-    focusKeywords: ["luxury wedding mexico", "tulum wedding venue", "los cabos wedding", "san miguel de allende wedding", "mexico destination wedding"],
-    aiSummary: "Largest Latin American luxury market. Strong US demand drives Tulum and Los Cabos. San Miguel captures cultural-luxury segment.",
-    intentSignals: { high: ["tulum wedding venue book", "los cabos wedding planner hire"], mid: ["best mexico wedding venues", "tulum wedding cost"], low: ["mexican wedding traditions", "destination wedding mexico"] },
-  },
-  {
-    id: "caribbean", slug: "caribbean", name: "Caribbean", iso2: "CB", listingCount: 7,
-    seoTitleTemplate: "Luxury Wedding Vendors in the Caribbean | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues across the Caribbean. Private island resorts, plantation estates and tropical beach ceremonies, editorially selected.",
-    evergreenContent: "The Caribbean archipelago offers island-hopping luxury, from Barbados' coral-stone plantation houses to St. Lucia's volcanic twin Pitons, Jamaica's cliff resorts and Antigua's 365 beaches.",
-    focusKeywords: ["luxury wedding caribbean", "barbados wedding venue", "st lucia wedding", "jamaica wedding", "caribbean destination wedding"],
-    aiSummary: "Multi-island destination market. Barbados and St. Lucia lead luxury tier. Strong US East Coast and UK demand. Winter peak season.",
-    intentSignals: { high: ["barbados luxury wedding venue book", "st lucia wedding planner hire"], mid: ["best caribbean wedding venues", "island wedding caribbean cost"], low: ["caribbean wedding ideas", "beach wedding caribbean"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // AFRICA
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "southafrica", slug: "south-africa", name: "South Africa", iso2: "ZA", listingCount: 7,
-    seoTitleTemplate: "Luxury Wedding Vendors in South Africa | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across South Africa. Cape Town wine estates, safari lodges and Garden Route beauty, editorially selected.",
-    evergreenContent: "South Africa delivers the African dream wedding, Cape Town's vineyard estates beneath Table Mountain, safari lodges where elephants roam and the lush Garden Route coastline create celebrations of cinematic scale.",
-    focusKeywords: ["luxury wedding south africa", "cape town wedding venue", "winelands wedding", "safari wedding south africa", "south africa destination wedding"],
-    aiSummary: "Africa's leading luxury market. Cape Winelands dominate venue search. Safari-wedding combination drives international demand.",
-    intentSignals: { high: ["cape town wine estate wedding book", "south africa safari wedding venue"], mid: ["best south africa wedding venues", "cape town wedding cost"], low: ["south african wedding traditions", "getting married in south africa"] },
-  },
-  {
-    id: "kenya", slug: "kenya", name: "Kenya", iso2: "KE", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in Kenya | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues in Kenya. Safari lodges, Indian Ocean beaches and Great Rift Valley estates, editorially selected.",
-    evergreenContent: "Kenya combines safari grandeur with coastal paradise, Masai Mara lodge ceremonies, Diani Beach oceanfront celebrations and Great Rift Valley estates set against Africa's most dramatic landscapes.",
-    focusKeywords: ["luxury wedding kenya", "safari wedding kenya", "diani beach wedding", "kenya destination wedding"],
-    aiSummary: "Safari-wedding niche. Small but ultra-premium market. Masai Mara and Diani Beach lead. Strong conservation-luxury positioning.",
-    intentSignals: { high: ["kenya safari lodge wedding book", "diani beach wedding planner"], mid: ["best kenya wedding venues"], low: ["kenya wedding ideas"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // OCEANIA
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "australia", slug: "australia", name: "Australia", iso2: "AU", listingCount: 8,
-    seoTitleTemplate: "Luxury Wedding Vendors in Australia | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues and vendors across Australia. Hunter Valley vineyards, Byron Bay beaches and Sydney Harbour glamour, editorially selected.",
-    evergreenContent: "Australia offers weddings of extraordinary natural scale, Sydney Harbour's iconic backdrop, Hunter Valley's vineyard estates, Byron Bay's bohemian coastal charm and the ancient landscapes of the Barossa Valley.",
-    focusKeywords: ["luxury wedding australia", "sydney wedding venue", "hunter valley wedding", "byron bay wedding", "melbourne wedding planner"],
-    aiSummary: "Largest Oceania market. Sydney and Melbourne anchor urban demand. Hunter Valley and Byron Bay lead destination segment.",
-    intentSignals: { high: ["sydney harbour wedding venue book", "hunter valley wedding planner hire"], mid: ["best australia wedding venues", "byron bay wedding cost"], low: ["australian wedding traditions", "getting married in australia"] },
-  },
-  {
-    id: "newzealand", slug: "new-zealand", name: "New Zealand", iso2: "NZ", listingCount: 4,
-    seoTitleTemplate: "Luxury Wedding Vendors in New Zealand | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in New Zealand. Queenstown mountains, Hawke's Bay vineyards and Waiheke Island escapes, editorially selected.",
-    evergreenContent: "New Zealand delivers Lord of the Rings grandeur, Queenstown's alpine lakes, Hawke's Bay's Art Deco wine country and Waiheke Island's vineyard terraces create epic celebrations amid pristine wilderness.",
-    focusKeywords: ["luxury wedding new zealand", "queenstown wedding venue", "waiheke island wedding", "new zealand destination wedding"],
-    aiSummary: "Adventure-luxury niche. Queenstown dominates international search. Strong Australian and US elopement market.",
-    intentSignals: { high: ["queenstown wedding venue book", "new zealand wedding planner hire"], mid: ["best new zealand wedding venues", "queenstown wedding cost"], low: ["nz wedding traditions", "getting married in new zealand"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // EUROPE, From existing platform + additions
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "austria", slug: "austria", name: "Austria", iso2: "AT", listingCount: 5,
-    seoTitleTemplate: "Luxury Wedding Vendors in Austria | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues across Austria. Viennese palaces, Alpine lakeside ceremonies and Salzburg's baroque elegance, editorially selected.",
-    evergreenContent: "Austria combines imperial grandeur with Alpine splendour, Vienna's palatial ballrooms, Salzburg's baroque churches and the crystalline lakes of the Salzkammergut create celebrations of refined European elegance.",
-    focusKeywords: ["luxury wedding austria", "vienna wedding venue", "salzburg wedding", "alpine wedding austria", "austria destination wedding"],
-    aiSummary: "Palace and Alpine dual market. Vienna drives city weddings. Salzburg and Salzkammergut lead destination segment. Strong German-speaking demand.",
-    intentSignals: { high: ["vienna palace wedding venue book", "salzburg wedding planner hire"], mid: ["best austria wedding venues", "alpine wedding austria cost"], low: ["austrian wedding traditions", "getting married in austria"] },
-  },
-  {
-    id: "germany", slug: "germany", name: "Germany", iso2: "DE", listingCount: 5,
-    seoTitleTemplate: "Luxury Wedding Vendors in Germany | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues across Germany. Bavarian castles, Rhine Valley estates and Berlin elegance, editorially selected.",
-    evergreenContent: "Germany offers fairy-tale grandeur, Bavarian castle turrets, Rhine Valley vineyard estates, Black Forest retreats and Berlin's contemporary art spaces create an unexpectedly diverse wedding destination.",
-    focusKeywords: ["luxury wedding germany", "castle wedding germany", "bavarian wedding", "germany destination wedding"],
-    aiSummary: "Castle wedding market growing. Bavaria dominates destination search. Berlin captures modern-luxury segment. Primarily domestic demand.",
-    intentSignals: { high: ["bavarian castle wedding book", "germany wedding planner"], mid: ["best germany wedding venues", "castle wedding germany cost"], low: ["german wedding traditions"] },
-  },
-  {
-    id: "cyprus", slug: "cyprus", name: "Cyprus", iso2: "CY", listingCount: 6,
-    seoTitleTemplate: "Luxury Wedding Vendors in Cyprus | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues across Cyprus. Paphos clifftops, Limassol beach clubs and Troodos mountain retreats, editorially selected.",
-    evergreenContent: "Cyprus blends Greek warmth with year-round Mediterranean sunshine, Paphos's ancient clifftop terraces, Limassol's glamorous marina and the cedar-forested Troodos Mountains offer celebrations infused with mythological romance.",
-    focusKeywords: ["luxury wedding cyprus", "paphos wedding venue", "limassol wedding", "cyprus destination wedding", "ayia napa wedding"],
-    aiSummary: "Strong British expat and destination market. Paphos leads luxury tier. Year-round season. Competitive pricing drives volume.",
-    intentSignals: { high: ["paphos wedding venue book", "cyprus wedding planner hire"], mid: ["best cyprus wedding venues", "limassol wedding guide"], low: ["cyprus wedding traditions", "getting married in cyprus"] },
-  },
-  {
-    id: "malta", slug: "malta", name: "Malta", iso2: "MT", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in Malta | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in Malta. Baroque palazzi, fortified citadels and Mediterranean terraces, editorially selected.",
-    evergreenContent: "Malta packs extraordinary heritage into a tiny archipelago, Knights of St John fortifications, baroque churches, honey-stone palazzi and the ancient temples of Gozo create an intimate Mediterranean gem.",
-    focusKeywords: ["luxury wedding malta", "malta wedding venue", "gozo wedding", "malta destination wedding"],
-    aiSummary: "Compact island destination. Baroque venue niche. Strong UK market. Year-round viability. Gozo for intimate weddings.",
-    intentSignals: { high: ["malta wedding venue book", "malta wedding planner"], mid: ["best malta wedding venues"], low: ["malta wedding ideas"] },
-  },
-  {
-    id: "montenegro", slug: "montenegro", name: "Montenegro", iso2: "ME", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in Montenegro | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues in Montenegro. Bay of Kotor fjords, Adriatic island ceremonies and medieval citadels, editorially selected.",
-    evergreenContent: "Montenegro's dramatic Adriatic coastline rivals anywhere in the Mediterranean, the fjord-like Bay of Kotor, the fortified island of Sveti Stefan and the medieval walls of Budva create a boutique alternative to Croatia.",
-    focusKeywords: ["luxury wedding montenegro", "kotor wedding venue", "sveti stefan wedding", "montenegro destination wedding"],
-    aiSummary: "Emerging boutique destination. Aman Sveti Stefan effect drives luxury awareness. Bay of Kotor is primary draw. Growing fast.",
-    intentSignals: { high: ["kotor bay wedding venue book", "sveti stefan wedding"], mid: ["best montenegro wedding venues"], low: ["montenegro wedding ideas"] },
-  },
-  {
-    id: "slovenia", slug: "slovenia", name: "Slovenia", iso2: "SI", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in Slovenia | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues in Slovenia. Lake Bled island church, Alpine valleys and Ljubljana elegance, editorially selected.",
-    evergreenContent: "Slovenia's Lake Bled, with its island church and Alpine backdrop, has become one of Europe's most iconic wedding images. Ljubljana's charming old town and the Julian Alps complete a fairy-tale setting.",
-    focusKeywords: ["luxury wedding slovenia", "lake bled wedding", "slovenia wedding venue", "bled church wedding"],
-    aiSummary: "Single-venue phenomenon. Lake Bled dominates global search. Ljubljana emerging as city-wedding base. Very niche but high-intent.",
-    intentSignals: { high: ["lake bled wedding venue book", "slovenia wedding planner"], mid: ["best slovenia wedding venues"], low: ["slovenia wedding ideas"] },
-  },
-  {
-    id: "iceland", slug: "iceland", name: "Iceland", iso2: "IS", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Iceland | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in Iceland. Glacier ceremonies, volcanic landscapes and Northern Lights elopements, editorially selected.",
-    evergreenContent: "Iceland offers otherworldly romance, black sand beach ceremonies, glacier-edge vows, volcanic hot spring receptions and the ethereal glow of the Northern Lights create truly once-in-a-lifetime celebrations.",
-    focusKeywords: ["iceland wedding", "iceland elopement", "northern lights wedding", "glacier wedding iceland"],
-    aiSummary: "Adventure-elopement market leader. Northern Lights season (Oct-Mar) drives demand. Small luxury-lodge infrastructure. Social media amplification huge.",
-    intentSignals: { high: ["iceland elopement planner book", "northern lights wedding venue"], mid: ["best iceland wedding venues"], low: ["iceland wedding ideas"] },
-  },
-  {
-    id: "netherlands", slug: "netherlands", name: "Netherlands", iso2: "NL", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in the Netherlands | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues in the Netherlands. Amsterdam canal houses, tulip field ceremonies and Dutch castle estates, editorially selected.",
-    evergreenContent: "The Netherlands delivers understated elegance, Amsterdam's candlelit canal houses, Dutch Golden Age castles, tulip-bordered estates and the minimalist grandeur of contemporary Dutch design.",
-    focusKeywords: ["luxury wedding netherlands", "amsterdam wedding venue", "dutch castle wedding", "netherlands wedding"],
-    aiSummary: "Amsterdam canal house market strong. Castle weddings outside city growing. Tulip season (April-May) drives destination interest.",
-    intentSignals: { high: ["amsterdam wedding venue book", "dutch castle wedding hire"], mid: ["best netherlands wedding venues"], low: ["dutch wedding traditions"] },
-  },
-  {
-    id: "denmark", slug: "denmark", name: "Denmark", iso2: "DK", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Denmark | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in Denmark. Copenhagen's Scandi elegance and Danish manor houses, editorially selected.",
-    evergreenContent: "Denmark embodies Scandinavian design excellence, Copenhagen's Nyhavn waterfront, minimalist manor houses and the hygge-infused intimacy of Danish celebrations create weddings of quiet sophistication.",
-    focusKeywords: ["luxury wedding denmark", "copenhagen wedding venue", "danish castle wedding"],
-    aiSummary: "Copenhagen dominates. Scandinavian design-led market. Intimate celebrations trending. Summer season.",
-    intentSignals: { high: ["copenhagen wedding venue book"], mid: ["best denmark wedding venues"], low: ["danish wedding traditions"] },
-  },
-  {
-    id: "sweden", slug: "sweden", name: "Sweden", iso2: "SE", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Sweden | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues in Sweden. Stockholm archipelago, Swedish manor estates and midsummer celebrations, editorially selected.",
-    evergreenContent: "Sweden offers Nordic elegance at scale, Stockholm's waterfront palaces, archipelago island ceremonies, rural manor houses and the magical light of midsummer create distinctly atmospheric celebrations.",
-    focusKeywords: ["luxury wedding sweden", "stockholm wedding venue", "swedish castle wedding"],
-    aiSummary: "Stockholm anchors demand. Midsummer weddings are cultural draw. Manor house and archipelago venues lead.",
-    intentSignals: { high: ["stockholm wedding venue book"], mid: ["best sweden wedding venues"], low: ["swedish wedding traditions"] },
-  },
-  {
-    id: "norway", slug: "norway", name: "Norway", iso2: "NO", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Norway | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues in Norway. Fjord ceremonies, stave churches and midnight sun celebrations, editorially selected.",
-    evergreenContent: "Norway delivers nature at its most dramatic, fjord-edge ceremonies, medieval stave churches, mountain lodge retreats and the ethereal midnight sun create celebrations of raw, epic beauty.",
-    focusKeywords: ["luxury wedding norway", "fjord wedding", "norway destination wedding"],
-    aiSummary: "Fjord-wedding niche growing. Bergen and Lofoten lead. Adventure-elopement crossover. Summer midnight-sun season.",
-    intentSignals: { high: ["norway fjord wedding venue"], mid: ["best norway wedding venues"], low: ["norwegian wedding traditions"] },
-  },
-  {
-    id: "hungary", slug: "hungary", name: "Hungary", iso2: "HU", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Hungary | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in Hungary. Budapest thermal palaces and Hungarian wine country estates, editorially selected.",
-    evergreenContent: "Budapest's thermal bath palaces, Danube-spanning bridges and Art Nouveau grandeur make Hungary an increasingly sought-after European wedding destination with exceptional value.",
-    focusKeywords: ["luxury wedding hungary", "budapest wedding venue", "hungarian castle wedding"],
-    aiSummary: "Budapest-centric market. Palace and thermal spa venues unique selling point. Outstanding value positioning.",
-    intentSignals: { high: ["budapest palace wedding venue"], mid: ["best hungary wedding venues"], low: ["hungarian wedding traditions"] },
-  },
-  {
-    id: "czechrepublic", slug: "czech-republic", name: "Czech Republic", iso2: "CZ", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Czech Republic | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues in the Czech Republic. Prague castle views and Bohemian château estates, editorially selected.",
-    evergreenContent: "Prague's Gothic spires, Baroque palaces and cobblestone squares create one of Europe's most romantic cityscapes. Beyond the capital, Bohemian châteaux and Moravian vineyards offer pastoral elegance.",
-    focusKeywords: ["luxury wedding prague", "prague wedding venue", "czech castle wedding"],
-    aiSummary: "Prague dominates entirely. Castle and palace venues drive international demand. Strong value proposition vs Western Europe.",
-    intentSignals: { high: ["prague castle wedding venue book"], mid: ["best czech republic wedding venues"], low: ["czech wedding traditions"] },
-  },
-  {
-    id: "poland", slug: "poland", name: "Poland", iso2: "PL", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Poland | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues in Poland. Kraków's medieval grandeur and Polish palace estates, editorially selected.",
-    evergreenContent: "Poland surprises with aristocratic elegance, Kraków's medieval market square, Wieliczka's salt cathedral, and the restored palace estates of the Polish countryside offer celebrations of unexpected grandeur.",
-    focusKeywords: ["luxury wedding poland", "krakow wedding venue", "polish palace wedding"],
-    aiSummary: "Kraków leads. Palace restoration creating new luxury supply. Strong value market. Growing international interest.",
-    intentSignals: { high: ["krakow wedding venue book"], mid: ["best poland wedding venues"], low: ["polish wedding traditions"] },
-  },
-  {
-    id: "romania", slug: "romania", name: "Romania", iso2: "RO", listingCount: 1,
-    seoTitleTemplate: "Luxury Wedding Vendors in Romania | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in Romania. Transylvanian castles and Carpathian mountain retreats, editorially selected.",
-    evergreenContent: "Romania's Transylvanian castles, Carpathian mountain lodges and painted monasteries offer a wildly romantic and refreshingly undiscovered European wedding destination.",
-    focusKeywords: ["luxury wedding romania", "transylvania castle wedding"],
-    aiSummary: "Pre-market luxury. Transylvanian castles drive awareness. Very early stage but architecture is extraordinary.",
-    intentSignals: { high: [], mid: ["romania castle wedding venue"], low: ["romania wedding ideas"] },
-  },
-  {
-    id: "gibraltar", slug: "gibraltar", name: "Gibraltar", iso2: "GI", listingCount: 1,
-    seoTitleTemplate: "Luxury Wedding Vendors in Gibraltar | LWD",
-    metaDescriptionTemplate: "Explore luxury wedding venues in Gibraltar. Rock of Gibraltar ceremonies and Mediterranean elopements, editorially selected.",
-    evergreenContent: "Gibraltar offers Mediterranean elopement elegance, the iconic Rock backdrop, botanical gardens and sun-drenched terraces overlooking the Strait create compact celebrations with maximum drama.",
-    focusKeywords: ["gibraltar wedding", "gibraltar elopement", "rock of gibraltar wedding"],
-    aiSummary: "Elopement micro-destination. Legal simplicity drives demand. Very small market but loyal repeat planners.",
-    intentSignals: { high: ["gibraltar wedding venue"], mid: [], low: ["gibraltar wedding ideas"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // MIDDLE EAST, Extended
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "jordan", slug: "jordan", name: "Jordan", iso2: "JO", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Jordan | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in Jordan. Petra's rose-red ruins and Dead Sea desert luxury, editorially selected.",
-    evergreenContent: "Jordan offers ancient wonder, Petra's Treasury carved from rose-red sandstone, Dead Sea floating ceremonies and Wadi Rum's Martian desert landscapes create celebrations of Biblical drama.",
-    focusKeywords: ["luxury wedding jordan", "petra wedding", "dead sea wedding", "jordan destination wedding"],
-    aiSummary: "Ultra-experiential niche. Petra and Dead Sea unique globally. Very small but high-spend market. Adventure-luxury crossover.",
-    intentSignals: { high: ["petra wedding venue book"], mid: ["best jordan wedding venues"], low: ["jordan wedding ideas"] },
-  },
-  {
-    id: "qatar", slug: "qatar", name: "Qatar", iso2: "QA", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Qatar | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues in Qatar. Doha's futuristic skyline and desert palace celebrations, editorially selected.",
-    evergreenContent: "Qatar represents the new face of Gulf luxury, Doha's futuristic Museum of Islamic Art, desert palace hotels and the world's most ambitious hospitality infrastructure create celebrations of ultra-modern opulence.",
-    focusKeywords: ["luxury wedding qatar", "doha wedding venue", "qatar destination wedding"],
-    aiSummary: "Ultra-premium Gulf market. Post-World Cup infrastructure boom. Doha competing with Dubai for regional dominance.",
-    intentSignals: { high: ["doha luxury wedding venue"], mid: ["best qatar wedding venues"], low: ["qatar wedding ideas"] },
-  },
-  {
-    id: "oman", slug: "oman", name: "Oman", iso2: "OM", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Oman | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues in Oman. Muscat's royal grandeur and Arabian desert camp celebrations, editorially selected.",
-    evergreenContent: "Oman offers Arabia's most understated luxury, Muscat's Sultan Qaboos Grand Mosque, the dramatic Hajar Mountains, fjord-like Musandam Peninsula and vast Wahiba Sands desert camps.",
-    focusKeywords: ["luxury wedding oman", "muscat wedding venue", "oman desert wedding"],
-    aiSummary: "Boutique alternative to Dubai. Authentic Arabian positioning. Emerging luxury resort infrastructure. Very exclusive.",
-    intentSignals: { high: ["oman luxury wedding venue"], mid: ["best oman wedding venues"], low: ["oman wedding ideas"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // ASIA, Extended
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "malaysia", slug: "malaysia", name: "Malaysia", iso2: "MY", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in Malaysia | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in Malaysia. Langkawi island resorts, KL skyscrapers and Borneo jungle lodges, editorially selected.",
-    evergreenContent: "Malaysia blends tropical paradise with cosmopolitan flair, Langkawi's eagle-kissed islands, Kuala Lumpur's Twin Tower skyline, Penang's colonial charm and Borneo's ancient rainforest lodges.",
-    focusKeywords: ["luxury wedding malaysia", "langkawi wedding venue", "kl wedding", "malaysia destination wedding"],
-    aiSummary: "Langkawi leads destination segment. KL for urban luxury. Strong regional (Singaporean, Australian) demand.",
-    intentSignals: { high: ["langkawi resort wedding book", "kl wedding planner"], mid: ["best malaysia wedding venues"], low: ["malaysian wedding traditions"] },
-  },
-  {
-    id: "singapore", slug: "singapore", name: "Singapore", iso2: "SG", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in Singapore | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues in Singapore. Marina Bay glamour, colonial Raffles elegance and tropical garden ceremonies, editorially selected.",
-    evergreenContent: "Singapore condenses Asian luxury into a city-state, Marina Bay Sands' infinity pool terraces, the colonial grandeur of Raffles Hotel and the UNESCO Botanic Gardens create celebrations of immaculate precision.",
-    focusKeywords: ["luxury wedding singapore", "singapore wedding venue", "marina bay wedding", "raffles wedding"],
-    aiSummary: "Asia's highest per-wedding spend city. Hotel and garden venues dominate. Year-round. Strong expat and regional demand.",
-    intentSignals: { high: ["singapore luxury wedding venue book", "raffles wedding planner"], mid: ["best singapore wedding venues"], low: ["singapore wedding ideas"] },
-  },
-  {
-    id: "philippines", slug: "philippines", name: "Philippines", iso2: "PH", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in the Philippines | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues in the Philippines. Palawan lagoons, Boracay beaches and Cebu island luxury, editorially selected.",
-    evergreenContent: "The Philippines offers 7,641 islands of tropical possibility, Palawan's emerald lagoons, Boracay's powder-white beaches and Cebu's coral-fringed resort coastline create island wedding paradise.",
-    focusKeywords: ["luxury wedding philippines", "palawan wedding", "boracay wedding venue", "philippines destination wedding"],
-    aiSummary: "Island-resort destination. Palawan luxury segment growing. Boracay high-volume. Strong domestic and expat market.",
-    intentSignals: { high: ["palawan resort wedding book"], mid: ["best philippines wedding venues"], low: ["philippine wedding traditions"] },
-  },
-  {
-    id: "vietnam", slug: "vietnam", name: "Vietnam", iso2: "VN", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Vietnam | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in Vietnam. Hoi An lantern-lit ceremonies and Ha Long Bay floating celebrations, editorially selected.",
-    evergreenContent: "Vietnam enchants with atmospheric beauty, Hoi An's lantern-draped ancient town, Ha Long Bay's emerald karst seascape and the terraced mountains of Sapa create celebrations of profound cultural richness.",
-    focusKeywords: ["luxury wedding vietnam", "hoi an wedding venue", "vietnam destination wedding"],
-    aiSummary: "Emerging destination. Hoi An dominates luxury search. Ha Long Bay experiential niche. Outstanding value positioning.",
-    intentSignals: { high: ["hoi an wedding venue book"], mid: ["best vietnam wedding venues"], low: ["vietnam wedding ideas"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // AMERICAS, Extended
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "canada", slug: "canada", name: "Canada", iso2: "CA", listingCount: 4,
-    seoTitleTemplate: "Luxury Wedding Vendors in Canada | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues across Canada. Rocky Mountain lodges, Niagara vineyards and Whistler alpine elegance, editorially selected.",
-    evergreenContent: "Canada delivers nature at a grand scale, Banff's turquoise glacier lakes, Whistler's mountain-top ceremonies, Niagara's vineyard estates and the cosmopolitan elegance of Toronto and Montreal.",
-    focusKeywords: ["luxury wedding canada", "banff wedding venue", "whistler wedding", "canada destination wedding"],
-    aiSummary: "Rocky Mountain weddings drive international demand. Banff and Whistler lead. Toronto/Montreal for urban luxury. Summer season.",
-    intentSignals: { high: ["banff wedding venue book", "whistler wedding planner"], mid: ["best canada wedding venues"], low: ["canadian wedding traditions"] },
-  },
-  {
-    id: "costarica", slug: "costa-rica", name: "Costa Rica", iso2: "CR", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in Costa Rica | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues in Costa Rica. Rainforest canopy ceremonies, Pacific beach villas and volcanic hot springs, editorially selected.",
-    evergreenContent: "Costa Rica pioneers eco-luxury weddings, rainforest canopy walkways, Pacific sunset cliff ceremonies, volcanic hot spring receptions and wildlife-rich cloud forest lodges create celebrations connected to nature.",
-    focusKeywords: ["luxury wedding costa rica", "costa rica wedding venue", "eco wedding costa rica"],
-    aiSummary: "Eco-luxury niche leader. Pacific coast and Arenal volcano lead. Strong US demand. Year-round tropical season.",
-    intentSignals: { high: ["costa rica luxury wedding venue book"], mid: ["best costa rica wedding venues"], low: ["costa rica wedding ideas"] },
-  },
-  {
-    id: "brazil", slug: "brazil", name: "Brazil", iso2: "BR", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in Brazil | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in Brazil. Rio's Sugarloaf drama, Trancoso beach luxury and São Paulo sophistication, editorially selected.",
-    evergreenContent: "Brazil celebrates with infectious joy, Rio de Janeiro's Sugarloaf Mountain views, Trancoso's bohemian-luxe beach, São Paulo's fashion-forward elegance and the colonial charm of Bahia.",
-    focusKeywords: ["luxury wedding brazil", "rio wedding venue", "trancoso wedding", "brazil destination wedding"],
-    aiSummary: "Largest Latin American domestic market. Trancoso drives destination luxury. Rio iconic but urban. Growing international interest.",
-    intentSignals: { high: ["rio wedding venue book", "trancoso wedding planner"], mid: ["best brazil wedding venues"], low: ["brazilian wedding traditions"] },
-  },
-  {
-    id: "colombia", slug: "colombia", name: "Colombia", iso2: "CO", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Colombia | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues in Colombia. Cartagena's walled-city romance and Caribbean island escapes, editorially selected.",
-    evergreenContent: "Colombia's colonial jewel Cartagena, with its pastel-walled old city, rooftop terraces and nearby Rosario Islands, has emerged as Latin America's most romantic luxury wedding destination.",
-    focusKeywords: ["luxury wedding colombia", "cartagena wedding venue", "colombia destination wedding"],
-    aiSummary: "Cartagena dominates entirely. Colonial-city wedding niche growing fast. Strong US demand. Year-round Caribbean climate.",
-    intentSignals: { high: ["cartagena wedding venue book"], mid: ["best colombia wedding venues"], low: ["colombian wedding traditions"] },
-  },
-  {
-    id: "argentina", slug: "argentina", name: "Argentina", iso2: "AR", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Argentina | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues in Argentina. Buenos Aires tango elegance and Mendoza wine country, editorially selected.",
-    evergreenContent: "Argentina marries passionate culture with natural grandeur, Buenos Aires' tango-infused elegance, Mendoza's Andes-backed vineyards and Patagonia's glacial wilderness create celebrations of South American sophistication.",
-    focusKeywords: ["luxury wedding argentina", "buenos aires wedding", "mendoza winery wedding"],
-    aiSummary: "Buenos Aires urban-luxury plus Mendoza wine country. Niche but growing. Tango cultural element unique differentiator.",
-    intentSignals: { high: ["buenos aires wedding venue book"], mid: ["best argentina wedding venues"], low: ["argentine wedding traditions"] },
-  },
-  {
-    id: "bahamas", slug: "bahamas", name: "Bahamas", iso2: "BS", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in the Bahamas | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in the Bahamas. Private island escapes, Nassau elegance and Exuma swimming pigs, editorially selected.",
-    evergreenContent: "The Bahamas defines tropical luxury, the pink sands of Harbour Island, Exuma's swimming pigs cays, Nassau's Atlantis grandeur and private island buyouts create the ultimate Caribbean wedding escape.",
-    focusKeywords: ["luxury wedding bahamas", "bahamas wedding venue", "harbour island wedding", "exuma wedding"],
-    aiSummary: "Ultra-luxury Caribbean. Private island and resort-exclusive model. Strong US East Coast and celebrity demand.",
-    intentSignals: { high: ["bahamas private island wedding book", "harbour island wedding venue"], mid: ["best bahamas wedding venues"], low: ["bahamas wedding ideas"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // INDIAN OCEAN, Extended
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "mauritius", slug: "mauritius", name: "Mauritius", iso2: "MU", listingCount: 3,
-    seoTitleTemplate: "Luxury Wedding Vendors in Mauritius | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues in Mauritius. Le Morne peninsula, Grand Baie resorts and tropical garden ceremonies, editorially selected.",
-    evergreenContent: "Mauritius blends tropical paradise with French-Creole sophistication, Le Morne's dramatic basalt rock, Grand Baie's resort coastline and sugar-plantation estates create a refined Indian Ocean wedding destination.",
-    focusKeywords: ["luxury wedding mauritius", "mauritius wedding venue", "mauritius beach wedding", "mauritius destination wedding"],
-    aiSummary: "Premium Indian Ocean destination. Resort-wedding model dominates. Strong South African, UK and French demand. Year-round.",
-    intentSignals: { high: ["mauritius resort wedding book", "mauritius wedding planner"], mid: ["best mauritius wedding venues"], low: ["mauritius wedding ideas"] },
-  },
-  {
-    id: "seychelles", slug: "seychelles", name: "Seychelles", iso2: "SC", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Seychelles | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in Seychelles. Granite boulder beaches, private island resorts and coral reef ceremonies, editorially selected.",
-    evergreenContent: "Seychelles offers prehistoric beauty, giant granite boulders framing pristine beaches, private island resorts, lush jungle mountains and the world's most exclusive honeymoon-wedding combination destination.",
-    focusKeywords: ["luxury wedding seychelles", "seychelles wedding venue", "seychelles beach wedding"],
-    aiSummary: "Ultra-exclusive island market. Private island resorts lead. Honeymoon-wedding combination dominant model. Very high per-night spend.",
-    intentSignals: { high: ["seychelles private island wedding"], mid: ["best seychelles wedding venues"], low: ["seychelles wedding ideas"] },
-  },
-  {
-    id: "fiji", slug: "fiji", name: "Fiji", iso2: "FJ", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Fiji | LWD",
-    metaDescriptionTemplate: "Browse curated luxury wedding venues in Fiji. Private island buyouts, coral reef ceremonies and traditional Fijian blessings, editorially selected.",
-    evergreenContent: "Fiji's 333 islands offer the South Pacific dream, private island resort buyouts, coral reef snorkelling receptions, traditional Fijian warrior blessings and some of the world's friendliest hospitality.",
-    focusKeywords: ["luxury wedding fiji", "fiji wedding venue", "fiji island wedding", "fiji destination wedding"],
-    aiSummary: "Pacific island premium destination. Private island model. Strong Australian and NZ demand. Traditional blessing ceremonies unique.",
-    intentSignals: { high: ["fiji private island wedding book"], mid: ["best fiji wedding venues"], low: ["fiji wedding ideas"] },
-  },
-  // ═══════════════════════════════════════════════════════════════════════
-  // AFRICA, Extended
-  // ═══════════════════════════════════════════════════════════════════════
-  {
-    id: "tanzania", slug: "tanzania", name: "Tanzania", iso2: "TZ", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Tanzania | LWD",
-    metaDescriptionTemplate: "Discover curated luxury wedding venues in Tanzania. Zanzibar spice island, Serengeti safari lodges and Kilimanjaro views, editorially selected.",
-    evergreenContent: "Tanzania pairs wildlife spectacle with island paradise, Serengeti safari lodge ceremonies, Ngorongoro Crater rim celebrations and Zanzibar's Stone Town spice-scented lanes and white-sand beaches.",
-    focusKeywords: ["luxury wedding tanzania", "zanzibar wedding venue", "serengeti wedding", "tanzania safari wedding"],
-    aiSummary: "Zanzibar beach + Serengeti safari dual proposition. Small but ultra-premium. Strong honeymoon-wedding combination.",
-    intentSignals: { high: ["zanzibar wedding venue book", "serengeti lodge wedding"], mid: ["best tanzania wedding venues"], low: ["tanzania wedding ideas"] },
-  },
-  {
-    id: "egypt", slug: "egypt", name: "Egypt", iso2: "EG", listingCount: 2,
-    seoTitleTemplate: "Luxury Wedding Vendors in Egypt | LWD",
-    metaDescriptionTemplate: "Explore curated luxury wedding venues in Egypt. Pyramids of Giza backdrop, Red Sea resorts and Nile cruise celebrations, editorially selected.",
-    evergreenContent: "Egypt offers 5,000 years of romance, the Pyramids of Giza as wedding backdrop, Nile felucca receptions, Red Sea resort luxury and the ancient temples of Luxor create celebrations of monumental drama.",
-    focusKeywords: ["luxury wedding egypt", "pyramids wedding", "red sea wedding", "egypt destination wedding"],
-    aiSummary: "Iconic backdrop market. Pyramid-view ceremonies unique globally. Red Sea resort weddings growing. Nile cruise receptions niche.",
-    intentSignals: { high: ["egypt pyramids wedding venue"], mid: ["best egypt wedding venues"], low: ["egypt wedding ideas"] },
-  },
-];
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Region Taxonomy, Sub-geography layer for SEO clustering + AI precision
@@ -1242,11 +682,11 @@ const DIRECTORY_REGIONS = [
   { id: "bordeaux", countrySlug: "france", slug: "bordeaux", name: "Bordeaux", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "World-class wine estates and neoclassical architecture along the Garonne.", focusKeywords: ["bordeaux wedding"], aiSummary: "Wine tourism crossover. Growing but niche.", intentSignals: { high: [], mid: ["bordeaux wedding venues"], low: ["bordeaux wedding ideas"] } },
 
   // ── UK ───────────────────────────────────────────────────────────────────
-  { id: "cotswolds", countrySlug: "uk", slug: "cotswolds", name: "Cotswolds", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: true, listingCount: 5, description: "Honey-stone villages, rolling hills and quintessential English country houses.", focusKeywords: ["cotswolds wedding", "cotswolds wedding venue", "country wedding cotswolds"], aiSummary: "Top UK region by search volume. Country house and barn venues dominate. Year-round demand.", intentSignals: { high: ["cotswolds wedding venue book", "cotswolds wedding planner"], mid: ["best cotswolds wedding venues"], low: ["cotswolds wedding inspiration"] } },
-  { id: "london", countrySlug: "uk", slug: "london", name: "London", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 4, description: "Grand hotels, museum spaces and rooftop terraces across the capital.", focusKeywords: ["london wedding venue", "luxury wedding london", "london wedding planner"], aiSummary: "Highest vendor density. Hotel and unique venue weddings lead. Strong corporate-adjacent market.", intentSignals: { high: ["luxury london wedding venue hire", "london wedding planner book"], mid: ["best london wedding venues"], low: ["london wedding ideas"] } },
-  { id: "surrey", countrySlug: "uk", slug: "surrey", name: "Surrey", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Loseley Park, Surrey Hills AONB and grand estates within easy reach of London. Home counties elegance.", focusKeywords: ["surrey wedding venue"], aiSummary: "London commuter belt convenience. Grand estate venues. Surrey Hills scenic beauty. High listing quality.", intentSignals: { high: [], mid: ["best surrey wedding venues"], low: ["surrey wedding ideas"] } },
-  { id: "berkshire", countrySlug: "uk", slug: "berkshire", name: "Berkshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Cliveden, Windsor Castle and Coworth Park. Royal Berkshire grandeur and Thames-side celebrations.", focusKeywords: ["berkshire wedding venue"], aiSummary: "Cliveden and Coworth Park anchor ultra-luxury. Windsor Castle association. Royal county prestige.", intentSignals: { high: ["berkshire wedding venue book"], mid: ["best berkshire wedding venues"], low: ["berkshire wedding ideas"] } },
-  { id: "lake-district", countrySlug: "uk", slug: "lake-district", name: "Lake District", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Romantic lakeside settings amid England's most celebrated national park.", focusKeywords: ["lake district wedding"], aiSummary: "Niche romantic segment. Growing slowly. Intimate weddings dominate.", intentSignals: { high: [], mid: ["lake district wedding venues"], low: ["lake district wedding ideas"] } },
+  { id: "cotswolds", countrySlug: "england", slug: "cotswolds", name: "Cotswolds", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: true, listingCount: 5, description: "Honey-stone villages, rolling hills and quintessential English country houses.", focusKeywords: ["cotswolds wedding", "cotswolds wedding venue", "country wedding cotswolds"], aiSummary: "Top UK region by search volume. Country house and barn venues dominate. Year-round demand.", intentSignals: { high: ["cotswolds wedding venue book", "cotswolds wedding planner"], mid: ["best cotswolds wedding venues"], low: ["cotswolds wedding inspiration"] } },
+  { id: "london", countrySlug: "england", slug: "london", name: "London", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 4, description: "Grand hotels, museum spaces and rooftop terraces across the capital.", focusKeywords: ["london wedding venue", "luxury wedding london", "london wedding planner"], aiSummary: "Highest vendor density. Hotel and unique venue weddings lead. Strong corporate-adjacent market.", intentSignals: { high: ["luxury london wedding venue hire", "london wedding planner book"], mid: ["best london wedding venues"], low: ["london wedding ideas"] } },
+  { id: "surrey", countrySlug: "england", slug: "surrey", name: "Surrey", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Loseley Park, Surrey Hills AONB and grand estates within easy reach of London. Home counties elegance.", focusKeywords: ["surrey wedding venue"], aiSummary: "London commuter belt convenience. Grand estate venues. Surrey Hills scenic beauty. High listing quality.", intentSignals: { high: [], mid: ["best surrey wedding venues"], low: ["surrey wedding ideas"] } },
+  { id: "berkshire", countrySlug: "england", slug: "berkshire", name: "Berkshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Cliveden, Windsor Castle and Coworth Park. Royal Berkshire grandeur and Thames-side celebrations.", focusKeywords: ["berkshire wedding venue"], aiSummary: "Cliveden and Coworth Park anchor ultra-luxury. Windsor Castle association. Royal county prestige.", intentSignals: { high: ["berkshire wedding venue book"], mid: ["best berkshire wedding venues"], low: ["berkshire wedding ideas"] } },
+  { id: "lake-district", countrySlug: "england", slug: "lake-district", name: "Lake District", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Romantic lakeside settings amid England's most celebrated national park.", focusKeywords: ["lake district wedding"], aiSummary: "Niche romantic segment. Growing slowly. Intimate weddings dominate.", intentSignals: { high: [], mid: ["lake district wedding venues"], low: ["lake district wedding ideas"] } },
 
   // ── Spain ─────────────────────────────────────────────────────────────────
   { id: "mallorca", countrySlug: "spain", slug: "mallorca", name: "Mallorca", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "Mediterranean fincas, mountain-top monasteries and beach clubs across the Balearics' largest island.", focusKeywords: ["mallorca wedding", "mallorca finca wedding", "balearic wedding"], aiSummary: "Leading Spanish island destination. Finca weddings dominate. Strong German and British demand.", intentSignals: { high: ["mallorca finca wedding venue book", "mallorca wedding planner"], mid: ["best mallorca wedding venues"], low: ["mallorca wedding ideas"] } },
@@ -1260,61 +700,61 @@ const DIRECTORY_REGIONS = [
   { id: "florida", countrySlug: "usa", slug: "florida", name: "Florida", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Art Deco Miami, Palm Beach estates and tropical garden celebrations.", focusKeywords: ["florida luxury wedding"], aiSummary: "Emerging luxury segment. Palm Beach drives high-end demand. Winter season.", intentSignals: { high: [], mid: ["florida luxury wedding venues"], low: ["florida wedding ideas"] } },
 
   // ── UK, Comprehensive England ──────────────────────────────────────
-  { id: "hampshire", countrySlug: "uk", slug: "hampshire", name: "Hampshire", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 4, description: "Georgian manor houses, Winchester Cathedral and the rolling Hampshire countryside. Southern England's elegant heartland.", focusKeywords: ["hampshire wedding venue", "winchester wedding"], aiSummary: "Strong country house market. New Forest boutique segment growing. Winchester cathedral weddings anchor.", intentSignals: { high: ["hampshire wedding venue book"], mid: ["best hampshire wedding venues"], low: ["hampshire wedding ideas"] } },
-  { id: "devon", countrySlug: "uk", slug: "devon", name: "Devon", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "South Devon coast, Dartmouth, Salcombe, Exeter and Dartmoor. Dramatic clifftop venues and enchanted woodland estates.", focusKeywords: ["devon wedding venue", "south devon wedding"], aiSummary: "South Devon coast leads luxury demand. Dartmouth and Salcombe anchor maritime weddings. Dartmoor dramatic.", intentSignals: { high: ["devon wedding venue book"], mid: ["best devon wedding venues"], low: ["devon wedding ideas"] } },
-  { id: "cornwall", countrySlug: "uk", slug: "cornwall", name: "Cornwall", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "St Ives, Padstow, Falmouth and the dramatic Cornish coast. Tin mine heritage and beach ceremony paradise.", focusKeywords: ["cornwall wedding venue", "cornwall beach wedding"], aiSummary: "Cornwall leads destination search in Southwest England. Beach and clifftop venues dominate. Strong summer peak.", intentSignals: { high: ["cornwall wedding venue book"], mid: ["best cornwall wedding venues"], low: ["cornwall wedding ideas"] } },
-  { id: "kent", countrySlug: "uk", slug: "kent", name: "Kent", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: true, listingCount: 4, description: "The Garden of England, Canterbury Cathedral, Leeds Castle and hop-garden barn conversions.", focusKeywords: ["kent wedding venue", "canterbury wedding", "leeds castle wedding"], aiSummary: "Garden of England positioning. Castle and barn venues lead. Canterbury Cathedral ceremonies prestigious.", intentSignals: { high: ["kent wedding venue book", "leeds castle wedding hire"], mid: ["best kent wedding venues"], low: ["kent wedding ideas"] } },
-  { id: "sussex", countrySlug: "uk", slug: "sussex", name: "Sussex", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 4, description: "Brighton's Regency glamour, Goodwood estate and the rolling South Downs. Coastal chic meets country grandeur.", focusKeywords: ["sussex wedding venue", "brighton wedding", "chichester wedding"], aiSummary: "Brighton urban-beach market plus South Downs country estates. Goodwood and Cowdray anchor luxury tier.", intentSignals: { high: ["sussex wedding venue book", "brighton wedding planner"], mid: ["best sussex wedding venues"], low: ["sussex wedding ideas"] } },
-  { id: "norfolk", countrySlug: "uk", slug: "norfolk", name: "Norfolk", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Norfolk Broads, Burnham Market, Holkham and Norwich Cathedral. Big skies and medieval wool churches.", focusKeywords: ["norfolk wedding venue"], aiSummary: "Barn conversion boom. Burnham Market luxury cluster. Sandringham association drives prestige. Quieter refined market.", intentSignals: { high: ["norfolk wedding venue book"], mid: ["best norfolk wedding venues"], low: ["norfolk wedding ideas"] } },
-  { id: "suffolk", countrySlug: "uk", slug: "suffolk", name: "Suffolk", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Aldeburgh, Southwold, the Heritage Coast and Snape Maltings. Refined coastal charm and gentle countryside.", focusKeywords: ["suffolk wedding venue"], aiSummary: "Heritage Coast beauty. Snape Maltings concert hall venue unique. Refined and understated market.", intentSignals: { high: [], mid: ["best suffolk wedding venues"], low: ["suffolk wedding ideas"] } },
-  { id: "yorkshire", countrySlug: "uk", slug: "yorkshire", name: "Yorkshire", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: true, listingCount: 4, description: "From the Yorkshire Dales and North York Moors to Harrogate's spa elegance and York's medieval grandeur.", focusKeywords: ["yorkshire wedding venue", "harrogate wedding", "york wedding venue"], aiSummary: "Harrogate-York corridor dominates. Castle Howard iconic. Dales barn conversions trending. Strong northern market.", intentSignals: { high: ["yorkshire wedding venue book", "castle howard wedding"], mid: ["best yorkshire wedding venues"], low: ["yorkshire wedding ideas"] } },
-  { id: "oxfordshire", countrySlug: "uk", slug: "oxfordshire", name: "Oxfordshire", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: true, listingCount: 4, description: "Blenheim Palace, dreaming Oxford spires, Henley Royal Regatta and the rolling Chiltern Hills.", focusKeywords: ["oxfordshire wedding venue", "blenheim palace wedding", "henley wedding"], aiSummary: "Blenheim anchors ultra-luxury. Oxford college venues unique. Henley riverside summer weddings. Premium home counties market.", intentSignals: { high: ["oxfordshire wedding venue book", "blenheim palace wedding hire"], mid: ["best oxfordshire wedding venues"], low: ["oxfordshire wedding ideas"] } },
-  { id: "somerset", countrySlug: "uk", slug: "somerset", name: "Somerset", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Glastonbury, Exmoor, Bruton and Babington House. Mystical landscapes and creative-luxury country estates.", focusKeywords: ["somerset wedding venue"], aiSummary: "Babington House Soho House effect. Bruton creative-luxury emerging. Glastonbury mystique. Growing market.", intentSignals: { high: [], mid: ["best somerset wedding venues"], low: ["somerset wedding ideas"] } },
-  { id: "bath-region", countrySlug: "uk", slug: "bath", name: "Bath", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Georgian crescents, Roman baths, the Royal Crescent and Assembly Rooms. England's most beautiful city.", focusKeywords: ["bath wedding venue", "bath spa wedding"], aiSummary: "Georgian architecture unmatched. Assembly Rooms and Royal Crescent. Spa integration unique selling point.", intentSignals: { high: ["bath wedding venue book"], mid: ["best bath wedding venues"], low: ["bath wedding ideas"] } },
-  { id: "wiltshire", countrySlug: "uk", slug: "wiltshire", name: "Wiltshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Castle Combe, Salisbury Cathedral and Bowood House. Picture-perfect villages and ancient grandeur.", focusKeywords: ["wiltshire wedding venue"], aiSummary: "Castle Combe iconic village. Salisbury Cathedral ceremonies. Bowood House estate. Quieter luxury market.", intentSignals: { high: [], mid: ["best wiltshire wedding venues"], low: ["wiltshire wedding ideas"] } },
-  { id: "dorset", countrySlug: "uk", slug: "dorset", name: "Dorset", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Jurassic Coast, Lulworth Cove, Bournemouth and Corfe Castle. Dramatic coastal geology and harbour charm.", focusKeywords: ["dorset wedding venue"], aiSummary: "Jurassic Coast outdoor weddings growing. Lulworth Cove dramatic ceremony location. Corfe Castle picturesque.", intentSignals: { high: [], mid: ["best dorset wedding venues"], low: ["dorset wedding ideas"] } },
-  { id: "cheshire", countrySlug: "uk", slug: "cheshire", name: "Cheshire", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "Peckforton Castle, Tatton Park and the affluent Golden Triangle. The Northwest's most prestigious wedding county.", focusKeywords: ["cheshire wedding venue", "peckforton castle wedding", "tatton park wedding"], aiSummary: "Northwest luxury hub. Castle and stately home venues dominate. Affluent local market plus destination appeal.", intentSignals: { high: ["cheshire wedding venue book", "peckforton castle wedding hire"], mid: ["best cheshire wedding venues"], low: ["cheshire wedding ideas"] } },
-  { id: "northumberland", countrySlug: "uk", slug: "northumberland", name: "Northumberland", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Alnwick Castle, Bamburgh beach and the wild beauty of Hadrian's Wall country across Northumberland.", focusKeywords: ["northumberland wedding venue", "alnwick castle wedding", "durham wedding"], aiSummary: "Castle wedding stronghold. Alnwick Harry Potter association. Remote luxury growing. Smaller but distinctive market.", intentSignals: { high: ["alnwick castle wedding venue"], mid: ["best northumberland wedding venues"], low: ["northumberland wedding ideas"] } },
-  { id: "durham", countrySlug: "uk", slug: "durham", name: "Durham", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Durham Cathedral, the castle, Lumley Castle and the historic university city on the River Wear.", focusKeywords: ["durham wedding venue"], aiSummary: "Durham Cathedral ceremonies prestigious. Lumley Castle anchor. Historic university city. Smaller northern market.", intentSignals: { high: [], mid: ["best durham wedding venues"], low: ["durham wedding ideas"] } },
-  { id: "warwickshire", countrySlug: "uk", slug: "warwickshire", name: "Warwickshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "Shakespeare's Stratford-upon-Avon, Warwick Castle and the grand estates of Warwickshire.", focusKeywords: ["warwickshire wedding venue", "stratford upon avon wedding", "warwick castle wedding"], aiSummary: "Shakespeare connection unique. Warwick Castle ceremonies. Strong regional market. Midlands hub.", intentSignals: { high: ["warwickshire wedding venue book"], mid: ["best warwickshire wedding venues"], low: ["warwickshire wedding ideas"] } },
-  { id: "west-midlands", countrySlug: "uk", slug: "west-midlands", name: "West Midlands", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Birmingham's Edgbaston elegance, Aston Hall and the industrial heritage of England's second city.", focusKeywords: ["birmingham wedding venue"], aiSummary: "Birmingham urban weddings growing. Edgbaston venue cluster. Aston Hall grandeur. Industrial-chic conversions.", intentSignals: { high: [], mid: ["best birmingham wedding venues"], low: ["birmingham wedding ideas"] } },
-  { id: "derbyshire", countrySlug: "uk", slug: "derbyshire", name: "Derbyshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Chatsworth House grandeur, the Peak District, Buxton's Georgian spa town elegance and the Derwent Valley's mills.", focusKeywords: ["derbyshire wedding venue", "chatsworth wedding", "peak district wedding"], aiSummary: "Chatsworth dominates. Peak District outdoor weddings growing. Buxton spa town niche. Quieter luxury.", intentSignals: { high: ["chatsworth wedding venue"], mid: ["best derbyshire wedding venues"], low: ["peak district wedding ideas"] } },
-  { id: "buckinghamshire", countrySlug: "uk", slug: "buckinghamshire", name: "Buckinghamshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "Waddesdon Manor's Rothschild grandeur, Cliveden's Thameside terraces and the Chiltern Hills.", focusKeywords: ["buckinghamshire wedding venue", "waddesdon manor wedding", "cliveden wedding"], aiSummary: "Waddesdon and Cliveden anchor ultra-luxury. Close to London premium. Chiltern barn conversions growing.", intentSignals: { high: ["buckinghamshire wedding venue book"], mid: ["best buckinghamshire wedding venues"], low: ["buckinghamshire wedding ideas"] } },
-  { id: "hertfordshire", countrySlug: "uk", slug: "hertfordshire", name: "Hertfordshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "Home counties elegance, Hatfield House, the Hertfordshire countryside and grand country house venues.", focusKeywords: ["hertfordshire wedding venue"], aiSummary: "London-adjacent convenience. Country house market strong. TOWIE effect drives Essex awareness. Volume market.", intentSignals: { high: [], mid: ["best hertfordshire wedding venues"], low: ["hertfordshire wedding ideas"] } },
-  { id: "essex", countrySlug: "uk", slug: "essex", name: "Essex", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Hedingham Castle, Layer Marney Tower and coastal marshes. Historic fortifications and Thames estuary charm.", focusKeywords: ["essex wedding venue"], aiSummary: "Castle and tower venues distinctive. Layer Marney Tower unique. TOWIE effect drives awareness. Volume market.", intentSignals: { high: [], mid: ["best essex wedding venues"], low: ["essex wedding ideas"] } },
-  { id: "lancashire", countrySlug: "uk", slug: "lancashire", name: "Lancashire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "The Ribble Valley's country houses, Lancashire's moorland estates and historic mill conversions.", focusKeywords: ["lancashire wedding venue"], aiSummary: "Manchester urban weddings plus Ribble Valley country houses. Industrial-chic venue conversions trending.", intentSignals: { high: [], mid: ["best lancashire wedding venues"], low: ["lancashire wedding ideas"] } },
-  { id: "manchester", countrySlug: "uk", slug: "manchester", name: "Greater Manchester", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Industrial-chic conversions, The Midland Hotel and the creative energy of England's northern powerhouse.", focusKeywords: ["manchester wedding venue"], aiSummary: "Manchester urban weddings growing fast. Industrial-chic venue conversions trending. Northern powerhouse.", intentSignals: { high: [], mid: ["best manchester wedding venues"], low: ["manchester wedding ideas"] } },
+  { id: "hampshire", countrySlug: "england", slug: "hampshire", name: "Hampshire", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 4, description: "Georgian manor houses, Winchester Cathedral and the rolling Hampshire countryside. Southern England's elegant heartland.", focusKeywords: ["hampshire wedding venue", "winchester wedding"], aiSummary: "Strong country house market. New Forest boutique segment growing. Winchester cathedral weddings anchor.", intentSignals: { high: ["hampshire wedding venue book"], mid: ["best hampshire wedding venues"], low: ["hampshire wedding ideas"] } },
+  { id: "devon", countrySlug: "england", slug: "devon", name: "Devon", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "South Devon coast, Dartmouth, Salcombe, Exeter and Dartmoor. Dramatic clifftop venues and enchanted woodland estates.", focusKeywords: ["devon wedding venue", "south devon wedding"], aiSummary: "South Devon coast leads luxury demand. Dartmouth and Salcombe anchor maritime weddings. Dartmoor dramatic.", intentSignals: { high: ["devon wedding venue book"], mid: ["best devon wedding venues"], low: ["devon wedding ideas"] } },
+  { id: "cornwall", countrySlug: "england", slug: "cornwall", name: "Cornwall", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "St Ives, Padstow, Falmouth and the dramatic Cornish coast. Tin mine heritage and beach ceremony paradise.", focusKeywords: ["cornwall wedding venue", "cornwall beach wedding"], aiSummary: "Cornwall leads destination search in Southwest England. Beach and clifftop venues dominate. Strong summer peak.", intentSignals: { high: ["cornwall wedding venue book"], mid: ["best cornwall wedding venues"], low: ["cornwall wedding ideas"] } },
+  { id: "kent", countrySlug: "england", slug: "kent", name: "Kent", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: true, listingCount: 4, description: "The Garden of England, Canterbury Cathedral, Leeds Castle and hop-garden barn conversions.", focusKeywords: ["kent wedding venue", "canterbury wedding", "leeds castle wedding"], aiSummary: "Garden of England positioning. Castle and barn venues lead. Canterbury Cathedral ceremonies prestigious.", intentSignals: { high: ["kent wedding venue book", "leeds castle wedding hire"], mid: ["best kent wedding venues"], low: ["kent wedding ideas"] } },
+  { id: "sussex", countrySlug: "england", slug: "sussex", name: "Sussex", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 4, description: "Brighton's Regency glamour, Goodwood estate and the rolling South Downs. Coastal chic meets country grandeur.", focusKeywords: ["sussex wedding venue", "brighton wedding", "chichester wedding"], aiSummary: "Brighton urban-beach market plus South Downs country estates. Goodwood and Cowdray anchor luxury tier.", intentSignals: { high: ["sussex wedding venue book", "brighton wedding planner"], mid: ["best sussex wedding venues"], low: ["sussex wedding ideas"] } },
+  { id: "norfolk", countrySlug: "england", slug: "norfolk", name: "Norfolk", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Norfolk Broads, Burnham Market, Holkham and Norwich Cathedral. Big skies and medieval wool churches.", focusKeywords: ["norfolk wedding venue"], aiSummary: "Barn conversion boom. Burnham Market luxury cluster. Sandringham association drives prestige. Quieter refined market.", intentSignals: { high: ["norfolk wedding venue book"], mid: ["best norfolk wedding venues"], low: ["norfolk wedding ideas"] } },
+  { id: "suffolk", countrySlug: "england", slug: "suffolk", name: "Suffolk", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Aldeburgh, Southwold, the Heritage Coast and Snape Maltings. Refined coastal charm and gentle countryside.", focusKeywords: ["suffolk wedding venue"], aiSummary: "Heritage Coast beauty. Snape Maltings concert hall venue unique. Refined and understated market.", intentSignals: { high: [], mid: ["best suffolk wedding venues"], low: ["suffolk wedding ideas"] } },
+  { id: "yorkshire", countrySlug: "england", slug: "yorkshire", name: "Yorkshire", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: true, listingCount: 4, description: "From the Yorkshire Dales and North York Moors to Harrogate's spa elegance and York's medieval grandeur.", focusKeywords: ["yorkshire wedding venue", "harrogate wedding", "york wedding venue"], aiSummary: "Harrogate-York corridor dominates. Castle Howard iconic. Dales barn conversions trending. Strong northern market.", intentSignals: { high: ["yorkshire wedding venue book", "castle howard wedding"], mid: ["best yorkshire wedding venues"], low: ["yorkshire wedding ideas"] } },
+  { id: "oxfordshire", countrySlug: "england", slug: "oxfordshire", name: "Oxfordshire", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: true, listingCount: 4, description: "Blenheim Palace, dreaming Oxford spires, Henley Royal Regatta and the rolling Chiltern Hills.", focusKeywords: ["oxfordshire wedding venue", "blenheim palace wedding", "henley wedding"], aiSummary: "Blenheim anchors ultra-luxury. Oxford college venues unique. Henley riverside summer weddings. Premium home counties market.", intentSignals: { high: ["oxfordshire wedding venue book", "blenheim palace wedding hire"], mid: ["best oxfordshire wedding venues"], low: ["oxfordshire wedding ideas"] } },
+  { id: "somerset", countrySlug: "england", slug: "somerset", name: "Somerset", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Glastonbury, Exmoor, Bruton and Babington House. Mystical landscapes and creative-luxury country estates.", focusKeywords: ["somerset wedding venue"], aiSummary: "Babington House Soho House effect. Bruton creative-luxury emerging. Glastonbury mystique. Growing market.", intentSignals: { high: [], mid: ["best somerset wedding venues"], low: ["somerset wedding ideas"] } },
+  { id: "bath-region", countrySlug: "england", slug: "bath", name: "Bath", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Georgian crescents, Roman baths, the Royal Crescent and Assembly Rooms. England's most beautiful city.", focusKeywords: ["bath wedding venue", "bath spa wedding"], aiSummary: "Georgian architecture unmatched. Assembly Rooms and Royal Crescent. Spa integration unique selling point.", intentSignals: { high: ["bath wedding venue book"], mid: ["best bath wedding venues"], low: ["bath wedding ideas"] } },
+  { id: "wiltshire", countrySlug: "england", slug: "wiltshire", name: "Wiltshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Castle Combe, Salisbury Cathedral and Bowood House. Picture-perfect villages and ancient grandeur.", focusKeywords: ["wiltshire wedding venue"], aiSummary: "Castle Combe iconic village. Salisbury Cathedral ceremonies. Bowood House estate. Quieter luxury market.", intentSignals: { high: [], mid: ["best wiltshire wedding venues"], low: ["wiltshire wedding ideas"] } },
+  { id: "dorset", countrySlug: "england", slug: "dorset", name: "Dorset", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Jurassic Coast, Lulworth Cove, Bournemouth and Corfe Castle. Dramatic coastal geology and harbour charm.", focusKeywords: ["dorset wedding venue"], aiSummary: "Jurassic Coast outdoor weddings growing. Lulworth Cove dramatic ceremony location. Corfe Castle picturesque.", intentSignals: { high: [], mid: ["best dorset wedding venues"], low: ["dorset wedding ideas"] } },
+  { id: "cheshire", countrySlug: "england", slug: "cheshire", name: "Cheshire", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "Peckforton Castle, Tatton Park and the affluent Golden Triangle. The Northwest's most prestigious wedding county.", focusKeywords: ["cheshire wedding venue", "peckforton castle wedding", "tatton park wedding"], aiSummary: "Northwest luxury hub. Castle and stately home venues dominate. Affluent local market plus destination appeal.", intentSignals: { high: ["cheshire wedding venue book", "peckforton castle wedding hire"], mid: ["best cheshire wedding venues"], low: ["cheshire wedding ideas"] } },
+  { id: "northumberland", countrySlug: "england", slug: "northumberland", name: "Northumberland", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Alnwick Castle, Bamburgh beach and the wild beauty of Hadrian's Wall country across Northumberland.", focusKeywords: ["northumberland wedding venue", "alnwick castle wedding", "durham wedding"], aiSummary: "Castle wedding stronghold. Alnwick Harry Potter association. Remote luxury growing. Smaller but distinctive market.", intentSignals: { high: ["alnwick castle wedding venue"], mid: ["best northumberland wedding venues"], low: ["northumberland wedding ideas"] } },
+  { id: "durham", countrySlug: "england", slug: "durham", name: "Durham", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Durham Cathedral, the castle, Lumley Castle and the historic university city on the River Wear.", focusKeywords: ["durham wedding venue"], aiSummary: "Durham Cathedral ceremonies prestigious. Lumley Castle anchor. Historic university city. Smaller northern market.", intentSignals: { high: [], mid: ["best durham wedding venues"], low: ["durham wedding ideas"] } },
+  { id: "warwickshire", countrySlug: "england", slug: "warwickshire", name: "Warwickshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "Shakespeare's Stratford-upon-Avon, Warwick Castle and the grand estates of Warwickshire.", focusKeywords: ["warwickshire wedding venue", "stratford upon avon wedding", "warwick castle wedding"], aiSummary: "Shakespeare connection unique. Warwick Castle ceremonies. Strong regional market. Midlands hub.", intentSignals: { high: ["warwickshire wedding venue book"], mid: ["best warwickshire wedding venues"], low: ["warwickshire wedding ideas"] } },
+  { id: "west-midlands", countrySlug: "england", slug: "west-midlands", name: "West Midlands", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Birmingham's Edgbaston elegance, Aston Hall and the industrial heritage of England's second city.", focusKeywords: ["birmingham wedding venue"], aiSummary: "Birmingham urban weddings growing. Edgbaston venue cluster. Aston Hall grandeur. Industrial-chic conversions.", intentSignals: { high: [], mid: ["best birmingham wedding venues"], low: ["birmingham wedding ideas"] } },
+  { id: "derbyshire", countrySlug: "england", slug: "derbyshire", name: "Derbyshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Chatsworth House grandeur, the Peak District, Buxton's Georgian spa town elegance and the Derwent Valley's mills.", focusKeywords: ["derbyshire wedding venue", "chatsworth wedding", "peak district wedding"], aiSummary: "Chatsworth dominates. Peak District outdoor weddings growing. Buxton spa town niche. Quieter luxury.", intentSignals: { high: ["chatsworth wedding venue"], mid: ["best derbyshire wedding venues"], low: ["peak district wedding ideas"] } },
+  { id: "buckinghamshire", countrySlug: "england", slug: "buckinghamshire", name: "Buckinghamshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "Waddesdon Manor's Rothschild grandeur, Cliveden's Thameside terraces and the Chiltern Hills.", focusKeywords: ["buckinghamshire wedding venue", "waddesdon manor wedding", "cliveden wedding"], aiSummary: "Waddesdon and Cliveden anchor ultra-luxury. Close to London premium. Chiltern barn conversions growing.", intentSignals: { high: ["buckinghamshire wedding venue book"], mid: ["best buckinghamshire wedding venues"], low: ["buckinghamshire wedding ideas"] } },
+  { id: "hertfordshire", countrySlug: "england", slug: "hertfordshire", name: "Hertfordshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "Home counties elegance, Hatfield House, the Hertfordshire countryside and grand country house venues.", focusKeywords: ["hertfordshire wedding venue"], aiSummary: "London-adjacent convenience. Country house market strong. TOWIE effect drives Essex awareness. Volume market.", intentSignals: { high: [], mid: ["best hertfordshire wedding venues"], low: ["hertfordshire wedding ideas"] } },
+  { id: "essex", countrySlug: "england", slug: "essex", name: "Essex", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Hedingham Castle, Layer Marney Tower and coastal marshes. Historic fortifications and Thames estuary charm.", focusKeywords: ["essex wedding venue"], aiSummary: "Castle and tower venues distinctive. Layer Marney Tower unique. TOWIE effect drives awareness. Volume market.", intentSignals: { high: [], mid: ["best essex wedding venues"], low: ["essex wedding ideas"] } },
+  { id: "lancashire", countrySlug: "england", slug: "lancashire", name: "Lancashire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "The Ribble Valley's country houses, Lancashire's moorland estates and historic mill conversions.", focusKeywords: ["lancashire wedding venue"], aiSummary: "Manchester urban weddings plus Ribble Valley country houses. Industrial-chic venue conversions trending.", intentSignals: { high: [], mid: ["best lancashire wedding venues"], low: ["lancashire wedding ideas"] } },
+  { id: "manchester", countrySlug: "england", slug: "manchester", name: "Greater Manchester", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Industrial-chic conversions, The Midland Hotel and the creative energy of England's northern powerhouse.", focusKeywords: ["manchester wedding venue"], aiSummary: "Manchester urban weddings growing fast. Industrial-chic venue conversions trending. Northern powerhouse.", intentSignals: { high: [], mid: ["best manchester wedding venues"], low: ["manchester wedding ideas"] } },
 
-  { id: "gloucestershire", countrySlug: "uk", slug: "gloucestershire", name: "Gloucestershire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Forest of Dean, the Severn Valley and Cheltenham's Regency elegance. Gateway to the Cotswolds.", focusKeywords: ["gloucestershire wedding venue"], aiSummary: "Forest of Dean woodland venues. Cheltenham Regency architecture. Cotswolds gateway. Growing market.", intentSignals: { high: [], mid: ["best gloucestershire wedding venues"], low: ["gloucestershire wedding ideas"] } },
-  { id: "cambridgeshire", countrySlug: "uk", slug: "cambridgeshire", name: "Cambridgeshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Cambridge's ancient colleges, the Backs river meadows and Ely Cathedral's fenland grandeur.", focusKeywords: ["cambridgeshire wedding venue", "cambridge wedding"], aiSummary: "Cambridge college venues unique. Ely Cathedral prestigious. Fenland country house market. Academic prestige.", intentSignals: { high: [], mid: ["best cambridgeshire wedding venues"], low: ["cambridge wedding ideas"] } },
-  { id: "lincolnshire", countrySlug: "uk", slug: "lincolnshire", name: "Lincolnshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Lincoln Cathedral, the Wolds' rolling chalk hills and the historic market towns of rural England.", focusKeywords: ["lincolnshire wedding venue"], aiSummary: "Lincoln Cathedral anchor. Wolds countryside. Rural estate venues. Quieter traditional market.", intentSignals: { high: [], mid: ["lincolnshire wedding venue"], low: ["lincolnshire wedding ideas"] } },
-  { id: "nottinghamshire", countrySlug: "uk", slug: "nottinghamshire", name: "Nottinghamshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Nottingham Castle, Sherwood Forest's ancient oaks and the grand ducal estates of the Dukeries.", focusKeywords: ["nottinghamshire wedding venue"], aiSummary: "Robin Hood heritage marketing. Nottingham Castle redevelopment. Clumber Park and Thoresby. Midlands market.", intentSignals: { high: [], mid: ["best nottinghamshire wedding venues"], low: ["nottinghamshire wedding ideas"] } },
-  { id: "leicestershire", countrySlug: "uk", slug: "leicestershire", name: "Leicestershire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Belvoir Castle, Bradgate Park and the hunting shires of the English Midlands.", focusKeywords: ["leicestershire wedding venue"], aiSummary: "Belvoir Castle grandeur. Hunting shire heritage. Midlands accessibility. Traditional estate market.", intentSignals: { high: [], mid: ["leicestershire wedding venue"], low: ["leicestershire wedding ideas"] } },
-  { id: "shropshire", countrySlug: "uk", slug: "shropshire", name: "Shropshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Ludlow's medieval castle town, the Ironbridge Gorge and the rolling Shropshire Hills.", focusKeywords: ["shropshire wedding venue"], aiSummary: "Ludlow foodie reputation. Ironbridge industrial heritage. Shropshire Hills AONB. Welsh Marches charm.", intentSignals: { high: [], mid: ["shropshire wedding venue"], low: ["shropshire wedding ideas"] } },
-  { id: "worcestershire", countrySlug: "uk", slug: "worcestershire", name: "Worcestershire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "The Malvern Hills, Worcester Cathedral and the fruit orchards of the Vale of Evesham.", focusKeywords: ["worcestershire wedding venue"], aiSummary: "Malvern Hills scenic backdrop. Worcester Cathedral ceremonies. Elgar country heritage. Rural charm.", intentSignals: { high: [], mid: ["worcestershire wedding venue"], low: ["worcestershire wedding ideas"] } },
-  { id: "herefordshire", countrySlug: "uk", slug: "herefordshire", name: "Herefordshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "The Black Mountains, Hereford Cathedral's Mappa Mundi and cider-apple orchards along the River Wye.", focusKeywords: ["herefordshire wedding venue"], aiSummary: "Black Mountains dramatic. River Wye beauty. Cider heritage. Very rural luxury niche.", intentSignals: { high: [], mid: ["herefordshire wedding venue"], low: ["herefordshire wedding ideas"] } },
-  { id: "staffordshire", countrySlug: "uk", slug: "staffordshire", name: "Staffordshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Alton Towers estate, Shugborough Hall and the Staffordshire Moorlands' heather-clad peaks.", focusKeywords: ["staffordshire wedding venue"], aiSummary: "Alton Towers estate unique venue. Shugborough Hall grandeur. Moorlands scenic. Midlands market.", intentSignals: { high: [], mid: ["staffordshire wedding venue"], low: ["staffordshire wedding ideas"] } },
-  { id: "northamptonshire", countrySlug: "uk", slug: "northamptonshire", name: "Northamptonshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Althorp House, the Spires of Northampton and the grand estates of the Shires.", focusKeywords: ["northamptonshire wedding venue"], aiSummary: "Althorp House (Spencer family) prestigious. Grand estate market. Central England accessibility.", intentSignals: { high: [], mid: ["northamptonshire wedding venue"], low: ["northamptonshire wedding ideas"] } },
-  { id: "bedfordshire", countrySlug: "uk", slug: "bedfordshire", name: "Bedfordshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Woburn Abbey, Luton Hoo and the Chiltern Hills' beechwood countryside north of London.", focusKeywords: ["bedfordshire wedding venue"], aiSummary: "Woburn Abbey anchor. Luton Hoo luxury. London accessible. Chiltern Hills scenic.", intentSignals: { high: [], mid: ["bedfordshire wedding venue"], low: ["bedfordshire wedding ideas"] } },
-  { id: "isle-of-wight", countrySlug: "uk", slug: "isle-of-wight", name: "Isle of Wight", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Queen Victoria's Osborne House, Cowes sailing week and the island's fossil-rich coastline.", focusKeywords: ["isle of wight wedding venue"], aiSummary: "Osborne House royal association. Island exclusivity. Cowes sailing heritage. Boutique niche.", intentSignals: { high: [], mid: ["isle of wight wedding venue"], low: ["isle of wight wedding ideas"] } },
-  { id: "bristol", countrySlug: "uk", slug: "bristol", name: "Bristol", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Clifton Suspension Bridge, the harbourside and Brunel's SS Great Britain. Creative urban energy.", focusKeywords: ["bristol wedding venue"], aiSummary: "Creative-industrial venue conversions. Clifton Village elegance. Harbourside development. Growing urban market.", intentSignals: { high: [], mid: ["best bristol wedding venues"], low: ["bristol wedding ideas"] } },
-  { id: "merseyside", countrySlug: "uk", slug: "merseyside", name: "Merseyside", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Liverpool's Albert Dock, the Liver Building and the cultural renaissance of England's maritime city.", focusKeywords: ["liverpool wedding venue"], aiSummary: "Albert Dock and waterfront venues. Beatles heritage tourism. Cultural capital. Growing market.", intentSignals: { high: [], mid: ["best liverpool wedding venues"], low: ["liverpool wedding ideas"] } },
-  { id: "cumbria", countrySlug: "uk", slug: "cumbria", name: "Cumbria", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "The Lake District's romantic lakeside settings, Carlisle Castle and the Eden Valley's pastoral beauty.", focusKeywords: ["cumbria wedding venue"], aiSummary: "Lake District overlap. Romantic lakeside venues. Carlisle Castle anchor. Intimate celebrations.", intentSignals: { high: [], mid: ["cumbria wedding venue"], low: ["cumbria wedding ideas"] } },
-  { id: "rutland", countrySlug: "uk", slug: "rutland", name: "Rutland", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "England's smallest county, Rutland Water, the market town of Oakham and unspoilt ironstone villages.", focusKeywords: ["rutland wedding venue"], aiSummary: "England's smallest county. Exclusive and intimate. Rutland Water scenic. Very niche boutique market.", intentSignals: { high: [], mid: ["rutland wedding venue"], low: ["rutland wedding ideas"] } },
+  { id: "gloucestershire", countrySlug: "england", slug: "gloucestershire", name: "Gloucestershire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Forest of Dean, the Severn Valley and Cheltenham's Regency elegance. Gateway to the Cotswolds.", focusKeywords: ["gloucestershire wedding venue"], aiSummary: "Forest of Dean woodland venues. Cheltenham Regency architecture. Cotswolds gateway. Growing market.", intentSignals: { high: [], mid: ["best gloucestershire wedding venues"], low: ["gloucestershire wedding ideas"] } },
+  { id: "cambridgeshire", countrySlug: "england", slug: "cambridgeshire", name: "Cambridgeshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Cambridge's ancient colleges, the Backs river meadows and Ely Cathedral's fenland grandeur.", focusKeywords: ["cambridgeshire wedding venue", "cambridge wedding"], aiSummary: "Cambridge college venues unique. Ely Cathedral prestigious. Fenland country house market. Academic prestige.", intentSignals: { high: [], mid: ["best cambridgeshire wedding venues"], low: ["cambridge wedding ideas"] } },
+  { id: "lincolnshire", countrySlug: "england", slug: "lincolnshire", name: "Lincolnshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Lincoln Cathedral, the Wolds' rolling chalk hills and the historic market towns of rural England.", focusKeywords: ["lincolnshire wedding venue"], aiSummary: "Lincoln Cathedral anchor. Wolds countryside. Rural estate venues. Quieter traditional market.", intentSignals: { high: [], mid: ["lincolnshire wedding venue"], low: ["lincolnshire wedding ideas"] } },
+  { id: "nottinghamshire", countrySlug: "england", slug: "nottinghamshire", name: "Nottinghamshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Nottingham Castle, Sherwood Forest's ancient oaks and the grand ducal estates of the Dukeries.", focusKeywords: ["nottinghamshire wedding venue"], aiSummary: "Robin Hood heritage marketing. Nottingham Castle redevelopment. Clumber Park and Thoresby. Midlands market.", intentSignals: { high: [], mid: ["best nottinghamshire wedding venues"], low: ["nottinghamshire wedding ideas"] } },
+  { id: "leicestershire", countrySlug: "england", slug: "leicestershire", name: "Leicestershire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Belvoir Castle, Bradgate Park and the hunting shires of the English Midlands.", focusKeywords: ["leicestershire wedding venue"], aiSummary: "Belvoir Castle grandeur. Hunting shire heritage. Midlands accessibility. Traditional estate market.", intentSignals: { high: [], mid: ["leicestershire wedding venue"], low: ["leicestershire wedding ideas"] } },
+  { id: "shropshire", countrySlug: "england", slug: "shropshire", name: "Shropshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Ludlow's medieval castle town, the Ironbridge Gorge and the rolling Shropshire Hills.", focusKeywords: ["shropshire wedding venue"], aiSummary: "Ludlow foodie reputation. Ironbridge industrial heritage. Shropshire Hills AONB. Welsh Marches charm.", intentSignals: { high: [], mid: ["shropshire wedding venue"], low: ["shropshire wedding ideas"] } },
+  { id: "worcestershire", countrySlug: "england", slug: "worcestershire", name: "Worcestershire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "The Malvern Hills, Worcester Cathedral and the fruit orchards of the Vale of Evesham.", focusKeywords: ["worcestershire wedding venue"], aiSummary: "Malvern Hills scenic backdrop. Worcester Cathedral ceremonies. Elgar country heritage. Rural charm.", intentSignals: { high: [], mid: ["worcestershire wedding venue"], low: ["worcestershire wedding ideas"] } },
+  { id: "herefordshire", countrySlug: "england", slug: "herefordshire", name: "Herefordshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "The Black Mountains, Hereford Cathedral's Mappa Mundi and cider-apple orchards along the River Wye.", focusKeywords: ["herefordshire wedding venue"], aiSummary: "Black Mountains dramatic. River Wye beauty. Cider heritage. Very rural luxury niche.", intentSignals: { high: [], mid: ["herefordshire wedding venue"], low: ["herefordshire wedding ideas"] } },
+  { id: "staffordshire", countrySlug: "england", slug: "staffordshire", name: "Staffordshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Alton Towers estate, Shugborough Hall and the Staffordshire Moorlands' heather-clad peaks.", focusKeywords: ["staffordshire wedding venue"], aiSummary: "Alton Towers estate unique venue. Shugborough Hall grandeur. Moorlands scenic. Midlands market.", intentSignals: { high: [], mid: ["staffordshire wedding venue"], low: ["staffordshire wedding ideas"] } },
+  { id: "northamptonshire", countrySlug: "england", slug: "northamptonshire", name: "Northamptonshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Althorp House, the Spires of Northampton and the grand estates of the Shires.", focusKeywords: ["northamptonshire wedding venue"], aiSummary: "Althorp House (Spencer family) prestigious. Grand estate market. Central England accessibility.", intentSignals: { high: [], mid: ["northamptonshire wedding venue"], low: ["northamptonshire wedding ideas"] } },
+  { id: "bedfordshire", countrySlug: "england", slug: "bedfordshire", name: "Bedfordshire", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Woburn Abbey, Luton Hoo and the Chiltern Hills' beechwood countryside north of London.", focusKeywords: ["bedfordshire wedding venue"], aiSummary: "Woburn Abbey anchor. Luton Hoo luxury. London accessible. Chiltern Hills scenic.", intentSignals: { high: [], mid: ["bedfordshire wedding venue"], low: ["bedfordshire wedding ideas"] } },
+  { id: "isle-of-wight", countrySlug: "england", slug: "isle-of-wight", name: "Isle of Wight", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Queen Victoria's Osborne House, Cowes sailing week and the island's fossil-rich coastline.", focusKeywords: ["isle of wight wedding venue"], aiSummary: "Osborne House royal association. Island exclusivity. Cowes sailing heritage. Boutique niche.", intentSignals: { high: [], mid: ["isle of wight wedding venue"], low: ["isle of wight wedding ideas"] } },
+  { id: "bristol", countrySlug: "england", slug: "bristol", name: "Bristol", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Clifton Suspension Bridge, the harbourside and Brunel's SS Great Britain. Creative urban energy.", focusKeywords: ["bristol wedding venue"], aiSummary: "Creative-industrial venue conversions. Clifton Village elegance. Harbourside development. Growing urban market.", intentSignals: { high: [], mid: ["best bristol wedding venues"], low: ["bristol wedding ideas"] } },
+  { id: "merseyside", countrySlug: "england", slug: "merseyside", name: "Merseyside", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "Liverpool's Albert Dock, the Liver Building and the cultural renaissance of England's maritime city.", focusKeywords: ["liverpool wedding venue"], aiSummary: "Albert Dock and waterfront venues. Beatles heritage tourism. Cultural capital. Growing market.", intentSignals: { high: [], mid: ["best liverpool wedding venues"], low: ["liverpool wedding ideas"] } },
+  { id: "cumbria", countrySlug: "england", slug: "cumbria", name: "Cumbria", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "The Lake District's romantic lakeside settings, Carlisle Castle and the Eden Valley's pastoral beauty.", focusKeywords: ["cumbria wedding venue"], aiSummary: "Lake District overlap. Romantic lakeside venues. Carlisle Castle anchor. Intimate celebrations.", intentSignals: { high: [], mid: ["cumbria wedding venue"], low: ["cumbria wedding ideas"] } },
+  { id: "rutland", countrySlug: "england", slug: "rutland", name: "Rutland", priorityLevel: "secondary", urlEnabledManual: null, urlEverActivated: false, listingCount: 1, description: "England's smallest county, Rutland Water, the market town of Oakham and unspoilt ironstone villages.", focusKeywords: ["rutland wedding venue"], aiSummary: "England's smallest county. Exclusive and intimate. Rutland Water scenic. Very niche boutique market.", intentSignals: { high: [], mid: ["rutland wedding venue"], low: ["rutland wedding ideas"] } },
 
   // ── UK, Scotland ───────────────────────────────────────────────────
-  { id: "scotland", countrySlug: "uk", slug: "scotland", name: "Scotland", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 8, description: "Castle estates, Highland lochs, Edinburgh's Georgian grandeur and Glasgow's creative energy. Scotland's most celebrated wedding destinations.", focusKeywords: ["scotland wedding venue", "scottish castle wedding", "luxury wedding scotland", "edinburgh wedding"], aiSummary: "Castle weddings drive international demand. Edinburgh urban-luxury hub. Highland elopements trending. Strong US-Irish heritage market. Seasonal May-September peak.", intentSignals: { high: ["scottish castle wedding venue book", "edinburgh wedding planner"], mid: ["best scotland wedding venues", "highland castle wedding"], low: ["scotland wedding ideas", "scottish wedding traditions"] } },
+  { id: "scotland", countrySlug: "england", slug: "scotland", name: "Scotland", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 8, description: "Castle estates, Highland lochs, Edinburgh's Georgian grandeur and Glasgow's creative energy. Scotland's most celebrated wedding destinations.", focusKeywords: ["scotland wedding venue", "scottish castle wedding", "luxury wedding scotland", "edinburgh wedding"], aiSummary: "Castle weddings drive international demand. Edinburgh urban-luxury hub. Highland elopements trending. Strong US-Irish heritage market. Seasonal May-September peak.", intentSignals: { high: ["scottish castle wedding venue book", "edinburgh wedding planner"], mid: ["best scotland wedding venues", "highland castle wedding"], low: ["scotland wedding ideas", "scottish wedding traditions"] } },
 
   // ── UK, Wales ──────────────────────────────────────────────────────
-  { id: "wales", countrySlug: "uk", slug: "wales", name: "Wales", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 4, description: "Pembrokeshire's dramatic coast, Snowdonia's mountain grandeur, Cardiff's cosmopolitan charm and ancient castle estates across the principality.", focusKeywords: ["wales wedding venue", "welsh castle wedding", "pembrokeshire wedding", "snowdonia wedding"], aiSummary: "Castle concentration unique. Pembrokeshire coast and Snowdonia mountains drive landscape weddings. Growing destination appeal. Underpriced vs English equivalents.", intentSignals: { high: ["wales castle wedding venue book"], mid: ["best wales wedding venues", "pembrokeshire wedding venue"], low: ["wales wedding ideas"] } },
+  { id: "wales", countrySlug: "england", slug: "wales", name: "Wales", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 4, description: "Pembrokeshire's dramatic coast, Snowdonia's mountain grandeur, Cardiff's cosmopolitan charm and ancient castle estates across the principality.", focusKeywords: ["wales wedding venue", "welsh castle wedding", "pembrokeshire wedding", "snowdonia wedding"], aiSummary: "Castle concentration unique. Pembrokeshire coast and Snowdonia mountains drive landscape weddings. Growing destination appeal. Underpriced vs English equivalents.", intentSignals: { high: ["wales castle wedding venue book"], mid: ["best wales wedding venues", "pembrokeshire wedding venue"], low: ["wales wedding ideas"] } },
 
 
   // ── UK, Northern Ireland ───────────────────────────────────────────
-  { id: "northern-ireland", countrySlug: "uk", slug: "northern-ireland", name: "Northern Ireland", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Giant's Causeway drama, the Antrim Coast, Belfast's Titanic Quarter renaissance and ancient castle estates across the province.", focusKeywords: ["northern ireland wedding venue", "belfast wedding", "antrim coast wedding"], aiSummary: "Giant's Causeway ceremonies iconic. Belfast Titanic Quarter modern venue cluster. Game of Thrones tourism crossover. Small but distinctive market.", intentSignals: { high: ["northern ireland wedding venue book"], mid: ["best belfast wedding venues"], low: ["northern ireland wedding ideas"] } },
+  { id: "northern-ireland", countrySlug: "england", slug: "northern-ireland", name: "Northern Ireland", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 2, description: "Giant's Causeway drama, the Antrim Coast, Belfast's Titanic Quarter renaissance and ancient castle estates across the province.", focusKeywords: ["northern ireland wedding venue", "belfast wedding", "antrim coast wedding"], aiSummary: "Giant's Causeway ceremonies iconic. Belfast Titanic Quarter modern venue cluster. Game of Thrones tourism crossover. Small but distinctive market.", intentSignals: { high: ["northern ireland wedding venue book"], mid: ["best belfast wedding venues"], low: ["northern ireland wedding ideas"] } },
 
 
   // ── UK, Channel Islands ────────────────────────────────────────────
-  { id: "channel-islands", countrySlug: "uk", slug: "channel-islands", name: "Channel Islands", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "Jersey and Guernsey's French-inflected island charm, granite manor houses, sheltered bays, world-class seafood and a gentle pace of island life.", focusKeywords: ["channel islands wedding venue", "jersey wedding", "guernsey wedding"], aiSummary: "Boutique island destinations. Tax-efficient incentive. French-British cultural blend. Jersey leads with Guernsey micro-destination niche.", intentSignals: { high: ["jersey wedding venue book"], mid: ["best channel islands wedding venues"], low: ["channel islands wedding ideas"] } },
+  { id: "channel-islands", countrySlug: "england", slug: "channel-islands", name: "Channel Islands", priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: false, listingCount: 3, description: "Jersey and Guernsey's French-inflected island charm, granite manor houses, sheltered bays, world-class seafood and a gentle pace of island life.", focusKeywords: ["channel islands wedding venue", "jersey wedding", "guernsey wedding"], aiSummary: "Boutique island destinations. Tax-efficient incentive. French-British cultural blend. Jersey leads with Guernsey micro-destination niche.", intentSignals: { high: ["jersey wedding venue book"], mid: ["best channel islands wedding venues"], low: ["channel islands wedding ideas"] } },
 
 
   // ── Ireland ─────────────────────────────────────────────────────────
@@ -1525,9 +965,9 @@ const DIRECTORY_CITIES = [
   { id: "saint-remy", regionSlug: "provence", countrySlug: "france", slug: "saint-remy-de-provence", name: "Saint-Rémy-de-Provence", listingCount: 2, lat: "43.7890", lng: "4.8312", description: "Van Gogh's beloved village, intimate Provençal charm at its finest.", focusKeywords: ["saint remy wedding"], aiSummary: "Boutique destination. Strong UK/US demand." },
 
   // ── UK > Cotswolds ───────────────────────────────────────────────────────
-  { id: "chipping-campden", regionSlug: "cotswolds", countrySlug: "uk", slug: "chipping-campden", name: "Chipping Campden", listingCount: 2, lat: "52.0545", lng: "-1.7811", description: "Perfectly preserved market town at the northern edge of the Cotswolds.", focusKeywords: ["chipping campden wedding"], aiSummary: "Quintessential Cotswolds. Country house venues dominate." },
-  { id: "burford", regionSlug: "cotswolds", countrySlug: "uk", slug: "burford", name: "Burford", listingCount: 2, lat: "51.8087", lng: "-1.6368", description: "Gateway to the Cotswolds, ancient stone-built high street and surrounding estates.", focusKeywords: ["burford wedding venue"], aiSummary: "Strong local venue cluster. Barn and manor house mix." },
-  { id: "stow-on-the-wold", regionSlug: "cotswolds", countrySlug: "uk", slug: "stow-on-the-wold", name: "Stow-on-the-Wold", listingCount: 1, lat: "51.9315", lng: "-1.7233", description: "Hilltop market town, the highest point of the Cotswolds with sweeping views.", focusKeywords: ["stow on the wold wedding"], aiSummary: "Niche positioning. Nearby estate venues drive demand." },
+  { id: "chipping-campden", regionSlug: "cotswolds", countrySlug: "england", slug: "chipping-campden", name: "Chipping Campden", listingCount: 2, lat: "52.0545", lng: "-1.7811", description: "Perfectly preserved market town at the northern edge of the Cotswolds.", focusKeywords: ["chipping campden wedding"], aiSummary: "Quintessential Cotswolds. Country house venues dominate." },
+  { id: "burford", regionSlug: "cotswolds", countrySlug: "england", slug: "burford", name: "Burford", listingCount: 2, lat: "51.8087", lng: "-1.6368", description: "Gateway to the Cotswolds, ancient stone-built high street and surrounding estates.", focusKeywords: ["burford wedding venue"], aiSummary: "Strong local venue cluster. Barn and manor house mix." },
+  { id: "stow-on-the-wold", regionSlug: "cotswolds", countrySlug: "england", slug: "stow-on-the-wold", name: "Stow-on-the-Wold", listingCount: 1, lat: "51.9315", lng: "-1.7233", description: "Hilltop market town, the highest point of the Cotswolds with sweeping views.", focusKeywords: ["stow on the wold wedding"], aiSummary: "Niche positioning. Nearby estate venues drive demand." },
 
   // ── Spain > Mallorca ─────────────────────────────────────────────────────
   { id: "deia", regionSlug: "mallorca", countrySlug: "spain", slug: "deia", name: "Deià", listingCount: 1, lat: "39.7472", lng: "2.7500", description: "Artist village in the Serra de Tramuntana, cliffside terraces above the Mediterranean.", focusKeywords: ["deia wedding", "deia mallorca wedding"], aiSummary: "Ultra-luxury niche. La Residencia effect. Limited capacity." },
@@ -1538,91 +978,91 @@ const DIRECTORY_CITIES = [
   { id: "manhattan", regionSlug: "new-york", countrySlug: "usa", slug: "manhattan", name: "Manhattan", listingCount: 1, lat: "40.7831", lng: "-73.9712", description: "The world's most iconic skyline, rooftop terraces, museum galas and hotel ballrooms.", focusKeywords: ["manhattan wedding venue", "nyc wedding"], aiSummary: "Highest price point. Museum and hotel venues lead. Year-round." },
 
   // ── UK, London ─────────────────────────────────────────────────────
-  { id: "mayfair", regionSlug: "london", countrySlug: "uk", slug: "mayfair", name: "Mayfair", listingCount: 2, lat: "51.5100", lng: "-0.1480", description: "The Ritz, Claridge's and Grosvenor Square, London's most prestigious wedding quarter.", focusKeywords: ["mayfair wedding venue", "claridges wedding"], aiSummary: "Ultra-premium. Claridge's and The Ritz anchor. Corporate-luxury crossover." },
-  { id: "chelsea", regionSlug: "london", countrySlug: "uk", slug: "chelsea", name: "Chelsea & Kensington", listingCount: 1, lat: "51.4875", lng: "-0.1687", description: "Royal borough elegance, Chelsea Physic Garden, Kensington Palace orangery and museum venues.", focusKeywords: ["chelsea wedding venue", "kensington wedding"], aiSummary: "Royal borough prestige. V&A and Natural History Museum event spaces." },
-  { id: "richmond", regionSlug: "london", countrySlug: "uk", slug: "richmond", name: "Richmond & Kew", listingCount: 1, lat: "51.4613", lng: "-0.3037", description: "Richmond Park deer herds, Kew Gardens' temperate house and Thames riverside elegance.", focusKeywords: ["richmond wedding venue", "kew gardens wedding"], aiSummary: "Garden-setting weddings. Kew Gardens and Petersham Nurseries. Riverside charm." },
-  { id: "shoreditch", regionSlug: "london", countrySlug: "uk", slug: "shoreditch", name: "Shoreditch & East London", listingCount: 1, lat: "51.5245", lng: "-0.0780", description: "Industrial-chic warehouses, rooftop terraces and the creative energy of East London.", focusKeywords: ["shoreditch wedding venue", "east london wedding"], aiSummary: "Industrial-chic market leader. Warehouse conversions. Creative crowd." },
-  { id: "greenwich", regionSlug: "london", countrySlug: "uk", slug: "greenwich", name: "Greenwich", listingCount: 1, lat: "51.4769", lng: "-0.0005", description: "Royal Naval College, the Painted Hall and panoramic Thames views from the Prime Meridian.", focusKeywords: ["greenwich wedding venue"], aiSummary: "Painted Hall ceremonies stunning. Royal Naval College grandeur. River views." },
+  { id: "mayfair", regionSlug: "london", countrySlug: "england", slug: "mayfair", name: "Mayfair", listingCount: 2, lat: "51.5100", lng: "-0.1480", description: "The Ritz, Claridge's and Grosvenor Square, London's most prestigious wedding quarter.", focusKeywords: ["mayfair wedding venue", "claridges wedding"], aiSummary: "Ultra-premium. Claridge's and The Ritz anchor. Corporate-luxury crossover." },
+  { id: "chelsea", regionSlug: "london", countrySlug: "england", slug: "chelsea", name: "Chelsea & Kensington", listingCount: 1, lat: "51.4875", lng: "-0.1687", description: "Royal borough elegance, Chelsea Physic Garden, Kensington Palace orangery and museum venues.", focusKeywords: ["chelsea wedding venue", "kensington wedding"], aiSummary: "Royal borough prestige. V&A and Natural History Museum event spaces." },
+  { id: "richmond", regionSlug: "london", countrySlug: "england", slug: "richmond", name: "Richmond & Kew", listingCount: 1, lat: "51.4613", lng: "-0.3037", description: "Richmond Park deer herds, Kew Gardens' temperate house and Thames riverside elegance.", focusKeywords: ["richmond wedding venue", "kew gardens wedding"], aiSummary: "Garden-setting weddings. Kew Gardens and Petersham Nurseries. Riverside charm." },
+  { id: "shoreditch", regionSlug: "london", countrySlug: "england", slug: "shoreditch", name: "Shoreditch & East London", listingCount: 1, lat: "51.5245", lng: "-0.0780", description: "Industrial-chic warehouses, rooftop terraces and the creative energy of East London.", focusKeywords: ["shoreditch wedding venue", "east london wedding"], aiSummary: "Industrial-chic market leader. Warehouse conversions. Creative crowd." },
+  { id: "greenwich", regionSlug: "london", countrySlug: "england", slug: "greenwich", name: "Greenwich", listingCount: 1, lat: "51.4769", lng: "-0.0005", description: "Royal Naval College, the Painted Hall and panoramic Thames views from the Prime Meridian.", focusKeywords: ["greenwich wedding venue"], aiSummary: "Painted Hall ceremonies stunning. Royal Naval College grandeur. River views." },
 
   // ── UK, Hampshire ──────────────────────────────────────
-  { id: "winchester", regionSlug: "hampshire", countrySlug: "uk", slug: "winchester", name: "Winchester", listingCount: 2, lat: "51.0632", lng: "-1.3081", description: "England's ancient capital, the Cathedral, Great Hall and water meadows of the Itchen.", focusKeywords: ["winchester wedding venue", "winchester cathedral wedding"], aiSummary: "Cathedral city prestige. Great Hall round table. Historic grandeur." },
-  { id: "new-forest-town", regionSlug: "hampshire", countrySlug: "uk", slug: "new-forest", name: "New Forest", listingCount: 1, lat: "50.8670", lng: "-1.5729", description: "Ancient royal hunting ground, wild ponies, thatched villages and boutique country hotels.", focusKeywords: ["new forest wedding venue"], aiSummary: "Boutique country hotels. Forest ceremony settings. Intimate luxury." },
-  { id: "lymington", regionSlug: "hampshire", countrySlug: "uk", slug: "lymington", name: "Lymington", listingCount: 1, lat: "50.7585", lng: "-1.5433", description: "Georgian sailing town on the Solent, marina views and coastal elegance.", focusKeywords: ["lymington wedding venue"], aiSummary: "Coastal Hampshire charm. Sailing culture. Solent views." },
+  { id: "winchester", regionSlug: "hampshire", countrySlug: "england", slug: "winchester", name: "Winchester", listingCount: 2, lat: "51.0632", lng: "-1.3081", description: "England's ancient capital, the Cathedral, Great Hall and water meadows of the Itchen.", focusKeywords: ["winchester wedding venue", "winchester cathedral wedding"], aiSummary: "Cathedral city prestige. Great Hall round table. Historic grandeur." },
+  { id: "new-forest-town", regionSlug: "hampshire", countrySlug: "england", slug: "new-forest", name: "New Forest", listingCount: 1, lat: "50.8670", lng: "-1.5729", description: "Ancient royal hunting ground, wild ponies, thatched villages and boutique country hotels.", focusKeywords: ["new forest wedding venue"], aiSummary: "Boutique country hotels. Forest ceremony settings. Intimate luxury." },
+  { id: "lymington", regionSlug: "hampshire", countrySlug: "england", slug: "lymington", name: "Lymington", listingCount: 1, lat: "50.7585", lng: "-1.5433", description: "Georgian sailing town on the Solent, marina views and coastal elegance.", focusKeywords: ["lymington wedding venue"], aiSummary: "Coastal Hampshire charm. Sailing culture. Solent views." },
 
   // ── UK, Devon & Cornwall (split) ────────────────────────────────────────────
-  { id: "st-ives", regionSlug: "cornwall", countrySlug: "uk", slug: "st-ives", name: "St Ives", listingCount: 1, lat: "50.2111", lng: "-5.4806", description: "Tate gallery town, turquoise harbour, golden beaches and artists' studios.", focusKeywords: ["st ives wedding venue"], aiSummary: "Artistic coastal charm. Tate St Ives association. Beach ceremonies." },
-  { id: "padstow", regionSlug: "cornwall", countrySlug: "uk", slug: "padstow", name: "Padstow & Rock", listingCount: 1, lat: "50.5409", lng: "-4.9373", description: "Rick Stein's fishing village, the Camel estuary and Daymer Bay's golden sands.", focusKeywords: ["padstow wedding venue", "cornwall coast wedding"], aiSummary: "Foodie destination. Camel estuary venues. North Cornwall coast." },
-  { id: "dartmouth", regionSlug: "devon", countrySlug: "uk", slug: "dartmouth", name: "Dartmouth", listingCount: 1, lat: "50.3512", lng: "-3.5789", description: "Naval college, Dart estuary and the South Devon coast's most glamorous harbour town.", focusKeywords: ["dartmouth wedding venue"], aiSummary: "South Devon anchor. Naval college ceremonies. River Dart views." },
-  { id: "salcombe", regionSlug: "devon", countrySlug: "uk", slug: "salcombe", name: "Salcombe", listingCount: 1, lat: "50.2386", lng: "-3.7700", description: "The Chelsea-on-Sea of Devon, sheltered estuary, sandy coves and sailing luxury.", focusKeywords: ["salcombe wedding venue"], aiSummary: "Affluent sailing town. Estuary venues. Beach cove ceremonies." },
-  { id: "falmouth", regionSlug: "cornwall", countrySlug: "uk", slug: "falmouth", name: "Falmouth", listingCount: 1, lat: "50.1522", lng: "-5.0710", description: "Cornwall's maritime capital, Pendennis Castle, deep-water harbour and sub-tropical gardens.", focusKeywords: ["falmouth wedding venue"], aiSummary: "Pendennis Castle ceremonies. Sub-tropical Trebah Gardens. Maritime charm." },
+  { id: "st-ives", regionSlug: "cornwall", countrySlug: "england", slug: "st-ives", name: "St Ives", listingCount: 1, lat: "50.2111", lng: "-5.4806", description: "Tate gallery town, turquoise harbour, golden beaches and artists' studios.", focusKeywords: ["st ives wedding venue"], aiSummary: "Artistic coastal charm. Tate St Ives association. Beach ceremonies." },
+  { id: "padstow", regionSlug: "cornwall", countrySlug: "england", slug: "padstow", name: "Padstow & Rock", listingCount: 1, lat: "50.5409", lng: "-4.9373", description: "Rick Stein's fishing village, the Camel estuary and Daymer Bay's golden sands.", focusKeywords: ["padstow wedding venue", "cornwall coast wedding"], aiSummary: "Foodie destination. Camel estuary venues. North Cornwall coast." },
+  { id: "dartmouth", regionSlug: "devon", countrySlug: "england", slug: "dartmouth", name: "Dartmouth", listingCount: 1, lat: "50.3512", lng: "-3.5789", description: "Naval college, Dart estuary and the South Devon coast's most glamorous harbour town.", focusKeywords: ["dartmouth wedding venue"], aiSummary: "South Devon anchor. Naval college ceremonies. River Dart views." },
+  { id: "salcombe", regionSlug: "devon", countrySlug: "england", slug: "salcombe", name: "Salcombe", listingCount: 1, lat: "50.2386", lng: "-3.7700", description: "The Chelsea-on-Sea of Devon, sheltered estuary, sandy coves and sailing luxury.", focusKeywords: ["salcombe wedding venue"], aiSummary: "Affluent sailing town. Estuary venues. Beach cove ceremonies." },
+  { id: "falmouth", regionSlug: "cornwall", countrySlug: "england", slug: "falmouth", name: "Falmouth", listingCount: 1, lat: "50.1522", lng: "-5.0710", description: "Cornwall's maritime capital, Pendennis Castle, deep-water harbour and sub-tropical gardens.", focusKeywords: ["falmouth wedding venue"], aiSummary: "Pendennis Castle ceremonies. Sub-tropical Trebah Gardens. Maritime charm." },
 
   // ── UK, Kent ────────────────────────────────────────────────────────
-  { id: "canterbury", regionSlug: "kent", countrySlug: "uk", slug: "canterbury", name: "Canterbury", listingCount: 1, lat: "51.2802", lng: "1.0789", description: "Cathedral city of pilgrimage, UNESCO World Heritage and medieval close grandeur.", focusKeywords: ["canterbury wedding venue", "canterbury cathedral wedding"], aiSummary: "Cathedral ceremonies prestigious. UNESCO heritage. Medieval city charm." },
-  { id: "tunbridge-wells", regionSlug: "kent", countrySlug: "uk", slug: "tunbridge-wells", name: "Tunbridge Wells", listingCount: 1, lat: "51.1320", lng: "0.2637", description: "Regency spa town elegance and the surrounding High Weald countryside estates.", focusKeywords: ["tunbridge wells wedding venue"], aiSummary: "Spa town elegance. High Weald country houses. London commuter premium." },
+  { id: "canterbury", regionSlug: "kent", countrySlug: "england", slug: "canterbury", name: "Canterbury", listingCount: 1, lat: "51.2802", lng: "1.0789", description: "Cathedral city of pilgrimage, UNESCO World Heritage and medieval close grandeur.", focusKeywords: ["canterbury wedding venue", "canterbury cathedral wedding"], aiSummary: "Cathedral ceremonies prestigious. UNESCO heritage. Medieval city charm." },
+  { id: "tunbridge-wells", regionSlug: "kent", countrySlug: "england", slug: "tunbridge-wells", name: "Tunbridge Wells", listingCount: 1, lat: "51.1320", lng: "0.2637", description: "Regency spa town elegance and the surrounding High Weald countryside estates.", focusKeywords: ["tunbridge wells wedding venue"], aiSummary: "Spa town elegance. High Weald country houses. London commuter premium." },
 
   // ── UK, Sussex ──────────────────────────────────────────────────────
-  { id: "brighton", regionSlug: "sussex", countrySlug: "uk", slug: "brighton", name: "Brighton", listingCount: 2, lat: "50.8225", lng: "-0.1372", description: "Regency seaside glamour, the Royal Pavilion, Lanes and cosmopolitan beach culture.", focusKeywords: ["brighton wedding venue", "brighton pavilion wedding"], aiSummary: "Royal Pavilion iconic. Bohemian-chic market. Beach and urban combined." },
-  { id: "chichester", regionSlug: "sussex", countrySlug: "uk", slug: "chichester", name: "Chichester & Goodwood", listingCount: 1, lat: "50.8365", lng: "-0.7792", description: "Goodwood House, Chichester Cathedral and the South Downs rolling chalk hills.", focusKeywords: ["chichester wedding venue", "goodwood wedding"], aiSummary: "Goodwood estate anchor. South Downs backdrop. Cathedral city." },
-  { id: "arundel", regionSlug: "sussex", countrySlug: "uk", slug: "arundel", name: "Arundel", listingCount: 1, lat: "50.8556", lng: "-0.5539", description: "Fairy-tale castle silhouette, the Arun valley and quintessential English countryside.", focusKeywords: ["arundel castle wedding"], aiSummary: "Arundel Castle ceremonies dramatic. English countryside quintessence." },
+  { id: "brighton", regionSlug: "sussex", countrySlug: "england", slug: "brighton", name: "Brighton", listingCount: 2, lat: "50.8225", lng: "-0.1372", description: "Regency seaside glamour, the Royal Pavilion, Lanes and cosmopolitan beach culture.", focusKeywords: ["brighton wedding venue", "brighton pavilion wedding"], aiSummary: "Royal Pavilion iconic. Bohemian-chic market. Beach and urban combined." },
+  { id: "chichester", regionSlug: "sussex", countrySlug: "england", slug: "chichester", name: "Chichester & Goodwood", listingCount: 1, lat: "50.8365", lng: "-0.7792", description: "Goodwood House, Chichester Cathedral and the South Downs rolling chalk hills.", focusKeywords: ["chichester wedding venue", "goodwood wedding"], aiSummary: "Goodwood estate anchor. South Downs backdrop. Cathedral city." },
+  { id: "arundel", regionSlug: "sussex", countrySlug: "england", slug: "arundel", name: "Arundel", listingCount: 1, lat: "50.8556", lng: "-0.5539", description: "Fairy-tale castle silhouette, the Arun valley and quintessential English countryside.", focusKeywords: ["arundel castle wedding"], aiSummary: "Arundel Castle ceremonies dramatic. English countryside quintessence." },
 
   // ── UK, Norfolk & Suffolk (split) ───────────────────────────────────────────
-  { id: "burnham-market", regionSlug: "norfolk", countrySlug: "uk", slug: "burnham-market", name: "Burnham Market", listingCount: 1, lat: "52.9441", lng: "0.7370", description: "Chelsea-on-Sea of Norfolk, Holkham beach, salt marshes and affluent village charm.", focusKeywords: ["burnham market wedding venue", "norfolk coast wedding"], aiSummary: "Holkham Hall anchor. North Norfolk coast. Affluent local market." },
-  { id: "norwich", regionSlug: "norfolk", countrySlug: "uk", slug: "norwich", name: "Norwich", listingCount: 1, lat: "52.6309", lng: "1.2974", description: "Medieval cathedral city, Norwich Castle, the Broads and a thriving arts scene.", focusKeywords: ["norwich wedding venue"], aiSummary: "Cathedral city. Norfolk Broads waterway ceremonies. Arts community." },
-  { id: "aldeburgh-southwold", regionSlug: "suffolk", countrySlug: "uk", slug: "aldeburgh", name: "Aldeburgh & Southwold", listingCount: 1, lat: "52.1534", lng: "1.6015", description: "Suffolk's Heritage Coast, Snape Maltings, Aldeburgh beach and genteel Southwold.", focusKeywords: ["suffolk wedding venue", "aldeburgh wedding"], aiSummary: "Snape Maltings concert hall venue unique. Heritage Coast beauty. Refined market." },
+  { id: "burnham-market", regionSlug: "norfolk", countrySlug: "england", slug: "burnham-market", name: "Burnham Market", listingCount: 1, lat: "52.9441", lng: "0.7370", description: "Chelsea-on-Sea of Norfolk, Holkham beach, salt marshes and affluent village charm.", focusKeywords: ["burnham market wedding venue", "norfolk coast wedding"], aiSummary: "Holkham Hall anchor. North Norfolk coast. Affluent local market." },
+  { id: "norwich", regionSlug: "norfolk", countrySlug: "england", slug: "norwich", name: "Norwich", listingCount: 1, lat: "52.6309", lng: "1.2974", description: "Medieval cathedral city, Norwich Castle, the Broads and a thriving arts scene.", focusKeywords: ["norwich wedding venue"], aiSummary: "Cathedral city. Norfolk Broads waterway ceremonies. Arts community." },
+  { id: "aldeburgh-southwold", regionSlug: "suffolk", countrySlug: "england", slug: "aldeburgh", name: "Aldeburgh & Southwold", listingCount: 1, lat: "52.1534", lng: "1.6015", description: "Suffolk's Heritage Coast, Snape Maltings, Aldeburgh beach and genteel Southwold.", focusKeywords: ["suffolk wedding venue", "aldeburgh wedding"], aiSummary: "Snape Maltings concert hall venue unique. Heritage Coast beauty. Refined market." },
 
   // ── UK, Yorkshire ───────────────────────────────────────────────────
-  { id: "york", regionSlug: "yorkshire", countrySlug: "uk", slug: "york", name: "York", listingCount: 2, lat: "53.9600", lng: "-1.0873", description: "York Minster grandeur, medieval Shambles and the historic Treasurer's House.", focusKeywords: ["york wedding venue", "york minster wedding"], aiSummary: "York Minster ceremonies iconic. Medieval city backdrop. Strong northern hub." },
-  { id: "harrogate", regionSlug: "yorkshire", countrySlug: "uk", slug: "harrogate", name: "Harrogate", listingCount: 1, lat: "53.9921", lng: "-1.5418", description: "Victorian spa town, the Stray's elegant crescents and the Yorkshire Dales on the doorstep.", focusKeywords: ["harrogate wedding venue"], aiSummary: "Spa town elegance. Gateway to Yorkshire Dales. Strong spa-hotel market." },
-  { id: "helmsley", regionSlug: "yorkshire", countrySlug: "uk", slug: "helmsley", name: "Helmsley & Castle Howard", listingCount: 1, lat: "54.2461", lng: "-1.0601", description: "Castle Howard's Baroque magnificence and the picturesque market town beneath the North York Moors.", focusKeywords: ["castle howard wedding", "helmsley wedding venue"], aiSummary: "Castle Howard Brideshead association. North York Moors setting. Ultra-luxury." },
+  { id: "york", regionSlug: "yorkshire", countrySlug: "england", slug: "york", name: "York", listingCount: 2, lat: "53.9600", lng: "-1.0873", description: "York Minster grandeur, medieval Shambles and the historic Treasurer's House.", focusKeywords: ["york wedding venue", "york minster wedding"], aiSummary: "York Minster ceremonies iconic. Medieval city backdrop. Strong northern hub." },
+  { id: "harrogate", regionSlug: "yorkshire", countrySlug: "england", slug: "harrogate", name: "Harrogate", listingCount: 1, lat: "53.9921", lng: "-1.5418", description: "Victorian spa town, the Stray's elegant crescents and the Yorkshire Dales on the doorstep.", focusKeywords: ["harrogate wedding venue"], aiSummary: "Spa town elegance. Gateway to Yorkshire Dales. Strong spa-hotel market." },
+  { id: "helmsley", regionSlug: "yorkshire", countrySlug: "england", slug: "helmsley", name: "Helmsley & Castle Howard", listingCount: 1, lat: "54.2461", lng: "-1.0601", description: "Castle Howard's Baroque magnificence and the picturesque market town beneath the North York Moors.", focusKeywords: ["castle howard wedding", "helmsley wedding venue"], aiSummary: "Castle Howard Brideshead association. North York Moors setting. Ultra-luxury." },
 
   // ── UK, Oxfordshire ─────────────────────────────────────────────────
-  { id: "oxford", regionSlug: "oxfordshire", countrySlug: "uk", slug: "oxford", name: "Oxford", listingCount: 2, lat: "51.7520", lng: "-1.2577", description: "Dreaming spires, Bodleian Library, college quads and the Radcliffe Camera's rotunda.", focusKeywords: ["oxford wedding venue", "oxford college wedding"], aiSummary: "College venue weddings unique globally. Bodleian and Ashmolean. Academic prestige." },
-  { id: "henley", regionSlug: "oxfordshire", countrySlug: "uk", slug: "henley-on-thames", name: "Henley-on-Thames", listingCount: 1, lat: "51.5360", lng: "-0.9027", description: "Royal Regatta town, Thames-side marquees, Georgian bridges and country house hotels.", focusKeywords: ["henley wedding venue", "henley regatta wedding"], aiSummary: "Regatta association. Thames-side venues. Summer peak. Affluent market." },
-  { id: "woodstock", regionSlug: "oxfordshire", countrySlug: "uk", slug: "woodstock", name: "Woodstock & Blenheim", listingCount: 1, lat: "51.8472", lng: "-1.3534", description: "Blenheim Palace, Churchill's birthplace and England's grandest Baroque country house.", focusKeywords: ["blenheim palace wedding", "woodstock wedding venue"], aiSummary: "Blenheim Palace single-handedly dominates. England's most prestigious wedding venue." },
+  { id: "oxford", regionSlug: "oxfordshire", countrySlug: "england", slug: "oxford", name: "Oxford", listingCount: 2, lat: "51.7520", lng: "-1.2577", description: "Dreaming spires, Bodleian Library, college quads and the Radcliffe Camera's rotunda.", focusKeywords: ["oxford wedding venue", "oxford college wedding"], aiSummary: "College venue weddings unique globally. Bodleian and Ashmolean. Academic prestige." },
+  { id: "henley", regionSlug: "oxfordshire", countrySlug: "england", slug: "henley-on-thames", name: "Henley-on-Thames", listingCount: 1, lat: "51.5360", lng: "-0.9027", description: "Royal Regatta town, Thames-side marquees, Georgian bridges and country house hotels.", focusKeywords: ["henley wedding venue", "henley regatta wedding"], aiSummary: "Regatta association. Thames-side venues. Summer peak. Affluent market." },
+  { id: "woodstock", regionSlug: "oxfordshire", countrySlug: "england", slug: "woodstock", name: "Woodstock & Blenheim", listingCount: 1, lat: "51.8472", lng: "-1.3534", description: "Blenheim Palace, Churchill's birthplace and England's grandest Baroque country house.", focusKeywords: ["blenheim palace wedding", "woodstock wedding venue"], aiSummary: "Blenheim Palace single-handedly dominates. England's most prestigious wedding venue." },
 
   // ── UK, Somerset & Bath (split) ──────────────────────────────────────────────
-  { id: "bath", regionSlug: "bath-region", countrySlug: "uk", slug: "bath", name: "Bath", listingCount: 2, lat: "51.3811", lng: "-2.3590", description: "Georgian crescents, Roman baths and the Thermae Spa, England's most beautiful city.", focusKeywords: ["bath wedding venue", "bath spa wedding"], aiSummary: "Georgian architecture unmatched. Assembly Rooms and Royal Crescent. Spa integration." },
-  { id: "bruton", regionSlug: "somerset", countrySlug: "uk", slug: "bruton", name: "Bruton & Frome", listingCount: 1, lat: "51.1105", lng: "-2.4498", description: "Somerset's creative heart, Hauser & Wirth gallery, Babington House and artisan culture.", focusKeywords: ["bruton wedding venue", "babington house wedding"], aiSummary: "Babington House Soho House effect. Creative luxury. Gallery culture." },
+  { id: "bath", regionSlug: "bath-region", countrySlug: "england", slug: "bath", name: "Bath", listingCount: 2, lat: "51.3811", lng: "-2.3590", description: "Georgian crescents, Roman baths and the Thermae Spa, England's most beautiful city.", focusKeywords: ["bath wedding venue", "bath spa wedding"], aiSummary: "Georgian architecture unmatched. Assembly Rooms and Royal Crescent. Spa integration." },
+  { id: "bruton", regionSlug: "somerset", countrySlug: "england", slug: "bruton", name: "Bruton & Frome", listingCount: 1, lat: "51.1105", lng: "-2.4498", description: "Somerset's creative heart, Hauser & Wirth gallery, Babington House and artisan culture.", focusKeywords: ["bruton wedding venue", "babington house wedding"], aiSummary: "Babington House Soho House effect. Creative luxury. Gallery culture." },
 
   // ── UK, Cheshire ─────────────────────────────────────────────────────
-  { id: "chester", regionSlug: "cheshire", countrySlug: "uk", slug: "chester", name: "Chester", listingCount: 1, lat: "53.1905", lng: "-2.8911", description: "Roman city walls, Tudor Rows and the Chester Grosvenor's five-star grandeur.", focusKeywords: ["chester wedding venue"], aiSummary: "Roman-Tudor heritage. Chester Grosvenor anchor. Northwest city hub." },
-  { id: "knutsford", regionSlug: "cheshire", countrySlug: "uk", slug: "knutsford", name: "Knutsford & Tatton", listingCount: 1, lat: "53.3021", lng: "-2.3735", description: "Tatton Park's deer park, Knutsford's antique charm and the Cheshire Golden Triangle.", focusKeywords: ["tatton park wedding", "knutsford wedding venue"], aiSummary: "Tatton Park ceremonies. Golden Triangle affluence. Northwest premium." },
+  { id: "chester", regionSlug: "cheshire", countrySlug: "england", slug: "chester", name: "Chester", listingCount: 1, lat: "53.1905", lng: "-2.8911", description: "Roman city walls, Tudor Rows and the Chester Grosvenor's five-star grandeur.", focusKeywords: ["chester wedding venue"], aiSummary: "Roman-Tudor heritage. Chester Grosvenor anchor. Northwest city hub." },
+  { id: "knutsford", regionSlug: "cheshire", countrySlug: "scotland", slug: "knutsford", name: "Knutsford & Tatton", listingCount: 1, lat: "53.3021", lng: "-2.3735", description: "Tatton Park's deer park, Knutsford's antique charm and the Cheshire Golden Triangle.", focusKeywords: ["tatton park wedding", "knutsford wedding venue"], aiSummary: "Tatton Park ceremonies. Golden Triangle affluence. Northwest premium." },
 
-  { id: "edinburgh-old-town", regionSlug: "scotland", countrySlug: "uk", slug: "edinburgh-old-town", name: "Edinburgh Old Town", listingCount: 2, lat: "55.9502", lng: "-3.1901", description: "Castle esplanade, the Royal Mile and the medieval close network beneath Arthur's Seat.", focusKeywords: ["edinburgh castle wedding", "royal mile wedding venue"], aiSummary: "Castle esplanade ceremonies. Royal Mile venues. Medieval atmosphere." },
-  { id: "leith", regionSlug: "scotland", countrySlug: "uk", slug: "leith", name: "Leith & Newhaven", listingCount: 1, lat: "55.9769", lng: "-3.1705", description: "Edinburgh's waterfront renaissance, the Royal Yacht Britannia and converted warehouse spaces.", focusKeywords: ["leith wedding venue", "royal yacht britannia wedding"], aiSummary: "Royal Yacht Britannia unique. Waterfront warehouse conversions. Maritime charm." },
+  { id: "edinburgh-old-town", regionSlug: "scotland", countrySlug: "scotland", slug: "edinburgh-old-town", name: "Edinburgh Old Town", listingCount: 2, lat: "55.9502", lng: "-3.1901", description: "Castle esplanade, the Royal Mile and the medieval close network beneath Arthur's Seat.", focusKeywords: ["edinburgh castle wedding", "royal mile wedding venue"], aiSummary: "Castle esplanade ceremonies. Royal Mile venues. Medieval atmosphere." },
+  { id: "leith", regionSlug: "scotland", countrySlug: "scotland", slug: "leith", name: "Leith & Newhaven", listingCount: 1, lat: "55.9769", lng: "-3.1705", description: "Edinburgh's waterfront renaissance, the Royal Yacht Britannia and converted warehouse spaces.", focusKeywords: ["leith wedding venue", "royal yacht britannia wedding"], aiSummary: "Royal Yacht Britannia unique. Waterfront warehouse conversions. Maritime charm." },
 
-  { id: "inverness", regionSlug: "scotland", countrySlug: "uk", slug: "inverness", name: "Inverness & Loch Ness", listingCount: 1, lat: "57.4778", lng: "-4.2247", description: "Capital of the Highlands, Loch Ness mystery, Culloden battlefield and castle estates.", focusKeywords: ["inverness wedding venue", "loch ness wedding"], aiSummary: "Highland capital. Loch Ness tourism crossover. Castle estate venues." },
-  { id: "skye", regionSlug: "scotland", countrySlug: "uk", slug: "isle-of-skye", name: "Isle of Skye", listingCount: 1, lat: "57.2740", lng: "-6.2156", description: "Cuillin mountain drama, fairy pools and the most photographed landscapes in Scotland.", focusKeywords: ["isle of skye wedding", "skye elopement"], aiSummary: "Elopement paradise. Fairy Pools ceremonies. Most Instagrammed Scottish location." },
+  { id: "inverness", regionSlug: "scotland", countrySlug: "scotland", slug: "inverness", name: "Inverness & Loch Ness", listingCount: 1, lat: "57.4778", lng: "-4.2247", description: "Capital of the Highlands, Loch Ness mystery, Culloden battlefield and castle estates.", focusKeywords: ["inverness wedding venue", "loch ness wedding"], aiSummary: "Highland capital. Loch Ness tourism crossover. Castle estate venues." },
+  { id: "skye", regionSlug: "scotland", countrySlug: "scotland", slug: "isle-of-skye", name: "Isle of Skye", listingCount: 1, lat: "57.2740", lng: "-6.2156", description: "Cuillin mountain drama, fairy pools and the most photographed landscapes in Scotland.", focusKeywords: ["isle of skye wedding", "skye elopement"], aiSummary: "Elopement paradise. Fairy Pools ceremonies. Most Instagrammed Scottish location." },
 
-  { id: "gleneagles", regionSlug: "scotland", countrySlug: "uk", slug: "gleneagles", name: "Gleneagles", listingCount: 1, lat: "56.2844", lng: "-3.7489", description: "Scotland's grandest resort, championship golf, falconry and Highland estate luxury.", focusKeywords: ["gleneagles wedding"], aiSummary: "Single-resort destination. Scotland's most prestigious. Ultra-premium." },
+  { id: "gleneagles", regionSlug: "scotland", countrySlug: "scotland", slug: "gleneagles", name: "Gleneagles", listingCount: 1, lat: "56.2844", lng: "-3.7489", description: "Scotland's grandest resort, championship golf, falconry and Highland estate luxury.", focusKeywords: ["gleneagles wedding"], aiSummary: "Single-resort destination. Scotland's most prestigious. Ultra-premium." },
 
   // ── UK > Scotland ──────────────────────────────────────────────────
-  { id: "city-edinburgh", regionSlug: "scotland", countrySlug: "uk", slug: "edinburgh", name: "Edinburgh", listingCount: 4, lat: "55.9533", lng: "-3.1883", description: "Castle skyline, Georgian New Town grandeur, Calton Hill panoramas and Scotland's cultural capital.", focusKeywords: ["edinburgh wedding venue", "edinburgh castle wedding"], aiSummary: "Scotland's urban luxury hub. Castle and hotel venues dominate. Strong international draw." },
-  { id: "city-glasgow", regionSlug: "scotland", countrySlug: "uk", slug: "glasgow", name: "Glasgow", listingCount: 2, lat: "55.8642", lng: "-4.2518", description: "Charles Rennie Mackintosh architecture, Kelvingrove grandeur and Scotland's creative powerhouse.", focusKeywords: ["glasgow wedding venue"], aiSummary: "Creative-industrial venue scene. Mackintosh architectural heritage. Scotland's largest city." },
-  { id: "city-scottish-highlands", regionSlug: "scotland", countrySlug: "uk", slug: "scottish-highlands", name: "Scottish Highlands", listingCount: 3, lat: "57.1200", lng: "-4.7100", description: "Castle estates, lochs and dramatic mountain scenery, epic celebrations in Britain's last wilderness.", focusKeywords: ["highland castle wedding", "scottish highland wedding"], aiSummary: "Castle weddings drive demand. Strong international interest. Elopement paradise. Seasonal May-September." },
-  { id: "city-fife", regionSlug: "scotland", countrySlug: "uk", slug: "fife", name: "Fife", listingCount: 1, lat: "56.2082", lng: "-3.1495", description: "The Kingdom of Fife, St Andrews links, East Neuk fishing villages and Falkland Palace.", focusKeywords: ["fife wedding venue", "st andrews wedding"], aiSummary: "St Andrews anchor. East Neuk coastal charm. Royal associations." },
-  { id: "city-perthshire", regionSlug: "scotland", countrySlug: "uk", slug: "perthshire", name: "Perthshire", listingCount: 3, lat: "56.4000", lng: "-3.4300", description: "Gleneagles resort, Highland Perthshire lochs and the ancient cathedral city of Dunkeld.", focusKeywords: ["perthshire wedding venue", "gleneagles wedding"], aiSummary: "Gleneagles anchors ultra-luxury. Bridge between Lowlands and Highlands." },
-  { id: "city-aberdeenshire", regionSlug: "scotland", countrySlug: "uk", slug: "aberdeenshire", name: "Aberdeenshire", listingCount: 2, lat: "57.1500", lng: "-2.1100", description: "Balmoral's Royal Deeside, Cairngorms granite mountains and Northeast Scotland's castle trail.", focusKeywords: ["aberdeenshire castle wedding"], aiSummary: "Castle trail concentration. Balmoral association. Intimate and exclusive." },
-  { id: "city-angus", regionSlug: "scotland", countrySlug: "uk", slug: "angus", name: "Angus", listingCount: 1, lat: "56.7300", lng: "-2.9200", description: "Glamis Castle birthplace of legends, rolling farmland and the Angus Glens.", focusKeywords: ["angus wedding venue"], aiSummary: "Glamis Castle anchor. Rural Scottish charm." },
-  { id: "city-argyll", regionSlug: "scotland", countrySlug: "uk", slug: "argyll", name: "Argyll", listingCount: 1, lat: "56.2500", lng: "-5.2500", description: "West coast sea lochs, Inveraray Castle and the islands of Mull and Iona.", focusKeywords: ["argyll wedding venue"], aiSummary: "West coast beauty. Inveraray Castle. Island ceremonies." },
-  { id: "city-ayrshire", regionSlug: "scotland", countrySlug: "uk", slug: "ayrshire", name: "Ayrshire", listingCount: 1, lat: "55.4600", lng: "-4.6300", description: "Burns country, Turnberry resort and the Ayrshire coast's links golf heritage.", focusKeywords: ["ayrshire wedding venue"], aiSummary: "Turnberry resort. Burns heritage. Coastal links setting." },
-  { id: "city-dumfriesshire", regionSlug: "scotland", countrySlug: "uk", slug: "dumfriesshire", name: "Dumfriesshire", listingCount: 1, lat: "55.0700", lng: "-3.6100", description: "Gretna Green's romantic legacy, Drumlanrig Castle and the Scottish Borders countryside.", focusKeywords: ["gretna green wedding"], aiSummary: "Gretna Green elopement capital. Drumlanrig Castle. Borders romance." },
-  { id: "city-east-lothian", regionSlug: "scotland", countrySlug: "uk", slug: "east-lothian", name: "East Lothian", listingCount: 1, lat: "55.9500", lng: "-2.7700", description: "Golden beaches, golf links and country estates just east of Edinburgh.", focusKeywords: ["east lothian wedding venue"], aiSummary: "Edinburgh overflow. Archerfield and golf estates." },
-  { id: "city-west-lothian", regionSlug: "scotland", countrySlug: "uk", slug: "west-lothian", name: "West Lothian", listingCount: 1, lat: "55.9100", lng: "-3.5500", description: "Hopetoun House grandeur and Linlithgow Palace's royal heritage.", focusKeywords: ["west lothian wedding venue"], aiSummary: "Hopetoun House anchor. Royal palace heritage. Edinburgh adjacent." },
+  { id: "city-edinburgh", regionSlug: "scotland", countrySlug: "scotland", slug: "edinburgh", name: "Edinburgh", listingCount: 4, lat: "55.9533", lng: "-3.1883", description: "Castle skyline, Georgian New Town grandeur, Calton Hill panoramas and Scotland's cultural capital.", focusKeywords: ["edinburgh wedding venue", "edinburgh castle wedding"], aiSummary: "Scotland's urban luxury hub. Castle and hotel venues dominate. Strong international draw." },
+  { id: "city-glasgow", regionSlug: "scotland", countrySlug: "scotland", slug: "glasgow", name: "Glasgow", listingCount: 2, lat: "55.8642", lng: "-4.2518", description: "Charles Rennie Mackintosh architecture, Kelvingrove grandeur and Scotland's creative powerhouse.", focusKeywords: ["glasgow wedding venue"], aiSummary: "Creative-industrial venue scene. Mackintosh architectural heritage. Scotland's largest city." },
+  { id: "city-scottish-highlands", regionSlug: "scotland", countrySlug: "scotland", slug: "scottish-highlands", name: "Scottish Highlands", listingCount: 3, lat: "57.1200", lng: "-4.7100", description: "Castle estates, lochs and dramatic mountain scenery, epic celebrations in Britain's last wilderness.", focusKeywords: ["highland castle wedding", "scottish highland wedding"], aiSummary: "Castle weddings drive demand. Strong international interest. Elopement paradise. Seasonal May-September." },
+  { id: "city-fife", regionSlug: "scotland", countrySlug: "scotland", slug: "fife", name: "Fife", listingCount: 1, lat: "56.2082", lng: "-3.1495", description: "The Kingdom of Fife, St Andrews links, East Neuk fishing villages and Falkland Palace.", focusKeywords: ["fife wedding venue", "st andrews wedding"], aiSummary: "St Andrews anchor. East Neuk coastal charm. Royal associations." },
+  { id: "city-perthshire", regionSlug: "scotland", countrySlug: "scotland", slug: "perthshire", name: "Perthshire", listingCount: 3, lat: "56.4000", lng: "-3.4300", description: "Gleneagles resort, Highland Perthshire lochs and the ancient cathedral city of Dunkeld.", focusKeywords: ["perthshire wedding venue", "gleneagles wedding"], aiSummary: "Gleneagles anchors ultra-luxury. Bridge between Lowlands and Highlands." },
+  { id: "city-aberdeenshire", regionSlug: "scotland", countrySlug: "scotland", slug: "aberdeenshire", name: "Aberdeenshire", listingCount: 2, lat: "57.1500", lng: "-2.1100", description: "Balmoral's Royal Deeside, Cairngorms granite mountains and Northeast Scotland's castle trail.", focusKeywords: ["aberdeenshire castle wedding"], aiSummary: "Castle trail concentration. Balmoral association. Intimate and exclusive." },
+  { id: "city-angus", regionSlug: "scotland", countrySlug: "scotland", slug: "angus", name: "Angus", listingCount: 1, lat: "56.7300", lng: "-2.9200", description: "Glamis Castle birthplace of legends, rolling farmland and the Angus Glens.", focusKeywords: ["angus wedding venue"], aiSummary: "Glamis Castle anchor. Rural Scottish charm." },
+  { id: "city-argyll", regionSlug: "scotland", countrySlug: "scotland", slug: "argyll", name: "Argyll", listingCount: 1, lat: "56.2500", lng: "-5.2500", description: "West coast sea lochs, Inveraray Castle and the islands of Mull and Iona.", focusKeywords: ["argyll wedding venue"], aiSummary: "West coast beauty. Inveraray Castle. Island ceremonies." },
+  { id: "city-ayrshire", regionSlug: "scotland", countrySlug: "scotland", slug: "ayrshire", name: "Ayrshire", listingCount: 1, lat: "55.4600", lng: "-4.6300", description: "Burns country, Turnberry resort and the Ayrshire coast's links golf heritage.", focusKeywords: ["ayrshire wedding venue"], aiSummary: "Turnberry resort. Burns heritage. Coastal links setting." },
+  { id: "city-dumfriesshire", regionSlug: "scotland", countrySlug: "scotland", slug: "dumfriesshire", name: "Dumfriesshire", listingCount: 1, lat: "55.0700", lng: "-3.6100", description: "Gretna Green's romantic legacy, Drumlanrig Castle and the Scottish Borders countryside.", focusKeywords: ["gretna green wedding"], aiSummary: "Gretna Green elopement capital. Drumlanrig Castle. Borders romance." },
+  { id: "city-east-lothian", regionSlug: "scotland", countrySlug: "scotland", slug: "east-lothian", name: "East Lothian", listingCount: 1, lat: "55.9500", lng: "-2.7700", description: "Golden beaches, golf links and country estates just east of Edinburgh.", focusKeywords: ["east lothian wedding venue"], aiSummary: "Edinburgh overflow. Archerfield and golf estates." },
+  { id: "city-west-lothian", regionSlug: "scotland", countrySlug: "scotland", slug: "west-lothian", name: "West Lothian", listingCount: 1, lat: "55.9100", lng: "-3.5500", description: "Hopetoun House grandeur and Linlithgow Palace's royal heritage.", focusKeywords: ["west lothian wedding venue"], aiSummary: "Hopetoun House anchor. Royal palace heritage. Edinburgh adjacent." },
 
   // ── UK > Wales ─────────────────────────────────────────────────────
-  { id: "city-pembrokeshire", regionSlug: "wales", countrySlug: "uk", slug: "pembrokeshire", name: "Pembrokeshire", listingCount: 2, lat: "51.8000", lng: "-4.9700", description: "The Pembrokeshire Coast National Park, Tenby's pastel harbour and golden beach coves.", focusKeywords: ["pembrokeshire wedding venue"], aiSummary: "Coastal beauty. Tenby and coast lead. Growing destination appeal." },
-  { id: "city-cardiff", regionSlug: "wales", countrySlug: "uk", slug: "cardiff", name: "Cardiff", listingCount: 1, lat: "51.4816", lng: "-3.1791", description: "Cardiff Castle, the Millennium Centre and Wales's cosmopolitan capital.", focusKeywords: ["cardiff wedding venue"], aiSummary: "Welsh capital. Castle ceremonies. Urban-luxury hub." },
-  { id: "city-snowdonia", regionSlug: "wales", countrySlug: "uk", slug: "snowdonia", name: "Snowdonia", listingCount: 2, lat: "52.9200", lng: "-3.8900", description: "Mountain grandeur, Portmeirion's Italianate village and the castles of Edward I.", focusKeywords: ["snowdonia wedding venue", "portmeirion wedding"], aiSummary: "Portmeirion iconic. Castle weddings unique. Mountain photography." },
-  { id: "city-carmarthenshire", regionSlug: "wales", countrySlug: "uk", slug: "carmarthenshire", name: "Carmarthenshire", listingCount: 1, lat: "51.8500", lng: "-4.2900", description: "The Garden of Wales, Aberglasney Gardens, Dinefwr Park and the Towy Valley.", focusKeywords: ["carmarthenshire wedding venue"], aiSummary: "Garden of Wales. Rural estate weddings." },
-  { id: "city-powys", regionSlug: "wales", countrySlug: "uk", slug: "powys", name: "Powys", listingCount: 1, lat: "52.3000", lng: "-3.4500", description: "Mid-Wales countryside, Lake Vyrnwy and the Brecon Beacons mountain range.", focusKeywords: ["powys wedding venue"], aiSummary: "Brecon Beacons setting. Lake Vyrnwy romantic. Rural luxury." },
+  { id: "city-pembrokeshire", regionSlug: "wales", countrySlug: "wales", slug: "pembrokeshire", name: "Pembrokeshire", listingCount: 2, lat: "51.8000", lng: "-4.9700", description: "The Pembrokeshire Coast National Park, Tenby's pastel harbour and golden beach coves.", focusKeywords: ["pembrokeshire wedding venue"], aiSummary: "Coastal beauty. Tenby and coast lead. Growing destination appeal." },
+  { id: "city-cardiff", regionSlug: "wales", countrySlug: "wales", slug: "cardiff", name: "Cardiff", listingCount: 1, lat: "51.4816", lng: "-3.1791", description: "Cardiff Castle, the Millennium Centre and Wales's cosmopolitan capital.", focusKeywords: ["cardiff wedding venue"], aiSummary: "Welsh capital. Castle ceremonies. Urban-luxury hub." },
+  { id: "city-snowdonia", regionSlug: "wales", countrySlug: "wales", slug: "snowdonia", name: "Snowdonia", listingCount: 2, lat: "52.9200", lng: "-3.8900", description: "Mountain grandeur, Portmeirion's Italianate village and the castles of Edward I.", focusKeywords: ["snowdonia wedding venue", "portmeirion wedding"], aiSummary: "Portmeirion iconic. Castle weddings unique. Mountain photography." },
+  { id: "city-carmarthenshire", regionSlug: "wales", countrySlug: "wales", slug: "carmarthenshire", name: "Carmarthenshire", listingCount: 1, lat: "51.8500", lng: "-4.2900", description: "The Garden of Wales, Aberglasney Gardens, Dinefwr Park and the Towy Valley.", focusKeywords: ["carmarthenshire wedding venue"], aiSummary: "Garden of Wales. Rural estate weddings." },
+  { id: "city-powys", regionSlug: "wales", countrySlug: "wales", slug: "powys", name: "Powys", listingCount: 1, lat: "52.3000", lng: "-3.4500", description: "Mid-Wales countryside, Lake Vyrnwy and the Brecon Beacons mountain range.", focusKeywords: ["powys wedding venue"], aiSummary: "Brecon Beacons setting. Lake Vyrnwy romantic. Rural luxury." },
 
   // ── UK > Northern Ireland ──────────────────────────────────────────
-  { id: "city-antrim", regionSlug: "northern-ireland", countrySlug: "uk", slug: "antrim", name: "Antrim", listingCount: 2, lat: "54.7200", lng: "-6.2100", description: "Giant's Causeway, the dramatic Antrim Coast Road and Belfast's Titanic Quarter.", focusKeywords: ["antrim wedding venue", "belfast wedding"], aiSummary: "Giant's Causeway ceremonies iconic. Belfast modern venue cluster." },
+  { id: "city-antrim", regionSlug: "northern-ireland", countrySlug: "northern-ireland", slug: "antrim", name: "Antrim", listingCount: 2, lat: "54.7200", lng: "-6.2100", description: "Giant's Causeway, the dramatic Antrim Coast Road and Belfast's Titanic Quarter.", focusKeywords: ["antrim wedding venue", "belfast wedding"], aiSummary: "Giant's Causeway ceremonies iconic. Belfast modern venue cluster." },
 
   // ── UK > Channel Islands ───────────────────────────────────────────
-  { id: "city-jersey", regionSlug: "channel-islands", countrySlug: "uk", slug: "jersey", name: "Jersey", listingCount: 2, lat: "49.2144", lng: "-2.1312", description: "French-inflected Channel Island charm, granite manor houses and sheltered bays.", focusKeywords: ["jersey wedding venue"], aiSummary: "Boutique island destination. Tax-efficient. French-British blend." },
-  { id: "city-guernsey", regionSlug: "channel-islands", countrySlug: "uk", slug: "guernsey", name: "Guernsey", listingCount: 1, lat: "49.4548", lng: "-2.5383", description: "Victor Hugo's island of exile, dramatic cliffs, hidden coves and gentle island pace.", focusKeywords: ["guernsey wedding venue"], aiSummary: "Micro-destination. Intimate elopement market. Sark car-free unique." },
+  { id: "city-jersey", regionSlug: "channel-islands", countrySlug: "england", slug: "jersey", name: "Jersey", listingCount: 2, lat: "49.2144", lng: "-2.1312", description: "French-inflected Channel Island charm, granite manor houses and sheltered bays.", focusKeywords: ["jersey wedding venue"], aiSummary: "Boutique island destination. Tax-efficient. French-British blend." },
+  { id: "city-guernsey", regionSlug: "channel-islands", countrySlug: "england", slug: "guernsey", name: "Guernsey", listingCount: 1, lat: "49.4548", lng: "-2.5383", description: "Victor Hugo's island of exile, dramatic cliffs, hidden coves and gentle island pace.", focusKeywords: ["guernsey wedding venue"], aiSummary: "Micro-destination. Intimate elopement market. Sark car-free unique." },
 
   // ── Ireland, Dublin ──────────────────────────────────────────────────
   { id: "dublin-city", regionSlug: "dublin", countrySlug: "ireland", slug: "dublin", name: "Dublin", listingCount: 2, lat: "53.3498", lng: "-6.2603", description: "Georgian squares, Trinity College, the Shelbourne Hotel and Dublin Castle's State Apartments.", focusKeywords: ["dublin wedding venue", "dublin castle wedding"], aiSummary: "Ireland's urban luxury hub. Georgian hotel and castle venues. Year-round." },
@@ -1688,11 +1128,11 @@ const MOCK_LISTINGS = [
   { id: 1, name: "Villa Balbiano", slug: "villa-balbiano-lake-como", category: "wedding-venues", subCategory: "Country Houses", destination: "Italy", countrySlug: "italy", regionSlug: "lake-como", status: "Active", tier: "signature", lwdScore: 9.6, enquiries: 34, listed: "15 Jan 2025", lastUpdated: "27 Feb", expires: "15 Jan 2026" },
   { id: 2, name: "Château de Vaux", slug: "chateau-de-vaux-ile-de-france", category: "wedding-venues", subCategory: "Castles & Estates", destination: "France", countrySlug: "france", regionSlug: "paris-ile-de-france", status: "Active", tier: "signature", lwdScore: 9.4, enquiries: 28, listed: "10 Jan 2025", lastUpdated: "26 Feb", expires: "10 Jan 2026" },
   { id: 3, name: "Fiore Events", slug: "fiore-events-tuscany", category: "wedding-planners", subCategory: "Full Planning", destination: "Italy", countrySlug: "italy", regionSlug: "tuscany", status: "Active", tier: "curated", lwdScore: 9.2, enquiries: 19, listed: "20 Jan 2025", lastUpdated: "25 Feb", expires: "20 Jan 2026" },
-  { id: 4, name: "Coworth Park", slug: "coworth-park-berkshire", category: "wedding-venues", subCategory: "Hotel Venues", destination: "UK", countrySlug: "uk", regionSlug: "berkshire", status: "Active", tier: "signature", lwdScore: 9.5, enquiries: 41, listed: "05 Jan 2025", lastUpdated: "27 Feb", expires: "05 Jan 2026" },
+  { id: 4, name: "Coworth Park", slug: "coworth-park-berkshire", category: "wedding-venues", subCategory: "Hotel Venues", destination: "UK", countrySlug: "england", regionSlug: "berkshire", status: "Active", tier: "signature", lwdScore: 9.5, enquiries: 41, listed: "05 Jan 2025", lastUpdated: "27 Feb", expires: "05 Jan 2026" },
   { id: 5, name: "Lena Karelova", slug: "lena-karelova-barcelona", category: "photographers", subCategory: "Fine Art", destination: "Spain", countrySlug: "spain", regionSlug: "barcelona", status: "Active", tier: "curated", lwdScore: 9.1, enquiries: 16, listed: "25 Jan 2025", lastUpdated: "24 Feb", expires: "25 Jan 2026" },
-  { id: 6, name: "The Grand Pavilion", slug: "the-grand-pavilion-surrey", category: "wedding-venues", subCategory: "Country Houses", destination: "UK", countrySlug: "uk", regionSlug: "surrey", status: "Active", tier: "signature", lwdScore: 9.2, enquiries: 23, listed: "08 Jan 2025", lastUpdated: "27 Feb", expires: "08 Jan 2026" },
+  { id: 6, name: "The Grand Pavilion", slug: "the-grand-pavilion-surrey", category: "wedding-venues", subCategory: "Country Houses", destination: "UK", countrySlug: "england", regionSlug: "surrey", status: "Active", tier: "signature", lwdScore: 9.2, enquiries: 23, listed: "08 Jan 2025", lastUpdated: "27 Feb", expires: "08 Jan 2026" },
   { id: 7, name: "Putnam & Putnam", slug: "putnam-putnam-new-york", category: "florists", subCategory: "Luxury Floral Design", destination: "USA", countrySlug: "usa", regionSlug: "new-york", status: "Pending", tier: "curated", lwdScore: 8.8, enquiries: 8, listed: "18 Feb 2025", lastUpdated: "23 Feb", expires: "18 Feb 2026" },
-  { id: 8, name: "Aynhoe Park", slug: "aynhoe-park-oxfordshire", category: "wedding-venues", subCategory: "Country Houses", destination: "UK", countrySlug: "uk", regionSlug: "cotswolds", status: "Review", tier: "signature", lwdScore: 9.3, enquiries: 31, listed: "12 Jan 2025", lastUpdated: "26 Feb", expires: "12 Jan 2026" },
+  { id: 8, name: "Aynhoe Park", slug: "aynhoe-park-oxfordshire", category: "wedding-venues", subCategory: "Country Houses", destination: "UK", countrySlug: "england", regionSlug: "cotswolds", status: "Review", tier: "signature", lwdScore: 9.3, enquiries: 31, listed: "12 Jan 2025", lastUpdated: "26 Feb", expires: "12 Jan 2026" },
   { id: 9, name: "Soirée Events", slug: "soiree-events-provence", category: "wedding-planners", subCategory: "Destination Specialists", destination: "France", countrySlug: "france", regionSlug: "provence", status: "Active", tier: "curated", lwdScore: 8.9, enquiries: 12, listed: "22 Jan 2025", lastUpdated: "22 Feb", expires: "22 Jan 2026" },
   { id: 10, name: "Borgo Santo Pietro", slug: "borgo-santo-pietro-tuscany", category: "wedding-venues", subCategory: "Country Houses", destination: "Italy", countrySlug: "italy", regionSlug: "tuscany", status: "Paused", tier: "standard", lwdScore: 8.4, enquiries: 5, listed: "28 Dec 2024", lastUpdated: "18 Feb", expires: "28 Dec 2025" },
   { id: 11, name: "New Luxury Villa", slug: "new-luxury-villa-amalfi", category: "wedding-venues", subCategory: "Country Houses", destination: "Italy", countrySlug: "italy", regionSlug: "amalfi-coast", status: "Draft", tier: "platinum", lwdScore: 0, enquiries: 0, listed: "06 Mar 2025", lastUpdated: "06 Mar", expires: "06 Mar 2026" },
@@ -5469,8 +4909,7 @@ function NewShowcaseModal({ C, onClose, onSave, type = 'venue', initialData = nu
     setHeroUploadErr('');
     try {
       const id = `showcase-hero-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      const result = await uploadMediaFile(file, id);
-      const url = typeof result === 'string' ? result : result.url;
+      const url = await uploadMediaFile(file, id);
       set('heroImage', url);
     } catch (err) {
       setHeroUploadErr('Upload failed, try again or paste a URL');
@@ -6681,7 +6120,7 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
     if (!countrySlug) { setVenueList([]); return; }
     const filters = { status: 'active', country_slug: countrySlug };
     if (regionSlug) filters.region_slug = regionSlug;
-    fetchListings(filters).then(data => setVenueList(Array.isArray(data) ? data : [])).catch(() => setVenueList([]));
+    fetchListingsAdmin(filters).then(data => setVenueList(Array.isArray(data) ? data : [])).catch(() => setVenueList([]));
   }, [countrySlug, regionSlug]);
 
   const handleSave = async (publishOverride) => {
@@ -6791,21 +6230,13 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
     setUploadingMottoImage(true);
     try {
       console.log('[Location Studio] Uploading motto image:', file.name);
-      // Use the existing uploadMediaFile utility which is battle-tested
       const mediaId = `motto-${locationKey.replace(/:/g, '-')}-${Date.now()}`;
-      const result = await uploadMediaFile(file, mediaId);
-
-      // Handle both string (non-image) and object (image with thumbnail) returns
-      const publicUrl = typeof result === 'string' ? result : result.url;
-      const thumbnailUrl = (typeof result === 'object' && result.thumbnailUrl) ? result.thumbnailUrl : null;
-
+      const publicUrl = await uploadMediaFile(file, mediaId);
       console.log('[Location Studio] Public URL:', publicUrl);
-      if (thumbnailUrl) console.log('[Location Studio] Thumbnail URL:', thumbnailUrl);
 
       set('mottoBgImage', publicUrl);
-      if (thumbnailUrl) set('mottoBgImageThumb', thumbnailUrl);
       setDirty(true);
-      setToast('✓ Motto image uploaded successfully (with thumbnail)');
+      setToast('✓ Motto image uploaded successfully');
     } catch (e) {
       console.error('[Location Studio] Motto image upload failed:', e);
       setToast('✗ Failed to upload image: ' + (e.message || 'Unknown error'));
@@ -9926,7 +9357,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
     } else if (intent.type === 'showcase-static') {
       setActiveTab('venue-profiles');
     } else if (intent.type === 'listing' && intent.slug) {
-      fetchListingBySlug(intent.slug).then(listing => {
+      fetchListingBySlugAdmin(intent.slug).then(listing => {
         if (listing?.id) {
           setListingStudioMode('edit');
           setListingStudioListingId(listing.id);
@@ -10184,7 +9615,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
             setListings([]);
             return;
           }
-          const data = await fetchListings();
+          const data = await fetchListingsAdmin();
           const rows = data && data.length > 0 ? data : [];
           setListings(rows);
 

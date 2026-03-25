@@ -1645,15 +1645,14 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
     async function loadSeoAudit() {
       setVendorAuditLoading(true);
       try {
-        // 1. Fetch the vendor's listing
-        const { data: rows } = await supabase
-          .from('listings')
-          .select('id, name, website, city, region, country')
-          .eq('vendor_account_id', vendor.id)
-          .eq('status', 'live')
-          .limit(1);
+        // 1. Fetch the vendor's listing via service-role edge function
+        //    (anon client can no longer read listings — RLS Phase 3B)
+        const { data: fnData, error: fnError } = await supabase.functions.invoke('admin-listings', {
+          body: { action: 'getByVendorAccountId', vendorAccountId: vendor.id },
+        });
+        if (fnError) throw fnError;
 
-        const lst = rows?.[0] || null;
+        const lst = fnData?.data ?? null;
         setVendorListing(lst);
         if (!lst?.id) return;
 

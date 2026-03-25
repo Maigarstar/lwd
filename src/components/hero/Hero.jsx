@@ -117,7 +117,7 @@ export default function Hero({
           display: "flex",
           flexDirection: "column",
           justifyContent: "flex-end",
-          padding: "0 80px 80px",
+          padding: "0 80px 60px",
           opacity: loaded ? 1 : 0,
           transform: loaded ? "translateY(0)" : "translateY(20px)",
           transition: "all 0.9s ease",

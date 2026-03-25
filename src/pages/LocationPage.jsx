@@ -32,7 +32,7 @@ import SliderNav       from "../components/ui/SliderNav";
 // ── Data services (self-fetch when rendered standalone) ─────────────────────
 import { COUNTRIES, REGIONS, CITIES } from "../data/geo";
 import { fetchListings } from "../services/listings";
-import { fetchLocationContent, buildLocationKey } from "../services/locationContentService";
+import { fetchLocationContent, buildLocationKey, fetchLocationMetadata } from "../services/locationContentService";
 
 // ── Mobile detection hook ─────────────────────────────────────────────────
 function useIsMobile(bp = 768) {
@@ -87,54 +87,119 @@ export default function LocationPage({
   const [qvItem, setQvItem] = useState(null);
   const [mapOpen, setMapOpen] = useState(false);
 
+  // ── Location resolution state ───────────────────────────────────────────────
+  // resolving = true while Supabase lookup is in flight. No 404 until this is false.
+  const [resolving, setResolving] = useState(true);
+  const [supabaseRow, setSupabaseRow] = useState(null);    // Full Supabase locations row
+  const [draftMode, setDraftMode] = useState(false);
+
   const isMobile = useIsMobile();
   const C = darkMode ? getDarkPalette() : getLightPalette();
   const { setChatContext } = useChat();
 
-  // ── Self-fetch: venues, vendors, locationContent when rendered standalone ───
+  // ═════════════════════════════════════════════════════════════════════════════
+  // CANONICAL LOCATION RESOLUTION
+  // ═════════════════════════════════════════════════════════════════════════════
+  // Supabase locations table is the SINGLE source of truth for all locations.
+  // Static geo.js arrays are a temporary migration fallback only.
+  //
+  // Resolution order:
+  //   1. Query Supabase for location_key → canonical row
+  //   2. If found: use it, check published state
+  //   3. If not found in Supabase: check static geo.js as migration fallback
+  //   4. If still not found: render 404 (only after lookup completes)
+  //
+  // The loading state prevents flash-404 during async resolution.
+  // ═════════════════════════════════════════════════════════════════════════════
+
+  // ── Self-fetch: venues, vendors when rendered standalone ─────────────────────
   const [_fetchedVenues,  setFetchedVenues]  = useState([]);
   const [_fetchedVendors, setFetchedVendors] = useState([]);
   const [_fetchedContent, setFetchedContent] = useState(null);
 
+  // ── CANONICAL RESOLUTION: Supabase first, then static fallback ────────────
+  // This is the SINGLE resolution effect. It runs on mount and slug change.
+  // It sets resolving=false only after Supabase lookup completes.
   useEffect(() => {
-    if (!locationSlug) return;
+    if (!locationSlug || !locationType) {
+      setResolving(false);
+      setSupabaseRow(null);
+      setDraftMode(false);
+      return;
+    }
+
+    let cancelled = false;
+    setResolving(true);
+    setSupabaseRow(null);
+    setDraftMode(false);
+
+    // Build location_key for Supabase lookup
+    let locationKey = null;
+    if (locationType === "country") {
+      locationKey = buildLocationKey("country", locationSlug);
+    } else if (locationType === "region") {
+      // Regions need parent slug — check static arrays for now (migration support)
+      const region = REGIONS.find(r => r.slug === locationSlug);
+      if (region) locationKey = buildLocationKey("region", locationSlug, region.countrySlug);
+    } else if (locationType === "city") {
+      const city = CITIES.find(c => c.slug === locationSlug);
+      if (city) locationKey = buildLocationKey("city", locationSlug, city.countrySlug, city.regionSlug);
+    }
+
+    // Query Supabase for the canonical location record
+    const resolve = async () => {
+      try {
+        if (locationKey) {
+          // Fetch full content row (not just metadata) — this IS the canonical record
+          const row = await fetchLocationContent(locationKey);
+          if (!cancelled && row) {
+            setSupabaseRow(row);
+            setDraftMode(!row.published);
+            setFetchedContent(row);
+            setResolving(false);
+            return; // Found in Supabase — done
+          }
+        }
+      } catch (err) {
+        console.warn("[LocationPage] Supabase lookup failed, falling back to static:", err);
+      }
+
+      // Not found in Supabase (or key couldn't be built) — mark resolution complete.
+      // currentLocation resolver will check static arrays as migration fallback.
+      if (!cancelled) {
+        setSupabaseRow(null);
+        setDraftMode(false);
+        setResolving(false);
+      }
+    };
+
+    resolve();
+    return () => { cancelled = true; };
+  }, [locationSlug, locationType]);
+
+  // ── Self-fetch venues/vendors once we know the location exists ──────────────
+  useEffect(() => {
+    if (!locationSlug || resolving) return;
     // Only self-fetch if parent hasn't injected data
     if (!venues || venues.length === 0) {
-      const filters = { listing_type: 'venue' };
-      if (locationType === "country") filters.country_slug = locationSlug;
-      else if (locationType === "region") filters.region_slug = locationSlug;
-      else if (locationType === "city")   filters.city_slug   = locationSlug;
-      fetchListings({ ...filters, status: "published" })
+      const f = { listing_type: 'venue' };
+      if (locationType === "country") f.country_slug = locationSlug;
+      else if (locationType === "region") f.region_slug = locationSlug;
+      else if (locationType === "city")   f.city_slug   = locationSlug;
+      fetchListings({ ...f, status: "published" })
         .then(d => setFetchedVenues(Array.isArray(d) ? d : []))
         .catch(() => {});
     }
-    // Fetch vendors separately
     if (!vendors || vendors.length === 0) {
-      const vendorFilters = { listing_type: 'vendor' };
-      if (locationType === "country") vendorFilters.country_slug = locationSlug;
-      else if (locationType === "region") vendorFilters.region_slug = locationSlug;
-      else if (locationType === "city")   vendorFilters.city_slug   = locationSlug;
-      fetchListings({ ...vendorFilters, status: "published" })
+      const f = { listing_type: 'vendor' };
+      if (locationType === "country") f.country_slug = locationSlug;
+      else if (locationType === "region") f.region_slug = locationSlug;
+      else if (locationType === "city")   f.city_slug   = locationSlug;
+      fetchListings({ ...f, status: "published" })
         .then(d => setFetchedVendors(Array.isArray(d) ? d : []))
         .catch(() => {});
     }
-    if (locationContent) return;
-    // Build location key for Supabase fetch
-    let key = null;
-    if (locationType === "country") key = buildLocationKey("country", locationSlug);
-    else if (locationType === "region") {
-      const r = REGIONS.find(r => r.slug === locationSlug);
-      if (r) key = buildLocationKey("region", locationSlug, r.countrySlug);
-    } else if (locationType === "city") {
-      const c = CITIES.find(c => c.slug === locationSlug);
-      if (c) key = buildLocationKey("city", locationSlug, c.countrySlug, c.regionSlug);
-    }
-    if (key) {
-      fetchLocationContent(key)
-        .then(d => { if (d) setFetchedContent(d); })
-        .catch(() => {});
-    }
-  }, [locationSlug, locationType]);
+  }, [locationSlug, locationType, resolving]);
 
   // Merge injected props with self-fetched data — all memoised to avoid new object refs on every render
   const _venues  = useMemo(() => (venues  && venues.length  > 0) ? venues  : _fetchedVenues,  [venues,  _fetchedVenues]);
@@ -202,16 +267,41 @@ export default function LocationPage({
   const _cities    = useMemo(() => (cities    && cities.length    > 0) ? cities    : CITIES,     [cities]);
 
   // ── Resolve current location ────────────────────────────────────────────────
+  // Supabase is the canonical source. Static geo.js is migration fallback only.
   const currentLocation = useMemo(() => {
-    if (locationType === "country") {
-      return _countries.find(c => c.slug === locationSlug);
-    } else if (locationType === "region") {
-      return _regions.find(r => r.slug === locationSlug);
-    } else if (locationType === "city") {
-      return _cities.find(c => c.slug === locationSlug);
+    // 1. SUPABASE (canonical) — if we have a row, use it
+    if (supabaseRow) {
+      // Build a location object from the canonical Supabase record.
+      // Use hero_title as the display name if set, otherwise derive from slug.
+      const nameFromSlug = locationSlug.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+      return {
+        slug: locationSlug,
+        name: supabaseRow.hero_title || nameFromSlug,
+        description: supabaseRow.hero_subtitle || "",
+        countrySlug: supabaseRow.country_slug,
+        regionSlug: supabaseRow.region_slug,
+        citySlug: supabaseRow.city_slug,
+        published: supabaseRow.published,
+        _source: "supabase", // Tracks where this came from
+      };
     }
+
+    // 2. STATIC FALLBACK (migration support only) — check geo.js arrays
+    //    This path will shrink as locations are migrated to Supabase.
+    if (locationType === "country") {
+      const s = _countries.find(c => c.slug === locationSlug);
+      if (s) return { ...s, _source: "static" };
+    } else if (locationType === "region") {
+      const s = _regions.find(r => r.slug === locationSlug);
+      if (s) return { ...s, _source: "static" };
+    } else if (locationType === "city") {
+      const s = _cities.find(c => c.slug === locationSlug);
+      if (s) return { ...s, _source: "static" };
+    }
+
+    // 3. Not found in either source
     return null;
-  }, [locationType, locationSlug, _countries, _regions, _cities]);
+  }, [locationType, locationSlug, _countries, _regions, _cities, supabaseRow]);
 
   // ── Get parent location for breadcrumbs ─────────────────────────────────────
   const parentLocation = useMemo(() => {
@@ -295,6 +385,9 @@ export default function LocationPage({
     }
     return locationVenues.slice(0, 5);
   }, [locationVenues, featuredVenues, _locationContent?.editorialVenueMode]);
+
+  // ── Stable slice for the map (new array ref on every render breaks map effect) ─
+  const mapVenues = useMemo(() => locationVenues.slice(0, 40), [locationVenues]);
 
   // ── Compute Latest Venues strip venues ──────────────────────────────────────
   const latestVenuesVenues = useMemo(() => {
@@ -408,18 +501,59 @@ export default function LocationPage({
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // ── Render guard ────────────────────────────────────────────────────────────
+  // ── Render guard: loading → not-found → content ────────────────────────────
+  // CRITICAL: No 404 until Supabase lookup has completed (resolving === false).
+  if (resolving) {
+    return (
+      <div style={{
+        minHeight: "100vh",
+        background: C.black,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}>
+        <div style={{ textAlign: "center", color: C.grey }}>
+          <div style={{
+            width: 36, height: 36, border: `2px solid ${C.gold}`,
+            borderTopColor: "transparent", borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+            margin: "0 auto 16px",
+          }} />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          <p style={{ fontSize: 13, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            Loading location…
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (!currentLocation) {
     return (
-      <div style={{ padding: "40px 20px", textAlign: "center", color: C.grey }}>
+      <div style={{ padding: "40px 20px", textAlign: "center", color: C.grey, minHeight: "100vh", background: C.black }}>
         <h2>Location not found</h2>
-        <p>The {locationType} you're looking for doesn't exist.</p>
+        <p>The {locationType} "{locationSlug}" doesn't exist.</p>
         <button onClick={onBack} style={{ marginTop: 20, padding: "10px 20px", background: C.gold, color: "#000", border: "none", borderRadius: 4, cursor: "pointer" }}>
           Back
         </button>
       </div>
     );
   }
+
+  // Draft mode indicator (displayed when location exists but not yet published)
+  const draftIndicator = draftMode ? (
+    <div style={{
+      padding: "12px 20px",
+      background: "rgba(255, 193, 7, 0.15)",
+      borderBottom: "1px solid rgba(255, 193, 7, 0.3)",
+      color: "#ffc107",
+      textAlign: "center",
+      fontSize: 13,
+      fontWeight: 500,
+    }}>
+      Draft — This location is not yet published.
+    </div>
+  ) : null;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // RENDER
@@ -428,6 +562,9 @@ export default function LocationPage({
   return (
     <ThemeCtx.Provider value={C}>
       <div style={{ background: C.black, color: C.white, minHeight: "100vh" }}>
+
+        {/* Draft Mode Indicator — shown when location is in draft status */}
+        {draftIndicator}
 
         {/* Fixed Navigation — hidden in admin preview mode */}
         {!hideNav && (
@@ -454,20 +591,6 @@ export default function LocationPage({
           />
         )}
 
-        {/* Breadcrumb / Navigation */}
-        <div style={{ background: C.card, borderBottom: `1px solid ${C.border}`, padding: "12px 0", textAlign: "center", fontFamily: "'Neue Haas Display', serif", fontSize: 12, color: C.grey }}>
-          {locationType === "country" && currentLocation.name}
-          {locationType === "region" && (
-            <>
-              {parentLocation?.name} › {currentLocation.name}
-            </>
-          )}
-          {locationType === "city" && (
-            <>
-              {parentLocation?.name} › {currentLocation.name}
-            </>
-          )}
-        </div>
 
         {/* Info Strip */}
         {locationType === "country" && (
@@ -484,7 +607,7 @@ export default function LocationPage({
         )}
 
         {/* Editorial Split — "The Art of the {Location} Wedding" — Hidden when map is open */}
-        {viewMode !== "map" && _locationContent?.showEditorialSplit !== false && editorialVenues.length >= 5 && (
+        {_locationContent?.showEditorialSplit !== false && editorialVenues.length >= 5 && (
           <LatestSplit
             venues={editorialVenues}
             locationName={currentLocation.name}
@@ -511,10 +634,12 @@ export default function LocationPage({
             sortMode={sortMode}
             onSortChange={setSortMode}
             total={locationVenues.length}
+            regions={_regions.filter(r => r.countrySlug === currentLocation.slug).map(r => ({ slug: r.slug, name: r.name }))}
+            countryFilter={currentLocation.slug}
             mapContent={
               <MapSection
                 title={`Explore ${currentLocation.name}`}
-                venues={locationVenues.slice(0, 20)}
+                venues={mapVenues}
                 lat={parseFloat(_locationContent?.mapLat || currentLocation.mapLat || "0")}
                 lng={parseFloat(_locationContent?.mapLng || currentLocation.mapLng || "0")}
                 zoom={_locationContent?.mapZoom || 8}
@@ -526,7 +651,7 @@ export default function LocationPage({
         </div>
 
         {/* Latest Venues Strip — Hidden when map is open */}
-        {viewMode !== "map" && _locationContent?.showLatestVenues !== false && (
+        {_locationContent?.showLatestVenues !== false && (
         <LatestVenuesStrip
           venues={latestVenuesVenues}
           heading={_locationContent?.latestVenuesHeading || ''}
@@ -542,7 +667,7 @@ export default function LocationPage({
         )}
 
         {/* Latest Vendors Strip — Hidden when map is open */}
-        {viewMode !== "map" && _locationContent?.showLatestVendors !== false && (
+        {_locationContent?.showLatestVendors !== false && (
         <LatestVendorsStrip
           vendors={latestVendorsVenues}
           heading={_locationContent?.latestVendorsHeading || ''}
@@ -558,7 +683,7 @@ export default function LocationPage({
         )}
 
         {/* Featured Venues Section — Hidden when map is open */}
-        {viewMode !== "map" && featuredVenues.length > 0 && (
+        {featuredVenues.length > 0 && (
           <div style={{ padding: "40px 20px", background: C.card }}>
             <h3 style={{ fontFamily: "'Neue Haas Display', serif", fontSize: 20, marginBottom: 24, textAlign: "center" }}>
               {_locationContent?.featuredVenuesTitle || "Signature Venues"}
@@ -597,7 +722,7 @@ export default function LocationPage({
         )}
 
         {/* Main Venue Grid — Hidden when map is open */}
-        {viewMode !== "map" && (
+        {(
         <div style={{ padding: "40px 20px", background: C.card }}>
           <h3 style={{ fontFamily: "'Neue Haas Display', serif", fontSize: 18, marginBottom: 20, textAlign: "center" }}>
             All Venues
@@ -655,7 +780,7 @@ export default function LocationPage({
         )}
 
         {/* Featured Vendors Section — Hidden when map is open */}
-        {viewMode !== "map" && featuredVendors.length > 0 && (
+        {featuredVendors.length > 0 && (
           <div style={{ padding: "40px 20px", background: C.card, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
             <h3 style={{ fontFamily: "'Neue Haas Display', serif", fontSize: 20, marginBottom: 24, textAlign: "center" }}>
               {_locationContent?.featuredVendorsTitle || "Top Wedding Planners"}

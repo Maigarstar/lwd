@@ -178,15 +178,7 @@ function stateToPath(pg, opts = {}) {
     case "venue-reviews":    return `/venues/${opts.venueSlug || ''}/reviews`;
     case "event-detail":     return `/events/${opts.eventSlug || ''}`;
     case "event-review":     return "/review";
-    case "listing-profile": {
-      const cs  = opts.countrySlug;
-      const rs  = opts.regionSlug;
-      const cat = opts.categorySlug || 'wedding-venues';
-      const vs  = opts.venueSlug    || '';
-      if (cs && rs && cat) return `/${cs}/${rs}/${cat}/${vs}`;
-      if (cs && cat)       return `/${cs}/${cat}/${vs}`;
-      return `/wedding-venues/${vs}`;
-    }
+    case "listing-profile":  return `/wedding-venues/${opts.venueSlug || ''}`;
     case "dde-showcase":      return "/showcase/domaine-des-etangs";
     case "ritz-showcase":     return "/showcase/the-ritz-london";
     case "ic-park-lane-showcase": return "/showcase/intercontinental-london-park-lane";
@@ -260,7 +252,7 @@ function pathToState(pathname) {
   // Venue listing profile: /venues/{slug}
   // Venue reviews page: /venues/{slug}/reviews
   if (parts[0] === "venues" && parts.length === 3 && parts[2] === "reviews") return { page: "venue-reviews", venueSlug: parts[1] };
-  if (parts[0] === "venues" && parts.length === 2) return { page: "listing-profile", venueSlug: parts[1] };
+  if (parts[0] === "venues" && parts.length === 2) return { page: "venue-profile", venueSlug: parts[1] };
   // Event detail: /events/{slug}
   if (parts[0] === "events" && parts.length === 2) return { page: "event-detail", eventSlug: parts[1] };
   // Event attendee review: /review?token=UUID
@@ -282,21 +274,8 @@ function pathToState(pathname) {
   if (parts.length === 1) return { page: "location", locationType: "country", locationSlug: parts[0] };
 
   if (parts.length === 2) return { page: "region", countrySlug: parts[0], regionSlug: parts[1] };
-  if (parts.length === 3) {
-    // 3-part: /country/wedding-category/slug → listing-profile (e.g. /england/wedding-venues/the-ritz)
-    // 3-part: /country/region/category       → region-category grid
-    if (parts[1].startsWith('wedding-')) {
-      return { page: "listing-profile", countrySlug: parts[0], regionSlug: null, categorySlug: parts[1], venueSlug: parts[2] };
-    }
-    return { page: "region-category", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2] };
-  }
-  if (parts.length === 4) {
-    const [countrySlug, regionSlug, categorySlug, itemSlug] = parts;
-    if (categorySlug === 'wedding-planners') {
-      return { page: "planner-profile", countrySlug, regionSlug, categorySlug, plannerSlug: itemSlug };
-    }
-    return { page: "listing-profile", countrySlug, regionSlug, categorySlug, venueSlug: itemSlug };
-  }
+  if (parts.length === 3) return { page: "region-category", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2] };
+  if (parts.length === 4) return { page: "planner-profile", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2], plannerSlug: parts[3] };
   return { page: "not-found" };
 }
 
@@ -413,18 +392,12 @@ function App() {
     setPage("home");
   };
   const goVenue = (venueOrSlug) => {
-    setCategoryRegion(null); setCategorySearchQuery(null);
-    const isObj = typeof venueOrSlug === 'object' && venueOrSlug !== null;
-    const slug  = isObj ? venueOrSlug.slug        : venueOrSlug;
-    const cs    = isObj ? (venueOrSlug.countrySlug  || venueOrSlug.country_slug  || null) : null;
-    const rs    = isObj ? (venueOrSlug.regionSlug   || venueOrSlug.region_slug   || null) : null;
-    const cat   = isObj ? (venueOrSlug.categorySlug || venueOrSlug.category_slug || 'wedding-venues') : null;
-    setActiveCountrySlug(cs);
-    setActiveRegionSlug(rs);
-    setActiveCategorySlug(cat);
+    setCategoryRegion(null); setActiveCountrySlug(null); setActiveRegionSlug(null);
+    setActiveCategorySlug(null); setCategorySearchQuery(null);
+    const slug = typeof venueOrSlug === 'string' ? venueOrSlug : venueOrSlug?.slug;
     if (slug) {
       setActiveVenueSlug(slug);
-      setPage("listing-profile");
+      setPage("venue-profile");
     } else {
       setPage("venue");
     }
@@ -541,13 +514,7 @@ function App() {
           <VenueProfile slug={activeVenueSlug} onBack={goHome} />
         )}
         {page === "listing-profile" && (
-          <VenueProfile
-            slug={activeVenueSlug}
-            countrySlug={activeCountrySlug}
-            regionSlug={activeRegionSlug}
-            categorySlug={activeCategorySlug}
-            onBack={goHome}
-          />
+          <VenueProfile slug={activeVenueSlug} onBack={goHome} />
         )}
         {page === "venue-reviews" && (
           <VenueReviewsPage />

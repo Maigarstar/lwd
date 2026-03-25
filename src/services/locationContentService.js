@@ -35,6 +35,32 @@ export function parseLocationKey(locationKey) {
 }
 
 /**
+ * Check if a location exists in Supabase (published or draft)
+ * OPTION A: Supabase as primary source of truth
+ * @param {string} locationKey - e.g., "country:thailand"
+ * @returns {Promise<Object>} Location record or null if not found
+ */
+export async function fetchLocationMetadata(locationKey) {
+  try {
+    const { data, error } = await supabase
+      .from("locations")
+      .select("location_key, location_type, country_slug, region_slug, city_slug, published, created_at")
+      .eq("location_key", locationKey)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      console.error("[locationContentService] fetchLocationMetadata error:", error);
+      return null;
+    }
+
+    return data || null;
+  } catch (err) {
+    console.error("[locationContentService] fetchLocationMetadata exception:", err);
+    return null;
+  }
+}
+
+/**
  * Fetch location content from Supabase
  * @param {string} locationKey - e.g., "country:italy", "region:italy:tuscany"
  * @returns {Promise<Object>} Location content object or null if not found

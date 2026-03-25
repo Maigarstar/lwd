@@ -4,6 +4,7 @@ import GCardMobile from "./components/cards/GCardMobile";
 import SliderNav from "./components/ui/SliderNav";
 import { fetchListingBySlug, fetchListingById } from './services/listings';
 import { fetchApprovedReviews } from './services/reviewService';
+import { useAdminAuth } from "./context/AdminAuthContext";
 import { buildCardImgs, mapMediaItemToGalleryPhoto, buildVenueVideos } from './utils/mediaMappers';
 import ReviewSubmitForm from './components/reviews/ReviewSubmitForm';
 import VenueEnquiryForm from './components/enquiry/VenueEnquiryForm';
@@ -7513,13 +7514,14 @@ function saveCompareList(list) {
 }
 
 // ─── MAIN EXPORT ─────────────────────────────────────────────────────────────
-export default function VenueProfile({ onBack = null, slug = null }) {
+export default function VenueProfile({ onBack = null, slug = null, countrySlug = null, regionSlug = null, categorySlug = null }) {
   // Always default to light mode on venue profiles — dark is opt-in via toggle
   const [darkMode, setDarkMode] = useState(false);
   const [saved, setSaved] = useState(false);
   const [lightIdx, setLightIdx] = useState(null);
   const [compareList, setCompareList] = useState(() => loadCompareList());
   const [showCompareModal, setShowCompareModal] = useState(false);
+  const { isAuthenticated: isAdmin } = useAdminAuth();
 
   // Sync compareList to sessionStorage + notify global Aura button to shift up
   useEffect(() => {
@@ -7811,6 +7813,21 @@ export default function VenueProfile({ onBack = null, slug = null }) {
     fetchUpcomingEventsForVenue(VV.id, 6).then(evts => setVenueEvents(evts || []));
   }, [VV.id]);
 
+  // Silently replace URL bar with canonical hierarchical path once listing loads
+  useEffect(() => {
+    if (!rawListing || !slug) return;
+    const cs  = rawListing.country_slug  || rawListing.countrySlug  || countrySlug;
+    const rs  = rawListing.region_slug   || rawListing.regionSlug   || regionSlug;
+    const cat = rawListing.category_slug || rawListing.categorySlug || categorySlug || 'wedding-venues';
+    if (!cs) return;
+    const canonical = (cs && rs && cat)
+      ? `/${cs}/${rs}/${cat}/${slug}`
+      : `/${cs}/${cat}/${slug}`;
+    if (window.location.pathname !== canonical) {
+      window.history.replaceState(null, '', canonical);
+    }
+  }, [rawListing, slug, countrySlug, regionSlug, categorySlug]);
+
   const scrollToSection = (key) => {
     setActiveTab(key);
     const el = document.getElementById(key);
@@ -7862,26 +7879,41 @@ export default function VenueProfile({ onBack = null, slug = null }) {
     <Theme.Provider value={C}>
       <GlobalStyles />
       {/* SEO head - only when real listing data is loaded */}
-      {rawListing && (
-        <>
-          <SeoHead
-            title={rawListing.seoTitle || rawListing.name}
-            description={rawListing.seoDescription || rawListing.shortDescription || rawListing.cardSummary}
-            keywords={rawListing.seoKeywords}
-            canonicalUrl={`${SITE_URL}/wedding-venues/${slug}`}
-            ogImage={rawListing.heroImage || rawListing.imgs?.[0]?.src || rawListing.imgs?.[0]}
-          />
-          <JsonLd schema={buildVenueSchema(rawListing)} />
-          <JsonLd schema={buildBreadcrumbSchema([
-            { name: 'Home', url: '/' },
-            { name: rawListing.country || 'Venues', url: '/' },
-            { name: rawListing.name, url: `/wedding-venues/${slug}` },
-          ])} />
-          {rawListing.faqEnabled !== false && rawListing.faqCategories && rawListing.faqCategories.length > 0 && (
-            <JsonLd schema={buildFaqSchema(rawListing.faqCategories)} />
-          )}
-        </>
-      )}
+      {rawListing && (() => {
+        const cs  = rawListing.country_slug  || rawListing.countrySlug  || countrySlug;
+        const rs  = rawListing.region_slug   || rawListing.regionSlug   || regionSlug;
+        const cat = rawListing.category_slug || rawListing.categorySlug || categorySlug || 'wedding-venues';
+        const canonicalUrl = (cs && rs && cat)
+          ? `${SITE_URL}/${cs}/${rs}/${cat}/${slug}`
+          : (cs && cat)
+            ? `${SITE_URL}/${cs}/${cat}/${slug}`
+            : `${SITE_URL}/wedding-venues/${slug}`;
+        const countryUrl  = cs ? `/${cs}` : '/';
+        const regionUrl   = (cs && rs) ? `/${cs}/${rs}` : countryUrl;
+        const categoryUrl = (cs && rs && cat) ? `/${cs}/${rs}/${cat}` : '/';
+        return (
+          <>
+            <SeoHead
+              title={rawListing.seoTitle || rawListing.name}
+              description={rawListing.seoDescription || rawListing.shortDescription || rawListing.cardSummary}
+              keywords={rawListing.seoKeywords}
+              canonicalUrl={canonicalUrl}
+              ogImage={rawListing.heroImage || rawListing.imgs?.[0]?.src || rawListing.imgs?.[0]}
+            />
+            <JsonLd schema={buildVenueSchema(rawListing)} />
+            <JsonLd schema={buildBreadcrumbSchema([
+              { name: 'Home', url: '/' },
+              { name: rawListing.country || 'Venues', url: countryUrl },
+              ...(rs ? [{ name: rawListing.region || rs, url: regionUrl }] : []),
+              { name: cat.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), url: categoryUrl },
+              { name: rawListing.name, url: canonicalUrl },
+            ])} />
+            {rawListing.faqEnabled !== false && rawListing.faqCategories && rawListing.faqCategories.length > 0 && (
+              <JsonLd schema={buildFaqSchema(rawListing.faqCategories)} />
+            )}
+          </>
+        );
+      })()}
       <div className="vp-root" style={{ background: C.bg, minHeight: "100vh", color: C.text }}>
         <HomeNav hasHero={true} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} />
         <Hero venue={VV} heroStyle={heroStyle} setHeroStyle={setHeroStyle} onEnquire={() => setEnquiryOpen(true)} onBack={onBack} />
@@ -8131,6 +8163,73 @@ export default function VenueProfile({ onBack = null, slug = null }) {
         )}
         <VenueCookieBanner />
         <EventDrawer event={drawerEvent} onClose={() => setDrawerEvent(null)} darkMode={darkMode} />
+
+        {/* Admin: Edit Listing button (floats above Aura chat on desktop) */}
+        {isAdmin && (
+          <button
+            onClick={() => {
+              sessionStorage.setItem("lwd_admin_edit_intent", JSON.stringify({
+                type: "listing",
+                listingId: VV.id,
+                returnPath: window.location.pathname,
+              }));
+              window.location.href = "/admin";
+            }}
+            style={{
+              position: "fixed",
+              bottom: compareList.length > 0 ? 150 : 90,
+              right: 28,
+              zIndex: 901,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "12px 22px 12px 16px",
+              borderRadius: 100,
+              background: "#1a1a1a",
+              border: "none",
+              cursor: "pointer",
+              boxShadow: "0 6px 28px rgba(0,0,0,0.4)",
+              transition: "bottom 0.3s cubic-bezier(0.25,0.46,0.45,0.94), transform 0.2s ease",
+              transform: "translateY(0)",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-2px)")}
+            onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
+            aria-label="Edit listing"
+          >
+            {/* Icon */}
+            <span
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: "50%",
+                background: "rgba(201,168,76,0.2)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 14,
+                flexShrink: 0,
+                color: "#C9A84C",
+              }}
+            >
+              ✦
+            </span>
+
+            {/* Label */}
+            <span
+              style={{
+                fontFamily: "var(--font-body)",
+                fontWeight: 700,
+                fontSize: 11,
+                color: "#C9A84C",
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Edit Listing
+            </span>
+          </button>
+        )}
       </div>
     </Theme.Provider>
   );
