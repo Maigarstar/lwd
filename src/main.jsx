@@ -493,16 +493,18 @@ function App() {
   const goUSA         = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("usa"); };
   const goItaly       = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("italy"); };
 
-  // Navigate to a country-level listing grid: /{country.slug}/wedding-venues
+  // Navigate to a country page: /{country.slug}
   const goCountry = (country) => {
     const slug = typeof country === 'string' ? country : country?.slug;
     if (!slug) return;
-    setCategoryRegion(null);
-    setCategorySearchQuery(null);
+    setActiveLocationType('country');
+    setActiveLocationSlug(slug);
     setActiveCountrySlug(slug);
     setActiveRegionSlug(null);
-    setActiveCategorySlug('wedding-venues');
-    setPage("region-category");
+    setActiveCategorySlug(null);
+    setCategoryRegion(null);
+    setCategorySearchQuery(null);
+    setPage("location");
   };
   const goAdmin       = () => setPage("admin");
   const goVendor              = () => setPage("vendor");
