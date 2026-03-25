@@ -21,7 +21,7 @@ import { ITALY_COUNTRY } from "./italy/country.js";
 export const COUNTRY_REGISTRY = [
   ITALY_COUNTRY,
   {
-    id: "france", slug: "france", name: "France", iso2: "FR", listingCount: 12,
+    id: "france", slug: "france", name: "France", iso2: "FR", listingCount: 12, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in France | LWD",
     metaDescriptionTemplate: "Explore curated luxury wedding venues and vendors across France. Châteaux, Provence estates and Parisian elegance, editorially selected.",
     evergreenContent: "France embodies romance at every scale, from intimate Provençal farmhouses to grand Loire Valley châteaux. The French wedding tradition marries gastronomy, fashion and architecture into celebrations of unparalleled sophistication.",
@@ -30,7 +30,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["chateau wedding france cost", "provence wedding planner book", "paris luxury wedding venue hire"], mid: ["best french wedding venues", "provence wedding inspiration", "france destination wedding packages"], low: ["french wedding traditions", "getting married in france requirements", "wedding in france ideas"] },
   },
   {
-    id: "england", slug: "england", name: "England", iso2: "GB-ENG", listingCount: 14,
+    id: "england", slug: "england", name: "England", iso2: "GB-ENG", listingCount: 14, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Venues & Vendors in England | LWD",
     metaDescriptionTemplate: "Browse curated luxury wedding venues and vendors across England. Country houses, castles, Cotswolds estates and London grandeur, editorially selected.",
     evergreenContent: "England offers an unrivalled range of wedding settings, from the honey-stone villages of the Cotswolds to the grandeur of London's historic hotels. Country houses, royal estates and contemporary barn conversions form the backbone of the English luxury wedding market.",
@@ -39,7 +39,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["book country house wedding venue england", "luxury wedding planner london", "cotswolds wedding venue hire"], mid: ["best wedding venues england", "cotswolds wedding ideas", "country wedding venues england"], low: ["england wedding traditions", "average wedding cost england", "wedding planning checklist england"] },
   },
   {
-    id: "scotland", slug: "scotland", name: "Scotland", iso2: "GB-SCT", listingCount: 6,
+    id: "scotland", slug: "scotland", name: "Scotland", iso2: "GB-SCT", listingCount: 6, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Venues & Vendors in Scotland | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across Scotland. Highland castles, loch-side estates and Edinburgh grandeur, editorially selected.",
     evergreenContent: "Scotland's dramatic landscapes and ancient castles create a wedding backdrop unlike anywhere else in the world. From the Highlands to Edinburgh's Georgian New Town, Scottish weddings combine wild romance with centuries of aristocratic tradition.",
@@ -48,7 +48,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["castle wedding scotland book", "gleneagles wedding hire", "highland wedding venue book"], mid: ["best scotland wedding venues", "edinburgh wedding ideas", "scottish castle wedding"], low: ["scotland wedding traditions", "getting married in scotland", "scottish wedding inspiration"] },
   },
   {
-    id: "wales", slug: "wales", name: "Wales", iso2: "GB-WLS", listingCount: 4,
+    id: "wales", slug: "wales", name: "Wales", iso2: "GB-WLS", listingCount: 4, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Venues & Vendors in Wales | LWD",
     metaDescriptionTemplate: "Explore curated luxury wedding venues and vendors across Wales. Coastal castles, Snowdonia estates and Pembrokeshire coves, editorially selected.",
     evergreenContent: "Wales offers dramatic coastal scenery, medieval castles and wild mountain landscapes for couples seeking something extraordinary. From Pembrokeshire's golden beaches to Snowdonia's peaks, Welsh weddings are defined by natural grandeur and Celtic character.",
@@ -57,7 +57,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["wales wedding venue book", "castle wedding wales hire"], mid: ["best wales wedding venues", "pembrokeshire wedding guide"], low: ["wales wedding traditions", "getting married in wales"] },
   },
   {
-    id: "spain", slug: "spain", name: "Spain", iso2: "ES", listingCount: 8,
+    id: "spain", slug: "spain", name: "Spain", iso2: "ES", listingCount: 8, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Spain | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across Spain. Andalusian fincas, Balearic islands and Barcelona elegance, editorially selected.",
     evergreenContent: "Spain offers sun-drenched celebrations blending Moorish architecture, Mediterranean coastline and world-class gastronomy. From the white villages of Andalusia to the bohemian glamour of Ibiza, Spanish weddings are a feast for every sense.",
@@ -66,7 +66,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["finca wedding spain book", "marbella luxury wedding venue", "ibiza wedding planner hire"], mid: ["best wedding venues spain", "mallorca wedding guide", "andalusia wedding inspiration"], low: ["spanish wedding customs", "getting married in spain", "spain wedding ideas"] },
   },
   {
-    id: "usa", slug: "usa", name: "United States", iso2: "US", listingCount: 6,
+    id: "usa", slug: "usa", name: "United States", iso2: "US", listingCount: 6, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in the USA | LWD",
     metaDescriptionTemplate: "Explore curated luxury wedding venues and vendors across the United States. East Coast estates, Californian vineyards and city grandeur, editorially selected.",
     evergreenContent: "The United States encompasses extraordinary diversity, from the Gilded Age estates of the Hudson Valley to Napa Valley vineyards and the Art Deco glamour of Miami. American luxury weddings blend scale, creativity and world-class vendor talent.",
@@ -78,7 +78,7 @@ export const COUNTRY_REGISTRY = [
   // EUROPE, Extended
   // ═══════════════════════════════════════════════════════════════════════
   {
-    id: "portugal", slug: "portugal", name: "Portugal", iso2: "PT", listingCount: 9,
+    id: "portugal", slug: "portugal", name: "Portugal", iso2: "PT", listingCount: 9, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Portugal | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across Portugal. Algarve coastlines, Sintra palaces and Douro vineyards, editorially selected.",
     evergreenContent: "Portugal blends Atlantic drama with Moorish heritage. Sun-drenched Algarve cliffs, Sintra's fairy-tale palaces and the terraced vineyards of the Douro Valley create a wedding destination of remarkable range and warmth.",
@@ -87,7 +87,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["algarve wedding venue book", "sintra palace wedding hire"], mid: ["best portugal wedding venues", "algarve wedding guide"], low: ["portugal wedding traditions", "getting married in portugal"] },
   },
   {
-    id: "greece", slug: "greece", name: "Greece", iso2: "GR", listingCount: 11,
+    id: "greece", slug: "greece", name: "Greece", iso2: "GR", listingCount: 11, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Greece | LWD",
     metaDescriptionTemplate: "Explore curated luxury wedding venues and vendors across Greece. Santorini sunsets, Mykonos glamour and Athenian elegance, editorially selected.",
     evergreenContent: "Greece is synonymous with romance, whitewashed Cycladic villages, ancient temples and Aegean sunsets that define the destination wedding dream. From Santorini's caldera to Crete's rugged coastline, every island tells a love story.",
@@ -96,7 +96,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["santorini wedding venue book", "mykonos wedding planner hire"], mid: ["best greek island wedding venues", "greece destination wedding cost"], low: ["greek wedding traditions", "getting married in greece"] },
   },
   {
-    id: "ireland", slug: "ireland", name: "Ireland", iso2: "IE", listingCount: 7,
+    id: "ireland", slug: "ireland", name: "Ireland", iso2: "IE", listingCount: 7, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Ireland | LWD",
     metaDescriptionTemplate: "Browse curated luxury wedding venues and vendors across Ireland. Castle estates, coastal cliffs and Georgian grandeur, editorially selected.",
     evergreenContent: "Ireland offers wild Atlantic beauty and aristocratic elegance. Castle hotels, Georgian estates and clifftop ceremonies along the Wild Atlantic Way create a uniquely atmospheric wedding destination.",
@@ -105,7 +105,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["irish castle wedding venue book", "ireland wedding planner hire"], mid: ["best wedding venues ireland", "castle wedding ireland cost"], low: ["irish wedding traditions", "getting married in ireland"] },
   },
   {
-    id: "croatia", slug: "croatia", name: "Croatia", iso2: "HR", listingCount: 6,
+    id: "croatia", slug: "croatia", name: "Croatia", iso2: "HR", listingCount: 6, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Croatia | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across Croatia. Dubrovnik walled city, Adriatic islands and Istrian hilltop villages, editorially selected.",
     evergreenContent: "Croatia has emerged as a Mediterranean jewel, Dubrovnik's medieval grandeur, the lavender-scented islands of Hvar and Vis, and Istria's truffle-rich hilltop villages offer European luxury at compelling value.",
@@ -114,7 +114,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["dubrovnik wedding venue book", "hvar wedding planner"], mid: ["best croatia wedding venues", "dubrovnik wedding cost"], low: ["croatia wedding ideas", "getting married in croatia"] },
   },
   {
-    id: "switzerland", slug: "switzerland", name: "Switzerland", iso2: "CH", listingCount: 5,
+    id: "switzerland", slug: "switzerland", name: "Switzerland", iso2: "CH", listingCount: 5, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Switzerland | LWD",
     metaDescriptionTemplate: "Explore curated luxury wedding venues and vendors across Switzerland. Alpine grandeur, lake palaces and five-star elegance, editorially selected.",
     evergreenContent: "Switzerland offers unmatched Alpine luxury, palatial lakeside hotels, mountain-top ceremonies with panoramic views and world-class gastronomy. From Lake Geneva's glamour to the Engadine's pristine beauty.",
@@ -126,7 +126,7 @@ export const COUNTRY_REGISTRY = [
   // MIDDLE EAST & NORTH AFRICA
   // ═══════════════════════════════════════════════════════════════════════
   {
-    id: "uae", slug: "uae", name: "United Arab Emirates", iso2: "AE", listingCount: 8,
+    id: "uae", slug: "uae", name: "United Arab Emirates", iso2: "AE", listingCount: 8, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in the UAE | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across the UAE. Dubai opulence, Abu Dhabi grandeur and desert romance, editorially selected.",
     evergreenContent: "The UAE delivers wedding luxury at a scale found nowhere else, from Dubai's glittering skyline venues and private island resorts to Abu Dhabi's palatial hotels. Desert ceremonies under starlit skies add an Arabian Nights dimension.",
@@ -135,7 +135,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["dubai luxury wedding venue book", "abu dhabi palace wedding hire"], mid: ["best dubai wedding venues", "uae destination wedding packages"], low: ["dubai wedding ideas", "getting married in dubai"] },
   },
   {
-    id: "morocco", slug: "morocco", name: "Morocco", iso2: "MA", listingCount: 5,
+    id: "morocco", slug: "morocco", name: "Morocco", iso2: "MA", listingCount: 5, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Morocco | LWD",
     metaDescriptionTemplate: "Browse curated luxury wedding venues and vendors across Morocco. Marrakech riads, Atlas Mountain retreats and Saharan luxury, editorially selected.",
     evergreenContent: "Morocco enchants with sensory richness, Marrakech's rose-scented riads, the snow-capped Atlas Mountains and Saharan desert camps under infinite stars create celebrations of extraordinary atmosphere.",
@@ -144,7 +144,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["marrakech riad wedding venue book", "morocco wedding planner hire"], mid: ["best morocco wedding venues", "marrakech wedding cost"], low: ["moroccan wedding traditions", "getting married in morocco"] },
   },
   {
-    id: "turkey", slug: "turkey", name: "Turkey", iso2: "TR", listingCount: 6,
+    id: "turkey", slug: "turkey", name: "Turkey", iso2: "TR", listingCount: 6, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Turkey | LWD",
     metaDescriptionTemplate: "Explore curated luxury wedding venues and vendors across Turkey. Istanbul palaces, Cappadocia hot-air balloon ceremonies and Bodrum coastal glamour, editorially selected.",
     evergreenContent: "Turkey bridges continents and cultures, Istanbul's Ottoman palaces, Cappadocia's surreal lunar landscapes and the turquoise Aegean coast of Bodrum offer luxury weddings of cinematic proportions.",
@@ -156,7 +156,7 @@ export const COUNTRY_REGISTRY = [
   // ASIA & INDIAN OCEAN
   // ═══════════════════════════════════════════════════════════════════════
   {
-    id: "thailand", slug: "thailand", name: "Thailand", iso2: "TH", listingCount: 7,
+    id: "thailand", slug: "thailand", name: "Thailand", iso2: "TH", listingCount: 7, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Thailand | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across Thailand. Tropical beach ceremonies, jungle temples and five-star island resorts, editorially selected.",
     evergreenContent: "Thailand offers tropical luxury with spiritual depth, private island resorts in Koh Samui, Phuket's clifftop venues, and Chiang Mai's temple-set ceremonies create celebrations infused with warmth and beauty.",
@@ -165,7 +165,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["koh samui luxury wedding venue book", "phuket wedding planner hire"], mid: ["best thailand wedding venues", "thai beach wedding cost"], low: ["thai wedding traditions", "getting married in thailand"] },
   },
   {
-    id: "indonesia", slug: "indonesia", name: "Indonesia", iso2: "ID", listingCount: 8,
+    id: "indonesia", slug: "indonesia", name: "Indonesia", iso2: "ID", listingCount: 8, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Indonesia | LWD",
     metaDescriptionTemplate: "Explore curated luxury wedding venues and vendors across Indonesia. Bali clifftop temples, jungle villas and private island escapes, editorially selected.",
     evergreenContent: "Bali stands alone as Asia's most magnetic wedding destination, volcanic cliffside temples, emerald rice terrace villas, and world-class resort infrastructure create celebrations of spiritual beauty and tropical luxury.",
@@ -174,7 +174,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["bali clifftop wedding venue book", "ubud villa wedding hire"], mid: ["best bali wedding venues", "bali wedding planner cost"], low: ["balinese wedding traditions", "getting married in bali"] },
   },
   {
-    id: "india", slug: "india", name: "India", iso2: "IN", listingCount: 10,
+    id: "india", slug: "india", name: "India", iso2: "IN", listingCount: 10, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in India | LWD",
     metaDescriptionTemplate: "Browse curated luxury wedding venues and vendors across India. Rajasthan palaces, Goa beaches and Kerala backwaters, editorially selected.",
     evergreenContent: "India elevates weddings to an art form, Rajasthan's maharaja palaces, Goa's tropical glamour and Kerala's tranquil backwaters create celebrations of unmatched colour, scale and cultural richness.",
@@ -183,7 +183,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["udaipur palace wedding venue book", "jaipur wedding planner hire"], mid: ["best india palace wedding venues", "rajasthan wedding cost"], low: ["indian wedding traditions", "destination wedding in india"] },
   },
   {
-    id: "japan", slug: "japan", name: "Japan", iso2: "JP", listingCount: 4,
+    id: "japan", slug: "japan", name: "Japan", iso2: "JP", listingCount: 4, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Japan | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across Japan. Kyoto temples, Tokyo modernity and cherry blossom ceremonies, editorially selected.",
     evergreenContent: "Japan merges ancient ceremony with exquisite precision, Kyoto's temple gardens, Tokyo's skyline venues and the ephemeral beauty of cherry blossom season create weddings of profound elegance.",
@@ -192,7 +192,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["kyoto temple wedding venue book", "japan wedding planner hire"], mid: ["best japan wedding venues", "tokyo luxury wedding"], low: ["japanese wedding traditions", "getting married in japan"] },
   },
   {
-    id: "srilanka", slug: "sri-lanka", name: "Sri Lanka", iso2: "LK", listingCount: 3,
+    id: "srilanka", slug: "sri-lanka", name: "Sri Lanka", iso2: "LK", listingCount: 3, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Sri Lanka | LWD",
     metaDescriptionTemplate: "Explore curated luxury wedding venues and vendors across Sri Lanka. Colonial tea estates, tropical beaches and ancient temples, editorially selected.",
     evergreenContent: "Sri Lanka offers intimate luxury amid extraordinary biodiversity, colonial hill-country tea estates, southern coastal boutique hotels and ancient temple settings create understated celebrations of natural beauty.",
@@ -201,7 +201,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["galle fort wedding venue book", "sri lanka wedding planner"], mid: ["best sri lanka wedding venues"], low: ["sri lanka wedding ideas"] },
   },
   {
-    id: "maldives", slug: "maldives", name: "Maldives", iso2: "MV", listingCount: 4,
+    id: "maldives", slug: "maldives", name: "Maldives", iso2: "MV", listingCount: 4, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in the Maldives | LWD",
     metaDescriptionTemplate: "Browse curated luxury wedding venues across the Maldives. Overwater villas, private island ceremonies and sandbank receptions, editorially selected.",
     evergreenContent: "The Maldives represents the pinnacle of private island luxury, overwater villa ceremonies, sandbank receptions at sunset and the Indian Ocean's most pristine turquoise waters create an unrivalled intimate escape.",
@@ -213,7 +213,7 @@ export const COUNTRY_REGISTRY = [
   // AMERICAS, Extended
   // ═══════════════════════════════════════════════════════════════════════
   {
-    id: "mexico", slug: "mexico", name: "Mexico", iso2: "MX", listingCount: 8,
+    id: "mexico", slug: "mexico", name: "Mexico", iso2: "MX", listingCount: 8, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Mexico | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across Mexico. Tulum jungle cenotes, Los Cabos oceanfront and colonial San Miguel, editorially selected.",
     evergreenContent: "Mexico marries ancient culture with modern luxury, Tulum's jungle cenotes, Los Cabos' desert-meets-ocean drama and San Miguel de Allende's colonial splendour create Latin America's most diverse wedding destination.",
@@ -222,7 +222,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["tulum wedding venue book", "los cabos wedding planner hire"], mid: ["best mexico wedding venues", "tulum wedding cost"], low: ["mexican wedding traditions", "destination wedding mexico"] },
   },
   {
-    id: "caribbean", slug: "caribbean", name: "Caribbean", iso2: "CB", listingCount: 7,
+    id: "caribbean", slug: "caribbean", name: "Caribbean", iso2: "CB", listingCount: 7, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in the Caribbean | LWD",
     metaDescriptionTemplate: "Explore curated luxury wedding venues across the Caribbean. Private island resorts, plantation estates and tropical beach ceremonies, editorially selected.",
     evergreenContent: "The Caribbean archipelago offers island-hopping luxury, from Barbados' coral-stone plantation houses to St. Lucia's volcanic twin Pitons, Jamaica's cliff resorts and Antigua's 365 beaches.",
@@ -234,7 +234,7 @@ export const COUNTRY_REGISTRY = [
   // AFRICA
   // ═══════════════════════════════════════════════════════════════════════
   {
-    id: "southafrica", slug: "south-africa", name: "South Africa", iso2: "ZA", listingCount: 7,
+    id: "southafrica", slug: "south-africa", name: "South Africa", iso2: "ZA", listingCount: 7, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in South Africa | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues and vendors across South Africa. Cape Town wine estates, safari lodges and Garden Route beauty, editorially selected.",
     evergreenContent: "South Africa delivers the African dream wedding, Cape Town's vineyard estates beneath Table Mountain, safari lodges where elephants roam and the lush Garden Route coastline create celebrations of cinematic scale.",
@@ -243,7 +243,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["cape town wine estate wedding book", "south africa safari wedding venue"], mid: ["best south africa wedding venues", "cape town wedding cost"], low: ["south african wedding traditions", "getting married in south africa"] },
   },
   {
-    id: "kenya", slug: "kenya", name: "Kenya", iso2: "KE", listingCount: 3,
+    id: "kenya", slug: "kenya", name: "Kenya", iso2: "KE", listingCount: 3, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Kenya | LWD",
     metaDescriptionTemplate: "Explore curated luxury wedding venues in Kenya. Safari lodges, Indian Ocean beaches and Great Rift Valley estates, editorially selected.",
     evergreenContent: "Kenya combines safari grandeur with coastal paradise, Masai Mara lodge ceremonies, Diani Beach oceanfront celebrations and Great Rift Valley estates set against Africa's most dramatic landscapes.",
@@ -255,7 +255,7 @@ export const COUNTRY_REGISTRY = [
   // OCEANIA
   // ═══════════════════════════════════════════════════════════════════════
   {
-    id: "australia", slug: "australia", name: "Australia", iso2: "AU", listingCount: 8,
+    id: "australia", slug: "australia", name: "Australia", iso2: "AU", listingCount: 8, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Australia | LWD",
     metaDescriptionTemplate: "Browse curated luxury wedding venues and vendors across Australia. Hunter Valley vineyards, Byron Bay beaches and Sydney Harbour glamour, editorially selected.",
     evergreenContent: "Australia offers weddings of extraordinary natural scale, Sydney Harbour's iconic backdrop, Hunter Valley's vineyard estates, Byron Bay's bohemian coastal charm and the ancient landscapes of the Barossa Valley.",
@@ -264,7 +264,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["sydney harbour wedding venue book", "hunter valley wedding planner hire"], mid: ["best australia wedding venues", "byron bay wedding cost"], low: ["australian wedding traditions", "getting married in australia"] },
   },
   {
-    id: "newzealand", slug: "new-zealand", name: "New Zealand", iso2: "NZ", listingCount: 4,
+    id: "newzealand", slug: "new-zealand", name: "New Zealand", iso2: "NZ", listingCount: 4, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in New Zealand | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues in New Zealand. Queenstown mountains, Hawke's Bay vineyards and Waiheke Island escapes, editorially selected.",
     evergreenContent: "New Zealand delivers Lord of the Rings grandeur, Queenstown's alpine lakes, Hawke's Bay's Art Deco wine country and Waiheke Island's vineyard terraces create epic celebrations amid pristine wilderness.",
@@ -276,7 +276,7 @@ export const COUNTRY_REGISTRY = [
   // EUROPE, From existing platform + additions
   // ═══════════════════════════════════════════════════════════════════════
   {
-    id: "austria", slug: "austria", name: "Austria", iso2: "AT", listingCount: 5,
+    id: "austria", slug: "austria", name: "Austria", iso2: "AT", listingCount: 5, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Austria | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues across Austria. Viennese palaces, Alpine lakeside ceremonies and Salzburg's baroque elegance, editorially selected.",
     evergreenContent: "Austria combines imperial grandeur with Alpine splendour, Vienna's palatial ballrooms, Salzburg's baroque churches and the crystalline lakes of the Salzkammergut create celebrations of refined European elegance.",
@@ -285,7 +285,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["vienna palace wedding venue book", "salzburg wedding planner hire"], mid: ["best austria wedding venues", "alpine wedding austria cost"], low: ["austrian wedding traditions", "getting married in austria"] },
   },
   {
-    id: "germany", slug: "germany", name: "Germany", iso2: "DE", listingCount: 5,
+    id: "germany", slug: "germany", name: "Germany", iso2: "DE", listingCount: 5, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Germany | LWD",
     metaDescriptionTemplate: "Explore curated luxury wedding venues across Germany. Bavarian castles, Rhine Valley estates and Berlin elegance, editorially selected.",
     evergreenContent: "Germany offers fairy-tale grandeur, Bavarian castle turrets, Rhine Valley vineyard estates, Black Forest retreats and Berlin's contemporary art spaces create an unexpectedly diverse wedding destination.",
@@ -294,7 +294,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["bavarian castle wedding book", "germany wedding planner"], mid: ["best germany wedding venues", "castle wedding germany cost"], low: ["german wedding traditions"] },
   },
   {
-    id: "cyprus", slug: "cyprus", name: "Cyprus", iso2: "CY", listingCount: 6,
+    id: "cyprus", slug: "cyprus", name: "Cyprus", iso2: "CY", listingCount: 6, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Cyprus | LWD",
     metaDescriptionTemplate: "Browse curated luxury wedding venues across Cyprus. Paphos clifftops, Limassol beach clubs and Troodos mountain retreats, editorially selected.",
     evergreenContent: "Cyprus blends Greek warmth with year-round Mediterranean sunshine, Paphos's ancient clifftop terraces, Limassol's glamorous marina and the cedar-forested Troodos Mountains offer celebrations infused with mythological romance.",
@@ -303,7 +303,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["paphos wedding venue book", "cyprus wedding planner hire"], mid: ["best cyprus wedding venues", "limassol wedding guide"], low: ["cyprus wedding traditions", "getting married in cyprus"] },
   },
   {
-    id: "malta", slug: "malta", name: "Malta", iso2: "MT", listingCount: 3,
+    id: "malta", slug: "malta", name: "Malta", iso2: "MT", listingCount: 3, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Malta | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues in Malta. Baroque palazzi, fortified citadels and Mediterranean terraces, editorially selected.",
     evergreenContent: "Malta packs extraordinary heritage into a tiny archipelago, Knights of St John fortifications, baroque churches, honey-stone palazzi and the ancient temples of Gozo create an intimate Mediterranean gem.",
@@ -312,7 +312,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["malta wedding venue book", "malta wedding planner"], mid: ["best malta wedding venues"], low: ["malta wedding ideas"] },
   },
   {
-    id: "montenegro", slug: "montenegro", name: "Montenegro", iso2: "ME", listingCount: 3,
+    id: "montenegro", slug: "montenegro", name: "Montenegro", iso2: "ME", listingCount: 3, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Montenegro | LWD",
     metaDescriptionTemplate: "Explore curated luxury wedding venues in Montenegro. Bay of Kotor fjords, Adriatic island ceremonies and medieval citadels, editorially selected.",
     evergreenContent: "Montenegro's dramatic Adriatic coastline rivals anywhere in the Mediterranean, the fjord-like Bay of Kotor, the fortified island of Sveti Stefan and the medieval walls of Budva create a boutique alternative to Croatia.",
@@ -321,7 +321,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["kotor bay wedding venue book", "sveti stefan wedding"], mid: ["best montenegro wedding venues"], low: ["montenegro wedding ideas"] },
   },
   {
-    id: "slovenia", slug: "slovenia", name: "Slovenia", iso2: "SI", listingCount: 3,
+    id: "slovenia", slug: "slovenia", name: "Slovenia", iso2: "SI", listingCount: 3, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Slovenia | LWD",
     metaDescriptionTemplate: "Browse curated luxury wedding venues in Slovenia. Lake Bled island church, Alpine valleys and Ljubljana elegance, editorially selected.",
     evergreenContent: "Slovenia's Lake Bled, with its island church and Alpine backdrop, has become one of Europe's most iconic wedding images. Ljubljana's charming old town and the Julian Alps complete a fairy-tale setting.",
@@ -330,7 +330,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["lake bled wedding venue book", "slovenia wedding planner"], mid: ["best slovenia wedding venues"], low: ["slovenia wedding ideas"] },
   },
   {
-    id: "iceland", slug: "iceland", name: "Iceland", iso2: "IS", listingCount: 2,
+    id: "iceland", slug: "iceland", name: "Iceland", iso2: "IS", listingCount: 2, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Iceland | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues in Iceland. Glacier ceremonies, volcanic landscapes and Northern Lights elopements, editorially selected.",
     evergreenContent: "Iceland offers otherworldly romance, black sand beach ceremonies, glacier-edge vows, volcanic hot spring receptions and the ethereal glow of the Northern Lights create truly once-in-a-lifetime celebrations.",
@@ -339,7 +339,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["iceland elopement planner book", "northern lights wedding venue"], mid: ["best iceland wedding venues"], low: ["iceland wedding ideas"] },
   },
   {
-    id: "netherlands", slug: "netherlands", name: "Netherlands", iso2: "NL", listingCount: 3,
+    id: "netherlands", slug: "netherlands", name: "Netherlands", iso2: "NL", listingCount: 3, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in the Netherlands | LWD",
     metaDescriptionTemplate: "Explore curated luxury wedding venues in the Netherlands. Amsterdam canal houses, tulip field ceremonies and Dutch castle estates, editorially selected.",
     evergreenContent: "The Netherlands delivers understated elegance, Amsterdam's candlelit canal houses, Dutch Golden Age castles, tulip-bordered estates and the minimalist grandeur of contemporary Dutch design.",
@@ -348,7 +348,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["amsterdam wedding venue book", "dutch castle wedding hire"], mid: ["best netherlands wedding venues"], low: ["dutch wedding traditions"] },
   },
   {
-    id: "denmark", slug: "denmark", name: "Denmark", iso2: "DK", listingCount: 2,
+    id: "denmark", slug: "denmark", name: "Denmark", iso2: "DK", listingCount: 2, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Denmark | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues in Denmark. Copenhagen's Scandi elegance and Danish manor houses, editorially selected.",
     evergreenContent: "Denmark embodies Scandinavian design excellence, Copenhagen's Nyhavn waterfront, minimalist manor houses and the hygge-infused intimacy of Danish celebrations create weddings of quiet sophistication.",
@@ -357,7 +357,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["copenhagen wedding venue book"], mid: ["best denmark wedding venues"], low: ["danish wedding traditions"] },
   },
   {
-    id: "sweden", slug: "sweden", name: "Sweden", iso2: "SE", listingCount: 2,
+    id: "sweden", slug: "sweden", name: "Sweden", iso2: "SE", listingCount: 2, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Sweden | LWD",
     metaDescriptionTemplate: "Explore curated luxury wedding venues in Sweden. Stockholm archipelago, Swedish manor estates and midsummer celebrations, editorially selected.",
     evergreenContent: "Sweden offers Nordic elegance at scale, Stockholm's waterfront palaces, archipelago island ceremonies, rural manor houses and the magical light of midsummer create distinctly atmospheric celebrations.",
@@ -366,7 +366,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["stockholm wedding venue book"], mid: ["best sweden wedding venues"], low: ["swedish wedding traditions"] },
   },
   {
-    id: "norway", slug: "norway", name: "Norway", iso2: "NO", listingCount: 2,
+    id: "norway", slug: "norway", name: "Norway", iso2: "NO", listingCount: 2, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Norway | LWD",
     metaDescriptionTemplate: "Browse curated luxury wedding venues in Norway. Fjord ceremonies, stave churches and midnight sun celebrations, editorially selected.",
     evergreenContent: "Norway delivers nature at its most dramatic, fjord-edge ceremonies, medieval stave churches, mountain lodge retreats and the ethereal midnight sun create celebrations of raw, epic beauty.",
@@ -375,7 +375,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["norway fjord wedding venue"], mid: ["best norway wedding venues"], low: ["norwegian wedding traditions"] },
   },
   {
-    id: "hungary", slug: "hungary", name: "Hungary", iso2: "HU", listingCount: 2,
+    id: "hungary", slug: "hungary", name: "Hungary", iso2: "HU", listingCount: 2, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Hungary | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues in Hungary. Budapest thermal palaces and Hungarian wine country estates, editorially selected.",
     evergreenContent: "Budapest's thermal bath palaces, Danube-spanning bridges and Art Nouveau grandeur make Hungary an increasingly sought-after European wedding destination with exceptional value.",
@@ -384,7 +384,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["budapest palace wedding venue"], mid: ["best hungary wedding venues"], low: ["hungarian wedding traditions"] },
   },
   {
-    id: "czechrepublic", slug: "czech-republic", name: "Czech Republic", iso2: "CZ", listingCount: 2,
+    id: "czechrepublic", slug: "czech-republic", name: "Czech Republic", iso2: "CZ", listingCount: 2, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Czech Republic | LWD",
     metaDescriptionTemplate: "Explore curated luxury wedding venues in the Czech Republic. Prague castle views and Bohemian château estates, editorially selected.",
     evergreenContent: "Prague's Gothic spires, Baroque palaces and cobblestone squares create one of Europe's most romantic cityscapes. Beyond the capital, Bohemian châteaux and Moravian vineyards offer pastoral elegance.",
@@ -393,7 +393,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["prague castle wedding venue book"], mid: ["best czech republic wedding venues"], low: ["czech wedding traditions"] },
   },
   {
-    id: "poland", slug: "poland", name: "Poland", iso2: "PL", listingCount: 2,
+    id: "poland", slug: "poland", name: "Poland", iso2: "PL", listingCount: 2, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Poland | LWD",
     metaDescriptionTemplate: "Browse curated luxury wedding venues in Poland. Kraków's medieval grandeur and Polish palace estates, editorially selected.",
     evergreenContent: "Poland surprises with aristocratic elegance, Kraków's medieval market square, Wieliczka's salt cathedral, and the restored palace estates of the Polish countryside offer celebrations of unexpected grandeur.",
@@ -402,7 +402,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["krakow wedding venue book"], mid: ["best poland wedding venues"], low: ["polish wedding traditions"] },
   },
   {
-    id: "romania", slug: "romania", name: "Romania", iso2: "RO", listingCount: 1,
+    id: "romania", slug: "romania", name: "Romania", iso2: "RO", listingCount: 1, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Romania | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues in Romania. Transylvanian castles and Carpathian mountain retreats, editorially selected.",
     evergreenContent: "Romania's Transylvanian castles, Carpathian mountain lodges and painted monasteries offer a wildly romantic and refreshingly undiscovered European wedding destination.",
@@ -411,7 +411,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: [], mid: ["romania castle wedding venue"], low: ["romania wedding ideas"] },
   },
   {
-    id: "gibraltar", slug: "gibraltar", name: "Gibraltar", iso2: "GI", listingCount: 1,
+    id: "gibraltar", slug: "gibraltar", name: "Gibraltar", iso2: "GI", listingCount: 1, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Gibraltar | LWD",
     metaDescriptionTemplate: "Explore luxury wedding venues in Gibraltar. Rock of Gibraltar ceremonies and Mediterranean elopements, editorially selected.",
     evergreenContent: "Gibraltar offers Mediterranean elopement elegance, the iconic Rock backdrop, botanical gardens and sun-drenched terraces overlooking the Strait create compact celebrations with maximum drama.",
@@ -423,7 +423,7 @@ export const COUNTRY_REGISTRY = [
   // MIDDLE EAST, Extended
   // ═══════════════════════════════════════════════════════════════════════
   {
-    id: "jordan", slug: "jordan", name: "Jordan", iso2: "JO", listingCount: 2,
+    id: "jordan", slug: "jordan", name: "Jordan", iso2: "JO", listingCount: 2, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Jordan | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues in Jordan. Petra's rose-red ruins and Dead Sea desert luxury, editorially selected.",
     evergreenContent: "Jordan offers ancient wonder, Petra's Treasury carved from rose-red sandstone, Dead Sea floating ceremonies and Wadi Rum's Martian desert landscapes create celebrations of Biblical drama.",
@@ -432,7 +432,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["petra wedding venue book"], mid: ["best jordan wedding venues"], low: ["jordan wedding ideas"] },
   },
   {
-    id: "qatar", slug: "qatar", name: "Qatar", iso2: "QA", listingCount: 2,
+    id: "qatar", slug: "qatar", name: "Qatar", iso2: "QA", listingCount: 2, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Qatar | LWD",
     metaDescriptionTemplate: "Explore curated luxury wedding venues in Qatar. Doha's futuristic skyline and desert palace celebrations, editorially selected.",
     evergreenContent: "Qatar represents the new face of Gulf luxury, Doha's futuristic Museum of Islamic Art, desert palace hotels and the world's most ambitious hospitality infrastructure create celebrations of ultra-modern opulence.",
@@ -441,7 +441,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["doha luxury wedding venue"], mid: ["best qatar wedding venues"], low: ["qatar wedding ideas"] },
   },
   {
-    id: "oman", slug: "oman", name: "Oman", iso2: "OM", listingCount: 2,
+    id: "oman", slug: "oman", name: "Oman", iso2: "OM", listingCount: 2, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Oman | LWD",
     metaDescriptionTemplate: "Browse curated luxury wedding venues in Oman. Muscat's royal grandeur and Arabian desert camp celebrations, editorially selected.",
     evergreenContent: "Oman offers Arabia's most understated luxury, Muscat's Sultan Qaboos Grand Mosque, the dramatic Hajar Mountains, fjord-like Musandam Peninsula and vast Wahiba Sands desert camps.",
@@ -453,7 +453,7 @@ export const COUNTRY_REGISTRY = [
   // ASIA, Extended
   // ═══════════════════════════════════════════════════════════════════════
   {
-    id: "malaysia", slug: "malaysia", name: "Malaysia", iso2: "MY", listingCount: 3,
+    id: "malaysia", slug: "malaysia", name: "Malaysia", iso2: "MY", listingCount: 3, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Malaysia | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues in Malaysia. Langkawi island resorts, KL skyscrapers and Borneo jungle lodges, editorially selected.",
     evergreenContent: "Malaysia blends tropical paradise with cosmopolitan flair, Langkawi's eagle-kissed islands, Kuala Lumpur's Twin Tower skyline, Penang's colonial charm and Borneo's ancient rainforest lodges.",
@@ -462,7 +462,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["langkawi resort wedding book", "kl wedding planner"], mid: ["best malaysia wedding venues"], low: ["malaysian wedding traditions"] },
   },
   {
-    id: "singapore", slug: "singapore", name: "Singapore", iso2: "SG", listingCount: 3,
+    id: "singapore", slug: "singapore", name: "Singapore", iso2: "SG", listingCount: 3, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Singapore | LWD",
     metaDescriptionTemplate: "Explore curated luxury wedding venues in Singapore. Marina Bay glamour, colonial Raffles elegance and tropical garden ceremonies, editorially selected.",
     evergreenContent: "Singapore condenses Asian luxury into a city-state, Marina Bay Sands' infinity pool terraces, the colonial grandeur of Raffles Hotel and the UNESCO Botanic Gardens create celebrations of immaculate precision.",
@@ -471,7 +471,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["singapore luxury wedding venue book", "raffles wedding planner"], mid: ["best singapore wedding venues"], low: ["singapore wedding ideas"] },
   },
   {
-    id: "philippines", slug: "philippines", name: "Philippines", iso2: "PH", listingCount: 3,
+    id: "philippines", slug: "philippines", name: "Philippines", iso2: "PH", listingCount: 3, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in the Philippines | LWD",
     metaDescriptionTemplate: "Browse curated luxury wedding venues in the Philippines. Palawan lagoons, Boracay beaches and Cebu island luxury, editorially selected.",
     evergreenContent: "The Philippines offers 7,641 islands of tropical possibility, Palawan's emerald lagoons, Boracay's powder-white beaches and Cebu's coral-fringed resort coastline create island wedding paradise.",
@@ -480,7 +480,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["palawan resort wedding book"], mid: ["best philippines wedding venues"], low: ["philippine wedding traditions"] },
   },
   {
-    id: "vietnam", slug: "vietnam", name: "Vietnam", iso2: "VN", listingCount: 2,
+    id: "vietnam", slug: "vietnam", name: "Vietnam", iso2: "VN", listingCount: 2, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Vietnam | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues in Vietnam. Hoi An lantern-lit ceremonies and Ha Long Bay floating celebrations, editorially selected.",
     evergreenContent: "Vietnam enchants with atmospheric beauty, Hoi An's lantern-draped ancient town, Ha Long Bay's emerald karst seascape and the terraced mountains of Sapa create celebrations of profound cultural richness.",
@@ -492,7 +492,7 @@ export const COUNTRY_REGISTRY = [
   // AMERICAS, Extended
   // ═══════════════════════════════════════════════════════════════════════
   {
-    id: "canada", slug: "canada", name: "Canada", iso2: "CA", listingCount: 4,
+    id: "canada", slug: "canada", name: "Canada", iso2: "CA", listingCount: 4, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Canada | LWD",
     metaDescriptionTemplate: "Explore curated luxury wedding venues across Canada. Rocky Mountain lodges, Niagara vineyards and Whistler alpine elegance, editorially selected.",
     evergreenContent: "Canada delivers nature at a grand scale, Banff's turquoise glacier lakes, Whistler's mountain-top ceremonies, Niagara's vineyard estates and the cosmopolitan elegance of Toronto and Montreal.",
@@ -501,7 +501,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["banff wedding venue book", "whistler wedding planner"], mid: ["best canada wedding venues"], low: ["canadian wedding traditions"] },
   },
   {
-    id: "costarica", slug: "costa-rica", name: "Costa Rica", iso2: "CR", listingCount: 3,
+    id: "costarica", slug: "costa-rica", name: "Costa Rica", iso2: "CR", listingCount: 3, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Costa Rica | LWD",
     metaDescriptionTemplate: "Browse curated luxury wedding venues in Costa Rica. Rainforest canopy ceremonies, Pacific beach villas and volcanic hot springs, editorially selected.",
     evergreenContent: "Costa Rica pioneers eco-luxury weddings, rainforest canopy walkways, Pacific sunset cliff ceremonies, volcanic hot spring receptions and wildlife-rich cloud forest lodges create celebrations connected to nature.",
@@ -510,7 +510,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["costa rica luxury wedding venue book"], mid: ["best costa rica wedding venues"], low: ["costa rica wedding ideas"] },
   },
   {
-    id: "brazil", slug: "brazil", name: "Brazil", iso2: "BR", listingCount: 3,
+    id: "brazil", slug: "brazil", name: "Brazil", iso2: "BR", listingCount: 3, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Brazil | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues in Brazil. Rio's Sugarloaf drama, Trancoso beach luxury and São Paulo sophistication, editorially selected.",
     evergreenContent: "Brazil celebrates with infectious joy, Rio de Janeiro's Sugarloaf Mountain views, Trancoso's bohemian-luxe beach, São Paulo's fashion-forward elegance and the colonial charm of Bahia.",
@@ -519,7 +519,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["rio wedding venue book", "trancoso wedding planner"], mid: ["best brazil wedding venues"], low: ["brazilian wedding traditions"] },
   },
   {
-    id: "colombia", slug: "colombia", name: "Colombia", iso2: "CO", listingCount: 2,
+    id: "colombia", slug: "colombia", name: "Colombia", iso2: "CO", listingCount: 2, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Colombia | LWD",
     metaDescriptionTemplate: "Explore curated luxury wedding venues in Colombia. Cartagena's walled-city romance and Caribbean island escapes, editorially selected.",
     evergreenContent: "Colombia's colonial jewel Cartagena, with its pastel-walled old city, rooftop terraces and nearby Rosario Islands, has emerged as Latin America's most romantic luxury wedding destination.",
@@ -528,7 +528,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["cartagena wedding venue book"], mid: ["best colombia wedding venues"], low: ["colombian wedding traditions"] },
   },
   {
-    id: "argentina", slug: "argentina", name: "Argentina", iso2: "AR", listingCount: 2,
+    id: "argentina", slug: "argentina", name: "Argentina", iso2: "AR", listingCount: 2, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Argentina | LWD",
     metaDescriptionTemplate: "Browse curated luxury wedding venues in Argentina. Buenos Aires tango elegance and Mendoza wine country, editorially selected.",
     evergreenContent: "Argentina marries passionate culture with natural grandeur, Buenos Aires' tango-infused elegance, Mendoza's Andes-backed vineyards and Patagonia's glacial wilderness create celebrations of South American sophistication.",
@@ -537,7 +537,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["buenos aires wedding venue book"], mid: ["best argentina wedding venues"], low: ["argentine wedding traditions"] },
   },
   {
-    id: "bahamas", slug: "bahamas", name: "Bahamas", iso2: "BS", listingCount: 3,
+    id: "bahamas", slug: "bahamas", name: "Bahamas", iso2: "BS", listingCount: 3, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in the Bahamas | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues in the Bahamas. Private island escapes, Nassau elegance and Exuma swimming pigs, editorially selected.",
     evergreenContent: "The Bahamas defines tropical luxury, the pink sands of Harbour Island, Exuma's swimming pigs cays, Nassau's Atlantis grandeur and private island buyouts create the ultimate Caribbean wedding escape.",
@@ -549,7 +549,7 @@ export const COUNTRY_REGISTRY = [
   // INDIAN OCEAN, Extended
   // ═══════════════════════════════════════════════════════════════════════
   {
-    id: "mauritius", slug: "mauritius", name: "Mauritius", iso2: "MU", listingCount: 3,
+    id: "mauritius", slug: "mauritius", name: "Mauritius", iso2: "MU", listingCount: 3, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Mauritius | LWD",
     metaDescriptionTemplate: "Explore curated luxury wedding venues in Mauritius. Le Morne peninsula, Grand Baie resorts and tropical garden ceremonies, editorially selected.",
     evergreenContent: "Mauritius blends tropical paradise with French-Creole sophistication, Le Morne's dramatic basalt rock, Grand Baie's resort coastline and sugar-plantation estates create a refined Indian Ocean wedding destination.",
@@ -558,7 +558,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["mauritius resort wedding book", "mauritius wedding planner"], mid: ["best mauritius wedding venues"], low: ["mauritius wedding ideas"] },
   },
   {
-    id: "seychelles", slug: "seychelles", name: "Seychelles", iso2: "SC", listingCount: 2,
+    id: "seychelles", slug: "seychelles", name: "Seychelles", iso2: "SC", listingCount: 2, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Seychelles | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues in Seychelles. Granite boulder beaches, private island resorts and coral reef ceremonies, editorially selected.",
     evergreenContent: "Seychelles offers prehistoric beauty, giant granite boulders framing pristine beaches, private island resorts, lush jungle mountains and the world's most exclusive honeymoon-wedding combination destination.",
@@ -567,7 +567,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["seychelles private island wedding"], mid: ["best seychelles wedding venues"], low: ["seychelles wedding ideas"] },
   },
   {
-    id: "fiji", slug: "fiji", name: "Fiji", iso2: "FJ", listingCount: 2,
+    id: "fiji", slug: "fiji", name: "Fiji", iso2: "FJ", listingCount: 2, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Fiji | LWD",
     metaDescriptionTemplate: "Browse curated luxury wedding venues in Fiji. Private island buyouts, coral reef ceremonies and traditional Fijian blessings, editorially selected.",
     evergreenContent: "Fiji's 333 islands offer the South Pacific dream, private island resort buyouts, coral reef snorkelling receptions, traditional Fijian warrior blessings and some of the world's friendliest hospitality.",
@@ -579,7 +579,7 @@ export const COUNTRY_REGISTRY = [
   // AFRICA, Extended
   // ═══════════════════════════════════════════════════════════════════════
   {
-    id: "tanzania", slug: "tanzania", name: "Tanzania", iso2: "TZ", listingCount: 2,
+    id: "tanzania", slug: "tanzania", name: "Tanzania", iso2: "TZ", listingCount: 2, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Tanzania | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues in Tanzania. Zanzibar spice island, Serengeti safari lodges and Kilimanjaro views, editorially selected.",
     evergreenContent: "Tanzania pairs wildlife spectacle with island paradise, Serengeti safari lodge ceremonies, Ngorongoro Crater rim celebrations and Zanzibar's Stone Town spice-scented lanes and white-sand beaches.",
@@ -588,7 +588,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["zanzibar wedding venue book", "serengeti lodge wedding"], mid: ["best tanzania wedding venues"], low: ["tanzania wedding ideas"] },
   },
   {
-    id: "egypt", slug: "egypt", name: "Egypt", iso2: "EG", listingCount: 2,
+    id: "egypt", slug: "egypt", name: "Egypt", iso2: "EG", listingCount: 2, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Egypt | LWD",
     metaDescriptionTemplate: "Explore curated luxury wedding venues in Egypt. Pyramids of Giza backdrop, Red Sea resorts and Nile cruise celebrations, editorially selected.",
     evergreenContent: "Egypt offers 5,000 years of romance, the Pyramids of Giza as wedding backdrop, Nile felucca receptions, Red Sea resort luxury and the ancient temples of Luxor create celebrations of monumental drama.",
@@ -597,7 +597,7 @@ export const COUNTRY_REGISTRY = [
     intentSignals: { high: ["egypt pyramids wedding venue"], mid: ["best egypt wedding venues"], low: ["egypt wedding ideas"] },
   },
   {
-    id: "cambodia", slug: "cambodia", name: "Cambodia", iso2: "KH", listingCount: 0,
+    id: "cambodia", slug: "cambodia", name: "Cambodia", iso2: "KH", listingCount: 0, showOnHomepage: true,
     seoTitleTemplate: "Luxury Wedding Vendors in Cambodia | LWD",
     metaDescriptionTemplate: "Discover curated luxury wedding venues in Cambodia. Angkor Wat temple ceremonies, Siem Reap jungle resorts and Phnom Penh elegance, editorially selected.",
     evergreenContent: "Cambodia offers ancient grandeur meets tropical luxury. Temple ceremonies with Angkor Wat as backdrop, jungle-canopy resorts in Siem Reap and the emerging sophistication of Phnom Penh create weddings of extraordinary cultural depth.",

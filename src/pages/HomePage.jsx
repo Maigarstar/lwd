@@ -66,7 +66,7 @@ function listingToCard(listing) {
   };
 }
 
-export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, onViewRegionCategory, onViewStandard, onViewAbout, onViewContact, onViewPartnership, onViewVendor, onViewAdmin, onViewUSA, onViewItaly, onViewMagazine, onViewMagazineArticle, footerNav }) {
+export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, onViewRegionCategory, onViewStandard, onViewAbout, onViewContact, onViewPartnership, onViewVendor, onViewAdmin, onViewUSA, onViewItaly, onViewCountry, onViewMagazine, onViewMagazineArticle, footerNav, homepageGridEnabled = true, countryOverrides = {} }) {
   const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
   const [enquiryVendor, setEnquiryVendor] = useState(null);
   const [heroBackgroundData, setHeroBackgroundData] = useState(null);
@@ -149,7 +149,15 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
             onViewMagazineArticle={onViewMagazineArticle}
           />
           <NewsletterBand />
-          <DirectoryBrands onViewRegion={(countrySlug, regionSlug) => onViewRegion?.(countrySlug, regionSlug)} onViewCategory={onViewCategory} onViewUSA={onViewUSA} onViewItaly={onViewItaly} />
+          <DirectoryBrands
+            onViewRegion={(countrySlug, regionSlug) => onViewRegion?.(countrySlug, regionSlug)}
+            onViewCategory={onViewCategory}
+            onViewUSA={onViewUSA}
+            onViewItaly={onViewItaly}
+            onViewCountry={onViewCountry}
+            homepageGridEnabled={homepageGridEnabled}
+            countryOverrides={countryOverrides}
+          />
         </main>
 
         {/* Enquiry modal */}

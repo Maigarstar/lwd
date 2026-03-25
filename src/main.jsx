@@ -21,6 +21,7 @@ applyThemeToDocument();
 
 // ── Initialise return-after-outbound detection (runs once, passive) ──────────
 import { initReturnDetection } from "./services/userEventService";
+import { getHomepageDestinationSettings } from "./services/platformSettingsService";
 initReturnDetection();
 
 import HomePage from "./pages/HomePage.jsx";
@@ -130,7 +131,9 @@ function stateToPath(pg, opts = {}) {
       return "/";
     }
     case "region":           return `/${countrySlug}/${regionSlug}`;
-    case "region-category":  return `/${countrySlug}/${regionSlug}/${categorySlug}`;
+    case "region-category":  return regionSlug
+      ? `/${countrySlug}/${regionSlug}/${categorySlug}`
+      : `/${countrySlug}/${categorySlug}`;
     case "planner-profile":  return `/${countrySlug}/${regionSlug}/wedding-planners/${plannerSlug}`;
     case "real-wedding-detail": return `/real-weddings/${weddingSlug}`;
     case "real-weddings":    return "/real-weddings";
@@ -281,6 +284,10 @@ function pathToState(pathname) {
   // LocationPage queries Supabase first, falls back to static geo.js only for migration.
   if (parts.length === 1) return { page: "location", locationType: "country", locationSlug: parts[0] };
 
+  // 2-part: /country/wedding-category → country-level category grid (e.g. /england/wedding-venues)
+  if (parts.length === 2 && parts[1].startsWith('wedding-')) {
+    return { page: "region-category", countrySlug: parts[0], regionSlug: null, categorySlug: parts[1] };
+  }
   if (parts.length === 2) return { page: "region", countrySlug: parts[0], regionSlug: parts[1] };
   if (parts.length === 3) {
     // 3-part: /country/wedding-category/slug → listing-profile (e.g. /england/wedding-venues/the-ritz)
@@ -349,6 +356,19 @@ function App() {
   const [activeLocationType, setActiveLocationType] = useState(initial.locationType || null);
   const [activeLocationSlug, setActiveLocationSlug] = useState(initial.locationSlug || null);
   const [magazineLight, setMagazineLight] = useState(true);
+
+  // ── Homepage destination grid settings (admin-controlled, persisted) ────────
+  const [homepageGridEnabled, setHomepageGridEnabled] = useState(true);
+  const [countryOverrides, setCountryOverrides] = useState({});
+
+  useEffect(() => {
+    getHomepageDestinationSettings()
+      .then(({ gridEnabled, countryOverrides: overrides }) => {
+        setHomepageGridEnabled(gridEnabled);
+        setCountryOverrides(overrides || {});
+      })
+      .catch(() => { /* defaults already set above */ });
+  }, []);
 
   // Ref: skip pushState when change came from popstate (back/forward)
   const skipPush = useRef(false);
@@ -472,6 +492,18 @@ function App() {
   const goPartnerEnquiry = () => setPage("partner-enquiry");
   const goUSA         = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("usa"); };
   const goItaly       = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("italy"); };
+
+  // Navigate to a country-level listing grid: /{country.slug}/wedding-venues
+  const goCountry = (country) => {
+    const slug = typeof country === 'string' ? country : country?.slug;
+    if (!slug) return;
+    setCategoryRegion(null);
+    setCategorySearchQuery(null);
+    setActiveCountrySlug(slug);
+    setActiveRegionSlug(null);
+    setActiveCategorySlug('wedding-venues');
+    setPage("region-category");
+  };
   const goAdmin       = () => setPage("admin");
   const goVendor              = () => setPage("vendor");
   const goPortal              = () => setPage("portal");
@@ -883,7 +915,7 @@ function App() {
           <PartnerEnquiryPage footerNav={footerNav} onBack={goHome} onNavigateStandard={goStandard} onNavigateAbout={goAbout} />
         )}
         {page === "home" && (
-          <HomePage onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} onViewStandard={goStandard} onViewAbout={goAbout} onViewContact={goContact} onViewPartnership={goPartnership} onViewVendor={goVendor} onViewAdmin={goAdmin} onViewUSA={goUSA} onViewItaly={goItaly} onViewMagazine={goMagazine} onViewMagazineArticle={goMagazineArticle} footerNav={footerNav} />
+          <HomePage onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} onViewStandard={goStandard} onViewAbout={goAbout} onViewContact={goContact} onViewPartnership={goPartnership} onViewVendor={goVendor} onViewAdmin={goAdmin} onViewUSA={goUSA} onViewItaly={goItaly} onViewCountry={goCountry} onViewMagazine={goMagazine} onViewMagazineArticle={goMagazineArticle} footerNav={footerNav} homepageGridEnabled={homepageGridEnabled} countryOverrides={countryOverrides} />
         )}
         {page === "not-found" && (
           <NotFoundPage onNavigateHome={goHome} onNavigateCategory={goCategory} />

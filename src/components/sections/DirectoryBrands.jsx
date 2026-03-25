@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { useTheme } from "../../theme/ThemeContext";
 import { REGIONS } from "../../data/italyVenues";
 import { countrySlugFromGroup } from "../../data/geo.js";
+import { COUNTRY_REGISTRY } from "../../data/countryRegistry.js";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -77,22 +78,12 @@ const USA_COLUMN_DEFS = [
 ];
 
 // ── International destinations (display only, hover, no navigation yet) ────
-const INTL_DESTINATIONS = [
-  "Antigua", "Argentina", "Australia", "Austria", "Bahamas", "Bali",
-  "Barbados", "Belgium", "Bermuda", "Brazil", "Canada", "Caribbean",
-  "Colombia", "Costa Rica", "Croatia", "Cyprus", "Czech Republic",
-  "Denmark", "Dominican Republic", "Dubai", "Egypt", "Fiji",
-  "Finland", "France", "Germany", "Greece", "Grenada",
-  "Hawaii", "Hungary", "Iceland", "India", "Indonesia",
-  "Ireland", "Israel", "Italy", "Jamaica", "Japan",
-  "Kenya", "Maldives", "Malta", "Mauritius", "Mexico",
-  "Monaco", "Montenegro", "Morocco", "Netherlands", "New Zealand",
-  "Norway", "Peru", "Philippines", "Poland", "Portugal",
-  "Puerto Rico", "Saint Lucia", "Santorini", "Scotland", "Seychelles",
-  "Singapore", "South Africa", "Spain", "Sri Lanka", "Sweden",
-  "Switzerland", "Tanzania", "Thailand", "Turkey", "Turks & Caicos",
-  "USA", "Vietnam", "Wales",
-];
+// INTL_DESTINATIONS removed — countries are now sourced from COUNTRY_REGISTRY.
+// Visibility is controlled by three rules applied at render time:
+//   1. homepageGridEnabled (master switch, from admin / platform_settings)
+//   2. country.showOnHomepage (per-country default, from countryRegistry.js)
+//   3. country.listingCount > 0 (no empty countries ever shown)
+// Admin can override showOnHomepage per-country via countryOverrides prop.
 
 // ── Split array into N columns ──────────────────────────────────────────────
 function toColumns(arr, n) {
@@ -100,9 +91,14 @@ function toColumns(arr, n) {
   return Array.from({ length: n }, (_, i) => arr.slice(i * size, (i + 1) * size));
 }
 
-export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUSA, onViewItaly, showInternational = true, showUK = true, showItaly = false, showUSA = false }) {
+export default function DirectoryBrands({
+  onViewRegion, onViewCategory, onViewUSA, onViewItaly, onViewCountry,
+  showInternational = true, showUK = true, showItaly = false, showUSA = false,
+  // Homepage grid controls (admin-driven)
+  homepageGridEnabled = true,
+  countryOverrides = {},   // { [slug]: boolean } — admin overrides per country
+}) {
   const C = useTheme();
-  const cols = toColumns(INTL_DESTINATIONS, 4);
 
   // Pre-index REGIONS by name for O(1) lookup (shared by UK + Italy)
   const byName = useMemo(() => new Map(REGIONS.map((r) => [r.name, r])), []);
@@ -125,6 +121,22 @@ export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUS
         .filter(Boolean),
     }));
   }, [byName]);
+
+  // ── Visible countries for the international grid ────────────────────────
+  // Rule: master switch ON  AND  country enabled  AND  at least one listing
+  const visibleCountries = useMemo(() => {
+    if (!homepageGridEnabled) return [];
+    return COUNTRY_REGISTRY
+      .filter(c => {
+        const enabled = countryOverrides[c.slug] !== undefined
+          ? countryOverrides[c.slug]       // admin override wins
+          : (c.showOnHomepage !== false);  // registry default
+        return enabled && (c.listingCount ?? 0) > 0;
+      })
+      .sort((a, b) => a.name.localeCompare(b.name)); // alphabetical
+  }, [homepageGridEnabled, countryOverrides]);
+
+  const intlCols = useMemo(() => toColumns(visibleCountries, 4), [visibleCountries]);
 
   // Shared renderer for a region directory grid (UK or Italy)
   const renderRegionGrid = (columns, label, subtitle) => (
@@ -360,7 +372,7 @@ export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUS
       {showUSA && renderSearchGrid(USA_COLUMN_DEFS, "United States", (<>Browse American <span style={{ fontStyle: "italic", color: C.gold }}>Destinations</span></>))}
 
       {/* ── International Destinations ─────────────────────────────────── */}
-      {showInternational && (
+      {showInternational && homepageGridEnabled && visibleCountries.length > 0 && (
         <section
           aria-label="International destinations directory"
           className="home-directory-section"
@@ -412,7 +424,7 @@ export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUS
               </h2>
             </div>
 
-            {/* Country columns */}
+            {/* Country columns — data-driven from COUNTRY_REGISTRY */}
             <div
               className="home-intl-grid"
               style={{
@@ -421,12 +433,17 @@ export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUS
                 gap: 40,
               }}
             >
-              {cols.map((col, ci) => (
+              {intlCols.map((col, ci) => (
                 <ul key={ci} style={{ listStyle: "none", padding: 0, margin: 0 }}>
                   {col.map((country) => (
-                    <li key={country}>
+                    <li key={country.slug}>
                       <button
-                        onClick={() => country === "USA" && onViewUSA ? onViewUSA() : country === "Italy" && onViewItaly ? onViewItaly() : onViewCategory?.({ searchQuery: country })}
+                        onClick={() => {
+                          if (country.slug === 'usa' && onViewUSA) { onViewUSA(); return; }
+                          if (country.slug === 'italy' && onViewItaly) { onViewItaly(); return; }
+                          if (onViewCountry) { onViewCountry(country); return; }
+                          onViewCategory?.({ countrySlug: country.slug, searchQuery: country.name });
+                        }}
                         style={{
                           background: "none",
                           border: "none",
@@ -444,7 +461,7 @@ export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUS
                         onMouseEnter={(e) => (e.currentTarget.style.color = C.gold)}
                         onMouseLeave={(e) => (e.currentTarget.style.color = C.grey)}
                       >
-                        {country}
+                        {country.name}
                       </button>
                     </li>
                   ))}

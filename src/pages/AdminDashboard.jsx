@@ -8,6 +8,7 @@ import { useState, useRef, useEffect, useCallback, useMemo, Suspense } from "rea
 import { ThemeCtx } from "../theme/ThemeContext";
 import { DARK_C } from "../theme/tokens";
 import { DIRECTORY_COUNTRIES } from "../data/countryRegistry.js";
+import { getHomepageDestinationSettings, setHomepageDestinationGridEnabled, setCountryHomepageOverride } from "../services/platformSettingsService";
 import { ITALY_REGIONS } from "../data/italy/regions.js";
 import { ITALY_CITIES } from "../data/italy/cities.js";
 import { REGION_AUTO_THRESHOLD, evaluateRegionActivation } from "../engine/activation.js";
@@ -3481,6 +3482,33 @@ function CountriesModule({ C }) {
   const thumbInputRef = useRef(null);
   const iconInputRef = useRef(null);
 
+  // ── Homepage destination grid controls ──────────────────────────────
+  const [homepageGridEnabled, setHomepageGridEnabledState] = useState(true);
+  const [countryOverrides, setCountryOverridesState] = useState({});
+  const [homepageSettingsSaving, setHomepageSettingsSaving] = useState(false);
+
+  useEffect(() => {
+    getHomepageDestinationSettings()
+      .then(({ gridEnabled, countryOverrides: overrides }) => {
+        setHomepageGridEnabledState(gridEnabled);
+        setCountryOverridesState(overrides || {});
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleGridToggle = async (enabled) => {
+    setHomepageGridEnabledState(enabled);
+    setHomepageSettingsSaving(true);
+    await setHomepageDestinationGridEnabled(enabled).catch(() => {});
+    setHomepageSettingsSaving(false);
+  };
+
+  const handleCountryHomepageToggle = async (slug, enabled) => {
+    const next = { ...countryOverrides, [slug]: enabled };
+    setCountryOverridesState(next);
+    await setCountryHomepageOverride(slug, enabled).catch(() => {});
+  };
+
   const allCountries = [...DIRECTORY_COUNTRIES, ...extraCountries];
   const totalCountries = allCountries.length;
   const totalRegions = DIRECTORY_REGIONS.length;
@@ -4424,6 +4452,81 @@ function CountriesModule({ C }) {
           >
             <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> Add Country
           </button>
+        </div>
+      </div>
+
+      {/* ── Homepage Destination Grid Controls ──────────────────────────── */}
+      <div style={{
+        background: C.card, border: `1px solid ${C.border}`, borderRadius: 4,
+        padding: "20px 24px", marginBottom: 20,
+      }}>
+        {/* Master switch */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <div>
+            <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: C.gold, fontWeight: 700, marginBottom: 2 }}>
+              Homepage Destination Grid
+            </div>
+            <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2 }}>
+              Master switch — controls the entire "Browse Iconic Destinations" section
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {homepageSettingsSaving && (
+              <span style={{ fontFamily: NU, fontSize: 9, color: C.grey2 }}>saving…</span>
+            )}
+            <button
+              onClick={() => handleGridToggle(!homepageGridEnabled)}
+              style={{
+                fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "0.1em",
+                textTransform: "uppercase", padding: "6px 16px", borderRadius: 3, cursor: "pointer",
+                border: `1px solid ${homepageGridEnabled ? C.green : C.border}`,
+                background: homepageGridEnabled ? `${C.green}18` : "transparent",
+                color: homepageGridEnabled ? C.green : C.grey2,
+                transition: "all 0.2s",
+              }}
+            >
+              {homepageGridEnabled ? "ON" : "OFF"}
+            </button>
+          </div>
+        </div>
+
+        {/* Per-country toggles */}
+        <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 16 }}>
+          <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: C.grey2, fontWeight: 600, marginBottom: 12 }}>
+            Per-country homepage display
+            <span style={{ marginLeft: 8, fontWeight: 400 }}>— only countries with active listings can appear regardless</span>
+          </div>
+          <div style={{
+            display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "6px 16px",
+            maxHeight: 220, overflowY: "auto",
+          }}>
+            {[...DIRECTORY_COUNTRIES].sort((a, b) => a.name.localeCompare(b.name)).map(c => {
+              const resolved = countryOverrides[c.slug] !== undefined ? countryOverrides[c.slug] : (c.showOnHomepage !== false);
+              return (
+                <div key={c.slug} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 0" }}>
+                  <span style={{ fontFamily: NU, fontSize: 11, color: resolved ? C.off : C.grey2 }}>
+                    {c.name}
+                    {(c.listingCount ?? 0) === 0 && (
+                      <span style={{ fontSize: 9, color: C.grey2, marginLeft: 4 }}>(no listings)</span>
+                    )}
+                  </span>
+                  <button
+                    onClick={() => handleCountryHomepageToggle(c.slug, !resolved)}
+                    style={{
+                      fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em",
+                      textTransform: "uppercase", padding: "3px 10px", borderRadius: 2, cursor: "pointer",
+                      border: `1px solid ${resolved ? C.green : C.border}`,
+                      background: resolved ? `${C.green}15` : "transparent",
+                      color: resolved ? C.green : C.grey2,
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    {resolved ? "Yes" : "No"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
