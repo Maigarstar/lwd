@@ -11,7 +11,7 @@ import { DIRECTORY_COUNTRIES } from "../data/countryRegistry.js";
 import { ITALY_REGIONS } from "../data/italy/regions.js";
 import { ITALY_CITIES } from "../data/italy/cities.js";
 import { REGION_AUTO_THRESHOLD, evaluateRegionActivation } from "../engine/activation.js";
-import { fetchListings, fetchListingsAdmin, fetchListingBySlugAdmin, isSupabaseAvailable, createListing, deleteListing } from "../services/listings";
+import { fetchListings, fetchListingBySlug, isSupabaseAvailable, createListing, deleteListing } from "../services/listings";
 import { fetchShowcases, createShowcase, updateShowcase, deleteShowcase } from "../services/showcaseService";
 import { uploadMediaFile } from "../utils/storageUpload";
 import categoryCssRaw from "../category.css?raw";
@@ -6120,7 +6120,7 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
     if (!countrySlug) { setVenueList([]); return; }
     const filters = { status: 'active', country_slug: countrySlug };
     if (regionSlug) filters.region_slug = regionSlug;
-    fetchListingsAdmin(filters).then(data => setVenueList(Array.isArray(data) ? data : [])).catch(() => setVenueList([]));
+    fetchListings(filters).then(data => setVenueList(Array.isArray(data) ? data : [])).catch(() => setVenueList([]));
   }, [countrySlug, regionSlug]);
 
   const handleSave = async (publishOverride) => {
@@ -9357,7 +9357,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
     } else if (intent.type === 'showcase-static') {
       setActiveTab('venue-profiles');
     } else if (intent.type === 'listing' && intent.slug) {
-      fetchListingBySlugAdmin(intent.slug).then(listing => {
+      fetchListingBySlug(intent.slug).then(listing => {
         if (listing?.id) {
           setListingStudioMode('edit');
           setListingStudioListingId(listing.id);
@@ -9615,7 +9615,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
             setListings([]);
             return;
           }
-          const data = await fetchListingsAdmin();
+          const data = await fetchListings();
           const rows = data && data.length > 0 ? data : [];
           setListings(rows);
 
