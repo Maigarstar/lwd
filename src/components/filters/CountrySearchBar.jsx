@@ -1,6 +1,6 @@
 // ─── src/components/filters/CountrySearchBar.jsx ─────────────────────────────
 // Unified sticky search bar for country pages.
-// Light warm-stone editorial system, dark hero, light everything below.
+// Light warm-stone editorial system — dark hero, light everything below.
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useTheme } from "../../theme/ThemeContext";
 import { CAPS, DEFAULT_FILTERS } from "../../data/italyVenues";
@@ -48,25 +48,49 @@ const SORT_OPTIONS = [
   { slug: "price-high",  name: "Price: High \u2192 Low" },
 ];
 
-// ── Warm stone palette, no pure white, no heavy black ───────────────────────
+// ── Warm stone palette — no pure white, no heavy black ───────────────────────
 const STONE = "#F6F3EE";          // warm stone base
 const STONE_DEEP = "#EBE6DC";     // deeper stone for refinement panels
-const CL = {
-  barBg:       STONE,
-  barBorder:   "rgba(180,165,140,0.22)",
-  text:        "rgba(50,40,25,0.58)",
-  textActive:  "#7A6230",
-  textStrong:  "rgba(50,40,25,0.85)",
-  border:      "rgba(180,165,140,0.25)",
-  borderOpen:  "rgba(201,168,76,0.45)",
-  gold:        "#C9A84C",
-  goldDim:     "rgba(140,110,50,0.55)",
-  count:       "rgba(50,40,25,0.40)",
-  divider:     "rgba(180,165,140,0.14)",
-};
+
+function buildPalette(dark) {
+  if (dark) return {
+    barBg:      "#0f0d0a",
+    panelBg:    "#0a0806",
+    text:       "rgba(255,255,255,0.45)",
+    textActive: "#C9A84C",
+    textStrong: "rgba(255,255,255,0.85)",
+    border:     "rgba(255,255,255,0.10)",
+    borderOpen: "rgba(201,168,76,0.45)",
+    gold:       "#C9A84C",
+    goldDim:    "rgba(201,168,76,0.55)",
+    count:      "rgba(255,255,255,0.30)",
+    divider:    "rgba(255,255,255,0.06)",
+    activeTab:  "#C9A84C",
+    searchBtn:  "#C9A84C",
+    searchHov:  "#b8941e",
+    viewActive: "#C9A84C",
+  };
+  return {
+    barBg:      STONE,
+    panelBg:    STONE_DEEP,
+    text:       "rgba(50,40,25,0.58)",
+    textActive: "#7A6230",
+    textStrong: "rgba(50,40,25,0.85)",
+    border:     "rgba(180,165,140,0.25)",
+    borderOpen: "rgba(201,168,76,0.45)",
+    gold:       "#C9A84C",
+    goldDim:    "rgba(140,110,50,0.55)",
+    count:      "rgba(50,40,25,0.40)",
+    divider:    "rgba(180,165,140,0.14)",
+    activeTab:  "#1a1a1a",
+    searchBtn:  "#1a1a1a",
+    searchHov:  "#333",
+    viewActive: "#1a1a1a",
+  };
+}
 
 // ═════════════════════════════════════════════════════════════════════════════
-// MegaPill, warm-stone editorial pill
+// MegaPill — warm-stone editorial pill
 // ═════════════════════════════════════════════════════════════════════════════
 function MegaPill({ label, active, isFirst, onSelect, onHover, hovered }) {
   return (
@@ -113,7 +137,7 @@ function MegaPill({ label, active, isFirst, onSelect, onHover, hovered }) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// LuxPanel, warm-stone editorial panel
+// LuxPanel — warm-stone editorial panel
 // ═════════════════════════════════════════════════════════════════════════════
 function LuxPanel({ label, children }) {
   return (
@@ -146,20 +170,22 @@ function LuxPanel({ label, children }) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// CountrySearchBar, the unified sticky bar with luxury mega menus
+// CountrySearchBar — the unified sticky bar with luxury mega menus
 // ═════════════════════════════════════════════════════════════════════════════
 export default function CountrySearchBar({
   filters, onFiltersChange, viewMode, onViewMode, sortMode, onSortChange, total, regions,
   onVendorSearch, countryFilter, mapContent,
 }) {
   const C = useTheme();
+  const dark = C.black === "#080808";
+  const CL = buildPalette(dark);
 
   const [mode, setMode] = useState("venues");
   const [openMenu, setOpenMenu] = useState(null);
   const [hov, setHov] = useState(null);
   const barRef = useRef(null);
 
-  // Map slide animation, mount on open, keep mounted during close animation
+  // Map slide animation — mount on open, keep mounted during close animation
   const [mapMounted, setMapMounted] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
 
@@ -229,7 +255,7 @@ export default function CountrySearchBar({
     : null;
   const cities = countryEntry ? countryEntry.cities : [];
 
-  // Toggle a menu, clicking the same trigger closes it
+  // Toggle a menu — clicking the same trigger closes it
   const toggle = (key) => setOpenMenu((prev) => prev === key ? null : key);
 
   // ── Trigger button factory ──
@@ -291,7 +317,7 @@ export default function CountrySearchBar({
   }, [vendorLocation, regionOpts]);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // Mega menu panel content renderers, warm-stone editorial panels
+  // Mega menu panel content renderers — warm-stone editorial panels
   // ═══════════════════════════════════════════════════════════════════════════
 
   const renderRegionPanel = () => (
@@ -377,13 +403,12 @@ export default function CountrySearchBar({
       role="search"
       aria-label={mode === "venues" ? "Venue search" : "Vendor search"}
       style={{
-        background:   STONE,
-        borderTop:    `1px solid ${CL.divider}`,
+        background:   CL.barBg,
         borderBottom: `1px solid ${CL.divider}`,
         position:     "sticky",
         top:          NAV_H,
         zIndex:       800,
-        boxShadow:    "0 2px 16px rgba(0,0,0,0.035)",
+        boxShadow:    "none",
       }}
     >
       {/* ── Trigger row ── */}
@@ -401,7 +426,7 @@ export default function CountrySearchBar({
             <button key={m} role="tab" aria-selected={mode === m}
               onClick={() => { setMode(m); setOpenMenu(null); }}
               style={{
-                background: mode === m ? CL.gold : "transparent", border: "none",
+                background: mode === m ? CL.activeTab : "transparent", border: "none",
                 color: mode === m ? "#fff" : CL.text, fontSize: 9, fontWeight: 700,
                 letterSpacing: "1.5px", textTransform: "uppercase", padding: "6px 14px",
                 cursor: "pointer", fontFamily: NU, transition: "all 0.2s",
@@ -427,13 +452,13 @@ export default function CountrySearchBar({
             <button
               onClick={() => setOpenMenu(null)}
               style={{
-                background: CL.gold, border: "none", borderRadius: 3, color: "#fff",
+                background: CL.searchBtn, border: "none", borderRadius: 3, color: "#fff",
                 padding: "7px 18px", fontSize: 9, fontWeight: 800, letterSpacing: "1.5px",
                 textTransform: "uppercase", cursor: "pointer", fontFamily: NU,
                 whiteSpace: "nowrap", flexShrink: 0, transition: "background 0.2s",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#b8941e")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = CL.gold)}
+              onMouseEnter={(e) => (e.currentTarget.style.background = CL.searchHov)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = CL.searchBtn)}
             >Search</button>
 
             {hasActiveFilters && (
@@ -460,13 +485,13 @@ export default function CountrySearchBar({
 
             <button onClick={handleVendorSearch}
               style={{
-                background: CL.gold, border: "none", borderRadius: 3, color: "#fff",
+                background: CL.searchBtn, border: "none", borderRadius: 3, color: "#fff",
                 padding: "7px 18px", fontSize: 9, fontWeight: 800, letterSpacing: "1.5px",
                 textTransform: "uppercase", cursor: "pointer", fontFamily: NU,
                 whiteSpace: "nowrap", flexShrink: 0, transition: "background 0.2s",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#b8941e")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = CL.gold)}
+              onMouseEnter={(e) => (e.currentTarget.style.background = CL.searchHov)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = CL.searchBtn)}
             >Search</button>
           </>
         )}
@@ -478,40 +503,26 @@ export default function CountrySearchBar({
           <span style={{ color: CL.goldDim, fontWeight: 600 }}>{total}</span> {mode === "vendors" ? "vendors" : "venues"}
         </span>
 
-        <div role="group" aria-label="View mode" style={{ display: "flex", border: "1px solid rgba(160,148,125,0.28)", borderRadius: 3, overflow: "hidden" }}>
-          {[
-            { id: "list", icon: "\u2261", title: "List view" },
-            { id: "grid", icon: "\u229e", title: "Grid view" },
-          ].map((v) => (
-            <button key={v.id} onClick={() => onViewMode?.(v.id)} title={v.title} aria-pressed={viewMode === v.id}
-              style={{
-                width: 30, height: 30, background: viewMode === v.id ? CL.gold : "transparent",
-                border: "none", borderRight: "1px solid rgba(160,148,125,0.28)",
-                color: viewMode === v.id ? "#fff" : CL.text, cursor: "pointer",
-                fontSize: 13, transition: "all 0.25s",
-              }}
-            >{v.icon}</button>
-          ))}
-          <button onClick={() => onViewMode?.(viewMode === "map" ? "list" : "map")} title="Map view" aria-pressed={viewMode === "map"}
-            style={{
-              display: "flex", alignItems: "center", gap: 4,
-              background: viewMode === "map" ? CL.gold : "transparent",
-              border: "none", color: viewMode === "map" ? "#fff" : CL.text,
-              cursor: "pointer", fontSize: 9, fontWeight: 700, fontFamily: NU,
-              letterSpacing: "1px", textTransform: "uppercase", padding: "0 12px",
-              height: 30, transition: "all 0.25s", whiteSpace: "nowrap",
-            }}
-          ><span style={{ fontSize: 13 }}>{"\u25ce"}</span> Map View</button>
-        </div>
+        <button onClick={() => onViewMode?.(viewMode === "map" ? "list" : "map")} title="Map view" aria-pressed={viewMode === "map"}
+          style={{
+            display: "flex", alignItems: "center", gap: 4,
+            background: viewMode === "map" ? CL.viewActive : "transparent",
+            border: "1px solid rgba(160,148,125,0.28)", borderRadius: 3,
+            color: viewMode === "map" ? "#fff" : CL.text,
+            cursor: "pointer", fontSize: 9, fontWeight: 700, fontFamily: NU,
+            letterSpacing: "1px", textTransform: "uppercase", padding: "0 12px",
+            height: 30, transition: "all 0.25s", whiteSpace: "nowrap",
+          }}
+        ><span style={{ fontSize: 13 }}>{"\u25ce"}</span> Map View</button>
       </div>
 
-      {/* ═══ MEGA MENU PANEL, warm stone refinement ══════════════════════ */}
+      {/* ═══ MEGA MENU PANEL — warm stone refinement ══════════════════════ */}
       {openMenu && (
         <div className="lwd-country-mega-panel" style={{
           borderTop: `1px solid ${CL.divider}`,
           borderBottom: `1px solid ${CL.divider}`,
-          background: STONE_DEEP,
-          boxShadow: "0 12px 40px rgba(0,0,0,0.045)",
+          background: CL.panelBg,
+          boxShadow: dark ? "0 12px 40px rgba(0,0,0,0.3)" : "0 12px 40px rgba(0,0,0,0.045)",
           animation: "lwd-mega-slide 0.22s ease",
           overflow: "hidden",
         }}>
@@ -533,7 +544,7 @@ export default function CountrySearchBar({
         </div>
       )}
 
-      {/* ═══ MAP PANEL, slides down/up attached to bar ══════════════════ */}
+      {/* ═══ MAP PANEL — slides down/up attached to bar ══════════════════ */}
       {mapMounted && mapContent && (
         <div style={{
           display: "grid",
@@ -544,7 +555,7 @@ export default function CountrySearchBar({
           <div style={{ overflow: "hidden", minHeight: 0 }}>
             <div style={{
               borderTop: `1px solid ${CL.divider}`,
-              background: STONE_DEEP,
+              background: "transparent",
             }}>
               {mapContent}
             </div>

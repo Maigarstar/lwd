@@ -24,6 +24,7 @@ import { CarouselRow }         from '../components/cards/editorial/CarouselCard'
 import PhotoGalleryGrid        from '../components/cards/editorial/PhotoGalleryGrid';
 import VenueEnquireCard        from '../components/cards/editorial/VenueEnquireCard';
 import { useBreakpoint }       from '../hooks/useWindowWidth';
+import HomeNav                 from '../components/nav/HomeNav';
 
 // ── Design tokens ────────────────────────────────────────────────────────────
 const GD   = 'var(--font-heading-primary)';
@@ -465,7 +466,14 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
   return (
     <div style={{ background: C.cream, fontFamily: NU }}>
 
-      {/* ── Sticky nav ──────────────────────────────────────────────────── */}
+      {/* ── Main site nav ────────────────────────────────────────────────── */}
+      <HomeNav
+        hasHero={true}
+        onNavigateStandard={() => onBack?.()}
+        onNavigateAbout={() => onBack?.()}
+      />
+
+      {/* ── Sticky nav (replaces HomeNav on scroll) ───────────────────── */}
       <StickyVenueNav venue={venue} activeSection={activeSection} onScrollTo={scrollTo} />
 
       {/* ── Hero ────────────────────────────────────────────────────────── */}

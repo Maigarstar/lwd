@@ -20,10 +20,18 @@ import {
 import { VENUES } from "../data/italyVenues";
 import { VENDORS } from "../data/vendors.js";
 
+import { DEFAULT_FILTERS } from "../data/italyVenues";
+
+import SiteFooter from "../components/sections/SiteFooter";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import GCard           from "../components/cards/GCard";
+import LuxuryVenueCard from "../components/cards/LuxuryVenueCard";
 import MapSection      from "../components/sections/MapSection";
 import QuickViewModal  from "../components/modals/QuickViewModal";
+import AICommandBar    from "../components/filters/AICommandBar";
+import CountrySearchBar from "../components/filters/CountrySearchBar";
+import InfoStrip        from "../components/sections/InfoStrip";
+import HomeNav          from "../components/nav/HomeNav";
 import "../category.css";
 
 // ── Font tokens ──────────────────────────────────────────────────────────────
@@ -54,6 +62,16 @@ export default function RegionCategoryPage({
   const [seoExpanded, setSeoExpanded] = useState(false);
   const [savedIds, setSavedIds] = useState([]);
   const [qvItem, setQvItem] = useState(null);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [activeFilters, setActiveFilters] = useState({
+    styles: [],
+    prices: [],
+    capacities: [],
+    locations: [],
+  });
+  const [venueFilters, setVenueFilters] = useState(() => ({ ...DEFAULT_FILTERS, region: regionSlug }));
+  const [sortMode, setSortMode] = useState("recommended");
+  const [venueViewMode, setVenueViewMode] = useState("grid");
 
   const C = darkMode ? getDarkPalette() : getLightPalette();
 
@@ -78,7 +96,7 @@ export default function RegionCategoryPage({
     [regionSlug, categorySlug],
   );
 
-  // ── Listings, wedding-venues → VENUES, else → VENDORS ───────────────────
+  // ── Listings — wedding-venues → VENUES, else → VENDORS ───────────────────
   const listings = useMemo(() => {
     if (categorySlug === "wedding-venues") {
       return VENUES.filter(
@@ -97,7 +115,94 @@ export default function RegionCategoryPage({
     });
   }, [categorySlug, regionSlug, regionName, region]);
 
-  const listingCount = listings.length;
+  // ── Extract available filter values (wedding-venues only) ────────────────────
+  const availableFilters = useMemo(() => {
+    if (categorySlug !== "wedding-venues") {
+      return { styles: [], prices: [], capacities: [], locations: [] };
+    }
+    const styles = new Set();
+    const prices = new Set();
+    const capacities = new Set();
+    const locations = new Set();
+
+    listings.forEach((v) => {
+      // Styles
+      if (v.styles && Array.isArray(v.styles)) {
+        v.styles.forEach((s) => styles.add(s));
+      }
+      // Prices (extract from priceFrom field)
+      if (v.priceFrom) {
+        if (v.priceFrom <= 15000) prices.add("£0–15k");
+        if (v.priceFrom > 15000 && v.priceFrom <= 30000) prices.add("£15–30k");
+        if (v.priceFrom > 30000) prices.add("£30k+");
+      }
+      // Capacities
+      if (v.capacity) {
+        if (v.capacity <= 50) capacities.add("Up to 50");
+        if (v.capacity > 50 && v.capacity <= 100) capacities.add("50–100");
+        if (v.capacity > 100 && v.capacity <= 200) capacities.add("100–200");
+        if (v.capacity > 200) capacities.add("200+");
+      }
+      // Locations (region/district)
+      if (v.region) {
+        locations.add(v.region);
+      }
+    });
+
+    return {
+      styles: Array.from(styles).sort(),
+      prices: ["£0–15k", "£15–30k", "£30k+"],
+      capacities: ["Up to 50", "50–100", "100–200", "200+"],
+      locations: Array.from(locations).sort(),
+    };
+  }, [listings, categorySlug]);
+
+  // ── Apply filters to listings ───────────────────────────────────────────────
+  const filteredListings = useMemo(() => {
+    if (categorySlug !== "wedding-venues") return listings;
+
+    return listings.filter((v) => {
+      // Style filter
+      if (activeFilters.styles?.length > 0) {
+        const hasStyle = activeFilters.styles.some((s) =>
+          v.styles?.includes(s)
+        );
+        if (!hasStyle) return false;
+      }
+
+      // Price filter
+      if (activeFilters.prices?.length > 0) {
+        let priceMatch = false;
+        activeFilters.prices.forEach((priceRange) => {
+          if (priceRange === "£0–15k" && v.priceFrom <= 15000) priceMatch = true;
+          if (priceRange === "£15–30k" && v.priceFrom > 15000 && v.priceFrom <= 30000) priceMatch = true;
+          if (priceRange === "£30k+" && v.priceFrom > 30000) priceMatch = true;
+        });
+        if (!priceMatch) return false;
+      }
+
+      // Capacity filter
+      if (activeFilters.capacities?.length > 0) {
+        let capacityMatch = false;
+        activeFilters.capacities.forEach((capRange) => {
+          if (capRange === "Up to 50" && v.capacity <= 50) capacityMatch = true;
+          if (capRange === "50–100" && v.capacity > 50 && v.capacity <= 100) capacityMatch = true;
+          if (capRange === "100–200" && v.capacity > 100 && v.capacity <= 200) capacityMatch = true;
+          if (capRange === "200+" && v.capacity > 200) capacityMatch = true;
+        });
+        if (!capacityMatch) return false;
+      }
+
+      // Location filter
+      if (activeFilters.locations?.length > 0) {
+        if (!activeFilters.locations.includes(v.region)) return false;
+      }
+
+      return true;
+    });
+  }, [listings, activeFilters, categorySlug]);
+
+  const listingCount = filteredListings.length;
 
   // ── Related categories (sibling categories in same region) ────────────────
   const siblingCategories = useMemo(
@@ -127,6 +232,8 @@ export default function RegionCategoryPage({
     return () => window.removeEventListener("scroll", fn);
   }, []);
 
+  const handleVenueFiltersChange = useCallback((f) => setVenueFilters(f), []);
+
   // ── Search submit → route to CategoryPage ─────────────────────────────────
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -147,7 +254,7 @@ export default function RegionCategoryPage({
     [],
   );
 
-  const searchLabel = countrySlug === "england" ? "England Search" : "Search";
+  const searchLabel = countrySlug === "uk" ? "UK Search" : "Search";
   const searchPlaceholder = `Search ${categoryLabel.toLowerCase()} in ${regionName}…`;
 
   // ── Canonical path for SEO panel ──────────────────────────────────────────
@@ -159,24 +266,18 @@ export default function RegionCategoryPage({
       <div style={{ background: C.black, minHeight: "100vh", color: C.white }}>
 
         {/* ════════════════════════════════════════════════════════════════════
-            1. NAV, breadcrumbs
+            1. NAV — main site navigation
         ════════════════════════════════════════════════════════════════════ */}
-        <RegionCategoryNav
-          onBack={onBack}
-          onBackHome={onBackHome}
-          scrolled={scrolled}
+        <HomeNav
+          hasHero={true}
           darkMode={darkMode}
           onToggleDark={() => setDarkMode((d) => !d)}
-          C={C}
-          countryName={countryName}
-          regionName={regionName}
-          categoryLabel={categoryLabel}
-          countrySlug={countrySlug}
-          regionSlug={regionSlug}
+          onNavigateStandard={() => onBackHome()}
+          onNavigateAbout={() => onBackHome()}
         />
 
         {/* ════════════════════════════════════════════════════════════════════
-            2. HERO, 50vh
+            2. HERO — 50vh
         ════════════════════════════════════════════════════════════════════ */}
         <section
           aria-label={`${categoryLabel} in ${regionName}`}
@@ -248,7 +349,7 @@ export default function RegionCategoryPage({
               display: "flex",
               flexDirection: "column",
               justifyContent: "flex-end",
-              padding: "0 80px 72px",
+              padding: "0 80px 24px",
               opacity: loaded ? 1 : 0,
               transform: loaded ? "translateY(0)" : "translateY(20px)",
               transition: "all 0.9s ease",
@@ -288,31 +389,13 @@ export default function RegionCategoryPage({
                 }}
               >
                 {categoryLabel} in{" "}
-                <em style={{ fontStyle: "italic", color: "rgba(201,168,76,0.95)" }}>
+                <em style={{ fontStyle: "italic", color: "#d1a352" }}>
                   {regionName}
                 </em>
               </h1>
-              {listingCount > 0 && (
-                <span
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: "1.5px",
-                    textTransform: "uppercase",
-                    color: "#0f0d0a",
-                    background: "#C9A84C",
-                    padding: "5px 14px",
-                    borderRadius: "var(--lwd-radius-input)",
-                    whiteSpace: "nowrap",
-                    fontFamily: NU,
-                  }}
-                >
-                  {listingCount} {categorySlug === "wedding-venues" ? "Venue" : "Listing"}{listingCount !== 1 ? "s" : ""}
-                </span>
-              )}
             </div>
 
-            {/* Subtitle, first sentence of editorial */}
+            {/* Subtitle — first sentence of editorial */}
             <p
               style={{
                 fontSize: 16,
@@ -334,7 +417,7 @@ export default function RegionCategoryPage({
               aria-label="Key statistics"
             >
               {[
-                { val: listingCount > 0 ? listingCount : " - ", label: categorySlug === "wedding-venues" ? "Curated Venues" : "Curated Listings" },
+                { val: listingCount > 0 ? listingCount : "—", label: categorySlug === "wedding-venues" ? "Curated Venues" : "Curated Listings" },
                 { val: regionName, label: "Region", isText: true },
                 {
                   val: listingCount > 0 ? "100%" : "Coming Soon",
@@ -376,65 +459,62 @@ export default function RegionCategoryPage({
                 </div>
               ))}
             </div>
+
+            {/* Breadcrumb trail */}
+            <nav
+              aria-label="Breadcrumb"
+              style={{
+                marginTop: 48,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: 11,
+                color: "rgba(255,255,255,0.45)",
+                letterSpacing: "0.5px",
+                fontFamily: NU,
+              }}
+            >
+              <button
+                onClick={onBackHome}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 11,
+                  color: "rgba(255,255,255,0.45)",
+                  padding: 0,
+                  fontFamily: NU,
+                  letterSpacing: "0.5px",
+                }}
+              >
+                Home
+              </button>
+              <span style={{ opacity: 0.4 }}>›</span>
+              <span>{countryName}</span>
+              <span style={{ opacity: 0.4 }}>›</span>
+              <button
+                onClick={onBack}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 11,
+                  color: "rgba(255,255,255,0.45)",
+                  padding: 0,
+                  fontFamily: NU,
+                  letterSpacing: "0.5px",
+                }}
+              >
+                {regionName}
+              </button>
+              <span style={{ opacity: 0.4 }}>›</span>
+              <span style={{ color: "rgba(201,168,76,0.9)", fontWeight: 600 }}>
+                {categoryLabel}
+              </span>
+            </nav>
           </div>
         </section>
 
-
-        {/* ════════════════════════════════════════════════════════════════════
-            3. SCOPED SEARCH
-        ════════════════════════════════════════════════════════════════════ */}
-        <section
-          className="lwd-rc-section"
-          aria-label={`Search ${categoryLabel.toLowerCase()} in ${regionName}`}
-          style={{
-            background: C.dark,
-            borderBottom: `1px solid ${C.border}`,
-            padding: "40px 48px",
-          }}
-        >
-          <div style={{ maxWidth: 680, margin: "0 auto" }}>
-            <form onSubmit={handleSearchSubmit} role="search" style={{ display: "flex", gap: 12 }}>
-              <div style={{ flex: 1, position: "relative" }}>
-                <label
-                  style={{
-                    position: "absolute",
-                    top: -22,
-                    left: 0,
-                    fontSize: 9,
-                    letterSpacing: "3px",
-                    textTransform: "uppercase",
-                    color: C.gold,
-                    fontFamily: NU,
-                    fontWeight: 700,
-                  }}
-                >
-                  {searchLabel}
-                </label>
-                <input
-                  type="text"
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  placeholder={searchPlaceholder}
-                  style={{
-                    width: "100%",
-                    padding: "14px 20px",
-                    fontSize: 14,
-                    fontFamily: NU,
-                    background: C.card,
-                    border: `1px solid ${C.border2}`,
-                    borderRadius: "var(--lwd-radius-input)",
-                    color: C.white,
-                    outline: "none",
-                    transition: "border-color 0.2s",
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = C.gold)}
-                  onBlur={(e) => (e.target.style.borderColor = C.border2)}
-                />
-              </div>
-              <SearchButton C={C} />
-            </form>
-          </div>
-        </section>
 
 
         {/* ════════════════════════════════════════════════════════════════════
@@ -498,31 +578,62 @@ export default function RegionCategoryPage({
             5. LISTINGS
         ════════════════════════════════════════════════════════════════════ */}
         {listingCount > 0 ? (
-          <section
-            className="lwd-rc-section"
-            aria-label={`${categoryLabel} listings`}
-            style={{
-              background: C.dark,
-              padding: "72px 48px",
-              borderBottom: `1px solid ${C.border}`,
-            }}
-          >
-            <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 40 }}>
-                <div style={{ width: 28, height: 1, background: C.gold }} />
-                <span
-                  style={{
-                    fontFamily: NU,
-                    fontSize: 9,
-                    letterSpacing: "0.3em",
-                    textTransform: "uppercase",
-                    color: C.gold,
-                    fontWeight: 600,
-                  }}
-                >
-                  {listingCount} {categorySlug === "wedding-venues" ? "Venue" : "Listing"}{listingCount !== 1 ? "s" : ""}
-                </span>
-              </div>
+          <>
+            {/* ═══ AI COMMAND BAR + FILTER BAR — same as RegionPage ═══ */}
+            <AICommandBar
+              countrySlug={countrySlug}
+              countryName={countryName}
+              regionSlug={regionSlug}
+              regionName={regionName}
+              categorySlug={categorySlug}
+              entityType="venue"
+              availableRegions={availableFilters.locations.map(l => ({ name: l, slug: l.toLowerCase().replace(/\s+/g, "-") }))}
+              filters={venueFilters}
+              onFiltersChange={handleVenueFiltersChange}
+              defaultFilters={DEFAULT_FILTERS}
+            />
+            <CountrySearchBar
+              filters={venueFilters}
+              onFiltersChange={handleVenueFiltersChange}
+              viewMode={venueViewMode}
+              onViewMode={setVenueViewMode}
+              sortMode={sortMode}
+              onSortChange={setSortMode}
+              total={listingCount}
+              regions={[{ name: regionName, slug: regionSlug }]}
+              countryFilter={countryName}
+              mapContent={
+                venueViewMode === "map" ? (
+                  <MapSection
+                    venues={filteredListings}
+                    vendors={[]}
+                    headerLabel={`${listingCount} ${categoryLabel} in ${regionName}`}
+                    mapTitle={`◎ ${regionName} ${categoryLabel}`}
+                    countryFilter={countryName || "England"}
+                    onMarkerClick={(slug) => onViewVenue(slug)}
+                    onClose={() => setVenueViewMode("grid")}
+                  />
+                ) : null
+              }
+            />
+            <InfoStrip
+              availableRegions={[{ name: regionName, slug: regionSlug }]}
+              filters={venueFilters}
+              onFiltersChange={handleVenueFiltersChange}
+              defaultFilters={DEFAULT_FILTERS}
+            />
+
+            <section
+              className="lwd-rc-section"
+              aria-label={`${categoryLabel} listings`}
+              style={{
+                background: C.dark,
+                padding: "40px 48px 72px",
+                borderBottom: `1px solid ${C.border}`,
+              }}
+            >
+              <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+
               {categorySlug === "wedding-venues" ? (
                 <div
                   className="lwd-venue-grid"
@@ -533,14 +644,13 @@ export default function RegionCategoryPage({
                   }}
                   aria-label="Venue grid"
                 >
-                  {listings.map((v) => (
-                    <GCard
+                  {filteredListings.map((v) => (
+                    <LuxuryVenueCard
                       key={v.id}
                       v={v}
-                      saved={savedIds.includes(v.id)}
-                      onSave={toggleSave}
-                      onView={onViewVenue}
-                      onQuickView={setQvItem}
+                      onView={() => onViewVenue(v.id || v.slug)}
+                      quickViewItem={qvItem}
+                      setQuickViewItem={setQvItem}
                     />
                   ))}
                 </div>
@@ -552,7 +662,7 @@ export default function RegionCategoryPage({
                     gap: 24,
                   }}
                 >
-                  {listings.map((item) => (
+                  {filteredListings.map((item) => (
                     <ListingCard
                       key={item.id}
                       item={item}
@@ -563,7 +673,8 @@ export default function RegionCategoryPage({
                 </div>
               )}
             </div>
-          </section>
+            </section>
+          </>
         ) : (
           /* ── Premium "Coming Soon" editorial state ── */
           <section
@@ -616,7 +727,7 @@ export default function RegionCategoryPage({
                 }}
               >
                 Our editorial team is personally vetting {categoryLabel.toLowerCase()} in {regionName}.
-                Premium listings are arriving soon, every recommendation is editorially
+                Premium listings are arriving soon — every recommendation is editorially
                 verified, never pay-to-play.
               </p>
               <BrowseAllButton
@@ -629,66 +740,24 @@ export default function RegionCategoryPage({
         )}
 
 
-        {/* ════════════════════════════════════════════════════════════════════
-            5b. MAP, only for wedding-venues with real listings
-        ════════════════════════════════════════════════════════════════════ */}
-        {categorySlug === "wedding-venues" && listingCount > 0 && (
-          <MapSection
-            venues={listings}
-            headerLabel={`Wedding Venues in ${regionName}`}
-            mapTitle={`◎ Interactive Map · ${regionName}`}
-          />
-        )}
+
+
 
 
         {/* ════════════════════════════════════════════════════════════════════
-            6. BROWSE ALL CTA (only when listings exist)
-        ════════════════════════════════════════════════════════════════════ */}
-        {listingCount > 0 && (
-          <section
-            className="lwd-rc-section"
-            aria-label="Browse all"
-            style={{
-              background: C.black,
-              padding: "56px 48px",
-              textAlign: "center",
-              borderBottom: `1px solid ${C.border}`,
-            }}
-          >
-            <p
-              style={{
-                fontFamily: NU,
-                fontSize: 13,
-                color: C.grey,
-                marginBottom: 20,
-                fontWeight: 300,
-              }}
-            >
-              Explore filters, map view, and advanced sorting on the full directory
-            </p>
-            <BrowseAllButton
-              C={C}
-              label={`Browse All ${categoryLabel}`}
-              onClick={() => onViewCategory({ countrySlug, regionSlug })}
-            />
-          </section>
-        )}
-
-
-        {/* ════════════════════════════════════════════════════════════════════
-            7. RELATED CATEGORIES (same region, different category)
+            7. WEDDING VENDORS — carousel (same as RegionPage)
         ════════════════════════════════════════════════════════════════════ */}
         <section
           className="lwd-rc-section"
-          aria-label="Related categories"
+          aria-label="Wedding vendors"
           style={{
             background: C.dark,
-            padding: "72px 48px",
+            padding: "96px 120px",
             borderBottom: `1px solid ${C.border}`,
           }}
         >
           <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 40 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
               <div style={{ width: 28, height: 1, background: C.gold }} />
               <span
                 style={{
@@ -700,88 +769,39 @@ export default function RegionCategoryPage({
                   fontWeight: 600,
                 }}
               >
-                More in {regionName}
+                Find Your Team
               </span>
+              <div style={{ width: 28, height: 1, background: C.gold }} />
             </div>
-            <div
+            <h2
               style={{
-                display:                 "flex",
-                overflowX:               "auto",
-                flexWrap:                "nowrap",
-                gap:                     12,
-                paddingBottom:           8,
-                scrollbarWidth:          "none",
-                msOverflowStyle:         "none",
-                WebkitOverflowScrolling: "touch",
+                fontFamily: GD,
+                fontSize: "clamp(26px, 3vw, 36px)",
+                fontWeight: 400,
+                color: C.off,
+                lineHeight: 1.2,
+                margin: "0 0 32px",
               }}
             >
-              {siblingCategories.map((vc) => (
-                <SiblingCategoryCard
-                  key={vc.slug}
-                  vc={vc}
-                  C={C}
-                  onClick={() => onViewRegionCategory(countrySlug, regionSlug, vc.slug)}
-                />
-              ))}
-            </div>
+              {regionName}{" "}
+              <span style={{ fontStyle: "italic", color: C.gold }}>Wedding Vendors</span>
+            </h2>
+            <VendorCategoryCarousel
+              categories={VENDOR_CATEGORIES}
+              C={C}
+              onSelect={(slug) => onViewRegionCategory(countrySlug, regionSlug, slug)}
+            />
           </div>
         </section>
 
 
-        {/* ════════════════════════════════════════════════════════════════════
-            8. RELATED REGIONS (same category, nearby regions)
-        ════════════════════════════════════════════════════════════════════ */}
-        {relatedRegions.length > 0 && (
-          <section
-            className="lwd-rc-section"
-            aria-label="Related regions"
-            style={{
-              background: C.black,
-              padding: "72px 48px",
-              borderBottom: `1px solid ${C.border}`,
-            }}
-          >
-            <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 40 }}>
-                <div style={{ width: 28, height: 1, background: C.gold }} />
-                <span
-                  style={{
-                    fontFamily: NU,
-                    fontSize: 9,
-                    letterSpacing: "0.3em",
-                    textTransform: "uppercase",
-                    color: C.gold,
-                    fontWeight: 600,
-                  }}
-                >
-                  {categoryLabel} Nearby
-                </span>
-              </div>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-                  gap: 16,
-                }}
-              >
-                {relatedRegions.map((r) => (
-                  <RelatedRegionCard
-                    key={r.slug}
-                    region={r}
-                    categoryLabel={categoryLabel}
-                    C={C}
-                    onClick={() => onViewRegionCategory(countrySlug, r.slug, categorySlug)}
-                  />
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
+        {/* Related Regions — removed per user request */}
 
 
         {/* ════════════════════════════════════════════════════════════════════
-            9. SEO PANEL, collapsible
+            9. SEO PANEL — collapsible (dev only)
         ════════════════════════════════════════════════════════════════════ */}
+        {false && (
         <section
           className="lwd-rc-section"
           aria-label="SEO data"
@@ -879,7 +899,7 @@ export default function RegionCategoryPage({
                     Page Title
                   </h3>
                   <div style={{ fontSize: 13, color: C.grey, fontFamily: NU, lineHeight: 1.7 }}>
-                    {categoryLabel} in {regionName}, Luxury Wedding Directory
+                    {categoryLabel} in {regionName} — Luxury Wedding Directory
                   </div>
                 </div>
 
@@ -929,6 +949,7 @@ export default function RegionCategoryPage({
             )}
           </div>
         </section>
+        )}
 
 
         {/* ════════════════════════════════════════════════════════════════════
@@ -936,9 +957,7 @@ export default function RegionCategoryPage({
         ════════════════════════════════════════════════════════════════════ */}
         <DirectoryBrands onViewRegion={onViewRegion} onViewCategory={onViewCategory} showInternational={false} showUK={countrySlug !== "italy" && countrySlug !== "usa"} showItaly={countrySlug === "italy"} showUSA={countrySlug === "usa"} />
 
-        {/* ════════════════════════════════════════════════════════════════════
-            11. FOOTER
-        ════════════════════════════════════════════════════════════════════ */}
+
         {/* ── Quick View modal (page-level) ── */}
         {qvItem && (
           <QuickViewModal
@@ -954,7 +973,7 @@ export default function RegionCategoryPage({
 
 
 // ═════════════════════════════════════════════════════════════════════════════
-// SUB-COMPONENTS, local to this file
+// SUB-COMPONENTS — local to this file
 // ═════════════════════════════════════════════════════════════════════════════
 
 
@@ -1014,77 +1033,6 @@ function RegionCategoryNav({ onBack, onBackHome, scrolled, darkMode, onToggleDar
           ← Back
         </button>
 
-        <nav className="lwd-rc-breadcrumb" aria-label="Breadcrumb">
-          <ol
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontSize: 11,
-              color: scrolled ? C.grey : "rgba(255,255,255,0.5)",
-              letterSpacing: "0.5px",
-              listStyle: "none",
-              padding: 0,
-              margin: 0,
-            }}
-          >
-            <li>
-              <button
-                onClick={onBackHome}
-                onMouseEnter={() => setHovHome(true)}
-                onMouseLeave={() => setHovHome(false)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  fontSize: 11,
-                  color: hovHome ? C.gold : (scrolled ? C.grey : "rgba(255,255,255,0.5)"),
-                  transition: "color 0.2s",
-                  letterSpacing: "0.5px",
-                  padding: 0,
-                }}
-              >
-                Home
-              </button>
-            </li>
-            <li aria-hidden="true" style={{ opacity: 0.4 }}>›</li>
-            <li>{countryName}</li>
-            <li aria-hidden="true" style={{ opacity: 0.4 }}>›</li>
-            <li>
-              <button
-                onClick={onBack}
-                onMouseEnter={() => setHovRegion(true)}
-                onMouseLeave={() => setHovRegion(false)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  fontSize: 11,
-                  color: hovRegion ? C.gold : (scrolled ? C.grey : "rgba(255,255,255,0.5)"),
-                  transition: "color 0.2s",
-                  letterSpacing: "0.5px",
-                  padding: 0,
-                }}
-              >
-                {regionName}
-              </button>
-            </li>
-            <li aria-hidden="true" style={{ opacity: 0.4 }}>›</li>
-            <li>
-              <span
-                style={{
-                  color: scrolled ? C.gold : "rgba(201,168,76,0.9)",
-                  fontWeight: 600,
-                }}
-                aria-current="page"
-              >
-                {categoryLabel}
-              </span>
-            </li>
-          </ol>
-        </nav>
       </div>
 
       {/* Centre: logo */}
@@ -1140,7 +1088,7 @@ function RegionCategoryNav({ onBack, onBackHome, scrolled, darkMode, onToggleDar
 }
 
 
-// ── Listing Card, works for both venues and vendors ─────────────────────
+// ── Listing Card — works for both venues and vendors ─────────────────────
 function ListingCard({ item, C, isVenue, onView }) {
   const [hov, setHov] = useState(false);
 
@@ -1409,7 +1357,7 @@ function SiblingCategoryCard({ vc, C, onClick }) {
         alignItems: "center",
         gap: 14,
         flexShrink: 0,
-        minWidth: 160,
+        minWidth: "calc((100% - 55px) / 5.5)",
       }}
     >
       <span
@@ -1448,6 +1396,165 @@ function SiblingCategoryCard({ vc, C, onClick }) {
 }
 
 
+// ── Vendor Category Carousel (matches RegionPage) ───────────────────────
+const VENDOR_CATS_PER_PAGE = 6;
+
+function VendorCategoryCarousel({ categories, C, onSelect }) {
+  const [page, setPage] = useState(0);
+  const totalPages = Math.ceil(categories.length / VENDOR_CATS_PER_PAGE);
+  const start = page * VENDOR_CATS_PER_PAGE;
+  const visible = categories.slice(start, start + VENDOR_CATS_PER_PAGE);
+
+  const [hovPrev, setHovPrev] = useState(false);
+  const [hovNext, setHovNext] = useState(false);
+
+  const arrowBtn = (dir, hov, setHov, disabled, onClick) => (
+    <button
+      aria-label={dir === "prev" ? "Previous categories" : "Next categories"}
+      disabled={disabled}
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        background: hov && !disabled ? (C.goldDim || "rgba(201,168,76,0.08)") : "transparent",
+        border: `1px solid ${disabled ? (C.border || "rgba(255,255,255,0.06)") : hov ? C.gold : (C.border2 || "rgba(255,255,255,0.12)")}`,
+        borderRadius: "50%",
+        width: 36,
+        height: 36,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: disabled ? "default" : "pointer",
+        opacity: disabled ? 0.25 : 1,
+        transition: "all 0.25s",
+        flexShrink: 0,
+      }}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={hov && !disabled ? C.gold : (C.grey || "#888")} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        {dir === "prev" ? <polyline points="15 18 9 12 15 6" /> : <polyline points="9 6 15 12 9 18" />}
+      </svg>
+    </button>
+  );
+
+  return (
+    <div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(6, 1fr)",
+          gap: 16,
+        }}
+      >
+        {visible.map((vc) => (
+          <VendorCategoryCard
+            key={vc.slug}
+            vc={vc}
+            C={C}
+            onClick={() => onSelect(vc.slug)}
+          />
+        ))}
+      </div>
+
+      {totalPages > 1 && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 16,
+            marginTop: 28,
+          }}
+        >
+          {arrowBtn("prev", hovPrev, setHovPrev, page === 0, () => setPage((p) => p - 1))}
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {Array.from({ length: totalPages }, (_, i) => (
+              <button
+                key={i}
+                aria-label={`Page ${i + 1}`}
+                onClick={() => setPage(i)}
+                style={{
+                  width: page === i ? 20 : 6,
+                  height: 6,
+                  borderRadius: 3,
+                  background: page === i ? C.gold : (C.border2 || "rgba(255,255,255,0.12)"),
+                  border: "none",
+                  cursor: "pointer",
+                  padding: 0,
+                  transition: "all 0.3s ease",
+                }}
+              />
+            ))}
+          </div>
+          {arrowBtn("next", hovNext, setHovNext, page >= totalPages - 1, () => setPage((p) => p + 1))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VendorCategoryCard({ vc, C, onClick }) {
+  const [hov, setHov] = useState(false);
+  const iconColor = hov ? C.gold : (C.grey || "#888");
+  const renderIcon = LUXURY_ICONS[vc.slug];
+
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        background: hov ? C.card : C.dark,
+        border: `1px solid ${hov ? C.gold : C.border2}`,
+        borderRadius: "var(--lwd-radius-card)",
+        padding: "28px 12px",
+        textAlign: "center",
+        cursor: "pointer",
+        transition: "all 0.25s",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 12,
+        minWidth: 0,
+      }}
+    >
+      <span
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 48,
+          height: 48,
+          borderRadius: "50%",
+          background: hov ? (C.goldDim || "rgba(201,168,76,0.08)") : "transparent",
+          border: `1px solid ${hov ? C.gold : (C.border2 || "rgba(255,255,255,0.08)")}`,
+          transition: "all 0.3s ease",
+          flexShrink: 0,
+        }}
+        aria-hidden="true"
+      >
+        {renderIcon ? renderIcon(iconColor) : <span style={{ fontSize: 22, opacity: 0.6 }}>{vc.icon}</span>}
+      </span>
+      <span
+        style={{
+          fontFamily: NU,
+          fontSize: 9,
+          fontWeight: 600,
+          letterSpacing: "1px",
+          textTransform: "uppercase",
+          color: hov ? C.gold : C.off,
+          transition: "color 0.2s",
+          lineHeight: 1.4,
+          wordBreak: "break-word",
+          textAlign: "center",
+        }}
+      >
+        {vc.label}
+      </span>
+    </button>
+  );
+}
+
+
 // ── Related Region Card ──────────────────────────────────────────────────
 function RelatedRegionCard({ region, categoryLabel, C, onClick }) {
   const [hov, setHov] = useState(false);
@@ -1465,7 +1572,8 @@ function RelatedRegionCard({ region, categoryLabel, C, onClick }) {
         cursor: "pointer",
         transition: "all 0.25s",
         display: "block",
-        width: "100%",
+        flexShrink: 0,
+        minWidth: 260,
       }}
     >
       <div

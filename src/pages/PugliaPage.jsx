@@ -14,6 +14,7 @@ import RegionHero from "../components/sections/RegionHero";
 import RegionFeatured from "../components/sections/RegionFeatured";
 import RegionRealWeddings from "../components/sections/RegionRealWeddings";
 import RegionSignatureVibes from "../components/sections/RegionSignatureVibes";
+import HomeNav from "../components/nav/HomeNav";
 
 // ── Font tokens ──────────────────────────────────────────────────────────────
 const GD = "var(--font-heading-primary)";
@@ -84,6 +85,14 @@ export default function PugliaPage({
         transition: "background-color 0.3s ease",
       }}
     >
+      <HomeNav
+        hasHero={true}
+        darkMode={darkMode}
+        onToggleDark={() => setDarkMode(d => !d)}
+        onNavigateStandard={() => onBack()}
+        onNavigateAbout={() => onViewAbout()}
+      />
+
       {/* ── Premium Hero Section (reads from config) ── */}
       {pageConfig.hero && (
         <RegionHero config={pageConfig.hero} region={region} C={C} />

@@ -1,7 +1,7 @@
 // ─── src/pages/RegionPage.jsx ──────────────────────────────────────────────────
 // County hub template — renders any region entity as a mini website.
 // Data-driven: one template, many counties.
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { ThemeCtx } from "../theme/ThemeContext";
 import { getDarkPalette, getLightPalette, getDefaultMode } from "../theme/tokens";
 import { useChat } from "../chat/ChatContext";
@@ -13,12 +13,13 @@ import {
   getRegionsByCountry,
   VENDOR_CATEGORIES,
 } from "../data/geo.js";
-import { VENUES, DEFAULT_FILTERS } from "../data/italyVenues";
+import { DEFAULT_FILTERS } from "../data/venues";
+import { getVenuesByRegion, getVenuesByCity } from "../services/venueService";
+import { fetchListings } from "../services/listings";
 import { getRegionPageConfig } from "../services/regionPageConfig";
 import { fetchLocationContent } from "../services/locationContentService";
 
-import GCard from "../components/cards/GCard";
-import GCardMobile from "../components/cards/GCardMobile";
+import LuxuryVenueCard from "../components/cards/LuxuryVenueCard";
 import QuickViewModal from "../components/modals/QuickViewModal";
 import SiteFooter from "../components/sections/SiteFooter";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
@@ -26,7 +27,11 @@ import FeaturedSlider from "../components/sections/FeaturedSlider";
 import RegionHero from "../components/sections/RegionHero";
 import RegionFeatured from "../components/sections/RegionFeatured";
 import SliderNav from "../components/ui/SliderNav";
+import HomeNav from "../components/nav/HomeNav";
 import CountrySearchBar from "../components/filters/CountrySearchBar";
+import AICommandBar from "../components/filters/AICommandBar";
+import InfoStrip from "../components/sections/InfoStrip";
+import MapSection from "../components/sections/MapSection";
 import { useInView, CountUp, SplitText, revealStyle } from "../components/ui/Animations";
 import "../category.css";
 
@@ -59,10 +64,13 @@ export default function RegionPage({
   onViewCategory = () => {},
   onViewRegion = () => {},
   onViewRegionCategory = () => {},
+  onViewCity = () => {},
+  onViewCountry = () => {},
   countrySlug = null,
   regionSlug = null,
   footerNav = {},
   _cityData = null,
+  hideNav = false,
 }) {
   // ── State ────────────────────────────────────────────────────────────────
   const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
@@ -72,12 +80,18 @@ export default function RegionPage({
   const [qvItem, setQvItem] = useState(null);
   const [visibleCities, setVisibleCities] = useState(4);
   const [visibleRelated, setVisibleRelated] = useState(4);
-  const [mapOpen, setMapOpen] = useState(false);
-  const [venueViewMode, setVenueViewMode] = useState("slider"); // slider, grid, list, map
+  const [venueViewMode, setVenueViewMode] = useState("grid"); // grid, list, map
   const [currentPage, setCurrentPage] = useState(0);
   const [filters, setFilters] = useState(() => ({ ...DEFAULT_FILTERS, region: regionSlug }));
   const [sortMode, setSortMode] = useState("recommended");
   const [citiesWithContent, setCitiesWithContent] = useState([]);
+  const [dbContent,         setDbContent]         = useState(null);
+  const [slideIdx,          setSlideIdx]          = useState(0);
+  const [filterSticky,      setFilterSticky]      = useState(true);
+  const [filterVisible,     setFilterVisible]     = useState(true);
+  const [dbListings,        setDbListings]        = useState([]);
+  const filterReleaseTimer = useRef(null);
+  const filterBarRef = useRef(null);
   const isMobile = useIsMobile();
 
   const C = darkMode ? getDarkPalette() : getLightPalette();
@@ -88,7 +102,9 @@ export default function RegionPage({
   // ── Entity lookup ────────────────────────────────────────────────────────
   // If _cityData is provided, use it as the region (for city pages)
   const region = useMemo(() => _cityData || getRegionBySlug(regionSlug), [regionSlug, _cityData]);
-  const country = useMemo(() => getCountryBySlug(countrySlug), [countrySlug]);
+  // Use the region's actual country — prevents mismatches like /england/lake-como
+  const actualCountrySlug = region?.countrySlug || countrySlug;
+  const country = useMemo(() => getCountryBySlug(actualCountrySlug), [actualCountrySlug]);
 
   // ── Premium Page Configuration (Phase 2.1) ──────────────────────────────────────
   // Merge base region data with editable premium page config
@@ -157,28 +173,76 @@ export default function RegionPage({
     [region]
   );
 
-  // Matching venues (for Italy regions that have listings)
-  // Filter by regionSlug when available (works for both region pages and city pages)
-  // Fallback to region name for legacy data
-  const regionVenues = useMemo(
-    () => {
-      const targetSlug = _cityData?.regionSlug || region.slug;
+  // Venues for this region — DB listings first, static fallback
+  const regionVenues = useMemo(() => {
+    // Convert DB listings to the same shape as static venue objects
+    const dbVenues = dbListings
+      .filter((l) => l.listingType === "venue" || l.cat === "venue" || !l.listingType)
+      .map((l) => ({
+        id:          l.id,
+        name:        l.cardTitle || l.name || "",
+        region:      l.region    || "",
+        regionSlug:  l.regionSlug || l.region_slug || "",
+        countrySlug: l.countrySlug || l.country_slug || "",
+        city:        l.city || "",
+        citySlug:    l.citySlug || l.city_slug || "",
+        imgs:        Array.isArray(l.imgs)
+          ? l.imgs.map((img) => typeof img === "string" ? img : (img.src || img.url || "")).filter(Boolean)
+          : l.heroImage ? [l.heroImage] : [],
+        desc:        l.cardSummary || l.shortDescription || l.desc || "",
+        priceFrom:   (() => {
+          const p = l.priceFrom;
+          if (!p) return "";
+          // Already formatted (e.g. "£18,000")
+          if (typeof p === "string" && p.includes("£")) return p;
+          const num = parseInt(p, 10);
+          if (isNaN(num)) return p;
+          const currency = l.priceCurrency || "GBP";
+          const sym = currency === "EUR" ? "€" : currency === "USD" ? "$" : "£";
+          return `${sym}${num.toLocaleString("en-GB")}`;
+        })(),
+        capacity:    l.capacityMax || l.capacityMin || l.capacity || null,
+        rating:      l.rating ?? null,
+        reviews:     l.reviewCount ?? l.reviews ?? null,
+        verified:    l.isVerified ?? l.verified ?? false,
+        featured:    l.isFeatured ?? l.featured ?? false,
+        lwdScore:    l.lwdScore ?? null,
+        tag:         l.cardBadge || l.tag || null,
+        styles:      Array.isArray(l.styles) ? l.styles : [],
+        includes:    Array.isArray(l.amenities)
+          ? l.amenities
+          : (typeof l.amenities === "string" && l.amenities.trim()
+              ? l.amenities.split(",").map(s => s.trim()).filter(Boolean)
+              : []),
+        slug:        l.slug || "",
+        showcaseUrl: l.showcaseEnabled && l.slug ? `/showcase/${l.slug}` : null,
+        lat:         l.lat ?? null,
+        lng:         l.lng ?? null,
+        online:      l.isFeatured ?? true,
+      }));
 
-      if (targetSlug) {
-        // Filter by regionSlug first (most reliable method)
-        const bySlug = VENUES.filter((v) => v.regionSlug === targetSlug);
-        if (bySlug.length > 0) return bySlug;
-      }
+    // Static venues for this region
+    const staticSlug = _cityData?.regionSlug || region.slug;
+    const staticVenues = _cityData?.citySlug
+      ? getVenuesByCity(_cityData.citySlug)
+      : getVenuesByRegion(staticSlug);
 
-      // Fallback: filter by region name for legacy data
-      return VENUES.filter((v) => v.region === region.name);
-    },
-    [region.name, region.slug, _cityData]
-  );
-  const featuredVenues = useMemo(
-    () => regionVenues.filter((v) => v.featured),
-    [regionVenues]
-  );
+    // Merge: DB venues first (they're real listings), then static venues that
+    // don't share an id or name with a DB venue (avoid duplicates)
+    const dbNames = new Set(dbVenues.map((v) => v.name.toLowerCase()));
+    const uniqueStatic = staticVenues.filter((v) => !dbNames.has(v.name.toLowerCase()));
+    return [...dbVenues, ...uniqueStatic];
+  }, [region.slug, _cityData, dbListings]);
+  const featuredVenues = useMemo(() => {
+    // DB-pinned IDs take priority over hardcoded `featured: true` flag
+    const pinnedIds = dbContent?.featured_venues;
+    if (Array.isArray(pinnedIds) && pinnedIds.length > 0) {
+      return pinnedIds
+        .map(id => regionVenues.find(v => v.id === id || v.id === Number(id)))
+        .filter(Boolean);
+    }
+    return regionVenues.filter(v => v.featured);
+  }, [regionVenues, dbContent]);
 
   const toggleSave = useCallback(
     (id) => setSavedIds((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]),
@@ -203,10 +267,40 @@ export default function RegionPage({
 
   // ── Scroll listener ──────────────────────────────────────────────────────
   useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 80);
+    let prevShouldStick = true;
+    const fn = () => {
+      setScrolled(window.scrollY > 80);
+      const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+      const shouldStick = scrollable <= 0 || window.scrollY < scrollable * 0.3;
+      if (shouldStick === prevShouldStick) return;
+      prevShouldStick = shouldStick;
+      clearTimeout(filterReleaseTimer.current);
+      if (shouldStick) {
+        setFilterSticky(true);
+        filterReleaseTimer.current = setTimeout(() => setFilterVisible(true), 20);
+      } else {
+        setFilterVisible(false);
+        filterReleaseTimer.current = setTimeout(() => setFilterSticky(false), 380);
+      }
+    };
     window.addEventListener("scroll", fn, { passive: true });
-    return () => window.removeEventListener("scroll", fn);
+    return () => {
+      window.removeEventListener("scroll", fn);
+      clearTimeout(filterReleaseTimer.current);
+    };
   }, []);
+
+  // ── Click outside map panel to close ────────────────────────────────────
+  useEffect(() => {
+    if (venueViewMode !== "map") return;
+    const handler = (e) => {
+      if (filterBarRef.current && !filterBarRef.current.contains(e.target)) {
+        setVenueViewMode("grid");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [venueViewMode]);
 
   // ── Fade-in on mount ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -229,7 +323,58 @@ export default function RegionPage({
     root.style.setProperty("--lwd-white", C.white);
   }, [C.dark, C.gold, C.white]);
 
-  const heroImg = region.heroImg || DEFAULT_HERO;
+  // ── Fetch region-level content from Locations studio (Supabase) ──────────
+  // Locations studio saves as: region:{countrySlug}:{regionSlug}
+  // RegionPage reads the same key and merges with hardcoded fallbacks.
+  useEffect(() => {
+    if (!countrySlug || !regionSlug || _cityData) return; // skip for city overrides
+    const key = `region:${countrySlug}:${regionSlug}`;
+    fetchLocationContent(key)
+      .then(data => { if (data) setDbContent(data); })
+      .catch(() => {});
+  }, [countrySlug, regionSlug, _cityData]);
+
+  // Fetch live Supabase listings for this region
+  useEffect(() => {
+    if (!regionSlug) return;
+    fetchListings({ status: "published", region_slug: regionSlug })
+      .then((listings) => setDbListings(listings || []))
+      .catch(() => {});
+  }, [regionSlug]);
+
+  // DB content overrides hardcoded region data where populated
+  const heroImg        = dbContent?.hero_image   || region.heroImg       || DEFAULT_HERO;
+
+  // Parse up to 8 hero images from metadata.heroImages (JSON string in DB)
+  const heroImages = useMemo(() => {
+    try {
+      const meta = dbContent?.metadata
+        ? (typeof dbContent.metadata === "string" ? JSON.parse(dbContent.metadata) : dbContent.metadata)
+        : {};
+      const imgs = Array.isArray(meta.heroImages) && meta.heroImages.length > 0
+        ? meta.heroImages.slice(0, 4)
+        : [];
+      return imgs.length > 0 ? imgs : [heroImg];
+    } catch {
+      return [heroImg];
+    }
+  }, [dbContent, heroImg]);
+
+  // Auto-rotate slideshow
+  useEffect(() => {
+    if (heroImages.length <= 1) return;
+    const timer = setInterval(() => setSlideIdx(i => (i + 1) % heroImages.length), 5500);
+    return () => clearInterval(timer);
+  }, [heroImages.length]);
+
+  // Standardised title: only use DB/hardcoded title if it already follows "Weddings in X" format
+  const rawHeroTitle   = dbContent?.hero_title   || region.heroTitle     || null;
+  const heroTitle      = rawHeroTitle?.toLowerCase().startsWith("weddings")
+    ? rawHeroTitle
+    : `Weddings in ${region.name}`;
+  const heroSubtitle   = dbContent?.hero_subtitle|| region.heroSubtitle  || null;
+  const introEditorial = dbContent?.metadata?.editorialPara1 || region.introEditorial || null;
+
   const countryName = country?.name || "United Kingdom";
 
   // ── Render ─────────────────────────────────────────────────────────────
@@ -238,15 +383,15 @@ export default function RegionPage({
       <div style={{ background: C.black, minHeight: "100vh", color: C.white }}>
 
         {/* ═══ NAVIGATION ═══════════════════════════════════════════════════ */}
-        <RegionNav
-          onBack={onBack}
-          scrolled={scrolled}
-          darkMode={darkMode}
-          onToggleDark={() => setDarkMode((d) => !d)}
-          countryName={countryName}
-          regionName={region.name}
-          C={C}
-        />
+        {!hideNav && (
+          <HomeNav
+            hasHero={true}
+            darkMode={darkMode}
+            onToggleDark={() => setDarkMode((d) => !d)}
+            onNavigateStandard={() => onBack()}
+            onNavigateAbout={() => onBack()}
+          />
+        )}
 
         {/* ═══ HERO SECTION ═════════════════════════════════════════════════ */}
         {/* Use premium RegionHero if configured, otherwise default hero */}
@@ -262,21 +407,25 @@ export default function RegionPage({
             background: "#0a0806",
           }}
         >
-          {/* Background image */}
-          <img
-            src={heroImg}
-            alt={`Luxury wedding setting in ${region.name}`}
-            style={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              opacity: 0.55,
-              transform: "scale(1.04)",
-              transition: "transform 8s ease",
-            }}
-          />
+          {/* Background images — crossfade slideshow (max 8) */}
+          {heroImages.map((src, i) => (
+            <img
+              key={src}
+              src={src}
+              alt={i === 0 ? `Luxury wedding setting in ${region.name}` : ""}
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                opacity: slideIdx === i ? 0.55 : 0,
+                transform: slideIdx === i ? "scale(1.04)" : "scale(1.0)",
+                transition: "opacity 1.8s ease, transform 8s ease",
+                willChange: "opacity, transform",
+              }}
+            />
+          ))}
 
           {/* Gradient overlays */}
           <div
@@ -322,7 +471,7 @@ export default function RegionPage({
               display: "flex",
               flexDirection: "column",
               justifyContent: "flex-end",
-              padding: "0 80px 80px",
+              padding: isMobile ? "0 20px 56px" : "0 80px 80px",
               opacity: loaded ? 1 : 0,
               transform: loaded ? "translateY(0)" : "translateY(20px)",
               transition: "all 0.9s ease",
@@ -361,28 +510,12 @@ export default function RegionPage({
                 maxWidth: 700,
               }}
             >
-              {region.heroTitle ? (
-                <SplitText trigger={loaded} delay={200} stagger={90}>
-                  {region.heroTitle}
-                </SplitText>
-              ) : (
-                <>
-                  <div>
-                    <SplitText trigger={loaded} delay={200} stagger={90}>
-                      Weddings in
-                    </SplitText>
-                  </div>
-                  <div style={{ fontStyle: "italic", color: "#C9A84C" }}>
-                    <SplitText trigger={loaded} delay={400} stagger={90}>
-                      {region.name}
-                    </SplitText>
-                  </div>
-                </>
-              )}
+              Weddings in{" "}
+              <span style={{ fontStyle: "italic", color: "#d1a352" }}>{region.name}</span>
             </h1>
 
             {/* Subtitle / editorial excerpt */}
-            {region.heroSubtitle && (
+            {heroSubtitle && (
               <p
                 style={{
                   fontSize: 16,
@@ -394,7 +527,7 @@ export default function RegionPage({
                   marginBottom: 36,
                 }}
               >
-                {region.heroSubtitle}
+                {heroSubtitle}
               </p>
             )}
 
@@ -447,48 +580,132 @@ export default function RegionPage({
             </div>
           </div>
 
-          {/* Scroll indicator */}
-          <div
-            aria-hidden="true"
-            className="lwd-hero-scroll"
-            style={{
-              position: "absolute",
-              bottom: 24,
-              right: 48,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              opacity: 0.5,
-            }}
-          >
-            <span
+          {/* Breadcrumb — floating over hero bottom */}
+          {!_cityData && (
+            <nav
+              aria-label="Breadcrumb"
               style={{
-                fontSize: 9,
-                letterSpacing: "2px",
-                textTransform: "uppercase",
-                color: "#fff",
-                fontFamily: NU,
+                position: "absolute",
+                bottom: isMobile ? 14 : 24,
+                left: isMobile ? 20 : 80,
+                display: "flex",
+                alignItems: "center",
+                gap: isMobile ? 5 : 6,
+                zIndex: 4,
+                flexWrap: "nowrap",
               }}
             >
-              Scroll
-            </span>
-            <div style={{ width: 1, height: 24, background: "rgba(255,255,255,0.4)" }} />
-          </div>
+              {[
+                { label: "Home", action: footerNav.onNavigateHome || onBack },
+                { label: country?.name || actualCountrySlug, action: actualCountrySlug ? () => onViewCountry(actualCountrySlug) : null },
+                { label: region.name, active: true },
+              ].map((crumb, i) => (
+                <span key={i} style={{ display: "flex", alignItems: "center", gap: isMobile ? 5 : 6 }}>
+                  {i > 0 && <span style={{ color: "rgba(255,255,255,0.3)", fontSize: isMobile ? 10 : 11 }}>›</span>}
+                  {crumb.active ? (
+                    <span style={{ color: "#C9A84C", fontFamily: NU, fontSize: isMobile ? 11 : 12, fontWeight: 600, letterSpacing: "0.3px" }}>
+                      {crumb.label}
+                    </span>
+                  ) : crumb.action ? (
+                    <button onClick={crumb.action} style={{
+                      background: "none", border: "none", padding: 0,
+                      color: "rgba(255,255,255,0.6)", fontFamily: NU, fontSize: isMobile ? 11 : 12,
+                      cursor: "pointer", lineHeight: 1,
+                    }}>
+                      {crumb.label}
+                    </button>
+                  ) : (
+                    <span style={{ color: "rgba(255,255,255,0.4)", fontFamily: NU, fontSize: isMobile ? 11 : 12 }}>{crumb.label}</span>
+                  )}
+                </span>
+              ))}
+            </nav>
+          )}
+
+          {/* Slide dots — bottom-right, only when multiple images */}
+          {heroImages.length > 1 && (
+            <div style={{
+              position: "absolute",
+              bottom: isMobile ? 14 : 24,
+              right: isMobile ? 20 : 80,
+              display: "flex",
+              gap: 6,
+              alignItems: "center",
+              zIndex: 4,
+            }}>
+              {heroImages.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setSlideIdx(i)}
+                  aria-label={`Show image ${i + 1}`}
+                  style={{
+                    width: i === slideIdx ? 18 : 6,
+                    height: 6,
+                    borderRadius: 3,
+                    background: i === slideIdx ? "#C9A84C" : "rgba(255,255,255,0.35)",
+                    border: "none",
+                    padding: 0,
+                    cursor: "pointer",
+                    transition: "all 0.35s ease",
+                  }}
+                />
+              ))}
+            </div>
+          )}
         </section>
         )}
 
-        {/* ═══ FILTER BAR — Search, filter, view mode, and sort ═══════════════════ */}
-        <CountrySearchBar
-          filters={filters}
-          onFiltersChange={handleFiltersChange}
-          viewMode={venueViewMode}
-          onViewMode={setVenueViewMode}
-          sortMode={sortMode}
-          onSortChange={setSortMode}
-          total={regionVenues.length}
-          regions={[{ name: region.name, slug: region.slug }]}
-          countryFilter={country?.name}
-        />
+        {/* ═══ AI COMMAND BAR + FILTER BAR — scroll-fade sticky wrapper ════════ */}
+        <div ref={filterBarRef} style={{
+          position:   filterSticky  ? "sticky"  : "relative",
+          top:        filterSticky  ? 56        : "auto",
+          opacity:    filterVisible ? 1         : 0,
+          transition: "opacity 0.35s ease",
+          zIndex:     800,
+          marginTop:  0,
+        }}>
+          <AICommandBar
+            countrySlug={actualCountrySlug}
+            countryName={countryName}
+            regionSlug={regionSlug}
+            regionName={region?.name}
+            entityType="venue"
+            availableRegions={[]}
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
+            defaultFilters={DEFAULT_FILTERS}
+          />
+          <CountrySearchBar
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
+            viewMode={venueViewMode}
+            onViewMode={setVenueViewMode}
+            sortMode={sortMode}
+            onSortChange={setSortMode}
+            total={regionVenues.length}
+            regions={[{ name: region.name, slug: region.slug }]}
+            countryFilter={country?.name}
+            mapContent={
+              venueViewMode === "map" ? (
+                <MapSection
+                  venues={regionVenues}
+                  vendors={[]}
+                  headerLabel={`${regionVenues.length} Wedding Venues in ${region.name}`}
+                  mapTitle={`◎ ${region.name} Wedding Venues`}
+                  countryFilter={country?.name || "England"}
+                  onMarkerClick={(slug) => onViewVenue(slug)}
+                  onClose={() => setVenueViewMode("grid")}
+                />
+              ) : null
+            }
+          />
+          <InfoStrip
+            availableRegions={cities.map((c) => ({ name: c.name, slug: c.slug }))}
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
+            defaultFilters={DEFAULT_FILTERS}
+          />
+        </div>
 
         {/* ═══ TRUST SIGNAL STRIP — region-specific authority tags ═══════════ */}
         {region.trustSignals && region.trustSignals.length > 0 && (
@@ -528,8 +745,93 @@ export default function RegionPage({
           </div>
         )}
 
+        {/* ═══ TOP WEDDING VENUES — Featured showcase ═════════════════════════════ */}
+        {featuredVenues.length > 0 && (
+          <section
+            aria-label={`Featured Wedding Venues in ${region.name}`}
+            style={{
+              background: C.dark,
+              borderBottom: `1px solid ${C.border}`,
+              padding: isMobile ? "56px 24px" : "72px 48px",
+              marginTop: isMobile ? 0 : 24,
+            }}
+          >
+            <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+              {/* Heading */}
+              <div style={{ marginBottom: isMobile ? 32 : 48 }}>
+                <p
+                  style={{
+                    fontFamily: NU,
+                    fontSize: 11,
+                    letterSpacing: "0.3em",
+                    textTransform: "uppercase",
+                    color: C.gold,
+                    margin: "0 0 12px",
+                    fontWeight: 600,
+                  }}
+                >
+                  Curated for You
+                </p>
+                <h2
+                  style={{
+                    fontFamily: GD,
+                    fontSize: isMobile ? 24 : 36,
+                    fontWeight: 400,
+                    fontStyle: "italic",
+                    color: C.off,
+                    margin: 0,
+                    lineHeight: 1.2,
+                  }}
+                >
+                  Top Wedding Venues in {region.name}
+                </h2>
+                <p style={{
+                  fontFamily: NU, fontSize: 14, color: C.grey,
+                  lineHeight: 1.75, maxWidth: 680, fontWeight: 300, margin: "12px 0 0",
+                }}>
+                  Hand-selected by our editorial team after personal visits. Every venue on this page has been verified for excellence, service, and style.
+                </p>
+              </div>
+
+              {/* Grid of featured venues */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isMobile
+                    ? "1fr"
+                    : featuredVenues.length >= 5
+                    ? "repeat(5, 1fr)"
+                    : featuredVenues.length === 4
+                    ? "repeat(4, 1fr)"
+                    : "repeat(3, 1fr)",
+                  gap: isMobile ? 16 : 20,
+                }}
+              >
+                {featuredVenues.slice(0, 5).map((venue, i) => (
+                  <div
+                    key={venue.id}
+                    style={{
+                      opacity: 0,
+                      animation: `fadeIn 0.6s ease forwards`,
+                      animationDelay: `${i * 0.1}s`,
+                    }}
+                  >
+                    <LuxuryVenueCard
+                      v={venue}
+                      onView={() => onViewVenue?.(venue.id || venue.slug)}
+                      isMobile={isMobile}
+                      quickViewItem={qvItem}
+                      setQuickViewItem={setQvItem}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* ═══ ABOUT SECTION (Configurable) ═══════════════════════════════════ */}
-        {(pageConfig?.about?.content || region.introEditorial) && (
+        {(pageConfig?.about?.content || introEditorial) && (
           <section
             aria-label={`About weddings in ${region.name}`}
             className="lwd-region-intro"
@@ -573,7 +875,7 @@ export default function RegionPage({
                   fontWeight: 300,
                 }}
               >
-                {pageConfig?.about?.content || region.introEditorial}
+                {pageConfig?.about?.content || introEditorial}
               </p>
             </div>
           </section>
@@ -643,259 +945,7 @@ export default function RegionPage({
         {/* ═══ FEATURED LISTINGS / COMING SOON ═══════════════════════════════ */}
         {regionVenues.length > 0 ? (
           <>
-            {/* Premium Featured Section (configurable) or default featured slider */}
-            {pageConfig?.featured?.enabled ? (
-              <RegionFeatured
-                config={pageConfig.featured}
-                region={region}
-                venues={regionVenues}
-                C={C}
-                isMobile={isMobile}
-                onViewVenue={onViewVenue}
-                savedIds={savedIds}
-                onToggleSave={toggleSave}
-              />
-            ) : featuredVenues.length > 0 ? (
-              <FeaturedSlider venues={featuredVenues} />
-            ) : null}
-
-            {/* ═══ SMART MAP — collapsible, blends into page ═══════════════════ */}
-            <section
-              aria-label="Venue map"
-              className="lwd-region-map-section"
-              style={{
-                maxWidth: 1280,
-                margin: "0 auto",
-                padding: "40px 48px 20px",
-              }}
-            >
-              {/* Map toggle bar */}
-              <button
-                className="lwd-region-map-toggle"
-                onClick={() => setMapOpen((o) => !o)}
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 16,
-                  padding: "20px 28px",
-                  background: mapOpen
-                    ? `linear-gradient(135deg, ${C.dark}, ${C.card})`
-                    : C.dark,
-                  border: `1px solid ${mapOpen ? C.gold : C.border2}`,
-                  borderRadius: mapOpen ? "var(--lwd-radius-card) var(--lwd-radius-card) 0 0" : "var(--lwd-radius-card)",
-                  cursor: "pointer",
-                  transition: "all 0.4s ease",
-                  fontFamily: "inherit",
-                }}
-              >
-                {/* Map pin icon */}
-                <span
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 38,
-                    height: 38,
-                    borderRadius: "50%",
-                    background: mapOpen ? "rgba(201,168,76,0.12)" : "rgba(201,168,76,0.06)",
-                    border: `1px solid ${mapOpen ? C.gold : "rgba(201,168,76,0.15)"}`,
-                    flexShrink: 0,
-                    transition: "all 0.35s",
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={mapOpen ? C.gold : C.grey} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-                    <circle cx="12" cy="10" r="3" />
-                  </svg>
-                </span>
-
-                {/* Text content */}
-                <div style={{ flex: 1, textAlign: "left" }}>
-                  <div
-                    style={{
-                      fontSize: 9,
-                      letterSpacing: "3px",
-                      textTransform: "uppercase",
-                      color: mapOpen ? C.gold : "rgba(201,168,76,0.6)",
-                      fontWeight: 700,
-                      fontFamily: NU,
-                      marginBottom: 2,
-                      transition: "color 0.3s",
-                    }}
-                  >
-                    {region.localTerm ? "Venues by District" : "Interactive Map"}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: GD,
-                      fontSize: 16,
-                      color: mapOpen ? C.off : C.grey,
-                      fontWeight: 400,
-                      transition: "color 0.3s",
-                    }}
-                  >
-                    {regionVenues.length} venues · {region.localTerm ? "Central & Greater London" : region.name}
-                  </div>
-                </div>
-
-                {/* Venue count badge */}
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontFamily: NU,
-                    fontWeight: 700,
-                    letterSpacing: "1.5px",
-                    textTransform: "uppercase",
-                    color: C.grey,
-                    marginRight: 8,
-                  }}
-                >
-                  {mapOpen ? "Close" : "Explore"}
-                </span>
-
-                {/* Chevron */}
-                <span
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 28,
-                    height: 28,
-                    borderRadius: "50%",
-                    border: `1px solid ${mapOpen ? C.gold : C.border2}`,
-                    transition: "all 0.4s",
-                    transform: mapOpen ? "rotate(180deg)" : "rotate(0deg)",
-                    flexShrink: 0,
-                  }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={mapOpen ? C.gold : C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </span>
-              </button>
-
-              {/* Map content — collapses smoothly */}
-              <div
-                style={{
-                  maxHeight: mapOpen ? 640 : 0,
-                  opacity: mapOpen ? 1 : 0,
-                  overflow: "hidden",
-                  transition: "max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease",
-                  border: mapOpen ? `1px solid ${C.border2}` : "none",
-                  borderTop: "none",
-                  borderRadius: "0 0 var(--lwd-radius-card) var(--lwd-radius-card)",
-                }}
-              >
-                <div
-                  className="lwd-region-map-grid"
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 360px",
-                    height: 560,
-                  }}
-                >
-                  {/* Map iframe */}
-                  <div className="lwd-region-map-iframe" style={{ position: "relative", background: "#e8e4df" }}>
-                    {mapOpen && (
-                      <iframe
-                        title={`Interactive map of ${region.name} wedding venues`}
-                        src="https://www.openstreetmap.org/export/embed.html?bbox=-0.5103%2C51.2868%2C0.3340%2C51.6919&layer=mapnik"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          border: "none",
-                          filter: "saturate(0.8) contrast(0.95)",
-                        }}
-                        loading="lazy"
-                      />
-                    )}
-                    {/* Map overlay header */}
-                    <div
-                      aria-hidden="true"
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        background: `linear-gradient(180deg,${C.dark}ee 0%,transparent 100%)`,
-                        padding: "14px 20px",
-                        pointerEvents: "none",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 9,
-                          letterSpacing: "3px",
-                          textTransform: "uppercase",
-                          color: C.gold,
-                          fontWeight: 700,
-                          fontFamily: NU,
-                        }}
-                      >
-                        ◎ {region.localTerm ? `${region.name} · Venues by Borough` : `${region.name} · Venue Locations`}
-                      </div>
-                    </div>
-                    {/* Leaflet notice */}
-                    <div
-                      style={{
-                        position: "absolute",
-                        bottom: 12,
-                        left: 12,
-                        right: 12,
-                        background: "rgba(4,3,2,0.75)",
-                        padding: "8px 14px",
-                        border: "1px solid rgba(201,168,76,0.2)",
-                      }}
-                    >
-                      <p
-                        style={{
-                          fontSize: 11,
-                          color: "rgba(255,255,255,0.6)",
-                          fontFamily: NU,
-                          textAlign: "center",
-                          letterSpacing: "0.5px",
-                          margin: 0,
-                        }}
-                      >
-                        ✦ Leaflet integration ready — venue pins will appear here
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Venue side panel */}
-                  <div
-                    className="lwd-region-map-panel"
-                    style={{
-                      borderLeft: `1px solid ${C.border}`,
-                      display: "flex",
-                      flexDirection: "column",
-                      background: C.card,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div
-                      style={{
-                        padding: "14px 20px",
-                        borderBottom: `1px solid ${C.border}`,
-                        background: C.dark,
-                        flexShrink: 0,
-                      }}
-                    >
-                      <div style={{ fontSize: 10, letterSpacing: "2px", textTransform: "uppercase", color: C.grey, marginBottom: 3, fontFamily: NU }}>
-                        {region.localTerm ? "Across all districts" : "Venues in view"}
-                      </div>
-                      <div style={{ fontFamily: GD, fontSize: 18, color: C.white }}>
-                        {regionVenues.length} Wedding Venues
-                      </div>
-                    </div>
-                    <MapVenueList venues={regionVenues} C={C} />
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* Venue grid — first 6 GCards (horizontal slider) */}
+            {/* Venue grid — first 4 cards with heading + AI text */}
             <section
               aria-label={`Venues in ${region.name}`}
               className="lwd-region-section"
@@ -905,98 +955,66 @@ export default function RegionPage({
                 padding: "24px 48px 32px",
               }}
             >
+              <div style={{ marginBottom: 24 }}>
+                <h2
+                  style={{
+                    fontFamily: GD,
+                    fontSize: "clamp(26px, 3vw, 36px)",
+                    fontWeight: 400,
+                    color: C.off,
+                    lineHeight: 1.2,
+                    margin: 0,
+                  }}
+                >
+                  Latest Wedding{" "}
+                  <span style={{ fontStyle: "italic", color: C.gold }}>Vendors</span>
+                </h2>
+                <p style={{
+                  fontFamily: NU, fontSize: 14, color: C.grey,
+                  lineHeight: 1.75, maxWidth: 680, fontWeight: 300, margin: "12px 0 0",
+                }}>
+                  The finest photographers, planners, florists and stylists working across {region.name}. Each one trusted by our editorial team and verified by real couples.
+                </p>
+              </div>
+
               <div ref={grid1Ref}>
                 <SliderNav
+                  key={regionVenues[0]?.id || "empty"}
                   className="lwd-region-venue-grid"
-                  cardWidth={isMobile ? 300 : 340}
+                  cardWidth={360}
                   gap={isMobile ? 12 : 16}
                 >
-                  {regionVenues.slice(0, 6).map((v, i) => (
+                  {regionVenues.slice(0, 4).map((v, i) => (
                     <div
                       key={v.id}
                       className="lwd-region-venue-card"
                       style={{
-                        flex: isMobile ? "0 0 300px" : "0 0 340px",
+                        flex: "0 0 360px",
                         scrollSnapAlign: "start",
                         ...revealStyle(grid1In, i),
                       }}
                     >
-                      {isMobile ? (
-                        <GCardMobile
-                          v={v}
-                          saved={savedIds.includes(v.id)}
-                          onSave={toggleSave}
-                          onView={onViewVenue}
-                        />
-                      ) : (
-                        <GCard
-                          v={v}
-                          saved={savedIds.includes(v.id)}
-                          onSave={toggleSave}
-                          onView={onViewVenue}
-                          onQuickView={setQvItem}
-                        />
-                      )}
+                      <LuxuryVenueCard
+                        v={v}
+                        isMobile={isMobile}
+                        onView={() => onViewVenue(v.slug || v.id)}
+                        quickViewItem={qvItem}
+                        setQuickViewItem={setQvItem}
+                      />
                     </div>
                   ))}
                 </SliderNav>
               </div>
             </section>
 
+            {/* Featured Venues section — removed per user request */}
+
             {/* ═══ E-E-A-T EDITORIAL — between map & second grid ═════════════ */}
             {region.editorial && (
               <EditorialSection editorial={region.editorial} region={region} C={C} />
             )}
 
-            {/* Venue grid — remaining cards (7+, horizontal slider) */}
-            {regionVenues.length > 6 && (
-              <section
-                aria-label={`More venues in ${region.name}`}
-                className="lwd-region-section"
-                style={{
-                  maxWidth: 1280,
-                  margin: "0 auto",
-                  padding: "64px 48px 48px",
-                }}
-              >
-                <div ref={grid2Ref}>
-                  <SliderNav
-                    className="lwd-region-venue-grid"
-                    cardWidth={isMobile ? 300 : 340}
-                    gap={isMobile ? 12 : 16}
-                  >
-                    {regionVenues.slice(6).map((v, i) => (
-                      <div
-                        key={v.id}
-                        className="lwd-region-venue-card"
-                        style={{
-                          flex: isMobile ? "0 0 300px" : "0 0 340px",
-                          scrollSnapAlign: "start",
-                          ...revealStyle(grid2In, i),
-                        }}
-                      >
-                        {isMobile ? (
-                          <GCardMobile
-                            v={v}
-                            saved={savedIds.includes(v.id)}
-                            onSave={toggleSave}
-                            onView={onViewVenue}
-                          />
-                        ) : (
-                          <GCard
-                            v={v}
-                            saved={savedIds.includes(v.id)}
-                            onSave={toggleSave}
-                            onView={onViewVenue}
-                            onQuickView={setQvItem}
-                          />
-                        )}
-                      </div>
-                    ))}
-                  </SliderNav>
-                </div>
-              </section>
-            )}
+            {/* More venues slider — removed per user request */}
           </>
         ) : (
           /* ── Premium "Coming Soon" editorial state ── */
@@ -1092,225 +1110,13 @@ export default function RegionPage({
           </section>
         )}
 
-        {/* ═══ CITIES BLOCK ═════════════════════════════════════════════════ */}
-        {cities.length > 0 && (
-          <section
-            aria-label={`${region.localTerm || "Cities"} in ${region.name}`}
-            className="lwd-region-cities"
-            style={{
-              background: C.black,
-              padding: "72px 48px",
-              borderBottom: `1px solid ${C.border}`,
-            }}
-          >
-            <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-              {/* Heading */}
-              <div style={{ textAlign: "center", marginBottom: 48 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 12,
-                    marginBottom: 16,
-                  }}
-                >
-                  <div style={{ width: 28, height: 1, background: C.gold }} />
-                  <span
-                    style={{
-                      fontFamily: NU,
-                      fontSize: 9,
-                      letterSpacing: "0.3em",
-                      textTransform: "uppercase",
-                      color: C.gold,
-                      fontWeight: 600,
-                    }}
-                  >
-                    Explore
-                  </span>
-                  <div style={{ width: 28, height: 1, background: C.gold }} />
-                </div>
-                <h2
-                  style={{
-                    fontFamily: GD,
-                    fontSize: "clamp(26px, 3vw, 36px)",
-                    fontWeight: 400,
-                    color: C.off,
-                    lineHeight: 1.2,
-                    margin: 0,
-                  }}
-                >
-                  {region.localTerm || "Cities"} in{" "}
-                  <span style={{ fontStyle: "italic", color: C.gold }}>{region.name}</span>
-                </h2>
-              </div>
+        {/* Districts + Related Regions — removed per user request */}
 
-              {/* City cards grid */}
-              <div
-                ref={citiesRef}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-                  gap: 20,
-                }}
-              >
-                {citiesWithContent.slice(0, visibleCities).map((city, i) => (
-                  <div key={city.slug} style={revealStyle(citiesIn, i)}>
-                    <CityCard
-                      city={city}
-                      C={C}
-                      onClick={() => onViewRegionCategory(countrySlug, regionSlug, "wedding-venues")}
-                    />
-                  </div>
-                ))}
-              </div>
-
-              {/* Load More / Show Less */}
-              {cities.length > INITIAL_VISIBLE && (
-                <div style={{ textAlign: "center", marginTop: 36 }}>
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: C.grey,
-                      marginBottom: 14,
-                      fontFamily: NU,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Showing{" "}
-                    <span style={{ color: C.gold, fontWeight: 600 }}>
-                      {Math.min(visibleCities, cities.length)}
-                    </span>{" "}
-                    of {cities.length} {(region.localTerm || "cities").toLowerCase()}
-                  </div>
-                  {visibleCities < cities.length ? (
-                    <ToggleBtn C={C} label={`Load More ${region.localTerm || "Cities"}`} onClick={() => setVisibleCities((c) => c + 4)} />
-                  ) : (
-                    <ToggleBtn C={C} label="Show Less" onClick={() => setVisibleCities(INITIAL_VISIBLE)} />
-                  )}
-                </div>
-              )}
-            </div>
-          </section>
-        )}
-
-        {/* ═══ RELATED REGIONS ══════════════════════════════════════════════ */}
-        {relatedRegions.length > 0 && (
-          <section
-            aria-label="Related regions"
-            className="lwd-region-related"
-            style={{
-              background: C.dark,
-              padding: "72px 48px",
-              borderBottom: `1px solid ${C.border}`,
-            }}
-          >
-            <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-              {/* Heading */}
-              <div style={{ textAlign: "center", marginBottom: 48 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 12,
-                    marginBottom: 16,
-                  }}
-                >
-                  <div style={{ width: 28, height: 1, background: C.gold }} />
-                  <span
-                    style={{
-                      fontFamily: NU,
-                      fontSize: 9,
-                      letterSpacing: "0.3em",
-                      textTransform: "uppercase",
-                      color: C.gold,
-                      fontWeight: 600,
-                    }}
-                  >
-                    Nearby
-                  </span>
-                  <div style={{ width: 28, height: 1, background: C.gold }} />
-                </div>
-                <h2
-                  style={{
-                    fontFamily: GD,
-                    fontSize: "clamp(26px, 3vw, 36px)",
-                    fontWeight: 400,
-                    color: C.off,
-                    lineHeight: 1.2,
-                    margin: 0,
-                  }}
-                >
-                  Explore Nearby{" "}
-                  <span style={{ fontStyle: "italic", color: C.gold }}>Regions</span>
-                </h2>
-              </div>
-
-              {/* Related region cards */}
-              <div
-                ref={relatedRef}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-                  gap: 20,
-                }}
-              >
-                {relatedRegions.slice(0, visibleRelated).map((r, i) => (
-                  <div key={r.slug} style={revealStyle(relatedIn, i)}>
-                    <RelatedRegionCard
-                      region={r}
-                      C={C}
-                      onClick={() =>
-                        onBack === undefined
-                          ? null
-                          : onViewCategory({
-                              countrySlug: r.countrySlug,
-                              regionSlug: r.slug,
-                            })
-                      }
-                    />
-                  </div>
-                ))}
-              </div>
-
-              {/* Load More / Show Less */}
-              {relatedRegions.length > INITIAL_VISIBLE && (
-                <div style={{ textAlign: "center", marginTop: 36 }}>
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: C.grey,
-                      marginBottom: 14,
-                      fontFamily: NU,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Showing{" "}
-                    <span style={{ color: C.gold, fontWeight: 600 }}>
-                      {Math.min(visibleRelated, relatedRegions.length)}
-                    </span>{" "}
-                    of {relatedRegions.length} regions
-                  </div>
-                  {visibleRelated < relatedRegions.length ? (
-                    <ToggleBtn C={C} label="Load More Regions" onClick={() => setVisibleRelated((c) => c + 4)} />
-                  ) : (
-                    <ToggleBtn C={C} label="Show Less" onClick={() => setVisibleRelated(INITIAL_VISIBLE)} />
-                  )}
-                </div>
-              )}
-            </div>
-          </section>
-        )}
-
-        {/* ═══ SEO & AI PANEL ═══════════════════════════════════════════════ */}
-        <SEOPanel region={region} C={C} />
+        {/* SEO & AI Panel — hidden per user request */}
 
         {/* ═══ BROWSE BY REGION ══════════════════════════════════════════ */}
-        <DirectoryBrands onViewRegion={onViewRegion} onViewCategory={onViewCategory} showInternational={false} showUK={countrySlug !== "italy" && countrySlug !== "usa"} showItaly={countrySlug === "italy"} showUSA={countrySlug === "usa"} />
+        <DirectoryBrands onViewRegion={onViewRegion} onViewCategory={onViewCategory} showInternational={false} showUK={actualCountrySlug !== "italy" && actualCountrySlug !== "usa"} showItaly={actualCountrySlug === "italy"} showUSA={actualCountrySlug === "usa"} />
 
-        {/* ═══ FOOTER ═══════════════════════════════════════════════════════ */}
-        <SiteFooter {...footerNav} />
 
         {/* Quick-view modal */}
         {qvItem && (
@@ -1899,80 +1705,109 @@ function ToggleBtn({ C, label, onClick }) {
 
 function CityCard({ city, C, onClick }) {
   const [hov, setHov] = useState(false);
+  const heroImg = city.heroImage || city.heroImg ||
+    "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=80";
+
   return (
-    <button
+    <article
       onClick={onClick}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
-        background: hov ? C.card : C.dark,
-        border: `1px solid ${hov ? C.gold : C.border2}`,
+        background: C.card,
+        border: `1px solid ${hov ? C.goldDim : C.border}`,
         borderRadius: "var(--lwd-radius-card)",
-        padding: "24px 24px",
+        overflow: "hidden",
         cursor: "pointer",
-        transition: "all 0.25s",
-        textAlign: "left",
-        display: "block",
-        width: "100%",
-        fontFamily: "inherit",
+        transition: "all 0.5s ease",
+        transform: hov ? "translateY(-3px)" : "translateY(0)",
+        boxShadow: hov ? "0 12px 40px rgba(0,0,0,0.18)" : "none",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <h3
+      {/* ── Image ── */}
+      <div style={{ height: 200, position: "relative", overflow: "hidden", background: "#0a0806" }}>
+        <img
+          src={heroImg}
+          alt={city.name}
+          loading="lazy"
           style={{
-            fontFamily: GD,
-            fontSize: 18,
-            fontWeight: 400,
-            fontStyle: "italic",
-            color: hov ? C.gold : C.off,
-            transition: "color 0.2s",
-            margin: 0,
+            width: "100%", height: "100%", objectFit: "cover",
+            transform: hov ? "scale(1.04)" : "scale(1)",
+            transition: "transform 0.8s ease",
           }}
-        >
+        />
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute", inset: 0,
+            background: "linear-gradient(180deg,rgba(0,0,0,0.08) 0%,rgba(0,0,0,0.6) 100%)",
+          }}
+        />
+        {/* Listing count badge */}
+        {city.listingCount > 0 && (
+          <div style={{
+            position: "absolute", bottom: 12, left: 12,
+            background: "rgba(201,168,76,0.92)",
+            borderRadius: 20, padding: "3px 10px",
+            fontSize: 10, fontFamily: NU, fontWeight: 600,
+            color: "#1a1208", letterSpacing: "0.4px",
+          }}>
+            {city.listingCount} venue{city.listingCount !== 1 ? "s" : ""}
+          </div>
+        )}
+        {/* Arrow — appears on hover */}
+        <div style={{
+          position: "absolute", bottom: 12, right: 12,
+          width: 28, height: 28, borderRadius: "50%",
+          background: "rgba(0,0,0,0.5)",
+          border: "1px solid rgba(255,255,255,0.25)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "rgba(255,255,255,0.9)", fontSize: 14,
+          opacity: hov ? 1 : 0,
+          transform: hov ? "translateX(0)" : "translateX(4px)",
+          transition: "all 0.3s ease",
+        }}>
+          →
+        </div>
+      </div>
+
+      {/* ── Content ── */}
+      <div style={{ padding: "18px 20px 20px" }}>
+        <h3 style={{
+          fontFamily: GD, fontSize: 20, fontWeight: 400,
+          fontStyle: "italic",
+          color: hov ? C.gold : C.off,
+          transition: "color 0.2s",
+          margin: "0 0 8px",
+          lineHeight: 1.2,
+        }}>
           {city.name}
         </h3>
-        <span
-          style={{
-            fontSize: 14,
-            color: C.gold,
-            opacity: hov ? 1 : 0,
-            transform: hov ? "translateX(0)" : "translateX(-4px)",
-            transition: "all 0.3s ease",
-          }}
-          aria-hidden="true"
-        >
-          →
-        </span>
-      </div>
-      {city.introEditorial && (
-        <p
-          style={{
-            fontFamily: NU,
-            fontSize: 13,
-            color: C.grey,
-            lineHeight: 1.7,
-            fontWeight: 300,
-            margin: 0,
-          }}
-        >
-          {city.introEditorial}
-        </p>
-      )}
-      {city.listingCount > 0 && (
-        <div
-          style={{
-            marginTop: 12,
-            fontSize: 11,
-            color: C.gold,
-            fontFamily: NU,
-            fontWeight: 600,
-            letterSpacing: "0.5px",
-          }}
-        >
-          {city.listingCount} venue{city.listingCount !== 1 ? "s" : ""} →
+        {city.introEditorial && (
+          <p style={{
+            fontFamily: NU, fontSize: 12, color: C.grey,
+            lineHeight: 1.65, fontWeight: 300, margin: 0,
+            display: "-webkit-box", WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical", overflow: "hidden",
+          }}>
+            {city.introEditorial}
+          </p>
+        )}
+        <div style={{
+          marginTop: 14, paddingTop: 12,
+          borderTop: `1px solid ${C.border}`,
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+        }}>
+          <span style={{
+            fontSize: 9, fontFamily: NU, color: C.grey,
+            letterSpacing: "1.2px", textTransform: "uppercase",
+          }}>
+            Explore destination
+          </span>
+          <span style={{ fontSize: 11, color: C.gold, fontFamily: NU }}>→</span>
         </div>
-      )}
-    </button>
+      </div>
+    </article>
   );
 }
 
@@ -2291,68 +2126,6 @@ function EditorialSection({ editorial, region, C }) {
 }
 
 
-// ── MapVenueList — sidebar venue list for inline map ────────────────────────
-function MapVenueList({ venues, C }) {
-  const [active, setActive] = useState(null);
-  return (
-    <ul style={{ flex: 1, overflowY: "auto", listStyle: "none", padding: 0, margin: 0 }}>
-      {venues.map((v) => (
-        <li
-          key={v.id}
-          onMouseEnter={() => setActive(v.id)}
-          onMouseLeave={() => setActive(null)}
-          style={{
-            display: "flex",
-            gap: 12,
-            padding: "12px 16px",
-            cursor: "pointer",
-            borderBottom: `1px solid ${C.border}`,
-            background: active === v.id ? (C.goldDim || "rgba(201,168,76,0.06)") : "transparent",
-            transition: "background 0.2s",
-          }}
-        >
-          <img
-            src={v.imgs[0]}
-            alt={v.name}
-            style={{
-              width: 52,
-              height: 52,
-              objectFit: "cover",
-              flexShrink: 0,
-              borderRadius: 4,
-              border: `1px solid ${active === v.id ? C.gold : C.border}`,
-              transition: "border-color 0.2s",
-            }}
-          />
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontFamily: GD, color: C.white, fontWeight: 500, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {v.name}
-            </div>
-            <div style={{ fontSize: 11, color: C.grey, fontFamily: NU }}>
-              {v.city || v.region}{v.capacity ? ` · ${v.capacity} guests` : ""}
-            </div>
-            <div style={{ fontSize: 10, color: C.gold, fontWeight: 700, marginTop: 2 }}>
-              {v.priceFrom}
-            </div>
-          </div>
-          <span
-            style={{
-              fontSize: 10,
-              color: C.gold,
-              marginLeft: "auto",
-              alignSelf: "center",
-              opacity: active === v.id ? 1 : 0,
-              transition: "opacity 0.2s",
-            }}
-            aria-hidden="true"
-          >
-            →
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
 
 
 // ── SEO Panel — collapsible AI/SEO data blocks ─────────────────────────────
