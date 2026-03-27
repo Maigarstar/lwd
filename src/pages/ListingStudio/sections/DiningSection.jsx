@@ -18,7 +18,7 @@ import RichTextEditor from '../components/RichTextEditor';
 import AIContentGenerator from '../../../components/AIAssistant/AIContentGenerator';
 import { LUXURY_TONE_SYSTEM, buildDiningDescriptionPrompt } from '../../../lib/aiPrompts';
 
-const MAX_MENU_IMAGES = 4;
+const MAX_MENU_IMAGES = 5;
 
 // ── Shared primitives ────────────────────────────────────────────────────────
 const labelStyle = {
