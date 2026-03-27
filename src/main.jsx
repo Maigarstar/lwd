@@ -183,9 +183,13 @@ function stateToPath(pg, opts = {}) {
       const rs  = opts.regionSlug;
       const cat = opts.categorySlug || 'wedding-venues';
       const vs  = opts.venueSlug    || '';
-      if (cs && rs && cat) return `/${cs}/${rs}/${cat}/${vs}`;
-      if (cs && cat)       return `/${cs}/${cat}/${vs}`;
-      return `/wedding-venues/${vs}`;
+      // CANONICAL URL: /{country}/{region}/{category}/{listing}
+      // countrySlug and regionSlug are REQUIRED
+      if (!cs || !rs || !vs) {
+        console.warn('[goListing] Missing required params for canonical URL:', { cs, rs, cat, vs });
+        return '/';
+      }
+      return `/${cs}/${rs}/${cat}/${vs}`;
     }
     case "dde-showcase":      return "/showcase/domaine-des-etangs";
     case "ritz-showcase":     return "/showcase/the-ritz-london";
@@ -257,16 +261,17 @@ function pathToState(pathname) {
   if (parts[0] === "showcase" && parts[1] === "grand-tirolia-kitzbuehel") return { page: "gt-showcase" };
   // Venue showcase: /showcase/{slug}
   if (parts[0] === "showcase" && parts.length === 2) return { page: "showcase", showcaseSlug: parts[1] };
-  // Venue listing profile: /venues/{slug}
-  // Venue reviews page: /venues/{slug}/reviews
+  // ── DEPRECATED OLD URLs (for redirect only) ──
+  // Old format: /venues/{slug} → redirect to canonical
+  if (parts[0] === "venues" && parts.length === 2) return { page: "listing-profile", venueSlug: parts[1], redirectToCanonical: true };
+  // Venue reviews page: /venues/{slug}/reviews → also deprecated
   if (parts[0] === "venues" && parts.length === 3 && parts[2] === "reviews") return { page: "venue-reviews", venueSlug: parts[1] };
-  if (parts[0] === "venues" && parts.length === 2) return { page: "listing-profile", venueSlug: parts[1] };
   // Event detail: /events/{slug}
   if (parts[0] === "events" && parts.length === 2) return { page: "event-detail", eventSlug: parts[1] };
   // Event attendee review: /review?token=UUID
   if (parts[0] === "review" && parts.length === 1) return { page: "event-review" };
-  // Wedding venue listing profile: /wedding-venues/{slug}
-  if (parts[0] === "wedding-venues" && parts.length === 2) return { page: "listing-profile", venueSlug: parts[1] };
+  // Old format: /wedding-venues/{slug} → redirect to canonical
+  if (parts[0] === "wedding-venues" && parts.length === 2) return { page: "listing-profile", venueSlug: parts[1], redirectToCanonical: true };
   if (parts[0] === "magazine-studio" && parts.length === 1) return { page: "magazine-studio" };
   if (parts[0] === "magazine" && parts.length === 1) return { page: "magazine" };
   if (parts[0] === "magazine" && parts[1] === "category" && parts.length === 3) return { page: "magazine-category", magazineCategoryId: parts[2] };
@@ -283,11 +288,13 @@ function pathToState(pathname) {
 
   if (parts.length === 2) return { page: "region", countrySlug: parts[0], regionSlug: parts[1] };
   if (parts.length === 3) {
-    // 3-part: /country/wedding-category/slug → listing-profile (e.g. /england/wedding-venues/the-ritz)
-    // 3-part: /country/region/category       → region-category grid
-    if (parts[1].startsWith('wedding-')) {
-      return { page: "listing-profile", countrySlug: parts[0], regionSlug: null, categorySlug: parts[1], venueSlug: parts[2] };
+    // 3-part: /country/category/slug → DEPRECATED old format, redirect to canonical
+    // Modern format: /country/region/category → region-category grid
+    if (parts[1].startsWith('wedding-') || !['wedding-planners', 'photographers', 'videographers', 'florists', 'styling-decor', 'caterers', 'hair-makeup', 'guest-attire', 'entertainment', 'cakes', 'bridal-dresses', 'stationery', 'health-beauty', 'event-production', 'luxury-transport', 'celebrants', 'gift-registry'].includes(parts[1])) {
+      // Old format: /country/category/slug (missing region)
+      return { page: "listing-profile", countrySlug: parts[0], regionSlug: null, categorySlug: parts[1], venueSlug: parts[2], redirectToCanonical: true };
     }
+    // New format: /country/region/category
     return { page: "region-category", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2] };
   }
   if (parts.length === 4) {
