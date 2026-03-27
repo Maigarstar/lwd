@@ -1,6 +1,28 @@
 import { supabase, isSupabaseAvailable } from '../lib/supabaseClient'
-import { supabaseAdmin } from '../lib/supabaseAdmin'
 import { buildCardImgs, buildCardVideoUrl } from '../utils/mediaMappers'
+
+// ── Edge function: admin-listings ─────────────────────────────────────────────
+// All writes (create, update, delete) go through this edge function.
+// Service_role key lives only in Supabase server-side secrets.
+const LISTINGS_EDGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-listings`
+const LISTINGS_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+async function callListingsEdge(payload: Record<string, unknown>): Promise<any> {
+  if (!LISTINGS_EDGE_URL || LISTINGS_EDGE_URL.startsWith('undefined')) {
+    throw new Error('Supabase URL not configured — cannot reach admin-listings edge function')
+  }
+  const res = await fetch(LISTINGS_EDGE_URL, {
+    method:  'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${LISTINGS_ANON_KEY}`,
+    },
+    body: JSON.stringify(payload),
+  })
+  const json = await res.json()
+  if (!json.success) throw new Error(json.error || `Edge function error (HTTP ${res.status})`)
+  return json.data
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
@@ -801,23 +823,13 @@ export async function createListing(data: Listing) {
     // Sanitize payload: convert empty strings to null for numeric/date fields
     const dbData = sanitizeListingPayload(mapped)
 
-    let { data: listing, error } = await (supabaseAdmin || supabase)!
-      .from('listings')
-      .insert([dbData])
-      .select()
-      .single()
+    let listing = await callListingsEdge({ action: 'create', payload: dbData })
 
     // Graceful retry: if managed_account_id column doesn't exist yet (schema cache miss), strip and retry
-    // Only catches schema/column-not-found errors, not FK constraint violations
-    if (error && error.message?.includes('managed_account_id') && error.message?.includes('schema cache')) {
+    if (!listing) {
       const { managed_account_id: _ma, ...dbDataWithout } = dbData as any
-      const retried = await (supabaseAdmin || supabase)!.from('listings').insert([dbDataWithout]).select().single()
-      if (retried.error) throw retried.error
-      listing = retried.data
-      error = null
+      listing = await callListingsEdge({ action: 'create', payload: dbDataWithout })
     }
-
-    if (error) throw error
 
     // Fire-and-forget: sync rich media metadata into AI search index
     syncMediaAIIndex(listing.id, data)
@@ -852,29 +864,12 @@ export async function updateListing(id: string, data: Partial<Listing>) {
     // Sanitize payload: convert empty strings to null for numeric/date fields
     const updateData = sanitizeListingPayload(mapped)
 
-    let { data: listing, error } = await (supabaseAdmin || supabase)!
-      .from('listings')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single()
+    let listing = await callListingsEdge({ action: 'update', id, payload: updateData })
 
     // Graceful retry: if managed_account_id column doesn't exist yet (schema cache miss), strip and retry
-    // Only catches schema/column-not-found errors, not FK constraint violations
-    if (error && error.message?.includes('managed_account_id') && error.message?.includes('schema cache')) {
+    if (!listing) {
       const { managed_account_id: _ma, ...updateDataWithout } = updateData as any
-      const retried = await (supabaseAdmin || supabase)!.from('listings').update(updateDataWithout).eq('id', id).select().single()
-      if (retried.error) throw retried.error
-      listing = retried.data
-      error = null
-    }
-
-    if (error) {
-      console.error("Supabase UPDATE error:", error);
-      console.error("Error code:", error.code);
-      console.error("Error message:", error.message);
-      console.error("Error details:", error);
-      throw error
+      listing = await callListingsEdge({ action: 'update', id, payload: updateDataWithout })
     }
 
     // Fire-and-forget: sync rich media metadata into AI search index

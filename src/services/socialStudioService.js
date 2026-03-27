@@ -10,11 +10,31 @@
 // so the UI still mounts without crashing.
 // ─────────────────────────────────────────────────────────────────────────────
 import { supabase, isSupabaseAvailable } from '../lib/supabaseClient';
-import { supabaseAdmin } from '../lib/supabaseAdmin';
 
-// Admin client bypasses RLS for all write operations.
-// Falls back to anon client if service role key is unavailable.
-const adminClient = () => supabaseAdmin || supabase;
+// ── Edge function: admin-managed-accounts ─────────────────────────────────────
+// All writes to managed_accounts, social_campaigns, and social_content go
+// through this edge function. The service_role key lives only in Supabase
+// server-side secrets and is never exposed in the frontend bundle.
+// Reads use the anon client directly (RLS allows public SELECT).
+const EDGE_URL  = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-managed-accounts`;
+const ANON_KEY  = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+async function callEdge(payload) {
+  if (!EDGE_URL || EDGE_URL.startsWith('undefined')) {
+    throw new Error('Supabase URL not configured — cannot reach admin-managed-accounts edge function');
+  }
+  const res = await fetch(EDGE_URL, {
+    method:  'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${ANON_KEY}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error || `Edge function error (HTTP ${res.status})`);
+  return json.data;
+}
 
 // ── Offline guard ─────────────────────────────────────────────────────────────
 function offline(fallback) {
@@ -142,17 +162,11 @@ export async function fetchManagedAccount(id) {
  * @returns {Promise<Object|null>}
  */
 export async function createManagedAccount(form) {
-  if (!isSupabaseAvailable()) return offline(null);
   try {
-    const { data, error } = await adminClient()
-      .from('managed_accounts')
-      .insert([accountToDb(form)])
-      .select()
-      .single();
-    if (error) throw error;
+    const data = await callEdge({ action: 'create', payload: accountToDb(form) });
     return dbToAccount(data);
   } catch (err) {
-    console.error('[SocialStudio] createManagedAccount error:', err);
+    console.error('[SocialStudio] createManagedAccount error:', err.message);
     return null;
   }
 }
@@ -186,22 +200,13 @@ export async function fetchManagedAccountByLeadId(crmLeadId) {
  * @returns {Promise<Object|null>} created managed account
  */
 export async function convertLeadToManagedAccount(lead) {
-  if (!isSupabaseAvailable()) return offline(null);
-  const req = lead.requirements_json || {};
-  const form = {
-    name:                req.businessName || `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || lead.email,
-    slug:                slugify(req.businessName || `${lead.first_name || ''} ${lead.last_name || ''}`),
-    primaryContactName:  `${lead.first_name || ''} ${lead.last_name || ''}`.trim(),
-    primaryContactEmail: lead.email  || '',
-    contactPhone:        lead.phone  || '',
-    plan:                '',
-    serviceStatus:       'onboarding',
-    status:              'active',
-    onboardingStatus:    'pending',
-    crmLeadId:           lead.id,
-    internalNotes:       `Converted from CRM lead on ${new Date().toLocaleDateString('en-GB')}. Original source: ${lead.lead_source || 'unknown'}.`,
-  };
-  return createManagedAccount(form);
+  try {
+    const data = await callEdge({ action: 'convertFromLead', lead });
+    return dbToAccount(data);
+  } catch (err) {
+    console.error('[SocialStudio] convertLeadToManagedAccount error:', err.message);
+    return null;
+  }
 }
 
 /**
@@ -211,19 +216,12 @@ export async function convertLeadToManagedAccount(lead) {
  * @returns {Promise<Object|null>}
  */
 export async function updateManagedAccount(id, form) {
-  if (!isSupabaseAvailable()) return offline({ ...form, id });
   try {
-    const { data, error } = await adminClient()
-      .from('managed_accounts')
-      .update(accountToDb(form))
-      .eq('id', id)
-      .select()
-      .single();
-    if (error) throw error;
+    const data = await callEdge({ action: 'update', id, payload: accountToDb(form) });
     return dbToAccount(data);
   } catch (err) {
-    console.error('[SocialStudio] updateManagedAccount error:', err);
-    return { ...form, id };
+    console.error('[SocialStudio] updateManagedAccount error:', err.message);
+    return null;
   }
 }
 
@@ -296,17 +294,11 @@ export async function fetchCampaigns(managedAccountId = null) {
  * @returns {Promise<Object|null>}
  */
 export async function createCampaign(form) {
-  if (!isSupabaseAvailable()) return offline(null);
   try {
-    const { data, error } = await adminClient()
-      .from('social_campaigns')
-      .insert([campaignToDb(form)])
-      .select()
-      .single();
-    if (error) throw error;
+    const data = await callEdge({ action: 'createCampaign', payload: campaignToDb(form) });
     return dbToCampaign(data);
   } catch (err) {
-    console.error('[SocialStudio] createCampaign error:', err);
+    console.error('[SocialStudio] createCampaign error:', err.message);
     return null;
   }
 }
@@ -318,18 +310,11 @@ export async function createCampaign(form) {
  * @returns {Promise<Object|null>}
  */
 export async function updateCampaign(id, form) {
-  if (!isSupabaseAvailable()) return offline(null);
   try {
-    const { data, error } = await adminClient()
-      .from('social_campaigns')
-      .update(campaignToDb(form))
-      .eq('id', id)
-      .select()
-      .single();
-    if (error) throw error;
+    const data = await callEdge({ action: 'updateCampaign', id, payload: campaignToDb(form) });
     return dbToCampaign(data);
   } catch (err) {
-    console.error('[SocialStudio] updateCampaign error:', err);
+    console.error('[SocialStudio] updateCampaign error:', err.message);
     return null;
   }
 }
@@ -510,19 +495,11 @@ export async function fetchClientContentSummary(managedAccountId) {
  * @returns {Promise<Object|null>}
  */
 export async function createContentItem(item) {
-  if (!isSupabaseAvailable()) {
-    return offline({ ...item, id: `offline_${Date.now()}`, _offline: true });
-  }
   try {
-    const { data, error } = await adminClient()
-      .from('social_content')
-      .insert([itemToDb(item)])
-      .select()
-      .single();
-    if (error) throw error;
+    const data = await callEdge({ action: 'createContent', payload: itemToDb(item) });
     return dbToItem(data);
   } catch (err) {
-    console.error('[SocialStudio] createContentItem error:', err);
+    console.error('[SocialStudio] createContentItem error:', err.message);
     return { ...item, id: `offline_${Date.now()}`, _offline: true };
   }
 }
@@ -533,19 +510,11 @@ export async function createContentItem(item) {
  * @returns {Promise<Array>}
  */
 export async function createContentItems(items) {
-  if (!isSupabaseAvailable()) {
-    return offline(items.map((it, i) => ({ ...it, id: `offline_${Date.now()}_${i}`, _offline: true })));
-  }
   try {
-    const rows = items.map(itemToDb);
-    const { data, error } = await adminClient()
-      .from('social_content')
-      .insert(rows)
-      .select();
-    if (error) throw error;
+    const data = await callEdge({ action: 'createContentBatch', items: items.map(itemToDb) });
     return (data || []).map(dbToItem);
   } catch (err) {
-    console.error('[SocialStudio] createContentItems error:', err);
+    console.error('[SocialStudio] createContentItems error:', err.message);
     return items.map((it, i) => ({ ...it, id: `offline_${Date.now()}_${i}`, _offline: true }));
   }
 }
@@ -557,19 +526,12 @@ export async function createContentItems(items) {
  * @returns {Promise<Object|null>}
  */
 export async function updateContentItem(id, item) {
-  if (!isSupabaseAvailable()) return offline({ ...item, id });
   try {
-    const { data, error } = await adminClient()
-      .from('social_content')
-      .update(itemToDb(item))
-      .eq('id', id)
-      .select()
-      .single();
-    if (error) throw error;
+    const data = await callEdge({ action: 'updateContent', id, payload: itemToDb(item) });
     return dbToItem(data);
   } catch (err) {
-    console.error('[SocialStudio] updateContentItem error:', err);
-    return { ...item, id };
+    console.error('[SocialStudio] updateContentItem error:', err.message);
+    return null;
   }
 }
 
@@ -580,16 +542,11 @@ export async function updateContentItem(id, item) {
  * @returns {Promise<boolean>}
  */
 export async function updateContentStatus(id, status) {
-  if (!isSupabaseAvailable()) return offline(false);
   try {
-    const { error } = await adminClient()
-      .from('social_content')
-      .update({ status })
-      .eq('id', id);
-    if (error) throw error;
+    await callEdge({ action: 'updateContentStatus', id, status });
     return true;
   } catch (err) {
-    console.error('[SocialStudio] updateContentStatus error:', err);
+    console.error('[SocialStudio] updateContentStatus error:', err.message);
     return false;
   }
 }
@@ -600,16 +557,11 @@ export async function updateContentStatus(id, status) {
  * @returns {Promise<boolean>}
  */
 export async function deleteContentItem(id) {
-  if (!isSupabaseAvailable()) return offline(false);
   try {
-    const { error } = await adminClient()
-      .from('social_content')
-      .delete()
-      .eq('id', id);
-    if (error) throw error;
+    await callEdge({ action: 'deleteContent', id });
     return true;
   } catch (err) {
-    console.error('[SocialStudio] deleteContentItem error:', err);
+    console.error('[SocialStudio] deleteContentItem error:', err.message);
     return false;
   }
 }
@@ -699,16 +651,11 @@ export async function fetchPortalConfig(managedAccountId, fallbackPlan = 'essent
  * @returns {Promise<boolean>}
  */
 export async function updatePortalConfig(managedAccountId, config) {
-  if (!isSupabaseAvailable()) return offline(false);
   try {
-    const { error } = await adminClient()
-      .from('managed_accounts')
-      .update({ portal_config: config })
-      .eq('id', managedAccountId);
-    if (error) throw error;
+    await callEdge({ action: 'updatePortalConfig', id: managedAccountId, config });
     return true;
   } catch (err) {
-    console.error('[SocialStudio] updatePortalConfig error:', err);
+    console.error('[SocialStudio] updatePortalConfig error:', err.message);
     return false;
   }
 }
