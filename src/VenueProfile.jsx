@@ -4545,11 +4545,10 @@ function DiningSection({ venue }) {
     .map(i => (typeof i === 'string' ? i : (i.src || i.url || '')).trim())
     .filter(Boolean);
 
-  const sideImg = dining.menuImages?.[0]?.src || galleryImgs[1] || galleryImgs[0] || null;
+  const sideImg = dining.menuImages?.[0]?.src || null;
 
-  // Fallback gallery: use venue gallery images when no dedicated dining images exist
+  // Check if dining section has dedicated images
   const hasDiningImages = dining.menuImages?.length > 0;
-  const fallbackGalleryImgs = !hasDiningImages ? galleryImgs.slice(0, 4) : [];
 
   const PillGroup = ({ items, color }) => (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
@@ -4647,20 +4646,6 @@ function DiningSection({ venue }) {
           </div>
         )}
 
-        {/* Gallery fallback — shown when no dedicated dining images exist */}
-        {!hasDiningImages && fallbackGalleryImgs.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(fallbackGalleryImgs.length, 4)}, 1fr)`, gap: 8, marginTop: 4 }}>
-            {fallbackGalleryImgs.map((src, i) => (
-              <img
-                key={i}
-                src={src}
-                alt=""
-                loading="lazy"
-                style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', borderRadius: 2 }}
-              />
-            ))}
-          </div>
-        )}
       </SectionLayout>
 
       {/* Menu image lightbox */}
