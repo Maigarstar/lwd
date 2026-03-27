@@ -1034,7 +1034,7 @@ Rooms: 267`}
 // ─────────────────────────────────────────────────────────────────────────────
 // Main ShowcaseStudioModule
 // ─────────────────────────────────────────────────────────────────────────────
-export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
+export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComplete }) {
   const [viewMode,     setViewMode]     = useState('split');   // split | editor | preview
   const [showcase,     setShowcase]     = useState(null);
   const [sections,     setSections]     = useState([]);
@@ -1081,6 +1081,8 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
   }, [dirty]);
 
   // Load showcase + DB templates on mount
+  const loadedShowcaseIdRef = useRef(null);
+
   useEffect(() => {
     fetchTemplates().then(setDbTemplates).catch(() => {});
 
@@ -1089,9 +1091,13 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
       setShowTemplate(true);
       return;
     }
+    // Skip fetch if this ID is already loaded in local state (e.g. just created via Save Draft)
+    if (loadedShowcaseIdRef.current === showcaseId) return;
+
     fetchShowcases().then(showcases => {
       const found = showcases.find(s => s.id === showcaseId);
       if (found) {
+        loadedShowcaseIdRef.current = showcaseId;
         setShowcase({
           id:            found.id,
           title:         found.name || found.title || '',
@@ -1271,7 +1277,9 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
           status:    'draft',
         });
         id = created.id;
+        loadedShowcaseIdRef.current = id;
         setShowcase(prev => ({ ...prev, id, status: 'draft' }));
+        onSaveComplete?.(id);
       } else {
         await saveShowcaseDraft(id, {
           sections,
@@ -1320,7 +1328,9 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
           status:    'draft',
         });
         id = created.id;
+        loadedShowcaseIdRef.current = id;
         setShowcase(prev => ({ ...prev, id }));
+        onSaveComplete?.(id);
       }
 
       // Update to live status with published_at

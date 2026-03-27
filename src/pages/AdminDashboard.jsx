@@ -9926,8 +9926,9 @@ export default function AdminDashboard({ onBack, onNavigate }) {
   const [activeTab, setActiveTabState] = useState(() => {
     const hash = getInitialTab();
     // Normalize listing-studio sub-routes to the base tab for sidebar highlight
-    if (hash.startsWith('listing-studio')) return 'listing-studio';
-    if (hash.startsWith('page-editor/'))   return 'page-editor';
+    if (hash.startsWith('listing-studio'))  return 'listing-studio';
+    if (hash.startsWith('showcase-studio')) return 'showcase-studio';
+    if (hash.startsWith('page-editor/'))    return 'page-editor';
     return hash;
   });
 
@@ -9967,7 +9968,14 @@ export default function AdminDashboard({ onBack, onNavigate }) {
   const [eventsBuilderActive, setEventsBuilderActive] = useState(false);
   const [locationStudioActive, setLocationStudioActive] = useState(false);
   const [cityStudioActive, setCityStudioActive] = useState(false);
-  const [activeShowcaseId, setActiveShowcaseId] = useState(null);
+  const [activeShowcaseId, setActiveShowcaseId] = useState(() => {
+    const h = window.location.hash.slice(1);
+    if (h.startsWith('showcase-studio/')) {
+      const id = h.split('/')[1];
+      return id || null;
+    }
+    return null;
+  });
 
   useEffect(() => {
     let intent = null;
@@ -10471,7 +10479,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         if (action === 'listing-studio') { setActiveTab('listing-studio'); }
         if (action === 'edit-showcase') { setActiveShowcaseId(params?.showcaseId || null); setActiveTab('showcase-studio'); }
       }} />;
-      case "showcase-studio": return <ShowcaseStudioModule key="showcase-studio" C={C} showcaseId={activeShowcaseId} onBack={() => setActiveTab('venue-profiles')} />;
+      case "showcase-studio": return <ShowcaseStudioModule key="showcase-studio" C={C} showcaseId={activeShowcaseId} onBack={() => setActiveTab('venue-profiles')} onSaveComplete={(id) => { setActiveShowcaseId(id); window.location.hash = `showcase-studio/${id}`; }} />;
       case "reviews": return <ReviewsModule />;
       case "listing-studio": return null; // Handled in main render logic
       case "venue-intake":   return <VenueIntakeStudio C={C} />;
