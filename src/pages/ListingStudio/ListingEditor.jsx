@@ -813,6 +813,7 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
           flex: 1,
           overflow: 'auto',
           backgroundColor: darkMode ? LUX.bg : '#f9f7f3',
+          pointerEvents: 'none',
         }}>
           <ListingLivePreview formData={previewData} />
         </div>

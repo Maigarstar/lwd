@@ -18,7 +18,9 @@ const EditorialContentSection = ({ formData, onChange }) => {
   const sectionIntros = formData?.section_intros || {};
   const description = formData?.description || '';
 
-  const heroRemaining = HERO_SUMMARY_MAX - heroSummary.length;
+  // Ensure counter initializes correctly from saved DB values
+  const heroLength = heroSummary ? heroSummary.length : 0;
+  const heroRemaining = Math.max(0, HERO_SUMMARY_MAX - heroLength);
   const heroNearLimit = heroRemaining <= 50;
   const heroAtLimit = heroRemaining <= 10;
 

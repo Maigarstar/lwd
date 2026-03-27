@@ -680,9 +680,19 @@ function SectionEditor({ section, onChange, C, showcase }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // ShowcaseMeta — right panel when no section selected
 // ─────────────────────────────────────────────────────────────────────────────
-function ShowcaseMeta({ showcase, onChange, C }) {
+function ShowcaseMeta({ showcase, onChange, C, sections, setSections }) {
   function set(key, value) {
     onChange({ ...showcase, [key]: value });
+    // Auto-create a hero section if hero_image_url is set and no hero section exists
+    if (key === 'hero_image_url' && value && sections && setSections) {
+      const hasHeroSection = sections.some(s => s.type === 'hero');
+      if (!hasHeroSection) {
+        const newHeroSection = createSection('hero');
+        newHeroSection.content.title = showcase?.title || 'Untitled';
+        newHeroSection.content.image = value;
+        setSections([newHeroSection, ...sections]);
+      }
+    }
   }
   return (
     <div style={{ padding: '24px 24px 80px', overflowY: 'auto', flex: 1 }}>
@@ -702,7 +712,7 @@ function ShowcaseMeta({ showcase, onChange, C }) {
         <label style={lbl(C)}>Slug</label>
         <input
           value={showcase?.slug || ''}
-          onChange={e => set('slug', e.target.value)}
+          onChange={e => set('slug', e.target.value.toLowerCase())}
           placeholder="the-ritz-london"
           style={inp(C)}
         />
@@ -1714,7 +1724,7 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack }) {
             {selectedSection ? (
               <SectionEditor section={selectedSection} onChange={handleSectionChange} C={C} showcase={showcase} />
             ) : (
-              <ShowcaseMeta showcase={showcase} onChange={setShowcase} C={C} />
+              <ShowcaseMeta showcase={showcase} onChange={setShowcase} C={C} sections={sections} setSections={setSections} />
             )}
           </div>
         )}
