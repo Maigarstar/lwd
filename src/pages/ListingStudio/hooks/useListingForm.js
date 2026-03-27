@@ -413,13 +413,21 @@ export const useListingForm = (listingId = null) => {
         }
       }
 
-      const [heroUpload, mediaUpload] = await Promise.all([
+      const [heroUpload, mediaUpload, roomsUpload, diningUpload] = await Promise.all([
         uploadPendingFiles(
           formData.hero_images || [],
           (msg) => setUploadProgress(msg)
         ),
         uploadPendingFiles(
           formData.media_items || [],
+          (msg) => setUploadProgress(msg)
+        ),
+        uploadPendingFiles(
+          formData.rooms_images || [],
+          (msg) => setUploadProgress(msg)
+        ),
+        uploadPendingFiles(
+          formData.dining_menu_images || [],
           (msg) => setUploadProgress(msg)
         ),
       ]);
@@ -434,10 +442,16 @@ export const useListingForm = (listingId = null) => {
       if (mediaUpload.uploaded > 0) {
         handleChange('media_items', mediaUpload.items);
       }
+      if (roomsUpload.uploaded > 0) {
+        handleChange('rooms_images', roomsUpload.items);
+      }
+      if (diningUpload.uploaded > 0) {
+        handleChange('dining_menu_images', diningUpload.items);
+      }
 
-      if (heroUpload.failed > 0 || mediaUpload.failed > 0) {
+      if (heroUpload.failed > 0 || mediaUpload.failed > 0 || roomsUpload.failed > 0 || diningUpload.failed > 0) {
         console.warn(
-          `[storage] ${heroUpload.failed + mediaUpload.failed} file(s) failed to upload, ` +
+          `[storage] ${heroUpload.failed + mediaUpload.failed + roomsUpload.failed + diningUpload.failed} file(s) failed to upload, ` +
           `they will be excluded from the saved listing.`
         );
       }
@@ -574,7 +588,7 @@ export const useListingForm = (listingId = null) => {
         roomsExclusiveUse: formData.rooms_exclusive_use ?? false,
         roomsMinStay: formData.rooms_min_stay || '',
         roomsDescription: formData.rooms_description || '',
-        roomsImages: formData.rooms_images || [],
+        roomsImages: roomsUpload.items || [],
         // Dining
         diningStyle: formData.dining_style || '',
         diningChefName: formData.dining_chef_name || '',
@@ -584,7 +598,7 @@ export const useListingForm = (listingId = null) => {
         diningDietary: formData.dining_dietary || [],
         diningDrinks: formData.dining_drinks || [],
         diningDescription: formData.dining_description || '',
-        diningMenuImages: formData.dining_menu_images || [],
+        diningMenuImages: diningUpload.items || [],
         // Contact profile (strip the non-serialisable File object; persist the uploaded URL)
         contactProfile: formData.contact_profile
           ? { ...formData.contact_profile, photo_file: undefined, photo_url: contactPhotoUrl }
