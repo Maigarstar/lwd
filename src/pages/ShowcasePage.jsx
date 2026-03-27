@@ -52,7 +52,8 @@ function getImages(mediaItems = []) {
 
 // ── Section: Hero ─────────────────────────────────────────────────────────────
 function HeroSection({ showcase, listing, onEnquire, isMobile }) {
-  const heroImg = showcase?.heroImage || listing?.heroImage || (listing?.imgs?.[0]) || '';
+  // imgs[0] is a {id,src,alt} object from buildCardImgs — extract .src
+  const heroImg = showcase?.heroImage || listing?.heroImage || listing?.imgs?.[0]?.src || listing?.imgs?.[0] || '';
   const title   = showcase?.name || listing?.name || '';
   const location = showcase?.location || (listing?.city && listing?.country ? `${listing.city}, ${listing.country}` : '') || '';
   const excerpt  = showcase?.excerpt || listing?.short_description || '';
@@ -125,14 +126,18 @@ function OverviewSection({ listing, isMobile }) {
   return (
     <div style={{ padding: isMobile ? '56px 24px' : '80px 64px', maxWidth: 760, margin: '0 auto' }}>
       <p style={{ fontFamily: FB, fontSize: 10, color: C.gold, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 16 }}>About</p>
-      <p style={{ fontFamily: FD, fontSize: isMobile ? 22 : 30, color: C.text, lineHeight: 1.4, fontWeight: 400 }}>{desc}</p>
+      <div
+        style={{ fontFamily: FD, fontSize: isMobile ? 22 : 30, color: C.text, lineHeight: 1.4, fontWeight: 400 }}
+        dangerouslySetInnerHTML={{ __html: desc }}
+      />
     </div>
   );
 }
 
 // ── Section: Gallery ──────────────────────────────────────────────────────────
 function GallerySection({ listing, isMobile }) {
-  const images = getImages(listing?.media_items || []);
+  // mapListingFromDb returns camelCase mediaItems; raw DB rows have media_items
+  const images = getImages(listing?.mediaItems || listing?.media_items || []);
   if (!images.length) return null;
 
   const [lightIdx, setLightIdx] = useState(null);
@@ -293,7 +298,7 @@ export default function ShowcasePage({ slug, darkMode, onToggleDark, onBack, onG
               setShowcase({
                 name: lst.name, slug, location: [lst.city, lst.country].filter(Boolean).join(', '),
                 excerpt: lst.short_description || '',
-                heroImage: lst.imgs?.[0] || '',
+                heroImage: lst.imgs?.[0]?.src || lst.imgs?.[0] || '',
                 stats: [
                   lst.price_from         ? { value: lst.price_from,             label: 'From' }        : null,
                   lst.capacity_max        ? { value: `Up to ${lst.capacity_max}`, label: 'Guests' }     : null,
