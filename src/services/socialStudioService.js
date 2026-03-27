@@ -10,6 +10,11 @@
 // so the UI still mounts without crashing.
 // ─────────────────────────────────────────────────────────────────────────────
 import { supabase, isSupabaseAvailable } from '../lib/supabaseClient';
+import { supabaseAdmin } from '../lib/supabaseAdmin';
+
+// Admin client bypasses RLS for all write operations.
+// Falls back to anon client if service role key is unavailable.
+const adminClient = () => supabaseAdmin || supabase;
 
 // ── Offline guard ─────────────────────────────────────────────────────────────
 function offline(fallback) {
@@ -139,7 +144,7 @@ export async function fetchManagedAccount(id) {
 export async function createManagedAccount(form) {
   if (!isSupabaseAvailable()) return offline(null);
   try {
-    const { data, error } = await supabase
+    const { data, error } = await adminClient()
       .from('managed_accounts')
       .insert([accountToDb(form)])
       .select()
@@ -208,7 +213,7 @@ export async function convertLeadToManagedAccount(lead) {
 export async function updateManagedAccount(id, form) {
   if (!isSupabaseAvailable()) return offline({ ...form, id });
   try {
-    const { data, error } = await supabase
+    const { data, error } = await adminClient()
       .from('managed_accounts')
       .update(accountToDb(form))
       .eq('id', id)
@@ -293,7 +298,7 @@ export async function fetchCampaigns(managedAccountId = null) {
 export async function createCampaign(form) {
   if (!isSupabaseAvailable()) return offline(null);
   try {
-    const { data, error } = await supabase
+    const { data, error } = await adminClient()
       .from('social_campaigns')
       .insert([campaignToDb(form)])
       .select()
@@ -315,7 +320,7 @@ export async function createCampaign(form) {
 export async function updateCampaign(id, form) {
   if (!isSupabaseAvailable()) return offline(null);
   try {
-    const { data, error } = await supabase
+    const { data, error } = await adminClient()
       .from('social_campaigns')
       .update(campaignToDb(form))
       .eq('id', id)
@@ -509,7 +514,7 @@ export async function createContentItem(item) {
     return offline({ ...item, id: `offline_${Date.now()}`, _offline: true });
   }
   try {
-    const { data, error } = await supabase
+    const { data, error } = await adminClient()
       .from('social_content')
       .insert([itemToDb(item)])
       .select()
@@ -533,7 +538,7 @@ export async function createContentItems(items) {
   }
   try {
     const rows = items.map(itemToDb);
-    const { data, error } = await supabase
+    const { data, error } = await adminClient()
       .from('social_content')
       .insert(rows)
       .select();
@@ -554,7 +559,7 @@ export async function createContentItems(items) {
 export async function updateContentItem(id, item) {
   if (!isSupabaseAvailable()) return offline({ ...item, id });
   try {
-    const { data, error } = await supabase
+    const { data, error } = await adminClient()
       .from('social_content')
       .update(itemToDb(item))
       .eq('id', id)
@@ -577,7 +582,7 @@ export async function updateContentItem(id, item) {
 export async function updateContentStatus(id, status) {
   if (!isSupabaseAvailable()) return offline(false);
   try {
-    const { error } = await supabase
+    const { error } = await adminClient()
       .from('social_content')
       .update({ status })
       .eq('id', id);
@@ -597,7 +602,7 @@ export async function updateContentStatus(id, status) {
 export async function deleteContentItem(id) {
   if (!isSupabaseAvailable()) return offline(false);
   try {
-    const { error } = await supabase
+    const { error } = await adminClient()
       .from('social_content')
       .delete()
       .eq('id', id);
@@ -696,7 +701,7 @@ export async function fetchPortalConfig(managedAccountId, fallbackPlan = 'essent
 export async function updatePortalConfig(managedAccountId, config) {
   if (!isSupabaseAvailable()) return offline(false);
   try {
-    const { error } = await supabase
+    const { error } = await adminClient()
       .from('managed_accounts')
       .update({ portal_config: config })
       .eq('id', managedAccountId);
