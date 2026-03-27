@@ -116,9 +116,24 @@ function AccountModal({ C, account, onSave, onClose }) {
     contractStart: "", contractEnd: "", renewalDate: "",
     accountManager: "", internalNotes: "",
   });
+  const [saving,    setSaving]    = useState(false);
+  const [saveError, setSaveError] = useState(null);
   const G = C?.gold || "#8f7420";
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const canSave = form.name?.trim();
+  const canSave = form.name?.trim() && !saving;
+
+  async function handleSubmit() {
+    if (!canSave) return;
+    setSaving(true);
+    setSaveError(null);
+    const result = await onSave(form);
+    if (result?.ok) {
+      onClose(); // only close on confirmed DB success
+    } else {
+      setSaving(false);
+      setSaveError(result?.message || 'Save failed — account was not stored in the database');
+    }
+  }
 
   const autoSlug = (v) => {
     set("name", v);
@@ -261,19 +276,44 @@ function AccountModal({ C, account, onSave, onClose }) {
           </div>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24, paddingTop: 20, borderTop: `1px solid ${C?.border || "#333"}` }}>
-          <button onClick={onClose} style={{
+        {/* Error banner — shown inside modal so user sees it without the modal disappearing */}
+        {saveError && (
+          <div style={{
+            marginTop: 16, padding: "10px 14px",
+            background: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.35)",
+            borderRadius: 6, color: "#fca5a5", fontSize: 12, lineHeight: 1.5,
+            display: "flex", alignItems: "flex-start", gap: 8,
+          }}>
+            <span style={{ flexShrink: 0, marginTop: 1 }}>✕</span>
+            <span>{saveError}</span>
+          </div>
+        )}
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 20, paddingTop: 20, borderTop: `1px solid ${C?.border || "#333"}` }}>
+          <button onClick={onClose} disabled={saving} style={{
             background: "none", border: `1px solid ${C?.border || "#333"}`,
             borderRadius: 6, padding: "9px 20px", color: C?.grey || "#888",
-            fontSize: 13, cursor: "pointer",
+            fontSize: 13, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.5 : 1,
           }}>Cancel</button>
-          <button onClick={() => canSave && onSave(form)} disabled={!canSave} style={{
+          <button onClick={handleSubmit} disabled={!canSave} style={{
             background: canSave ? G : C?.border || "#333",
             border: "none", borderRadius: 6, padding: "9px 24px",
             color: canSave ? "#fff" : C?.grey2 || "#555",
             fontSize: 13, fontWeight: 600, cursor: canSave ? "pointer" : "not-allowed",
+            minWidth: 120, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
           }}>
-            {isEdit ? "Save Changes" : "Create Account"}
+            {saving ? (
+              <>
+                <span style={{
+                  width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)",
+                  borderTopColor: "#fff", borderRadius: "50%",
+                  display: "inline-block", animation: "spin 0.7s linear infinite",
+                }} />
+                Saving…
+              </>
+            ) : (
+              isEdit ? "Save Changes" : "Create Account"
+            )}
           </button>
         </div>
       </div>
@@ -817,6 +857,8 @@ export default function ManagedAccountsModule({ C }) {
   const [loading,         setLoading]         = useState(true);
   const [selected,        setSelected]        = useState(null);
   const [showModal,       setShowModal]        = useState(false);
+  const [saveStatus,      setSaveStatus]      = useState(null); // { type: 'success'|'error', message: string }
+  const saveStatusTimer = useRef(null);
   const [editAccount,     setEditAccount]      = useState(null);
   const [statusFilter,    setStatusFilter]     = useState("active");
   const [serviceFilter,   setServiceFilter]    = useState("all");
@@ -853,18 +895,40 @@ export default function ManagedAccountsModule({ C }) {
     return list;
   }, [accounts, statusFilter, serviceFilter, planFilter, search]);
 
+  function showSaveFeedback(type, message) {
+    if (saveStatusTimer.current) clearTimeout(saveStatusTimer.current);
+    setSaveStatus({ type, message });
+    saveStatusTimer.current = setTimeout(() => setSaveStatus(null), 4500);
+  }
+
+  // Returns { ok: true } on DB-confirmed success, { ok: false, message } on failure.
+  // The modal uses the return value to decide whether to close — it stays open on failure.
   async function handleSave(form) {
-    setShowModal(false);
     if (form.id) {
-      setAccounts(prev => prev.map(a => a.id === form.id ? { ...a, ...form } : a));
-      await updateManagedAccount(form.id, form);
-      // Refresh selected panel if open
-      setSelected(prev => prev?.id === form.id ? { ...prev, ...form } : prev);
+      // ── Edit ──────────────────────────────────────────────────────────────────
+      const updated = await updateManagedAccount(form.id, form);
+      if (updated && !updated._offline) {
+        setAccounts(prev => prev.map(a => a.id === form.id ? updated : a));
+        setSelected(prev => prev?.id === form.id ? updated : prev);
+        showSaveFeedback('success', `${updated.name} updated`);
+        return { ok: true };
+      } else {
+        return { ok: false, message: 'Update failed — your changes were not saved to the database. Please try again.' };
+      }
     } else {
+      // ── Create ────────────────────────────────────────────────────────────────
       const created = await createManagedAccount(form);
-      setAccounts(prev => [created || { ...form, id: `tmp_${Date.now()}` }, ...prev]);
+      if (created && !created._offline) {
+        // Only add to the list once the DB confirms the record exists
+        setAccounts(prev => [created, ...prev]);
+        showSaveFeedback('success', `${created.name} created`);
+        // Re-fetch from DB to verify the record survives a reload
+        setTimeout(() => loadAccounts(), 700);
+        return { ok: true };
+      } else {
+        return { ok: false, message: 'Create failed — account was not saved to the database. Check the browser console for the error detail.' };
+      }
     }
-    setEditAccount(null);
   }
 
   async function handleStatusAction(accountId, newStatus) {
@@ -1051,6 +1115,29 @@ export default function ManagedAccountsModule({ C }) {
           onClose={() => { setShowModal(false); setEditAccount(null); }}
         />
       )}
+
+      {/* Save feedback toast */}
+      {saveStatus && (
+        <div style={{
+          position: "fixed", bottom: 28, right: 28, zIndex: 9999,
+          background: saveStatus.type === "success" ? "#16a34a" : "#dc2626",
+          color: "#fff", borderRadius: 8, padding: "12px 18px",
+          fontSize: 13, fontWeight: 600,
+          boxShadow: "0 4px 24px rgba(0,0,0,0.45)",
+          display: "flex", alignItems: "center", gap: 10,
+          maxWidth: 380,
+        }}>
+          <span>{saveStatus.type === "success" ? "✓" : "✕"}</span>
+          <span style={{ flex: 1 }}>{saveStatus.message}</span>
+          <button
+            onClick={() => setSaveStatus(null)}
+            style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", fontSize: 16, lineHeight: 1, flexShrink: 0 }}
+          >×</button>
+        </div>
+      )}
+
+      {/* Spinner keyframes */}
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
