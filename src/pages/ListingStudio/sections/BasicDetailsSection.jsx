@@ -587,7 +587,7 @@ const BasicDetailsSection = ({ formData, onChange, darkMode = false }) => {
             type="text"
             name="slug"
             value={formData?.slug || ''}
-            onChange={(e) => onChange('slug', e.target.value)}
+            onChange={(e) => onChange('slug', e.target.value.toLowerCase())}
             placeholder="villa-balbiano"
             style={{
               width: '100%',
