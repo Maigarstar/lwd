@@ -7803,12 +7803,26 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
   useEffect(() => {
     if (!rawListing || !slug) return;
     const cs  = rawListing.country_slug  || rawListing.countrySlug  || countrySlug;
-    const rs  = rawListing.region_slug   || rawListing.regionSlug   || regionSlug;
+    let rs  = rawListing.region_slug   || rawListing.regionSlug   || regionSlug;
     const cat = rawListing.category_slug || rawListing.categorySlug || categorySlug || 'wedding-venues';
 
-    // CANONICAL: must have country, region, category, and slug all in lowercase
-    if (!cs || !rs || !cat) {
-      console.warn('[VenueProfile] Missing data for canonical URL:', { cs, rs, cat, slug });
+    // FALLBACK: If region_slug is missing from DB, try to infer from listing city/region
+    if (!rs && rawListing.region) {
+      rs = rawListing.region.toLowerCase().replace(/\s+/g, '-');
+    }
+    if (!rs && rawListing.city === 'Frome') {
+      rs = 'somerset'; // Known mapping for Orchardleigh House
+    }
+
+    // CANONICAL: must have country, category, and slug at minimum
+    if (!cs || !cat) {
+      console.warn('[VenueProfile] Missing required data for canonical URL:', { cs, rs, cat, slug });
+      return;
+    }
+
+    // If we still don't have region, stay on old format (don't redirect)
+    if (!rs) {
+      console.warn('[VenueProfile] Cannot build canonical URL: region_slug missing', { slug, city: rawListing.city });
       return;
     }
 
