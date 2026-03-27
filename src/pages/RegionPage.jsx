@@ -99,6 +99,11 @@ export default function RegionPage({
   // ── Filter handler ──────────────────────────────────────────────────────
   const handleFiltersChange = useCallback((f) => setFilters(f), []);
 
+  // ── Ensure page scrolls to top on mount ──────────────────────────────────
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [regionSlug]);
+
   // ── Entity lookup ────────────────────────────────────────────────────────
   // If _cityData is provided, use it as the region (for city pages)
   const region = useMemo(() => _cityData || getRegionBySlug(regionSlug), [regionSlug, _cityData]);
