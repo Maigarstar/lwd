@@ -7798,18 +7798,29 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
     fetchUpcomingEventsForVenue(VV.id, 6).then(evts => setVenueEvents(evts || []));
   }, [VV.id]);
 
-  // Silently replace URL bar with canonical hierarchical path once listing loads
+  // Enforce canonical URL: /{country}/{region}/{category}/{listing}
+  // If accessed via old format, redirect to canonical
   useEffect(() => {
     if (!rawListing || !slug) return;
     const cs  = rawListing.country_slug  || rawListing.countrySlug  || countrySlug;
     const rs  = rawListing.region_slug   || rawListing.regionSlug   || regionSlug;
     const cat = rawListing.category_slug || rawListing.categorySlug || categorySlug || 'wedding-venues';
-    if (!cs) return;
-    const canonical = (cs && rs && cat)
-      ? `/${cs}/${rs}/${cat}/${slug}`
-      : `/${cs}/${cat}/${slug}`;
-    if (window.location.pathname !== canonical) {
-      window.history.replaceState(null, '', canonical);
+
+    // CANONICAL: must have country, region, category, and slug all in lowercase
+    if (!cs || !rs || !cat) {
+      console.warn('[VenueProfile] Missing data for canonical URL:', { cs, rs, cat, slug });
+      return;
+    }
+
+    // Build canonical URL with lowercase slug
+    const lowerSlug = slug.toLowerCase();
+    const canonical = `/${cs}/${rs}/${cat}/${lowerSlug}`;
+    const current = window.location.pathname;
+
+    if (current !== canonical) {
+      // Redirect to canonical URL (301 equivalent using replaceState + redirect)
+      console.log(`[VenueProfile] Redirecting from ${current} to ${canonical}`);
+      window.location.replace(canonical);
     }
   }, [rawListing, slug, countrySlug, regionSlug, categorySlug]);
 
