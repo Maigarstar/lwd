@@ -7799,7 +7799,7 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
   }, [VV.id]);
 
   // Enforce canonical URL: /{country}/{region}/{category}/{listing}
-  // If accessed via old format, redirect to canonical
+  // All parts MUST be lowercase. If accessed via old format or mixed case, redirect to canonical
   useEffect(() => {
     if (!rawListing || !slug) return;
     const cs  = rawListing.country_slug  || rawListing.countrySlug  || countrySlug;
@@ -7812,9 +7812,8 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
       return;
     }
 
-    // Build canonical URL with lowercase slug
-    const lowerSlug = slug.toLowerCase();
-    const canonical = `/${cs}/${rs}/${cat}/${lowerSlug}`;
+    // Build canonical URL with ALL parts lowercase
+    const canonical = `/${cs.toLowerCase()}/${rs.toLowerCase()}/${cat.toLowerCase()}/${slug.toLowerCase()}`;
     const current = window.location.pathname;
 
     if (current !== canonical) {
