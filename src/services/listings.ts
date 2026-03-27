@@ -1,4 +1,5 @@
 import { supabase, isSupabaseAvailable } from '../lib/supabaseClient'
+import { supabaseAdmin } from '../lib/supabaseAdmin'
 import { buildCardImgs, buildCardVideoUrl } from '../utils/mediaMappers'
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -800,7 +801,7 @@ export async function createListing(data: Listing) {
     // Sanitize payload: convert empty strings to null for numeric/date fields
     const dbData = sanitizeListingPayload(mapped)
 
-    let { data: listing, error } = await supabase!
+    let { data: listing, error } = await (supabaseAdmin || supabase)!
       .from('listings')
       .insert([dbData])
       .select()
@@ -810,7 +811,7 @@ export async function createListing(data: Listing) {
     // Only catches schema/column-not-found errors, not FK constraint violations
     if (error && error.message?.includes('managed_account_id') && error.message?.includes('schema cache')) {
       const { managed_account_id: _ma, ...dbDataWithout } = dbData as any
-      const retried = await supabase!.from('listings').insert([dbDataWithout]).select().single()
+      const retried = await (supabaseAdmin || supabase)!.from('listings').insert([dbDataWithout]).select().single()
       if (retried.error) throw retried.error
       listing = retried.data
       error = null
@@ -851,7 +852,7 @@ export async function updateListing(id: string, data: Partial<Listing>) {
     // Sanitize payload: convert empty strings to null for numeric/date fields
     const updateData = sanitizeListingPayload(mapped)
 
-    let { data: listing, error } = await supabase!
+    let { data: listing, error } = await (supabaseAdmin || supabase)!
       .from('listings')
       .update(updateData)
       .eq('id', id)
@@ -862,7 +863,7 @@ export async function updateListing(id: string, data: Partial<Listing>) {
     // Only catches schema/column-not-found errors, not FK constraint violations
     if (error && error.message?.includes('managed_account_id') && error.message?.includes('schema cache')) {
       const { managed_account_id: _ma, ...updateDataWithout } = updateData as any
-      const retried = await supabase!.from('listings').update(updateDataWithout).eq('id', id).select().single()
+      const retried = await (supabaseAdmin || supabase)!.from('listings').update(updateDataWithout).eq('id', id).select().single()
       if (retried.error) throw retried.error
       listing = retried.data
       error = null
