@@ -8,6 +8,7 @@ import { useAdminAuth } from "./context/AdminAuthContext";
 import { buildCardImgs, mapMediaItemToGalleryPhoto, buildVenueVideos } from './utils/mediaMappers';
 import ReviewSubmitForm from './components/reviews/ReviewSubmitForm';
 import VenueEnquiryForm from './components/enquiry/VenueEnquiryForm';
+import LuxeEnquiryModal from './components/enquiry/LuxeEnquiryModal';
 import SeoHead from './components/seo/SeoHead';
 import JsonLd from './components/seo/JsonLd';
 import { buildVenueSchema, buildBreadcrumbSchema, buildFaqSchema } from './utils/structuredData';
@@ -6246,7 +6247,8 @@ function CompareEnquiryForm({ venue, onClose }) {
     setForm(f => ({ ...f, date: '' }));
   };
 
-  const heroSrc = venue?.imgs?.[0]?.src || venue?.heroImage || venue?.cardImage || null;
+  const firstImg = venue?.imgs?.[0];
+  const heroSrc = (typeof firstImg === 'string' ? firstImg : firstImg?.src) || venue?.heroImage || venue?.cardImage || venue?.gallery?.[0]?.src || venue?.gallery?.[0] || null;
   const loc     = [venue?.city, venue?.country].filter(Boolean).join(', ');
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -8115,7 +8117,7 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
           }}
         />
         <Lightbox gallery={VV.gallery} idx={lightIdx} setLightIdx={setLightIdx} onClose={() => setLightIdx(null)} onPrev={() => setLightIdx(i => (i - 1 + (VV.gallery?.length || 1)) % (VV.gallery?.length || 1))} onNext={() => setLightIdx(i => (i + 1) % (VV.gallery?.length || 1))} engagement={VV.engagement?.photos} />
-        {enquiryOpen && <EnquiryModal venue={VV} onClose={() => setEnquiryOpen(false)} />}
+        {enquiryOpen && <LuxeEnquiryModal venue={VV} onClose={() => setEnquiryOpen(false)} entityType="venue" />}
         {showCompareModal && compareList.length > 0 && (
           <CompareModal
             items={compareList}

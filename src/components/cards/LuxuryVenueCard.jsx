@@ -7,7 +7,7 @@ import { useTheme } from "../../theme/ThemeContext";
 import { useShortlist } from "../../shortlist/ShortlistContext";
 import Stars from "../ui/Stars";
 import { GoldBadge, VerifiedBadge } from "../ui/Badges";
-import EnquiryFormModal from "../ui/EnquiryFormModal";
+import LuxeEnquiryModal from "../enquiry/LuxeEnquiryModal";
 import ShortlistButton from "../buttons/ShortlistButton";
 import { track } from "../../utils/track";
 import { getQualityTier } from "../../services/listings";
@@ -577,7 +577,7 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
 
       {/* ── Enquiry modal ── */}
       {showEnquiry && (
-        <EnquiryFormModal planner={v} onClose={() => setShowEnquiry(false)} />
+        <LuxeEnquiryModal venue={v} onClose={() => setShowEnquiry(false)} entityType="venue" />
       )}
     </article>
   );

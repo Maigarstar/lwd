@@ -64,7 +64,8 @@ CREATE INDEX IF NOT EXISTS review_messages_review_idx
 ALTER TABLE review_messages ENABLE ROW LEVEL SECURITY;
 
 -- Public can read non-internal messages on approved reviews
-CREATE POLICY IF NOT EXISTS "Public read owner replies on approved reviews"
+DROP POLICY IF EXISTS "Public read owner replies on approved reviews" ON review_messages;
+CREATE POLICY "Public read owner replies on approved reviews"
   ON review_messages FOR SELECT
   USING (
     is_internal_note = FALSE
@@ -77,7 +78,8 @@ CREATE POLICY IF NOT EXISTS "Public read owner replies on approved reviews"
   );
 
 -- Service-role (admin, vendor) can insert messages
-CREATE POLICY IF NOT EXISTS "Service role insert review messages"
+DROP POLICY IF EXISTS "Service role insert review messages" ON review_messages;
+CREATE POLICY "Service role insert review messages"
   ON review_messages FOR INSERT
   WITH CHECK (TRUE);
 

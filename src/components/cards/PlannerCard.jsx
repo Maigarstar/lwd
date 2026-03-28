@@ -12,7 +12,7 @@ import Pill from "../ui/Pill";
 import { GoldBadge, VerifiedBadge } from "../ui/Badges";
 import CuratedIndexBadge from "../ui/CuratedIndexBadge";
 import MediaGalleryModal from "../ui/MediaGalleryModal";
-import EnquiryFormModal from "../ui/EnquiryFormModal";
+import LuxeEnquiryModal from "../enquiry/LuxeEnquiryModal";
 import { getQualityTier } from "../../services/listings";
 import TierBadge from "../editorial/TierBadge";
 import ApprovalIndicators from "../editorial/ApprovalIndicators";
@@ -1233,7 +1233,7 @@ function GridCard({ v, onView, isMobile }) {
 
       {/* Enquiry modal */}
       {showEnquiry && (
-        <EnquiryFormModal planner={v} onClose={() => setShowEnquiry(false)} />
+        <LuxeEnquiryModal venue={v} onClose={() => setShowEnquiry(false)} entityType="planner" />
       )}
     </article>
   );
@@ -1325,7 +1325,7 @@ function ListCard({ v, onView, listMode, isHighlighted }) {
 
       {/* Enquiry modal */}
       {showEnquiry && (
-        <EnquiryFormModal planner={v} onClose={() => setShowEnquiry(false)} />
+        <LuxeEnquiryModal venue={v} onClose={() => setShowEnquiry(false)} entityType="planner" />
       )}
 
       {/* Content */}

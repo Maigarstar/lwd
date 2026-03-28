@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { createLead } from '../../services/leadEngineService';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -178,6 +179,44 @@ const S = {
     backgroundPosition: 'right 0 center',
     paddingRight: '20px',
   },
+  // ── Modal styles ──
+  overlay: {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 9999,
+    background: 'rgba(0,0,0,0.65)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '24px',
+    overflowY: 'auto',
+  },
+  closeBtn: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 32,
+    height: 32,
+    borderRadius: '50%',
+    background: 'rgba(0,0,0,0.06)',
+    border: '1px solid rgba(0,0,0,0.12)',
+    color: '#171717',
+    fontSize: 16,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  eyebrow: {
+    fontFamily: 'Inter, sans-serif',
+    fontSize: '10px',
+    fontWeight: 600,
+    letterSpacing: '2px',
+    textTransform: 'uppercase',
+    color: '#8f7420',
+    marginBottom: '8px',
+  },
 };
 
 const focusGold = (e) => { e.target.style.borderBottomColor = '#8f7420'; };
@@ -194,9 +233,19 @@ export default function VenueEnquiryForm({
   venueName = '',
   responseTime = null,
   sticky = true,
+  entityType = 'venue',   // 'venue' | 'vendor' | 'planner'
+  modal = false,          // wrap in full-screen portal overlay
+  onClose = null,         // required when modal=true
 }) {
+  const isVenue = entityType === 'venue';
+  const entityLabel = isVenue ? 'Venue' : entityType === 'planner' ? 'Planner' : 'Vendor';
+  const displayName = vendorName || venueName || '';
+  const defaultMsg = isVenue
+    ? `Hi${displayName ? ' ' + displayName : ''}, I'm interested in hosting my wedding at ${venueName || 'your venue'}. Could you please send me pricing and availability information?`
+    : `Hi${displayName ? ' ' + displayName : ''}, I'd love to learn more about your services for my upcoming wedding. Could you share pricing and availability?`;
+
   const [form, setForm] = useState({
-    message: `Hi${vendorName ? ' ' + vendorName : ''}, I'm interested in hosting my wedding at ${venueName || 'your venue'}. Could you please send me pricing and availability information?`,
+    message: defaultMsg,
     firstName: '',
     lastName: '',
     email: '',
@@ -243,14 +292,14 @@ export default function VenueEnquiryForm({
     try {
       // Build normalized lead payload
       const result = await createLead({
-        leadSource: 'venue_page',
+        leadSource: isVenue ? 'venue_page' : 'vendor_page',
         leadChannel: 'form',
-        leadType: 'venue_enquiry',
+        leadType: isVenue ? 'venue_enquiry' : 'vendor_enquiry',
 
         listingId: listingId || venueId || vendorId || null,
-        listingType: 'venue',
+        listingType: entityType,
         venueId: venueId || listingId || null,
-        vendorId: vendorId || null,
+        vendorId: vendorId || listingId || null,
 
         firstName: form.firstName,
         lastName: form.lastName,
@@ -285,7 +334,7 @@ export default function VenueEnquiryForm({
   const handleReset = () => {
     setSubmitted(false);
     setForm({
-      message: `Hi${vendorName ? ' ' + vendorName : ''}, I'm interested in hosting my wedding at ${venueName || 'your venue'}. Could you please send me pricing and availability information?`,
+      message: defaultMsg,
       firstName: '',
       lastName: '',
       email: '',
@@ -300,9 +349,25 @@ export default function VenueEnquiryForm({
     setError(null);
   };
 
+  // Lock body scroll when in modal mode
+  useEffect(() => {
+    if (!modal) return;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, [modal]);
+
+  // Escape key in modal mode
+  useEffect(() => {
+    if (!modal || !onClose) return;
+    const esc = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', esc);
+    return () => document.removeEventListener('keydown', esc);
+  }, [modal, onClose]);
+
   const containerStyle = {
     ...S.container,
-    ...(sticky ? {
+    ...(modal ? { maxWidth: 480, width: '100%', position: 'relative' } : {}),
+    ...(!modal && sticky ? {
       position: 'sticky',
       top: '140px',
       alignSelf: 'start',
@@ -316,27 +381,45 @@ export default function VenueEnquiryForm({
 
   // ── Success state ──────────────────────────────────────────────────────────
 
-  if (submitted) {
-    return (
-      <div style={containerStyle}>
-        <div style={S.successWrap}>
-          <div style={S.successIcon}>&#10003;</div>
-          <h3 style={S.successHeading}>Enquiry Sent</h3>
-          <p style={S.successText}>
-            Thank you! We've received your enquiry and {vendorName || 'the venue'} will be in touch soon.
-          </p>
-          <button style={S.resetBtn} onClick={handleReset}>Send Another Enquiry</button>
-        </div>
+  const successContent = (
+    <div style={containerStyle}>
+      {modal && onClose && (
+        <button onClick={onClose} aria-label="Close" style={S.closeBtn}>✕</button>
+      )}
+      <div style={S.successWrap}>
+        <div style={S.successIcon}>&#10003;</div>
+        <h3 style={S.successHeading}>Enquiry Sent</h3>
+        <p style={S.successText}>
+          Thank you! We've received your enquiry and {displayName || (isVenue ? 'the venue' : 'the vendor')} will be in touch soon.
+        </p>
+        <button style={S.resetBtn} onClick={modal ? onClose : handleReset}>
+          {modal ? 'Done' : 'Send Another Enquiry'}
+        </button>
       </div>
-    );
-  }
+    </div>
+  );
+
+  if (submitted && !modal) return successContent;
+  if (submitted && modal) return createPortal(
+    <div onClick={onClose} style={S.overlay}>{successContent}</div>,
+    document.body
+  );
 
   // ── Form ───────────────────────────────────────────────────────────────────
 
-  return (
-    <div style={containerStyle}>
-      <h2 style={S.heading}>Request Pricing</h2>
+  const eyebrow = !isVenue ? `${entityLabel.toUpperCase()} ENQUIRY` : null;
+
+  const formContent = (
+    <div style={containerStyle} onClick={(e) => e.stopPropagation()}>
+      {modal && onClose && (
+        <button onClick={onClose} aria-label="Close" style={S.closeBtn}>✕</button>
+      )}
+      {eyebrow && (
+        <div style={S.eyebrow}>{eyebrow}</div>
+      )}
+      <h2 style={S.heading}>{displayName ? `Contact ${displayName}` : 'Request Pricing'}</h2>
       {responseTime && <div style={S.subtitle}>Replies in {responseTime}</div>}
+      {!responseTime && displayName && <div style={S.subtitle}>Send a message to {displayName}</div>}
 
       <form ref={formRef} onSubmit={handleSubmit}>
         {/* Message */}
@@ -432,5 +515,14 @@ export default function VenueEnquiryForm({
         </div>
       </form>
     </div>
+  );
+
+  if (!modal) return formContent;
+
+  return createPortal(
+    <div onClick={onClose} style={S.overlay}>
+      {formContent}
+    </div>,
+    document.body
   );
 }

@@ -533,11 +533,11 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
                     padding:       "6px 14px",
                     background:    item.online
                       ? "linear-gradient(135deg,#C9A84C,#e8c97a)"
-                      : "none",
+                      : "#000000",
                     border:        item.online
                       ? "none"
-                      : "1px solid rgba(255,255,255,0.12)",
-                    color:         item.online ? "#0f0d0a" : "rgba(255,255,255,0.28)",
+                      : "none",
+                    color:         item.online ? "#0f0d0a" : "#ffffff",
                     cursor:        "pointer",
                     borderRadius:  "var(--lwd-radius-input)",
                     transition:    "all 0.2s",

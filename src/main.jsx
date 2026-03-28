@@ -135,7 +135,7 @@ function stateToPath(pg, opts = {}) {
     case "real-wedding-detail": return `/real-weddings/${weddingSlug}`;
     case "real-weddings":    return "/real-weddings";
     case "category":         return "/category";
-    case "venue":            return "/venue";
+
     case "standard":         return "/the-lwd-standard";
     case "about":            return "/about";
     case "taigenic":         return "/taigenic";
@@ -206,7 +206,7 @@ function pathToState(pathname) {
   const clean = pathname.replace(/^\/+|\/+$/g, "");
   if (!clean) return { page: "home" };
   const statics = {
-    venue: "venue", category: "category", "the-lwd-standard": "standard",
+    category: "category", "the-lwd-standard": "standard",
     about: "about", contact: "contact", partnership: "partnership",
     privacy: "privacy", terms: "terms", cookies: "cookies", "reviews-policy": "reviews-policy", support: "support",
     admin: "admin", vendor: "vendor", couple: "couple", "real-weddings": "real-weddings", shortlist: "shortlist", "getting-married": "getting-married", join: "join", "artistry-awards": "artistry-awards", "partner-enquiry": "partner-enquiry", taigenic: "taigenic",
@@ -442,7 +442,7 @@ function App() {
       setActiveVenueSlug(slug);
       setPage("listing-profile");
     } else {
-      setPage("venue");
+      setPage("home");
     }
   };
   const goRegion = (countrySlug, regionSlug) => {
@@ -550,9 +550,7 @@ function App() {
             <ChatProvider>
 
         {/* ── Pages ── */}
-        {page === "venue" && (
-          <VenueProfile onBack={goHome} />
-        )}
+        {/* /venue removed — dead route with no data */}
         {page === "venue-profile" && (
           <VenueProfile slug={activeVenueSlug} onBack={goHome} />
         )}

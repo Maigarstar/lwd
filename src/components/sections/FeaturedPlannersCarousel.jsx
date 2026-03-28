@@ -7,7 +7,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { GoldBadge, VerifiedBadge } from "../ui/Badges";
 import Stars from "../ui/Stars";
 import { SocialRow } from "../cards/PlannerCard";
-import EnquiryFormModal from "../ui/EnquiryFormModal";
+import LuxeEnquiryModal from "../enquiry/LuxeEnquiryModal";
 
 const GD   = "var(--font-heading-primary)";
 const NU   = "var(--font-body)";
@@ -381,7 +381,7 @@ function FeaturedReelCard({ v, isMobile, onView }) {
         </div>
       </div>
 
-      {showEnquiry && <EnquiryFormModal planner={v} onClose={() => setShowEnquiry(false)} />}
+      {showEnquiry && <LuxeEnquiryModal venue={v} onClose={() => setShowEnquiry(false)} entityType="planner" />}
     </article>
   );
 }
