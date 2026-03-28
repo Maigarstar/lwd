@@ -311,6 +311,21 @@ VENUE.contact.addressFormatted = [
   VENUE.contact.address.country,
 ].join(", ");
 
+// ─── Canonical URL builder ─────────────────────────────────────────────────────
+function buildListingUrl(v) {
+  // Use stored canonical path if available (recently viewed)
+  if (v.canonicalPath) return v.canonicalPath;
+  // Build from parts if available
+  const cs = v.country_slug || v.countrySlug;
+  const rs = v.region_slug || v.regionSlug;
+  const cat = v.category_slug || v.categorySlug || 'wedding-venues';
+  const s = v.slug;
+  if (cs && rs && s) return `/${cs}/${rs}/${cat}/${s}`;
+  // Fallback — slug only, let the page resolve
+  if (s) return `/${s}`;
+  return '#';
+}
+
 // ─── RECENTLY VIEWED, localStorage helpers ────────────────────────────────────
 const RV_KEY = 'ldw_recently_viewed';
 const MAX_RV_STORED = 6;
@@ -343,6 +358,7 @@ function recordVenueView(v, slug) {
       currency: v.priceCurrency || '£',
       img: img,
       slug: slug,
+      canonicalPath: window.location.pathname,
       viewedAt: Date.now(),
     };
     const updated = [entry, ...getRVList().filter(x => x.id !== entry.id)].slice(0, MAX_RV_STORED);
@@ -5519,7 +5535,7 @@ function SimilarVenues({ venue }) {
         <SliderNav className="venue-similar-slider" cardWidth={300} gap={12}>
           {venues.map(({ location: loc, slug, ...rest }) => (
             <div key={rest.id} style={{ flex: "0 0 300px", scrollSnapAlign: "start" }} onClick={() => {
-              if (slug) window.location.href = `/wedding-venues/${slug}`;
+              if (slug) window.location.href = buildListingUrl({ slug, ...rest });
             }}>
               <GCardMobile
                 v={{ ...rest, region: loc, image: rest.img, priceFrom: rest.price }}
@@ -5535,7 +5551,7 @@ function SimilarVenues({ venue }) {
           {venues.map(v => (
             <div key={v.id} style={{ border: `1px solid ${C.border}`, background: C.surface, overflow: "hidden", cursor: "pointer", borderRadius: 2 }}
               onClick={() => {
-                if (v.slug) window.location.href = `/wedding-venues/${v.slug}`;
+                if (v.slug) window.location.href = buildListingUrl(v);
               }}
               onMouseEnter={e => e.currentTarget.style.boxShadow = C.shadowMd}
               onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
@@ -5594,7 +5610,7 @@ function RecentlyViewed({ venue }) {
         <SliderNav className="venue-recent-slider" cardWidth={300} gap={12}>
           {items.map(({ location: loc, img, price, slug, ...rest }) => (
             <div key={rest.id} style={{ flex: "0 0 300px", scrollSnapAlign: "start" }} onClick={() => {
-              if (slug) window.location.href = `/wedding-venues/${slug}`;
+              if (slug) window.location.href = buildListingUrl({ slug, ...rest });
             }}>
               <GCardMobile
                 v={{ ...rest, region: loc, image: img, priceFrom: price }}
@@ -5610,7 +5626,7 @@ function RecentlyViewed({ venue }) {
           {items.map(v => (
             <div key={v.id} style={{ border: `1px solid ${C.border}`, background: C.surface, overflow: "hidden", cursor: "pointer", borderRadius: 2 }}
               onClick={() => {
-                if (v.slug) window.location.href = `/wedding-venues/${v.slug}`;
+                if (v.slug) window.location.href = buildListingUrl(v);
               }}
               onMouseEnter={e => e.currentTarget.style.boxShadow = C.shadowMd}
               onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
@@ -7798,41 +7814,16 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
     fetchUpcomingEventsForVenue(VV.id, 6).then(evts => setVenueEvents(evts || []));
   }, [VV.id]);
 
-  // Enforce canonical URL: /{country}/{region}/{category}/{listing}
-  // All parts MUST be lowercase. If accessed via old format or mixed case, redirect to canonical
+  // Sync URL bar to canonical format (no reload, no redirect)
   useEffect(() => {
     if (!rawListing || !slug) return;
     const cs  = rawListing.country_slug  || rawListing.countrySlug  || countrySlug;
     let rs  = rawListing.region_slug   || rawListing.regionSlug   || regionSlug;
     const cat = rawListing.category_slug || rawListing.categorySlug || categorySlug || 'wedding-venues';
-
-    // FALLBACK: If region_slug is missing from DB, try to infer from listing city/region
-    if (!rs && rawListing.region) {
-      rs = rawListing.region.toLowerCase().replace(/\s+/g, '-');
-    }
-    if (!rs && rawListing.city === 'Frome') {
-      rs = 'somerset'; // Known mapping for Orchardleigh House
-    }
-
-    // CANONICAL: must have country, category, and slug at minimum
-    if (!cs || !cat) {
-      console.warn('[VenueProfile] Missing required data for canonical URL:', { cs, rs, cat, slug });
-      return;
-    }
-
-    // If we still don't have region, stay on old format (don't redirect)
-    if (!rs) {
-      console.warn('[VenueProfile] Cannot build canonical URL: region_slug missing', { slug, city: rawListing.city });
-      return;
-    }
-
-    // Build canonical URL with ALL parts lowercase
+    if (!rs && rawListing.region) rs = rawListing.region.toLowerCase().replace(/\s+/g, '-');
+    if (!cs || !rs || !cat) return;
     const canonical = `/${cs.toLowerCase()}/${rs.toLowerCase()}/${cat.toLowerCase()}/${slug.toLowerCase()}`;
-    const current = window.location.pathname;
-
-    if (current !== canonical) {
-      // Silently update URL bar to canonical — no reload, no redirect flash
-      console.log(`[VenueProfile] Updating URL from ${current} to ${canonical}`);
+    if (window.location.pathname !== canonical) {
       window.history.replaceState(null, '', canonical);
     }
   }, [rawListing, slug, countrySlug, regionSlug, categorySlug]);
