@@ -6,11 +6,10 @@ import { useState, useEffect, useRef } from "react";
 // ── useInView, IntersectionObserver hook ────────────────────────────────────
 // Returns [ref, inView]. Attach ref to element; inView flips true once visible.
 export function useInView({ threshold = 0.15, once = true, rootMargin = "0px" } = {}) {
-  const ref = useRef(null);
+  const [el, setEl] = useState(null);
   const [inView, setInView] = useState(false);
 
   useEffect(() => {
-    const el = ref.current;
     if (!el) return;
     const obs = new IntersectionObserver(
       ([entry]) => {
@@ -23,9 +22,9 @@ export function useInView({ threshold = 0.15, once = true, rootMargin = "0px" } 
     );
     obs.observe(el);
     return () => obs.disconnect();
-  }, [threshold, once, rootMargin]);
+  }, [el, threshold, once, rootMargin]);
 
-  return [ref, inView];
+  return [setEl, inView];
 }
 
 // ── CountUp, animated number counter ────────────────────────────────────────

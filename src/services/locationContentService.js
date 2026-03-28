@@ -115,10 +115,31 @@ export async function saveLocationContent(contentData) {
       discoveryFilters,
       metadata,
       published,
+      // SEO fields
+      seoTitle,
+      seoDescription,
+      seoKeywords,
+      seoCanonicalUrl,
+      seoRobotsIndex,
+      seoRobotsFollow,
+      ogTitle,
+      ogDescription,
+      ogImage,
+      twitterTitle,
+      twitterDescription,
+      twitterImage,
+      schemaType,
+      schemaJson,
+      seoPrimaryKeyword,
+      seoSecondaryKeywords,
     } = contentData;
 
     // Check if location exists
     const existing = await fetchLocationContent(locationKey);
+
+    // Detect if any SEO field changed (for last_seo_updated_at)
+    const seoFields = { seoTitle, seoDescription, seoKeywords, seoCanonicalUrl, seoRobotsIndex, seoRobotsFollow, ogTitle, ogDescription, ogImage, twitterTitle, twitterDescription, twitterImage, schemaType, schemaJson, seoPrimaryKeyword, seoSecondaryKeywords };
+    const anySeoProvided = Object.values(seoFields).some(v => v !== undefined);
 
     const payload = {
       location_key: locationKey,
@@ -147,6 +168,24 @@ export async function saveLocationContent(contentData) {
       }),
       metadata: metadata ? JSON.stringify(metadata) : JSON.stringify({}),
       published: published !== undefined ? published : false,
+      // SEO columns
+      seo_title: seoTitle ?? null,
+      seo_description: seoDescription ?? null,
+      seo_keywords: seoKeywords ?? null,
+      seo_canonical_url: seoCanonicalUrl ?? null,
+      seo_robots_index: seoRobotsIndex !== undefined ? seoRobotsIndex : true,
+      seo_robots_follow: seoRobotsFollow !== undefined ? seoRobotsFollow : true,
+      og_title: ogTitle ?? null,
+      og_description: ogDescription ?? null,
+      og_image: ogImage ?? null,
+      twitter_title: twitterTitle ?? null,
+      twitter_description: twitterDescription ?? null,
+      twitter_image: twitterImage ?? null,
+      schema_type: schemaType || "Place",
+      schema_json: schemaJson ? JSON.stringify(schemaJson) : null,
+      seo_primary_keyword: seoPrimaryKeyword ?? null,
+      seo_secondary_keywords: seoSecondaryKeywords ?? null,
+      ...(anySeoProvided ? { last_seo_updated_at: new Date().toISOString() } : {}),
     };
 
     let result;

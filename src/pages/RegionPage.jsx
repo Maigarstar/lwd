@@ -660,12 +660,9 @@ export default function RegionPage({
         </section>
         )}
 
-        {/* ═══ AI COMMAND BAR + FILTER BAR — scroll-fade sticky wrapper ════════ */}
+        {/* ═══ AI COMMAND BAR + FILTER BAR ════════ */}
         <div ref={filterBarRef} style={{
-          position:   filterSticky  ? "sticky"  : "relative",
-          top:        filterSticky  ? 56        : "auto",
-          opacity:    filterVisible ? 1         : 0,
-          transition: "opacity 0.35s ease",
+          position:   "relative",
           zIndex:     800,
           marginTop:  0,
         }}>
@@ -813,14 +810,7 @@ export default function RegionPage({
                 }}
               >
                 {featuredVenues.slice(0, 5).map((venue, i) => (
-                  <div
-                    key={venue.id}
-                    style={{
-                      opacity: 0,
-                      animation: `fadeIn 0.6s ease forwards`,
-                      animationDelay: `${i * 0.1}s`,
-                    }}
-                  >
+                  <div key={venue.id}>
                     <LuxuryVenueCard
                       v={venue}
                       onView={() => onViewVenue?.(venue.id || venue.slug)}

@@ -1033,18 +1033,8 @@ export async function publishListing(id: string | undefined, data: Listing) {
  * Delete a listing
  */
 export async function deleteListing(id: string) {
-  if (!isSupabaseAvailable()) {
-    console.error('Supabase not configured')
-    throw new Error('Supabase not configured')
-  }
-
   try {
-    const { error } = await supabase!
-      .from('listings')
-      .delete()
-      .eq('id', id)
-
-    if (error) throw error
+    await callListingsEdge({ action: 'delete', id })
   } catch (error) {
     console.error('Error deleting listing:', error)
     throw error

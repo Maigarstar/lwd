@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { GoldBadge } from "../ui/Badges";
 import Stars from "../ui/Stars";
 
-export default function FeaturedSlider({ venues }) {
+export default function FeaturedSlider({ venues, onViewVenue }) {
   const [idx, setIdx]               = useState(0);
   const [transitioning, setTrans]   = useState(false);
   const [parallaxY, setParallaxY]   = useState(0);
@@ -246,9 +246,19 @@ export default function FeaturedSlider({ venues }) {
           <span aria-hidden="true" style={{ color: "rgba(201,168,76,0.8)", fontSize: 10 }}>
             ◆
           </span>
-          {cur.city}, {cur.region} · {cur.country || "Italy"}
-          <span aria-hidden="true" style={{ color: "rgba(255,255,255,0.25)" }}>·</span>
-          Up to {cur.capacity} guests
+          {cur.address || [cur.city, cur.region, cur.country].filter((v, i, a) => v && a.indexOf(v) === i).join(" · ")}
+          {cur.capacity ? <>
+            <span aria-hidden="true" style={{ color: "rgba(255,255,255,0.25)" }}>·</span>
+            Up to {cur.capacity} guests
+          </> : null}
+          {cur.priceFrom ? <>
+            <span aria-hidden="true" style={{ color: "rgba(255,255,255,0.25)" }}>·</span>
+            <span style={{ color: "rgba(201,168,76,0.9)", fontWeight: 600 }}>
+              From {typeof cur.priceFrom === "number"
+                ? `£${cur.priceFrom.toLocaleString()}`
+                : (String(cur.priceFrom).match(/[£$€]/) ? cur.priceFrom : `£${Number(cur.priceFrom).toLocaleString()}`)}
+            </span>
+          </> : null}
         </div>
         <p
           style={{
@@ -259,6 +269,10 @@ export default function FeaturedSlider({ venues }) {
             fontWeight: 300,
             marginBottom: 28,
             maxWidth: 500,
+            display: "-webkit-box",
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
           }}
         >
           {cur.desc}
@@ -279,17 +293,20 @@ export default function FeaturedSlider({ venues }) {
               fontFamily:    "inherit",
               transition:    "opacity 0.2s",
             }}
+            onClick={() => onViewVenue?.(cur)}
             onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
             onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
           >
             View Venue →
           </button>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 8 }}>
-            <Stars r={cur.rating} />
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
-              {cur.rating} ({cur.reviews} reviews)
-            </span>
-          </div>
+          {cur.reviews > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 8 }}>
+              <Stars r={cur.rating} />
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
+                {cur.rating} ({cur.reviews} reviews)
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

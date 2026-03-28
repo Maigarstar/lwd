@@ -2,6 +2,18 @@ import { useState, useCallback, useEffect } from 'react';
 import { createListing, updateListing, fetchListingById, calculateContentQualityScore } from '../../../services/listings';
 import { uploadPendingFiles, uploadMediaFile } from '../../../utils/storageUpload';
 
+// ── Slugify helper: convert display names to URL-safe slugs ──────────────────
+// "Somerset" → "somerset", "New York" → "new-york"
+function slugify(text) {
+  if (!text) return '';
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')      // spaces → dashes
+    .replace(/[^\w-]/g, '')    // remove non-word chars except dashes
+    .replace(/-+/g, '-');      // collapse multiple dashes
+}
+
 // ── Country normaliser ────────────────────────────────────────────────────────
 // Dropdown values are full display names ("Austria", "United Kingdom") to match
 // how the DB stores the country column. Just pass through as-is.
@@ -255,8 +267,8 @@ export const useListingForm = (listingId = null) => {
             description: listing.description || '',
             amenities: listing.amenities || '',
             country: countryToSlug(listing.country || ''),
-            region: listing.region || '',
-            city: listing.city || '',
+            region: listing.regionSlug || listing.region || '',
+            city: listing.citySlug || listing.city || '',
             postcode: listing.postcode || '',
             address: listing.address || '',
             address_line2: '',
@@ -494,8 +506,8 @@ export const useListingForm = (listingId = null) => {
         description: formData.description,
         amenities: formData.amenities,
         country: formData.country,
-        region: formData.region,
-        city: formData.city,
+        regionSlug: slugify(formData.region),
+        citySlug: slugify(formData.city),
         postcode: formData.postcode,
         address: [formData.address, formData.address_line2].filter(Boolean).join('\n'),
         lat: formData.lat,
