@@ -1,0 +1,29 @@
+[
+    {
+        "id": "0304e545-782b-4aea-971e-07c14c4d4c49",
+        "location_key": "country:england",
+        "location_type": "country",
+        "country_slug": "england",
+        "region_slug": null,
+        "city_slug": null,
+        "hero_image": "https://qpkggfibwreznussudfh.supabase.co/storage/v1/object/public/listing-media/locations/country/england/1774681936320.jpeg",
+        "hero_video": null,
+        "hero_title": "Weddings in England",
+        "hero_subtitle": null,
+        "cta_text": "Explore Venues",
+        "cta_link": "#",
+        "featured_venues_title": "Signature Venues",
+        "featured_venues": "[]",
+        "featured_vendors_title": "Top Wedding Planners",
+        "featured_vendors": "[]",
+        "map_lat": null,
+        "map_lng": null,
+        "map_zoom": 8,
+        "discovery_filters": "{\"showCapacityFilter\":true,\"showStyleFilter\":true,\"showPriceFilter\":true,\"defaultSort\":\"recommended\"}",
+        "published": true,
+        "published_at": null,
+        "created_at": "2026-03-28T07:07:56.159954+00:00",
+        "updated_at": "2026-03-28T07:22:51.679308+00:00",
+        "metadata": "{\"heroImages\":[\"https://qpkggfibwreznussudfh.supabase.co/storage/v1/object/public/listing-media/locations/country/england/1774681936320.jpeg\"],\"infoRegions\":[\"Cotswolds\",\"London\",\"Surrey\",\"Berkshire\",\"Lake District\",\"Hampshire\",\"Devon\",\"Cornwall\",\"Kent\",\"Sussex\",\"Norfolk\",\"Suffolk\",\"Yorkshire\",\"Oxfordshire\",\"Somerset\",\"Bath\",\"Wiltshire\",\"Dorset\",\"Cheshire\",\"Northumberland\",\"Durham\",\"Warwickshire\",\"West Midlands\",\"Derbyshire\",\"Buckinghamshire\",\"Hertfordshire\",\"Essex\",\"Lancashire\",\"Greater Manchester\",\"Gloucestershire\",\"Cambridgeshire\",\"Lincolnshire\",\"Nottinghamshire\",\"Leicestershire\",\"Shropshire\",\"Worcestershire\",\"Herefordshire\",\"Staffordshire\",\"Northamptonshire\",\"Bedfordshire\",\"Isle of Wight\",\"Bristol\",\"Merseyside\",\"Cumbria\",\"Rutland\",\"Scotland\",\"Wales\",\"Northern Ireland\",\"Channel Islands\"],\"infoVibes\":[],\"infoServices\":[],\"seoContent\":\"England offers an unrivalled range of wedding settings, from the honey-stone villages of the Cotswolds to the grandeur of London's historic hotels. Country houses, royal estates and contemporary barn conversions form the backbone of the English luxury wedding market.\",\"seoFaqs\":[{\"q\":\"When is the best time to get married in England?\",\"a\":\"The ideal season varies. We recommend consulting with our local experts who can advise on weather patterns, peak availability and local considerations specific to England.\"},{\"q\":\"How far in advance should I book a England venue?\",\"a\":\"Our most sought-after venues in England typically book 18\u201324 months in advance for peak season dates. We recommend beginning your search at least 18 months before your intended wedding date.\"},{\"q\":\"Do I need a local or symbolic ceremony in England?\",\"a\":\"Requirements vary by country. Many couples opt for a symbolic ceremony at the destination followed by a legal ceremony at home. Our team can advise on the exact requirements for England.\"},{\"q\":\"What is the average cost of a luxury wedding venue in England?\",\"a\":\"Premium exclusive-use venues in England typically range from \u00a310,000 to \u00a340,000 for venue hire alone, excluding catering, florals and accommodation. Pricing varies by location and season.\"}],\"editorialPara1\":\"\",\"editorialPara2\":\"\",\"editorialBlocks\":[{\"icon\":\"\ud83c\udff0\",\"text\":\"\"},{\"icon\":\"\ud83c\udf3f\",\"text\":\"\"},{\"icon\":\"\ud83c\udf05\",\"text\":\"\"},{\"icon\":\"\u2728\",\"text\":\"\"}],\"editorialVenueMode\":\"latest\",\"showEditorialSplit\":true,\"showLatestVenues\":true,\"showLatestVendors\":true,\"showPlanningGuide\":true,\"showMotto\":true,\"motto\":\"\",\"mottoSubline\":\"\",\"mottoBgImage\":{\"url\":\"https://qpkggfibwreznussudfh.supabase.co/storage/v1/object/public/listing-media/motto-country-england-1774682548046.jpeg\",\"thumbnailUrl\":\"https://qpkggfibwreznussudfh.supabase.co/storage/v1/object/public/listing-media/motto-country-england-1774682548046_thumb.jpg\"},\"mottoOverlay\":\"0.65\",\"editorialEyebrow\":\"\",\"editorialHeadingPrefix\":\"\",\"editorialCtaText\":\"\",\"seoHeading\":\"\",\"latestVenuesHeading\":\"\",\"latestVenuesSub\":\"\",\"latestVenuesCount\":12,\"latestVenuesMode\":\"latest\",\"latestVenuesCardStyle\":\"luxury\",\"latestVenuesSelected\":[],\"latestVendorsHeading\":\"\",\"latestVendorsSub\":\"\",\"latestVendorsCount\":12,\"latestVendorsMode\":\"latest\",\"latestVendorsCardStyle\":\"luxury\",\"latestVendorsSelected\":[]}"
+    }
+]

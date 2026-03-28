@@ -288,13 +288,18 @@ function pathToState(pathname) {
 
   if (parts.length === 2) return { page: "region", countrySlug: parts[0], regionSlug: parts[1] };
   if (parts.length === 3) {
-    // 3-part: /country/category/slug → DEPRECATED old format, redirect to canonical
     // Modern format: /country/region/category → region-category grid
-    if (parts[1].startsWith('wedding-') || !['wedding-planners', 'photographers', 'videographers', 'florists', 'styling-decor', 'caterers', 'hair-makeup', 'guest-attire', 'entertainment', 'cakes', 'bridal-dresses', 'stationery', 'health-beauty', 'event-production', 'luxury-transport', 'celebrants', 'gift-registry'].includes(parts[1])) {
-      // Old format: /country/category/slug (missing region)
+    // Old format: /country/category/slug → DEPRECATED, redirect to canonical
+    const CATEGORY_SLUGS = ['wedding-venues', 'wedding-planners', 'photographers', 'videographers', 'florists', 'styling-decor', 'caterers', 'hair-makeup', 'guest-attire', 'entertainment', 'cakes', 'bridal-dresses', 'stationery', 'health-beauty', 'event-production', 'luxury-transport', 'celebrants', 'gift-registry'];
+    if (CATEGORY_SLUGS.includes(parts[2])) {
+      // New format: /country/region/category (e.g. /england/somerset/wedding-venues)
+      return { page: "region-category", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2] };
+    }
+    if (CATEGORY_SLUGS.includes(parts[1])) {
+      // Old format: /country/category/slug (e.g. /italy/wedding-venues/villa-balbiano)
       return { page: "listing-profile", countrySlug: parts[0], regionSlug: null, categorySlug: parts[1], venueSlug: parts[2], redirectToCanonical: true };
     }
-    // New format: /country/region/category
+    // Fallback: treat as new format (region-category)
     return { page: "region-category", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2] };
   }
   if (parts.length === 4) {
@@ -913,10 +918,13 @@ function App() {
         <GlobalAdminBar
           page={page}
           slugs={{
-            showcaseSlug: activeShowcaseSlug,
-            venueSlug:    activeVenueSlug,
-            magazineSlug: activeMagazineSlug,
-            eventSlug:    activeEventSlug,
+            showcaseSlug:  activeShowcaseSlug,
+            venueSlug:     activeVenueSlug,
+            magazineSlug:  activeMagazineSlug,
+            eventSlug:     activeEventSlug,
+            locationSlug:  activeLocationSlug,
+            countrySlug:   activeCountrySlug,
+            regionSlug:    activeRegionSlug,
           }}
           onOpenAdmin={goAdmin}
         />

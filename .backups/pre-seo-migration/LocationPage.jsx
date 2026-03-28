@@ -21,7 +21,6 @@ import SEOBlock        from "../components/sections/SEOBlock";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import CatNav          from "../components/nav/CatNav";
 import CountrySearchBar from "../components/filters/CountrySearchBar";
-import AICommandBar    from "../components/filters/AICommandBar";
 import GCard           from "../components/cards/GCard";
 import GCardMobile     from "../components/cards/GCardMobile";
 import HCard           from "../components/cards/HCard";
@@ -29,17 +28,11 @@ import QuickViewModal  from "../components/modals/QuickViewModal";
 import LuxuryVenueCard from "../components/cards/LuxuryVenueCard";
 import LuxuryVendorCard from "../components/cards/LuxuryVendorCard";
 import SliderNav       from "../components/ui/SliderNav";
-import { useInView, revealStyle } from "../components/ui/Animations";
 
 // ── Data services (self-fetch when rendered standalone) ─────────────────────
-import { COUNTRIES, REGIONS, CITIES, getCountryBySlug } from "../data/geo";
+import { COUNTRIES, REGIONS, CITIES } from "../data/geo";
 import { fetchListings } from "../services/listings";
 import { fetchLocationContent, buildLocationKey, fetchLocationMetadata } from "../services/locationContentService";
-import { DEFAULT_FILTERS } from "../data/venues";
-
-// ── Font tokens ──────────────────────────────────────────────────────────────
-const GD = "var(--font-heading-primary)";
-const NU = "var(--font-body)";
 
 // ── Mobile detection hook ─────────────────────────────────────────────────
 function useIsMobile(bp = 768) {
@@ -93,10 +86,6 @@ export default function LocationPage({
   const [scrolled, setScrolled] = useState(false);
   const [qvItem, setQvItem] = useState(null);
   const [mapOpen, setMapOpen] = useState(false);
-  const filterBarRef = useRef(null);
-
-  // ── Animation refs for venue rows ─────────────────────────────────────────
-  const [grid1Ref, grid1In] = useInView({ threshold: 0.15 });
 
   // ── Location resolution state ───────────────────────────────────────────────
   // resolving = true while Supabase lookup is in flight. No 404 until this is false.
@@ -228,7 +217,6 @@ export default function LocationPage({
       heroImage:    _fetchedContent.hero_image    || "",
       heroVideo:    _fetchedContent.hero_video    || "",
       heroImages:   m.heroImages   || [],
-      heroStats:    m.heroStats    || [],
       ctaText:      _fetchedContent.cta_text      || "Explore Venues",
       ctaLink:      _fetchedContent.cta_link      || "#",
       infoVibes:    m.infoVibes    || [],
@@ -325,15 +313,6 @@ export default function LocationPage({
     }
     return null;
   }, [currentLocation, locationType, _countries, _regions]);
-
-  // ── Country display name for filter/map components ─────────────────────────
-  const countryObj = useMemo(() => {
-    if (locationType === "country") return currentLocation;
-    if (parentLocation && locationType === "region") return parentLocation;
-    // For cities, find the country via countrySlug
-    return currentLocation ? getCountryBySlug(currentLocation.countrySlug) : null;
-  }, [currentLocation, parentLocation, locationType]);
-  const countryName = countryObj?.name || currentLocation?.name || "United Kingdom";
 
   // Merged featured IDs: from injected props OR fetched content
   const _featuredVenueIds  = (featuredVenueIds  && featuredVenueIds.length  > 0) ? featuredVenueIds  : (_locationContent?.featuredVenueIds  || []);
@@ -459,12 +438,12 @@ export default function LocationPage({
   const heroData = useMemo(() => {
     if (!currentLocation) return null;
 
-    // Build eyebrow: "Wedding Directory · Italy", etc.
-    let eyebrow = `Wedding Directory · ${currentLocation.name}`;
+    // Build eyebrow: "Venues · Italy", "Venues · Tuscany, Italy", "Venues · Siena, Tuscany"
+    let eyebrow = `Venues · ${currentLocation.name}`;
     if (locationType === "region" && parentLocation) {
-      eyebrow = `Wedding Directory · ${currentLocation.name}, ${parentLocation.name}`;
+      eyebrow = `Venues · ${currentLocation.name}, ${parentLocation.name}`;
     } else if (locationType === "city" && parentLocation) {
-      eyebrow = `Wedding Directory · ${currentLocation.name}, ${parentLocation.name}`;
+      eyebrow = `Venues · ${currentLocation.name}, ${parentLocation.name}`;
     }
 
     return {
@@ -472,85 +451,26 @@ export default function LocationPage({
       subtitle: _locationContent?.heroSubtitle || currentLocation.description || "",
       backgroundImage: _locationContent?.heroImage || "",
       backgroundVideo: _locationContent?.heroVideo || "",
-      ctaText: _locationContent?.ctaText || "Explore Listings",
+      ctaText: _locationContent?.ctaText || "Explore Venues",
       ctaLink: _locationContent?.ctaLink || "#",
       eyebrow,
     };
   }, [currentLocation, locationType, parentLocation, _locationContent]);
 
-  // ── SEO content — reads from Supabase SEO columns with graceful fallbacks ──
+  // ── SEO content ─────────────────────────────────────────────────────────────
   const seoData = useMemo(() => {
     if (!currentLocation) return null;
-    const sb = supabaseRow || {};
-    const locName = currentLocation.name || '';
 
     return {
-      title:       sb.seo_title || `${locName} | Luxury Wedding Directory`,
-      description: sb.seo_description || currentLocation.description || "",
-      keywords:    sb.seo_keywords || (currentLocation.focusKeywords || []).join(", "),
-      canonical:   sb.seo_canonical_url || null,
-      robotsIndex: sb.seo_robots_index !== false,
-      robotsFollow: sb.seo_robots_follow !== false,
-      ogTitle:     sb.og_title || sb.seo_title || locName,
-      ogDescription: sb.og_description || sb.seo_description || currentLocation.description || "",
-      ogImage:     sb.og_image || _locationContent?.heroImage || "",
-      twitterTitle: sb.twitter_title || sb.og_title || sb.seo_title || locName,
-      twitterDescription: sb.twitter_description || sb.og_description || sb.seo_description || "",
-      twitterImage: sb.twitter_image || sb.og_image || _locationContent?.heroImage || "",
-      schemaType:  sb.schema_type || "Place",
-      schemaJson:  sb.schema_json || null,
-      noIndex:     noIndex || sb.seo_robots_index === false,
+      title: currentLocation.seoTitleTemplate || `${currentLocation.name} | LWD`,
+      description: currentLocation.metaDescriptionTemplate || currentLocation.description || "",
+      keywords: (currentLocation.focusKeywords || []).join(", "),
+      ogTitle: currentLocation.ogTitle || currentLocation.name,
+      ogDescription: currentLocation.ogDescription || currentLocation.description || "",
+      ogImage: currentLocation.thumbnail || _locationContent?.heroImage || "",
+      noIndex: noIndex,
     };
-  }, [currentLocation, _locationContent, noIndex, supabaseRow]);
-
-  // ── Inject SEO meta tags into <head> ──────────────────────────────────────
-  useEffect(() => {
-    if (!seoData || hideNav) return; // skip in admin preview
-    document.title = seoData.title;
-
-    const setMeta = (name, content) => {
-      if (!content) return;
-      let el = document.querySelector(`meta[name="${name}"]`) || document.querySelector(`meta[property="${name}"]`);
-      if (!el) { el = document.createElement('meta'); el.setAttribute(name.startsWith('og:') || name.startsWith('twitter:') ? 'property' : 'name', name); document.head.appendChild(el); }
-      el.setAttribute('content', content);
-    };
-
-    setMeta('description', seoData.description);
-    setMeta('keywords', seoData.keywords);
-    setMeta('robots', `${seoData.robotsIndex ? 'index' : 'noindex'}, ${seoData.robotsFollow ? 'follow' : 'nofollow'}`);
-    setMeta('og:title', seoData.ogTitle);
-    setMeta('og:description', seoData.ogDescription);
-    setMeta('og:image', seoData.ogImage);
-    setMeta('og:type', 'website');
-    setMeta('twitter:card', 'summary_large_image');
-    setMeta('twitter:title', seoData.twitterTitle);
-    setMeta('twitter:description', seoData.twitterDescription);
-    setMeta('twitter:image', seoData.twitterImage);
-
-    // Canonical link
-    if (seoData.canonical) {
-      let link = document.querySelector('link[rel="canonical"]');
-      if (!link) { link = document.createElement('link'); link.rel = 'canonical'; document.head.appendChild(link); }
-      link.href = seoData.canonical;
-    }
-
-    // Schema.org JSON-LD
-    const schemaObj = seoData.schemaJson || {
-      "@context": "https://schema.org",
-      "@type": seoData.schemaType,
-      "name": seoData.title,
-      "description": seoData.description,
-      "image": seoData.ogImage || undefined,
-    };
-    let script = document.querySelector('script[data-lwd-schema]');
-    if (!script) { script = document.createElement('script'); script.type = 'application/ld+json'; script.setAttribute('data-lwd-schema', 'true'); document.head.appendChild(script); }
-    script.textContent = typeof schemaObj === 'string' ? schemaObj : JSON.stringify(schemaObj);
-
-    return () => {
-      // Cleanup on unmount
-      document.querySelector('script[data-lwd-schema]')?.remove();
-    };
-  }, [seoData, hideNav]);
+  }, [currentLocation, _locationContent, noIndex]);
 
   // ── Feed location content into Aura's context ───────────────────────────────
   useEffect(() => {
@@ -646,101 +566,45 @@ export default function LocationPage({
         {/* Draft Mode Indicator — shown when location is in draft status */}
         {draftIndicator}
 
-        {/* Hero Section + Breadcrumb overlay at bottom */}
-        <div style={{ position: "relative" }}>
-          {heroData && (
-            <Hero
-              count={locationVenues.length || null}
-              regionCount={_regions.filter(r => r.countrySlug === currentLocation?.slug).length || null}
-              stats={
-                Array.isArray(_locationContent?.heroStats) && _locationContent.heroStats.length > 0
-                  ? _locationContent.heroStats
-                  : null
-              }
-              title={heroData.title}
-              subtitle={heroData.subtitle}
-              backgroundImage={heroData.backgroundImage}
-              backgroundVideo={heroData.backgroundVideo}
-              ctaText={heroData.ctaText}
-              ctaLink={heroData.ctaLink}
-              eyebrow={heroData.eyebrow}
-              C={C}
-              onBack={onBack}
-            />
-          )}
+        {/* Fixed Navigation — hidden in admin preview mode */}
+        {!hideNav && (
+          <CatNav
+            onBack={onBack}
+            scrolled={scrolled}
+            darkMode={darkMode}
+            onToggleDark={() => setDarkMode(d => !d)}
+          />
+        )}
 
-          {/* Breadcrumb bar — overlaid at the bottom edge of the hero */}
-          <nav
-            aria-label="Breadcrumb"
-            style={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              zIndex: 10,
-              background: "rgba(0,0,0,0.45)",
-              backdropFilter: "blur(10px)",
-              padding: "10px 80px 15px",
-              borderTop: "none",
-            }}
-          >
-            <ol style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontSize: 11,
-              color: "rgba(255,255,255,0.6)",
-              letterSpacing: "0.5px",
-              listStyle: "none",
-              padding: 0,
-              margin: 0,
-              fontFamily: NU,
-            }}>
-              <li>
-                <button
-                  onClick={onBack}
-                  style={{
-                    background: "none", border: "none", cursor: "pointer",
-                    fontFamily: NU, fontSize: 11, color: "rgba(255,255,255,0.6)",
-                    letterSpacing: "0.5px", padding: 0,
-                    transition: "color 0.2s",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "#C9A84C")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.6)")}
-                >
-                  Home
-                </button>
-              </li>
-              {parentLocation && (
-                <>
-                  <li aria-hidden="true" style={{ opacity: 0.4 }}>›</li>
-                  <li>
-                    <button
-                      onClick={() => onViewCountry?.(parentLocation.slug)}
-                      style={{
-                        background: "none", border: "none", cursor: "pointer",
-                        fontFamily: NU, fontSize: 11, color: "rgba(255,255,255,0.6)",
-                        letterSpacing: "0.5px", padding: 0,
-                        transition: "color 0.2s",
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = "#C9A84C")}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.6)")}
-                    >
-                      {parentLocation.name}
-                    </button>
-                  </li>
-                </>
-              )}
-              <li aria-hidden="true" style={{ opacity: 0.4 }}>›</li>
-              <li>
-                <span style={{ color: "rgba(201,168,76,0.9)", fontWeight: 600 }} aria-current="page">
-                  {currentLocation?.name || locationSlug}
-                </span>
-              </li>
-            </ol>
-          </nav>
-        </div>
+        {/* Hero Section */}
+        {heroData && (
+          <Hero
+            title={heroData.title}
+            subtitle={heroData.subtitle}
+            backgroundImage={heroData.backgroundImage}
+            backgroundVideo={heroData.backgroundVideo}
+            ctaText={heroData.ctaText}
+            ctaLink={heroData.ctaLink}
+            eyebrow={heroData.eyebrow}
+            C={C}
+            onBack={onBack}
+          />
+        )}
 
+
+        {/* Info Strip */}
+        {locationType === "country" && (
+          <InfoStrip
+            regionNames={
+              (Array.isArray(_locationContent?.infoRegions) && _locationContent.infoRegions.length > 0)
+                ? _locationContent.infoRegions
+                : _regions.filter(r => r.countrySlug === currentLocation.slug).map(r => r.name)
+            }
+            vibes={_locationContent?.infoVibes}
+            services={_locationContent?.infoServices}
+            C={C}
+          />
+        )}
 
         {/* Editorial Split — "The Art of the {Location} Wedding" — Hidden when map is open */}
         {_locationContent?.showEditorialSplit !== false && editorialVenues.length >= 5 && (
@@ -760,23 +624,8 @@ export default function LocationPage({
           />
         )}
 
-        {/* ═══ AI COMMAND BAR + FILTER BAR ════════ */}
-        <div ref={filterBarRef} style={{
-          position:   "relative",
-          zIndex:     800,
-          marginTop:  0,
-        }}>
-          <AICommandBar
-            countrySlug={currentLocation.slug}
-            countryName={countryName}
-            regionSlug={null}
-            regionName={null}
-            entityType="listing"
-            availableRegions={_regions.filter(r => r.countrySlug === currentLocation.slug).map(r => ({ slug: r.slug, name: r.name }))}
-            filters={filters}
-            onFiltersChange={setFilters}
-            defaultFilters={DEFAULT_FILTERS}
-          />
+        {/* Search & Filters — Sticky */}
+        <div style={{ position: "sticky", top: 61, zIndex: 100, background: C.card, borderBottom: `1px solid ${C.border}` }}>
           <CountrySearchBar
             filters={filters}
             onFiltersChange={setFilters}
@@ -786,29 +635,18 @@ export default function LocationPage({
             onSortChange={setSortMode}
             total={locationVenues.length}
             regions={_regions.filter(r => r.countrySlug === currentLocation.slug).map(r => ({ slug: r.slug, name: r.name }))}
-            countryFilter={countryName}
+            countryFilter={currentLocation.slug}
             mapContent={
-              viewMode === "map" ? (
-                <MapSection
-                  venues={mapVenues}
-                  vendors={[]}
-                  headerLabel={`Wedding Professionals in ${currentLocation.name}`}
-                  mapTitle={`◎ ${currentLocation.name} Wedding Directory`}
-                  countryFilter={countryName}
-                  onMarkerClick={(slug) => onViewVenue(slug)}
-                  onClose={() => setViewMode("grid")}
-                />
-              ) : null
+              <MapSection
+                title={`Explore ${currentLocation.name}`}
+                venues={mapVenues}
+                lat={parseFloat(_locationContent?.mapLat || currentLocation.mapLat || "0")}
+                lng={parseFloat(_locationContent?.mapLng || currentLocation.mapLng || "0")}
+                zoom={_locationContent?.mapZoom || 8}
+                C={C}
+                onMarkerClick={(venueId) => onViewVenue && onViewVenue(venueId)}
+              />
             }
-          />
-          <InfoStrip
-            regionNames={
-              (Array.isArray(_locationContent?.infoRegions) && _locationContent.infoRegions.length > 0)
-                ? _locationContent.infoRegions
-                : _regions.filter(r => r.countrySlug === currentLocation.slug).map(r => r.name)
-            }
-            vibes={_locationContent?.infoVibes}
-            services={_locationContent?.infoServices}
           />
         </div>
 
@@ -844,175 +682,140 @@ export default function LocationPage({
         />
         )}
 
-        {/* ═══ SIGNATURE VENUES — matching RegionPage card row pattern ═══════ */}
-        {locationVenues.length > 0 && viewMode !== "map" && (
-          <section
-            aria-label={`Wedding professionals in ${currentLocation.name}`}
-            className="lwd-region-section"
-            style={{
-              maxWidth: 1280,
-              margin: "0 auto",
-              padding: "24px 48px 32px",
-            }}
-          >
-            <div style={{ marginBottom: 24 }}>
-              <h2
-                style={{
-                  fontFamily: GD,
-                  fontSize: "clamp(26px, 3vw, 36px)",
-                  fontWeight: 400,
-                  color: C.off,
-                  lineHeight: 1.2,
-                  margin: 0,
-                }}
-              >
-                {_locationContent?.featuredVenuesTitle || "Signature"}{" "}
-                <span style={{ fontStyle: "italic", color: C.gold }}>Listings</span>
-              </h2>
-              <p style={{
-                fontFamily: NU, fontSize: 14, color: C.grey,
-                lineHeight: 1.75, maxWidth: 680, fontWeight: 300, margin: "12px 0 0",
-              }}>
-                The finest wedding professionals across {currentLocation.name}. Each one curated by our editorial team and trusted by real couples.
-              </p>
-            </div>
-
-            <div ref={grid1Ref}>
-              {viewMode === "grid" ? (
-                <SliderNav
-                  key={locationVenues[0]?.id || "empty"}
-                  className="lwd-region-venue-grid"
-                  cardWidth={360}
-                  gap={isMobile ? 12 : 16}
-                >
-                  {locationVenues.slice(0, 4).map((v, i) => (
-                    <div
-                      key={v.id}
-                      className="lwd-region-venue-card"
-                      style={{
-                        flex: "0 0 360px",
-                        scrollSnapAlign: "start",
-                        ...revealStyle(grid1In, i),
-                      }}
-                    >
-                      <LuxuryVenueCard
-                        v={v}
-                        isMobile={isMobile}
-                        onView={() => onViewVenue(v.slug || v.id)}
-                        quickViewItem={qvItem}
-                        setQuickViewItem={setQvItem}
-                      />
-                    </div>
-                  ))}
-                </SliderNav>
-              ) : (
-                <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-                  {locationVenues.slice(0, 4).map((v, i) => (
-                    <HCard
-                      key={v.id}
-                      v={v}
-                      onView={() => onViewVenue(v.slug || v.id)}
-                      onQuickView={setQvItem}
-                      onSave={() => {}}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-        )}
-
-        {/* ═══ ALL VENUES — full grid/list below signature row ═════════════════ */}
-        {locationVenues.length > 4 && viewMode !== "map" && (
-          <section
-            aria-label={`More listings in ${currentLocation.name}`}
-            className="lwd-region-section"
-            style={{
-              maxWidth: 1280,
-              margin: "0 auto",
-              padding: "24px 48px 32px",
-            }}
-          >
-            <div style={{ marginBottom: 24 }}>
-              <h2
-                style={{
-                  fontFamily: GD,
-                  fontSize: "clamp(22px, 2.5vw, 30px)",
-                  fontWeight: 400,
-                  color: C.off,
-                  lineHeight: 1.2,
-                  margin: 0,
-                }}
-              >
-                More Wedding{" "}
-                <span style={{ fontStyle: "italic", color: C.gold }}>Professionals</span>
-              </h2>
-              <p style={{
-                fontFamily: NU, fontSize: 14, color: C.grey,
-                lineHeight: 1.75, maxWidth: 680, fontWeight: 300, margin: "12px 0 0",
-              }}>
-                Venues, photographers, planners, florists and stylists across {currentLocation.name}. Each one trusted by our editorial team and verified by real couples.
-              </p>
-            </div>
-
+        {/* Featured Venues Section — Hidden when map is open */}
+        {featuredVenues.length > 0 && (
+          <div style={{ padding: "40px 20px", background: C.card }}>
+            <h3 style={{ fontFamily: "'Neue Haas Display', serif", fontSize: 20, marginBottom: 24, textAlign: "center" }}>
+              {_locationContent?.featuredVenuesTitle || "Signature Venues"}
+            </h3>
             {viewMode === "grid" ? (
-              <SliderNav
-                className="lwd-region-venue-grid"
-                cardWidth={360}
-                gap={isMobile ? 12 : 16}
-              >
-                {locationVenues.slice(4, visibleCount).filter(venue => venue?.imgs?.length > 0).map((v, i) => (
-                  <div
-                    key={v.id}
-                    className="lwd-region-venue-card"
-                    style={{
-                      flex: "0 0 360px",
-                      scrollSnapAlign: "start",
-                    }}
-                  >
-                    <LuxuryVenueCard
-                      v={v}
-                      isMobile={isMobile}
-                      onView={() => onViewVenue(v.slug || v.id)}
-                      quickViewItem={qvItem}
-                      setQuickViewItem={setQvItem}
-                    />
-                  </div>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(300px, 1fr))",
+                gap: 20,
+                maxWidth: "1400px",
+                margin: "0 auto",
+              }}>
+                {featuredVenues.map(venue => (
+                  <LuxuryVenueCard
+                    key={venue.id}
+                    venue={venue}
+                    onClick={() => onViewVenue && onViewVenue(venue.id)}
+                    C={C}
+                  />
                 ))}
-              </SliderNav>
+              </div>
             ) : (
               <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-                {locationVenues.slice(4, visibleCount).filter(venue => venue?.imgs?.length > 0).map((v) => (
+                {featuredVenues.map(venue => (
                   <HCard
-                    key={v.id}
-                    v={v}
-                    onView={() => onViewVenue(v.slug || v.id)}
+                    key={venue.id}
+                    v={venue}
+                    onView={() => onViewVenue && onViewVenue(venue.id)}
                     onQuickView={setQvItem}
                     onSave={() => {}}
                   />
                 ))}
               </div>
             )}
+          </div>
+        )}
 
-            {visibleCount < locationVenues.length && (
-              <div style={{ textAlign: "center", marginTop: 30 }}>
-                <button
-                  onClick={() => setVisibleCount(v => v + 12)}
-                  style={{
-                    padding: "12px 24px",
-                    background: C.gold,
-                    color: "#000",
-                    border: "none",
-                    borderRadius: 4,
-                    cursor: "pointer",
-                    fontWeight: 600,
-                  }}
-                >
-                  Load More
-                </button>
+        {/* Main Venue Grid — Hidden when map is open */}
+        {(
+        <div style={{ padding: "40px 20px", background: C.card }}>
+          <h3 style={{ fontFamily: "'Neue Haas Display', serif", fontSize: 18, marginBottom: 20, textAlign: "center" }}>
+            All Venues
+          </h3>
+          {viewMode === "grid" ? (
+            <SliderNav className="lwd-venue-grid" cardWidth={isMobile ? 300 : 340} gap={isMobile ? 12 : 16}>
+              {locationVenues.slice(0, visibleCount).filter(venue => venue?.imgs?.length > 0).map(venue => (
+                <div key={venue.id} className="lwd-venue-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 340px", scrollSnapAlign: "start" }}>
+                  {isMobile ? (
+                    <GCardMobile v={venue} onView={onViewVenue} />
+                  ) : (
+                    <GCard
+                      v={venue}
+                      onView={onViewVenue}
+                      onQuickView={setQvItem}
+                      onSave={() => {}}
+                    />
+                  )}
+                </div>
+              ))}
+            </SliderNav>
+          ) : (
+            <div aria-label="Venue list" style={{ maxWidth: 1280, margin: "0 auto" }}>
+              {locationVenues.slice(0, visibleCount).filter(venue => venue?.imgs?.length > 0).map(venue => (
+                <HCard
+                  key={venue.id}
+                  v={venue}
+                  onView={onViewVenue}
+                  onQuickView={setQvItem}
+                  onSave={() => {}}
+                />
+              ))}
+            </div>
+          )}
+
+          {visibleCount < locationVenues.length && (
+            <div style={{ textAlign: "center", marginTop: 30 }}>
+              <button
+                onClick={() => setVisibleCount(v => v + 12)}
+                style={{
+                  padding: "12px 24px",
+                  background: C.gold,
+                  color: "#000",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                Load More
+              </button>
+            </div>
+          )}
+        </div>
+        )}
+
+        {/* Featured Vendors Section — Hidden when map is open */}
+        {featuredVendors.length > 0 && (
+          <div style={{ padding: "40px 20px", background: C.card, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
+            <h3 style={{ fontFamily: "'Neue Haas Display', serif", fontSize: 20, marginBottom: 24, textAlign: "center" }}>
+              {_locationContent?.featuredVendorsTitle || "Top Wedding Planners"}
+            </h3>
+            {viewMode === "grid" ? (
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(300px, 1fr))",
+                gap: 20,
+                maxWidth: "1400px",
+                margin: "0 auto",
+              }}>
+                {featuredVendors.map(vendor => (
+                  <LuxuryVendorCard
+                    key={vendor.id}
+                    vendor={vendor}
+                    onClick={() => onViewVenue && onViewVenue(vendor.id)}
+                    C={C}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+                {featuredVendors.map(vendor => (
+                  <HCard
+                    key={vendor.id}
+                    v={vendor}
+                    onView={() => onViewVenue && onViewVenue(vendor.id)}
+                    onQuickView={setQvItem}
+                    onSave={() => {}}
+                  />
+                ))}
               </div>
             )}
-          </section>
+          </div>
         )}
 
         {/* SEO Block / Planning Guide */}

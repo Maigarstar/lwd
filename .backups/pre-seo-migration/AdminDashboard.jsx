@@ -59,23 +59,6 @@ import { POSTS } from "./Magazine/data/posts";
 import { PRODUCTS, COLLECTIONS, formatPrice } from "./Magazine/data/products";
 import { CATEGORIES } from "./Magazine/data/categories";
 import { fetchLocationContent, saveLocationContent } from "../services/locationContentService";
-import {
-  fillEmptySeoFields, regenerateAllSeo, spinAllSeo,
-  generateSeoTitle, generateSeoDescription, generateOgTitle, generateOgDescription,
-  generateTwitterTitle, generateTwitterDescription, generatePrimaryKeyword, generateSecondaryKeywords,
-  generateSchemaJson, spinField as spinSeoField, shortenField as shortenSeoField, autoComputeSeoDefaults,
-} from "../services/locationSeoAiService";
-import {
-  fillEmptyContentFields, regenerateAllContent, spinAllContent, generateSection,
-  generateHeroTitle, generateHeroSubtitle, generateCtaText,
-  generateInfoVibes, generateInfoServices, generateInfoRegions,
-  generateEditorialContent, generateEditorialPara,
-  generatePlanningGuide, generateSeoHeading, generateFaqs,
-  generateMotto, generateMottoSubline,
-  generateFeaturedVenuesTitle, generateLatestHeadings,
-  spinField as spinContentField, shortenField as shortenContentField,
-  makeLuxury, makeEditorial, makeSeoAware,
-} from "../services/locationContentAiService";
 import LocationPage from "./LocationPage";
 
 // Font tokens, resolved via CSS custom properties set on admin root
@@ -4927,8 +4910,7 @@ function NewShowcaseModal({ C, onClose, onSave, type = 'venue', initialData = nu
     setHeroUploadErr('');
     try {
       const id = `showcase-hero-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      const result = await uploadMediaFile(file, id);
-      const url = typeof result === 'object' && result?.url ? result.url : result;
+      const url = await uploadMediaFile(file, id);
       set('heroImage', url);
     } catch (err) {
       setHeroUploadErr('Upload failed, try again or paste a URL');
@@ -6033,18 +6015,7 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
     latestVendorsCount: '12', latestVendorsMode: 'latest',
     latestVendorsCardStyle: 'luxury',
     latestVendorsSelected: [],
-    // SEO fields
-    seoTitle: '', seoDescription: '', seoKeywords: '',
-    seoCanonicalUrl: '', seoRobotsIndex: true, seoRobotsFollow: true,
-    ogTitle: '', ogDescription: '', ogImage: '',
-    twitterTitle: '', twitterDescription: '', twitterImage: '',
-    schemaType: 'Place', schemaJson: '',
-    seoPrimaryKeyword: '', seoSecondaryKeywords: '',
   });
-  const [seoTab, setSeoTab] = useState('core');
-  const [seoAiTone, setSeoAiTone] = useState('luxury');
-  const [seoAiBusy, setSeoAiBusy] = useState(null); // null | 'fill' | 'regen' | 'spin' | fieldName
-  const [seoAiError, setSeoAiError] = useState(null);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [showMagicPanel, setShowMagicPanel] = useState(false);
   const [magicContext, setMagicContext] = useState('');
@@ -6073,115 +6044,6 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
     if (locationType === 'city') return DIRECTORY_CITIES.find(c => c.slug === citySlug)?.name || '';
     return '';
   }, [locationType, countrySlug, regionSlug, citySlug]);
-
-  // ── SEO AI context & helpers ────────────────────────────────────────────
-  const buildSeoCtx = useCallback(() => ({
-    locationType, locationName, countrySlug, regionSlug, citySlug,
-    heroTitle: form.heroTitle, heroSubtitle: form.heroSubtitle,
-    editorialPara1: form.editorialPara1, venueCount: venueList.length,
-    regionCount: locationType === 'country' ? DIRECTORY_REGIONS.filter(r => r.countrySlug === countrySlug).length : 0,
-    mapLat: form.mapLat, mapLng: form.mapLng, schemaType: form.schemaType,
-  }), [locationType, locationName, countrySlug, regionSlug, citySlug, form.heroTitle, form.heroSubtitle, form.editorialPara1, form.mapLat, form.mapLng, form.schemaType, venueList.length]);
-
-  const handleSeoAiAction = useCallback(async (action) => {
-    setSeoAiBusy(action); setSeoAiError(null);
-    try {
-      const ctx = buildSeoCtx();
-      let results;
-      if (action === 'fill') results = await fillEmptySeoFields(form, ctx, seoAiTone);
-      else if (action === 'regen') results = await regenerateAllSeo(ctx, seoAiTone);
-      else if (action === 'spin') results = await spinAllSeo(form, ctx, seoAiTone);
-      else if (action === 'defaults') results = autoComputeSeoDefaults(ctx);
-
-      if (results) {
-        setForm(prev => ({ ...prev, ...results }));
-        setDirty(true);
-      }
-    } catch (err) {
-      setSeoAiError(err.message);
-    } finally {
-      setSeoAiBusy(null);
-    }
-  }, [buildSeoCtx, form, seoAiTone]);
-
-  const handleFieldAi = useCallback(async (fieldKey, generator, ...args) => {
-    setSeoAiBusy(fieldKey); setSeoAiError(null);
-    try {
-      const result = await generator(...args);
-      set(fieldKey, result);
-    } catch (err) {
-      setSeoAiError(err.message);
-    } finally {
-      setSeoAiBusy(null);
-    }
-  }, [set]);
-
-  // ── Content AI state & helpers ──────────────────────────────────────────
-  const [contentAiBusy, setContentAiBusy] = useState(null); // null | 'fill' | 'regen' | 'spin' | 'section:hero' | fieldKey
-  const [contentAiError, setContentAiError] = useState(null);
-  const [contentAiTone, setContentAiTone] = useState('luxury');
-
-  const buildContentCtx = useCallback(() => ({
-    locationType, locationName, countrySlug, regionSlug, citySlug,
-    heroTitle: form.heroTitle, heroSubtitle: form.heroSubtitle,
-    existingContent: form.editorialPara1,
-    venueCount: venueList.length,
-    regionCount: locationType === 'country' ? DIRECTORY_REGIONS.filter(r => r.countrySlug === countrySlug).length : 0,
-  }), [locationType, locationName, countrySlug, regionSlug, citySlug, form.heroTitle, form.heroSubtitle, form.editorialPara1, venueList.length]);
-
-  const handleContentAiAction = useCallback(async (action) => {
-    setContentAiBusy(action); setContentAiError(null);
-    try {
-      const ctx = buildContentCtx();
-      let results;
-      if (action === 'fill') results = await fillEmptyContentFields(form, ctx, contentAiTone);
-      else if (action === 'regen') results = await regenerateAllContent(ctx, contentAiTone);
-      else if (action === 'spin') results = await spinAllContent(form, ctx, contentAiTone);
-
-      if (results) {
-        setForm(prev => ({ ...prev, ...results }));
-        setDirty(true);
-      }
-    } catch (err) {
-      setContentAiError(err.message);
-    } finally {
-      setContentAiBusy(null);
-    }
-  }, [buildContentCtx, form, contentAiTone]);
-
-  const handleSectionAi = useCallback(async (section) => {
-    setContentAiBusy(`section:${section}`); setContentAiError(null);
-    try {
-      const ctx = buildContentCtx();
-      const results = await generateSection(section, form, ctx, contentAiTone);
-      if (results) {
-        setForm(prev => ({ ...prev, ...results }));
-        setDirty(true);
-      }
-    } catch (err) {
-      setContentAiError(err.message);
-    } finally {
-      setContentAiBusy(null);
-    }
-  }, [buildContentCtx, form, contentAiTone]);
-
-  const handleContentFieldAi = useCallback(async (fieldKey, generator, ...args) => {
-    setContentAiBusy(fieldKey); setContentAiError(null);
-    try {
-      const result = await generator(...args);
-      if (typeof result === 'object' && !Array.isArray(result)) {
-        // Multi-field result (e.g. editorial, latest headings)
-        setForm(prev => ({ ...prev, ...result }));
-      } else {
-        set(fieldKey, result);
-      }
-      setDirty(true);
-    } catch (err) {
-      setContentAiError(err.message);
-    } finally {
-      setContentAiBusy(null);
-    }
-  }, [set]);
 
   // Load content when location key changes
   useEffect(() => {
@@ -6244,27 +6106,10 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
           latestVendorsMode:     data.metadata?.latestVendorsMode || 'latest',
           latestVendorsCardStyle: data.metadata?.latestVendorsCardStyle || 'luxury',
           latestVendorsSelected: Array.isArray(data.metadata?.latestVendorsSelected) ? data.metadata.latestVendorsSelected : [],
-          // SEO fields from dedicated columns
-          seoTitle:             data.seo_title || '',
-          seoDescription:       data.seo_description || '',
-          seoKeywords:          data.seo_keywords || '',
-          seoCanonicalUrl:      data.seo_canonical_url || '',
-          seoRobotsIndex:       data.seo_robots_index !== false,
-          seoRobotsFollow:      data.seo_robots_follow !== false,
-          ogTitle:              data.og_title || '',
-          ogDescription:        data.og_description || '',
-          ogImage:              data.og_image || '',
-          twitterTitle:         data.twitter_title || '',
-          twitterDescription:   data.twitter_description || '',
-          twitterImage:         data.twitter_image || '',
-          schemaType:           data.schema_type || 'Place',
-          schemaJson:           data.schema_json ? (typeof data.schema_json === 'string' ? data.schema_json : JSON.stringify(data.schema_json, null, 2)) : '',
-          seoPrimaryKeyword:    data.seo_primary_keyword || '',
-          seoSecondaryKeywords: data.seo_secondary_keywords || '',
         });
         setPublished(!!data.published);
       } else {
-        setForm(prev => ({ ...prev, heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '', heroImages: [], ctaText: 'Explore Venues', ctaLink: '#', featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Top Wedding Planners', featuredVenueIds: [], featuredVendorIds: [], mapLat: '', mapLng: '', mapZoom: '8', infoVibes: '', infoServices: '', infoRegions: autoInfoRegions(locationType, countrySlug, regionSlug), seoContent: autoEvergreenContent(locationType, countrySlug, regionSlug, citySlug), seoFaqs: autoSeoFaqs(locationType, countrySlug, regionSlug, citySlug), editorialPara1: '', editorialPara2: '', editorialBlock1Icon: '🏰', editorialBlock1Text: '', editorialBlock2Icon: '🌿', editorialBlock2Text: '', editorialBlock3Icon: '🌅', editorialBlock3Text: '', editorialBlock4Icon: '✨', editorialBlock4Text: '', editorialVenueMode: 'latest', showEditorialSplit: true, showLatestVenues: true, showLatestVendors: true, showPlanningGuide: true, showMotto: true, motto: '', mottoSubline: '', mottoBgImage: '', mottoOverlay: '0.55', editorialEyebrow: '', editorialHeadingPrefix: '', editorialCtaText: '', seoHeading: '', latestVenuesHeading: '', latestVenuesSub: '', latestVenuesCount: '12', latestVenuesMode: 'latest', latestVenuesCardStyle: 'luxury', latestVenuesSelected: [], latestVendorsHeading: '', latestVendorsSub: '', latestVendorsCount: '12', latestVendorsMode: 'latest', latestVendorsCardStyle: 'luxury', latestVendorsSelected: [], seoTitle: '', seoDescription: '', seoKeywords: '', seoCanonicalUrl: '', seoRobotsIndex: true, seoRobotsFollow: true, ogTitle: '', ogDescription: '', ogImage: '', twitterTitle: '', twitterDescription: '', twitterImage: '', schemaType: 'Place', schemaJson: '', seoPrimaryKeyword: '', seoSecondaryKeywords: '' }));
+        setForm({ heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '', heroImages: [], ctaText: 'Explore Venues', ctaLink: '#', featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Top Wedding Planners', featuredVenueIds: [], featuredVendorIds: [], mapLat: '', mapLng: '', mapZoom: '8', infoVibes: '', infoServices: '', infoRegions: autoInfoRegions(locationType, countrySlug, regionSlug), seoContent: autoEvergreenContent(locationType, countrySlug, regionSlug, citySlug), seoFaqs: autoSeoFaqs(locationType, countrySlug, regionSlug, citySlug), editorialPara1: '', editorialPara2: '', editorialBlock1Icon: '🏰', editorialBlock1Text: '', editorialBlock2Icon: '🌿', editorialBlock2Text: '', editorialBlock3Icon: '🌅', editorialBlock3Text: '', editorialBlock4Icon: '✨', editorialBlock4Text: '', editorialVenueMode: 'latest', showEditorialSplit: true, showLatestVenues: true, showLatestVendors: true, showPlanningGuide: true, showMotto: true, motto: '', mottoSubline: '', mottoBgImage: '', mottoOverlay: '0.55', editorialEyebrow: '', editorialHeadingPrefix: '', editorialCtaText: '', seoHeading: '', latestVenuesHeading: '', latestVenuesSub: '', latestVenuesCount: '12', latestVenuesMode: 'latest', latestVenuesCardStyle: 'luxury', latestVenuesSelected: [], latestVendorsHeading: '', latestVendorsSub: '', latestVendorsCount: '12', latestVendorsMode: 'latest', latestVendorsCardStyle: 'luxury', latestVendorsSelected: [] });
         setPublished(false);
       }
       setDirty(false);
@@ -6338,23 +6183,6 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
           latestVendorsSelected: form.latestVendorsSelected || [],
         },
         published: newPublished,
-        // SEO fields — saved as dedicated columns
-        seoTitle: form.seoTitle || null,
-        seoDescription: form.seoDescription || null,
-        seoKeywords: form.seoKeywords || null,
-        seoCanonicalUrl: form.seoCanonicalUrl || null,
-        seoRobotsIndex: form.seoRobotsIndex !== false,
-        seoRobotsFollow: form.seoRobotsFollow !== false,
-        ogTitle: form.ogTitle || null,
-        ogDescription: form.ogDescription || null,
-        ogImage: form.ogImage || null,
-        twitterTitle: form.twitterTitle || null,
-        twitterDescription: form.twitterDescription || null,
-        twitterImage: form.twitterImage || null,
-        schemaType: form.schemaType || 'Place',
-        schemaJson: form.schemaJson ? JSON.parse(form.schemaJson) : null,
-        seoPrimaryKeyword: form.seoPrimaryKeyword || null,
-        seoSecondaryKeywords: form.seoSecondaryKeywords || null,
       });
       if (result.error) {
         setSaveErr(`Save failed: ${result.error.message || 'Database error'}`);
@@ -6404,8 +6232,7 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
     try {
       console.log('[Location Studio] Uploading motto image:', file.name);
       const mediaId = `motto-${locationKey.replace(/:/g, '-')}-${Date.now()}`;
-      const result = await uploadMediaFile(file, mediaId);
-      const publicUrl = typeof result === 'object' && result?.url ? result.url : result;
+      const publicUrl = await uploadMediaFile(file, mediaId);
       console.log('[Location Studio] Public URL:', publicUrl);
 
       set('mottoBgImage', publicUrl);
@@ -6463,44 +6290,6 @@ Do not include any explanation — only the JSON object.`,
     return <input value={form[key] || ''} onChange={e => set(key, e.target.value)} placeholder={placeholder} style={base} />;
   };
   const lbl = (text) => <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: LS.muted, marginBottom: 6 }}>{text}</div>;
-
-  // Section-level AI action bar
-  const sectionAiBar = (sectionKey) => (
-    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10, paddingBottom: 8, borderBottom: `1px solid ${LS.border}` }}>
-      <button onClick={() => handleSectionAi(sectionKey)} disabled={!!contentAiBusy}
-        style={{ fontFamily: NU, fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 4, border: `1px solid ${LS.border}`, background: contentAiBusy === `section:${sectionKey}` ? LS.gold : 'transparent', color: contentAiBusy === `section:${sectionKey}` ? '#fff' : LS.gold, cursor: contentAiBusy ? 'not-allowed' : 'pointer' }}
-      >{contentAiBusy === `section:${sectionKey}` ? '⟳…' : '✦ Generate'}</button>
-      <button onClick={() => handleSectionAi(sectionKey)} disabled={!!contentAiBusy}
-        style={{ fontFamily: NU, fontSize: 10, fontWeight: 500, padding: '3px 8px', borderRadius: 4, border: `1px solid ${LS.border}`, background: 'transparent', color: LS.muted, cursor: contentAiBusy ? 'not-allowed' : 'pointer' }}
-      >↻ Redo</button>
-    </div>
-  );
-
-  // Per-field AI micro-actions
-  const fieldAi = (fieldKey, label, generator, genArgs, options = {}) => {
-    const ctx = buildContentCtx();
-    const busy = contentAiBusy === fieldKey;
-    const val = form[fieldKey];
-    const btns = [
-      { icon: '✦', tip: 'Generate', fn: () => handleContentFieldAi(fieldKey, generator, ...genArgs) },
-    ];
-    if (val) {
-      btns.push({ icon: '↻', tip: 'Spin', fn: () => handleContentFieldAi(fieldKey, spinContentField, val, label, ctx, contentAiTone) });
-      if (options.canShorten) btns.push({ icon: '⇠', tip: 'Shorter', fn: () => handleContentFieldAi(fieldKey, shortenContentField, val, label, options.maxWords || 15) });
-      btns.push({ icon: '♦', tip: 'More luxury', fn: () => handleContentFieldAi(fieldKey, makeLuxury, val, label, ctx) });
-      btns.push({ icon: '✎', tip: 'More editorial', fn: () => handleContentFieldAi(fieldKey, makeEditorial, val, label, ctx) });
-      if (options.seo) btns.push({ icon: '◎', tip: 'SEO aware', fn: () => handleContentFieldAi(fieldKey, makeSeoAware, val, label, ctx) });
-    }
-    return (
-      <div style={{ display: 'flex', gap: 3, marginTop: 4 }}>
-        {btns.map((b, i) => (
-          <button key={i} title={b.tip} onClick={b.fn} disabled={!!contentAiBusy}
-            style={{ fontFamily: NU, fontSize: 9, padding: '2px 6px', borderRadius: 3, border: `1px solid ${LS.border}`, background: busy ? LS.gold : 'transparent', color: busy ? '#fff' : LS.gold, cursor: contentAiBusy ? 'not-allowed' : 'pointer', lineHeight: 1 }}
-          >{busy ? '⟳' : b.icon}</button>
-        ))}
-      </div>
-    );
-  };
 
   const showEditor  = viewMode === 'split' || viewMode === 'editor';
   const showPreview = viewMode === 'split' || viewMode === 'preview';
@@ -6725,42 +6514,10 @@ No explanation. Only the JSON.`,
               )}
             </LocSCard>
 
-            {/* ── CONTENT AI ACTIONS BAR ──────────────────────────────────────────── */}
-            {locationKey && (
-              <div style={{ background: darkMode ? 'rgba(201,168,76,0.06)' : '#FAF8F3', border: `1px solid ${darkMode ? 'rgba(201,168,76,0.15)' : '#E8E0D0'}`, borderRadius: 8, padding: '12px 16px', marginBottom: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.gold, marginRight: 4 }}>✦ Content AI</span>
-                  {[
-                    { key: 'fill', label: 'Fill Empty Fields', title: 'Generate content for all empty fields (does not overwrite)' },
-                    { key: 'regen', label: 'Regenerate All', title: 'Regenerate all content fields (overwrites existing)' },
-                    { key: 'spin', label: 'Spin All', title: 'Rewrite all existing content with fresh phrasing' },
-                  ].map(a => (
-                    <button key={a.key} title={a.title} disabled={!!contentAiBusy}
-                      onClick={() => handleContentAiAction(a.key)}
-                      style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, padding: '5px 10px', borderRadius: 5, border: `1px solid ${LS.border}`, background: contentAiBusy === a.key ? LS.gold : 'transparent', color: contentAiBusy === a.key ? '#fff' : LS.text, cursor: contentAiBusy ? 'not-allowed' : 'pointer', opacity: contentAiBusy && contentAiBusy !== a.key ? 0.4 : 1 }}
-                    >{contentAiBusy === a.key ? '⟳ Working…' : a.label}</button>
-                  ))}
-                  <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontFamily: NU, fontSize: 10, color: LS.muted }}>Tone:</span>
-                    <select value={contentAiTone} onChange={e => setContentAiTone(e.target.value)} style={{ fontFamily: NU, fontSize: 11, padding: '3px 6px', border: `1px solid ${LS.border}`, borderRadius: 4, background: LS.bg, color: LS.text }}>
-                      <option value="luxury">Luxury</option>
-                      <option value="editorial">Editorial</option>
-                      <option value="seo_strong">SEO Strong</option>
-                      <option value="direct">Direct</option>
-                      <option value="romantic">Romantic</option>
-                    </select>
-                  </div>
-                </div>
-                {contentAiError && <div style={{ fontFamily: NU, fontSize: 11, color: '#ef4444', marginTop: 6 }}>✗ {contentAiError}</div>}
-                {contentAiBusy && <div style={{ fontFamily: NU, fontSize: 11, color: LS.gold, marginTop: 6 }}>⟳ Generating content… this may take a minute.</div>}
-              </div>
-            )}
-
             {/* Hero */}
             <LocSCard title="Hero" hint="Headline text and background shown at the top of this page" LS={LS}>
-              {locationKey && sectionAiBar('hero')}
-              <div style={{ marginBottom: 12 }}>{lbl('Hero Title')}{inp('heroTitle', locationName || 'e.g. Weddings in Tuscany')}{fieldAi('heroTitle', 'hero title', generateHeroTitle, [buildContentCtx(), contentAiTone])}</div>
-              <div style={{ marginBottom: 12 }}>{lbl('Hero Subtitle')}{inp('heroSubtitle', 'A curated guide to luxury wedding celebrations…', true)}{fieldAi('heroSubtitle', 'hero subtitle', generateHeroSubtitle, [buildContentCtx(), contentAiTone])}</div>
+              <div style={{ marginBottom: 12 }}>{lbl('Hero Title')}{inp('heroTitle', locationName || 'e.g. Weddings in Tuscany')}</div>
+              <div style={{ marginBottom: 12 }}>{lbl('Hero Subtitle')}{inp('heroSubtitle', 'A curated guide to luxury wedding celebrations…', true)}</div>
 
               {/* Image upload grid */}
               <div style={{ marginBottom: 12 }}>
@@ -6793,15 +6550,14 @@ No explanation. Only the JSON.`,
               </div>
 
               <LocGrid2 gap={12}>
-                <div>{lbl('CTA Button Text')}{inp('ctaText', 'Explore Venues')}{fieldAi('ctaText', 'CTA text', generateCtaText, [buildContentCtx()])}</div>
+                <div>{lbl('CTA Button Text')}{inp('ctaText', 'Explore Venues')}</div>
                 <div>{lbl('CTA Button Link')}{inp('ctaLink', '#search')}</div>
               </LocGrid2>
             </LocSCard>
 
             {/* Featured */}
             <LocSCard title="Featured" hint="Pin up to 6 venues to the top of this location page" LS={LS}>
-              {locationKey && sectionAiBar('featured')}
-              <div style={{ marginBottom: 12 }}>{lbl('Section Title')}{inp('featuredVenuesTitle', 'Signature Venues')}{fieldAi('featuredVenuesTitle', 'section heading', generateFeaturedVenuesTitle, [buildContentCtx(), contentAiTone])}</div>
+              <div style={{ marginBottom: 12 }}>{lbl('Section Title')}{inp('featuredVenuesTitle', 'Signature Venues')}</div>
               {venueList.length > 0 ? (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {venueList.slice(0, 24).map(v => {
@@ -6826,11 +6582,9 @@ No explanation. Only the JSON.`,
 
             {/* Info Strip */}
             <LocSCard title="Info Strip" hint="Three tag columns shown below the hero — all auto-populated, all editable." LS={LS}>
-              {locationKey && sectionAiBar('infoStrip')}
               <div style={{ marginBottom: 12 }}>
                 {lbl('Regions / Areas')}
                 {inp('infoRegions', 'e.g. Barbados, St Lucia, Jamaica, Antigua')}
-                {fieldAi('infoRegions', 'region tags', generateInfoRegions, [buildContentCtx()])}
                 <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>
                   {form.infoRegions ? form.infoRegions.split(',').map(s => s.trim()).filter(Boolean).map((v, i) => (
                     <span key={i} style={{ display: 'inline-block', marginRight: 6, marginBottom: 4, padding: '2px 8px', background: `${LS.gold}18`, border: `1px solid ${LS.gold}44`, borderRadius: 3, color: LS.gold, fontSize: 11 }}>{v}</span>
@@ -6840,7 +6594,6 @@ No explanation. Only the JSON.`,
               <div style={{ marginBottom: 12 }}>
                 {lbl('Signature Vibes')}
                 {inp('infoVibes', 'e.g. Beach Weddings, Garden Party, Tropical Luxury')}
-                {fieldAi('infoVibes', 'vibe tags', generateInfoVibes, [buildContentCtx()])}
                 <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>
                   {form.infoVibes ? form.infoVibes.split(',').map(s => s.trim()).filter(Boolean).map((v, i) => (
                     <span key={i} style={{ display: 'inline-block', marginRight: 6, marginBottom: 4, padding: '2px 8px', background: `${LS.gold}18`, border: `1px solid ${LS.gold}44`, borderRadius: 3, color: LS.gold, fontSize: 11 }}>{v}</span>
@@ -6850,7 +6603,6 @@ No explanation. Only the JSON.`,
               <div>
                 {lbl('Elite Services')}
                 {inp('infoServices', 'e.g. Private Beach Access, Destination Concierge, All-Inclusive')}
-                {fieldAi('infoServices', 'service tags', generateInfoServices, [buildContentCtx()])}
                 <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>
                   {form.infoServices ? form.infoServices.split(',').map(s => s.trim()).filter(Boolean).map((v, i) => (
                     <span key={i} style={{ display: 'inline-block', marginRight: 6, marginBottom: 4, padding: '2px 8px', background: `${LS.gold}18`, border: `1px solid ${LS.gold}44`, borderRadius: 3, color: LS.gold, fontSize: 11 }}>{v}</span>
@@ -6861,11 +6613,9 @@ No explanation. Only the JSON.`,
 
             {/* Planning Guide */}
             <LocSCard title="Planning Guide" hint="Auto-populated from the directory — edit freely. Max 3 paragraphs (separate with a blank line). FAQs auto-use the location name." LS={LS} enabled={form.showPlanningGuide !== false} onToggle={() => set('showPlanningGuide', !form.showPlanningGuide)}>
-              {locationKey && sectionAiBar('planning')}
               <div style={{ marginBottom: 16 }}>
                 {lbl('Section Title')}
                 {inp('seoHeading', `Planning Your ${locationName || 'Italy'} Wedding`)}
-                {fieldAi('seoHeading', 'section heading', generateSeoHeading, [buildContentCtx()])}
                 <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Auto: "Planning Your {locationName} Wedding" — override the full title here</div>
               </div>
               <div style={{ marginBottom: 16 }}>
@@ -6877,12 +6627,6 @@ No explanation. Only the JSON.`,
                   rows={6}
                   style={{ fontFamily: NU, fontSize: 13, padding: '10px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', lineHeight: 1.6 }}
                 />
-                {fieldAi('seoContent', 'planning guide', generatePlanningGuide, [buildContentCtx(), contentAiTone], { seo: true })}
-              </div>
-              <div style={{ marginBottom: 10, display: 'flex', gap: 4 }}>
-                <button onClick={() => handleContentFieldAi('seoFaqs', generateFaqs, buildContentCtx(), contentAiTone)} disabled={!!contentAiBusy}
-                  style={{ fontFamily: NU, fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 4, border: `1px solid ${LS.border}`, background: contentAiBusy === 'seoFaqs' ? LS.gold : 'transparent', color: contentAiBusy === 'seoFaqs' ? '#fff' : LS.gold, cursor: contentAiBusy ? 'not-allowed' : 'pointer' }}
-                >{contentAiBusy === 'seoFaqs' ? '⟳ Generating…' : '✦ Generate FAQs'}</button>
               </div>
               {(form.seoFaqs || [{ q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }]).map((faq, i) => (
                 <div key={i} style={{ marginBottom: 16, padding: '12px 14px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 6 }}>
@@ -6910,7 +6654,6 @@ No explanation. Only the JSON.`,
 
             {/* Motto Banner */}
             <LocSCard title="Motto Banner" hint="Full-width editorial quote strip — appears below the Planning Guide. Auto-fills from the location name. Optionally add a background image and control the overlay darkness." LS={LS} enabled={form.showMotto !== false} onToggle={() => set('showMotto', !form.showMotto)}>
-              {locationKey && sectionAiBar('motto')}
               {/* Motto text */}
               <div style={{ marginBottom: 14 }}>
                 {lbl('Quote / Motto')}
@@ -6921,14 +6664,12 @@ No explanation. Only the JSON.`,
                   rows={3}
                   style={{ fontFamily: NU, fontSize: 13, padding: '10px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', lineHeight: 1.6, fontStyle: 'italic' }}
                 />
-                {fieldAi('motto', 'motto quote', generateMotto, [buildContentCtx(), contentAiTone])}
                 <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Auto: "{locationName || 'Italy'}, where every moment becomes a memory worth keeping forever."</div>
               </div>
               {/* Sub-line */}
               <div style={{ marginBottom: 14 }}>
                 {lbl('Sub-line (optional)')}
                 {inp('mottoSubline', 'e.g. Luxury Wedding Directory · Italy')}
-                {fieldAi('mottoSubline', 'motto subline', generateMottoSubline, [buildContentCtx()])}
                 <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Appears below the quote in small caps — leave blank to hide</div>
               </div>
               {/* Background image — upload, pick from listings, or paste URL */}
@@ -7033,7 +6774,6 @@ No explanation. Only the JSON.`,
 
             {/* Editorial Split */}
             <LocSCard title="Editorial Split" hint={`"The Art of the ${locationName || 'Location'} Wedding" section — 5-image grid + 2 editorial paragraphs + 4 info blocks. Venue display: Latest, Random or Featured.`} LS={LS} enabled={form.showEditorialSplit !== false} onToggle={() => set('showEditorialSplit', !form.showEditorialSplit)}>
-              {locationKey && sectionAiBar('editorial')}
               {/* Venue display mode */}
               <div style={{ marginBottom: 16 }}>
                 {lbl('Venue Display Mode')}
@@ -7094,7 +6834,6 @@ No explanation. Only the JSON.`,
                   rows={3}
                   style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }}
                 />
-                {fieldAi('editorialPara1', 'editorial paragraph', generateEditorialPara, [buildContentCtx(), 1, contentAiTone], { seo: true })}
               </div>
 
               {/* Paragraph 2 */}
@@ -7107,7 +6846,6 @@ No explanation. Only the JSON.`,
                   rows={3}
                   style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }}
                 />
-                {fieldAi('editorialPara2', 'editorial paragraph', generateEditorialPara, [buildContentCtx(), 2, contentAiTone], { seo: true })}
               </div>
 
               {/* Info blocks */}
@@ -7162,7 +6900,6 @@ No explanation. Only the JSON.`,
 
               return (
                 <LocSCard title="Latest Venues Strip" hint={`The "${locationName || 'Latest'} Venues." card slider. Choose Latest, Random, or hand-pick Selectable venues.`} LS={LS} enabled={form.showLatestVenues !== false} onToggle={() => set('showLatestVenues', !form.showLatestVenues)}>
-                  {locationKey && sectionAiBar('latest')}
 
                   {/* ── Venue Mode — 4 options ── */}
                   <div style={{ marginBottom: 16 }}>
@@ -7329,7 +7066,6 @@ No explanation. Only the JSON.`,
                   <div style={{ marginBottom: 12 }}>
                     {lbl('Section Heading')}
                     {inp('latestVenuesHeading', 'Latest Venues.')}
-                    {fieldAi('latestVenuesHeading', 'section heading', async () => { const r = await generateLatestHeadings(buildContentCtx(), contentAiTone); return r.latestVenuesHeading; }, [])}
                     <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Leave blank to use "Latest Venues."</div>
                   </div>
 
@@ -7343,7 +7079,6 @@ No explanation. Only the JSON.`,
                       rows={2}
                       style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }}
                     />
-                    {fieldAi('latestVenuesSub', 'section summary', async () => { const r = await generateLatestHeadings(buildContentCtx(), contentAiTone); return r.latestVenuesSub; }, [])}
                     <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Leave blank to auto-generate from location name</div>
                   </div>
                 </LocSCard>
@@ -7470,7 +7205,6 @@ No explanation. Only the JSON.`,
                   <div style={{ marginBottom: 12 }}>
                     {lbl('Section Heading')}
                     {inp('latestVendorsHeading', 'Latest Vendors.')}
-                    {fieldAi('latestVendorsHeading', 'section heading', async () => { const r = await generateLatestHeadings(buildContentCtx(), contentAiTone); return r.latestVendorsHeading; }, [])}
                     <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Leave blank to use "Latest Vendors."</div>
                   </div>
 
@@ -7480,7 +7214,6 @@ No explanation. Only the JSON.`,
                     <textarea value={form.latestVendorsSub || ''} onChange={e => set('latestVendorsSub', e.target.value)}
                       placeholder={`Planners, photographers, florists, and culinary artists — the professionals behind${locationName ? ` ${locationName}'s` : ''} finest celebrations.`}
                       rows={2} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }} />
-                    {fieldAi('latestVendorsSub', 'section summary', async () => { const r = await generateLatestHeadings(buildContentCtx(), contentAiTone); return r.latestVendorsSub; }, [])}
                     <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Leave blank to auto-generate from location name</div>
                   </div>
                 </LocSCard>
@@ -7494,399 +7227,6 @@ No explanation. Only the JSON.`,
                 <div>{lbl('Longitude')}{inp('mapLng', '11.2558')}</div>
                 <div>{lbl('Zoom')}{inp('mapZoom', '8')}</div>
               </div>
-            </LocSCard>
-
-            {/* ═══ SEO & SOCIAL ═══════════════════════════════════════════ */}
-            <LocSCard title="SEO & Social" hint="Search engine optimisation, Open Graph, Twitter Cards, and schema markup — all managed here" LS={LS}>
-              {/* SEO completeness score */}
-              {(() => {
-                const seoChecks = [
-                  { label: 'Title', ok: !!form.seoTitle },
-                  { label: 'Description', ok: !!form.seoDescription },
-                  { label: 'OG Image', ok: !!form.ogImage },
-                  { label: 'Canonical', ok: !!form.seoCanonicalUrl },
-                  { label: 'Schema', ok: form.schemaType && form.schemaType !== 'Place' || !!form.schemaJson },
-                  { label: 'Primary Keyword', ok: !!form.seoPrimaryKeyword },
-                  { label: 'OG Title', ok: !!form.ogTitle },
-                ];
-                const done = seoChecks.filter(c => c.ok).length;
-                const total = seoChecks.length;
-                const pct = Math.round((done / total) * 100);
-                const color = pct === 100 ? '#22c55e' : pct >= 60 ? LS.gold : '#ef4444';
-                return (
-                  <div style={{ marginBottom: 16 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color }}>
-                        SEO Score: {done}/{total} ({pct}%)
-                      </span>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        {seoChecks.map((c, i) => (
-                          <span key={i} title={c.label} style={{
-                            width: 8, height: 8, borderRadius: '50%',
-                            background: c.ok ? '#22c55e' : `${LS.muted}40`,
-                            border: `1px solid ${c.ok ? '#22c55e50' : `${LS.muted}30`}`,
-                          }} />
-                        ))}
-                      </div>
-                    </div>
-                    <div style={{ height: 3, background: `${LS.muted}20`, borderRadius: 2, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 2, transition: 'width 0.3s' }} />
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
-                      {seoChecks.filter(c => !c.ok).map((c, i) => (
-                        <span key={i} style={{ fontFamily: NU, fontSize: 8, color: '#ef4444', background: '#ef444412', border: '1px solid #ef444420', padding: '1px 6px', borderRadius: 2 }}>
-                          Missing: {c.label}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* ── AI Actions Bar ── */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12, padding: '10px 12px', background: `${LS.gold}08`, border: `1px solid ${LS.gold}20`, borderRadius: 6 }}>
-                <span style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: LS.gold, display: 'flex', alignItems: 'center', gap: 4, marginRight: 4 }}>
-                  <span style={{ fontSize: 12 }}>✦</span> AI
-                </span>
-                {[
-                  { key: 'fill', label: 'Fill Empty', title: 'Generate content for empty fields only' },
-                  { key: 'regen', label: 'Regenerate All', title: 'Overwrite all SEO fields with fresh content' },
-                  { key: 'spin', label: 'Spin All Copy', title: 'Create fresh variations of existing copy' },
-                  { key: 'defaults', label: 'Auto Defaults', title: 'Set canonical URL, robots, schema type from page path' },
-                ].map(a => (
-                  <button key={a.key} title={a.title} disabled={!!seoAiBusy}
-                    onClick={() => handleSeoAiAction(a.key)}
-                    style={{
-                      fontFamily: NU, fontSize: 8, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-                      color: seoAiBusy === a.key ? '#fff' : '#a78bfa',
-                      background: seoAiBusy === a.key ? '#a78bfa' : '#a78bfa12',
-                      border: '1px solid #a78bfa30', borderRadius: 3, padding: '4px 10px', cursor: seoAiBusy ? 'wait' : 'pointer',
-                      opacity: seoAiBusy && seoAiBusy !== a.key ? 0.5 : 1,
-                    }}>
-                    {seoAiBusy === a.key ? 'Working...' : a.label}
-                  </button>
-                ))}
-                <div style={{ flex: 1 }} />
-                {/* Tone selector */}
-                <select value={seoAiTone} onChange={e => setSeoAiTone(e.target.value)}
-                  style={{ fontFamily: NU, fontSize: 9, padding: '3px 8px', border: `1px solid ${LS.border}`, borderRadius: 3, background: LS.bg, color: LS.text, cursor: 'pointer' }}>
-                  <option value="luxury">Luxury</option>
-                  <option value="editorial">Editorial</option>
-                  <option value="seo_strong">SEO Strong</option>
-                  <option value="direct">Direct</option>
-                  <option value="romantic">Romantic</option>
-                </select>
-              </div>
-              {seoAiError && (
-                <div style={{ fontFamily: NU, fontSize: 10, color: '#ef4444', background: '#ef444412', border: '1px solid #ef444420', borderRadius: 4, padding: '6px 10px', marginBottom: 10 }}>
-                  {seoAiError}
-                  <button onClick={() => setSeoAiError(null)} style={{ marginLeft: 8, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontSize: 10 }}>Dismiss</button>
-                </div>
-              )}
-
-              {/* SEO sub-tabs */}
-              <div style={{ display: 'flex', gap: 2, marginBottom: 16, borderBottom: `1px solid ${LS.border}`, paddingBottom: 8 }}>
-                {[
-                  { key: 'core', label: 'Core SEO' },
-                  { key: 'og', label: 'Open Graph' },
-                  { key: 'twitter', label: 'Twitter' },
-                  { key: 'schema', label: 'Schema' },
-                  { key: 'keywords', label: 'Keywords' },
-                ].map(t => (
-                  <button key={t.key} onClick={() => setSeoTab(t.key)} style={{
-                    fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-                    color: seoTab === t.key ? LS.gold : LS.muted,
-                    background: seoTab === t.key ? `${LS.gold}12` : 'transparent',
-                    border: `1px solid ${seoTab === t.key ? LS.gold + '40' : 'transparent'}`,
-                    borderRadius: 3, padding: '5px 10px', cursor: 'pointer',
-                  }}>{t.label}</button>
-                ))}
-              </div>
-
-              {/* ── Per-field AI button helper ── */}
-              {(() => {
-                const aiBtnStyle = { fontFamily: NU, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a78bfa', background: '#a78bfa12', border: '1px solid #a78bfa30', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 };
-                const aiFieldBtns = (fieldKey, genFn, genArgs, canSpin = true) => (
-                  <div style={{ display: 'flex', gap: 3, marginTop: 4 }}>
-                    <button disabled={!!seoAiBusy} style={aiBtnStyle}
-                      onClick={() => handleFieldAi(fieldKey, genFn, ...genArgs)}>
-                      {seoAiBusy === fieldKey ? '...' : '✦ Generate'}
-                    </button>
-                    {canSpin && form[fieldKey] && (
-                      <button disabled={!!seoAiBusy} style={aiBtnStyle}
-                        onClick={() => handleFieldAi(fieldKey, spinField, form[fieldKey], fieldKey.replace(/([A-Z])/g, ' $1').toLowerCase(), buildSeoCtx(), seoAiTone)}>
-                        ↻ Spin
-                      </button>
-                    )}
-                    {canSpin && form[fieldKey] && fieldKey.includes('itle') && (form[fieldKey] || '').length > 60 && (
-                      <button disabled={!!seoAiBusy} style={aiBtnStyle}
-                        onClick={() => handleFieldAi(fieldKey, shortenField, form[fieldKey], fieldKey.replace(/([A-Z])/g, ' $1').toLowerCase(), 60)}>
-                        Shorter
-                      </button>
-                    )}
-                  </div>
-                );
-                return null; // Just defining — used below via aiFieldBtns captured in closure
-              })()}
-
-              {/* ── Core SEO tab ── */}
-              {seoTab === 'core' && (() => {
-                const aiBtnStyle = { fontFamily: NU, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a78bfa', background: '#a78bfa12', border: '1px solid #a78bfa30', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 };
-                const ctx = buildSeoCtx();
-                const aiBtn = (label, onClick) => (
-                  <button disabled={!!seoAiBusy} style={aiBtnStyle} onClick={onClick}>{label}</button>
-                );
-                return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      {lbl('SEO Title')}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <div style={{ display: 'flex', gap: 3 }}>
-                          {aiBtn(seoAiBusy === 'seoTitle' ? '...' : '✦ Generate', () => handleFieldAi('seoTitle', generateSeoTitle, ctx, seoAiTone))}
-                          {form.seoTitle && aiBtn('↻ Spin', () => handleFieldAi('seoTitle', spinField, form.seoTitle, 'SEO title', ctx, seoAiTone))}
-                        </div>
-                        <span style={{ fontFamily: NU, fontSize: 9, color: (form.seoTitle || '').length > 60 ? '#ef4444' : LS.muted }}>{(form.seoTitle || '').length}/60</span>
-                      </div>
-                    </div>
-                    {inp('seoTitle', `Wedding Venues in ${locationName || 'Location'} | Luxury Wedding Directory`)}
-                  </div>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      {lbl('Meta Description')}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <div style={{ display: 'flex', gap: 3 }}>
-                          {aiBtn(seoAiBusy === 'seoDescription' ? '...' : '✦ Generate', () => handleFieldAi('seoDescription', generateSeoDescription, ctx, seoAiTone))}
-                          {form.seoDescription && aiBtn('↻ Spin', () => handleFieldAi('seoDescription', spinField, form.seoDescription, 'meta description', ctx, seoAiTone))}
-                        </div>
-                        <span style={{ fontFamily: NU, fontSize: 9, color: (form.seoDescription || '').length > 160 ? '#ef4444' : LS.muted }}>{(form.seoDescription || '').length}/160</span>
-                      </div>
-                    </div>
-                    <textarea value={form.seoDescription || ''} onChange={e => set('seoDescription', e.target.value)}
-                      placeholder={`Discover the finest luxury wedding venues in ${locationName || 'this location'}. Hand-selected by our editorial team.`}
-                      rows={3} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', boxSizing: 'border-box' }} />
-                  </div>
-                  <div>
-                    {lbl('Canonical URL')}
-                    {inp('seoCanonicalUrl', `https://luxuryweddingdirectory.com/${countrySlug || 'country'}${regionSlug ? '/' + regionSlug : ''}`)}
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <label style={{ fontFamily: NU, fontSize: 12, color: LS.text, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                      <input type="checkbox" checked={form.seoRobotsIndex !== false} onChange={e => set('seoRobotsIndex', e.target.checked)} />
-                      Allow indexing
-                    </label>
-                    <label style={{ fontFamily: NU, fontSize: 12, color: LS.text, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                      <input type="checkbox" checked={form.seoRobotsFollow !== false} onChange={e => set('seoRobotsFollow', e.target.checked)} />
-                      Allow follow
-                    </label>
-                  </div>
-
-                  {/* Google Preview */}
-                  <div style={{ marginTop: 8 }}>
-                    {lbl('Search Preview')}
-                    <div style={{ background: '#fff', border: '1px solid #dfe1e5', borderRadius: 8, padding: '16px 16px', maxWidth: 600 }}>
-                      <div style={{ fontFamily: 'Arial, sans-serif', fontSize: 20, color: '#1a0dab', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {form.seoTitle || form.heroTitle || `${locationName} | Luxury Wedding Directory`}
-                      </div>
-                      <div style={{ fontFamily: 'Arial, sans-serif', fontSize: 14, color: '#006621', marginBottom: 4 }}>
-                        {form.seoCanonicalUrl || `https://luxuryweddingdirectory.com/${countrySlug || ''}${regionSlug ? '/' + regionSlug : ''}`}
-                      </div>
-                      <div style={{ fontFamily: 'Arial, sans-serif', fontSize: 13, color: '#545454', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        {form.seoDescription || `Discover the finest luxury wedding venues in ${locationName || 'this location'}.`}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                );
-              })()}
-
-              {/* ── Open Graph tab ── */}
-              {seoTab === 'og' && (() => {
-                const aiBtnStyle = { fontFamily: NU, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a78bfa', background: '#a78bfa12', border: '1px solid #a78bfa30', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 };
-                const ctx = buildSeoCtx();
-                const aiBtn = (label, onClick) => (<button disabled={!!seoAiBusy} style={aiBtnStyle} onClick={onClick}>{label}</button>);
-                return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      {lbl('OG Title')}
-                      <div style={{ display: 'flex', gap: 3 }}>
-                        {aiBtn(seoAiBusy === 'ogTitle' ? '...' : '✦ Generate', () => handleFieldAi('ogTitle', generateOgTitle, ctx, seoAiTone))}
-                        {form.ogTitle && aiBtn('↻ Spin', () => handleFieldAi('ogTitle', spinField, form.ogTitle, 'OG title', ctx, seoAiTone))}
-                      </div>
-                    </div>
-                    {inp('ogTitle', form.seoTitle || `${locationName} | Luxury Wedding Directory`)}
-                    <div style={{ fontFamily: NU, fontSize: 10, color: LS.muted, marginTop: 3 }}>Falls back to SEO title if empty</div>
-                  </div>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      {lbl('OG Description')}
-                      <div style={{ display: 'flex', gap: 3 }}>
-                        {aiBtn(seoAiBusy === 'ogDescription' ? '...' : '✦ Generate', () => handleFieldAi('ogDescription', generateOgDescription, ctx, seoAiTone))}
-                        {form.ogDescription && aiBtn('↻ Spin', () => handleFieldAi('ogDescription', spinField, form.ogDescription, 'OG description', ctx, seoAiTone))}
-                      </div>
-                    </div>
-                    <textarea value={form.ogDescription || ''} onChange={e => set('ogDescription', e.target.value)}
-                      placeholder={form.seoDescription || 'Falls back to meta description if empty'}
-                      rows={3} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', boxSizing: 'border-box' }} />
-                  </div>
-                  <div>
-                    {lbl('OG Image URL')}
-                    {inp('ogImage', 'https://...')}
-                    <div style={{ fontFamily: NU, fontSize: 10, color: LS.muted, marginTop: 3 }}>Recommended: 1200x630px. Falls back to hero image if empty.</div>
-                  </div>
-                  {form.ogImage && (
-                    <div style={{ marginTop: 4 }}>
-                      {lbl('OG Image Preview')}
-                      <div style={{ border: `1px solid ${LS.border}`, borderRadius: 8, overflow: 'hidden', maxWidth: 400 }}>
-                        <img src={form.ogImage} alt="OG Preview" style={{ width: '100%', height: 210, objectFit: 'cover', display: 'block' }}
-                          onError={e => { e.target.style.display = 'none'; }} />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Social share preview */}
-                  <div style={{ marginTop: 8 }}>
-                    {lbl('Social Share Preview')}
-                    <div style={{ background: '#f0f2f5', border: '1px solid #dadde1', borderRadius: 8, overflow: 'hidden', maxWidth: 500 }}>
-                      <div style={{ width: '100%', height: 200, background: '#e4e6eb', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                        {(form.ogImage || form.heroImage) ? (
-                          <img src={form.ogImage || form.heroImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }} />
-                        ) : (
-                          <span style={{ fontFamily: NU, fontSize: 12, color: '#65676b' }}>No image set</span>
-                        )}
-                      </div>
-                      <div style={{ padding: '10px 12px' }}>
-                        <div style={{ fontFamily: 'Helvetica, Arial, sans-serif', fontSize: 12, color: '#65676b', textTransform: 'uppercase', marginBottom: 2 }}>luxuryweddingdirectory.com</div>
-                        <div style={{ fontFamily: 'Helvetica, Arial, sans-serif', fontSize: 16, fontWeight: 600, color: '#1c1e21', marginBottom: 2 }}>
-                          {form.ogTitle || form.seoTitle || form.heroTitle || locationName || 'Page Title'}
-                        </div>
-                        <div style={{ fontFamily: 'Helvetica, Arial, sans-serif', fontSize: 14, color: '#65676b', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                          {form.ogDescription || form.seoDescription || 'Page description will appear here'}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                );
-              })()}
-
-              {/* ── Twitter tab ── */}
-              {seoTab === 'twitter' && (() => {
-                const aiBtnStyle = { fontFamily: NU, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a78bfa', background: '#a78bfa12', border: '1px solid #a78bfa30', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 };
-                const ctx = buildSeoCtx();
-                const aiBtn = (label, onClick) => (<button disabled={!!seoAiBusy} style={aiBtnStyle} onClick={onClick}>{label}</button>);
-                return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, fontStyle: 'italic', marginBottom: 4 }}>
-                    Leave blank to inherit from Open Graph fields
-                  </div>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      {lbl('Twitter Title')}
-                      <div style={{ display: 'flex', gap: 3 }}>
-                        {aiBtn(seoAiBusy === 'twitterTitle' ? '...' : '✦ Generate', () => handleFieldAi('twitterTitle', generateTwitterTitle, ctx, seoAiTone))}
-                        {form.twitterTitle && aiBtn('↻ Spin', () => handleFieldAi('twitterTitle', spinField, form.twitterTitle, 'Twitter title', ctx, seoAiTone))}
-                      </div>
-                    </div>
-                    {inp('twitterTitle', form.ogTitle || 'Inherits from OG Title')}
-                  </div>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      {lbl('Twitter Description')}
-                      <div style={{ display: 'flex', gap: 3 }}>
-                        {aiBtn(seoAiBusy === 'twitterDescription' ? '...' : '✦ Generate', () => handleFieldAi('twitterDescription', generateTwitterDescription, ctx, seoAiTone))}
-                        {form.twitterDescription && aiBtn('↻ Spin', () => handleFieldAi('twitterDescription', spinField, form.twitterDescription, 'Twitter description', ctx, seoAiTone))}
-                      </div>
-                    </div>
-                    <textarea value={form.twitterDescription || ''} onChange={e => set('twitterDescription', e.target.value)}
-                      placeholder={form.ogDescription || 'Inherits from OG Description'}
-                      rows={3} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', boxSizing: 'border-box' }} />
-                  </div>
-                  <div>
-                    {lbl('Twitter Image URL')}
-                    {inp('twitterImage', form.ogImage || 'Inherits from OG Image')}
-                    <div style={{ fontFamily: NU, fontSize: 10, color: LS.muted, marginTop: 3 }}>Recommended: 1200x628px for summary_large_image card</div>
-                  </div>
-                </div>
-                );
-              })()}
-
-              {/* ── Schema tab ── */}
-              {seoTab === 'schema' && (() => {
-                const aiBtnStyle = { fontFamily: NU, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a78bfa', background: '#a78bfa12', border: '1px solid #a78bfa30', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 };
-                const ctx = buildSeoCtx();
-                return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div>
-                    {lbl('Schema Type')}
-                    <select value={form.schemaType || 'Place'} onChange={e => set('schemaType', e.target.value)}
-                      style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' }}>
-                      <option value="Place">Place</option>
-                      <option value="Country">Country</option>
-                      <option value="City">City</option>
-                      <option value="TouristDestination">TouristDestination</option>
-                      <option value="LocalBusiness">LocalBusiness</option>
-                      <option value="Organization">Organization</option>
-                    </select>
-                  </div>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      {lbl('Custom Schema JSON (optional)')}
-                      <button disabled={!!seoAiBusy} style={aiBtnStyle}
-                        onClick={() => handleFieldAi('schemaJson', generateSchemaJson, ctx)}>
-                        {seoAiBusy === 'schemaJson' ? '...' : '✦ Generate Schema'}
-                      </button>
-                    </div>
-                    <textarea value={form.schemaJson || ''} onChange={e => set('schemaJson', e.target.value)}
-                      placeholder={'{\n  "@context": "https://schema.org",\n  "@type": "Place",\n  "name": "' + (locationName || 'Location') + '"\n}'}
-                      rows={10} style={{ fontFamily: "'SF Mono','Fira Code','Consolas',monospace", fontSize: 11, lineHeight: 1.6, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', boxSizing: 'border-box' }} />
-                    <div style={{ fontFamily: NU, fontSize: 10, color: LS.muted, marginTop: 3 }}>
-                      Paste valid JSON-LD. If empty, auto-generated from schema type + location data.
-                    </div>
-                  </div>
-                </div>
-                );
-              })()}
-
-              {/* ── Keywords tab ── */}
-              {seoTab === 'keywords' && (() => {
-                const aiBtnStyle = { fontFamily: NU, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a78bfa', background: '#a78bfa12', border: '1px solid #a78bfa30', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 };
-                const ctx = buildSeoCtx();
-                return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      {lbl('Primary Keyword')}
-                      <button disabled={!!seoAiBusy} style={aiBtnStyle}
-                        onClick={() => handleFieldAi('seoPrimaryKeyword', generatePrimaryKeyword, ctx)}>
-                        {seoAiBusy === 'seoPrimaryKeyword' ? '...' : '✦ Generate'}
-                      </button>
-                    </div>
-                    {inp('seoPrimaryKeyword', `luxury wedding venues ${locationName || ''}`)}
-                    <div style={{ fontFamily: NU, fontSize: 10, color: LS.muted, marginTop: 3 }}>The main search term this page should rank for</div>
-                  </div>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      {lbl('Secondary Keywords')}
-                      <button disabled={!!seoAiBusy} style={aiBtnStyle}
-                        onClick={() => handleFieldAi('seoSecondaryKeywords', generateSecondaryKeywords, ctx)}>
-                        {seoAiBusy === 'seoSecondaryKeywords' ? '...' : '✦ Generate'}
-                      </button>
-                    </div>
-                    <textarea value={form.seoSecondaryKeywords || ''} onChange={e => set('seoSecondaryKeywords', e.target.value)}
-                      placeholder={`best wedding venues ${locationName || ''}, luxury weddings ${locationName || ''}, exclusive venue hire ${locationName || ''}`}
-                      rows={3} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', boxSizing: 'border-box' }} />
-                    <div style={{ fontFamily: NU, fontSize: 10, color: LS.muted, marginTop: 3 }}>Comma-separated. Supporting keywords and long-tail variants.</div>
-                  </div>
-                  <div>
-                    {lbl('SEO Keywords (meta)')}
-                    {inp('seoKeywords', `wedding venues, luxury weddings, ${locationName || ''}`)}
-                    <div style={{ fontFamily: NU, fontSize: 10, color: LS.muted, marginTop: 3 }}>Comma-separated meta keywords tag (low SEO weight, but good for internal tracking)</div>
-                  </div>
-                </div>
-                );
-              })()}
             </LocSCard>
           </div>
         )}
@@ -8164,8 +7504,7 @@ function CityStudio({ C, darkMode = true, onBuilderModeChange }) {
     setUploadingMottoImage(true);
     try {
       const mediaId = `motto-${locationKey.replace(/:/g, '-')}-${Date.now()}`;
-      const result = await uploadMediaFile(file, mediaId);
-      const publicUrl = typeof result === 'object' && result?.url ? result.url : result;
+      const publicUrl = await uploadMediaFile(file, mediaId);
       set('mottoBgImage', publicUrl);
       setDirty(true);
       setToast('✓ Motto image uploaded successfully');

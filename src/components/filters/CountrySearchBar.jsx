@@ -188,6 +188,7 @@ export default function CountrySearchBar({
   // Map slide animation — mount on open, keep mounted during close animation
   const [mapMounted, setMapMounted] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
+  const mapPanelRef = useRef(null);
 
   useEffect(() => {
     if (viewMode === "map") {
@@ -200,6 +201,24 @@ export default function CountrySearchBar({
       return () => clearTimeout(timer);
     }
   }, [viewMode]);
+
+  // Close map on outside click or Escape
+  useEffect(() => {
+    if (viewMode !== "map") return;
+    const onDown = (e) => {
+      // Ignore clicks inside the map panel or the filter bar itself
+      if (mapPanelRef.current && mapPanelRef.current.contains(e.target)) return;
+      if (barRef.current && barRef.current.contains(e.target)) return;
+      onViewMode?.("grid");
+    };
+    const onKey = (e) => { if (e.key === "Escape") onViewMode?.("grid"); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [viewMode, onViewMode]);
 
   // Vendor-specific local state
   const [vendorLocation, setVendorLocation] = useState("all");
@@ -503,17 +522,44 @@ export default function CountrySearchBar({
           <span style={{ color: CL.goldDim, fontWeight: 600 }}>{total}</span> {mode === "vendors" ? "vendors" : "venues"}
         </span>
 
-        <button onClick={() => onViewMode?.(viewMode === "map" ? "list" : "map")} title="Map view" aria-pressed={viewMode === "map"}
-          style={{
-            display: "flex", alignItems: "center", gap: 4,
-            background: viewMode === "map" ? CL.viewActive : "transparent",
-            border: "1px solid rgba(160,148,125,0.28)", borderRadius: 3,
-            color: viewMode === "map" ? "#fff" : CL.text,
-            cursor: "pointer", fontSize: 9, fontWeight: 700, fontFamily: NU,
-            letterSpacing: "1px", textTransform: "uppercase", padding: "0 12px",
-            height: 30, transition: "all 0.25s", whiteSpace: "nowrap",
-          }}
-        ><span style={{ fontSize: 13 }}>{"\u25ce"}</span> Map View</button>
+        {/* Grid / List / Map view switcher */}
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <button onClick={() => onViewMode?.("grid")} title="Grid view" aria-pressed={viewMode === "grid"}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: viewMode === "grid" ? CL.viewActive : "transparent",
+              border: "1px solid rgba(160,148,125,0.28)", borderRadius: "3px 0 0 3px",
+              color: viewMode === "grid" ? "#fff" : CL.text,
+              cursor: "pointer", width: 30, height: 30, padding: 0,
+              transition: "all 0.25s",
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/></svg>
+          </button>
+          <button onClick={() => onViewMode?.("list")} title="List view" aria-pressed={viewMode === "list"}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: viewMode === "list" ? CL.viewActive : "transparent",
+              border: "1px solid rgba(160,148,125,0.28)", borderLeft: "none", borderRadius: 0,
+              color: viewMode === "list" ? "#fff" : CL.text,
+              cursor: "pointer", width: 30, height: 30, padding: 0,
+              transition: "all 0.25s",
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="2" width="14" height="2.5" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="1" y="6.75" width="14" height="2.5" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="1" y="11.5" width="14" height="2.5" rx="1" stroke="currentColor" strokeWidth="1.2"/></svg>
+          </button>
+          <button onClick={() => onViewMode?.(viewMode === "map" ? "grid" : "map")} title="Map view" aria-pressed={viewMode === "map"}
+            style={{
+              display: "flex", alignItems: "center", gap: 4,
+              background: viewMode === "map" ? CL.viewActive : "transparent",
+              border: "1px solid rgba(160,148,125,0.28)", borderLeft: "none", borderRadius: "0 3px 3px 0",
+              color: viewMode === "map" ? "#fff" : CL.text,
+              cursor: "pointer", fontSize: 9, fontWeight: 700, fontFamily: NU,
+              letterSpacing: "1px", textTransform: "uppercase", padding: "0 12px",
+              height: 30, transition: "all 0.25s", whiteSpace: "nowrap",
+            }}
+          ><span style={{ fontSize: 13 }}>{"\u25ce"}</span> Map</button>
+        </div>
       </div>
 
       {/* ═══ MEGA MENU PANEL — warm stone refinement ══════════════════════ */}
@@ -546,7 +592,7 @@ export default function CountrySearchBar({
 
       {/* ═══ MAP PANEL — slides down/up attached to bar ══════════════════ */}
       {mapMounted && mapContent && (
-        <div style={{
+        <div ref={mapPanelRef} style={{
           display: "grid",
           gridTemplateRows: mapOpen ? "1fr" : "0fr",
           opacity: mapOpen ? 1 : 0,

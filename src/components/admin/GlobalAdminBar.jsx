@@ -30,7 +30,7 @@ const CMS_PAGE_LABELS = {
   'support':        'Edit Support',
 };
 
-function getEditContext(page, { showcaseSlug, venueSlug, magazineSlug, eventSlug }) {
+function getEditContext(page, { showcaseSlug, venueSlug, magazineSlug, eventSlug, locationSlug, countrySlug, regionSlug }) {
   if (STATIC_SHOWCASE_SLUGS[page]) {
     return {
       type:     'showcase-static',
@@ -49,6 +49,10 @@ function getEditContext(page, { showcaseSlug, venueSlug, magazineSlug, eventSlug
       return { type: 'article', label: 'Edit Article', slug: magazineSlug, disabled: false };
     case 'event-detail':
       return { type: 'event', label: 'Edit Event', slug: eventSlug, disabled: false };
+    case 'location':
+      return { type: 'location', label: 'Edit Country', slug: locationSlug, disabled: false };
+    case 'region':
+      return { type: 'location', label: 'Edit Region', slug: regionSlug, countrySlug, disabled: false };
     default:
       return null;
   }
@@ -82,9 +86,10 @@ export default function GlobalAdminBar({ page, slugs = {}, onOpenAdmin }) {
 
     try {
       sessionStorage.setItem('lwd_admin_edit_intent', JSON.stringify({
-        type:       ctx.type,
-        slug:       ctx.slug       || null,
-        pageKey:    ctx.pageKey    || null,
+        type:        ctx.type,
+        slug:        ctx.slug        || null,
+        pageKey:     ctx.pageKey     || null,
+        countrySlug: ctx.countrySlug || null,
         returnPath,
       }));
     } catch {}

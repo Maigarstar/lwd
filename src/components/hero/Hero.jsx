@@ -12,6 +12,8 @@ export default function Hero({
   ctaText,
   ctaLink,
   eyebrow,
+  stats,
+  regionCount,
   C,
   onBack,
 }) {
@@ -173,7 +175,7 @@ export default function Hero({
             marginBottom: 20,
           }}
         >
-          {subtitle || `Discover ${count || ""} extraordinary venues, from Tuscan vineyards and Venetian palazzos to cliffside estates on the Amalfi Coast.`}
+          {subtitle || `Discover extraordinary venues, planners, photographers and wedding professionals — each one editorially curated.`}
         </p>
 
         {/* Trust line */}
@@ -188,7 +190,7 @@ export default function Hero({
             marginBottom: 36,
           }}
         >
-          Each venue personally vetted · No paid placements
+          Every listing personally vetted and approved
         </p>
 
         {/* Stats row */}
@@ -197,12 +199,11 @@ export default function Hero({
           style={{ display: "flex", gap: 32, alignItems: "center" }}
           aria-label="Key statistics"
         >
-          {[
-            { val: count, label: "Curated Venues" },
-            { val: "9",   label: "Regions Covered" },
-            { val: "100%",label: "Personally Verified" },
-            { val: " - ",  label: "Limited Annual Availability" },
-          ].map((s, i) => (
+          {(stats || [
+            { val: regionCount || "—", label: "Regions Covered" },
+            { val: "100%", label: "Personally Verified" },
+            { val: "✦", label: "Editorially Curated" },
+          ]).filter(s => s.val).map((s, i) => (
             <div
               key={i}
               style={{

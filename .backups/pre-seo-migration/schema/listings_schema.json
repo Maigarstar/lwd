@@ -1,0 +1,794 @@
+{
+  "required": [
+    "id",
+    "name",
+    "slug"
+  ],
+  "properties": {
+    "id": {
+      "default": "gen_random_uuid()",
+      "description": "Note:\nThis is a Primary Key.<pk/>",
+      "format": "uuid",
+      "type": "string"
+    },
+    "listing_type": {
+      "default": "venue",
+      "format": "character varying",
+      "maxLength": 50,
+      "type": "string"
+    },
+    "tier": {
+      "default": "platinum",
+      "format": "character varying",
+      "maxLength": 50,
+      "type": "string"
+    },
+    "name": {
+      "format": "character varying",
+      "maxLength": 255,
+      "type": "string"
+    },
+    "slug": {
+      "format": "character varying",
+      "maxLength": 255,
+      "type": "string"
+    },
+    "description": {
+      "format": "text",
+      "type": "string"
+    },
+    "short_description": {
+      "format": "text",
+      "type": "string"
+    },
+    "country": {
+      "format": "character varying",
+      "maxLength": 100,
+      "type": "string"
+    },
+    "country_slug": {
+      "format": "character varying",
+      "maxLength": 100,
+      "type": "string"
+    },
+    "region": {
+      "format": "character varying",
+      "maxLength": 100,
+      "type": "string"
+    },
+    "region_slug": {
+      "format": "character varying",
+      "maxLength": 100,
+      "type": "string"
+    },
+    "city": {
+      "format": "character varying",
+      "maxLength": 100,
+      "type": "string"
+    },
+    "city_slug": {
+      "format": "character varying",
+      "maxLength": 100,
+      "type": "string"
+    },
+    "address": {
+      "format": "text",
+      "type": "string"
+    },
+    "postcode": {
+      "format": "character varying",
+      "maxLength": 20,
+      "type": "string"
+    },
+    "lat": {
+      "format": "numeric",
+      "type": "number"
+    },
+    "lng": {
+      "format": "numeric",
+      "type": "number"
+    },
+    "nearest_airport": {
+      "format": "character varying",
+      "maxLength": 255,
+      "type": "string"
+    },
+    "travel_time": {
+      "format": "character varying",
+      "maxLength": 100,
+      "type": "string"
+    },
+    "category_slug": {
+      "format": "character varying",
+      "maxLength": 100,
+      "type": "string"
+    },
+    "sub_category_slug": {
+      "format": "character varying",
+      "maxLength": 100,
+      "type": "string"
+    },
+    "tags": {
+      "format": "jsonb"
+    },
+    "styles": {
+      "format": "jsonb"
+    },
+    "card_title": {
+      "format": "character varying",
+      "maxLength": 255,
+      "type": "string"
+    },
+    "card_subtitle": {
+      "format": "character varying",
+      "maxLength": 255,
+      "type": "string"
+    },
+    "card_summary": {
+      "format": "text",
+      "type": "string"
+    },
+    "card_image": {
+      "format": "character varying",
+      "maxLength": 500,
+      "type": "string"
+    },
+    "card_badge": {
+      "format": "character varying",
+      "maxLength": 255,
+      "type": "string"
+    },
+    "card_style": {
+      "format": "character varying",
+      "maxLength": 50,
+      "type": "string"
+    },
+    "card_featured": {
+      "default": false,
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "card_promoted": {
+      "default": false,
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "hero_type": {
+      "format": "character varying",
+      "maxLength": 50,
+      "type": "string"
+    },
+    "hero_eyebrow": {
+      "format": "character varying",
+      "maxLength": 255,
+      "type": "string"
+    },
+    "hero_title": {
+      "format": "character varying",
+      "maxLength": 255,
+      "type": "string"
+    },
+    "hero_subtitle": {
+      "format": "character varying",
+      "maxLength": 255,
+      "type": "string"
+    },
+    "hero_image": {
+      "format": "character varying",
+      "maxLength": 500,
+      "type": "string"
+    },
+    "hero_image_set": {
+      "format": "jsonb"
+    },
+    "hero_video_url": {
+      "format": "character varying",
+      "maxLength": 500,
+      "type": "string"
+    },
+    "hero_youtube_url": {
+      "format": "character varying",
+      "maxLength": 500,
+      "type": "string"
+    },
+    "hero_vimeo_url": {
+      "format": "character varying",
+      "maxLength": 500,
+      "type": "string"
+    },
+    "hero_poster_image": {
+      "format": "character varying",
+      "maxLength": 500,
+      "type": "string"
+    },
+    "hero_cta": {
+      "format": "character varying",
+      "maxLength": 255,
+      "type": "string"
+    },
+    "hero_badge": {
+      "format": "character varying",
+      "maxLength": 255,
+      "type": "string"
+    },
+    "capacity_min": {
+      "format": "integer",
+      "type": "integer"
+    },
+    "capacity_max": {
+      "format": "integer",
+      "type": "integer"
+    },
+    "built_year": {
+      "format": "integer",
+      "type": "integer"
+    },
+    "property_size": {
+      "format": "numeric",
+      "type": "number"
+    },
+    "property_size_unit": {
+      "format": "character varying",
+      "maxLength": 20,
+      "type": "string"
+    },
+    "rating": {
+      "format": "numeric",
+      "type": "number"
+    },
+    "review_count": {
+      "format": "integer",
+      "type": "integer"
+    },
+    "price_label": {
+      "format": "character varying",
+      "maxLength": 10,
+      "type": "string"
+    },
+    "price_from": {
+      "format": "character varying",
+      "maxLength": 50,
+      "type": "string"
+    },
+    "price_currency": {
+      "format": "character varying",
+      "maxLength": 3,
+      "type": "string"
+    },
+    "venue_type": {
+      "format": "character varying",
+      "maxLength": 100,
+      "type": "string"
+    },
+    "ceremony_spaces": {
+      "format": "text",
+      "type": "string"
+    },
+    "reception_spaces": {
+      "format": "text",
+      "type": "string"
+    },
+    "accommodation": {
+      "format": "text",
+      "type": "string"
+    },
+    "dining": {
+      "format": "text",
+      "type": "string"
+    },
+    "amenities": {
+      "format": "jsonb"
+    },
+    "exclusive_use": {
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "indoor_option": {
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "outdoor_option": {
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "fireworks_policy": {
+      "format": "character varying",
+      "maxLength": 50,
+      "type": "string"
+    },
+    "drone_policy": {
+      "format": "character varying",
+      "maxLength": 50,
+      "type": "string"
+    },
+    "accessibility_notes": {
+      "format": "text",
+      "type": "string"
+    },
+    "hero_media_role": {
+      "format": "character varying",
+      "maxLength": 50,
+      "type": "string"
+    },
+    "card_media_role": {
+      "format": "character varying",
+      "maxLength": 50,
+      "type": "string"
+    },
+    "gallery_media_role": {
+      "format": "character varying",
+      "maxLength": 50,
+      "type": "string"
+    },
+    "seo_title": {
+      "format": "character varying",
+      "maxLength": 255,
+      "type": "string"
+    },
+    "seo_description": {
+      "format": "text",
+      "type": "string"
+    },
+    "seo_keywords": {
+      "format": "text",
+      "type": "string"
+    },
+    "focus_keyword": {
+      "format": "character varying",
+      "maxLength": 255,
+      "type": "string"
+    },
+    "slug_preview": {
+      "format": "character varying",
+      "maxLength": 500,
+      "type": "string"
+    },
+    "internal_notes": {
+      "format": "text",
+      "type": "string"
+    },
+    "status": {
+      "default": "draft",
+      "format": "character varying",
+      "maxLength": 50,
+      "type": "string"
+    },
+    "is_featured": {
+      "default": false,
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "is_promoted": {
+      "default": false,
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "is_hidden": {
+      "default": false,
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "is_verified": {
+      "default": false,
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "lwd_score": {
+      "format": "numeric",
+      "type": "number"
+    },
+    "feature_start_date": {
+      "format": "timestamp without time zone",
+      "type": "string"
+    },
+    "feature_end_date": {
+      "format": "timestamp without time zone",
+      "type": "string"
+    },
+    "enquiries": {
+      "default": 0,
+      "format": "integer",
+      "type": "integer"
+    },
+    "view_count": {
+      "default": 0,
+      "format": "integer",
+      "type": "integer"
+    },
+    "created_at": {
+      "default": "now()",
+      "format": "timestamp with time zone",
+      "type": "string"
+    },
+    "updated_at": {
+      "default": "now()",
+      "format": "timestamp with time zone",
+      "type": "string"
+    },
+    "published_at": {
+      "format": "timestamp with time zone",
+      "type": "string"
+    },
+    "created_by": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "updated_by": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "catering_enabled": {
+      "default": false,
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "catering_cards": {
+      "format": "jsonb"
+    },
+    "wedding_weekend_enabled": {
+      "default": false,
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "wedding_weekend_subtitle": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "wedding_weekend_days": {
+      "format": "jsonb"
+    },
+    "estate_enabled": {
+      "default": false,
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "estate_items": {
+      "format": "jsonb"
+    },
+    "nearby_enabled": {
+      "default": false,
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "nearby_items": {
+      "format": "jsonb"
+    },
+    "faq_enabled": {
+      "default": false,
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "faq_title": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "faq_subtitle": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "faq_cta_enabled": {
+      "default": true,
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "faq_cta_headline": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "faq_cta_subtext": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "faq_cta_button_text": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "faq_categories": {
+      "format": "jsonb"
+    },
+    "rooms_accommodation_type": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "rooms_total": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "rooms_suites": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "rooms_max_guests": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "rooms_exclusive_use": {
+      "default": false,
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "rooms_min_stay": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "rooms_description": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "rooms_images": {
+      "format": "jsonb"
+    },
+    "dining_style": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "dining_chef_name": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "dining_in_house": {
+      "default": false,
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "dining_external": {
+      "default": false,
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "dining_menu_styles": {
+      "format": "jsonb"
+    },
+    "dining_dietary": {
+      "format": "jsonb"
+    },
+    "dining_drinks": {
+      "format": "jsonb"
+    },
+    "dining_description": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "dining_menu_images": {
+      "format": "jsonb"
+    },
+    "hero_layout": {
+      "default": "cinematic",
+      "format": "text",
+      "type": "string"
+    },
+    "hero_images": {
+      "format": "jsonb"
+    },
+    "media_items": {
+      "format": "jsonb"
+    },
+    "spaces": {
+      "format": "jsonb"
+    },
+    "additional_locations": {
+      "format": "jsonb"
+    },
+    "contact_profile": {
+      "format": "jsonb"
+    },
+    "vendor_account_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "venue_name": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "category": {
+      "default": "wedding-venues",
+      "format": "text",
+      "type": "string"
+    },
+    "destination": {
+      "default": "italy",
+      "format": "text",
+      "type": "string"
+    },
+    "address_line2": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "summary": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "price_range": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "capacity": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "exclusive_use_enabled": {
+      "default": false,
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "exclusive_use_title": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "exclusive_use_subtitle": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "exclusive_use_price": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "exclusive_use_subline": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "exclusive_use_description": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "exclusive_use_cta_text": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "exclusive_use_includes": {
+      "format": "jsonb"
+    },
+    "visibility": {
+      "default": "private",
+      "format": "text",
+      "type": "string"
+    },
+    "opening_hours_enabled": {
+      "default": false,
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "opening_hours": {
+      "format": "jsonb"
+    },
+    "press_features": {
+      "format": "jsonb"
+    },
+    "awards": {
+      "format": "jsonb"
+    },
+    "hero_caption": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "hero_credit": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "videos": {
+      "format": "jsonb"
+    },
+    "showcase_enabled": {
+      "default": false,
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "editor_review_notes": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "editor_review_text": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "hero_tagline": {
+      "default": "",
+      "format": "text",
+      "type": "string"
+    },
+    "showcase_category": {
+      "default": "venue",
+      "format": "text",
+      "type": "string"
+    },
+    "weddings_hosted": {
+      "format": "integer",
+      "type": "integer"
+    },
+    "member_since": {
+      "format": "text",
+      "type": "string"
+    },
+    "hero_summary": {
+      "format": "text",
+      "type": "string"
+    },
+    "section_intros": {
+      "format": "jsonb"
+    },
+    "editorial_approved": {
+      "default": false,
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "editorial_fact_checked": {
+      "default": false,
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "editorial_last_reviewed_at": {
+      "format": "timestamp with time zone",
+      "type": "string"
+    },
+    "refresh_notes": {
+      "format": "text",
+      "type": "string"
+    },
+    "content_quality_score": {
+      "default": 0,
+      "format": "integer",
+      "type": "integer"
+    },
+    "editorial_last_reviewed_by": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "editorial_enabled": {
+      "default": true,
+      "format": "boolean",
+      "type": "boolean"
+    },
+    "managed_account_id": {
+      "description": "Note:\nThis is a Foreign Key to `managed_accounts.id`.<fk table='managed_accounts' column='id'/>",
+      "format": "uuid",
+      "type": "string"
+    },
+    "reputation_score": {
+      "format": "numeric",
+      "type": "number"
+    },
+    "reply_rate": {
+      "default": 0,
+      "format": "numeric",
+      "type": "number"
+    },
+    "avg_reply_hours": {
+      "format": "numeric",
+      "type": "number"
+    },
+    "cards_data": {
+      "format": "jsonb"
+    }
+  },
+  "type": "object"
+}
