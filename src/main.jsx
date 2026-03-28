@@ -566,7 +566,7 @@ function App() {
           />
         )}
         {page === "venue-reviews" && (
-          <VenueReviewsPage slug={activeVenueSlug} />
+          <VenueReviewsPage slug={activeVenueSlug} categorySlug={activeCategorySlug} />
         )}
         {page === "event-detail" && (
           <EventDetailPage slug={activeEventSlug} onBack={goHome} footerNav={footerNav} />

@@ -198,7 +198,21 @@ function RatingBar({ star, count, total, C }) {
 }
 
 // ── Main export ────────────────────────────────────────────────────────────────
-export default function VenueReviewsPage({ slug: slugProp } = {}) {
+// Map category slugs to entity types for review queries
+const CATEGORY_TO_ENTITY = {
+  'wedding-venues': 'venue',
+  'wedding-planners': 'planner',
+  'photographers': 'vendor',
+  'videographers': 'vendor',
+  'florists': 'vendor',
+  'caterers': 'vendor',
+  'wedding-cakes': 'vendor',
+  'hair-makeup': 'vendor',
+  'entertainment': 'vendor',
+  'stationery': 'vendor',
+};
+
+export default function VenueReviewsPage({ slug: slugProp, categorySlug: categorySlugProp } = {}) {
   const [darkMode, setDarkMode] = useState(false);
   const C = darkMode ? DARK : LIGHT;
 
@@ -208,6 +222,11 @@ export default function VenueReviewsPage({ slug: slugProp } = {}) {
     || (pathParts.length === 5 && pathParts[4] === 'reviews' ? pathParts[3] : null)
     || (pathParts[0] === 'venues' ? pathParts[1] : null)
     || null;
+
+  const categorySlug = categorySlugProp
+    || (pathParts.length === 5 ? pathParts[2] : null)
+    || 'wedding-venues';
+  const entityType = CATEGORY_TO_ENTITY[categorySlug] || 'venue';
 
   const [listing, setListing]   = useState(null);
   const [reviews, setReviews]   = useState([]);
@@ -225,7 +244,7 @@ export default function VenueReviewsPage({ slug: slugProp } = {}) {
         const l = await fetchListingBySlug(slug);
         if (!l) { setNotFound(true); setLoading(false); return; }
         setListing(l);
-        const raw = await fetchApprovedReviews('venue', l.id);
+        const raw = await fetchApprovedReviews(entityType, l.id);
         setReviews((raw || []).map(mapReview));
       } catch (e) {
         console.error('[VenueReviewsPage]', e);
