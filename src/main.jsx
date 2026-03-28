@@ -309,6 +309,10 @@ function pathToState(pathname) {
     }
     return { page: "listing-profile", countrySlug, regionSlug, categorySlug, venueSlug: itemSlug };
   }
+  // /{country}/{region}/{category}/{slug}/reviews
+  if (parts.length === 5 && parts[4] === "reviews") {
+    return { page: "venue-reviews", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2], venueSlug: parts[3] };
+  }
   return { page: "not-found" };
 }
 
@@ -562,7 +566,7 @@ function App() {
           />
         )}
         {page === "venue-reviews" && (
-          <VenueReviewsPage />
+          <VenueReviewsPage slug={activeVenueSlug} />
         )}
         {page === "event-detail" && (
           <EventDetailPage slug={activeEventSlug} onBack={goHome} footerNav={footerNav} />

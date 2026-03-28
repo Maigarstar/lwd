@@ -198,12 +198,16 @@ function RatingBar({ star, count, total, C }) {
 }
 
 // ── Main export ────────────────────────────────────────────────────────────────
-export default function VenueReviewsPage() {
+export default function VenueReviewsPage({ slug: slugProp } = {}) {
   const [darkMode, setDarkMode] = useState(false);
   const C = darkMode ? DARK : LIGHT;
 
+  // Support both /{country}/{region}/{category}/{slug}/reviews and /venues/{slug}/reviews
   const pathParts = window.location.pathname.split('/').filter(Boolean);
-  const slug = pathParts[1] || null;
+  const slug = slugProp
+    || (pathParts.length === 5 && pathParts[4] === 'reviews' ? pathParts[3] : null)
+    || (pathParts[0] === 'venues' ? pathParts[1] : null)
+    || null;
 
   const [listing, setListing]   = useState(null);
   const [reviews, setReviews]   = useState([]);
@@ -357,8 +361,8 @@ export default function VenueReviewsPage() {
           {/* Breadcrumb row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 18, fontFamily: FB, fontSize: 11, letterSpacing: '0.3px' }}>
             {[
-              { label: 'Venues', href: '/venues' },
-              { label: venueName, href: `/venues/${slug}` },
+              { label: 'Venues', href: '/' },
+              { label: venueName, href: window.location.pathname.replace(/\/reviews\/?$/, '') },
               { label: 'Reviews', href: null },
             ].map((crumb, i, arr) => (
               <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -411,7 +415,7 @@ export default function VenueReviewsPage() {
               onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
             >✦ Write a Review</a>
             {/* View profile — secondary */}
-            <a href={`/venues/${slug}`} style={{
+            <a href={window.location.pathname.replace(/\/reviews\/?$/, '')} style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               padding: '11px 24px', border: `1px solid ${C.border2}`,
               background: 'none', color: C.textMid,

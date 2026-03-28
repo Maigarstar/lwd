@@ -5069,7 +5069,7 @@ function Reviews({ testimonials, venue, venueSlug }) {
         </div>
         {/* Read all link */}
         <a
-          href={venueSlug ? `/venues/${venueSlug}/reviews` : '#'}
+          href={venueSlug ? `${window.location.pathname.replace(/\/$/, '')}/reviews` : '#'}
           style={{
             fontFamily: FB, fontSize: 13, color: C.gold, fontWeight: 600,
             textDecoration: 'none', letterSpacing: '0.2px',
