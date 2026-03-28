@@ -7831,9 +7831,9 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
     const current = window.location.pathname;
 
     if (current !== canonical) {
-      // Redirect to canonical URL (301 equivalent using replaceState + redirect)
-      console.log(`[VenueProfile] Redirecting from ${current} to ${canonical}`);
-      window.location.replace(canonical);
+      // Silently update URL bar to canonical — no reload, no redirect flash
+      console.log(`[VenueProfile] Updating URL from ${current} to ${canonical}`);
+      window.history.replaceState(null, '', canonical);
     }
   }, [rawListing, slug, countrySlug, regionSlug, categorySlug]);
 
