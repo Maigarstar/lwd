@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import HomeNav from '../components/nav/HomeNav';
+import ReviewSubmitForm from '../components/reviews/ReviewSubmitForm';
 import { fetchListingBySlug } from '../services/listings';
 import { fetchApprovedReviews } from '../services/reviewService';
 import { THEMES } from '../services/reviewThemeService';
@@ -236,6 +237,7 @@ export default function VenueReviewsPage({ slug: slugProp, categorySlug: categor
   const [sortMode,      setSortMode]      = useState('recent');
   const [starFilter,    setStarFilter]    = useState(null);
   const [visibleCount,  setVisibleCount]  = useState(8);
+  const [showReviewForm, setShowReviewForm] = useState(false);
 
   useEffect(() => {
     if (!slug) { setNotFound(true); setLoading(false); return; }
@@ -423,16 +425,16 @@ export default function VenueReviewsPage({ slug: slugProp, categorySlug: categor
           {/* Actions */}
           <div style={{ padding: '36px 0 36px 48px', borderLeft: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 12, minWidth: 240 }}>
             {/* Write a Review — prominent */}
-            <a href={`/venues/${slug}#reviews`} style={{
+            <button onClick={() => setShowReviewForm(true)} style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               padding: '13px 24px', background: C.gold, border: `1px solid ${C.gold}`,
               color: '#fff', fontFamily: FB, fontSize: 12, fontWeight: 700,
-              textDecoration: 'none', letterSpacing: '0.8px', textTransform: 'uppercase',
-              transition: 'opacity 0.2s',
+              letterSpacing: '0.8px', textTransform: 'uppercase',
+              cursor: 'pointer', transition: 'opacity 0.2s',
             }}
               onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; }}
               onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
-            >✦ Write a Review</a>
+            >✦ Write a Review</button>
             {/* View profile — secondary */}
             <a href={window.location.pathname.replace(/\/reviews\/?$/, '')} style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -519,19 +521,54 @@ export default function VenueReviewsPage({ slug: slugProp, categorySlug: categor
               Your review helps other couples make the most important decision of their wedding journey.
             </div>
           </div>
-          <a href={`/venues/${slug}`} style={{
+          <button onClick={() => setShowReviewForm(true)} style={{
             display: 'inline-flex', alignItems: 'center', gap: 8,
             padding: '14px 28px', background: C.gold, border: 'none',
             color: '#fff', fontFamily: FB, fontSize: 13, fontWeight: 700,
-            textDecoration: 'none', letterSpacing: '1px', textTransform: 'uppercase',
-            flexShrink: 0, transition: 'opacity 0.2s',
+            letterSpacing: '1px', textTransform: 'uppercase',
+            flexShrink: 0, cursor: 'pointer', transition: 'opacity 0.2s',
           }}
             onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
             onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-          >Write a Review →</a>
+          >Write a Review →</button>
         </div>
 
       </div>
+
+      {/* ── Review Form Modal ──────────────────────────────────────────── */}
+      {showReviewForm && listing && (
+        <div
+          style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, padding: 20,
+          }}
+          onClick={() => setShowReviewForm(false)}
+        >
+          <div
+            style={{
+              background: C.bg, borderRadius: 8, padding: 40,
+              maxWidth: 600, maxHeight: '90vh', overflow: 'auto',
+              position: 'relative',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <ReviewSubmitForm
+              entityType={entityType}
+              entityId={listing.id}
+              onSubmitSuccess={() => {
+                setShowReviewForm(false);
+                // Reload reviews after submission
+                fetchApprovedReviews(entityType, listing.id)
+                  .then(raw => setReviews((raw || []).map(mapReview)))
+                  .catch(() => {});
+              }}
+              onCancel={() => setShowReviewForm(false)}
+            />
+          </div>
+        </div>
+      )}
 
     </div>
   );
