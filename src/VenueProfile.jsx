@@ -8072,7 +8072,7 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
                 <ReviewsSection
                   entityType="venue"
                   entityId={dbVenue.id}
-                  onOpenReviewForm={() => setEnquiryOpen(true)}
+                  onOpenReviewForm={() => setShowReviewForm(true)}
                 />
               )}
               <FAQSection venue={VV} onAsk={() => setEnquiryOpen(true)} />
