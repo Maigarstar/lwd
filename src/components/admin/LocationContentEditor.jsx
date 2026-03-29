@@ -2,6 +2,8 @@
 // Location Studio content editing component for hero, featured, geography tabs
 // Integrated into CountriesModule detail view for location content curation
 
+import ImageUploadField from './ImageUploadField';
+
 const GD = "'Neue Haas Display', serif";
 const NU = "'Neue Haas Grotesk Text', -apple-system, BlinkMacSystemFont, sans-serif";
 
@@ -40,16 +42,18 @@ export function HeroEditor({ contentForm, setContentForm, activeItem, C, inputSt
         <div style={hintStyle}>Supporting tagline or description. 1-2 sentences max for impact.</div>
       </div>
 
-      {/* Hero Image URL */}
+      {/* Hero Image */}
       <div style={{ marginBottom: 20 }}>
-        <label style={labelStyle}>Hero Image URL</label>
-        <input
+        <ImageUploadField
+          label="Hero Image"
           value={contentForm.heroImage || ""}
-          onChange={e => setContentForm(p => ({ ...p, heroImage: e.target.value }))}
-          placeholder="https://images.example.com/hero-italy.jpg"
-          style={inputStyle}
+          onChange={url => setContentForm(p => ({ ...p, heroImage: url }))}
+          bucket="listing-media"
+          folder="locations/heroes"
+          hint="Full-bleed background image. Recommended: 1920×1080px. Supports WebP."
+          palette={C}
+          previewHeight={140}
         />
-        <div style={hintStyle}>Full-bleed background image. Recommended: 1920×1080px. Supports WebP.</div>
       </div>
 
       {/* CTA Button */}

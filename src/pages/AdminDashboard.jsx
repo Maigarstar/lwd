@@ -32,6 +32,8 @@ import ReusableBlocksModule from "./PageStudio/ReusableBlocksModule";
 import ListingStudioPage from "./ListingStudio/ListingStudioPage";
 import MagazineStudio from "./MagazineStudio/index";
 import ArtistryPage from "./Artistry/ArtistryPage";
+import RichTextEditor from "../components/editor/RichTextEditor";
+import ImageUploadField from "../components/admin/ImageUploadField";
 import { getAllSubmissions, reviewSubmission, toggleFeatured } from "../services/artistryService";
 import ReviewsModule from "./AdminDashboard/ReviewsModule";
 import CRMModule from "./AdminModules/CRMModule";
@@ -48,10 +50,12 @@ import ShowcaseStudioModule from "./AdminModules/ShowcaseStudioModule";
 import ManagedAccountsModule from "./AdminModules/ManagedAccountsModule";
 import MenuModule from "./AdminModules/MenuModule";
 import FooterModule from "./AdminModules/FooterModule";
+import CategoryGridAdmin from "./AdminModules/CategoryGridAdmin";
 import MenuBranding from "./AdminModules/menu/MenuBranding";
 import PlatformIntelligenceModule from "./AdminModules/PlatformIntelligenceModule";
 import EventsModule from "./AdminModules/EventsModule";
 import SiteContentModule from "./AdminModules/SiteContentModule";
+import CategoryPagePreview from "../components/admin/CategoryPagePreview";
 import { fetchClickSummary, fetchBatchClickCounts } from "../services/adminOutboundClicksService";
 import { fetchPostBySlug } from "../services/magazineService";
 import VenueIntakeStudio from "./admin/VenueIntakeStudio";
@@ -59,6 +63,18 @@ import { POSTS } from "./Magazine/data/posts";
 import { PRODUCTS, COLLECTIONS, formatPrice } from "./Magazine/data/products";
 import { CATEGORIES } from "./Magazine/data/categories";
 import { fetchLocationContent, saveLocationContent } from "../services/locationContentService";
+import { fetchCategoryContent, saveCategoryContent, publishCategoryContent, buildCategoryKey } from "../services/categoryContentService";
+import {
+  generateHeroTitle as catGenHeroTitle, generateHeroSubtitle as catGenHeroSubtitle,
+  generateCtaText as catGenCtaText, generateInfoVibes as catGenInfoVibes,
+  generateInfoServices as catGenInfoServices, generateEditorialContent as catGenEditorial,
+  generatePlanningGuide as catGenPlanningGuide, generateSeoHeading as catGenSeoHeading,
+  generateFaqs as catGenFaqs, generateMotto as catGenMotto, generateMottoSubline as catGenMottoSubline,
+  generateSection as catGenSection, fillEmptyContentFields as catFillEmpty,
+  regenerateAllContent as catRegenAll,
+  spinContentField as catSpin, shortenContentField as catShorten,
+  makeLuxury as catMakeLuxury, makeEditorial as catMakeEditorial, makeSeoAware as catMakeSeoAware,
+} from "../services/categoryContentAiService";
 import {
   fillEmptySeoFields, regenerateAllSeo, spinAllSeo,
   generateSeoTitle, generateSeoDescription, generateOgTitle, generateOgDescription,
@@ -271,6 +287,8 @@ const NAV_SECTIONS = [
       { key: "reviews",         label: "Reviews",           icon: "★" },
       { key: "vendor-accounts", label: "Vendor Accounts",   icon: "👤" },
       { key: "categories",      label: "Categories",        icon: "▦" },
+      { key: "category-grid",   label: "Category Grid",     icon: "⊞" },
+      { key: "category-studio", label: "Category Studio",   icon: "◈" },
       { key: "enquiries",       label: "Enquiries",         icon: "◇" },
       { key: "partnerships",    label: "Partnerships",      icon: "✦" },
       { key: "countries",       label: "Countries",         icon: "◎" },
@@ -2202,7 +2220,7 @@ function CategoriesModule({ C }) {
   const [seoForm, setSeoForm] = useState({
     titleTag: "", metaDescription: "", metaRobots: "index, follow", canonicalUrl: "",
     ogTitle: "", ogDescription: "", ogImage: "", ogType: "website",
-    h1: "", pageContent: "", introText: "",
+    h1: "", pageContent: "", introText: "", bodyHtml: "",
     aiKeywords: "", aiSummary: "", aiIntentSignals: "", aiEntityType: "",
     customMeta: [], // { name, content } pairs
     headHtml: "",
@@ -2272,6 +2290,7 @@ function CategoriesModule({ C }) {
       h1: existing.h1 || "",
       pageContent: existing.pageContent || "",
       introText: existing.introText || "",
+      bodyHtml: existing.bodyHtml || "",
       aiKeywords: existing.aiKeywords || "",
       aiSummary: existing.aiSummary || "",
       aiIntentSignals: existing.aiIntentSignals || "",
@@ -2784,9 +2803,17 @@ function CategoriesModule({ C }) {
                 onMouseLeave={e => { if (!showOgStock) e.currentTarget.style.background = "#05A08112"; }}
                 >📸 Browse Stock</button>
               </div>
-              <input value={seoForm.ogImage} onChange={e => setSeoForm(p => ({ ...p, ogImage: e.target.value }))}
-                placeholder="https://luxuryweddingdirectory.com/images/og/wedding-venues.jpg" style={{ ...inputStyle, marginTop: 5 }} />
-              <div style={hintStyle}>Recommended: 1200×630px. Used by Facebook, LinkedIn, WhatsApp, iMessage.</div>
+              <div style={{ marginTop: 5 }}>
+                <ImageUploadField
+                  value={seoForm.ogImage || ''}
+                  onChange={url => setSeoForm(p => ({ ...p, ogImage: url }))}
+                  bucket="listing-media"
+                  folder="categories/og"
+                  hint="Recommended: 1200×630px. Used by Facebook, LinkedIn, WhatsApp, iMessage."
+                  palette={C}
+                  previewHeight={120}
+                />
+              </div>
               {showOgStock && (
                 <ImageSearchPanel C={C} defaultQuery={`luxury ${activeItem.name.toLowerCase()} wedding`}
                   onClose={() => setShowOgStock(false)}
@@ -2987,14 +3014,34 @@ function CategoriesModule({ C }) {
             {/* Divider */}
             <div style={{ height: 1, background: `linear-gradient(90deg,transparent,${C.gold}30,transparent)`, margin: "4px 0 20px" }} />
 
-            {/* Content Editor, Reusable LwdEditor with image upload, drag-drop, image library */}
+            {/* HTML Source Editor */}
             <LwdEditor
               C={C}
               value={seoForm.pageContent}
               onChange={v => setSeoForm(p => ({ ...p, pageContent: v }))}
-              label="Content"
+              label="HTML Source"
               placeholder={`<h2>Discover ${activeItem.name}</h2>\n<p>From intimate settings to grand celebrations...</p>`}
             />
+
+            {/* Body Text — Full TipTap WYSIWYG */}
+            <div style={{ marginTop: 20, marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", color: C.gold, fontWeight: 700 }}>Body Text</span>
+              </div>
+              <div style={{ border: `1px solid ${C.border}`, borderRadius: 4, overflow: "hidden" }}>
+                <RichTextEditor
+                  content={seoForm.bodyHtml || ''}
+                  onChange={v => setSeoForm(p => ({ ...p, bodyHtml: v }))}
+                  placeholder={`Write rich body content for ${activeItem.name}...`}
+                  C={C}
+                  darkMode={true}
+                />
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+                <span style={{ fontFamily: NU, fontSize: 9, color: C.grey2 }}>Full WYSIWYG editor — headings, bold, italic, links, lists, alignment</span>
+                <span style={{ fontFamily: NU, fontSize: 9, color: C.grey2 }}>{(seoForm.bodyHtml || '').length} chars</span>
+              </div>
+            </div>
 
             {/* Route + schema reference */}
             <div style={{
@@ -3005,7 +3052,7 @@ function CategoriesModule({ C }) {
                 Renders on: <span style={{ color: C.gold }}>/{"{country}"}/{activeItem.slug}</span> · Schema: <span style={{ color: C.gold }}>{sd.schema || "WebPage"}</span> · Indexed by Aura AI
               </div>
               <div style={{ fontFamily: NU, fontSize: 9, color: C.grey2 }}>
-                {seoForm.pageContent.length} chars
+                {(seoForm.pageContent.length + (seoForm.bodyHtml || '').length)} chars
               </div>
             </div>
           </div>
@@ -3450,6 +3497,842 @@ ${seoForm.headHtml ? `\n${seoForm.headHtml}` : ""}`
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// Category Studio Module — split-panel builder for category page content
+// Same pattern as LocationsModule, adapted for vendor/service categories
+// ═════════════════════════════════════════════════════════════════════════════
+
+function CatSCard({ title, hint, children, LS, enabled, onToggle }) {
+  const hasToggle = onToggle !== undefined;
+  const isOn = enabled !== false;
+  return (
+    <div style={{ marginBottom: 24, opacity: hasToggle && !isOn ? 0.55 : 1, transition: 'opacity 0.2s' }}>
+      <div style={{ background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ padding: '12px 20px', borderBottom: `1px solid ${LS.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: LS.gold }}>{title}</div>
+            {hint && <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 3, lineHeight: 1.5 }}>{hint}</div>}
+          </div>
+          {hasToggle && (
+            <button onClick={onToggle} title={isOn ? 'Hide this section on the page' : 'Show this section on the page'}
+              style={{ flexShrink: 0, padding: '4px 12px', fontSize: 10, fontFamily: NU, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', borderRadius: 20, border: `1px solid ${isOn ? LS.gold : LS.border}`, background: isOn ? `${LS.gold}20` : 'transparent', color: isOn ? LS.gold : LS.muted, cursor: 'pointer', transition: 'all 0.2s' }}>
+              {isOn ? 'ON' : 'OFF'}
+            </button>
+          )}
+        </div>
+        {(!hasToggle || isOn) && <div style={{ padding: 20 }}>{children}</div>}
+        {hasToggle && !isOn && (
+          <div style={{ padding: '12px 20px', fontFamily: NU, fontSize: 12, color: LS.muted, fontStyle: 'italic' }}>
+            Section hidden — toggle ON to show on the page and edit content
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CategoriesStudioModule({ C, darkMode = true, onBuilderModeChange }) {
+  useEffect(() => {
+    onBuilderModeChange?.(true);
+    return () => onBuilderModeChange?.(false);
+  }, []);
+
+  const LS = darkMode ? {
+    bg: C.black, card: C.card, border: C.border, text: C.off,
+    muted: C.grey, gold: C.gold, btn: C.off, btnTxt: C.black,
+  } : {
+    bg: '#F2EFE9', card: '#F8F6F2', border: '#D9D2C6', text: '#222222',
+    muted: '#777777', gold: '#8A6A18', btn: '#1a1a1a', btnTxt: '#ffffff',
+  };
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  const [viewMode, setViewMode]       = useState('split');
+  const [saving, setSaving]           = useState(false);
+  const [dirty, setDirty]             = useState(false);
+  const [saveErr, setSaveErr]         = useState(null);
+  const [published, setPublished]     = useState(false);
+  const [toast, setToast]             = useState(null);
+  const [categoryType, setCategoryType] = useState('parent');
+  const [parentSlug, setParentSlug]     = useState('');
+  const [subSlug, setSubSlug]           = useState('');
+  const [showMagicPanel, setShowMagicPanel] = useState(false);
+  const [magicContext, setMagicContext]     = useState('');
+  const [aiGenerating, setAiGenerating]    = useState(false);
+
+  const [form, setForm] = useState({
+    heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '',
+    eyebrow: '', // New: eyebrow text like "UNITED KINGDOM · ALL REGIONS"
+    stat1Label: '', stat1Value: '', // New: stats row
+    stat2Label: '', stat2Value: '',
+    stat3Label: '', stat3Value: '',
+    categoryGridTitle: '', // New: "Browse by Category" section title
+    ctaText: 'Browse Vendors', ctaLink: '',
+    featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Featured Vendors',
+    featuredVenueIds: [], featuredVendorIds: [],
+    infoVibes: '', infoServices: '',
+    seoContent: '', seoHeading: '', seoFaqs: [{ q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }],
+    editorialEyebrow: '', editorialHeadingPrefix: '',
+    editorialPara1: '', editorialPara2: '',
+    editorialBlock1Icon: '✦', editorialBlock1Text: '',
+    editorialBlock2Icon: '◆', editorialBlock2Text: '',
+    editorialBlock3Icon: '★', editorialBlock3Text: '',
+    editorialBlock4Icon: '♦', editorialBlock4Text: '',
+    editorialCtaText: '',
+    showEditorialSplit: true, showPlanningGuide: true, showMotto: true,
+    motto: '', mottoSubline: '', mottoBgImage: '', mottoOverlay: '0.55',
+    // SEO
+    seoTitle: '', seoDescription: '', seoKeywords: '', seoCanonicalUrl: '',
+    seoRobotsIndex: true, seoRobotsFollow: true,
+    ogTitle: '', ogDescription: '', ogImage: '',
+    twitterTitle: '', twitterDescription: '', twitterImage: '',
+    schemaType: 'Service', schemaJson: '',
+    seoPrimaryKeyword: '', seoSecondaryKeywords: '',
+  });
+  const [seoTab, setSeoTab] = useState('core');
+
+  // ── Content AI state ──────────────────────────────────────────────────────
+  const [contentAiBusy, setContentAiBusy] = useState(null);
+  const [contentAiError, setContentAiError] = useState(null);
+  const [contentAiTone, setContentAiTone] = useState('luxury');
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  const set = useCallback((key, val) => {
+    setForm(prev => ({ ...prev, [key]: val }));
+    setDirty(true);
+  }, []);
+
+  const categoryKey = useMemo(() => buildCategoryKey(categoryType, parentSlug, subSlug), [categoryType, parentSlug, subSlug]);
+
+  const parentCategory = useMemo(() => DIRECTORY_CATEGORIES.find(c => c.slug === parentSlug), [parentSlug]);
+  const subCategory = useMemo(() => parentCategory?.subCategories?.find(s => s.slug === subSlug), [parentCategory, subSlug]);
+
+  const categoryName = useMemo(() => {
+    if (categoryType === 'sub' && subCategory) return subCategory.name;
+    if (parentCategory) return parentCategory.name;
+    return '';
+  }, [categoryType, parentCategory, subCategory]);
+
+  // ── Context for AI ────────────────────────────────────────────────────────
+  const buildContentCtx = useCallback(() => ({
+    categoryType, categoryName, categorySlug: categoryType === 'sub' ? subSlug : parentSlug,
+    parentCategory: parentCategory?.name || '',
+    subCategories: parentCategory?.subCategories?.map(s => s.name).join(', ') || '',
+    heroTitle: form.heroTitle, heroSubtitle: form.heroSubtitle,
+    existingContent: form.editorialPara1,
+    vendorCount: parentCategory?.count || 0,
+    schemaType: form.schemaType,
+  }), [categoryType, categoryName, parentSlug, subSlug, parentCategory, form.heroTitle, form.heroSubtitle, form.editorialPara1, form.schemaType]);
+
+  // ── Content AI actions ────────────────────────────────────────────────────
+  const handleContentAiAction = useCallback(async (action) => {
+    setContentAiBusy(action); setContentAiError(null);
+    try {
+      const ctx = buildContentCtx();
+      let results;
+      if (action === 'fill') results = await catFillEmpty(form, ctx, contentAiTone);
+      else if (action === 'regen') results = await catRegenAll(form, ctx, contentAiTone);
+      if (results) { setForm(prev => ({ ...prev, ...results })); setDirty(true); }
+    } catch (err) { setContentAiError(err.message); }
+    finally { setContentAiBusy(null); }
+  }, [buildContentCtx, form, contentAiTone]);
+
+  const handleSectionAi = useCallback(async (section) => {
+    setContentAiBusy(`section:${section}`); setContentAiError(null);
+    try {
+      const ctx = buildContentCtx();
+      const results = await catGenSection(section, form, ctx, contentAiTone);
+      if (results) { setForm(prev => ({ ...prev, ...results })); setDirty(true); }
+    } catch (err) { setContentAiError(err.message); }
+    finally { setContentAiBusy(null); }
+  }, [buildContentCtx, form, contentAiTone]);
+
+  const handleContentFieldAi = useCallback(async (fieldKey, generator, ...args) => {
+    setContentAiBusy(fieldKey); setContentAiError(null);
+    try {
+      const result = await generator(...args);
+      if (typeof result === 'object' && !Array.isArray(result)) {
+        setForm(prev => ({ ...prev, ...result }));
+      } else {
+        set(fieldKey, result);
+      }
+      setDirty(true);
+    } catch (err) { setContentAiError(err.message); }
+    finally { setContentAiBusy(null); }
+  }, [set]);
+
+  // ── Load content when category key changes ────────────────────────────────
+  useEffect(() => {
+    if (!categoryKey) return;
+    fetchCategoryContent(categoryKey).then(data => {
+      if (data) {
+        setForm({
+          heroTitle:            data.hero_title || '',
+          heroSubtitle:         data.hero_subtitle || '',
+          heroImage:            data.hero_image || '',
+          heroVideo:            data.hero_video || '',
+          ctaText:              data.cta_text || 'Browse Vendors',
+          ctaLink:              data.cta_link || '',
+          featuredVenuesTitle:  data.featured_venues_title || 'Signature Venues',
+          featuredVendorsTitle: data.featured_vendors_title || 'Featured Vendors',
+          featuredVenueIds:     Array.isArray(data.featured_venues) ? data.featured_venues : [],
+          featuredVendorIds:    Array.isArray(data.featured_vendors) ? data.featured_vendors : [],
+          infoVibes:            Array.isArray(data.metadata?.infoVibes) ? data.metadata.infoVibes.join(', ') : '',
+          infoServices:         Array.isArray(data.metadata?.infoServices) ? data.metadata.infoServices.join(', ') : '',
+          seoContent:           textToHtml(data.metadata?.seoContent || ''),
+          seoHeading:           data.metadata?.seoHeading || '',
+          seoFaqs:              Array.isArray(data.metadata?.seoFaqs) && data.metadata.seoFaqs.length > 0 ? data.metadata.seoFaqs : [{ q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }],
+          editorialEyebrow:     data.metadata?.editorialEyebrow || '',
+          editorialHeadingPrefix: data.metadata?.editorialHeadingPrefix || '',
+          editorialCtaText:     data.metadata?.editorialCtaText || '',
+          editorialPara1:       data.metadata?.editorialPara1 || '',
+          editorialPara2:       data.metadata?.editorialPara2 || '',
+          editorialBlock1Icon:  data.metadata?.editorialBlocks?.[0]?.icon || '✦',
+          editorialBlock1Text:  data.metadata?.editorialBlocks?.[0]?.text || '',
+          editorialBlock2Icon:  data.metadata?.editorialBlocks?.[1]?.icon || '◆',
+          editorialBlock2Text:  data.metadata?.editorialBlocks?.[1]?.text || '',
+          editorialBlock3Icon:  data.metadata?.editorialBlocks?.[2]?.icon || '★',
+          editorialBlock3Text:  data.metadata?.editorialBlocks?.[2]?.text || '',
+          editorialBlock4Icon:  data.metadata?.editorialBlocks?.[3]?.icon || '♦',
+          editorialBlock4Text:  data.metadata?.editorialBlocks?.[3]?.text || '',
+          showEditorialSplit:   data.metadata?.showEditorialSplit !== false,
+          showPlanningGuide:    data.metadata?.showPlanningGuide !== false,
+          showMotto:            data.metadata?.showMotto !== false,
+          motto:                data.metadata?.motto || '',
+          mottoSubline:         data.metadata?.mottoSubline || '',
+          mottoBgImage:         data.metadata?.mottoBgImage || '',
+          mottoOverlay:         data.metadata?.mottoOverlay ?? '0.55',
+          // SEO
+          seoTitle:             data.seo_title || '',
+          seoDescription:       data.seo_description || '',
+          seoKeywords:          data.seo_keywords || '',
+          seoCanonicalUrl:      data.seo_canonical_url || '',
+          seoRobotsIndex:       data.seo_robots_index !== false,
+          seoRobotsFollow:      data.seo_robots_follow !== false,
+          ogTitle:              data.og_title || '',
+          ogDescription:        data.og_description || '',
+          ogImage:              data.og_image || '',
+          twitterTitle:         data.twitter_title || '',
+          twitterDescription:   data.twitter_description || '',
+          twitterImage:         data.twitter_image || '',
+          schemaType:           data.schema_type || 'Service',
+          schemaJson:           data.schema_json ? (typeof data.schema_json === 'string' ? data.schema_json : JSON.stringify(data.schema_json, null, 2)) : '',
+          seoPrimaryKeyword:    data.seo_primary_keyword || '',
+          seoSecondaryKeywords: data.seo_secondary_keywords || '',
+        });
+        setPublished(!!data.published);
+      } else {
+        // Reset to defaults
+        setForm(prev => ({
+          ...prev,
+          heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '',
+          ctaText: 'Browse Vendors', ctaLink: '',
+          featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Featured Vendors',
+          featuredVenueIds: [], featuredVendorIds: [],
+          infoVibes: '', infoServices: '',
+          seoContent: '', seoHeading: '',
+          seoFaqs: [{ q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }],
+          editorialEyebrow: '', editorialHeadingPrefix: '', editorialCtaText: '',
+          editorialPara1: '', editorialPara2: '',
+          editorialBlock1Icon: '✦', editorialBlock1Text: '',
+          editorialBlock2Icon: '◆', editorialBlock2Text: '',
+          editorialBlock3Icon: '★', editorialBlock3Text: '',
+          editorialBlock4Icon: '♦', editorialBlock4Text: '',
+          showEditorialSplit: true, showPlanningGuide: true, showMotto: true,
+          motto: '', mottoSubline: '', mottoBgImage: '', mottoOverlay: '0.55',
+          seoTitle: '', seoDescription: '', seoKeywords: '', seoCanonicalUrl: '',
+          seoRobotsIndex: true, seoRobotsFollow: true,
+          ogTitle: '', ogDescription: '', ogImage: '',
+          twitterTitle: '', twitterDescription: '', twitterImage: '',
+          schemaType: 'Service', schemaJson: '',
+          seoPrimaryKeyword: '', seoSecondaryKeywords: '',
+        }));
+        setPublished(false);
+      }
+      setDirty(false);
+    });
+  }, [categoryKey]);
+
+  // ── Save handler ──────────────────────────────────────────────────────────
+  const handleSave = async (publishOverride) => {
+    if (!categoryKey) return setSaveErr('Select a category first');
+    setSaving(true); setSaveErr(null);
+    const newPublished = publishOverride === 'published' ? true : publishOverride === 'draft' ? false : published;
+    try {
+      const result = await saveCategoryContent({
+        categoryKey, categoryType, parentSlug,
+        subSlug: categoryType === 'sub' ? subSlug : null,
+        heroTitle: form.heroTitle || categoryName,
+        heroSubtitle: form.heroSubtitle, heroImage: form.heroImage, heroVideo: form.heroVideo,
+        ctaText: form.ctaText, ctaLink: form.ctaLink,
+        featuredVenuesTitle: form.featuredVenuesTitle, featuredVendorsTitle: form.featuredVendorsTitle,
+        featuredVenueIds: form.featuredVenueIds, featuredVendorIds: form.featuredVendorIds,
+        metadata: {
+          infoVibes: form.infoVibes ? form.infoVibes.split(',').map(s => s.trim()).filter(Boolean) : [],
+          infoServices: form.infoServices ? form.infoServices.split(',').map(s => s.trim()).filter(Boolean) : [],
+          seoContent: form.seoContent || '',
+          seoHeading: form.seoHeading || '',
+          seoFaqs: (form.seoFaqs || []).filter(f => f.q || f.a),
+          editorialEyebrow: form.editorialEyebrow || '',
+          editorialHeadingPrefix: form.editorialHeadingPrefix || '',
+          editorialCtaText: form.editorialCtaText || '',
+          editorialPara1: form.editorialPara1 || '',
+          editorialPara2: form.editorialPara2 || '',
+          editorialBlocks: [
+            { icon: form.editorialBlock1Icon || '✦', text: form.editorialBlock1Text || '' },
+            { icon: form.editorialBlock2Icon || '◆', text: form.editorialBlock2Text || '' },
+            { icon: form.editorialBlock3Icon || '★', text: form.editorialBlock3Text || '' },
+            { icon: form.editorialBlock4Icon || '♦', text: form.editorialBlock4Text || '' },
+          ],
+          showEditorialSplit: form.showEditorialSplit !== false,
+          showPlanningGuide: form.showPlanningGuide !== false,
+          showMotto: form.showMotto !== false,
+          motto: form.motto || '',
+          mottoSubline: form.mottoSubline || '',
+          mottoBgImage: form.mottoBgImage || '',
+          mottoOverlay: form.mottoOverlay ?? '0.55',
+        },
+        published: newPublished,
+        seoTitle: form.seoTitle || null,
+        seoDescription: form.seoDescription || null,
+        seoKeywords: form.seoKeywords || null,
+        seoCanonicalUrl: form.seoCanonicalUrl || null,
+        seoRobotsIndex: form.seoRobotsIndex !== false,
+        seoRobotsFollow: form.seoRobotsFollow !== false,
+        ogTitle: form.ogTitle || null,
+        ogDescription: form.ogDescription || null,
+        ogImage: form.ogImage || null,
+        twitterTitle: form.twitterTitle || null,
+        twitterDescription: form.twitterDescription || null,
+        twitterImage: form.twitterImage || null,
+        schemaType: form.schemaType || 'Service',
+        schemaJson: form.schemaJson ? JSON.parse(form.schemaJson) : null,
+        seoPrimaryKeyword: form.seoPrimaryKeyword || null,
+        seoSecondaryKeywords: form.seoSecondaryKeywords || null,
+      });
+      if (result.error) {
+        setSaveErr(`Save failed: ${result.error.message || 'Database error'}`);
+        return;
+      }
+      setPublished(newPublished);
+      setDirty(false);
+      setToast(newPublished ? 'Category published' : 'Category saved');
+    } catch (err) {
+      setSaveErr(`Save failed: ${err.message || 'Unknown error'}`);
+    } finally { setSaving(false); }
+  };
+
+  // ── UI helpers ─────────────────────────────────────────────────────────────
+  const inp = (key, placeholder, multiline) => {
+    const base = { fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', boxSizing: 'border-box', outline: 'none' };
+    if (multiline) return <textarea value={form[key] || ''} onChange={e => set(key, e.target.value)} placeholder={placeholder} rows={3} style={{ ...base, resize: 'vertical', minHeight: 72 }} />;
+    return <input value={form[key] || ''} onChange={e => set(key, e.target.value)} placeholder={placeholder} style={base} />;
+  };
+  const lbl = (text) => <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: LS.muted, marginBottom: 6 }}>{text}</div>;
+  const selStyle = { fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' };
+
+  const sectionAiBar = (sectionKey) => (
+    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10, paddingBottom: 8, borderBottom: `1px solid ${LS.border}` }}>
+      <button onClick={() => handleSectionAi(sectionKey)} disabled={!!contentAiBusy}
+        style={{ fontFamily: NU, fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 4, border: `1px solid ${LS.border}`, background: contentAiBusy === `section:${sectionKey}` ? LS.gold : 'transparent', color: contentAiBusy === `section:${sectionKey}` ? '#fff' : LS.gold, cursor: contentAiBusy ? 'not-allowed' : 'pointer' }}
+      >{contentAiBusy === `section:${sectionKey}` ? '...' : '✦ Generate'}</button>
+      <button onClick={() => handleSectionAi(sectionKey)} disabled={!!contentAiBusy}
+        style={{ fontFamily: NU, fontSize: 10, fontWeight: 500, padding: '3px 8px', borderRadius: 4, border: `1px solid ${LS.border}`, background: 'transparent', color: LS.muted, cursor: contentAiBusy ? 'not-allowed' : 'pointer' }}
+      >Redo</button>
+    </div>
+  );
+
+  const fieldAi = (fieldKey, label, generator, genArgs, options = {}) => {
+    const ctx = buildContentCtx();
+    const busy = contentAiBusy === fieldKey;
+    const val = form[fieldKey];
+    const btns = [
+      { icon: '✦', tip: 'Generate', fn: () => handleContentFieldAi(fieldKey, generator, ...genArgs) },
+    ];
+    if (val) {
+      btns.push({ icon: '↻', tip: 'Spin', fn: () => handleContentFieldAi(fieldKey, catSpin, val, label, ctx, contentAiTone) });
+      if (options.canShorten) btns.push({ icon: '⇠', tip: 'Shorter', fn: () => handleContentFieldAi(fieldKey, catShorten, val, label, options.maxWords || 15) });
+      btns.push({ icon: '♦', tip: 'More luxury', fn: () => handleContentFieldAi(fieldKey, catMakeLuxury, val, label, ctx) });
+      btns.push({ icon: '✎', tip: 'More editorial', fn: () => handleContentFieldAi(fieldKey, catMakeEditorial, val, label, ctx) });
+      if (options.seo) btns.push({ icon: '◎', tip: 'SEO aware', fn: () => handleContentFieldAi(fieldKey, catMakeSeoAware, val, label, ctx) });
+    }
+    return (
+      <div style={{ display: 'flex', gap: 3, marginTop: 4 }}>
+        {btns.map((b, i) => (
+          <button key={i} title={b.tip} onClick={b.fn} disabled={!!contentAiBusy}
+            style={{ fontFamily: NU, fontSize: 9, padding: '2px 6px', borderRadius: 3, border: `1px solid ${LS.border}`, background: busy ? LS.gold : 'transparent', color: busy ? '#fff' : LS.gold, cursor: contentAiBusy ? 'not-allowed' : 'pointer', lineHeight: 1 }}
+          >{busy ? '...' : b.icon}</button>
+        ))}
+      </div>
+    );
+  };
+
+  const showEditor  = viewMode === 'split' || viewMode === 'editor';
+  const showPreview = viewMode === 'split' || viewMode === 'preview';
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+
+      {/* ── TOP BAR ───────────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '10px 24px', borderBottom: `1px solid ${LS.border}`, background: LS.bg, flexShrink: 0, zIndex: 20, gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => { if (categoryKey) setShowMagicPanel(p => !p); }} disabled={!categoryKey} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: showMagicPanel ? LS.gold : LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: categoryKey ? 'pointer' : 'not-allowed', opacity: categoryKey ? 1 : 0.4 }}>✦ Magic AI</button>
+          <button onClick={() => handleContentAiAction('fill')} disabled={!categoryKey || !!contentAiBusy} style={{ fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px', background: 'transparent', color: !categoryKey || contentAiBusy ? LS.muted : LS.text, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: !categoryKey || contentAiBusy ? 'not-allowed' : 'pointer', opacity: !categoryKey ? 0.4 : 1 }}>{contentAiBusy === 'fill' ? 'Generating...' : 'Fill with AI'}</button>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
+          {saveErr && <span style={{ fontFamily: NU, fontSize: 11, color: '#ef4444' }}>{saveErr}</span>}
+          <button onClick={() => setDirty(false)} style={{ fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer' }}>Discard</button>
+          <button onClick={() => handleSave('draft')} disabled={saving || !categoryKey} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving || !categoryKey ? 'not-allowed' : 'pointer', opacity: saving || !categoryKey ? 0.35 : 1 }}>{saving ? 'Saving...' : 'Save Draft'}</button>
+          <button onClick={() => handleSave(null)} disabled={saving || !categoryKey} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving || !categoryKey ? 'not-allowed' : 'pointer', opacity: saving || !categoryKey ? 0.35 : 1 }}>{saving ? 'Saving...' : 'Save'}</button>
+          <button onClick={() => handleSave('published')} disabled={saving} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: published ? LS.gold : LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>
+            {saving ? 'Publishing...' : published ? 'Published' : 'Publish'}
+          </button>
+          {categoryKey && (
+            <a href={`/wedding-vendors/${parentSlug}${categoryType === 'sub' && subSlug ? '/' + subSlug : ''}`} target="_blank" rel="noopener noreferrer"
+              style={{ fontFamily: NU, fontSize: 12, fontWeight: 500, padding: '6px 12px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+              Live Page
+            </a>
+          )}
+          <div style={{ width: 1, height: 16, background: LS.border, marginLeft: 4 }} />
+          {['split', 'editor', 'preview'].map(m => (
+            <span key={m} onClick={() => setViewMode(m)} style={{ fontFamily: NU, fontSize: 11, fontWeight: viewMode === m ? 700 : 500, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', color: viewMode === m ? LS.text : LS.muted, borderBottom: viewMode === m ? `1px solid ${LS.text}` : '1px solid transparent', paddingBottom: 1 }}>
+              {m === 'split' ? 'Split' : m === 'editor' ? 'Editor' : 'Preview'}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* ── MAGIC AI PANEL ─────────────────────────────────────────────────────── */}
+      {showMagicPanel && (
+        <div style={{ background: darkMode ? 'rgba(201,168,76,0.07)' : '#F8F5EE', borderTop: `2px solid ${LS.gold}`, borderBottom: `1px solid ${LS.border}`, padding: '16px 24px', display: 'flex', gap: 12, alignItems: 'flex-start', flexShrink: 0 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.gold, marginBottom: 6 }}>✦ Magic AI — {categoryName}</div>
+            <textarea value={magicContext} onChange={e => setMagicContext(e.target.value)}
+              placeholder={`Optional: add context to guide the AI (e.g. "focus on fine art editorial photography, elegant tone")`}
+              rows={2} style={{ width: '100%', boxSizing: 'border-box', fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, resize: 'none', outline: 'none' }} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 18 }}>
+            <button onClick={async () => {
+              if (aiGenerating) return;
+              setAiGenerating(true);
+              try {
+                const { supabase } = await import('../lib/supabaseClient');
+                const { data, error } = await supabase.functions.invoke('ai-generate', {
+                  body: {
+                    feature: 'category_magic',
+                    systemPrompt: `You are a senior editorial writer for Luxury Wedding Directory, an exclusive destination wedding platform. Write elegant, aspirational, high-converting copy for vendor category pages. Be specific, evocative, and never generic. Match the tone of premium lifestyle editorial.`,
+                    userPrompt: `Generate complete editorial content for the ${categoryName} category page.${magicContext ? ` Context: ${magicContext}` : ''}\n\nReturn ONLY a valid JSON object with these exact keys:\n{\n  "heroTitle": "3-6 word headline",\n  "heroSubtitle": "1-2 sentences, max 25 words",\n  "ctaText": "2-4 word CTA"\n}\nNo explanation. Only the JSON.`,
+                  },
+                });
+                if (error) throw error;
+                const raw = (data?.text || '').trim();
+                const match = raw.match(/\{[\s\S]*\}/);
+                if (match) {
+                  const p = JSON.parse(match[0]);
+                  setForm(prev => ({ ...prev, heroTitle: p.heroTitle || prev.heroTitle, heroSubtitle: p.heroSubtitle || prev.heroSubtitle, ctaText: p.ctaText || prev.ctaText }));
+                  setDirty(true); setShowMagicPanel(false);
+                }
+              } catch (e) { console.error('[Category Magic AI]', e); }
+              finally { setAiGenerating(false); }
+            }} disabled={aiGenerating}
+              style={{ fontFamily: NU, fontSize: 12, fontWeight: 700, padding: '8px 18px', background: LS.gold, color: '#fff', border: 'none', borderRadius: 6, cursor: aiGenerating ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
+            >{aiGenerating ? 'Generating...' : 'Generate'}</button>
+            <button onClick={() => setShowMagicPanel(false)} style={{ fontFamily: NU, fontSize: 12, padding: '6px 12px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer' }}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── PANELS ──────────────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+        {/* LEFT — editor */}
+        {showEditor && (
+          <div style={{ flex: viewMode === 'editor' ? '1' : '0 0 50%', overflowY: 'auto', background: LS.bg, borderRight: showPreview ? `1px solid ${LS.border}` : 'none', padding: '28px 32px 80px' }}>
+
+            {/* h1 = category name + status badge */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+                <h1 style={{ fontSize: 26, fontWeight: 600, color: LS.text, margin: 0, lineHeight: 1.2, fontFamily: GD }}>
+                  {categoryName || 'Select a category'}
+                </h1>
+                {categoryKey && (
+                  <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '3px 8px', borderRadius: 4, background: published ? 'rgba(34,197,94,0.15)' : `${LS.border}`, color: published ? '#22c55e' : LS.muted }}>
+                    {published ? 'Live' : 'Draft'}
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 14, color: LS.muted, fontFamily: NU }}>
+                {categoryType === 'sub' ? 'Sub-category' : 'Parent Category'}{categoryKey ? ` · ${categoryKey}` : ''}
+              </div>
+            </div>
+
+            {/* Category Picker */}
+            <CatSCard title="Category" hint="Select which category page you are editing" LS={LS}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  {lbl('Type')}
+                  <select value={categoryType} onChange={e => { setCategoryType(e.target.value); setSubSlug(''); }} style={selStyle}>
+                    <option value="parent">Parent Category</option>
+                    <option value="sub">Sub-category</option>
+                  </select>
+                </div>
+                <div>
+                  {lbl('Parent Category')}
+                  <select value={parentSlug} onChange={e => { setParentSlug(e.target.value); setSubSlug(''); }} style={selStyle}>
+                    <option value="">Select category</option>
+                    {DIRECTORY_CATEGORIES.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              {categoryType === 'sub' && parentSlug && parentCategory?.subCategories?.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  {lbl('Sub-category')}
+                  <select value={subSlug} onChange={e => setSubSlug(e.target.value)} style={selStyle}>
+                    <option value="">Select sub-category</option>
+                    {parentCategory.subCategories.map(s => <option key={s.slug} value={s.slug}>{s.name}</option>)}
+                  </select>
+                </div>
+              )}
+            </CatSCard>
+
+            {/* ── CONTENT AI ACTIONS BAR ──────────────────────────────────────────── */}
+            {categoryKey && (
+              <div style={{ background: darkMode ? 'rgba(201,168,76,0.06)' : '#FAF8F3', border: `1px solid ${darkMode ? 'rgba(201,168,76,0.15)' : '#E8E0D0'}`, borderRadius: 8, padding: '12px 16px', marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.gold, marginRight: 4 }}>✦ Content AI</span>
+                  {[
+                    { key: 'fill', label: 'Fill Empty Fields', title: 'Generate content for all empty fields' },
+                    { key: 'regen', label: 'Regenerate All', title: 'Regenerate all content fields' },
+                  ].map(a => (
+                    <button key={a.key} title={a.title} disabled={!!contentAiBusy}
+                      onClick={() => handleContentAiAction(a.key)}
+                      style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, padding: '5px 10px', borderRadius: 5, border: `1px solid ${LS.border}`, background: contentAiBusy === a.key ? LS.gold : 'transparent', color: contentAiBusy === a.key ? '#fff' : LS.text, cursor: contentAiBusy ? 'not-allowed' : 'pointer', opacity: contentAiBusy && contentAiBusy !== a.key ? 0.4 : 1 }}
+                    >{contentAiBusy === a.key ? 'Working...' : a.label}</button>
+                  ))}
+                  <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontFamily: NU, fontSize: 10, color: LS.muted }}>Tone:</span>
+                    <select value={contentAiTone} onChange={e => setContentAiTone(e.target.value)} style={{ fontFamily: NU, fontSize: 11, padding: '3px 6px', border: `1px solid ${LS.border}`, borderRadius: 4, background: LS.bg, color: LS.text }}>
+                      <option value="luxury">Luxury</option>
+                      <option value="editorial">Editorial</option>
+                      <option value="seo_strong">SEO Strong</option>
+                      <option value="direct">Direct</option>
+                      <option value="romantic">Romantic</option>
+                    </select>
+                  </div>
+                </div>
+                {contentAiError && <div style={{ fontFamily: NU, fontSize: 11, color: '#ef4444', marginTop: 6 }}>{contentAiError}</div>}
+                {contentAiBusy && <div style={{ fontFamily: NU, fontSize: 11, color: LS.gold, marginTop: 6 }}>Generating content... this may take a minute.</div>}
+              </div>
+            )}
+
+            {/* Hero */}
+            <CatSCard title="Hero" hint="Headline text and background for the top of the category page" LS={LS}>
+              {categoryKey && sectionAiBar('hero')}
+              <div style={{ marginBottom: 12 }}>{lbl('Hero Title')}{inp('heroTitle', categoryName || 'e.g. Luxury Wedding Photographers')}{fieldAi('heroTitle', 'hero title', catGenHeroTitle, [buildContentCtx(), contentAiTone])}</div>
+              <div style={{ marginBottom: 12 }}>{lbl('Hero Subtitle')}{inp('heroSubtitle', 'A curated selection of the finest wedding professionals...', true)}{fieldAi('heroSubtitle', 'hero subtitle', catGenHeroSubtitle, [buildContentCtx(), contentAiTone])}</div>
+              <div style={{ marginBottom: 12 }}>
+                <ImageUploadField
+                  label="Hero Image"
+                  value={form.heroImage || ''}
+                  onChange={url => set('heroImage', url)}
+                  bucket="listing-media"
+                  folder="categories/heroes"
+                  hint="Recommended: 1920×1080px. Supports WebP."
+                  palette={LS}
+                  previewHeight={120}
+                />
+              </div>
+              <div style={{ marginBottom: 12 }}>{lbl('Hero Video URL (optional)')}{inp('heroVideo', 'https://cdn.example.com/hero.mp4')}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>{lbl('CTA Button Text')}{inp('ctaText', 'Browse Vendors')}{fieldAi('ctaText', 'CTA text', catGenCtaText, [buildContentCtx()])}</div>
+                <div>{lbl('CTA Button Link')}{inp('ctaLink', '#search')}</div>
+              </div>
+            </CatSCard>
+
+            {/* Info Strip */}
+            <CatSCard title="Info Strip" hint="Tag columns shown below the hero" LS={LS}>
+              {categoryKey && sectionAiBar('infoStrip')}
+              <div style={{ marginBottom: 12 }}>
+                {lbl('Signature Vibes')}
+                {inp('infoVibes', 'e.g. Fine Art, Documentary, Cinematic, Editorial')}
+                {fieldAi('infoVibes', 'vibe tags', catGenInfoVibes, [buildContentCtx()])}
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>
+                  {form.infoVibes ? form.infoVibes.split(',').map(s => s.trim()).filter(Boolean).map((v, i) => (
+                    <span key={i} style={{ display: 'inline-block', marginRight: 6, marginBottom: 4, padding: '2px 8px', background: `${LS.gold}18`, border: `1px solid ${LS.gold}44`, borderRadius: 3, color: LS.gold, fontSize: 11 }}>{v}</span>
+                  )) : <span style={{ opacity: 0.5 }}>No vibes set</span>}
+                </div>
+              </div>
+              <div>
+                {lbl('Elite Services')}
+                {inp('infoServices', 'e.g. Destination Coverage, Album Design, Same-Day Edits')}
+                {fieldAi('infoServices', 'service tags', catGenInfoServices, [buildContentCtx()])}
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>
+                  {form.infoServices ? form.infoServices.split(',').map(s => s.trim()).filter(Boolean).map((v, i) => (
+                    <span key={i} style={{ display: 'inline-block', marginRight: 6, marginBottom: 4, padding: '2px 8px', background: `${LS.gold}18`, border: `1px solid ${LS.gold}44`, borderRadius: 3, color: LS.gold, fontSize: 11 }}>{v}</span>
+                  )) : <span style={{ opacity: 0.5 }}>No services set</span>}
+                </div>
+              </div>
+            </CatSCard>
+
+            {/* Editorial Split */}
+            <CatSCard title="Editorial Split" hint="Two editorial paragraphs + 4 info blocks" LS={LS} enabled={form.showEditorialSplit !== false} onToggle={() => set('showEditorialSplit', !form.showEditorialSplit)}>
+              {categoryKey && sectionAiBar('editorial')}
+              <div style={{ marginBottom: 12 }}>
+                {lbl('Eyebrow')}
+                {inp('editorialEyebrow', `Why Choose ${categoryName || 'Our Vendors'}`)}
+              </div>
+              <div style={{ marginBottom: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  {lbl('Heading Prefix')}
+                  {inp('editorialHeadingPrefix', 'The Art of')}
+                </div>
+                <div>
+                  {lbl('CTA Button Text')}
+                  {inp('editorialCtaText', `Browse All ${categoryName || 'Vendors'}`)}
+                </div>
+              </div>
+              <div aria-hidden="true" style={{ height: 1, background: LS.border, margin: '4px 0 16px' }} />
+              <div style={{ marginBottom: 12 }}>
+                {lbl('Paragraph 1')}
+                <textarea value={form.editorialPara1 || ''} onChange={e => set('editorialPara1', e.target.value)}
+                  placeholder={`${categoryName || 'This category'} represents the finest professionals in the industry...`}
+                  rows={3} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }} />
+                {fieldAi('editorialPara1', 'editorial paragraph', catGenEditorial, [buildContentCtx(), contentAiTone], { seo: true })}
+              </div>
+              <div style={{ marginBottom: 20 }}>
+                {lbl('Paragraph 2')}
+                <textarea value={form.editorialPara2 || ''} onChange={e => set('editorialPara2', e.target.value)}
+                  placeholder="Our curated collection represents only the finest..." rows={3}
+                  style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }} />
+                {fieldAi('editorialPara2', 'editorial paragraph', catGenEditorial, [buildContentCtx(), contentAiTone], { seo: true })}
+              </div>
+              <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: LS.gold, marginBottom: 10 }}>Info Blocks (2x2 grid)</div>
+              {[
+                ['editorialBlock1Icon', 'editorialBlock1Text'],
+                ['editorialBlock2Icon', 'editorialBlock2Text'],
+                ['editorialBlock3Icon', 'editorialBlock3Text'],
+                ['editorialBlock4Icon', 'editorialBlock4Text'],
+              ].map(([iconKey, textKey], i) => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '52px 1fr', gap: 8, marginBottom: 10 }}>
+                  <input value={form[iconKey] || ''} onChange={e => set(iconKey, e.target.value)} placeholder="✦"
+                    style={{ fontFamily: NU, fontSize: 20, padding: '6px 8px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, textAlign: 'center' }} />
+                  <input value={form[textKey] || ''} onChange={e => set(textKey, e.target.value)}
+                    placeholder={['Award-winning professionals', 'Destination coverage worldwide', 'Luxury editorial approach', 'Bespoke creative direction'][i]}
+                    style={{ fontFamily: NU, fontSize: 13, padding: '6px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' }} />
+                </div>
+              ))}
+            </CatSCard>
+
+            {/* Planning Guide */}
+            <CatSCard title="Planning Guide" hint="Editorial body content and FAQs for this category" LS={LS} enabled={form.showPlanningGuide !== false} onToggle={() => set('showPlanningGuide', !form.showPlanningGuide)}>
+              {categoryKey && sectionAiBar('planning')}
+              <div style={{ marginBottom: 16 }}>
+                {lbl('Section Title')}
+                {inp('seoHeading', `Choosing Your ${categoryName || 'Vendors'}`)}
+                {fieldAi('seoHeading', 'section heading', catGenSeoHeading, [buildContentCtx()])}
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                {lbl('Body Text')}
+                <div style={{ border: `1px solid ${LS.border}`, borderRadius: 6, overflow: 'hidden' }}>
+                  <RichTextEditor content={form.seoContent || ''} onChange={v => set('seoContent', v)}
+                    placeholder={`Write editorial body content for ${categoryName || 'this category'}...`} C={C} darkMode={darkMode} />
+                </div>
+                {fieldAi('seoContent', 'planning guide', catGenPlanningGuide, [buildContentCtx(), contentAiTone], { seo: true })}
+              </div>
+              <div style={{ marginBottom: 10, display: 'flex', gap: 4 }}>
+                <button onClick={() => handleContentFieldAi('seoFaqs', catGenFaqs, buildContentCtx(), contentAiTone)} disabled={!!contentAiBusy}
+                  style={{ fontFamily: NU, fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 4, border: `1px solid ${LS.border}`, background: contentAiBusy === 'seoFaqs' ? LS.gold : 'transparent', color: contentAiBusy === 'seoFaqs' ? '#fff' : LS.gold, cursor: contentAiBusy ? 'not-allowed' : 'pointer' }}
+                >{contentAiBusy === 'seoFaqs' ? 'Generating...' : '✦ Generate FAQs'}</button>
+              </div>
+              {(form.seoFaqs || []).map((faq, i) => (
+                <div key={i} style={{ marginBottom: 16, padding: '12px 14px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 6 }}>
+                  <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: LS.gold, marginBottom: 8 }}>FAQ {i + 1}</div>
+                  <div style={{ marginBottom: 8 }}>
+                    {lbl('Question')}
+                    <input value={faq.q || ''} onChange={e => { const faqs = [...(form.seoFaqs || [])]; faqs[i] = { ...faqs[i], q: e.target.value }; set('seoFaqs', faqs); }}
+                      placeholder={`e.g. How do I choose the right ${categoryName || 'vendor'}?`}
+                      style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' }} />
+                  </div>
+                  {lbl('Answer')}
+                  <textarea value={faq.a || ''} onChange={e => { const faqs = [...(form.seoFaqs || [])]; faqs[i] = { ...faqs[i], a: e.target.value }; set('seoFaqs', faqs); }}
+                    placeholder="Answer..." rows={3}
+                    style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }} />
+                </div>
+              ))}
+            </CatSCard>
+
+            {/* Motto Banner */}
+            <CatSCard title="Motto Banner" hint="Full-width editorial quote strip" LS={LS} enabled={form.showMotto !== false} onToggle={() => set('showMotto', !form.showMotto)}>
+              {categoryKey && sectionAiBar('motto')}
+              <div style={{ marginBottom: 14 }}>
+                {lbl('Quote / Motto')}
+                <textarea value={form.motto || ''} onChange={e => set('motto', e.target.value)}
+                  placeholder={`${categoryName || 'Photography'}, elevated to an art form.`}
+                  rows={3} style={{ fontFamily: NU, fontSize: 13, padding: '10px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', lineHeight: 1.6, fontStyle: 'italic' }} />
+                {fieldAi('motto', 'motto quote', catGenMotto, [buildContentCtx(), contentAiTone])}
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                {lbl('Sub-line (optional)')}
+                {inp('mottoSubline', `Luxury Wedding Directory · ${categoryName || 'Vendors'}`)}
+                {fieldAi('mottoSubline', 'motto subline', catGenMottoSubline, [buildContentCtx()])}
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                {lbl('Background Image URL')}
+                {inp('mottoBgImage', 'https://...')}
+              </div>
+              <div>
+                {lbl(`Overlay Density — ${Math.round((parseFloat(form.mottoOverlay) || 0.55) * 100)}%`)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+                  <span style={{ fontFamily: NU, fontSize: 11, color: LS.muted }}>Light</span>
+                  <input type="range" min={0} max={1} step={0.05} value={form.mottoOverlay ?? '0.55'} onChange={e => set('mottoOverlay', e.target.value)} style={{ flex: 1, accentColor: LS.gold }} />
+                  <span style={{ fontFamily: NU, fontSize: 11, color: LS.muted }}>Dark</span>
+                </div>
+              </div>
+            </CatSCard>
+
+            {/* SEO */}
+            <CatSCard title="SEO & Meta" hint="Search engine optimisation, social sharing, and schema markup" LS={LS}>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 16, borderBottom: `1px solid ${LS.border}`, paddingBottom: 8 }}>
+                {['core', 'og', 'twitter', 'schema'].map(tab => (
+                  <button key={tab} onClick={() => setSeoTab(tab)}
+                    style={{ fontFamily: NU, fontSize: 11, fontWeight: seoTab === tab ? 700 : 500, color: seoTab === tab ? LS.gold : LS.muted, background: 'transparent', border: 'none', borderBottom: seoTab === tab ? `2px solid ${LS.gold}` : '2px solid transparent', padding: '4px 10px', cursor: 'pointer', textTransform: 'capitalize' }}>
+                    {tab === 'og' ? 'Open Graph' : tab === 'core' ? 'Core SEO' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  </button>
+                ))}
+              </div>
+
+              {/* Core SEO */}
+              {seoTab === 'core' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      {lbl('SEO Title')}
+                      <span style={{ fontFamily: NU, fontSize: 9, color: (form.seoTitle || '').length > 60 ? '#ef4444' : LS.muted }}>{(form.seoTitle || '').length}/60</span>
+                    </div>
+                    {inp('seoTitle', `${categoryName || 'Wedding Vendors'} | Luxury Wedding Directory`)}
+                  </div>
+                  <div>
+                    {lbl('Meta Description')}
+                    <textarea value={form.seoDescription || ''} onChange={e => set('seoDescription', e.target.value)}
+                      placeholder={`Discover the finest luxury ${(categoryName || 'wedding vendors').toLowerCase()}. Hand-selected by our editorial team.`}
+                      rows={3} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>{lbl('Keywords')}{inp('seoKeywords', 'luxury wedding photographers, fine art photography')}</div>
+                  <div>{lbl('Canonical URL')}{inp('seoCanonicalUrl', `https://luxuryweddingdirectory.com/wedding-vendors/${parentSlug || 'category'}`)}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <label style={{ fontFamily: NU, fontSize: 12, color: LS.text, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={form.seoRobotsIndex !== false} onChange={e => set('seoRobotsIndex', e.target.checked)} /> Allow indexing
+                    </label>
+                    <label style={{ fontFamily: NU, fontSize: 12, color: LS.text, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={form.seoRobotsFollow !== false} onChange={e => set('seoRobotsFollow', e.target.checked)} /> Allow follow
+                    </label>
+                  </div>
+                  <div>{lbl('Primary Keyword')}{inp('seoPrimaryKeyword', `luxury ${(categoryName || 'vendors').toLowerCase()}`)}</div>
+                  <div>{lbl('Secondary Keywords')}{inp('seoSecondaryKeywords', 'wedding vendors, high-end professionals')}</div>
+                </div>
+              )}
+
+              {/* Open Graph */}
+              {seoTab === 'og' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>{lbl('OG Title')}{inp('ogTitle', form.seoTitle || `${categoryName} | LWD`)}</div>
+                  <div>
+                    {lbl('OG Description')}
+                    <textarea value={form.ogDescription || ''} onChange={e => set('ogDescription', e.target.value)}
+                      placeholder={form.seoDescription || 'Falls back to meta description'} rows={3}
+                      style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <ImageUploadField
+                      label="OG Image"
+                      value={form.ogImage || ''}
+                      onChange={url => set('ogImage', url)}
+                      bucket="listing-media"
+                      folder="categories/og"
+                      hint="Recommended: 1200×630px"
+                      palette={LS}
+                      previewHeight={100}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Twitter */}
+              {seoTab === 'twitter' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, fontStyle: 'italic', marginBottom: 4 }}>Leave blank to inherit from Open Graph</div>
+                  <div>{lbl('Twitter Title')}{inp('twitterTitle', form.ogTitle || 'Inherits from OG Title')}</div>
+                  <div>
+                    {lbl('Twitter Description')}
+                    <textarea value={form.twitterDescription || ''} onChange={e => set('twitterDescription', e.target.value)}
+                      placeholder={form.ogDescription || 'Inherits from OG Description'} rows={3}
+                      style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <ImageUploadField
+                      label="Twitter Image"
+                      value={form.twitterImage || ''}
+                      onChange={url => set('twitterImage', url)}
+                      bucket="listing-media"
+                      folder="categories/twitter"
+                      hint="Leave blank to inherit OG Image"
+                      palette={LS}
+                      previewHeight={100}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Schema */}
+              {seoTab === 'schema' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    {lbl('Schema.org Type')}
+                    <select value={form.schemaType || 'Service'} onChange={e => set('schemaType', e.target.value)} style={selStyle}>
+                      <option value="Service">Service</option>
+                      <option value="ProfessionalService">ProfessionalService</option>
+                      <option value="LocalBusiness">LocalBusiness</option>
+                      <option value="Organization">Organization</option>
+                    </select>
+                  </div>
+                  <div>
+                    {lbl('Custom Schema JSON-LD')}
+                    <textarea value={form.schemaJson || ''} onChange={e => set('schemaJson', e.target.value)}
+                      placeholder='{"@context": "https://schema.org", ...}' rows={8}
+                      style={{ fontFamily: 'monospace', fontSize: 12, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', boxSizing: 'border-box' }} />
+                  </div>
+                </div>
+              )}
+            </CatSCard>
+          </div>
+        )}
+
+        {/* RIGHT — preview */}
+        {showPreview && (
+          <div style={{ flex: viewMode === 'preview' ? '1' : '0 0 50%', overflow: 'hidden', background: LS.card, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '12px 20px', borderBottom: `1px solid ${LS.border}`, background: LS.bg, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: LS.muted }}>Live Preview</span>
+              {categoryKey && <span style={{ fontFamily: NU, fontSize: 11, color: LS.muted }}>— {categoryKey}</span>}
+            </div>
+            {categoryKey ? (
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <CategoryPagePreview form={form} categoryName={categoryName} />
+              </div>
+            ) : (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontFamily: GD, fontSize: 18, color: LS.muted }}>Live preview will appear here</div>
+                <div style={{ fontFamily: NU, fontSize: 13, color: LS.muted }}>Select a category</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Toast */}
+        {toast && <LocationToast msg={toast} onDone={() => setToast(null)} />}
+      </div>
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 // Countries & Regions Module
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -3485,7 +4368,7 @@ function CountriesModule({ C }) {
   const [seoForm, setSeoForm] = useState({
     titleTag: "", metaDescription: "", metaRobots: "index, follow", canonicalUrl: "",
     ogTitle: "", ogDescription: "", ogImage: "", ogType: "website",
-    h1: "", pageContent: "", introText: "",
+    h1: "", pageContent: "", introText: "", bodyHtml: "",
     aiKeywords: "", aiSummary: "", aiIntentSignals: "", aiEntityType: "",
     customMeta: [], headHtml: "",
     thumbnail: null, thumbnailAlt: "", thumbnailTitle: "", thumbnailDesc: "",
@@ -3500,6 +4383,21 @@ function CountriesModule({ C }) {
   const iconInputRef = useRef(null);
 
   const allCountries = [...DIRECTORY_COUNTRIES, ...extraCountries];
+
+  // Auto-open country from "Edit Country" button on LocationPage
+  useEffect(() => {
+    let slug = null;
+    try { slug = sessionStorage.getItem('lwd_admin_open_country'); } catch {}
+    if (!slug) return;
+    sessionStorage.removeItem('lwd_admin_open_country');
+    const country = allCountries.find(c => c.slug === slug);
+    if (country) {
+      loadSeoForm(country.id, "Country");
+      setOpenCountry(country.id);
+      setExpandedCountry(country.slug);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const totalCountries = allCountries.length;
   const totalRegions = DIRECTORY_REGIONS.length;
   const activeUrls = DIRECTORY_REGIONS.filter(r => isRegionActive(r)).length;
@@ -3535,7 +4433,7 @@ function CountriesModule({ C }) {
       metaRobots: existing.metaRobots || "index, follow", canonicalUrl: existing.canonicalUrl || "",
       ogTitle: existing.ogTitle || "", ogDescription: existing.ogDescription || "",
       ogImage: existing.ogImage || "", ogType: existing.ogType || "website",
-      h1: existing.h1 || "", pageContent: existing.pageContent || "", introText: existing.introText || "",
+      h1: existing.h1 || "", pageContent: existing.pageContent || "", introText: existing.introText || "", bodyHtml: existing.bodyHtml || "",
       aiKeywords: existing.aiKeywords || "", aiSummary: existing.aiSummary || "",
       aiIntentSignals: existing.aiIntentSignals || "", aiEntityType: existing.aiEntityType || schemaDefault || "",
       customMeta: existing.customMeta || [], headHtml: existing.headHtml || "",
@@ -3927,8 +4825,15 @@ function CountriesModule({ C }) {
                 <label style={{ ...labelStyle, marginBottom: 0 }}>og:image</label>
                 <button onClick={() => setShowOgStock(!showOgStock)} style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, color: "#05A081", background: "#05A08112", border: "1px solid #05A08130", borderRadius: 3, padding: "2px 8px", cursor: "pointer" }}>📸 Browse Stock</button>
               </div>
-              <input value={seoForm.ogImage} onChange={e => setSeoForm(p => ({ ...p, ogImage: e.target.value }))}
-                placeholder="https://luxuryweddingdirectory.com/images/og-..." style={inputStyle} />
+              <ImageUploadField
+                value={seoForm.ogImage || ''}
+                onChange={url => setSeoForm(p => ({ ...p, ogImage: url }))}
+                bucket="listing-media"
+                folder="countries/og"
+                hint="Recommended: 1200×630px"
+                palette={C}
+                previewHeight={120}
+              />
               {showOgStock && (
                 <div style={{ marginTop: 8 }}>
                   <ImageSearchPanel C={C} defaultQuery={`luxury wedding ${activeItem.name.toLowerCase()}`}
@@ -3936,7 +4841,6 @@ function CountriesModule({ C }) {
                     onSelect={(img) => { setSeoForm(p => ({ ...p, ogImage: img.url })); setShowOgStock(false); }} />
                 </div>
               )}
-              <div style={hintStyle}>Recommended: 1200×630px</div>
             </div>
             {/* Custom Meta */}
             <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20, marginTop: 24 }}>
@@ -4033,10 +4937,32 @@ function CountriesModule({ C }) {
                   rows={2} style={{ ...inputStyle, minHeight: 52 }} />
               </div>
             </div>
-            {/* WYSIWYG */}
+            {/* HTML Source Editor */}
             <div style={{ marginBottom: 24 }}>
               <LwdEditor C={C} value={seoForm.pageContent} onChange={v => setSeoForm(p => ({ ...p, pageContent: v }))}
-                label="Content" placeholder={`<h2>Discover ${activeItem.name}</h2>\n<p>From intimate settings to grand celebrations...</p>`} />
+                label="HTML Source" placeholder={`<h2>Discover ${activeItem.name}</h2>\n<p>From intimate settings to grand celebrations...</p>`} />
+            </div>
+            {/* Body Text — Full TipTap WYSIWYG */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", color: C.gold, fontWeight: 700 }}>Body Text</span>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button {...aiBtn(() => setSeoForm(p => ({ ...p, bodyHtml: `<h2>Luxury Weddings in ${activeItem.name}</h2><p>${activeItem.name} is one of the world's most coveted wedding destinations, offering couples an unparalleled blend of history, beauty, and sophistication. From intimate ceremonies in centuries-old chapels to grand celebrations in palatial estates, ${activeItem.name} provides a breathtaking canvas for every style of luxury wedding.</p><h3>Why Choose ${activeItem.name}?</h3><p>With its rich cultural heritage, world-class cuisine, and stunning natural landscapes, ${activeItem.name} has long captivated couples seeking an extraordinary setting for their special day. The Luxury Wedding Directory's curated selection ensures every vendor and venue meets the highest standards of excellence.</p>` })))}>✦ AI Generate</button>
+                </div>
+              </div>
+              <div style={{ border: `1px solid ${C.border}`, borderRadius: 4, overflow: "hidden" }}>
+                <RichTextEditor
+                  content={seoForm.bodyHtml || ''}
+                  onChange={v => setSeoForm(p => ({ ...p, bodyHtml: v }))}
+                  placeholder={`Write rich body content for ${activeItem.name}...`}
+                  C={C}
+                  darkMode={true}
+                />
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+                <span style={hintStyle}>Full WYSIWYG editor — headings, bold, italic, links, lists, alignment</span>
+                <span style={hintStyle}>{(seoForm.bodyHtml || '').length} chars</span>
+              </div>
             </div>
             {/* Route reference */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: `${C.gold}06`, borderRadius: 3 }}>
@@ -4045,7 +4971,7 @@ function CountriesModule({ C }) {
                 {activeItem.schema && <> · Schema: <span style={{ color: C.gold }}>{activeItem.schema}</span></>}
                 {" · Indexed by Aura AI"}
               </span>
-              <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2 }}>{seoForm.pageContent.length} chars</span>
+              <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2 }}>{(seoForm.pageContent.length + (seoForm.bodyHtml || '').length)} chars</span>
             </div>
           </div>
         )}
@@ -5962,6 +6888,15 @@ function autoEvergreenContent(locationType, countrySlug, regionSlug, citySlug) {
   return '';
 }
 
+// Convert plain text (with \n\n paragraph breaks) to HTML <p> tags for TipTap
+function textToHtml(text) {
+  if (!text) return '';
+  // Already HTML — return as-is
+  if (/<[a-z][\s\S]*>/i.test(text)) return text;
+  // Split on double newlines for paragraphs
+  return text.split(/\n\n+/).filter(Boolean).map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
+}
+
 // Auto-generate location-aware FAQs
 function autoSeoFaqs(locationType, countrySlug, regionSlug, citySlug) {
   const loc = locationType === 'country'
@@ -6206,7 +7141,7 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
           infoVibes:            Array.isArray(data.metadata?.infoVibes) ? data.metadata.infoVibes.join(', ') : '',
           infoServices:         Array.isArray(data.metadata?.infoServices) ? data.metadata.infoServices.join(', ') : '',
           infoRegions:          Array.isArray(data.metadata?.infoRegions) ? data.metadata.infoRegions.join(', ') : autoInfoRegions(locationType, countrySlug, regionSlug),
-          seoContent:           data.metadata?.seoContent || autoEvergreenContent(locationType, countrySlug, regionSlug, citySlug),
+          seoContent:           textToHtml(data.metadata?.seoContent || autoEvergreenContent(locationType, countrySlug, regionSlug, citySlug)),
           seoFaqs:              Array.isArray(data.metadata?.seoFaqs) && data.metadata.seoFaqs.length > 0 ? data.metadata.seoFaqs : autoSeoFaqs(locationType, countrySlug, regionSlug, citySlug),
           editorialPara1:       data.metadata?.editorialPara1 || '',
           editorialPara2:       data.metadata?.editorialPara2 || '',
@@ -6264,7 +7199,7 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
         });
         setPublished(!!data.published);
       } else {
-        setForm(prev => ({ ...prev, heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '', heroImages: [], ctaText: 'Explore Venues', ctaLink: '#', featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Top Wedding Planners', featuredVenueIds: [], featuredVendorIds: [], mapLat: '', mapLng: '', mapZoom: '8', infoVibes: '', infoServices: '', infoRegions: autoInfoRegions(locationType, countrySlug, regionSlug), seoContent: autoEvergreenContent(locationType, countrySlug, regionSlug, citySlug), seoFaqs: autoSeoFaqs(locationType, countrySlug, regionSlug, citySlug), editorialPara1: '', editorialPara2: '', editorialBlock1Icon: '🏰', editorialBlock1Text: '', editorialBlock2Icon: '🌿', editorialBlock2Text: '', editorialBlock3Icon: '🌅', editorialBlock3Text: '', editorialBlock4Icon: '✨', editorialBlock4Text: '', editorialVenueMode: 'latest', showEditorialSplit: true, showLatestVenues: true, showLatestVendors: true, showPlanningGuide: true, showMotto: true, motto: '', mottoSubline: '', mottoBgImage: '', mottoOverlay: '0.55', editorialEyebrow: '', editorialHeadingPrefix: '', editorialCtaText: '', seoHeading: '', latestVenuesHeading: '', latestVenuesSub: '', latestVenuesCount: '12', latestVenuesMode: 'latest', latestVenuesCardStyle: 'luxury', latestVenuesSelected: [], latestVendorsHeading: '', latestVendorsSub: '', latestVendorsCount: '12', latestVendorsMode: 'latest', latestVendorsCardStyle: 'luxury', latestVendorsSelected: [], seoTitle: '', seoDescription: '', seoKeywords: '', seoCanonicalUrl: '', seoRobotsIndex: true, seoRobotsFollow: true, ogTitle: '', ogDescription: '', ogImage: '', twitterTitle: '', twitterDescription: '', twitterImage: '', schemaType: 'Place', schemaJson: '', seoPrimaryKeyword: '', seoSecondaryKeywords: '' }));
+        setForm(prev => ({ ...prev, heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '', heroImages: [], ctaText: 'Explore Venues', ctaLink: '#', featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Top Wedding Planners', featuredVenueIds: [], featuredVendorIds: [], mapLat: '', mapLng: '', mapZoom: '8', infoVibes: '', infoServices: '', infoRegions: autoInfoRegions(locationType, countrySlug, regionSlug), seoContent: textToHtml(autoEvergreenContent(locationType, countrySlug, regionSlug, citySlug)), seoFaqs: autoSeoFaqs(locationType, countrySlug, regionSlug, citySlug), editorialPara1: '', editorialPara2: '', editorialBlock1Icon: '🏰', editorialBlock1Text: '', editorialBlock2Icon: '🌿', editorialBlock2Text: '', editorialBlock3Icon: '🌅', editorialBlock3Text: '', editorialBlock4Icon: '✨', editorialBlock4Text: '', editorialVenueMode: 'latest', showEditorialSplit: true, showLatestVenues: true, showLatestVendors: true, showPlanningGuide: true, showMotto: true, motto: '', mottoSubline: '', mottoBgImage: '', mottoOverlay: '0.55', editorialEyebrow: '', editorialHeadingPrefix: '', editorialCtaText: '', seoHeading: '', latestVenuesHeading: '', latestVenuesSub: '', latestVenuesCount: '12', latestVenuesMode: 'latest', latestVenuesCardStyle: 'luxury', latestVenuesSelected: [], latestVendorsHeading: '', latestVendorsSub: '', latestVendorsCount: '12', latestVendorsMode: 'latest', latestVendorsCardStyle: 'luxury', latestVendorsSelected: [], seoTitle: '', seoDescription: '', seoKeywords: '', seoCanonicalUrl: '', seoRobotsIndex: true, seoRobotsFollow: true, ogTitle: '', ogDescription: '', ogImage: '', twitterTitle: '', twitterDescription: '', twitterImage: '', schemaType: 'Place', schemaJson: '', seoPrimaryKeyword: '', seoSecondaryKeywords: '' }));
         setPublished(false);
       }
       setDirty(false);
@@ -6870,13 +7805,15 @@ No explanation. Only the JSON.`,
               </div>
               <div style={{ marginBottom: 16 }}>
                 {lbl('Body Text')}
-                <textarea
-                  value={form.seoContent || ''}
-                  onChange={e => set('seoContent', e.target.value)}
-                  placeholder="Editorial body text — up to 3 paragraphs separated by blank lines"
-                  rows={6}
-                  style={{ fontFamily: NU, fontSize: 13, padding: '10px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', lineHeight: 1.6 }}
-                />
+                <div style={{ border: `1px solid ${LS.border}`, borderRadius: 6, overflow: 'hidden' }}>
+                  <RichTextEditor
+                    content={form.seoContent || ''}
+                    onChange={v => set('seoContent', v)}
+                    placeholder={`Write editorial body content for ${locationName || 'this location'}...`}
+                    C={C}
+                    darkMode={darkMode}
+                  />
+                </div>
                 {fieldAi('seoContent', 'planning guide', generatePlanningGuide, [buildContentCtx(), contentAiTone], { seo: true })}
               </div>
               <div style={{ marginBottom: 10, display: 'flex', gap: 4 }}>
@@ -7731,19 +8668,17 @@ No explanation. Only the JSON.`,
                       rows={3} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', boxSizing: 'border-box' }} />
                   </div>
                   <div>
-                    {lbl('OG Image URL')}
-                    {inp('ogImage', 'https://...')}
-                    <div style={{ fontFamily: NU, fontSize: 10, color: LS.muted, marginTop: 3 }}>Recommended: 1200x630px. Falls back to hero image if empty.</div>
+                    <ImageUploadField
+                      label="OG Image"
+                      value={form.ogImage || ''}
+                      onChange={url => set('ogImage', url)}
+                      bucket="listing-media"
+                      folder="locations/og"
+                      hint="Recommended: 1200×630px. Falls back to hero image if empty."
+                      palette={LS}
+                      previewHeight={140}
+                    />
                   </div>
-                  {form.ogImage && (
-                    <div style={{ marginTop: 4 }}>
-                      {lbl('OG Image Preview')}
-                      <div style={{ border: `1px solid ${LS.border}`, borderRadius: 8, overflow: 'hidden', maxWidth: 400 }}>
-                        <img src={form.ogImage} alt="OG Preview" style={{ width: '100%', height: 210, objectFit: 'cover', display: 'block' }}
-                          onError={e => { e.target.style.display = 'none'; }} />
-                      </div>
-                    </div>
-                  )}
 
                   {/* Social share preview */}
                   <div style={{ marginTop: 8 }}>
@@ -7804,9 +8739,16 @@ No explanation. Only the JSON.`,
                       rows={3} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', boxSizing: 'border-box' }} />
                   </div>
                   <div>
-                    {lbl('Twitter Image URL')}
-                    {inp('twitterImage', form.ogImage || 'Inherits from OG Image')}
-                    <div style={{ fontFamily: NU, fontSize: 10, color: LS.muted, marginTop: 3 }}>Recommended: 1200x628px for summary_large_image card</div>
+                    <ImageUploadField
+                      label="Twitter Image"
+                      value={form.twitterImage || ''}
+                      onChange={url => set('twitterImage', url)}
+                      bucket="listing-media"
+                      folder="locations/twitter"
+                      hint="Recommended: 1200×628px. Leave blank to inherit OG Image."
+                      palette={LS}
+                      previewHeight={100}
+                    />
                   </div>
                 </div>
                 );
@@ -8024,7 +8966,7 @@ function CityStudio({ C, darkMode = true, onBuilderModeChange }) {
           editorialHeadingPrefix: data.metadata?.editorialHeadingPrefix || '',
           editorialCtaText: data.metadata?.editorialCtaText || '',
           seoHeading: data.metadata?.seoHeading || '',
-          seoContent: data.metadata?.seoContent || '',
+          seoContent: textToHtml(data.metadata?.seoContent || ''),
           seoFaqs: Array.isArray(data.metadata?.seoFaqs) && data.metadata.seoFaqs.length > 0 ? data.metadata.seoFaqs : [],
           latestVenuesHeading: data.metadata?.latestVenuesHeading || '',
           latestVenuesSub: data.metadata?.latestVenuesSub || '',
@@ -8509,7 +9451,18 @@ No explanation. Only the JSON.`,
               {form.showPlanningGuide && (
                 <>
                   <div style={{ marginBottom: 12 }}>{lbl('Section Title')}{inp('seoHeading', `Planning Your ${cityName} Wedding`)}</div>
-                  <div style={{ marginBottom: 12 }}>{lbl('Body Text')}{inp('seoContent', '', true)}</div>
+                  <div style={{ marginBottom: 12 }}>
+                    {lbl('Body Text')}
+                    <div style={{ border: `1px solid ${LS.border}`, borderRadius: 6, overflow: 'hidden' }}>
+                      <RichTextEditor
+                        content={form.seoContent || ''}
+                        onChange={v => set('seoContent', v)}
+                        placeholder={`Write editorial body content for ${cityName || 'this city'}...`}
+                        C={C}
+                        darkMode={darkMode}
+                      />
+                    </div>
+                  </div>
                 </>
               )}
             </div>
@@ -10629,6 +11582,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
   const [eventsBuilderActive, setEventsBuilderActive] = useState(false);
   const [locationStudioActive, setLocationStudioActive] = useState(false);
   const [cityStudioActive, setCityStudioActive] = useState(false);
+  const [categoryStudioActive, setCategoryStudioActive] = useState(false);
   const [activeShowcaseId, setActiveShowcaseId] = useState(() => {
     const h = window.location.hash.slice(1);
     if (h.startsWith('showcase-studio/')) {
@@ -10688,6 +11642,9 @@ export default function AdminDashboard({ onBack, onNavigate }) {
     } else if (intent.type === 'cms-page' && intent.pageKey) {
       try { sessionStorage.setItem('lwd_cms_edit_pagekey', intent.pageKey); } catch {}
       setActiveTab('site-content');
+    } else if (intent.type === 'location' && intent.slug) {
+      try { sessionStorage.setItem('lwd_admin_open_country', intent.slug); } catch {}
+      setActiveTab('countries');
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -11176,6 +12133,8 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "venue-intake":   return <VenueIntakeStudio C={C} />;
       case "vendor-accounts": return <VendorAccountsPage C={C} />;
       case "categories":    return <CategoriesModule C={C} />;
+      case "category-grid": return <CategoryGridAdmin C={C} />;
+      case "category-studio": return <CategoriesStudioModule key="category-studio" C={C} darkMode={darkMode} onBuilderModeChange={setCategoryStudioActive} />;
       case "enquiries":     return <AdminAllLeads C={C} />;
       case "countries":     return <CountriesModule C={C} />;
       case "regions":       return <RegionsModule C={C} />;
@@ -11244,7 +12203,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         @media (max-width: 768px) {
           .admin-sidebar { display: flex !important; position: fixed !important; z-index: 999; left: 0; top: 0; width: 220px !important; height: 100vh !important; transform: translateX(${sidebarOpen ? "0" : "-100%"}); transition: transform 0.3s ease !important; box-shadow: ${sidebarOpen ? "6px 0 32px rgba(0,0,0,0.7)" : "none"}; border-right: ${sidebarOpen ? "1px solid rgba(201,168,76,0.25)" : "none"} !important; }
           .admin-sidebar-overlay { display: ${sidebarOpen ? "block" : "none"}; position: fixed; inset: 0; z-index: 998; background: rgba(0,0,0,0.5); }
-          .admin-main { padding: ${activeTab === 'magazine-studio' || activeTab === 'page-editor' || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || listingStudioMode || eventsBuilderActive || locationStudioActive || cityStudioActive ? '0' : '56px 16px 20px'} !important; }
+          .admin-main { padding: ${activeTab === 'magazine-studio' || activeTab === 'page-editor' || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || listingStudioMode || eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive ? '0' : '56px 16px 20px'} !important; }
           .admin-hamburger { display: flex !important; }
           .admin-collapse-btn { display: none !important; }
           .admin-grid-2col { grid-template-columns: 1fr !important; }
@@ -11462,7 +12421,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         </aside>
 
         {/* ── Main content ── */}
-        <main className="admin-main" style={{ flex: 1, minHeight: 0, padding: listingStudioMode || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || eventsBuilderActive || locationStudioActive || cityStudioActive ? 0 : "40px 48px", overflow: activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || eventsBuilderActive || locationStudioActive || cityStudioActive || activeTab === 'event-studio' ? "hidden" : "auto", display: eventsBuilderActive || locationStudioActive || cityStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'showcase-studio' || activeTab === 'site-content' ? "flex" : undefined, flexDirection: eventsBuilderActive || locationStudioActive || cityStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'showcase-studio' || activeTab === 'site-content' ? "column" : undefined, transition: "background 0.3s" }}>
+        <main className="admin-main" style={{ flex: 1, minHeight: 0, padding: listingStudioMode || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive ? 0 : "40px 48px", overflow: activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' ? "hidden" : "auto", display: eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' ? "flex" : undefined, flexDirection: eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' ? "column" : undefined, transition: "background 0.3s" }}>
           {/* Magazine Studio, full-screen inside admin layout */}
           {activeTab === 'magazine-studio' ? (
             <MagazineStudio
@@ -11499,7 +12458,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
             </Suspense>
           ) : (
             <>
-              {!['page-editor', 'listing-studio', 'event-studio', 'magazine-studio', 'venue-intake', 'showcase-studio', 'locations', 'cities'].includes(activeTab) && !listingStudioMode && !eventsBuilderActive && !locationStudioActive && !cityStudioActive && (
+              {!['page-editor', 'listing-studio', 'event-studio', 'magazine-studio', 'venue-intake', 'showcase-studio', 'locations', 'cities', 'category-studio'].includes(activeTab) && !listingStudioMode && !eventsBuilderActive && !locationStudioActive && !cityStudioActive && !categoryStudioActive && (
                 <div style={{ marginBottom: 36 }}>
                   <h1 style={{
                     fontFamily: GD, fontSize: 24, fontWeight: 400,

@@ -14,6 +14,7 @@ import DestinationGrid from "../components/sections/DestinationGrid";
 import VenueGrid from "../components/sections/VenueGrid";
 import VendorPreview from "../components/sections/VendorPreview";
 import CategorySlider from "../components/sections/CategorySlider";
+import CategoryGrid from "../components/sections/CategoryGrid";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import NewsletterBand from "../components/sections/NewsletterBand";
 import MagazineEditorial from "../components/sections/MagazineEditorial";
@@ -66,7 +67,7 @@ function listingToCard(listing) {
   };
 }
 
-export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, onViewRegionCategory, onViewStandard, onViewAbout, onViewContact, onViewPartnership, onViewVendor, onViewAdmin, onViewUSA, onViewItaly, onViewMagazine, onViewMagazineArticle, footerNav }) {
+export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, onViewRegionCategory, onViewStandard, onViewAbout, onViewContact, onViewPartnership, onViewVendor, onViewAdmin, onViewUSA, onViewItaly, onViewCountry, onViewMagazine, onViewMagazineArticle, footerNav }) {
   const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
   const [enquiryVendor, setEnquiryVendor] = useState(null);
   const [heroBackgroundData, setHeroBackgroundData] = useState(null);
@@ -135,7 +136,7 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
           {/* VenueGrid: live DB data, falls back to static if DB empty */}
           <VenueGrid venues={displayVenues} onViewVenue={(v) => onViewVenue?.(v)} />
           <FeaturedSlider venues={FEATURED_VENUES} />
-          <CategorySlider />
+          <CategoryGrid />
           {/* VendorPreview: live DB vendors when available; internal fallback to GLOBAL_VENDORS */}
           <VendorPreview
             dbVendors={displayVendors}
@@ -149,7 +150,7 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
             onViewMagazineArticle={onViewMagazineArticle}
           />
           <NewsletterBand />
-          <DirectoryBrands onViewRegion={(countrySlug, regionSlug) => onViewRegion?.(countrySlug, regionSlug)} onViewCategory={onViewCategory} onViewUSA={onViewUSA} onViewItaly={onViewItaly} />
+          <DirectoryBrands onViewRegion={(countrySlug, regionSlug) => onViewRegion?.(countrySlug, regionSlug)} onViewCategory={onViewCategory} onViewUSA={onViewUSA} onViewItaly={onViewItaly} onViewCountry={onViewCountry} />
         </main>
 
         {/* Enquiry modal */}

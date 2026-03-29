@@ -232,12 +232,13 @@ Write a planning guide section for couples considering a luxury wedding in ${ctx
 This appears as the main body content on the location page.
 
 Rules:
-- 3-5 paragraphs, well-structured
-- Cover: why this destination, what to expect, venue types, best seasons, practical considerations
+- Exactly 2 paragraphs, no more
+- First paragraph: why this destination — set the scene, what makes it special for weddings
+- Second paragraph: practical value — venue types, best seasons, what couples can expect
 - Write in second person ("you", "your wedding")
 - Naturally include keywords like "${ctx.locationName} wedding venues", "luxury wedding ${ctx.locationName}"
-- Each paragraph should flow naturally into the next
-- Do not use headers or bullet points — write flowing prose
+- Each paragraph should be 3-4 sentences, flowing prose
+- Do not use headers or bullet points
 
 Return ONLY the guide text, nothing else.`;
 

@@ -488,6 +488,7 @@ function App() {
   const goPartnerEnquiry = () => setPage("partner-enquiry");
   const goUSA         = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("usa"); };
   const goItaly       = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("italy"); };
+  const goCountry     = (slug) => { setActiveLocationType("country"); setActiveLocationSlug(slug); setActiveCountrySlug(slug); setActiveRegionSlug(null); setActiveCategorySlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("location"); };
   const goAdmin       = () => setPage("admin");
   const goVendor              = () => setPage("vendor");
   const goPortal              = () => setPage("portal");
@@ -897,7 +898,7 @@ function App() {
           <PartnerEnquiryPage footerNav={footerNav} onBack={goHome} onNavigateStandard={goStandard} onNavigateAbout={goAbout} />
         )}
         {page === "home" && (
-          <HomePage onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} onViewStandard={goStandard} onViewAbout={goAbout} onViewContact={goContact} onViewPartnership={goPartnership} onViewVendor={goVendor} onViewAdmin={goAdmin} onViewUSA={goUSA} onViewItaly={goItaly} onViewMagazine={goMagazine} onViewMagazineArticle={goMagazineArticle} footerNav={footerNav} />
+          <HomePage onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} onViewStandard={goStandard} onViewAbout={goAbout} onViewContact={goContact} onViewPartnership={goPartnership} onViewVendor={goVendor} onViewAdmin={goAdmin} onViewUSA={goUSA} onViewItaly={goItaly} onViewCountry={goCountry} onViewMagazine={goMagazine} onViewMagazineArticle={goMagazineArticle} footerNav={footerNav} />
         )}
         {page === "not-found" && (
           <NotFoundPage onNavigateHome={goHome} onNavigateCategory={goCategory} />

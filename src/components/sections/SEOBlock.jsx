@@ -66,6 +66,16 @@ export default function SEOBlock({ title, seoHeading, content, regionNames = [],
 
             {(() => {
               const paraStyle = { fontSize: 14, color: C.grey, lineHeight: 1.85, fontFamily: "var(--font-body)", fontWeight: 300, marginBottom: 18 };
+              const isHtml = content && /<[a-z][\s\S]*>/i.test(content);
+              if (isHtml) {
+                return (
+                  <div
+                    style={{ ...paraStyle, marginBottom: 36 }}
+                    dangerouslySetInnerHTML={{ __html: content }}
+                    className="lwd-seo-prose"
+                  />
+                );
+              }
               const paras = content
                 ? content.split(/\n+/).map(s => s.trim()).filter(Boolean).slice(0, 3)
                 : [`Our editorial team has personally visited every venue in this collection. We negotiate on your behalf with venue owners, recommend the finest local suppliers, and provide the guidance needed to plan your wedding in ${locationName} with confidence.`];

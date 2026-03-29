@@ -76,22 +76,83 @@ const USA_COLUMN_DEFS = [
   },
 ];
 
-// ── International destinations (display only, hover, no navigation yet) ────
+// ── International destinations ─────────────────────────────────────────────
+// Each entry: { name, slug, enabled }
+// enabled = true → clickable link to /{slug} country page
+// enabled = false → displayed but not clickable (coming soon)
 const INTL_DESTINATIONS = [
-  "Antigua", "Argentina", "Australia", "Austria", "Bahamas", "Bali",
-  "Barbados", "Belgium", "Bermuda", "Brazil", "Canada", "Caribbean",
-  "Colombia", "Costa Rica", "Croatia", "Cyprus", "Czech Republic",
-  "Denmark", "Dominican Republic", "Dubai", "Egypt", "Fiji",
-  "Finland", "France", "Germany", "Greece", "Grenada",
-  "Hawaii", "Hungary", "Iceland", "India", "Indonesia",
-  "Ireland", "Israel", "Italy", "Jamaica", "Japan",
-  "Kenya", "Maldives", "Malta", "Mauritius", "Mexico",
-  "Monaco", "Montenegro", "Morocco", "Netherlands", "New Zealand",
-  "Norway", "Peru", "Philippines", "Poland", "Portugal",
-  "Puerto Rico", "Saint Lucia", "Santorini", "Scotland", "Seychelles",
-  "Singapore", "South Africa", "Spain", "Sri Lanka", "Sweden",
-  "Switzerland", "Tanzania", "Thailand", "Turkey", "Turks & Caicos",
-  "USA", "Vietnam", "Wales",
+  { name: "Antigua", slug: "antigua", enabled: false },
+  { name: "Argentina", slug: "argentina", enabled: false },
+  { name: "Australia", slug: "australia", enabled: false },
+  { name: "Austria", slug: "austria", enabled: false },
+  { name: "Bahamas", slug: "bahamas", enabled: false },
+  { name: "Bali", slug: "bali", enabled: false },
+  { name: "Barbados", slug: "barbados", enabled: false },
+  { name: "Belgium", slug: "belgium", enabled: false },
+  { name: "Bermuda", slug: "bermuda", enabled: false },
+  { name: "Brazil", slug: "brazil", enabled: false },
+  { name: "Cambodia", slug: "cambodia", enabled: true },
+  { name: "Canada", slug: "canada", enabled: false },
+  { name: "Caribbean", slug: "caribbean", enabled: false },
+  { name: "Colombia", slug: "colombia", enabled: false },
+  { name: "Costa Rica", slug: "costa-rica", enabled: false },
+  { name: "Croatia", slug: "croatia", enabled: false },
+  { name: "Cyprus", slug: "cyprus", enabled: false },
+  { name: "Czech Republic", slug: "czech-republic", enabled: false },
+  { name: "Denmark", slug: "denmark", enabled: false },
+  { name: "Dominican Republic", slug: "dominican-republic", enabled: false },
+  { name: "Dubai", slug: "dubai", enabled: false },
+  { name: "Egypt", slug: "egypt", enabled: false },
+  { name: "England", slug: "england", enabled: true },
+  { name: "Fiji", slug: "fiji", enabled: false },
+  { name: "Finland", slug: "finland", enabled: false },
+  { name: "France", slug: "france", enabled: true },
+  { name: "Germany", slug: "germany", enabled: false },
+  { name: "Greece", slug: "greece", enabled: false },
+  { name: "Grenada", slug: "grenada", enabled: false },
+  { name: "Hawaii", slug: "hawaii", enabled: false },
+  { name: "Hungary", slug: "hungary", enabled: false },
+  { name: "Iceland", slug: "iceland", enabled: false },
+  { name: "India", slug: "india", enabled: false },
+  { name: "Indonesia", slug: "indonesia", enabled: false },
+  { name: "Ireland", slug: "ireland", enabled: true },
+  { name: "Israel", slug: "israel", enabled: false },
+  { name: "Italy", slug: "italy", enabled: true },
+  { name: "Jamaica", slug: "jamaica", enabled: false },
+  { name: "Japan", slug: "japan", enabled: false },
+  { name: "Kenya", slug: "kenya", enabled: false },
+  { name: "Maldives", slug: "maldives", enabled: false },
+  { name: "Malta", slug: "malta", enabled: false },
+  { name: "Mauritius", slug: "mauritius", enabled: false },
+  { name: "Mexico", slug: "mexico", enabled: false },
+  { name: "Monaco", slug: "monaco", enabled: false },
+  { name: "Montenegro", slug: "montenegro", enabled: false },
+  { name: "Morocco", slug: "morocco", enabled: false },
+  { name: "Netherlands", slug: "netherlands", enabled: false },
+  { name: "New Zealand", slug: "new-zealand", enabled: false },
+  { name: "Norway", slug: "norway", enabled: false },
+  { name: "Peru", slug: "peru", enabled: false },
+  { name: "Philippines", slug: "philippines", enabled: false },
+  { name: "Poland", slug: "poland", enabled: false },
+  { name: "Portugal", slug: "portugal", enabled: false },
+  { name: "Puerto Rico", slug: "puerto-rico", enabled: false },
+  { name: "Saint Lucia", slug: "saint-lucia", enabled: false },
+  { name: "Santorini", slug: "santorini", enabled: false },
+  { name: "Scotland", slug: "scotland", enabled: false },
+  { name: "Seychelles", slug: "seychelles", enabled: false },
+  { name: "Singapore", slug: "singapore", enabled: false },
+  { name: "South Africa", slug: "south-africa", enabled: false },
+  { name: "Spain", slug: "spain", enabled: false },
+  { name: "Sri Lanka", slug: "sri-lanka", enabled: false },
+  { name: "Sweden", slug: "sweden", enabled: false },
+  { name: "Switzerland", slug: "switzerland", enabled: false },
+  { name: "Tanzania", slug: "tanzania", enabled: false },
+  { name: "Thailand", slug: "thailand", enabled: false },
+  { name: "Turkey", slug: "turkey", enabled: false },
+  { name: "Turks & Caicos", slug: "turks-and-caicos", enabled: false },
+  { name: "USA", slug: "usa", enabled: true },
+  { name: "Vietnam", slug: "vietnam", enabled: false },
+  { name: "Wales", slug: "wales", enabled: false },
 ];
 
 // ── Split array into N columns ──────────────────────────────────────────────
@@ -100,7 +161,7 @@ function toColumns(arr, n) {
   return Array.from({ length: n }, (_, i) => arr.slice(i * size, (i + 1) * size));
 }
 
-export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUSA, onViewItaly, showInternational = true, showUK = true, showItaly = false, showUSA = false }) {
+export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUSA, onViewItaly, onViewCountry, showInternational = true, showUK = true, showItaly = false, showUSA = false }) {
   const C = useTheme();
   const cols = toColumns(INTL_DESTINATIONS, 4);
 
@@ -423,31 +484,40 @@ export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUS
             >
               {cols.map((col, ci) => (
                 <ul key={ci} style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                  {col.map((country) => (
-                    <li key={country}>
-                      <button
-                        onClick={() => country === "USA" && onViewUSA ? onViewUSA() : country === "Italy" && onViewItaly ? onViewItaly() : onViewCategory?.({ searchQuery: country })}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          fontFamily: NU,
-                          fontSize: 13,
-                          fontWeight: 400,
-                          color: C.grey,
-                          padding: "5px 0",
-                          display: "block",
-                          width: "100%",
-                          textAlign: "left",
-                          transition: "color 0.2s",
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = C.gold)}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = C.grey)}
-                      >
-                        {country}
-                      </button>
-                    </li>
-                  ))}
+                  {col.map((item) => {
+                    const handleClick = () => {
+                      if (!item.enabled) return;
+                      if (onViewCountry) return onViewCountry(item.slug);
+                      if (item.slug === "usa" && onViewUSA) return onViewUSA();
+                      if (item.slug === "italy" && onViewItaly) return onViewItaly();
+                      onViewCategory?.({ searchQuery: item.name });
+                    };
+                    return (
+                      <li key={item.name}>
+                        <button
+                          onClick={handleClick}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: item.enabled ? "pointer" : "default",
+                            fontFamily: NU,
+                            fontSize: 13,
+                            fontWeight: 400,
+                            color: item.enabled ? C.grey : C.muted || "rgba(128,128,128,0.45)",
+                            padding: "5px 0",
+                            display: "block",
+                            width: "100%",
+                            textAlign: "left",
+                            transition: "color 0.2s",
+                          }}
+                          onMouseEnter={(e) => { if (item.enabled) e.currentTarget.style.color = C.gold; }}
+                          onMouseLeave={(e) => { if (item.enabled) e.currentTarget.style.color = C.grey; }}
+                        >
+                          {item.name}
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               ))}
             </div>

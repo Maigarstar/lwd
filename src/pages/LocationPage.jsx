@@ -945,9 +945,14 @@ export default function LocationPage({
                 </span>
                 <div style={{ width: 28, height: 1, background: C.gold }} />
               </div>
-              <p style={{ fontFamily: NU, fontSize: 15, color: C.grey, lineHeight: 1.9, fontWeight: 300 }}>
-                {(_locationContent?.aboutContent || _locationContent?.seoContent || currentLocation?.evergreenContent || "").replace(/<[^>]*>/g, "")}
-              </p>
+              {(() => {
+                const raw = _locationContent?.aboutContent || _locationContent?.seoContent || currentLocation?.evergreenContent || "";
+                const proseStyle = { fontFamily: NU, fontSize: 15, color: C.grey, lineHeight: 1.9, fontWeight: 300 };
+                if (/<[a-z][\s\S]*>/i.test(raw)) {
+                  return <div style={proseStyle} dangerouslySetInnerHTML={{ __html: raw }} />;
+                }
+                return <p style={proseStyle}>{raw}</p>;
+              })()}
             </div>
           </section>
         )}

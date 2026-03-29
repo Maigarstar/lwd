@@ -108,6 +108,8 @@ export default function RichTextEditor({
     );
   }
 
+  const isInternalUpdate = useRef(false);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -122,12 +124,13 @@ export default function RichTextEditor({
       }),
       Underline,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      Typography,
+      Typography.configure({ emDash: false }),
       Placeholder.configure({ placeholder }),
     ],
     content,
     editable: !readOnly,
     onUpdate: ({ editor }) => {
+      isInternalUpdate.current = true;
       onChange?.(editor.getHTML());
     },
     onSelectionUpdate: ({ editor }) => {
@@ -141,14 +144,17 @@ export default function RichTextEditor({
     },
   });
 
-  // Update content if it changes externally (e.g., version restore)
+  // Update content only from external changes (e.g., AI generate, version restore)
+  // Skip updates that came from the user typing in the editor
   const prevContent = useRef(content);
   useEffect(() => {
+    if (isInternalUpdate.current) {
+      isInternalUpdate.current = false;
+      prevContent.current = content;
+      return;
+    }
     if (editor && content !== prevContent.current) {
-      const current = editor.getHTML();
-      if (current !== content) {
-        editor.commands.setContent(content, false);
-      }
+      editor.commands.setContent(content, false);
       prevContent.current = content;
     }
   }, [editor, content]);
@@ -249,12 +255,6 @@ export default function RichTextEditor({
             active={editor.isActive('link')}
             onClick={setLink}
           >↗</TBtn>
-
-          {/* Horizontal rule */}
-          <TBtn
-            title="Horizontal divider"
-            onClick={() => editor.chain().focus().setHorizontalRule().run()}
-          >—</TBtn>
 
           <TDiv />
 
