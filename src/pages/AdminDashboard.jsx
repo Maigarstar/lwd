@@ -3669,6 +3669,14 @@ function CategoriesStudioModule({ C, darkMode = true, onBuilderModeChange }) {
           heroSubtitle:         data.hero_subtitle || '',
           heroImage:            data.hero_image || '',
           heroVideo:            data.hero_video || '',
+          eyebrow:              data.metadata?.eyebrow || '',
+          stat1Label:           data.metadata?.stat1Label || '',
+          stat1Value:           data.metadata?.stat1Value || '',
+          stat2Label:           data.metadata?.stat2Label || '',
+          stat2Value:           data.metadata?.stat2Value || '',
+          stat3Label:           data.metadata?.stat3Label || '',
+          stat3Value:           data.metadata?.stat3Value || '',
+          categoryGridTitle:    data.metadata?.categoryGridTitle || '',
           ctaText:              data.cta_text || 'Browse Vendors',
           ctaLink:              data.cta_link || '',
           featuredVenuesTitle:  data.featured_venues_title || 'Signature Venues',
@@ -3724,6 +3732,7 @@ function CategoriesStudioModule({ C, darkMode = true, onBuilderModeChange }) {
         setForm(prev => ({
           ...prev,
           heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '',
+          eyebrow: '', stat1Label: '', stat1Value: '', stat2Label: '', stat2Value: '', stat3Label: '', stat3Value: '', categoryGridTitle: '',
           ctaText: 'Browse Vendors', ctaLink: '',
           featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Featured Vendors',
           featuredVenueIds: [], featuredVendorIds: [],
@@ -4041,10 +4050,34 @@ function CategoriesStudioModule({ C, darkMode = true, onBuilderModeChange }) {
                 />
               </div>
               <div style={{ marginBottom: 12 }}>{lbl('Hero Video URL (optional)')}{inp('heroVideo', 'https://cdn.example.com/hero.mp4')}</div>
+              <div style={{ marginBottom: 12 }}>{lbl('Eyebrow Text')}{inp('eyebrow', 'e.g. UNITED KINGDOM · ALL REGIONS')}</div>
+
+              {/* Stats Row */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: LS.muted, marginBottom: 10 }}>Stats Row (optional)</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                  <div>{lbl('Stat 1 Label')}{inp('stat1Label', 'e.g. CURATED VENUES')}</div>
+                  <div>{lbl('Stat 1 Value')}{inp('stat1Value', 'e.g. 312')}</div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                  <div>{lbl('Stat 2 Label')}{inp('stat2Label', 'e.g. CITIES')}</div>
+                  <div>{lbl('Stat 2 Value')}{inp('stat2Value', 'e.g. 48')}</div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>{lbl('Stat 3 Label')}{inp('stat3Label', 'e.g. LISTINGS')}</div>
+                  <div>{lbl('Stat 3 Value')}{inp('stat3Value', 'Coming Soon')}</div>
+                </div>
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>{lbl('CTA Button Text')}{inp('ctaText', 'Browse Vendors')}{fieldAi('ctaText', 'CTA text', catGenCtaText, [buildContentCtx()])}</div>
                 <div>{lbl('CTA Button Link')}{inp('ctaLink', '#search')}</div>
               </div>
+            </CatSCard>
+
+            {/* Browse by Category Section */}
+            <CatSCard title="Browse by Category" hint="Section title shown before category buttons" LS={LS}>
+              <div style={{ marginBottom: 12 }}>{lbl('Section Title')}{inp('categoryGridTitle', `e.g. ${categoryName || 'Category'} Vendors`)}</div>
             </CatSCard>
 
             {/* Info Strip */}
