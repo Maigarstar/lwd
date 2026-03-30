@@ -69,7 +69,13 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
             }}
           />
 
-          {v.tag && (
+          {v.featured && (
+            <div style={{ position: "absolute", bottom: 12, left: 12 }}>
+              <GoldBadge text="Editor's Pick" />
+            </div>
+          )}
+
+          {v.tag && !v.featured && (
             <div style={{ position: "absolute", bottom: 12, left: 12 }}>
               <GoldBadge text={v.tag} />
             </div>

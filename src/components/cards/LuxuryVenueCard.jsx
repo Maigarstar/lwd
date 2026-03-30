@@ -236,7 +236,13 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
       />
 
       {/* ── Top badges ── */}
-      {v.tag && (
+      {v.featured && (
+        <div style={{ position: "absolute", top: 12, left: 12, zIndex: 4 }}>
+          <GoldBadge text="Editor's Pick" />
+        </div>
+      )}
+
+      {v.tag && !v.featured && (
         <div style={{ position: "absolute", top: 12, left: 12, zIndex: 4 }}>
           <GoldBadge text={v.tag} />
         </div>

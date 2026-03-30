@@ -19,6 +19,7 @@ import {
 } from "../data/geo.js";
 import { VENUES } from "../data/italyVenues";
 import { VENDORS } from "../data/vendors.js";
+import { getUserCountryFromIP, sortByCountryPriority } from "../services/geoLocationService";
 
 import { DEFAULT_FILTERS } from "../data/italyVenues";
 
@@ -63,6 +64,7 @@ export default function RegionCategoryPage({
   const [savedIds, setSavedIds] = useState([]);
   const [qvItem, setQvItem] = useState(null);
   const [mapOpen, setMapOpen] = useState(false);
+  const [userCountryCode, setUserCountryCode] = useState(null);
   const [activeFilters, setActiveFilters] = useState({
     styles: [],
     prices: [],
@@ -80,6 +82,16 @@ export default function RegionCategoryPage({
   useEffect(() => {
     setChatContext({ country: countrySlug, region: regionSlug, category: categorySlug, page: "region-category" });
   }, [setChatContext, countrySlug, regionSlug, categorySlug]);
+
+  // ── Detect user's country for geo-targeted reordering ──────────────────────
+  useEffect(() => {
+    (async () => {
+      const detectedCountry = await getUserCountryFromIP();
+      if (detectedCountry) {
+        setUserCountryCode(detectedCountry);
+      }
+    })();
+  }, []);
 
   // ── Data lookups ───────────────────────────────────────────────────────────
   const region = useMemo(() => getRegionBySlug(regionSlug), [regionSlug]);
@@ -227,7 +239,16 @@ export default function RegionCategoryPage({
     });
   }, [listings, activeFilters, categorySlug]);
 
-  const listingCount = filteredListings.length;
+  // ── Sort filtered listings by country priority (geo-targeting) ─────────────
+  const sortedFilteredListings = useMemo(() => {
+    if (!userCountryCode) {
+      return filteredListings;
+    }
+    // For wedding-venues, use countrySlug field; for vendors, use countrySlug too
+    return sortByCountryPriority(filteredListings, userCountryCode, "countrySlug");
+  }, [filteredListings, userCountryCode]);
+
+  const listingCount = sortedFilteredListings.length;
 
   // ── Related categories (sibling categories in same region) ────────────────
   const siblingCategories = useMemo(
@@ -598,7 +619,6 @@ export default function RegionCategoryPage({
           </div>
         </section>
 
-
         {/* ════════════════════════════════════════════════════════════════════
             5. LISTINGS
         ════════════════════════════════════════════════════════════════════ */}
@@ -659,6 +679,28 @@ export default function RegionCategoryPage({
             >
               <div style={{ maxWidth: 1280, margin: "0 auto" }}>
 
+              {/* Editor's Selection — top 3 featured venues */}
+              {categorySlug === "wedding-venues" && sortedFilteredListings.filter((v) => v.featured).length > 0 && (
+                <section
+                  style={{
+                    marginBottom: 56,
+                    paddingBottom: 56,
+                    borderBottom: `1px solid ${C.border}`,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
+                    <span style={{ fontFamily: NU, fontSize: 11, letterSpacing: "0.25em", textTransform: "uppercase", color: C.gold, fontWeight: 700 }}>
+                      ★ Editor's Selection
+                    </span>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
+                    {sortedFilteredListings.filter((v) => v.featured).slice(0, 3).map((v) => (
+                      <LuxuryVenueCard key={v.id} v={v} onView={() => onViewVenue(v.id || v.slug)} quickViewItem={qvItem} setQuickViewItem={setQvItem} />
+                    ))}
+                  </div>
+                </section>
+              )}
+
               {categorySlug === "wedding-venues" ? (
                 <div
                   className="lwd-venue-grid"
@@ -669,7 +711,7 @@ export default function RegionCategoryPage({
                   }}
                   aria-label="Venue grid"
                 >
-                  {filteredListings.map((v) => (
+                  {sortedFilteredListings.map((v) => (
                     <LuxuryVenueCard
                       key={v.id}
                       v={v}
@@ -687,7 +729,7 @@ export default function RegionCategoryPage({
                     gap: 24,
                   }}
                 >
-                  {filteredListings.map((item) => (
+                  {sortedFilteredListings.map((item) => (
                     <ListingCard
                       key={item.id}
                       item={item}
