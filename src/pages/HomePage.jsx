@@ -99,10 +99,11 @@ function CategoryShortcutCard({ vc, C, onClick }) {
   const renderIcon = LUXURY_ICONS[vc.slug];
   return (
     <button onClick={onClick} onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      style={{ background: hov ? C.card : C.dark, border: `1px solid ${hov ? C.gold : C.border2}`, borderRadius: "var(--lwd-radius-card)", padding: "28px 20px", textAlign: "center", cursor: "pointer", transition: "all 0.25s", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 0, minHeight: 120 }}>
+      style={{ background: hov ? C.card : C.dark, border: `1px solid ${hov ? C.gold : C.border2}`, borderRadius: "var(--lwd-radius-card)", padding: "28px 20px", textAlign: "center", cursor: "pointer", transition: "all 0.25s", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
       <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 48, height: 48, borderRadius: "50%", background: hov ? (C.goldDim || "rgba(201,168,76,0.08)") : "transparent", border: `1px solid ${hov ? C.gold : (C.border2 || "rgba(255,255,255,0.08)")}`, transition: "all 0.3s ease" }} aria-hidden="true">
         {renderIcon ? renderIcon(iconColor) : <span style={{ fontSize: 22, opacity: 0.6 }}>{vc.icon}</span>}
       </span>
+      <span style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", color: hov ? C.gold : C.off, transition: "color 0.2s" }}>{vc.label}</span>
     </button>
   );
 }
