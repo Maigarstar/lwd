@@ -25,7 +25,6 @@ import { DEFAULT_FILTERS } from "../data/italyVenues";
 
 import SiteFooter from "../components/sections/SiteFooter";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
-import GCard           from "../components/cards/GCard";
 import LuxuryVenueCard from "../components/cards/LuxuryVenueCard";
 import MapSection      from "../components/sections/MapSection";
 import QuickViewModal  from "../components/modals/QuickViewModal";
@@ -848,12 +847,14 @@ export default function RegionCategoryPage({
                           display: "flex",
                           flexDirection: "column",
                           gap: 16,
+                          width: "100%",
+                          minWidth: 0,
                           maxHeight: "calc(100vh - 200px)",
                           overflowY: "auto",
                         }}
                       >
                         {sortedFilteredListings.filter((v) => !v.featured).map((v) => (
-                          <GCard key={v.id} v={v} onView={() => onViewVenue(v.id || v.slug)} />
+                          <LuxuryVenueCard key={v.id} v={v} mode="list" onView={() => onViewVenue(v.id || v.slug)} />
                         ))}
                       </div>
 

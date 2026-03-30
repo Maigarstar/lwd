@@ -174,7 +174,7 @@ function LuxPanel({ label, children }) {
 // ═════════════════════════════════════════════════════════════════════════════
 export default function CountrySearchBar({
   filters, onFiltersChange, viewMode, onViewMode, sortMode, onSortChange, total, regions,
-  onVendorSearch, countryFilter, mapContent,
+  onVendorSearch, countryFilter,
 }) {
   const C = useTheme();
   const dark = C.black === "#080808";
@@ -184,41 +184,6 @@ export default function CountrySearchBar({
   const [openMenu, setOpenMenu] = useState(null);
   const [hov, setHov] = useState(null);
   const barRef = useRef(null);
-
-  // Map slide animation — mount on open, keep mounted during close animation
-  const [mapMounted, setMapMounted] = useState(false);
-  const [mapOpen, setMapOpen] = useState(false);
-  const mapPanelRef = useRef(null);
-
-  useEffect(() => {
-    if (viewMode === "map") {
-      setMapMounted(true);
-      // Delay open state by a frame so the grid transition can animate from 0fr
-      requestAnimationFrame(() => requestAnimationFrame(() => setMapOpen(true)));
-    } else {
-      setMapOpen(false);
-      const timer = setTimeout(() => setMapMounted(false), 420);
-      return () => clearTimeout(timer);
-    }
-  }, [viewMode]);
-
-  // Close map on outside click or Escape
-  useEffect(() => {
-    if (viewMode !== "map") return;
-    const onDown = (e) => {
-      // Ignore clicks inside the map panel or the filter bar itself
-      if (mapPanelRef.current && mapPanelRef.current.contains(e.target)) return;
-      if (barRef.current && barRef.current.contains(e.target)) return;
-      onViewMode?.("grid");
-    };
-    const onKey = (e) => { if (e.key === "Escape") onViewMode?.("grid"); };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [viewMode, onViewMode]);
 
   // Vendor-specific local state
   const [vendorLocation, setVendorLocation] = useState("all");
@@ -548,17 +513,6 @@ export default function CountrySearchBar({
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="2" width="14" height="2.5" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="1" y="6.75" width="14" height="2.5" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="1" y="11.5" width="14" height="2.5" rx="1" stroke="currentColor" strokeWidth="1.2"/></svg>
           </button>
-          <button onClick={() => onViewMode?.(viewMode === "map" ? "grid" : "map")} title="Map view" aria-pressed={viewMode === "map"}
-            style={{
-              display: "flex", alignItems: "center", gap: 4,
-              background: viewMode === "map" ? CL.viewActive : "transparent",
-              border: "1px solid rgba(160,148,125,0.28)", borderLeft: "none", borderRadius: "0 3px 3px 0",
-              color: viewMode === "map" ? "#fff" : CL.text,
-              cursor: "pointer", fontSize: 9, fontWeight: 700, fontFamily: NU,
-              letterSpacing: "1px", textTransform: "uppercase", padding: "0 12px",
-              height: 30, transition: "all 0.25s", whiteSpace: "nowrap",
-            }}
-          ><span style={{ fontSize: 13 }}>{"\u25ce"}</span> Map</button>
         </div>
       </div>
 
@@ -586,25 +540,6 @@ export default function CountrySearchBar({
             {openMenu === "v-category" && renderVendorCategoryPanel()}
             {openMenu === "v-budget"   && renderOptionsPanel("Budget", BUDGETS, vendorBudget, (v) => { setVendorBudget(v); setOpenMenu(null); })}
             {openMenu === "v-avail"    && renderOptionsPanel("Availability", AVAILABILITY, vendorAvail, (v) => { setVendorAvail(v); setOpenMenu(null); })}
-          </div>
-        </div>
-      )}
-
-      {/* ═══ MAP PANEL — slides down/up attached to bar ══════════════════ */}
-      {mapMounted && mapContent && (
-        <div ref={mapPanelRef} style={{
-          display: "grid",
-          gridTemplateRows: mapOpen ? "1fr" : "0fr",
-          opacity: mapOpen ? 1 : 0,
-          transition: "grid-template-rows 0.4s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 0.35s ease",
-        }}>
-          <div style={{ overflow: "hidden", minHeight: 0 }}>
-            <div style={{
-              borderTop: `1px solid ${CL.divider}`,
-              background: "transparent",
-            }}>
-              {mapContent}
-            </div>
           </div>
         </div>
       )}

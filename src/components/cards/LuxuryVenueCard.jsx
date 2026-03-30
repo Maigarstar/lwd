@@ -19,7 +19,7 @@ const GOLD = "#C9A84C";
 const GD   = "var(--font-heading-primary)";
 const NU   = "var(--font-body)";
 
-export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, setQuickViewItem }) {
+function VenueGridCard({ v, onView, isMobile, quickViewItem, setQuickViewItem }) {
   const C = useTheme();
   const { isShortlisted, toggleItem } = useShortlist();
   const [hov, setHov]               = useState(false);
@@ -587,4 +587,191 @@ export default function LuxuryVenueCard({ v, onView, isMobile, quickViewItem, se
       )}
     </article>
   );
+}
+
+// ── List Card (horizontal) — used in list+map view ───────────────────────────
+function VenueListCard({ v, onView, isHighlighted }) {
+  const C = useTheme();
+  const [hov, setHov] = useState(false);
+  const [showEnquiry, setShowEnquiry] = useState(false);
+
+  const imgSrc = typeof v.imgs?.[0] === "string" ? v.imgs?.[0] : v.imgs?.[0]?.src || v.imgs?.[0]?.url || "";
+
+  const active = hov || isHighlighted;
+
+  return (
+    <article
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      onClick={() => onView?.(v)}
+      style={{
+        display:             "grid",
+        gridTemplateColumns: "clamp(320px, 42%, 520px) 1fr",
+        gridTemplateRows:    "minmax(0, 1fr)",
+        columnGap:           24,
+        maxHeight:           420,
+        background:          active ? "rgba(201,168,76,0.04)" : C.card,
+        border:              "none",
+        borderBottom:        `1px solid ${C.border}`,
+        cursor:              "pointer",
+        transition:          "background 0.25s",
+        overflow:            "hidden",
+      }}
+    >
+      {/* Left: image */}
+      <div
+        style={{
+          position: "relative",
+          width: "100%",
+          height: "100%",
+          minHeight: 160,
+          overflow: "hidden",
+          background: "#0a0806",
+        }}
+      >
+        {imgSrc && (
+          <img
+            src={imgSrc}
+            alt={v.name}
+            loading="lazy"
+            style={{
+              width: "100%", height: "100%", objectFit: "cover",
+              transform: active ? "scale(1.04)" : "scale(1)",
+              transition: "transform 0.7s ease",
+            }}
+          />
+        )}
+        {/* Featured badge */}
+        {v.featured && (
+          <div style={{ position: "absolute", top: 10, left: 10 }}>
+            <span style={{
+              fontFamily: NU, fontSize: 8, fontWeight: 700, letterSpacing: "1px",
+              textTransform: "uppercase", color: "#0f0d0a",
+              background: `linear-gradient(135deg, ${GOLD}, #e8c97a)`,
+              borderRadius: 20, padding: "3px 9px",
+            }}>Editor's Pick</span>
+          </div>
+        )}
+      </div>
+
+      {/* Right: content */}
+      <div style={{
+        padding:       "16px 20px",
+        display:       "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        minWidth:       0,
+        overflowY:      "auto",
+      }}>
+        {/* Name */}
+        <div style={{
+          fontFamily: GD, fontSize: 17, fontWeight: 500, fontStyle: "italic",
+          color: C.white, lineHeight: 1.25, marginBottom: 3,
+          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+        }}>
+          {v.name}
+        </div>
+
+        {/* Location */}
+        <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, marginBottom: 8 }}>
+          {v.city}{v.region ? `, ${v.region}` : ""}
+        </div>
+
+        {/* Style + Rating row */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+          {v.styles?.[0] && (
+            <span style={{
+              fontFamily: NU, fontSize: 8, fontWeight: 700, letterSpacing: "1px",
+              textTransform: "uppercase", color: GOLD,
+              background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.25)",
+              borderRadius: 20, padding: "3px 8px",
+            }}>{v.styles[0]}</span>
+          )}
+          {v.rating && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <Stars r={v.rating} />
+              <span style={{ fontFamily: NU, fontSize: 10, color: C.grey }}>
+                {v.rating} ({v.reviews})
+              </span>
+            </div>
+          )}
+          {v.capacity && (
+            <span style={{
+              fontFamily: NU, fontSize: 9, color: C.grey,
+              display: "inline-flex", alignItems: "center", gap: 4,
+            }}>
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              Up to {v.capacity}
+            </span>
+          )}
+        </div>
+
+        {/* Description */}
+        <p style={{
+          fontFamily: NU, fontSize: 11, color: C.grey, lineHeight: 1.55,
+          margin: "0 0 10px",
+          display: "-webkit-box", WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical", overflow: "hidden",
+        }}>
+          {v.desc}
+        </p>
+
+        {/* Footer: price + CTAs */}
+        <div style={{
+          display: "flex", alignItems: "center", flexWrap: "wrap",
+          gap: "6px 10px", marginTop: "auto",
+          borderTop: `1px solid ${C.border}`, paddingTop: 10,
+        }}>
+          {v.priceFrom && (
+            <div style={{ fontFamily: GD, fontSize: 16, fontWeight: 600, color: GOLD, marginRight: "auto" }}>
+              <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 400, color: C.grey, marginRight: 3 }}>From</span>
+              {v.priceFrom}
+            </div>
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowEnquiry(true); }}
+            style={{
+              fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "1px",
+              textTransform: "uppercase", color: "#0f0d0a",
+              background: `linear-gradient(135deg, ${GOLD}, #e8c97a)`,
+              border: "1px solid transparent", borderRadius: "var(--lwd-radius-input)",
+              padding: "6px 12px", cursor: "pointer", whiteSpace: "nowrap",
+              transition: "opacity 0.2s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+          >
+            Enquire
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onView?.(v); }}
+            style={{
+              fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "1px",
+              textTransform: "uppercase", color: GOLD,
+              background: "rgba(201,168,76,0.10)", border: "1px solid rgba(201,168,76,0.3)",
+              borderRadius: "var(--lwd-radius-input)", padding: "6px 10px",
+              cursor: "pointer", whiteSpace: "nowrap",
+            }}
+          >
+            Profile ›
+          </button>
+        </div>
+      </div>
+
+      {showEnquiry && (
+        <LuxeEnquiryModal venue={v} onClose={() => setShowEnquiry(false)} entityType="venue" />
+      )}
+    </article>
+  );
+}
+
+// ── Public Export — supports mode="grid" (default) and mode="list" ────────────
+export default function LuxuryVenueCard(props) {
+  if (props.mode === "list") {
+    return <VenueListCard v={props.v} onView={props.onView} isHighlighted={props.isHighlighted} />;
+  }
+  return <VenueGridCard {...props} />;
 }
