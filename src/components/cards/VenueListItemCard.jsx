@@ -42,8 +42,9 @@ export default function VenueListItemCard({ v, onView, isHighlighted }) {
     >
       {/* Image */}
       <div style={{
-        width:      180,
-        minWidth:   180,
+        width:      400,
+        minWidth:   400,
+        height:     400,
         position:   "relative",
         overflow:   "hidden",
         background: "#0a0806",
