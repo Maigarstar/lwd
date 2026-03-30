@@ -73,6 +73,9 @@ export default function CategoryGrid({ locationName, onSelect } = {}) {
   const C = useTheme();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const scrollContainerRef = useRef(null);
+  const [hovPrev, setHovPrev] = useState(false);
+  const [hovNext, setHovNext] = useState(false);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -128,16 +131,14 @@ export default function CategoryGrid({ locationName, onSelect } = {}) {
       }}
     >
       <style>{`
-        .cat-grid-card { cursor: pointer; }
+        .cat-slider { display: flex; gap: 14px; overflow-x: auto; scroll-behavior: smooth; scrollbar-width: none; }
+        .cat-slider::-webkit-scrollbar { display: none; }
+        .cat-grid-card { cursor: pointer; flex-shrink: 0; }
         .cat-grid-card:hover .cat-grid-img { transform: scale(1.04); }
         .cat-grid-card:hover .cat-grid-ring { opacity: 1; }
         .cat-grid-card:hover .cat-grid-label { letter-spacing: 0.04em; }
         @media (max-width: 900px) {
-          .cat-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .cat-grid-section { padding: 64px 24px 72px !important; }
-        }
-        @media (max-width: 540px) {
-          .cat-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
         }
       `}</style>
 
@@ -205,114 +206,157 @@ export default function CategoryGrid({ locationName, onSelect } = {}) {
         </p>
       </div>
 
-      {/* Grid */}
-      <div
-        className="cat-grid"
-        style={{
-          maxWidth: 1320,
-          margin: "0 auto",
-          display: "grid",
-          gridTemplateColumns: "repeat(5, 1fr)",
-          gap: 14,
-        }}
-      >
-        {categories.map((cat, i) => (
-          <div
-            key={cat.id}
-            className="cat-grid-card"
-            role="button"
-            tabIndex={0}
-            aria-label={`Browse ${cat.label}`}
-            onClick={() => handleClick(cat)}
-            onKeyDown={(e) => e.key === "Enter" && handleClick(cat)}
-            style={{ position: "relative" }}
-          >
-            {/* Image container — portrait 2:3 ratio */}
+      {/* Horizontal Slider with Navigation */}
+      <div style={{ maxWidth: 1320, margin: "0 auto", display: "flex", alignItems: "center", gap: 16 }}>
+        {/* Left arrow */}
+        <button
+          aria-label="Scroll categories left"
+          disabled={false}
+          onClick={() => scrollContainerRef.current?.scrollBy({ left: -300, behavior: "smooth" })}
+          onMouseEnter={() => setHovPrev(true)}
+          onMouseLeave={() => setHovPrev(false)}
+          style={{
+            background: hovPrev ? "rgba(201,168,76,0.15)" : "transparent",
+            border: `1px solid ${hovPrev ? "#C9A84C" : "rgba(201,168,76,0.3)"}`,
+            borderRadius: "50%",
+            width: 36,
+            height: 36,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            transition: "all 0.25s",
+            flexShrink: 0,
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={hovPrev ? "#C9A84C" : "#888"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+
+        {/* Slider container */}
+        <div
+          ref={scrollContainerRef}
+          className="cat-slider"
+          style={{
+            flex: 1,
+            width: "100%",
+          }}
+        >
+          {categories.map((cat) => (
             <div
-              style={{
-                position: "relative",
-                paddingBottom: "140%",
-                borderRadius: 0,
-                overflow: "hidden",
-                background: "#1a1714",
-              }}
+              key={cat.id}
+              className="cat-grid-card"
+              role="button"
+              tabIndex={0}
+              aria-label={`Browse ${cat.label}`}
+              onClick={() => handleClick(cat)}
+              onKeyDown={(e) => e.key === "Enter" && handleClick(cat)}
+              style={{ position: "relative", minWidth: 200, width: 200 }}
             >
-              <img
-                className="cat-grid-img"
-                src={cat.img}
-                alt={cat.label}
-                loading="lazy"
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  transition: "transform 0.7s cubic-bezier(0.4,0,0.2,1)",
-                }}
-              />
-
-              {/* Dark gradient overlay — stronger at bottom */}
+              {/* Image container — portrait 2:3 ratio for slider */}
               <div
                 style={{
-                  position: "absolute",
-                  inset: 0,
-                  background:
-                    "linear-gradient(to bottom, rgba(0,0,0,0.05) 30%, rgba(0,0,0,0.75) 100%)",
-                  pointerEvents: "none",
-                }}
-              />
-
-              {/* Gold ring on hover */}
-              <div
-                className="cat-grid-ring"
-                style={{
-                  position: "absolute",
-                  inset: 0,
+                  position: "relative",
+                  paddingBottom: "140%",
                   borderRadius: 0,
-                  border: "1.5px solid rgba(201,168,76,0.65)",
-                  opacity: 0,
-                  transition: "opacity 0.3s ease",
-                  pointerEvents: "none",
-                }}
-              />
-
-              {/* Category name — bottom of image */}
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  padding: "16px 14px 14px",
+                  overflow: "hidden",
+                  background: "#1a1714",
                 }}
               >
-                <div
-                  className="cat-grid-label"
+                <img
+                  className="cat-grid-img"
+                  src={cat.img}
+                  alt={cat.label}
+                  loading="lazy"
                   style={{
-                    fontFamily: NU,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "#f0ece4",
-                    lineHeight: 1.3,
-                    transition: "letter-spacing 0.3s ease",
-                  }}
-                >
-                  {cat.label}
-                </div>
-                {/* Gold underline accent */}
-                <div
-                  style={{
-                    marginTop: 5,
-                    width: 18,
-                    height: 1,
-                    background: "rgba(201,168,76,0.7)",
+                    position: "absolute",
+                    inset: 0,
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    transition: "transform 0.7s cubic-bezier(0.4,0,0.2,1)",
                   }}
                 />
+
+                {/* Dark gradient overlay */}
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: "linear-gradient(to bottom, rgba(0,0,0,0.1) 30%, rgba(0,0,0,0.7) 100%)",
+                    pointerEvents: "none",
+                  }}
+                />
+
+                {/* Gold ring on hover */}
+                <div
+                  className="cat-grid-ring"
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: 0,
+                    border: "1.5px solid rgba(201,168,76,0.65)",
+                    opacity: 0,
+                    transition: "opacity 0.3s ease",
+                    pointerEvents: "none",
+                  }}
+                />
+
+                {/* Category name — bottom of image */}
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    padding: "12px 10px 10px",
+                  }}
+                >
+                  <div
+                    className="cat-grid-label"
+                    style={{
+                      fontFamily: NU,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: "#f0ece4",
+                      lineHeight: 1.2,
+                      transition: "letter-spacing 0.3s ease",
+                    }}
+                  >
+                    {cat.label}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+
+        {/* Right arrow */}
+        <button
+          aria-label="Scroll categories right"
+          disabled={false}
+          onClick={() => scrollContainerRef.current?.scrollBy({ left: 300, behavior: "smooth" })}
+          onMouseEnter={() => setHovNext(true)}
+          onMouseLeave={() => setHovNext(false)}
+          style={{
+            background: hovNext ? "rgba(201,168,76,0.15)" : "transparent",
+            border: `1px solid ${hovNext ? "#C9A84C" : "rgba(201,168,76,0.3)"}`,
+            borderRadius: "50%",
+            width: 36,
+            height: 36,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            transition: "all 0.25s",
+            flexShrink: 0,
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={hovNext ? "#C9A84C" : "#888"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 6 15 12 9 18" />
+          </svg>
+        </button>
       </div>
     </section>
   );
