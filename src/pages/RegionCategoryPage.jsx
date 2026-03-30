@@ -33,6 +33,7 @@ import AICommandBar    from "../components/filters/AICommandBar";
 import CountrySearchBar from "../components/filters/CountrySearchBar";
 import InfoStrip        from "../components/sections/InfoStrip";
 import HomeNav          from "../components/nav/HomeNav";
+import RegionRealWeddings from "../components/sections/RegionRealWeddings";
 import "../category.css";
 
 // ── Font tokens ──────────────────────────────────────────────────────────────
@@ -74,8 +75,17 @@ export default function RegionCategoryPage({
   const [venueFilters, setVenueFilters] = useState(() => ({ ...DEFAULT_FILTERS, region: regionSlug }));
   const [sortMode, setSortMode] = useState("recommended");
   const [venueViewMode, setVenueViewMode] = useState("grid");
+  const [isMobile, setIsMobile] = useState(false);
 
   const C = darkMode ? getDarkPalette() : getLightPalette();
+
+  // ── Mobile detection ────────────────────────────────────────────────────────
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   // ── Register active context with global chat ──────────────────────────────
   const { setChatContext } = useChat();
@@ -564,58 +574,100 @@ export default function RegionCategoryPage({
 
 
         {/* ════════════════════════════════════════════════════════════════════
-            4. EDITORIAL INTRO
+            4. EDITORIAL INTRO — PLANNERS PAGE PATTERN
         ════════════════════════════════════════════════════════════════════ */}
         <section
           className="lwd-rc-section"
           aria-label="Editorial introduction"
           style={{
             background: C.dark,
-            padding: "72px 48px",
-            borderBottom: `1px solid ${C.border}`,
+            padding: isMobile ? "40px 16px" : "56px 32px",
           }}
         >
-          <div style={{ maxWidth: 800, margin: "0 auto" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
-              <div style={{ width: 28, height: 1, background: C.gold }} />
-              <span
+          <div
+            style={{
+              maxWidth: 1200,
+              margin: "0 auto",
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "1fr 360px",
+              gap: isMobile ? 28 : 48,
+              alignItems: "start",
+            }}
+          >
+            {/* LEFT: Editorial Copy */}
+            <div>
+              <div
                 style={{
                   fontFamily: NU,
-                  fontSize: 9,
-                  letterSpacing: "0.3em",
+                  fontSize: 10,
+                  fontWeight: 600,
+                  letterSpacing: "2.5px",
                   textTransform: "uppercase",
                   color: C.gold,
-                  fontWeight: 600,
+                  marginBottom: 12,
                 }}
               >
-                Editorial
-              </span>
-              <div style={{ width: 28, height: 1, background: C.gold }} />
+                Editorial {categorySlug === "wedding-venues" ? "Guide" : ""}
+              </div>
+              <h2
+                style={{
+                  fontFamily: GD,
+                  fontSize: 32,
+                  fontWeight: 400,
+                  color: C.white,
+                  lineHeight: 1.2,
+                  margin: "0 0 20px",
+                }}
+              >
+                {categoryLabel} in {regionName}
+              </h2>
+              <p
+                style={{
+                  fontFamily: NU,
+                  fontSize: 14,
+                  color: C.grey,
+                  lineHeight: 1.7,
+                  margin: "0 0 16px",
+                  maxWidth: 600,
+                }}
+              >
+                {editorial}
+              </p>
             </div>
-            <h2
-              style={{
-                fontFamily: GD,
-                fontSize: "clamp(24px, 3vw, 34px)",
-                fontWeight: 400,
-                fontStyle: "italic",
-                color: C.off,
-                lineHeight: 1.25,
-                marginBottom: 24,
-              }}
-            >
-              {categoryLabel} in {regionName}
-            </h2>
-            <p
-              style={{
-                fontFamily: NU,
-                fontSize: 15,
-                color: C.grey,
-                lineHeight: 1.85,
-                fontWeight: 300,
-              }}
-            >
-              {editorial}
-            </p>
+
+            {/* RIGHT: Trust Cards (for wedding-venues only) */}
+            {categorySlug === "wedding-venues" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {[
+                  { icon: "✦", title: "Personally Verified", desc: "Every venue hand-selected by our editorial team" },
+                  { icon: "◈", title: "No Pay-to-Play", desc: "Ranked by quality and couple reviews" },
+                  { icon: "✓", title: "Authentic Photos", desc: "Real weddings, real venues, no stock images" },
+                ].map((t) => (
+                  <div
+                    key={t.title}
+                    style={{
+                      background: C.card,
+                      border: `1px solid ${C.border}`,
+                      borderRadius: "var(--lwd-radius-card)",
+                      padding: "16px 18px",
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 14,
+                    }}
+                  >
+                    <span style={{ fontSize: 18, color: C.gold, flexShrink: 0, marginTop: 1 }}>{t.icon}</span>
+                    <div>
+                      <div style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, color: C.white, marginBottom: 3 }}>
+                        {t.title}
+                      </div>
+                      <div style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.5 }}>
+                        {t.desc}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
 
@@ -697,6 +749,15 @@ export default function RegionCategoryPage({
                     {sortedFilteredListings.filter((v) => v.featured).slice(0, 3).map((v) => (
                       <LuxuryVenueCard key={v.id} v={v} onView={() => onViewVenue(v.id || v.slug)} quickViewItem={qvItem} setQuickViewItem={setQvItem} />
                     ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Real Weddings Section — if content is strong */}
+              {categorySlug === "wedding-venues" && (
+                <section style={{ background: C.dark, padding: isMobile ? "40px 16px 48px" : "56px 32px 64px" }}>
+                  <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+                    <RegionRealWeddings region={regionSlug} country={countrySlug} />
                   </div>
                 </section>
               )}
