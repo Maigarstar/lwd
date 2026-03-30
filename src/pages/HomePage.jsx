@@ -14,6 +14,8 @@ import FeaturedSlider from "../components/sections/FeaturedSlider";
 import DestinationGrid from "../components/sections/DestinationGrid";
 import VenueGrid from "../components/sections/VenueGrid";
 import VendorPreview from "../components/sections/VendorPreview";
+import CategorySlider from "../components/sections/CategorySlider";
+import CategoryGrid from "../components/sections/CategoryGrid";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import NewsletterBand from "../components/sections/NewsletterBand";
 import MagazineEditorial from "../components/sections/MagazineEditorial";
@@ -234,6 +236,7 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
           {/* VenueGrid: live DB data, falls back to static if DB empty */}
           <VenueGrid venues={displayVenues} onViewVenue={(v) => onViewVenue?.(v)} />
           <FeaturedSlider venues={FEATURED_VENUES} />
+          <CategoryGrid />
           {/* VendorPreview: live DB vendors when available; internal fallback to GLOBAL_VENDORS */}
           <VendorPreview
             dbVendors={displayVendors}
