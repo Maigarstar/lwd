@@ -26,6 +26,8 @@ import { DEFAULT_FILTERS } from "../data/italyVenues";
 import SiteFooter from "../components/sections/SiteFooter";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import LuxuryVenueCard from "../components/cards/LuxuryVenueCard";
+import VenueListItemCard from "../components/cards/VenueListItemCard";
+import VenueMapPanel    from "../components/maps/VenueMapPanel";
 import MapSection      from "../components/sections/MapSection";
 import QuickViewModal  from "../components/modals/QuickViewModal";
 import AICommandBar    from "../components/filters/AICommandBar";
@@ -75,6 +77,8 @@ export default function RegionCategoryPage({
   const [sortMode, setSortMode] = useState("recommended");
   const [venueViewMode, setVenueViewMode] = useState("grid");
   const [isMobile, setIsMobile] = useState(false);
+  const [hoveredVenueId, setHoveredVenueId] = useState(null);
+  const [activePinnedId, setActivePinnedId] = useState(null);
 
   const C = darkMode ? getDarkPalette() : getLightPalette();
 
@@ -832,43 +836,65 @@ export default function RegionCategoryPage({
                       </div>
                     )}
 
-                    {/* List + Map Layout */}
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: !isMobile ? "1fr 1fr" : "1fr",
-                        gap: !isMobile ? 32 : 0,
-                        width: "100%",
-                      }}
-                    >
-                      {/* Left: Venue List (scrollable) */}
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 16,
-                          width: "100%",
-                          minWidth: 0,
-                          maxHeight: "calc(100vh - 200px)",
-                          overflowY: "auto",
-                        }}
-                      >
+                    {/* List + Map Layout — mirrors WeddingPlannersPage pattern */}
+                    <div style={{
+                      ...(isMobile
+                        ? { display: "flex", flexDirection: "column", gap: 12 }
+                        : {
+                            display:             "grid",
+                            gridTemplateColumns: "minmax(0, 1fr) clamp(360px, 32vw, 480px)",
+                            columnGap:           32,
+                            alignItems:          "start",
+                            minWidth:            0,
+                          }
+                      ),
+                    }}>
+                      {/* Left: venue list */}
+                      <div style={{
+                        minWidth:      0,
+                        display:       "flex",
+                        flexDirection: "column",
+                        gap:           12,
+                      }}>
                         {sortedFilteredListings.filter((v) => !v.featured).map((v) => (
-                          <LuxuryVenueCard key={v.id} v={v} mode="list" onView={() => onViewVenue(v.id || v.slug)} />
+                          <div
+                            key={v.id}
+                            data-venue-id={v.id}
+                            onMouseEnter={() => setHoveredVenueId(v.id)}
+                            onMouseLeave={() => setHoveredVenueId(null)}
+                          >
+                            <VenueListItemCard
+                              v={v}
+                              onView={() => onViewVenue(v.id || v.slug)}
+                              isHighlighted={hoveredVenueId === v.id || activePinnedId === v.id}
+                            />
+                          </div>
                         ))}
                       </div>
 
-                      {/* Right: Map (desktop only) - use MapSection's full layout */}
+                      {/* Right: sticky map panel */}
                       {!isMobile && (
-                        <div style={{ marginTop: "-24px", marginRight: "-48px", marginBottom: "-72px" }}>
-                          <MapSection
+                        <div style={{
+                          width:    "100%",
+                          minWidth: 0,
+                          position: "sticky",
+                          top:      72,
+                          height:   "calc(100vh - 120px)",
+                        }}>
+                          <VenueMapPanel
                             venues={sortedFilteredListings.filter((v) => !v.featured)}
-                            vendors={[]}
-                            headerLabel={`${listingCount} ${categoryLabel}`}
-                            mapTitle={`◎ ${categoryLabel}`}
-                            countryFilter={countryName || "Italy"}
-                            onMarkerClick={(slug) => onViewVenue(slug)}
-                            onClose={() => setVenueViewMode("grid")}
+                            hoveredId={hoveredVenueId}
+                            activePinnedId={activePinnedId}
+                            onPinHover={setHoveredVenueId}
+                            onPinLeave={() => setHoveredVenueId(null)}
+                            onPinClick={(id) => {
+                              setActivePinnedId(id);
+                              const el = document.querySelector(`[data-venue-id="${id}"]`);
+                              if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                            }}
+                            onToggleView={() => setVenueViewMode("grid")}
+                            label={`Venue Map · ${regionName || "All Regions"}`}
+                            bleed
                           />
                         </div>
                       )}
