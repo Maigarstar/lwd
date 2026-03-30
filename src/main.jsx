@@ -489,6 +489,27 @@ function App() {
     setPage("region-category");
   };
   const goCategory = (filterCtx) => {
+    // NEW: Support Phase 1 URL routing for categories
+    // When passed { category, countrySlug, regionSlug }, navigate to new URL pattern
+    if (filterCtx && typeof filterCtx === "object" && filterCtx.category) {
+      const catSlug = filterCtx.category;
+      const ctrySlug = filterCtx.countrySlug || null;
+      const regSlug = filterCtx.regionSlug || null;
+
+      setActiveCountrySlug(ctrySlug);
+      setActiveRegionSlug(regSlug);
+      setActiveCategorySlug(catSlug);
+      setCategoryRegion(null);
+      setCategorySearchQuery(null);
+      // Use "region-category" page which handles all three URL patterns:
+      // - /[category] (global)
+      // - /[country]/[category] (country)
+      // - /[country]/[category]-in/[region] (region)
+      setPage("region-category");
+      return;
+    }
+
+    // OLD: Legacy category mode (backward compatibility)
     if (typeof filterCtx === "string") {
       setCategoryRegion(filterCtx || null);
       setCategorySearchQuery(null);
