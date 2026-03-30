@@ -776,11 +776,13 @@ export default function RegionCategoryPage({
               aria-label={`${categoryLabel} listings`}
               style={{
                 background: C.dark,
-                padding: "40px 48px 72px",
+                padding: venueViewMode === "list" && !isMobile
+                  ? "40px 0 72px 48px"
+                  : "40px 48px 72px",
                 borderBottom: `1px solid ${C.border}`,
               }}
             >
-              <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+              <div style={{ maxWidth: venueViewMode === "list" ? "none" : 1280, margin: "0 auto" }}>
 
               {categorySlug === "wedding-venues" ? (
                 venueViewMode === "grid" ? (
@@ -872,7 +874,7 @@ export default function RegionCategoryPage({
                         ))}
                       </div>
 
-                      {/* Right: sticky map panel */}
+                      {/* Right: sticky map panel — flush to viewport right edge */}
                       {!isMobile && (
                         <div style={{
                           width:    "100%",
@@ -880,6 +882,8 @@ export default function RegionCategoryPage({
                           position: "sticky",
                           top:      72,
                           height:   "calc(100vh - 120px)",
+                          borderRadius: "var(--lwd-radius-card) 0 0 var(--lwd-radius-card)",
+                          overflow: "hidden",
                         }}>
                           <VenueMapPanel
                             venues={sortedFilteredListings.filter((v) => !v.featured)}
@@ -894,7 +898,6 @@ export default function RegionCategoryPage({
                             }}
                             onToggleView={() => setVenueViewMode("grid")}
                             label={`Venue Map · ${regionName || "All Regions"}`}
-                            bleed
                           />
                         </div>
                       )}
