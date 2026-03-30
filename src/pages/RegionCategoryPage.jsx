@@ -99,21 +99,46 @@ export default function RegionCategoryPage({
   // ── Listings — wedding-venues → VENUES, else → VENDORS ───────────────────
   const listings = useMemo(() => {
     if (categorySlug === "wedding-venues") {
-      return VENUES.filter(
-        (v) => v.region === regionName || (region && v.region === region.name),
-      );
+      // If region specified, filter by that region
+      if (regionSlug) {
+        return VENUES.filter(
+          (v) => v.region === regionName || (region && v.region === region.name),
+        );
+      }
+      // If country specified but no region (country page), filter by countrySlug
+      if (countrySlug) {
+        return VENUES.filter((v) => v.countrySlug === countrySlug);
+      }
+      // No country or region specified (global category page), return all venues
+      return VENUES;
     }
     const vendorCats = geoSlugToVendorCategory(categorySlug);
     if (!vendorCats) return [];
-    return VENDORS.filter((v) => {
-      const catMatch = vendorCats.includes(v.category);
-      // Match by regionSlug first, then fallback to countrySlug
-      const regionMatch =
-        v.regionSlug === regionSlug ||
-        (v.legacyRegionName && region && v.legacyRegionName === region.name);
-      return catMatch && regionMatch;
-    });
-  }, [categorySlug, regionSlug, regionName, region]);
+
+    // If region specified, filter by region and category
+    if (regionSlug) {
+      return VENDORS.filter((v) => {
+        const catMatch = vendorCats.includes(v.category);
+        // Match by regionSlug first, then fallback to countrySlug
+        const regionMatch =
+          v.regionSlug === regionSlug ||
+          (v.legacyRegionName && region && v.legacyRegionName === region.name);
+        return catMatch && regionMatch;
+      });
+    }
+
+    // If country specified but no region (country page), filter by countrySlug and category
+    if (countrySlug) {
+      return VENDORS.filter((v) => {
+        const catMatch = vendorCats.includes(v.category);
+        const countryMatch = v.countrySlug === countrySlug;
+        return catMatch && countryMatch;
+      });
+    }
+
+    // No country or region specified (global category page), return all vendors in category
+    return VENDORS.filter((v) => vendorCats.includes(v.category));
+  }, [categorySlug, regionSlug, countrySlug, region]);
 
   // ── Extract available filter values (wedding-venues only) ────────────────────
   const availableFilters = useMemo(() => {
