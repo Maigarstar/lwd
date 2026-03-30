@@ -836,21 +836,20 @@ export default function RegionCategoryPage({
                     {/* List + Map Layout */}
                     <div
                       style={{
-                        display: isMobile ? "flex" : "grid",
-                        gridTemplateColumns: !isMobile ? "minmax(0, 1fr) clamp(360px, 32vw, 480px)" : undefined,
-                        gap: !isMobile ? 32 : 16,
-                        alignItems: "start",
-                        minWidth: 0,
+                        display: "grid",
+                        gridTemplateColumns: !isMobile ? "1fr 400px" : "1fr",
+                        gap: !isMobile ? 32 : 0,
+                        width: "100%",
                       }}
                     >
-                      {/* Left: Venue List */}
+                      {/* Left: Venue List (scrollable) */}
                       <div
                         style={{
-                          flex: isMobile ? 1 : undefined,
                           display: "flex",
                           flexDirection: "column",
                           gap: 16,
-                          minWidth: 0,
+                          maxHeight: "calc(100vh - 200px)",
+                          overflowY: "auto",
                         }}
                       >
                         {sortedFilteredListings.filter((v) => !v.featured).map((v) => (
@@ -858,15 +857,16 @@ export default function RegionCategoryPage({
                         ))}
                       </div>
 
-                      {/* Right: Sticky Map (desktop only) */}
+                      {/* Right: Map (sticky, desktop only) */}
                       {!isMobile && (
                         <div
                           style={{
                             position: "sticky",
                             top: 100,
                             height: "calc(100vh - 120px)",
-                            overflow: "hidden",
+                            backgroundColor: "#1a1a1a",
                             borderRadius: "var(--lwd-radius-card)",
+                            overflow: "hidden",
                           }}
                         >
                           <MapSection
