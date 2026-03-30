@@ -837,7 +837,7 @@ export default function RegionCategoryPage({
                     <div
                       style={{
                         display: "grid",
-                        gridTemplateColumns: !isMobile ? "1fr 400px" : "1fr",
+                        gridTemplateColumns: !isMobile ? "1fr 1fr" : "1fr",
                         gap: !isMobile ? 32 : 0,
                         width: "100%",
                       }}
@@ -857,18 +857,9 @@ export default function RegionCategoryPage({
                         ))}
                       </div>
 
-                      {/* Right: Map (sticky, desktop only) */}
+                      {/* Right: Map (desktop only) - use MapSection's full layout */}
                       {!isMobile && (
-                        <div
-                          style={{
-                            position: "sticky",
-                            top: 100,
-                            height: "calc(100vh - 120px)",
-                            backgroundColor: "#1a1a1a",
-                            borderRadius: "var(--lwd-radius-card)",
-                            overflow: "hidden",
-                          }}
-                        >
+                        <div style={{ marginTop: "-24px", marginRight: "-48px", marginBottom: "-72px" }}>
                           <MapSection
                             venues={sortedFilteredListings.filter((v) => !v.featured)}
                             vendors={[]}
