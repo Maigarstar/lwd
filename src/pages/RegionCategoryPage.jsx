@@ -681,14 +681,14 @@ export default function RegionCategoryPage({
           <section
             className="lwd-rc-section"
             style={{
-              background: C.dark,
+              background: "#000",
               padding: isMobile ? "40px 16px" : "56px 32px",
               borderBottom: `1px solid ${C.border}`,
             }}
           >
             <div style={{ maxWidth: 1280, margin: "0 auto" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
-                <span style={{ fontFamily: NU, fontSize: 11, letterSpacing: "0.25em", textTransform: "uppercase", color: C.gold, fontWeight: 700, background: "#000", padding: "4px 10px", borderRadius: 4 }}>
+                <span style={{ fontFamily: NU, fontSize: 11, letterSpacing: "0.25em", textTransform: "uppercase", color: C.gold, fontWeight: 700 }}>
                   ★ Editor's Selection
                 </span>
               </div>
