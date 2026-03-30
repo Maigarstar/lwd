@@ -708,9 +708,8 @@ export default function RegionCategoryPage({
           <section
             className="lwd-rc-section"
             style={{
-              background: C.light || "#F2EFE9",
+              background: darkMode ? C.black : C.dark,
               padding: isMobile ? "40px 16px 48px" : "56px 32px 64px",
-              borderBottom: `1px solid ${C.border}`,
             }}
           >
             <div style={{ maxWidth: 1200, margin: "0 auto" }}>
