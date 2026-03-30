@@ -763,25 +763,174 @@ export default function RegionCategoryPage({
               )}
 
               {categorySlug === "wedding-venues" ? (
-                <div
-                  className="lwd-venue-grid"
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(3,1fr)",
-                    gap: 16,
-                  }}
-                  aria-label="Venue grid"
-                >
-                  {sortedFilteredListings.map((v) => (
-                    <LuxuryVenueCard
-                      key={v.id}
-                      v={v}
-                      onView={() => onViewVenue(v.id || v.slug)}
-                      quickViewItem={qvItem}
-                      setQuickViewItem={setQvItem}
-                    />
-                  ))}
-                </div>
+                venueViewMode === "grid" ? (
+                  <div
+                    className="lwd-venue-grid"
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(3,1fr)",
+                      gap: 16,
+                    }}
+                    aria-label="Venue grid"
+                  >
+                    {sortedFilteredListings.map((v) => (
+                      <LuxuryVenueCard
+                        key={v.id}
+                        v={v}
+                        onView={() => onViewVenue(v.id || v.slug)}
+                        quickViewItem={qvItem}
+                        setQuickViewItem={setQvItem}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    {/* Mobile: Show Map button */}
+                    {isMobile && (
+                      <div style={{ marginBottom: 20 }}>
+                        <button
+                          onClick={() => setMapOpen(true)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            background: "rgba(201,168,76,0.08)",
+                            border: "1px solid rgba(201,168,76,0.3)",
+                            borderRadius: "var(--lwd-radius-input)",
+                            padding: "9px 18px",
+                            fontFamily: NU,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            letterSpacing: "0.5px",
+                            color: "#C9A84C",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+                            <line x1="9" y1="3" x2="9" y2="18" />
+                            <line x1="15" y1="6" x2="15" y2="21" />
+                          </svg>
+                          Show Map
+                        </button>
+                      </div>
+                    )}
+
+                    {/* List + Map Layout */}
+                    <div
+                      style={{
+                        display: isMobile ? "flex" : "grid",
+                        gridTemplateColumns: !isMobile ? "minmax(0, 1fr) clamp(360px, 32vw, 480px)" : undefined,
+                        gap: !isMobile ? 32 : 16,
+                        alignItems: "start",
+                        minWidth: 0,
+                      }}
+                    >
+                      {/* Left: Venue List */}
+                      <div
+                        style={{
+                          flex: isMobile ? 1 : undefined,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 16,
+                          minWidth: 0,
+                        }}
+                      >
+                        {sortedFilteredListings.map((v) => (
+                          <GCard key={v.id} v={v} onView={() => onViewVenue(v.id || v.slug)} />
+                        ))}
+                      </div>
+
+                      {/* Right: Sticky Map (desktop only) */}
+                      {!isMobile && (
+                        <div
+                          style={{
+                            position: "sticky",
+                            top: 100,
+                            height: "calc(100vh - 120px)",
+                            overflow: "hidden",
+                            borderRadius: "var(--lwd-radius-card)",
+                          }}
+                        >
+                          <MapSection
+                            venues={sortedFilteredListings}
+                            vendors={[]}
+                            headerLabel={`${listingCount} ${categoryLabel}`}
+                            mapTitle={`◎ ${categoryLabel}`}
+                            countryFilter={countryName || "Italy"}
+                            onMarkerClick={(slug) => onViewVenue(slug)}
+                            onClose={() => setVenueViewMode("grid")}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Mobile Map Modal */}
+                    {isMobile && mapOpen && (
+                      <div
+                        style={{
+                          position: "fixed",
+                          inset: 0,
+                          background: "rgba(0,0,0,0.5)",
+                          display: "flex",
+                          alignItems: "flex-end",
+                          zIndex: 1000,
+                        }}
+                        onClick={() => setMapOpen(false)}
+                      >
+                        <div
+                          style={{
+                            width: "100%",
+                            height: "80vh",
+                            background: C.dark,
+                            borderRadius: "16px 16px 0 0",
+                            overflow: "hidden",
+                            display: "flex",
+                            flexDirection: "column",
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div
+                            style={{
+                              padding: "12px 16px",
+                              borderBottom: `1px solid ${C.border}`,
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                            }}
+                          >
+                            <span style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, color: C.white }}>
+                              Map
+                            </span>
+                            <button
+                              onClick={() => setMapOpen(false)}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                fontSize: 20,
+                                cursor: "pointer",
+                                color: C.grey,
+                              }}
+                            >
+                              ×
+                            </button>
+                          </div>
+                          <div style={{ flex: 1, overflow: "hidden" }}>
+                            <MapSection
+                              venues={sortedFilteredListings}
+                              vendors={[]}
+                              headerLabel={`${listingCount} ${categoryLabel}`}
+                              mapTitle={`◎ ${categoryLabel}`}
+                              countryFilter={countryName || "Italy"}
+                              onMarkerClick={(slug) => onViewVenue(slug)}
+                              onClose={() => setMapOpen(false)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )
               ) : (
                 <div
                   style={{
