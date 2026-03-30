@@ -133,9 +133,10 @@ function stateToPath(pg, opts = {}) {
     case "region-category": {
       // Phase 1: New URL structure
       // Global: /[categorySlug], Country: /[countrySlug]/[categorySlug], Region: /[countrySlug]/[categorySlug]-in/[regionSlug]
-      if (!countrySlug && !regionSlug) return `/${categorySlug}`;
-      if (countrySlug && !regionSlug) return `/${countrySlug}/${categorySlug}`;
-      if (countrySlug && regionSlug) return `/${countrySlug}/${categorySlug}-in/${regionSlug}`;
+      // Internal state may use countrySlug="world" and regionSlug="all", but these must NOT appear in public URLs
+      if ((!countrySlug || countrySlug === "world") && (!regionSlug || regionSlug === "all")) return `/${categorySlug}`;
+      if (countrySlug && countrySlug !== "world" && !regionSlug) return `/${countrySlug}/${categorySlug}`;
+      if (countrySlug && countrySlug !== "world" && regionSlug && regionSlug !== "all") return `/${countrySlug}/${categorySlug}-in/${regionSlug}`;
       return "/";
     }
     case "planner-profile":  return `/${countrySlug}/${regionSlug}/wedding-planners/${plannerSlug}`;
