@@ -672,7 +672,52 @@ export default function RegionCategoryPage({
         </section>
 
         {/* ════════════════════════════════════════════════════════════════════
-            5. LISTINGS
+            5. FEATURED VENUES SECTION (Wedding Venues Only)
+        ════════════════════════════════════════════════════════════════════ */}
+        {listingCount > 0 && categorySlug === "wedding-venues" && sortedFilteredListings.filter((v) => v.featured).length > 0 && (
+          <section
+            className="lwd-rc-section"
+            style={{
+              background: C.dark,
+              padding: isMobile ? "40px 16px" : "56px 32px",
+              borderBottom: `1px solid ${C.border}`,
+            }}
+          >
+            <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
+                <span style={{ fontFamily: NU, fontSize: 11, letterSpacing: "0.25em", textTransform: "uppercase", color: C.gold, fontWeight: 700 }}>
+                  ★ Editor's Selection
+                </span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
+                {sortedFilteredListings.filter((v) => v.featured).slice(0, 3).map((v) => (
+                  <LuxuryVenueCard key={v.id} v={v} onView={() => onViewVenue(v.id || v.slug)} quickViewItem={qvItem} setQuickViewItem={setQvItem} />
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════════
+            6. REAL WEDDINGS SECTION (Wedding Venues Only)
+        ════════════════════════════════════════════════════════════════════ */}
+        {listingCount > 0 && categorySlug === "wedding-venues" && (
+          <section
+            className="lwd-rc-section"
+            style={{
+              background: C.light || "#F2EFE9",
+              padding: isMobile ? "40px 16px 48px" : "56px 32px 64px",
+              borderBottom: `1px solid ${C.border}`,
+            }}
+          >
+            <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+              <RegionRealWeddings region={regionSlug} country={countrySlug} />
+            </div>
+          </section>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════════
+            7. FILTER & SEARCH SECTION
         ════════════════════════════════════════════════════════════════════ */}
         {listingCount > 0 ? (
           <>
@@ -720,6 +765,9 @@ export default function RegionCategoryPage({
               defaultFilters={DEFAULT_FILTERS}
             />
 
+            {/* ════════════════════════════════════════════════════════════════════
+                8. LISTINGS GRID / LIST+MAP VIEW
+            ════════════════════════════════════════════════════════════════════ */}
             <section
               className="lwd-rc-section"
               aria-label={`${categoryLabel} listings`}
@@ -730,37 +778,6 @@ export default function RegionCategoryPage({
               }}
             >
               <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-
-              {/* Editor's Selection — top 3 featured venues */}
-              {categorySlug === "wedding-venues" && sortedFilteredListings.filter((v) => v.featured).length > 0 && (
-                <section
-                  style={{
-                    marginBottom: 56,
-                    paddingBottom: 56,
-                    borderBottom: `1px solid ${C.border}`,
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
-                    <span style={{ fontFamily: NU, fontSize: 11, letterSpacing: "0.25em", textTransform: "uppercase", color: C.gold, fontWeight: 700 }}>
-                      ★ Editor's Selection
-                    </span>
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
-                    {sortedFilteredListings.filter((v) => v.featured).slice(0, 3).map((v) => (
-                      <LuxuryVenueCard key={v.id} v={v} onView={() => onViewVenue(v.id || v.slug)} quickViewItem={qvItem} setQuickViewItem={setQvItem} />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* Real Weddings Section — if content is strong */}
-              {categorySlug === "wedding-venues" && (
-                <section style={{ background: C.dark, padding: isMobile ? "40px 16px 48px" : "56px 32px 64px" }}>
-                  <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-                    <RegionRealWeddings region={regionSlug} country={countrySlug} />
-                  </div>
-                </section>
-              )}
 
               {categorySlug === "wedding-venues" ? (
                 venueViewMode === "grid" ? (
@@ -773,7 +790,7 @@ export default function RegionCategoryPage({
                     }}
                     aria-label="Venue grid"
                   >
-                    {sortedFilteredListings.map((v) => (
+                    {sortedFilteredListings.filter((v) => !v.featured).map((v) => (
                       <LuxuryVenueCard
                         key={v.id}
                         v={v}
@@ -836,7 +853,7 @@ export default function RegionCategoryPage({
                           minWidth: 0,
                         }}
                       >
-                        {sortedFilteredListings.map((v) => (
+                        {sortedFilteredListings.filter((v) => !v.featured).map((v) => (
                           <GCard key={v.id} v={v} onView={() => onViewVenue(v.id || v.slug)} />
                         ))}
                       </div>
@@ -853,7 +870,7 @@ export default function RegionCategoryPage({
                           }}
                         >
                           <MapSection
-                            venues={sortedFilteredListings}
+                            venues={sortedFilteredListings.filter((v) => !v.featured)}
                             vendors={[]}
                             headerLabel={`${listingCount} ${categoryLabel}`}
                             mapTitle={`◎ ${categoryLabel}`}
@@ -917,7 +934,7 @@ export default function RegionCategoryPage({
                           </div>
                           <div style={{ flex: 1, overflow: "hidden" }}>
                             <MapSection
-                              venues={sortedFilteredListings}
+                              venues={sortedFilteredListings.filter((v) => !v.featured)}
                               vendors={[]}
                               headerLabel={`${listingCount} ${categoryLabel}`}
                               mapTitle={`◎ ${categoryLabel}`}
