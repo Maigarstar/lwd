@@ -857,6 +857,7 @@ export default function RegionCategoryPage({
                         display:       "flex",
                         flexDirection: "column",
                         gap:           12,
+                        paddingLeft:   100,
                       }}>
                         {sortedFilteredListings.filter((v) => !v.featured).map((v) => (
                           <div
