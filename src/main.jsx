@@ -130,7 +130,14 @@ function stateToPath(pg, opts = {}) {
       return "/";
     }
     case "region":           return `/${countrySlug}/${regionSlug}`;
-    case "region-category":  return `/${countrySlug}/${regionSlug}/${categorySlug}`;
+    case "region-category": {
+      // Phase 1: New URL structure
+      // Global: /[categorySlug], Country: /[countrySlug]/[categorySlug], Region: /[countrySlug]/[categorySlug]-in/[regionSlug]
+      if (!countrySlug && !regionSlug) return `/${categorySlug}`;
+      if (countrySlug && !regionSlug) return `/${countrySlug}/${categorySlug}`;
+      if (countrySlug && regionSlug) return `/${countrySlug}/${categorySlug}-in/${regionSlug}`;
+      return "/";
+    }
     case "planner-profile":  return `/${countrySlug}/${regionSlug}/wedding-planners/${plannerSlug}`;
     case "real-wedding-detail": return `/real-weddings/${weddingSlug}`;
     case "real-weddings":    return "/real-weddings";
@@ -280,6 +287,29 @@ function pathToState(pathname) {
   // Static routes: non-location single-segment paths (admin, about, contact, etc.)
   if (parts.length === 1 && statics[parts[0]]) return { page: statics[parts[0]] };
 
+  // ── NEW URL STRUCTURE: Category Pages (Phase 1) ────────────────────────────────
+  // Uses existing RegionCategoryPage component with different data context
+  // /[category] → global, /[country]/[category] → country, /[country]/[category]-in/[region] → region
+  const CATEGORY_SLUGS = ['wedding-venues', 'wedding-planners', 'photographers', 'videographers', 'florists', 'styling-decor', 'caterers', 'hair-makeup', 'guest-attire', 'entertainment', 'cakes', 'bridal-dresses', 'stationery', 'health-beauty', 'event-production', 'luxury-transport', 'celebrants', 'gift-registry'];
+
+  // /[category] — Global category (e.g. /wedding-venues)
+  if (parts.length === 1 && CATEGORY_SLUGS.includes(parts[0])) {
+    return { page: "region-category", countrySlug: null, regionSlug: null, categorySlug: parts[0] };
+  }
+
+  // /[country]/[category] — Country category (e.g. /england/wedding-venues)
+  if (parts.length === 2 && CATEGORY_SLUGS.includes(parts[1])) {
+    return { page: "region-category", countrySlug: parts[0], regionSlug: null, categorySlug: parts[1] };
+  }
+
+  // /[country]/[category]-in/[region] — Region category (e.g. /england/wedding-venues-in/surrey)
+  if (parts.length === 3 && parts[1].includes('-in')) {
+    const [categoryPart, _] = parts[1].split('-in');
+    if (CATEGORY_SLUGS.includes(categoryPart)) {
+      return { page: "region-category", countrySlug: parts[0], regionSlug: parts[2], categorySlug: categoryPart };
+    }
+  }
+
   // ── ALL location routes resolve through LocationPage ──
   // No country-specific privileged routing. Supabase locations table is the single authority.
   // /italy, /thailand, /france — all treated identically.
@@ -290,7 +320,6 @@ function pathToState(pathname) {
   if (parts.length === 3) {
     // Modern format: /country/region/category → region-category grid
     // Old format: /country/category/slug → DEPRECATED, redirect to canonical
-    const CATEGORY_SLUGS = ['wedding-venues', 'wedding-planners', 'photographers', 'videographers', 'florists', 'styling-decor', 'caterers', 'hair-makeup', 'guest-attire', 'entertainment', 'cakes', 'bridal-dresses', 'stationery', 'health-beauty', 'event-production', 'luxury-transport', 'celebrants', 'gift-registry'];
     if (CATEGORY_SLUGS.includes(parts[2])) {
       // New format: /country/region/category (e.g. /england/somerset/wedding-venues)
       return { page: "region-category", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2] };
