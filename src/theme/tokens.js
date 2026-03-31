@@ -24,7 +24,7 @@ export const DARK_C = {
 export const LIGHT_C = {
   black:   "#fbf7f4",
   dark:    "#f3ede6",
-  card:    "#ffffff",
+  card:    "#f2f0ea",
   border:  "#ddd4c8",
   border2: "#c5bbb0",
   gold:    "#7a5f10",
