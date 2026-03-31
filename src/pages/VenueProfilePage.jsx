@@ -480,7 +480,7 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
       <HeroSection venue={venue} />
 
       {/* ── Gallery grid (below hero) ────────────────────────────────────── */}
-      <div style={{ background: '#fff' }}>
+      <div style={{ background: '#f2f0ea' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '24px 16px' : '28px 64px' }}>
           <PhotoGalleryGrid data={{
             images: venue.galleryImages,
