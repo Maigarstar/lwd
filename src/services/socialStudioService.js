@@ -32,6 +32,7 @@ async function callEdge(payload) {
     body: JSON.stringify(payload),
   });
   const json = await res.json();
+  console.log('[callEdge] Response:', JSON.stringify({ status: res.status, body: json, payload }, null, 2));
   if (!json.success) throw new Error(json.error || `Edge function error (HTTP ${res.status})`);
   return json.data;
 }
@@ -164,10 +165,10 @@ export async function fetchManagedAccount(id) {
 export async function createManagedAccount(form) {
   try {
     const data = await callEdge({ action: 'create', payload: accountToDb(form) });
-    return dbToAccount(data);
+    return { data: dbToAccount(data), error: null };
   } catch (err) {
-    console.error('[SocialStudio] createManagedAccount error:', err.message);
-    return null;
+    console.error('[SocialStudio] createManagedAccount error:', err.message, err);
+    return { data: null, error: err.message };
   }
 }
 
@@ -218,10 +219,10 @@ export async function convertLeadToManagedAccount(lead) {
 export async function updateManagedAccount(id, form) {
   try {
     const data = await callEdge({ action: 'update', id, payload: accountToDb(form) });
-    return dbToAccount(data);
+    return { data: dbToAccount(data), error: null };
   } catch (err) {
-    console.error('[SocialStudio] updateManagedAccount error:', err.message);
-    return null;
+    console.error('[SocialStudio] updateManagedAccount error:', err.message, err);
+    return { data: null, error: err.message };
   }
 }
 

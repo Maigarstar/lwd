@@ -906,27 +906,27 @@ export default function ManagedAccountsModule({ C }) {
   async function handleSave(form) {
     if (form.id) {
       // ── Edit ──────────────────────────────────────────────────────────────────
-      const updated = await updateManagedAccount(form.id, form);
-      if (updated && !updated._offline) {
-        setAccounts(prev => prev.map(a => a.id === form.id ? updated : a));
-        setSelected(prev => prev?.id === form.id ? updated : prev);
-        showSaveFeedback('success', `${updated.name} updated`);
+      const result = await updateManagedAccount(form.id, form);
+      if (result.data && !result.data._offline) {
+        setAccounts(prev => prev.map(a => a.id === form.id ? result.data : a));
+        setSelected(prev => prev?.id === form.id ? result.data : prev);
+        showSaveFeedback('success', `${result.data.name} updated`);
         return { ok: true };
       } else {
-        return { ok: false, message: 'Update failed — your changes were not saved to the database. Please try again.' };
+        return { ok: false, message: result.error || 'Update failed — your changes were not saved to the database. Please try again.' };
       }
     } else {
       // ── Create ────────────────────────────────────────────────────────────────
-      const created = await createManagedAccount(form);
-      if (created && !created._offline) {
+      const result = await createManagedAccount(form);
+      if (result.data && !result.data._offline) {
         // Only add to the list once the DB confirms the record exists
-        setAccounts(prev => [created, ...prev]);
-        showSaveFeedback('success', `${created.name} created`);
+        setAccounts(prev => [result.data, ...prev]);
+        showSaveFeedback('success', `${result.data.name} created`);
         // Re-fetch from DB to verify the record survives a reload
         setTimeout(() => loadAccounts(), 700);
         return { ok: true };
       } else {
-        return { ok: false, message: 'Create failed — account was not saved to the database. Check the browser console for the error detail.' };
+        return { ok: false, message: result.error || 'Create failed — account was not saved to the database. Check the browser console for the error detail.' };
       }
     }
   }
