@@ -848,7 +848,7 @@ function GallerySection({ content, layout, palette }) {
   }));
 
   return (
-    <div style={{ background: '#ffffff' }}>
+    <div style={{ background: '#f2f0ea' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '24px 16px 48px' : '28px 64px 80px' }}>
         {content.title && (
           <p style={{
@@ -1612,9 +1612,9 @@ export default function ShowcaseRenderer({
     <div style={{ background: palette.bg, color: palette.text, minHeight: '100vh' }}>
       {!isPreview && (
         <>
-          {/* White header block — HomeNav (fixed) + BreadcrumbBar (in flow).
-              White background prevents dark palette.bg bleeding through the gap. */}
-          <div style={{ background: darkMode ? 'rgba(11,9,6,0.97)' : '#ffffff' }}>
+          {/* Header block — HomeNav (fixed) + BreadcrumbBar (in flow).
+              Light background prevents dark palette.bg bleeding through the gap. */}
+          <div style={{ background: darkMode ? 'rgba(11,9,6,0.97)' : '#f2f0ea' }}>
             {/* HomeNav — slides UP when SectionNav slides DOWN (IC Park Lane pattern) */}
             <div style={{
               position: 'fixed', top: 0, left: 0, right: 0, zIndex: 699,
