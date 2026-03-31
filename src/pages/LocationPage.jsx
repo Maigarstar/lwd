@@ -115,12 +115,12 @@ function CategoryCarousel({ categories, C, onSelect }) {
   );
 }
 
-function EditorialSection({ editorial, locationName, C }) {
+function EditorialSection({ editorial, locationName, C, darkMode }) {
   const [expanded, setExpanded] = useState(false);
   if (!editorial?.sections?.length) return null;
   const visibleSections = expanded ? editorial.sections : editorial.sections.slice(0, 2);
   return (
-    <section aria-label={`Editorial guide to weddings in ${locationName}`} className="lwd-region-section" style={{ background: C.dark, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: "80px 48px" }}>
+    <section aria-label={`Editorial guide to weddings in ${locationName}`} className="lwd-region-section" style={{ background: darkMode ? C.dark : "#f2f0ea", borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: "80px 48px" }}>
       <div style={{ maxWidth: 780, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 20 }}>
           <div style={{ width: 28, height: 1, background: C.gold }} />
@@ -1188,7 +1188,7 @@ export default function LocationPage({
 
         {/* ═══ EDITORIAL SECTION ═══════════════════════════════════════════════ */}
         {currentLocation?.editorial && (
-          <EditorialSection editorial={currentLocation.editorial} locationName={currentLocation?.name} C={C} />
+          <EditorialSection editorial={currentLocation.editorial} locationName={currentLocation?.name} C={C} darkMode={darkMode} />
         )}
 
         {/* ═══ FEATURED SLIDER — LWD Signature Collection ═══════════════════ */}

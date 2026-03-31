@@ -696,7 +696,7 @@ export default function USAPage({
           </section>
 
           {/* ═══ 10. SEO / FAQ ════════════════════════════════════════════ */}
-          <section className="usa-section" style={{ background: C.dark, borderTop: `1px solid ${C.border}`, padding: "80px 48px" }}>
+          <section className="usa-section" style={{ background: darkMode ? C.dark : "#f2f0ea", borderTop: `1px solid ${C.border}`, padding: "80px 48px" }}>
             <div className="usa-seo-grid" style={{ maxWidth: 1280, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80 }}>
               <div>
                 <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: C.gold, fontWeight: 600, marginBottom: 12 }}>Planning Guide</div>
@@ -752,7 +752,7 @@ export default function USAPage({
           </section>
 
           {/* ═══ 11. CURATED DESTINATIONS ═════════════════════════════════ */}
-          <section style={{ background: C.dark, borderTop: `1px solid ${C.border}`, padding: "80px 60px" }}>
+          <section style={{ background: darkMode ? C.dark : "#f2f0ea", borderTop: `1px solid ${C.border}`, padding: "80px 60px" }}>
             <div style={{ maxWidth: 1200, margin: "0 auto" }}>
               <div style={{ textAlign: "center", marginBottom: 48 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 16 }}>
@@ -784,10 +784,10 @@ export default function USAPage({
           </section>
 
           {/* ═══ 12. ALL STATES ═══════════════════════════════════════════ */}
-          <div aria-hidden="true" style={{ background: C.dark, padding: "0 60px" }}>
+          <div aria-hidden="true" style={{ background: darkMode ? C.dark : "#f2f0ea", padding: "0 60px" }}>
             <div style={{ maxWidth: 1200, margin: "0 auto", height: 1, background: `linear-gradient(90deg, transparent, ${C.gold}, transparent 80%)` }} />
           </div>
-          <section style={{ background: C.dark, padding: "80px 60px" }}>
+          <section style={{ background: darkMode ? C.dark : "#f2f0ea", padding: "80px 60px" }}>
             <div style={{ maxWidth: 1200, margin: "0 auto" }}>
               <div style={{ textAlign: "center", marginBottom: 48 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 16 }}>
