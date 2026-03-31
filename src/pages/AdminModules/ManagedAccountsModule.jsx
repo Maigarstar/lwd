@@ -5,15 +5,17 @@
 // Hub for content delivery, campaigns, and activity per client.
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
-  fetchManagedAccounts,
-  createManagedAccount,
-  updateManagedAccount,
+  fetchAccounts,
+  fetchAccount,
+  saveAccount,
+  deleteAccount,
+} from "../../services/managedAccountsService";
+import {
   fetchClientContentSummary,
   fetchAllContentSummaries,
   fetchPortalConfig,
   updatePortalConfig,
   buildDefaultPortalConfig,
-  FALLBACK_ACCOUNTS,
 } from "../../services/socialStudioService";
 
 const PLAN_OPTIONS = [
@@ -867,13 +869,25 @@ export default function ManagedAccountsModule({ C }) {
 
   const loadAccounts = useCallback(async () => {
     setLoading(true);
-    const [data, sums] = await Promise.all([
-      fetchManagedAccounts(),
-      fetchAllContentSummaries(),
-    ]);
-    setAccounts(data);
-    setSummaries(sums || {});
-    setLoading(false);
+    try {
+      const [accountsResult, sums] = await Promise.all([
+        fetchAccounts(),
+        fetchAllContentSummaries(),
+      ]);
+      // fetchAccounts returns { success, data, error }
+      if (accountsResult.success && accountsResult.data) {
+        setAccounts(accountsResult.data);
+      } else {
+        console.error('[ManagedAccountsModule] loadAccounts failed:', accountsResult.error);
+        setAccounts([]);
+      }
+      setSummaries(sums || {});
+    } catch (err) {
+      console.error('[ManagedAccountsModule] loadAccounts exception:', err);
+      setAccounts([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { loadAccounts(); }, [loadAccounts]);
@@ -904,38 +918,62 @@ export default function ManagedAccountsModule({ C }) {
   // Returns { ok: true } on DB-confirmed success, { ok: false, message } on failure.
   // The modal uses the return value to decide whether to close — it stays open on failure.
   async function handleSave(form) {
-    if (form.id) {
-      // ── Edit ──────────────────────────────────────────────────────────────────
-      const result = await updateManagedAccount(form.id, form);
-      if (result.data && !result.data._offline) {
-        setAccounts(prev => prev.map(a => a.id === form.id ? result.data : a));
-        setSelected(prev => prev?.id === form.id ? result.data : prev);
-        showSaveFeedback('success', `${result.data.name} updated`);
-        return { ok: true };
-      } else {
-        return { ok: false, message: result.error || 'Update failed — your changes were not saved to the database. Please try again.' };
+    try {
+      const isCreate = !form.id;
+      const actionLabel = isCreate ? 'creating' : 'updating';
+      console.log('[ManagedAccountsModule] handleSave:', actionLabel, isCreate ? '' : form.id);
+
+      // Single unified call for both create and update
+      const result = await saveAccount(form);
+      console.log('[ManagedAccountsModule] handleSave result:', result);
+
+      if (!result.success) {
+        const errorMsg = result.error || (isCreate ? 'Create failed' : 'Update failed');
+        console.error('[ManagedAccountsModule] handleSave failed:', errorMsg);
+        return { ok: false, message: errorMsg };
       }
-    } else {
-      // ── Create ────────────────────────────────────────────────────────────────
-      const result = await createManagedAccount(form);
-      if (result.data && !result.data._offline) {
-        // Only add to the list once the DB confirms the record exists
-        setAccounts(prev => [result.data, ...prev]);
-        showSaveFeedback('success', `${result.data.name} created`);
-        // Re-fetch from DB to verify the record survives a reload
-        setTimeout(() => loadAccounts(), 700);
-        return { ok: true };
+
+      // Success: update UI immediately
+      const saved = result.data;
+      if (isCreate) {
+        // Prepend new account to list
+        setAccounts(prev => [saved, ...prev]);
+        showSaveFeedback('success', `${saved.name} created`);
+        // Refetch after brief delay to verify persistence
+        setTimeout(() => {
+          console.log('[ManagedAccountsModule] handleSave: refetching after create');
+          loadAccounts();
+        }, 700);
       } else {
-        return { ok: false, message: result.error || 'Create failed — account was not saved to the database. Check the browser console for the error detail.' };
+        // Update existing account in list and selection
+        setAccounts(prev => prev.map(a => a.id === saved.id ? saved : a));
+        setSelected(prev => prev?.id === saved.id ? saved : prev);
+        showSaveFeedback('success', `${saved.name} updated`);
       }
+
+      return { ok: true };
+    } catch (err) {
+      console.error('[ManagedAccountsModule] handleSave exception:', err.message);
+      return { ok: false, message: 'An unexpected error occurred. Please try again.' };
     }
   }
 
   async function handleStatusAction(accountId, newStatus) {
-    const updated = { status: newStatus };
-    setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, ...updated } : a));
-    setSelected(prev => prev?.id === accountId ? { ...prev, ...updated } : prev);
-    await updateManagedAccount(accountId, { ...accounts.find(a => a.id === accountId), status: newStatus });
+    const account = accounts.find(a => a.id === accountId);
+    if (!account) return;
+
+    // Update UI immediately for responsiveness
+    const updated = { ...account, status: newStatus };
+    setAccounts(prev => prev.map(a => a.id === accountId ? updated : a));
+    setSelected(prev => prev?.id === accountId ? updated : prev);
+
+    // Persist to database via unified saveAccount
+    console.log('[ManagedAccountsModule] handleStatusAction: saving status', accountId, newStatus);
+    const result = await saveAccount(updated);
+    if (!result.success) {
+      console.error('[ManagedAccountsModule] handleStatusAction failed:', result.error);
+      showSaveFeedback('error', `Status update failed: ${result.error}`);
+    }
   }
 
   function openEdit(account) {
