@@ -583,7 +583,7 @@ export default function RegionCategoryPage({
           className="lwd-rc-section"
           aria-label="Editorial introduction"
           style={{
-            background: C.dark,
+            background: darkMode ? C.dark : "#f2f0ea",
             padding: isMobile ? "40px 16px" : "56px 32px",
           }}
         >
@@ -708,7 +708,7 @@ export default function RegionCategoryPage({
           <section
             className="lwd-rc-section"
             style={{
-              background: darkMode ? C.black : C.dark,
+              background: darkMode ? C.black : "#f2f0ea",
               padding: isMobile ? "40px 16px 48px" : "56px 32px 64px",
             }}
           >
@@ -774,7 +774,7 @@ export default function RegionCategoryPage({
               className="lwd-rc-section"
               aria-label={`${categoryLabel} listings`}
               style={{
-                background: C.dark,
+                background: darkMode ? C.dark : "#f2f0ea",
                 padding: venueViewMode === "list" && !isMobile
                   ? "40px 0 72px 48px"
                   : "40px 48px 72px",
@@ -920,7 +920,7 @@ export default function RegionCategoryPage({
                           style={{
                             width: "100%",
                             height: "80vh",
-                            background: C.dark,
+                            background: darkMode ? C.dark : "#f2f0ea",
                             borderRadius: "16px 16px 0 0",
                             overflow: "hidden",
                             display: "flex",
@@ -996,7 +996,7 @@ export default function RegionCategoryPage({
             className="lwd-rc-section"
             aria-label="Coming soon"
             style={{
-              background: C.dark,
+              background: darkMode ? C.dark : "#f2f0ea",
               padding: "96px 48px",
               borderBottom: `1px solid ${C.border}`,
             }}
@@ -1066,7 +1066,7 @@ export default function RegionCategoryPage({
           className="lwd-rc-section"
           aria-label="Wedding vendors"
           style={{
-            background: C.dark,
+            background: darkMode ? C.dark : "#f2f0ea",
             padding: "96px 120px",
             borderBottom: `1px solid ${C.border}`,
           }}
