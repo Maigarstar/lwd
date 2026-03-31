@@ -1270,7 +1270,7 @@ export default function RegionCategoryPage({
         {/* ════════════════════════════════════════════════════════════════════
             10. BROWSE BY REGION
         ════════════════════════════════════════════════════════════════════ */}
-        <DirectoryBrands onViewRegion={onViewRegion} onViewCategory={onViewCategory} showInternational={false} showUK={countrySlug !== "italy" && countrySlug !== "usa"} showItaly={countrySlug === "italy"} showUSA={countrySlug === "usa"} />
+        <DirectoryBrands onViewRegion={onViewRegion} onViewCategory={onViewCategory} showInternational={false} showUK={countrySlug !== "italy" && countrySlug !== "usa"} showItaly={countrySlug === "italy"} showUSA={countrySlug === "usa"} darkMode={darkMode} />
 
 
         {/* ── Quick View modal (page-level) ── */}

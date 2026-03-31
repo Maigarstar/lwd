@@ -519,7 +519,7 @@ export default function CountryTemplate({
         <SEOBlock />
 
         {/* ── Browse Italian Regions ── */}
-        <DirectoryBrands onViewRegion={onViewRegion} onViewCategory={onViewCategory} showInternational={false} showUK={false} showItaly />
+        <DirectoryBrands onViewRegion={onViewRegion} onViewCategory={onViewCategory} showInternational={false} showUK={false} showItaly darkMode={darkMode} />
 
         {/* Aura chat is now global, rendered by AuraChat in main.jsx */}
 

@@ -506,7 +506,7 @@ export default function ItalyPage({
         <SEOBlock />
 
         {/* ── Browse Italian Regions ── */}
-        <DirectoryBrands onViewRegion={onViewRegion} onViewCategory={onViewCategory} showInternational={false} showUK={false} showItaly />
+        <DirectoryBrands onViewRegion={onViewRegion} onViewCategory={onViewCategory} showInternational={false} showUK={false} showItaly darkMode={darkMode} />
 
         {/* ── Quick View modal (page-level) ── */}
         {qvItem && (

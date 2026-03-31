@@ -1260,6 +1260,7 @@ export default function LocationPage({
           showUK={currentLocation?.slug !== "italy" && currentLocation?.slug !== "usa"}
           showItaly={currentLocation?.slug === "italy"}
           showUSA={currentLocation?.slug === "usa"}
+          darkMode={darkMode}
         />
 
         {/* Quick View Modal */}

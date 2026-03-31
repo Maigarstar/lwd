@@ -161,7 +161,7 @@ function toColumns(arr, n) {
   return Array.from({ length: n }, (_, i) => arr.slice(i * size, (i + 1) * size));
 }
 
-export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUSA, onViewItaly, onViewCountry, showInternational = true, showUK = true, showItaly = false, showUSA = false }) {
+export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUSA, onViewItaly, onViewCountry, showInternational = true, showUK = true, showItaly = false, showUSA = false, darkMode = false }) {
   const C = useTheme();
   const cols = toColumns(INTL_DESTINATIONS, 4);
 
@@ -193,7 +193,7 @@ export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUS
       aria-label={`${label} regions directory`}
       className="home-directory-section"
       style={{
-        background: C.dark,
+        background: darkMode ? C.dark : "#f2f0ea",
         borderTop: `1px solid ${C.border}`,
         padding: "80px 60px",
       }}
@@ -305,7 +305,7 @@ export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUS
       aria-label={`${label} destinations directory`}
       className="home-directory-section"
       style={{
-        background: C.dark,
+        background: darkMode ? C.dark : "#f2f0ea",
         borderTop: `1px solid ${C.border}`,
         padding: "80px 60px",
       }}

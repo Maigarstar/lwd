@@ -1110,7 +1110,7 @@ export default function RegionPage({
         {/* SEO & AI Panel — hidden per user request */}
 
         {/* ═══ BROWSE BY REGION ══════════════════════════════════════════ */}
-        <DirectoryBrands onViewRegion={onViewRegion} onViewCategory={onViewCategory} showInternational={false} showUK={actualCountrySlug !== "italy" && actualCountrySlug !== "usa"} showItaly={actualCountrySlug === "italy"} showUSA={actualCountrySlug === "usa"} />
+        <DirectoryBrands onViewRegion={onViewRegion} onViewCategory={onViewCategory} showInternational={false} showUK={actualCountrySlug !== "italy" && actualCountrySlug !== "usa"} showItaly={actualCountrySlug === "italy"} showUSA={actualCountrySlug === "usa"} darkMode={darkMode} />
 
 
         {/* Quick-view modal */}

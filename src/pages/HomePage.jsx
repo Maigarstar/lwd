@@ -247,7 +247,7 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
             onViewMagazineArticle={onViewMagazineArticle}
           />
           <NewsletterBand />
-          <DirectoryBrands onViewRegion={(countrySlug, regionSlug) => onViewRegion?.(countrySlug, regionSlug)} onViewCategory={onViewCategory} onViewUSA={onViewUSA} onViewItaly={onViewItaly} onViewCountry={onViewCountry} />
+          <DirectoryBrands onViewRegion={(countrySlug, regionSlug) => onViewRegion?.(countrySlug, regionSlug)} onViewCategory={onViewCategory} onViewUSA={onViewUSA} onViewItaly={onViewItaly} onViewCountry={onViewCountry} darkMode={darkMode} />
         </main>
 
         {/* Enquiry modal */}
