@@ -13,8 +13,6 @@
  * }
  */
 
-import { supabase } from '../lib/supabaseClient';
-
 const EDGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-managed-accounts`;
 const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -121,24 +119,18 @@ async function callEdge(action, params = {}) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Fetch all managed accounts from the database.
+ * Fetch all managed accounts.
+ * Routes through edge function so service role bypasses RLS.
  * @returns {{ success: boolean, data?: array, error?: string }}
  */
 export async function fetchAccounts() {
   try {
     console.log('[managedAccountsService] fetchAccounts');
-
-    // Use direct Supabase query for reads (faster, RLS allows anon SELECT)
-    const { data, error } = await supabase
-      .from('managed_accounts')
-      .select('*')
-      .order('name');
-
-    if (error) {
-      return { success: false, error: error.message };
+    const result = await callEdge('list');
+    if (!result.success) {
+      return { success: false, error: result.error };
     }
-
-    const accounts = (data || []).map(dbToAccount);
+    const accounts = (result.data || []).map(dbToAccount);
     console.log('[managedAccountsService] fetchAccounts: found', accounts.length);
     return { success: true, data: accounts };
   } catch (err) {
@@ -149,28 +141,23 @@ export async function fetchAccounts() {
 
 /**
  * Fetch a single managed account by ID.
+ * Routes through edge function so service role bypasses RLS.
  * @param {string} id
  * @returns {{ success: boolean, data?: object, error?: string }}
  */
 export async function fetchAccount(id) {
   try {
     console.log('[managedAccountsService] fetchAccount:', id);
-
-    const { data, error } = await supabase
-      .from('managed_accounts')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-
-    if (error) {
-      return { success: false, error: error.message };
+    // Fetch all and find by id — edge function list action returns all
+    const result = await callEdge('list');
+    if (!result.success) {
+      return { success: false, error: result.error };
     }
-
-    if (!data) {
+    const row = (result.data || []).find(r => r.id === id);
+    if (!row) {
       return { success: false, error: 'Account not found' };
     }
-
-    return { success: true, data: dbToAccount(data) };
+    return { success: true, data: dbToAccount(row) };
   } catch (err) {
     console.error('[managedAccountsService] fetchAccount error:', err.message);
     return { success: false, error: err.message };
