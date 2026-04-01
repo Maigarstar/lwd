@@ -377,7 +377,12 @@ function ContactsTab({ leads, C, onSelectContact, onStatusChange, onCreateLead }
   const [selected, setSelected]         = useState(new Set());
   const [bulkStatus, setBulkStatus]     = useState('');
   const [bulkApplying, setBulkApply]    = useState(false);
+  const [bulkReason, setBulkReason]     = useState('');
+  const [showBulkReason, setShowBulkReason] = useState(false);
   const PER_PAGE = 20;
+
+  const BULK_LOSS_REASONS = ['Price', 'Timing', 'Went elsewhere', 'No response', 'Not qualified', 'Changed plans', 'Other'];
+  const BULK_SPAM_REASONS = ['Fake contact', 'Duplicate entry', 'Competitor', 'Test submission', 'Wrong number', 'Other'];
 
   const filtered = useMemo(() => {
     return leads.filter(l => {
@@ -411,13 +416,24 @@ function ContactsTab({ leads, C, onSelectContact, onStatusChange, onCreateLead }
   const toggleSelect = (id) => setSelected(s => { const n=new Set(s); n.has(id)?n.delete(id):n.add(id); return n; });
   const toggleAll    = () => setSelected(s => s.size===paged.length ? new Set() : new Set(paged.map(l=>l.id)));
 
-  const applyBulkStatus = async () => {
-    if (!bulkStatus||!selected.size) return;
+  const handleBulkApply = () => {
+    if (!bulkStatus || !selected.size) return;
+    if (bulkStatus === 'lost' || bulkStatus === 'spam') {
+      setShowBulkReason(true);
+      setBulkReason('');
+    } else {
+      executeBulkStatus(bulkStatus, undefined);
+    }
+  };
+
+  const executeBulkStatus = async (status, reason) => {
     setBulkApply(true);
-    for (const id of selected) { await onStatusChange(id, bulkStatus); }
+    for (const id of selected) { await onStatusChange(id, status, reason || undefined); }
     setBulkApply(false);
     setSelected(new Set());
     setBulkStatus('');
+    setShowBulkReason(false);
+    setBulkReason('');
   };
 
   const inS = { padding:'8px 10px', background:C.card, border:`1px solid ${C.border}`, borderRadius:3, fontFamily:'var(--font-body)', fontSize:12, color:C.white, cursor:'pointer', outline:'none' };
@@ -457,19 +473,50 @@ function ContactsTab({ leads, C, onSelectContact, onStatusChange, onCreateLead }
 
       {/* Bulk action bar */}
       {selected.size > 0 && (
-        <div style={{ display:'flex', gap:10, alignItems:'center', padding:'10px 14px', background:GOLD_DIM, border:`1px solid ${GOLD}40`, borderRadius:4, marginBottom:14 }}>
-          <span style={{ fontFamily:'var(--font-body)', fontSize:13, fontWeight:600, color:GOLD }}>{selected.size} selected</span>
-          <select value={bulkStatus} onChange={e=>setBulkStatus(e.target.value)} style={{ ...inS, marginLeft:8 }}>
-            <option value="">Set status...</option>
-            {Object.entries(STATUS_CONFIG).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
-          </select>
-          <button onClick={applyBulkStatus} disabled={!bulkStatus||bulkApplying}
-            style={{ padding:'7px 16px', background:bulkStatus?GOLD:'rgba(201,168,76,0.3)', color:'#000', border:'none', borderRadius:3, fontFamily:'var(--font-body)', fontSize:11, fontWeight:600, cursor:bulkStatus?'pointer':'not-allowed' }}>
-            {bulkApplying?'Applying...':'Apply'}
-          </button>
-          <button onClick={()=>setSelected(new Set())} style={{ padding:'7px 12px', background:'transparent', border:`1px solid ${C.border}`, borderRadius:3, fontFamily:'var(--font-body)', fontSize:11, color:C.grey, cursor:'pointer' }}>
-            Clear
-          </button>
+        <div style={{ marginBottom:14 }}>
+          <div style={{ display:'flex', gap:10, alignItems:'center', padding:'10px 14px', background:GOLD_DIM, border:`1px solid ${GOLD}40`, borderRadius: showBulkReason ? '4px 4px 0 0' : 4 }}>
+            <span style={{ fontFamily:'var(--font-body)', fontSize:13, fontWeight:600, color:GOLD }}>{selected.size} selected</span>
+            <select value={bulkStatus} onChange={e=>{setBulkStatus(e.target.value);setShowBulkReason(false);setBulkReason('');}} style={{ ...inS, marginLeft:8 }}>
+              <option value="">Set status...</option>
+              {Object.entries(STATUS_CONFIG).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
+            </select>
+            <button onClick={handleBulkApply} disabled={!bulkStatus||bulkApplying}
+              style={{ padding:'7px 16px', background:bulkStatus?GOLD:'rgba(201,168,76,0.3)', color:'#000', border:'none', borderRadius:3, fontFamily:'var(--font-body)', fontSize:11, fontWeight:600, cursor:bulkStatus?'pointer':'not-allowed' }}>
+              {bulkApplying ? 'Applying...' : (bulkStatus==='lost'||bulkStatus==='spam') ? 'Next →' : 'Apply'}
+            </button>
+            <button onClick={()=>{setSelected(new Set());setShowBulkReason(false);setBulkReason('');}} style={{ padding:'7px 12px', background:'transparent', border:`1px solid ${C.border}`, borderRadius:3, fontFamily:'var(--font-body)', fontSize:11, color:C.grey, cursor:'pointer' }}>
+              Clear
+            </button>
+          </div>
+
+          {/* Inline reason prompt for lost / spam bulk actions */}
+          {showBulkReason && (
+            <div style={{ padding:'12px 14px', background: bulkStatus==='lost' ? 'rgba(239,68,68,0.06)' : C.card, border:`1px solid ${bulkStatus==='lost'?'rgba(239,68,68,0.25)':C.border}`, borderTop:'none', borderRadius:'0 0 4px 4px' }}>
+              <div style={{ fontFamily:'var(--font-body)', fontSize:10, fontWeight:700, color: bulkStatus==='lost'?'#ef4444':C.grey, letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:8 }}>
+                {bulkStatus==='lost' ? 'Loss Reason' : 'Spam Reason'} — applying to {selected.size} contact{selected.size>1?'s':''}
+              </div>
+              <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginBottom:10 }}>
+                {(bulkStatus==='lost' ? BULK_LOSS_REASONS : BULK_SPAM_REASONS).map(r => (
+                  <button key={r} onClick={()=>setBulkReason(r)} style={{
+                    padding:'3px 9px', borderRadius:10, cursor:'pointer', transition:'all 0.1s',
+                    fontFamily:'var(--font-body)', fontSize:10, fontWeight:600,
+                    background: bulkReason===r ? (bulkStatus==='lost'?'#ef4444':'#9ca3af') : 'transparent',
+                    color: bulkReason===r ? '#fff' : (bulkStatus==='lost'?'#ef4444':C.grey),
+                    border: `1px solid ${bulkStatus==='lost'?'rgba(239,68,68,0.4)':C.border}`,
+                  }}>{r}</button>
+                ))}
+              </div>
+              <div style={{ display:'flex', gap:8 }}>
+                <button onClick={()=>executeBulkStatus(bulkStatus, bulkReason||undefined)} disabled={bulkApplying}
+                  style={{ padding:'7px 20px', borderRadius:3, cursor:'pointer', fontFamily:'var(--font-body)', fontSize:11, fontWeight:600, background: bulkStatus==='lost'?'#ef4444':'#9ca3af', color:'#fff', border:'none' }}>
+                  {bulkApplying ? 'Applying...' : `Confirm — ${bulkStatus==='lost'?'Mark Lost':'Mark Spam'}`}
+                </button>
+                <button onClick={()=>{setShowBulkReason(false);setBulkReason('');}} style={{ padding:'7px 14px', borderRadius:3, cursor:'pointer', fontFamily:'var(--font-body)', fontSize:11, fontWeight:600, background:'transparent', color:C.grey, border:`1px solid ${C.border}` }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -569,6 +616,17 @@ function ContactsTab({ leads, C, onSelectContact, onStatusChange, onCreateLead }
 }
 
 // ── Pipeline tab ───────────────────────────────────────────────────────────
+// Logical next steps for each pipeline status — drives quick-action buttons on kanban cards
+const NEXT_STATUS_MAP = {
+  new:           ['qualified', 'lost'],
+  qualified:     ['engaged', 'lost'],
+  engaged:       ['proposal_sent', 'lost'],
+  proposal_sent: ['booked', 'lost'],
+  booked:        [],
+  lost:          ['qualified'],
+  spam:          [],
+};
+
 function PipelineTab({ leads, C, onSelectContact, onStatusChange }) {
   const columns = Object.entries(STATUS_CONFIG);
   const [pendingLostId, setPendingLostId] = useState(null);
@@ -633,7 +691,7 @@ function PipelineTab({ leads, C, onSelectContact, onStatusChange }) {
                         {dealVal && <span style={{ fontFamily:'var(--font-body)', fontSize:11, fontWeight:700, color:GOLD }}>{dealVal}</span>}
                       </div>
                       <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
-                        {Object.keys(STATUS_CONFIG).filter(s=>s!==statusKey).slice(0,2).map(s => (
+                        {(NEXT_STATUS_MAP[statusKey] || []).map(s => (
                           <button key={s} onClick={e=>handleQuickAction(e, l.id, s)}
                             style={{ fontSize:9, padding:'2px 7px', borderRadius:8, cursor:'pointer', border:`1px solid ${STATUS_CONFIG[s].color}50`, color:STATUS_CONFIG[s].color, background:'transparent', fontFamily:'var(--font-body)', fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase' }}>
                             {STATUS_CONFIG[s].label}
@@ -1219,10 +1277,12 @@ function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNot
                 {label:'Website',  val:req.website},
                 {label:'Business Type', val:req.businessType},
                 {label:'Channel',  val:lead.lead_channel},
+                {label:'Loss Reason', val:lead.status==='lost' ? lead.loss_reason : null, accent:'#ef4444'},
+                {label:'Spam Reason', val:lead.status==='spam' ? lead.spam_reason : null, accent:C.grey},
               ].filter(r=>r.val).map(r=>(
                 <div key={r.label} style={{ display:'flex', gap:10, marginBottom:7, alignItems:'baseline' }}>
                   <span style={{ fontFamily:'var(--font-body)', fontSize:10, color:C.grey, width:90, flexShrink:0, textTransform:'uppercase', letterSpacing:'0.06em' }}>{r.label}</span>
-                  <span style={{ fontFamily:'var(--font-body)', fontSize:12, color:C.white, wordBreak:'break-all' }}>{r.val}</span>
+                  <span style={{ fontFamily:'var(--font-body)', fontSize:12, color:r.accent||C.white, wordBreak:'break-all', fontWeight:r.accent?600:400 }}>{r.val}</span>
                 </div>
               ))}
             </div>
