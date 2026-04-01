@@ -123,12 +123,12 @@ async function handleGet(leadId: string) {
 // ─── Action: update ───────────────────────────────────────────────────────────
 
 type LeadStatus =
-  | "new" | "contacted" | "qualified" | "sent_to_partner"
-  | "partner_replied" | "booked" | "lost" | "archived";
+  | "new" | "qualified" | "engaged" | "proposal_sent"
+  | "booked" | "lost" | "spam";
 
 const VALID_STATUSES: LeadStatus[] = [
-  "new", "contacted", "qualified", "sent_to_partner",
-  "partner_replied", "booked", "lost", "archived",
+  "new", "qualified", "engaged", "proposal_sent",
+  "booked", "lost", "spam",
 ];
 
 async function handleUpdate(leadId: string, status: string, lossReason?: string) {
@@ -144,10 +144,10 @@ async function handleUpdate(leadId: string, status: string, lossReason?: string)
 
   // Lifecycle timestamps
   const tsMap: Partial<Record<LeadStatus, string>> = {
-    booked:          "booked_at",
-    lost:            "lost_at",
-    sent_to_partner: "vendor_notified_at",
-    partner_replied: "responded_at",
+    engaged:       "engaged_at",
+    proposal_sent: "proposal_sent_at",
+    booked:        "booked_at",
+    lost:          "lost_at",
   };
   const tsField = tsMap[status as LeadStatus];
   if (tsField) updates[tsField] = now;

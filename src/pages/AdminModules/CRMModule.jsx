@@ -7,44 +7,20 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { convertLeadToManagedAccount, fetchManagedAccountByLeadId } from '../../services/socialStudioService';
+import {
+  LEAD_STATUSES, STATUS_MAP, VALID_STATUS_KEYS,
+  statusColor, statusBg, statusLabel,
+  calcLeadScore, scoreColor,
+  LEAD_PRIORITIES, LEAD_TYPES, SOURCE_LABELS,
+} from '../../constants/leadStatuses';
 
 const GOLD     = '#c9a84c';
 const GOLD_DIM = 'rgba(201,168,76,0.1)';
 
-const STATUS_CONFIG = {
-  new:       { label: 'New',       color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',  order: 0 },
-  contacted: { label: 'Contacted', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  order: 1 },
-  qualified: { label: 'Qualified', color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)',  order: 2 },
-  proposal:  { label: 'Proposal',  color: '#ec4899', bg: 'rgba(236,72,153,0.1)',  order: 3 },
-  converted: { label: 'Converted', color: '#10b981', bg: 'rgba(16,185,129,0.1)',  order: 4 },
-  lost:      { label: 'Lost',      color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   order: 5 },
-};
-
-const SOURCE_LABELS = {
-  'Partner Enquiry Form': 'Partner Enquiry',
-  'Sticky Enquiry Form':  'Venue Enquiry',
-  'Venue Enquiry Form':   'Venue Enquiry',
-  'Contact Form':         'Contact Form',
-  'Admin CRM':            'Manual Entry',
-  'venue_page':           'Venue Page',
-};
-
-// ── Lead scoring ──────────────────────────────────────────────────────────────
-function calcLeadScore(lead) {
-  let score = 0;
-  const req = lead.requirements_json || {};
-  if (lead.phone) score += 10;
-  if (req.website) score += 8;
-  if (req.interests?.length) score += Math.min(req.interests.length * 7, 28);
-  if (lead.lead_source === 'Partner Enquiry Form') score += 20;
-  else if (lead.lead_source?.toLowerCase().includes('venue')) score += 15;
-  else if (lead.lead_source) score += 8;
-  if (lead.message && lead.message.length > 80) score += 7;
-  const statusBonus = { new: 0, contacted: 8, qualified: 22, proposal: 35, converted: 55, lost: 0 };
-  score += statusBonus[lead.status || 'new'] || 0;
-  return Math.min(100, score);
-}
-function scoreColor(s) { return s >= 70 ? '#10b981' : s >= 40 ? '#f59e0b' : '#ef4444'; }
+// Build STATUS_CONFIG from shared constants for backward compat within this file
+const STATUS_CONFIG = Object.fromEntries(
+  LEAD_STATUSES.map(s => [s.key, { label: s.label, color: s.color, bg: s.bg, order: s.order }])
+);
 
 // ── Currency formatter ─────────────────────────────────────────────────────
 function fmtGBP(v) {
@@ -132,10 +108,10 @@ function CRMTabBar({ tab, setTab, C, overdueTasks }) {
 // ── Dashboard tab ──────────────────────────────────────────────────────────
 function DashboardTab({ leads, notes, tasks, C, onSelectContact }) {
   const total     = leads.length;
-  const converted = leads.filter(l=>l.status==='converted').length;
+  const booked   = leads.filter(l=>l.status==='booked').length;
   const newLeads  = leads.filter(l=>!l.status||l.status==='new').length;
   const qualified = leads.filter(l=>l.status==='qualified').length;
-  const convRate  = total ? Math.round((converted/total)*100) : 0;
+  const convRate  = total ? Math.round((booked/total)*100) : 0;
 
   // Pipeline value = sum of dealValue in requirements_json
   const pipelineValue = leads.reduce((sum,l) => {
@@ -190,7 +166,7 @@ function DashboardTab({ leads, notes, tasks, C, onSelectContact }) {
         <Card label="Total Contacts" value={total} sub="All time" />
         <Card label="New Leads" value={newLeads} sub="Awaiting contact" color={STATUS_CONFIG.new.color} />
         <Card label="Qualified" value={qualified} sub="In pipeline" color={STATUS_CONFIG.qualified.color} />
-        <Card label="Conversion" value={`${convRate}%`} sub={`${converted} converted`} color={STATUS_CONFIG.converted.color} />
+        <Card label="Booked" value={`${convRate}%`} sub={`${booked} booked`} color={STATUS_CONFIG.booked.color} />
         <Card
           label="Pipeline Value"
           value={pipelineValue > 0 ? fmtGBP(pipelineValue) : '-'}
@@ -633,7 +609,7 @@ function TasksTab({ tasks, leads, C, onCompleteTask, onCreateTask, onDeleteTask 
             return (
               <div key={t.id} style={{ background:C.card, border:`1px solid ${overdue?'rgba(239,68,68,0.4)':C.border}`, borderLeft:`3px solid ${t.completed?C.border:overdue?'#ef4444':GOLD}`, borderRadius:4, padding:'12px 16px', display:'flex', alignItems:'flex-start', gap:12 }}>
                 {/* Checkbox */}
-                <button onClick={()=>onCompleteTask(t)} style={{ width:20,height:20,borderRadius:4,border:`2px solid ${t.completed?STATUS_CONFIG.converted.color:C.border}`,background:t.completed?STATUS_CONFIG.converted.color:'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1 }}>
+                <button onClick={()=>onCompleteTask(t)} style={{ width:20,height:20,borderRadius:4,border:`2px solid ${t.completed?STATUS_CONFIG.booked.color:C.border}`,background:t.completed?STATUS_CONFIG.booked.color:'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1 }}>
                   {t.completed && <span style={{ color:'#fff',fontSize:11,fontWeight:700 }}>✓</span>}
                 </button>
 
@@ -655,7 +631,7 @@ function TasksTab({ tasks, leads, C, onCompleteTask, onCreateTask, onDeleteTask 
                       </span>
                     )}
                     {t.completed && t.completedAt && (
-                      <span style={{ fontFamily:'var(--font-body)', fontSize:11, color:STATUS_CONFIG.converted.color }}>
+                      <span style={{ fontFamily:'var(--font-body)', fontSize:11, color:STATUS_CONFIG.booked.color }}>
                         Completed {new Date(t.completedAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}
                       </span>
                     )}
@@ -862,7 +838,7 @@ function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNot
               ↗ Website
             </a>
           )}
-          {onConvert && lead.status === 'converted' && convertState !== 'success' && (
+          {onConvert && lead.status === 'booked' && convertState !== 'success' && (
             <button
               onClick={async () => {
                 if (converting) return;
@@ -1032,7 +1008,7 @@ function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNot
               const overdue = isOverdue(t);
               return (
                 <div key={t.id} style={{ display:'flex', gap:10, alignItems:'flex-start', padding:'10px 0', borderBottom:`1px solid ${C.border}` }}>
-                  <button onClick={()=>onCompleteTask(t)} style={{ width:18,height:18,borderRadius:3,border:`2px solid ${t.completed?STATUS_CONFIG.converted.color:C.border}`,background:t.completed?STATUS_CONFIG.converted.color:'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:2 }}>
+                  <button onClick={()=>onCompleteTask(t)} style={{ width:18,height:18,borderRadius:3,border:`2px solid ${t.completed?STATUS_CONFIG.booked.color:C.border}`,background:t.completed?STATUS_CONFIG.booked.color:'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:2 }}>
                     {t.completed && <span style={{ color:'#fff',fontSize:10 }}>✓</span>}
                   </button>
                   <div style={{ flex:1 }}>
@@ -1153,13 +1129,29 @@ export default function CRMModule({ C }) {
     loadPanelNotes(lead.id);
   };
 
-  const handleStatusChange = async (leadId, newStatus) => {
+  const handleStatusChange = async (leadId, newStatus, lossReason) => {
     try {
       const { supabase } = await import('../../lib/supabaseClient');
-      await supabase.from('leads').update({ status: newStatus }).eq('id', leadId);
-      setLeads(prev => prev.map(l => l.id===leadId ? {...l, status:newStatus} : l));
-      if (selectedLead?.id===leadId) setSelectedLead(prev => ({...prev, status:newStatus}));
-    } catch (err) { /* status update failed */ }
+      const now = new Date().toISOString();
+      const updates = { status: newStatus, updated_at: now };
+
+      // Lifecycle timestamps
+      const tsMap = { engaged: 'engaged_at', proposal_sent: 'proposal_sent_at', booked: 'booked_at', lost: 'lost_at' };
+      if (tsMap[newStatus]) updates[tsMap[newStatus]] = now;
+      if (newStatus === 'lost' && lossReason) updates.loss_reason = lossReason;
+
+      await supabase.from('leads').update(updates).eq('id', leadId);
+      setLeads(prev => prev.map(l => l.id===leadId ? {...l, ...updates} : l));
+      if (selectedLead?.id===leadId) setSelectedLead(prev => ({...prev, ...updates}));
+
+      // Log event (fire-and-forget)
+      supabase.from('lead_events').insert({
+        lead_id: leadId,
+        event_type: 'status_changed',
+        event_label: `Status changed to ${newStatus}`,
+        event_data: { new_status: newStatus, changed_by: 'admin', loss_reason: lossReason ?? null },
+      }).then(() => {}).catch(() => {});
+    } catch (err) { console.error('[CRM] status change failed:', err); }
   };
 
   // Returns 'success' | 'duplicate' | 'error'
@@ -1173,9 +1165,9 @@ export default function CRMModule({ C }) {
       }
       const created = await convertLeadToManagedAccount(lead);
       if (!created) return 'error';
-      // Mark CRM lead as converted if not already
-      if (lead.status !== 'converted') {
-        await handleStatusChange(lead.id, 'converted');
+      // Mark CRM lead as booked if not already
+      if (lead.status !== 'booked') {
+        await handleStatusChange(lead.id, 'booked');
       }
       return 'success';
     } catch (err) {

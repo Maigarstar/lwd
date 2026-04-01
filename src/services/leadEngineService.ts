@@ -40,10 +40,7 @@ import { sendPartnerLeadNotification, sendInternalLeadNotification } from './lea
 export type LeadStatus =
   | 'new'
   | 'qualified'
-  | 'sent_to_partner'
-  | 'partner_opened'
-  | 'partner_replied'
-  | 'in_conversation'
+  | 'engaged'
   | 'proposal_sent'
   | 'booked'
   | 'lost'
@@ -230,10 +227,10 @@ export async function updateLeadStatus(leadId: string, newStatus: LeadStatus) {
 
     // Record lifecycle timestamps
     const timestampMap: Partial<Record<LeadStatus, string>> = {
+      engaged: 'engaged_at',
+      proposal_sent: 'proposal_sent_at',
       booked: 'booked_at',
       lost: 'lost_at',
-      sent_to_partner: 'vendor_notified_at',
-      partner_replied: 'responded_at',
     }
 
     const tsField = timestampMap[newStatus]
@@ -369,7 +366,7 @@ async function routeAndNotify(leadId: string, leadRow: Record<string, any>) {
         await recordLeadEvent(leadId, 'partner_notified', { email: destination.partnerEmail })
         await updateLead(leadId, {
           vendor_notified_at: new Date().toISOString(),
-          status: 'sent_to_partner',
+          status: 'engaged',
         })
       }
     }
