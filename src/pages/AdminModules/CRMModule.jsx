@@ -5,7 +5,7 @@
 // Dark/Light: uses C.white for text (not C.black which is the BG color)
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { convertLeadToManagedAccount, fetchManagedAccountByLeadId } from '../../services/socialStudioService';
 import { callLeadsEdge } from '../../services/leadEngineService';
 import {
@@ -1529,9 +1529,12 @@ export default function CRMModule({ C }) {
   const [noteText, setNoteText]             = useState('');
   const [noteSubmitting, setNoteSubmitting] = useState(false);
   const [showNewContact, setShowNewContact] = useState(false);
+  const [newLeadsAvailable, setNewLeads]   = useState(false);
+  const [panelEvents, setPanelEvents]      = useState([]);
+  const leadsCountRef                      = useRef(0);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       // Fetch leads via edge function (service_role — bypasses RLS)
       const [leadsResult, { data: msgsData }, { data: eventsData }] = await Promise.all([
@@ -1543,16 +1546,31 @@ export default function CRMModule({ C }) {
           supabase.from('lead_events').select('*').order('created_at', { ascending: false }).limit(300)
         ),
       ]);
-      setLeads(leadsResult.data?.leads || []);
-      const msgs = msgsData || [];
-      setNotes(msgs.filter(m => m.message_type === 'internal_note'));
-      setTasks(msgs.filter(m => m.message_type === 'task').map(parseTask));
-      setLeadEvents(eventsData || []);
+      const freshLeads = leadsResult.data?.leads || [];
+      if (silent && freshLeads.length > leadsCountRef.current) {
+        setNewLeads(true); // show indicator — don't replace state mid-session
+      } else {
+        setLeads(freshLeads);
+        leadsCountRef.current = freshLeads.length;
+        const msgs = msgsData || [];
+        setNotes(msgs.filter(m => m.message_type === 'internal_note'));
+        setTasks(msgs.filter(m => m.message_type === 'task').map(parseTask));
+        setLeadEvents(eventsData || []);
+      }
     } catch (err) { console.error('[CRM] loadData failed:', err); }
-    finally { setLoading(false); }
+    finally { if (!silent) setLoading(false); }
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // 30-second polling — pauses when tab is hidden
+  useEffect(() => {
+    const poll = () => { if (!document.hidden) loadData(true); };
+    const id = setInterval(poll, 30000);
+    return () => clearInterval(id);
+  }, [loadData]);
+
+  const applyNewLeads = () => { setNewLeads(false); loadData(); };
 
   const loadPanelNotes = async (leadId) => {
     try {
@@ -1563,10 +1581,21 @@ export default function CRMModule({ C }) {
     } catch {}
   };
 
+  const loadPanelEvents = async (leadId) => {
+    try {
+      const { supabase } = await import('../../lib/supabaseClient');
+      const { data } = await supabase.from('lead_events').select('*')
+        .eq('lead_id', leadId).order('created_at', { ascending: false }).limit(100);
+      setPanelEvents(data || []);
+    } catch {}
+  };
+
   const handleSelectContact = (lead) => {
     setSelectedLead(lead);
     setPanelNotes([]);
+    setPanelEvents([]);
     loadPanelNotes(lead.id);
+    loadPanelEvents(lead.id);
   };
 
   const handleStatusChange = async (leadId, newStatus, lossReason) => {
@@ -1707,6 +1736,13 @@ export default function CRMModule({ C }) {
         </div>
       </div>
 
+      {newLeadsAvailable && (
+        <div onClick={applyNewLeads} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 14px', background:`${GOLD}18`, border:`1px solid ${GOLD}50`, borderRadius:4, marginBottom:10, cursor:'pointer', fontFamily:'var(--font-body)', fontSize:12, color:GOLD, fontWeight:600 }}>
+          <span style={{ fontSize:14 }}>↻</span> New leads available — click to refresh
+          <span style={{ marginLeft:'auto', opacity:0.6, fontSize:11, fontWeight:400 }}>or wait for next auto-refresh</span>
+        </div>
+      )}
+
       <CRMTabBar tab={tab} setTab={setTab} C={C} overdueTasks={overdueTasks} />
 
       {tab==='dashboard' && <DashboardTab leads={leads} notes={notes} tasks={tasks} C={C} onSelectContact={handleSelectContact} />}
@@ -1724,7 +1760,7 @@ export default function CRMModule({ C }) {
           onConvert={handleConvertToManaged}
           notes={panelNotes}
           tasks={tasks}
-          leadEvents={leadEvents}
+          leadEvents={panelEvents}
           onAddNote={handleAddNote}
           onAddTask={handleCreateTask}
           onCompleteTask={handleCompleteTask}
