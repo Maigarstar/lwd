@@ -21,7 +21,6 @@ applyThemeToDocument();
 
 // ── Initialise return-after-outbound detection (runs once, passive) ──────────
 import { initReturnDetection } from "./services/userEventService";
-import { getHomepageDestinationSettings } from "./services/platformSettingsService";
 initReturnDetection();
 
 import HomePage from "./pages/HomePage.jsx";
@@ -131,14 +130,20 @@ function stateToPath(pg, opts = {}) {
       return "/";
     }
     case "region":           return `/${countrySlug}/${regionSlug}`;
-    case "region-category":  return regionSlug
-      ? `/${countrySlug}/${regionSlug}/${categorySlug}`
-      : `/${countrySlug}/${categorySlug}`;
+    case "region-category": {
+      // Phase 1: New URL structure
+      // Global: /[categorySlug], Country: /[countrySlug]/[categorySlug], Region: /[countrySlug]/[categorySlug]-in/[regionSlug]
+      // Internal state may use countrySlug="world" and regionSlug="all", but these must NOT appear in public URLs
+      if ((!countrySlug || countrySlug === "world") && (!regionSlug || regionSlug === "all")) return `/${categorySlug}`;
+      if (countrySlug && countrySlug !== "world" && !regionSlug) return `/${countrySlug}/${categorySlug}`;
+      if (countrySlug && countrySlug !== "world" && regionSlug && regionSlug !== "all") return `/${countrySlug}/${categorySlug}-in/${regionSlug}`;
+      return "/";
+    }
     case "planner-profile":  return `/${countrySlug}/${regionSlug}/wedding-planners/${plannerSlug}`;
     case "real-wedding-detail": return `/real-weddings/${weddingSlug}`;
     case "real-weddings":    return "/real-weddings";
     case "category":         return "/category";
-    case "venue":            return "/venue";
+
     case "standard":         return "/the-lwd-standard";
     case "about":            return "/about";
     case "taigenic":         return "/taigenic";
@@ -186,9 +191,13 @@ function stateToPath(pg, opts = {}) {
       const rs  = opts.regionSlug;
       const cat = opts.categorySlug || 'wedding-venues';
       const vs  = opts.venueSlug    || '';
-      if (cs && rs && cat) return `/${cs}/${rs}/${cat}/${vs}`;
-      if (cs && cat)       return `/${cs}/${cat}/${vs}`;
-      return `/wedding-venues/${vs}`;
+      // CANONICAL URL: /{country}/{region}/{category}/{listing}
+      // countrySlug and regionSlug are REQUIRED
+      if (!cs || !rs || !vs) {
+        console.warn('[goListing] Missing required params for canonical URL:', { cs, rs, cat, vs });
+        return '/';
+      }
+      return `/${cs}/${rs}/${cat}/${vs}`;
     }
     case "dde-showcase":      return "/showcase/domaine-des-etangs";
     case "ritz-showcase":     return "/showcase/the-ritz-london";
@@ -205,7 +214,7 @@ function pathToState(pathname) {
   const clean = pathname.replace(/^\/+|\/+$/g, "");
   if (!clean) return { page: "home" };
   const statics = {
-    venue: "venue", category: "category", "the-lwd-standard": "standard",
+    category: "category", "the-lwd-standard": "standard",
     about: "about", contact: "contact", partnership: "partnership",
     privacy: "privacy", terms: "terms", cookies: "cookies", "reviews-policy": "reviews-policy", support: "support",
     admin: "admin", vendor: "vendor", couple: "couple", "real-weddings": "real-weddings", shortlist: "shortlist", "getting-married": "getting-married", join: "join", "artistry-awards": "artistry-awards", "partner-enquiry": "partner-enquiry", taigenic: "taigenic",
@@ -260,16 +269,17 @@ function pathToState(pathname) {
   if (parts[0] === "showcase" && parts[1] === "grand-tirolia-kitzbuehel") return { page: "gt-showcase" };
   // Venue showcase: /showcase/{slug}
   if (parts[0] === "showcase" && parts.length === 2) return { page: "showcase", showcaseSlug: parts[1] };
-  // Venue listing profile: /venues/{slug}
-  // Venue reviews page: /venues/{slug}/reviews
+  // ── DEPRECATED OLD URLs (for redirect only) ──
+  // Old format: /venues/{slug} → redirect to canonical
+  if (parts[0] === "venues" && parts.length === 2) return { page: "listing-profile", venueSlug: parts[1], redirectToCanonical: true };
+  // Venue reviews page: /venues/{slug}/reviews → also deprecated
   if (parts[0] === "venues" && parts.length === 3 && parts[2] === "reviews") return { page: "venue-reviews", venueSlug: parts[1] };
-  if (parts[0] === "venues" && parts.length === 2) return { page: "listing-profile", venueSlug: parts[1] };
   // Event detail: /events/{slug}
   if (parts[0] === "events" && parts.length === 2) return { page: "event-detail", eventSlug: parts[1] };
   // Event attendee review: /review?token=UUID
   if (parts[0] === "review" && parts.length === 1) return { page: "event-review" };
-  // Wedding venue listing profile: /wedding-venues/{slug}
-  if (parts[0] === "wedding-venues" && parts.length === 2) return { page: "listing-profile", venueSlug: parts[1] };
+  // Old format: /wedding-venues/{slug} → redirect to canonical
+  if (parts[0] === "wedding-venues" && parts.length === 2) return { page: "listing-profile", venueSlug: parts[1], redirectToCanonical: true };
   if (parts[0] === "magazine-studio" && parts.length === 1) return { page: "magazine-studio" };
   if (parts[0] === "magazine" && parts.length === 1) return { page: "magazine" };
   if (parts[0] === "magazine" && parts[1] === "category" && parts.length === 3) return { page: "magazine-category", magazineCategoryId: parts[2] };
@@ -278,27 +288,48 @@ function pathToState(pathname) {
   // Static routes: non-location single-segment paths (admin, about, contact, etc.)
   if (parts.length === 1 && statics[parts[0]]) return { page: statics[parts[0]] };
 
+  // ── NEW URL STRUCTURE: Category Pages (Phase 1) ────────────────────────────────
+  // Uses existing RegionCategoryPage component with different data context
+  // /[category] → global, /[country]/[category] → country, /[country]/[category]-in/[region] → region
+  const CATEGORY_SLUGS = ['wedding-venues', 'wedding-planners', 'photographers', 'videographers', 'florists', 'styling-decor', 'caterers', 'hair-makeup', 'guest-attire', 'entertainment', 'cakes', 'bridal-dresses', 'stationery', 'health-beauty', 'event-production', 'luxury-transport', 'celebrants', 'gift-registry'];
+
+  // /[category] — Global category (e.g. /wedding-venues)
+  if (parts.length === 1 && CATEGORY_SLUGS.includes(parts[0])) {
+    return { page: "region-category", countrySlug: null, regionSlug: null, categorySlug: parts[0] };
+  }
+
+  // /[country]/[category] — Country category (e.g. /england/wedding-venues)
+  if (parts.length === 2 && CATEGORY_SLUGS.includes(parts[1])) {
+    return { page: "region-category", countrySlug: parts[0], regionSlug: null, categorySlug: parts[1] };
+  }
+
+  // /[country]/[category]-in/[region] — Region category (e.g. /england/wedding-venues-in/surrey)
+  if (parts.length === 3 && parts[1].includes('-in')) {
+    const [categoryPart, _] = parts[1].split('-in');
+    if (CATEGORY_SLUGS.includes(categoryPart)) {
+      return { page: "region-category", countrySlug: parts[0], regionSlug: parts[2], categorySlug: categoryPart };
+    }
+  }
+
   // ── ALL location routes resolve through LocationPage ──
   // No country-specific privileged routing. Supabase locations table is the single authority.
   // /italy, /thailand, /france — all treated identically.
   // LocationPage queries Supabase first, falls back to static geo.js only for migration.
   if (parts.length === 1) return { page: "location", locationType: "country", locationSlug: parts[0] };
 
-  // 2-part: /location/slug → country LocationPage (legacy URL compat)
-  if (parts.length === 2 && parts[0] === "location") {
-    return { page: "location", locationType: "country", locationSlug: parts[1] };
-  }
-  // 2-part: /country/wedding-category → country-level category grid (e.g. /england/wedding-venues)
-  if (parts.length === 2 && parts[1].startsWith('wedding-')) {
-    return { page: "region-category", countrySlug: parts[0], regionSlug: null, categorySlug: parts[1] };
-  }
   if (parts.length === 2) return { page: "region", countrySlug: parts[0], regionSlug: parts[1] };
   if (parts.length === 3) {
-    // 3-part: /country/wedding-category/slug → listing-profile (e.g. /england/wedding-venues/the-ritz)
-    // 3-part: /country/region/category       → region-category grid
-    if (parts[1].startsWith('wedding-')) {
-      return { page: "listing-profile", countrySlug: parts[0], regionSlug: null, categorySlug: parts[1], venueSlug: parts[2] };
+    // Modern format: /country/region/category → region-category grid
+    // Old format: /country/category/slug → DEPRECATED, redirect to canonical
+    if (CATEGORY_SLUGS.includes(parts[2])) {
+      // New format: /country/region/category (e.g. /england/somerset/wedding-venues)
+      return { page: "region-category", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2] };
     }
+    if (CATEGORY_SLUGS.includes(parts[1])) {
+      // Old format: /country/category/slug (e.g. /italy/wedding-venues/villa-balbiano)
+      return { page: "listing-profile", countrySlug: parts[0], regionSlug: null, categorySlug: parts[1], venueSlug: parts[2], redirectToCanonical: true };
+    }
+    // Fallback: treat as new format (region-category)
     return { page: "region-category", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2] };
   }
   if (parts.length === 4) {
@@ -307,6 +338,10 @@ function pathToState(pathname) {
       return { page: "planner-profile", countrySlug, regionSlug, categorySlug, plannerSlug: itemSlug };
     }
     return { page: "listing-profile", countrySlug, regionSlug, categorySlug, venueSlug: itemSlug };
+  }
+  // /{country}/{region}/{category}/{slug}/reviews
+  if (parts.length === 5 && parts[4] === "reviews") {
+    return { page: "venue-reviews", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2], venueSlug: parts[3] };
   }
   return { page: "not-found" };
 }
@@ -357,19 +392,6 @@ function App() {
   const [activeLocationType, setActiveLocationType] = useState(initial.locationType || null);
   const [activeLocationSlug, setActiveLocationSlug] = useState(initial.locationSlug || null);
   const [magazineLight, setMagazineLight] = useState(true);
-
-  // ── Homepage destination grid settings (admin-controlled, persisted) ────────
-  const [homepageGridEnabled, setHomepageGridEnabled] = useState(true);
-  const [countryOverrides, setCountryOverrides] = useState({});
-
-  useEffect(() => {
-    getHomepageDestinationSettings()
-      .then(({ gridEnabled, countryOverrides: overrides }) => {
-        setHomepageGridEnabled(gridEnabled);
-        setCountryOverrides(overrides || {});
-      })
-      .catch(() => { /* defaults already set above */ });
-  }, []);
 
   // Ref: skip pushState when change came from popstate (back/forward)
   const skipPush = useRef(false);
@@ -447,7 +469,7 @@ function App() {
       setActiveVenueSlug(slug);
       setPage("listing-profile");
     } else {
-      setPage("venue");
+      setPage("home");
     }
   };
   const goRegion = (countrySlug, regionSlug) => {
@@ -465,6 +487,27 @@ function App() {
     setPage("region-category");
   };
   const goCategory = (filterCtx) => {
+    // NEW: Support Phase 1 URL routing for categories
+    // When passed { category, countrySlug, regionSlug }, navigate to new URL pattern
+    if (filterCtx && typeof filterCtx === "object" && filterCtx.category) {
+      const catSlug = filterCtx.category;
+      const ctrySlug = filterCtx.countrySlug || null;
+      const regSlug = filterCtx.regionSlug || null;
+
+      setActiveCountrySlug(ctrySlug);
+      setActiveRegionSlug(regSlug);
+      setActiveCategorySlug(catSlug);
+      setCategoryRegion(null);
+      setCategorySearchQuery(null);
+      // Use "region-category" page which handles all three URL patterns:
+      // - /[category] (global)
+      // - /[country]/[category] (country)
+      // - /[country]/[category]-in/[region] (region)
+      setPage("region-category");
+      return;
+    }
+
+    // OLD: Legacy category mode (backward compatibility)
     if (typeof filterCtx === "string") {
       setCategoryRegion(filterCtx || null);
       setCategorySearchQuery(null);
@@ -493,20 +536,7 @@ function App() {
   const goPartnerEnquiry = () => setPage("partner-enquiry");
   const goUSA         = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("usa"); };
   const goItaly       = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("italy"); };
-
-  // Navigate to a country page: /{country.slug}
-  const goCountry = (country) => {
-    const slug = typeof country === 'string' ? country : country?.slug;
-    if (!slug) return;
-    setActiveLocationType('country');
-    setActiveLocationSlug(slug);
-    setActiveCountrySlug(slug);
-    setActiveRegionSlug(null);
-    setActiveCategorySlug(null);
-    setCategoryRegion(null);
-    setCategorySearchQuery(null);
-    setPage("location");
-  };
+  const goCountry     = (slug) => { setActiveLocationType("country"); setActiveLocationSlug(slug); setActiveCountrySlug(slug); setActiveRegionSlug(null); setActiveCategorySlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("location"); };
   const goAdmin       = () => setPage("admin");
   const goVendor              = () => setPage("vendor");
   const goPortal              = () => setPage("portal");
@@ -569,9 +599,7 @@ function App() {
             <ChatProvider>
 
         {/* ── Pages ── */}
-        {page === "venue" && (
-          <VenueProfile onBack={goHome} />
-        )}
+        {/* /venue removed — dead route with no data */}
         {page === "venue-profile" && (
           <VenueProfile slug={activeVenueSlug} onBack={goHome} />
         )}
@@ -585,7 +613,7 @@ function App() {
           />
         )}
         {page === "venue-reviews" && (
-          <VenueReviewsPage />
+          <VenueReviewsPage slug={activeVenueSlug} categorySlug={activeCategorySlug} />
         )}
         {page === "event-detail" && (
           <EventDetailPage slug={activeEventSlug} onBack={goHome} footerNav={footerNav} />
@@ -918,7 +946,7 @@ function App() {
           <PartnerEnquiryPage footerNav={footerNav} onBack={goHome} onNavigateStandard={goStandard} onNavigateAbout={goAbout} />
         )}
         {page === "home" && (
-          <HomePage onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} onViewStandard={goStandard} onViewAbout={goAbout} onViewContact={goContact} onViewPartnership={goPartnership} onViewVendor={goVendor} onViewAdmin={goAdmin} onViewUSA={goUSA} onViewItaly={goItaly} onViewCountry={goCountry} onViewMagazine={goMagazine} onViewMagazineArticle={goMagazineArticle} footerNav={footerNav} homepageGridEnabled={homepageGridEnabled} countryOverrides={countryOverrides} />
+          <HomePage onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} onViewStandard={goStandard} onViewAbout={goAbout} onViewContact={goContact} onViewPartnership={goPartnership} onViewVendor={goVendor} onViewAdmin={goAdmin} onViewUSA={goUSA} onViewItaly={goItaly} onViewCountry={goCountry} onViewMagazine={goMagazine} onViewMagazineArticle={goMagazineArticle} footerNav={footerNav} />
         )}
         {page === "not-found" && (
           <NotFoundPage onNavigateHome={goHome} onNavigateCategory={goCategory} />
@@ -941,10 +969,13 @@ function App() {
         <GlobalAdminBar
           page={page}
           slugs={{
-            showcaseSlug: activeShowcaseSlug,
-            venueSlug:    activeVenueSlug,
-            magazineSlug: activeMagazineSlug,
-            eventSlug:    activeEventSlug,
+            showcaseSlug:  activeShowcaseSlug,
+            venueSlug:     activeVenueSlug,
+            magazineSlug:  activeMagazineSlug,
+            eventSlug:     activeEventSlug,
+            locationSlug:  activeLocationSlug,
+            countrySlug:   activeCountrySlug,
+            regionSlug:    activeRegionSlug,
           }}
           onOpenAdmin={goAdmin}
         />
