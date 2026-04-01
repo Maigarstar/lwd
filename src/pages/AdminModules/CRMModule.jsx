@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { convertLeadToManagedAccount, fetchManagedAccountByLeadId } from '../../services/socialStudioService';
+import { callLeadsEdge } from '../../services/leadEngineService';
 import {
   LEAD_STATUSES, STATUS_MAP, VALID_STATUS_KEYS,
   statusColor, statusBg, statusLabel,
@@ -1432,23 +1433,16 @@ function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNot
 }
 
 // ── New contact modal ──────────────────────────────────────────────────────
-function NewContactModal({ C, onClose, onSave, onOpenExisting }) {
-  const [form, setForm]       = useState({ firstName:'', lastName:'', email:'', phone:'', leadType:'manual', leadSource:'Admin CRM', notes:'' });
-  const [saving, setSaving]   = useState(false);
-  const [duplicate, setDup]   = useState(null); // null | { id, name, status }
-  const [checking, setChecking] = useState(false);
+function NewContactModal({ C, onClose, onSave, onOpenExisting, existingLeads }) {
+  const [form, setForm]     = useState({ firstName:'', lastName:'', email:'', phone:'', leadType:'manual', leadSource:'Admin CRM', notes:'' });
+  const [saving, setSaving] = useState(false);
+  const [duplicate, setDup] = useState(null); // null | { id, name, status }
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
-  const checkEmail = async (email) => {
+  const checkEmail = (email) => {
     if (!email.includes('@')) { setDup(null); return; }
-    setChecking(true);
-    try {
-      const { supabase } = await import('../../lib/supabaseClient');
-      const { data } = await supabase.from('leads').select('id,first_name,last_name,status,email')
-        .ilike('email', email.trim()).limit(1).single();
-      setDup(data ? { id: data.id, name: `${data.first_name||''} ${data.last_name||''}`.trim() || data.email, status: data.status } : null);
-    } catch { setDup(null); }
-    finally { setChecking(false); }
+    const match = (existingLeads || []).find(l => l.email?.toLowerCase() === email.trim().toLowerCase());
+    setDup(match ? { id: match.id, name: `${match.first_name||''} ${match.last_name||''}`.trim() || match.email, status: match.status } : null);
   };
 
   const handleSave = async () => {
@@ -1481,7 +1475,6 @@ function NewContactModal({ C, onClose, onSave, onOpenExisting }) {
             onBlur={e=>checkEmail(e.target.value)}
             style={{ ...inS, borderColor: duplicate ? '#f59e0b' : undefined }} />
         </div>
-        {checking && <div style={{ fontFamily:'var(--font-body)', fontSize:11, color:C.grey, marginBottom:10 }}>Checking for duplicates…</div>}
         {duplicate && (
           <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', background:'rgba(245,158,11,0.08)', border:'1px solid rgba(245,158,11,0.3)', borderRadius:4, marginBottom:14 }}>
             <span style={{ fontSize:16 }}>⚠</span>
@@ -1540,18 +1533,22 @@ export default function CRMModule({ C }) {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const { supabase } = await import('../../lib/supabaseClient');
-      const [{ data: leadsData }, { data: msgsData }, { data: eventsData }] = await Promise.all([
-        supabase.from('leads').select('*').order('created_at', { ascending: false }),
-        supabase.from('lead_messages').select('*').order('created_at', { ascending: false }),
-        supabase.from('lead_events').select('*').order('created_at', { ascending: false }).limit(300),
+      // Fetch leads via edge function (service_role — bypasses RLS)
+      const [leadsResult, { data: msgsData }, { data: eventsData }] = await Promise.all([
+        callLeadsEdge('list', { filters: { limit: 500, offset: 0 } }),
+        import('../../lib/supabaseClient').then(({ supabase }) =>
+          supabase.from('lead_messages').select('*').order('created_at', { ascending: false })
+        ),
+        import('../../lib/supabaseClient').then(({ supabase }) =>
+          supabase.from('lead_events').select('*').order('created_at', { ascending: false }).limit(300)
+        ),
       ]);
-      setLeads(leadsData || []);
+      setLeads(leadsResult.data?.leads || []);
       const msgs = msgsData || [];
       setNotes(msgs.filter(m => m.message_type === 'internal_note'));
       setTasks(msgs.filter(m => m.message_type === 'task').map(parseTask));
       setLeadEvents(eventsData || []);
-    } catch (err) { /* load failed */ }
+    } catch (err) { console.error('[CRM] loadData failed:', err); }
     finally { setLoading(false); }
   }, []);
 
@@ -1741,6 +1738,7 @@ export default function CRMModule({ C }) {
         <NewContactModal C={C}
           onClose={()=>setShowNewContact(false)}
           onSave={()=>{setShowNewContact(false);loadData();}}
+          existingLeads={leads}
           onOpenExisting={(id)=>{
             const lead = leads.find(l=>l.id===id);
             if (lead) handleSelectContact(lead);

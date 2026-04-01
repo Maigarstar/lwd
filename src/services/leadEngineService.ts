@@ -10,7 +10,7 @@ import { supabase, isSupabaseAvailable } from '../lib/supabaseClient'
 const LEADS_EDGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-leads`
 const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-async function callLeadsEdge(action: string, params: Record<string, unknown> = {}): Promise<{ success: boolean; data?: any; error?: string }> {
+export async function callLeadsEdge(action: string, params: Record<string, unknown> = {}): Promise<{ success: boolean; data?: any; error?: string }> {
   if (!LEADS_EDGE_URL || LEADS_EDGE_URL.startsWith('undefined')) {
     return { success: false, error: 'Supabase not configured' }
   }
@@ -145,17 +145,15 @@ export async function createLead(payload: LeadPayload): Promise<CreateLeadResult
       return { success: true, leadId: 'offline-' + Date.now(), score, priority, error: null }
     }
 
-    // Dedup: check for existing lead with same email before creating
+    // Dedup: check for existing lead with same email before creating (via edge function — bypasses RLS)
     let leadId: string | null = null
     let isNewLead = true
     if (payload.email) {
-      const { supabase } = await import('../lib/supabaseClient')
-      const { data: existing } = await supabase
-        .from('leads')
-        .select('id,status')
-        .ilike('email', payload.email.trim())
-        .limit(1)
-        .single()
+      const listResult = await callLeadsEdge('list', { filters: { limit: 500, offset: 0 } })
+      const emailLower = payload.email.trim().toLowerCase()
+      const existing = (listResult.data?.leads || []).find(
+        (l: Record<string, unknown>) => typeof l.email === 'string' && l.email.toLowerCase() === emailLower
+      )
 
       if (existing?.id) {
         // Update existing lead with fresh data rather than creating a duplicate
