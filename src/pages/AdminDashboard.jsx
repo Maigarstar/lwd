@@ -6604,8 +6604,8 @@ function PartnerEnquiriesModule({ C }) {
   const [noteSubmitting, setNoteSubmitting] = useState(false);
 
   const statusColors = {
-    new: '#3b82f6', contacted: '#f59e0b', qualified: '#8b5cf6',
-    converted: '#10b981', lost: '#ef4444',
+    new: '#3b82f6', qualified: '#8b5cf6', engaged: '#06b6d4',
+    proposal_sent: '#ec4899', booked: '#16a34a', lost: '#ef4444', spam: '#9ca3af',
   };
 
   const loadLeads = async () => {
@@ -6772,7 +6772,7 @@ function PartnerEnquiriesModule({ C }) {
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.grey, marginBottom: 8 }}>Status</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {['new', 'contacted', 'qualified', 'converted', 'lost'].map(s => (
+              {['new', 'qualified', 'engaged', 'proposal_sent', 'booked', 'lost', 'spam'].map(s => (
                 <button key={s} onClick={() => handleStatusChange(selectedLead.id, s)} disabled={statusUpdating}
                   style={{
                     padding: '5px 14px', borderRadius: 14, cursor: 'pointer',

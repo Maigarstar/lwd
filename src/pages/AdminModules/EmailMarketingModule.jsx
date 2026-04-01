@@ -24,7 +24,7 @@ const SEGMENTS = [
   { key: 'qualified',        label: 'Qualified Leads',      desc: 'Status: Qualified or Proposal' },
   { key: 'partner_enquiry',  label: 'Partner Enquiries',    desc: 'Venues and vendors from enquiry form' },
   { key: 'venue_enquiry',    label: 'Venue Enquiries',      desc: 'Couples from venue pages' },
-  { key: 'converted',        label: 'Converted (Clients)',  desc: 'Status: Converted - paying clients' },
+  { key: 'booked',            label: 'Booked (Clients)',     desc: 'Status: Booked - confirmed clients' },
 ];
 
 // ── Email templates ────────────────────────────────────────────────────────
@@ -375,10 +375,10 @@ function ComposeTab({ leads, C, onCampaignSaved }) {
   const recipientCount = useMemo(() => {
     if (form.segment==='all') return leads.length;
     if (form.segment==='new') return leads.filter(l=>!l.status||l.status==='new').length;
-    if (form.segment==='qualified') return leads.filter(l=>l.status==='qualified'||l.status==='proposal').length;
+    if (form.segment==='qualified') return leads.filter(l=>l.status==='qualified'||l.status==='proposal_sent').length;
     if (form.segment==='partner_enquiry') return leads.filter(l=>l.lead_source==='Partner Enquiry Form').length;
     if (form.segment==='venue_enquiry') return leads.filter(l=>l.lead_source?.toLowerCase().includes('venue')).length;
-    if (form.segment==='converted') return leads.filter(l=>l.status==='converted').length;
+    if (form.segment==='booked') return leads.filter(l=>l.status==='booked').length;
     return 0;
   }, [leads, form.segment]);
 
@@ -565,10 +565,10 @@ function ListsTab({ leads, C }) {
   const segments = SEGMENTS.map(seg => {
     let filtered = leads;
     if (seg.key==='new')             filtered = leads.filter(l=>!l.status||l.status==='new');
-    if (seg.key==='qualified')       filtered = leads.filter(l=>l.status==='qualified'||l.status==='proposal');
+    if (seg.key==='qualified')       filtered = leads.filter(l=>l.status==='qualified'||l.status==='proposal_sent');
     if (seg.key==='partner_enquiry') filtered = leads.filter(l=>l.lead_source==='Partner Enquiry Form');
     if (seg.key==='venue_enquiry')   filtered = leads.filter(l=>l.lead_source?.toLowerCase().includes('venue'));
-    if (seg.key==='converted')       filtered = leads.filter(l=>l.status==='converted');
+    if (seg.key==='booked')          filtered = leads.filter(l=>l.status==='booked');
     return { ...seg, count: filtered.length, contacts: filtered };
   });
 

@@ -1318,8 +1318,8 @@ function SendModal({ subject: initialSubject, html, builderMode, C, onClose }) {
   const MODES = [
     { key:'all_crm',    label:'All CRM Contacts',      count: () => leads.filter(l=>l.email).length },
     { key:'new',        label:'New Leads',              count: () => leads.filter(l=>l.email&&(!l.status||l.status==='new')).length },
-    { key:'qualified',  label:'Qualified / Proposal',   count: () => leads.filter(l=>l.email&&(l.status==='qualified'||l.status==='proposal')).length },
-    { key:'converted',  label:'Converted Clients',      count: () => leads.filter(l=>l.email&&l.status==='converted').length },
+    { key:'qualified',  label:'Qualified / Proposal',   count: () => leads.filter(l=>l.email&&(l.status==='qualified'||l.status==='proposal_sent')).length },
+    { key:'booked',     label:'Booked Clients',          count: () => leads.filter(l=>l.email&&l.status==='booked').length },
     { key:'newsletter', label:'Newsletter Subscribers', count: () => subscribers.length },
     { key:'manual',     label:'Manual Entry',           count: null },
   ];
@@ -1329,8 +1329,8 @@ function SendModal({ subject: initialSubject, html, builderMode, C, onClose }) {
     switch (recipientMode) {
       case 'all_crm':    return toRec(leads.filter(l=>l.email));
       case 'new':        return toRec(leads.filter(l=>l.email&&(!l.status||l.status==='new')));
-      case 'qualified':  return toRec(leads.filter(l=>l.email&&(l.status==='qualified'||l.status==='proposal')));
-      case 'converted':  return toRec(leads.filter(l=>l.email&&l.status==='converted'));
+      case 'qualified':  return toRec(leads.filter(l=>l.email&&(l.status==='qualified'||l.status==='proposal_sent')));
+      case 'booked':     return toRec(leads.filter(l=>l.email&&l.status==='booked'));
       case 'newsletter': return subscribers.map(s => ({ email: s.email, name: `${s.first_name||''} ${s.last_name||''}`.trim() }));
       case 'manual': {
         const emails = manualEmails.split(/[\n,;]+/).map(e=>e.trim()).filter(e=>e.includes('@'));
