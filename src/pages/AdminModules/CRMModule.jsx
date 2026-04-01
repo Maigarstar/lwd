@@ -1600,32 +1600,22 @@ export default function CRMModule({ C }) {
 
   const handleStatusChange = async (leadId, newStatus, lossReason) => {
     try {
-      const { supabase } = await import('../../lib/supabaseClient');
-      const now = new Date().toISOString();
+      // Route through edge function — bypasses RLS, handles score recompute + event logging server-side
+      const result = await callLeadsEdge('update', {
+        leadId,
+        status: newStatus,
+        ...(lossReason ? { lossReason } : {}),
+      });
 
-      // Compute score from current lead state + new status
-      const currentLead = leads.find(l => l.id === leadId) || {};
-      const score = calcLeadScore({ ...currentLead, status: newStatus });
+      if (!result.success) {
+        console.error('[CRM] status change edge error:', result.error);
+        return;
+      }
 
-      const updates = { status: newStatus, score, updated_at: now };
-
-      // Lifecycle timestamps
-      const tsMap = { engaged: 'engaged_at', proposal_sent: 'proposal_sent_at', booked: 'booked_at', lost: 'lost_at' };
-      if (tsMap[newStatus]) updates[tsMap[newStatus]] = now;
-      if (newStatus === 'lost' && lossReason) updates.loss_reason = lossReason;
-      if (newStatus === 'spam' && lossReason) updates.spam_reason = lossReason;
-
-      await supabase.from('leads').update(updates).eq('id', leadId);
-      setLeads(prev => prev.map(l => l.id===leadId ? {...l, ...updates} : l));
-      if (selectedLead?.id===leadId) setSelectedLead(prev => ({...prev, ...updates}));
-
-      // Log event (fire-and-forget)
-      supabase.from('lead_events').insert({
-        lead_id: leadId,
-        event_type: 'status_changed',
-        event_label: `Status changed to ${newStatus}`,
-        event_data: { new_status: newStatus, score, changed_by: 'admin', loss_reason: lossReason ?? null },
-      }).then(() => {}).catch(() => {});
+      // Optimistic update from server-returned lead data
+      const updated = result.data?.lead || {};
+      setLeads(prev => prev.map(l => l.id===leadId ? { ...l, ...updated } : l));
+      if (selectedLead?.id===leadId) setSelectedLead(prev => ({ ...prev, ...updated }));
     } catch (e) { console.error('[CRM] status change failed:', e); }
   };
 

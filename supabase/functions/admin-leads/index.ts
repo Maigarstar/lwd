@@ -196,7 +196,8 @@ async function handleUpdate(leadId: string, status: string, lossReason?: string)
   };
   const tsField = tsMap[status as LeadStatus];
   if (tsField) updates[tsField] = now;
-  if (status === "lost" && lossReason) updates.loss_reason = lossReason;
+  if (status === "lost"  && lossReason) updates.loss_reason = lossReason;
+  if (status === "spam"  && lossReason) updates.spam_reason = lossReason;
 
   const { data, error } = await supabase
     .from("leads")
