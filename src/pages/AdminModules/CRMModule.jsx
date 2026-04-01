@@ -1432,10 +1432,24 @@ function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNot
 }
 
 // ── New contact modal ──────────────────────────────────────────────────────
-function NewContactModal({ C, onClose, onSave }) {
-  const [form, setForm]   = useState({ firstName:'', lastName:'', email:'', phone:'', leadType:'manual', leadSource:'Admin CRM', notes:'' });
-  const [saving, setSaving] = useState(false);
+function NewContactModal({ C, onClose, onSave, onOpenExisting }) {
+  const [form, setForm]       = useState({ firstName:'', lastName:'', email:'', phone:'', leadType:'manual', leadSource:'Admin CRM', notes:'' });
+  const [saving, setSaving]   = useState(false);
+  const [duplicate, setDup]   = useState(null); // null | { id, name, status }
+  const [checking, setChecking] = useState(false);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  const checkEmail = async (email) => {
+    if (!email.includes('@')) { setDup(null); return; }
+    setChecking(true);
+    try {
+      const { supabase } = await import('../../lib/supabaseClient');
+      const { data } = await supabase.from('leads').select('id,first_name,last_name,status,email')
+        .ilike('email', email.trim()).limit(1).single();
+      setDup(data ? { id: data.id, name: `${data.first_name||''} ${data.last_name||''}`.trim() || data.email, status: data.status } : null);
+    } catch { setDup(null); }
+    finally { setChecking(false); }
+  };
 
   const handleSave = async () => {
     if (!form.firstName.trim()||!form.email.trim()) return;
@@ -1460,7 +1474,27 @@ function NewContactModal({ C, onClose, onSave }) {
           <div><label style={labS}>First Name *</label><input value={form.firstName} onChange={e=>set('firstName',e.target.value)} style={inS} /></div>
           <div><label style={labS}>Last Name</label><input value={form.lastName} onChange={e=>set('lastName',e.target.value)} style={inS} /></div>
         </div>
-        <div style={{ marginBottom:14 }}><label style={labS}>Email *</label><input type="email" value={form.email} onChange={e=>set('email',e.target.value)} style={inS} /></div>
+        <div style={{ marginBottom: duplicate ? 8 : 14 }}>
+          <label style={labS}>Email *</label>
+          <input type="email" value={form.email}
+            onChange={e=>{ set('email',e.target.value); setDup(null); }}
+            onBlur={e=>checkEmail(e.target.value)}
+            style={{ ...inS, borderColor: duplicate ? '#f59e0b' : undefined }} />
+        </div>
+        {checking && <div style={{ fontFamily:'var(--font-body)', fontSize:11, color:C.grey, marginBottom:10 }}>Checking for duplicates…</div>}
+        {duplicate && (
+          <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', background:'rgba(245,158,11,0.08)', border:'1px solid rgba(245,158,11,0.3)', borderRadius:4, marginBottom:14 }}>
+            <span style={{ fontSize:16 }}>⚠</span>
+            <div style={{ flex:1 }}>
+              <div style={{ fontFamily:'var(--font-body)', fontSize:12, fontWeight:600, color:'#f59e0b' }}>Contact already exists</div>
+              <div style={{ fontFamily:'var(--font-body)', fontSize:11, color:C.grey }}>{duplicate.name} · {STATUS_CONFIG[duplicate.status]?.label || duplicate.status}</div>
+            </div>
+            <button onClick={()=>{ onOpenExisting?.(duplicate.id); onClose(); }}
+              style={{ padding:'5px 12px', background:'transparent', border:'1px solid #f59e0b', borderRadius:3, fontFamily:'var(--font-body)', fontSize:11, fontWeight:600, color:'#f59e0b', cursor:'pointer', flexShrink:0 }}>
+              Open existing
+            </button>
+          </div>
+        )}
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:14 }}>
           <div><label style={labS}>Phone</label><input value={form.phone} onChange={e=>set('phone',e.target.value)} style={inS} /></div>
           <div>
@@ -1481,7 +1515,7 @@ function NewContactModal({ C, onClose, onSave }) {
           <button onClick={onClose} style={{ padding:'9px 20px', background:'transparent', border:`1px solid ${C.border}`, borderRadius:3, fontFamily:'var(--font-body)', fontSize:12, color:C.grey, cursor:'pointer' }}>Cancel</button>
           <button onClick={handleSave} disabled={!form.firstName.trim()||!form.email.trim()||saving}
             style={{ padding:'9px 24px', background:(form.firstName.trim()&&form.email.trim())?GOLD:'rgba(201,168,76,0.3)', color:'#000', border:'none', borderRadius:3, fontFamily:'var(--font-body)', fontSize:12, fontWeight:600, cursor:'pointer' }}>
-            {saving?'Saving...':'Create Contact'}
+            {saving ? 'Saving...' : duplicate ? 'Create anyway' : 'Create Contact'}
           </button>
         </div>
       </div>
@@ -1704,7 +1738,14 @@ export default function CRMModule({ C }) {
       )}
 
       {showNewContact && (
-        <NewContactModal C={C} onClose={()=>setShowNewContact(false)} onSave={()=>{setShowNewContact(false);loadData();}} />
+        <NewContactModal C={C}
+          onClose={()=>setShowNewContact(false)}
+          onSave={()=>{setShowNewContact(false);loadData();}}
+          onOpenExisting={(id)=>{
+            const lead = leads.find(l=>l.id===id);
+            if (lead) handleSelectContact(lead);
+          }}
+        />
       )}
     </div>
   );

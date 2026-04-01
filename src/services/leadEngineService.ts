@@ -139,33 +139,67 @@ export async function createLead(payload: LeadPayload): Promise<CreateLeadResult
       lead_value_band: valueBand,
     }
 
-    // 3. Insert lead via edge function (service_role bypasses RLS)
+    // 3. Insert or upsert lead via edge function (service_role bypasses RLS)
     if (!isSupabaseAvailable()) {
       console.log('leadEngineService: Supabase unavailable, logging lead locally')
       return { success: true, leadId: 'offline-' + Date.now(), score, priority, error: null }
     }
 
-    console.log('leadEngineService: inserting lead via edge function')
-    const edgeResult = await callLeadsEdge('create', { payload: leadRow })
+    // Dedup: check for existing lead with same email before creating
+    let leadId: string | null = null
+    let isNewLead = true
+    if (payload.email) {
+      const { supabase } = await import('../lib/supabaseClient')
+      const { data: existing } = await supabase
+        .from('leads')
+        .select('id,status')
+        .ilike('email', payload.email.trim())
+        .limit(1)
+        .single()
 
-    if (!edgeResult.success) {
-      console.error('leadEngineService: leads INSERT failed —', edgeResult.error)
-      throw new Error(edgeResult.error || 'Failed to create lead')
+      if (existing?.id) {
+        // Update existing lead with fresh data rather than creating a duplicate
+        console.log('leadEngineService: duplicate email detected, updating existing lead', existing.id)
+        const mergeUpdates: Record<string, unknown> = { score, updated_at: new Date().toISOString() }
+        if (leadRow.phone && !existing.status) mergeUpdates.phone = leadRow.phone
+        if (leadRow.requirements_json && Object.keys(leadRow.requirements_json).length)
+          mergeUpdates.requirements_json = leadRow.requirements_json
+        if (leadRow.message) mergeUpdates.message = leadRow.message
+        await callLeadsEdge('update_field', { leadId: existing.id, updates: mergeUpdates })
+        await callLeadsEdge('insert_event', {
+          leadId: existing.id,
+          eventType: 'resubmitted',
+          eventData: { source: payload.leadSource, channel: payload.leadChannel, score },
+        })
+        leadId = existing.id
+        isNewLead = false
+      }
     }
-    const leadId = edgeResult.data?.lead?.id
-    if (!leadId) throw new Error('No lead ID returned from edge function')
-    console.log('leadEngineService: lead created', leadId)
 
-    // 4. Record lead_created event
-    await recordLeadEvent(leadId, 'lead_created', {
-      source: payload.leadSource,
-      channel: payload.leadChannel,
-      score,
-      priority,
-    })
+    if (isNewLead) {
+      console.log('leadEngineService: inserting lead via edge function')
+      const edgeResult = await callLeadsEdge('create', { payload: leadRow })
+      if (!edgeResult.success) {
+        console.error('leadEngineService: leads INSERT failed —', edgeResult.error)
+        throw new Error(edgeResult.error || 'Failed to create lead')
+      }
+      leadId = edgeResult.data?.lead?.id
+      if (!leadId) throw new Error('No lead ID returned from edge function')
+      console.log('leadEngineService: lead created', leadId)
+    }
 
-    // 5. Store initial message
-    if (payload.message) {
+    // 4. Record lead_created event (new leads only)
+    if (isNewLead) {
+      await recordLeadEvent(leadId!, 'lead_created', {
+        source: payload.leadSource,
+        channel: payload.leadChannel,
+        score,
+        priority,
+      })
+    }
+
+    // 5. Store initial message (new leads only)
+    if (isNewLead && payload.message) {
       callLeadsEdge('insert_message', {
         leadId,
         messageType: 'initial_enquiry',
@@ -173,12 +207,14 @@ export async function createLead(payload: LeadPayload): Promise<CreateLeadResult
       }).catch(e => console.warn('leadEngineService: message insert failed:', e))
     }
 
-    // 6. Route and send notifications (fire-and-forget)
-    routeAndNotify(leadId, leadRow).catch(err =>
-      console.error('leadEngineService: Notification routing failed:', err)
-    )
+    // 6. Route and send notifications (new leads only — avoid double-notifying on resubmit)
+    if (isNewLead) {
+      routeAndNotify(leadId!, leadRow).catch(err =>
+        console.error('leadEngineService: Notification routing failed:', err)
+      )
+    }
 
-    return { success: true, leadId, score, priority, error: null }
+    return { success: true, leadId: leadId!, score, priority, error: null }
   } catch (error) {
     console.error('leadEngineService: Failed to create lead:', error)
     return { success: false, leadId: null, score: 0, priority: 'normal', error }
