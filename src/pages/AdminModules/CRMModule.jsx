@@ -571,6 +571,19 @@ function ContactsTab({ leads, C, onSelectContact, onStatusChange, onCreateLead }
 // ── Pipeline tab ───────────────────────────────────────────────────────────
 function PipelineTab({ leads, C, onSelectContact, onStatusChange }) {
   const columns = Object.entries(STATUS_CONFIG);
+  const [pendingLostId, setPendingLostId] = useState(null);
+  const [pendingLostReason, setPendingLostReason] = useState('');
+  const PIPELINE_LOSS_REASONS = ['Price', 'Timing', 'Went elsewhere', 'No response', 'Not qualified', 'Changed plans', 'Other'];
+
+  const handleQuickAction = (e, leadId, targetStatus) => {
+    e.stopPropagation();
+    if (targetStatus === 'lost') {
+      setPendingLostId(leadId);
+      setPendingLostReason('');
+    } else {
+      onStatusChange(leadId, targetStatus);
+    }
+  };
 
   return (
     <div>
@@ -621,12 +634,40 @@ function PipelineTab({ leads, C, onSelectContact, onStatusChange }) {
                       </div>
                       <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
                         {Object.keys(STATUS_CONFIG).filter(s=>s!==statusKey).slice(0,2).map(s => (
-                          <button key={s} onClick={e=>{e.stopPropagation();onStatusChange(l.id,s);}}
+                          <button key={s} onClick={e=>handleQuickAction(e, l.id, s)}
                             style={{ fontSize:9, padding:'2px 7px', borderRadius:8, cursor:'pointer', border:`1px solid ${STATUS_CONFIG[s].color}50`, color:STATUS_CONFIG[s].color, background:'transparent', fontFamily:'var(--font-body)', fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase' }}>
                             {STATUS_CONFIG[s].label}
                           </button>
                         ))}
                       </div>
+                      {/* Inline loss reason prompt */}
+                      {pendingLostId === l.id && (
+                        <div onClick={e=>e.stopPropagation()} style={{ marginTop:8, padding:'10px 12px', background:'rgba(239,68,68,0.06)', border:'1px solid rgba(239,68,68,0.25)', borderRadius:4 }}>
+                          <div style={{ fontFamily:'var(--font-body)', fontSize:9, fontWeight:700, color:'#ef4444', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:7 }}>Loss Reason</div>
+                          <div style={{ display:'flex', gap:4, flexWrap:'wrap', marginBottom:7 }}>
+                            {PIPELINE_LOSS_REASONS.map(r => (
+                              <button key={r} onClick={()=>setPendingLostReason(r)} style={{
+                                padding:'2px 7px', borderRadius:8, cursor:'pointer',
+                                fontFamily:'var(--font-body)', fontSize:9, fontWeight:600,
+                                background: pendingLostReason===r ? '#ef4444' : 'transparent',
+                                color: pendingLostReason===r ? '#fff' : '#ef4444',
+                                border:'1px solid rgba(239,68,68,0.4)',
+                              }}>{r}</button>
+                            ))}
+                          </div>
+                          <div style={{ display:'flex', gap:5 }}>
+                            <button onClick={()=>{
+                              onStatusChange(l.id,'lost',pendingLostReason||undefined);
+                              setPendingLostId(null); setPendingLostReason('');
+                            }} style={{ flex:1, padding:'4px 0', borderRadius:3, cursor:'pointer', fontFamily:'var(--font-body)', fontSize:9, fontWeight:700, background:'#ef4444', color:'#fff', border:'none' }}>
+                              Confirm Lost
+                            </button>
+                            <button onClick={()=>{setPendingLostId(null);setPendingLostReason('');}} style={{ padding:'4px 8px', borderRadius:3, cursor:'pointer', fontFamily:'var(--font-body)', fontSize:9, fontWeight:600, background:'transparent', color:C.grey, border:`1px solid ${C.border}` }}>
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -948,7 +989,7 @@ function ActivityTab({ leads, notes, leadEvents, C, onSelectContact }) {
 }
 
 // ── Contact detail panel ───────────────────────────────────────────────────
-function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNote, onAddTask, onCompleteTask, noteText, setNoteText, noteSubmitting, onDealValueChange, onConvert }) {
+function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNote, onAddTask, onCompleteTask, noteText, setNoteText, noteSubmitting, onDealValueChange, onConvert, leadEvents }) {
   const req  = lead.requirements_json || {};
   const score = calcLeadScore(lead);
   const [dealInput, setDealInput] = useState(req.dealValue||'');
@@ -959,13 +1000,17 @@ function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNot
   const [convertState, setConvertState] = useState(null); // null | 'success' | 'duplicate'
   const [showLossPrompt, setShowLossPrompt] = useState(false);
   const [lossReason, setLossReason] = useState('');
+  const [showSpamPrompt, setShowSpamPrompt] = useState(false);
+  const [spamReason, setSpamReason] = useState('');
 
-  const LOSS_REASONS = ['Price', 'Timing', 'Went elsewhere', 'No response', 'Not qualified', 'Changed plans', 'Spam', 'Other'];
+  const LOSS_REASONS = ['Price', 'Timing', 'Went elsewhere', 'No response', 'Not qualified', 'Changed plans', 'Other'];
+  const SPAM_REASONS = ['Fake contact', 'Duplicate entry', 'Competitor', 'Test submission', 'Wrong number', 'Other'];
 
   const handleStatusClick = (s) => {
-    if (s === 'lost') { setShowLossPrompt(true); return; }
-    setShowLossPrompt(false);
-    setLossReason('');
+    if (s === 'lost') { setShowLossPrompt(true); setShowSpamPrompt(false); return; }
+    if (s === 'spam') { setShowSpamPrompt(true); setShowLossPrompt(false); return; }
+    setShowLossPrompt(false); setLossReason('');
+    setShowSpamPrompt(false); setSpamReason('');
     onStatusChange(lead.id, s);
   };
 
@@ -973,6 +1018,12 @@ function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNot
     onStatusChange(lead.id, 'lost', lossReason || undefined);
     setShowLossPrompt(false);
     setLossReason('');
+  };
+
+  const confirmSpam = () => {
+    onStatusChange(lead.id, 'spam', spamReason || undefined);
+    setShowSpamPrompt(false);
+    setSpamReason('');
   };
 
   const contactTasks = tasks.filter(t=>t.lead_id===lead.id);
@@ -1048,7 +1099,7 @@ function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNot
 
         {/* Section tabs */}
         <div style={{ display:'flex', gap:0, marginTop:12, borderBottom:`1px solid ${C.border}` }}>
-          {['overview','notes','tasks'].map(s=>(
+          {['overview','notes','history','tasks'].map(s=>(
             <button key={s} onClick={()=>setSection(s)} style={{
               padding:'6px 14px', border:'none', cursor:'pointer', background:'transparent',
               borderBottom: activeSection===s?`2px solid ${GOLD}`:'2px solid transparent',
@@ -1107,6 +1158,36 @@ function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNot
                       background:'#ef4444', color:'#fff', border:'none',
                     }}>Confirm Lost</button>
                     <button onClick={()=>{setShowLossPrompt(false);setLossReason('');}} style={{
+                      padding:'6px 12px', borderRadius:3, cursor:'pointer',
+                      fontFamily:'var(--font-body)', fontSize:11, fontWeight:600,
+                      background:'transparent', color:C.grey, border:`1px solid ${C.border}`,
+                    }}>Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Spam reason prompt */}
+              {showSpamPrompt && (
+                <div style={{ marginTop:10, padding:'12px 14px', background:'rgba(156,163,175,0.06)', border:`1px solid ${C.border}`, borderRadius:4 }}>
+                  <div style={{ fontFamily:'var(--font-body)', fontSize:10, fontWeight:700, color:C.grey, letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:8 }}>Spam Reason (optional)</div>
+                  <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginBottom:10 }}>
+                    {SPAM_REASONS.map(r => (
+                      <button key={r} onClick={()=>setSpamReason(r)} style={{
+                        padding:'3px 9px', borderRadius:10, cursor:'pointer', transition:'all 0.1s',
+                        fontFamily:'var(--font-body)', fontSize:10, fontWeight:600,
+                        background: spamReason===r ? '#9ca3af' : 'transparent',
+                        color: spamReason===r ? '#fff' : C.grey,
+                        border:`1px solid ${C.border}`,
+                      }}>{r}</button>
+                    ))}
+                  </div>
+                  <div style={{ display:'flex', gap:6 }}>
+                    <button onClick={confirmSpam} style={{
+                      flex:1, padding:'6px 0', borderRadius:3, cursor:'pointer',
+                      fontFamily:'var(--font-body)', fontSize:11, fontWeight:600,
+                      background:'#9ca3af', color:'#fff', border:'none',
+                    }}>Mark as Spam</button>
+                    <button onClick={()=>{setShowSpamPrompt(false);setSpamReason('');}} style={{
                       padding:'6px 12px', borderRadius:3, cursor:'pointer',
                       fontFamily:'var(--font-body)', fontSize:11, fontWeight:600,
                       background:'transparent', color:C.grey, border:`1px solid ${C.border}`,
@@ -1193,6 +1274,56 @@ function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNot
             </button>
           </div>
         )}
+
+        {/* HISTORY section */}
+        {activeSection==='history' && (() => {
+          const contactEvents = (leadEvents || [])
+            .filter(e => e.lead_id === lead.id)
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+          const evtDot = (type) => {
+            if (type === 'status_changed') return '#c9a84c';
+            if (type === 'note_added')     return '#06b6d4';
+            if (type === 'created')        return '#16a34a';
+            return C.grey;
+          };
+          const evtLabel = (e) => {
+            const d = e.event_data || {};
+            if (e.event_type === 'status_changed') {
+              const st = d.new_status || '';
+              const cfg = STATUS_CONFIG[st];
+              return (
+                <span style={{ fontFamily:'var(--font-body)', fontSize:12, color:C.white, lineHeight:1.5 }}>
+                  Status →{' '}
+                  <span style={{ padding:'1px 8px', borderRadius:8, fontSize:11, fontWeight:600, background:cfg?.bg||C.border, color:cfg?.color||C.grey }}>
+                    {cfg?.label || st}
+                  </span>
+                  {d.score != null && <span style={{ marginLeft:6, fontSize:11, color:C.grey }}>Score: {d.score}</span>}
+                  {d.loss_reason && <span style={{ marginLeft:6, fontSize:11, color:'#ef4444' }}>({d.loss_reason})</span>}
+                </span>
+              );
+            }
+            return <span style={{ fontFamily:'var(--font-body)', fontSize:12, color:C.white }}>{e.event_label || e.event_type}</span>;
+          };
+          return (
+            <div>
+              {contactEvents.length === 0 ? (
+                <p style={{ fontFamily:'var(--font-body)', fontSize:12, color:C.grey }}>No activity recorded yet.</p>
+              ) : contactEvents.map(e => (
+                <div key={e.id} style={{ display:'flex', gap:10, paddingBottom:14, marginBottom:14, borderBottom:`1px solid ${C.border}` }}>
+                  <div style={{ flexShrink:0, marginTop:4 }}>
+                    <div style={{ width:8, height:8, borderRadius:'50%', background:evtDot(e.event_type) }} />
+                  </div>
+                  <div style={{ flex:1 }}>
+                    {evtLabel(e)}
+                    <div style={{ fontFamily:'var(--font-body)', fontSize:11, color:C.grey, marginTop:2 }}>
+                      {new Date(e.created_at).toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
 
         {/* TASKS section */}
         {activeSection==='tasks' && (
@@ -1362,6 +1493,7 @@ export default function CRMModule({ C }) {
       const tsMap = { engaged: 'engaged_at', proposal_sent: 'proposal_sent_at', booked: 'booked_at', lost: 'lost_at' };
       if (tsMap[newStatus]) updates[tsMap[newStatus]] = now;
       if (newStatus === 'lost' && lossReason) updates.loss_reason = lossReason;
+      if (newStatus === 'spam' && lossReason) updates.spam_reason = lossReason;
 
       await supabase.from('leads').update(updates).eq('id', leadId);
       setLeads(prev => prev.map(l => l.id===leadId ? {...l, ...updates} : l));
@@ -1501,6 +1633,7 @@ export default function CRMModule({ C }) {
           onConvert={handleConvertToManaged}
           notes={panelNotes}
           tasks={tasks}
+          leadEvents={leadEvents}
           onAddNote={handleAddNote}
           onAddTask={handleCreateTask}
           onCompleteTask={handleCompleteTask}
