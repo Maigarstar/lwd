@@ -743,6 +743,64 @@ function ShowcaseMeta({ showcase, onChange, C, sections, setSections }) {
         C={C}
         uploadPath={`showcases/${showcase?.slug || showcase?.id || 'new'}/hero`}
       />
+
+      {/* ── Live URL ── */}
+      {showcase?.slug && (
+        <div style={{ marginTop: 14, padding: '10px 14px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 4 }}>
+          <label style={{ ...lbl(C), marginBottom: 4 }}>Live URL</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontFamily: NU, fontSize: 12, color: C.grey, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              /showcase/{showcase.slug}
+            </span>
+            <button
+              onClick={() => window.open(`/showcase/${showcase.slug}`, '_blank')}
+              style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 3, padding: '3px 10px', fontFamily: NU, fontSize: 10, color: GOLD, cursor: 'pointer', flexShrink: 0 }}
+            >
+              Open ↗
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── SEO ── */}
+      <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
+        <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, color: GOLD, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 12 }}>
+          SEO
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={lbl(C)}>SEO Title</label>
+          <input
+            value={showcase?.seo_title || ''}
+            onChange={e => set('seo_title', e.target.value)}
+            placeholder={showcase?.title ? `${showcase.title} | Luxury Wedding Directory` : 'Page title for search engines'}
+            style={inp(C)}
+          />
+          <div style={{ fontFamily: NU, fontSize: 10, color: C.grey2, marginTop: 3 }}>
+            {(showcase?.seo_title || '').length}/60 characters
+          </div>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={lbl(C)}>SEO Description</label>
+          <textarea
+            value={showcase?.seo_description || ''}
+            onChange={e => set('seo_description', e.target.value)}
+            rows={3}
+            placeholder="Meta description shown in search results (150-160 chars ideal)"
+            style={{ ...inp(C), resize: 'vertical' }}
+          />
+          <div style={{ fontFamily: NU, fontSize: 10, color: C.grey2, marginTop: 3 }}>
+            {(showcase?.seo_description || '').length}/160 characters
+          </div>
+        </div>
+        <ImageUploadField
+          label="OG Image (Social Share)"
+          value={showcase?.og_image || ''}
+          onChange={v => set('og_image', v)}
+          C={C}
+          uploadPath={`showcases/${showcase?.slug || showcase?.id || 'new'}/og`}
+        />
+      </div>
+
       <div style={{ marginTop: 8, padding: '12px 14px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 4 }}>
         <div style={{ fontFamily: NU, fontSize: 10, color: C.grey2, lineHeight: 1.7 }}>
           Click any section in the canvas to edit its content. Drag sections in the left rail to reorder them.
@@ -1099,13 +1157,16 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComp
       if (found) {
         loadedShowcaseIdRef.current = showcaseId;
         setShowcase({
-          id:            found.id,
-          title:         found.name || found.title || '',
-          slug:          found.slug || '',
-          status:        found.status || 'draft',
-          hero_image_url: found.heroImage || found.hero_image_url || '',
-          location:      found.location || '',
-          excerpt:       found.excerpt  || '',
+          id:              found.id,
+          title:           found.name || found.title || '',
+          slug:            found.slug || '',
+          status:          found.status || 'draft',
+          hero_image_url:  found.heroImage || found.hero_image_url || '',
+          location:        found.location || '',
+          excerpt:         found.excerpt  || '',
+          seo_title:       found.seo_title || '',
+          seo_description: found.seo_description || '',
+          og_image:        found.og_image || '',
         });
         setSections(Array.isArray(found.sections) ? found.sections : []);
       }
@@ -1119,11 +1180,14 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComp
     saveTimer.current = setTimeout(() => {
       saveShowcaseDraft(showcase.id, {
         sections,
-        title:         showcase.title,
-        slug:          showcase.slug,
-        hero_image_url: showcase.hero_image_url,
-        location:      showcase.location,
-        excerpt:       showcase.excerpt,
+        title:           showcase.title,
+        slug:            showcase.slug,
+        hero_image_url:  showcase.hero_image_url,
+        location:        showcase.location,
+        excerpt:         showcase.excerpt,
+        seo_title:       showcase.seo_title,
+        seo_description: showcase.seo_description,
+        og_image:        showcase.og_image,
       }).catch(e => console.warn('[ShowcaseStudio] auto-save:', e.message));
     }, 1500);
     return () => clearTimeout(saveTimer.current);
@@ -1241,11 +1305,14 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComp
     try {
       await saveShowcaseDraft(showcase.id, {
         sections,
-        title:          showcase.title,
-        slug:           showcase.slug,
-        hero_image_url: showcase.hero_image_url,
-        location:       showcase.location,
-        excerpt:        showcase.excerpt,
+        title:           showcase.title,
+        slug:            showcase.slug,
+        hero_image_url:  showcase.hero_image_url,
+        location:        showcase.location,
+        excerpt:         showcase.excerpt,
+        seo_title:       showcase.seo_title,
+        seo_description: showcase.seo_description,
+        og_image:        showcase.og_image,
       });
       setDirty(false);
       setSaveState('saved');
@@ -1275,6 +1342,9 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComp
           excerpt:   showcase.excerpt  || '',
           sections:  sections,
           status:    'draft',
+          seo_title:       showcase.seo_title || '',
+          seo_description: showcase.seo_description || '',
+          og_image:        showcase.og_image || '',
         });
         id = created.id;
         loadedShowcaseIdRef.current = id;
@@ -1283,12 +1353,15 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComp
       } else {
         await saveShowcaseDraft(id, {
           sections,
-          title:          showcase.title,
-          slug:           showcase.slug,
-          hero_image_url: showcase.hero_image_url,
-          location:       showcase.location,
-          excerpt:        showcase.excerpt,
-          status:         'draft',
+          title:           showcase.title,
+          slug:            showcase.slug,
+          hero_image_url:  showcase.hero_image_url,
+          location:        showcase.location,
+          excerpt:         showcase.excerpt,
+          status:          'draft',
+          seo_title:       showcase.seo_title,
+          seo_description: showcase.seo_description,
+          og_image:        showcase.og_image,
         });
         setShowcase(prev => ({ ...prev, status: 'draft' }));
       }
@@ -1326,6 +1399,9 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComp
           heroImage: showcase.hero_image_url || '',
           sections:  sections,
           status:    'draft',
+          seo_title:       showcase.seo_title || '',
+          seo_description: showcase.seo_description || '',
+          og_image:        showcase.og_image || '',
         });
         id = created.id;
         loadedShowcaseIdRef.current = id;
@@ -1333,17 +1409,14 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComp
         onSaveComplete?.(id);
       }
 
-      // Update to live status with published_at
-      await supabase
-        .from('venue_showcases')
-        .update({
-          status:             'published',
-          sections:           sections,
-          published_sections: sections,
-          published_at:       new Date().toISOString(),
-          updated_at:         new Date().toISOString(),
-        })
-        .eq('id', id);
+      // Update to live status via edge function (bypasses RLS)
+      await saveShowcaseDraft(id, {
+        status:             'published',
+        sections:           sections,
+        seo_title:          showcase.seo_title       || null,
+        seo_description:    showcase.seo_description || null,
+        og_image:           showcase.og_image        || null,
+      });
 
       setShowcase(prev => ({ ...prev, status: 'live' }));
       setDirty(false);

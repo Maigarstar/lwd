@@ -59,6 +59,9 @@ function formToDb(form, type = 'venue') {
     key_stats:       (form.stats || []).filter(s => s.value && s.label),
     sort_order:      form.sortOrder    ?? 0,
     published_at:    dbStatus === 'published' ? now : null,
+    seo_title:       form.seo_title       || null,
+    seo_description: form.seo_description || null,
+    og_image:        form.og_image        || null,
   };
 }
 
@@ -121,16 +124,39 @@ export async function fetchShowcaseBySlug(slug) {
 }
 
 // ── Save draft (updates sections + updated_at, does NOT touch published_sections or published_at) ──
+// Routes through update-showcase edge function to bypass RLS.
 export async function saveShowcaseDraft(id, updates) {
   if (!isSupabaseAvailable()) throw new Error('Supabase not available');
-  const { error } = await supabase
-    .from('venue_showcases')
-    .update({
-      ...updates,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', id);
-  if (error) throw new Error(error.message);
+
+  // Map snake_case fields to camelCase expected by edge function
+  const payload = {
+    id,
+    ...(updates.title !== undefined        && { title: updates.title }),
+    ...(updates.slug !== undefined         && { slug: updates.slug }),
+    ...(updates.location !== undefined     && { location: updates.location }),
+    ...(updates.excerpt !== undefined      && { excerpt: updates.excerpt }),
+    ...(updates.hero_image_url !== undefined && { heroImage: updates.hero_image_url }),
+    ...(updates.status !== undefined       && { status: updates.status }),
+    ...(updates.sections !== undefined     && { sections: updates.sections }),
+    ...(updates.seo_title !== undefined    && { seoTitle: updates.seo_title }),
+    ...(updates.seo_description !== undefined && { seoDescription: updates.seo_description }),
+    ...(updates.og_image !== undefined     && { ogImage: updates.og_image }),
+  };
+
+  const url = `https://qpkggfibwreznussudfh.supabase.co/functions/v1/update-showcase`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || 'Failed to save showcase draft');
+  }
 }
 
 // ── Publish showcase (snapshots sections → published_sections, sets published_at) ──

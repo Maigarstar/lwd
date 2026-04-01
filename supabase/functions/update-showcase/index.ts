@@ -58,6 +58,9 @@ Deno.serve(async (req) => {
     // Map 'live' → 'published' (DB constraint: 'draft' | 'published' | 'archived')
     ...(body.status !== undefined && { status: body.status === "live" ? "published" : (body.status || "draft") }),
     ...(body.sections !== undefined && { sections: body.sections || [] }),
+    // When publishing, snapshot sections to published_sections
+    ...((body.status === "live" || body.status === "published") && body.sections !== undefined && { published_sections: body.sections || [] }),
+    ...(body.publishedSections !== undefined && { published_sections: body.publishedSections || [] }),
     ...(body.stats !== undefined && { key_stats: body.stats || body.key_stats || [] }),
     ...(body.sortOrder !== undefined && { sort_order: Number(body.sortOrder || 0) }),
     ...((body.status === "live" || body.status === "published") && !body.publishedAt && { published_at: new Date().toISOString() }),
