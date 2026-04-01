@@ -354,7 +354,7 @@ function AdminRoute({ onBack, onNavigate }) {
     return <div style={{ padding: 40, textAlign: "center", fontFamily: "inherit" }}>Loading...</div>;
   }
 
-  if (!isAuthenticated && false) {
+  if (!isAuthenticated) {
     window.location.href = "/admin/login";
     return null;
   }
