@@ -231,3 +231,59 @@ export async function bulkGenerateArticleSeo(posts, { onProgress, onPostDone } =
   onProgress?.(targets.length, targets.length);
   return { generated, failed };
 }
+
+// ── SEO Primary Pages (DB-backed cannibalisation resolution) ─────────────────
+
+/**
+ * Fetches all primary page designations.
+ * Returns a map keyed by conflict_key for O(1) lookups.
+ */
+export async function fetchPrimaryPages() {
+  const { data, error } = await supabase
+    .from('seo_primary_pages')
+    .select('*')
+    .order('set_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  const map = {};
+  (data || []).forEach(row => { map[row.conflict_key] = row; });
+  return map;
+}
+
+/**
+ * Upserts a primary page designation.
+ * @param {string} conflictKey - e.g. "showcase-villa-rosa"
+ * @param {string} primaryId - UUID of the entity set as primary
+ * @param {string} primaryName - display name at time of designation
+ * @param {string} primaryType - 'listing' | 'showcase' | 'article'
+ * @param {object} conflict - { type, slug, name } of the competing entity
+ */
+export async function setPrimaryPage(conflictKey, primaryId, primaryName, primaryType, conflict) {
+  const { data, error } = await supabase
+    .from('seo_primary_pages')
+    .upsert({
+      conflict_key: conflictKey,
+      primary_id: primaryId,
+      primary_name: primaryName,
+      primary_type: primaryType,
+      conflict_type: conflict.type || primaryType,
+      conflict_slug: conflict.slug || null,
+      conflict_name: conflict.name || null,
+      set_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'conflict_key' })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+/**
+ * Removes a primary page designation.
+ */
+export async function removePrimaryPage(conflictKey) {
+  const { error } = await supabase
+    .from('seo_primary_pages')
+    .delete()
+    .eq('conflict_key', conflictKey);
+  if (error) throw new Error(error.message);
+}
