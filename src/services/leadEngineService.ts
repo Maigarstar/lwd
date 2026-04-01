@@ -5,6 +5,31 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase, isSupabaseAvailable } from '../lib/supabaseClient'
+
+// ─── Edge function proxy (service_role — bypasses RLS on leads table) ────────
+const LEADS_EDGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-leads`
+const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+async function callLeadsEdge(action: string, params: Record<string, unknown> = {}): Promise<{ success: boolean; data?: any; error?: string }> {
+  if (!LEADS_EDGE_URL || LEADS_EDGE_URL.startsWith('undefined')) {
+    return { success: false, error: 'Supabase not configured' }
+  }
+  try {
+    const res = await fetch(LEADS_EDGE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${ANON_KEY}`,
+      },
+      body: JSON.stringify({ action, ...params }),
+    })
+    const json = await res.json()
+    if (!json.success) return { success: false, error: json.error || `Edge error (HTTP ${res.status})` }
+    return { success: true, data: json.data }
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Network error' }
+  }
+}
 import { scoreLead, getLeadPriority, getLeadValueBand } from './leadScoringService'
 import type { LeadPayload } from './leadScoringService'
 import { resolveLeadDestination } from './leadRoutingService'
@@ -117,23 +142,22 @@ export async function createLead(payload: LeadPayload): Promise<CreateLeadResult
       lead_value_band: valueBand,
     }
 
-    // 3. Insert lead (RLS disabled on leads table — anon inserts allowed)
+    // 3. Insert lead via edge function (service_role bypasses RLS)
     if (!isSupabaseAvailable()) {
       console.log('leadEngineService: Supabase unavailable, logging lead locally')
       return { success: true, leadId: 'offline-' + Date.now(), score, priority, error: null }
     }
 
-    const { data: lead, error: insertError } = await supabase
-      .from('leads')
-      .insert(leadRow)
-      .select('id')
-      .single()
+    console.log('leadEngineService: inserting lead via edge function')
+    const edgeResult = await callLeadsEdge('create', { payload: leadRow })
 
-    if (insertError) {
-      console.error('leadEngineService: leads INSERT failed —', insertError.code, insertError.message)
-      throw insertError
+    if (!edgeResult.success) {
+      console.error('leadEngineService: leads INSERT failed —', edgeResult.error)
+      throw new Error(edgeResult.error || 'Failed to create lead')
     }
-    const leadId = lead.id
+    const leadId = edgeResult.data?.lead?.id
+    if (!leadId) throw new Error('No lead ID returned from edge function')
+    console.log('leadEngineService: lead created', leadId)
 
     // 4. Record lead_created event
     await recordLeadEvent(leadId, 'lead_created', {
@@ -145,11 +169,11 @@ export async function createLead(payload: LeadPayload): Promise<CreateLeadResult
 
     // 5. Store initial message
     if (payload.message) {
-      await supabase.from('lead_messages').insert({
-        lead_id: leadId,
-        message_type: 'initial_enquiry',
+      callLeadsEdge('insert_message', {
+        leadId,
+        messageType: 'initial_enquiry',
         body: payload.message,
-      })
+      }).catch(e => console.warn('leadEngineService: message insert failed:', e))
     }
 
     // 6. Route and send notifications (fire-and-forget)
@@ -236,12 +260,9 @@ export async function recordLeadEvent(
   }
 
   try {
-    await supabase.from('lead_events').insert({
-      lead_id: leadId,
-      event_type: eventType,
-      event_label: eventLabel || null,
-      event_data: eventData,
-    })
+    const params: Record<string, unknown> = { leadId, eventType, eventData }
+    if (eventLabel) params.eventLabel = eventLabel
+    await callLeadsEdge('insert_event', params)
   } catch (err) {
     console.warn('leadEngineService: Failed to record event:', err)
   }
