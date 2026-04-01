@@ -119,6 +119,36 @@ function DashboardTab({ leads, notes, tasks, C, onSelectContact }) {
     return sum + (isNaN(v) ? 0 : v);
   }, 0);
 
+  // Weighted forecast = dealValue × stage probability
+  const STAGE_PROB = { new:0.05, qualified:0.15, engaged:0.30, proposal_sent:0.50, booked:1.0, lost:0, spam:0 };
+  const weightedForecast = leads.reduce((sum,l) => {
+    const v = parseFloat(l.requirements_json?.dealValue);
+    if (!v || isNaN(v)) return sum;
+    return sum + v * (STAGE_PROB[l.status||'new'] ?? 0.05);
+  }, 0);
+
+  // Score band breakdown
+  const scoreBands = useMemo(() => ({
+    hot:  leads.filter(l => (l.score ?? calcLeadScore(l)) >= 70).length,
+    warm: leads.filter(l => { const s = l.score ?? calcLeadScore(l); return s >= 40 && s < 70; }).length,
+    cold: leads.filter(l => (l.score ?? calcLeadScore(l)) < 40).length,
+  }), [leads]);
+
+  // Source conversion (booked/total per source)
+  const sourceConversion = useMemo(() => {
+    const map = {};
+    leads.forEach(l => {
+      const src = SOURCE_LABELS[l.lead_source] || l.lead_source || 'Direct';
+      if (!map[src]) map[src] = { total:0, booked:0 };
+      map[src].total++;
+      if (l.status === 'booked') map[src].booked++;
+    });
+    return Object.entries(map)
+      .map(([src, d]) => ({ src, ...d, rate: d.total ? Math.round((d.booked/d.total)*100) : 0 }))
+      .sort((a,b) => b.booked - a.booked || b.total - a.total)
+      .slice(0,5);
+  }, [leads]);
+
   // Monthly trend (last 6 months)
   const monthlyData = useMemo(() => {
     const months = [];
@@ -170,7 +200,7 @@ function DashboardTab({ leads, notes, tasks, C, onSelectContact }) {
         <Card
           label="Pipeline Value"
           value={pipelineValue > 0 ? fmtGBP(pipelineValue) : '-'}
-          sub="Active deals"
+          sub={weightedForecast > 0 ? `${fmtGBP(weightedForecast)} weighted` : 'Active deals'}
           color={GOLD}
         />
       </div>
@@ -212,20 +242,78 @@ function DashboardTab({ leads, notes, tasks, C, onSelectContact }) {
           </div>
         </div>
 
-        {/* Source breakdown */}
+        {/* Source conversion */}
         <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:4, padding:'20px 22px' }}>
-          <div style={{ fontFamily:'var(--font-body)', fontSize:11, fontWeight:700, color:C.white, letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:16 }}>Lead Sources</div>
-          {sourceBreakdown.length === 0 ? (
+          <div style={{ fontFamily:'var(--font-body)', fontSize:11, fontWeight:700, color:C.white, letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:16 }}>Source Conversion</div>
+          {sourceConversion.length === 0 ? (
             <p style={{ fontFamily:'var(--font-body)', fontSize:12, color:C.grey }}>No data yet.</p>
-          ) : sourceBreakdown.map(([src, count]) => (
+          ) : sourceConversion.map(({ src, total: t, booked: b, rate }) => (
             <div key={src} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
               <div style={{ fontFamily:'var(--font-body)', fontSize:12, color:C.white, flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{src}</div>
-              <div style={{ fontFamily:'var(--font-body)', fontSize:12, fontWeight:600, color:C.white, width:20, textAlign:'right' }}>{count}</div>
-              <div style={{ width:60, height:4, background:C.border, borderRadius:2, overflow:'hidden' }}>
-                <div style={{ height:'100%', width:`${(count/total)*100}%`, background:GOLD, borderRadius:2 }} />
+              <div style={{ fontFamily:'var(--font-body)', fontSize:10, color:C.grey, width:36, textAlign:'right' }}>{b}/{t}</div>
+              <div style={{ fontFamily:'var(--font-body)', fontSize:11, fontWeight:700, color: rate>=20?'#16a34a':rate>=10?GOLD:C.grey, width:32, textAlign:'right' }}>{rate}%</div>
+              <div style={{ width:50, height:4, background:C.border, borderRadius:2, overflow:'hidden' }}>
+                <div style={{ height:'100%', width:`${rate}%`, background: rate>=20?'#16a34a':rate>=10?GOLD:'#6b7280', borderRadius:2, transition:'width 0.4s' }} />
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Score bands row */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20, marginBottom:24 }}>
+        <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:4, padding:'20px 22px' }}>
+          <div style={{ fontFamily:'var(--font-body)', fontSize:11, fontWeight:700, color:C.white, letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:16 }}>Lead Quality Bands</div>
+          {[
+            { label:'Hot', count:scoreBands.hot,  color:'#16a34a', desc:'Score 70+' },
+            { label:'Warm', count:scoreBands.warm, color:GOLD,      desc:'Score 40–69' },
+            { label:'Cold', count:scoreBands.cold, color:'#6b7280', desc:'Score < 40' },
+          ].map(({ label, count, color, desc }) => (
+            <div key={label} style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
+              <div style={{ width:8, height:8, borderRadius:'50%', background:color, flexShrink:0 }} />
+              <div style={{ fontFamily:'var(--font-body)', fontSize:12, color:C.white, flex:1 }}>{label}</div>
+              <div style={{ fontFamily:'var(--font-body)', fontSize:10, color:C.grey }}>{desc}</div>
+              <div style={{ fontFamily:'var(--font-body)', fontSize:14, fontWeight:700, color, width:28, textAlign:'right' }}>{count}</div>
+              <div style={{ width:60, height:4, background:C.border, borderRadius:2, overflow:'hidden' }}>
+                <div style={{ height:'100%', width:`${total ? (count/total)*100 : 0}%`, background:color, borderRadius:2, transition:'width 0.4s' }} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Weighted forecast breakdown */}
+        <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:4, padding:'20px 22px' }}>
+          <div style={{ fontFamily:'var(--font-body)', fontSize:11, fontWeight:700, color:C.white, letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:6 }}>Weighted Pipeline Forecast</div>
+          <div style={{ fontFamily:'var(--font-body)', fontSize:10, color:C.grey, marginBottom:14 }}>Deal value × stage probability</div>
+          {[
+            { key:'qualified',    prob:'15%' },
+            { key:'engaged',      prob:'30%' },
+            { key:'proposal_sent',prob:'50%' },
+            { key:'booked',       prob:'100%' },
+          ].map(({ key, prob }) => {
+            const stageLeds = leads.filter(l => l.status === key);
+            const stageVal = stageLeds.reduce((s,l) => {
+              const v = parseFloat(l.requirements_json?.dealValue);
+              return s + (isNaN(v)?0:v);
+            }, 0);
+            const weighted = stageVal * parseFloat(prob) / 100;
+            return stageVal > 0 ? (
+              <div key={key} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+                <div style={{ width:8,height:8,borderRadius:'50%',background:STATUS_CONFIG[key]?.color,flexShrink:0 }} />
+                <div style={{ fontFamily:'var(--font-body)', fontSize:11, color:C.white, flex:1 }}>{STATUS_CONFIG[key]?.label}</div>
+                <div style={{ fontFamily:'var(--font-body)', fontSize:10, color:C.grey }}>{prob}</div>
+                <div style={{ fontFamily:'var(--font-body)', fontSize:11, fontWeight:600, color:GOLD }}>{fmtGBP(weighted)||'-'}</div>
+              </div>
+            ) : null;
+          })}
+          {weightedForecast > 0 ? (
+            <div style={{ marginTop:12, paddingTop:10, borderTop:`1px solid ${C.border}`, display:'flex', justifyContent:'space-between' }}>
+              <span style={{ fontFamily:'var(--font-body)', fontSize:11, fontWeight:700, color:C.grey, textTransform:'uppercase', letterSpacing:'0.06em' }}>Total forecast</span>
+              <span style={{ fontFamily:'var(--font-heading)', fontSize:18, fontWeight:700, color:GOLD }}>{fmtGBP(weightedForecast)}</span>
+            </div>
+          ) : (
+            <p style={{ fontFamily:'var(--font-body)', fontSize:12, color:C.grey, marginTop:8 }}>Add deal values to leads to see forecast.</p>
+          )}
         </div>
       </div>
 
@@ -414,7 +502,8 @@ function ContactsTab({ leads, C, onSelectContact, onStatusChange, onCreateLead }
             {paged.length===0 ? (
               <tr><td colSpan={8} style={{ padding:'48px', textAlign:'center', fontFamily:'var(--font-body)', fontSize:13, color:C.grey }}>No contacts found.</td></tr>
             ) : paged.map(l => {
-              const score = calcLeadScore(l);
+              const score = l.score ?? calcLeadScore(l);
+              const band = score >= 70 ? { label:'Hot', color:'#16a34a' } : score >= 40 ? { label:'Warm', color:GOLD } : { label:'Cold', color:'#6b7280' };
               const isSelected = selected.has(l.id);
               return (
                 <tr key={l.id}
@@ -446,7 +535,10 @@ function ContactsTab({ leads, C, onSelectContact, onStatusChange, onCreateLead }
                     </span>
                   </td>
                   <td style={{ padding:'10px 12px' }} onClick={()=>onSelectContact(l)}>
-                    <ScoreBadge score={score} />
+                    <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                      <ScoreBadge score={score} />
+                      <span style={{ fontFamily:'var(--font-body)', fontSize:9, fontWeight:700, color:band.color, letterSpacing:'0.06em', textTransform:'uppercase' }}>{band.label}</span>
+                    </div>
                   </td>
                   <td style={{ padding:'10px 12px' }} onClick={()=>onSelectContact(l)}>
                     <StatusBadge status={l.status||'new'} />
@@ -712,79 +804,143 @@ function CreateTaskModal({ leads, C, onClose, onCreate }) {
 }
 
 // ── Activity tab ───────────────────────────────────────────────────────────
-function ActivityTab({ leads, notes, C, onSelectContact }) {
+function ActivityTab({ leads, notes, leadEvents, C, onSelectContact }) {
   const [typeFilter, setTypeFilter] = useState('all');
 
-  const events = useMemo(() => {
-    const noteEvents = notes.map(n=>({ type:'note', date:n.created_at, data:n, lead:leads.find(l=>l.id===n.lead_id) }));
-    const leadEvents = leads.map(l=>({ type:'created', date:l.created_at, data:l, lead:l }));
-    const all = [...noteEvents, ...leadEvents];
-    if (typeFilter==='notes')    return noteEvents.sort((a,b)=>new Date(b.date)-new Date(a.date));
-    if (typeFilter==='contacts') return leadEvents.sort((a,b)=>new Date(b.date)-new Date(a.date));
-    return all.sort((a,b)=>new Date(b.date)-new Date(a.date));
-  }, [notes, leads, typeFilter]);
+  const EVENT_META = {
+    status_changed:    { color: '#8b5cf6', label: 'Status changed' },
+    lead_created:      { color: STATUS_CONFIG.new.color, label: 'Created' },
+    status_migration:  { color: '#9ca3af', label: 'Migration' },
+    partner_notified:  { color: '#f59e0b', label: 'Partner notified' },
+    internal_notified: { color: '#06b6d4', label: 'Internal notified' },
+    lead_scored:       { color: GOLD, label: 'Scored' },
+  };
 
-  const grouped = events.reduce((acc, ev) => {
-    const dateKey = new Date(ev.date).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-    if (!acc[dateKey]) acc[dateKey]=[];
+  const allEvents = useMemo(() => {
+    const noteEvs = notes.map(n => ({
+      type: 'note', date: n.created_at, id: `note-${n.id}`,
+      data: n, lead: leads.find(l => l.id === n.lead_id),
+    }));
+    const createdEvs = leads.map(l => ({
+      type: 'created', date: l.created_at, id: `lead-${l.id}`,
+      data: l, lead: l,
+    }));
+    const dbEvs = leadEvents.map(e => ({
+      type: e.event_type, date: e.created_at, id: `ev-${e.id}`,
+      data: e, lead: leads.find(l => l.id === e.lead_id),
+    }));
+    const combined = [...noteEvs, ...createdEvs, ...dbEvs];
+    combined.sort((a, b) => new Date(b.date) - new Date(a.date));
+    return combined;
+  }, [notes, leads, leadEvents]);
+
+  const filtered = useMemo(() => {
+    if (typeFilter === 'notes')   return allEvents.filter(e => e.type === 'note');
+    if (typeFilter === 'status')  return allEvents.filter(e => e.type === 'status_changed');
+    if (typeFilter === 'created') return allEvents.filter(e => e.type === 'created');
+    return allEvents;
+  }, [allEvents, typeFilter]);
+
+  const grouped = filtered.reduce((acc, ev) => {
+    const dateKey = new Date(ev.date).toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    if (!acc[dateKey]) acc[dateKey] = [];
     acc[dateKey].push(ev);
     return acc;
   }, {});
 
-  const inS = (active) => ({
+  const tabBtn = (active) => ({
     padding:'6px 12px', border:`1px solid ${active?GOLD:C.border}`, borderRadius:3,
-    background: active?GOLD_DIM:'transparent',
-    fontFamily:'var(--font-body)', fontSize:11, fontWeight:active?600:400,
-    color: active?GOLD:C.grey, cursor:'pointer',
+    background: active ? GOLD_DIM : 'transparent',
+    fontFamily:'var(--font-body)', fontSize:11, fontWeight: active ? 600 : 400,
+    color: active ? GOLD : C.grey, cursor:'pointer',
   });
 
+  const dotColor = (ev) => {
+    if (ev.type === 'note') return GOLD;
+    if (ev.type === 'created') return STATUS_CONFIG.new.color;
+    if (ev.type === 'status_changed') {
+      const s = ev.data?.event_data?.new_status;
+      return STATUS_CONFIG[s]?.color || '#8b5cf6';
+    }
+    return EVENT_META[ev.type]?.color || C.grey;
+  };
+
   return (
-    <div style={{ maxWidth:700 }}>
+    <div style={{ maxWidth:720 }}>
+      {/* Filter tabs */}
       <div style={{ display:'flex', gap:6, marginBottom:20 }}>
-        {[{k:'all',l:'All'},{k:'notes',l:'Notes'},{k:'contacts',l:'New Contacts'}].map(f=>(
-          <button key={f.k} onClick={()=>setTypeFilter(f.k)} style={inS(typeFilter===f.k)}>{f.l}</button>
+        {[{k:'all',l:`All (${allEvents.length})`},{k:'status',l:'Status Changes'},{k:'notes',l:'Notes'},{k:'created',l:'New Contacts'}].map(f=>(
+          <button key={f.k} onClick={()=>setTypeFilter(f.k)} style={tabBtn(typeFilter===f.k)}>{f.l}</button>
         ))}
       </div>
 
-      {Object.keys(grouped).length===0 ? (
+      {Object.keys(grouped).length === 0 ? (
         <div style={{ padding:'48px', textAlign:'center', fontFamily:'var(--font-body)', fontSize:14, color:C.grey }}>No activity yet.</div>
       ) : Object.entries(grouped).map(([date, items]) => (
         <div key={date} style={{ marginBottom:28 }}>
           <div style={{ fontFamily:'var(--font-body)', fontSize:11, fontWeight:700, color:C.grey, letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12, paddingBottom:6, borderBottom:`1px solid ${C.border}` }}>
             {date}
           </div>
-          {items.map((ev, i) => (
-            <div key={`${ev.type}-${ev.data.id}-${i}`} style={{ display:'flex', gap:14, marginBottom:14 }}>
-              <div style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center' }}>
-                <div style={{ width:8, height:8, borderRadius:'50%', background:ev.type==='note'?GOLD:STATUS_CONFIG.new.color, marginTop:4 }} />
-                <div style={{ width:1, flex:1, background:C.border, marginTop:4 }} />
-              </div>
-              <div style={{ flex:1, paddingBottom:14 }}>
-                <div style={{ display:'flex', alignItems:'baseline', gap:8, marginBottom:4 }}>
-                  {ev.lead && (
-                    <button onClick={()=>onSelectContact(ev.lead)}
-                      style={{ fontFamily:'var(--font-body)', fontSize:13, fontWeight:600, color:GOLD, background:'none', border:'none', cursor:'pointer', padding:0 }}>
-                      {ev.lead.first_name} {ev.lead.last_name}
-                    </button>
-                  )}
-                  <span style={{ fontFamily:'var(--font-body)', fontSize:11, color:C.grey }}>
-                    {new Date(ev.date).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}
-                  </span>
-                  {ev.type==='created' && <span style={{ fontFamily:'var(--font-body)', fontSize:11, color:STATUS_CONFIG.new.color, background:STATUS_CONFIG.new.bg, borderRadius:8, padding:'1px 7px' }}>New contact</span>}
+          {items.map((ev) => {
+            const dc = dotColor(ev);
+            return (
+              <div key={ev.id} style={{ display:'flex', gap:14, marginBottom:14 }}>
+                <div style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center' }}>
+                  <div style={{ width:8, height:8, borderRadius:'50%', background:dc, marginTop:4, flexShrink:0 }} />
+                  <div style={{ width:1, flex:1, background:C.border, marginTop:4 }} />
                 </div>
-                {ev.type==='note' && (
-                  <div style={{ fontFamily:'var(--font-body)', fontSize:13, color:C.white, lineHeight:1.55, background:C.card, border:`1px solid ${C.border}`, borderLeft:`3px solid ${GOLD}`, borderRadius:3, padding:'10px 14px' }}>
-                    {ev.data.body}
+                <div style={{ flex:1, paddingBottom:10 }}>
+                  <div style={{ display:'flex', alignItems:'baseline', gap:8, marginBottom:5, flexWrap:'wrap' }}>
+                    {ev.lead && (
+                      <button onClick={() => onSelectContact(ev.lead)}
+                        style={{ fontFamily:'var(--font-body)', fontSize:13, fontWeight:600, color:GOLD, background:'none', border:'none', cursor:'pointer', padding:0 }}>
+                        {ev.lead.first_name} {ev.lead.last_name}
+                      </button>
+                    )}
+                    <span style={{ fontFamily:'var(--font-body)', fontSize:10, color:C.grey }}>
+                      {new Date(ev.date).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}
+                    </span>
+                    {/* Event type badge */}
+                    {ev.type === 'created' && <span style={{ fontFamily:'var(--font-body)', fontSize:10, color:STATUS_CONFIG.new.color, background:STATUS_CONFIG.new.bg, borderRadius:8, padding:'1px 8px', fontWeight:600 }}>New contact</span>}
+                    {ev.type === 'note'    && <span style={{ fontFamily:'var(--font-body)', fontSize:10, color:GOLD, background:GOLD_DIM, borderRadius:8, padding:'1px 8px', fontWeight:600 }}>Note</span>}
+                    {ev.type === 'status_changed' && (() => {
+                      const s = ev.data?.event_data?.new_status;
+                      const cfg = STATUS_CONFIG[s];
+                      return cfg ? <span style={{ fontFamily:'var(--font-body)', fontSize:10, color:cfg.color, background:cfg.bg, borderRadius:8, padding:'1px 8px', fontWeight:600 }}>{cfg.label}</span> : null;
+                    })()}
+                    {!['note','created','status_changed'].includes(ev.type) && (
+                      <span style={{ fontFamily:'var(--font-body)', fontSize:10, color:C.grey, background:`${dc}18`, borderRadius:8, padding:'1px 8px', fontWeight:600 }}>
+                        {EVENT_META[ev.type]?.label || ev.type.replace(/_/g,' ')}
+                      </span>
+                    )}
                   </div>
-                )}
-                {ev.type==='created' && (
-                  <div style={{ fontFamily:'var(--font-body)', fontSize:12, color:C.grey, background:C.card, border:`1px solid ${C.border}`, borderLeft:`3px solid ${STATUS_CONFIG.new.color}`, borderRadius:3, padding:'8px 14px' }}>
-                    {SOURCE_LABELS[ev.lead?.lead_source]||ev.lead?.lead_source||'Direct'} - {ev.lead?.email}
-                  </div>
-                )}
+                  {/* Event body */}
+                  {ev.type === 'note' && (
+                    <div style={{ fontFamily:'var(--font-body)', fontSize:13, color:C.white, lineHeight:1.55, background:C.card, border:`1px solid ${C.border}`, borderLeft:`3px solid ${GOLD}`, borderRadius:3, padding:'10px 14px' }}>
+                      {ev.data.body}
+                    </div>
+                  )}
+                  {ev.type === 'created' && (
+                    <div style={{ fontFamily:'var(--font-body)', fontSize:12, color:C.grey, background:C.card, border:`1px solid ${C.border}`, borderLeft:`3px solid ${STATUS_CONFIG.new.color}`, borderRadius:3, padding:'8px 14px' }}>
+                      {SOURCE_LABELS[ev.lead?.lead_source] || ev.lead?.lead_source || 'Direct'} — {ev.lead?.email}
+                    </div>
+                  )}
+                  {ev.type === 'status_changed' && (() => {
+                    const d = ev.data?.event_data || {};
+                    const s = d.new_status;
+                    const cfg = STATUS_CONFIG[s];
+                    return (
+                      <div style={{ fontFamily:'var(--font-body)', fontSize:12, color:C.grey, background:C.card, border:`1px solid ${C.border}`, borderLeft:`3px solid ${cfg?.color||'#8b5cf6'}`, borderRadius:3, padding:'8px 14px' }}>
+                        → <strong style={{ color: cfg?.color }}>{cfg?.label || s}</strong>
+                        {d.score != null && <span style={{ marginLeft:12, color:C.grey }}>Score: {d.score}</span>}
+                        {d.loss_reason && <span style={{ marginLeft:12, color:'#ef4444' }}>Reason: {d.loss_reason}</span>}
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ))}
     </div>
@@ -1148,6 +1304,7 @@ export default function CRMModule({ C }) {
   const [leads, setLeads]                   = useState([]);
   const [notes, setNotes]                   = useState([]);
   const [tasks, setTasks]                   = useState([]);
+  const [leadEvents, setLeadEvents]         = useState([]);
   const [loading, setLoading]               = useState(true);
   const [selectedLead, setSelectedLead]     = useState(null);
   const [panelNotes, setPanelNotes]         = useState([]);
@@ -1159,14 +1316,16 @@ export default function CRMModule({ C }) {
     setLoading(true);
     try {
       const { supabase } = await import('../../lib/supabaseClient');
-      const [{ data: leadsData }, { data: msgsData }] = await Promise.all([
+      const [{ data: leadsData }, { data: msgsData }, { data: eventsData }] = await Promise.all([
         supabase.from('leads').select('*').order('created_at', { ascending: false }),
         supabase.from('lead_messages').select('*').order('created_at', { ascending: false }),
+        supabase.from('lead_events').select('*').order('created_at', { ascending: false }).limit(300),
       ]);
       setLeads(leadsData || []);
       const msgs = msgsData || [];
       setNotes(msgs.filter(m => m.message_type === 'internal_note'));
       setTasks(msgs.filter(m => m.message_type === 'task').map(parseTask));
+      setLeadEvents(eventsData || []);
     } catch (err) { /* load failed */ }
     finally { setLoading(false); }
   }, []);
@@ -1331,7 +1490,7 @@ export default function CRMModule({ C }) {
       {tab==='contacts'  && <ContactsTab  leads={leads} C={C} onSelectContact={handleSelectContact} onStatusChange={handleStatusChange} onCreateLead={()=>setShowNewContact(true)} />}
       {tab==='pipeline'  && <PipelineTab  leads={leads} C={C} onSelectContact={handleSelectContact} onStatusChange={handleStatusChange} />}
       {tab==='tasks'     && <TasksTab     tasks={tasks} leads={leads} C={C} onCompleteTask={handleCompleteTask} onCreateTask={handleCreateTask} onDeleteTask={handleDeleteTask} />}
-      {tab==='activity'  && <ActivityTab  leads={leads} notes={notes} C={C} onSelectContact={handleSelectContact} />}
+      {tab==='activity'  && <ActivityTab  leads={leads} notes={notes} leadEvents={leadEvents} C={C} onSelectContact={handleSelectContact} />}
 
       {selectedLead && (
         <ContactPanel
