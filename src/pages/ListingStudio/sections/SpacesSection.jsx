@@ -77,7 +77,7 @@ const TriToggle = ({ label, value, onChange, options = [{ v: true, l: 'Yes' }, {
 const genId = () => Math.random().toString(36).slice(2, 9);
 
 // ── Image/file upload pair (single image or floor plan) ───────────────────────
-const FileUploadField = ({ label, value, onChange, hint, accept = 'image/jpeg,image/png,image/webp', emoji = '📷' }) => {
+const FileUploadField = ({ label, value, onChange, hint, accept = 'image/jpeg,image/png,image/webp,image/avif', emoji = '📷' }) => {
   const [objUrl, setObjUrl] = useState(null);
 
   useEffect(() => {

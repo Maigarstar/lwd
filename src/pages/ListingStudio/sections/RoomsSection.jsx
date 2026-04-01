@@ -121,7 +121,7 @@ const RoomImageManager = ({ images = [], onChange }) => {
         }}>
           📷 {images.length === 0 ? 'Upload Room Images' : `+ Add More (${MAX_ROOM_IMAGES - images.length} remaining)`}
           <input
-            type="file" multiple accept="image/jpeg,image/png,image/webp"
+            type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif"
             onChange={handleFiles} style={{ display: 'none' }}
           />
         </label>

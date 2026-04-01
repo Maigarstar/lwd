@@ -44,6 +44,7 @@ import PipelineBuilderModule from "./AdminModules/PipelineBuilderModule";
 import PlatformSettingsModule from "./AdminModules/PlatformSettingsModule";
 import TeamModule from "./AdminModules/TeamModule";
 import SeoModule from "./AdminModules/SeoModule";
+import AiSeoStudioModule from "./AdminModules/AiSeoStudioModule";
 import ConnectedDataModule from "./AdminModules/ConnectedDataModule";
 import SocialStudioModule from "./AdminModules/SocialStudioModule";
 import ShowcaseStudioModule from "./AdminModules/ShowcaseStudioModule";
@@ -268,9 +269,9 @@ const THEME_PRESETS = {
 // ── Sidebar navigation with grouped sections ───────────────────────────────
 const NAV_SECTIONS = [
   {
-    group: "Managed Accounts",
+    group: "Partner Accounts",
     items: [
-      { key: "managed-accounts", label: "Managed Accounts",  icon: "◈" },
+      { key: "managed-accounts", label: "Partner Accounts",  icon: "◈" },
     ],
   },
   {
@@ -303,6 +304,7 @@ const NAV_SECTIONS = [
     items: [
       { key: "leads",            label: "Leads",             icon: "⊛" },
       { key: "seo",              label: "SEO",               icon: "⊡" },
+      { key: "ai-seo-studio",    label: "AI SEO Studio",     icon: "✦" },
       { key: "crm",              label: "CRM",               icon: "⊕" },
     ],
   },
@@ -12180,6 +12182,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "email-builder":      return <EmailBuilderModule C={C} onBack={() => setActiveTab('email-marketing')} />;
       case "newsletter-builder": return <EmailBuilderModule C={C} mode="newsletter" onBack={() => setActiveTab('newsletter')} />;
       case "seo":           return <SeoModule C={C} />;
+      case "ai-seo-studio": return <AiSeoStudioModule C={C} />;
       case "crm":               return <CRMModule C={C} />;
       case "events":            return <EventsModule key="events" C={C} darkMode={darkMode} onBuilderModeChange={setEventsBuilderActive} />;
       case "event-studio":      return <EventsModule key="event-studio" C={C} darkMode={darkMode} onBuilderModeChange={setEventsBuilderActive} startInBuilder />;
@@ -12236,7 +12239,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         @media (max-width: 768px) {
           .admin-sidebar { display: flex !important; position: fixed !important; z-index: 999; left: 0; top: 0; width: 220px !important; height: 100vh !important; transform: translateX(${sidebarOpen ? "0" : "-100%"}); transition: transform 0.3s ease !important; box-shadow: ${sidebarOpen ? "6px 0 32px rgba(0,0,0,0.7)" : "none"}; border-right: ${sidebarOpen ? "1px solid rgba(201,168,76,0.25)" : "none"} !important; }
           .admin-sidebar-overlay { display: ${sidebarOpen ? "block" : "none"}; position: fixed; inset: 0; z-index: 998; background: rgba(0,0,0,0.5); }
-          .admin-main { padding: ${activeTab === 'magazine-studio' || activeTab === 'page-editor' || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || listingStudioMode || eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive ? '0' : '56px 16px 20px'} !important; }
+          .admin-main { padding: ${activeTab === 'magazine-studio' || activeTab === 'page-editor' || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || listingStudioMode || eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive ? '0' : '56px 16px 20px'} !important; }
           .admin-hamburger { display: flex !important; }
           .admin-collapse-btn { display: none !important; }
           .admin-grid-2col { grid-template-columns: 1fr !important; }
@@ -12454,7 +12457,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         </aside>
 
         {/* ── Main content ── */}
-        <main className="admin-main" style={{ flex: 1, minHeight: 0, padding: listingStudioMode || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive ? 0 : "40px 48px", overflow: activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' ? "hidden" : "auto", display: eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' ? "flex" : undefined, flexDirection: eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' ? "column" : undefined, transition: "background 0.3s" }}>
+        <main className="admin-main" style={{ flex: 1, minHeight: 0, padding: listingStudioMode || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive ? 0 : "40px 48px", overflow: activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' ? "hidden" : "auto", display: eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' ? "flex" : undefined, flexDirection: eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' ? "column" : undefined, transition: "background 0.3s" }}>
           {/* Magazine Studio, full-screen inside admin layout */}
           {activeTab === 'magazine-studio' ? (
             <MagazineStudio
@@ -12491,7 +12494,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
             </Suspense>
           ) : (
             <>
-              {!['page-editor', 'listing-studio', 'event-studio', 'magazine-studio', 'venue-intake', 'showcase-studio', 'locations', 'cities', 'category-studio'].includes(activeTab) && !listingStudioMode && !eventsBuilderActive && !locationStudioActive && !cityStudioActive && !categoryStudioActive && (
+              {!['page-editor', 'listing-studio', 'event-studio', 'magazine-studio', 'venue-intake', 'showcase-studio', 'ai-seo-studio', 'locations', 'cities', 'category-studio'].includes(activeTab) && !listingStudioMode && !eventsBuilderActive && !locationStudioActive && !cityStudioActive && !categoryStudioActive && (
                 <div style={{ marginBottom: 36 }}>
                   <h1 style={{
                     fontFamily: GD, fontSize: 24, fontWeight: 400,

@@ -1,296 +1,37 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { supabase } from '../../../lib/supabaseClient';
 import CategoryAssignmentField from '../components/CategoryAssignmentField';
 import { getCountryOptions } from '../utils/countryOptions';
-import { fetchManagedAccounts } from '../../../services/socialStudioService';
+import { fetchAccounts } from '../../../services/managedAccountsService';
 
-/**
- * AccountHolderDropdown
- *
- * Searchable combobox that fetches all vendor accounts from the system
- * and lets the admin link a listing to an account holder.
- * Mirrors how directory platforms handle listing ownership.
- */
-function AccountHolderDropdown({ value, onChange }) {
-  const [accounts, setAccounts] = useState([]);
-  const [search, setSearch] = useState('');
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [selected, setSelected] = useState(null);
-  const containerRef = useRef(null);
-
-  // Fetch all vendor accounts on mount
-  useEffect(() => {
-    const fetchAccounts = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('vendors')
-          .select('id, email, business_name, name, is_activated')
-          .order('business_name', { ascending: true });
-
-        if (!error && data) {
-          setAccounts(data);
-          // Pre-select if a value is already stored in formData
-          if (value) {
-            const match = data.find(a => a.id === value);
-            if (match) setSelected(match);
-          }
-        }
-      } catch (_) {
-        // Silently fail, account linking is non-critical on load error
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAccounts();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    const handle = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
-  }, []);
-
-  // Filter accounts by search term (name or email)
-  const filtered = accounts.filter(a => {
-    const term = search.toLowerCase();
-    const name = (a.business_name || a.name || '').toLowerCase();
-    const email = (a.email || '').toLowerCase();
-    return name.includes(term) || email.includes(term);
-  });
-
-  const handleSelect = (account) => {
-    setSelected(account);
-    onChange('vendor_account_id', account.id);
-    setSearch('');
-    setOpen(false);
-  };
-
-  const handleClear = () => {
-    setSelected(null);
-    onChange('vendor_account_id', null);
-    setSearch('');
-  };
-
-  // What to show in the text input
-  const displayLabel = selected
-    ? `${selected.business_name || selected.name || 'Unnamed'} · ${selected.email}`
-    : '';
-
-  return (
-    <div ref={containerRef} style={{ position: 'relative' }}>
-      {/* Text input / display */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        border: '1px solid #ddd4c8',
-        borderRadius: 3,
-        backgroundColor: '#fff',
-        overflow: 'hidden',
-      }}>
-        <input
-          type="text"
-          placeholder={selected ? '' : 'Search by name or email…'}
-          value={open ? search : displayLabel}
-          onChange={e => { setSearch(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
-          style={{
-            flex: 1,
-            padding: '10px 12px',
-            fontSize: 13,
-            border: 'none',
-            outline: 'none',
-            color: selected && !open ? '#0a0a0a' : '#666',
-            backgroundColor: 'transparent',
-            cursor: 'text',
-          }}
-        />
-
-        {loading && (
-          <span style={{ padding: '0 10px', fontSize: 11, color: '#999' }}>Loading…</span>
-        )}
-        {selected && !loading && (
-          <button
-            type="button"
-            onClick={handleClear}
-            title="Clear selection"
-            style={{
-              padding: '0 12px',
-              border: 'none',
-              background: 'transparent',
-              color: '#999',
-              cursor: 'pointer',
-              fontSize: 14,
-              lineHeight: '40px',
-            }}
-          >
-            ✕
-          </button>
-        )}
-        {!selected && !loading && (
-          <span style={{ padding: '0 12px', color: '#bbb', fontSize: 12, pointerEvents: 'none' }}>
-            ▾
-          </span>
-        )}
-      </div>
-
-      {/* Selected account status badge */}
-      {selected && (
-        <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 5,
-            padding: '3px 10px',
-            backgroundColor: selected.is_activated ? 'rgba(34,197,94,0.08)' : 'rgba(201,168,76,0.08)',
-            border: `1px solid ${selected.is_activated ? 'rgba(34,197,94,0.2)' : 'rgba(201,168,76,0.2)'}`,
-            borderRadius: 20,
-            fontSize: 11,
-            color: selected.is_activated ? '#15803d' : '#7a5f10',
-            fontWeight: 600,
-          }}>
-            <span style={{
-              width: 6, height: 6, borderRadius: '50%',
-              backgroundColor: selected.is_activated ? '#22c55e' : '#C9A84C',
-              display: 'inline-block',
-            }} />
-            {selected.is_activated ? 'Active account' : 'Pending activation'}
-          </span>
-          <span style={{ fontSize: 11, color: '#aaa' }}>
-            ID: {String(selected.id).slice(0, 8)}…
-          </span>
-        </div>
-      )}
-
-      {/* Dropdown list */}
-      {open && (
-        <div style={{
-          position: 'absolute',
-          top: '100%',
-          left: 0,
-          right: 0,
-          marginTop: 4,
-          backgroundColor: '#fff',
-          border: '1px solid #ddd4c8',
-          borderRadius: 3,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-          zIndex: 200,
-          maxHeight: 240,
-          overflowY: 'auto',
-        }}>
-          {filtered.length === 0 ? (
-            <div style={{
-              padding: '14px 16px',
-              fontSize: 12,
-              color: '#999',
-              textAlign: 'center',
-            }}>
-              {loading
-                ? 'Loading accounts…'
-                : search
-                ? 'No accounts match your search'
-                : 'No vendor accounts found in the system'}
-            </div>
-          ) : (
-            filtered.map((account, i) => (
-              <button
-                key={account.id}
-                type="button"
-                onClick={() => handleSelect(account)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  width: '100%',
-                  padding: '10px 14px',
-                  border: 'none',
-                  borderTop: i > 0 ? '1px solid #f0ece6' : 'none',
-                  backgroundColor: selected?.id === account.id ? '#fffbf0' : '#fff',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  transition: 'background 0.15s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#fffbf0'; }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.backgroundColor = selected?.id === account.id ? '#fffbf0' : '#fff';
-                }}
-              >
-                {/* Active status dot */}
-                <span style={{
-                  width: 8, height: 8, borderRadius: '50%',
-                  backgroundColor: account.is_activated ? '#22c55e' : '#C9A84C',
-                  flexShrink: 0,
-                }} />
-
-                {/* Name + email */}
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: '#0a0a0a',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}>
-                    {account.business_name || account.name || 'Unnamed Account'}
-                  </div>
-                  <div style={{
-                    fontSize: 11,
-                    color: '#888',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}>
-                    {account.email}
-                  </div>
-                </div>
-
-                {/* Checkmark if this is the currently selected account */}
-                {selected?.id === account.id && (
-                  <span style={{ marginLeft: 'auto', color: '#7a5f10', fontSize: 14, flexShrink: 0 }}>
-                    ✓
-                  </span>
-                )}
-              </button>
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-
-// Plan tier badge colours
-const PLAN_COLORS = {
-  signature:  { bg: 'rgba(201,168,76,0.12)',  border: 'rgba(201,168,76,0.3)',  text: '#7a5f10' },
-  growth:     { bg: 'rgba(99,179,237,0.10)',  border: 'rgba(99,179,237,0.25)', text: '#1e5f8a' },
-  essentials: { bg: 'rgba(130,130,130,0.10)', border: 'rgba(130,130,130,0.2)', text: '#555'    },
-  custom:     { bg: 'rgba(168,85,247,0.10)',  border: 'rgba(168,85,247,0.2)',  text: '#7c3aed'  },
+// Level badge colours (Bronze / Silver / Gold)
+const LEVEL_COLORS = {
+  gold:   { bg: 'rgba(201,168,76,0.12)',  border: 'rgba(201,168,76,0.3)',  text: '#7a5f10', dot: '#c9a84c' },
+  silver: { bg: 'rgba(148,163,184,0.12)', border: 'rgba(148,163,184,0.3)', text: '#475569', dot: '#94a3b8' },
+  bronze: { bg: 'rgba(205,127,50,0.12)',  border: 'rgba(205,127,50,0.3)',  text: '#92400e', dot: '#cd7f32' },
 };
+// Map legacy plan values to level keys
+function normalisePlan(plan) {
+  const map = { signature: 'gold', growth: 'silver', essentials: 'bronze', custom: 'gold' };
+  return map[plan] || plan || 'bronze';
+}
 
 const STATUS_DOT = {
   active:     '#22c55e',
-  onboarding: '#C9A84C',
+  onboarding: '#c9a84c',
   paused:     '#94a3b8',
-  'at-risk':  '#f97316',
+  cancelled:  '#ef4444',
   churned:    '#ef4444',
+  'at-risk':  '#f97316',
 };
 
 /**
- * ManagedAccountDropdown
+ * PartnerAccountDropdown
  *
- * Searchable combobox that lets the admin link a listing to a
- * Managed Account (Social Studio client). Shows plan tier and
- * service status alongside the account name.
+ * Single searchable dropdown that links a listing to a Partner Account.
+ * Replaces the old separate Account Holder + Managed Account dropdowns.
+ * Sets managed_account_id on the listing.
  */
-function ManagedAccountDropdown({ value, onChange }) {
+function PartnerAccountDropdown({ value, onChange }) {
   const [accounts, setAccounts]   = useState([]);
   const [search, setSearch]       = useState('');
   const [open, setOpen]           = useState(false);
@@ -303,10 +44,9 @@ function ManagedAccountDropdown({ value, onChange }) {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const data = await fetchManagedAccounts();
-      const rows = data || [];
+      const result = await fetchAccounts();
+      const rows = result.success ? (result.data || []) : [];
       setAccounts(rows);
-      // Pre-select if value was already set before accounts loaded
       if (valueRef.current) {
         const match = rows.find(a => a.id === valueRef.current);
         if (match) setSelected(match);
@@ -316,22 +56,17 @@ function ManagedAccountDropdown({ value, onChange }) {
     load();
   }, []);
 
-  // Pre-select when value arrives after accounts are already loaded
+  // Pre-select when value changes after accounts loaded
   useEffect(() => {
     if (!value) { setSelected(null); return; }
-    setAccounts(prev => {
-      const match = prev.find(a => a.id === value);
-      if (match) setSelected(match);
-      return prev;
-    });
-  }, [value]);
+    const match = accounts.find(a => a.id === value);
+    if (match) setSelected(match);
+  }, [value, accounts]);
 
   // Close on outside click
   useEffect(() => {
     const handle = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false);
-      }
+      if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false);
     };
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
@@ -340,7 +75,8 @@ function ManagedAccountDropdown({ value, onChange }) {
   const filtered = accounts.filter(a => {
     const term = search.toLowerCase();
     return (a.name || '').toLowerCase().includes(term) ||
-           (a.slug || '').toLowerCase().includes(term);
+           (a.primaryContactEmail || '').toLowerCase().includes(term) ||
+           (a.primaryContactName || '').toLowerCase().includes(term);
   });
 
   const handleSelect = (account) => {
@@ -356,7 +92,9 @@ function ManagedAccountDropdown({ value, onChange }) {
     setSearch('');
   };
 
-  const displayLabel = selected ? selected.name : '';
+  const displayLabel = selected
+    ? `${selected.name}${selected.primaryContactEmail ? ' · ' + selected.primaryContactEmail : ''}`
+    : '';
 
   return (
     <div ref={containerRef} style={{ position: 'relative' }}>
@@ -367,7 +105,7 @@ function ManagedAccountDropdown({ value, onChange }) {
       }}>
         <input
           type="text"
-          placeholder={selected ? '' : 'Search managed accounts…'}
+          placeholder={selected ? '' : 'Search partner accounts…'}
           value={open ? search : displayLabel}
           onChange={e => { setSearch(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
@@ -390,20 +128,20 @@ function ManagedAccountDropdown({ value, onChange }) {
         )}
       </div>
 
-      {/* Selected account chips */}
+      {/* Selected account badge */}
       {selected && (() => {
-        const plan = (selected.plan || 'custom').toLowerCase();
-        const pc = PLAN_COLORS[plan] || PLAN_COLORS.custom;
-        const dotColor = STATUS_DOT[selected.serviceStatus] || '#94a3b8';
+        const level = normalisePlan(selected.plan);
+        const lc = LEVEL_COLORS[level] || LEVEL_COLORS.bronze;
+        const dotColor = STATUS_DOT[selected.status] || '#94a3b8';
         return (
           <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: 5,
-              padding: '3px 10px', backgroundColor: pc.bg,
-              border: `1px solid ${pc.border}`, borderRadius: 20,
-              fontSize: 11, color: pc.text, fontWeight: 600,
+              padding: '3px 10px', backgroundColor: lc.bg,
+              border: `1px solid ${lc.border}`, borderRadius: 20,
+              fontSize: 11, color: lc.text, fontWeight: 600,
             }}>
-              {plan.charAt(0).toUpperCase() + plan.slice(1)}
+              {level.charAt(0).toUpperCase() + level.slice(1)}
             </span>
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: 5,
@@ -412,10 +150,7 @@ function ManagedAccountDropdown({ value, onChange }) {
               fontSize: 11, color: '#555',
             }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: dotColor, display: 'inline-block' }} />
-              {selected.serviceStatus || 'active'}
-            </span>
-            <span style={{ fontSize: 11, color: '#aaa' }}>
-              ID: {String(selected.id).slice(0, 8)}…
+              {selected.status || 'active'}
             </span>
           </div>
         );
@@ -428,17 +163,17 @@ function ManagedAccountDropdown({ value, onChange }) {
           marginTop: 4, backgroundColor: '#fff',
           border: '1px solid #ddd4c8', borderRadius: 3,
           boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 200,
-          maxHeight: 240, overflowY: 'auto',
+          maxHeight: 280, overflowY: 'auto',
         }}>
           {filtered.length === 0 ? (
             <div style={{ padding: '14px 16px', fontSize: 12, color: '#999', textAlign: 'center' }}>
-              {loading ? 'Loading…' : search ? 'No accounts match' : 'No managed accounts found'}
+              {loading ? 'Loading…' : search ? 'No accounts match' : 'No partner accounts found'}
             </div>
           ) : (
             filtered.map((account, i) => {
-              const plan = (account.plan || 'custom').toLowerCase();
-              const pc   = PLAN_COLORS[plan] || PLAN_COLORS.custom;
-              const dotColor = STATUS_DOT[account.serviceStatus] || '#94a3b8';
+              const level = normalisePlan(account.plan);
+              const lc = LEVEL_COLORS[level] || LEVEL_COLORS.bronze;
+              const dotColor = STATUS_DOT[account.status] || '#94a3b8';
               return (
                 <button
                   key={account.id} type="button"
@@ -460,8 +195,11 @@ function ManagedAccountDropdown({ value, onChange }) {
                     <div style={{ fontSize: 13, fontWeight: 600, color: '#0a0a0a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {account.name}
                     </div>
-                    <div style={{ fontSize: 11, color: pc.text, fontWeight: 600, marginTop: 1 }}>
-                      {plan.charAt(0).toUpperCase() + plan.slice(1)} plan
+                    <div style={{ fontSize: 11, color: '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>
+                      {account.primaryContactEmail || 'No email'}
+                      <span style={{ color: lc.text, fontWeight: 600, marginLeft: 8 }}>
+                        {level.charAt(0).toUpperCase() + level.slice(1)}
+                      </span>
                     </div>
                   </div>
                   {selected?.id === account.id && (
@@ -493,40 +231,20 @@ const BasicDetailsSection = ({ formData, onChange, darkMode = false }) => {
     <section style={{ marginBottom: 16, padding: 20 }}>
       <h3 style={{ marginBottom: 20 }}>Basic Details</h3>
 
-      {/* ── ACCOUNT HOLDER ───────────────────────────────── */}
-      <div style={{ marginBottom: 20 }}>
-        <label style={{
-          display: 'block',
-          marginBottom: 6,
-          fontSize: 12,
-          fontWeight: 600,
-          textTransform: 'uppercase',
-        }}>
-          Account Holder
-        </label>
-        <AccountHolderDropdown
-          value={formData?.vendor_account_id || null}
-          onChange={onChange}
-        />
-        <p style={{ fontSize: 11, color: '#999', marginTop: 6 }}>
-          Link this listing to a vendor account, type to search all accounts in the system
-        </p>
-      </div>
-
-      {/* ── MANAGED ACCOUNT ──────────────────────────────── */}
+      {/* ── PARTNER ACCOUNT ──────────────────────────────── */}
       <div style={{ marginBottom: 20 }}>
         <label style={{
           display: 'block', marginBottom: 6,
           fontSize: 12, fontWeight: 600, textTransform: 'uppercase',
         }}>
-          Managed Account
+          Partner Account
         </label>
-        <ManagedAccountDropdown
+        <PartnerAccountDropdown
           value={formData?.managed_account_id || null}
           onChange={onChange}
         />
         <p style={{ fontSize: 11, color: '#999', marginTop: 6 }}>
-          Connect this listing to a Social Studio managed account to enable the client portal and content pipeline
+          Link this listing to the business account that owns it
         </p>
       </div>
 

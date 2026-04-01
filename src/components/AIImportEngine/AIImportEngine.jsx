@@ -49,7 +49,7 @@ const EXT_MAP = {
   '.pdf': 'pdf',
   '.docx': 'docx',
   '.txt': 'text', '.md': 'text', '.csv': 'text', '.html': 'text',
-  '.jpg': 'image', '.jpeg': 'image', '.png': 'image', '.webp': 'image', '.gif': 'image',
+  '.jpg': 'image', '.jpeg': 'image', '.png': 'image', '.webp': 'image', '.gif': 'image', '.avif': 'image',
 };
 
 const FILE_ICONS  = { pdf: '📑', docx: '📝', text: '📄', image: '🖼', unknown: '📎' };
@@ -634,7 +634,7 @@ const AIImportEngine = ({
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept=".pdf,.docx,.txt,.md,.csv,.html,.jpg,.jpeg,.png,.webp,.gif"
+                accept=".pdf,.docx,.txt,.md,.csv,.html,.jpg,.jpeg,.png,.webp,.gif,.avif"
                 onChange={(e) => handleFiles(e.target.files)}
                 style={{ display: 'none' }}
               />

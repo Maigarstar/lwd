@@ -106,8 +106,8 @@ export async function uploadMediaFile(file, mediaId) {
   console.log('[uploadMediaFile] Starting upload:', { fileName: file.name, fileSize: file.size, fileType: file.type, mediaId });
 
   const rawExt = file.name.split('.').pop()?.toLowerCase() || '';
-  const isImage = ['jpg','jpeg','png','webp','gif'].includes(rawExt) || file.type.startsWith('image/');
-  const ext = ['jpg','jpeg','png','webp','gif','mp4','webm','mov'].includes(rawExt)
+  const isImage = ['jpg','jpeg','png','webp','gif','avif'].includes(rawExt) || file.type.startsWith('image/');
+  const ext = ['jpg','jpeg','png','webp','gif','avif','mp4','webm','mov'].includes(rawExt)
     ? rawExt
     : (file.type.startsWith('video') ? 'mp4' : 'jpg');
 
