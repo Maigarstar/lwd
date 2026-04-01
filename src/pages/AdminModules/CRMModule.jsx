@@ -279,33 +279,35 @@ function DashboardTab({ leads, notes, tasks, C, onSelectContact }) {
 
 // ── Contacts tab ───────────────────────────────────────────────────────────
 function ContactsTab({ leads, C, onSelectContact, onStatusChange, onCreateLead }) {
-  const [search, setSearch]         = useState('');
-  const [statusFilter, setStatus]   = useState('all');
-  const [typeFilter, setType]       = useState('all');
-  const [sortBy, setSortBy]         = useState('created_at');
-  const [sortDir, setSortDir]       = useState('desc');
-  const [page, setPage]             = useState(0);
-  const [selected, setSelected]     = useState(new Set());
-  const [bulkStatus, setBulkStatus] = useState('');
-  const [bulkApplying, setBulkApply]= useState(false);
+  const [search, setSearch]             = useState('');
+  const [statusFilter, setStatus]       = useState('all');
+  const [typeFilter, setType]           = useState('all');
+  const [priorityFilter, setPriority]   = useState('all');
+  const [sortBy, setSortBy]             = useState('created_at');
+  const [sortDir, setSortDir]           = useState('desc');
+  const [page, setPage]                 = useState(0);
+  const [selected, setSelected]         = useState(new Set());
+  const [bulkStatus, setBulkStatus]     = useState('');
+  const [bulkApplying, setBulkApply]    = useState(false);
   const PER_PAGE = 20;
 
   const filtered = useMemo(() => {
     return leads.filter(l => {
       const q = search.toLowerCase();
-      const matchSearch = !q || `${l.first_name} ${l.last_name} ${l.email} ${l.phone||''} ${l.lead_source||''} ${l.requirements_json?.businessName||''}`.toLowerCase().includes(q);
-      const matchStatus = statusFilter==='all' || (l.status||'new')===statusFilter;
-      const matchType   = typeFilter==='all' || l.lead_type===typeFilter;
-      return matchSearch && matchStatus && matchType;
+      const matchSearch   = !q || `${l.first_name} ${l.last_name} ${l.email} ${l.phone||''} ${l.lead_source||''} ${l.requirements_json?.businessName||''}`.toLowerCase().includes(q);
+      const matchStatus   = statusFilter==='all' || (l.status||'new')===statusFilter;
+      const matchType     = typeFilter==='all' || l.lead_type===typeFilter;
+      const matchPriority = priorityFilter==='all' || (l.priority||'normal')===priorityFilter;
+      return matchSearch && matchStatus && matchType && matchPriority;
     }).sort((a,b) => {
       let av=a[sortBy], bv=b[sortBy];
       if (sortBy==='name') { av=`${a.first_name} ${a.last_name}`; bv=`${b.first_name} ${b.last_name}`; }
-      if (sortBy==='score') { av=calcLeadScore(a); bv=calcLeadScore(b); }
+      if (sortBy==='score') { av=a.score??calcLeadScore(a); bv=b.score??calcLeadScore(b); }
       if (typeof av==='string') av=av.toLowerCase();
       if (typeof bv==='string') bv=bv.toLowerCase();
       return sortDir==='asc' ? (av>bv?1:-1) : (av<bv?1:-1);
     });
-  }, [leads, search, statusFilter, typeFilter, sortBy, sortDir]);
+  }, [leads, search, statusFilter, typeFilter, priorityFilter, sortBy, sortDir]);
 
   const paged = filtered.slice(page*PER_PAGE, (page+1)*PER_PAGE);
   const totalPages = Math.ceil(filtered.length/PER_PAGE);
@@ -345,6 +347,10 @@ function ContactsTab({ leads, C, onSelectContact, onStatusChange, onCreateLead }
         <select value={statusFilter} onChange={e=>{setStatus(e.target.value);setPage(0);}} style={inS}>
           <option value="all">All Statuses</option>
           {Object.entries(STATUS_CONFIG).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
+        </select>
+        <select value={priorityFilter} onChange={e=>{setPriority(e.target.value);setPage(0);}} style={inS}>
+          <option value="all">All Priorities</option>
+          {LEAD_PRIORITIES.map(p=><option key={p.key} value={p.key}>{p.label}</option>)}
         </select>
         {types.length > 0 && (
           <select value={typeFilter} onChange={e=>{setType(e.target.value);setPage(0);}} style={inS}>
@@ -795,6 +801,23 @@ function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNot
   const [taskDue, setTaskDue]     = useState('');
   const [converting, setConverting] = useState(false);
   const [convertState, setConvertState] = useState(null); // null | 'success' | 'duplicate'
+  const [showLossPrompt, setShowLossPrompt] = useState(false);
+  const [lossReason, setLossReason] = useState('');
+
+  const LOSS_REASONS = ['Price', 'Timing', 'Went elsewhere', 'No response', 'Not qualified', 'Changed plans', 'Spam', 'Other'];
+
+  const handleStatusClick = (s) => {
+    if (s === 'lost') { setShowLossPrompt(true); return; }
+    setShowLossPrompt(false);
+    setLossReason('');
+    onStatusChange(lead.id, s);
+  };
+
+  const confirmLost = () => {
+    onStatusChange(lead.id, 'lost', lossReason || undefined);
+    setShowLossPrompt(false);
+    setLossReason('');
+  };
 
   const contactTasks = tasks.filter(t=>t.lead_id===lead.id);
 
@@ -890,7 +913,7 @@ function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNot
               <div style={{ fontFamily:'var(--font-body)', fontSize:10, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:C.grey, marginBottom:7 }}>Status</div>
               <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
                 {Object.entries(STATUS_CONFIG).map(([s,cfg])=>(
-                  <button key={s} onClick={()=>onStatusChange(lead.id,s)} style={{
+                  <button key={s} onClick={()=>handleStatusClick(s)} style={{
                     padding:'4px 11px', borderRadius:12, cursor:'pointer', transition:'all 0.12s',
                     fontFamily:'var(--font-body)', fontSize:10, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase',
                     background:(lead.status||'new')===s?cfg.color:'transparent',
@@ -899,6 +922,42 @@ function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNot
                   }}>{cfg.label}</button>
                 ))}
               </div>
+
+              {/* Loss reason prompt */}
+              {showLossPrompt && (
+                <div style={{ marginTop:10, padding:'12px 14px', background:'rgba(239,68,68,0.06)', border:'1px solid rgba(239,68,68,0.25)', borderRadius:4 }}>
+                  <div style={{ fontFamily:'var(--font-body)', fontSize:10, fontWeight:700, color:'#ef4444', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:8 }}>Loss Reason</div>
+                  <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginBottom:8 }}>
+                    {LOSS_REASONS.map(r => (
+                      <button key={r} onClick={()=>setLossReason(r)} style={{
+                        padding:'3px 9px', borderRadius:10, cursor:'pointer', transition:'all 0.1s',
+                        fontFamily:'var(--font-body)', fontSize:10, fontWeight:600,
+                        background: lossReason===r ? '#ef4444' : 'transparent',
+                        color: lossReason===r ? '#fff' : '#ef4444',
+                        border:'1px solid rgba(239,68,68,0.4)',
+                      }}>{r}</button>
+                    ))}
+                  </div>
+                  <input
+                    placeholder="Optional note..."
+                    value={lossReason && !LOSS_REASONS.includes(lossReason) ? lossReason : ''}
+                    onChange={e => setLossReason(e.target.value)}
+                    style={{ ...inS, fontSize:11, marginBottom:8, color:C.white }}
+                  />
+                  <div style={{ display:'flex', gap:6 }}>
+                    <button onClick={confirmLost} style={{
+                      flex:1, padding:'6px 0', borderRadius:3, cursor:'pointer',
+                      fontFamily:'var(--font-body)', fontSize:11, fontWeight:600,
+                      background:'#ef4444', color:'#fff', border:'none',
+                    }}>Confirm Lost</button>
+                    <button onClick={()=>{setShowLossPrompt(false);setLossReason('');}} style={{
+                      padding:'6px 12px', borderRadius:3, cursor:'pointer',
+                      fontFamily:'var(--font-body)', fontSize:11, fontWeight:600,
+                      background:'transparent', color:C.grey, border:`1px solid ${C.border}`,
+                    }}>Cancel</button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Deal value */}
@@ -1133,7 +1192,12 @@ export default function CRMModule({ C }) {
     try {
       const { supabase } = await import('../../lib/supabaseClient');
       const now = new Date().toISOString();
-      const updates = { status: newStatus, updated_at: now };
+
+      // Compute score from current lead state + new status
+      const currentLead = leads.find(l => l.id === leadId) || {};
+      const score = calcLeadScore({ ...currentLead, status: newStatus });
+
+      const updates = { status: newStatus, score, updated_at: now };
 
       // Lifecycle timestamps
       const tsMap = { engaged: 'engaged_at', proposal_sent: 'proposal_sent_at', booked: 'booked_at', lost: 'lost_at' };
@@ -1149,9 +1213,9 @@ export default function CRMModule({ C }) {
         lead_id: leadId,
         event_type: 'status_changed',
         event_label: `Status changed to ${newStatus}`,
-        event_data: { new_status: newStatus, changed_by: 'admin', loss_reason: lossReason ?? null },
+        event_data: { new_status: newStatus, score, changed_by: 'admin', loss_reason: lossReason ?? null },
       }).then(() => {}).catch(() => {});
-    } catch (err) { console.error('[CRM] status change failed:', err); }
+    } catch (e) { console.error('[CRM] status change failed:', e); }
   };
 
   // Returns 'success' | 'duplicate' | 'error'

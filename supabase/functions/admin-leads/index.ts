@@ -19,6 +19,39 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// ─── Lead scoring (canonical — mirrors src/constants/leadStatuses.js) ─────────
+// Owned by the write layer. Calculate on every write, display everywhere.
+
+function calcLeadScore(lead: Record<string, unknown>): number {
+  let score = 0;
+  const req = (lead.requirements_json as Record<string, unknown>) || {};
+
+  // Contact completeness
+  if (lead.phone) score += 10;
+  if (req.website) score += 8;
+  const interests = req.interests as unknown[] | undefined;
+  if (interests?.length) score += Math.min(interests.length * 7, 28);
+
+  // Source quality
+  const src = lead.lead_source as string | undefined;
+  if (src === "Partner Enquiry Form") score += 20;
+  else if (src?.toLowerCase().includes("venue")) score += 15;
+  else if (src) score += 8;
+
+  // Engagement signals
+  const msg = lead.message as string | undefined;
+  if (msg && msg.length > 80) score += 7;
+
+  // Status progression bonus
+  const statusBonus: Record<string, number> = {
+    new: 0, qualified: 12, engaged: 20,
+    proposal_sent: 35, booked: 55, lost: 0, spam: 0,
+  };
+  score += statusBonus[(lead.status as string) || "new"] || 0;
+
+  return Math.min(100, score);
+}
+
 const SUPABASE_URL              = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
@@ -52,9 +85,10 @@ async function handleCreate(payload: Record<string, unknown>) {
   if (!payload.email && !payload.first_name) {
     return err("Missing required fields: email or first_name");
   }
+  const withScore = { ...payload, score: calcLeadScore(payload) };
   const { data, error } = await supabase
     .from("leads")
-    .insert([payload])
+    .insert([withScore])
     .select()
     .single();
   if (error) return err(error.message, 500);
@@ -64,9 +98,14 @@ async function handleCreate(payload: Record<string, unknown>) {
 // ─── Action: update_field ─────────────────────────────────────────────────────
 
 async function handleUpdateField(leadId: string, updates: Record<string, unknown>) {
+  // Fetch current lead to recompute score with merged state
+  const { data: current } = await supabase.from("leads").select("*").eq("id", leadId).single();
+  const merged = { ...(current || {}), ...updates };
+  const score = calcLeadScore(merged);
+
   const { data, error } = await supabase
     .from("leads")
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update({ ...updates, score, updated_at: new Date().toISOString() })
     .eq("id", leadId)
     .select()
     .single();
@@ -137,8 +176,14 @@ async function handleUpdate(leadId: string, status: string, lossReason?: string)
   }
 
   const now = new Date().toISOString();
+
+  // Fetch current lead to recompute score with new status
+  const { data: current } = await supabase.from("leads").select("*").eq("id", leadId).single();
+  const score = calcLeadScore({ ...(current || {}), status });
+
   const updates: Record<string, unknown> = {
     status,
+    score,
     updated_at: now,
   };
 
