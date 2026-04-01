@@ -1,55 +1,56 @@
-// ─── Admin Authentication Context ──────────────────────────────────────────
+// ─── Admin Authentication Context ────────────────────────────────────────────
+// Wraps Supabase's onAuthStateChange so the whole admin tree knows
+// immediately when the session appears or disappears.
+// ─────────────────────────────────────────────────────────────────────────────
 
 import { createContext, useContext, useState, useEffect } from "react";
-import { loginAdmin, logoutAdmin, getCurrentAdmin } from "../services/adminAuthService";
+import { supabase } from "../lib/supabaseClient";
+import { loginAdmin, logoutAdmin } from "../services/adminAuthService";
 
 const AdminAuthCtx = createContext();
 
 export function AdminAuthProvider({ children }) {
-  const [admin, setAdmin] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [admin, setAdmin]               = useState(null);
+  const [isAuthenticated, setAuth]      = useState(false);
+  const [loading, setLoading]           = useState(true);
 
-  // Initialize admin session on mount
   useEffect(() => {
-    const initializeAuth = async () => {
-      const result = await getCurrentAdmin();
-      if (result.data) {
-        setAdmin(result.data);
-        setIsAuthenticated(true);
+    // Restore any existing session on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setAdmin(session.user);
+        setAuth(true);
       }
       setLoading(false);
-    };
+    });
 
-    initializeAuth();
+    // Stay in sync for the lifetime of this provider
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setAdmin(session.user);
+        setAuth(true);
+      } else {
+        setAdmin(null);
+        setAuth(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email, password) => {
     setLoading(true);
     try {
       const result = await loginAdmin(email, password);
-      if (result.data) {
-        setAdmin(result.data);
-        setIsAuthenticated(true);
-        return { data: result.data, error: null };
-      } else {
-        return { data: null, error: result.error };
-      }
+      return result;
     } finally {
       setLoading(false);
     }
   };
 
   const logout = async () => {
-    setLoading(true);
-    try {
-      await logoutAdmin();
-      setAdmin(null);
-      setIsAuthenticated(false);
-      return { data: null, error: null };
-    } finally {
-      setLoading(false);
-    }
+    await logoutAdmin();
+    // onAuthStateChange fires and clears state automatically
   };
 
   return (
@@ -61,8 +62,6 @@ export function AdminAuthProvider({ children }) {
 
 export function useAdminAuth() {
   const context = useContext(AdminAuthCtx);
-  if (!context) {
-    throw new Error("useAdminAuth must be used within AdminAuthProvider");
-  }
+  if (!context) throw new Error("useAdminAuth must be used within AdminAuthProvider");
   return context;
 }

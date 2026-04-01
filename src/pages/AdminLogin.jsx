@@ -192,24 +192,6 @@ export default function AdminLogin({ onBack }) {
           </button>
         </form>
 
-        {/* Demo Credentials */}
-        <div
-          style={{
-            marginTop: 32,
-            padding: 16,
-            backgroundColor: "#ffffff",
-            border: `1px solid ${C.border}`,
-            borderRadius: 4,
-            fontSize: 12,
-            color: "#6b6359",
-            lineHeight: 1.6,
-          }}
-        >
-          <p style={{ margin: "0 0 8px 0", fontWeight: 600 }}>Demo Credentials:</p>
-          <p style={{ margin: "0 0 4px 0" }}>📧 Email: <code style={{ background: "#f0f0f0", padding: "2px 6px", borderRadius: 2, fontFamily: "monospace" }}>admin@lwd.com</code></p>
-          <p style={{ margin: 0 }}>🔐 Password: <code style={{ background: "#f0f0f0", padding: "2px 6px", borderRadius: 2, fontFamily: "monospace" }}>admin123</code></p>
-        </div>
-
         {/* Back Button */}
         <button
           onClick={onBack}
