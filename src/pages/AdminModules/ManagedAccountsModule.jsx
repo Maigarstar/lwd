@@ -1,160 +1,134 @@
-// ManagedAccountsModule.jsx
-// Managed Accounts: the active service client layer.
-// Created when a CRM deal is won. Separate from the CRM pipeline (leads)
-// and the Vendor Accounts access layer (vendors).
-// Hub for content delivery, campaigns, and activity per client.
+// PartnerAccountsModule.jsx (file kept as ManagedAccountsModule.jsx for routing stability)
+// Partner Accounts: the parent business entity.
+// One partner account can own one or more listings.
+// Underlying table: managed_accounts (kept stable, renamed in UI only).
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   fetchAccounts,
-  fetchAccount,
   saveAccount,
   deleteAccount,
 } from "../../services/managedAccountsService";
-import {
-  fetchClientContentSummary,
-  fetchAllContentSummaries,
-  fetchPortalConfig,
-  updatePortalConfig,
-  buildDefaultPortalConfig,
-} from "../../services/socialStudioService";
 
-const PLAN_OPTIONS = [
-  { key: "signature",  label: "Signature",  color: "#c9a84c" },
-  { key: "growth",     label: "Growth",     color: "#8b5cf6" },
-  { key: "essentials", label: "Essentials", color: "#3b82f6" },
-  { key: "custom",     label: "Custom",     color: "#6b7280" },
+// ── Constants ────────────────────────────────────────────────────────────────
+
+const LEVEL_OPTIONS = [
+  { key: "gold",   label: "Gold",   color: "#c9a84c" },
+  { key: "silver", label: "Silver", color: "#94a3b8" },
+  { key: "bronze", label: "Bronze", color: "#cd7f32" },
 ];
 
 const STATUS_OPTIONS = [
-  { key: "active",  label: "Active",  color: "#22c55e" },
-  { key: "paused",  label: "Paused",  color: "#f59e0b" },
-  { key: "churned", label: "Churned", color: "#ef4444" },
-];
-
-const SERVICE_STATUS_OPTIONS = [
   { key: "onboarding", label: "Onboarding", color: "#3b82f6" },
   { key: "active",     label: "Active",     color: "#22c55e" },
   { key: "paused",     label: "Paused",     color: "#f59e0b" },
-  { key: "at-risk",    label: "At Risk",    color: "#f97316" },
-  { key: "churned",    label: "Churned",    color: "#ef4444" },
-];
-
-const ONBOARDING_STATUS_OPTIONS = [
-  { key: "pending",     label: "Pending" },
-  { key: "in-progress", label: "In Progress" },
-  { key: "complete",    label: "Complete" },
+  { key: "cancelled",  label: "Cancelled",  color: "#ef4444" },
 ];
 
 const COMPANY_TYPE_OPTIONS = [
   { key: "venue",    label: "Venue" },
   { key: "hotel",    label: "Hotel" },
   { key: "planner",  label: "Planner" },
+  { key: "vendor",   label: "Vendor" },
   { key: "agency",   label: "Agency" },
   { key: "other",    label: "Other" },
 ];
 
-function planFor(key) {
-  return PLAN_OPTIONS.find(p => p.key === key) || { label: key || "No plan", color: "#6b7280" };
+function levelFor(key) {
+  return LEVEL_OPTIONS.find(l => l.key === key) || { label: key || "—", color: "#6b7280" };
 }
 function statusFor(key) {
+  // Map legacy values to new status
+  if (key === "churned") return { key: "cancelled", label: "Cancelled", color: "#ef4444" };
+  if (key === "at-risk") return { key: "paused", label: "Paused", color: "#f59e0b" };
   return STATUS_OPTIONS.find(s => s.key === key) || STATUS_OPTIONS[0];
-}
-function serviceStatusFor(key) {
-  return SERVICE_STATUS_OPTIONS.find(s => s.key === key) || SERVICE_STATUS_OPTIONS[0];
 }
 function getInitials(name) {
   if (!name) return "?";
   return name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
 }
 function fmtDate(d) {
-  if (!d) return null;
+  if (!d) return "—";
   return new Date(d + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function daysUntil(dateStr) {
-  if (!dateStr) return null;
-  const diff = new Date(dateStr + "T00:00:00") - new Date();
-  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+// Map legacy plan values to new level keys
+function normalisePlan(plan) {
+  const map = { signature: "gold", growth: "silver", essentials: "bronze", custom: "gold" };
+  return map[plan] || plan || "";
 }
 
-// Compute health signals for an account + its content summary.
-// Returns array of { label, color, bg } signal objects.
-function getHealthSignals(account, summary) {
-  const signals = [];
-  if (account.serviceStatus === "at-risk") {
-    signals.push({ label: "At Risk", color: "#f97316", bg: "rgba(249,115,22,0.12)" });
-  }
-  if (account.onboardingStatus === "in-progress") {
-    signals.push({ label: "Onboarding", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" });
-  }
-  const renewDays = daysUntil(account.renewalDate);
-  if (renewDays !== null && renewDays <= 30 && renewDays >= 0) {
-    signals.push({ label: `Renews in ${renewDays}d`, color: "#f59e0b", bg: "rgba(245,158,11,0.12)" });
-  }
-  const contractDays = daysUntil(account.contractEnd);
-  if (contractDays !== null && contractDays <= 14 && contractDays >= 0) {
-    signals.push({ label: `Contract ends ${contractDays}d`, color: "#ef4444", bg: "rgba(239,68,68,0.12)" });
-  }
-  if (summary && account.serviceStatus === "active" && account.status === "active") {
-    if (summary.scheduled === 0 && summary.draft === 0 && summary.totalItems === 0) {
-      signals.push({ label: "No content", color: "#6b7280", bg: "rgba(107,114,128,0.12)" });
-    } else if (summary.scheduled === 0 && summary.liveThisMonth === 0) {
-      signals.push({ label: "Stalled", color: "#f97316", bg: "rgba(249,115,22,0.12)" });
-    }
-  }
-  return signals;
+// Map new level keys back to DB plan field
+function levelToDbPlan(level) {
+  // Store as the level key directly — the DB plan field accepts any text
+  return level || "";
 }
 
-// Account Modal (Add / Edit)
+// ── Account Modal (Create / Edit) ────────────────────────────────────────────
 
 function AccountModal({ C, account, onSave, onClose }) {
   const isEdit = !!account?.id;
-  const [form, setForm] = useState(account ? { ...account } : {
-    name: "", slug: "",
-    logoUrl: "", heroImageUrl: "",
-    primaryContactName: "", primaryContactEmail: "", contactPhone: "",
-    companyType: "", plan: "growth",
-    serviceStatus: "onboarding", status: "active", onboardingStatus: "pending",
-    contractStart: "", contractEnd: "", renewalDate: "",
-    accountManager: "", internalNotes: "",
-  });
-  const [saving,    setSaving]    = useState(false);
-  const [saveError, setSaveError] = useState(null);
   const G = C?.gold || "#8f7420";
+
+  const [form, setForm] = useState(() => {
+    if (account) {
+      return {
+        ...account,
+        plan: normalisePlan(account.plan), // normalise legacy plan to level key
+      };
+    }
+    return {
+      name: "",
+      primaryContactName: "",
+      primaryContactEmail: "",
+      contactPhone: "",
+      companyType: "",
+      plan: "bronze",
+      status: "onboarding",
+      businessAddress: "",
+      websiteUrl: "",
+      renewalDate: "",
+      accountManager: "",
+      internalNotes: "",
+    };
+  });
+
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const canSave = form.name?.trim() && !saving;
+  const canSave = form.name?.trim() && form.primaryContactEmail?.trim() && !saving;
 
   async function handleSubmit() {
     if (!canSave) return;
     setSaving(true);
     setSaveError(null);
-    const result = await onSave(form);
+    // Map level back to plan for DB
+    const payload = { ...form, plan: levelToDbPlan(form.plan) };
+    const result = await onSave(payload);
     if (result?.ok) {
-      onClose(); // only close on confirmed DB success
+      onClose();
     } else {
       setSaving(false);
-      setSaveError(result?.message || 'Save failed — account was not stored in the database');
+      setSaveError(result?.message || "Save failed — account was not stored.");
     }
   }
 
-  const autoSlug = (v) => {
-    set("name", v);
-    if (!isEdit) set("slug", v.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""));
-  };
-
   const inp = {
-    width: "100%", background: C?.dark || "#111",
+    width: "100%", boxSizing: "border-box",
+    background: C?.dark || "#111",
     border: `1px solid ${C?.border || "#333"}`,
-    borderRadius: 6, padding: "8px 12px", color: C?.white || "#fff",
-    fontSize: 13, outline: "none", boxSizing: "border-box",
+    borderRadius: 6, padding: "9px 12px",
+    color: C?.white || "#fff", fontSize: 13,
+    fontFamily: "var(--font-body, inherit)",
+    outline: "none",
   };
   const lbl = {
     display: "block", fontSize: 11, fontWeight: 600,
     color: C?.grey || "#888", letterSpacing: "0.05em",
     textTransform: "uppercase", marginBottom: 5,
+    fontFamily: "var(--font-body, inherit)",
   };
-  const field = (label, children) => (
-    <div style={{ marginBottom: 16 }}>
+  const field = (label, children, fullWidth) => (
+    <div style={{ marginBottom: 16, gridColumn: fullWidth ? "1 / -1" : undefined }}>
       <label style={lbl}>{label}</label>
       {children}
     </div>
@@ -162,10 +136,11 @@ function AccountModal({ C, account, onSave, onClose }) {
   const sectionHead = (label) => (
     <div style={{
       gridColumn: "1 / -1",
-      fontSize: 10, fontWeight: 700, color: C?.grey || "#888",
-      letterSpacing: "0.08em", textTransform: "uppercase",
+      fontSize: 10, fontWeight: 700, color: G,
+      letterSpacing: "0.1em", textTransform: "uppercase",
       paddingBottom: 6, borderBottom: `1px solid ${C?.border || "#333"}`,
-      marginBottom: 4, marginTop: 8,
+      marginBottom: 4, marginTop: 12,
+      fontFamily: "var(--font-body, inherit)",
     }}>
       {label}
     </div>
@@ -180,38 +155,44 @@ function AccountModal({ C, account, onSave, onClose }) {
       <div style={{
         background: C?.card || "#1a1a1a",
         border: `1px solid ${C?.border || "#333"}`,
-        borderRadius: 12, width: "100%", maxWidth: 680,
+        borderRadius: 12, width: "100%", maxWidth: 720,
         maxHeight: "90vh", overflowY: "auto",
         padding: "32px 36px",
         boxShadow: "0 24px 64px rgba(0,0,0,0.6)",
       }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: C?.off || "#fff", marginBottom: 3 }}>
-              {isEdit ? "Edit Managed Account" : "New Managed Account"}
+            <div style={{ fontSize: 18, fontWeight: 700, color: C?.off || "#fff", marginBottom: 3, fontFamily: "var(--font-heading, inherit)" }}>
+              {isEdit ? "Edit Partner Account" : "New Partner Account"}
             </div>
-            <div style={{ fontSize: 12, color: C?.grey2 || "#666" }}>Active service client profile</div>
+            <div style={{ fontSize: 12, color: C?.grey2 || "#666", fontFamily: "var(--font-body, inherit)" }}>
+              {isEdit ? "Update business account details" : "Create a new business account"}
+            </div>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: C?.grey || "#888", fontSize: 20, cursor: "pointer" }}>x</button>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: C?.grey || "#888", fontSize: 20, cursor: "pointer" }}>×</button>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 24px" }}>
-          {sectionHead("Account")}
-          <div style={{ gridColumn: "1 / -1" }}>
-            {field("Account Name *",
-              <input value={form.name} onChange={e => autoSlug(e.target.value)} placeholder="e.g. Villa d'Este" style={inp} />
-            )}
-          </div>
-          <div style={{ gridColumn: "1 / -1" }}>
-            {field("Slug",
-              <input value={form.slug} onChange={e => set("slug", e.target.value)} placeholder="villa-deste" style={inp} />
-            )}
-          </div>
-          {field("Hero Image URL",
-            <input value={form.heroImageUrl || ""} onChange={e => set("heroImageUrl", e.target.value)} placeholder="https://... (shown in client portal)" style={inp} />
+
+          {/* ── Section: Business & Login ── */}
+          {sectionHead("Business & Contact")}
+
+          {field("Business Name *",
+            <input value={form.name} onChange={e => set("name", e.target.value)} placeholder="e.g. Villa d'Este" style={inp} />,
+            true
           )}
-          {field("Logo URL",
-            <input value={form.logoUrl || ""} onChange={e => set("logoUrl", e.target.value)} placeholder="https://..." style={inp} />
+          {field("Contact Email *",
+            <input type="email" value={form.primaryContactEmail} onChange={e => set("primaryContactEmail", e.target.value)} placeholder="info@business.com" style={inp} />
+          )}
+          {field("Contact Name",
+            <input value={form.primaryContactName} onChange={e => set("primaryContactName", e.target.value)} placeholder="Primary contact person" style={inp} />
+          )}
+          {field("Phone",
+            <input value={form.contactPhone} onChange={e => set("contactPhone", e.target.value)} placeholder="+44..." style={inp} />
+          )}
+          {field("Website",
+            <input value={form.websiteUrl || ""} onChange={e => set("websiteUrl", e.target.value)} placeholder="https://..." style={inp} />
           )}
           {field("Company Type",
             <select value={form.companyType} onChange={e => set("companyType", e.target.value)} style={inp}>
@@ -219,66 +200,62 @@ function AccountModal({ C, account, onSave, onClose }) {
               {COMPANY_TYPE_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
             </select>
           )}
-          {field("Service Plan",
-            <select value={form.plan} onChange={e => set("plan", e.target.value)} style={inp}>
-              <option value="">No plan assigned</option>
-              {PLAN_OPTIONS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-            </select>
+          {field("Business Address",
+            <textarea value={form.businessAddress || ""} onChange={e => set("businessAddress", e.target.value)}
+              placeholder="Street, City, Country" rows={2}
+              style={{ ...inp, resize: "vertical", lineHeight: 1.5 }} />,
+            true
           )}
 
-          {sectionHead("Primary Contact")}
-          {field("Contact Name",
-            <input value={form.primaryContactName} onChange={e => set("primaryContactName", e.target.value)} placeholder="Primary contact" style={inp} />
-          )}
-          {field("Contact Email",
-            <input type="email" value={form.primaryContactEmail} onChange={e => set("primaryContactEmail", e.target.value)} placeholder="contact@venue.com" style={inp} />
-          )}
-          {field("Contact Phone",
-            <input value={form.contactPhone} onChange={e => set("contactPhone", e.target.value)} placeholder="+44..." style={inp} />
+          {/* ── Section: Commercial ── */}
+          {sectionHead("Level & Status")}
+
+          {field("Membership Level",
+            <div style={{ display: "flex", gap: 8 }}>
+              {LEVEL_OPTIONS.map(l => {
+                const active = form.plan === l.key;
+                return (
+                  <button key={l.key} onClick={() => set("plan", l.key)} type="button" style={{
+                    flex: 1, padding: "10px 0", borderRadius: 6,
+                    border: `2px solid ${active ? l.color : (C?.border || "#333")}`,
+                    background: active ? l.color + "18" : "transparent",
+                    color: active ? l.color : (C?.grey || "#888"),
+                    fontSize: 12, fontWeight: 700, cursor: "pointer",
+                    letterSpacing: "0.05em", textTransform: "uppercase",
+                    fontFamily: "var(--font-body, inherit)",
+                    transition: "all 0.15s",
+                  }}>
+                    {l.label}
+                  </button>
+                );
+              })}
+            </div>,
+            true
           )}
 
-          {sectionHead("Status")}
-          {field("Account Status",
+          {field("Status",
             <select value={form.status} onChange={e => set("status", e.target.value)} style={inp}>
               {STATUS_OPTIONS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
             </select>
           )}
-          {field("Service Status",
-            <select value={form.serviceStatus} onChange={e => set("serviceStatus", e.target.value)} style={inp}>
-              {SERVICE_STATUS_OPTIONS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-            </select>
-          )}
-          {field("Onboarding Status",
-            <select value={form.onboardingStatus} onChange={e => set("onboardingStatus", e.target.value)} style={inp}>
-              {ONBOARDING_STATUS_OPTIONS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-            </select>
+          {field("Renewal Date",
+            <input type="date" value={form.renewalDate || ""} onChange={e => set("renewalDate", e.target.value)} style={inp} />
           )}
           {field("Account Manager",
             <input value={form.accountManager} onChange={e => set("accountManager", e.target.value)} placeholder="Internal team member" style={inp} />
           )}
 
-          {sectionHead("Contract")}
-          {field("Contract Start",
-            <input type="date" value={form.contractStart || ""} onChange={e => set("contractStart", e.target.value)} style={inp} />
-          )}
-          {field("Contract End",
-            <input type="date" value={form.contractEnd || ""} onChange={e => set("contractEnd", e.target.value)} style={inp} />
-          )}
-          {field("Renewal Date",
-            <input type="date" value={form.renewalDate || ""} onChange={e => set("renewalDate", e.target.value)} style={inp} />
-          )}
-
+          {/* ── Section: Notes ── */}
           {sectionHead("Notes")}
-          <div style={{ gridColumn: "1 / -1" }}>
-            {field("Internal Notes",
-              <textarea value={form.internalNotes} onChange={e => set("internalNotes", e.target.value)}
-                placeholder="Account context, requirements, history..." rows={3}
-                style={{ ...inp, resize: "vertical", lineHeight: 1.5 }} />
-            )}
-          </div>
+          {field("Internal Notes",
+            <textarea value={form.internalNotes} onChange={e => set("internalNotes", e.target.value)}
+              placeholder="Account context, requirements, history..." rows={3}
+              style={{ ...inp, resize: "vertical", lineHeight: 1.5 }} />,
+            true
+          )}
         </div>
 
-        {/* Error banner — shown inside modal so user sees it without the modal disappearing */}
+        {/* Error banner */}
         {saveError && (
           <div style={{
             marginTop: 16, padding: "10px 14px",
@@ -291,11 +268,13 @@ function AccountModal({ C, account, onSave, onClose }) {
           </div>
         )}
 
+        {/* Actions */}
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 20, paddingTop: 20, borderTop: `1px solid ${C?.border || "#333"}` }}>
           <button onClick={onClose} disabled={saving} style={{
             background: "none", border: `1px solid ${C?.border || "#333"}`,
             borderRadius: 6, padding: "9px 20px", color: C?.grey || "#888",
             fontSize: 13, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.5 : 1,
+            fontFamily: "var(--font-body, inherit)",
           }}>Cancel</button>
           <button onClick={handleSubmit} disabled={!canSave} style={{
             background: canSave ? G : C?.border || "#333",
@@ -303,6 +282,7 @@ function AccountModal({ C, account, onSave, onClose }) {
             color: canSave ? "#fff" : C?.grey2 || "#555",
             fontSize: 13, fontWeight: 600, cursor: canSave ? "pointer" : "not-allowed",
             minWidth: 120, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            fontFamily: "var(--font-body, inherit)",
           }}>
             {saving ? (
               <>
@@ -323,279 +303,39 @@ function AccountModal({ C, account, onSave, onClose }) {
   );
 }
 
-// Content Summary Widget
-
-function ContentSummary({ C, accountId }) {
-  const [summary, setSummary] = useState(null);
-  const G = C?.gold || "#8f7420";
-
-  useEffect(() => {
-    fetchClientContentSummary(accountId).then(setSummary);
-  }, [accountId]);
-
-  if (!summary) return (
-    <div style={{ fontSize: 12, color: C?.grey || "#888", padding: "8px 0" }}>Loading...</div>
-  );
-
-  const stats = [
-    { label: "Scheduled",      value: summary.scheduled,     color: "#8b5cf6" },
-    { label: "In Draft",       value: summary.draft,         color: "#3b82f6" },
-    { label: "Live This Month",value: summary.liveThisMonth, color: "#22c55e" },
-  ];
-
-  return (
-    <div>
-      <div style={{ display: "flex", gap: 1, marginBottom: 12 }}>
-        {stats.map(s => (
-          <div key={s.label} style={{
-            flex: 1, background: C?.dark || "#111",
-            padding: "12px 14px",
-            borderRight: `1px solid ${(C?.border || "#333") + "44"}`,
-          }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: s.color, lineHeight: 1, marginBottom: 3 }}>{s.value}</div>
-            <div style={{ fontSize: 9, color: C?.grey2 || "#666", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase" }}>{s.label}</div>
-          </div>
-        ))}
-      </div>
-      {(summary.activeCampaign || summary.lastPublished) && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {summary.activeCampaign && (
-            <div style={{ fontSize: 12, color: C?.grey || "#888" }}>
-              <span style={{ color: G, fontWeight: 600 }}>Active campaign: </span>
-              {summary.activeCampaign}
-            </div>
-          )}
-          {summary.lastPublished && (
-            <div style={{ fontSize: 12, color: C?.grey || "#888" }}>
-              <span style={{ fontWeight: 600 }}>Last published: </span>
-              {fmtDate(summary.lastPublished)}
-            </div>
-          )}
-        </div>
-      )}
-      {!summary.activeCampaign && !summary.lastPublished && summary.scheduled === 0 && summary.draft === 0 && summary.liveThisMonth === 0 && (
-        <div style={{ fontSize: 12, color: C?.grey2 || "#555", fontStyle: "italic" }}>No content in pipeline yet.</div>
-      )}
-    </div>
-  );
-}
-
-// Portal Config Editor
-// Admin can toggle which menu items are visible in the client portal,
-// rename labels, and reorder items via drag-and-drop.
-
-function PortalConfigEditor({ C, account }) {
-  const G = C?.gold || "#8f7420";
-  const [config, setConfig]   = useState(null);
-  const [saving, setSaving]   = useState(false);
-  const [saved,  setSaved]    = useState(false);
-  const dragIndex             = useRef(null);
-
-  useEffect(() => {
-    fetchPortalConfig(account.id, account.plan || 'essentials').then(cfg => {
-      setConfig(cfg);
-    });
-  }, [account.id, account.plan]);
-
-  if (!config) return (
-    <div style={{ fontSize: 12, color: C?.grey || "#888", padding: "8px 0" }}>Loading...</div>
-  );
-
-  const menu = [...config.menu].sort((a, b) => a.order - b.order);
-
-  function setMenu(newMenu) {
-    setConfig(c => ({ ...c, menu: newMenu.map((m, i) => ({ ...m, order: i })) }));
-    setSaved(false);
-  }
-
-  function toggleItem(key) {
-    setMenu(menu.map(m => m.key === key ? { ...m, enabled: !m.enabled } : m));
-  }
-
-  function renameItem(key, label) {
-    setMenu(menu.map(m => m.key === key ? { ...m, label } : m));
-  }
-
-  function setManager(field, val) {
-    setConfig(c => ({ ...c, accountManager: { ...c.accountManager, [field]: val } }));
-    setSaved(false);
-  }
-
-  // Drag-and-drop handlers
-  function onDragStart(i) {
-    dragIndex.current = i;
-  }
-
-  function onDragOver(e, i) {
-    e.preventDefault();
-    if (dragIndex.current === null || dragIndex.current === i) return;
-    const reordered = [...menu];
-    const [moved] = reordered.splice(dragIndex.current, 1);
-    reordered.splice(i, 0, moved);
-    dragIndex.current = i;
-    setMenu(reordered);
-  }
-
-  function onDragEnd() {
-    dragIndex.current = null;
-  }
-
-  async function save() {
-    setSaving(true);
-    await updatePortalConfig(account.id, config);
-    setSaving(false);
-    setSaved(true);
-  }
-
-  async function resetToDefaults() {
-    const fresh = buildDefaultPortalConfig(account.plan || "essentials");
-    setConfig(fresh);
-    setSaved(false);
-  }
-
-  const inp = {
-    background: C?.dark || "#111",
-    border: `1px solid ${C?.border || "#333"}`,
-    borderRadius: 4, padding: "4px 8px",
-    color: C?.white || "#fff", fontSize: 11,
-    outline: "none", width: "100%", boxSizing: "border-box",
-  };
-
-  return (
-    <div>
-      {/* Menu items */}
-      <div style={{ marginBottom: 16 }}>
-        {menu.map((item, i) => (
-          <div
-            key={item.key}
-            draggable
-            onDragStart={() => onDragStart(i)}
-            onDragOver={e => onDragOver(e, i)}
-            onDragEnd={onDragEnd}
-            style={{
-              display: "flex", alignItems: "center", gap: 8,
-              padding: "7px 0",
-              borderBottom: `1px solid ${(C?.border || "#333") + "55"}`,
-              cursor: "grab",
-              opacity: item.enabled ? 1 : 0.45,
-            }}
-          >
-            {/* Drag handle */}
-            <span style={{ color: C?.grey2 || "#555", fontSize: 11, cursor: "grab", userSelect: "none", flexShrink: 0 }}>
-              ≡
-            </span>
-
-            {/* Toggle */}
-            <button
-              onClick={() => toggleItem(item.key)}
-              style={{
-                width: 28, height: 16, borderRadius: 8, flexShrink: 0, cursor: "pointer",
-                border: "none", position: "relative",
-                background: item.enabled ? G : (C?.border || "#333"),
-                transition: "background 0.15s",
-              }}
-            >
-              <span style={{
-                position: "absolute", top: 2,
-                left: item.enabled ? 14 : 2,
-                width: 12, height: 12, borderRadius: "50%",
-                background: "#fff", transition: "left 0.15s",
-              }} />
-            </button>
-
-            {/* Icon */}
-            <span style={{ fontSize: 11, color: C?.grey || "#888", flexShrink: 0, width: 14 }}>
-              {item.icon}
-            </span>
-
-            {/* Editable label */}
-            <input
-              value={item.label}
-              onChange={e => renameItem(item.key, e.target.value)}
-              style={{ ...inp, flex: 1 }}
-            />
-          </div>
-        ))}
-      </div>
-
-      {/* Account manager strip */}
-      <div style={{
-        fontSize: 10, fontWeight: 700, color: C?.grey || "#888",
-        letterSpacing: "0.08em", textTransform: "uppercase",
-        marginBottom: 8, paddingBottom: 5,
-        borderBottom: `1px solid ${C?.border || "#333"}`,
-      }}>
-        Account Manager (shown in portal)
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
-        {[
-          ["name",  "Name"],
-          ["title", "Title"],
-          ["email", "Email"],
-          ["photo", "Photo URL"],
-        ].map(([field, label]) => (
-          <div key={field}>
-            <div style={{ fontSize: 9, color: C?.grey2 || "#555", marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
-            <input
-              value={config.accountManager?.[field] || ""}
-              onChange={e => setManager(field, e.target.value)}
-              style={inp}
-            />
-          </div>
-        ))}
-      </div>
-
-      {/* Actions */}
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <button onClick={save} disabled={saving} style={{
-          background: saving ? (C?.border || "#333") : G,
-          border: "none", borderRadius: 6,
-          padding: "7px 16px", color: "#fff",
-          fontSize: 11, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer",
-          flex: 1,
-        }}>
-          {saving ? "Saving..." : saved ? "Saved" : "Save Portal Config"}
-        </button>
-        <button onClick={resetToDefaults} style={{
-          background: "none", border: `1px solid ${C?.border || "#333"}`,
-          borderRadius: 6, padding: "7px 12px",
-          color: C?.grey || "#888", fontSize: 11, cursor: "pointer",
-        }}>
-          Reset
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// Detail Panel
+// ── Detail Panel ─────────────────────────────────────────────────────────────
 
 function DetailPanel({ C, account, onEdit, onClose, onStatusAction }) {
   const G = C?.gold || "#8f7420";
-  const plan = planFor(account.plan);
-  const st   = statusFor(account.status);
-  const sst  = serviceStatusFor(account.serviceStatus);
+  const level = levelFor(normalisePlan(account.plan));
+  const st = statusFor(account.status);
 
   const section = (title, children) => (
     <div style={{ marginBottom: 24 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: C?.grey || "#888", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10, paddingBottom: 6, borderBottom: `1px solid ${C?.border || "#333"}` }}>
+      <div style={{
+        fontSize: 10, fontWeight: 700, color: G,
+        letterSpacing: "0.1em", textTransform: "uppercase",
+        marginBottom: 10, paddingBottom: 6,
+        borderBottom: `1px solid ${C?.border || "#333"}`,
+        fontFamily: "var(--font-body, inherit)",
+      }}>
         {title}
       </div>
       {children}
     </div>
   );
 
-  const row = (label, value) => value ? (
+  const row = (label, value) => value && value !== "—" ? (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-      <span style={{ fontSize: 11, color: C?.grey || "#888", fontWeight: 500, flexShrink: 0, marginRight: 16 }}>{label}</span>
-      <span style={{ fontSize: 12, color: C?.white || "#fff", textAlign: "right" }}>{value}</span>
+      <span style={{ fontSize: 11, color: C?.grey || "#888", fontWeight: 500, flexShrink: 0, marginRight: 16, fontFamily: "var(--font-body, inherit)" }}>{label}</span>
+      <span style={{ fontSize: 12, color: C?.white || "#fff", textAlign: "right", fontFamily: "var(--font-body, inherit)" }}>{value}</span>
     </div>
   ) : null;
 
   return (
     <div style={{
       position: "fixed", top: 0, right: 0, bottom: 0,
-      width: 380, background: C?.card || "#1a1a1a",
+      width: 420, background: C?.card || "#1a1a1a",
       borderLeft: `1px solid ${C?.border || "#333"}`,
       overflowY: "auto", zIndex: 200,
       boxShadow: "-8px 0 32px rgba(0,0,0,0.4)",
@@ -605,31 +345,34 @@ function DetailPanel({ C, account, onEdit, onClose, onStatusAction }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{
-              width: 44, height: 44, borderRadius: 10,
-              background: G + "22", border: `1px solid ${G}44`,
+              width: 48, height: 48, borderRadius: 10,
+              background: level.color + "22", border: `2px solid ${level.color}55`,
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 14, fontWeight: 700, color: G, flexShrink: 0,
+              fontSize: 15, fontWeight: 700, color: level.color, flexShrink: 0,
+              fontFamily: "var(--font-heading, inherit)",
             }}>
               {getInitials(account.name)}
             </div>
             <div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: C?.off || "#fff", lineHeight: 1.2 }}>{account.name}</div>
-              <div style={{ display: "flex", gap: 5, marginTop: 5, flexWrap: "wrap" }}>
-                {account.plan && (
-                  <span style={{
-                    fontSize: 9, fontWeight: 700, letterSpacing: "0.06em",
-                    textTransform: "uppercase", color: plan.color,
-                    background: plan.color + "22", padding: "2px 7px", borderRadius: 100,
-                  }}>
-                    {plan.label}
-                  </span>
-                )}
+              <div style={{ fontSize: 17, fontWeight: 700, color: C?.off || "#fff", lineHeight: 1.2, fontFamily: "var(--font-heading, inherit)" }}>
+                {account.name}
+              </div>
+              <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                <span style={{
+                  fontSize: 9, fontWeight: 700, letterSpacing: "0.06em",
+                  textTransform: "uppercase", color: level.color,
+                  background: level.color + "22", padding: "2px 8px", borderRadius: 100,
+                  fontFamily: "var(--font-body, inherit)",
+                }}>
+                  {level.label}
+                </span>
                 <span style={{
                   fontSize: 9, fontWeight: 700, letterSpacing: "0.05em",
-                  textTransform: "uppercase", color: sst.color,
-                  background: sst.color + "22", padding: "2px 7px", borderRadius: 100,
+                  textTransform: "uppercase", color: st.color,
+                  background: st.color + "22", padding: "2px 8px", borderRadius: 100,
+                  fontFamily: "var(--font-body, inherit)",
                 }}>
-                  {sst.label}
+                  {st.label}
                 </span>
               </div>
             </div>
@@ -638,22 +381,22 @@ function DetailPanel({ C, account, onEdit, onClose, onStatusAction }) {
             <button onClick={() => onEdit(account)} style={{
               background: G, border: "none", borderRadius: 6,
               padding: "6px 14px", color: "#fff", fontSize: 11,
-              fontWeight: 600, cursor: "pointer",
+              fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body, inherit)",
             }}>Edit</button>
             <button onClick={onClose} style={{
               background: "none", border: "none", color: C?.grey || "#888",
               fontSize: 18, cursor: "pointer", padding: "2px 6px",
-            }}>x</button>
+            }}>×</button>
           </div>
         </div>
+
         {/* Status quick actions */}
         <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
           {STATUS_OPTIONS.map(s => {
             const isCurrent = account.status === s.key;
             return (
-              <button
-                key={s.key}
-                onClick={() => !isCurrent && onStatusAction && onStatusAction(account.id, s.key)}
+              <button key={s.key}
+                onClick={() => !isCurrent && onStatusAction?.(account.id, s.key)}
                 style={{
                   padding: "3px 10px", borderRadius: 100, fontSize: 10,
                   fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase",
@@ -662,6 +405,7 @@ function DetailPanel({ C, account, onEdit, onClose, onStatusAction }) {
                   border: `1px solid ${isCurrent ? s.color : (C?.border || "#333")}`,
                   color: isCurrent ? s.color : C?.grey2 || "#555",
                   transition: "all 0.12s",
+                  fontFamily: "var(--font-body, inherit)",
                 }}
               >
                 {s.label}
@@ -672,218 +416,91 @@ function DetailPanel({ C, account, onEdit, onClose, onStatusAction }) {
       </div>
 
       <div style={{ padding: "20px 24px" }}>
-        {/* Content summary */}
-        {section("Content Delivery",
-          <ContentSummary C={C} accountId={account.id} />
-        )}
-
         {/* Account details */}
         {section("Account",
           <div>
-            {row("Company Type",      account.companyType)}
-            {row("Account Manager",   account.accountManager)}
-            {row("Onboarding",        account.onboardingStatus ? account.onboardingStatus.replace("-", " ") : null)}
-          </div>
-        )}
-
-        {/* Primary contact */}
-        {(account.primaryContactName || account.primaryContactEmail || account.contactPhone) && section("Primary Contact",
-          <div>
-            {row("Name",  account.primaryContactName)}
             {row("Email", account.primaryContactEmail)}
+            {row("Contact", account.primaryContactName)}
             {row("Phone", account.contactPhone)}
+            {row("Website", account.websiteUrl)}
+            {row("Type", account.companyType)}
+            {row("Address", account.businessAddress)}
+            {row("Manager", account.accountManager)}
           </div>
         )}
 
-        {/* Contract */}
-        {(account.contractStart || account.contractEnd || account.renewalDate) && section("Contract",
+        {/* Commercial */}
+        {section("Commercial",
           <div>
-            {row("Start",   fmtDate(account.contractStart))}
-            {row("End",     fmtDate(account.contractEnd))}
+            {row("Level", level.label)}
             {row("Renewal", fmtDate(account.renewalDate))}
+            {account.contractStart && row("Contract Start", fmtDate(account.contractStart))}
+            {account.contractEnd && row("Contract End", fmtDate(account.contractEnd))}
           </div>
         )}
 
-        {/* Linked records */}
-        {(account.crmLeadId || account.vendorId) && section("Linked Records",
-          <div>
-            {account.crmLeadId && row("CRM Lead",       account.crmLeadId)}
-            {account.vendorId  && row("Vendor Account", account.vendorId)}
+        {/* Linked Listings */}
+        {section("Linked Listings",
+          <div style={{
+            padding: "20px", textAlign: "center",
+            border: `1px dashed ${C?.border || "#333"}`,
+            borderRadius: 8,
+          }}>
+            <div style={{ fontSize: 12, color: C?.grey2 || "#555", fontFamily: "var(--font-body, inherit)" }}>
+              Listing linkage display coming soon
+            </div>
           </div>
         )}
 
         {/* Notes */}
         {account.internalNotes && section("Internal Notes",
-          <div style={{ fontSize: 12, color: C?.grey || "#888", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+          <div style={{ fontSize: 12, color: C?.grey || "#888", lineHeight: 1.6, whiteSpace: "pre-wrap", fontFamily: "var(--font-body, inherit)" }}>
             {account.internalNotes}
           </div>
         )}
 
-        {/* Quick link to Social Studio */}
-        <div style={{ marginTop: 8, paddingTop: 16, borderTop: `1px solid ${C?.border || "#333"}`, marginBottom: 20 }}>
-          <button
-            onClick={() => window.dispatchEvent(new CustomEvent("lwd-nav", { detail: { tab: "social-studio" } }))}
-            style={{
-              width: "100%", background: "none",
-              border: `1px solid ${C?.border || "#333"}`,
-              borderRadius: 8, padding: "10px 16px",
-              color: C?.grey || "#888", fontSize: 12,
-              cursor: "pointer", textAlign: "left",
-              display: "flex", alignItems: "center", gap: 8,
-            }}
-          >
-            <span style={{ fontSize: 14 }}>◉</span>
-            View in Social Studio
-          </button>
-        </div>
-
-        {/* Portal config */}
-        {section("Client Portal Menu",
-          <PortalConfigEditor C={C} account={account} />
+        {/* Linked records (legacy) */}
+        {(account.crmLeadId || account.vendorId) && section("Linked Records",
+          <div>
+            {account.crmLeadId && row("CRM Lead", account.crmLeadId)}
+            {account.vendorId && row("Vendor Account", account.vendorId)}
+          </div>
         )}
       </div>
     </div>
   );
 }
 
-// Account Card
-
-function AccountCard({ C, account, summary, onClick }) {
-  const G = C?.gold || "#8f7420";
-  const plan    = planFor(account.plan);
-  const sst     = serviceStatusFor(account.serviceStatus);
-  const signals = getHealthSignals(account, summary);
-  const [hov, setHov] = useState(false);
-
-  const hasPipelineData = summary && (summary.scheduled > 0 || summary.draft > 0 || summary.liveThisMonth > 0);
-
-  return (
-    <div
-      onClick={() => onClick(account)}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        background: hov ? (C?.dark || "#111") : (C?.card || "#1a1a1a"),
-        border: `1px solid ${hov ? G + "55" : C?.border || "#333"}`,
-        borderRadius: 10, padding: "18px 20px",
-        cursor: "pointer", transition: "all 0.15s ease",
-        display: "flex", flexDirection: "column", gap: 0,
-      }}
-    >
-      {/* Top row: avatar + name + badges */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
-        <div style={{
-          width: 38, height: 38, borderRadius: 8, flexShrink: 0,
-          background: G + "22", border: `1px solid ${G}44`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 12, fontWeight: 700, color: G,
-        }}>
-          {getInitials(account.name)}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: C?.off || "#fff", marginBottom: 5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {account.name}
-          </div>
-          <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-            {account.plan && (
-              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: plan.color, background: plan.color + "22", padding: "2px 6px", borderRadius: 100 }}>
-                {plan.label}
-              </span>
-            )}
-            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: sst.color, background: sst.color + "22", padding: "2px 6px", borderRadius: 100 }}>
-              {sst.label}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Health signals */}
-      {signals.length > 0 && (
-        <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 10 }}>
-          {signals.map((sig, i) => (
-            <span key={i} style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: sig.color, background: sig.bg, padding: "2px 7px", borderRadius: 100 }}>
-              {sig.label}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Content pipeline mini-stats */}
-      {hasPipelineData ? (
-        <div style={{ display: "flex", gap: 1, borderRadius: 6, overflow: "hidden", marginBottom: 10 }}>
-          {[
-            { label: "Scheduled", value: summary.scheduled, color: "#8b5cf6" },
-            { label: "Draft",     value: summary.draft,     color: "#3b82f6" },
-            { label: "Live",      value: summary.liveThisMonth, color: "#22c55e" },
-          ].map(s => (
-            <div key={s.label} style={{ flex: 1, background: (C?.dark || "#111"), padding: "8px 10px", textAlign: "center" }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: s.value > 0 ? s.color : C?.grey2 || "#555", lineHeight: 1 }}>{s.value}</div>
-              <div style={{ fontSize: 8, color: C?.grey2 || "#555", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", marginTop: 2 }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-      ) : summary ? (
-        <div style={{ fontSize: 10, color: C?.grey2 || "#555", fontStyle: "italic", marginBottom: 10, paddingTop: 2 }}>
-          No content in pipeline
-        </div>
-      ) : null}
-
-      {/* Footer: contact + manager */}
-      <div style={{ borderTop: `1px solid ${(C?.border || "#333") + "55"}`, paddingTop: 8, marginTop: 2 }}>
-        {account.primaryContactName && (
-          <div style={{ fontSize: 10, color: C?.grey || "#888", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {account.primaryContactName}
-            {account.primaryContactEmail && <span style={{ color: C?.grey2 || "#555" }}> · {account.primaryContactEmail}</span>}
-          </div>
-        )}
-        {account.accountManager && (
-          <div style={{ fontSize: 10, color: C?.grey2 || "#555" }}>
-            {account.accountManager}
-          </div>
-        )}
-        {!account.primaryContactName && !account.accountManager && (
-          <div style={{ fontSize: 10, color: C?.grey2 || "#555", fontStyle: "italic" }}>No contact set</div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Main Module
+// ── Main Module ──────────────────────────────────────────────────────────────
 
 export default function ManagedAccountsModule({ C }) {
   const G = C?.gold || "#8f7420";
 
-  const [accounts,        setAccounts]        = useState([]);
-  const [summaries,       setSummaries]       = useState({});
-  const [loading,         setLoading]         = useState(true);
-  const [selected,        setSelected]        = useState(null);
-  const [showModal,       setShowModal]        = useState(false);
-  const [saveStatus,      setSaveStatus]      = useState(null); // { type: 'success'|'error', message: string }
+  const [accounts, setAccounts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [editAccount, setEditAccount] = useState(null);
+  const [saveStatus, setSaveStatus] = useState(null);
   const saveStatusTimer = useRef(null);
-  const [editAccount,     setEditAccount]      = useState(null);
-  const [statusFilter,    setStatusFilter]     = useState("active");
-  const [serviceFilter,   setServiceFilter]    = useState("all");
-  const [planFilter,      setPlanFilter]       = useState("all");
-  const [search,          setSearch]           = useState("");
+
+  // Filters
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [levelFilter, setLevelFilter] = useState("all");
+  const [search, setSearch] = useState("");
 
   const loadAccounts = useCallback(async () => {
     setLoading(true);
     try {
-      const [accountsResult, sums] = await Promise.all([
-        fetchAccounts(),
-        fetchAllContentSummaries(),
-      ]);
-      // fetchAccounts returns { success, data, error }
-      if (accountsResult.success && accountsResult.data) {
-        setAccounts(accountsResult.data);
+      const result = await fetchAccounts();
+      if (result.success && result.data) {
+        setAccounts(result.data);
       } else {
-        console.error('[ManagedAccountsModule] loadAccounts failed:', accountsResult.error);
+        console.error("[PartnerAccounts] load failed:", result.error);
         setAccounts([]);
       }
-      setSummaries(sums || {});
     } catch (err) {
-      console.error('[ManagedAccountsModule] loadAccounts exception:', err);
+      console.error("[PartnerAccounts] load exception:", err);
       setAccounts([]);
     } finally {
       setLoading(false);
@@ -892,22 +509,27 @@ export default function ManagedAccountsModule({ C }) {
 
   useEffect(() => { loadAccounts(); }, [loadAccounts]);
 
+  // Normalise plan to level for filtering
+  const accountsWithLevel = useMemo(() =>
+    accounts.map(a => ({ ...a, _level: normalisePlan(a.plan) })),
+    [accounts]
+  );
+
   const filtered = useMemo(() => {
-    let list = accounts;
-    if (statusFilter !== "all")  list = list.filter(a => a.status === statusFilter);
-    if (serviceFilter !== "all") list = list.filter(a => a.serviceStatus === serviceFilter);
-    if (planFilter !== "all")    list = list.filter(a => a.plan === planFilter);
+    let list = accountsWithLevel;
+    if (statusFilter !== "all") list = list.filter(a => a.status === statusFilter);
+    if (levelFilter !== "all") list = list.filter(a => a._level === levelFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(a =>
-        a.name.toLowerCase().includes(q) ||
-        a.primaryContactName.toLowerCase().includes(q) ||
-        a.primaryContactEmail.toLowerCase().includes(q) ||
+        a.name?.toLowerCase().includes(q) ||
+        a.primaryContactEmail?.toLowerCase().includes(q) ||
+        a.primaryContactName?.toLowerCase().includes(q) ||
         (a.accountManager || "").toLowerCase().includes(q)
       );
     }
     return list;
-  }, [accounts, statusFilter, serviceFilter, planFilter, search]);
+  }, [accountsWithLevel, statusFilter, levelFilter, search]);
 
   function showSaveFeedback(type, message) {
     if (saveStatusTimer.current) clearTimeout(saveStatusTimer.current);
@@ -915,64 +537,39 @@ export default function ManagedAccountsModule({ C }) {
     saveStatusTimer.current = setTimeout(() => setSaveStatus(null), 4500);
   }
 
-  // Returns { ok: true } on DB-confirmed success, { ok: false, message } on failure.
-  // The modal uses the return value to decide whether to close — it stays open on failure.
   async function handleSave(form) {
     try {
       const isCreate = !form.id;
-      const actionLabel = isCreate ? 'creating' : 'updating';
-      console.log('[ManagedAccountsModule] handleSave:', actionLabel, isCreate ? '' : form.id);
-
-      // Single unified call for both create and update
+      console.log("[PartnerAccounts] handleSave:", isCreate ? "creating" : "updating");
       const result = await saveAccount(form);
-      console.log('[ManagedAccountsModule] handleSave result:', result);
-
       if (!result.success) {
-        const errorMsg = result.error || (isCreate ? 'Create failed' : 'Update failed');
-        console.error('[ManagedAccountsModule] handleSave failed:', errorMsg);
-        return { ok: false, message: errorMsg };
+        return { ok: false, message: result.error || "Save failed" };
       }
-
-      // Success: update UI immediately
       const saved = result.data;
       if (isCreate) {
-        // Prepend new account to list
         setAccounts(prev => [saved, ...prev]);
-        showSaveFeedback('success', `${saved.name} created`);
-        // Refetch after brief delay to verify persistence
-        setTimeout(() => {
-          console.log('[ManagedAccountsModule] handleSave: refetching after create');
-          loadAccounts();
-        }, 700);
+        showSaveFeedback("success", `${saved.name} created`);
+        setTimeout(() => loadAccounts(), 700);
       } else {
-        // Update existing account in list and selection
         setAccounts(prev => prev.map(a => a.id === saved.id ? saved : a));
         setSelected(prev => prev?.id === saved.id ? saved : prev);
-        showSaveFeedback('success', `${saved.name} updated`);
+        showSaveFeedback("success", `${saved.name} updated`);
       }
-
       return { ok: true };
     } catch (err) {
-      console.error('[ManagedAccountsModule] handleSave exception:', err.message);
-      return { ok: false, message: 'An unexpected error occurred. Please try again.' };
+      return { ok: false, message: "An unexpected error occurred." };
     }
   }
 
   async function handleStatusAction(accountId, newStatus) {
     const account = accounts.find(a => a.id === accountId);
     if (!account) return;
-
-    // Update UI immediately for responsiveness
     const updated = { ...account, status: newStatus };
     setAccounts(prev => prev.map(a => a.id === accountId ? updated : a));
     setSelected(prev => prev?.id === accountId ? updated : prev);
-
-    // Persist to database via unified saveAccount
-    console.log('[ManagedAccountsModule] handleStatusAction: saving status', accountId, newStatus);
     const result = await saveAccount(updated);
     if (!result.success) {
-      console.error('[ManagedAccountsModule] handleStatusAction failed:', result.error);
-      showSaveFeedback('error', `Status update failed: ${result.error}`);
+      showSaveFeedback("error", `Status update failed: ${result.error}`);
     }
   }
 
@@ -982,158 +579,258 @@ export default function ManagedAccountsModule({ C }) {
     setShowModal(true);
   }
 
-  const pill = (active, onClick, label, color) => (
-    <button onClick={onClick} style={{
-      background: active ? (color || G) + "22" : "none",
-      border: `1px solid ${active ? (color || G) : C?.border || "#333"}`,
-      borderRadius: 20, padding: "5px 14px",
-      color: active ? (color || G) : C?.grey || "#888",
-      fontSize: 11, fontWeight: 600, cursor: "pointer",
-      letterSpacing: "0.03em", whiteSpace: "nowrap",
-    }}>
-      {label}
-    </button>
-  );
+  // ── Stats ──
+  const stats = useMemo(() => ({
+    total: accounts.length,
+    active: accounts.filter(a => a.status === "active").length,
+    onboarding: accounts.filter(a => a.status === "onboarding" || a.serviceStatus === "onboarding").length,
+    gold: accountsWithLevel.filter(a => a._level === "gold").length,
+    silver: accountsWithLevel.filter(a => a._level === "silver").length,
+    bronze: accountsWithLevel.filter(a => a._level === "bronze").length,
+  }), [accounts, accountsWithLevel]);
 
-  const hasFilters = statusFilter !== "active" || serviceFilter !== "all" || planFilter !== "all" || search.trim();
+  const hasFilters = statusFilter !== "all" || levelFilter !== "all" || search.trim();
+
+  // ── Table header style ──
+  const th = {
+    fontSize: 10, fontWeight: 700, color: C?.grey || "#888",
+    letterSpacing: "0.08em", textTransform: "uppercase",
+    padding: "10px 14px", textAlign: "left", whiteSpace: "nowrap",
+    borderBottom: `1px solid ${C?.border || "#333"}`,
+    fontFamily: "var(--font-body, inherit)",
+  };
+  const td = {
+    fontSize: 13, color: C?.white || "#fff",
+    padding: "12px 14px", verticalAlign: "middle",
+    borderBottom: `1px solid ${(C?.border || "#333")}44`,
+    fontFamily: "var(--font-body, inherit)",
+  };
 
   return (
     <div style={{ background: C?.black || "#0a0a0a", minHeight: "100vh", color: C?.white || "#fff", position: "relative" }}>
-      {/* Header */}
-      <div style={{ marginBottom: 28 }}>
+
+      {/* ── Header ── */}
+      <div style={{ marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
-          <p style={{ fontSize: 13, color: C?.grey || "#888", margin: 0 }}>
-            Active service clients. Created when a CRM deal is won. Hub for content delivery and campaigns.
+          <p style={{ fontSize: 13, color: C?.grey || "#888", margin: 0, fontFamily: "var(--font-body, inherit)" }}>
+            Business accounts. Each partner account can own one or more listings.
           </p>
           <button onClick={() => { setEditAccount(null); setShowModal(true); }} style={{
             background: G, border: "none", borderRadius: 8,
             padding: "10px 20px", color: "#fff", fontSize: 13,
             fontWeight: 600, cursor: "pointer", flexShrink: 0,
+            fontFamily: "var(--font-body, inherit)",
           }}>
             + New Account
           </button>
         </div>
 
-        {/* Stats bar */}
-        <div style={{ display: "flex", gap: 1, marginBottom: 20 }}>
+        {/* ── Stats strip ── */}
+        <div style={{ display: "flex", gap: 1, marginBottom: 20, borderRadius: 8, overflow: "hidden" }}>
           {[
-            { label: "Total",           value: accounts.length,                                                                                           color: G },
-            { label: "Active",          value: accounts.filter(a => a.status === "active").length,                                                        color: "#22c55e" },
-            { label: "Onboarding",      value: accounts.filter(a => a.serviceStatus === "onboarding").length,                                             color: "#3b82f6" },
-            { label: "Needs Attention", value: accounts.filter(a => getHealthSignals(a, summaries[a.id] || null).length > 0).length,                      color: "#f97316" },
-            { label: "At Risk",         value: accounts.filter(a => a.serviceStatus === "at-risk").length,                                                color: "#ef4444" },
+            { label: "Total",      value: stats.total,      color: G },
+            { label: "Active",     value: stats.active,     color: "#22c55e" },
+            { label: "Onboarding", value: stats.onboarding, color: "#3b82f6" },
+            { label: "Gold",       value: stats.gold,       color: "#c9a84c" },
+            { label: "Silver",     value: stats.silver,     color: "#94a3b8" },
+            { label: "Bronze",     value: stats.bronze,     color: "#cd7f32" },
           ].map(s => (
             <div key={s.label} style={{
               flex: 1, background: C?.dark || "#111", padding: "14px 16px",
               borderRight: `1px solid ${(C?.border || "#333") + "44"}`,
             }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: s.color, lineHeight: 1, marginBottom: 4 }}>{s.value}</div>
-              <div style={{ fontSize: 10, color: C?.grey2 || "#666", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase" }}>{s.label}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: s.color, lineHeight: 1, marginBottom: 4, fontFamily: "var(--font-heading, inherit)" }}>{s.value}</div>
+              <div style={{ fontSize: 10, color: C?.grey2 || "#666", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", fontFamily: "var(--font-body, inherit)" }}>{s.label}</div>
             </div>
           ))}
         </div>
 
-        {/* Search */}
-        <div style={{ marginBottom: 12 }}>
+        {/* ── Search + Filters ── */}
+        <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search accounts, contacts, managers..."
+            placeholder="Search accounts..."
             style={{
-              width: "100%", boxSizing: "border-box",
+              flex: 1, boxSizing: "border-box",
               background: C?.dark || "#111",
               border: `1px solid ${search ? G + "66" : C?.border || "#333"}`,
               borderRadius: 8, padding: "9px 14px",
               color: C?.white || "#fff", fontSize: 13,
-              outline: "none",
+              outline: "none", fontFamily: "var(--font-body, inherit)",
             }}
           />
-        </div>
 
-        {/* Filters */}
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          {/* Account status */}
-          {pill(statusFilter === "active",  () => setStatusFilter("active"),  "Active",  "#22c55e")}
-          {pill(statusFilter === "paused",  () => setStatusFilter("paused"),  "Paused",  "#f59e0b")}
-          {pill(statusFilter === "churned", () => setStatusFilter("churned"), "Churned", "#ef4444")}
-          {pill(statusFilter === "all",     () => setStatusFilter("all"),     "All accounts")}
+          {/* Status filter */}
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{
+            background: C?.dark || "#111", border: `1px solid ${C?.border || "#333"}`,
+            borderRadius: 8, padding: "9px 12px", color: C?.white || "#fff",
+            fontSize: 12, outline: "none", cursor: "pointer",
+            fontFamily: "var(--font-body, inherit)",
+          }}>
+            <option value="all">All status</option>
+            {STATUS_OPTIONS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+          </select>
 
-          {/* Divider */}
-          <div style={{ width: 1, height: 20, background: C?.border || "#333" }} />
+          {/* Level filter */}
+          <select value={levelFilter} onChange={e => setLevelFilter(e.target.value)} style={{
+            background: C?.dark || "#111", border: `1px solid ${C?.border || "#333"}`,
+            borderRadius: 8, padding: "9px 12px", color: C?.white || "#fff",
+            fontSize: 12, outline: "none", cursor: "pointer",
+            fontFamily: "var(--font-body, inherit)",
+          }}>
+            <option value="all">All levels</option>
+            {LEVEL_OPTIONS.map(l => <option key={l.key} value={l.key}>{l.label}</option>)}
+          </select>
 
-          {/* Service status */}
-          {["onboarding", "active", "paused", "at-risk"].map(k => {
-            const sst = SERVICE_STATUS_OPTIONS.find(s => s.key === k);
-            return <span key={k}>{pill(serviceFilter === k, () => setServiceFilter(serviceFilter === k ? "all" : k), sst.label, sst.color)}</span>;
-          })}
-
-          {/* Divider */}
-          <div style={{ width: 1, height: 20, background: C?.border || "#333" }} />
-
-          {/* Plan */}
-          {PLAN_OPTIONS.map(p =>
-            <span key={p.key}>{pill(planFilter === p.key, () => setPlanFilter(planFilter === p.key ? "all" : p.key), p.label, p.color)}</span>
-          )}
-
-          {/* Clear all */}
           {hasFilters && (
-            <button onClick={() => { setStatusFilter("active"); setServiceFilter("all"); setPlanFilter("all"); setSearch(""); }}
-              style={{ background: "none", border: "none", color: C?.grey || "#888", fontSize: 11, cursor: "pointer", padding: "5px 8px" }}>
+            <button onClick={() => { setStatusFilter("all"); setLevelFilter("all"); setSearch(""); }}
+              style={{ background: "none", border: "none", color: C?.grey || "#888", fontSize: 11, cursor: "pointer", padding: "5px 8px", whiteSpace: "nowrap", fontFamily: "var(--font-body, inherit)" }}>
               Clear
             </button>
           )}
         </div>
       </div>
 
-      {/* Grid */}
+      {/* ── Table ── */}
       {loading ? (
-        <div style={{ padding: 48, textAlign: "center", color: C?.grey || "#888", fontSize: 13 }}>
-          Loading managed accounts...
+        <div style={{ padding: 48, textAlign: "center", color: C?.grey || "#888", fontSize: 13, fontFamily: "var(--font-body, inherit)" }}>
+          Loading partner accounts...
         </div>
       ) : filtered.length === 0 ? (
         <div style={{
           border: `1px dashed ${C?.border || "#333"}`, borderRadius: 12,
           padding: "64px 32px", textAlign: "center",
         }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>◎</div>
           {accounts.length === 0 ? (
             <>
-              <div style={{ fontSize: 15, fontWeight: 600, color: C?.off || "#fff", marginBottom: 8 }}>No managed accounts yet</div>
-              <div style={{ fontSize: 13, color: C?.grey || "#888", marginBottom: 20 }}>
-                Convert a won CRM deal or add an account manually.
+              <div style={{ fontSize: 15, fontWeight: 600, color: C?.off || "#fff", marginBottom: 8, fontFamily: "var(--font-heading, inherit)" }}>No partner accounts yet</div>
+              <div style={{ fontSize: 13, color: C?.grey || "#888", marginBottom: 20, fontFamily: "var(--font-body, inherit)" }}>
+                Create your first partner account to get started.
               </div>
               <button onClick={() => { setEditAccount(null); setShowModal(true); }} style={{
                 background: G, border: "none", borderRadius: 8,
                 padding: "10px 24px", color: "#fff", fontSize: 13,
-                fontWeight: 600, cursor: "pointer",
+                fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body, inherit)",
               }}>
                 + New Account
               </button>
             </>
           ) : (
             <>
-              <div style={{ fontSize: 15, fontWeight: 600, color: C?.off || "#fff", marginBottom: 8 }}>No results</div>
-              <div style={{ fontSize: 13, color: C?.grey || "#888", marginBottom: 16 }}>No accounts match your current filters.</div>
-              <button onClick={() => { setStatusFilter("all"); setServiceFilter("all"); setPlanFilter("all"); setSearch(""); }}
-                style={{ background: "none", border: `1px solid ${C?.border || "#333"}`, borderRadius: 8, padding: "8px 20px", color: C?.grey || "#888", fontSize: 12, cursor: "pointer" }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: C?.off || "#fff", marginBottom: 8, fontFamily: "var(--font-heading, inherit)" }}>No results</div>
+              <div style={{ fontSize: 13, color: C?.grey || "#888", marginBottom: 16, fontFamily: "var(--font-body, inherit)" }}>No accounts match your current filters.</div>
+              <button onClick={() => { setStatusFilter("all"); setLevelFilter("all"); setSearch(""); }}
+                style={{ background: "none", border: `1px solid ${C?.border || "#333"}`, borderRadius: 8, padding: "8px 20px", color: C?.grey || "#888", fontSize: 12, cursor: "pointer", fontFamily: "var(--font-body, inherit)" }}>
                 Clear filters
               </button>
             </>
           )}
         </div>
       ) : (
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-          gap: 16,
-        }}>
-          {filtered.map(account => (
-            <AccountCard key={account.id} C={C} account={account} summary={summaries[account.id] || null} onClick={setSelected} />
-          ))}
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th style={th}>Business Name</th>
+                <th style={th}>Email</th>
+                <th style={th}>Level</th>
+                <th style={th}>Status</th>
+                <th style={{ ...th, textAlign: "center" }}>Listings</th>
+                <th style={th}>Renewal</th>
+                <th style={th}>Manager</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(account => {
+                const level = levelFor(normalisePlan(account.plan));
+                const st = statusFor(account.status);
+                const isSelected = selected?.id === account.id;
+                return (
+                  <tr
+                    key={account.id}
+                    onClick={() => setSelected(account)}
+                    style={{
+                      cursor: "pointer",
+                      background: isSelected ? (G + "12") : "transparent",
+                      transition: "background 0.1s",
+                    }}
+                    onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = (C?.dark || "#111"); }}
+                    onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}
+                  >
+                    {/* Business Name */}
+                    <td style={td}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{
+                          width: 32, height: 32, borderRadius: 6, flexShrink: 0,
+                          background: level.color + "22", border: `1px solid ${level.color}44`,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: 10, fontWeight: 700, color: level.color,
+                          fontFamily: "var(--font-heading, inherit)",
+                        }}>
+                          {getInitials(account.name)}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 13, color: C?.off || "#fff" }}>{account.name}</div>
+                          {account.primaryContactName && (
+                            <div style={{ fontSize: 11, color: C?.grey2 || "#555", marginTop: 1 }}>{account.primaryContactName}</div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Email */}
+                    <td style={{ ...td, fontSize: 12, color: C?.grey || "#888" }}>
+                      {account.primaryContactEmail || "—"}
+                    </td>
+
+                    {/* Level */}
+                    <td style={td}>
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, letterSpacing: "0.06em",
+                        textTransform: "uppercase", color: level.color,
+                        background: level.color + "22", padding: "3px 10px",
+                        borderRadius: 100, whiteSpace: "nowrap",
+                      }}>
+                        {level.label}
+                      </span>
+                    </td>
+
+                    {/* Status */}
+                    <td style={td}>
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
+                        textTransform: "uppercase", color: st.color,
+                        background: st.color + "22", padding: "3px 10px",
+                        borderRadius: 100, whiteSpace: "nowrap",
+                      }}>
+                        {st.label}
+                      </span>
+                    </td>
+
+                    {/* Listings count */}
+                    <td style={{ ...td, textAlign: "center", color: C?.grey2 || "#555" }}>
+                      —
+                    </td>
+
+                    {/* Renewal */}
+                    <td style={{ ...td, fontSize: 12, color: C?.grey || "#888", whiteSpace: "nowrap" }}>
+                      {fmtDate(account.renewalDate)}
+                    </td>
+
+                    {/* Manager */}
+                    <td style={{ ...td, fontSize: 12, color: C?.grey || "#888" }}>
+                      {account.accountManager || "—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* Detail panel */}
+      {/* ── Detail panel ── */}
       {selected && (
         <DetailPanel
           C={C}
@@ -1144,7 +841,7 @@ export default function ManagedAccountsModule({ C }) {
         />
       )}
 
-      {/* Add / edit modal */}
+      {/* ── Modal ── */}
       {showModal && (
         <AccountModal
           C={C}
@@ -1154,7 +851,7 @@ export default function ManagedAccountsModule({ C }) {
         />
       )}
 
-      {/* Save feedback toast */}
+      {/* ── Toast ── */}
       {saveStatus && (
         <div style={{
           position: "fixed", bottom: 28, right: 28, zIndex: 9999,
@@ -1163,7 +860,7 @@ export default function ManagedAccountsModule({ C }) {
           fontSize: 13, fontWeight: 600,
           boxShadow: "0 4px 24px rgba(0,0,0,0.45)",
           display: "flex", alignItems: "center", gap: 10,
-          maxWidth: 380,
+          maxWidth: 380, fontFamily: "var(--font-body, inherit)",
         }}>
           <span>{saveStatus.type === "success" ? "✓" : "✕"}</span>
           <span style={{ flex: 1 }}>{saveStatus.message}</span>
@@ -1174,7 +871,6 @@ export default function ManagedAccountsModule({ C }) {
         </div>
       )}
 
-      {/* Spinner keyframes */}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );

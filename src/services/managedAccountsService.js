@@ -40,6 +40,8 @@ function dbToAccount(row) {
     accountManager: row.account_manager || '',
     onboardingStatus: row.onboarding_status || 'pending',
     internalNotes: row.internal_notes || '',
+    businessAddress: row.business_address || '',
+    websiteUrl: row.website_url || '',
     vendorId: row.vendor_id || null,
     crmLeadId: row.crm_lead_id || null,
     createdAt: row.created_at,
@@ -66,6 +68,8 @@ function accountToDb(form) {
     account_manager: form.accountManager || null,
     onboarding_status: form.onboardingStatus || 'pending',
     internal_notes: form.internalNotes || null,
+    business_address: form.businessAddress || null,
+    website_url: form.websiteUrl || null,
     vendor_id: form.vendorId || null,
     crm_lead_id: form.crmLeadId || null,
   };
