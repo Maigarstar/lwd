@@ -65,6 +65,26 @@ const toUUID = (v: any): string | null => {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s) ? s : null
 }
 
+// ── Edge function helper — calls admin-leads function with a given action ──────
+const LEADS_EDGE_URL = 'https://qpkggfibwreznussudfh.supabase.co/functions/v1/admin-leads'
+export async function callLeadsEdge(action: string, params: Record<string, any> = {}): Promise<any> {
+  try {
+    const res = await fetch(LEADS_EDGE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${(import.meta as any).env?.VITE_SUPABASE_ANON_KEY || ''}`,
+      },
+      body: JSON.stringify({ action, ...params }),
+    })
+    const data = await res.json()
+    return data
+  } catch (err) {
+    console.error('[callLeadsEdge] error:', err)
+    return { success: false, error: String(err) }
+  }
+}
+
 export async function createLead(payload: LeadPayload): Promise<CreateLeadResult> {
   try {
     // 1. Score the lead
