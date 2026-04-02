@@ -275,10 +275,25 @@ function parseVideoUrl(url) {
 
 function HeroSection({ content, layout, showcaseHero, listingFirstImage, palette }) {
   const P     = palette;
-  const image = resolveImage(content.image, showcaseHero, listingFirstImage);
   const op    = content.overlay_opacity ?? P.heroOverlayOpacity;
   const { isMobile } = useBreakpoint();
   const [videoFailed, setVideoFailed] = useState(false);
+
+  // ── Multi-image slideshow ──────────────────────────────────────────────────
+  // Build image array: content.images takes priority, falls back to single image
+  const singleImg = resolveImage(content.image, showcaseHero, listingFirstImage);
+  const heroImages = (content.images?.length)
+    ? content.images.map(img => (typeof img === 'string' ? img : img?.url)).filter(Boolean)
+    : singleImg ? [singleImg] : [];
+
+  const [imgIdx, setImgIdx] = useState(0);
+  const SLIDE_DURATION = (content.slide_duration || 5) * 1000; // default 5s
+
+  useEffect(() => {
+    if (heroImages.length <= 1) return;
+    const timer = setInterval(() => setImgIdx(i => (i + 1) % heroImages.length), SLIDE_DURATION);
+    return () => clearInterval(timer);
+  }, [heroImages.length, SLIDE_DURATION]);
 
   const focalPoint = content.focal_point || (isMobile ? 'center 30%' : 'center center');
   const vid = parseVideoUrl(content.videoUrl);
@@ -299,20 +314,44 @@ function HeroSection({ content, layout, showcaseHero, listingFirstImage, palette
       overflow: 'hidden',
       background: '#0a0a08',
     }}>
-      {/* Fallback image — always rendered behind video */}
-      {image && (
+      {/* Crossfade image slideshow — all images stacked, only active one visible */}
+      {heroImages.map((src, i) => (
         <img
-          src={image}
-          alt={content.title || ''}
-          loading="eager"
+          key={src}
+          src={src}
+          alt={i === 0 ? (content.title || '') : ''}
+          loading={i === 0 ? 'eager' : 'lazy'}
           style={{
             position: 'absolute', inset: 0, width: '100%', height: '100%',
             objectFit: 'cover', objectPosition: focalPoint,
-            // fade image out when video is active and not failed
-            opacity: showVideo && (vid?.type === 'youtube' || vid?.type === 'vimeo') ? 0.3 : 1,
-            transition: 'opacity 1s ease',
+            opacity: showVideo && (vid?.type === 'youtube' || vid?.type === 'vimeo')
+              ? 0.3
+              : (i === imgIdx ? 1 : 0),
+            transition: 'opacity 1.4s ease',
+            zIndex: i === imgIdx ? 1 : 0,
           }}
         />
+      ))}
+      {/* Slide indicator dots — only shown when >1 image and no video */}
+      {heroImages.length > 1 && !showVideo && (
+        <div style={{
+          position: 'absolute', bottom: isMobile ? 80 : 100, left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex', gap: 8, zIndex: 10,
+        }}>
+          {heroImages.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setImgIdx(i)}
+              style={{
+                width: i === imgIdx ? 24 : 8, height: 8, borderRadius: 4,
+                background: i === imgIdx ? '#C9A84C' : 'rgba(255,255,255,0.45)',
+                border: 'none', cursor: 'pointer', padding: 0,
+                transition: 'width 0.3s ease, background 0.3s ease',
+              }}
+            />
+          ))}
+        </div>
       )}
       {/* Video layer */}
       {showVideo && (ytEmbed || vmEmbed) && (

@@ -983,7 +983,76 @@ function SectionEditor({ section, onChange, C, showcase, sections, onAiFill, aiL
           <Field label="Title" fieldKey="title" />
           <Field label="Eyebrow" fieldKey="eyebrow" placeholder="e.g. 150 Piccadilly · Mayfair · London" />
           <Field label="Tagline" fieldKey="tagline" type="textarea" rows={3} />
-          <ImgField label="Hero Image (fallback)" fieldKey="image" />
+
+          {/* ── Multi-image slideshow ── */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={lbl(C)}>Hero Images (crossfade slideshow)</label>
+            <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, marginBottom: 10, lineHeight: 1.6 }}>
+              Add multiple images — they will fade between each other automatically. First image is the primary fallback.
+            </div>
+            {(content.images || []).map((img, idx) => {
+              const url = typeof img === 'string' ? img : img?.url || '';
+              return (
+                <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8 }}>
+                  {/* Thumbnail */}
+                  {url && (
+                    <div style={{ width: 48, height: 32, borderRadius: 3, overflow: 'hidden', flexShrink: 0, border: `1px solid ${C.border}` }}>
+                      <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </div>
+                  )}
+                  <ImageUploadField
+                    label=""
+                    value={url}
+                    onChange={v => {
+                      const imgs = [...(content.images || [])];
+                      imgs[idx] = v;
+                      setContent('images', imgs);
+                    }}
+                    C={C}
+                    uploadPath="showcases/hero"
+                  />
+                  {/* Move up */}
+                  <button
+                    onClick={() => {
+                      if (idx === 0) return;
+                      const imgs = [...(content.images || [])];
+                      [imgs[idx-1], imgs[idx]] = [imgs[idx], imgs[idx-1]];
+                      setContent('images', imgs);
+                    }}
+                    style={{ background:'none', border:'none', color: idx===0 ? C.border : C.grey2, cursor: idx===0 ? 'default':'pointer', fontSize:12, padding:'0 2px', flexShrink:0, lineHeight:1 }}>▲</button>
+                  {/* Move down */}
+                  <button
+                    onClick={() => {
+                      const imgs = content.images || [];
+                      if (idx >= imgs.length-1) return;
+                      const n = [...imgs];
+                      [n[idx+1], n[idx]] = [n[idx], n[idx+1]];
+                      setContent('images', n);
+                    }}
+                    style={{ background:'none', border:'none', color: idx>=(content.images||[]).length-1 ? C.border : C.grey2, cursor: idx>=(content.images||[]).length-1 ? 'default':'pointer', fontSize:12, padding:'0 2px', flexShrink:0, lineHeight:1 }}>▼</button>
+                  {/* Remove */}
+                  <button
+                    onClick={() => setContent('images', (content.images||[]).filter((_,i)=>i!==idx))}
+                    style={{ background:'none', border:'none', color:'#f87171', cursor:'pointer', fontSize:14, padding:'0 2px', flexShrink:0 }}>✕</button>
+                </div>
+              );
+            })}
+            <button
+              onClick={() => setContent('images', [...(content.images||[]), ''])}
+              style={{ fontFamily:NU, fontSize:11, color:GOLD, background:'none', border:`1px dashed ${GOLD}`, borderRadius:4, padding:'6px 14px', cursor:'pointer', width:'100%', marginBottom:6 }}>
+              + Add Image
+            </button>
+            {/* Slide duration */}
+            {(content.images||[]).length > 1 && (
+              <div style={{ marginTop: 8 }}>
+                <label style={lbl(C)}>Slide Duration (seconds)</label>
+                <input type="number" min="2" max="15" value={content.slide_duration || 5}
+                  onChange={e => setContent('slide_duration', parseInt(e.target.value))}
+                  style={{ ...inp(C), width: 80 }} />
+              </div>
+            )}
+          </div>
+
           {/* Hero background video */}
           <HeroVideoField content={content} setContent={setContent} C={C} />
           <div style={{ marginBottom: 14 }}>
