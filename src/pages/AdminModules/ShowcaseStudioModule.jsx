@@ -13,7 +13,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import ShowcaseRenderer from '../ShowcaseRenderer';
-import { generateShowcaseWithAi } from '../../services/showcaseAiService';
+import { generateShowcaseWithAi, generateSectionWithAi } from '../../services/showcaseAiService';
 import { supabase } from '../../lib/supabaseClient';
 import {
   SECTION_REGISTRY,
@@ -25,6 +25,7 @@ import {
 } from '../../services/showcaseRegistry';
 import {
   fetchShowcases,
+  fetchShowcaseById,
   saveShowcaseDraft,
   publishShowcase,
   duplicateShowcase,
@@ -32,6 +33,7 @@ import {
   updateShowcase,
   fetchTemplates,
   cloneTemplate,
+  saveShowcaseAsTemplate,
 } from '../../services/showcaseService';
 
 const GD   = 'var(--font-heading-primary)';
@@ -328,12 +330,569 @@ function GalleryEditor({ content, setContent, setLayout, section, showcase, C })
 
 // SectionEditor — right panel content editor for a selected section
 // ─────────────────────────────────────────────────────────────────────────────
-function SectionEditor({ section, onChange, C, showcase }) {
+// Build venue context string from showcase meta + sections array
+function buildAutoVenueInfo(showcase, sections) {
+  if (!showcase && !(sections?.length)) return '';
+  const parts = [];
+  const name = showcase?.name || showcase?.title || '';
+  if (name)                parts.push(`Venue: ${name}`);
+  if (showcase?.location)  parts.push(`Location: ${showcase.location}`);
+  if (showcase?.excerpt)   parts.push(`About: ${showcase.excerpt}`);
+  // Mine content from current working sections
+  const secs = sections || showcase?.sections || [];
+  for (const s of secs) {
+    const c = s?.content || {};
+    if (s.type === 'hero'   && c.tagline)     parts.push(`Tagline: ${c.tagline}`);
+    if (s.type === 'intro'  && c.body)        parts.push(`Description: ${c.body}`);
+    if (s.type === 'stats'  && c.items?.length) {
+      parts.push(`Key stats: ${c.items.map(i => `${i.value} ${i.label}`).join(', ')}`);
+    }
+    if (s.type === 'verified') {
+      if (c.ceremony_capacity) parts.push(`Ceremony capacity: ${c.ceremony_capacity}`);
+      if (c.bedrooms)          parts.push(`Bedrooms: ${c.bedrooms}`);
+      if (c.location_summary)  parts.push(`Location detail: ${c.location_summary}`);
+      if (c.style)             parts.push(`Style: ${c.style}`);
+    }
+    if (s.type === 'pricing' && c.price_from) parts.push(`Venue hire from: ${c.price_from}`);
+    if (s.type === 'nearby'  && c.items?.length) {
+      parts.push(`Nearby: ${c.items.map(i => `${i.label} (${i.distance})`).join(', ')}`);
+    }
+  }
+  return parts.join('\n');
+}
+
+// Video upload field
+function detectVideoType(url) {
+  if (!url) return null;
+  if (/youtube\.com\/watch|youtu\.be\/|youtube\.com\/shorts\//.test(url)) return 'youtube';
+  if (/vimeo\.com\//.test(url)) return 'vimeo';
+  if (/\.(mp4|webm|mov|ogg)(\?|$)/i.test(url)) return 'direct';
+  return null;
+}
+function getYtId(url) {
+  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return m?.[1] || null;
+}
+
+function VideoUploadField({ value, onChange, C, uploadPath }) {
+  const [uploading, setUploading] = useState(false);
+  const [error,     setError]     = useState(null);
+  const fileRef = useRef(null);
+  const vtype = detectVideoType(value);
+  const ytId  = vtype === 'youtube' ? getYtId(value) : null;
+
+  async function handleFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true); setError(null);
+    try {
+      const ext  = file.name.split('.').pop();
+      const path = `${uploadPath || 'showcases/video'}/${Date.now()}-${Math.random().toString(36).slice(2,6)}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('showcase-media').upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from('showcase-media').getPublicUrl(path);
+      onChange(data.publicUrl);
+    } catch (err) {
+      setError(err.message || 'Upload failed');
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <input type="text" value={value || ''} onChange={e => onChange(e.target.value)}
+          placeholder="YouTube URL, Vimeo URL, or upload mp4/webm →"
+          style={{ ...inp(C), flex: 1 }} />
+        <button onClick={() => fileRef.current?.click()} disabled={uploading}
+          style={{ flexShrink: 0, padding: '7px 11px', background: uploading ? `${GOLD}55` : `${GOLD}22`, border: `1px solid ${GOLD}55`, borderRadius: 3, cursor: uploading ? 'default' : 'pointer', fontFamily: 'inherit', fontSize: 11, color: GOLD, whiteSpace: 'nowrap' }}>
+          {uploading ? '…' : '↑ File'}
+        </button>
+        <input ref={fileRef} type="file" accept="video/mp4,video/webm,video/quicktime" onChange={handleFile} style={{ display: 'none' }} />
+      </div>
+      {error && <div style={{ marginTop: 4, fontSize: 10, color: '#f87171' }}>{error}</div>}
+      {value && (
+        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+          {vtype === 'youtube' && ytId ? (
+            <img src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} alt="YouTube thumbnail"
+              style={{ height: 56, width: 100, objectFit: 'cover', borderRadius: 3 }} />
+          ) : vtype === 'vimeo' ? (
+            <div style={{ height: 56, width: 100, borderRadius: 3, background: '#1ab7ea22', border: `1px solid #1ab7ea44`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: '#1ab7ea' }}>VIMEO</span>
+            </div>
+          ) : (
+            <video src={value} style={{ height: 56, width: 100, objectFit: 'cover', borderRadius: 3, background: '#111' }} muted />
+          )}
+          <div>
+            <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.grey2, marginBottom: 4 }}>
+              {vtype === 'youtube' ? 'YouTube' : vtype === 'vimeo' ? 'Vimeo' : 'Direct video'} ✓
+            </div>
+            <button onClick={() => onChange('')} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 10, padding: 0, fontFamily: NU }}>Remove</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── NearbyMapField — address input + Nominatim auto-geocode ──────────────────
+function NearbyMapField({ content, setContent, C, showcase }) {
+  const [geocoding, setGeocoding] = useState(false);
+  const [geoMsg,    setGeoMsg]    = useState('');
+  const [showCoords, setShowCoords] = useState(false);
+
+  // Auto-suggest from showcase/venue name if address is blank
+  const venueName = showcase?.title || '';
+  const addrVal   = content.address || '';
+
+  async function handleGeocode() {
+    const query = addrVal.trim() || venueName.trim();
+    if (!query) { setGeoMsg('Enter an address first'); return; }
+    setGeocoding(true); setGeoMsg('');
+    try {
+      const res  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`, { headers: { 'Accept-Language': 'en' } });
+      const data = await res.json();
+      if (data?.[0]) {
+        const { lat, lon, display_name } = data[0];
+        setContent('lat',     lat);
+        setContent('lng',     lon);
+        if (!addrVal) setContent('address', display_name);
+        setGeoMsg(`✓ Found: ${display_name.slice(0, 60)}${display_name.length > 60 ? '…' : ''}`);
+      } else {
+        setGeoMsg('Location not found — try a more specific address');
+      }
+    } catch {
+      setGeoMsg('Geocoding failed — check your connection');
+    }
+    setGeocoding(false);
+  }
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <label style={lbl(C)}>Location / Address</label>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+        <input
+          value={addrVal}
+          onChange={e => { setContent('address', e.target.value); setGeoMsg(''); }}
+          placeholder={venueName ? `e.g. ${venueName}, full address…` : 'Full venue address…'}
+          style={{ ...inp(C), flex: 1 }}
+        />
+        <button
+          onClick={handleGeocode}
+          disabled={geocoding}
+          style={{
+            flexShrink: 0, fontFamily: NU, fontSize: 10, fontWeight: 700,
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+            padding: '0 12px', height: 34,
+            background: geocoding ? `${GOLD}66` : GOLD,
+            color: '#0a0906', border: 'none', borderRadius: 3, cursor: geocoding ? 'default' : 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {geocoding ? '…' : '⌖ Find on Map'}
+        </button>
+      </div>
+
+      {/* Feedback message */}
+      {geoMsg && (
+        <div style={{ fontFamily: NU, fontSize: 10, color: geoMsg.startsWith('✓') ? '#22c55e' : '#f87171', marginBottom: 6, lineHeight: 1.5 }}>
+          {geoMsg}
+        </div>
+      )}
+
+      {/* Coords — collapsible */}
+      {(content.lat || content.lng) && (
+        <div>
+          <button onClick={() => setShowCoords(v => !v)}
+            style={{ background: 'none', border: 'none', fontFamily: NU, fontSize: 10, color: C.grey2, cursor: 'pointer', padding: 0, marginBottom: showCoords ? 6 : 0 }}>
+            {showCoords ? '▾' : '▸'} Coordinates {content.lat ? `${parseFloat(content.lat).toFixed(4)}, ${parseFloat(content.lng).toFixed(4)}` : ''}
+          </button>
+          {showCoords && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 6, alignItems: 'center' }}>
+              <input value={content.lat || ''} onChange={e => setContent('lat', e.target.value)} placeholder="Latitude" style={{ ...inp(C), fontSize: 11 }} />
+              <input value={content.lng || ''} onChange={e => setContent('lng', e.target.value)} placeholder="Longitude" style={{ ...inp(C), fontSize: 11 }} />
+              <button onClick={() => { setContent('lat', ''); setContent('lng', ''); setGeoMsg(''); }}
+                style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 12, padding: '0 4px' }}>✕</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── HeroVideoField — YouTube / Vimeo / upload for hero background ─────────────
+function HeroVideoField({ content, setContent, C }) {
+  const [mode,      setMode]      = useState(null); // null | 'youtube' | 'vimeo' | 'upload'
+  const [urlInput,  setUrlInput]  = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [err,       setErr]       = useState('');
+  const fileRef = useRef(null);
+  const current = content.videoUrl || '';
+
+  function ytId(url) {
+    return url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)?.[1] || null;
+  }
+  function vmId(url) {
+    return url.match(/vimeo\.com\/(?:video\/)?(\d+)/)?.[1] || null;
+  }
+
+  const previewYt = mode === 'youtube' ? ytId(urlInput) : null;
+  const previewVm = mode === 'vimeo'   ? vmId(urlInput) : null;
+
+  function apply(url) { setContent('videoUrl', url); setMode(null); setUrlInput(''); setErr(''); }
+
+  async function handleUpload(e) {
+    const file = e.target.files?.[0]; if (!file) return;
+    setUploading(true); setErr('');
+    try {
+      const ext  = file.name.split('.').pop();
+      const path = `showcases/hero-video/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('showcase-media').upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      apply(supabase.storage.from('showcase-media').getPublicUrl(path).data.publicUrl);
+    } catch (e2) { setErr(e2.message || 'Upload failed'); }
+    finally { setUploading(false); if (fileRef.current) fileRef.current.value = ''; }
+  }
+
+  const tabBtn = (active) => ({
+    fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
+    padding: '5px 12px', borderRadius: 3, cursor: 'pointer',
+    background: active ? GOLD : 'none', color: active ? '#0a0906' : C.grey2,
+    border: `1px solid ${active ? GOLD : C.border}`,
+  });
+
+  // Detect current type
+  const curYt = current ? ytId(current) : null;
+  const curVm = current ? vmId(current) : null;
+  const curType = curYt ? 'youtube' : curVm ? 'vimeo' : current ? 'direct' : null;
+
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label style={lbl(C)}>Background Video <span style={{ fontWeight: 400, opacity: 0.6 }}>(optional — plays silently behind hero)</span></label>
+
+      {/* Current video indicator */}
+      {current && !mode && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: C.cardBg || `${C.border}20`, border: `1px solid ${C.border}`, borderRadius: 5, marginBottom: 8 }}>
+          {curYt && <img src={`https://img.youtube.com/vi/${curYt}/mqdefault.jpg`} style={{ width: 60, height: 34, objectFit: 'cover', borderRadius: 3 }} alt="" />}
+          {curVm && <div style={{ width: 60, height: 34, borderRadius: 3, background: '#1ab7ea22', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, color: '#1ab7ea' }}>VIMEO</span></div>}
+          {curType === 'direct' && <div style={{ width: 60, height: 34, borderRadius: 3, background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>}
+          <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: curYt ? '#f00' : curVm ? '#1ab7ea' : C.grey2, flex: 1 }}>
+            {curYt ? 'YouTube' : curVm ? 'Vimeo' : 'Uploaded'} Video ✓
+          </span>
+          <button onClick={() => setContent('videoUrl', '')} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 12, padding: '0 2px' }}>✕ Remove</button>
+        </div>
+      )}
+
+      {/* Add / change panel */}
+      {mode ? (
+        <div style={{ padding: 12, background: `${GOLD}0a`, border: `1px solid ${GOLD}33`, borderRadius: 6 }}>
+          <div style={{ display: 'flex', gap: 5, marginBottom: 12 }}>
+            <button style={tabBtn(mode === 'youtube')} onClick={() => setMode('youtube')}>▶ YouTube</button>
+            <button style={tabBtn(mode === 'vimeo')}   onClick={() => setMode('vimeo')}>◈ Vimeo</button>
+            <button style={tabBtn(mode === 'upload')}  onClick={() => setMode('upload')}>↑ Upload</button>
+          </div>
+
+          {(mode === 'youtube' || mode === 'vimeo') && (
+            <>
+              <input value={urlInput} onChange={e => { setUrlInput(e.target.value); setErr(''); }} autoFocus
+                placeholder={mode === 'youtube' ? 'https://www.youtube.com/watch?v=...' : 'https://vimeo.com/123456789'}
+                style={{ ...inp(C), marginBottom: 8 }} />
+              {err && <div style={{ fontFamily: NU, fontSize: 10, color: '#f87171', marginBottom: 6 }}>{err}</div>}
+              {previewYt && <div style={{ marginBottom: 8 }}><img src={`https://img.youtube.com/vi/${previewYt}/hqdefault.jpg`} style={{ width: 96, height: 54, objectFit: 'cover', borderRadius: 3 }} alt="" /></div>}
+              {previewVm && <div style={{ marginBottom: 8, fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: '#1ab7ea' }}>◈ Vimeo ID {previewVm} ✓</div>}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => {
+                  const id = mode === 'youtube' ? ytId(urlInput) : vmId(urlInput);
+                  if (!id) { setErr(`Paste a valid ${mode === 'youtube' ? 'YouTube' : 'Vimeo'} URL`); return; }
+                  apply(urlInput);
+                }} style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '6px 14px', background: GOLD, color: '#0a0906', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
+                  Set Video
+                </button>
+                <button onClick={() => { setMode(null); setUrlInput(''); setErr(''); }} style={{ fontFamily: NU, fontSize: 11, color: C.grey2, background: 'none', border: `1px solid ${C.border}`, borderRadius: 3, padding: '6px 12px', cursor: 'pointer' }}>Cancel</button>
+              </div>
+            </>
+          )}
+
+          {mode === 'upload' && (
+            <>
+              {err && <div style={{ fontFamily: NU, fontSize: 10, color: '#f87171', marginBottom: 6 }}>{err}</div>}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button onClick={() => fileRef.current?.click()} disabled={uploading}
+                  style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '6px 14px', background: uploading ? `${GOLD}66` : GOLD, color: '#0a0906', border: 'none', borderRadius: 3, cursor: uploading ? 'default' : 'pointer' }}>
+                  {uploading ? 'Uploading…' : '↑ Choose Video'}
+                </button>
+                <button onClick={() => { setMode(null); setErr(''); }} style={{ fontFamily: NU, fontSize: 11, color: C.grey2, background: 'none', border: `1px solid ${C.border}`, borderRadius: 3, padding: '6px 12px', cursor: 'pointer' }}>Cancel</button>
+              </div>
+              <div style={{ marginTop: 6, fontFamily: NU, fontSize: 10, color: C.grey2 }}>mp4 · webm · mov · m4v — keep under 50MB for fast load</div>
+              <input ref={fileRef} type="file" accept="video/mp4,video/webm,video/quicktime,video/x-m4v,video/*" onChange={handleUpload} style={{ display: 'none' }} />
+            </>
+          )}
+        </div>
+      ) : (
+        <button onClick={() => setMode(current ? 'youtube' : 'youtube')}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: current ? C.grey2 : GOLD, background: current ? 'none' : `${GOLD}10`, border: `1px dashed ${current ? C.border : GOLD + '55'}`, borderRadius: 5, padding: '8px 14px', cursor: 'pointer', width: '100%', justifyContent: 'center' }}>
+          {current ? '↻ Change Video' : '▶ Add Background Video'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── FilmsEditor — YouTube video gallery builder ────────────────────────────────
+function FilmsEditor({ content, setContent, C }) {
+  const [addMode,    setAddMode]    = useState(null); // null | 'youtube' | 'upload'
+  const [urlInput,   setUrlInput]   = useState('');
+  const [titleInput, setTitleInput] = useState('');
+  const [uploading,  setUploading]  = useState(false);
+  const [err,        setErr]        = useState('');
+  const fileRef = useRef(null);
+
+  const videos = content.videos || [];
+
+  function extractYtId(url) {
+    const m = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    return m?.[1] || null;
+  }
+  const previewId = extractYtId(urlInput);
+
+  function resetAdd() { setAddMode(null); setUrlInput(''); setTitleInput(''); setErr(''); }
+
+  function handleAddYoutube() {
+    const ytId = extractYtId(urlInput);
+    if (!ytId) { setErr('Paste a valid YouTube URL'); return; }
+    setContent('videos', [...videos, {
+      id: `v-${Date.now()}`, youtubeId: ytId,
+      title: titleInput.trim(),
+      thumb: `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`,
+    }]);
+    resetAdd();
+  }
+
+  async function handleUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true); setErr('');
+    try {
+      const ext  = file.name.split('.').pop();
+      const path = `showcases/films/${Date.now()}-${Math.random().toString(36).slice(2,6)}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('showcase-media').upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from('showcase-media').getPublicUrl(path);
+      setContent('videos', [...videos, {
+        id: `v-${Date.now()}`, directUrl: data.publicUrl,
+        title: titleInput.trim() || file.name.replace(/\.[^.]+$/, ''),
+        thumb: '',
+      }]);
+      resetAdd();
+    } catch (err2) {
+      setErr(err2.message || 'Upload failed');
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  }
+
+  function handleRemove(idx) { setContent('videos', videos.filter((_, i) => i !== idx)); }
+
+  function handleMove(idx, dir) {
+    const next = [...videos]; const swap = idx + dir;
+    if (swap < 0 || swap >= next.length) return;
+    [next[idx], next[swap]] = [next[swap], next[idx]];
+    setContent('videos', next);
+  }
+
+  const btnTab = (active) => ({
+    fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
+    padding: '6px 14px', borderRadius: 3, cursor: 'pointer',
+    background: active ? GOLD : 'none',
+    color: active ? '#0a0906' : C.grey2,
+    border: `1px solid ${active ? GOLD : C.border}`,
+  });
+
+  return (
+    <div>
+      {/* Section label */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={lbl(C)}>Section Label</label>
+        <input value={content.eyebrow || ''} onChange={e => setContent('eyebrow', e.target.value)}
+          placeholder="e.g. Wedding Films · Property Tours" style={inp(C)} />
+      </div>
+
+      {/* Video list */}
+      {videos.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          {videos.map((v, idx) => (
+            <div key={v.id || idx} style={{
+              display: 'flex', gap: 10, alignItems: 'center',
+              padding: '10px 12px', marginBottom: 8,
+              background: C.cardBg || `${C.border}20`,
+              border: `1px solid ${C.border}`, borderRadius: 6,
+            }}>
+              {/* Thumbnail / type badge */}
+              {v.youtubeId ? (
+                <img src={`https://img.youtube.com/vi/${v.youtubeId}/mqdefault.jpg`} alt={v.title}
+                  style={{ width: 72, height: 40, objectFit: 'cover', borderRadius: 3, flexShrink: 0 }} />
+              ) : (
+                <div style={{ width: 72, height: 40, borderRadius: 3, flexShrink: 0, background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                </div>
+              )}
+              {/* Editable title */}
+              <input value={v.title || ''} onChange={e => {
+                const n = [...videos]; n[idx] = { ...n[idx], title: e.target.value }; setContent('videos', n);
+              }} placeholder="Film title…" style={{ ...inp(C), flex: 1, fontSize: 12 }} />
+              {/* Type badge */}
+              <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', flexShrink: 0, color: v.youtubeId ? '#f00' : v.vimeoId ? '#1ab7ea' : C.grey2 }}>
+                {v.youtubeId ? 'YT' : v.vimeoId ? 'VM' : 'MP4'}
+              </span>
+              {/* Up/Down */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0 }}>
+                <button onClick={() => handleMove(idx, -1)} disabled={idx === 0}
+                  style={{ background: 'none', border: 'none', color: idx === 0 ? C.border : C.grey2, cursor: idx === 0 ? 'default' : 'pointer', fontSize: 10, padding: '1px 4px', lineHeight: 1 }}>▲</button>
+                <button onClick={() => handleMove(idx, 1)} disabled={idx === videos.length - 1}
+                  style={{ background: 'none', border: 'none', color: idx === videos.length - 1 ? C.border : C.grey2, cursor: idx === videos.length - 1 ? 'default' : 'pointer', fontSize: 10, padding: '1px 4px', lineHeight: 1 }}>▼</button>
+              </div>
+              <button onClick={() => handleRemove(idx)}
+                style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 14, flexShrink: 0, padding: '0 2px' }}>✕</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add panel */}
+      {addMode ? (
+        <div style={{ padding: 14, background: `${GOLD}0a`, border: `1px solid ${GOLD}33`, borderRadius: 6 }}>
+          {/* Tab switcher */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+            <button style={btnTab(addMode === 'youtube')} onClick={() => setAddMode('youtube')}>▶ YouTube</button>
+            <button style={btnTab(addMode === 'vimeo')}   onClick={() => setAddMode('vimeo')}>◈ Vimeo</button>
+            <button style={btnTab(addMode === 'upload')}  onClick={() => setAddMode('upload')}>↑ Upload</button>
+          </div>
+
+          {addMode === 'youtube' && (
+            <>
+              <div style={{ marginBottom: 10 }}>
+                <label style={lbl(C)}>YouTube URL</label>
+                <input value={urlInput} onChange={e => { setUrlInput(e.target.value); setErr(''); }} autoFocus
+                  placeholder="https://www.youtube.com/watch?v=..." style={inp(C)} />
+                {err && <div style={{ marginTop: 4, fontFamily: NU, fontSize: 10, color: '#f87171' }}>{err}</div>}
+              </div>
+              {previewId && (
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+                  <img src={`https://img.youtube.com/vi/${previewId}/hqdefault.jpg`} alt="preview"
+                    style={{ width: 96, height: 54, objectFit: 'cover', borderRadius: 3 }} />
+                  <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#f00' }}>▶ YouTube ✓</span>
+                </div>
+              )}
+              <div style={{ marginBottom: 12 }}>
+                <label style={lbl(C)}>Film Title</label>
+                <input value={titleInput} onChange={e => setTitleInput(e.target.value)}
+                  placeholder="e.g. Sarah & James — Lake Como Wedding Film" style={inp(C)} />
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={handleAddYoutube} style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '7px 16px', background: GOLD, color: '#0a0906', border: 'none', borderRadius: 3, cursor: 'pointer' }}>Add Film</button>
+                <button onClick={resetAdd} style={{ fontFamily: NU, fontSize: 11, color: C.grey2, background: 'none', border: `1px solid ${C.border}`, borderRadius: 3, padding: '7px 14px', cursor: 'pointer' }}>Cancel</button>
+              </div>
+            </>
+          )}
+
+          {addMode === 'vimeo' && (() => {
+            const vmId = urlInput.match(/vimeo\.com\/(?:video\/)?(\d+)/)?.[1] || null;
+            function handleAddVimeo() {
+              if (!vmId) { setErr('Paste a valid Vimeo URL'); return; }
+              setContent('videos', [...videos, { id: `v-${Date.now()}`, vimeoId: vmId, title: titleInput.trim(), thumb: '' }]);
+              resetAdd();
+            }
+            return (
+              <>
+                <div style={{ marginBottom: 10 }}>
+                  <label style={lbl(C)}>Vimeo URL</label>
+                  <input value={urlInput} onChange={e => { setUrlInput(e.target.value); setErr(''); }} autoFocus
+                    placeholder="https://vimeo.com/123456789" style={inp(C)} />
+                  {err && <div style={{ marginTop: 4, fontFamily: NU, fontSize: 10, color: '#f87171' }}>{err}</div>}
+                  {vmId && <div style={{ marginTop: 6, fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#1ab7ea' }}>◈ Vimeo ID {vmId} ✓</div>}
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={lbl(C)}>Film Title</label>
+                  <input value={titleInput} onChange={e => setTitleInput(e.target.value)}
+                    placeholder="e.g. The Ritz London — Estate Film" style={inp(C)} />
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={handleAddVimeo} style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '7px 16px', background: GOLD, color: '#0a0906', border: 'none', borderRadius: 3, cursor: 'pointer' }}>Add Film</button>
+                  <button onClick={resetAdd} style={{ fontFamily: NU, fontSize: 11, color: C.grey2, background: 'none', border: `1px solid ${C.border}`, borderRadius: 3, padding: '7px 14px', cursor: 'pointer' }}>Cancel</button>
+                </div>
+              </>
+            );
+          })()}
+
+          {addMode === 'upload' && (
+            <>
+              <div style={{ marginBottom: 12 }}>
+                <label style={lbl(C)}>Film Title</label>
+                <input value={titleInput} onChange={e => setTitleInput(e.target.value)}
+                  placeholder="e.g. Estate Overview Film" style={inp(C)} />
+              </div>
+              {err && <div style={{ marginBottom: 8, fontFamily: NU, fontSize: 10, color: '#f87171' }}>{err}</div>}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => fileRef.current?.click()} disabled={uploading}
+                  style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '7px 16px', background: uploading ? `${GOLD}66` : GOLD, color: '#0a0906', border: 'none', borderRadius: 3, cursor: uploading ? 'default' : 'pointer' }}>
+                  {uploading ? 'Uploading…' : '↑ Choose Video File'}
+                </button>
+                <button onClick={resetAdd} style={{ fontFamily: NU, fontSize: 11, color: C.grey2, background: 'none', border: `1px solid ${C.border}`, borderRadius: 3, padding: '7px 14px', cursor: 'pointer' }}>Cancel</button>
+              </div>
+              <div style={{ marginTop: 6, fontFamily: NU, fontSize: 10, color: C.grey2 }}>Accepts .mp4 · .webm · .mov · .avi · .mkv · .m4v</div>
+              <input ref={fileRef} type="file" accept="video/mp4,video/webm,video/quicktime,video/avi,video/x-matroska,video/x-m4v,video/*" onChange={handleUpload} style={{ display: 'none' }} />
+            </>
+          )}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setAddMode('youtube')}
+            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: GOLD, background: `${GOLD}10`, border: `1px dashed ${GOLD}55`, borderRadius: 6, padding: '10px 8px', cursor: 'pointer' }}>
+            ▶ YouTube
+          </button>
+          <button onClick={() => setAddMode('vimeo')}
+            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#1ab7ea', background: '#1ab7ea10', border: '1px dashed #1ab7ea55', borderRadius: 6, padding: '10px 8px', cursor: 'pointer' }}>
+            ◈ Vimeo
+          </button>
+          <button onClick={() => setAddMode('upload')}
+            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.grey2, background: 'none', border: `1px dashed ${C.border}`, borderRadius: 6, padding: '10px 8px', cursor: 'pointer' }}>
+            ↑ Upload
+          </button>
+        </div>
+      )}
+
+      {videos.length === 0 && !addMode && (
+        <p style={{ fontFamily: NU, fontSize: 11, color: C.grey2, textAlign: 'center', marginTop: 12, lineHeight: 1.6 }}>
+          No films yet — add a YouTube link or upload a video file.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function SectionEditor({ section, onChange, C, showcase, sections, onAiFill, aiLoading, aiVenueInfo, onSetAiVenueInfo }) {
   if (!section) return null;
 
   const reg     = SECTION_REGISTRY[section.type];
   const content = section.content || {};
   const layout  = section.layout  || {};
+  const [showAiInput, setShowAiInput] = useState(false);
+  const [localVenueInfo, setLocalVenueInfo] = useState('');
+  const isLoading = aiLoading === section.id;
+
+  function handleAiFill() {
+    // Priority: 1. manually set aiVenueInfo, 2. auto-built from showcase+sections, 3. ask user
+    const info = aiVenueInfo || localVenueInfo || buildAutoVenueInfo(showcase, sections);
+    if (!info.trim()) { setShowAiInput(true); return; }
+    // Store auto-built info so subsequent section fills reuse it
+    if (!aiVenueInfo && !localVenueInfo) onSetAiVenueInfo(info);
+    onAiFill(section, info);
+    setShowAiInput(false);
+  }
 
   const uploadPath = `showcases/${showcase?.slug || showcase?.id || 'new'}/${section.id}`;
 
@@ -392,10 +951,36 @@ function SectionEditor({ section, onChange, C, showcase }) {
 
   return (
     <div style={{ padding: '20px 24px 80px', overflowY: 'auto', flex: 1 }}>
-      {/* Section type badge */}
-      <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD, fontWeight: 700, marginBottom: 18 }}>
-        {reg?.icon || '◈'} {reg?.label || section.type}
+      {/* Section type badge + AI button */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+        <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD, fontWeight: 700 }}>
+          {reg?.icon || '◈'} {reg?.label || section.type}
+        </span>
+        <button
+          onClick={handleAiFill}
+          disabled={isLoading}
+          style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 10px', background: isLoading ? 'rgba(196,160,90,0.15)' : `${GOLD}22`, color: GOLD, border: `1px solid ${GOLD}55`, borderRadius: 3, cursor: isLoading ? 'default' : 'pointer', whiteSpace: 'nowrap' }}>
+          {isLoading ? '…' : '✦ Fill with AI'}
+        </button>
       </div>
+      {/* Inline venue info input — only shown when there's truly no context available */}
+      {showAiInput && !aiVenueInfo && !buildAutoVenueInfo(showcase, sections) && (
+        <div style={{ marginBottom: 18, padding: 12, background: `${GOLD}0d`, border: `1px solid ${GOLD}44`, borderRadius: 5 }}>
+          <label style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: GOLD, display: 'block', marginBottom: 6 }}>Venue Context for AI</label>
+          <textarea
+            value={localVenueInfo}
+            onChange={e => { setLocalVenueInfo(e.target.value); onSetAiVenueInfo(e.target.value); }}
+            onKeyDown={e => e.stopPropagation()}
+            placeholder="Paste venue name, location, capacity, key features — the more detail the better…"
+            rows={4}
+            style={{ ...inp(C), resize: 'vertical', marginBottom: 8, fontSize: 11 }}
+          />
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={() => { if (localVenueInfo.trim()) { onAiFill(section, localVenueInfo); setShowAiInput(false); } }} style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '5px 14px', background: GOLD, color: '#0a0906', border: 'none', borderRadius: 3, cursor: 'pointer' }}>Generate</button>
+            <button onClick={() => setShowAiInput(false)} style={{ fontFamily: NU, fontSize: 10, color: C.grey, background: 'none', border: `1px solid ${C.border}`, borderRadius: 3, padding: '5px 10px', cursor: 'pointer' }}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       {/* ── Hero ── */}
       {section.type === 'hero' && (
@@ -403,7 +988,9 @@ function SectionEditor({ section, onChange, C, showcase }) {
           <Field label="Title" fieldKey="title" />
           <Field label="Eyebrow" fieldKey="eyebrow" placeholder="e.g. 150 Piccadilly · Mayfair · London" />
           <Field label="Tagline" fieldKey="tagline" type="textarea" rows={3} />
-          <ImgField label="Hero Image" fieldKey="image" />
+          <ImgField label="Hero Image (fallback)" fieldKey="image" />
+          {/* Hero background video */}
+          <HeroVideoField content={content} setContent={setContent} C={C} />
           <div style={{ marginBottom: 14 }}>
             <label style={lbl(C)}>Overlay Opacity</label>
             <input
@@ -485,6 +1072,11 @@ function SectionEditor({ section, onChange, C, showcase }) {
       )}
 
       {/* ── Mosaic ── */}
+      {/* ── Films ── */}
+      {section.type === 'films' && (
+        <FilmsEditor content={content} setContent={setContent} C={C} />
+      )}
+
       {section.type === 'mosaic' && (
         <>
           <Field label="Title" fieldKey="title" />
@@ -502,6 +1094,117 @@ function SectionEditor({ section, onChange, C, showcase }) {
               <button onClick={() => setContent('images', [...(content.images || []), { url: '', alt: '' }])} style={{ fontFamily: NU, fontSize: 11, color: GOLD, background: 'none', border: `1px solid ${GOLD}44`, borderRadius: 3, padding: '5px 12px', cursor: 'pointer', marginTop: 4 }}>+ Add Image</button>
             )}
           </div>
+        </>
+      )}
+
+      {/* ── Bento Grid ── */}
+      {section.type === 'bento-grid' && (
+        <>
+          <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, lineHeight: 1.7, marginBottom: 12 }}>
+            8-cell grid (4 columns × 2 rows). Each cell is either an image or a text panel. On mobile, only the first 4 cells show (2 columns).
+          </div>
+          {(content.cells || []).map((cell, idx) => {
+            const rowLabel = idx < 4 ? `Row 1 · Cell ${idx + 1}` : `Row 2 · Cell ${idx - 3}`;
+            return (
+              <div key={idx} style={{ marginBottom: 18, padding: '14px', background: C.cardBg || `${C.border}30`, borderRadius: 6, border: `1px solid ${C.border}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.grey2 }}>{rowLabel}</span>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {['image', 'text', 'video'].map(t => (
+                      <button key={t}
+                        onClick={() => {
+                          const next = [...(content.cells || [])];
+                          next[idx] = { ...next[idx], type: t };
+                          setContent('cells', next);
+                        }}
+                        style={{ padding: '3px 9px', fontFamily: NU, fontSize: 10, fontWeight: 600,
+                          background: cell.type === t ? GOLD : 'transparent',
+                          color: cell.type === t ? '#fff' : C.text,
+                          border: `1px solid ${cell.type === t ? GOLD : C.border}`,
+                          borderRadius: 3, cursor: 'pointer', textTransform: 'capitalize' }}>
+                        {t === 'image' ? '🖼' : t === 'video' ? '▶' : 'T'} {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {cell.type === 'image' ? (
+                  <>
+                    <div style={{ fontFamily: NU, fontSize: 10, color: C.grey2, marginBottom: 8 }}>Up to 4 images — fades between them automatically.</div>
+                    {Array.from({ length: 4 }).map((_, imgIdx) => {
+                      const imgs = cell.images || (cell.url ? [{ url: cell.url, alt: '' }] : []);
+                      const img  = imgs[imgIdx] || { url: '', alt: '' };
+                      return (
+                        <ImageUploadField
+                          key={imgIdx}
+                          label={`Image ${imgIdx + 1}${imgIdx === 0 ? ' (required)' : ' (optional)'}`}
+                          value={img.url || ''}
+                          onChange={v => {
+                            const next  = [...(content.cells || [])];
+                            const newImgs = Array.from({ length: 4 }).map((_, j) => {
+                              const existing = (next[idx].images || (next[idx].url ? [{ url: next[idx].url, alt: '' }] : []))[j] || { url: '', alt: '' };
+                              return j === imgIdx ? { ...existing, url: v } : existing;
+                            }).filter((img, j) => j === 0 || img.url); // keep slot 0 always, remove empty trailing
+                            next[idx] = { ...next[idx], images: newImgs, url: undefined };
+                            setContent('cells', next);
+                          }}
+                          C={C}
+                          uploadPath={`${uploadPath}/cell-${idx}-img${imgIdx}`}
+                        />
+                      );
+                    })}
+                  </>
+                ) : cell.type === 'video' ? (
+                  <>
+                    <div style={{ marginBottom: 8 }}>
+                      <label style={lbl(C)}>Video URL</label>
+                      <input value={cell.videoUrl || ''} onChange={e => { const n=[...(content.cells||[])]; n[idx]={...n[idx],videoUrl:e.target.value}; setContent('cells',n); }} placeholder="YouTube, Vimeo, or .mp4 URL" style={inp(C)} />
+                      <div style={{ fontFamily: NU, fontSize: 10, color: C.grey2, marginTop: 3 }}>Supports youtube.com, youtu.be, vimeo.com, or direct .mp4/.webm</div>
+                    </div>
+                    <div style={{ marginBottom: 8 }}>
+                      <label style={lbl(C)}>Title (shown over thumbnail)</label>
+                      <input value={cell.title || ''} onChange={e => { const n=[...(content.cells||[])]; n[idx]={...n[idx],title:e.target.value}; setContent('cells',n); }} placeholder="Optional overlay title" style={inp(C)} />
+                    </div>
+                    <ImageUploadField
+                      label="Custom Thumbnail (optional — YouTube auto-generates)"
+                      value={cell.thumb || ''}
+                      onChange={v => { const n=[...(content.cells||[])]; n[idx]={...n[idx],thumb:v}; setContent('cells',n); }}
+                      C={C}
+                      uploadPath={`${uploadPath}/cell-${idx}`}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <div style={{ marginBottom: 8 }}>
+                      <label style={lbl(C)}>Eyebrow (optional)</label>
+                      <input value={cell.eyebrow || ''} placeholder="e.g. Exclusive Offer" onChange={e => { const n=[...(content.cells||[])]; n[idx]={...n[idx],eyebrow:e.target.value}; setContent('cells',n); }} style={inp(C)} />
+                    </div>
+                    <div style={{ marginBottom: 8 }}>
+                      <label style={lbl(C)}>Headline (optional)</label>
+                      <input value={cell.headline || ''} placeholder="Large statement line" onChange={e => { const n=[...(content.cells||[])]; n[idx]={...n[idx],headline:e.target.value}; setContent('cells',n); }} style={inp(C)} />
+                    </div>
+                    <div style={{ marginBottom: 8 }}>
+                      <label style={lbl(C)}>Title</label>
+                      <input value={cell.title || ''} onChange={e => { const n=[...(content.cells||[])]; n[idx]={...n[idx],title:e.target.value}; setContent('cells',n); }} style={inp(C)} />
+                    </div>
+                    <div style={{ marginBottom: 8 }}>
+                      <label style={lbl(C)}>Body</label>
+                      <textarea value={cell.body || ''} onChange={e => { const n=[...(content.cells||[])]; n[idx]={...n[idx],body:e.target.value}; setContent('cells',n); }} rows={3} style={{ ...inp(C), resize: 'vertical' }} />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                      <div>
+                        <label style={lbl(C)}>CTA Label</label>
+                        <input value={cell.cta || ''} placeholder="Discover" onChange={e => { const n=[...(content.cells||[])]; n[idx]={...n[idx],cta:e.target.value}; setContent('cells',n); }} style={inp(C)} />
+                      </div>
+                      <div>
+                        <label style={lbl(C)}>CTA URL</label>
+                        <input value={cell.ctaUrl || ''} placeholder="/offers" onChange={e => { const n=[...(content.cells||[])]; n[idx]={...n[idx],ctaUrl:e.target.value}; setContent('cells',n); }} style={inp(C)} />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
         </>
       )}
 
@@ -579,6 +1282,38 @@ function SectionEditor({ section, onChange, C, showcase }) {
       {/* ── Verified (At a Glance) ── */}
       {section.type === 'verified' && (
         <>
+          {/* Alignment */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={lbl(C)}>Alignment</label>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {['left', 'center', 'right'].map(v => (
+                <button key={v} onClick={() => setLayout('variant', v)}
+                  style={{ flex: 1, padding: '6px 0', fontFamily: NU, fontSize: 11, fontWeight: 600,
+                    background: (layout.variant || 'left') === v ? GOLD : 'transparent',
+                    color: (layout.variant || 'left') === v ? '#fff' : C.text,
+                    border: `1px solid ${(layout.variant || 'left') === v ? GOLD : C.border}`,
+                    borderRadius: 4, cursor: 'pointer', textTransform: 'capitalize' }}>
+                  {v}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Text colour */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={lbl(C)}>Text Colour</label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              {['#1a1209','#f5f0e8','#ffffff','#2c1810','#0f0e0c'].map(col => (
+                <button key={col} onClick={() => setLayout('textColor', col)}
+                  style={{ width: 26, height: 26, borderRadius: 3, background: col,
+                    border: layout.textColor === col ? `2px solid ${GOLD}` : `1px solid ${C.border}`,
+                    cursor: 'pointer', flexShrink: 0 }} />
+              ))}
+              <input type="text" value={layout.textColor || ''}
+                onChange={e => setLayout('textColor', e.target.value)}
+                placeholder="#1a1209"
+                style={{ ...inp(C), width: 90, fontSize: 11, padding: '5px 8px' }} />
+            </div>
+          </div>
           <Field label="Eyebrow" fieldKey="eyebrow" />
           <Field label="Headline" fieldKey="headline" />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
@@ -629,6 +1364,31 @@ function SectionEditor({ section, onChange, C, showcase }) {
         </>
       )}
 
+      {/* ── Map ── */}
+      {section.type === 'map' && (
+        <>
+          <Field label="Section Heading" fieldKey="headline" placeholder="Find Us" />
+          <Field label="Address" fieldKey="address" type="textarea" rows={3} placeholder={'Al Habtoor Palace Budapest\nErzsébet tér 7-8\nBudapest, Hungary'} />
+          <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, lineHeight: 1.7, marginBottom: 12 }}>
+            The map geocodes your address automatically. For pinpoint accuracy, enter lat/lng below.
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px', gap: 8, marginBottom: 14 }}>
+            <div>
+              <label style={lbl(C)}>Latitude</label>
+              <input type="text" value={content.lat || ''} onChange={e => setContent('lat', e.target.value)} placeholder="47.4979" style={inp(C)} />
+            </div>
+            <div>
+              <label style={lbl(C)}>Longitude</label>
+              <input type="text" value={content.lng || ''} onChange={e => setContent('lng', e.target.value)} placeholder="19.0402" style={inp(C)} />
+            </div>
+            <div>
+              <label style={lbl(C)}>Zoom</label>
+              <input type="number" min="8" max="18" value={content.zoom || 14} onChange={e => setContent('zoom', parseInt(e.target.value))} style={inp(C)} />
+            </div>
+          </div>
+        </>
+      )}
+
       {/* ── Related ── */}
       {section.type === 'related' && (
         <>
@@ -646,8 +1406,168 @@ function SectionEditor({ section, onChange, C, showcase }) {
         </>
       )}
 
+      {/* ── Nearby ── */}
+      {section.type === 'nearby' && (
+        <>
+          <Field label="Headline" fieldKey="headline" placeholder="Ideally Located" />
+          <Field label="Eyebrow" fieldKey="eyebrow" placeholder="Location" />
+          <Field label="Intro Text" fieldKey="body" type="textarea" rows={3} />
+          {/* Address + auto-geocode */}
+          <NearbyMapField content={content} setContent={setContent} C={C} showcase={showcase} />
+          <div style={{ marginBottom: 12 }}>
+            <label style={lbl(C)}>Nearby Points (max 6)</label>
+            {(content.items || []).map((item, idx) => (
+              <div key={idx} style={{ marginBottom: 10, padding: 10, border: `1px solid ${C.border}`, borderRadius: 6 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 6, marginBottom: 6 }}>
+                  <input placeholder="Label (e.g. Train Station)" value={item.label || ''} onChange={e => { const n=[...(content.items||[])]; n[idx]={...n[idx],label:e.target.value}; setContent('items',n); }} style={{ ...inp(C), fontSize: 11 }} />
+                  <input placeholder="Distance (e.g. 7 min walk)" value={item.distance || ''} onChange={e => { const n=[...(content.items||[])]; n[idx]={...n[idx],distance:e.target.value}; setContent('items',n); }} style={{ ...inp(C), fontSize: 11 }} />
+                  <button onClick={() => setContent('items', (content.items||[]).filter((_,i)=>i!==idx))} style={{ background:'none', border:'none', color:'#f87171', cursor:'pointer', fontSize:13, padding:'0 4px' }}>✕</button>
+                </div>
+                <div>
+                  <label style={lbl(C)}>Icon</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {['train','water','city','airport','beach','park','restaurant','shopping','museum','golf','spa','castle','marina','forest'].map(ic => (
+                      <button key={ic} onClick={() => { const n=[...(content.items||[])]; n[idx]={...n[idx],icon:ic}; setContent('items',n); }}
+                        style={{ padding:'3px 8px', fontFamily:NU, fontSize:10, background: item.icon===ic ? GOLD : 'transparent', color: item.icon===ic ? '#fff' : C.text, border:`1px solid ${item.icon===ic ? GOLD : C.border}`, borderRadius:3, cursor:'pointer', textTransform:'capitalize' }}>
+                        {ic}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {(content.items||[]).length < 6 && (
+              <button onClick={() => setContent('items', [...(content.items||[]), { icon:'city', label:'', distance:'' }])}
+                style={{ fontFamily:NU, fontSize:11, color:GOLD, background:'none', border:`1px dashed ${GOLD}`, borderRadius:4, padding:'6px 12px', cursor:'pointer', width:'100%' }}>
+                + Add Nearby Point
+              </button>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ── Rooms ── */}
+      {section.type === 'rooms' && (
+        <>
+          <Field label="Section Eyebrow" fieldKey="eyebrow" placeholder="Accommodation" />
+          <Field label="Section Headline" fieldKey="headline" placeholder="Our Rooms & Suites" />
+          <Field label="Section Paragraph" fieldKey="paragraph" type="textarea" rows={3} placeholder="A short introduction to the accommodation offering..." />
+          <div style={{ marginTop: 8 }}>
+            {(content.rooms || []).map((room, rIdx) => (
+              <div key={rIdx} style={{ marginBottom: 16, padding: '14px', background: C.cardBg || `${C.border}30`, border: `1px solid ${C.border}`, borderRadius: 6 }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: 10 }}>
+                  <span style={{ fontFamily:NU, fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:C.grey2 }}>Room {rIdx + 1}{room.name ? ` — ${room.name}` : ''}</span>
+                  <button onClick={() => setContent('rooms', (content.rooms||[]).filter((_,i)=>i!==rIdx))} style={{ background:'none', border:'none', color:'#f87171', cursor:'pointer', fontSize:12 }}>Remove</button>
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:8 }}>
+                  <div><label style={lbl(C)}>Room Name</label><input value={room.name||''} onChange={e=>{const n=[...(content.rooms||[])];n[rIdx]={...n[rIdx],name:e.target.value};setContent('rooms',n);}} style={inp(C)} /></div>
+                  <div><label style={lbl(C)}>Tagline</label><input value={room.tagline||''} placeholder="Short uppercase subtitle" onChange={e=>{const n=[...(content.rooms||[])];n[rIdx]={...n[rIdx],tagline:e.target.value};setContent('rooms',n);}} style={inp(C)} /></div>
+                  <div><label style={lbl(C)}>Capacity (people)</label><input type="number" min="1" max="20" value={room.capacity||''} onChange={e=>{const n=[...(content.rooms||[])];n[rIdx]={...n[rIdx],capacity:e.target.value};setContent('rooms',n);}} style={inp(C)} /></div>
+                  <div><label style={lbl(C)}>Size (m²)</label><input value={room.size||''} placeholder="e.g. 53" onChange={e=>{const n=[...(content.rooms||[])];n[rIdx]={...n[rIdx],size:e.target.value};setContent('rooms',n);}} style={inp(C)} /></div>
+                </div>
+                <div style={{ marginBottom:8 }}><label style={lbl(C)}>Description</label><textarea value={room.body||''} onChange={e=>{const n=[...(content.rooms||[])];n[rIdx]={...n[rIdx],body:e.target.value};setContent('rooms',n);}} rows={3} style={{...inp(C),resize:'vertical'}} /></div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:8 }}>
+                  <div><label style={lbl(C)}>CTA Label</label><input value={room.ctaLabel||''} placeholder="To Book" onChange={e=>{const n=[...(content.rooms||[])];n[rIdx]={...n[rIdx],ctaLabel:e.target.value};setContent('rooms',n);}} style={inp(C)} /></div>
+                  <div><label style={lbl(C)}>CTA URL</label><input value={room.ctaUrl||''} placeholder="/book" onChange={e=>{const n=[...(content.rooms||[])];n[rIdx]={...n[rIdx],ctaUrl:e.target.value};setContent('rooms',n);}} style={inp(C)} /></div>
+                </div>
+                {/* Images */}
+                <div style={{ marginBottom:8 }}>
+                  <label style={lbl(C)}>Images (up to 4 — auto-fade)</label>
+                  {(room.images||[]).map((img, imgIdx) => (
+                    <div key={imgIdx} style={{ display:'flex', gap:5, alignItems:'flex-start', marginBottom:6 }}>
+                      <div style={{ flex:1 }}>
+                        <ImageUploadField
+                          label={`Image ${imgIdx + 1}`}
+                          value={img.url || ''}
+                          onChange={v => {
+                            const n=[...(content.rooms||[])];
+                            const imgs=[...(n[rIdx].images||[])];
+                            imgs[imgIdx]={...imgs[imgIdx],url:v};
+                            n[rIdx]={...n[rIdx],images:imgs};
+                            setContent('rooms',n);
+                          }}
+                          C={C}
+                          uploadPath={`${uploadPath}/room${rIdx}-img${imgIdx}`}
+                        />
+                      </div>
+                      <button
+                        onClick={() => {
+                          const n=[...(content.rooms||[])];
+                          n[rIdx]={...n[rIdx],images:(n[rIdx].images||[]).filter((_,j)=>j!==imgIdx)};
+                          setContent('rooms',n);
+                        }}
+                        style={{ background:'none', border:'none', color:'#f87171', cursor:'pointer', fontSize:13, padding:'4px 2px', marginTop:20, flexShrink:0 }}>✕</button>
+                    </div>
+                  ))}
+                  {(room.images||[]).length < 4 && (
+                    <button
+                      onClick={() => {
+                        const n=[...(content.rooms||[])];
+                        n[rIdx]={...n[rIdx],images:[...(n[rIdx].images||[]),{url:'',alt:''}]};
+                        setContent('rooms',n);
+                      }}
+                      style={{ fontFamily:NU, fontSize:10, color:GOLD, background:'none', border:`1px dashed ${GOLD}`, borderRadius:3, padding:'4px 10px', cursor:'pointer', marginBottom:8 }}>
+                      + Add Image
+                    </button>
+                  )}
+                </div>
+                {/* Video — YouTube only */}
+                <div style={{ marginBottom: 8 }}>
+                  <label style={lbl(C)}>YouTube Video (optional)</label>
+                  <input
+                    type="text"
+                    value={room.videoUrl || ''}
+                    onChange={e => { const n=[...(content.rooms||[])]; n[rIdx]={...n[rIdx],videoUrl:e.target.value}; setContent('rooms',n); }}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    style={inp(C)}
+                  />
+                  {(() => {
+                    const ytId = room.videoUrl ? getYtId(room.videoUrl) : null;
+                    if (!ytId) return null;
+                    return (
+                      <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <img src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} alt="thumbnail"
+                          style={{ height: 52, width: 92, objectFit: 'cover', borderRadius: 3 }} />
+                        <div>
+                          <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#f00', marginBottom: 4 }}>▶ YouTube ✓</div>
+                          <button onClick={() => { const n=[...(content.rooms||[])]; n[rIdx]={...n[rIdx],videoUrl:''}; setContent('rooms',n); }}
+                            style={{ background:'none', border:'none', color:'#f87171', cursor:'pointer', fontSize:10, padding:0, fontFamily:NU }}>Remove</button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+                {/* Amenities */}
+                <div>
+                  <label style={lbl(C)}>Amenities</label>
+                  {(room.amenities||[]).map((am, amIdx) => (
+                    <div key={amIdx} style={{ display:'grid', gridTemplateColumns:'120px 1fr auto', gap:5, marginBottom:5, alignItems:'center' }}>
+                      <select value={am.icon||'bed'} onChange={e=>{const n=[...(content.rooms||[])];const ams=[...(n[rIdx].amenities||[])];ams[amIdx]={...ams[amIdx],icon:e.target.value};n[rIdx]={...n[rIdx],amenities:ams};setContent('rooms',n);}} style={{...inp(C),fontSize:11}}>
+                        {['bed','bath','shower','sofa','desk','table','tv','wardrobe','safe','ac','balcony','kitchen','minibar','coffee'].map(ic=>(
+                          <option key={ic} value={ic}>{ic}</option>
+                        ))}
+                      </select>
+                      <input placeholder="Label (e.g. Bathtub)" value={am.label||''} onChange={e=>{const n=[...(content.rooms||[])];const ams=[...(n[rIdx].amenities||[])];ams[amIdx]={...ams[amIdx],label:e.target.value};n[rIdx]={...n[rIdx],amenities:ams};setContent('rooms',n);}} style={{...inp(C),fontSize:11}} />
+                      <button onClick={()=>{const n=[...(content.rooms||[])];n[rIdx]={...n[rIdx],amenities:(n[rIdx].amenities||[]).filter((_,i)=>i!==amIdx)};setContent('rooms',n);}} style={{background:'none',border:'none',color:'#f87171',cursor:'pointer',fontSize:12,padding:'0 4px'}}>✕</button>
+                    </div>
+                  ))}
+                  <button onClick={()=>{const n=[...(content.rooms||[])];n[rIdx]={...n[rIdx],amenities:[...(n[rIdx].amenities||[]),{icon:'bed',label:''}]};setContent('rooms',n);}}
+                    style={{fontFamily:NU,fontSize:10,color:GOLD,background:'none',border:`1px dashed ${GOLD}`,borderRadius:3,padding:'4px 10px',cursor:'pointer',marginTop:2}}>
+                    + Add Amenity
+                  </button>
+                </div>
+              </div>
+            ))}
+            <button onClick={() => setContent('rooms', [...(content.rooms||[]), { name:'', tagline:'', capacity:2, size:'', body:'', amenities:[{icon:'bed',label:''}], images:[], videoUrl:'', ctaLabel:'To Book', ctaUrl:'' }])}
+              style={{ fontFamily:NU, fontSize:11, color:GOLD, background:'none', border:`1px dashed ${GOLD}`, borderRadius:4, padding:'8px 14px', cursor:'pointer', width:'100%' }}>
+              + Add Room
+            </button>
+          </div>
+        </>
+      )}
+
       {/* ── Layout: accent background ── */}
-      {['intro','feature','quote','stats','highlight-band','dining','spaces','wellness','weddings','pricing','verified'].includes(section.type) && (
+      {['intro','feature','quote','stats','highlight-band','dining','spaces','wellness','weddings','pricing','verified','bento-grid','nearby','rooms'].includes(section.type) && (
         <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
           <label style={lbl(C)}>Panel Background</label>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -670,6 +1590,25 @@ function SectionEditor({ section, onChange, C, showcase }) {
               placeholder="#1a1209"
               style={{ ...inp(C), width: 90, fontSize: 11, padding: '5px 8px' }}
             />
+          </div>
+        </div>
+      )}
+
+      {/* ── Layout: text alignment ── */}
+      {['highlight-band','stats','pricing','mosaic','intro','dining','spaces','wellness','weddings'].includes(section.type) && (
+        <div style={{ marginTop: 12 }}>
+          <label style={lbl(C)}>Alignment</label>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {['left', 'center', 'right'].map(v => (
+              <button key={v} onClick={() => setLayout('align', v)}
+                style={{ flex: 1, padding: '6px 0', fontFamily: NU, fontSize: 11, fontWeight: 600,
+                  background: (layout.align || 'left') === v ? GOLD : 'transparent',
+                  color: (layout.align || 'left') === v ? '#fff' : C.text,
+                  border: `1px solid ${(layout.align || 'left') === v ? GOLD : C.border}`,
+                  borderRadius: 4, cursor: 'pointer', textTransform: 'capitalize' }}>
+                {v}
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -811,6 +1750,119 @@ function ShowcaseMeta({ showcase, onChange, C, sections, setSections }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SaveAsTemplateModal — collect name + emoji, then save
+// ─────────────────────────────────────────────────────────────────────────────
+const TEMPLATE_ICONS = ['🏛','🏰','🏝','🌿','✨','🌸','🍾','🕊','💎','🏡','🎪','⛵','🌅','🔑','🌾'];
+
+function SaveAsTemplateModal({ showcase, sections, existingTemplates = [], onSaved, onClose, C }) {
+  const [label,            setLabel]            = useState('');
+  const [icon,             setIcon]             = useState('◈');
+  const [saving,           setSaving]           = useState(false);
+  const [error,            setError]            = useState(null);
+  const [confirmOverwrite, setConfirmOverwrite] = useState(null); // {id, label} of existing match
+  const labelRef = useRef(null);
+  useEffect(() => { setTimeout(() => labelRef.current?.focus(), 50); }, []);
+
+  function findExisting(name) {
+    return existingTemplates.find(t => t.label.trim().toLowerCase() === name.trim().toLowerCase());
+  }
+
+  async function doSave(overwriteId = null) {
+    setSaving(true);
+    setError(null);
+    try {
+      if (overwriteId) {
+        // Update existing template in-place
+        await saveShowcaseDraft(overwriteId, { sections, template_key: icon, title: label.trim() });
+      } else {
+        await saveShowcaseAsTemplate(showcase, sections, { label: label.trim(), icon });
+      }
+      onSaved();
+    } catch (e) {
+      setError(e.message || 'Save failed');
+    } finally {
+      setSaving(false);
+      setConfirmOverwrite(null);
+    }
+  }
+
+  function handleSave() {
+    if (!label.trim()) { setError('Please enter a template name.'); return; }
+    const dupe = findExisting(label);
+    if (dupe) { setConfirmOverwrite(dupe); return; }
+    doSave();
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: '32px 28px', maxWidth: 440, width: '100%' }}>
+        <div style={{ fontFamily: GD, fontSize: 22, fontWeight: 400, color: C.off, marginBottom: 6 }}>Save as Template</div>
+        <div style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.6, marginBottom: 24 }}>
+          The current section layout will be saved as a reusable template. Content is included as editable starting copy.
+        </div>
+
+        {/* Template name */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.grey2, display: 'block', marginBottom: 5 }}>Template Name</label>
+          <input
+            ref={labelRef}
+            value={label}
+            onChange={e => setLabel(e.target.value)}
+            onKeyDown={e => e.stopPropagation()}
+            placeholder="e.g. Grand City Hotel"
+            style={{ ...inp(C), fontSize: 14 }}
+          />
+        </div>
+
+        {/* Icon picker */}
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.grey2, display: 'block', marginBottom: 8 }}>Icon</label>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {TEMPLATE_ICONS.map(em => (
+              <button key={em} onClick={() => setIcon(em)}
+                style={{ width: 34, height: 34, fontSize: 18, border: `1px solid ${icon === em ? GOLD : C.border}`, borderRadius: 5, background: icon === em ? `${GOLD}18` : C.bg, cursor: 'pointer' }}>
+                {em}
+              </button>
+            ))}
+            <input value={icon} onChange={e => setIcon(e.target.value)} placeholder="◈"
+              style={{ ...inp(C), width: 48, fontSize: 16, textAlign: 'center' }} />
+          </div>
+        </div>
+
+        {error && <div style={{ fontFamily: NU, fontSize: 11, color: '#f87171', marginBottom: 12 }}>{error}</div>}
+
+        {/* Overwrite confirmation banner */}
+        {confirmOverwrite && (
+          <div style={{ background: '#7c2d12', border: '1px solid #f87171', borderRadius: 6, padding: '12px 14px', marginBottom: 14 }}>
+            <div style={{ fontFamily: NU, fontSize: 12, color: '#fca5a5', fontWeight: 700, marginBottom: 6 }}>
+              ⚠ A template named "{confirmOverwrite.label}" already exists.
+            </div>
+            <div style={{ fontFamily: NU, fontSize: 11, color: '#fca5a5', marginBottom: 10, lineHeight: 1.5 }}>
+              Overwriting will replace its sections with the current layout. This cannot be undone.
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setConfirmOverwrite(null)} style={{ padding: '6px 12px', background: 'none', border: '1px solid #f8717166', borderRadius: 3, color: '#fca5a5', fontFamily: NU, fontSize: 11, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={() => doSave(confirmOverwrite.id)} disabled={saving}
+                style={{ padding: '6px 14px', background: '#dc2626', border: 'none', borderRadius: 3, color: '#fff', fontFamily: NU, fontSize: 11, fontWeight: 700, cursor: saving ? 'default' : 'pointer' }}>
+                {saving ? 'Overwriting…' : 'Yes, Overwrite'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '8px 16px', border: `1px solid ${C.border}`, borderRadius: 4, cursor: 'pointer', fontFamily: NU, fontSize: 12, background: 'none', color: C.text }}>Cancel</button>
+          <button onClick={handleSave} disabled={saving || !!confirmOverwrite}
+            style={{ padding: '8px 20px', background: (saving || confirmOverwrite) ? `${GOLD}66` : GOLD, border: 'none', borderRadius: 4, cursor: (saving || confirmOverwrite) ? 'default' : 'pointer', fontFamily: NU, fontSize: 12, fontWeight: 700, color: '#1a1209' }}>
+            {saving ? 'Saving…' : '⊟ Save Template'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // TemplatePicker — modal to choose a template or start blank
 // ─────────────────────────────────────────────────────────────────────────────
 function TemplatePicker({ onSelect, onSelectDb, onBlank, C, dbTemplates = [] }) {
@@ -826,7 +1878,7 @@ function TemplatePicker({ onSelect, onSelectDb, onBlank, C, dbTemplates = [] }) 
     >
       <div
         onClick={e => e.stopPropagation()}
-        style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: '36px 32px', maxWidth: 640, width: '100%', maxHeight: '80vh', overflowY: 'auto' }}
+        style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: '36px 32px', maxWidth: 960, width: '100%', maxHeight: '80vh', overflowY: 'auto' }}
       >
         <div style={{ fontFamily: GD, fontSize: 22, color: C.off, fontWeight: 400, marginBottom: 8 }}>
           Start with a template
@@ -841,24 +1893,20 @@ function TemplatePicker({ onSelect, onSelectDb, onBlank, C, dbTemplates = [] }) 
             <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD, fontWeight: 700, marginBottom: 12 }}>
               Master Templates
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
               {dbTemplates.map(tmpl => (
                 <button
                   key={tmpl.id}
                   onClick={() => onSelectDb(tmpl)}
                   style={{
                     background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6,
-                    padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
+                    padding: '14px 12px', textAlign: 'left', cursor: 'pointer',
                   }}
                   onMouseEnter={e => e.currentTarget.style.borderColor = GOLD}
                   onMouseLeave={e => e.currentTarget.style.borderColor = C.border}
                 >
-                  {tmpl.heroImage && (
-                    <div style={{ height: 64, background: '#000', borderRadius: 3, marginBottom: 10, overflow: 'hidden' }}>
-                      <img src={tmpl.heroImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.7 }} />
-                    </div>
-                  )}
-                  <div style={{ fontFamily: NU, fontSize: 13, fontWeight: 700, color: C.off, marginBottom: 3 }}>{tmpl.label}</div>
+                  <div style={{ fontSize: 22, marginBottom: 6 }}>{tmpl.icon || '◈'}</div>
+                  <div style={{ fontFamily: NU, fontSize: 12, fontWeight: 700, color: C.off, marginBottom: 3, lineHeight: 1.3 }}>{tmpl.label}</div>
                   <div style={{ fontFamily: NU, fontSize: 10, color: GOLD, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                     {tmpl.sections.length} sections
                   </div>
@@ -874,7 +1922,7 @@ function TemplatePicker({ onSelect, onSelectDb, onBlank, C, dbTemplates = [] }) 
             <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: C.grey2, fontWeight: 700, marginBottom: 12 }}>
               Structural Templates
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
               {Object.values(SHOWCASE_TEMPLATES).map(tmpl => (
                 <button key={tmpl.key} onClick={() => onSelect(tmpl.key)} style={{
                   background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6,
@@ -953,11 +2001,16 @@ function SectionPicker({ onAdd, onClose, C }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // MagicAiPanel — full-page AI input modal
 // ─────────────────────────────────────────────────────────────────────────────
-function MagicAiPanel({ onGenerate, onClose, C }) {
-  const [venueInfo, setVenueInfo] = useState('');
+function MagicAiPanel({ onGenerate, onClose, C, initialVenueInfo = '', onVenueInfoChange }) {
+  const [venueInfo, setVenueInfo] = useState(initialVenueInfo);
   const [mode,      setMode]      = useState('template');
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState(null);
+
+  function handleVenueInfoChange(v) {
+    setVenueInfo(v);
+    onVenueInfoChange?.(v);
+  }
 
   async function handleGenerate() {
     if (!venueInfo.trim()) { setError('Please paste venue information above.'); return; }
@@ -1022,7 +2075,7 @@ function MagicAiPanel({ onGenerate, onClose, C }) {
           </label>
           <textarea
             value={venueInfo}
-            onChange={e => { setVenueInfo(e.target.value); setError(null); }}
+            onChange={e => { handleVenueInfoChange(e.target.value); setError(null); }}
             rows={14}
             placeholder={`Paste anything here — website copy, brochure text, notes, or a description. For example:
 
@@ -1092,7 +2145,7 @@ Rooms: 267`}
 // ─────────────────────────────────────────────────────────────────────────────
 // Main ShowcaseStudioModule
 // ─────────────────────────────────────────────────────────────────────────────
-export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComplete }) {
+export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComplete, onListRefresh }) {
   const [viewMode,     setViewMode]     = useState('split');   // split | editor | preview
   const [showcase,     setShowcase]     = useState(null);
   const [sections,     setSections]     = useState([]);
@@ -1106,7 +2159,17 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComp
   const [dbTemplates,  setDbTemplates]  = useState([]);
   const [dragIdx,      setDragIdx]      = useState(null);
   const [dropIdx,      setDropIdx]      = useState(null);
-  const [showAi,       setShowAi]       = useState(false);
+  const [showAi,           setShowAi]           = useState(false);
+  const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
+  const [aiVenueInfo,      setAiVenueInfo]      = useState('');   // shared venue context for per-section AI
+  const [sectionAiLoading, setSectionAiLoading] = useState(null); // section.id currently being AI-filled
+
+  // Auto-populate venue info for AI from showcase meta + sections when they load
+  useEffect(() => {
+    if (aiVenueInfo) return; // don't overwrite if user already set it
+    const auto = buildAutoVenueInfo(showcase, sections);
+    if (auto.trim()) setAiVenueInfo(auto);
+  }, [showcase, sections]); // eslint-disable-line react-hooks/exhaustive-deps
   const [returnPath,   setReturnPath]   = useState(null);
   const [lastSavedTime, setLastSavedTime] = useState(null);
   const [saveState,    setSaveState]    = useState('clean');  // clean | dirty | saving | saved
@@ -1152,8 +2215,7 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComp
     // Skip fetch if this ID is already loaded in local state (e.g. just created via Save Draft)
     if (loadedShowcaseIdRef.current === showcaseId) return;
 
-    fetchShowcases().then(showcases => {
-      const found = showcases.find(s => s.id === showcaseId);
+    fetchShowcaseById(showcaseId).then(found => {
       if (found) {
         loadedShowcaseIdRef.current = showcaseId;
         setShowcase({
@@ -1369,6 +2431,7 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComp
       setSaveState('saved');
       setLastSavedTime(new Date());
       notify('Saved as draft');
+      onListRefresh?.();
       setTimeout(() => setSaveState('clean'), 2000);
     } catch (e) {
       notify(e.message, 'error');
@@ -1385,8 +2448,19 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComp
       // Validate sections before publishing
       const validation = validateShowcase(sections);
       if (validation.hasErrors) {
-        const errorCount = Object.keys(validation.errors).length;
-        notify(`${errorCount} section(s) have incomplete required fields`, 'error');
+        const errorIds = Object.keys(validation.errors);
+        const errorNames = errorIds.map(id => {
+          const s = sections.find(sec => sec.id === id);
+          return s ? (SECTION_REGISTRY[s.type]?.label || s.type) : id;
+        });
+        notify(`${errorIds.length} section(s) need attention: ${errorNames.join(', ')}`, 'error');
+        // Select + scroll to first failing section
+        const firstId = errorIds[0];
+        setSelectedId(firstId);
+        setTimeout(() => {
+          const el = document.getElementById(`section-item-${firstId}`);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
         setPublishing(false);
         return;
       }
@@ -1409,20 +2483,21 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComp
         onSaveComplete?.(id);
       }
 
-      // Update to live status via edge function (bypasses RLS)
+      // Save SEO fields to draft first, then publish (copies sections → published_sections)
       await saveShowcaseDraft(id, {
-        status:             'published',
-        sections:           sections,
-        seo_title:          showcase.seo_title       || null,
-        seo_description:    showcase.seo_description || null,
-        og_image:           showcase.og_image        || null,
+        seo_title:       showcase.seo_title       || null,
+        seo_description: showcase.seo_description || null,
+        og_image:        showcase.og_image        || null,
+        sections,
       });
+      await publishShowcase(id, sections);
 
       setShowcase(prev => ({ ...prev, status: 'live' }));
       setDirty(false);
       setSaveState('saved');
       setLastSavedTime(new Date());
       notify('Published successfully');
+      onListRefresh?.();
       setTimeout(() => setSaveState('clean'), 2000);
     } catch (e) {
       notify(e.message, 'error');
@@ -1435,6 +2510,19 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComp
   function handleDiscard() {
     if (dirty && !window.confirm('Discard unsaved changes?')) return;
     onBack?.();
+  }
+
+  async function handleSectionAiFill(section, venueInfo) {
+    setSectionAiLoading(section.id);
+    try {
+      const { content, layout } = await generateSectionWithAi({ sectionType: section.type, venueInfo });
+      handleSectionChange({ ...section, content: { ...section.content, ...content }, layout: { ...section.layout, ...layout } });
+      notify(`${section.type} filled with AI ✓`);
+    } catch (e) {
+      notify(e.message, 'error');
+    } finally {
+      setSectionAiLoading(null);
+    }
   }
 
   function handleAiGenerate(result) {
@@ -1458,6 +2546,12 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComp
   // ── Derived state ───────────────────────────────────────────────────────────
   const venueName = showcase?.title || 'Untitled Showcase';
   const isLive    = showcase?.status === 'live' || showcase?.status === 'published';
+
+  // Template label — check static registry first, then DB templates list
+  const templateKey   = showcase?.template_key;
+  const staticTmpl    = templateKey ? SHOWCASE_TEMPLATES[templateKey] : null;
+  const dbTmpl        = templateKey ? dbTemplates.find(t => t.key === templateKey || t.id === templateKey) : null;
+  const templateLabel = staticTmpl?.label || dbTmpl?.title || dbTmpl?.label || null;
 
   // ── Styles ──────────────────────────────────────────────────────────────────
   const btnBase = { fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', padding: '7px 16px', border: 'none', borderRadius: 3, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: '28px' };
@@ -1521,6 +2615,24 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComp
           )}
         </div>
 
+        {/* Template badge — centre of toolbar */}
+        {templateLabel && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '3px 10px',
+            background: `${GOLD}14`,
+            border: `1px solid ${GOLD}30`,
+            borderRadius: 20,
+            fontFamily: NU, fontSize: 10, fontWeight: 700,
+            letterSpacing: '0.12em', textTransform: 'uppercase',
+            color: GOLD, whiteSpace: 'nowrap',
+          }}
+          title={`Built on the "${templateLabel}" template`}
+          >
+            ◈ {templateLabel}
+          </div>
+        )}
+
         <div style={{ flex: 1 }} />
 
         {/* Right: Action buttons (stable layout, no disappearing) */}
@@ -1566,6 +2678,13 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComp
           {saving ? 'Saving…' : 'Save Draft'}
         </button>
 
+        {/* Unpublished changes warning */}
+        {isLive && dirty && (
+          <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#f59e0b', fontWeight: 600, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
+            ⚠ Re-publish to go live
+          </span>
+        )}
+
         {/* Publish — always visible, primary */}
         <button
           onClick={handlePublish}
@@ -1574,6 +2693,7 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComp
             ...btnGold,
             opacity: (publishing || saving) ? 0.6 : 1,
             cursor: (publishing || saving) ? 'not-allowed' : 'pointer',
+            outline: isLive && dirty ? '2px solid #f59e0b' : 'none',
           }}
           title="Publish live (requires complete content)"
         >
@@ -1595,6 +2715,21 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComp
           title={!isLive ? 'Publish first to view live' : 'Open the live showcase'}
         >
           View Live ↗
+        </button>
+
+        {/* Save as Template */}
+        <button
+          onClick={() => showcase?.id && setShowSaveAsTemplate(true)}
+          disabled={!showcase?.id}
+          style={{
+            ...btnOutline,
+            opacity: !showcase?.id ? 0.35 : 1,
+            cursor:  !showcase?.id ? 'not-allowed' : 'pointer',
+            fontSize: 11,
+          }}
+          title="Save current layout as a reusable template"
+        >
+          ⊟ Template
         </button>
 
         {/* Divider */}
@@ -1659,6 +2794,7 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComp
                 return (
                   <div
                     key={s.id}
+                    id={`section-item-${s.id}`}
                     draggable
                     onDragStart={e => handleDragStart(e, idx)}
                     onDragOver={e => handleDragOver(e, idx)}
@@ -1805,7 +2941,17 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComp
 
             {/* Panel content */}
             {selectedSection ? (
-              <SectionEditor section={selectedSection} onChange={handleSectionChange} C={C} showcase={showcase} />
+              <SectionEditor
+                section={selectedSection}
+                onChange={handleSectionChange}
+                C={C}
+                showcase={showcase}
+                sections={sections}
+                onAiFill={handleSectionAiFill}
+                aiLoading={sectionAiLoading}
+                aiVenueInfo={aiVenueInfo}
+                onSetAiVenueInfo={setAiVenueInfo}
+              />
             ) : (
               <ShowcaseMeta showcase={showcase} onChange={setShowcase} C={C} sections={sections} setSections={setSections} />
             )}
@@ -1814,6 +2960,20 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComp
       </div>
 
       {/* ── Modals ── */}
+      {showSaveAsTemplate && (
+        <SaveAsTemplateModal
+          showcase={showcase}
+          sections={sections}
+          existingTemplates={dbTemplates}
+          onSaved={() => {
+            setShowSaveAsTemplate(false);
+            notify('Template saved — it will appear in the template picker', 'success');
+            fetchTemplates().then(t => setDbTemplates(t)).catch(() => {});
+          }}
+          onClose={() => setShowSaveAsTemplate(false)}
+          C={C}
+        />
+      )}
       {showTemplate && (
         <TemplatePicker
           onSelect={handleApplyTemplate}
@@ -1835,6 +2995,8 @@ export default function ShowcaseStudioModule({ C, showcaseId, onBack, onSaveComp
           onGenerate={handleAiGenerate}
           onClose={() => setShowAi(false)}
           C={C}
+          initialVenueInfo={aiVenueInfo}
+          onVenueInfoChange={setAiVenueInfo}
         />
       )}
 

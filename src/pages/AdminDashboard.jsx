@@ -12,7 +12,7 @@ import { ITALY_REGIONS } from "../data/italy/regions.js";
 import { ITALY_CITIES } from "../data/italy/cities.js";
 import { REGION_AUTO_THRESHOLD, evaluateRegionActivation } from "../engine/activation.js";
 import { fetchListings, fetchListingBySlug, isSupabaseAvailable, createListing, deleteListing } from "../services/listings";
-import { fetchShowcases, createShowcase, updateShowcase, deleteShowcase } from "../services/showcaseService";
+import { fetchShowcases, fetchShowcaseBySlugCard, createShowcase, updateShowcase, deleteShowcase } from "../services/showcaseService";
 import { uploadMediaFile } from "../utils/storageUpload";
 import categoryCssRaw from "../category.css?raw";
 import { RegionsModule } from "./admin/RegionsModule";
@@ -6130,7 +6130,7 @@ const SHOWCASE_TABS = [
   { key: 'planners', label: 'Planners', desc: 'Full editorial planner profiles, portfolio, services, process, real weddings, and enquiry.' },
 ];
 
-function VenueProfilesAdminModule({ C, onNavigate }) {
+function VenueProfilesAdminModule({ C, onNavigate, refreshKey = 0 }) {
   const [hovered, setHovered]                   = useState(null);
   const [activeTab, setActiveTab]               = useState('venues');
   const [venueProfiles, setVenueProfiles]       = useState(VENUE_PROFILES);
@@ -6158,7 +6158,7 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
     return true;
   });
 
-  // Load from Supabase on mount (both types at once)
+  // Load from Supabase on mount and whenever studio saves (refreshKey increments)
   useEffect(() => {
     async function load() {
       try {
@@ -6167,11 +6167,9 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
           fetchShowcases('planner'),
         ]);
         // Merge: static seed always shown first, DB records appended (no slug duplicates)
-        if (venues.length > 0) {
-          const staticSlugs = new Set(VENUE_PROFILES.map(p => p.slug));
-          const dbOnly = venues.filter(v => !staticSlugs.has(v.slug));
-          setVenueProfiles([...VENUE_PROFILES, ...dbOnly]);
-        }
+        const staticSlugs = new Set(VENUE_PROFILES.map(p => p.slug));
+        const dbOnly = venues.filter(v => !staticSlugs.has(v.slug));
+        setVenueProfiles([...VENUE_PROFILES, ...dbOnly]);
         if (planners.length > 0) setPlannerProfiles(planners);
       } catch (e) {
         console.warn('[ShowcaseAdmin] DB load failed, using static seed:', e);
@@ -6180,7 +6178,7 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
       }
     }
     load();
-  }, []);
+  }, [refreshKey]);
 
   const handleSave = async (formData) => {
     setSaving(true);
@@ -10834,6 +10832,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
     }
     return null;
   });
+  const [showcaseListRefreshKey, setShowcaseListRefreshKey] = useState(0);
 
   useEffect(() => {
     let intent = null;
@@ -10846,8 +10845,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
     }
 
     if (intent.type === 'showcase' && intent.slug) {
-      fetchShowcases().then(all => {
-        const found = all.find(s => s.slug === intent.slug);
+      fetchShowcaseBySlugCard(intent.slug).then(found => {
         if (found) {
           setActiveShowcaseId(found.id);
           setActiveTab('showcase-studio');
@@ -11366,11 +11364,11 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "livechat":      return <LiveChatModule C={C} />;
       case "artistry":      return <ArtistryAdminModule C={C} />;
       case "listings":       return <ListingsModule C={C} />;
-      case "venue-profiles": return <VenueProfilesAdminModule C={C} onNavigate={(action, params) => {
+      case "venue-profiles": return <VenueProfilesAdminModule C={C} refreshKey={showcaseListRefreshKey} onNavigate={(action, params) => {
         if (action === 'listing-studio') { setActiveTab('listing-studio'); }
         if (action === 'edit-showcase') { setActiveShowcaseId(params?.showcaseId || null); setActiveTab('showcase-studio'); }
       }} />;
-      case "showcase-studio": return <ShowcaseStudioModule key="showcase-studio" C={C} showcaseId={activeShowcaseId} onBack={() => setActiveTab('venue-profiles')} onSaveComplete={(id) => { setActiveShowcaseId(id); window.location.hash = `showcase-studio/${id}`; }} />;
+      case "showcase-studio": return <ShowcaseStudioModule key="showcase-studio" C={C} showcaseId={activeShowcaseId} onBack={() => setActiveTab('venue-profiles')} onSaveComplete={(id) => { setActiveShowcaseId(id); window.location.hash = `showcase-studio/${id}`; }} onListRefresh={() => setShowcaseListRefreshKey(k => k + 1)} />;
       case "reviews": return <ReviewsModule />;
       case "listing-studio": return null; // Handled in main render logic
       case "venue-intake":   return <VenueIntakeStudio C={C} />;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -162,6 +162,9 @@ export default function PlatformSettingsModule({ C }) {
         );
       })}
 
+      {/* ── Email Suppression List ── */}
+      <SuppressionPanel C={C} G={G} supabase={supabase} />
+
       {/* ── Webhook Endpoints (read-only reference) ── */}
       <div style={{ background: C?.card || '#fff', border: `1px solid ${C?.border || '#ede8de'}`, borderRadius: 8, marginBottom: 20, overflow: 'hidden' }}>
         <div style={{ padding: '12px 18px', background: C?.dark || '#fafaf8', borderBottom: `1px solid ${C?.border || '#ede8de'}` }}>
@@ -192,6 +195,151 @@ export default function PlatformSettingsModule({ C }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Suppression Panel ──────────────────────────────────────────────────────────
+
+function SuppressionPanel({ C, G, supabase }) {
+  const [list,        setList]        = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [addEmail,    setAddEmail]    = useState('');
+  const [addReason,   setAddReason]   = useState('manual');
+  const [adding,      setAdding]      = useState(false);
+  const [removing,    setRemoving]    = useState({});
+  const [search,      setSearch]      = useState('');
+  const [toast,       setToast]       = useState(null);
+
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 2500);
+  };
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('email_suppressions')
+      .select('id, email, reason, source, created_at')
+      .order('created_at', { ascending: false })
+      .limit(500);
+    setList(data || []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleAdd(e) {
+    e.preventDefault();
+    const email = addEmail.trim().toLowerCase();
+    if (!email || !email.includes('@')) return;
+    setAdding(true);
+    const { error } = await supabase
+      .from('email_suppressions')
+      .upsert({ email, reason: addReason, source: 'admin_manual' }, { onConflict: 'email' });
+    setAdding(false);
+    if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+    setAddEmail('');
+    showToast(`${email} suppressed`);
+    load();
+  }
+
+  async function handleRemove(id, email) {
+    setRemoving(p => ({ ...p, [id]: true }));
+    const { error } = await supabase.from('email_suppressions').delete().eq('id', id);
+    setRemoving(p => ({ ...p, [id]: false }));
+    if (error) { showToast('Remove failed', 'error'); return; }
+    setList(prev => prev.filter(r => r.id !== id));
+    showToast(`${email} removed from suppression list`);
+  }
+
+  const filtered = list.filter(r =>
+    !search || r.email.includes(search.toLowerCase()) || (r.reason || '').includes(search.toLowerCase())
+  );
+
+  const REASON_LABELS = { bounce: 'Bounce', complaint: 'Complaint', unsubscribe: 'Unsubscribed', manual: 'Manual', admin_manual: 'Manual' };
+  const REASON_COLORS = { bounce: '#ef4444', complaint: '#f97316', unsubscribe: '#6366f1', manual: '#888', admin_manual: '#888' };
+
+  const inS = { padding: '8px 10px', border: `1px solid ${C?.border || '#ddd'}`, borderRadius: 5, fontSize: 12, background: C?.dark || '#fafaf8', color: C?.white || '#171717', outline: 'none', fontFamily: 'Inter, sans-serif' };
+
+  return (
+    <div style={{ background: C?.card || '#fff', border: `1px solid ${C?.border || '#ede8de'}`, borderRadius: 8, marginBottom: 20, overflow: 'hidden' }}>
+      {toast && (
+        <div style={{ position: 'fixed', top: 20, right: 24, padding: '10px 18px', borderRadius: 6, fontSize: 13, fontWeight: 500, zIndex: 9999, background: toast.type === 'success' ? '#dcfce7' : '#fee2e2', color: toast.type === 'success' ? '#166534' : '#991b1b', boxShadow: '0 4px 12px rgba(0,0,0,0.12)' }}>
+          {toast.msg}
+        </div>
+      )}
+
+      {/* Header */}
+      <div style={{ padding: '12px 18px', background: C?.dark || '#fafaf8', borderBottom: `1px solid ${C?.border || '#ede8de'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: G }}>Email Suppression</span>
+          <span style={{ marginLeft: 10, fontSize: 11, color: C?.grey2 || '#aaa' }}>{list.length} suppressed</span>
+        </div>
+        <button onClick={load} style={{ padding: '4px 12px', background: 'transparent', border: `1px solid ${C?.border || '#ddd'}`, borderRadius: 4, fontSize: 11, color: C?.grey || '#888', cursor: 'pointer' }}>Refresh</button>
+      </div>
+
+      {/* Add form */}
+      <form onSubmit={handleAdd} style={{ display: 'flex', gap: 8, padding: '12px 18px', borderBottom: `1px solid ${C?.border || '#ede8de'}`, alignItems: 'center', flexWrap: 'wrap' }}>
+        <input
+          value={addEmail}
+          onChange={e => setAddEmail(e.target.value)}
+          placeholder="email@example.com"
+          type="email"
+          style={{ ...inS, flex: '1 1 200px', minWidth: 180 }}
+        />
+        <select value={addReason} onChange={e => setAddReason(e.target.value)} style={{ ...inS, flexShrink: 0 }}>
+          <option value="manual">Manual</option>
+          <option value="bounce">Bounce</option>
+          <option value="complaint">Complaint</option>
+          <option value="unsubscribe">Unsubscribed</option>
+        </select>
+        <button type="submit" disabled={adding || !addEmail.trim()} style={{ padding: '8px 16px', background: addEmail.trim() ? G : 'transparent', color: addEmail.trim() ? '#fff' : (C?.grey2 || '#aaa'), border: `1px solid ${addEmail.trim() ? G : (C?.border || '#ddd')}`, borderRadius: 5, fontSize: 12, fontWeight: 500, cursor: addEmail.trim() ? 'pointer' : 'default', whiteSpace: 'nowrap', transition: 'all 0.15s' }}>
+          {adding ? 'Adding...' : '+ Suppress'}
+        </button>
+      </form>
+
+      {/* Search */}
+      {list.length > 5 && (
+        <div style={{ padding: '8px 18px', borderBottom: `1px solid ${C?.border || '#ede8de'}` }}>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search emails..." style={{ ...inS, width: '100%', boxSizing: 'border-box' }} />
+        </div>
+      )}
+
+      {/* List */}
+      {loading ? (
+        <div style={{ padding: '24px 18px', color: C?.grey || '#888', fontSize: 13 }}>Loading...</div>
+      ) : filtered.length === 0 ? (
+        <div style={{ padding: '24px 18px', color: C?.grey2 || '#aaa', fontSize: 13 }}>{search ? 'No matches.' : 'No suppressed emails.'}</div>
+      ) : (
+        <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+          {filtered.map((row, i) => {
+            const reasonColor = REASON_COLORS[row.reason] || '#888';
+            const reasonLabel = REASON_LABELS[row.reason] || row.reason || '—';
+            return (
+              <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', borderBottom: i < filtered.length - 1 ? `1px solid ${C?.border || '#ede8de'}` : 'none' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: C?.white || '#171717', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.email}</div>
+                  <div style={{ fontSize: 10, color: C?.grey2 || '#aaa', marginTop: 1 }}>
+                    {new Date(row.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {row.source && row.source !== 'admin_manual' && <span style={{ marginLeft: 6 }}>via {row.source}</span>}
+                  </div>
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 10, background: reasonColor + '18', color: reasonColor, border: `1px solid ${reasonColor}30`, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  {reasonLabel}
+                </span>
+                <button
+                  onClick={() => handleRemove(row.id, row.email)}
+                  disabled={removing[row.id]}
+                  style={{ padding: '4px 10px', background: 'transparent', border: `1px solid ${C?.border || '#ddd'}`, borderRadius: 4, fontSize: 11, color: C?.grey || '#888', cursor: 'pointer', flexShrink: 0 }}
+                >
+                  {removing[row.id] ? '...' : 'Remove'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

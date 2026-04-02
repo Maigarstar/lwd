@@ -3,8 +3,43 @@ import {
   createContext, useContext, useState, useCallback, useRef, useEffect,
 } from "react";
 import { getRecommendations } from "./recommendationEngine";
-import { trackAuraQuery } from "../services/userEventService";
-import { supabase, isSupabaseAvailable } from "../lib/supabaseClient";
+
+// ── AI backend ────────────────────────────────────────────────────────────────
+const AI_URL  = 'https://qpkggfibwreznussudfh.supabase.co/functions/v1/ai-generate';
+const ANON_KEY = typeof window !== 'undefined'
+  ? (window.__VITE_SUPABASE_ANON_KEY__ || import.meta?.env?.VITE_SUPABASE_ANON_KEY || '')
+  : '';
+
+function buildAuraSystemPrompt(activeContext) {
+  let prompt = `You are Aura, a private luxury wedding concierge for Luxury Wedding Directory.
+Your role is to help couples plan their perfect wedding by sharing expert knowledge about venues and the planning process.
+Keep responses warm, concise, and authoritative — no more than 3 sentences unless the user asks for detail.
+Write in British English. Never mention AI, models, or being an assistant.`;
+
+  if (activeContext?.venueInfo) {
+    prompt += `\n\nYou are currently on the showcase page for this venue. Answer questions about it accurately:\n\n${activeContext.venueInfo}`;
+  } else if (activeContext?.region) {
+    prompt += `\n\nThe user is currently browsing ${activeContext.region}${activeContext.country ? `, ${activeContext.country}` : ''}. Bias responses towards this area when relevant.`;
+  }
+  return prompt;
+}
+
+async function callAuraAi(text, messages, activeContext) {
+  const history = messages.slice(-8).map(m => `${m.from === 'user' ? 'User' : 'Aura'}: ${m.text}`).join('\n');
+  const userPrompt = history ? `${history}\nUser: ${text}` : text;
+  try {
+    const res = await fetch(AI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
+      body: JSON.stringify({ feature: 'aura_chat', systemPrompt: buildAuraSystemPrompt(activeContext), userPrompt }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) return null;
+    return data.text || data.content || data.response || data.output || null;
+  } catch {
+    return null;
+  }
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function loadMessages() {
@@ -62,7 +97,7 @@ export function ChatProvider({ children }) {
   const [chatDark,        setChatDark]        = useState(true);
   const [messages,        setMessages]        = useState(() => loadMessages() ?? [INIT_MESSAGE]);
   const [isTyping,        setIsTyping]        = useState(false);
-  const [activeContext,   setActiveContext]   = useState({ country: null, region: null, page: null, compareVenues: [] });
+  const [activeContext,   setActiveContext]   = useState({ country: null, region: null, page: null, venueInfo: null });
   const [recommendations, setRecommendations] = useState({ items: [], summary: "", intent: {} });
 
   // Persist messages
@@ -89,87 +124,38 @@ export function ChatProvider({ children }) {
   const toggleTheme   = useCallback(() => setChatDark((d) => !d),      []);
 
   const setChatContext = useCallback((ctx) => {
-    setActiveContext((prev) => ({
-      ...prev,
-      ...ctx,
-      // preserve existing compareVenues if new context doesn't provide them
-      compareVenues: ctx.compareVenues ?? prev.compareVenues ?? [],
-    }));
+    setActiveContext((prev) =>
+      prev.country   === ctx.country   &&
+      prev.region    === ctx.region    &&
+      prev.page      === ctx.page      &&
+      prev.venueInfo === ctx.venueInfo
+        ? prev
+        : { country: null, region: null, page: null, venueInfo: null, ...ctx }
+    );
   }, []);
 
-  const sendMessage = useCallback(async (text) => {
+  const sendMessage = useCallback((text) => {
     const trimmed = text.trim();
     if (!trimmed) return;
-
-    // Track Aura query
-    trackAuraQuery({
-      query: trimmed,
-      venuesRecommended: [],
-      sourceSurface: activeContext?.page || 'aura_chat',
-    });
-
     const userMsg = { id: Date.now(), from: "user", text: trimmed };
-    setMessages((prev) => [...prev, userMsg]);
-    setIsTyping(true);
-
-    // ── Build venue-aware system prompt from active context ────────────────
-    const ctxLines = [
-      activeContext.page     && `The user is currently on the ${activeContext.page} page.`,
-      activeContext.country  && `They are interested in venues in ${activeContext.country}.`,
-      activeContext.region   && `Specifically in ${activeContext.region}.`,
-    ].filter(Boolean).join(' ');
-
-    // Inject location content data so Aura knows about this specific destination
-    const loc = activeContext.locationContent;
-    const locationLines = loc ? [
-      loc.editorial && `About ${loc.name}: ${loc.editorial}`,
-      loc.vibes?.length     && `Signature vibes for ${loc.name}: ${loc.vibes.join(', ')}.`,
-      loc.services?.length  && `Elite services available in ${loc.name}: ${loc.services.join(', ')}.`,
-      loc.focusKeywords     && `Key search terms for this destination: ${loc.focusKeywords}.`,
-      loc.faqs?.length      && `Common questions and answers for ${loc.name}: ${loc.faqs.map(f => `Q: ${f.q} A: ${f.a}`).join(' | ')}.`,
-    ].filter(Boolean).join(' ') : '';
-
-    const systemPrompt = [
-      `You are Aura, the AI wedding concierge for Luxury Wedding Directory — the world's finest curated collection of luxury wedding venues and vendors.`,
-      `Your tone is warm, assured, and quietly expert — like a trusted specialist, not a chatbot.`,
-      `Keep every response to 2–4 sentences. Be specific, never generic. Help the couple make a decision.`,
-      ctxLines,
-      locationLines,
-      `If they're comparing venues, highlight the genuine differences. If they have a question, answer it directly.`,
-      `Never say you're an AI model. You are Aura.`,
-    ].filter(Boolean).join(' ');
-
-    // ── Try real AI via edge function ──────────────────────────────────────
-    try {
-      if (!isSupabaseAvailable()) throw new Error('Supabase unavailable');
-
-      const { data, error } = await supabase.functions.invoke('ai-generate', {
-        body: {
-          feature: 'aura_chat',
-          systemPrompt,
-          userPrompt: trimmed,
-        },
-      });
-
-      if (error || !data?.text) throw new Error(error?.message || 'Empty response');
-
-      setIsTyping(false);
-      setMessages((prev) => [
-        ...prev,
-        { id: Date.now() + 1, from: 'aura', text: data.text },
-      ]);
-    } catch (err) {
-      // ── Graceful fallback to stub responses ────────────────────────────
-      console.warn('[Aura] AI call failed, using stub:', err?.message);
+    setMessages((prev) => {
+      // capture snapshot for AI call
+      const snapshot = [...prev, userMsg];
+      setIsTyping(true);
       clearTimeout(replyTimer.current);
-      replyTimer.current = setTimeout(() => {
+      // Try real AI; fall back to stub on failure/timeout
+      const aiCall = callAuraAi(trimmed, snapshot, activeContext);
+      const timeout = new Promise(res => { replyTimer.current = setTimeout(() => res(null), 12000); });
+      Promise.race([aiCall, timeout]).then(aiText => {
         setIsTyping(false);
-        setMessages((prev) => [
-          ...prev,
-          { id: Date.now() + 1, from: 'aura', text: nextStub() },
-        ]);
-      }, 600);
-    }
+        const reply = aiText?.trim() || nextStub();
+        setMessages(m => [...m, { id: Date.now() + 1, from: 'aura', text: reply }]);
+      }).catch(() => {
+        setIsTyping(false);
+        setMessages(m => [...m, { id: Date.now() + 1, from: 'aura', text: nextStub() }]);
+      });
+      return snapshot;
+    });
   }, [activeContext]);
 
   const clearHistory = useCallback(() => {

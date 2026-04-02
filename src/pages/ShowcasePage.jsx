@@ -7,6 +7,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { fetchShowcaseBySlug }  from '../services/showcaseService';
 import { fetchListingBySlug }   from '../services/listings';
+import { useChat }              from '../chat/ChatContext';
 import HomeNav                  from '../components/nav/HomeNav';
 import { buildCardImgs }        from '../utils/mediaMappers';
 import ShowcaseRenderer         from './ShowcaseRenderer';
@@ -52,8 +53,7 @@ function getImages(mediaItems = []) {
 
 // ── Section: Hero ─────────────────────────────────────────────────────────────
 function HeroSection({ showcase, listing, onEnquire, isMobile }) {
-  // imgs[0] is a {id,src,alt} object from buildCardImgs — extract .src
-  const heroImg = showcase?.heroImage || listing?.heroImage || listing?.imgs?.[0]?.src || listing?.imgs?.[0] || '';
+  const heroImg = showcase?.heroImage || listing?.heroImage || (listing?.imgs?.[0]) || '';
   const title   = showcase?.name || listing?.name || '';
   const location = showcase?.location || (listing?.city && listing?.country ? `${listing.city}, ${listing.country}` : '') || '';
   const excerpt  = showcase?.excerpt || listing?.short_description || '';
@@ -126,18 +126,14 @@ function OverviewSection({ listing, isMobile }) {
   return (
     <div style={{ padding: isMobile ? '56px 24px' : '80px 64px', maxWidth: 760, margin: '0 auto' }}>
       <p style={{ fontFamily: FB, fontSize: 10, color: C.gold, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 16 }}>About</p>
-      <div
-        style={{ fontFamily: FD, fontSize: isMobile ? 22 : 30, color: C.text, lineHeight: 1.4, fontWeight: 400 }}
-        dangerouslySetInnerHTML={{ __html: desc }}
-      />
+      <p style={{ fontFamily: FD, fontSize: isMobile ? 22 : 30, color: C.text, lineHeight: 1.4, fontWeight: 400 }}>{desc}</p>
     </div>
   );
 }
 
 // ── Section: Gallery ──────────────────────────────────────────────────────────
 function GallerySection({ listing, isMobile }) {
-  // mapListingFromDb returns camelCase mediaItems; raw DB rows have media_items
-  const images = getImages(listing?.mediaItems || listing?.media_items || []);
+  const images = getImages(listing?.media_items || []);
   if (!images.length) return null;
 
   const [lightIdx, setLightIdx] = useState(null);
@@ -259,6 +255,34 @@ function NotFound({ slug, onBack }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
+// Build venue context string from showcase sections for Aura
+function buildVenueInfo(sc, lst) {
+  const parts = [];
+  if (sc?.name || sc?.title)  parts.push(`Venue: ${sc.name || sc.title}`);
+  if (sc?.location)            parts.push(`Location: ${sc.location}`);
+  if (sc?.excerpt)             parts.push(`About: ${sc.excerpt}`);
+  const sections = sc?.published_sections || sc?.sections || [];
+  if (Array.isArray(sections)) {
+    for (const s of sections) {
+      const c = s?.content || {};
+      if (s.type === 'hero'    && c.tagline)    parts.push(`Tagline: ${c.tagline}`);
+      if (s.type === 'intro'   && c.body)       parts.push(`Description: ${c.body}`);
+      if (s.type === 'stats'   && c.items?.length) parts.push(`Key stats: ${c.items.map(i => `${i.value} ${i.label}`).join(', ')}`);
+      if (s.type === 'verified') {
+        if (c.ceremony_capacity) parts.push(`Ceremony capacity: ${c.ceremony_capacity}`);
+        if (c.bedrooms)          parts.push(`Bedrooms: ${c.bedrooms}`);
+        if (c.location_summary)  parts.push(`Location detail: ${c.location_summary}`);
+        if (c.style)             parts.push(`Style: ${c.style}`);
+        if (c.best_for)          parts.push(`Best for: ${c.best_for}`);
+      }
+      if (s.type === 'pricing' && c.price_from) parts.push(`Venue hire from: ${c.price_from}`);
+      if (s.type === 'weddings' && c.body)      parts.push(`Weddings: ${c.body.slice(0, 200)}`);
+    }
+  }
+  if (lst?.description) parts.push(`Full description: ${lst.description.slice(0, 300)}`);
+  return parts.join('\n');
+}
+
 export default function ShowcasePage({ slug, darkMode, onToggleDark, onBack, onGoDestination, onNavigateStandard, onNavigateAbout }) {
   const isMobile = useIsMobile();
   const [showcase, setShowcase]   = useState(null);
@@ -266,6 +290,7 @@ export default function ShowcasePage({ slug, darkMode, onToggleDark, onBack, onG
   const [loading, setLoading]     = useState(true);
   const [notFound, setNotFound]   = useState(false);
   const [enquireOpen, setEnquireOpen] = useState(false);
+  const { setChatContext } = useChat();
 
   useEffect(() => {
     if (!slug) { setNotFound(true); setLoading(false); return; }
@@ -283,11 +308,21 @@ export default function ShowcasePage({ slug, darkMode, onToggleDark, onBack, onG
           setShowcase(sc);
           // 2. Optionally enrich with linked listing (non-fatal — listing may not exist)
           const linkedSlug = sc.listing_id || sc.listingId || null;
+          let lst = null;
           try {
-            const lst = await fetchListingBySlug(linkedSlug || slug);
+            lst = await fetchListingBySlug(linkedSlug || slug);
             if (!ignore && lst) setListing(lst);
           } catch (_) {
             // No listing found — that's fine, showcase renders without it
+          }
+          // 3. Feed venue data into Aura so it can answer questions about this venue
+          if (!ignore) {
+            setChatContext({
+              page:      'showcase',
+              country:   sc.location?.split(',').pop()?.trim() || null,
+              region:    sc.location?.split(',')[0]?.trim()    || null,
+              venueInfo: buildVenueInfo(sc, lst),
+            });
           }
         } else {
           // No showcase record, try listing directly as fallback
@@ -298,7 +333,7 @@ export default function ShowcasePage({ slug, darkMode, onToggleDark, onBack, onG
               setShowcase({
                 name: lst.name, slug, location: [lst.city, lst.country].filter(Boolean).join(', '),
                 excerpt: lst.short_description || '',
-                heroImage: lst.imgs?.[0]?.src || lst.imgs?.[0] || '',
+                heroImage: lst.imgs?.[0] || '',
                 stats: [
                   lst.price_from         ? { value: lst.price_from,             label: 'From' }        : null,
                   lst.capacity_max        ? { value: `Up to ${lst.capacity_max}`, label: 'Guests' }     : null,

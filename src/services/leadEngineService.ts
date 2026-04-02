@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase, isSupabaseAvailable } from '../lib/supabaseClient'
+import { autoLinkLead } from './leadProspectBridgeService'
 
 // ─── Edge function proxy (service_role — bypasses RLS on leads table) ────────
 const LEADS_EDGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-leads`
@@ -184,6 +185,11 @@ export async function createLead(payload: LeadPayload): Promise<CreateLeadResult
       leadId = edgeResult.data?.lead?.id
       if (!leadId) throw new Error('No lead ID returned from edge function')
       console.log('leadEngineService: lead created', leadId)
+    }
+
+    // Auto-link to any existing B2B prospect with the same email (fire-and-forget)
+    if (isNewLead && leadId && payload.email) {
+      autoLinkLead(leadId, payload.email).catch(() => {})
     }
 
     // 4. Record lead_created event (new leads only)

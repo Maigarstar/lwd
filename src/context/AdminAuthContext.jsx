@@ -15,16 +15,10 @@ export function AdminAuthProvider({ children }) {
   const [loading, setLoading]           = useState(true);
 
   useEffect(() => {
-    // Restore any existing session on mount
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setAdmin(session.user);
-        setAuth(true);
-      }
-      setLoading(false);
-    });
-
-    // Stay in sync for the lifetime of this provider
+    // onAuthStateChange fires an INITIAL_SESSION event immediately — use it as
+    // the single source of truth so we're resilient to Strict Mode double-mounts
+    // and any AbortError from getSession() lock contention.
+    let loaded = false;
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setAdmin(session.user);
@@ -33,9 +27,13 @@ export function AdminAuthProvider({ children }) {
         setAdmin(null);
         setAuth(false);
       }
+      if (!loaded) { loaded = true; setLoading(false); }
     });
 
-    return () => subscription.unsubscribe();
+    // Fallback: if onAuthStateChange never fires within 4s, unblock the UI
+    const fallback = setTimeout(() => { if (!loaded) { loaded = true; setLoading(false); } }, 4000);
+
+    return () => { subscription.unsubscribe(); clearTimeout(fallback); };
   }, []);
 
   const login = async (email, password) => {

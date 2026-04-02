@@ -37,6 +37,7 @@ import {
   fetchAssignmentSettings,
 }                               from './pipelineAssignmentService';
 import { calculateLeadScore }   from './leadScoringService';
+import { autoLinkProspect }     from './leadProspectBridgeService';
 import {
   fetchPipelines,
   fetchStages,
@@ -171,6 +172,9 @@ export async function createProspectFromEnquiry(enquiry) {
   };
 
   const prospect = await createProspect(payload);
+
+  // Auto-link to any existing B2C lead with the same email (fire-and-forget)
+  if (email) autoLinkProspect(prospect.id, email).catch(() => {});
 
   // 6. Log the enquiry as an activity note
   const noteBody = [

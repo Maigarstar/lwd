@@ -272,6 +272,22 @@ export const SECTION_REGISTRY = {
     previewFallback: 'Full-width enquiry call to action',
   },
 
+  map: {
+    label:     'Location Map',
+    icon:      '◎',
+    required:  ['address'],
+    optional:  ['headline', 'lat', 'lng', 'zoom'],
+    defaultContent: () => ({
+      headline: 'Find Us',
+      address:  '',
+      lat:      '',
+      lng:      '',
+      zoom:     14,
+    }),
+    defaultLayout: () => ({}),
+    previewFallback: 'Interactive venue location map',
+  },
+
   related: {
     label:     'Related Venues',
     icon:      '⊕',
@@ -364,6 +380,81 @@ export const SECTION_REGISTRY = {
     previewFallback: 'Video gallery — wedding films, estate tours and highlights',
   },
 
+  'bento-grid': {
+    label:     'Bento Grid',
+    icon:      '⊞',
+    // 4-column alternating image/text grid (2 rows × 4 cols = 8 cells)
+    // Each cell: { type: 'image'|'text', url?, alt?, title?, body?, cta?, ctaUrl? }
+    required:  [],
+    optional:  ['cells'],
+    validation: {},
+    defaultContent: () => ({
+      cells: [
+        { type: 'image', images: [{ url: '', alt: '' }] },
+        { type: 'text',  title: 'Offers',            body: 'Our team offers themed experiences throughout the year, tailored to the seasons and your preferences.', cta: 'Discover',  ctaUrl: '' },
+        { type: 'image', images: [{ url: '', alt: '' }] },
+        { type: 'text',  title: 'Seminars & Events',  body: 'Our private lounges combine comfort and elegance, ideal for hosting events, seminars, or business meetings.', cta: 'Organise', ctaUrl: '' },
+        { type: 'text',  title: 'Activities',         body: 'Discover the region\'s unmissable attractions — from sports and culture to nature, there\'s something for everyone.', cta: 'More Info', ctaUrl: '' },
+        { type: 'image', images: [{ url: '', alt: '' }] },
+        { type: 'text',  title: 'Relaxation',         body: 'Enjoy a relaxing moment in our fitness centre, sauna, library lounge or patio terrace.', cta: 'How?',      ctaUrl: '' },
+        { type: 'image', images: [{ url: '', alt: '' }] },
+      ],
+    }),
+    defaultLayout: () => ({}),
+    previewFallback: 'Bento grid — alternating image and text panels in a 4-column layout',
+  },
+
+  nearby: {
+    label:   'Nearby',
+    icon:    '📍',
+    required: [],
+    optional: ['eyebrow', 'headline', 'body', 'items'],
+    validation: {},
+    defaultContent: () => ({
+      eyebrow:  'Location',
+      headline: 'Ideally Located',
+      body:     '',
+      items: [
+        { icon: 'train',    label: 'Train Station',     distance: '' },
+        { icon: 'city',     label: 'City Centre',       distance: '' },
+        { icon: 'airport',  label: 'International Airport', distance: '' },
+        { icon: 'shopping', label: 'Shopping',          distance: '' },
+      ],
+    }),
+    defaultLayout: () => ({ accentBg: '#faf9f6' }),
+    previewFallback: 'Location proximity — nearby transport, landmarks and amenities',
+  },
+
+  rooms: {
+    label:   'Rooms',
+    icon:    '🛏',
+    required: [],
+    optional: ['eyebrow', 'headline', 'rooms'],
+    validation: {},
+    defaultContent: () => ({
+      eyebrow:  'Accommodation',
+      headline: 'Our Rooms & Suites',
+      rooms: [
+        {
+          name:       '',
+          tagline:    '',
+          capacity:   2,
+          size:       '',
+          body:       '',
+          amenities:  [
+            { icon: 'bed',  label: 'Bed 180×200 cm' },
+            { icon: 'bath', label: 'Bathtub' },
+          ],
+          images:     [{ url: '', alt: '' }],
+          ctaLabel:   'To Book',
+          ctaUrl:     '',
+        },
+      ],
+    }),
+    defaultLayout: () => ({ accentBg: '#faf9f6' }),
+    previewFallback: 'Room types — alternating image/text with capacity, size, amenities and CTA',
+  },
+
   faq: {
     label:     'FAQs',
     icon:      '?',
@@ -388,8 +479,8 @@ export const SECTION_REGISTRY = {
 // ── Ordered list for the section picker UI ────────────────────────────────────
 export const SECTION_TYPE_ORDER = [
   'hero', 'stats', 'intro', 'highlight-band', 'feature', 'quote',
-  'mosaic', 'gallery', 'films', 'dining', 'spaces', 'wellness',
-  'weddings', 'faq', 'pricing', 'verified', 'image-full', 'cta', 'related',
+  'mosaic', 'bento-grid', 'gallery', 'films', 'dining', 'spaces', 'wellness',
+  'rooms', 'nearby', 'weddings', 'faq', 'pricing', 'verified', 'map', 'image-full', 'cta', 'related',
 ];
 
 // ── Create a fresh section with defaults ──────────────────────────────────────

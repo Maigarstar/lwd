@@ -355,8 +355,7 @@ function AdminRoute({ onBack, onNavigate }) {
   }
 
   if (!isAuthenticated) {
-    window.location.href = "/admin/login";
-    return null;
+    return <AdminLogin onBack={onBack} />;
   }
 
   return (
@@ -396,8 +395,14 @@ function App() {
   // Ref: skip pushState when change came from popstate (back/forward)
   const skipPush = useRef(false);
 
-  // Scroll to top whenever the page changes
-  useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" }); }, [page]);
+  // Scroll to top whenever the page or active slug changes
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    });
+  }, [page, activeShowcaseSlug, activeCountrySlug, activeRegionSlug, activeCategorySlug, activePlannerSlug]);
 
   // ── URL sync: push URL whenever state changes ─────────────────────────────
   useEffect(() => {

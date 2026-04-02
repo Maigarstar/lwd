@@ -1,7 +1,6 @@
 // ─── showcaseService.js ───────────────────────────────────────────────────────
 // CRUD for venue_showcases table
-// Supports: venue and planner showcase types
-// RLS disabled, anon key writes (matches magazine_posts pattern)
+// All writes go through admin-showcases edge function (service role, bypasses RLS).
 // ─────────────────────────────────────────────────────────────────────────────
 // STATUS MAPPING NOTE:
 //   UI uses:  'draft' | 'live'
@@ -10,10 +9,29 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { supabase, isSupabaseAvailable } from '../lib/supabaseClient';
 
+const EDGE_URL = 'https://qpkggfibwreznussudfh.supabase.co/functions/v1/admin-showcases';
+
 // Map UI status → DB status
 function toDbStatus(s) { return s === 'live' ? 'published' : (s || 'draft'); }
 // Map DB status → UI status
 function toUiStatus(s) { return s === 'published' ? 'live' : (s || 'draft'); }
+
+// ── Call admin-showcases edge function ────────────────────────────────────────
+async function callEdge(action, params = {}) {
+  const response = await fetch(EDGE_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`,
+    },
+    body: JSON.stringify({ action, ...params }),
+  });
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || `admin-showcases [${action}] failed: ${response.statusText}`);
+  }
+  return result.data;
+}
 
 // ── Transform: DB row → admin card shape ─────────────────────────────────────
 function dbToCard(row) {
@@ -69,9 +87,11 @@ function formToDb(form, type = 'venue') {
 export async function fetchShowcases(type = null) {
   if (!isSupabaseAvailable()) return [];
   try {
+    // Exclude heavy sections/published_sections JSON — not needed for list cards
+    const CARD_COLS = 'id,type,title,slug,location,excerpt,hero_image_url,logo_url,preview_url,listing_id,status,key_stats,sort_order,published_at,updated_at,created_at';
     let q = supabase
       .from('venue_showcases')
-      .select('*')
+      .select(CARD_COLS)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: false });
 
@@ -83,6 +103,23 @@ export async function fetchShowcases(type = null) {
   } catch (err) {
     console.error('[showcaseService] fetchShowcases error:', err);
     return [];
+  }
+}
+
+// ── Fetch single showcase by ID (for admin/internal use — returns card shape) ──
+export async function fetchShowcaseById(id) {
+  if (!isSupabaseAvailable() || !id) return null;
+  try {
+    const { data, error } = await supabase
+      .from('venue_showcases')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? dbToCard(data) : null;
+  } catch (err) {
+    console.error('[showcaseService] fetchShowcaseById error:', err);
+    return null;
   }
 }
 
@@ -104,8 +141,6 @@ export async function fetchShowcaseBySlugCard(slug) {
 }
 
 // ── Fetch a single showcase by slug (for public rendering) ────────────────────
-// Returns the published_sections field for the public page renderer.
-// Returns null if not found or not published.
 export async function fetchShowcaseBySlug(slug) {
   if (!isSupabaseAvailable() || !slug) return null;
   try {
@@ -123,131 +158,37 @@ export async function fetchShowcaseBySlug(slug) {
   }
 }
 
-// ── Save draft (updates sections + updated_at, does NOT touch published_sections or published_at) ──
-// Routes through update-showcase edge function to bypass RLS.
+// ── Save draft ────────────────────────────────────────────────────────────────
 export async function saveShowcaseDraft(id, updates) {
   if (!isSupabaseAvailable()) throw new Error('Supabase not available');
-
-  // Map snake_case fields to camelCase expected by edge function
-  const payload = {
-    id,
-    ...(updates.title !== undefined        && { title: updates.title }),
-    ...(updates.slug !== undefined         && { slug: updates.slug }),
-    ...(updates.location !== undefined     && { location: updates.location }),
-    ...(updates.excerpt !== undefined      && { excerpt: updates.excerpt }),
-    ...(updates.hero_image_url !== undefined && { heroImage: updates.hero_image_url }),
-    ...(updates.status !== undefined       && { status: updates.status }),
-    ...(updates.sections !== undefined     && { sections: updates.sections }),
-    ...(updates.seo_title !== undefined    && { seoTitle: updates.seo_title }),
-    ...(updates.seo_description !== undefined && { seoDescription: updates.seo_description }),
-    ...(updates.og_image !== undefined     && { ogImage: updates.og_image }),
-  };
-
-  const url = `https://qpkggfibwreznussudfh.supabase.co/functions/v1/update-showcase`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.error || 'Failed to save showcase draft');
-  }
+  await callEdge('saveDraft', { id, updates });
 }
 
-// ── Publish showcase (snapshots sections → published_sections, sets published_at) ──
+// ── Publish showcase ──────────────────────────────────────────────────────────
 export async function publishShowcase(id, sections) {
   if (!isSupabaseAvailable()) throw new Error('Supabase not available');
-  const now = new Date().toISOString();
-  const { error } = await supabase
-    .from('venue_showcases')
-    .update({
-      status:             'published',
-      sections,                          // keep working copy in sync
-      published_sections: sections,      // snapshot for public page
-      published_at:       now,
-      updated_at:         now,
-    })
-    .eq('id', id);
-  if (error) throw new Error(error.message);
+  await callEdge('publish', { id, sections });
 }
 
 // ── Duplicate a showcase ───────────────────────────────────────────────────────
 export async function duplicateShowcase(id) {
   if (!isSupabaseAvailable()) throw new Error('Supabase not available');
-  const { data: source, error: fetchErr } = await supabase
-    .from('venue_showcases')
-    .select('*')
-    .eq('id', id)
-    .single();
-  if (fetchErr) throw new Error(fetchErr.message);
-
-  const now = new Date().toISOString();
-  const newSlug = `${source.slug}-copy-${Date.now()}`;
-  const { data, error } = await supabase
-    .from('venue_showcases')
-    .insert({
-      type:               source.type,
-      title:              `${source.title} (Copy)`,
-      slug:               newSlug,
-      location:           source.location,
-      excerpt:            source.excerpt,
-      hero_image_url:     source.hero_image_url,
-      logo_url:           source.logo_url,
-      listing_id:         source.listing_id,
-      status:             'draft',
-      sections:           source.sections,
-      published_sections: [],
-      key_stats:          source.key_stats,
-      template_key:       source.template_key,
-      theme:              source.theme,
-      seo_title:          source.seo_title,
-      seo_description:    source.seo_description,
-      og_image:           source.og_image,
-      sort_order:         0,
-      created_at:         now,
-      updated_at:         now,
-    })
-    .select()
-    .single();
-  if (error) throw new Error(error.message);
-  return dbToCard(data);
+  const row = await callEdge('duplicate', { id });
+  return dbToCard(row);
 }
 
 // ── Create new showcase ───────────────────────────────────────────────────────
 export async function createShowcase(form, type = 'venue') {
   if (!isSupabaseAvailable()) {
-    // Return a mock card with a temp id so the UI still works offline
     return { ...dbToCard({ ...formToDb(form, type), id: `temp-${Date.now()}`, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }), _offline: true };
   }
   try {
-    // Call edge function to create showcase (uses service role, bypasses RLS)
-    const url = `https://qpkggfibwreznussudfh.supabase.co/functions/v1/create-showcase`;
-    const payload = { type, ...formToDb(form, type) };
-    console.log('[showcaseService] calling edge function:', url, payload);
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const result = await response.json();
-    console.log('[showcaseService] edge function response:', response.status, result);
-
-    if (!response.ok || !result.success) {
-      throw new Error(result.error || `Failed to create showcase: ${response.statusText}`);
-    }
-    return dbToCard(result.data);
+    const payload = formToDb(form, type);
+    console.log('[showcaseService] createShowcase payload:', payload);
+    const row = await callEdge('create', { payload });
+    return dbToCard(row);
   } catch (err) {
-    console.error('[showcaseService] createShowcase error:', err.message, err);
+    console.error('[showcaseService] createShowcase error:', err.message);
     throw err;
   }
 }
@@ -256,45 +197,12 @@ export async function createShowcase(form, type = 'venue') {
 export async function updateShowcase(id, form) {
   if (!isSupabaseAvailable()) return null;
   try {
-    // Call edge function to update showcase (uses service role, bypasses RLS)
-    const url = `https://qpkggfibwreznussudfh.supabase.co/functions/v1/update-showcase`;
-    const payload = {
-      id,
-      name:          form.name || form.title || '',
-      slug:          form.slug,
-      location:      form.location     || null,
-      excerpt:       form.excerpt      || null,
-      heroImage:     form.heroImage    || null,
-      logo:          form.logo         || null,
-      previewUrl:    form.previewUrl   || null,
-      listingId:     form.listingId    || null,
-      status:        toDbStatus(form.status),         // 'live' → 'published'
-      sections:      form.sections     || [],
-      stats:         (form.stats || []).filter(s => s.value && s.label),
-      sortOrder:     form.sortOrder    ?? 0,
-      publishedAt:   form.publishedAt,
-    };
-    console.log('[showcaseService] calling update edge function:', url);
-    console.log('[showcaseService] payload:', JSON.stringify(payload, null, 2));
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const result = await response.json();
-    console.log('[showcaseService] update edge function response:', response.status, result);
-
-    if (!response.ok || !result.success) {
-      throw new Error(result.error || `Failed to update showcase: ${response.statusText}`);
-    }
-    return dbToCard(result.data);
+    const payload = formToDb(form, form.type || 'venue');
+    console.log('[showcaseService] updateShowcase payload:', payload);
+    const row = await callEdge('update', { id, payload });
+    return dbToCard(row);
   } catch (err) {
-    console.error('[showcaseService] updateShowcase error:', err.message, err);
+    console.error('[showcaseService] updateShowcase error:', err.message);
     throw err;
   }
 }
@@ -303,20 +211,14 @@ export async function updateShowcase(id, form) {
 export async function fetchTemplates(type = null) {
   if (!isSupabaseAvailable()) return [];
   try {
-    let q = supabase
-      .from('venue_showcases')
-      .select('id, title, slug, type, template_key, hero_image_url, sections, key_stats, location, excerpt')
-      .eq('is_template', true)
-      .order('sort_order', { ascending: true });
-    if (type) q = q.eq('type', type);
-    const { data, error } = await q;
-    if (error) throw error;
+    const data = await callEdge('listTemplates', type ? { type } : {});
     return (data || []).map(row => ({
       id:          row.id,
       key:         row.template_key || row.slug,
       label:       row.title,
       type:        row.type,
       heroImage:   row.hero_image_url || '',
+      icon:        row.template_key || '◈',
       sections:    Array.isArray(row.sections) ? row.sections : [],
     }));
   } catch (err) {
@@ -325,53 +227,40 @@ export async function fetchTemplates(type = null) {
   }
 }
 
+// ── Save current showcase as a reusable template ──────────────────────────────
+export async function saveShowcaseAsTemplate(showcase, sections, { label, icon }) {
+  if (!isSupabaseAvailable()) throw new Error('Supabase not available');
+  const slug    = `tmpl-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '')}-${Date.now()}`;
+  const now     = new Date().toISOString();
+  const payload = {
+    type:               showcase?.type || 'venue',
+    title:              label,
+    slug,
+    status:             'draft',
+    is_template:        true,
+    template_key:       icon || '◈',
+    sections,
+    published_sections: [],
+    hero_image_url:     showcase?.hero_image_url || '',
+    sort_order:         0,
+    created_at:         now,
+    updated_at:         now,
+  };
+  return await callEdge('create', { payload });
+}
+
 // ── Clone a template into a new draft showcase ────────────────────────────────
 export async function cloneTemplate(templateId, { title, slug }) {
   if (!isSupabaseAvailable()) throw new Error('Supabase not available');
-  const { data: source, error: fetchErr } = await supabase
-    .from('venue_showcases')
-    .select('*')
-    .eq('id', templateId)
-    .single();
-  if (fetchErr) throw new Error(fetchErr.message);
-
-  const now = new Date().toISOString();
-  const { data, error } = await supabase
-    .from('venue_showcases')
-    .insert({
-      type:               source.type,
-      title:              title || `${source.title} (Copy)`,
-      slug:               slug || `${source.slug}-${Date.now()}`,
-      location:           source.location,
-      excerpt:            source.excerpt,
-      hero_image_url:     source.hero_image_url,
-      logo_url:           source.logo_url,
-      status:             'draft',
-      is_template:        false,
-      sections:           source.sections,
-      published_sections: [],
-      key_stats:          source.key_stats,
-      template_key:       source.template_key,
-      theme:              source.theme,
-      sort_order:         0,
-      created_at:         now,
-      updated_at:         now,
-    })
-    .select()
-    .single();
-  if (error) throw new Error(error.message);
-  return dbToCard(data);
+  const row = await callEdge('cloneTemplate', { templateId, title, slug });
+  return dbToCard(row);
 }
 
 // ── Delete showcase ───────────────────────────────────────────────────────────
 export async function deleteShowcase(id) {
   if (!isSupabaseAvailable()) return;
   try {
-    const { error } = await supabase
-      .from('venue_showcases')
-      .delete()
-      .eq('id', id);
-    if (error) throw error;
+    await callEdge('delete', { id });
   } catch (err) {
     console.error('[showcaseService] deleteShowcase error:', err);
     throw err;

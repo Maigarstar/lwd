@@ -60,6 +60,21 @@ layout: { "variant": "grid" }
 mosaic: { "title": "", "body": "", "images": [{"url":"","alt":""}] }  // 4 images — URLs left empty
 layout: { "variant": "grid" }
 
+bento-grid: {
+  "cells": [
+    { "type": "image", "url": "", "alt": "" },
+    { "type": "text",  "title": "", "body": "", "cta": "Discover",  "ctaUrl": "" },
+    { "type": "image", "url": "", "alt": "" },
+    { "type": "text",  "title": "", "body": "", "cta": "Explore",   "ctaUrl": "" },
+    { "type": "text",  "title": "", "body": "", "cta": "Learn More","ctaUrl": "" },
+    { "type": "image", "url": "", "alt": "" },
+    { "type": "text",  "title": "", "body": "", "cta": "Discover",  "ctaUrl": "" },
+    { "type": "image", "url": "", "alt": "" }
+  ]
+}
+layout: {}
+// 8 cells: alternating image/text in a 4-column grid. Fill title and body with editorial copy. All image URLs remain empty string. CTA labels should be varied and action-oriented.
+
 quote: { "text": "", "attribution": "", "attributionRole": "" }
 layout: { "variant": "centered", "accentBg": "#1a1209" }
 
@@ -100,6 +115,16 @@ pricing: {
 }
 layout: {}
 
+spaces: { "eyebrow": "", "headline": "", "body": "", "image": "" }
+layout: { "variant": "image-left", "accentBg": "#0f0e0c" }
+
+wellness: { "eyebrow": "", "headline": "", "body": "", "image": "" }
+layout: { "variant": "image-right", "accentBg": "#0f0e0c" }
+
+faq: { "eyebrow": "Frequently Asked Questions", "headline": "", "faqs": [{"question":"","answer":""},{"question":"","answer":""},{"question":"","answer":""}] }
+layout: {}
+// Include 3–5 realistic FAQs based on the venue type and information provided.
+
 cta: { "headline": "", "subline": "", "venueName": "" }
 layout: {}
 
@@ -113,9 +138,13 @@ SECTION ORDER (use this structure):
 7. pricing (if pricing data available)
 8. feature (rooms/suites)
 9. dining (if relevant)
-10. weddings
-11. quote (editorial — one short sentence)
-12. cta
+10. spaces (if relevant — event rooms, ballrooms)
+11. wellness (if relevant — spa, fitness)
+12. bento-grid (optional — use when venue has 4+ distinct experiences/offerings to showcase, e.g. activities, events, relaxation, dining)
+13. weddings
+14. faq (optional — 3–5 questions specific to weddings or events at this venue)
+15. quote (editorial — one short sentence)
+16. cta
 
 IMPORTANT: Keep JSON compact. stats: exactly 4 items. gallery: exactly 4 images. quote: under 30 words.
 For image URLs: always use empty string "". Images are added manually after generation.
@@ -137,6 +166,95 @@ VENUE INFORMATION:
 ${venueInfo}
 
 Return the complete JSON object now.`;
+}
+
+// ── Per-section schemas ───────────────────────────────────────────────────────
+const SECTION_SCHEMAS = {
+  'hero':           `{"title":"","tagline":"","eyebrow":"","overlay_opacity":0.45}`,
+  'stats':          `{"eyebrow":"","items":[{"value":"","label":"","sublabel":""}]} — exactly 4 items. Values should be key numbers (capacity, bedrooms, acres, years established, etc.)`,
+  'intro':          `{"eyebrow":"","headline":"","body":""} — body should be 3-4 editorial sentences`,
+  'highlight-band': `{"eyebrow":"","headline":"","body":""} — short punchy brand statement, 1-2 sentences max`,
+  'feature':        `{"eyebrow":"","headline":"","body":"","image":""} — leave image as ""`,
+  'dining':         `{"eyebrow":"","headline":"","body":"","image":""} — leave image as ""`,
+  'spaces':         `{"eyebrow":"","headline":"","body":"","image":""} — leave image as ""`,
+  'wellness':       `{"eyebrow":"","headline":"","body":"","image":""} — leave image as ""`,
+  'weddings':       `{"eyebrow":"","headline":"","body":"","image":""} — wedding-specific editorial`,
+  'quote':          `{"text":"","attribution":"","attributionRole":""} — under 25 words, guest or editorial quote`,
+  'mosaic':         `{"title":"","body":"","images":[{"url":"","alt":""}]} — 4 images, leave URLs as ""`,
+  'gallery':        `{"title":"","images":[{"url":"","caption":""}]} — 4 images, leave URLs as ""`,
+  'pricing':        `{"eyebrow":"Pricing & What to Expect","headline":"","body":"","price_from":"","price_context":"Venue hire from","typical_min":"","typical_max":"","typical_label":"Typical total wedding investment","includes":[],"excludes":[],"guidance":""}`,
+  'verified':       `{"eyebrow":"At a Glance","headline":"Venue Intelligence","venue_hire_from":"","typical_spend_min":"","typical_spend_max":"","ceremony_capacity":"","dining_capacity":"","reception_capacity":"","bedrooms":"","exclusive_use":"","catering":"","outdoor_ceremony":"","accommodation":"","location_summary":"","style":"","best_for":"","verified_date":"","verification_notes":""}`,
+  'faq':            `{"eyebrow":"Frequently Asked Questions","headline":"","faqs":[{"question":"","answer":""},{"question":"","answer":""},{"question":"","answer":""}]} — 3-5 realistic FAQs specific to this venue`,
+  'cta':            `{"headline":"","subline":"","venueName":""}`,
+  'nearby':         `{"eyebrow":"","headline":"","body":"","items":[{"icon":"train","label":"","distance":""},{"icon":"city","label":"","distance":""},{"icon":"airport","label":"","distance":""},{"icon":"shopping","label":"","distance":""}]} — 4-6 real nearby points. Use accurate distances/times if known. Icon must be one of: train, water, city, airport, beach, park, restaurant, shopping, museum, golf, spa, castle, marina, forest, business`,
+  'rooms':          `{"eyebrow":"","headline":"","rooms":[{"name":"","tagline":"","capacity":2,"size":"","body":"","amenities":[{"icon":"bed","label":""},{"icon":"bath","label":""}],"images":[{"url":"","alt":""}],"ctaLabel":"To Book","ctaUrl":""}]} — 2-4 room types. Amenity icons: bed, bath, shower, sofa, desk, table, tv, wardrobe, safe, ac, balcony, kitchen, minibar, coffee`,
+  'bento-grid':     `{"cells":[{"type":"image","images":[{"url":"","alt":""}]},{"type":"text","eyebrow":"","headline":"","title":"","body":"","cta":"Discover","ctaUrl":""},{"type":"image","images":[{"url":"","alt":""}]},{"type":"text","eyebrow":"","headline":"","title":"","body":"","cta":"Explore","ctaUrl":""},{"type":"text","eyebrow":"","headline":"","title":"","body":"","cta":"Learn More","ctaUrl":""},{"type":"image","images":[{"url":"","alt":""}]},{"type":"text","eyebrow":"","headline":"","title":"","body":"","cta":"Discover","ctaUrl":""},{"type":"image","images":[{"url":"","alt":""}]}]} — 8 cells: alternating image/text. Fill text cells with editorial copy. Leave all image URLs as "".`,
+};
+
+// Per-section system prompt
+const SECTION_SYSTEM_PROMPT = `You are a luxury venue content writer for Luxury Wedding Directory.
+Generate content for ONE specific section of a venue showcase page.
+
+OUTPUT RULES:
+- Return ONLY a valid JSON object: {"content": {...}, "layout": {...}}
+- Start with { and end with }. No markdown, no explanation, raw JSON only.
+- Every string must be real, editorial-quality content. No placeholders.
+- Write in luxury editorial voice: evocative, precise, authoritative. Never generic.
+- Use British English throughout.
+- For image fields (url, image): always use empty string "".
+- layout object: return {} if no specific layout needed, or include accentBg if appropriate.`;
+
+// ── Per-section generate function ─────────────────────────────────────────────
+export async function generateSectionWithAi({ sectionType, venueInfo }) {
+  if (!venueInfo?.trim()) throw new Error('Please provide venue information.');
+
+  const schema = SECTION_SCHEMAS[sectionType];
+  if (!schema) throw new Error(`No AI schema defined for section type: ${sectionType}`);
+
+  const userPrompt = `Generate a "${sectionType}" section for this venue.
+
+CONTENT SCHEMA: ${schema}
+
+VENUE INFORMATION:
+${venueInfo}
+
+Return {"content": {...}, "layout": {...}} now. Content must match the schema exactly. Be specific and accurate to this venue.`;
+
+  const response = await fetch(AI_GENERATE_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${ANON_KEY}`,
+    },
+    body: JSON.stringify({
+      feature:      'showcase_section_fill',
+      systemPrompt: SECTION_SYSTEM_PROMPT,
+      userPrompt,
+    }),
+  });
+
+  const result = await response.json();
+
+  if (!response.ok || result.error) {
+    if (result.status === 'not_configured') throw new Error('AI provider not configured.');
+    throw new Error(result.error || 'AI generation failed.');
+  }
+
+  const rawText = result.text || result.content || result.response || result.output || result.result || '';
+
+  let parsed;
+  try {
+    let cleaned = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    if (!cleaned.startsWith('{')) { const s = cleaned.indexOf('{'); if (s !== -1) cleaned = cleaned.slice(s); }
+    const e = cleaned.lastIndexOf('}');
+    if (e !== -1 && e < cleaned.length - 1) cleaned = cleaned.slice(0, e + 1);
+    parsed = JSON.parse(cleaned);
+  } catch {
+    throw new Error('AI returned invalid JSON. Please try again.');
+  }
+
+  if (!parsed.content) throw new Error('AI response missing content. Please try again.');
+  return { content: parsed.content, layout: parsed.layout || {} };
 }
 
 // ── Main function ─────────────────────────────────────────────────────────────
