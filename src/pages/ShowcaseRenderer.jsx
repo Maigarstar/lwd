@@ -2285,13 +2285,17 @@ function MapShowcaseSection({ content, layout, palette, showcaseName, showcaseLo
   const mutCol       = layout?.panelText  ? `${layout.panelText}bb` : (P.mode === 'light' ? '#555555' : '#aaaaaa');
   const brdCol       = P.mode === 'light' ? 'rgba(0,0,0,0.09)' : 'rgba(255,255,255,0.07)';
 
-  // Build display address from content or showcase data
-  const displayAddress = content.addressDisplay || '';
+  // Build display address — content field takes priority, then auto-format from showcase data
+  const autoAddress = showcaseName && showcaseLocation
+    ? `${showcaseName}\n${showcaseLocation.replace(/·/g, '\n').replace(/,\s*/g, '\n').trim()}`
+    : (showcaseLocation || '');
+  const displayAddress = content.addressDisplay || autoAddress;
 
   // "Where is it?" items
   const whereItems = content.whereItems || [];
 
-  const hasPanel = !!(displayAddress || content.checkin || content.checkout || content.what3words || whereItems.length);
+  // Panel always shown — it holds address, check-in/out, what3words, distances
+  const hasPanel = true;
 
   return (
     <section style={{ background: bg, padding: isMobile ? '48px 0 60px' : '72px 0 88px' }}>
