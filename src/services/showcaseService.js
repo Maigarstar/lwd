@@ -34,7 +34,29 @@ async function callEdge(action, params = {}) {
 }
 
 // ── Transform: DB row → admin card shape ─────────────────────────────────────
+// Extract best thumbnail from sections JSON (hero section: images[] or videoUrl)
+function heroThumbFromSections(sections) {
+  if (!Array.isArray(sections)) return '';
+  const hero = sections.find(s => s.type === 'hero');
+  if (!hero?.content) return '';
+  // 1. First image in hero images array
+  const imgs = hero.content.images;
+  if (Array.isArray(imgs) && imgs.length) {
+    const first = imgs[0];
+    const url = typeof first === 'string' ? first : first?.url;
+    if (url) return url;
+  }
+  // 2. Single hero image field
+  if (hero.content.image) return hero.content.image;
+  // 3. YouTube video thumbnail
+  const videoUrl = hero.content.videoUrl || '';
+  const yt = videoUrl.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  if (yt) return `https://img.youtube.com/vi/${yt[1]}/maxresdefault.jpg`;
+  return '';
+}
+
 function dbToCard(row) {
+  const sectionsThumb = heroThumbFromSections(row.sections) || heroThumbFromSections(row.published_sections);
   return {
     id:           row.id,
     type:         row.type         || 'venue',
@@ -42,7 +64,7 @@ function dbToCard(row) {
     slug:         row.slug,
     location:     row.location     || '',
     excerpt:      row.excerpt      || '',
-    heroImage:    row.hero_image_url || '',
+    heroImage:    row.hero_image_url || sectionsThumb || '',
     logo:         row.logo_url     || '',
     previewUrl:   row.preview_url  || '',
     listingId:    row.listing_id   || '',
@@ -87,8 +109,8 @@ function formToDb(form, type = 'venue') {
 export async function fetchShowcases(type = null) {
   if (!isSupabaseAvailable()) return [];
   try {
-    // Exclude heavy sections/published_sections JSON — not needed for list cards
-    const CARD_COLS = 'id,type,title,slug,location,excerpt,hero_image_url,logo_url,preview_url,listing_id,status,key_stats,sort_order,published_at,updated_at,created_at';
+    // sections included for hero video thumbnail extraction; published_sections for live cards
+    const CARD_COLS = 'id,type,title,slug,location,excerpt,hero_image_url,logo_url,preview_url,listing_id,status,key_stats,sort_order,published_at,updated_at,created_at,sections,published_sections';
     let q = supabase
       .from('venue_showcases')
       .select(CARD_COLS)
