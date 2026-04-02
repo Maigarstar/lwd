@@ -6,6 +6,20 @@
 import { supabase, isSupabaseAvailable } from '../lib/supabaseClient'
 import type { LeadPayload } from './leadScoringService'
 
+// Route all listing reads through the admin edge function (service_role)
+async function getListingById(id: string): Promise<{ name?: string; email?: string; contact_profile?: any } | null> {
+  if (!isSupabaseAvailable() || !supabase) return null
+  try {
+    const { data, error } = await supabase.functions.invoke('admin-listings', {
+      body: { action: 'getById', id },
+    })
+    if (error || !data?.success) return null
+    return data.data ?? null
+  } catch {
+    return null
+  }
+}
+
 export interface RouteDestination {
   partnerEmail: string | null
   partnerName: string | null
@@ -23,40 +37,21 @@ export async function resolveLeadDestination(payload: LeadPayload): Promise<Rout
   let partnerEmail: string | null = null
   let partnerName: string | null = null
 
-  // Try to find partner contact from listing
+  // Try to find partner contact from listing (via service_role edge fn)
   if (payload.listingId && isSupabaseAvailable()) {
-    try {
-      const { data } = await supabase
-        .from('listings')
-        .select('name, email, contact_profile')
-        .eq('id', payload.listingId)
-        .single()
-
-      if (data) {
-        partnerName = data.name || null
-        partnerEmail = data.email || data.contact_profile?.email || null
-      }
-    } catch (err) {
-      console.warn('leadRoutingService: Could not fetch listing for routing:', err)
+    const row = await getListingById(payload.listingId)
+    if (row) {
+      partnerName  = row.name  || null
+      partnerEmail = row.email || row.contact_profile?.email || null
     }
   }
 
   // Fallback: try vendor_id or venue_id lookup
   if (!partnerEmail && (payload.vendorId || payload.venueId) && isSupabaseAvailable()) {
-    const lookupId = payload.vendorId || payload.venueId
-    try {
-      const { data } = await supabase
-        .from('listings')
-        .select('name, email, contact_profile')
-        .eq('id', lookupId)
-        .single()
-
-      if (data) {
-        partnerName = data.name || null
-        partnerEmail = data.email || data.contact_profile?.email || null
-      }
-    } catch (err) {
-      // Silent - we'll route to internal only
+    const row = await getListingById(payload.vendorId || payload.venueId!)
+    if (row) {
+      partnerName  = row.name  || null
+      partnerEmail = row.email || row.contact_profile?.email || null
     }
   }
 

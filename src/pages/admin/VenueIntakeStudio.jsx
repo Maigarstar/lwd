@@ -396,12 +396,11 @@ function NewIntakeView({
     const t = setTimeout(async () => {
       setSearchLoading(true);
       try {
-        const { data } = await supabase
-          .from('listings')
-          .select('id, name, city, country, status')
-          .ilike('name', `%${listingSearch}%`)
-          .limit(8);
-        setListingResults(data || []);
+        // Route through admin edge function (service_role bypasses RLS)
+        const { data: fnData } = await supabase.functions.invoke('admin-listings', {
+          body: { action: 'search', nameQuery: listingSearch, limit: 8 },
+        });
+        setListingResults(fnData?.data || []);
       } catch { setListingResults([]); }
       finally { setSearchLoading(false); }
     }, 300);

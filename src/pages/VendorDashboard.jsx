@@ -14,6 +14,17 @@ import VendorLeadInbox from "../components/VendorLeadInbox";
 import { useVendorAuth } from "../context/VendorAuthContext";
 import { exitAdminPreview } from "../context/AdminPreviewContext";
 import { getMySubmission, upsertSubmission } from "../services/artistryService";
+import { supabase } from "../lib/supabaseClient";
+import {
+  runAudit,
+  fetchLatestAudit,
+  checkAiVisibility,
+  getTopIssues,
+  scoreLabel as auditScoreLabel,
+  scoreColor as auditScoreColor,
+} from "../services/websiteAuditService";
+import AuditScoreRing from "../components/seo/AuditScoreRing";
+import { fetchVendorReviews, addReviewMessage, fetchReviewMessages } from "../services/adminReviewService";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -375,6 +386,827 @@ function ChatNotification({ notification, C, onAccept, onDismiss, isMobile }) {
   );
 }
 
+// ── Vendor Reviews Panel — Reputation & Client Feedback Hub ──────────────────
+function VendorReviewsPanel({ vendorId, vendor, C, GD, NU, enquiries = [] }) {
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [replyOpen, setReplyOpen] = useState(null);
+  const [replyText, setReplyText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showScoreInfo, setShowScoreInfo] = useState(false);
+  const [reviewFilter, setReviewFilter] = useState('all');
+  const [reviewSort, setReviewSort] = useState('newest');
+  const [copiedMessage, setCopiedMessage] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  // Read previous stats from localStorage for delta comparison
+  const _storedKey = `lwd_rep_${vendorId}`;
+  const [prevStats] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(_storedKey) || 'null'); } catch { return null; }
+  });
+
+  useEffect(() => {
+    fetchVendorReviews(vendorId).then(data => { setReviews(data); setLoading(false); });
+  }, [vendorId]);
+
+  async function submitReply(reviewId) {
+    if (!replyText.trim()) return;
+    setSending(true);
+    try {
+      await addReviewMessage({ reviewId, senderType: 'owner', messageBody: replyText.trim() });
+      setReplyOpen(null); setReplyText('');
+      const updated = await fetchVendorReviews(vendorId);
+      setReviews(updated);
+    } catch (e) { console.error(e); }
+    finally { setSending(false); }
+  }
+
+  // ── Computed reputation stats ─────────────────────────────────────────────
+  const totalReviews = reviews.length;
+  const avgRating = totalReviews > 0
+    ? (reviews.reduce((s, r) => s + (r.overall_rating || 0), 0) / totalReviews).toFixed(1)
+    : null;
+  const repliedReviews = reviews.filter(r => {
+    const ownerReplies = (r.messages || []).filter(m => m.sender_type === 'owner' && !m.is_internal_note);
+    return ownerReplies.length > 0;
+  });
+  const responseRate = totalReviews > 0 ? Math.round((repliedReviews.length / totalReviews) * 100) : 0;
+  const awaitingReply = reviews.filter(r => {
+    const ownerReplies = (r.messages || []).filter(m => m.sender_type === 'owner' && !m.is_internal_note);
+    return ownerReplies.length === 0;
+  });
+
+  // Badges earned
+  const isVerified = reviews.some(r => r.is_verified || r.is_verified_booking);
+  const isTopRated = avgRating !== null && parseFloat(avgRating) >= 4.8 && totalReviews >= 5;
+  const isResponsive = responseRate >= 80 && totalReviews > 0;
+  const anyBadge = isVerified || isTopRated || isResponsive;
+
+  // LWD Reputation Score (v1 formula — out of 5.0)
+  // (avg_rating × 0.50) + (recency_ratio × 5 × 0.20) + (verified_ratio × 5 × 0.20) + (reply_rate/100 × 5 × 0.10)
+  const reputationScore = (() => {
+    if (totalReviews === 0) return null;
+    const ratingComp = parseFloat(avgRating) * 0.50;
+    const now = Date.now();
+    const recentCount = reviews.filter(r => {
+      const d = new Date(r.review_date || r.published_at || r.created_at).getTime();
+      return (now - d) / (1000 * 60 * 60 * 24 * 365) <= 1;
+    }).length;
+    const recencyComp = (recentCount / totalReviews) * 5 * 0.20;
+    const verifiedCount = reviews.filter(r => r.is_verified || r.is_verified_booking).length;
+    const verifiedComp = (verifiedCount / totalReviews) * 5 * 0.20;
+    const replyComp = (responseRate / 100) * 5 * 0.10;
+    return Math.min(ratingComp + recencyComp + verifiedComp + replyComp, 5).toFixed(1);
+  })();
+
+  // Goal progress (for progress bar)
+  const goalProgress = (() => {
+    if (totalReviews < 5)
+      return { current: totalReviews, target: 5, label: `${totalReviews} / 5 reviews`, pct: (totalReviews / 5) * 100 };
+    if (!isTopRated && parseFloat(avgRating || 0) < 4.8)
+      return { current: parseFloat(avgRating), target: 4.8, label: `${avgRating} / 4.8★ avg rating`, pct: Math.min((parseFloat(avgRating) / 4.8) * 100, 99) };
+    if (!isResponsive)
+      return { current: responseRate, target: 80, label: `${responseRate}% / 80% reply rate`, pct: Math.min((responseRate / 80) * 100, 99) };
+    return { current: 100, target: 100, label: 'All milestones reached', pct: 100 };
+  })();
+
+  // Next milestone goal text
+  const nextGoal = (() => {
+    if (totalReviews === 0) return 'Collect 5 reviews to unlock your first milestone badges.';
+    if (!isTopRated && totalReviews < 5) return `${5 - totalReviews} more ${5 - totalReviews === 1 ? 'review' : 'reviews'} to qualify for LWD Top Rated.`;
+    if (!isTopRated && parseFloat(avgRating) < 4.8) return `Maintain a 4.8+ rating across 5 reviews to earn LWD Top Rated.`;
+    if (!isResponsive && awaitingReply.length > 0) return `Reply to ${awaitingReply.length} unanswered ${awaitingReply.length === 1 ? 'review' : 'reviews'} to earn LWD Responsive.`;
+    if (isTopRated && isResponsive) return 'You\'re performing at the highest level. Keep the momentum going.';
+    return 'Keep collecting reviews to strengthen your reputation.';
+  })();
+
+  // Public listing URL
+  const publicListingUrl = vendor?.slug ? `/vendor/${vendor.slug}` : null;
+
+  // ── Delta computations (vs. previous session) ─────────────────────────────
+  const fmtDelta = (val, prev, decimals = 1) => {
+    if (prev == null || val == null) return null;
+    const d = parseFloat((parseFloat(val) - parseFloat(prev)).toFixed(decimals));
+    if (Math.abs(d) < 0.05) return null;
+    return { value: d, label: (d > 0 ? '+' : '') + d.toFixed(decimals) };
+  };
+  const ratingDelta   = fmtDelta(avgRating, prevStats?.avgRating);
+  const reviewsDelta  = prevStats != null ? totalReviews - (prevStats.totalReviews || 0) : null;
+  const rateDelta     = prevStats != null ? responseRate - (prevStats.responseRate || 0) : null;
+  const scoreDelta    = fmtDelta(reputationScore, prevStats?.reputationScore);
+
+  // Save current stats to localStorage after data loads (for next session's deltas)
+  // (runs in render path — safe because localStorage is sync and cheap)
+  if (!loading && totalReviews > 0) {
+    try { localStorage.setItem(_storedKey, JSON.stringify({ avgRating, totalReviews, responseRate, reputationScore })); } catch {}
+  }
+
+  // ── Last activity dates ───────────────────────────────────────────────────
+  const lastReviewDate = reviews.length > 0
+    ? reviews.reduce((latest, r) => {
+        const d = new Date(r.published_at || r.created_at);
+        return d > latest ? d : latest;
+      }, new Date(0))
+    : null;
+  const lastReplyDate = (() => {
+    let latest = null;
+    reviews.forEach(r => {
+      (r.messages || []).filter(m => m.sender_type === 'owner').forEach(m => {
+        const d = new Date(m.created_at);
+        if (!latest || d > latest) latest = d;
+      });
+    });
+    return latest;
+  })();
+
+  // ── Score breakdown components (for tooltip) ──────────────────────────────
+  const scoreComponents = (() => {
+    if (!reputationScore) return null;
+    const now = Date.now();
+    const recentCount = reviews.filter(r => (now - new Date(r.review_date || r.published_at || r.created_at).getTime()) / 86400000 / 365 <= 1).length;
+    const verifiedCount = reviews.filter(r => r.is_verified || r.is_verified_booking).length;
+    return [
+      { label: '★ Rating quality',   weight: '50%', pts: (parseFloat(avgRating) * 0.50).toFixed(2) },
+      { label: '◷ Recency',          weight: '20%', pts: ((recentCount / totalReviews) * 5 * 0.20).toFixed(2) },
+      { label: '◈ Verified reviews', weight: '20%', pts: ((verifiedCount / totalReviews) * 5 * 0.20).toFixed(2) },
+      { label: '↩ Reply rate',       weight: '10%', pts: ((responseRate / 100) * 5 * 0.10).toFixed(2) },
+    ];
+  })();
+
+  // ── Relative time helper ─────────────────────────────────────────────────
+  const relTime = (date) => {
+    if (!date) return null;
+    const days = Math.floor((Date.now() - date.getTime()) / 86400000);
+    if (days === 0) return 'today';
+    if (days === 1) return 'yesterday';
+    if (days < 7) return `${days} days ago`;
+    if (days < 30) return `${Math.floor(days / 7)} ${Math.floor(days / 7) === 1 ? 'week' : 'weeks'} ago`;
+    if (days < 365) return `${Math.floor(days / 30)} ${Math.floor(days / 30) === 1 ? 'month' : 'months'} ago`;
+    return date.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+  };
+
+  // Rating distribution (5★ → 1★)
+  const ratingDist = [5,4,3,2,1].map(star => {
+    const count = reviews.filter(r => Math.round(r.overall_rating) === star).length;
+    return { star, count, pct: totalReviews > 0 ? (count / totalReviews) * 100 : 0 };
+  });
+
+  // Sub-rating aggregates across all reviews
+  const subRatingAgg = (() => {
+    const acc = {};
+    reviews.forEach(r => {
+      Object.entries(r.sub_ratings || {}).forEach(([key, val]) => {
+        if (!acc[key]) acc[key] = { sum: 0, count: 0 };
+        acc[key].sum += Number(val);
+        acc[key].count++;
+      });
+    });
+    return Object.entries(acc)
+      .map(([key, { sum, count }]) => ({ label: key, avg: (sum / count).toFixed(1) }))
+      .sort((a, b) => parseFloat(b.avg) - parseFloat(a.avg));
+  })();
+
+  // Filtered + sorted reviews list
+  const filteredSortedReviews = (() => {
+    let list = [...reviews];
+    if (reviewFilter === 'awaiting') list = list.filter(r => !(r.messages || []).some(m => m.sender_type === 'owner' && !m.is_internal_note));
+    if (reviewFilter === 'replied') list = list.filter(r => (r.messages || []).some(m => m.sender_type === 'owner' && !m.is_internal_note));
+    if (reviewSort === 'newest') list.sort((a, b) => new Date(b.published_at || b.created_at) - new Date(a.published_at || a.created_at));
+    if (reviewSort === 'highest') list.sort((a, b) => (b.overall_rating || 0) - (a.overall_rating || 0));
+    if (reviewSort === 'lowest') list.sort((a, b) => (a.overall_rating || 0) - (b.overall_rating || 0));
+    return list;
+  })();
+
+  // Shareable review invite URL — links to vendor profile reviews section
+  const reviewInviteUrl = vendor?.slug
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/vendor/${vendor.slug}`
+    : null;
+
+  // Review opportunities from enquiries (booked/confirmed)
+  const reviewOpportunities = enquiries.filter(e =>
+    ['booked', 'confirmed', 'completed'].includes(e.status)
+  ).slice(0, 3);
+
+  // Recent activity (last 3 events across reviews + replies)
+  const recentActivity = [];
+  reviews.forEach(r => {
+    recentActivity.push({ type: 'review', date: new Date(r.published_at || r.created_at), label: `New review from ${r.reviewer_name}`, rating: r.overall_rating });
+    (r.messages || []).filter(m => m.sender_type === 'owner').forEach(m => {
+      recentActivity.push({ type: 'reply', date: new Date(m.created_at), label: `You replied to ${r.reviewer_name}` });
+    });
+  });
+  recentActivity.sort((a, b) => b.date - a.date);
+  const topActivity = recentActivity.slice(0, 3);
+
+  if (loading) return <div style={{ padding: 40, color: C.grey, fontFamily: NU, fontSize: 13 }}>Loading…</div>;
+
+  const SectionLabel = ({ children, action }) => (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+      <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: '2.5px', textTransform: 'uppercase', color: C.gold, fontWeight: 700 }}>
+        {children}
+      </div>
+      {action}
+    </div>
+  );
+
+  const Divider = () => (
+    <div style={{ height: 1, background: C.border, margin: '28px 0' }} />
+  );
+
+  const GhostBtn = ({ onClick, children }) => (
+    <button onClick={onClick} style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', padding: '5px 12px', borderRadius: 3, border: `1px solid ${C.gold}60`, background: `${C.gold}12`, color: C.gold, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+      {children}
+    </button>
+  );
+
+  return (
+    <div>
+      {/* ── Request a Review modal ─────────────────────────────────────────── */}
+      {showRequestModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+          onClick={() => setShowRequestModal(false)}>
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '32px 28px', maxWidth: 460, width: '100%' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: '2.5px', textTransform: 'uppercase', color: C.gold, marginBottom: 12, fontWeight: 700 }}>Request a Review</div>
+            <div style={{ fontFamily: GD, fontSize: 20, color: C.white, fontWeight: 300, marginBottom: 12 }}>Building your review profile</div>
+            <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.7, marginBottom: 20 }}>
+              The most effective review requests are personal ones — a short, warm message tied to a couple's specific day, sent within a few weeks of their event.
+            </p>
+            <div style={{ background: `${C.gold}08`, border: `1px solid ${C.gold}30`, borderRadius: 3, padding: '14px 16px', marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: C.gold }}>Suggested message</div>
+                <button
+                  onClick={() => {
+                    const link = reviewInviteUrl || '';
+                    const msg = `Hi [Name], we loved hosting your wedding and hope it was everything you dreamed of. If you have a moment, we'd be so grateful if you could share a few words about your experience — it means the world to us and helps other couples find us.${link ? `\n\nYou can leave your review here: ${link}` : ''}\n\nThank you so much.`;
+                    navigator.clipboard.writeText(msg).then(() => { setCopiedMessage(true); setTimeout(() => setCopiedMessage(false), 2500); }).catch(() => {});
+                  }}
+                  style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', padding: '4px 10px', borderRadius: 2, border: `1px solid ${C.gold}50`, background: copiedMessage ? `${C.gold}25` : `${C.gold}12`, color: copiedMessage ? C.gold : C.gold, cursor: 'pointer', transition: 'background 0.2s', whiteSpace: 'nowrap' }}
+                >
+                  {copiedMessage ? '✓ Copied!' : 'Copy message'}
+                </button>
+              </div>
+              <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.7, margin: 0, fontStyle: 'italic' }}>
+                "Hi [Name], we loved hosting your wedding and hope it was everything you dreamed of. If you have a moment, we'd be so grateful if you could share a few words about your experience — it means the world to us and helps other couples find us.{reviewInviteUrl && ` You can leave your review here: ${reviewInviteUrl}`}"
+              </p>
+            </div>
+
+            {/* Shareable link */}
+            {reviewInviteUrl && (
+              <div style={{ background: `${C.gold}05`, border: `1px solid ${C.border}`, borderRadius: 3, padding: '12px 14px', marginBottom: 16 }}>
+                <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: C.grey, marginBottom: 8 }}>Your review link</div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div style={{ flex: 1, fontFamily: NU, fontSize: 11, color: C.grey, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {reviewInviteUrl}
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(reviewInviteUrl).then(() => { setCopiedLink(true); setTimeout(() => setCopiedLink(false), 2500); }).catch(() => {});
+                    }}
+                    style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', padding: '5px 12px', borderRadius: 2, border: `1px solid ${C.gold}50`, background: copiedLink ? `${C.gold}25` : `${C.gold}12`, color: C.gold, cursor: 'pointer', flexShrink: 0, transition: 'background 0.2s', whiteSpace: 'nowrap' }}
+                  >
+                    {copiedLink ? '✓ Copied!' : 'Copy link'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {[
+              'Send via WhatsApp or email — a personal message gets far more responses than a generic link',
+              'Ask within 4–8 weeks of the event while the memory is fresh',
+              'Reviews submitted by couples are verified by LWD before publishing',
+            ].map((tip, i) => (
+              <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 8, alignItems: 'flex-start' }}>
+                <span style={{ color: C.gold, fontSize: 11, marginTop: 1, flexShrink: 0 }}>→</span>
+                <span style={{ fontFamily: NU, fontSize: 11, color: C.grey, lineHeight: 1.6 }}>{tip}</span>
+              </div>
+            ))}
+            <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowRequestModal(false)} style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', padding: '10px 24px', borderRadius: 3, border: 'none', background: C.gold, color: '#fff', cursor: 'pointer' }}>
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Page header ───────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
+        <div>
+          <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: '3px', textTransform: 'uppercase', color: C.gold, marginBottom: 8 }}>Client Feedback</div>
+          <div style={{ fontFamily: GD, fontSize: 26, color: C.white, fontWeight: 300 }}>Reputation Hub</div>
+          <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, marginTop: 4, lineHeight: 1.6, maxWidth: 380 }}>
+            Your reviews build trust with every couple who visits your listing.
+          </p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end', flexShrink: 0, marginTop: 4 }}>
+          <button
+            onClick={() => setShowRequestModal(true)}
+            style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', padding: '10px 20px', borderRadius: 3, border: 'none', background: C.gold, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            + Request a Review
+          </button>
+          {publicListingUrl ? (
+            <a
+              href={publicListingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontFamily: NU, fontSize: 10, fontWeight: 600, color: C.grey, textDecoration: 'none', letterSpacing: '0.3px', display: 'flex', alignItems: 'center', gap: 4 }}
+            >
+              ↗ View Public Profile
+            </a>
+          ) : (
+            <span style={{ fontFamily: NU, fontSize: 10, color: C.border, letterSpacing: '0.3px', cursor: 'default' }}>
+              ↗ View Public Profile
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* ── Reputation Summary ─────────────────────────────────────────────── */}
+      <SectionLabel>Your Reputation</SectionLabel>
+
+      {/* Milestone reward banner — shown when any badge is earned */}
+      {anyBadge && (
+        <div style={{ background: `${C.gold}10`, border: `1px solid ${C.gold}40`, borderRadius: 4, padding: '12px 18px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 16, color: C.gold }}>★</span>
+          <div>
+            <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, color: C.gold, marginBottom: 2 }}>
+              {isTopRated && isResponsive ? 'You\'ve reached the highest tier — LWD Top Rated & Responsive' : isTopRated ? 'Milestone reached — LWD Top Rated' : isResponsive ? 'Milestone reached — LWD Responsive' : 'LWD Verified status active on your listing'}
+            </div>
+            <div style={{ fontFamily: NU, fontSize: 10, color: C.grey }}>Your badge is displayed on your public listing and in curated search results.</div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '20px 24px', marginBottom: 12 }}>
+        {/* Stat row — 4 columns */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
+          {/* Avg Rating */}
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontFamily: GD, fontSize: 30, fontWeight: 300, color: avgRating ? C.gold : C.border, lineHeight: 1 }}>
+              {avgRating ?? ''}
+            </div>
+            <div style={{ fontFamily: NU, fontSize: 9, color: C.grey, marginTop: 6, letterSpacing: '0.5px' }}>
+              {avgRating ? '★ Avg Rating' : 'No rating yet'}
+            </div>
+            {ratingDelta && (
+              <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, marginTop: 4, color: ratingDelta.value > 0 ? '#15803d' : '#b91c1c' }}>
+                {ratingDelta.label}
+              </div>
+            )}
+          </div>
+          {/* Review count */}
+          <div style={{ textAlign: 'center', borderLeft: `1px solid ${C.border}` }}>
+            <div style={{ fontFamily: GD, fontSize: 30, fontWeight: 300, color: totalReviews > 0 ? C.white : C.border, lineHeight: 1 }}>
+              {totalReviews}
+            </div>
+            <div style={{ fontFamily: NU, fontSize: 9, color: C.grey, marginTop: 6, letterSpacing: '0.5px' }}>
+              {totalReviews === 1 ? 'Review' : 'Reviews'}
+            </div>
+            {reviewsDelta != null && reviewsDelta !== 0 && (
+              <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, marginTop: 4, color: reviewsDelta > 0 ? '#15803d' : '#b91c1c' }}>
+                {reviewsDelta > 0 ? `+${reviewsDelta}` : reviewsDelta} new
+              </div>
+            )}
+          </div>
+          {/* Response rate */}
+          <div style={{ textAlign: 'center', borderLeft: `1px solid ${C.border}` }}>
+            <div style={{ fontFamily: GD, fontSize: 30, fontWeight: 300, color: responseRate >= 80 ? '#15803d' : responseRate > 0 ? C.gold : C.border, lineHeight: 1 }}>
+              {totalReviews > 0 ? `${responseRate}%` : ''}
+            </div>
+            <div style={{ fontFamily: NU, fontSize: 9, color: C.grey, marginTop: 6, letterSpacing: '0.5px' }}>Reply Rate</div>
+            {rateDelta != null && Math.abs(rateDelta) >= 1 && (
+              <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, marginTop: 4, color: rateDelta > 0 ? '#15803d' : '#b91c1c' }}>
+                {rateDelta > 0 ? `+${rateDelta}` : rateDelta}%
+              </div>
+            )}
+          </div>
+          {/* LWD Reputation Score */}
+          <div style={{ textAlign: 'center', borderLeft: `1px solid ${C.border}`, position: 'relative' }}>
+            <div style={{ fontFamily: GD, fontSize: 30, fontWeight: 300, color: reputationScore ? (parseFloat(reputationScore) >= 4 ? '#15803d' : parseFloat(reputationScore) >= 2.5 ? C.gold : C.grey) : C.border, lineHeight: 1 }}>
+              {reputationScore ?? ''}
+            </div>
+            <div style={{ fontFamily: NU, fontSize: 9, color: C.grey, marginTop: 6, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+              LWD Score /5
+              {reputationScore && (
+                <button
+                  onClick={() => setShowScoreInfo(s => !s)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 11, color: C.grey, lineHeight: 1, opacity: 0.7 }}
+                  title="How is this calculated?"
+                >ⓘ</button>
+              )}
+            </div>
+            {scoreDelta && (
+              <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, marginTop: 4, color: scoreDelta.value > 0 ? '#15803d' : '#b91c1c' }}>
+                {scoreDelta.label}
+              </div>
+            )}
+            {/* Score breakdown popover */}
+            {showScoreInfo && scoreComponents && (
+              <div
+                onClick={() => setShowScoreInfo(false)}
+                style={{ position: 'absolute', bottom: 'calc(100% + 8px)', right: 0, background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '14px 16px', width: 240, zIndex: 50, textAlign: 'left', boxShadow: '0 4px 20px rgba(0,0,0,0.35)' }}
+              >
+                <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: C.gold, marginBottom: 10 }}>Score Breakdown</div>
+                {scoreComponents.map(({ label, weight, pts }) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7, gap: 8 }}>
+                    <span style={{ fontFamily: NU, fontSize: 10, color: C.grey, flex: 1 }}>{label}</span>
+                    <span style={{ fontFamily: NU, fontSize: 9, color: C.grey, opacity: 0.55 }}>{weight}</span>
+                    <span style={{ fontFamily: NU, fontSize: 10, color: C.gold, fontWeight: 700, minWidth: 32, textAlign: 'right' }}>{pts}</span>
+                  </div>
+                ))}
+                <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 8, paddingTop: 8, display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontFamily: NU, fontSize: 10, color: C.white, fontWeight: 700 }}>Total</span>
+                  <span style={{ fontFamily: NU, fontSize: 10, color: C.gold, fontWeight: 700 }}>{reputationScore} / 5.0</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Next Goal — with progress bar */}
+        <div style={{ padding: '14px 16px', background: `${C.gold}08`, border: `1px solid ${C.gold}20`, borderRadius: 3, marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <span style={{ color: C.gold, fontSize: 11, flexShrink: 0 }}>{goalProgress.pct >= 100 ? '★' : '◎'}</span>
+              <span style={{ fontFamily: NU, fontSize: 11, color: C.white, fontWeight: 600 }}>
+                {goalProgress.pct >= 100 ? 'All milestones reached' : 'Next goal'}
+              </span>
+            </div>
+            <span style={{ fontFamily: NU, fontSize: 10, color: C.gold, fontWeight: 700, letterSpacing: '0.3px' }}>
+              {goalProgress.label}
+            </span>
+          </div>
+          {/* Progress bar */}
+          <div style={{ height: 4, background: `${C.gold}20`, borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              width: `${Math.min(goalProgress.pct, 100)}%`,
+              background: goalProgress.pct >= 100 ? '#15803d' : C.gold,
+              borderRadius: 2,
+              transition: 'width 0.6s ease',
+            }} />
+          </div>
+          {goalProgress.pct < 100 && (
+            <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginTop: 8, lineHeight: 1.5 }}>{nextGoal}</div>
+          )}
+        </div>
+
+        {/* Badges earned */}
+        {anyBadge && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
+            {isVerified && (
+              <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: C.gold, padding: '4px 10px', border: `1px solid ${C.gold}60`, borderRadius: 2, background: `${C.gold}12`, boxShadow: `0 0 8px ${C.gold}20` }}>
+                ◈ LWD Verified
+              </span>
+            )}
+            {isTopRated && (
+              <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#15803d', padding: '4px 10px', border: '1px solid rgba(21,128,61,0.4)', borderRadius: 2, background: 'rgba(21,128,61,0.08)', boxShadow: '0 0 8px rgba(21,128,61,0.15)' }}>
+                ★ LWD Top Rated
+              </span>
+            )}
+            {isResponsive && (
+              <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#2563eb', padding: '4px 10px', border: '1px solid rgba(37,99,235,0.4)', borderRadius: 2, background: 'rgba(37,99,235,0.08)', boxShadow: '0 0 8px rgba(37,99,235,0.12)' }}>
+                ↩ LWD Responsive
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Locked badge targets */}
+        {!anyBadge && (
+          <div style={{ paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
+            <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginBottom: 8 }}>Badges you can unlock:</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {['◈ LWD Verified', '★ LWD Top Rated', '↩ LWD Responsive'].map(b => (
+                <span key={b} style={{ fontFamily: NU, fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px', color: C.border, padding: '4px 10px', border: `1px solid ${C.border}`, borderRadius: 2, opacity: 0.55 }}>{b}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Rating distribution + sub-rating aggregates */}
+        {totalReviews > 0 && (
+          <div style={{ paddingTop: 14, borderTop: `1px solid ${C.border}`, marginTop: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: subRatingAgg.length > 0 ? '1fr 1px 1fr' : '1fr', gap: '0 16px', alignItems: 'start' }}>
+              {/* Star breakdown */}
+              <div>
+                {ratingDist.map(({ star, count, pct }) => (
+                  <div key={star} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                    <span style={{ fontFamily: NU, fontSize: 9, color: C.grey, minWidth: 14, textAlign: 'right' }}>{star}★</span>
+                    <div style={{ flex: 1, height: 3, background: C.border, borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, background: pct > 0 ? C.gold : 'transparent', borderRadius: 2, transition: 'width 0.5s ease' }} />
+                    </div>
+                    <span style={{ fontFamily: NU, fontSize: 9, color: count > 0 ? C.white : C.border, minWidth: 12, textAlign: 'right' }}>{count}</span>
+                  </div>
+                ))}
+              </div>
+              {/* Vertical divider */}
+              {subRatingAgg.length > 0 && <div style={{ background: C.border }} />}
+              {/* Sub-rating averages */}
+              {subRatingAgg.length > 0 && (
+                <div>
+                  {subRatingAgg.map(({ label, avg }) => (
+                    <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5, gap: 8 }}>
+                      <span style={{ fontFamily: NU, fontSize: 9, color: C.grey, textTransform: 'capitalize' }}>{label}</span>
+                      <span style={{ fontFamily: NU, fontSize: 9, color: C.gold, fontWeight: 700 }}>{avg}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <Divider />
+
+      {/* ── Why Reviews Matter ────────────────────────────────────────────────── */}
+      <SectionLabel>Why This Matters</SectionLabel>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 28 }}>
+        {[
+          { icon: '↑', label: 'Visibility', body: 'Listings with 5+ reviews appear higher in curated search results and editorial features.' },
+          { icon: '◎', label: 'Trust', body: 'Most couples read 3+ reviews before deciding to enquire. Your first review is your most powerful.' },
+          { icon: '→', label: 'Conversion', body: 'Venues that reply to every review convert enquiries at a significantly higher rate.' },
+        ].map(({ icon, label, body }) => (
+          <div key={label} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '16px 18px' }}>
+            <div style={{ fontFamily: GD, fontSize: 20, color: C.gold, marginBottom: 8 }}>{icon}</div>
+            <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, color: C.white, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>
+            <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, lineHeight: 1.6 }}>{body}</div>
+          </div>
+        ))}
+      </div>
+
+      <Divider />
+
+      {/* ── Recent Activity ───────────────────────────────────────────────────── */}
+      <SectionLabel>Recent Activity</SectionLabel>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, marginBottom: 28, overflow: 'hidden' }}>
+        {topActivity.length === 0 ? (
+          <div style={{ padding: '20px 24px' }}>
+            <div style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.7 }}>
+              Your review activity will appear here. Once your first review is published, you'll see new reviews, replies, and milestones in this feed.
+            </div>
+          </div>
+        ) : (
+          <>
+            {topActivity.map((act, i) => (
+              <div key={i} style={{ padding: '14px 24px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: act.type === 'review' ? C.gold : '#2563eb', flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: NU, fontSize: 12, color: C.white }}>{act.label}</div>
+                  {act.rating && <span style={{ fontFamily: NU, fontSize: 10, color: C.gold }}>{'★'.repeat(Math.round(act.rating))} {act.rating}</span>}
+                </div>
+                <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, whiteSpace: 'nowrap' }}>
+                  {act.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                </div>
+              </div>
+            ))}
+            {(lastReviewDate || lastReplyDate) && (
+              <div style={{ padding: '10px 24px', background: `${C.gold}04`, display: 'flex', gap: 20 }}>
+                {lastReviewDate && (
+                  <span style={{ fontFamily: NU, fontSize: 9, color: C.grey, letterSpacing: '0.3px' }}>
+                    Last review: <span style={{ color: C.white }}>{relTime(lastReviewDate)}</span>
+                  </span>
+                )}
+                {lastReplyDate && (
+                  <span style={{ fontFamily: NU, fontSize: 9, color: C.grey, letterSpacing: '0.3px' }}>
+                    Last reply: <span style={{ color: C.white }}>{relTime(lastReplyDate)}</span>
+                  </span>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* ── Review Opportunities ──────────────────────────────────────────────── */}
+      <SectionLabel>Review Opportunities</SectionLabel>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, marginBottom: 28, overflow: 'hidden' }}>
+        {reviewOpportunities.length === 0 ? (
+          <div style={{ padding: '20px 24px' }}>
+            <div style={{ fontFamily: NU, fontSize: 12, color: C.white, marginBottom: 6, fontWeight: 600 }}>Turn bookings into reviews</div>
+            <div style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.7 }}>
+              Confirmed bookings appear here so you can invite couples to share their experience. A timely, personal ask is the single most effective way to build your review profile.
+            </div>
+          </div>
+        ) : (
+          <>
+            <div style={{ padding: '12px 24px', borderBottom: `1px solid ${C.border}`, background: `${C.gold}06` }}>
+              <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>
+                You have <strong style={{ color: C.white }}>{reviewOpportunities.length} confirmed {reviewOpportunities.length === 1 ? 'booking' : 'bookings'}</strong> where you haven't yet received a review.
+              </span>
+            </div>
+            {reviewOpportunities.map((enq, i) => (
+              <div key={enq.id || i} style={{ padding: '14px 24px', borderBottom: i < reviewOpportunities.length - 1 ? `1px solid ${C.border}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <div style={{ fontFamily: NU, fontSize: 12, fontWeight: 600, color: C.white }}>
+                    {enq.name || enq.couple_name || 'Couple'}
+                  </div>
+                  <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginTop: 2 }}>
+                    {enq.event_date
+                      ? `${new Date(enq.event_date).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })} · Hasn't left a review yet`
+                      : 'Booking confirmed · Hasn\'t left a review yet'}
+                  </div>
+                </div>
+                <GhostBtn onClick={() => setShowRequestModal(true)}>Invite to Review</GhostBtn>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+
+      <Divider />
+
+      {/* ── Reviews List ──────────────────────────────────────────────────────── */}
+      <SectionLabel
+        action={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {awaitingReply.length > 0 && (
+              <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', color: C.gold, padding: '3px 9px', border: `1px solid ${C.gold}50`, borderRadius: 10, background: `${C.gold}12` }}>
+                {awaitingReply.length} awaiting reply
+              </span>
+            )}
+            {totalReviews > 0 && <GhostBtn onClick={() => setShowRequestModal(true)}>+ Request Another</GhostBtn>}
+          </div>
+        }
+      >
+        {totalReviews > 0 ? `Your Reviews · ${totalReviews}` : 'Your Reviews'}
+      </SectionLabel>
+
+      {/* Awaiting reply callout */}
+      {awaitingReply.length > 0 && (
+        <div style={{ background: `${C.gold}0C`, border: `1px solid ${C.gold}40`, borderRadius: 4, padding: '14px 18px', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <span style={{ fontSize: 14, color: C.gold, flexShrink: 0 }}>↩</span>
+            <div>
+              <div style={{ fontFamily: NU, fontSize: 12, fontWeight: 700, color: C.gold, marginBottom: 3 }}>
+                {awaitingReply.length} {awaitingReply.length === 1 ? 'review' : 'reviews'} waiting for your reply
+              </div>
+              <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, lineHeight: 1.6 }}>
+                Couples who receive a reply are significantly more likely to recommend you. Most responses take less than 2 minutes to write.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filter + sort bar */}
+      {totalReviews > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {[
+              { key: 'all', label: `All (${totalReviews})` },
+              { key: 'awaiting', label: awaitingReply.length > 0 ? `Awaiting reply (${awaitingReply.length})` : 'Awaiting reply' },
+              { key: 'replied', label: 'Replied' },
+            ].map(({ key, label }) => (
+              <button key={key} onClick={() => setReviewFilter(key)} style={{ fontFamily: NU, fontSize: 10, fontWeight: reviewFilter === key ? 700 : 400, padding: '5px 12px', borderRadius: 2, border: `1px solid ${reviewFilter === key ? C.gold : C.border}`, background: reviewFilter === key ? `${C.gold}15` : 'transparent', color: reviewFilter === key ? C.gold : C.grey, cursor: 'pointer' }}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <select
+            value={reviewSort}
+            onChange={e => setReviewSort(e.target.value)}
+            style={{ fontFamily: NU, fontSize: 10, padding: '5px 10px', borderRadius: 2, border: `1px solid ${C.border}`, background: C.card, color: C.grey, cursor: 'pointer' }}
+          >
+            <option value="newest">Newest first</option>
+            <option value="highest">Highest rated</option>
+            <option value="lowest">Lowest rated</option>
+          </select>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {totalReviews === 0 && (
+        <div style={{ border: `1px solid ${C.border}`, borderRadius: 4, padding: '36px 28px', textAlign: 'center' }}>
+          <div style={{ fontFamily: GD, fontSize: 20, color: C.white, fontWeight: 300, marginBottom: 8 }}>
+            Your first review is your most powerful
+          </div>
+          <div style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.7, maxWidth: 360, margin: '0 auto 24px' }}>
+            Couples trust venues with reviews 3× more. It takes a past client less than 2 minutes to share their experience — and it stays on your profile permanently.
+          </div>
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '18px 20px', textAlign: 'left', marginBottom: 24, maxWidth: 400, marginInline: 'auto' }}>
+            <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: C.gold, marginBottom: 12 }}>How to get started</div>
+            {[
+              'Reach out to recent couples personally — a WhatsApp or email works best',
+              'Ask within 4–8 weeks of their event, while the memory is fresh',
+              'Once submitted, LWD reviews your listing and publishes within 24–48 hours',
+            ].map((tip, i) => (
+              <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 8, alignItems: 'flex-start' }}>
+                <span style={{ color: C.gold, fontSize: 12, marginTop: 1, flexShrink: 0 }}>→</span>
+                <span style={{ fontFamily: NU, fontSize: 11, color: C.grey, lineHeight: 1.6 }}>{tip}</span>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={() => setShowRequestModal(true)}
+            style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', padding: '12px 32px', borderRadius: 3, border: 'none', background: C.gold, color: '#fff', cursor: 'pointer' }}
+          >
+            How to Request a Review
+          </button>
+        </div>
+      )}
+
+      {/* No results for active filter */}
+      {totalReviews > 0 && filteredSortedReviews.length === 0 && (
+        <div style={{ padding: '20px 0', textAlign: 'center', fontFamily: NU, fontSize: 12, color: C.grey }}>
+          No reviews match this filter.
+        </div>
+      )}
+
+      {/* Review cards */}
+      {filteredSortedReviews.map(r => {
+        const ownerReplies = (r.messages || []).filter(m => m.sender_type === 'owner' && !m.is_internal_note);
+        const hasReplied = ownerReplies.length > 0;
+        const needsReply = !hasReplied;
+        return (
+          <div key={r.id} style={{
+            background: C.card,
+            border: `1px solid ${needsReply ? C.gold + '40' : C.border}`,
+            borderLeft: needsReply ? `3px solid ${C.gold}` : `1px solid ${C.border}`,
+            borderRadius: 4,
+            padding: '18px 20px',
+            marginBottom: 12,
+          }}>
+            {/* Status badge */}
+            {needsReply && (
+              <div style={{ marginBottom: 10 }}>
+                <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: C.gold, padding: '3px 9px', border: `1px solid ${C.gold}50`, borderRadius: 2, background: `${C.gold}10` }}>
+                  ↩ Awaiting your reply
+                </span>
+              </div>
+            )}
+
+            {/* Review header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+              <div>
+                <div style={{ fontFamily: NU, fontSize: 13, fontWeight: 700, color: C.white }}>{r.reviewer_name}</div>
+                <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginTop: 2 }}>
+                  {r.event_type && <span>{r.event_type} · </span>}
+                  {(r.review_date || r.published_at) && new Date(r.review_date || r.published_at).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontFamily: GD, fontSize: 20, fontWeight: 700, color: C.gold }}>{r.overall_rating}</span>
+                <span style={{ fontSize: 13, color: C.gold }}>{'★'.repeat(Math.round(r.overall_rating))}</span>
+                {hasReplied && (
+                  <span style={{ fontFamily: NU, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#15803d', padding: '2px 8px', border: '1px solid rgba(21,128,61,0.3)', borderRadius: 2 }}>
+                    ✓ Replied
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div style={{ fontFamily: GD, fontSize: 15, fontWeight: 500, color: C.white, marginBottom: 6 }}>{r.review_title}</div>
+            <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.7, margin: '0 0 14px' }}>{r.review_text}</p>
+
+            {/* Existing replies */}
+            {ownerReplies.map((msg, i) => (
+              <div key={i} style={{ padding: '10px 14px', background: `${C.gold}08`, borderLeft: `2px solid ${C.gold}40`, borderRadius: 2, marginBottom: 10 }}>
+                <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: C.gold, marginBottom: 5 }}>
+                  Your Reply · {new Date(msg.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </div>
+                <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.65, margin: 0 }}>{msg.message_body}</p>
+              </div>
+            ))}
+
+            {/* Reply form */}
+            {replyOpen === r.id ? (
+              <div>
+                <textarea
+                  value={replyText}
+                  onChange={e => setReplyText(e.target.value)}
+                  placeholder="Write a warm, professional reply to this guest…"
+                  rows={4}
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 3, border: `1px solid ${C.border}`, background: C.black, color: C.white, fontFamily: NU, fontSize: 12, outline: 'none', resize: 'vertical', marginBottom: 10 }}
+                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => submitReply(r.id)} disabled={sending || !replyText.trim()} style={{ padding: '9px 20px', borderRadius: 3, border: 'none', cursor: 'pointer', background: C.gold, color: '#fff', fontFamily: NU, fontSize: 11, fontWeight: 700, opacity: sending ? 0.6 : 1 }}>
+                    {sending ? 'Sending…' : 'Post Reply'}
+                  </button>
+                  <button onClick={() => { setReplyOpen(null); setReplyText(''); }} style={{ padding: '9px 16px', borderRadius: 3, border: `1px solid ${C.border}`, cursor: 'pointer', background: 'none', color: C.grey, fontFamily: NU, fontSize: 11 }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setReplyOpen(r.id); setReplyText(''); }}
+                style={{ fontFamily: NU, fontSize: 11, fontWeight: needsReply ? 700 : 400, background: needsReply ? `${C.gold}14` : 'none', border: needsReply ? `1px solid ${C.gold}60` : `1px solid ${C.border}`, borderRadius: 3, cursor: 'pointer', color: needsReply ? C.gold : C.grey, padding: '7px 14px' }}
+              >
+                {hasReplied ? '+ Add Another Reply' : '↩ Reply to this review'}
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Main dashboard ───────────────────────────────────────────────────────────
 export default function VendorDashboard({ onBack, onVendorLogin }) {
   const { vendor: _contextVendor, isAuthenticated, loading, logout } = useVendorAuth();
@@ -494,6 +1326,10 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
 
   const [aiBio, setAiBio] = useState("");
   const [genBio, setGenBio] = useState(false);
+  const [vendorListing,     setVendorListing]     = useState(null);
+  const [vendorAudit,       setVendorAudit]       = useState(null);
+  const [vendorAuditLoading, setVendorAuditLoading] = useState(false);
+  const [vendorAiVis,       setVendorAiVis]       = useState(null); // { visible, note }
 
   // ── Live chat notifications ──────────────────────────────────────────────
   const [chatNotif, setChatNotif] = useState(null);
@@ -800,6 +1636,75 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
       if (i >= text.length) { clearInterval(interval); setGenBio(false); }
     }, 20);
   };
+
+  // Load listing + authority score when SEO tab is opened
+  useEffect(() => {
+    if (dashTab !== 'seo' || !vendor?.id) return;
+    if (vendorAudit || vendorAuditLoading) return; // already loaded
+
+    async function loadSeoAudit() {
+      setVendorAuditLoading(true);
+      try {
+        // 1. Fetch the vendor's listing
+        const { data: rows } = await supabase
+          .from('listings')
+          .select('id, name, website, city, region, country')
+          .eq('vendor_account_id', vendor.id)
+          .eq('status', 'live')
+          .limit(1);
+
+        const lst = rows?.[0] || null;
+        setVendorListing(lst);
+        if (!lst?.id) return;
+
+        // 2. Fetch latest audit
+        let row = await fetchLatestAudit({ listingId: lst.id });
+
+        // 3. Auto-run first audit if none exists and website is known
+        if (!row && lst.website) {
+          row = await runAudit(lst.website, { listingId: lst.id, logActivity: false });
+        }
+
+        setVendorAudit(row);
+
+        // 4. Check AI visibility if not yet done
+        if (row && row.ai_visible === null && lst.name) {
+          const location = [lst.city, lst.region, lst.country].filter(Boolean).join(', ');
+          const vis = await checkAiVisibility(lst.name, location, { auditId: row.id });
+          setVendorAiVis(vis);
+          setVendorAudit(prev => prev ? { ...prev, ai_visible: vis.visible, ai_visible_note: vis.note } : prev);
+        } else if (row && row.ai_visible !== null) {
+          setVendorAiVis({ visible: row.ai_visible, note: row.ai_visible_note || '' });
+        }
+      } catch (e) {
+        console.error('SEO audit load failed:', e);
+      } finally {
+        setVendorAuditLoading(false);
+      }
+    }
+
+    loadSeoAudit();
+  }, [dashTab, vendor?.id]);
+
+  async function handleRunNewAudit() {
+    if (!vendorListing?.website) return;
+    setVendorAuditLoading(true);
+    setVendorAiVis(null);
+    try {
+      const row = await runAudit(vendorListing.website, { listingId: vendorListing.id, logActivity: false });
+      setVendorAudit(row);
+      const location = [vendorListing.city, vendorListing.region, vendorListing.country].filter(Boolean).join(', ');
+      if (vendorListing.name) {
+        const vis = await checkAiVisibility(vendorListing.name, location, { auditId: row.id });
+        setVendorAiVis(vis);
+        setVendorAudit(prev => prev ? { ...prev, ai_visible: vis.visible, ai_visible_note: vis.note } : prev);
+      }
+    } catch (e) {
+      console.error('Re-audit failed:', e);
+    } finally {
+      setVendorAuditLoading(false);
+    }
+  }
 
   const DTab = ({ id, label, icon }) => (
     <button
@@ -1145,33 +2050,6 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12 }}>
-          <button
-            onClick={() => {
-              const root = document.documentElement;
-              const currentMode = root.getAttribute("data-lwd-mode") || "light";
-              const newMode = currentMode === "dark" ? "light" : "dark";
-              root.setAttribute("data-lwd-mode", newMode);
-              localStorage.setItem("lwd_user_theme", newMode);
-              setTimeout(() => { window.location.reload(); }, 50);
-            }}
-            style={{
-              background: currentTheme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
-              border: `1px solid ${C.border2}`,
-              borderRadius: "var(--lwd-radius-input)",
-              color: C.gold,
-              width: 32,
-              height: 32,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              fontSize: 14,
-              transition: "all 0.25s ease",
-            }}
-            title={currentTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          >
-            {currentTheme === "dark" ? "\u2600" : "\u263E"}
-          </button>
           <div
             style={{
               width: 8,
@@ -1236,6 +2114,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
         {isMobile && sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 7999 }} />}
         {/* Sidebar */}
         <div style={{
+          position: "relative",
           ...(isMobile ? {
             position: "fixed", top: 0, left: 0, bottom: 0, width: 280, zIndex: 8000,
             transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
@@ -1249,33 +2128,13 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
           }),
           background: C.dark, borderRight: `1px solid ${C.border}`, paddingTop: 24,
           boxShadow: "2px 0 8px rgba(0,0,0,0.3)",
-          overflow: "hidden",
+          overflow: "visible",
         }}>
-          {/* Close button on mobile only */}
-          {isMobile && <button onClick={() => setSidebarOpen(false)} style={{ position: "absolute", top: 12, right: 12, background: "none", border: "none", color: C.grey, fontSize: 18, cursor: "pointer", zIndex: 10 }}>✕</button>}
+          {/* Clip inner content but allow toggle to overflow */}
+          <div style={{ overflow: "hidden", flex: 1, display: "flex", flexDirection: "column" }}>
 
-          {/* Collapse button on desktop */}
-          {!isMobile && (
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              style={{
-                position: "absolute",
-                top: 24,
-                right: 8,
-                background: "none",
-                border: "none",
-                color: C.grey,
-                fontSize: 18,
-                cursor: "pointer",
-                padding: "4px 8px",
-                transition: "color 0.2s",
-              }}
-              onMouseEnter={e => e.target.style.color = C.gold}
-              onMouseLeave={e => e.target.style.color = C.grey}
-            >
-              ›
-            </button>
-          )}
+          {/* Close button on mobile */}
+          {isMobile && <button onClick={() => setSidebarOpen(false)} style={{ position: "absolute", top: 12, right: 12, background: "none", border: "none", color: C.grey, fontSize: 18, cursor: "pointer", zIndex: 10 }}>✕</button>}
 
           <div style={{ padding: sidebarOpen ? "0 20px 20px" : "0 12px 20px", borderBottom: `1px solid ${C.border}`, minWidth: 0 }}>
             {sidebarOpen && (
@@ -1293,6 +2152,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
           </div>
           <div style={{ paddingTop: 8 }}>
             <DTab id="overview" icon="◈" label="Overview" />
+            <DTab id="reviews" icon="★" label="Reviews" />
             <DTab id="leads" icon="◇" label="Lead Inbox" />
             <DTab id="livechat" icon="◉" label="Live Conversations" />
             <DTab id="analytics" icon="◎" label="Analytics" />
@@ -1317,6 +2177,81 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
               <div style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.6 }}>Unlimited leads {"\u00b7"} Top placement {"\u00b7"} Analytics</div>
               <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, marginTop: 8 }}>Renews 1 Mar 2026</div>
             </div>
+          )}
+
+          {/* Theme toggle — bottom of sidebar */}
+          <button
+            onClick={() => {
+              const root = document.documentElement;
+              const currentMode = root.getAttribute("data-lwd-mode") || "light";
+              const newMode = currentMode === "dark" ? "light" : "dark";
+              root.setAttribute("data-lwd-mode", newMode);
+              localStorage.setItem("lwd_user_theme", newMode);
+              setTimeout(() => { window.location.reload(); }, 50);
+            }}
+            title={currentTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              width: "100%",
+              padding: sidebarOpen ? "10px 20px" : "10px 14px",
+              justifyContent: sidebarOpen ? "flex-start" : "center",
+              background: "none",
+              border: "none",
+              borderTop: `1px solid ${C.border}`,
+              color: C.grey2,
+              cursor: "pointer",
+              fontFamily: NU,
+              fontSize: 12,
+              letterSpacing: "0.03em",
+              transition: "color 0.2s",
+              marginTop: 8,
+              flexShrink: 0,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = C.gold; }}
+            onMouseLeave={e => { e.currentTarget.style.color = C.grey2; }}
+          >
+            <span style={{ fontSize: 14, lineHeight: 1 }}>
+              {currentTheme === "dark" ? "\u2600" : "\u263E"}
+            </span>
+            {sidebarOpen && (
+              <span>{currentTheme === "dark" ? "Light mode" : "Dark mode"}</span>
+            )}
+          </button>
+          </div>{/* end inner overflow:hidden wrapper */}
+
+          {/* Desktop sidebar toggle — floats on right edge */}
+          {!isMobile && (
+            <button
+              onClick={() => setSidebarOpen(s => !s)}
+              title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+              style={{
+                position: "absolute",
+                top: "50%",
+                right: -14,
+                transform: "translateY(-50%)",
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                background: C.dark,
+                border: `1px solid ${C.border}`,
+                color: C.grey,
+                fontSize: 13,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 100,
+                transition: "color 0.2s, border-color 0.2s",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
+                lineHeight: 1,
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = C.gold; e.currentTarget.style.borderColor = C.gold; }}
+              onMouseLeave={e => { e.currentTarget.style.color = C.grey; e.currentTarget.style.borderColor = C.border; }}
+            >
+              {sidebarOpen ? "‹" : "›"}
+            </button>
           )}
         </div>
 
@@ -1635,6 +2570,11 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
                 <MiniChart data={leadsData} labels={months} color={C.gold} />
               </div>
             </div>
+          )}
+
+          {/* REVIEWS — reputation hub, reply-only, no moderation */}
+          {dashTab === "reviews" && vendor?.id && (
+            <VendorReviewsPanel vendorId={vendor.id} vendor={vendor} C={C} GD={GD} NU={NU} enquiries={enquiries} />
           )}
 
           {/* LEADS */}
@@ -2622,23 +3562,142 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
           {dashTab === "seo" && (
             <div>
               <div style={{ marginBottom: 28 }}>
-                <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: "3px", textTransform: "uppercase", color: C.gold, marginBottom: 8 }}>AI-Powered SEO Tools</div>
-                <h2 style={{ fontFamily: GD, fontSize: isMobile ? 24 : 32, color: C.white, fontWeight: 600 }}>Rank Higher. Get More Leads.</h2>
+                <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: "3px", textTransform: "uppercase", color: C.gold, marginBottom: 8 }}>Website Visibility</div>
+                <h2 style={{ fontFamily: GD, fontSize: isMobile ? 24 : 32, color: C.white, fontWeight: 600 }}>Your Authority Score</h2>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20, marginBottom: 24 }}>
-                {[
-                  { label: "SEO Score", val: "87/100", color: C.green, sub: "↑ 12 points this month" },
-                  { label: "Keywords Ranking", val: "34", color: C.gold, sub: "Top 10 Google positions" },
-                  { label: "Organic Traffic", val: "1,240", color: C.blue, sub: "Monthly visitors from search" },
-                  { label: "Directory Page Rank", val: "#1", color: "#a78bfa", sub: "London luxury venues" },
-                ].map((s, i) => (
-                  <div key={i} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "var(--lwd-radius-card)", padding: "20px 22px" }}>
-                    <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: C.grey, marginBottom: 6 }}>{s.label}</div>
-                    <div style={{ fontFamily: GD, fontSize: 34, color: s.color, fontWeight: 600 }}>{s.val}</div>
-                    <div style={{ fontFamily: NU, fontSize: 12, color: C.green, marginTop: 4 }}>{s.sub}</div>
+
+              {/* Authority Score card */}
+              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "var(--lwd-radius-card)", padding: 28, marginBottom: 20 }}>
+                {vendorAuditLoading && !vendorAudit ? (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "32px 0", gap: 12 }}>
+                    <div style={{ fontFamily: NU, fontSize: 13, color: C.grey }}>Analysing your website...</div>
+                    <div style={{ width: 200, height: 4, background: C.border, borderRadius: 100, overflow: "hidden" }}>
+                      <div style={{ height: "100%", background: C.gold, borderRadius: 100, width: "60%", animation: "pulse 1.5s ease-in-out infinite" }} />
+                    </div>
                   </div>
-                ))}
+                ) : vendorAudit ? (() => {
+                  const issues = getTopIssues(vendorAudit.findings);
+                  const auditDate = vendorAudit.created_at ? new Date(vendorAudit.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+                  const SIGNALS = [
+                    { key: 'title',       label: 'Page Title',        w: 15 },
+                    { key: 'description', label: 'Meta Description',  w: 15 },
+                    { key: 'schema',      label: 'Structured Data',   w: 15 },
+                    { key: 'h1',          label: 'H1 Heading',        w: 10 },
+                    { key: 'og',          label: 'Open Graph Tags',   w: 10 },
+                    { key: 'https',       label: 'HTTPS',             w: 10 },
+                    { key: 'viewport',    label: 'Mobile Viewport',   w:  5 },
+                    { key: 'canonical',   label: 'Canonical URL',     w:  5 },
+                    { key: 'sitemap',     label: 'Sitemap',           w:  5 },
+                    { key: 'robots',      label: 'Robots Meta',       w:  5 },
+                    { key: 'images',      label: 'Image Alt Text',    w:  5 },
+                  ];
+                  function signalPass(f, key) {
+                    if (!f[key]) return true;
+                    switch (key) {
+                      case 'title':       return f.title.ok;
+                      case 'description': return f.description.ok;
+                      case 'schema':      return f.schema.present;
+                      case 'h1':          return f.h1.ok;
+                      case 'og':          return f.og.complete;
+                      case 'https':       return f.https.ok;
+                      case 'viewport':    return f.viewport.present;
+                      case 'canonical':   return f.canonical.present;
+                      case 'sitemap':     return f.sitemap.found;
+                      case 'robots':      return f.robots.ok;
+                      case 'images':      return f.images.ok;
+                      default:            return true;
+                    }
+                  }
+                  return (
+                    <>
+                      {/* Score ring + summary row */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 32, flexWrap: "wrap", marginBottom: 24 }}>
+                        <AuditScoreRing score={vendorAudit.score} size={140} strokeWidth={12} />
+                        <div style={{ flex: 1, minWidth: 200 }}>
+                          {/* AI visibility */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                            <div style={{
+                              width: 10, height: 10, borderRadius: "50%",
+                              background: vendorAiVis === null ? C.border : vendorAiVis.visible ? "#22c55e" : "#6b7280",
+                              flexShrink: 0,
+                            }} />
+                            <div style={{ fontFamily: NU, fontSize: 12, color: C.grey }}>
+                              {vendorAiVis === null
+                                ? "Checking AI visibility..."
+                                : vendorAiVis.visible
+                                  ? `AI Visible: ${vendorAiVis.note}`
+                                  : "Not found in AI knowledge bases"}
+                            </div>
+                          </div>
+                          {/* Audit URL + date */}
+                          <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, marginBottom: 4 }}>
+                            {vendorAudit.url}
+                          </div>
+                          <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, marginBottom: 16, opacity: 0.6 }}>
+                            Last audited: {auditDate}
+                          </div>
+                          <button
+                            onClick={handleRunNewAudit}
+                            disabled={vendorAuditLoading}
+                            style={{
+                              fontSize: 11, padding: "6px 14px", borderRadius: "var(--lwd-radius-input)",
+                              border: `1px solid ${C.gold}`, background: "transparent", color: C.gold,
+                              cursor: vendorAuditLoading ? "not-allowed" : "pointer", fontFamily: NU,
+                              opacity: vendorAuditLoading ? 0.5 : 1,
+                            }}
+                          >
+                            {vendorAuditLoading ? "Auditing..." : "Run New Audit"}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Full signal checklist */}
+                      <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20 }}>
+                        <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", color: C.grey, marginBottom: 12 }}>Signal Checklist</div>
+                        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "6px 20px" }}>
+                          {SIGNALS.map(({ key, label, w }) => {
+                            const pass = signalPass(vendorAudit.findings, key);
+                            const issue = issues.find(i => i.signal === key);
+                            return (
+                              <div key={key} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
+                                <span style={{ fontSize: 13, color: pass ? "#22c55e" : issue?.severity === "critical" ? "#ef4444" : "#f97316", flexShrink: 0, marginTop: 1 }}>
+                                  {pass ? "✓" : "✗"}
+                                </span>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontFamily: NU, fontSize: 12, color: C.white, fontWeight: pass ? 400 : 600 }}>{label}</div>
+                                  {issue && <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, marginTop: 2 }}>{issue.label}</div>}
+                                </div>
+                                <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, opacity: 0.6 }}>{w}pts</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </>
+                  );
+                })() : (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "32px 0", gap: 12, textAlign: "center" }}>
+                    <div style={{ fontFamily: GD, fontSize: 22, color: C.white }}>No audit yet</div>
+                    <div style={{ fontFamily: NU, fontSize: 13, color: C.grey, maxWidth: 320 }}>
+                      {vendorListing?.website ? "Click below to run your first website authority audit." : "No website found on your listing. Add a website URL in your listing details."}
+                    </div>
+                    {vendorListing?.website && (
+                      <button
+                        onClick={handleRunNewAudit}
+                        style={{
+                          marginTop: 8, padding: "10px 24px", background: `linear-gradient(135deg,${C.gold},${C.gold2})`,
+                          color: C.black, border: "none", borderRadius: "var(--lwd-radius-input)",
+                          fontFamily: NU, fontSize: 11, fontWeight: 800, letterSpacing: "1.5px", textTransform: "uppercase", cursor: "pointer",
+                        }}
+                      >
+                        Run Audit
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
+
+              {/* AI Profile Writer (preserved, unchanged) */}
               <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "var(--lwd-radius-card)", padding: 28, marginBottom: 20 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
                   <div>
@@ -2685,22 +3744,6 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
                     {genBio && <span style={{ animation: "pulse 1s infinite", color: C.gold }}>|</span>}
                   </div>
                 )}
-              </div>
-              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "var(--lwd-radius-card)", padding: 24 }}>
-                <div style={{ fontFamily: NU, fontSize: 13, fontWeight: 700, color: C.white, marginBottom: 16 }}>Recommended Keywords for Your Listing</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {[
-                    "luxury wedding venues London",
-                    "Victorian ballroom wedding",
-                    "exclusive wedding hire London",
-                    "wedding venue crystal chandelier",
-                    "London wedding 300 guests",
-                    "black tie wedding London",
-                    "wedding venue with accommodation London",
-                  ].map((k) => (
-                    <Pill key={k} text={k} />
-                  ))}
-                </div>
               </div>
             </div>
           )}
@@ -2875,7 +3918,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
     </div>
 
     {/* Footer */}
-    <FooterForVendors />
+    <FooterForVendors dashTab={dashTab} darkMode={currentTheme === 'dark'} />
 
     </ThemeCtx.Provider>
   );

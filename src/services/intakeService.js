@@ -283,14 +283,13 @@ export async function pushToListing({ job, extractedData, copyMode, imageUrls, v
       : null,
   };
 
-  const { data: created, error: listingError } = await supabase
-    .from('listings')
-    .insert(listing)
-    .select('id')
-    .single();
-
-  if (listingError) throw listingError;
-  const listingId = created.id;
+  // Route through admin edge function (service_role bypasses RLS)
+  const { data: fnData, error: fnError } = await supabase.functions.invoke('admin-listings', {
+    body: { action: 'create', payload: listing },
+  });
+  if (fnError) throw fnError;
+  if (!fnData?.success) throw new Error(fnData?.error ?? 'admin-listings/create failed');
+  const listingId = fnData.data.id;
 
   // ── Write listing_id back to intake_job so re-runs can find it ───────────
   if (job?.id) {

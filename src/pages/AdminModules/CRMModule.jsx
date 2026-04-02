@@ -6,6 +6,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { convertLeadToManagedAccount, fetchManagedAccountByLeadId } from '../../services/socialStudioService';
 
 const GOLD     = '#c9a84c';
 const GOLD_DIM = 'rgba(201,168,76,0.1)';
@@ -809,13 +810,15 @@ function ActivityTab({ leads, notes, C, onSelectContact }) {
 }
 
 // ── Contact detail panel ───────────────────────────────────────────────────
-function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNote, onAddTask, onCompleteTask, noteText, setNoteText, noteSubmitting, onDealValueChange }) {
+function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNote, onAddTask, onCompleteTask, noteText, setNoteText, noteSubmitting, onDealValueChange, onConvert }) {
   const req  = lead.requirements_json || {};
   const score = calcLeadScore(lead);
   const [dealInput, setDealInput] = useState(req.dealValue||'');
   const [activeSection, setSection] = useState('overview');
   const [taskText, setTaskText]   = useState('');
   const [taskDue, setTaskDue]     = useState('');
+  const [converting, setConverting] = useState(false);
+  const [convertState, setConvertState] = useState(null); // null | 'success' | 'duplicate'
 
   const contactTasks = tasks.filter(t=>t.lead_id===lead.id);
 
@@ -845,7 +848,7 @@ function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNot
         </div>
 
         {/* Quick actions */}
-        <div style={{ display:'flex', gap:8, marginTop:12 }}>
+        <div style={{ display:'flex', gap:8, marginTop:12, flexWrap:'wrap' }}>
           <a href={`mailto:${lead.email}`} style={{ padding:'5px 12px', background:'transparent', border:`1px solid ${C.border}`, borderRadius:3, fontFamily:'var(--font-body)', fontSize:11, color:C.grey, textDecoration:'none', cursor:'pointer' }}>
             ✉ Email
           </a>
@@ -858,6 +861,33 @@ function ContactPanel({ lead, C, onClose, onStatusChange, notes, tasks, onAddNot
             <a href={req.website} target="_blank" rel="noreferrer" style={{ padding:'5px 12px', background:'transparent', border:`1px solid ${C.border}`, borderRadius:3, fontFamily:'var(--font-body)', fontSize:11, color:C.grey, textDecoration:'none', cursor:'pointer' }}>
               ↗ Website
             </a>
+          )}
+          {onConvert && lead.status === 'converted' && convertState !== 'success' && (
+            <button
+              onClick={async () => {
+                if (converting) return;
+                setConverting(true);
+                const result = await onConvert(lead);
+                setConverting(false);
+                setConvertState(result);
+              }}
+              disabled={converting}
+              style={{
+                padding:'5px 12px',
+                background: convertState === 'duplicate' ? 'transparent' : GOLD,
+                border: convertState === 'duplicate' ? `1px solid ${GOLD}` : 'none',
+                borderRadius:3, fontFamily:'var(--font-body)', fontSize:11,
+                fontWeight:600, color: convertState === 'duplicate' ? GOLD : '#000',
+                cursor: converting ? 'not-allowed' : 'pointer', letterSpacing:'0.04em',
+              }}
+            >
+              {converting ? 'Converting...' : convertState === 'duplicate' ? '↗ View Managed Account' : '◈ Convert to Managed Account'}
+            </button>
+          )}
+          {convertState === 'success' && (
+            <span style={{ padding:'5px 12px', background:'rgba(16,185,129,0.12)', border:'1px solid rgba(16,185,129,0.3)', borderRadius:3, fontFamily:'var(--font-body)', fontSize:11, color:'#10b981' }}>
+              ✓ Managed Account created
+            </span>
           )}
         </div>
 
@@ -1032,7 +1062,7 @@ function NewContactModal({ C, onClose, onSave }) {
       const { createLead } = await import('../../services/leadEngineService');
       await createLead({ firstName:form.firstName, lastName:form.lastName, email:form.email, phone:form.phone||undefined, leadType:form.leadType, leadSource:form.leadSource, leadChannel:'manual', message:form.notes||undefined, consentDataProcessing:true });
       onSave();
-    } catch(err) { console.warn(err); }
+    } catch(err) { /* save failed */ }
     finally { setSaving(false); }
   };
 
@@ -1102,7 +1132,7 @@ export default function CRMModule({ C }) {
       const msgs = msgsData || [];
       setNotes(msgs.filter(m => m.message_type === 'internal_note'));
       setTasks(msgs.filter(m => m.message_type === 'task').map(parseTask));
-    } catch (err) { console.warn('CRM load failed:', err); }
+    } catch (err) { /* load failed */ }
     finally { setLoading(false); }
   }, []);
 
@@ -1129,7 +1159,29 @@ export default function CRMModule({ C }) {
       await supabase.from('leads').update({ status: newStatus }).eq('id', leadId);
       setLeads(prev => prev.map(l => l.id===leadId ? {...l, status:newStatus} : l));
       if (selectedLead?.id===leadId) setSelectedLead(prev => ({...prev, status:newStatus}));
-    } catch (err) { console.warn(err); }
+    } catch (err) { /* status update failed */ }
+  };
+
+  // Returns 'success' | 'duplicate' | 'error'
+  const handleConvertToManaged = async (lead) => {
+    try {
+      const existing = await fetchManagedAccountByLeadId(lead.id);
+      if (existing) {
+        // Duplicate - account already exists, navigate to it
+        window.dispatchEvent(new CustomEvent('lwd-nav', { detail: { tab: 'managed-accounts' } }));
+        return 'duplicate';
+      }
+      const created = await convertLeadToManagedAccount(lead);
+      if (!created) return 'error';
+      // Mark CRM lead as converted if not already
+      if (lead.status !== 'converted') {
+        await handleStatusChange(lead.id, 'converted');
+      }
+      return 'success';
+    } catch (err) {
+      console.error('[CRM] handleConvertToManaged error:', err);
+      return 'error';
+    }
   };
 
   const handleDealValueChange = async (leadId, value) => {
@@ -1140,7 +1192,7 @@ export default function CRMModule({ C }) {
       await supabase.from('leads').update({ requirements_json: req }).eq('id', leadId);
       setLeads(prev => prev.map(l => l.id===leadId ? {...l, requirements_json:req} : l));
       if (selectedLead?.id===leadId) setSelectedLead(prev => ({...prev, requirements_json:req}));
-    } catch (err) { console.warn(err); }
+    } catch (err) { /* deal value update failed */ }
   };
 
   const handleAddNote = async () => {
@@ -1168,7 +1220,7 @@ export default function CRMModule({ C }) {
         .insert({ lead_id: leadId, message_type: 'task', body })
         .select('id,lead_id,body,created_at').single();
       if (data) setTasks(prev => [...prev, parseTask(data)]);
-    } catch (err) { console.warn(err); }
+    } catch (err) { /* task create failed */ }
   };
 
   const handleCompleteTask = async (task) => {
@@ -1178,7 +1230,7 @@ export default function CRMModule({ C }) {
       const body = JSON.stringify({ text: task.text, dueDate: task.dueDate, completed: newCompleted, completedAt: newCompleted ? new Date().toISOString() : null });
       await supabase.from('lead_messages').update({ body }).eq('id', task.id);
       setTasks(prev => prev.map(t => t.id===task.id ? {...t, completed:newCompleted, completedAt:newCompleted?new Date().toISOString():null} : t));
-    } catch (err) { console.warn(err); }
+    } catch (err) { /* task complete failed */ }
   };
 
   const handleDeleteTask = async (task) => {
@@ -1186,7 +1238,7 @@ export default function CRMModule({ C }) {
       const { supabase } = await import('../../lib/supabaseClient');
       await supabase.from('lead_messages').delete().eq('id', task.id);
       setTasks(prev => prev.filter(t => t.id !== task.id));
-    } catch (err) { console.warn(err); }
+    } catch (err) { /* task delete failed */ }
   };
 
   const overdueTasks = tasks.filter(t => isOverdue(t)).length;
@@ -1231,6 +1283,7 @@ export default function CRMModule({ C }) {
           onClose={() => setSelectedLead(null)}
           onStatusChange={handleStatusChange}
           onDealValueChange={handleDealValueChange}
+          onConvert={handleConvertToManaged}
           notes={panelNotes}
           tasks={tasks}
           onAddNote={handleAddNote}

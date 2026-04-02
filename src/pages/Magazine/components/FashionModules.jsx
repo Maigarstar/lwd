@@ -4,6 +4,7 @@
 import { useState, useRef } from 'react';
 import ProductCard from './ProductCard';
 import { getProductsByCollection, formatPrice } from '../data/products';
+import { trackExternalClick } from '../../../services/outboundClickService';
 
 const FU = "'Nunito', 'Inter', 'Helvetica Neue', sans-serif";
 const FD = "'Gilda Display', 'Playfair Display', Georgia, serif";
@@ -457,6 +458,7 @@ export function AffiliateBreak({ brand, tagline, description, image, ctaLabel, c
           href={ctaUrl || '#'}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={() => { if (ctaUrl) trackExternalClick({ entityType: 'magazine', entityId: null, venueId: null, linkType: 'website', url: ctaUrl }); }}
           style={{
             display: 'inline-block',
             fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase',
@@ -494,6 +496,7 @@ export function WhereToBuy({ title, retailers = [], isLight = true }) {
           href={r.url || '#'}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={() => { if (r.url) trackExternalClick({ entityType: 'magazine', entityId: null, venueId: null, linkType: 'brochure', url: r.url }); }}
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '14px 0',

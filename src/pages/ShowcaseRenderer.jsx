@@ -275,22 +275,57 @@ function parseVideoUrl(url) {
 
 function HeroSection({ content, layout, showcaseHero, listingFirstImage, palette }) {
   const P     = palette;
-  const image = resolveImage(content.image, showcaseHero, listingFirstImage);
   const op    = content.overlay_opacity ?? P.heroOverlayOpacity;
   const { isMobile } = useBreakpoint();
   const [videoFailed, setVideoFailed] = useState(false);
+  const [muted, setMuted]   = useState(true);
+  const iframeRef = useRef(null);
+  const directRef = useRef(null);
+
+  // ── Multi-image slideshow ──────────────────────────────────────────────────
+  // Build image array: content.images takes priority, falls back to single image
+  const singleImg = resolveImage(content.image, showcaseHero, listingFirstImage);
+  const heroImages = (content.images?.length)
+    ? content.images.map(img => (typeof img === 'string' ? img : img?.url)).filter(Boolean)
+    : singleImg ? [singleImg] : [];
+
+  const [imgIdx, setImgIdx] = useState(0);
+  const SLIDE_DURATION = (content.slide_duration || 5) * 1000; // default 5s
+
+  useEffect(() => {
+    if (heroImages.length <= 1) return;
+    const timer = setInterval(() => setImgIdx(i => (i + 1) % heroImages.length), SLIDE_DURATION);
+    return () => clearInterval(timer);
+  }, [heroImages.length, SLIDE_DURATION]);
 
   const focalPoint = content.focal_point || (isMobile ? 'center 30%' : 'center center');
   const vid = parseVideoUrl(content.videoUrl);
   const showVideo = vid && !videoFailed;
 
-  // YouTube embed: scale up iframe to fill, keep image behind as fallback
+  // YouTube embed — enablejsapi=1 allows postMessage mute control
   const ytEmbed = vid?.type === 'youtube'
-    ? `https://www.youtube.com/embed/${vid.id}?autoplay=1&mute=1&loop=1&playlist=${vid.id}&controls=0&rel=0&playsinline=1&enablejsapi=0`
+    ? `https://www.youtube.com/embed/${vid.id}?autoplay=1&mute=1&loop=1&playlist=${vid.id}&controls=0&rel=0&playsinline=1&enablejsapi=1`
     : null;
+  // Vimeo embed — controls=0 hides chrome, api=1 allows postMessage volume control
   const vmEmbed = vid?.type === 'vimeo'
-    ? `https://player.vimeo.com/video/${vid.id}?autoplay=1&muted=1&loop=1&background=1`
+    ? `https://player.vimeo.com/video/${vid.id}?autoplay=1&muted=1&loop=1&controls=0&title=0&byline=0&portrait=0&api=1`
     : null;
+
+  function toggleMute() {
+    const next = !muted;
+    setMuted(next);
+    if ((vid?.type === 'youtube') && iframeRef.current) {
+      iframeRef.current.contentWindow?.postMessage(
+        JSON.stringify({ event: 'command', func: next ? 'mute' : 'unMute', args: '' }), '*'
+      );
+    } else if (vid?.type === 'vimeo' && iframeRef.current) {
+      iframeRef.current.contentWindow?.postMessage(
+        JSON.stringify({ method: 'setVolume', value: next ? 0 : 1 }), 'https://player.vimeo.com'
+      );
+    } else if (vid?.type === 'direct' && directRef.current) {
+      directRef.current.muted = next;
+    }
+  }
 
   return (
     <div style={{
@@ -299,33 +334,57 @@ function HeroSection({ content, layout, showcaseHero, listingFirstImage, palette
       overflow: 'hidden',
       background: '#0a0a08',
     }}>
-      {/* Fallback image — always rendered behind video */}
-      {image && (
+      {/* Crossfade image slideshow — all images stacked, only active one visible */}
+      {heroImages.map((src, i) => (
         <img
-          src={image}
-          alt={content.title || ''}
-          loading="eager"
+          key={src}
+          src={src}
+          alt={i === 0 ? (content.title || '') : ''}
+          loading={i === 0 ? 'eager' : 'lazy'}
           style={{
             position: 'absolute', inset: 0, width: '100%', height: '100%',
             objectFit: 'cover', objectPosition: focalPoint,
-            // fade image out when video is active and not failed
-            opacity: showVideo && (vid?.type === 'youtube' || vid?.type === 'vimeo') ? 0.3 : 1,
-            transition: 'opacity 1s ease',
+            opacity: showVideo && (vid?.type === 'youtube' || vid?.type === 'vimeo')
+              ? 0.3
+              : (i === imgIdx ? 1 : 0),
+            transition: 'opacity 1.4s ease',
+            zIndex: i === imgIdx ? 1 : 0,
           }}
         />
+      ))}
+      {/* Slide indicator dots — only shown when >1 image and no video */}
+      {heroImages.length > 1 && !showVideo && (
+        <div style={{
+          position: 'absolute', bottom: isMobile ? 80 : 100, left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex', gap: 8, zIndex: 10,
+        }}>
+          {heroImages.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setImgIdx(i)}
+              style={{
+                width: i === imgIdx ? 24 : 8, height: 8, borderRadius: 4,
+                background: i === imgIdx ? '#C9A84C' : 'rgba(255,255,255,0.45)',
+                border: 'none', cursor: 'pointer', padding: 0,
+                transition: 'width 0.3s ease, background 0.3s ease',
+              }}
+            />
+          ))}
+        </div>
       )}
       {/* Video layer */}
       {showVideo && (ytEmbed || vmEmbed) && (
         <iframe
+          ref={iframeRef}
           key={vid.id}
           src={ytEmbed || vmEmbed}
           allow="autoplay; fullscreen"
           style={{
             position: 'absolute',
-            // Scale iframe up to cover 16:9 into any aspect ratio
             top: '50%', left: '50%',
-            width: 'max(100%, 177.78vh)',  // 16/9 * 100vh
-            height: 'max(100%, 56.25vw)', // 9/16 * 100vw
+            width: 'max(100%, 177.78vh)',
+            height: 'max(100%, 56.25vw)',
             transform: 'translate(-50%, -50%)',
             border: 'none', pointerEvents: 'none',
           }}
@@ -334,12 +393,50 @@ function HeroSection({ content, layout, showcaseHero, listingFirstImage, palette
       )}
       {showVideo && vid?.type === 'direct' && (
         <video
+          ref={directRef}
           key={vid.url}
           src={vid.url}
           autoPlay muted loop playsInline
           onError={() => setVideoFailed(true)}
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
         />
+      )}
+      {/* Mute / unmute toggle — bottom-right, only shown when video is active */}
+      {showVideo && (
+        <button
+          onClick={toggleMute}
+          title={muted ? 'Unmute' : 'Mute'}
+          style={{
+            position: 'absolute',
+            top: isMobile ? 72 : 80,
+            right: isMobile ? 16 : 28,
+            zIndex: 20,
+            width: 40, height: 40,
+            borderRadius: '50%',
+            background: 'rgba(0,0,0,0.45)',
+            backdropFilter: 'blur(6px)',
+            border: '1px solid rgba(255,255,255,0.18)',
+            cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'background 0.2s ease',
+          }}
+        >
+          {muted ? (
+            /* Speaker with X — muted */
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <line x1="23" y1="9" x2="17" y2="15"/>
+              <line x1="17" y1="9" x2="23" y2="15"/>
+            </svg>
+          ) : (
+            /* Speaker with waves — unmuted */
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+            </svg>
+          )}
+        </button>
       )}
       <div style={{
         position: 'absolute', inset: 0,
@@ -2174,7 +2271,7 @@ function MapShowcaseSection({ content, layout, palette, showcaseName, showcaseLo
 
       const map = L.map(mapEl.current, { zoomControl: true, attributionControl: true, scrollWheelZoom: false });
       mapRef.current = map;
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://carto.com">CARTO</a> &copy; <a href="https://osm.org/copyright">OSM</a>',
         maxZoom: 19,
       }).addTo(map);
@@ -2192,22 +2289,43 @@ function MapShowcaseSection({ content, layout, palette, showcaseName, showcaseLo
       setReady(true);
     }
 
-    async function geocodeQuery(query) {
-      try {
-        const res  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`, { headers: { 'Accept-Language': 'en' } });
-        const data = await res.json();
-        if (!cancelled && data?.[0]) init(parseFloat(data[0].lat), parseFloat(data[0].lon));
-      } catch {}
+    // Build progressive queries: strip address noise from location, keep city/country
+    function buildQueries(title, location) {
+      let cityCountry = (location || '').trim();
+      if (cityCountry) {
+        const dotParts = cityCountry.split('·').map(s => s.trim()).filter(Boolean);
+        if (dotParts.length >= 2) {
+          cityCountry = dotParts.slice(-2).join(', ');
+        } else {
+          const commaParts = dotParts[0].split(',').map(s => s.trim()).filter(Boolean);
+          cityCountry = commaParts.slice(-Math.min(2, commaParts.length)).join(', ');
+        }
+      }
+      const qs = [];
+      if (title && cityCountry) qs.push(`${title}, ${cityCountry}`);
+      if (title)                 qs.push(title);
+      if (cityCountry)           qs.push(cityCountry);
+      return qs;
+    }
+
+    async function tryGeocode(queries) {
+      for (const q of queries) {
+        try {
+          const res  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`, { headers: { 'Accept-Language': 'en' } });
+          const data = await res.json();
+          if (!cancelled && data?.[0]) { init(parseFloat(data[0].lat), parseFloat(data[0].lon)); return; }
+        } catch {}
+      }
     }
 
     if (content.lat && content.lng) {
       init(parseFloat(content.lat), parseFloat(content.lng));
     } else if (address) {
-      geocodeQuery(address);
+      tryGeocode([address]);
     } else {
-      // Auto-geocode from showcase name + location (no manual address required)
-      const autoQuery = [showcaseName, showcaseLocation].filter(Boolean).join(', ');
-      if (autoQuery) geocodeQuery(autoQuery);
+      // Auto-geocode from showcase name + location — try progressively simpler queries
+      const queries = buildQueries(showcaseName, showcaseLocation);
+      if (queries.length) tryGeocode(queries);
     }
 
     return () => {
@@ -2216,36 +2334,130 @@ function MapShowcaseSection({ content, layout, palette, showcaseName, showcaseLo
     };
   }, [content.address, content.lat, content.lng, content.zoom, showcaseName, showcaseLocation]);
 
-  const bg        = layout?.accentBg || (P.mode === 'light' ? '#faf9f6' : '#0a0908');
-  const bgIsLt    = bg === '#ffffff' || bg === '#faf9f6' || bg === '#FDFBF7' || bg.startsWith('#f') || bg.startsWith('#e') || bg.startsWith('#d');
-  const textColor = layout?.textColor || (bgIsLt ? '#1a1a1a' : '#f2efe9');
-  const mutedColor = layout?.textColor ? `${layout.textColor}99` : (bgIsLt ? '#666' : '#aaa');
+  const { isMobile } = useBreakpoint();
+  const MAP_H        = 520; // fixed map height (px) — required for Leaflet to render
+  const bg           = layout?.accentBg || (P.mode === 'light' ? '#ffffff' : '#0d0d0b');
+  const panelBg      = layout?.panelBg  || (P.mode === 'light' ? '#ffffff' : '#141210');
+  const headingCol   = layout?.textColor  || (P.mode === 'light' ? '#1a1a1a' : '#f2efe9');
+  const panelTextCol = layout?.panelText  || (P.mode === 'light' ? '#1a1a1a' : '#f2efe9');
+  const mutCol       = layout?.panelText  ? `${layout.panelText}bb` : (P.mode === 'light' ? '#555555' : '#aaaaaa');
+  const brdCol       = P.mode === 'light' ? 'rgba(0,0,0,0.09)' : 'rgba(255,255,255,0.07)';
+
+  // Build display address — content field takes priority, then auto-format from showcase data
+  const autoAddress = showcaseName && showcaseLocation
+    ? `${showcaseName}\n${showcaseLocation.replace(/·/g, '\n').replace(/,\s*/g, '\n').trim()}`
+    : (showcaseLocation || '');
+  const displayAddress = content.addressDisplay || autoAddress;
+
+  // "Where is it?" items
+  const whereItems = content.whereItems || [];
+
+  // Panel always shown — it holds address, check-in/out, what3words, distances
+  const hasPanel = true;
 
   return (
-    <section style={{ background: bg, padding: '64px 0' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 48px' }}>
+    <section style={{ background: bg, padding: isMobile ? '48px 0 60px' : '72px 0 88px' }}>
+      <div style={{ maxWidth: 1240, margin: '0 auto', padding: isMobile ? '0 20px' : '0 48px' }}>
+
+        {/* Section heading — centered, serif */}
         {content.headline && (
-          <div style={{ fontFamily: 'var(--font-heading-primary)', fontSize: 32, color: textColor, marginBottom: 32, fontWeight: 400 }}>
+          <h2 style={{
+            fontFamily: GD, fontSize: isMobile ? 28 : 38, fontWeight: 400,
+            color: headingCol, textAlign: 'center', margin: '0 0 40px', letterSpacing: '-0.01em',
+          }}>
             {content.headline}
-          </div>
+          </h2>
         )}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 0, borderRadius: 6, overflow: 'hidden', border: `1px solid ${P.mode === 'light' ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.08)'}`, height: 420 }}>
-          {/* Map */}
-          <div style={{ position: 'relative', background: '#e8e0d4' }}>
+
+        {/* Two-column: map + info panel — explicit height so Leaflet renders */}
+        <div style={{
+          display: isMobile ? 'flex' : 'grid',
+          flexDirection: isMobile ? 'column' : undefined,
+          gridTemplateColumns: hasPanel ? '1fr 360px' : '1fr',
+          gap: 0,
+          height: isMobile ? 'auto' : MAP_H,
+          border: `1px solid ${brdCol}`,
+          overflow: 'hidden',
+        }}>
+
+          {/* ── Map ── */}
+          <div style={{ position: 'relative', background: '#e8e0d4', height: isMobile ? 300 : MAP_H, flexShrink: 0 }}>
             <div ref={mapEl} style={{ width: '100%', height: '100%' }} />
             {!ready && (
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: bg }}>
-                <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: mutedColor, letterSpacing: '2px', textTransform: 'uppercase' }}>Loading map…</span>
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#e8e0d4' }}>
+                <span style={{ fontFamily: NU, fontSize: 10, color: '#999', letterSpacing: '2px', textTransform: 'uppercase' }}>Loading map…</span>
               </div>
             )}
           </div>
-          {/* Address panel — only shown when address is filled */}
-          {content.address && (
-            <div style={{ background: P.mode === 'light' ? '#fff' : '#141210', padding: '32px 28px', display: 'flex', flexDirection: 'column', gap: 8, borderLeft: `1px solid ${P.mode === 'light' ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)'}` }}>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#C9A84C', marginBottom: 8 }}>Location</div>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: textColor, lineHeight: 1.7, whiteSpace: 'pre-line' }}>
-                {content.address}
-              </div>
+
+          {/* ── Info panel ── */}
+          {hasPanel && (
+            <div style={{
+              background: panelBg,
+              borderLeft: isMobile ? 'none' : `1px solid ${brdCol}`,
+              borderTop: isMobile ? `1px solid ${brdCol}` : 'none',
+              padding: isMobile ? '28px 24px' : '40px 36px',
+              display: 'flex', flexDirection: 'column', gap: 0,
+              overflowY: 'auto',
+            }}>
+
+              {/* Hotel Address block */}
+              {(displayAddress || content.checkin || content.checkout || content.what3words) && (
+                <div style={{ marginBottom: whereItems.length ? 32 : 0 }}>
+                  <h3 style={{ fontFamily: GD, fontSize: 24, fontWeight: 400, color: panelTextCol, margin: '0 0 18px', letterSpacing: '-0.01em' }}>
+                    {content.addressHeading || 'Hotel Address'}
+                  </h3>
+
+                  {/* Address lines */}
+                  {displayAddress && (
+                    <p style={{ fontFamily: NU, fontSize: 14, color: mutCol, lineHeight: 1.8, margin: '0 0 20px', whiteSpace: 'pre-line' }}>
+                      {displayAddress}
+                    </p>
+                  )}
+
+                  {/* Check-in / Check-out */}
+                  {(content.checkin || content.checkout) && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+                      {content.checkin && (
+                        <div style={{ fontFamily: NU, fontSize: 14, color: mutCol }}>
+                          Check in: <strong style={{ color: panelTextCol, marginLeft: 6 }}>{content.checkin}</strong>
+                        </div>
+                      )}
+                      {content.checkout && (
+                        <div style={{ fontFamily: NU, fontSize: 14, color: mutCol }}>
+                          Check out: <strong style={{ color: panelTextCol, marginLeft: 6 }}>{content.checkout}</strong>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* What3words */}
+                  {content.what3words && (
+                    <div style={{ fontFamily: NU, fontSize: 14, color: mutCol }}>
+                      What3words location: <strong style={{ color: panelTextCol, marginLeft: 4 }}>{content.what3words}</strong>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Where is it? block */}
+              {whereItems.length > 0 && (
+                <div>
+                  {(displayAddress || content.checkin || content.checkout || content.what3words) && (
+                    <div style={{ height: 1, background: brdCol, margin: '0 0 28px' }} />
+                  )}
+                  <h3 style={{ fontFamily: GD, fontSize: 24, fontWeight: 400, color: panelTextCol, margin: '0 0 16px', letterSpacing: '-0.01em' }}>
+                    {content.whereHeading || 'Where is it?'}
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {whereItems.map((item, i) => (
+                      <p key={i} style={{ fontFamily: NU, fontSize: 14, color: mutCol, margin: 0, lineHeight: 1.6 }}>
+                        {item.text || item.label || ''}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

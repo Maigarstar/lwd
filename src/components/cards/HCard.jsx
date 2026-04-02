@@ -68,11 +68,11 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
             background: "#0a0806",
           }}
         >
-          {v.imgs.map((src, i) => (
+          {v.imgs.map((imgObj, i) => (
             <img
               key={i}
-              src={src}
-              alt={i === 0 ? `${v.name} main photo` : `${v.name} photo ${i + 1}`}
+              src={typeof imgObj === 'string' ? imgObj : imgObj.src}
+              alt={typeof imgObj === 'string' ? `${v.name} photo` : (imgObj.alt || `${v.name} photo ${i + 1}`)}
               loading="lazy"
               style={{
                 position: "absolute",
@@ -271,6 +271,7 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
           </h3>
 
           {/* Location */}
+          {(v.city || v.region) && (
           <div
             style={{
               fontSize: 12,
@@ -283,8 +284,9 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
             }}
           >
             <span aria-hidden="true" style={{ color: C.gold, fontSize: 10 }}>◆</span>
-            {v.city}, {v.region} · Italy
+            {v.city && v.region ? `${v.city}, ${v.region} · Italy` : v.city || v.region || 'Italy'}
           </div>
+          )}
 
           {/* Stars + reviews + Phase 4 Editorial Tier Badge */}
           <div
@@ -323,6 +325,7 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
           )}
 
           {/* Description */}
+          {v.desc && (
           <p
             style={{
               fontSize: 13,
@@ -339,15 +342,19 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
           >
             {v.desc}
           </p>
+          )}
 
           {/* Style pills */}
+          {v.styles && v.styles.length > 0 && (
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
             {v.styles.map((s) => (
               <Pill key={s} text={s} />
             ))}
           </div>
+          )}
 
           {/* Inclusions */}
+          {v.includes && v.includes.length > 0 && (
           <div
             style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}
             aria-label="Key inclusions"
@@ -369,6 +376,7 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
               </span>
             ))}
           </div>
+          )}
 
           {/* Footer: capacity + price + CTAs */}
           <div
@@ -385,6 +393,7 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
           >
             {/* Stats */}
             <div style={{ display: "flex", gap: 20 }}>
+              {v.capacity && (
               <div>
                 <div
                   style={{
@@ -402,6 +411,8 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
                   Up to {v.capacity}
                 </div>
               </div>
+              )}
+              {v.priceFrom && (
               <div>
                 <div
                   style={{
@@ -426,6 +437,7 @@ export default function HCard({ v, saved, onSave, onView, onQuickView }) {
                   {v.priceFrom}
                 </div>
               </div>
+              )}
             </div>
 
             {/* Action buttons */}

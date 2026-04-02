@@ -21,6 +21,7 @@ import ReviewsSection from './components/reviews/ReviewsSection';
 import EventDrawer from './components/EventDrawer';
 import { ShowcaseAtAGlance, ShowcasePricing, ShowcaseVerified } from './components/showcase';
 import { fetchVenueIntelligence } from './services/venueIntelligenceService';
+import { useAdminAuth } from './context/AdminAuthContext';
 
 const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://www.luxuryweddingdirectory.co.uk';
 
@@ -5780,9 +5781,7 @@ function CompareVenueColumn({ venue, isLast, highlight, C, onClose, onEnquire })
   const locationParts = [venue?.city, venue?.region, venue?.country].filter(Boolean);
   const location = locationParts.join(', ');
   const flag = COUNTRY_FLAG[venue?.country] || '';
-  const price = venue?.priceFrom
-    ? `${venue.priceCurrency || '€'}${Number(venue.priceFrom).toLocaleString()}`
-    : null;
+  const price = venue?.priceFrom || null;
   const capacity = venue?.capacity ? `Up to ${Number(venue.capacity).toLocaleString()} guests` : null;
   const type = VENUE_TYPE_LABELS[venue?.listingType?.toLowerCase?.()] ||
     (venue?.listingType ? venue.listingType.charAt(0).toUpperCase() + venue.listingType.slice(1) : null);
@@ -7541,6 +7540,7 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
   const [viData, setViData] = useState(null); // venue_intelligence row
   const [venueEvents, setVenueEvents] = useState([]);
   const [drawerEvent, setDrawerEvent] = useState(null);
+  const { isAuthenticated: isAdmin } = useAdminAuth();
 
   const C = darkMode ? DARK : LIGHT;
   const VV = dbVenue ? { ...VENUE, ...dbVenue } : VENUE;
@@ -8158,6 +8158,34 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
               )}
             </div>
           </div>
+        )}
+        {/* Admin: Edit Listing — floating above Aura pill, visible only when admin is logged in */}
+        {isAdmin && slug && (
+          <button
+            onClick={() => {
+              sessionStorage.setItem('lwd_admin_edit_intent', JSON.stringify({
+                type: 'listing',
+                slug,
+                returnPath: window.location.pathname,
+              }));
+              window.location.href = '/admin';
+            }}
+            style={{
+              position: 'fixed', bottom: compareList.length > 0 ? 180 : 80, right: 28, zIndex: 9999,
+              transition: 'bottom 0.3s cubic-bezier(0.25,0.46,0.45,0.94)',
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '11px 20px', borderRadius: 100,
+              background: '#1a1a1a', color: '#C9A84C',
+              border: '1px solid rgba(201,168,76,0.3)',
+              boxShadow: '0 6px 24px rgba(0,0,0,0.5)',
+              cursor: 'pointer', fontFamily: 'var(--font-body)',
+              fontSize: 11, fontWeight: 700, letterSpacing: '0.12em',
+              textTransform: 'uppercase', whiteSpace: 'nowrap',
+            }}
+          >
+            <span style={{ fontSize: 13 }}>✦</span>
+            Edit Listing
+          </button>
         )}
         <VenueCookieBanner />
         <EventDrawer event={drawerEvent} onClose={() => setDrawerEvent(null)} darkMode={darkMode} />

@@ -14,13 +14,13 @@ export default function FeaturedVenuesEditor({ content, updateField }) {
 
   return (
     <div>
-      <h3 style={{ fontSize: 18, fontWeight: 600, color: C.text, margin: "0 0 24px 0" }}>
+      <h3 style={{ fontSize: 18, fontWeight: 600, color: C.white, margin: "0 0 24px 0" }}>
         Featured Venues Section
       </h3>
 
       {/* Heading */}
       <div style={{ marginBottom: 24 }}>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 8, textTransform: "uppercase" }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.grey, marginBottom: 8, textTransform: "uppercase" }}>
           Section Heading
         </label>
         <input
@@ -34,7 +34,7 @@ export default function FeaturedVenuesEditor({ content, updateField }) {
             border: `1px solid ${C.border}`,
             borderRadius: 6,
             background: C.card,
-            color: C.text,
+            color: C.white,
             fontSize: 14,
             fontFamily: "inherit",
             boxSizing: "border-box",
@@ -44,7 +44,7 @@ export default function FeaturedVenuesEditor({ content, updateField }) {
 
       {/* Subtitle */}
       <div style={{ marginBottom: 24 }}>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 8, textTransform: "uppercase" }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.grey, marginBottom: 8, textTransform: "uppercase" }}>
           Subtitle
         </label>
         <textarea
@@ -57,7 +57,7 @@ export default function FeaturedVenuesEditor({ content, updateField }) {
             border: `1px solid ${C.border}`,
             borderRadius: 6,
             background: C.card,
-            color: C.text,
+            color: C.white,
             fontSize: 14,
             fontFamily: "inherit",
             minHeight: 60,
@@ -69,7 +69,7 @@ export default function FeaturedVenuesEditor({ content, updateField }) {
 
       {/* Venues Selection */}
       <div style={{ marginBottom: 24 }}>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 12, textTransform: "uppercase" }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.grey, marginBottom: 12, textTransform: "uppercase" }}>
           Select Featured Venues
         </label>
         <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
@@ -101,10 +101,10 @@ export default function FeaturedVenuesEditor({ content, updateField }) {
                 style={{ marginRight: 12, cursor: "pointer", width: 18, height: 18 }}
               />
               <div style={{ flex: 1 }}>
-                <div style={{ color: C.text, fontSize: 14, fontWeight: 500 }}>
+                <div style={{ color: C.white, fontSize: 14, fontWeight: 500 }}>
                   {venue.name}
                 </div>
-                <div style={{ color: C.textSecondary, fontSize: 12 }}>
+                <div style={{ color: C.grey, fontSize: 12 }}>
                   {venue.city}, {venue.country}
                 </div>
               </div>
@@ -116,7 +116,7 @@ export default function FeaturedVenuesEditor({ content, updateField }) {
         </div>
       </div>
 
-      <div style={{ padding: "16px", background: "rgba(201, 168, 76, 0.05)", border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, color: C.textSecondary }}>
+      <div style={{ padding: "16px", background: "rgba(201, 168, 76, 0.05)", border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, color: C.grey }}>
         💡 Select venues that appear in the featured venues grid. These display as cards with images, names, and ratings.
       </div>
     </div>

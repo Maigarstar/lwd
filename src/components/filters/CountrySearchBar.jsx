@@ -53,16 +53,16 @@ const STONE = "#F6F3EE";          // warm stone base
 const STONE_DEEP = "#EBE6DC";     // deeper stone for refinement panels
 const CL = {
   barBg:       STONE,
-  barBorder:   "rgba(180,165,140,0.22)",
-  text:        "rgba(50,40,25,0.58)",
-  textActive:  "#7A6230",
-  textStrong:  "rgba(50,40,25,0.85)",
-  border:      "rgba(180,165,140,0.25)",
-  borderOpen:  "rgba(201,168,76,0.45)",
-  gold:        "#C9A84C",
-  goldDim:     "rgba(140,110,50,0.55)",
-  count:       "rgba(50,40,25,0.40)",
-  divider:     "rgba(180,165,140,0.14)",
+  barBorder:   "rgba(0,0,0,0.12)",
+  text:        "#1a1a1a",
+  textActive:  "#1a1a1a",
+  textStrong:  "#1a1a1a",
+  border:      "rgba(0,0,0,0.26)",
+  borderOpen:  "rgba(0,0,0,0.42)",
+  gold:        "#1a1a1a",
+  goldDim:     "rgba(0,0,0,0.55)",
+  count:       "rgba(0,0,0,0.45)",
+  divider:     "rgba(0,0,0,0.08)",
 };
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -77,20 +77,20 @@ function MegaPill({ label, active, isFirst, onSelect, onHover, hovered }) {
       onMouseEnter={onHover}
       style={{
         background: active
-          ? "rgba(201,168,76,0.10)"
+          ? "rgba(0,0,0,0.08)"
           : hovered
-            ? "rgba(255,252,245,0.55)"
+            ? "rgba(0,0,0,0.04)"
             : "transparent",
         border: active
-          ? "1px solid rgba(201,168,76,0.38)"
-          : `1px solid rgba(160,148,125,${hovered ? "0.38" : "0.28"})`,
+          ? "1px solid rgba(0,0,0,0.35)"
+          : `1px solid rgba(0,0,0,${hovered ? "0.20" : "0.12"})`,
         borderRadius: 3,
         boxShadow: active
-          ? "0 1px 4px rgba(180,155,80,0.10)"
+          ? "0 1px 4px rgba(0,0,0,0.10)"
           : hovered
             ? "0 1px 4px rgba(0,0,0,0.05)"
             : "0 1px 2px rgba(0,0,0,0.03)",
-        color: active ? "#7A6230" : hovered ? "rgba(50,40,25,0.72)" : "rgba(50,40,25,0.52)",
+        color: active ? "#1a1a1a" : hovered ? "#1a1a1a" : "rgba(0,0,0,0.55)",
         padding: isFirst ? "8px 16px" : "7px 14px",
         fontSize: 11,
         fontFamily: NU,
@@ -103,7 +103,7 @@ function MegaPill({ label, active, isFirst, onSelect, onHover, hovered }) {
       }}
     >
       {isFirst && (
-        <span style={{ fontSize: 7, marginRight: 6, color: active ? "#C9A84C" : "rgba(160,140,90,0.35)" }}>
+        <span style={{ fontSize: 7, marginRight: 6, color: active ? "#1a1a1a" : "rgba(0,0,0,0.25)" }}>
           ◇
         </span>
       )}
@@ -151,6 +151,7 @@ function LuxPanel({ label, children }) {
 export default function CountrySearchBar({
   filters, onFiltersChange, viewMode, onViewMode, sortMode, onSortChange, total, regions,
   onVendorSearch, countryFilter, mapContent,
+  forceMapOpen = 0,   // increment to programmatically open the map (AI region detected)
 }) {
   const C = useTheme();
 
@@ -159,21 +160,31 @@ export default function CountrySearchBar({
   const [hov, setHov] = useState(null);
   const barRef = useRef(null);
 
-  // Map slide animation, mount on open, keep mounted during close animation
+  // Map panel — fully internal, never touches viewMode (grid stays in whatever state it was)
   const [mapMounted, setMapMounted] = useState(false);
-  const [mapOpen, setMapOpen] = useState(false);
+  const [mapOpen,    setMapOpen]    = useState(false);
 
+  // Auto-open when AI detects a region
   useEffect(() => {
-    if (viewMode === "map") {
-      setMapMounted(true);
-      // Delay open state by a frame so the grid transition can animate from 0fr
-      requestAnimationFrame(() => requestAnimationFrame(() => setMapOpen(true)));
-    } else {
+    if (!forceMapOpen) return;
+    setMapMounted(true);
+    requestAnimationFrame(() => requestAnimationFrame(() => setMapOpen(true)));
+  }, [forceMapOpen]);
+
+  const toggleMap = () => {
+    if (mapOpen) {
       setMapOpen(false);
-      const timer = setTimeout(() => setMapMounted(false), 420);
-      return () => clearTimeout(timer);
+      setTimeout(() => setMapMounted(false), 420);
+    } else {
+      setMapMounted(true);
+      requestAnimationFrame(() => requestAnimationFrame(() => setMapOpen(true)));
     }
-  }, [viewMode]);
+  };
+
+  const closeMap = () => {
+    setMapOpen(false);
+    setTimeout(() => setMapMounted(false), 420);
+  };
 
   // Vendor-specific local state
   const [vendorLocation, setVendorLocation] = useState("all");
@@ -181,15 +192,22 @@ export default function CountrySearchBar({
   const [vendorBudget, setVendorBudget]     = useState("All Budgets");
   const [vendorAvail, setVendorAvail]       = useState("Any Date");
 
-  // Close on outside click + Escape
+  // Close menus + map on outside click or Escape
   useEffect(() => {
-    if (!openMenu) return;
-    const onDown = (e) => { if (barRef.current && !barRef.current.contains(e.target)) setOpenMenu(null); };
-    const onKey = (e) => { if (e.key === "Escape") setOpenMenu(null); };
+    if (!openMenu && !mapOpen) return;
+    const onDown = (e) => {
+      if (barRef.current && !barRef.current.contains(e.target)) {
+        setOpenMenu(null);
+        if (mapOpen) closeMap();
+      }
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") { setOpenMenu(null); if (mapOpen) closeMap(); }
+    };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
-  }, [openMenu]);
+  }, [openMenu, mapOpen]);
 
   // Reset hover when menu changes
   useEffect(() => { setHov(null); }, [openMenu]);
@@ -198,7 +216,8 @@ export default function CountrySearchBar({
     (filters.region   !== DEFAULT_FILTERS.region   ||
      filters.style    !== DEFAULT_FILTERS.style    ||
      filters.capacity !== DEFAULT_FILTERS.capacity ||
-     filters.price    !== DEFAULT_FILTERS.price);
+     filters.price    !== DEFAULT_FILTERS.price    ||
+     !!filters.services);  // chip-driven services dimension
 
   const handleVenueChange = useCallback(
     (key, val) => { onFiltersChange?.({ ...filters, [key]: val }); setOpenMenu(null); },
@@ -206,7 +225,7 @@ export default function CountrySearchBar({
   );
 
   const handleVenueClear = useCallback(
-    () => { onFiltersChange?.(DEFAULT_FILTERS); setOpenMenu(null); },
+    () => { onFiltersChange?.({ ...DEFAULT_FILTERS, services: null }); setOpenMenu(null); },
     [onFiltersChange]
   );
 
@@ -243,7 +262,7 @@ export default function CountrySearchBar({
         aria-label={label}
         style={{
           background: isOpen ? "rgba(201,168,76,0.06)" : "transparent",
-          border: `1px solid ${isOpen ? CL.borderOpen : "rgba(160,148,125,0.28)"}`,
+          border: `1px solid ${isOpen ? CL.borderOpen : "rgba(0,0,0,0.26)"}`,
           borderRadius: 3,
           boxShadow: isOpen ? "0 1px 4px rgba(180,155,80,0.08)" : "0 1px 2px rgba(0,0,0,0.03)",
           color: active ? CL.textActive : isOpen ? CL.textStrong : CL.text,
@@ -380,9 +399,6 @@ export default function CountrySearchBar({
         background:   STONE,
         borderTop:    `1px solid ${CL.divider}`,
         borderBottom: `1px solid ${CL.divider}`,
-        position:     "sticky",
-        top:          NAV_H,
-        zIndex:       800,
         boxShadow:    "0 2px 16px rgba(0,0,0,0.035)",
       }}
     >
@@ -395,7 +411,7 @@ export default function CountrySearchBar({
         {/* Mode toggle */}
         <div role="tablist" aria-label="Search mode" style={{
           display: "flex", background: "rgba(180,165,140,0.05)", borderRadius: 3,
-          border: "1px solid rgba(160,148,125,0.28)", overflow: "hidden", flexShrink: 0,
+          border: "1px solid rgba(0,0,0,0.26)", overflow: "hidden", flexShrink: 0,
         }}>
           {["venues", "vendors"].map((m) => (
             <button key={m} role="tab" aria-selected={mode === m}
@@ -432,7 +448,7 @@ export default function CountrySearchBar({
                 textTransform: "uppercase", cursor: "pointer", fontFamily: NU,
                 whiteSpace: "nowrap", flexShrink: 0, transition: "background 0.2s",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#b8941e")}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#333")}
               onMouseLeave={(e) => (e.currentTarget.style.background = CL.gold)}
             >Search</button>
 
@@ -465,7 +481,7 @@ export default function CountrySearchBar({
                 textTransform: "uppercase", cursor: "pointer", fontFamily: NU,
                 whiteSpace: "nowrap", flexShrink: 0, transition: "background 0.2s",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#b8941e")}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#333")}
               onMouseLeave={(e) => (e.currentTarget.style.background = CL.gold)}
             >Search</button>
           </>
@@ -478,7 +494,7 @@ export default function CountrySearchBar({
           <span style={{ color: CL.goldDim, fontWeight: 600 }}>{total}</span> {mode === "vendors" ? "vendors" : "venues"}
         </span>
 
-        <div role="group" aria-label="View mode" style={{ display: "flex", border: "1px solid rgba(160,148,125,0.28)", borderRadius: 3, overflow: "hidden" }}>
+        <div role="group" aria-label="View mode" style={{ display: "flex", border: "1px solid rgba(0,0,0,0.26)", borderRadius: 3, overflow: "hidden" }}>
           {[
             { id: "list", icon: "\u2261", title: "List view" },
             { id: "grid", icon: "\u229e", title: "Grid view" },
@@ -486,22 +502,28 @@ export default function CountrySearchBar({
             <button key={v.id} onClick={() => onViewMode?.(v.id)} title={v.title} aria-pressed={viewMode === v.id}
               style={{
                 width: 30, height: 30, background: viewMode === v.id ? CL.gold : "transparent",
-                border: "none", borderRight: "1px solid rgba(160,148,125,0.28)",
+                border: "none", borderRight: "1px solid rgba(0,0,0,0.26)",
                 color: viewMode === v.id ? "#fff" : CL.text, cursor: "pointer",
                 fontSize: 13, transition: "all 0.25s",
               }}
             >{v.icon}</button>
           ))}
-          <button onClick={() => onViewMode?.(viewMode === "map" ? "list" : "map")} title="Map view" aria-pressed={viewMode === "map"}
+          <button onClick={toggleMap} title="Map view" aria-pressed={mapOpen}
             style={{
               display: "flex", alignItems: "center", gap: 4,
-              background: viewMode === "map" ? CL.gold : "transparent",
-              border: "none", color: viewMode === "map" ? "#fff" : CL.text,
+              background: mapOpen ? CL.gold : "transparent",
+              border: "none", color: mapOpen ? "#fff" : CL.text,
               cursor: "pointer", fontSize: 9, fontWeight: 700, fontFamily: NU,
               letterSpacing: "1px", textTransform: "uppercase", padding: "0 12px",
               height: 30, transition: "all 0.25s", whiteSpace: "nowrap",
             }}
-          ><span style={{ fontSize: 13 }}>{"\u25ce"}</span> Map View</button>
+          >
+            <svg width="11" height="14" viewBox="0 0 11 14" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+              <path d="M5.5 0C2.462 0 0 2.462 0 5.5c0 3.85 5.5 8.5 5.5 8.5S11 9.35 11 5.5C11 2.462 8.538 0 5.5 0z" fill="currentColor" opacity="0.9"/>
+              <circle cx="5.5" cy="5.3" r="2" fill="white" opacity="0.9"/>
+            </svg>
+            Map
+          </button>
         </div>
       </div>
 

@@ -231,16 +231,15 @@ export async function getVenuesByTheme(themes) {
 
   if (matchingIds.length === 0) return [];
 
-  // Fetch listing names + slugs
-  const { data: listings, error: listErr } = await supabase
-    .from('listings')
-    .select('id, name, slug')
-    .in('id', matchingIds);
-
-  if (listErr) {
-    console.error('[reviewThemeService] listing lookup error:', listErr);
+  // Fetch listing names + slugs via admin edge function (service_role bypasses RLS)
+  const { data: fnData, error: fnErr } = await supabase.functions.invoke('admin-listings', {
+    body: { action: 'getByIds', ids: matchingIds },
+  });
+  if (fnErr) {
+    console.error('[reviewThemeService] listing lookup error:', fnErr);
     return [];
   }
+  const listings = fnData?.data ?? [];
 
   return (listings || []).map(l => {
     const venueData = byVenue[l.id];

@@ -9,6 +9,10 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* InfoStrip toggle — no outline on mouse click, only on keyboard nav */
+.lwd-infostrip-toggle:focus        { outline: none; }
+.lwd-infostrip-toggle:focus-visible { outline: 2px solid rgba(201,168,76,0.7); outline-offset: -2px; }
 body { font-family: var(--font-body); font-size: var(--lwd-body-size, 15px); font-weight: var(--lwd-body-weight, 400); }
 
 /* ── Scrollbar ───────────────────────────────────────────────────────────── */
@@ -107,10 +111,13 @@ div[role="listbox"]::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3);
     grid-template-columns: 1fr !important;
   }
   .lwd-infostrip-col   {
-    border-right: none !important;
-    border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+    border-right:  none !important;
+    /* Use currentColor-relative opacity so it works in both dark and light themes */
+    border-bottom: 1px solid rgba(128,128,128,0.15) !important;
     padding-left:  0 !important;
     padding-right: 0 !important;
+    padding-top:   24px !important;
+    padding-bottom: 24px !important;
   }
   .lwd-infostrip-col:last-child { border-bottom: none !important; }
 
@@ -121,6 +128,14 @@ div[role="listbox"]::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3);
     gap: 36px !important;
   }
   .lwd-latestsplit-imgrid { height: 300px !important; }
+
+  /* ── AI Command Bar ── */
+  .lwd-ai-bar-outer {
+    padding: 16px !important;
+  }
+  .lwd-ai-bar-outer input {
+    font-size: 14px !important;
+  }
 
   /* ── FilterBar ── */
   .lwd-filterbar-wrap   {

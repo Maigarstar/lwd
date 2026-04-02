@@ -32,7 +32,8 @@ function snakeToCamel(obj) {
 export const useListingForm = (listingId = null) => {
   const [formData, setFormData] = useState({
     listing_type: 'venue', // venue | planner | photographer | videographer | general
-    vendor_account_id: null, // linked vendor account
+    vendor_account_id: null,   // linked vendor account
+    managed_account_id: null,  // linked managed account (Social Studio client)
     venue_name: '',
     hero_tagline: '',
     slug: '',
@@ -241,6 +242,7 @@ export const useListingForm = (listingId = null) => {
           setFormData({
             listing_type: listing.listingType || 'venue',
             vendor_account_id: listing.vendorAccountId || null,
+            managed_account_id: listing.managedAccountId || null,
             venue_name: listing.name || '',
             hero_tagline: listing.heroTagline || '',
             slug: listing.slug || '',
@@ -338,6 +340,19 @@ export const useListingForm = (listingId = null) => {
             editorial_last_reviewed_by: listing.editorialLastReviewedBy || null,
             refresh_notes: listing.refreshNotes || null,
             content_quality_score: listing.contentQualityScore || 0,
+            // ── Cards Section ─────────────────────────────────────────────
+            // cards_data JSONB stores all card_* fields as camelCase keys.
+            // Convert back to snake_case so CardsSection can read them via
+            // formData.card_venue_title, formData.card_venue_description etc.
+            ...(listing.cardsData && typeof listing.cardsData === 'object'
+              ? Object.fromEntries(
+                  Object.entries(listing.cardsData).map(([k, v]) => [
+                    // camelCase → snake_case: cardVenueTitle → card_venue_title
+                    k.replace(/([A-Z])/g, (m) => `_${m.toLowerCase()}`),
+                    v,
+                  ])
+                )
+              : {}),
           });
           setHasChanges(false);
         } catch (err) {
@@ -599,10 +614,32 @@ export const useListingForm = (listingId = null) => {
         status: publishStatus,
         listingType: formData.listing_type || 'venue',
         vendorAccountId: formData.vendor_account_id || null,
+        managedAccountId: formData.managed_account_id || null,
         tier: 'standard',
         // Full rich media_items array (File objects stripped), stored as JSONB.
         // Also consumed by sync-media-ai-index edge function after save.
         mediaItems: cleanMediaItems,
+        // ── Cards Section ─────────────────────────────────────────────────
+        // Collect all card_* fields from formData, convert to camelCase keys,
+        // and store as a single JSONB object. Strip File objects from images.
+        cardsData: Object.fromEntries(
+          Object.entries(formData)
+            .filter(([k]) => k.startsWith('card_'))
+            .map(([k, v]) => {
+              // Strip File objects from image arrays before persisting
+              const cleaned =
+                Array.isArray(v)
+                  ? v.map((item) =>
+                      item && typeof item === 'object' && !(item instanceof File)
+                        ? { ...item, file: undefined }
+                        : item
+                    )
+                  : v;
+              // snake_case → camelCase: card_venue_title → cardVenueTitle
+              const camelKey = k.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+              return [camelKey, cleaned];
+            })
+        ),
         // Editorial Content Layer (Phase 3)
         heroSummary: formData.hero_summary || null,
         sectionIntros: formData.section_intros || {},

@@ -1,5 +1,5 @@
 // ─── src/main.jsx ─────────────────────────────────────────────────────────────
-import { useState, useEffect, useRef, StrictMode, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, StrictMode, lazy, Suspense, Component } from "react";
 import { createRoot }           from "react-dom/client";
 import { HelmetProvider }       from "react-helmet-async";
 
@@ -84,6 +84,22 @@ import AuraDiscoveryDemoPage    from "./pages/AuraDiscoveryDemoPage.jsx";
 import NotFoundPage         from "./pages/NotFoundPage.jsx";
 import UnsubscribePage      from "./pages/UnsubscribePage.jsx";
 import { VENDORS }            from "./data/vendors.js";
+
+class AdminErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 40, fontFamily: "monospace", background: "#fff", color: "#c00", minHeight: "100vh" }}>
+          <h2>Admin failed to load</h2>
+          <pre style={{ marginTop: 16, whiteSpace: "pre-wrap", fontSize: 13 }}>{this.state.error?.message}{"\n\n"}{this.state.error?.stack}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // ── Lazy-loaded admin modules for bundle optimization ──────────────────────────
 const ListingStudioPage = lazy(() => import("./pages/ListingStudio/ListingStudioPage.jsx"));
@@ -284,6 +300,10 @@ function pathToState(pathname) {
   // LocationPage queries Supabase first, falls back to static geo.js only for migration.
   if (parts.length === 1) return { page: "location", locationType: "country", locationSlug: parts[0] };
 
+  // 2-part: /location/slug → country LocationPage (legacy URL compat)
+  if (parts.length === 2 && parts[0] === "location") {
+    return { page: "location", locationType: "country", locationSlug: parts[1] };
+  }
   // 2-part: /country/wedding-category → country-level category grid (e.g. /england/wedding-venues)
   if (parts.length === 2 && parts[1].startsWith('wedding-')) {
     return { page: "region-category", countrySlug: parts[0], regionSlug: null, categorySlug: parts[1] };
@@ -311,22 +331,20 @@ function pathToState(pathname) {
 function AdminRoute({ onBack, onNavigate }) {
   const { isAuthenticated, loading } = useAdminAuth();
 
-  // ⚠️ DEV MODE: Bypass authentication for faster testing
-  const DEV_SKIP_AUTH = true;
-
   if (loading) {
     return <div style={{ padding: 40, textAlign: "center", fontFamily: "inherit" }}>Loading...</div>;
   }
 
-  if (!isAuthenticated && !DEV_SKIP_AUTH) {
-    window.location.href = "/admin/login";
-    return null;
+  if (!isAuthenticated) {
+    return <AdminLogin onBack={onBack} />;
   }
 
   return (
-    <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', fontFamily: 'inherit' }}>Loading...</div>}>
-      <AdminDashboard onBack={onBack} onNavigate={onNavigate} />
-    </Suspense>
+    <AdminErrorBoundary>
+      <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', fontFamily: 'inherit' }}>Loading...</div>}>
+        <AdminDashboard onBack={onBack} onNavigate={onNavigate} />
+      </Suspense>
+    </AdminErrorBoundary>
   );
 }
 
@@ -373,8 +391,14 @@ function App() {
   // Ref: skip pushState when change came from popstate (back/forward)
   const skipPush = useRef(false);
 
-  // Scroll to top whenever the page changes
-  useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" }); }, [page]);
+  // Scroll to top whenever the page or active slug changes
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    });
+  }, [page, activeShowcaseSlug, activeCountrySlug, activeRegionSlug, activeCategorySlug, activePlannerSlug]);
 
   // ── URL sync: push URL whenever state changes ─────────────────────────────
   useEffect(() => {
@@ -961,9 +985,7 @@ function App() {
 
 // ── Root ──────────────────────────────────────────────────────────────────────
 createRoot(document.getElementById("root")).render(
-  <StrictMode>
-    <HelmetProvider>
-      <App />
-    </HelmetProvider>
-  </StrictMode>
+  <HelmetProvider>
+    <App />
+  </HelmetProvider>
 );

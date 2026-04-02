@@ -27,7 +27,8 @@ export default function VenueStatsCard({ data = {} }) {
   const { isMobile } = useBreakpoint();
 
   const bg        = accentBg || C.dark;
-  const isLightBg = bg.startsWith('#f') || bg.startsWith('#e') || bg.startsWith('#d') || bg.startsWith('#c');
+  const _bgLc     = bg.toLowerCase();
+  const isLightBg = _bgLc.startsWith('#f') || _bgLc.startsWith('#e') || _bgLc.startsWith('#d') || _bgLc.startsWith('#c');
   const textColor = isLightBg ? '#1a1209' : '#ffffff';
   const muteColor = isLightBg ? 'rgba(26,18,9,0.5)' : 'rgba(255,255,255,0.55)';
   const divColor  = isLightBg ? 'rgba(26,18,9,0.12)' : 'rgba(255,255,255,0.15)';

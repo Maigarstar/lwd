@@ -35,15 +35,8 @@ export const sendCoupleConfirmationEmail = async (enquiry) => {
       `,
     };
 
-    // Dev mode: log to console instead of sending
-    if (import.meta.env.DEV) {
-      console.log("📧 DEV MODE - Couple Confirmation Email:", emailData);
-      return { success: true, error: null };
-    }
-
     // Production: Call Supabase Edge Function to send email
     if (!supabase) {
-      console.warn("Supabase not configured for email service");
       return { success: false, error: new Error("Supabase not configured") };
     }
 
@@ -110,15 +103,8 @@ export const sendVendorLeadNotification = async (enquiry, vendorEmail) => {
       `,
     };
 
-    // Dev mode: log to console instead of sending
-    if (import.meta.env.DEV) {
-      console.log("📧 DEV MODE - Vendor Lead Notification:", emailData);
-      return { success: true, error: null };
-    }
-
     // Production: Call Supabase Edge Function to send email
     if (!supabase) {
-      console.warn("Supabase not configured for email service");
       return { success: false, error: new Error("Supabase not configured") };
     }
 

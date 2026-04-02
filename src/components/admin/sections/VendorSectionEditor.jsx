@@ -22,13 +22,13 @@ export default function VendorSectionEditor({ content, updateField }) {
 
   return (
     <div>
-      <h3 style={{ fontSize: 18, fontWeight: 600, color: C.text, margin: "0 0 24px 0" }}>
+      <h3 style={{ fontSize: 18, fontWeight: 600, color: C.white, margin: "0 0 24px 0" }}>
         Vendor Section
       </h3>
 
       {/* Heading */}
       <div style={{ marginBottom: 24 }}>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 8, textTransform: "uppercase" }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.grey, marginBottom: 8, textTransform: "uppercase" }}>
           Section Heading
         </label>
         <input
@@ -42,7 +42,7 @@ export default function VendorSectionEditor({ content, updateField }) {
             border: `1px solid ${C.border}`,
             borderRadius: 6,
             background: C.card,
-            color: C.text,
+            color: C.white,
             fontSize: 14,
             fontFamily: "inherit",
             boxSizing: "border-box",
@@ -52,7 +52,7 @@ export default function VendorSectionEditor({ content, updateField }) {
 
       {/* Subtitle */}
       <div style={{ marginBottom: 24 }}>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 8, textTransform: "uppercase" }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.grey, marginBottom: 8, textTransform: "uppercase" }}>
           Subtitle
         </label>
         <input
@@ -66,7 +66,7 @@ export default function VendorSectionEditor({ content, updateField }) {
             border: `1px solid ${C.border}`,
             borderRadius: 6,
             background: C.card,
-            color: C.text,
+            color: C.white,
             fontSize: 14,
             fontFamily: "inherit",
             boxSizing: "border-box",
@@ -76,7 +76,7 @@ export default function VendorSectionEditor({ content, updateField }) {
 
       {/* Vendors Selection */}
       <div style={{ marginBottom: 24 }}>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 12, textTransform: "uppercase" }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.grey, marginBottom: 12, textTransform: "uppercase" }}>
           Select Featured Vendors
         </label>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
@@ -107,13 +107,13 @@ export default function VendorSectionEditor({ content, updateField }) {
                 onChange={() => toggleVendor(vendor.id)}
                 style={{ marginRight: 8, cursor: "pointer" }}
               />
-              <span style={{ color: C.text, fontSize: 14 }}>{vendor.name}</span>
+              <span style={{ color: C.white, fontSize: 14 }}>{vendor.name}</span>
             </label>
           ))}
         </div>
       </div>
 
-      <div style={{ padding: "16px", background: "rgba(201, 168, 76, 0.05)", border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, color: C.textSecondary }}>
+      <div style={{ padding: "16px", background: "rgba(201, 168, 76, 0.05)", border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, color: C.grey }}>
         💡 Select vendors to feature in the vendor section. These should be your most trusted, premium partners.
       </div>
     </div>

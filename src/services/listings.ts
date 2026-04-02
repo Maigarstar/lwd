@@ -1,6 +1,20 @@
 import { supabase, isSupabaseAvailable } from '../lib/supabaseClient'
 import { buildCardImgs, buildCardVideoUrl } from '../utils/mediaMappers'
 
+// ── Admin edge-function helper ────────────────────────────────────────────────
+// All admin reads/writes on `listings` go through the admin-listings edge
+// function (service_role), so they remain unaffected when Phase 3B enables
+// RLS with anon SELECT WHERE status = 'published'.
+async function invokeAdminListings(action: string, params: Record<string, unknown> = {}) {
+  if (!isSupabaseAvailable() || !supabase) throw new Error('Supabase not configured')
+  const { data, error } = await supabase.functions.invoke('admin-listings', {
+    body: { action, ...params },
+  })
+  if (error) throw error
+  if (!data?.success) throw new Error(data?.error ?? `admin-listings/${action} failed`)
+  return data
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -95,6 +109,50 @@ export function mapListingFromDb(rawListing: any): Listing {
   // Build video URL from media_items
   if (Array.isArray(listing.mediaItems) && !listing.videoUrl) {
     listing.videoUrl = buildCardVideoUrl(listing.mediaItems) ?? undefined;
+  }
+
+  // ── Format priceFrom: number/raw string → "£28,000" ──────────────────────
+  if (listing.priceFrom) {
+    const raw = listing.priceFrom;
+    const num = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(/[^0-9.]/g, ''));
+    if (!isNaN(num) && num > 0 && !String(raw).includes('£') && !String(raw).includes('$') && !String(raw).includes('€')) {
+      const symbol = listing.priceCurrency || '£';
+      listing.priceFrom = `${symbol}${num.toLocaleString('en-GB')}`;
+    }
+  }
+
+  // ── Showcase URL ───────────────────────────────────────────────────────────
+  if (!listing.showcaseUrl && listing.showcaseEnabled && listing.slug) {
+    listing.showcaseUrl = `/showcase/${listing.slug}`;
+  }
+
+  // ── reviews alias: DB stores review_count → reviewCount; cards read v.reviews ──
+  if (listing.reviews == null && listing.reviewCount != null) {
+    listing.reviews = listing.reviewCount;
+  }
+
+  // ── verified alias: cards read v.verified; DB maps to isVerified ──────────
+  if (listing.verified == null) {
+    listing.verified = !!listing.isVerified;
+  }
+
+  // ── Expand cards_data JSONB → flat listing properties ─────────────────────
+  if (listing.cardsData && typeof listing.cardsData === 'object') {
+    Object.assign(listing, listing.cardsData);
+  }
+
+  // ── Card display defaults ──────────────────────────────────────────────────
+  if (!listing.desc) {
+    listing.desc =
+      listing.cardVenueDescription ||
+      listing.shortDescription     ||
+      listing.description          ||
+      '';
+  }
+
+  // LuxuryVenueCard renders "Up to {v.capacity} guests" — store raw number only
+  if (!listing.capacity && (listing.capacityMin || listing.capacityMax)) {
+    listing.capacity = listing.capacityMax || listing.capacityMin;
   }
 
   return listing;
@@ -252,6 +310,47 @@ function transformSupabaseListingForUI(listing: any): any {
         is_featured: h.featured ?? i === 0,
         sort_order:  i,
       }));
+  }
+
+  // ── Format priceFrom: number/raw string → "£28,000" ──────────────────────
+  if (transformed.priceFrom) {
+    const raw = transformed.priceFrom;
+    const num = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(/[^0-9.]/g, ''));
+    if (!isNaN(num) && num > 0 && !String(raw).includes('£') && !String(raw).includes('$') && !String(raw).includes('€')) {
+      const symbol = transformed.priceCurrency || '£';
+      transformed.priceFrom = `${symbol}${num.toLocaleString('en-GB')}`;
+    }
+  }
+
+  // ── Showcase URL ───────────────────────────────────────────────────────────
+  if (!transformed.showcaseUrl && transformed.showcaseEnabled && transformed.slug) {
+    transformed.showcaseUrl = `/showcase/${transformed.slug}`;
+  }
+
+  // ── reviews alias ──────────────────────────────────────────────────────────
+  if (transformed.reviews == null && transformed.reviewCount != null) {
+    transformed.reviews = transformed.reviewCount;
+  }
+
+  // ── Expand cards_data JSONB → flat properties ──────────────────────────────
+  // cards_data stores Listing Studio card fields as camelCase keys.
+  // Merge onto the listing so LuxuryVenueCard / LuxuryVendorCard can read them.
+  if (transformed.cardsData && typeof transformed.cardsData === 'object') {
+    Object.assign(transformed, transformed.cardsData)
+  }
+
+  // ── Card display defaults ──────────────────────────────────────────────────
+  if (!transformed.desc) {
+    transformed.desc =
+      transformed.cardVenueDescription ||
+      transformed.shortDescription     ||
+      transformed.description          ||
+      ''
+  }
+
+  // LuxuryVenueCard renders "Up to {v.capacity} guests" — store raw number only
+  if (!transformed.capacity && (transformed.capacityMin || transformed.capacityMax)) {
+    transformed.capacity = transformed.capacityMax || transformed.capacityMin
   }
 
   return transformed
@@ -525,6 +624,8 @@ function mapFormToDatabaseFields(data: any): any {
     'editorialLastReviewedBy': 'editorial_last_reviewed_by',
     'refreshNotes': 'refresh_notes',
     'contentQualityScore': 'content_quality_score',
+    // Cards Section — all card fields stored in a single JSONB column
+    'cardsData': 'cards_data',
   }
 
   for (const key in data) {
@@ -800,23 +901,9 @@ export async function createListing(data: Listing) {
     // Sanitize payload: convert empty strings to null for numeric/date fields
     const dbData = sanitizeListingPayload(mapped)
 
-    let { data: listing, error } = await supabase!
-      .from('listings')
-      .insert([dbData])
-      .select()
-      .single()
-
-    // Graceful retry: if managed_account_id column doesn't exist yet (schema cache miss), strip and retry
-    // Only catches schema/column-not-found errors, not FK constraint violations
-    if (error && error.message?.includes('managed_account_id') && error.message?.includes('schema cache')) {
-      const { managed_account_id: _ma, ...dbDataWithout } = dbData as any
-      const retried = await supabase!.from('listings').insert([dbDataWithout]).select().single()
-      if (retried.error) throw retried.error
-      listing = retried.data
-      error = null
-    }
-
-    if (error) throw error
+    // Route through admin edge function (service_role bypasses RLS)
+    const result = await invokeAdminListings('create', { payload: dbData })
+    const listing = result.data
 
     // Fire-and-forget: sync rich media metadata into AI search index
     syncMediaAIIndex(listing.id, data)
@@ -851,30 +938,9 @@ export async function updateListing(id: string, data: Partial<Listing>) {
     // Sanitize payload: convert empty strings to null for numeric/date fields
     const updateData = sanitizeListingPayload(mapped)
 
-    let { data: listing, error } = await supabase!
-      .from('listings')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single()
-
-    // Graceful retry: if managed_account_id column doesn't exist yet (schema cache miss), strip and retry
-    // Only catches schema/column-not-found errors, not FK constraint violations
-    if (error && error.message?.includes('managed_account_id') && error.message?.includes('schema cache')) {
-      const { managed_account_id: _ma, ...updateDataWithout } = updateData as any
-      const retried = await supabase!.from('listings').update(updateDataWithout).eq('id', id).select().single()
-      if (retried.error) throw retried.error
-      listing = retried.data
-      error = null
-    }
-
-    if (error) {
-      console.error("Supabase UPDATE error:", error);
-      console.error("Error code:", error.code);
-      console.error("Error message:", error.message);
-      console.error("Error details:", error);
-      throw error
-    }
+    // Route through admin edge function (service_role bypasses RLS)
+    const result = await invokeAdminListings('update', { id, payload: updateData })
+    const listing = result.data
 
     // Fire-and-forget: sync rich media metadata into AI search index
     syncMediaAIIndex(listing.id, data)
@@ -892,25 +958,9 @@ export async function updateListing(id: string, data: Partial<Listing>) {
  * Fetch a single listing by ID
  */
 export async function fetchListingById(id: string) {
-  if (!isSupabaseAvailable()) {
-    console.error('Supabase not configured')
-    throw new Error('Supabase not configured')
-  }
-
-  try {
-    const { data: listing, error } = await supabase!
-      .from('listings')
-      .select()
-      .eq('id', id)
-      .single()
-
-    if (error) throw error
-    // Map raw DB data to camelCase frontend format (single point of conversion)
-    return mapListingFromDb(listing)
-  } catch (error) {
-    console.error('Error fetching listing:', error)
-    throw error
-  }
+  // Route through admin edge function (service_role bypasses RLS)
+  const result = await invokeAdminListings('getById', { id })
+  return mapListingFromDb(result.data)
 }
 
 /**
@@ -947,13 +997,14 @@ export async function fetchListingBySlug(slug: string) {
       .from('listings')
       .select()
       .eq('slug', slug)
-      .single()
+      .maybeSingle()
 
+    // maybeSingle() returns null (not an error) when no row found
     if (error) throw error
+    if (!listing) return null
     // Map raw DB data to camelCase frontend format (single point of conversion)
     return mapListingFromDb(listing)
   } catch (error) {
-    console.error('Error fetching listing by slug:', error)
     throw error
   }
 }
@@ -1036,22 +1087,32 @@ export async function publishListing(id: string | undefined, data: Listing) {
  * Delete a listing
  */
 export async function deleteListing(id: string) {
-  if (!isSupabaseAvailable()) {
-    console.error('Supabase not configured')
-    throw new Error('Supabase not configured')
-  }
+  // Route through admin edge function (service_role bypasses RLS)
+  await invokeAdminListings('delete', { id })
+}
 
-  try {
-    const { error } = await supabase!
-      .from('listings')
-      .delete()
-      .eq('id', id)
+// ── Admin-only variants ───────────────────────────────────────────────────────
+// These route through the admin-listings edge function (service_role).
+// Use these everywhere the admin dashboard needs to read listings regardless of
+// status. Public reads (fetchListings, fetchListingBySlug) stay on the anon
+// client and will be constrained once Phase 3B adds RLS policies.
 
-    if (error) throw error
-  } catch (error) {
-    console.error('Error deleting listing:', error)
-    throw error
-  }
+export async function fetchListingsAdmin(filters?: {
+  status?: string
+  category_slug?: string
+  region_slug?: string
+  country_slug?: string
+  listing_type?: string
+}) {
+  const result = await invokeAdminListings('list', { filters: filters ?? {} })
+  const raw: any[] = result.data ?? []
+  return raw.map(l => transformSupabaseListingForUI(snakeToCamel(l))) as Listing[]
+}
+
+export async function fetchListingBySlugAdmin(slug: string) {
+  const result = await invokeAdminListings('getBySlug', { slug })
+  if (!result.data) return null
+  return mapListingFromDb(result.data)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -251,9 +251,16 @@ function ArticleList({ posts, onEdit, onNew, onDuplicate, onDelete, onBack }) {
   const [search, setSearch]     = useState('');
   const [filterCat, setFilterCat] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [sortCol, setSortCol]   = useState('date');
+  const [sortDir, setSortDir]   = useState('desc');
+
+  const toggleSort = (col) => {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortCol(col); setSortDir('desc'); }
+  };
 
   const filtered = useMemo(() => {
-    return posts.filter(p => {
+    const base = posts.filter(p => {
       if (search && !p.title.toLowerCase().includes(search.toLowerCase()) &&
           !(p.excerpt || '').toLowerCase().includes(search.toLowerCase())) return false;
       if (filterCat !== 'all' && p.category !== filterCat) return false;
@@ -262,7 +269,15 @@ function ArticleList({ posts, onEdit, onNew, onDuplicate, onDelete, onBack }) {
       if (filterStatus === 'featured' && !p.featured) return false;
       return true;
     });
-  }, [posts, search, filterCat, filterStatus]);
+    const dir = sortDir === 'asc' ? 1 : -1;
+    return [...base].sort((a, b) => {
+      if (sortCol === 'title')  return dir * a.title.localeCompare(b.title);
+      if (sortCol === 'words')  return dir * (computeWordCount(a.content) - computeWordCount(b.content));
+      if (sortCol === 'date')   return dir * (new Date(a.date || 0) - new Date(b.date || 0));
+      if (sortCol === 'status') return dir * (a.published === b.published ? 0 : a.published ? -1 : 1);
+      return 0;
+    });
+  }, [posts, search, filterCat, filterStatus, sortCol, sortDir]);
 
   const catOptions = [
     { value: 'all', label: 'All Categories' },
@@ -367,15 +382,30 @@ function ArticleList({ posts, onEdit, onNew, onDuplicate, onDelete, onBack }) {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${S.border}` }}>
-                {['', 'Title', 'Category', 'Status', 'Words', 'Date', ''].map((h, i) => (
-                  <th key={i} style={{
-                    padding: i === 0 ? '10px 8px 10px 20px' : i === 6 ? '10px 20px 10px 8px' : '10px 8px',
-                    fontFamily: FU, fontSize: 11, fontWeight: 700, letterSpacing: '0.14em',
-                    textTransform: 'uppercase', color: S.muted,
-                    textAlign: i === 6 ? 'right' : 'left',
-                    whiteSpace: 'nowrap',
-                  }}>
-                    {h}
+                {[
+                  { label: '',       col: null    },
+                  { label: 'Title',  col: 'title' },
+                  { label: 'Category', col: null  },
+                  { label: 'Status', col: 'status'},
+                  { label: 'Words',  col: 'words' },
+                  { label: 'Date',   col: 'date'  },
+                  { label: '',       col: null    },
+                ].map(({ label, col }, i) => (
+                  <th
+                    key={i}
+                    onClick={col ? () => toggleSort(col) : undefined}
+                    style={{
+                      padding: i === 0 ? '10px 8px 10px 20px' : i === 6 ? '10px 20px 10px 8px' : '10px 8px',
+                      fontFamily: FU, fontSize: 11, fontWeight: 700, letterSpacing: '0.14em',
+                      textTransform: 'uppercase',
+                      color: col && sortCol === col ? S.gold : S.muted,
+                      textAlign: i === 6 ? 'right' : 'left',
+                      whiteSpace: 'nowrap',
+                      cursor: col ? 'pointer' : 'default',
+                      userSelect: 'none',
+                    }}
+                  >
+                    {label}{col && sortCol === col ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                 ))}
               </tr>
@@ -510,6 +540,13 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
   });
   const [editingId, setEditingIdRaw] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem(SESSION_KEY))?.editingId || null; } catch { return null; }
+  });
+  const [returnPath, setReturnPath] = useState(() => {
+    try {
+      const p = sessionStorage.getItem('lwd_admin_return_path');
+      if (p) { sessionStorage.removeItem('lwd_admin_return_path'); return p; }
+    } catch {}
+    return null;
   });
 
   const setMode = (m) => {
@@ -667,6 +704,32 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
           {saveToast.msg}
         </div>
       )}
+      {/* Return to live page strip */}
+      {returnPath && mode === 'article-edit' && (
+        <div style={{
+          height: 28, flexShrink: 0,
+          background: 'rgba(201,168,76,0.08)',
+          borderBottom: '1px solid rgba(201,168,76,0.16)',
+          display: 'flex', alignItems: 'center',
+          padding: '0 20px', gap: 10,
+        }}>
+          <button
+            onClick={() => { window.location.href = returnPath }}
+            style={{
+              fontFamily: FU, fontSize: 10, fontWeight: 600,
+              letterSpacing: '0.06em', textTransform: 'uppercase',
+              color: S.gold, background: 'none', border: 'none',
+              cursor: 'pointer', padding: 0,
+            }}
+          >
+            ← Back to live page
+          </button>
+          <span style={{ fontFamily: FU, fontSize: 10, color: S.muted }}>
+            {returnPath}
+          </span>
+        </div>
+      )}
+
       {/* Top bar, hidden in full-screen editors (they have their own toolbars) */}
       {mode !== 'article-edit' && mode !== 'homepage' && mode !== 'category' && <div style={{
         height: 52, flexShrink: 0,

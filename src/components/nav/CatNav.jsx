@@ -109,7 +109,7 @@ export default function CatNav({ onBack, scrolled, darkMode, onToggleDark, crumb
                   <li>Venues</li>
                   <li aria-hidden="true" style={{ opacity: 0.4 }}>›</li>
                   <li>
-                    <span style={{ color: scrolled ? C.gold : "rgba(201,168,76,0.9)", fontWeight: 600 }} aria-current="page">Italy</span>
+                    <span style={{ color: scrolled ? C.gold : "rgba(201,168,76,0.9)", fontWeight: 600 }} aria-current="page">Destinations</span>
                   </li>
                 </>
             }

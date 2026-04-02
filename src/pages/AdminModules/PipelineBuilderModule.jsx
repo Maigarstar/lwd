@@ -1,0 +1,996 @@
+/**
+ * PipelineBuilderModule.jsx
+ * Build and manage custom sales pipelines.
+ * Under Admin > Sales > Pipeline Builder.
+ */
+
+import React, { useState, useEffect, useCallback, useContext } from 'react';
+import { ThemeCtx } from '../../theme/ThemeContext';
+import {
+  fetchPipelines,
+  createPipeline,
+  updatePipeline,
+  deletePipeline,
+  fetchStages,
+  createStage,
+  updateStage,
+  deleteStage,
+  reorderStages,
+  fetchTemplates,
+  createTemplate,
+  updateTemplate,
+  deleteTemplate,
+} from '../../services/pipelineBuilderService';
+import {
+  fetchAssignmentRules,
+  fetchAssignmentSettings,
+  saveAssignmentRule,
+  deleteAssignmentRule,
+  updateAssignmentSettings,
+  testAssignmentRules,
+  testCondition,
+} from '../../services/pipelineAssignmentService';
+
+// ── Shared constants ──────────────────────────────────────────────────────────
+
+const STAGE_COLORS = [
+  { hex: '#94a3b8', label: 'Slate'  },
+  { hex: '#f59e0b', label: 'Amber'  },
+  { hex: '#f97316', label: 'Orange' },
+  { hex: '#ef4444', label: 'Red'    },
+  { hex: '#8b5cf6', label: 'Purple' },
+  { hex: '#3b82f6', label: 'Blue'   },
+  { hex: '#06b6d4', label: 'Cyan'   },
+  { hex: '#22c55e', label: 'Green'  },
+  { hex: '#ec4899', label: 'Pink'   },
+  { hex: '#8f7420', label: 'Gold'   },
+];
+
+const PARTNER_TYPES = [
+  { value: 'venue',   label: 'Venue Partnerships'  },
+  { value: 'vendor',  label: 'Vendor Partnerships' },
+  { value: 'planner', label: 'Planner Partnerships'},
+  { value: 'custom',  label: 'Custom Pipeline'     },
+];
+
+const EMAIL_TYPES = [
+  { value: 'cold',       label: 'Cold Outreach'  },
+  { value: 'follow_up_1',label: 'Follow Up 1'    },
+  { value: 'follow_up_2',label: 'Follow Up 2'    },
+  { value: 'proposal',   label: 'Proposal'       },
+  { value: 'welcome',    label: 'Welcome Email'  },
+  { value: 'custom',     label: 'Custom'         },
+];
+
+const MERGE_TAGS = ['{{contact_name}}', '{{company_name}}', '{{sender_name}}', '{{proposal_value}}'];
+
+const RULE_FIELDS = [
+  { value: 'venue_type',   label: 'Type'        },
+  { value: 'source',       label: 'Source'      },
+  { value: 'company_name', label: 'Company name'},
+  { value: 'country',      label: 'Country'     },
+  { value: 'notes',        label: 'Notes'       },
+  { value: 'email',        label: 'Email'       },
+];
+
+const RULE_CONDITIONS = [
+  { value: 'contains',     label: 'contains'         },
+  { value: 'equals',       label: 'equals'           },
+  { value: 'starts_with',  label: 'starts with'      },
+  { value: 'not_contains', label: 'does not contain' },
+];
+
+const METHOD_COLORS = { rule: '#22c55e', ai: '#3b82f6', fallback: '#f59e0b', error: '#ef4444' };
+
+const CLOSED_WON_ACTION_LABELS = {
+  activate_profile:      'Activate vendor profile',
+  send_welcome_email:    'Send welcome email',
+  add_to_newsletter:     'Add to newsletter list',
+  create_onboarding_task:'Create onboarding task',
+};
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+
+const PB_LIGHT = { black: '#fafaf8', dark: '#f3ede6', card: '#ffffff', border: '#e8e0d0', border2: '#f0ece4', white: '#171717', grey: '#888', grey2: '#aaa', gold: '#8f7420' };
+
+function makeS(C, G) {
+  return {
+    wrap:       { display: 'flex', height: '100%', gap: 0, fontFamily: 'Inter, sans-serif', background: C.dark },
+    sidebar:    { width: 260, borderRight: `1px solid ${C.border}`, background: C.card, display: 'flex', flexDirection: 'column', flexShrink: 0 },
+    sideHead:   { padding: '20px 18px 12px', borderBottom: `1px solid ${C.border}`, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', color: G, textTransform: 'uppercase' },
+    pipeList:   { flex: 1, overflowY: 'auto', padding: '8px 0' },
+    pipeItem:   (active) => ({ padding: '10px 18px', cursor: 'pointer', background: active ? `${G}18` : 'transparent', borderLeft: active ? `3px solid ${G}` : '3px solid transparent', fontSize: 13, fontWeight: active ? 600 : 400, color: active ? G : C.white, display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.15s' }),
+    pipeDot:    (color) => ({ width: 9, height: 9, borderRadius: '50%', background: color || G, flexShrink: 0 }),
+    newBtn:     { margin: '12px 16px', padding: '9px 0', border: `1px dashed ${G}60`, borderRadius: 6, background: 'transparent', color: G, fontSize: 13, fontWeight: 500, cursor: 'pointer', width: 'calc(100% - 32px)', textAlign: 'center', transition: 'all 0.15s' },
+    main:       { flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' },
+    empty:      { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.grey, gap: 10 },
+    emptyIcon:  { fontSize: 40, opacity: 0.3 },
+    topBar:     { padding: '20px 28px 16px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 12, background: C.card },
+    pName:      { flex: 1, fontSize: 18, fontWeight: 600, color: C.white, fontFamily: 'Cormorant Garamond, Georgia, serif' },
+    tabBar:     { display: 'flex', gap: 0, borderBottom: `1px solid ${C.border}`, background: C.card, padding: '0 28px' },
+    tab:        (active) => ({ padding: '12px 20px', fontSize: 13, fontWeight: 500, cursor: 'pointer', borderBottom: active ? `2px solid ${G}` : '2px solid transparent', color: active ? G : C.grey, transition: 'all 0.15s', background: 'none', border: 'none' }),
+    body:       { padding: 28, display: 'flex', flexDirection: 'column', gap: 24 },
+    card:       { background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: 20 },
+    row:        { display: 'flex', gap: 16, alignItems: 'flex-start' },
+    col:        { flex: 1, display: 'flex', flexDirection: 'column', gap: 6 },
+    label:      { fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', color: C.grey, textTransform: 'uppercase' },
+    input:      { padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, color: C.white, outline: 'none', background: C.dark, width: '100%', boxSizing: 'border-box' },
+    textarea:   { padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, color: C.white, outline: 'none', background: C.dark, width: '100%', boxSizing: 'border-box', minHeight: 80, resize: 'vertical', fontFamily: 'Inter, sans-serif' },
+    select:     { padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, color: C.white, background: C.dark, width: '100%', outline: 'none' },
+    goldBtn:    { padding: '9px 20px', background: G, color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: 'opacity 0.15s' },
+    outlineBtn: { padding: '9px 20px', background: 'transparent', color: G, border: `1px solid ${G}`, borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' },
+    dangerBtn:  { padding: '7px 14px', background: 'transparent', color: '#dc2626', border: '1px solid #dc2626', borderRadius: 6, fontSize: 12, cursor: 'pointer' },
+    smallBtn:   { padding: '5px 12px', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 5, fontSize: 12, cursor: 'pointer', color: C.white },
+    stageRow:   { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: C.dark, border: `1px solid ${C.border}`, borderRadius: 7, marginBottom: 8 },
+    dragHandle: { color: C.grey, cursor: 'grab', fontSize: 16, flexShrink: 0, userSelect: 'none' },
+    colorDot:   (color) => ({ width: 20, height: 20, borderRadius: '50%', background: color, border: `2px solid ${C.card}`, cursor: 'pointer', flexShrink: 0, boxShadow: `0 0 0 1px ${C.border}` }),
+    colorSwatch:(color, active) => ({ width: 22, height: 22, borderRadius: '50%', background: color, cursor: 'pointer', boxShadow: active ? `0 0 0 2px ${C.card}, 0 0 0 4px ${color}` : 'none', flexShrink: 0 }),
+    colorPicker:{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '8px 0' },
+    tplCard:    { background: C.dark, border: `1px solid ${C.border}`, borderRadius: 7, padding: '14px 16px', marginBottom: 8 },
+    tplTitle:   { fontSize: 13, fontWeight: 600, color: C.white, marginBottom: 4 },
+    tplSub:     { fontSize: 11, color: C.grey },
+    badge:      (color) => ({ display: 'inline-block', padding: '2px 8px', borderRadius: 100, background: color + '22', color: color, fontSize: 11, fontWeight: 600 }),
+    checkRow:   { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: C.white },
+    overlay:    { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    modal:      { background: C.card, borderRadius: 10, padding: 28, width: '90vw', maxWidth: 640, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', color: C.white },
+    modalHead:  { fontSize: 17, fontWeight: 600, color: C.white, fontFamily: 'Cormorant Garamond, Georgia, serif', marginBottom: 20 },
+  };
+}
+
+// Module-level S - updated by PipelineBuilderModule before each render
+let S = makeS(PB_LIGHT, PB_LIGHT.gold);
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function ColorPicker({ value, onChange }) {
+  return (
+    <div style={S.colorPicker}>
+      {STAGE_COLORS.map(c => (
+        <div
+          key={c.hex}
+          style={S.colorSwatch(c.hex, value === c.hex)}
+          title={c.label}
+          onClick={() => onChange(c.hex)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function StageRowItem({ stage, stages, templates, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, isLast }) {
+  const [showColors, setShowColors] = useState(false);
+
+  function field(key, val) { onUpdate(stage.id, { [key]: val }); }
+
+  return (
+    <div style={S.stageRow}>
+      <div style={S.dragHandle} title="Drag to reorder">&#9776;</div>
+
+      {/* Color dot / picker toggle */}
+      <div style={{ position: 'relative' }}>
+        <div style={S.colorDot(stage.color)} onClick={() => setShowColors(v => !v)} title="Change colour" />
+        {showColors && (
+          <div style={{ ...S.card, position: 'absolute', top: 28, left: 0, borderRadius: 8, padding: '10px 12px', zIndex: 100, boxShadow: '0 4px 16px rgba(0,0,0,0.18)' }}>
+            <ColorPicker value={stage.color} onChange={c => { field('color', c); setShowColors(false); }} />
+          </div>
+        )}
+      </div>
+
+      {/* Name */}
+      <input
+        style={{ ...S.input, flex: 1, padding: '6px 10px' }}
+        value={stage.name}
+        onChange={e => field('name', e.target.value)}
+        placeholder="Stage name"
+      />
+
+      {/* Auto follow-up days */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+        <span style={{ fontSize: 11, color: '#888', whiteSpace: 'nowrap' }}>FU in</span>
+        <input
+          style={{ ...S.input, width: 48, padding: '6px 8px', textAlign: 'center' }}
+          type="number"
+          min="0"
+          value={stage.auto_follow_up_days || ''}
+          onChange={e => field('auto_follow_up_days', e.target.value ? parseInt(e.target.value) : null)}
+          placeholder="--"
+          title="Auto follow-up after N days (leave blank for none)"
+        />
+        <span style={{ fontSize: 11, color: '#888' }}>days</span>
+      </div>
+
+      {/* Template */}
+      <select
+        style={{ ...S.select, width: 160, padding: '6px 8px' }}
+        value={stage.email_template_id || ''}
+        onChange={e => field('email_template_id', e.target.value || null)}
+        title="Email template for this stage"
+      >
+        <option value="">No template</option>
+        {templates.map(t => (
+          <option key={t.id} value={t.id}>{t.name}</option>
+        ))}
+      </select>
+
+      {/* Won / Lost toggles */}
+      <label style={{ ...S.checkRow, gap: 4, flexShrink: 0, fontSize: 11, color: '#22c55e', cursor: 'pointer' }}>
+        <input type="checkbox" checked={stage.is_won} onChange={e => field('is_won', e.target.checked)} />
+        Won
+      </label>
+      <label style={{ ...S.checkRow, gap: 4, flexShrink: 0, fontSize: 11, color: '#ef4444', cursor: 'pointer' }}>
+        <input type="checkbox" checked={stage.is_lost} onChange={e => field('is_lost', e.target.checked)} />
+        Lost
+      </label>
+
+      {/* Reorder arrows */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0 }}>
+        <button style={{ ...S.smallBtn, padding: '2px 8px', opacity: isFirst ? 0.3 : 1 }} onClick={onMoveUp} disabled={isFirst}>▲</button>
+        <button style={{ ...S.smallBtn, padding: '2px 8px', opacity: isLast ? 0.3 : 1 }} onClick={onMoveDown} disabled={isLast}>▼</button>
+      </div>
+
+      {/* Delete */}
+      <button style={{ ...S.smallBtn, color: '#dc2626', borderColor: '#dc2626', flexShrink: 0 }} onClick={() => onDelete(stage.id)}>✕</button>
+    </div>
+  );
+}
+
+function TemplateModal({ template, pipelineId, stages, onSave, onClose }) {
+  const init = template || { pipeline_id: pipelineId, stage_id: '', name: '', email_type: 'cold', subject: '', body: '' };
+  const [form, setForm] = useState(init);
+  const [saving, setSaving] = useState(false);
+
+  function f(k, v) { setForm(p => ({ ...p, [k]: v })); }
+
+  async function save() {
+    if (!form.name || !form.subject || !form.body) return;
+    setSaving(true);
+    try {
+      const saved = form.id
+        ? await updateTemplate(form.id, form)
+        : await createTemplate({ ...form, pipeline_id: pipelineId });
+      onSave(saved);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function insertTag(tag) {
+    const ta = document.getElementById('tpl-body');
+    if (!ta) { f('body', form.body + tag); return; }
+    const start = ta.selectionStart;
+    const end   = ta.selectionEnd;
+    f('body', form.body.slice(0, start) + tag + form.body.slice(end));
+    setTimeout(() => { ta.selectionStart = ta.selectionEnd = start + tag.length; ta.focus(); }, 0);
+  }
+
+  return (
+    <div style={S.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={S.modal}>
+        <div style={S.modalHead}>{form.id ? 'Edit Template' : 'New Email Template'}</div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={S.row}>
+            <div style={S.col}>
+              <div style={S.label}>Template name</div>
+              <input style={S.input} value={form.name} onChange={e => f('name', e.target.value)} placeholder="e.g. Venue Cold Outreach" />
+            </div>
+            <div style={S.col}>
+              <div style={S.label}>Type</div>
+              <select style={S.select} value={form.email_type} onChange={e => f('email_type', e.target.value)}>
+                {EMAIL_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div style={S.col}>
+            <div style={S.label}>Attach to stage (optional)</div>
+            <select style={S.select} value={form.stage_id || ''} onChange={e => f('stage_id', e.target.value || null)}>
+              <option value="">Not attached to a stage</option>
+              {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+
+          <div style={S.col}>
+            <div style={S.label}>Subject</div>
+            <input style={S.input} value={form.subject} onChange={e => f('subject', e.target.value)} placeholder="e.g. Partnership enquiry - {{company_name}}" />
+          </div>
+
+          <div style={S.col}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <div style={S.label}>Body</div>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {MERGE_TAGS.map(t => (
+                  <button key={t} style={{ ...S.smallBtn, fontSize: 10, padding: '3px 7px', color: '#8f7420', borderColor: 'rgba(143,116,32,0.4)' }} onClick={() => insertTag(t)}>{t}</button>
+                ))}
+              </div>
+            </div>
+            <textarea
+              id="tpl-body"
+              style={{ ...S.textarea, minHeight: 220 }}
+              value={form.body}
+              onChange={e => f('body', e.target.value)}
+              placeholder="Write your email here. Use merge tags above to personalise."
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+          <button style={S.outlineBtn} onClick={onClose}>Cancel</button>
+          <button style={{ ...S.goldBtn, opacity: saving ? 0.6 : 1 }} onClick={save} disabled={saving}>
+            {saving ? 'Saving...' : 'Save Template'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NewPipelineModal({ onSave, onClose }) {
+  const [form, setForm] = useState({ name: '', partner_type: 'custom', description: '', color: '#8f7420' });
+  const [saving, setSaving] = useState(false);
+  function f(k, v) { setForm(p => ({ ...p, [k]: v })); }
+
+  async function save() {
+    if (!form.name.trim()) return;
+    setSaving(true);
+    try { onSave(await createPipeline(form)); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div style={S.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ ...S.modal, maxWidth: 440 }}>
+        <div style={S.modalHead}>Create New Pipeline</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={S.col}>
+            <div style={S.label}>Pipeline name</div>
+            <input style={S.input} value={form.name} onChange={e => f('name', e.target.value)} placeholder="e.g. Luxury Brand Partnerships" autoFocus />
+          </div>
+          <div style={S.col}>
+            <div style={S.label}>Type</div>
+            <select style={S.select} value={form.partner_type} onChange={e => f('partner_type', e.target.value)}>
+              {PARTNER_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+          </div>
+          <div style={S.col}>
+            <div style={S.label}>Description (optional)</div>
+            <input style={S.input} value={form.description} onChange={e => f('description', e.target.value)} placeholder="What is this pipeline for?" />
+          </div>
+          <div style={S.col}>
+            <div style={S.label}>Colour</div>
+            <ColorPicker value={form.color} onChange={c => f('color', c)} />
+          </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+          <button style={S.outlineBtn} onClick={onClose}>Cancel</button>
+          <button style={{ ...S.goldBtn, opacity: saving ? 0.6 : 1 }} onClick={save} disabled={saving || !form.name.trim()}>
+            {saving ? 'Creating...' : 'Create Pipeline'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
+
+export default function PipelineBuilderModule() {
+  const C = useContext(ThemeCtx);
+  const G = C?.gold || PB_LIGHT.gold;
+  S = makeS(C || PB_LIGHT, G);
+
+  const [pipelines,       setPipelines]       = useState([]);
+  const [selectedId,      setSelectedId]      = useState(null);
+  const [stages,          setStages]          = useState([]);
+  const [templates,       setTemplates]       = useState([]);
+  const [activeTab,       setActiveTab]       = useState('stages');
+  const [loading,         setLoading]         = useState(true);
+  const [saving,          setSaving]          = useState(false);
+  const [editTemplate,    setEditTemplate]    = useState(null); // null | false | template object
+  const [showNewPipeline, setShowNewPipeline] = useState(false);
+  const [confirmDelete,   setConfirmDelete]   = useState(null); // pipeline id to delete
+  const [pipelineForm,    setPipelineForm]    = useState({});
+
+  // Auto-assign state
+  const [rules,          setRules]          = useState([]);
+  const [assignSettings, setAssignSettings] = useState({ ai_fallback_enabled: true, fallback_pipeline_id: null });
+  const [rulesLoaded,    setRulesLoaded]    = useState(false);
+  const [rulesLoading,   setRulesLoading]   = useState(false);
+  const [newRule,        setNewRule]        = useState({ rule_field: 'venue_type', rule_condition: 'contains', rule_value: '', priority: 50, pipeline_id: '' });
+  const [addingRule,     setAddingRule]     = useState(false);
+  const [testInput,      setTestInput]      = useState({ company_name: '', venue_type: '', source: '', notes: '', website: '', country: '' });
+  const [testResult,     setTestResult]     = useState(null);
+  const [testRunning,    setTestRunning]    = useState(false);
+
+  const selected = pipelines.find(p => p.id === selectedId) || null;
+
+  // Load pipelines
+  useEffect(() => {
+    (async () => {
+      try {
+        const list = await fetchPipelines();
+        setPipelines(list);
+        if (list.length) setSelectedId(list[0].id);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  // Load stages + templates when pipeline selected
+  useEffect(() => {
+    if (!selectedId) return;
+    setStages([]);
+    setTemplates([]);
+    Promise.all([fetchStages(selectedId), fetchTemplates(selectedId)])
+      .then(([s, t]) => { setStages(s); setTemplates(t); })
+      .catch(console.error);
+    const p = pipelines.find(x => x.id === selectedId);
+    if (p) setPipelineForm({ name: p.name, partner_type: p.partner_type, description: p.description || '', color: p.color });
+  }, [selectedId]);
+
+  // Save pipeline settings (debounced on blur)
+  async function savePipelineSettings() {
+    if (!selectedId) return;
+    setSaving(true);
+    try {
+      const updated = await updatePipeline(selectedId, pipelineForm);
+      setPipelines(list => list.map(p => p.id === selectedId ? updated : p));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Stage operations
+  async function addStage() {
+    const pos = stages.length;
+    const newStage = await createStage({
+      pipeline_id: selectedId,
+      name: 'New Stage',
+      color: '#94a3b8',
+      position: pos,
+      is_won: false,
+      is_lost: false,
+      auto_follow_up_days: null,
+    });
+    setStages(s => [...s, newStage]);
+  }
+
+  async function handleStageUpdate(id, fields) {
+    setStages(s => s.map(x => x.id === id ? { ...x, ...fields } : x));
+    try { await updateStage(id, fields); } catch (e) { console.error(e); }
+  }
+
+  async function handleStageDelete(id) {
+    if (!window.confirm('Delete this stage? Prospects in this stage will not be deleted.')) return;
+    await deleteStage(id);
+    setStages(s => s.filter(x => x.id !== id));
+  }
+
+  function moveStage(idx, dir) {
+    const newStages = [...stages];
+    const swap = idx + dir;
+    if (swap < 0 || swap >= newStages.length) return;
+    [newStages[idx], newStages[swap]] = [newStages[swap], newStages[idx]];
+    newStages.forEach((s, i) => s.position = i);
+    setStages(newStages);
+    reorderStages(newStages.map(s => s.id)).catch(console.error);
+  }
+
+  // Template operations
+  function handleTemplateSaved(saved) {
+    setTemplates(list => {
+      const idx = list.findIndex(t => t.id === saved.id);
+      return idx >= 0 ? list.map(t => t.id === saved.id ? saved : t) : [...list, saved];
+    });
+    setEditTemplate(null);
+  }
+
+  async function handleTemplateDelete(id) {
+    if (!window.confirm('Delete this template?')) return;
+    await deleteTemplate(id);
+    setTemplates(list => list.filter(t => t.id !== id));
+  }
+
+  // Pipeline operations
+  async function handleNewPipelineSaved(pipeline) {
+    setPipelines(list => [...list, pipeline]);
+    setSelectedId(pipeline.id);
+    setShowNewPipeline(false);
+  }
+
+  async function handleDeletePipeline() {
+    if (!confirmDelete) return;
+    await deletePipeline(confirmDelete);
+    const remaining = pipelines.filter(p => p.id !== confirmDelete);
+    setPipelines(remaining);
+    setSelectedId(remaining.length ? remaining[0].id : null);
+    setConfirmDelete(null);
+  }
+
+  // Auto-assign tab: lazy-load rules on first open
+  async function handleAutoAssignTab() {
+    setActiveTab('auto_assign');
+    if (rulesLoaded) return;
+    setRulesLoading(true);
+    try {
+      const [r, s] = await Promise.all([fetchAssignmentRules(), fetchAssignmentSettings()]);
+      setRules(r);
+      setAssignSettings(s);
+      setRulesLoaded(true);
+      setNewRule(prev => ({ ...prev, pipeline_id: pipelines[0]?.id || '' }));
+    } catch (e) {
+      console.error('[AutoAssign] load failed', e);
+    } finally {
+      setRulesLoading(false);
+    }
+  }
+
+  async function handleAddRule() {
+    if (!newRule.rule_value.trim() || !newRule.pipeline_id) return;
+    setAddingRule(true);
+    try {
+      const saved = await saveAssignmentRule(newRule);
+      setRules(prev => [...prev, saved].sort((a, b) => b.priority - a.priority));
+      setNewRule(prev => ({ ...prev, rule_value: '' }));
+    } finally {
+      setAddingRule(false); }
+  }
+
+  async function handleToggleRule(rule) {
+    const updated = await saveAssignmentRule({ ...rule, is_active: !rule.is_active });
+    setRules(prev => prev.map(r => r.id === updated.id ? updated : r));
+  }
+
+  async function handleDeleteRule(id) {
+    if (!window.confirm('Delete this rule?')) return;
+    await deleteAssignmentRule(id);
+    setRules(prev => prev.filter(r => r.id !== id));
+  }
+
+  async function handleSettingChange(field, value) {
+    const next = { ...assignSettings, [field]: value };
+    setAssignSettings(next);
+    await updateAssignmentSettings(next);
+  }
+
+  async function handleTestRules() {
+    setTestRunning(true);
+    setTestResult(null);
+    try {
+      const result = await testAssignmentRules(testInput, rules, assignSettings, pipelines);
+      setTestResult(result);
+    } catch (e) {
+      setTestResult({ assigned_pipeline: 'Error', method: 'error', confidence: 'low', explanation: e.message });
+    } finally {
+      setTestRunning(false);
+    }
+  }
+
+  if (loading) return <div style={{ padding: 40, color: '#888', textAlign: 'center' }}>Loading pipelines...</div>;
+
+  return (
+    <div style={S.wrap}>
+      {/* ── Sidebar ── */}
+      <div style={S.sidebar}>
+        <div style={S.sideHead}>Pipelines</div>
+        <div style={S.pipeList}>
+          {pipelines.map(p => (
+            <div key={p.id} style={S.pipeItem(p.id === selectedId)} onClick={() => setSelectedId(p.id)}>
+              <div style={S.pipeDot(p.color)} />
+              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+              <span style={{ fontSize: 10, color: '#aaa' }}>{p.partner_type}</span>
+            </div>
+          ))}
+        </div>
+        <button style={S.newBtn} onClick={() => setShowNewPipeline(true)}>+ New Pipeline</button>
+      </div>
+
+      {/* ── Main ── */}
+      <div style={S.main}>
+        {!selected ? (
+          <div style={S.empty}>
+            <div style={S.emptyIcon}>◆</div>
+            <div>Select a pipeline or create a new one</div>
+          </div>
+        ) : (
+          <>
+            {/* Top bar */}
+            <div style={S.topBar}>
+              <div style={S.pName}>{selected.name}</div>
+              <span style={S.badge(selected.color)}>{selected.partner_type}</span>
+              {!selected.is_default && (
+                <button style={S.dangerBtn} onClick={() => setConfirmDelete(selected.id)}>Delete Pipeline</button>
+              )}
+            </div>
+
+            {/* Pipeline settings card */}
+            <div style={{ padding: '16px 28px 0' }}>
+              <div style={S.card}>
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14, color: '#555' }}>Pipeline Settings</div>
+                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                  <div style={{ ...S.col, minWidth: 180 }}>
+                    <div style={S.label}>Name</div>
+                    <input
+                      style={S.input}
+                      value={pipelineForm.name || ''}
+                      onChange={e => setPipelineForm(f => ({ ...f, name: e.target.value }))}
+                      onBlur={savePipelineSettings}
+                    />
+                  </div>
+                  <div style={{ ...S.col, minWidth: 160 }}>
+                    <div style={S.label}>Type</div>
+                    <select
+                      style={S.select}
+                      value={pipelineForm.partner_type || 'custom'}
+                      onChange={e => setPipelineForm(f => ({ ...f, partner_type: e.target.value }))}
+                      onBlur={savePipelineSettings}
+                    >
+                      {PARTNER_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ ...S.col, flex: 2, minWidth: 200 }}>
+                    <div style={S.label}>Description</div>
+                    <input
+                      style={S.input}
+                      value={pipelineForm.description || ''}
+                      onChange={e => setPipelineForm(f => ({ ...f, description: e.target.value }))}
+                      onBlur={savePipelineSettings}
+                      placeholder="Optional description"
+                    />
+                  </div>
+                  <div style={S.col}>
+                    <div style={S.label}>Colour</div>
+                    <ColorPicker value={pipelineForm.color || '#8f7420'} onChange={c => { setPipelineForm(f => ({ ...f, color: c })); }} />
+                  </div>
+                </div>
+                {saving && <div style={{ fontSize: 11, color: '#8f7420', marginTop: 8 }}>Saving...</div>}
+              </div>
+            </div>
+
+            {/* Tab bar */}
+            <div style={S.tabBar}>
+              <button style={S.tab(activeTab === 'stages')}    onClick={() => setActiveTab('stages')}>
+                Stages ({stages.length})
+              </button>
+              <button style={S.tab(activeTab === 'templates')} onClick={() => setActiveTab('templates')}>
+                Email Templates ({templates.length})
+              </button>
+              <button style={S.tab(activeTab === 'automation')} onClick={() => setActiveTab('automation')}>
+                Automation
+              </button>
+              <button style={S.tab(activeTab === 'auto_assign')} onClick={handleAutoAssignTab}>
+                Auto-Assign Rules
+              </button>
+            </div>
+
+            {/* Tab body */}
+            <div style={S.body}>
+
+              {/* ── STAGES ── */}
+              {activeTab === 'stages' && (
+                <div>
+                  <div style={{ fontSize: 12, color: '#888', marginBottom: 14 }}>
+                    Configure stages, colours, auto follow-up delays, and attached email templates.
+                    <br />Drag to reorder. Stages with <span style={{ color: '#22c55e', fontWeight: 600 }}>Won</span> checked will fire Closed Won automation.
+                  </div>
+
+                  {stages.map((stage, idx) => (
+                    <StageRowItem
+                      key={stage.id}
+                      stage={stage}
+                      stages={stages}
+                      templates={templates}
+                      onUpdate={handleStageUpdate}
+                      onDelete={handleStageDelete}
+                      onMoveUp={() => moveStage(idx, -1)}
+                      onMoveDown={() => moveStage(idx, 1)}
+                      isFirst={idx === 0}
+                      isLast={idx === stages.length - 1}
+                    />
+                  ))}
+
+                  <button
+                    style={{ ...S.outlineBtn, marginTop: 4, width: '100%' }}
+                    onClick={addStage}
+                  >
+                    + Add Stage
+                  </button>
+                </div>
+              )}
+
+              {/* ── TEMPLATES ── */}
+              {activeTab === 'templates' && (
+                <div>
+                  <div style={{ fontSize: 12, color: '#888', marginBottom: 14 }}>
+                    Create editable email templates for each stage. Use merge tags to personalise at send time.
+                  </div>
+
+                  {templates.map(t => {
+                    const attachedStage = stages.find(s => s.id === t.stage_id);
+                    return (
+                      <div key={t.id} style={S.tplCard}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div>
+                            <div style={S.tplTitle}>{t.name}</div>
+                            <div style={{ display: 'flex', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                              <span style={S.badge('#8f7420')}>{EMAIL_TYPES.find(x => x.value === t.email_type)?.label || t.email_type}</span>
+                              {attachedStage && (
+                                <span style={{ ...S.badge(attachedStage.color), display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: attachedStage.color, display: 'inline-block' }} />
+                                  {attachedStage.name}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 6 }}>
+                              <strong>Subject:</strong> {t.subject}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button style={S.smallBtn} onClick={() => setEditTemplate(t)}>Edit</button>
+                            <button style={{ ...S.smallBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => handleTemplateDelete(t.id)}>Delete</button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  <button
+                    style={{ ...S.outlineBtn, width: '100%', marginTop: 4 }}
+                    onClick={() => setEditTemplate(false)}
+                  >
+                    + New Template
+                  </button>
+                </div>
+              )}
+
+              {/* ── AUTOMATION ── */}
+              {activeTab === 'automation' && (
+                <div>
+                  <div style={{ fontSize: 12, color: '#888', marginBottom: 14 }}>
+                    Automation rules fire when a prospect moves to a stage with <strong>Won</strong> checked.
+                  </div>
+                  {stages.filter(s => s.is_won).map(stage => (
+                    <div key={stage.id} style={S.card}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: stage.color }} />
+                        <div style={{ fontWeight: 600, fontSize: 14, color: '#171717' }}>
+                          When moved to: {stage.name}
+                        </div>
+                      </div>
+                      {['activate_profile','send_welcome_email','add_to_newsletter','create_onboarding_task'].map(action => {
+                        const isActive = (stage.closed_won_actions || []).includes(action);
+                        return (
+                          <label key={action} style={{ ...S.checkRow, marginBottom: 10, cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={isActive}
+                              onChange={async e => {
+                                const current = stage.closed_won_actions || [];
+                                const next = e.target.checked
+                                  ? [...current, action]
+                                  : current.filter(a => a !== action);
+                                await handleStageUpdate(stage.id, { closed_won_actions: next });
+                              }}
+                            />
+                            <span style={{ fontSize: 13, color: '#333' }}>{CLOSED_WON_ACTION_LABELS[action]}</span>
+                          </label>
+                        );
+                      })}
+                      {stages.filter(s => s.auto_follow_up_days).length > 0 && (
+                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f0ece4', fontSize: 12, color: '#888' }}>
+                          Auto follow-up delays are configured per stage in the Stages tab.
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {stages.filter(s => s.is_won).length === 0 && (
+                    <div style={{ color: '#aaa', fontSize: 13 }}>
+                      No Won stages configured yet. Mark a stage as Won in the Stages tab to set automation actions.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── AUTO-ASSIGN RULES ── */}
+              {activeTab === 'auto_assign' && (
+                <div>
+                  <div style={{ fontSize: 12, color: '#888', marginBottom: 18, lineHeight: 1.7 }}>
+                    Rules are evaluated in priority order (highest first). The first match wins.
+                    When no rule matches, the AI classifier runs, then falls back to the default pipeline.
+                    Rules apply globally across all pipelines.
+                  </div>
+
+                  {rulesLoading ? (
+                    <div style={{ color: '#aaa', fontSize: 13, padding: '20px 0' }}>Loading rules...</div>
+                  ) : (
+                    <>
+                      {/* Rules table */}
+                      <div style={S.card}>
+                        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14, color: '#555', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>Assignment Rules ({rules.length})</span>
+                        </div>
+
+                        {rules.length === 0 && (
+                          <div style={{ color: '#aaa', fontSize: 13, marginBottom: 14 }}>No rules yet. Add one below.</div>
+                        )}
+
+                        {rules.map(rule => {
+                          const pipe = pipelines.find(p => p.id === rule.pipeline_id);
+                          return (
+                            <div key={rule.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: rule.is_active ? '#fafaf8' : '#f5f5f5', border: '1px solid #ede8de', borderRadius: 6, marginBottom: 6, opacity: rule.is_active ? 1 : 0.55 }}>
+                              {/* Pipeline badge */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 140 }}>
+                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: pipe?.color || '#8f7420', flexShrink: 0 }} />
+                                <span style={{ fontSize: 11, fontWeight: 600, color: pipe?.color || '#8f7420', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pipe?.name || 'Unknown'}</span>
+                              </div>
+                              {/* Rule */}
+                              <span style={{ fontSize: 12, color: '#555', flex: 1 }}>
+                                <span style={{ fontWeight: 600, color: '#333' }}>{RULE_FIELDS.find(f => f.value === rule.rule_field)?.label || rule.rule_field}</span>
+                                {' '}{RULE_CONDITIONS.find(c => c.value === rule.rule_condition)?.label || rule.rule_condition}{' '}
+                                <span style={{ fontWeight: 600, color: '#8f7420' }}>"{rule.rule_value}"</span>
+                              </span>
+                              {/* Priority */}
+                              <span style={{ fontSize: 11, color: '#aaa', minWidth: 55, textAlign: 'right' }}>P{rule.priority}</span>
+                              {/* Active toggle */}
+                              <button style={{ ...S.smallBtn, fontSize: 10, padding: '3px 8px', color: rule.is_active ? '#22c55e' : '#aaa', borderColor: rule.is_active ? '#bbf7d0' : '#e0e0e0' }} onClick={() => handleToggleRule(rule)}>
+                                {rule.is_active ? 'Active' : 'Off'}
+                              </button>
+                              {/* Delete */}
+                              <button style={{ ...S.smallBtn, color: '#dc2626', borderColor: '#dc2626', padding: '3px 8px', fontSize: 11 }} onClick={() => handleDeleteRule(rule.id)}>✕</button>
+                            </div>
+                          );
+                        })}
+
+                        {/* Add rule form */}
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 14, flexWrap: 'wrap' }}>
+                          <select style={{ ...S.select, width: 130, padding: '7px 10px', fontSize: 12 }}
+                            value={newRule.pipeline_id}
+                            onChange={e => setNewRule(r => ({ ...r, pipeline_id: e.target.value }))}>
+                            <option value="">Pipeline...</option>
+                            {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          </select>
+                          <select style={{ ...S.select, width: 120, padding: '7px 10px', fontSize: 12 }}
+                            value={newRule.rule_field}
+                            onChange={e => setNewRule(r => ({ ...r, rule_field: e.target.value }))}>
+                            {RULE_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                          </select>
+                          <select style={{ ...S.select, width: 140, padding: '7px 10px', fontSize: 12 }}
+                            value={newRule.rule_condition}
+                            onChange={e => setNewRule(r => ({ ...r, rule_condition: e.target.value }))}>
+                            {RULE_CONDITIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                          </select>
+                          <input style={{ ...S.input, width: 130, padding: '7px 10px', fontSize: 12 }}
+                            placeholder='value...'
+                            value={newRule.rule_value}
+                            onChange={e => setNewRule(r => ({ ...r, rule_value: e.target.value }))}
+                            onKeyDown={e => e.key === 'Enter' && handleAddRule()}
+                          />
+                          <input style={{ ...S.input, width: 60, padding: '7px 10px', fontSize: 12, textAlign: 'center' }}
+                            type="number" min="0" max="999" placeholder="P50"
+                            value={newRule.priority}
+                            onChange={e => setNewRule(r => ({ ...r, priority: parseInt(e.target.value) || 50 }))}
+                          />
+                          <button style={{ ...S.goldBtn, padding: '7px 16px', opacity: addingRule || !newRule.rule_value.trim() || !newRule.pipeline_id ? 0.6 : 1 }}
+                            onClick={handleAddRule} disabled={addingRule || !newRule.rule_value.trim() || !newRule.pipeline_id}>
+                            {addingRule ? 'Adding...' : '+ Add Rule'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* AI Fallback settings */}
+                      <div style={S.card}>
+                        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14, color: '#555' }}>AI Fallback Classification</div>
+                        <div style={{ fontSize: 12, color: '#888', marginBottom: 14, lineHeight: 1.6 }}>
+                          When no rule matches, AI reads the company name, type, and notes to determine the correct pipeline.
+                          Adds 1-2 seconds to prospect creation but handles edge cases rules cannot anticipate.
+                        </div>
+                        <label style={{ ...S.checkRow, marginBottom: 16, cursor: 'pointer' }}>
+                          <input type="checkbox"
+                            checked={assignSettings.ai_fallback_enabled}
+                            onChange={e => handleSettingChange('ai_fallback_enabled', e.target.checked)}
+                          />
+                          <span style={{ fontSize: 13 }}>Enable AI classification when no rule matches</span>
+                        </label>
+                        <div style={S.col}>
+                          <div style={S.label}>Default pipeline (if both rule and AI fail)</div>
+                          <select style={{ ...S.select, maxWidth: 280 }}
+                            value={assignSettings.fallback_pipeline_id || ''}
+                            onChange={e => handleSettingChange('fallback_pipeline_id', e.target.value || null)}>
+                            <option value="">System default (first pipeline)</option>
+                            {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Test tool */}
+                      <div style={S.card}>
+                        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6, color: '#555' }}>Test Assignment</div>
+                        <div style={{ fontSize: 12, color: '#888', marginBottom: 14 }}>
+                          Enter a prospect description to preview which pipeline it would be assigned to.
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                          <div style={S.col}>
+                            <div style={S.label}>Company name</div>
+                            <input style={S.input} placeholder="e.g. Château de Lumiere" value={testInput.company_name} onChange={e => setTestInput(p => ({ ...p, company_name: e.target.value }))} />
+                          </div>
+                          <div style={S.col}>
+                            <div style={S.label}>Type</div>
+                            <input style={S.input} placeholder="e.g. Country House Venue" value={testInput.venue_type} onChange={e => setTestInput(p => ({ ...p, venue_type: e.target.value }))} />
+                          </div>
+                          <div style={S.col}>
+                            <div style={S.label}>Source</div>
+                            <input style={S.input} placeholder="e.g. LinkedIn" value={testInput.source} onChange={e => setTestInput(p => ({ ...p, source: e.target.value }))} />
+                          </div>
+                          <div style={S.col}>
+                            <div style={S.label}>Country</div>
+                            <input style={S.input} placeholder="e.g. United Kingdom" value={testInput.country} onChange={e => setTestInput(p => ({ ...p, country: e.target.value }))} />
+                          </div>
+                        </div>
+                        <div style={{ ...S.col, marginBottom: 14 }}>
+                          <div style={S.label}>Notes (optional)</div>
+                          <textarea style={{ ...S.textarea, minHeight: 56 }} placeholder="Paste enquiry message or any notes..." value={testInput.notes} onChange={e => setTestInput(p => ({ ...p, notes: e.target.value }))} />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                          <button
+                            style={{ ...S.goldBtn, opacity: testRunning || !testInput.company_name.trim() ? 0.6 : 1 }}
+                            onClick={handleTestRules}
+                            disabled={testRunning || !testInput.company_name.trim()}
+                          >
+                            {testRunning ? 'Testing...' : 'Test Assignment'}
+                          </button>
+                          {testResult && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: METHOD_COLORS[testResult.method] }}>
+                                {testResult.method === 'rule' ? '✓' : testResult.method === 'ai' ? '◆' : '→'} {testResult.assigned_pipeline}
+                                <span style={{ fontSize: 11, fontWeight: 400, color: '#888', marginLeft: 8 }}>via {testResult.method}</span>
+                              </div>
+                              <div style={{ fontSize: 11, color: '#888' }}>{testResult.explanation}</div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── Modals ── */}
+      {showNewPipeline && (
+        <NewPipelineModal onSave={handleNewPipelineSaved} onClose={() => setShowNewPipeline(false)} />
+      )}
+
+      {editTemplate !== null && (
+        <TemplateModal
+          template={editTemplate || null}
+          pipelineId={selectedId}
+          stages={stages}
+          onSave={handleTemplateSaved}
+          onClose={() => setEditTemplate(null)}
+        />
+      )}
+
+      {confirmDelete && (
+        <div style={S.overlay} onClick={e => e.target === e.currentTarget && setConfirmDelete(null)}>
+          <div style={{ ...S.modal, maxWidth: 380 }}>
+            <div style={S.modalHead}>Delete Pipeline?</div>
+            <p style={{ fontSize: 14, color: '#555', lineHeight: 1.7 }}>
+              This will permanently delete the pipeline and all its stages and templates.
+              Prospects in this pipeline will not be deleted but will lose their stage assignment.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+              <button style={S.outlineBtn} onClick={() => setConfirmDelete(null)}>Cancel</button>
+              <button style={{ ...S.goldBtn, background: '#dc2626' }} onClick={handleDeletePipeline}>Yes, Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

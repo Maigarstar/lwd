@@ -6,6 +6,7 @@
 
 import { useState } from 'react';
 import { createLead } from '../../services/leadEngineService';
+import { createPartnerEnquiryProspect } from '../../services/enquiryToProspectService';
 
 const GOLD     = '#c9a84c';
 const GOLD_DIM = 'rgba(201,168,76,0.14)';
@@ -116,30 +117,37 @@ export default function PartnerEnquiryForm({ onSuccess, dark = false }) {
     setSubmitting(true);
     setError(null);
     try {
-      const result = await createLead({
-        leadSource:  'Partner Enquiry Form',
-        leadChannel: 'form',
-        leadType:    'partner_enquiry',
-        firstName:   form.contactName.split(' ')[0] || form.contactName,
-        lastName:    form.contactName.split(' ').slice(1).join(' ') || '',
-        email:       form.email,
-        phone:       form.phone || undefined,
-        message: [
-          `Business: ${form.businessName}`,
-          form.businessType ? `Type: ${form.businessType}` : '',
-          form.website ? `Website: ${form.website}` : '',
-          `Interests: ${form.interests.join(', ')}`,
-          form.message ? `\nMessage: ${form.message}` : '',
-        ].filter(Boolean).join('\n'),
-        requirementsJson: {
-          businessName: form.businessName,
-          businessType: form.businessType,
-          website:      form.website,
-          interests:    form.interests,
-        },
-        tagsJson: ['partner', ...form.interests.map(i => i.toLowerCase().replace(/\s+/g, '-'))],
-        consentDataProcessing: true,
-      });
+      // Run both in parallel: existing lead engine + new B2B prospect pipeline
+      const [result] = await Promise.all([
+        createLead({
+          leadSource:  'Partner Enquiry Form',
+          leadChannel: 'form',
+          leadType:    'partner_enquiry',
+          firstName:   form.contactName.split(' ')[0] || form.contactName,
+          lastName:    form.contactName.split(' ').slice(1).join(' ') || '',
+          email:       form.email,
+          phone:       form.phone || undefined,
+          message: [
+            `Business: ${form.businessName}`,
+            form.businessType ? `Type: ${form.businessType}` : '',
+            form.website ? `Website: ${form.website}` : '',
+            `Interests: ${form.interests.join(', ')}`,
+            form.message ? `\nMessage: ${form.message}` : '',
+          ].filter(Boolean).join('\n'),
+          requirementsJson: {
+            businessName: form.businessName,
+            businessType: form.businessType,
+            website:      form.website,
+            interests:    form.interests,
+          },
+          tagsJson: ['partner', ...form.interests.map(i => i.toLowerCase().replace(/\s+/g, '-'))],
+          consentDataProcessing: true,
+        }),
+        // Auto-create B2B prospect and assign to correct pipeline
+        createPartnerEnquiryProspect(form).catch(e =>
+          console.warn('[PartnerEnquiryForm] Prospect creation failed (non-fatal):', e.message)
+        ),
+      ]);
       if (result.success) { setSubmitted(true); onSuccess?.(result); }
       else { setError('Failed to send enquiry. Please try again.'); }
     } catch {

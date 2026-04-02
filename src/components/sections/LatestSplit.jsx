@@ -4,14 +4,49 @@ import { useTheme } from "../../theme/ThemeContext";
 
 const AREAS = ["one", "two", "three", "four", "five"];
 
-export default function LatestSplit({ venues }) {
+const DEFAULT_BLOCKS = [
+  { icon: "🏰", text: "Historic villa estates" },
+  { icon: "🌿", text: "Private & exclusive settings" },
+  { icon: "🌅", text: "Stunning scenery & landscapes" },
+  { icon: "✨", text: "World-class catering & service" },
+];
+
+export default function LatestSplit({
+  venues = [],
+  locationName = "Italy",
+  eyebrow,
+  headingPrefix,
+  para1,
+  para2,
+  infoBlocks,
+  ctaText,
+}) {
   const C = useTheme();
   const [hovImg, setHovImg] = useState(null);
   const [hovCta, setHovCta] = useState(false);
 
+  // Resolve displayed values — props take priority, sensible defaults follow
+  const displayEyebrow     = eyebrow        || `Why ${locationName}`;
+  const displayPrefix      = headingPrefix  || "The Art of the";
+  const titleLine2         = `${locationName} Wedding`;
+  const displayCta         = ctaText        || `Browse All ${locationName} Venues →`;
+
+  const displayPara1 = para1 ||
+    `${locationName} is one of the world's most sought-after wedding destinations — a place where exceptional venues, natural beauty and culinary mastery converge to create celebrations of extraordinary distinction.`;
+  const displayPara2 = para2 ||
+    `Our curated collection represents only the finest estates, villas and private venues in ${locationName}, each personally visited and approved by our editorial team.`;
+
+  const displayBlocks =
+    Array.isArray(infoBlocks) && infoBlocks.some(b => b.text)
+      ? infoBlocks
+      : DEFAULT_BLOCKS;
+
+  const displayVenues = venues.slice(0, 5);
+  if (displayVenues.length < 5) return null;
+
   return (
     <section
-      aria-label="Latest venues and editorial overview"
+      aria-label={`${locationName} editorial overview and latest venues`}
       className="lwd-latestsplit"
       style={{
         maxWidth: 1280,
@@ -23,7 +58,7 @@ export default function LatestSplit({ venues }) {
         alignItems: "center",
       }}
     >
-      {/* LEFT, magazine image grid */}
+      {/* LEFT — magazine image grid */}
       <div
         className="lwd-latestsplit-imgrid"
         style={{
@@ -34,13 +69,13 @@ export default function LatestSplit({ venues }) {
           gap: 6,
           height: 560,
         }}
-        aria-label="Latest five venues"
+        aria-label={`Latest five venues in ${locationName}`}
       >
-        {venues.slice(0, 5).map((v, i) => (
+        {displayVenues.map((v, i) => (
           <div
-            key={v.id}
+            key={v.id || i}
             role="img"
-            aria-label={`${v.name}, ${v.region}`}
+            aria-label={`${v.name}${v.region ? `, ${v.region}` : ""}`}
             style={{
               gridArea: AREAS[i],
               overflow: "hidden",
@@ -52,8 +87,8 @@ export default function LatestSplit({ venues }) {
             onMouseLeave={() => setHovImg(null)}
           >
             <img
-              src={v.imgs[0]}
-              alt={`${v.name} in ${v.region}`}
+              src={v.imgs?.[0] || v.heroImage || v.image || ""}
+              alt={`${v.name}${v.region ? ` in ${v.region}` : ""}`}
               style={{
                 width: "100%",
                 height: "100%",
@@ -78,17 +113,19 @@ export default function LatestSplit({ venues }) {
             <div
               style={{ position: "absolute", bottom: 10, left: 12, right: 8 }}
             >
-              <div
-                style={{
-                  fontSize: 10,
-                  color: "rgba(255,255,255,0.55)",
-                  letterSpacing: "0.5px",
-                  fontFamily: "var(--font-body)",
-                  marginBottom: 2,
-                }}
-              >
-                {v.region}
-              </div>
+              {v.region && (
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: "rgba(255,255,255,0.55)",
+                    letterSpacing: "0.5px",
+                    fontFamily: "var(--font-body)",
+                    marginBottom: 2,
+                  }}
+                >
+                  {v.region}
+                </div>
+              )}
               <div
                 style={{
                   fontSize: i === 0 ? 14 : 12,
@@ -126,9 +163,9 @@ export default function LatestSplit({ venues }) {
         ))}
       </div>
 
-      {/* RIGHT, SEO editorial text */}
+      {/* RIGHT — editorial content */}
       <div style={{ padding: "0 8px" }}>
-        {/* Ornament */}
+        {/* Eyebrow */}
         <div
           style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}
           aria-hidden="true"
@@ -144,10 +181,11 @@ export default function LatestSplit({ venues }) {
               fontFamily: "var(--font-body)",
             }}
           >
-            Why Italy
+            {displayEyebrow}
           </span>
         </div>
 
+        {/* Heading */}
         <h2
           style={{
             fontFamily: "var(--font-heading-primary)",
@@ -159,16 +197,18 @@ export default function LatestSplit({ venues }) {
             letterSpacing: "-0.3px",
           }}
         >
-          The Art of the
+          {displayPrefix}
           <br />
-          <em style={{ fontStyle: "italic" }}>Italian Wedding</em>
+          <em style={{ fontStyle: "italic" }}>{titleLine2}</em>
         </h2>
 
+        {/* Divider */}
         <div
           aria-hidden="true"
           style={{ width: 48, height: 1, background: "rgba(255,255,255,0.08)", marginBottom: 28 }}
         />
 
+        {/* Paragraph 1 */}
         <p
           style={{
             fontSize: 14,
@@ -179,10 +219,10 @@ export default function LatestSplit({ venues }) {
             marginBottom: 20,
           }}
         >
-          Italy has long been regarded as the world's most romantic wedding destination, a
-          country where centuries of art, architecture and culinary mastery converge to
-          create celebrations of extraordinary distinction.
+          {displayPara1}
         </p>
+
+        {/* Paragraph 2 */}
         <p
           style={{
             fontSize: 14,
@@ -193,13 +233,10 @@ export default function LatestSplit({ venues }) {
             marginBottom: 32,
           }}
         >
-          From the sun-drenched terraces of Tuscany to the sapphire shores of Lake Como,
-          each region offers a distinct character and depth of beauty unmatched anywhere on
-          earth. Our curated collection represents only the finest estates, villas, palazzi
-          and masserie, each personally visited by our editorial team.
+          {displayPara2}
         </p>
 
-        {/* Key facts */}
+        {/* Info blocks — 2×2 grid */}
         <div
           style={{
             display: "grid",
@@ -208,12 +245,7 @@ export default function LatestSplit({ venues }) {
             marginBottom: 36,
           }}
         >
-          {[
-            { icon: "🏰", text: "Historic villa estates" },
-            { icon: "🍇", text: "Private vineyard settings" },
-            { icon: "🌅", text: "Coastal & clifftop venues" },
-            { icon: "✨", text: "Michelin-star catering" },
-          ].map((f, i) => (
+          {displayBlocks.slice(0, 4).map((b, i) => (
             <div
               key={i}
               style={{
@@ -226,7 +258,7 @@ export default function LatestSplit({ venues }) {
                 borderRadius: "var(--lwd-radius-input)",
               }}
             >
-              <span style={{ fontSize: 16 }} aria-hidden="true">{f.icon}</span>
+              <span style={{ fontSize: 16 }} aria-hidden="true">{b.icon}</span>
               <span
                 style={{
                   fontSize: 12,
@@ -234,7 +266,7 @@ export default function LatestSplit({ venues }) {
                   fontFamily: "var(--font-body)",
                 }}
               >
-                {f.text}
+                {b.text}
               </span>
             </div>
           ))}
@@ -259,7 +291,7 @@ export default function LatestSplit({ venues }) {
             transition: "all 0.25s",
           }}
         >
-          Browse All Italian Venues →
+          {displayCta}
         </button>
       </div>
     </section>

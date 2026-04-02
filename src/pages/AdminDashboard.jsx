@@ -8,12 +8,11 @@ import { useState, useRef, useEffect, useCallback, useMemo, Suspense } from "rea
 import { ThemeCtx } from "../theme/ThemeContext";
 import { DARK_C } from "../theme/tokens";
 import { DIRECTORY_COUNTRIES } from "../data/countryRegistry.js";
-import { getHomepageDestinationSettings, setHomepageDestinationGridEnabled, setCountryHomepageOverride } from "../services/platformSettingsService";
 import { ITALY_REGIONS } from "../data/italy/regions.js";
 import { ITALY_CITIES } from "../data/italy/cities.js";
 import { REGION_AUTO_THRESHOLD, evaluateRegionActivation } from "../engine/activation.js";
-import { fetchListings, fetchListingsAdmin, fetchListingBySlugAdmin, isSupabaseAvailable, createListing, deleteListing } from "../services/listings";
-import { fetchShowcases, createShowcase, updateShowcase, deleteShowcase } from "../services/showcaseService";
+import { fetchListings, fetchListingBySlug, isSupabaseAvailable, createListing, deleteListing } from "../services/listings";
+import { fetchShowcases, fetchShowcaseBySlugCard, createShowcase, updateShowcase, deleteShowcase } from "../services/showcaseService";
 import { uploadMediaFile } from "../utils/storageUpload";
 import categoryCssRaw from "../category.css?raw";
 import { RegionsModule } from "./admin/RegionsModule";
@@ -33,6 +32,8 @@ import ReusableBlocksModule from "./PageStudio/ReusableBlocksModule";
 import ListingStudioPage from "./ListingStudio/ListingStudioPage";
 import MagazineStudio from "./MagazineStudio/index";
 import ArtistryPage from "./Artistry/ArtistryPage";
+import RichTextEditor from "../components/editor/RichTextEditor";
+import ImageUploadField from "../components/admin/ImageUploadField";
 import { getAllSubmissions, reviewSubmission, toggleFeatured } from "../services/artistryService";
 import ReviewsModule from "./AdminDashboard/ReviewsModule";
 import CRMModule from "./AdminModules/CRMModule";
@@ -43,16 +44,19 @@ import PipelineBuilderModule from "./AdminModules/PipelineBuilderModule";
 import PlatformSettingsModule from "./AdminModules/PlatformSettingsModule";
 import TeamModule from "./AdminModules/TeamModule";
 import SeoModule from "./AdminModules/SeoModule";
+import AiSeoStudioModule from "./AdminModules/AiSeoStudioModule";
 import ConnectedDataModule from "./AdminModules/ConnectedDataModule";
 import SocialStudioModule from "./AdminModules/SocialStudioModule";
 import ShowcaseStudioModule from "./AdminModules/ShowcaseStudioModule";
 import ManagedAccountsModule from "./AdminModules/ManagedAccountsModule";
 import MenuModule from "./AdminModules/MenuModule";
 import FooterModule from "./AdminModules/FooterModule";
+import CategoryGridAdmin from "./AdminModules/CategoryGridAdmin";
 import MenuBranding from "./AdminModules/menu/MenuBranding";
 import PlatformIntelligenceModule from "./AdminModules/PlatformIntelligenceModule";
 import EventsModule from "./AdminModules/EventsModule";
 import SiteContentModule from "./AdminModules/SiteContentModule";
+import CategoryPagePreview from "../components/admin/CategoryPagePreview";
 import { fetchClickSummary, fetchBatchClickCounts } from "../services/adminOutboundClicksService";
 import { fetchPostBySlug } from "../services/magazineService";
 import VenueIntakeStudio from "./admin/VenueIntakeStudio";
@@ -60,6 +64,35 @@ import { POSTS } from "./Magazine/data/posts";
 import { PRODUCTS, COLLECTIONS, formatPrice } from "./Magazine/data/products";
 import { CATEGORIES } from "./Magazine/data/categories";
 import { fetchLocationContent, saveLocationContent } from "../services/locationContentService";
+import { fetchCategoryContent, saveCategoryContent, publishCategoryContent, buildCategoryKey } from "../services/categoryContentService";
+import {
+  generateHeroTitle as catGenHeroTitle, generateHeroSubtitle as catGenHeroSubtitle,
+  generateCtaText as catGenCtaText, generateInfoVibes as catGenInfoVibes,
+  generateInfoServices as catGenInfoServices, generateEditorialContent as catGenEditorial,
+  generatePlanningGuide as catGenPlanningGuide, generateSeoHeading as catGenSeoHeading,
+  generateFaqs as catGenFaqs, generateMotto as catGenMotto, generateMottoSubline as catGenMottoSubline,
+  generateSection as catGenSection, fillEmptyContentFields as catFillEmpty,
+  regenerateAllContent as catRegenAll,
+  spinContentField as catSpin, shortenContentField as catShorten,
+  makeLuxury as catMakeLuxury, makeEditorial as catMakeEditorial, makeSeoAware as catMakeSeoAware,
+} from "../services/categoryContentAiService";
+import {
+  fillEmptySeoFields, regenerateAllSeo, spinAllSeo,
+  generateSeoTitle, generateSeoDescription, generateOgTitle, generateOgDescription,
+  generateTwitterTitle, generateTwitterDescription, generatePrimaryKeyword, generateSecondaryKeywords,
+  generateSchemaJson, spinField as spinSeoField, shortenField as shortenSeoField, autoComputeSeoDefaults,
+} from "../services/locationSeoAiService";
+import {
+  fillEmptyContentFields, regenerateAllContent, spinAllContent, generateSection,
+  generateHeroTitle, generateHeroSubtitle, generateCtaText,
+  generateInfoVibes, generateInfoServices, generateInfoRegions,
+  generateEditorialContent, generateEditorialPara,
+  generatePlanningGuide, generateSeoHeading, generateFaqs,
+  generateMotto, generateMottoSubline,
+  generateFeaturedVenuesTitle, generateLatestHeadings,
+  spinField as spinContentField, shortenField as shortenContentField,
+  makeLuxury, makeEditorial, makeSeoAware,
+} from "../services/locationContentAiService";
 import LocationPage from "./LocationPage";
 
 // Font tokens, resolved via CSS custom properties set on admin root
@@ -236,58 +269,58 @@ const THEME_PRESETS = {
 // ── Sidebar navigation with grouped sections ───────────────────────────────
 const NAV_SECTIONS = [
   {
-    group: "Managed Accounts",
+    group: "Partner Accounts",
     items: [
-      { key: "managed-accounts", label: "Managed Accounts",  icon: "◈" },
+      { key: "managed-accounts", label: "Managed Accounts", icon: "◈" },
+      { key: "vendor-accounts",  label: "Vendor Accounts",  icon: "⊙" },
+      { key: "partnerships",     label: "Partnerships",     icon: "✦" },
     ],
   },
   {
     group: "Platform",
     items: [
-      { key: "overview",        label: "Overview",          icon: "◈" },
-      { key: "listings",        label: "Listings",          icon: "⊞" },
-      { key: "listing-studio",  label: "Listing Studio",    icon: "✎" },
-      { key: "venue-intake",    label: "Venue Intake Studio", icon: "⬆" },
-      { key: "venue-profiles",    label: "Showcase Profiles",  icon: "⌂" },
-      { key: "showcase-studio",   label: "Showcase Studio",    icon: "✦" },
-      { key: "events",            label: "Events",             icon: "◈" },
-      { key: "event-studio",      label: "Event Studio",       icon: "✎" },
-      { key: "reviews",         label: "Reviews",           icon: "★" },
-      { key: "vendor-accounts", label: "Vendor Accounts",   icon: "👤" },
-      { key: "categories",      label: "Categories",        icon: "▦" },
-      { key: "enquiries",       label: "Enquiries",         icon: "◇" },
-      { key: "partnerships",    label: "Partnerships",      icon: "✦" },
-      { key: "countries",       label: "Countries",         icon: "◎" },
-      { key: "regions",         label: "Regions",           icon: "◇" },
-      { key: "locations",       label: "Locations",         icon: "◎" },
-      { key: "index",           label: "Index Health",      icon: "▧" },
+      { key: "overview",          label: "Overview",            icon: "◈" },
+      { key: "listings",          label: "Listings",            icon: "⊞" },
+      { key: "listing-studio",    label: "Listing Studio",      icon: "✎" },
+      { key: "venue-intake",      label: "Venue Intake Studio", icon: "⬆" },
+      { key: "venue-profiles",    label: "Showcase Profiles",   icon: "⌂" },
+      { key: "showcase-studio",   label: "Showcase Studio",     icon: "✦" },
+      { key: "events",            label: "Events",              icon: "◈" },
+      { key: "event-studio",      label: "Event Studio",        icon: "✎" },
+      { key: "reviews",           label: "Reviews",             icon: "★" },
+      { key: "categories",        label: "Categories",          icon: "▦" },
+      { key: "category-grid",     label: "Category Grid",       icon: "⊞" },
+      { key: "category-studio",   label: "Category Studio",     icon: "◈" },
+      { key: "countries",         label: "Countries",           icon: "◎" },
+      { key: "regions",           label: "Regions",             icon: "◇" },
+      { key: "locations",         label: "Locations",           icon: "◎" },
+      { key: "cities",            label: "Cities",              icon: "◎" },
+      { key: "index",             label: "Index Health",        icon: "▧" },
+    ],
+  },
+  {
+    group: "Sales",
+    items: [
+      { key: "crm",               label: "CRM",               icon: "⊕" },
+      { key: "sales-pipeline",    label: "Sales Pipeline",    icon: "◆" },
+      { key: "pipeline-builder",  label: "Pipeline Builder",  icon: "⊞" },
+      { key: "partner-enquiries", label: "Partner Enquiries", icon: "⊛" },
+      { key: "advertise-leads",   label: "Advertise Leads",   icon: "⊡" },
     ],
   },
   {
     group: "Growth",
     items: [
-      { key: "leads",            label: "Leads",             icon: "⊛" },
-      { key: "seo",              label: "SEO",               icon: "⊡" },
-      { key: "crm",              label: "CRM",               icon: "⊕" },
+      { key: "seo",           label: "SEO",           icon: "⊡" },
+      { key: "ai-seo-studio", label: "AI SEO Studio", icon: "✦" },
     ],
   },
   {
     group: "Marketing",
     items: [
-      { key: "email-marketing",  label: "Email Marketing",  icon: "◉" },
-      { key: "newsletter",       label: "Newsletter",       icon: "✉" },
-      { key: "email-builder",    label: "Email Builder",    icon: "✎" },
-    ],
-  },
-  {
-    group: "Internal Sales",
-    items: [
-      { key: "partner-enquiries",  label: "Partner Enquiries", icon: "⊛" },
-      { key: "sales-pipeline",     label: "Sales Pipeline",    icon: "◆" },
-      { key: "pipeline-builder",   label: "Pipeline Builder",  icon: "⊞" },
-      { key: "advertise-leads",    label: "Advertise Leads",   icon: "⊡" },
-      { key: "team",               label: "Team Seats",        icon: "⊕" },
-      { key: "platform-settings",  label: "Platform Settings", icon: "⚙" },
+      { key: "email-marketing", label: "Email Marketing", icon: "◉" },
+      { key: "newsletter",      label: "Newsletter",      icon: "✉" },
+      { key: "email-builder",   label: "Email Builder",   icon: "✎" },
     ],
   },
   {
@@ -328,21 +361,30 @@ const NAV_SECTIONS = [
       { key: "site-content",     label: "Site Content",      icon: "≡" },
     ],
   },
+  {
+    group: "Settings",
+    items: [
+      { key: "team",              label: "Team Seats",        icon: "⊕" },
+      { key: "platform-settings", label: "Platform Settings", icon: "⚙" },
+      { key: "enquiries",         label: "Enquiries",         icon: "◇" },
+    ],
+  },
 ];
 
 const ALL_NAV_ITEMS = NAV_SECTIONS.flatMap((s) => s.items);
 
 // ── SVG icon paths (24x24, stroke-based, no fill) ──────────────────────────
 const GROUP_ICON_PATHS = {
-  Platform:     'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
-  Growth:       'M23 6l-9.5 9.5-5-5L1 18M17 6h6v6',
-  Engagement:   'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z',
-  Intelligence: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
-  Branding:     'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
-  Design:       'M12 20h9M16.5 3.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z',
-  Content:      'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6',
-  Marketing:        'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
-  'Internal Sales': 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+  'Partner Accounts': 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75',
+  Platform:           'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
+  Sales:              'M18 20V10M12 20V4M6 20v-6',
+  Growth:             'M23 6l-9.5 9.5-5-5L1 18M17 6h6v6',
+  Marketing:          'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
+  Engagement:         'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z',
+  Intelligence:       'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
+  Design:             'M12 20h9M16.5 3.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z',
+  Content:            'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6',
+  Settings:           'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z',
 };
 
 function NavIcon({ path, size = 18, color = 'currentColor' }) {
@@ -2185,7 +2227,7 @@ function CategoriesModule({ C }) {
   const [seoForm, setSeoForm] = useState({
     titleTag: "", metaDescription: "", metaRobots: "index, follow", canonicalUrl: "",
     ogTitle: "", ogDescription: "", ogImage: "", ogType: "website",
-    h1: "", pageContent: "", introText: "",
+    h1: "", pageContent: "", introText: "", bodyHtml: "",
     aiKeywords: "", aiSummary: "", aiIntentSignals: "", aiEntityType: "",
     customMeta: [], // { name, content } pairs
     headHtml: "",
@@ -2255,6 +2297,7 @@ function CategoriesModule({ C }) {
       h1: existing.h1 || "",
       pageContent: existing.pageContent || "",
       introText: existing.introText || "",
+      bodyHtml: existing.bodyHtml || "",
       aiKeywords: existing.aiKeywords || "",
       aiSummary: existing.aiSummary || "",
       aiIntentSignals: existing.aiIntentSignals || "",
@@ -2767,9 +2810,17 @@ function CategoriesModule({ C }) {
                 onMouseLeave={e => { if (!showOgStock) e.currentTarget.style.background = "#05A08112"; }}
                 >📸 Browse Stock</button>
               </div>
-              <input value={seoForm.ogImage} onChange={e => setSeoForm(p => ({ ...p, ogImage: e.target.value }))}
-                placeholder="https://luxuryweddingdirectory.com/images/og/wedding-venues.jpg" style={{ ...inputStyle, marginTop: 5 }} />
-              <div style={hintStyle}>Recommended: 1200×630px. Used by Facebook, LinkedIn, WhatsApp, iMessage.</div>
+              <div style={{ marginTop: 5 }}>
+                <ImageUploadField
+                  value={seoForm.ogImage || ''}
+                  onChange={url => setSeoForm(p => ({ ...p, ogImage: url }))}
+                  bucket="listing-media"
+                  folder="categories/og"
+                  hint="Recommended: 1200×630px. Used by Facebook, LinkedIn, WhatsApp, iMessage."
+                  palette={C}
+                  previewHeight={120}
+                />
+              </div>
               {showOgStock && (
                 <ImageSearchPanel C={C} defaultQuery={`luxury ${activeItem.name.toLowerCase()} wedding`}
                   onClose={() => setShowOgStock(false)}
@@ -2970,14 +3021,34 @@ function CategoriesModule({ C }) {
             {/* Divider */}
             <div style={{ height: 1, background: `linear-gradient(90deg,transparent,${C.gold}30,transparent)`, margin: "4px 0 20px" }} />
 
-            {/* Content Editor, Reusable LwdEditor with image upload, drag-drop, image library */}
+            {/* HTML Source Editor */}
             <LwdEditor
               C={C}
               value={seoForm.pageContent}
               onChange={v => setSeoForm(p => ({ ...p, pageContent: v }))}
-              label="Content"
+              label="HTML Source"
               placeholder={`<h2>Discover ${activeItem.name}</h2>\n<p>From intimate settings to grand celebrations...</p>`}
             />
+
+            {/* Body Text — Full TipTap WYSIWYG */}
+            <div style={{ marginTop: 20, marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", color: C.gold, fontWeight: 700 }}>Body Text</span>
+              </div>
+              <div style={{ border: `1px solid ${C.border}`, borderRadius: 4, overflow: "hidden" }}>
+                <RichTextEditor
+                  content={seoForm.bodyHtml || ''}
+                  onChange={v => setSeoForm(p => ({ ...p, bodyHtml: v }))}
+                  placeholder={`Write rich body content for ${activeItem.name}...`}
+                  C={C}
+                  darkMode={true}
+                />
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+                <span style={{ fontFamily: NU, fontSize: 9, color: C.grey2 }}>Full WYSIWYG editor — headings, bold, italic, links, lists, alignment</span>
+                <span style={{ fontFamily: NU, fontSize: 9, color: C.grey2 }}>{(seoForm.bodyHtml || '').length} chars</span>
+              </div>
+            </div>
 
             {/* Route + schema reference */}
             <div style={{
@@ -2988,7 +3059,7 @@ function CategoriesModule({ C }) {
                 Renders on: <span style={{ color: C.gold }}>/{"{country}"}/{activeItem.slug}</span> · Schema: <span style={{ color: C.gold }}>{sd.schema || "WebPage"}</span> · Indexed by Aura AI
               </div>
               <div style={{ fontFamily: NU, fontSize: 9, color: C.grey2 }}>
-                {seoForm.pageContent.length} chars
+                {(seoForm.pageContent.length + (seoForm.bodyHtml || '').length)} chars
               </div>
             </div>
           </div>
@@ -3433,6 +3504,875 @@ ${seoForm.headHtml ? `\n${seoForm.headHtml}` : ""}`
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// Category Studio Module — split-panel builder for category page content
+// Same pattern as LocationsModule, adapted for vendor/service categories
+// ═════════════════════════════════════════════════════════════════════════════
+
+function CatSCard({ title, hint, children, LS, enabled, onToggle }) {
+  const hasToggle = onToggle !== undefined;
+  const isOn = enabled !== false;
+  return (
+    <div style={{ marginBottom: 24, opacity: hasToggle && !isOn ? 0.55 : 1, transition: 'opacity 0.2s' }}>
+      <div style={{ background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ padding: '12px 20px', borderBottom: `1px solid ${LS.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: LS.gold }}>{title}</div>
+            {hint && <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 3, lineHeight: 1.5 }}>{hint}</div>}
+          </div>
+          {hasToggle && (
+            <button onClick={onToggle} title={isOn ? 'Hide this section on the page' : 'Show this section on the page'}
+              style={{ flexShrink: 0, padding: '4px 12px', fontSize: 10, fontFamily: NU, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', borderRadius: 20, border: `1px solid ${isOn ? LS.gold : LS.border}`, background: isOn ? `${LS.gold}20` : 'transparent', color: isOn ? LS.gold : LS.muted, cursor: 'pointer', transition: 'all 0.2s' }}>
+              {isOn ? 'ON' : 'OFF'}
+            </button>
+          )}
+        </div>
+        {(!hasToggle || isOn) && <div style={{ padding: 20 }}>{children}</div>}
+        {hasToggle && !isOn && (
+          <div style={{ padding: '12px 20px', fontFamily: NU, fontSize: 12, color: LS.muted, fontStyle: 'italic' }}>
+            Section hidden — toggle ON to show on the page and edit content
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CategoriesStudioModule({ C, darkMode = true, onBuilderModeChange }) {
+  useEffect(() => {
+    onBuilderModeChange?.(true);
+    return () => onBuilderModeChange?.(false);
+  }, []);
+
+  const LS = darkMode ? {
+    bg: C.black, card: C.card, border: C.border, text: C.off,
+    muted: C.grey, gold: C.gold, btn: C.off, btnTxt: C.black,
+  } : {
+    bg: '#F2EFE9', card: '#F8F6F2', border: '#D9D2C6', text: '#222222',
+    muted: '#777777', gold: '#8A6A18', btn: '#1a1a1a', btnTxt: '#ffffff',
+  };
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  const [viewMode, setViewMode]       = useState('split');
+  const [saving, setSaving]           = useState(false);
+  const [dirty, setDirty]             = useState(false);
+  const [saveErr, setSaveErr]         = useState(null);
+  const [published, setPublished]     = useState(false);
+  const [toast, setToast]             = useState(null);
+  const [categoryType, setCategoryType] = useState('parent');
+  const [parentSlug, setParentSlug]     = useState('');
+  const [subSlug, setSubSlug]           = useState('');
+  const [showMagicPanel, setShowMagicPanel] = useState(false);
+  const [magicContext, setMagicContext]     = useState('');
+  const [aiGenerating, setAiGenerating]    = useState(false);
+
+  const [form, setForm] = useState({
+    heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '',
+    eyebrow: '', // New: eyebrow text like "UNITED KINGDOM · ALL REGIONS"
+    stat1Label: '', stat1Value: '', // New: stats row
+    stat2Label: '', stat2Value: '',
+    stat3Label: '', stat3Value: '',
+    categoryGridTitle: '', // New: "Browse by Category" section title
+    ctaText: 'Browse Vendors', ctaLink: '',
+    featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Featured Vendors',
+    featuredVenueIds: [], featuredVendorIds: [],
+    infoVibes: '', infoServices: '',
+    seoContent: '', seoHeading: '', seoFaqs: [{ q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }],
+    editorialEyebrow: '', editorialHeadingPrefix: '',
+    editorialPara1: '', editorialPara2: '',
+    editorialBlock1Icon: '✦', editorialBlock1Text: '',
+    editorialBlock2Icon: '◆', editorialBlock2Text: '',
+    editorialBlock3Icon: '★', editorialBlock3Text: '',
+    editorialBlock4Icon: '♦', editorialBlock4Text: '',
+    editorialCtaText: '',
+    showEditorialSplit: true, showPlanningGuide: true, showMotto: true,
+    motto: '', mottoSubline: '', mottoBgImage: '', mottoOverlay: '0.55',
+    // SEO
+    seoTitle: '', seoDescription: '', seoKeywords: '', seoCanonicalUrl: '',
+    seoRobotsIndex: true, seoRobotsFollow: true,
+    ogTitle: '', ogDescription: '', ogImage: '',
+    twitterTitle: '', twitterDescription: '', twitterImage: '',
+    schemaType: 'Service', schemaJson: '',
+    seoPrimaryKeyword: '', seoSecondaryKeywords: '',
+  });
+  const [seoTab, setSeoTab] = useState('core');
+
+  // ── Content AI state ──────────────────────────────────────────────────────
+  const [contentAiBusy, setContentAiBusy] = useState(null);
+  const [contentAiError, setContentAiError] = useState(null);
+  const [contentAiTone, setContentAiTone] = useState('luxury');
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  const set = useCallback((key, val) => {
+    setForm(prev => ({ ...prev, [key]: val }));
+    setDirty(true);
+  }, []);
+
+  const categoryKey = useMemo(() => buildCategoryKey(categoryType, parentSlug, subSlug), [categoryType, parentSlug, subSlug]);
+
+  const parentCategory = useMemo(() => DIRECTORY_CATEGORIES.find(c => c.slug === parentSlug), [parentSlug]);
+  const subCategory = useMemo(() => parentCategory?.subCategories?.find(s => s.slug === subSlug), [parentCategory, subSlug]);
+
+  const categoryName = useMemo(() => {
+    if (categoryType === 'sub' && subCategory) return subCategory.name;
+    if (parentCategory) return parentCategory.name;
+    return '';
+  }, [categoryType, parentCategory, subCategory]);
+
+  // ── Context for AI ────────────────────────────────────────────────────────
+  const buildContentCtx = useCallback(() => ({
+    categoryType, categoryName, categorySlug: categoryType === 'sub' ? subSlug : parentSlug,
+    parentCategory: parentCategory?.name || '',
+    subCategories: parentCategory?.subCategories?.map(s => s.name).join(', ') || '',
+    heroTitle: form.heroTitle, heroSubtitle: form.heroSubtitle,
+    existingContent: form.editorialPara1,
+    vendorCount: parentCategory?.count || 0,
+    schemaType: form.schemaType,
+  }), [categoryType, categoryName, parentSlug, subSlug, parentCategory, form.heroTitle, form.heroSubtitle, form.editorialPara1, form.schemaType]);
+
+  // ── Content AI actions ────────────────────────────────────────────────────
+  const handleContentAiAction = useCallback(async (action) => {
+    setContentAiBusy(action); setContentAiError(null);
+    try {
+      const ctx = buildContentCtx();
+      let results;
+      if (action === 'fill') results = await catFillEmpty(form, ctx, contentAiTone);
+      else if (action === 'regen') results = await catRegenAll(form, ctx, contentAiTone);
+      if (results) { setForm(prev => ({ ...prev, ...results })); setDirty(true); }
+    } catch (err) { setContentAiError(err.message); }
+    finally { setContentAiBusy(null); }
+  }, [buildContentCtx, form, contentAiTone]);
+
+  const handleSectionAi = useCallback(async (section) => {
+    setContentAiBusy(`section:${section}`); setContentAiError(null);
+    try {
+      const ctx = buildContentCtx();
+      const results = await catGenSection(section, form, ctx, contentAiTone);
+      if (results) { setForm(prev => ({ ...prev, ...results })); setDirty(true); }
+    } catch (err) { setContentAiError(err.message); }
+    finally { setContentAiBusy(null); }
+  }, [buildContentCtx, form, contentAiTone]);
+
+  const handleContentFieldAi = useCallback(async (fieldKey, generator, ...args) => {
+    setContentAiBusy(fieldKey); setContentAiError(null);
+    try {
+      const result = await generator(...args);
+      if (typeof result === 'object' && !Array.isArray(result)) {
+        setForm(prev => ({ ...prev, ...result }));
+      } else {
+        set(fieldKey, result);
+      }
+      setDirty(true);
+    } catch (err) { setContentAiError(err.message); }
+    finally { setContentAiBusy(null); }
+  }, [set]);
+
+  // ── Load content when category key changes ────────────────────────────────
+  useEffect(() => {
+    if (!categoryKey) return;
+    fetchCategoryContent(categoryKey).then(data => {
+      if (data) {
+        setForm({
+          heroTitle:            data.hero_title || '',
+          heroSubtitle:         data.hero_subtitle || '',
+          heroImage:            data.hero_image || '',
+          heroVideo:            data.hero_video || '',
+          eyebrow:              data.metadata?.eyebrow || '',
+          stat1Label:           data.metadata?.stat1Label || '',
+          stat1Value:           data.metadata?.stat1Value || '',
+          stat2Label:           data.metadata?.stat2Label || '',
+          stat2Value:           data.metadata?.stat2Value || '',
+          stat3Label:           data.metadata?.stat3Label || '',
+          stat3Value:           data.metadata?.stat3Value || '',
+          categoryGridTitle:    data.metadata?.categoryGridTitle || '',
+          ctaText:              data.cta_text || 'Browse Vendors',
+          ctaLink:              data.cta_link || '',
+          featuredVenuesTitle:  data.featured_venues_title || 'Signature Venues',
+          featuredVendorsTitle: data.featured_vendors_title || 'Featured Vendors',
+          featuredVenueIds:     Array.isArray(data.featured_venues) ? data.featured_venues : [],
+          featuredVendorIds:    Array.isArray(data.featured_vendors) ? data.featured_vendors : [],
+          infoVibes:            Array.isArray(data.metadata?.infoVibes) ? data.metadata.infoVibes.join(', ') : '',
+          infoServices:         Array.isArray(data.metadata?.infoServices) ? data.metadata.infoServices.join(', ') : '',
+          seoContent:           textToHtml(data.metadata?.seoContent || ''),
+          seoHeading:           data.metadata?.seoHeading || '',
+          seoFaqs:              Array.isArray(data.metadata?.seoFaqs) && data.metadata.seoFaqs.length > 0 ? data.metadata.seoFaqs : [{ q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }],
+          editorialEyebrow:     data.metadata?.editorialEyebrow || '',
+          editorialHeadingPrefix: data.metadata?.editorialHeadingPrefix || '',
+          editorialCtaText:     data.metadata?.editorialCtaText || '',
+          editorialPara1:       data.metadata?.editorialPara1 || '',
+          editorialPara2:       data.metadata?.editorialPara2 || '',
+          editorialBlock1Icon:  data.metadata?.editorialBlocks?.[0]?.icon || '✦',
+          editorialBlock1Text:  data.metadata?.editorialBlocks?.[0]?.text || '',
+          editorialBlock2Icon:  data.metadata?.editorialBlocks?.[1]?.icon || '◆',
+          editorialBlock2Text:  data.metadata?.editorialBlocks?.[1]?.text || '',
+          editorialBlock3Icon:  data.metadata?.editorialBlocks?.[2]?.icon || '★',
+          editorialBlock3Text:  data.metadata?.editorialBlocks?.[2]?.text || '',
+          editorialBlock4Icon:  data.metadata?.editorialBlocks?.[3]?.icon || '♦',
+          editorialBlock4Text:  data.metadata?.editorialBlocks?.[3]?.text || '',
+          showEditorialSplit:   data.metadata?.showEditorialSplit !== false,
+          showPlanningGuide:    data.metadata?.showPlanningGuide !== false,
+          showMotto:            data.metadata?.showMotto !== false,
+          motto:                data.metadata?.motto || '',
+          mottoSubline:         data.metadata?.mottoSubline || '',
+          mottoBgImage:         data.metadata?.mottoBgImage || '',
+          mottoOverlay:         data.metadata?.mottoOverlay ?? '0.55',
+          // SEO
+          seoTitle:             data.seo_title || '',
+          seoDescription:       data.seo_description || '',
+          seoKeywords:          data.seo_keywords || '',
+          seoCanonicalUrl:      data.seo_canonical_url || '',
+          seoRobotsIndex:       data.seo_robots_index !== false,
+          seoRobotsFollow:      data.seo_robots_follow !== false,
+          ogTitle:              data.og_title || '',
+          ogDescription:        data.og_description || '',
+          ogImage:              data.og_image || '',
+          twitterTitle:         data.twitter_title || '',
+          twitterDescription:   data.twitter_description || '',
+          twitterImage:         data.twitter_image || '',
+          schemaType:           data.schema_type || 'Service',
+          schemaJson:           data.schema_json ? (typeof data.schema_json === 'string' ? data.schema_json : JSON.stringify(data.schema_json, null, 2)) : '',
+          seoPrimaryKeyword:    data.seo_primary_keyword || '',
+          seoSecondaryKeywords: data.seo_secondary_keywords || '',
+        });
+        setPublished(!!data.published);
+      } else {
+        // Reset to defaults
+        setForm(prev => ({
+          ...prev,
+          heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '',
+          eyebrow: '', stat1Label: '', stat1Value: '', stat2Label: '', stat2Value: '', stat3Label: '', stat3Value: '', categoryGridTitle: '',
+          ctaText: 'Browse Vendors', ctaLink: '',
+          featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Featured Vendors',
+          featuredVenueIds: [], featuredVendorIds: [],
+          infoVibes: '', infoServices: '',
+          seoContent: '', seoHeading: '',
+          seoFaqs: [{ q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }],
+          editorialEyebrow: '', editorialHeadingPrefix: '', editorialCtaText: '',
+          editorialPara1: '', editorialPara2: '',
+          editorialBlock1Icon: '✦', editorialBlock1Text: '',
+          editorialBlock2Icon: '◆', editorialBlock2Text: '',
+          editorialBlock3Icon: '★', editorialBlock3Text: '',
+          editorialBlock4Icon: '♦', editorialBlock4Text: '',
+          showEditorialSplit: true, showPlanningGuide: true, showMotto: true,
+          motto: '', mottoSubline: '', mottoBgImage: '', mottoOverlay: '0.55',
+          seoTitle: '', seoDescription: '', seoKeywords: '', seoCanonicalUrl: '',
+          seoRobotsIndex: true, seoRobotsFollow: true,
+          ogTitle: '', ogDescription: '', ogImage: '',
+          twitterTitle: '', twitterDescription: '', twitterImage: '',
+          schemaType: 'Service', schemaJson: '',
+          seoPrimaryKeyword: '', seoSecondaryKeywords: '',
+        }));
+        setPublished(false);
+      }
+      setDirty(false);
+    });
+  }, [categoryKey]);
+
+  // ── Save handler ──────────────────────────────────────────────────────────
+  const handleSave = async (publishOverride) => {
+    if (!categoryKey) return setSaveErr('Select a category first');
+    setSaving(true); setSaveErr(null);
+    const newPublished = publishOverride === 'published' ? true : publishOverride === 'draft' ? false : published;
+    try {
+      const result = await saveCategoryContent({
+        categoryKey, categoryType, parentSlug,
+        subSlug: categoryType === 'sub' ? subSlug : null,
+        heroTitle: form.heroTitle || categoryName,
+        heroSubtitle: form.heroSubtitle, heroImage: form.heroImage, heroVideo: form.heroVideo,
+        ctaText: form.ctaText, ctaLink: form.ctaLink,
+        featuredVenuesTitle: form.featuredVenuesTitle, featuredVendorsTitle: form.featuredVendorsTitle,
+        featuredVenueIds: form.featuredVenueIds, featuredVendorIds: form.featuredVendorIds,
+        metadata: {
+          infoVibes: form.infoVibes ? form.infoVibes.split(',').map(s => s.trim()).filter(Boolean) : [],
+          infoServices: form.infoServices ? form.infoServices.split(',').map(s => s.trim()).filter(Boolean) : [],
+          seoContent: form.seoContent || '',
+          seoHeading: form.seoHeading || '',
+          seoFaqs: (form.seoFaqs || []).filter(f => f.q || f.a),
+          editorialEyebrow: form.editorialEyebrow || '',
+          editorialHeadingPrefix: form.editorialHeadingPrefix || '',
+          editorialCtaText: form.editorialCtaText || '',
+          editorialPara1: form.editorialPara1 || '',
+          editorialPara2: form.editorialPara2 || '',
+          editorialBlocks: [
+            { icon: form.editorialBlock1Icon || '✦', text: form.editorialBlock1Text || '' },
+            { icon: form.editorialBlock2Icon || '◆', text: form.editorialBlock2Text || '' },
+            { icon: form.editorialBlock3Icon || '★', text: form.editorialBlock3Text || '' },
+            { icon: form.editorialBlock4Icon || '♦', text: form.editorialBlock4Text || '' },
+          ],
+          showEditorialSplit: form.showEditorialSplit !== false,
+          showPlanningGuide: form.showPlanningGuide !== false,
+          showMotto: form.showMotto !== false,
+          motto: form.motto || '',
+          mottoSubline: form.mottoSubline || '',
+          mottoBgImage: form.mottoBgImage || '',
+          mottoOverlay: form.mottoOverlay ?? '0.55',
+        },
+        published: newPublished,
+        seoTitle: form.seoTitle || null,
+        seoDescription: form.seoDescription || null,
+        seoKeywords: form.seoKeywords || null,
+        seoCanonicalUrl: form.seoCanonicalUrl || null,
+        seoRobotsIndex: form.seoRobotsIndex !== false,
+        seoRobotsFollow: form.seoRobotsFollow !== false,
+        ogTitle: form.ogTitle || null,
+        ogDescription: form.ogDescription || null,
+        ogImage: form.ogImage || null,
+        twitterTitle: form.twitterTitle || null,
+        twitterDescription: form.twitterDescription || null,
+        twitterImage: form.twitterImage || null,
+        schemaType: form.schemaType || 'Service',
+        schemaJson: form.schemaJson ? JSON.parse(form.schemaJson) : null,
+        seoPrimaryKeyword: form.seoPrimaryKeyword || null,
+        seoSecondaryKeywords: form.seoSecondaryKeywords || null,
+      });
+      if (result.error) {
+        setSaveErr(`Save failed: ${result.error.message || 'Database error'}`);
+        return;
+      }
+      setPublished(newPublished);
+      setDirty(false);
+      setToast(newPublished ? 'Category published' : 'Category saved');
+    } catch (err) {
+      setSaveErr(`Save failed: ${err.message || 'Unknown error'}`);
+    } finally { setSaving(false); }
+  };
+
+  // ── UI helpers ─────────────────────────────────────────────────────────────
+  const inp = (key, placeholder, multiline) => {
+    const base = { fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', boxSizing: 'border-box', outline: 'none' };
+    if (multiline) return <textarea value={form[key] || ''} onChange={e => set(key, e.target.value)} placeholder={placeholder} rows={3} style={{ ...base, resize: 'vertical', minHeight: 72 }} />;
+    return <input value={form[key] || ''} onChange={e => set(key, e.target.value)} placeholder={placeholder} style={base} />;
+  };
+  const lbl = (text) => <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: LS.muted, marginBottom: 6 }}>{text}</div>;
+  const selStyle = { fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' };
+
+  const sectionAiBar = (sectionKey) => (
+    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10, paddingBottom: 8, borderBottom: `1px solid ${LS.border}` }}>
+      <button onClick={() => handleSectionAi(sectionKey)} disabled={!!contentAiBusy}
+        style={{ fontFamily: NU, fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 4, border: `1px solid ${LS.border}`, background: contentAiBusy === `section:${sectionKey}` ? LS.gold : 'transparent', color: contentAiBusy === `section:${sectionKey}` ? '#fff' : LS.gold, cursor: contentAiBusy ? 'not-allowed' : 'pointer' }}
+      >{contentAiBusy === `section:${sectionKey}` ? '...' : '✦ Generate'}</button>
+      <button onClick={() => handleSectionAi(sectionKey)} disabled={!!contentAiBusy}
+        style={{ fontFamily: NU, fontSize: 10, fontWeight: 500, padding: '3px 8px', borderRadius: 4, border: `1px solid ${LS.border}`, background: 'transparent', color: LS.muted, cursor: contentAiBusy ? 'not-allowed' : 'pointer' }}
+      >Redo</button>
+    </div>
+  );
+
+  const fieldAi = (fieldKey, label, generator, genArgs, options = {}) => {
+    const ctx = buildContentCtx();
+    const busy = contentAiBusy === fieldKey;
+    const val = form[fieldKey];
+    const btns = [
+      { icon: '✦', tip: 'Generate', fn: () => handleContentFieldAi(fieldKey, generator, ...genArgs) },
+    ];
+    if (val) {
+      btns.push({ icon: '↻', tip: 'Spin', fn: () => handleContentFieldAi(fieldKey, catSpin, val, label, ctx, contentAiTone) });
+      if (options.canShorten) btns.push({ icon: '⇠', tip: 'Shorter', fn: () => handleContentFieldAi(fieldKey, catShorten, val, label, options.maxWords || 15) });
+      btns.push({ icon: '♦', tip: 'More luxury', fn: () => handleContentFieldAi(fieldKey, catMakeLuxury, val, label, ctx) });
+      btns.push({ icon: '✎', tip: 'More editorial', fn: () => handleContentFieldAi(fieldKey, catMakeEditorial, val, label, ctx) });
+      if (options.seo) btns.push({ icon: '◎', tip: 'SEO aware', fn: () => handleContentFieldAi(fieldKey, catMakeSeoAware, val, label, ctx) });
+    }
+    return (
+      <div style={{ display: 'flex', gap: 3, marginTop: 4 }}>
+        {btns.map((b, i) => (
+          <button key={i} title={b.tip} onClick={b.fn} disabled={!!contentAiBusy}
+            style={{ fontFamily: NU, fontSize: 9, padding: '2px 6px', borderRadius: 3, border: `1px solid ${LS.border}`, background: busy ? LS.gold : 'transparent', color: busy ? '#fff' : LS.gold, cursor: contentAiBusy ? 'not-allowed' : 'pointer', lineHeight: 1 }}
+          >{busy ? '...' : b.icon}</button>
+        ))}
+      </div>
+    );
+  };
+
+  const showEditor  = viewMode === 'split' || viewMode === 'editor';
+  const showPreview = viewMode === 'split' || viewMode === 'preview';
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+
+      {/* ── TOP BAR ───────────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '10px 24px', borderBottom: `1px solid ${LS.border}`, background: LS.bg, flexShrink: 0, zIndex: 20, gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => { if (categoryKey) setShowMagicPanel(p => !p); }} disabled={!categoryKey} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: showMagicPanel ? LS.gold : LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: categoryKey ? 'pointer' : 'not-allowed', opacity: categoryKey ? 1 : 0.4 }}>✦ Magic AI</button>
+          <button onClick={() => handleContentAiAction('fill')} disabled={!categoryKey || !!contentAiBusy} style={{ fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px', background: 'transparent', color: !categoryKey || contentAiBusy ? LS.muted : LS.text, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: !categoryKey || contentAiBusy ? 'not-allowed' : 'pointer', opacity: !categoryKey ? 0.4 : 1 }}>{contentAiBusy === 'fill' ? 'Generating...' : 'Fill with AI'}</button>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
+          {saveErr && <span style={{ fontFamily: NU, fontSize: 11, color: '#ef4444' }}>{saveErr}</span>}
+          <button onClick={() => setDirty(false)} style={{ fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer' }}>Discard</button>
+          <button onClick={() => handleSave('draft')} disabled={saving || !categoryKey} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving || !categoryKey ? 'not-allowed' : 'pointer', opacity: saving || !categoryKey ? 0.35 : 1 }}>{saving ? 'Saving...' : 'Save Draft'}</button>
+          <button onClick={() => handleSave(null)} disabled={saving || !categoryKey} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving || !categoryKey ? 'not-allowed' : 'pointer', opacity: saving || !categoryKey ? 0.35 : 1 }}>{saving ? 'Saving...' : 'Save'}</button>
+          <button onClick={() => handleSave('published')} disabled={saving} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: published ? LS.gold : LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>
+            {saving ? 'Publishing...' : published ? 'Published' : 'Publish'}
+          </button>
+          {categoryKey && (
+            <a href={`/wedding-vendors/${parentSlug}${categoryType === 'sub' && subSlug ? '/' + subSlug : ''}`} target="_blank" rel="noopener noreferrer"
+              style={{ fontFamily: NU, fontSize: 12, fontWeight: 500, padding: '6px 12px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+              Live Page
+            </a>
+          )}
+          <div style={{ width: 1, height: 16, background: LS.border, marginLeft: 4 }} />
+          {['split', 'editor', 'preview'].map(m => (
+            <span key={m} onClick={() => setViewMode(m)} style={{ fontFamily: NU, fontSize: 11, fontWeight: viewMode === m ? 700 : 500, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', color: viewMode === m ? LS.text : LS.muted, borderBottom: viewMode === m ? `1px solid ${LS.text}` : '1px solid transparent', paddingBottom: 1 }}>
+              {m === 'split' ? 'Split' : m === 'editor' ? 'Editor' : 'Preview'}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* ── MAGIC AI PANEL ─────────────────────────────────────────────────────── */}
+      {showMagicPanel && (
+        <div style={{ background: darkMode ? 'rgba(201,168,76,0.07)' : '#F8F5EE', borderTop: `2px solid ${LS.gold}`, borderBottom: `1px solid ${LS.border}`, padding: '16px 24px', display: 'flex', gap: 12, alignItems: 'flex-start', flexShrink: 0 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.gold, marginBottom: 6 }}>✦ Magic AI — {categoryName}</div>
+            <textarea value={magicContext} onChange={e => setMagicContext(e.target.value)}
+              placeholder={`Optional: add context to guide the AI (e.g. "focus on fine art editorial photography, elegant tone")`}
+              rows={2} style={{ width: '100%', boxSizing: 'border-box', fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, resize: 'none', outline: 'none' }} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 18 }}>
+            <button onClick={async () => {
+              if (aiGenerating) return;
+              setAiGenerating(true);
+              try {
+                const { supabase } = await import('../lib/supabaseClient');
+                const { data, error } = await supabase.functions.invoke('ai-generate', {
+                  body: {
+                    feature: 'category_magic',
+                    systemPrompt: `You are a senior editorial writer for Luxury Wedding Directory, an exclusive destination wedding platform. Write elegant, aspirational, high-converting copy for vendor category pages. Be specific, evocative, and never generic. Match the tone of premium lifestyle editorial.`,
+                    userPrompt: `Generate complete editorial content for the ${categoryName} category page.${magicContext ? ` Context: ${magicContext}` : ''}\n\nReturn ONLY a valid JSON object with these exact keys:\n{\n  "heroTitle": "3-6 word headline",\n  "heroSubtitle": "1-2 sentences, max 25 words",\n  "ctaText": "2-4 word CTA"\n}\nNo explanation. Only the JSON.`,
+                  },
+                });
+                if (error) throw error;
+                const raw = (data?.text || '').trim();
+                const match = raw.match(/\{[\s\S]*\}/);
+                if (match) {
+                  const p = JSON.parse(match[0]);
+                  setForm(prev => ({ ...prev, heroTitle: p.heroTitle || prev.heroTitle, heroSubtitle: p.heroSubtitle || prev.heroSubtitle, ctaText: p.ctaText || prev.ctaText }));
+                  setDirty(true); setShowMagicPanel(false);
+                }
+              } catch (e) { console.error('[Category Magic AI]', e); }
+              finally { setAiGenerating(false); }
+            }} disabled={aiGenerating}
+              style={{ fontFamily: NU, fontSize: 12, fontWeight: 700, padding: '8px 18px', background: LS.gold, color: '#fff', border: 'none', borderRadius: 6, cursor: aiGenerating ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
+            >{aiGenerating ? 'Generating...' : 'Generate'}</button>
+            <button onClick={() => setShowMagicPanel(false)} style={{ fontFamily: NU, fontSize: 12, padding: '6px 12px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer' }}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── PANELS ──────────────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+        {/* LEFT — editor */}
+        {showEditor && (
+          <div style={{ flex: viewMode === 'editor' ? '1' : '0 0 50%', overflowY: 'auto', background: LS.bg, borderRight: showPreview ? `1px solid ${LS.border}` : 'none', padding: '28px 32px 80px' }}>
+
+            {/* h1 = category name + status badge */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+                <h1 style={{ fontSize: 26, fontWeight: 600, color: LS.text, margin: 0, lineHeight: 1.2, fontFamily: GD }}>
+                  {categoryName || 'Select a category'}
+                </h1>
+                {categoryKey && (
+                  <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '3px 8px', borderRadius: 4, background: published ? 'rgba(34,197,94,0.15)' : `${LS.border}`, color: published ? '#22c55e' : LS.muted }}>
+                    {published ? 'Live' : 'Draft'}
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 14, color: LS.muted, fontFamily: NU }}>
+                {categoryType === 'sub' ? 'Sub-category' : 'Parent Category'}{categoryKey ? ` · ${categoryKey}` : ''}
+              </div>
+            </div>
+
+            {/* Category Picker */}
+            <CatSCard title="Category" hint="Select which category page you are editing" LS={LS}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  {lbl('Type')}
+                  <select value={categoryType} onChange={e => { setCategoryType(e.target.value); setSubSlug(''); }} style={selStyle}>
+                    <option value="parent">Parent Category</option>
+                    <option value="sub">Sub-category</option>
+                  </select>
+                </div>
+                <div>
+                  {lbl('Parent Category')}
+                  <select value={parentSlug} onChange={e => { setParentSlug(e.target.value); setSubSlug(''); }} style={selStyle}>
+                    <option value="">Select category</option>
+                    {DIRECTORY_CATEGORIES.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              {categoryType === 'sub' && parentSlug && parentCategory?.subCategories?.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  {lbl('Sub-category')}
+                  <select value={subSlug} onChange={e => setSubSlug(e.target.value)} style={selStyle}>
+                    <option value="">Select sub-category</option>
+                    {parentCategory.subCategories.map(s => <option key={s.slug} value={s.slug}>{s.name}</option>)}
+                  </select>
+                </div>
+              )}
+            </CatSCard>
+
+            {/* ── CONTENT AI ACTIONS BAR ──────────────────────────────────────────── */}
+            {categoryKey && (
+              <div style={{ background: darkMode ? 'rgba(201,168,76,0.06)' : '#FAF8F3', border: `1px solid ${darkMode ? 'rgba(201,168,76,0.15)' : '#E8E0D0'}`, borderRadius: 8, padding: '12px 16px', marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.gold, marginRight: 4 }}>✦ Content AI</span>
+                  {[
+                    { key: 'fill', label: 'Fill Empty Fields', title: 'Generate content for all empty fields' },
+                    { key: 'regen', label: 'Regenerate All', title: 'Regenerate all content fields' },
+                  ].map(a => (
+                    <button key={a.key} title={a.title} disabled={!!contentAiBusy}
+                      onClick={() => handleContentAiAction(a.key)}
+                      style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, padding: '5px 10px', borderRadius: 5, border: `1px solid ${LS.border}`, background: contentAiBusy === a.key ? LS.gold : 'transparent', color: contentAiBusy === a.key ? '#fff' : LS.text, cursor: contentAiBusy ? 'not-allowed' : 'pointer', opacity: contentAiBusy && contentAiBusy !== a.key ? 0.4 : 1 }}
+                    >{contentAiBusy === a.key ? 'Working...' : a.label}</button>
+                  ))}
+                  <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontFamily: NU, fontSize: 10, color: LS.muted }}>Tone:</span>
+                    <select value={contentAiTone} onChange={e => setContentAiTone(e.target.value)} style={{ fontFamily: NU, fontSize: 11, padding: '3px 6px', border: `1px solid ${LS.border}`, borderRadius: 4, background: LS.bg, color: LS.text }}>
+                      <option value="luxury">Luxury</option>
+                      <option value="editorial">Editorial</option>
+                      <option value="seo_strong">SEO Strong</option>
+                      <option value="direct">Direct</option>
+                      <option value="romantic">Romantic</option>
+                    </select>
+                  </div>
+                </div>
+                {contentAiError && <div style={{ fontFamily: NU, fontSize: 11, color: '#ef4444', marginTop: 6 }}>{contentAiError}</div>}
+                {contentAiBusy && <div style={{ fontFamily: NU, fontSize: 11, color: LS.gold, marginTop: 6 }}>Generating content... this may take a minute.</div>}
+              </div>
+            )}
+
+            {/* Hero */}
+            <CatSCard title="Hero" hint="Headline text and background for the top of the category page" LS={LS}>
+              {categoryKey && sectionAiBar('hero')}
+              <div style={{ marginBottom: 12 }}>{lbl('Hero Title')}{inp('heroTitle', categoryName || 'e.g. Luxury Wedding Photographers')}{fieldAi('heroTitle', 'hero title', catGenHeroTitle, [buildContentCtx(), contentAiTone])}</div>
+              <div style={{ marginBottom: 12 }}>{lbl('Hero Subtitle')}{inp('heroSubtitle', 'A curated selection of the finest wedding professionals...', true)}{fieldAi('heroSubtitle', 'hero subtitle', catGenHeroSubtitle, [buildContentCtx(), contentAiTone])}</div>
+              <div style={{ marginBottom: 12 }}>
+                <ImageUploadField
+                  label="Hero Image"
+                  value={form.heroImage || ''}
+                  onChange={url => set('heroImage', url)}
+                  bucket="listing-media"
+                  folder="categories/heroes"
+                  hint="Recommended: 1920×1080px. Supports WebP."
+                  palette={LS}
+                  previewHeight={120}
+                />
+              </div>
+              <div style={{ marginBottom: 12 }}>{lbl('Hero Video URL (optional)')}{inp('heroVideo', 'https://cdn.example.com/hero.mp4')}</div>
+              <div style={{ marginBottom: 12 }}>{lbl('Eyebrow Text')}{inp('eyebrow', 'e.g. UNITED KINGDOM · ALL REGIONS')}</div>
+
+              {/* Stats Row */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: LS.muted, marginBottom: 10 }}>Stats Row (optional)</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                  <div>{lbl('Stat 1 Label')}{inp('stat1Label', 'e.g. CURATED VENUES')}</div>
+                  <div>{lbl('Stat 1 Value')}{inp('stat1Value', 'e.g. 312')}</div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                  <div>{lbl('Stat 2 Label')}{inp('stat2Label', 'e.g. CITIES')}</div>
+                  <div>{lbl('Stat 2 Value')}{inp('stat2Value', 'e.g. 48')}</div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>{lbl('Stat 3 Label')}{inp('stat3Label', 'e.g. LISTINGS')}</div>
+                  <div>{lbl('Stat 3 Value')}{inp('stat3Value', 'Coming Soon')}</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>{lbl('CTA Button Text')}{inp('ctaText', 'Browse Vendors')}{fieldAi('ctaText', 'CTA text', catGenCtaText, [buildContentCtx()])}</div>
+                <div>{lbl('CTA Button Link')}{inp('ctaLink', '#search')}</div>
+              </div>
+            </CatSCard>
+
+            {/* Browse by Category Section */}
+            <CatSCard title="Browse by Category" hint="Section title shown before category buttons" LS={LS}>
+              <div style={{ marginBottom: 12 }}>{lbl('Section Title')}{inp('categoryGridTitle', `e.g. ${categoryName || 'Category'} Vendors`)}</div>
+            </CatSCard>
+
+            {/* Info Strip */}
+            <CatSCard title="Info Strip" hint="Tag columns shown below the hero" LS={LS}>
+              {categoryKey && sectionAiBar('infoStrip')}
+              <div style={{ marginBottom: 12 }}>
+                {lbl('Signature Vibes')}
+                {inp('infoVibes', 'e.g. Fine Art, Documentary, Cinematic, Editorial')}
+                {fieldAi('infoVibes', 'vibe tags', catGenInfoVibes, [buildContentCtx()])}
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>
+                  {form.infoVibes ? form.infoVibes.split(',').map(s => s.trim()).filter(Boolean).map((v, i) => (
+                    <span key={i} style={{ display: 'inline-block', marginRight: 6, marginBottom: 4, padding: '2px 8px', background: `${LS.gold}18`, border: `1px solid ${LS.gold}44`, borderRadius: 3, color: LS.gold, fontSize: 11 }}>{v}</span>
+                  )) : <span style={{ opacity: 0.5 }}>No vibes set</span>}
+                </div>
+              </div>
+              <div>
+                {lbl('Elite Services')}
+                {inp('infoServices', 'e.g. Destination Coverage, Album Design, Same-Day Edits')}
+                {fieldAi('infoServices', 'service tags', catGenInfoServices, [buildContentCtx()])}
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>
+                  {form.infoServices ? form.infoServices.split(',').map(s => s.trim()).filter(Boolean).map((v, i) => (
+                    <span key={i} style={{ display: 'inline-block', marginRight: 6, marginBottom: 4, padding: '2px 8px', background: `${LS.gold}18`, border: `1px solid ${LS.gold}44`, borderRadius: 3, color: LS.gold, fontSize: 11 }}>{v}</span>
+                  )) : <span style={{ opacity: 0.5 }}>No services set</span>}
+                </div>
+              </div>
+            </CatSCard>
+
+            {/* Editorial Split */}
+            <CatSCard title="Editorial Split" hint="Two editorial paragraphs + 4 info blocks" LS={LS} enabled={form.showEditorialSplit !== false} onToggle={() => set('showEditorialSplit', !form.showEditorialSplit)}>
+              {categoryKey && sectionAiBar('editorial')}
+              <div style={{ marginBottom: 12 }}>
+                {lbl('Eyebrow')}
+                {inp('editorialEyebrow', `Why Choose ${categoryName || 'Our Vendors'}`)}
+              </div>
+              <div style={{ marginBottom: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  {lbl('Heading Prefix')}
+                  {inp('editorialHeadingPrefix', 'The Art of')}
+                </div>
+                <div>
+                  {lbl('CTA Button Text')}
+                  {inp('editorialCtaText', `Browse All ${categoryName || 'Vendors'}`)}
+                </div>
+              </div>
+              <div aria-hidden="true" style={{ height: 1, background: LS.border, margin: '4px 0 16px' }} />
+              <div style={{ marginBottom: 12 }}>
+                {lbl('Paragraph 1')}
+                <textarea value={form.editorialPara1 || ''} onChange={e => set('editorialPara1', e.target.value)}
+                  placeholder={`${categoryName || 'This category'} represents the finest professionals in the industry...`}
+                  rows={3} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }} />
+                {fieldAi('editorialPara1', 'editorial paragraph', catGenEditorial, [buildContentCtx(), contentAiTone], { seo: true })}
+              </div>
+              <div style={{ marginBottom: 20 }}>
+                {lbl('Paragraph 2')}
+                <textarea value={form.editorialPara2 || ''} onChange={e => set('editorialPara2', e.target.value)}
+                  placeholder="Our curated collection represents only the finest..." rows={3}
+                  style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }} />
+                {fieldAi('editorialPara2', 'editorial paragraph', catGenEditorial, [buildContentCtx(), contentAiTone], { seo: true })}
+              </div>
+              <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: LS.gold, marginBottom: 10 }}>Info Blocks (2x2 grid)</div>
+              {[
+                ['editorialBlock1Icon', 'editorialBlock1Text'],
+                ['editorialBlock2Icon', 'editorialBlock2Text'],
+                ['editorialBlock3Icon', 'editorialBlock3Text'],
+                ['editorialBlock4Icon', 'editorialBlock4Text'],
+              ].map(([iconKey, textKey], i) => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '52px 1fr', gap: 8, marginBottom: 10 }}>
+                  <input value={form[iconKey] || ''} onChange={e => set(iconKey, e.target.value)} placeholder="✦"
+                    style={{ fontFamily: NU, fontSize: 20, padding: '6px 8px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, textAlign: 'center' }} />
+                  <input value={form[textKey] || ''} onChange={e => set(textKey, e.target.value)}
+                    placeholder={['Award-winning professionals', 'Destination coverage worldwide', 'Luxury editorial approach', 'Bespoke creative direction'][i]}
+                    style={{ fontFamily: NU, fontSize: 13, padding: '6px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' }} />
+                </div>
+              ))}
+            </CatSCard>
+
+            {/* Planning Guide */}
+            <CatSCard title="Planning Guide" hint="Editorial body content and FAQs for this category" LS={LS} enabled={form.showPlanningGuide !== false} onToggle={() => set('showPlanningGuide', !form.showPlanningGuide)}>
+              {categoryKey && sectionAiBar('planning')}
+              <div style={{ marginBottom: 16 }}>
+                {lbl('Section Title')}
+                {inp('seoHeading', `Choosing Your ${categoryName || 'Vendors'}`)}
+                {fieldAi('seoHeading', 'section heading', catGenSeoHeading, [buildContentCtx()])}
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                {lbl('Body Text')}
+                <div style={{ border: `1px solid ${LS.border}`, borderRadius: 6, overflow: 'hidden' }}>
+                  <RichTextEditor content={form.seoContent || ''} onChange={v => set('seoContent', v)}
+                    placeholder={`Write editorial body content for ${categoryName || 'this category'}...`} C={C} darkMode={darkMode} />
+                </div>
+                {fieldAi('seoContent', 'planning guide', catGenPlanningGuide, [buildContentCtx(), contentAiTone], { seo: true })}
+              </div>
+              <div style={{ marginBottom: 10, display: 'flex', gap: 4 }}>
+                <button onClick={() => handleContentFieldAi('seoFaqs', catGenFaqs, buildContentCtx(), contentAiTone)} disabled={!!contentAiBusy}
+                  style={{ fontFamily: NU, fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 4, border: `1px solid ${LS.border}`, background: contentAiBusy === 'seoFaqs' ? LS.gold : 'transparent', color: contentAiBusy === 'seoFaqs' ? '#fff' : LS.gold, cursor: contentAiBusy ? 'not-allowed' : 'pointer' }}
+                >{contentAiBusy === 'seoFaqs' ? 'Generating...' : '✦ Generate FAQs'}</button>
+              </div>
+              {(form.seoFaqs || []).map((faq, i) => (
+                <div key={i} style={{ marginBottom: 16, padding: '12px 14px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 6 }}>
+                  <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: LS.gold, marginBottom: 8 }}>FAQ {i + 1}</div>
+                  <div style={{ marginBottom: 8 }}>
+                    {lbl('Question')}
+                    <input value={faq.q || ''} onChange={e => { const faqs = [...(form.seoFaqs || [])]; faqs[i] = { ...faqs[i], q: e.target.value }; set('seoFaqs', faqs); }}
+                      placeholder={`e.g. How do I choose the right ${categoryName || 'vendor'}?`}
+                      style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' }} />
+                  </div>
+                  {lbl('Answer')}
+                  <textarea value={faq.a || ''} onChange={e => { const faqs = [...(form.seoFaqs || [])]; faqs[i] = { ...faqs[i], a: e.target.value }; set('seoFaqs', faqs); }}
+                    placeholder="Answer..." rows={3}
+                    style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }} />
+                </div>
+              ))}
+            </CatSCard>
+
+            {/* Motto Banner */}
+            <CatSCard title="Motto Banner" hint="Full-width editorial quote strip" LS={LS} enabled={form.showMotto !== false} onToggle={() => set('showMotto', !form.showMotto)}>
+              {categoryKey && sectionAiBar('motto')}
+              <div style={{ marginBottom: 14 }}>
+                {lbl('Quote / Motto')}
+                <textarea value={form.motto || ''} onChange={e => set('motto', e.target.value)}
+                  placeholder={`${categoryName || 'Photography'}, elevated to an art form.`}
+                  rows={3} style={{ fontFamily: NU, fontSize: 13, padding: '10px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', lineHeight: 1.6, fontStyle: 'italic' }} />
+                {fieldAi('motto', 'motto quote', catGenMotto, [buildContentCtx(), contentAiTone])}
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                {lbl('Sub-line (optional)')}
+                {inp('mottoSubline', `Luxury Wedding Directory · ${categoryName || 'Vendors'}`)}
+                {fieldAi('mottoSubline', 'motto subline', catGenMottoSubline, [buildContentCtx()])}
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                {lbl('Background Image URL')}
+                {inp('mottoBgImage', 'https://...')}
+              </div>
+              <div>
+                {lbl(`Overlay Density — ${Math.round((parseFloat(form.mottoOverlay) || 0.55) * 100)}%`)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+                  <span style={{ fontFamily: NU, fontSize: 11, color: LS.muted }}>Light</span>
+                  <input type="range" min={0} max={1} step={0.05} value={form.mottoOverlay ?? '0.55'} onChange={e => set('mottoOverlay', e.target.value)} style={{ flex: 1, accentColor: LS.gold }} />
+                  <span style={{ fontFamily: NU, fontSize: 11, color: LS.muted }}>Dark</span>
+                </div>
+              </div>
+            </CatSCard>
+
+            {/* SEO */}
+            <CatSCard title="SEO & Meta" hint="Search engine optimisation, social sharing, and schema markup" LS={LS}>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 16, borderBottom: `1px solid ${LS.border}`, paddingBottom: 8 }}>
+                {['core', 'og', 'twitter', 'schema'].map(tab => (
+                  <button key={tab} onClick={() => setSeoTab(tab)}
+                    style={{ fontFamily: NU, fontSize: 11, fontWeight: seoTab === tab ? 700 : 500, color: seoTab === tab ? LS.gold : LS.muted, background: 'transparent', border: 'none', borderBottom: seoTab === tab ? `2px solid ${LS.gold}` : '2px solid transparent', padding: '4px 10px', cursor: 'pointer', textTransform: 'capitalize' }}>
+                    {tab === 'og' ? 'Open Graph' : tab === 'core' ? 'Core SEO' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  </button>
+                ))}
+              </div>
+
+              {/* Core SEO */}
+              {seoTab === 'core' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      {lbl('SEO Title')}
+                      <span style={{ fontFamily: NU, fontSize: 9, color: (form.seoTitle || '').length > 60 ? '#ef4444' : LS.muted }}>{(form.seoTitle || '').length}/60</span>
+                    </div>
+                    {inp('seoTitle', `${categoryName || 'Wedding Vendors'} | Luxury Wedding Directory`)}
+                  </div>
+                  <div>
+                    {lbl('Meta Description')}
+                    <textarea value={form.seoDescription || ''} onChange={e => set('seoDescription', e.target.value)}
+                      placeholder={`Discover the finest luxury ${(categoryName || 'wedding vendors').toLowerCase()}. Hand-selected by our editorial team.`}
+                      rows={3} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>{lbl('Keywords')}{inp('seoKeywords', 'luxury wedding photographers, fine art photography')}</div>
+                  <div>{lbl('Canonical URL')}{inp('seoCanonicalUrl', `https://luxuryweddingdirectory.com/wedding-vendors/${parentSlug || 'category'}`)}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <label style={{ fontFamily: NU, fontSize: 12, color: LS.text, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={form.seoRobotsIndex !== false} onChange={e => set('seoRobotsIndex', e.target.checked)} /> Allow indexing
+                    </label>
+                    <label style={{ fontFamily: NU, fontSize: 12, color: LS.text, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={form.seoRobotsFollow !== false} onChange={e => set('seoRobotsFollow', e.target.checked)} /> Allow follow
+                    </label>
+                  </div>
+                  <div>{lbl('Primary Keyword')}{inp('seoPrimaryKeyword', `luxury ${(categoryName || 'vendors').toLowerCase()}`)}</div>
+                  <div>{lbl('Secondary Keywords')}{inp('seoSecondaryKeywords', 'wedding vendors, high-end professionals')}</div>
+                </div>
+              )}
+
+              {/* Open Graph */}
+              {seoTab === 'og' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>{lbl('OG Title')}{inp('ogTitle', form.seoTitle || `${categoryName} | LWD`)}</div>
+                  <div>
+                    {lbl('OG Description')}
+                    <textarea value={form.ogDescription || ''} onChange={e => set('ogDescription', e.target.value)}
+                      placeholder={form.seoDescription || 'Falls back to meta description'} rows={3}
+                      style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <ImageUploadField
+                      label="OG Image"
+                      value={form.ogImage || ''}
+                      onChange={url => set('ogImage', url)}
+                      bucket="listing-media"
+                      folder="categories/og"
+                      hint="Recommended: 1200×630px"
+                      palette={LS}
+                      previewHeight={100}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Twitter */}
+              {seoTab === 'twitter' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, fontStyle: 'italic', marginBottom: 4 }}>Leave blank to inherit from Open Graph</div>
+                  <div>{lbl('Twitter Title')}{inp('twitterTitle', form.ogTitle || 'Inherits from OG Title')}</div>
+                  <div>
+                    {lbl('Twitter Description')}
+                    <textarea value={form.twitterDescription || ''} onChange={e => set('twitterDescription', e.target.value)}
+                      placeholder={form.ogDescription || 'Inherits from OG Description'} rows={3}
+                      style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <ImageUploadField
+                      label="Twitter Image"
+                      value={form.twitterImage || ''}
+                      onChange={url => set('twitterImage', url)}
+                      bucket="listing-media"
+                      folder="categories/twitter"
+                      hint="Leave blank to inherit OG Image"
+                      palette={LS}
+                      previewHeight={100}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Schema */}
+              {seoTab === 'schema' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    {lbl('Schema.org Type')}
+                    <select value={form.schemaType || 'Service'} onChange={e => set('schemaType', e.target.value)} style={selStyle}>
+                      <option value="Service">Service</option>
+                      <option value="ProfessionalService">ProfessionalService</option>
+                      <option value="LocalBusiness">LocalBusiness</option>
+                      <option value="Organization">Organization</option>
+                    </select>
+                  </div>
+                  <div>
+                    {lbl('Custom Schema JSON-LD')}
+                    <textarea value={form.schemaJson || ''} onChange={e => set('schemaJson', e.target.value)}
+                      placeholder='{"@context": "https://schema.org", ...}' rows={8}
+                      style={{ fontFamily: 'monospace', fontSize: 12, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', boxSizing: 'border-box' }} />
+                  </div>
+                </div>
+              )}
+            </CatSCard>
+          </div>
+        )}
+
+        {/* RIGHT — preview */}
+        {showPreview && (
+          <div style={{ flex: viewMode === 'preview' ? '1' : '0 0 50%', overflow: 'hidden', background: LS.card, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '12px 20px', borderBottom: `1px solid ${LS.border}`, background: LS.bg, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: LS.muted }}>Live Preview</span>
+              {categoryKey && <span style={{ fontFamily: NU, fontSize: 11, color: LS.muted }}>— {categoryKey}</span>}
+            </div>
+            {categoryKey ? (
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <CategoryPagePreview form={form} categoryName={categoryName} />
+              </div>
+            ) : (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontFamily: GD, fontSize: 18, color: LS.muted }}>Live preview will appear here</div>
+                <div style={{ fontFamily: NU, fontSize: 13, color: LS.muted }}>Select a category</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Toast */}
+        {toast && <LocationToast msg={toast} onDone={() => setToast(null)} />}
+      </div>
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 // Countries & Regions Module
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -3468,7 +4408,7 @@ function CountriesModule({ C }) {
   const [seoForm, setSeoForm] = useState({
     titleTag: "", metaDescription: "", metaRobots: "index, follow", canonicalUrl: "",
     ogTitle: "", ogDescription: "", ogImage: "", ogType: "website",
-    h1: "", pageContent: "", introText: "",
+    h1: "", pageContent: "", introText: "", bodyHtml: "",
     aiKeywords: "", aiSummary: "", aiIntentSignals: "", aiEntityType: "",
     customMeta: [], headHtml: "",
     thumbnail: null, thumbnailAlt: "", thumbnailTitle: "", thumbnailDesc: "",
@@ -3482,34 +4422,22 @@ function CountriesModule({ C }) {
   const thumbInputRef = useRef(null);
   const iconInputRef = useRef(null);
 
-  // ── Homepage destination grid controls ──────────────────────────────
-  const [homepageGridEnabled, setHomepageGridEnabledState] = useState(true);
-  const [countryOverrides, setCountryOverridesState] = useState({});
-  const [homepageSettingsSaving, setHomepageSettingsSaving] = useState(false);
-
-  useEffect(() => {
-    getHomepageDestinationSettings()
-      .then(({ gridEnabled, countryOverrides: overrides }) => {
-        setHomepageGridEnabledState(gridEnabled);
-        setCountryOverridesState(overrides || {});
-      })
-      .catch(() => {});
-  }, []);
-
-  const handleGridToggle = async (enabled) => {
-    setHomepageGridEnabledState(enabled);
-    setHomepageSettingsSaving(true);
-    await setHomepageDestinationGridEnabled(enabled).catch(() => {});
-    setHomepageSettingsSaving(false);
-  };
-
-  const handleCountryHomepageToggle = async (slug, enabled) => {
-    const next = { ...countryOverrides, [slug]: enabled };
-    setCountryOverridesState(next);
-    await setCountryHomepageOverride(slug, enabled).catch(() => {});
-  };
-
   const allCountries = [...DIRECTORY_COUNTRIES, ...extraCountries];
+
+  // Auto-open country from "Edit Country" button on LocationPage
+  useEffect(() => {
+    let slug = null;
+    try { slug = sessionStorage.getItem('lwd_admin_open_country'); } catch {}
+    if (!slug) return;
+    sessionStorage.removeItem('lwd_admin_open_country');
+    const country = allCountries.find(c => c.slug === slug);
+    if (country) {
+      loadSeoForm(country.id, "Country");
+      setOpenCountry(country.id);
+      setExpandedCountry(country.slug);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const totalCountries = allCountries.length;
   const totalRegions = DIRECTORY_REGIONS.length;
   const activeUrls = DIRECTORY_REGIONS.filter(r => isRegionActive(r)).length;
@@ -3545,7 +4473,7 @@ function CountriesModule({ C }) {
       metaRobots: existing.metaRobots || "index, follow", canonicalUrl: existing.canonicalUrl || "",
       ogTitle: existing.ogTitle || "", ogDescription: existing.ogDescription || "",
       ogImage: existing.ogImage || "", ogType: existing.ogType || "website",
-      h1: existing.h1 || "", pageContent: existing.pageContent || "", introText: existing.introText || "",
+      h1: existing.h1 || "", pageContent: existing.pageContent || "", introText: existing.introText || "", bodyHtml: existing.bodyHtml || "",
       aiKeywords: existing.aiKeywords || "", aiSummary: existing.aiSummary || "",
       aiIntentSignals: existing.aiIntentSignals || "", aiEntityType: existing.aiEntityType || schemaDefault || "",
       customMeta: existing.customMeta || [], headHtml: existing.headHtml || "",
@@ -3937,8 +4865,15 @@ function CountriesModule({ C }) {
                 <label style={{ ...labelStyle, marginBottom: 0 }}>og:image</label>
                 <button onClick={() => setShowOgStock(!showOgStock)} style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, color: "#05A081", background: "#05A08112", border: "1px solid #05A08130", borderRadius: 3, padding: "2px 8px", cursor: "pointer" }}>📸 Browse Stock</button>
               </div>
-              <input value={seoForm.ogImage} onChange={e => setSeoForm(p => ({ ...p, ogImage: e.target.value }))}
-                placeholder="https://luxuryweddingdirectory.com/images/og-..." style={inputStyle} />
+              <ImageUploadField
+                value={seoForm.ogImage || ''}
+                onChange={url => setSeoForm(p => ({ ...p, ogImage: url }))}
+                bucket="listing-media"
+                folder="countries/og"
+                hint="Recommended: 1200×630px"
+                palette={C}
+                previewHeight={120}
+              />
               {showOgStock && (
                 <div style={{ marginTop: 8 }}>
                   <ImageSearchPanel C={C} defaultQuery={`luxury wedding ${activeItem.name.toLowerCase()}`}
@@ -3946,7 +4881,6 @@ function CountriesModule({ C }) {
                     onSelect={(img) => { setSeoForm(p => ({ ...p, ogImage: img.url })); setShowOgStock(false); }} />
                 </div>
               )}
-              <div style={hintStyle}>Recommended: 1200×630px</div>
             </div>
             {/* Custom Meta */}
             <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20, marginTop: 24 }}>
@@ -4043,10 +4977,32 @@ function CountriesModule({ C }) {
                   rows={2} style={{ ...inputStyle, minHeight: 52 }} />
               </div>
             </div>
-            {/* WYSIWYG */}
+            {/* HTML Source Editor */}
             <div style={{ marginBottom: 24 }}>
               <LwdEditor C={C} value={seoForm.pageContent} onChange={v => setSeoForm(p => ({ ...p, pageContent: v }))}
-                label="Content" placeholder={`<h2>Discover ${activeItem.name}</h2>\n<p>From intimate settings to grand celebrations...</p>`} />
+                label="HTML Source" placeholder={`<h2>Discover ${activeItem.name}</h2>\n<p>From intimate settings to grand celebrations...</p>`} />
+            </div>
+            {/* Body Text — Full TipTap WYSIWYG */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", color: C.gold, fontWeight: 700 }}>Body Text</span>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button {...aiBtn(() => setSeoForm(p => ({ ...p, bodyHtml: `<h2>Luxury Weddings in ${activeItem.name}</h2><p>${activeItem.name} is one of the world's most coveted wedding destinations, offering couples an unparalleled blend of history, beauty, and sophistication. From intimate ceremonies in centuries-old chapels to grand celebrations in palatial estates, ${activeItem.name} provides a breathtaking canvas for every style of luxury wedding.</p><h3>Why Choose ${activeItem.name}?</h3><p>With its rich cultural heritage, world-class cuisine, and stunning natural landscapes, ${activeItem.name} has long captivated couples seeking an extraordinary setting for their special day. The Luxury Wedding Directory's curated selection ensures every vendor and venue meets the highest standards of excellence.</p>` })))}>✦ AI Generate</button>
+                </div>
+              </div>
+              <div style={{ border: `1px solid ${C.border}`, borderRadius: 4, overflow: "hidden" }}>
+                <RichTextEditor
+                  content={seoForm.bodyHtml || ''}
+                  onChange={v => setSeoForm(p => ({ ...p, bodyHtml: v }))}
+                  placeholder={`Write rich body content for ${activeItem.name}...`}
+                  C={C}
+                  darkMode={true}
+                />
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+                <span style={hintStyle}>Full WYSIWYG editor — headings, bold, italic, links, lists, alignment</span>
+                <span style={hintStyle}>{(seoForm.bodyHtml || '').length} chars</span>
+              </div>
             </div>
             {/* Route reference */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: `${C.gold}06`, borderRadius: 3 }}>
@@ -4055,7 +5011,7 @@ function CountriesModule({ C }) {
                 {activeItem.schema && <> · Schema: <span style={{ color: C.gold }}>{activeItem.schema}</span></>}
                 {" · Indexed by Aura AI"}
               </span>
-              <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2 }}>{seoForm.pageContent.length} chars</span>
+              <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2 }}>{(seoForm.pageContent.length + (seoForm.bodyHtml || '').length)} chars</span>
             </div>
           </div>
         )}
@@ -4452,81 +5408,6 @@ function CountriesModule({ C }) {
           >
             <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> Add Country
           </button>
-        </div>
-      </div>
-
-      {/* ── Homepage Destination Grid Controls ──────────────────────────── */}
-      <div style={{
-        background: C.card, border: `1px solid ${C.border}`, borderRadius: 4,
-        padding: "20px 24px", marginBottom: 20,
-      }}>
-        {/* Master switch */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-          <div>
-            <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: C.gold, fontWeight: 700, marginBottom: 2 }}>
-              Homepage Destination Grid
-            </div>
-            <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2 }}>
-              Master switch — controls the entire "Browse Iconic Destinations" section
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {homepageSettingsSaving && (
-              <span style={{ fontFamily: NU, fontSize: 9, color: C.grey2 }}>saving…</span>
-            )}
-            <button
-              onClick={() => handleGridToggle(!homepageGridEnabled)}
-              style={{
-                fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "0.1em",
-                textTransform: "uppercase", padding: "6px 16px", borderRadius: 3, cursor: "pointer",
-                border: `1px solid ${homepageGridEnabled ? C.green : C.border}`,
-                background: homepageGridEnabled ? `${C.green}18` : "transparent",
-                color: homepageGridEnabled ? C.green : C.grey2,
-                transition: "all 0.2s",
-              }}
-            >
-              {homepageGridEnabled ? "ON" : "OFF"}
-            </button>
-          </div>
-        </div>
-
-        {/* Per-country toggles */}
-        <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 16 }}>
-          <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: C.grey2, fontWeight: 600, marginBottom: 12 }}>
-            Per-country homepage display
-            <span style={{ marginLeft: 8, fontWeight: 400 }}>— only countries with active listings can appear regardless</span>
-          </div>
-          <div style={{
-            display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "6px 16px",
-            maxHeight: 220, overflowY: "auto",
-          }}>
-            {[...DIRECTORY_COUNTRIES].sort((a, b) => a.name.localeCompare(b.name)).map(c => {
-              const resolved = countryOverrides[c.slug] !== undefined ? countryOverrides[c.slug] : (c.showOnHomepage !== false);
-              return (
-                <div key={c.slug} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 0" }}>
-                  <span style={{ fontFamily: NU, fontSize: 11, color: resolved ? C.off : C.grey2 }}>
-                    {c.name}
-                    {(c.listingCount ?? 0) === 0 && (
-                      <span style={{ fontSize: 9, color: C.grey2, marginLeft: 4 }}>(no listings)</span>
-                    )}
-                  </span>
-                  <button
-                    onClick={() => handleCountryHomepageToggle(c.slug, !resolved)}
-                    style={{
-                      fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em",
-                      textTransform: "uppercase", padding: "3px 10px", borderRadius: 2, cursor: "pointer",
-                      border: `1px solid ${resolved ? C.green : C.border}`,
-                      background: resolved ? `${C.green}15` : "transparent",
-                      color: resolved ? C.green : C.grey2,
-                      transition: "all 0.15s",
-                    }}
-                  >
-                    {resolved ? "Yes" : "No"}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
         </div>
       </div>
 
@@ -5012,7 +5893,8 @@ function NewShowcaseModal({ C, onClose, onSave, type = 'venue', initialData = nu
     setHeroUploadErr('');
     try {
       const id = `showcase-hero-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      const url = await uploadMediaFile(file, id);
+      const result = await uploadMediaFile(file, id);
+      const url = typeof result === 'object' && result?.url ? result.url : result;
       set('heroImage', url);
     } catch (err) {
       setHeroUploadErr('Upload failed, try again or paste a URL');
@@ -5248,7 +6130,7 @@ const SHOWCASE_TABS = [
   { key: 'planners', label: 'Planners', desc: 'Full editorial planner profiles, portfolio, services, process, real weddings, and enquiry.' },
 ];
 
-function VenueProfilesAdminModule({ C, onNavigate }) {
+function VenueProfilesAdminModule({ C, onNavigate, refreshKey = 0 }) {
   const [hovered, setHovered]                   = useState(null);
   const [activeTab, setActiveTab]               = useState('venues');
   const [venueProfiles, setVenueProfiles]       = useState(VENUE_PROFILES);
@@ -5276,7 +6158,7 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
     return true;
   });
 
-  // Load from Supabase on mount (both types at once)
+  // Load from Supabase on mount and whenever studio saves (refreshKey increments)
   useEffect(() => {
     async function load() {
       try {
@@ -5285,11 +6167,9 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
           fetchShowcases('planner'),
         ]);
         // Merge: static seed always shown first, DB records appended (no slug duplicates)
-        if (venues.length > 0) {
-          const staticSlugs = new Set(VENUE_PROFILES.map(p => p.slug));
-          const dbOnly = venues.filter(v => !staticSlugs.has(v.slug));
-          setVenueProfiles([...VENUE_PROFILES, ...dbOnly]);
-        }
+        const staticSlugs = new Set(VENUE_PROFILES.map(p => p.slug));
+        const dbOnly = venues.filter(v => !staticSlugs.has(v.slug));
+        setVenueProfiles([...VENUE_PROFILES, ...dbOnly]);
         if (planners.length > 0) setPlannerProfiles(planners);
       } catch (e) {
         console.warn('[ShowcaseAdmin] DB load failed, using static seed:', e);
@@ -5298,7 +6178,7 @@ function VenueProfilesAdminModule({ C, onNavigate }) {
       }
     }
     load();
-  }, []);
+  }, [refreshKey]);
 
   const handleSave = async (formData) => {
     setSaving(true);
@@ -5728,8 +6608,8 @@ function PartnerEnquiriesModule({ C }) {
   const [noteSubmitting, setNoteSubmitting] = useState(false);
 
   const statusColors = {
-    new: '#3b82f6', contacted: '#f59e0b', qualified: '#8b5cf6',
-    converted: '#10b981', lost: '#ef4444',
+    new: '#3b82f6', qualified: '#8b5cf6', engaged: '#06b6d4',
+    proposal_sent: '#ec4899', booked: '#16a34a', lost: '#ef4444', spam: '#9ca3af',
   };
 
   const loadLeads = async () => {
@@ -5896,7 +6776,7 @@ function PartnerEnquiriesModule({ C }) {
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.grey, marginBottom: 8 }}>Status</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {['new', 'contacted', 'qualified', 'converted', 'lost'].map(s => (
+              {['new', 'qualified', 'engaged', 'proposal_sent', 'booked', 'lost', 'spam'].map(s => (
                 <button key={s} onClick={() => handleStatusChange(selectedLead.id, s)} disabled={statusUpdating}
                   style={{
                     padding: '5px 14px', borderRadius: 14, cursor: 'pointer',
@@ -6046,6 +6926,15 @@ function autoEvergreenContent(locationType, countrySlug, regionSlug, citySlug) {
   return '';
 }
 
+// Convert plain text (with \n\n paragraph breaks) to HTML <p> tags for TipTap
+function textToHtml(text) {
+  if (!text) return '';
+  // Already HTML — return as-is
+  if (/<[a-z][\s\S]*>/i.test(text)) return text;
+  // Split on double newlines for paragraphs
+  return text.split(/\n\n+/).filter(Boolean).map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
+}
+
 // Auto-generate location-aware FAQs
 function autoSeoFaqs(locationType, countrySlug, regionSlug, citySlug) {
   const loc = locationType === 'country'
@@ -6117,7 +7006,18 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
     latestVendorsCount: '12', latestVendorsMode: 'latest',
     latestVendorsCardStyle: 'luxury',
     latestVendorsSelected: [],
+    // SEO fields
+    seoTitle: '', seoDescription: '', seoKeywords: '',
+    seoCanonicalUrl: '', seoRobotsIndex: true, seoRobotsFollow: true,
+    ogTitle: '', ogDescription: '', ogImage: '',
+    twitterTitle: '', twitterDescription: '', twitterImage: '',
+    schemaType: 'Place', schemaJson: '',
+    seoPrimaryKeyword: '', seoSecondaryKeywords: '',
   });
+  const [seoTab, setSeoTab] = useState('core');
+  const [seoAiTone, setSeoAiTone] = useState('luxury');
+  const [seoAiBusy, setSeoAiBusy] = useState(null); // null | 'fill' | 'regen' | 'spin' | fieldName
+  const [seoAiError, setSeoAiError] = useState(null);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [showMagicPanel, setShowMagicPanel] = useState(false);
   const [magicContext, setMagicContext] = useState('');
@@ -6147,6 +7047,115 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
     return '';
   }, [locationType, countrySlug, regionSlug, citySlug]);
 
+  // ── SEO AI context & helpers ────────────────────────────────────────────
+  const buildSeoCtx = useCallback(() => ({
+    locationType, locationName, countrySlug, regionSlug, citySlug,
+    heroTitle: form.heroTitle, heroSubtitle: form.heroSubtitle,
+    editorialPara1: form.editorialPara1, venueCount: venueList.length,
+    regionCount: locationType === 'country' ? DIRECTORY_REGIONS.filter(r => r.countrySlug === countrySlug).length : 0,
+    mapLat: form.mapLat, mapLng: form.mapLng, schemaType: form.schemaType,
+  }), [locationType, locationName, countrySlug, regionSlug, citySlug, form.heroTitle, form.heroSubtitle, form.editorialPara1, form.mapLat, form.mapLng, form.schemaType, venueList.length]);
+
+  const handleSeoAiAction = useCallback(async (action) => {
+    setSeoAiBusy(action); setSeoAiError(null);
+    try {
+      const ctx = buildSeoCtx();
+      let results;
+      if (action === 'fill') results = await fillEmptySeoFields(form, ctx, seoAiTone);
+      else if (action === 'regen') results = await regenerateAllSeo(ctx, seoAiTone);
+      else if (action === 'spin') results = await spinAllSeo(form, ctx, seoAiTone);
+      else if (action === 'defaults') results = autoComputeSeoDefaults(ctx);
+
+      if (results) {
+        setForm(prev => ({ ...prev, ...results }));
+        setDirty(true);
+      }
+    } catch (err) {
+      setSeoAiError(err.message);
+    } finally {
+      setSeoAiBusy(null);
+    }
+  }, [buildSeoCtx, form, seoAiTone]);
+
+  const handleFieldAi = useCallback(async (fieldKey, generator, ...args) => {
+    setSeoAiBusy(fieldKey); setSeoAiError(null);
+    try {
+      const result = await generator(...args);
+      set(fieldKey, result);
+    } catch (err) {
+      setSeoAiError(err.message);
+    } finally {
+      setSeoAiBusy(null);
+    }
+  }, [set]);
+
+  // ── Content AI state & helpers ──────────────────────────────────────────
+  const [contentAiBusy, setContentAiBusy] = useState(null); // null | 'fill' | 'regen' | 'spin' | 'section:hero' | fieldKey
+  const [contentAiError, setContentAiError] = useState(null);
+  const [contentAiTone, setContentAiTone] = useState('luxury');
+
+  const buildContentCtx = useCallback(() => ({
+    locationType, locationName, countrySlug, regionSlug, citySlug,
+    heroTitle: form.heroTitle, heroSubtitle: form.heroSubtitle,
+    existingContent: form.editorialPara1,
+    venueCount: venueList.length,
+    regionCount: locationType === 'country' ? DIRECTORY_REGIONS.filter(r => r.countrySlug === countrySlug).length : 0,
+  }), [locationType, locationName, countrySlug, regionSlug, citySlug, form.heroTitle, form.heroSubtitle, form.editorialPara1, venueList.length]);
+
+  const handleContentAiAction = useCallback(async (action) => {
+    setContentAiBusy(action); setContentAiError(null);
+    try {
+      const ctx = buildContentCtx();
+      let results;
+      if (action === 'fill') results = await fillEmptyContentFields(form, ctx, contentAiTone);
+      else if (action === 'regen') results = await regenerateAllContent(ctx, contentAiTone);
+      else if (action === 'spin') results = await spinAllContent(form, ctx, contentAiTone);
+
+      if (results) {
+        setForm(prev => ({ ...prev, ...results }));
+        setDirty(true);
+      }
+    } catch (err) {
+      setContentAiError(err.message);
+    } finally {
+      setContentAiBusy(null);
+    }
+  }, [buildContentCtx, form, contentAiTone]);
+
+  const handleSectionAi = useCallback(async (section) => {
+    setContentAiBusy(`section:${section}`); setContentAiError(null);
+    try {
+      const ctx = buildContentCtx();
+      const results = await generateSection(section, form, ctx, contentAiTone);
+      if (results) {
+        setForm(prev => ({ ...prev, ...results }));
+        setDirty(true);
+      }
+    } catch (err) {
+      setContentAiError(err.message);
+    } finally {
+      setContentAiBusy(null);
+    }
+  }, [buildContentCtx, form, contentAiTone]);
+
+  const handleContentFieldAi = useCallback(async (fieldKey, generator, ...args) => {
+    setContentAiBusy(fieldKey); setContentAiError(null);
+    try {
+      const result = await generator(...args);
+      if (typeof result === 'object' && !Array.isArray(result)) {
+        // Multi-field result (e.g. editorial, latest headings)
+        setForm(prev => ({ ...prev, ...result }));
+      } else {
+        set(fieldKey, result);
+      }
+      setDirty(true);
+    } catch (err) {
+      setContentAiError(err.message);
+    } finally {
+      setContentAiBusy(null);
+    }
+  }, [set]);
+
   // Load content when location key changes
   useEffect(() => {
     if (!locationKey) return;
@@ -6170,7 +7179,7 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
           infoVibes:            Array.isArray(data.metadata?.infoVibes) ? data.metadata.infoVibes.join(', ') : '',
           infoServices:         Array.isArray(data.metadata?.infoServices) ? data.metadata.infoServices.join(', ') : '',
           infoRegions:          Array.isArray(data.metadata?.infoRegions) ? data.metadata.infoRegions.join(', ') : autoInfoRegions(locationType, countrySlug, regionSlug),
-          seoContent:           data.metadata?.seoContent || autoEvergreenContent(locationType, countrySlug, regionSlug, citySlug),
+          seoContent:           textToHtml(data.metadata?.seoContent || autoEvergreenContent(locationType, countrySlug, regionSlug, citySlug)),
           seoFaqs:              Array.isArray(data.metadata?.seoFaqs) && data.metadata.seoFaqs.length > 0 ? data.metadata.seoFaqs : autoSeoFaqs(locationType, countrySlug, regionSlug, citySlug),
           editorialPara1:       data.metadata?.editorialPara1 || '',
           editorialPara2:       data.metadata?.editorialPara2 || '',
@@ -6208,10 +7217,27 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
           latestVendorsMode:     data.metadata?.latestVendorsMode || 'latest',
           latestVendorsCardStyle: data.metadata?.latestVendorsCardStyle || 'luxury',
           latestVendorsSelected: Array.isArray(data.metadata?.latestVendorsSelected) ? data.metadata.latestVendorsSelected : [],
+          // SEO fields from dedicated columns
+          seoTitle:             data.seo_title || '',
+          seoDescription:       data.seo_description || '',
+          seoKeywords:          data.seo_keywords || '',
+          seoCanonicalUrl:      data.seo_canonical_url || '',
+          seoRobotsIndex:       data.seo_robots_index !== false,
+          seoRobotsFollow:      data.seo_robots_follow !== false,
+          ogTitle:              data.og_title || '',
+          ogDescription:        data.og_description || '',
+          ogImage:              data.og_image || '',
+          twitterTitle:         data.twitter_title || '',
+          twitterDescription:   data.twitter_description || '',
+          twitterImage:         data.twitter_image || '',
+          schemaType:           data.schema_type || 'Place',
+          schemaJson:           data.schema_json ? (typeof data.schema_json === 'string' ? data.schema_json : JSON.stringify(data.schema_json, null, 2)) : '',
+          seoPrimaryKeyword:    data.seo_primary_keyword || '',
+          seoSecondaryKeywords: data.seo_secondary_keywords || '',
         });
         setPublished(!!data.published);
       } else {
-        setForm({ heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '', heroImages: [], ctaText: 'Explore Venues', ctaLink: '#', featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Top Wedding Planners', featuredVenueIds: [], featuredVendorIds: [], mapLat: '', mapLng: '', mapZoom: '8', infoVibes: '', infoServices: '', infoRegions: autoInfoRegions(locationType, countrySlug, regionSlug), seoContent: autoEvergreenContent(locationType, countrySlug, regionSlug, citySlug), seoFaqs: autoSeoFaqs(locationType, countrySlug, regionSlug, citySlug), editorialPara1: '', editorialPara2: '', editorialBlock1Icon: '🏰', editorialBlock1Text: '', editorialBlock2Icon: '🌿', editorialBlock2Text: '', editorialBlock3Icon: '🌅', editorialBlock3Text: '', editorialBlock4Icon: '✨', editorialBlock4Text: '', editorialVenueMode: 'latest', showEditorialSplit: true, showLatestVenues: true, showLatestVendors: true, showPlanningGuide: true, showMotto: true, motto: '', mottoSubline: '', mottoBgImage: '', mottoOverlay: '0.55', editorialEyebrow: '', editorialHeadingPrefix: '', editorialCtaText: '', seoHeading: '', latestVenuesHeading: '', latestVenuesSub: '', latestVenuesCount: '12', latestVenuesMode: 'latest', latestVenuesCardStyle: 'luxury', latestVenuesSelected: [], latestVendorsHeading: '', latestVendorsSub: '', latestVendorsCount: '12', latestVendorsMode: 'latest', latestVendorsCardStyle: 'luxury', latestVendorsSelected: [] });
+        setForm(prev => ({ ...prev, heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '', heroImages: [], ctaText: 'Explore Venues', ctaLink: '#', featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Top Wedding Planners', featuredVenueIds: [], featuredVendorIds: [], mapLat: '', mapLng: '', mapZoom: '8', infoVibes: '', infoServices: '', infoRegions: autoInfoRegions(locationType, countrySlug, regionSlug), seoContent: textToHtml(autoEvergreenContent(locationType, countrySlug, regionSlug, citySlug)), seoFaqs: autoSeoFaqs(locationType, countrySlug, regionSlug, citySlug), editorialPara1: '', editorialPara2: '', editorialBlock1Icon: '🏰', editorialBlock1Text: '', editorialBlock2Icon: '🌿', editorialBlock2Text: '', editorialBlock3Icon: '🌅', editorialBlock3Text: '', editorialBlock4Icon: '✨', editorialBlock4Text: '', editorialVenueMode: 'latest', showEditorialSplit: true, showLatestVenues: true, showLatestVendors: true, showPlanningGuide: true, showMotto: true, motto: '', mottoSubline: '', mottoBgImage: '', mottoOverlay: '0.55', editorialEyebrow: '', editorialHeadingPrefix: '', editorialCtaText: '', seoHeading: '', latestVenuesHeading: '', latestVenuesSub: '', latestVenuesCount: '12', latestVenuesMode: 'latest', latestVenuesCardStyle: 'luxury', latestVenuesSelected: [], latestVendorsHeading: '', latestVendorsSub: '', latestVendorsCount: '12', latestVendorsMode: 'latest', latestVendorsCardStyle: 'luxury', latestVendorsSelected: [], seoTitle: '', seoDescription: '', seoKeywords: '', seoCanonicalUrl: '', seoRobotsIndex: true, seoRobotsFollow: true, ogTitle: '', ogDescription: '', ogImage: '', twitterTitle: '', twitterDescription: '', twitterImage: '', schemaType: 'Place', schemaJson: '', seoPrimaryKeyword: '', seoSecondaryKeywords: '' }));
         setPublished(false);
       }
       setDirty(false);
@@ -6223,7 +7249,7 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
     if (!countrySlug) { setVenueList([]); return; }
     const filters = { status: 'active', country_slug: countrySlug };
     if (regionSlug) filters.region_slug = regionSlug;
-    fetchListingsAdmin(filters).then(data => setVenueList(Array.isArray(data) ? data : [])).catch(() => setVenueList([]));
+    fetchListings(filters).then(data => setVenueList(Array.isArray(data) ? data : [])).catch(() => setVenueList([]));
   }, [countrySlug, regionSlug]);
 
   const handleSave = async (publishOverride) => {
@@ -6285,6 +7311,23 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
           latestVendorsSelected: form.latestVendorsSelected || [],
         },
         published: newPublished,
+        // SEO fields — saved as dedicated columns
+        seoTitle: form.seoTitle || null,
+        seoDescription: form.seoDescription || null,
+        seoKeywords: form.seoKeywords || null,
+        seoCanonicalUrl: form.seoCanonicalUrl || null,
+        seoRobotsIndex: form.seoRobotsIndex !== false,
+        seoRobotsFollow: form.seoRobotsFollow !== false,
+        ogTitle: form.ogTitle || null,
+        ogDescription: form.ogDescription || null,
+        ogImage: form.ogImage || null,
+        twitterTitle: form.twitterTitle || null,
+        twitterDescription: form.twitterDescription || null,
+        twitterImage: form.twitterImage || null,
+        schemaType: form.schemaType || 'Place',
+        schemaJson: form.schemaJson ? JSON.parse(form.schemaJson) : null,
+        seoPrimaryKeyword: form.seoPrimaryKeyword || null,
+        seoSecondaryKeywords: form.seoSecondaryKeywords || null,
       });
       if (result.error) {
         setSaveErr(`Save failed: ${result.error.message || 'Database error'}`);
@@ -6334,7 +7377,8 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
     try {
       console.log('[Location Studio] Uploading motto image:', file.name);
       const mediaId = `motto-${locationKey.replace(/:/g, '-')}-${Date.now()}`;
-      const publicUrl = await uploadMediaFile(file, mediaId);
+      const result = await uploadMediaFile(file, mediaId);
+      const publicUrl = typeof result === 'object' && result?.url ? result.url : result;
       console.log('[Location Studio] Public URL:', publicUrl);
 
       set('mottoBgImage', publicUrl);
@@ -6392,6 +7436,44 @@ Do not include any explanation — only the JSON object.`,
     return <input value={form[key] || ''} onChange={e => set(key, e.target.value)} placeholder={placeholder} style={base} />;
   };
   const lbl = (text) => <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: LS.muted, marginBottom: 6 }}>{text}</div>;
+
+  // Section-level AI action bar
+  const sectionAiBar = (sectionKey) => (
+    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10, paddingBottom: 8, borderBottom: `1px solid ${LS.border}` }}>
+      <button onClick={() => handleSectionAi(sectionKey)} disabled={!!contentAiBusy}
+        style={{ fontFamily: NU, fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 4, border: `1px solid ${LS.border}`, background: contentAiBusy === `section:${sectionKey}` ? LS.gold : 'transparent', color: contentAiBusy === `section:${sectionKey}` ? '#fff' : LS.gold, cursor: contentAiBusy ? 'not-allowed' : 'pointer' }}
+      >{contentAiBusy === `section:${sectionKey}` ? '⟳…' : '✦ Generate'}</button>
+      <button onClick={() => handleSectionAi(sectionKey)} disabled={!!contentAiBusy}
+        style={{ fontFamily: NU, fontSize: 10, fontWeight: 500, padding: '3px 8px', borderRadius: 4, border: `1px solid ${LS.border}`, background: 'transparent', color: LS.muted, cursor: contentAiBusy ? 'not-allowed' : 'pointer' }}
+      >↻ Redo</button>
+    </div>
+  );
+
+  // Per-field AI micro-actions
+  const fieldAi = (fieldKey, label, generator, genArgs, options = {}) => {
+    const ctx = buildContentCtx();
+    const busy = contentAiBusy === fieldKey;
+    const val = form[fieldKey];
+    const btns = [
+      { icon: '✦', tip: 'Generate', fn: () => handleContentFieldAi(fieldKey, generator, ...genArgs) },
+    ];
+    if (val) {
+      btns.push({ icon: '↻', tip: 'Spin', fn: () => handleContentFieldAi(fieldKey, spinContentField, val, label, ctx, contentAiTone) });
+      if (options.canShorten) btns.push({ icon: '⇠', tip: 'Shorter', fn: () => handleContentFieldAi(fieldKey, shortenContentField, val, label, options.maxWords || 15) });
+      btns.push({ icon: '♦', tip: 'More luxury', fn: () => handleContentFieldAi(fieldKey, makeLuxury, val, label, ctx) });
+      btns.push({ icon: '✎', tip: 'More editorial', fn: () => handleContentFieldAi(fieldKey, makeEditorial, val, label, ctx) });
+      if (options.seo) btns.push({ icon: '◎', tip: 'SEO aware', fn: () => handleContentFieldAi(fieldKey, makeSeoAware, val, label, ctx) });
+    }
+    return (
+      <div style={{ display: 'flex', gap: 3, marginTop: 4 }}>
+        {btns.map((b, i) => (
+          <button key={i} title={b.tip} onClick={b.fn} disabled={!!contentAiBusy}
+            style={{ fontFamily: NU, fontSize: 9, padding: '2px 6px', borderRadius: 3, border: `1px solid ${LS.border}`, background: busy ? LS.gold : 'transparent', color: busy ? '#fff' : LS.gold, cursor: contentAiBusy ? 'not-allowed' : 'pointer', lineHeight: 1 }}
+          >{busy ? '⟳' : b.icon}</button>
+        ))}
+      </div>
+    );
+  };
 
   const showEditor  = viewMode === 'split' || viewMode === 'editor';
   const showPreview = viewMode === 'split' || viewMode === 'preview';
@@ -6616,10 +7698,42 @@ No explanation. Only the JSON.`,
               )}
             </LocSCard>
 
+            {/* ── CONTENT AI ACTIONS BAR ──────────────────────────────────────────── */}
+            {locationKey && (
+              <div style={{ background: darkMode ? 'rgba(201,168,76,0.06)' : '#FAF8F3', border: `1px solid ${darkMode ? 'rgba(201,168,76,0.15)' : '#E8E0D0'}`, borderRadius: 8, padding: '12px 16px', marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.gold, marginRight: 4 }}>✦ Content AI</span>
+                  {[
+                    { key: 'fill', label: 'Fill Empty Fields', title: 'Generate content for all empty fields (does not overwrite)' },
+                    { key: 'regen', label: 'Regenerate All', title: 'Regenerate all content fields (overwrites existing)' },
+                    { key: 'spin', label: 'Spin All', title: 'Rewrite all existing content with fresh phrasing' },
+                  ].map(a => (
+                    <button key={a.key} title={a.title} disabled={!!contentAiBusy}
+                      onClick={() => handleContentAiAction(a.key)}
+                      style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, padding: '5px 10px', borderRadius: 5, border: `1px solid ${LS.border}`, background: contentAiBusy === a.key ? LS.gold : 'transparent', color: contentAiBusy === a.key ? '#fff' : LS.text, cursor: contentAiBusy ? 'not-allowed' : 'pointer', opacity: contentAiBusy && contentAiBusy !== a.key ? 0.4 : 1 }}
+                    >{contentAiBusy === a.key ? '⟳ Working…' : a.label}</button>
+                  ))}
+                  <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontFamily: NU, fontSize: 10, color: LS.muted }}>Tone:</span>
+                    <select value={contentAiTone} onChange={e => setContentAiTone(e.target.value)} style={{ fontFamily: NU, fontSize: 11, padding: '3px 6px', border: `1px solid ${LS.border}`, borderRadius: 4, background: LS.bg, color: LS.text }}>
+                      <option value="luxury">Luxury</option>
+                      <option value="editorial">Editorial</option>
+                      <option value="seo_strong">SEO Strong</option>
+                      <option value="direct">Direct</option>
+                      <option value="romantic">Romantic</option>
+                    </select>
+                  </div>
+                </div>
+                {contentAiError && <div style={{ fontFamily: NU, fontSize: 11, color: '#ef4444', marginTop: 6 }}>✗ {contentAiError}</div>}
+                {contentAiBusy && <div style={{ fontFamily: NU, fontSize: 11, color: LS.gold, marginTop: 6 }}>⟳ Generating content… this may take a minute.</div>}
+              </div>
+            )}
+
             {/* Hero */}
             <LocSCard title="Hero" hint="Headline text and background shown at the top of this page" LS={LS}>
-              <div style={{ marginBottom: 12 }}>{lbl('Hero Title')}{inp('heroTitle', locationName || 'e.g. Weddings in Tuscany')}</div>
-              <div style={{ marginBottom: 12 }}>{lbl('Hero Subtitle')}{inp('heroSubtitle', 'A curated guide to luxury wedding celebrations…', true)}</div>
+              {locationKey && sectionAiBar('hero')}
+              <div style={{ marginBottom: 12 }}>{lbl('Hero Title')}{inp('heroTitle', locationName || 'e.g. Weddings in Tuscany')}{fieldAi('heroTitle', 'hero title', generateHeroTitle, [buildContentCtx(), contentAiTone])}</div>
+              <div style={{ marginBottom: 12 }}>{lbl('Hero Subtitle')}{inp('heroSubtitle', 'A curated guide to luxury wedding celebrations…', true)}{fieldAi('heroSubtitle', 'hero subtitle', generateHeroSubtitle, [buildContentCtx(), contentAiTone])}</div>
 
               {/* Image upload grid */}
               <div style={{ marginBottom: 12 }}>
@@ -6652,14 +7766,15 @@ No explanation. Only the JSON.`,
               </div>
 
               <LocGrid2 gap={12}>
-                <div>{lbl('CTA Button Text')}{inp('ctaText', 'Explore Venues')}</div>
+                <div>{lbl('CTA Button Text')}{inp('ctaText', 'Explore Venues')}{fieldAi('ctaText', 'CTA text', generateCtaText, [buildContentCtx()])}</div>
                 <div>{lbl('CTA Button Link')}{inp('ctaLink', '#search')}</div>
               </LocGrid2>
             </LocSCard>
 
             {/* Featured */}
             <LocSCard title="Featured" hint="Pin up to 6 venues to the top of this location page" LS={LS}>
-              <div style={{ marginBottom: 12 }}>{lbl('Section Title')}{inp('featuredVenuesTitle', 'Signature Venues')}</div>
+              {locationKey && sectionAiBar('featured')}
+              <div style={{ marginBottom: 12 }}>{lbl('Section Title')}{inp('featuredVenuesTitle', 'Signature Venues')}{fieldAi('featuredVenuesTitle', 'section heading', generateFeaturedVenuesTitle, [buildContentCtx(), contentAiTone])}</div>
               {venueList.length > 0 ? (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {venueList.slice(0, 24).map(v => {
@@ -6684,9 +7799,11 @@ No explanation. Only the JSON.`,
 
             {/* Info Strip */}
             <LocSCard title="Info Strip" hint="Three tag columns shown below the hero — all auto-populated, all editable." LS={LS}>
+              {locationKey && sectionAiBar('infoStrip')}
               <div style={{ marginBottom: 12 }}>
                 {lbl('Regions / Areas')}
                 {inp('infoRegions', 'e.g. Barbados, St Lucia, Jamaica, Antigua')}
+                {fieldAi('infoRegions', 'region tags', generateInfoRegions, [buildContentCtx()])}
                 <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>
                   {form.infoRegions ? form.infoRegions.split(',').map(s => s.trim()).filter(Boolean).map((v, i) => (
                     <span key={i} style={{ display: 'inline-block', marginRight: 6, marginBottom: 4, padding: '2px 8px', background: `${LS.gold}18`, border: `1px solid ${LS.gold}44`, borderRadius: 3, color: LS.gold, fontSize: 11 }}>{v}</span>
@@ -6696,6 +7813,7 @@ No explanation. Only the JSON.`,
               <div style={{ marginBottom: 12 }}>
                 {lbl('Signature Vibes')}
                 {inp('infoVibes', 'e.g. Beach Weddings, Garden Party, Tropical Luxury')}
+                {fieldAi('infoVibes', 'vibe tags', generateInfoVibes, [buildContentCtx()])}
                 <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>
                   {form.infoVibes ? form.infoVibes.split(',').map(s => s.trim()).filter(Boolean).map((v, i) => (
                     <span key={i} style={{ display: 'inline-block', marginRight: 6, marginBottom: 4, padding: '2px 8px', background: `${LS.gold}18`, border: `1px solid ${LS.gold}44`, borderRadius: 3, color: LS.gold, fontSize: 11 }}>{v}</span>
@@ -6705,6 +7823,7 @@ No explanation. Only the JSON.`,
               <div>
                 {lbl('Elite Services')}
                 {inp('infoServices', 'e.g. Private Beach Access, Destination Concierge, All-Inclusive')}
+                {fieldAi('infoServices', 'service tags', generateInfoServices, [buildContentCtx()])}
                 <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>
                   {form.infoServices ? form.infoServices.split(',').map(s => s.trim()).filter(Boolean).map((v, i) => (
                     <span key={i} style={{ display: 'inline-block', marginRight: 6, marginBottom: 4, padding: '2px 8px', background: `${LS.gold}18`, border: `1px solid ${LS.gold}44`, borderRadius: 3, color: LS.gold, fontSize: 11 }}>{v}</span>
@@ -6715,20 +7834,30 @@ No explanation. Only the JSON.`,
 
             {/* Planning Guide */}
             <LocSCard title="Planning Guide" hint="Auto-populated from the directory — edit freely. Max 3 paragraphs (separate with a blank line). FAQs auto-use the location name." LS={LS} enabled={form.showPlanningGuide !== false} onToggle={() => set('showPlanningGuide', !form.showPlanningGuide)}>
+              {locationKey && sectionAiBar('planning')}
               <div style={{ marginBottom: 16 }}>
                 {lbl('Section Title')}
                 {inp('seoHeading', `Planning Your ${locationName || 'Italy'} Wedding`)}
+                {fieldAi('seoHeading', 'section heading', generateSeoHeading, [buildContentCtx()])}
                 <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Auto: "Planning Your {locationName} Wedding" — override the full title here</div>
               </div>
               <div style={{ marginBottom: 16 }}>
                 {lbl('Body Text')}
-                <textarea
-                  value={form.seoContent || ''}
-                  onChange={e => set('seoContent', e.target.value)}
-                  placeholder="Editorial body text — up to 3 paragraphs separated by blank lines"
-                  rows={6}
-                  style={{ fontFamily: NU, fontSize: 13, padding: '10px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', lineHeight: 1.6 }}
-                />
+                <div style={{ border: `1px solid ${LS.border}`, borderRadius: 6, overflow: 'hidden' }}>
+                  <RichTextEditor
+                    content={form.seoContent || ''}
+                    onChange={v => set('seoContent', v)}
+                    placeholder={`Write editorial body content for ${locationName || 'this location'}...`}
+                    C={C}
+                    darkMode={darkMode}
+                  />
+                </div>
+                {fieldAi('seoContent', 'planning guide', generatePlanningGuide, [buildContentCtx(), contentAiTone], { seo: true })}
+              </div>
+              <div style={{ marginBottom: 10, display: 'flex', gap: 4 }}>
+                <button onClick={() => handleContentFieldAi('seoFaqs', generateFaqs, buildContentCtx(), contentAiTone)} disabled={!!contentAiBusy}
+                  style={{ fontFamily: NU, fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 4, border: `1px solid ${LS.border}`, background: contentAiBusy === 'seoFaqs' ? LS.gold : 'transparent', color: contentAiBusy === 'seoFaqs' ? '#fff' : LS.gold, cursor: contentAiBusy ? 'not-allowed' : 'pointer' }}
+                >{contentAiBusy === 'seoFaqs' ? '⟳ Generating…' : '✦ Generate FAQs'}</button>
               </div>
               {(form.seoFaqs || [{ q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }, { q: '', a: '' }]).map((faq, i) => (
                 <div key={i} style={{ marginBottom: 16, padding: '12px 14px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 6 }}>
@@ -6756,6 +7885,7 @@ No explanation. Only the JSON.`,
 
             {/* Motto Banner */}
             <LocSCard title="Motto Banner" hint="Full-width editorial quote strip — appears below the Planning Guide. Auto-fills from the location name. Optionally add a background image and control the overlay darkness." LS={LS} enabled={form.showMotto !== false} onToggle={() => set('showMotto', !form.showMotto)}>
+              {locationKey && sectionAiBar('motto')}
               {/* Motto text */}
               <div style={{ marginBottom: 14 }}>
                 {lbl('Quote / Motto')}
@@ -6766,12 +7896,14 @@ No explanation. Only the JSON.`,
                   rows={3}
                   style={{ fontFamily: NU, fontSize: 13, padding: '10px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', lineHeight: 1.6, fontStyle: 'italic' }}
                 />
+                {fieldAi('motto', 'motto quote', generateMotto, [buildContentCtx(), contentAiTone])}
                 <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Auto: "{locationName || 'Italy'}, where every moment becomes a memory worth keeping forever."</div>
               </div>
               {/* Sub-line */}
               <div style={{ marginBottom: 14 }}>
                 {lbl('Sub-line (optional)')}
                 {inp('mottoSubline', 'e.g. Luxury Wedding Directory · Italy')}
+                {fieldAi('mottoSubline', 'motto subline', generateMottoSubline, [buildContentCtx()])}
                 <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Appears below the quote in small caps — leave blank to hide</div>
               </div>
               {/* Background image — upload, pick from listings, or paste URL */}
@@ -6876,6 +8008,7 @@ No explanation. Only the JSON.`,
 
             {/* Editorial Split */}
             <LocSCard title="Editorial Split" hint={`"The Art of the ${locationName || 'Location'} Wedding" section — 5-image grid + 2 editorial paragraphs + 4 info blocks. Venue display: Latest, Random or Featured.`} LS={LS} enabled={form.showEditorialSplit !== false} onToggle={() => set('showEditorialSplit', !form.showEditorialSplit)}>
+              {locationKey && sectionAiBar('editorial')}
               {/* Venue display mode */}
               <div style={{ marginBottom: 16 }}>
                 {lbl('Venue Display Mode')}
@@ -6936,6 +8069,7 @@ No explanation. Only the JSON.`,
                   rows={3}
                   style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }}
                 />
+                {fieldAi('editorialPara1', 'editorial paragraph', generateEditorialPara, [buildContentCtx(), 1, contentAiTone], { seo: true })}
               </div>
 
               {/* Paragraph 2 */}
@@ -6948,6 +8082,7 @@ No explanation. Only the JSON.`,
                   rows={3}
                   style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }}
                 />
+                {fieldAi('editorialPara2', 'editorial paragraph', generateEditorialPara, [buildContentCtx(), 2, contentAiTone], { seo: true })}
               </div>
 
               {/* Info blocks */}
@@ -7002,6 +8137,7 @@ No explanation. Only the JSON.`,
 
               return (
                 <LocSCard title="Latest Venues Strip" hint={`The "${locationName || 'Latest'} Venues." card slider. Choose Latest, Random, or hand-pick Selectable venues.`} LS={LS} enabled={form.showLatestVenues !== false} onToggle={() => set('showLatestVenues', !form.showLatestVenues)}>
+                  {locationKey && sectionAiBar('latest')}
 
                   {/* ── Venue Mode — 4 options ── */}
                   <div style={{ marginBottom: 16 }}>
@@ -7168,6 +8304,7 @@ No explanation. Only the JSON.`,
                   <div style={{ marginBottom: 12 }}>
                     {lbl('Section Heading')}
                     {inp('latestVenuesHeading', 'Latest Venues.')}
+                    {fieldAi('latestVenuesHeading', 'section heading', async () => { const r = await generateLatestHeadings(buildContentCtx(), contentAiTone); return r.latestVenuesHeading; }, [])}
                     <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Leave blank to use "Latest Venues."</div>
                   </div>
 
@@ -7181,6 +8318,7 @@ No explanation. Only the JSON.`,
                       rows={2}
                       style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }}
                     />
+                    {fieldAi('latestVenuesSub', 'section summary', async () => { const r = await generateLatestHeadings(buildContentCtx(), contentAiTone); return r.latestVenuesSub; }, [])}
                     <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Leave blank to auto-generate from location name</div>
                   </div>
                 </LocSCard>
@@ -7307,6 +8445,7 @@ No explanation. Only the JSON.`,
                   <div style={{ marginBottom: 12 }}>
                     {lbl('Section Heading')}
                     {inp('latestVendorsHeading', 'Latest Vendors.')}
+                    {fieldAi('latestVendorsHeading', 'section heading', async () => { const r = await generateLatestHeadings(buildContentCtx(), contentAiTone); return r.latestVendorsHeading; }, [])}
                     <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Leave blank to use "Latest Vendors."</div>
                   </div>
 
@@ -7316,6 +8455,7 @@ No explanation. Only the JSON.`,
                     <textarea value={form.latestVendorsSub || ''} onChange={e => set('latestVendorsSub', e.target.value)}
                       placeholder={`Planners, photographers, florists, and culinary artists — the professionals behind${locationName ? ` ${locationName}'s` : ''} finest celebrations.`}
                       rows={2} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical' }} />
+                    {fieldAi('latestVendorsSub', 'section summary', async () => { const r = await generateLatestHeadings(buildContentCtx(), contentAiTone); return r.latestVendorsSub; }, [])}
                     <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, marginTop: 4 }}>Leave blank to auto-generate from location name</div>
                   </div>
                 </LocSCard>
@@ -7329,6 +8469,404 @@ No explanation. Only the JSON.`,
                 <div>{lbl('Longitude')}{inp('mapLng', '11.2558')}</div>
                 <div>{lbl('Zoom')}{inp('mapZoom', '8')}</div>
               </div>
+            </LocSCard>
+
+            {/* ═══ SEO & SOCIAL ═══════════════════════════════════════════ */}
+            <LocSCard title="SEO & Social" hint="Search engine optimisation, Open Graph, Twitter Cards, and schema markup — all managed here" LS={LS}>
+              {/* SEO completeness score */}
+              {(() => {
+                const seoChecks = [
+                  { label: 'Title', ok: !!form.seoTitle },
+                  { label: 'Description', ok: !!form.seoDescription },
+                  { label: 'OG Image', ok: !!form.ogImage },
+                  { label: 'Canonical', ok: !!form.seoCanonicalUrl },
+                  { label: 'Schema', ok: form.schemaType && form.schemaType !== 'Place' || !!form.schemaJson },
+                  { label: 'Primary Keyword', ok: !!form.seoPrimaryKeyword },
+                  { label: 'OG Title', ok: !!form.ogTitle },
+                ];
+                const done = seoChecks.filter(c => c.ok).length;
+                const total = seoChecks.length;
+                const pct = Math.round((done / total) * 100);
+                const color = pct === 100 ? '#22c55e' : pct >= 60 ? LS.gold : '#ef4444';
+                return (
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color }}>
+                        SEO Score: {done}/{total} ({pct}%)
+                      </span>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        {seoChecks.map((c, i) => (
+                          <span key={i} title={c.label} style={{
+                            width: 8, height: 8, borderRadius: '50%',
+                            background: c.ok ? '#22c55e' : `${LS.muted}40`,
+                            border: `1px solid ${c.ok ? '#22c55e50' : `${LS.muted}30`}`,
+                          }} />
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ height: 3, background: `${LS.muted}20`, borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 2, transition: 'width 0.3s' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                      {seoChecks.filter(c => !c.ok).map((c, i) => (
+                        <span key={i} style={{ fontFamily: NU, fontSize: 8, color: '#ef4444', background: '#ef444412', border: '1px solid #ef444420', padding: '1px 6px', borderRadius: 2 }}>
+                          Missing: {c.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* ── AI Actions Bar ── */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12, padding: '10px 12px', background: `${LS.gold}08`, border: `1px solid ${LS.gold}20`, borderRadius: 6 }}>
+                <span style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: LS.gold, display: 'flex', alignItems: 'center', gap: 4, marginRight: 4 }}>
+                  <span style={{ fontSize: 12 }}>✦</span> AI
+                </span>
+                {[
+                  { key: 'fill', label: 'Fill Empty', title: 'Generate content for empty fields only' },
+                  { key: 'regen', label: 'Regenerate All', title: 'Overwrite all SEO fields with fresh content' },
+                  { key: 'spin', label: 'Spin All Copy', title: 'Create fresh variations of existing copy' },
+                  { key: 'defaults', label: 'Auto Defaults', title: 'Set canonical URL, robots, schema type from page path' },
+                ].map(a => (
+                  <button key={a.key} title={a.title} disabled={!!seoAiBusy}
+                    onClick={() => handleSeoAiAction(a.key)}
+                    style={{
+                      fontFamily: NU, fontSize: 8, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+                      color: seoAiBusy === a.key ? '#fff' : '#a78bfa',
+                      background: seoAiBusy === a.key ? '#a78bfa' : '#a78bfa12',
+                      border: '1px solid #a78bfa30', borderRadius: 3, padding: '4px 10px', cursor: seoAiBusy ? 'wait' : 'pointer',
+                      opacity: seoAiBusy && seoAiBusy !== a.key ? 0.5 : 1,
+                    }}>
+                    {seoAiBusy === a.key ? 'Working...' : a.label}
+                  </button>
+                ))}
+                <div style={{ flex: 1 }} />
+                {/* Tone selector */}
+                <select value={seoAiTone} onChange={e => setSeoAiTone(e.target.value)}
+                  style={{ fontFamily: NU, fontSize: 9, padding: '3px 8px', border: `1px solid ${LS.border}`, borderRadius: 3, background: LS.bg, color: LS.text, cursor: 'pointer' }}>
+                  <option value="luxury">Luxury</option>
+                  <option value="editorial">Editorial</option>
+                  <option value="seo_strong">SEO Strong</option>
+                  <option value="direct">Direct</option>
+                  <option value="romantic">Romantic</option>
+                </select>
+              </div>
+              {seoAiError && (
+                <div style={{ fontFamily: NU, fontSize: 10, color: '#ef4444', background: '#ef444412', border: '1px solid #ef444420', borderRadius: 4, padding: '6px 10px', marginBottom: 10 }}>
+                  {seoAiError}
+                  <button onClick={() => setSeoAiError(null)} style={{ marginLeft: 8, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontSize: 10 }}>Dismiss</button>
+                </div>
+              )}
+
+              {/* SEO sub-tabs */}
+              <div style={{ display: 'flex', gap: 2, marginBottom: 16, borderBottom: `1px solid ${LS.border}`, paddingBottom: 8 }}>
+                {[
+                  { key: 'core', label: 'Core SEO' },
+                  { key: 'og', label: 'Open Graph' },
+                  { key: 'twitter', label: 'Twitter' },
+                  { key: 'schema', label: 'Schema' },
+                  { key: 'keywords', label: 'Keywords' },
+                ].map(t => (
+                  <button key={t.key} onClick={() => setSeoTab(t.key)} style={{
+                    fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+                    color: seoTab === t.key ? LS.gold : LS.muted,
+                    background: seoTab === t.key ? `${LS.gold}12` : 'transparent',
+                    border: `1px solid ${seoTab === t.key ? LS.gold + '40' : 'transparent'}`,
+                    borderRadius: 3, padding: '5px 10px', cursor: 'pointer',
+                  }}>{t.label}</button>
+                ))}
+              </div>
+
+              {/* ── Per-field AI button helper ── */}
+              {(() => {
+                const aiBtnStyle = { fontFamily: NU, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a78bfa', background: '#a78bfa12', border: '1px solid #a78bfa30', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 };
+                const aiFieldBtns = (fieldKey, genFn, genArgs, canSpin = true) => (
+                  <div style={{ display: 'flex', gap: 3, marginTop: 4 }}>
+                    <button disabled={!!seoAiBusy} style={aiBtnStyle}
+                      onClick={() => handleFieldAi(fieldKey, genFn, ...genArgs)}>
+                      {seoAiBusy === fieldKey ? '...' : '✦ Generate'}
+                    </button>
+                    {canSpin && form[fieldKey] && (
+                      <button disabled={!!seoAiBusy} style={aiBtnStyle}
+                        onClick={() => handleFieldAi(fieldKey, spinField, form[fieldKey], fieldKey.replace(/([A-Z])/g, ' $1').toLowerCase(), buildSeoCtx(), seoAiTone)}>
+                        ↻ Spin
+                      </button>
+                    )}
+                    {canSpin && form[fieldKey] && fieldKey.includes('itle') && (form[fieldKey] || '').length > 60 && (
+                      <button disabled={!!seoAiBusy} style={aiBtnStyle}
+                        onClick={() => handleFieldAi(fieldKey, shortenField, form[fieldKey], fieldKey.replace(/([A-Z])/g, ' $1').toLowerCase(), 60)}>
+                        Shorter
+                      </button>
+                    )}
+                  </div>
+                );
+                return null; // Just defining — used below via aiFieldBtns captured in closure
+              })()}
+
+              {/* ── Core SEO tab ── */}
+              {seoTab === 'core' && (() => {
+                const aiBtnStyle = { fontFamily: NU, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a78bfa', background: '#a78bfa12', border: '1px solid #a78bfa30', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 };
+                const ctx = buildSeoCtx();
+                const aiBtn = (label, onClick) => (
+                  <button disabled={!!seoAiBusy} style={aiBtnStyle} onClick={onClick}>{label}</button>
+                );
+                return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      {lbl('SEO Title')}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ display: 'flex', gap: 3 }}>
+                          {aiBtn(seoAiBusy === 'seoTitle' ? '...' : '✦ Generate', () => handleFieldAi('seoTitle', generateSeoTitle, ctx, seoAiTone))}
+                          {form.seoTitle && aiBtn('↻ Spin', () => handleFieldAi('seoTitle', spinField, form.seoTitle, 'SEO title', ctx, seoAiTone))}
+                        </div>
+                        <span style={{ fontFamily: NU, fontSize: 9, color: (form.seoTitle || '').length > 60 ? '#ef4444' : LS.muted }}>{(form.seoTitle || '').length}/60</span>
+                      </div>
+                    </div>
+                    {inp('seoTitle', `Wedding Venues in ${locationName || 'Location'} | Luxury Wedding Directory`)}
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      {lbl('Meta Description')}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ display: 'flex', gap: 3 }}>
+                          {aiBtn(seoAiBusy === 'seoDescription' ? '...' : '✦ Generate', () => handleFieldAi('seoDescription', generateSeoDescription, ctx, seoAiTone))}
+                          {form.seoDescription && aiBtn('↻ Spin', () => handleFieldAi('seoDescription', spinField, form.seoDescription, 'meta description', ctx, seoAiTone))}
+                        </div>
+                        <span style={{ fontFamily: NU, fontSize: 9, color: (form.seoDescription || '').length > 160 ? '#ef4444' : LS.muted }}>{(form.seoDescription || '').length}/160</span>
+                      </div>
+                    </div>
+                    <textarea value={form.seoDescription || ''} onChange={e => set('seoDescription', e.target.value)}
+                      placeholder={`Discover the finest luxury wedding venues in ${locationName || 'this location'}. Hand-selected by our editorial team.`}
+                      rows={3} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    {lbl('Canonical URL')}
+                    {inp('seoCanonicalUrl', `https://luxuryweddingdirectory.com/${countrySlug || 'country'}${regionSlug ? '/' + regionSlug : ''}`)}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <label style={{ fontFamily: NU, fontSize: 12, color: LS.text, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={form.seoRobotsIndex !== false} onChange={e => set('seoRobotsIndex', e.target.checked)} />
+                      Allow indexing
+                    </label>
+                    <label style={{ fontFamily: NU, fontSize: 12, color: LS.text, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={form.seoRobotsFollow !== false} onChange={e => set('seoRobotsFollow', e.target.checked)} />
+                      Allow follow
+                    </label>
+                  </div>
+
+                  {/* Google Preview */}
+                  <div style={{ marginTop: 8 }}>
+                    {lbl('Search Preview')}
+                    <div style={{ background: '#fff', border: '1px solid #dfe1e5', borderRadius: 8, padding: '16px 16px', maxWidth: 600 }}>
+                      <div style={{ fontFamily: 'Arial, sans-serif', fontSize: 20, color: '#1a0dab', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {form.seoTitle || form.heroTitle || `${locationName} | Luxury Wedding Directory`}
+                      </div>
+                      <div style={{ fontFamily: 'Arial, sans-serif', fontSize: 14, color: '#006621', marginBottom: 4 }}>
+                        {form.seoCanonicalUrl || `https://luxuryweddingdirectory.com/${countrySlug || ''}${regionSlug ? '/' + regionSlug : ''}`}
+                      </div>
+                      <div style={{ fontFamily: 'Arial, sans-serif', fontSize: 13, color: '#545454', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {form.seoDescription || `Discover the finest luxury wedding venues in ${locationName || 'this location'}.`}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                );
+              })()}
+
+              {/* ── Open Graph tab ── */}
+              {seoTab === 'og' && (() => {
+                const aiBtnStyle = { fontFamily: NU, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a78bfa', background: '#a78bfa12', border: '1px solid #a78bfa30', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 };
+                const ctx = buildSeoCtx();
+                const aiBtn = (label, onClick) => (<button disabled={!!seoAiBusy} style={aiBtnStyle} onClick={onClick}>{label}</button>);
+                return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      {lbl('OG Title')}
+                      <div style={{ display: 'flex', gap: 3 }}>
+                        {aiBtn(seoAiBusy === 'ogTitle' ? '...' : '✦ Generate', () => handleFieldAi('ogTitle', generateOgTitle, ctx, seoAiTone))}
+                        {form.ogTitle && aiBtn('↻ Spin', () => handleFieldAi('ogTitle', spinField, form.ogTitle, 'OG title', ctx, seoAiTone))}
+                      </div>
+                    </div>
+                    {inp('ogTitle', form.seoTitle || `${locationName} | Luxury Wedding Directory`)}
+                    <div style={{ fontFamily: NU, fontSize: 10, color: LS.muted, marginTop: 3 }}>Falls back to SEO title if empty</div>
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      {lbl('OG Description')}
+                      <div style={{ display: 'flex', gap: 3 }}>
+                        {aiBtn(seoAiBusy === 'ogDescription' ? '...' : '✦ Generate', () => handleFieldAi('ogDescription', generateOgDescription, ctx, seoAiTone))}
+                        {form.ogDescription && aiBtn('↻ Spin', () => handleFieldAi('ogDescription', spinField, form.ogDescription, 'OG description', ctx, seoAiTone))}
+                      </div>
+                    </div>
+                    <textarea value={form.ogDescription || ''} onChange={e => set('ogDescription', e.target.value)}
+                      placeholder={form.seoDescription || 'Falls back to meta description if empty'}
+                      rows={3} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <ImageUploadField
+                      label="OG Image"
+                      value={form.ogImage || ''}
+                      onChange={url => set('ogImage', url)}
+                      bucket="listing-media"
+                      folder="locations/og"
+                      hint="Recommended: 1200×630px. Falls back to hero image if empty."
+                      palette={LS}
+                      previewHeight={140}
+                    />
+                  </div>
+
+                  {/* Social share preview */}
+                  <div style={{ marginTop: 8 }}>
+                    {lbl('Social Share Preview')}
+                    <div style={{ background: '#f0f2f5', border: '1px solid #dadde1', borderRadius: 8, overflow: 'hidden', maxWidth: 500 }}>
+                      <div style={{ width: '100%', height: 200, background: '#e4e6eb', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                        {(form.ogImage || form.heroImage) ? (
+                          <img src={form.ogImage || form.heroImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }} />
+                        ) : (
+                          <span style={{ fontFamily: NU, fontSize: 12, color: '#65676b' }}>No image set</span>
+                        )}
+                      </div>
+                      <div style={{ padding: '10px 12px' }}>
+                        <div style={{ fontFamily: 'Helvetica, Arial, sans-serif', fontSize: 12, color: '#65676b', textTransform: 'uppercase', marginBottom: 2 }}>luxuryweddingdirectory.com</div>
+                        <div style={{ fontFamily: 'Helvetica, Arial, sans-serif', fontSize: 16, fontWeight: 600, color: '#1c1e21', marginBottom: 2 }}>
+                          {form.ogTitle || form.seoTitle || form.heroTitle || locationName || 'Page Title'}
+                        </div>
+                        <div style={{ fontFamily: 'Helvetica, Arial, sans-serif', fontSize: 14, color: '#65676b', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                          {form.ogDescription || form.seoDescription || 'Page description will appear here'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                );
+              })()}
+
+              {/* ── Twitter tab ── */}
+              {seoTab === 'twitter' && (() => {
+                const aiBtnStyle = { fontFamily: NU, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a78bfa', background: '#a78bfa12', border: '1px solid #a78bfa30', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 };
+                const ctx = buildSeoCtx();
+                const aiBtn = (label, onClick) => (<button disabled={!!seoAiBusy} style={aiBtnStyle} onClick={onClick}>{label}</button>);
+                return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, fontStyle: 'italic', marginBottom: 4 }}>
+                    Leave blank to inherit from Open Graph fields
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      {lbl('Twitter Title')}
+                      <div style={{ display: 'flex', gap: 3 }}>
+                        {aiBtn(seoAiBusy === 'twitterTitle' ? '...' : '✦ Generate', () => handleFieldAi('twitterTitle', generateTwitterTitle, ctx, seoAiTone))}
+                        {form.twitterTitle && aiBtn('↻ Spin', () => handleFieldAi('twitterTitle', spinField, form.twitterTitle, 'Twitter title', ctx, seoAiTone))}
+                      </div>
+                    </div>
+                    {inp('twitterTitle', form.ogTitle || 'Inherits from OG Title')}
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      {lbl('Twitter Description')}
+                      <div style={{ display: 'flex', gap: 3 }}>
+                        {aiBtn(seoAiBusy === 'twitterDescription' ? '...' : '✦ Generate', () => handleFieldAi('twitterDescription', generateTwitterDescription, ctx, seoAiTone))}
+                        {form.twitterDescription && aiBtn('↻ Spin', () => handleFieldAi('twitterDescription', spinField, form.twitterDescription, 'Twitter description', ctx, seoAiTone))}
+                      </div>
+                    </div>
+                    <textarea value={form.twitterDescription || ''} onChange={e => set('twitterDescription', e.target.value)}
+                      placeholder={form.ogDescription || 'Inherits from OG Description'}
+                      rows={3} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <ImageUploadField
+                      label="Twitter Image"
+                      value={form.twitterImage || ''}
+                      onChange={url => set('twitterImage', url)}
+                      bucket="listing-media"
+                      folder="locations/twitter"
+                      hint="Recommended: 1200×628px. Leave blank to inherit OG Image."
+                      palette={LS}
+                      previewHeight={100}
+                    />
+                  </div>
+                </div>
+                );
+              })()}
+
+              {/* ── Schema tab ── */}
+              {seoTab === 'schema' && (() => {
+                const aiBtnStyle = { fontFamily: NU, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a78bfa', background: '#a78bfa12', border: '1px solid #a78bfa30', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 };
+                const ctx = buildSeoCtx();
+                return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    {lbl('Schema Type')}
+                    <select value={form.schemaType || 'Place'} onChange={e => set('schemaType', e.target.value)}
+                      style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' }}>
+                      <option value="Place">Place</option>
+                      <option value="Country">Country</option>
+                      <option value="City">City</option>
+                      <option value="TouristDestination">TouristDestination</option>
+                      <option value="LocalBusiness">LocalBusiness</option>
+                      <option value="Organization">Organization</option>
+                    </select>
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      {lbl('Custom Schema JSON (optional)')}
+                      <button disabled={!!seoAiBusy} style={aiBtnStyle}
+                        onClick={() => handleFieldAi('schemaJson', generateSchemaJson, ctx)}>
+                        {seoAiBusy === 'schemaJson' ? '...' : '✦ Generate Schema'}
+                      </button>
+                    </div>
+                    <textarea value={form.schemaJson || ''} onChange={e => set('schemaJson', e.target.value)}
+                      placeholder={'{\n  "@context": "https://schema.org",\n  "@type": "Place",\n  "name": "' + (locationName || 'Location') + '"\n}'}
+                      rows={10} style={{ fontFamily: "'SF Mono','Fira Code','Consolas',monospace", fontSize: 11, lineHeight: 1.6, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', boxSizing: 'border-box' }} />
+                    <div style={{ fontFamily: NU, fontSize: 10, color: LS.muted, marginTop: 3 }}>
+                      Paste valid JSON-LD. If empty, auto-generated from schema type + location data.
+                    </div>
+                  </div>
+                </div>
+                );
+              })()}
+
+              {/* ── Keywords tab ── */}
+              {seoTab === 'keywords' && (() => {
+                const aiBtnStyle = { fontFamily: NU, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a78bfa', background: '#a78bfa12', border: '1px solid #a78bfa30', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 };
+                const ctx = buildSeoCtx();
+                return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      {lbl('Primary Keyword')}
+                      <button disabled={!!seoAiBusy} style={aiBtnStyle}
+                        onClick={() => handleFieldAi('seoPrimaryKeyword', generatePrimaryKeyword, ctx)}>
+                        {seoAiBusy === 'seoPrimaryKeyword' ? '...' : '✦ Generate'}
+                      </button>
+                    </div>
+                    {inp('seoPrimaryKeyword', `luxury wedding venues ${locationName || ''}`)}
+                    <div style={{ fontFamily: NU, fontSize: 10, color: LS.muted, marginTop: 3 }}>The main search term this page should rank for</div>
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      {lbl('Secondary Keywords')}
+                      <button disabled={!!seoAiBusy} style={aiBtnStyle}
+                        onClick={() => handleFieldAi('seoSecondaryKeywords', generateSecondaryKeywords, ctx)}>
+                        {seoAiBusy === 'seoSecondaryKeywords' ? '...' : '✦ Generate'}
+                      </button>
+                    </div>
+                    <textarea value={form.seoSecondaryKeywords || ''} onChange={e => set('seoSecondaryKeywords', e.target.value)}
+                      placeholder={`best wedding venues ${locationName || ''}, luxury weddings ${locationName || ''}, exclusive venue hire ${locationName || ''}`}
+                      rows={3} style={{ fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', resize: 'vertical', boxSizing: 'border-box' }} />
+                    <div style={{ fontFamily: NU, fontSize: 10, color: LS.muted, marginTop: 3 }}>Comma-separated. Supporting keywords and long-tail variants.</div>
+                  </div>
+                  <div>
+                    {lbl('SEO Keywords (meta)')}
+                    {inp('seoKeywords', `wedding venues, luxury weddings, ${locationName || ''}`)}
+                    <div style={{ fontFamily: NU, fontSize: 10, color: LS.muted, marginTop: 3 }}>Comma-separated meta keywords tag (low SEO weight, but good for internal tracking)</div>
+                  </div>
+                </div>
+                );
+              })()}
             </LocSCard>
           </div>
         )}
@@ -7378,798 +8916,646 @@ No explanation. Only the JSON.`,
   );
 }
 
-// Displays all leads from the lead engine with filters, scoring, and detail view
+// ═════════════════════════════════════════════════════════════════════════════
+// CITY STUDIO — Simplified location editor for cities only
+// Same toolbar & structure as Location Studio, but simpler form (no Info Strip)
 // ═════════════════════════════════════════════════════════════════════════════
 
-function LeadsModule({ C }) {
-  const [leads, setLeads] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [priorityFilter, setPriorityFilter] = useState('all');
-  const [search, setSearch] = useState('');
-  const [selectedLead, setSelectedLead] = useState(null);
-  const [sortKey, setSortKey] = useState('created_at');
-  const [sortDir, setSortDir] = useState('desc');
-  const [statusUpdating, setStatusUpdating] = useState(false);
-  const [statusSuccess, setStatusSuccess] = useState(null);
-  const [lossReason, setLossReason] = useState('');
-  const [showLossInput, setShowLossInput] = useState(false);
-  const [notes, setNotes] = useState([]);
-  const [noteText, setNoteText] = useState('');
-  const [noteSubmitting, setNoteSubmitting] = useState(false);
+function CityStudio({ C, darkMode = true, onBuilderModeChange }) {
+  useEffect(() => {
+    onBuilderModeChange?.(true);
+    return () => onBuilderModeChange?.(false);
+  }, [onBuilderModeChange]);
 
-  const LEAD_TYPES = [
-    { key: 'all',            label: 'All' },
-    { key: 'venue_enquiry',  label: 'Venue' },
-    { key: 'vendor_enquiry', label: 'Vendor' },
-    { key: 'aura_chat',      label: 'Aura' },
-  ];
+  const NU = 'var(--font-body)';
+  const GD = 'var(--font-serif)';
+  const LS = darkMode ? { bg: '#1a1a1a', card: '#242424', border: '#333', text: '#f5f5f5', muted: '#999', gold: '#C9A84C', btn: '#1a1a1a', btnTxt: '#f5f5f5' } : { bg: '#F2EFE9', card: '#F8F6F2', border: '#D9D2C6', text: '#222222', muted: '#777777', gold: '#8A6A18', btn: '#1a1a1a', btnTxt: '#ffffff' };
 
-  const STATUSES = [
-    { key: 'all',              label: 'All' },
-    { key: 'new',              label: 'New' },
-    { key: 'qualified',        label: 'Qualified' },
-    { key: 'sent_to_partner',  label: 'Sent' },
-    { key: 'partner_replied',  label: 'Replied' },
-    { key: 'in_conversation',  label: 'Talking' },
-    { key: 'proposal_sent',    label: 'Proposal' },
-    { key: 'booked',           label: 'Booked' },
-    { key: 'lost',             label: 'Lost' },
-    { key: 'spam',             label: 'Spam' },
-  ];
+  // ── State ──
+  const [countrySlug, setCountrySlug] = useState('');
+  const [regionSlug, setRegionSlug] = useState('');
+  const [citySlug, setCitySlug] = useState('');
+  const [form, setForm] = useState({});
+  const [published, setPublished] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [viewMode, setViewMode] = useState('split');
+  const [showMagicPanel, setShowMagicPanel] = useState(false);
+  const [magicContext, setMagicContext] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingMottoImage, setUploadingMottoImage] = useState(false);
+  const [venueList, setVenueList] = useState([]);
+  const [venuePickerSearch, setVenuePickerSearch] = useState('');
 
-  const PRIORITIES = [
-    { key: 'all',    label: 'All' },
-    { key: 'urgent', label: 'Urgent' },
-    { key: 'high',   label: 'High' },
-    { key: 'normal', label: 'Normal' },
-    { key: 'low',    label: 'Low' },
-  ];
+  const heroUploadRef = useRef(null);
+  const mottoUploadRef = useRef(null);
 
-  // Status dot colours (used in table rows)
-  const STATUS_DOT = {
-    new:             '#3b82f6',
-    qualified:       '#10b981',
-    sent_to_partner: '#f59e0b',
-    partner_opened:  '#8b5cf6',
-    partner_replied: '#10b981',
-    in_conversation: '#06b6d4',
-    proposal_sent:   '#ec4899',
-    booked:          '#16a34a',
-    lost:            '#ef4444',
-    spam:            '#9ca3af',
+  const city = DIRECTORY_CITIES.find(c => c.slug === citySlug && c.countrySlug === countrySlug && c.regionSlug === regionSlug);
+  const cityName = city?.name || citySlug?.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') || '';
+  const locationType = 'city';
+  const locationKey = citySlug && countrySlug && regionSlug ? `city:${countrySlug}:${regionSlug}:${citySlug}` : null;
+
+  const set = (key, val) => {
+    setForm(p => ({ ...p, [key]: val }));
+    setDirty(true);
   };
 
-  // Status badge styles (chip in detail view)
-  const STATUS_CHIP = {
-    new:             { bg: 'rgba(59,130,246,0.12)',  text: '#3b82f6',  border: 'rgba(59,130,246,0.25)' },
-    qualified:       { bg: 'rgba(16,185,129,0.12)', text: '#10b981',  border: 'rgba(16,185,129,0.25)' },
-    sent_to_partner: { bg: 'rgba(245,158,11,0.12)', text: '#d97706',  border: 'rgba(245,158,11,0.25)' },
-    partner_opened:  { bg: 'rgba(139,92,246,0.12)', text: '#7c3aed',  border: 'rgba(139,92,246,0.25)' },
-    partner_replied: { bg: 'rgba(16,185,129,0.12)', text: '#10b981',  border: 'rgba(16,185,129,0.25)' },
-    in_conversation: { bg: 'rgba(6,182,212,0.12)',  text: '#0891b2',  border: 'rgba(6,182,212,0.25)' },
-    proposal_sent:   { bg: 'rgba(236,72,153,0.12)', text: '#db2777',  border: 'rgba(236,72,153,0.25)' },
-    booked:          { bg: 'rgba(22,163,74,0.12)',  text: '#16a34a',  border: 'rgba(22,163,74,0.25)' },
-    lost:            { bg: 'rgba(239,68,68,0.12)',  text: '#dc2626',  border: 'rgba(239,68,68,0.25)' },
-    spam:            { bg: 'rgba(156,163,175,0.12)',text: '#6b7280',  border: 'rgba(156,163,175,0.25)' },
-  };
-
-  const PRIORITY_CHIP = {
-    urgent: { bg: 'rgba(239,68,68,0.12)',  text: '#dc2626',  border: 'rgba(239,68,68,0.25)' },
-    high:   { bg: 'rgba(245,158,11,0.12)', text: '#d97706',  border: 'rgba(245,158,11,0.25)' },
-    normal: { bg: 'rgba(59,130,246,0.10)', text: '#3b82f6',  border: 'rgba(59,130,246,0.20)' },
-    low:    { bg: 'rgba(156,163,175,0.10)',text: '#9ca3af',  border: 'rgba(156,163,175,0.20)' },
-  };
-
-  const TYPE_CHIP = {
-    venue_enquiry:  { bg: 'rgba(139,92,246,0.10)', text: '#7c3aed', border: 'rgba(139,92,246,0.20)', label: 'Venue' },
-    vendor_enquiry: { bg: 'rgba(6,182,212,0.10)',  text: '#0891b2', border: 'rgba(6,182,212,0.20)',  label: 'Vendor' },
-    aura_chat:      { bg: 'rgba(245,158,11,0.10)', text: '#d97706', border: 'rgba(245,158,11,0.20)', label: 'Aura' },
-  };
-
-  useEffect(() => { loadLeads(); }, []);
-
-  const loadLeads = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { adminListLeads } = await import('../services/adminLeadsService');
-      const result = await adminListLeads({ limit: 200 });
-      if (result.error && !result.data?.length) {
-        setError('Could not load leads. Ensure the admin client is configured.');
+  // Fetch location content
+  useEffect(() => {
+    if (!locationKey) return;
+    fetchLocationContent(locationKey).then(data => {
+      if (data) {
+        setForm({
+          heroTitle: data.hero_title || '',
+          heroSubtitle: data.hero_subtitle || '',
+          heroImage: data.hero_image || '',
+          heroVideo: data.hero_video || '',
+          ctaText: data.cta_text || 'Explore Venues',
+          ctaLink: data.cta_link || '#',
+          featuredVenuesTitle: data.featured_venues_title || 'Signature Venues',
+          featuredVendorsTitle: data.featured_vendors_title || 'Top Wedding Planners',
+          featuredVenueIds: Array.isArray(data.featured_venues) ? data.featured_venues : (typeof data.featured_venues === 'string' ? JSON.parse(data.featured_venues || '[]') : []),
+          featuredVendorIds: Array.isArray(data.featured_vendors) ? data.featured_vendors : (typeof data.featured_vendors === 'string' ? JSON.parse(data.featured_vendors || '[]') : []),
+          heroImages: Array.isArray(data.metadata?.heroImages) ? data.metadata.heroImages : [],
+          editorialPara1: data.metadata?.editorialPara1 || '',
+          editorialPara2: data.metadata?.editorialPara2 || '',
+          editorialBlock1Icon: data.metadata?.editorialBlocks?.[0]?.icon || '🏰',
+          editorialBlock1Text: data.metadata?.editorialBlocks?.[0]?.text || '',
+          editorialBlock2Icon: data.metadata?.editorialBlocks?.[1]?.icon || '🌿',
+          editorialBlock2Text: data.metadata?.editorialBlocks?.[1]?.text || '',
+          editorialBlock3Icon: data.metadata?.editorialBlocks?.[2]?.icon || '🌅',
+          editorialBlock3Text: data.metadata?.editorialBlocks?.[2]?.text || '',
+          editorialBlock4Icon: data.metadata?.editorialBlocks?.[3]?.icon || '✨',
+          editorialBlock4Text: data.metadata?.editorialBlocks?.[3]?.text || '',
+          editorialVenueMode: data.metadata?.editorialVenueMode || 'latest',
+          showEditorialSplit: data.metadata?.showEditorialSplit !== false,
+          showLatestVenues: data.metadata?.showLatestVenues !== false,
+          showLatestVendors: data.metadata?.showLatestVendors !== false,
+          showPlanningGuide: data.metadata?.showPlanningGuide !== false,
+          showMotto: data.metadata?.showMotto !== false,
+          motto: data.metadata?.motto || '',
+          mottoSubline: data.metadata?.mottoSubline || '',
+          mottoBgImage: data.metadata?.mottoBgImage || '',
+          mottoOverlay: data.metadata?.mottoOverlay ?? '0.55',
+          editorialEyebrow: data.metadata?.editorialEyebrow || '',
+          editorialHeadingPrefix: data.metadata?.editorialHeadingPrefix || '',
+          editorialCtaText: data.metadata?.editorialCtaText || '',
+          seoHeading: data.metadata?.seoHeading || '',
+          seoContent: textToHtml(data.metadata?.seoContent || ''),
+          seoFaqs: Array.isArray(data.metadata?.seoFaqs) && data.metadata.seoFaqs.length > 0 ? data.metadata.seoFaqs : [],
+          latestVenuesHeading: data.metadata?.latestVenuesHeading || '',
+          latestVenuesSub: data.metadata?.latestVenuesSub || '',
+          latestVenuesCount: data.metadata?.latestVenuesCount != null ? String(data.metadata.latestVenuesCount) : '12',
+          latestVenuesMode: data.metadata?.latestVenuesMode || 'latest',
+          latestVenuesCardStyle: data.metadata?.latestVenuesCardStyle || 'luxury',
+          latestVenuesSelected: Array.isArray(data.metadata?.latestVenuesSelected) ? data.metadata.latestVenuesSelected : [],
+          latestVendorsHeading: data.metadata?.latestVendorsHeading || '',
+          latestVendorsSub: data.metadata?.latestVendorsSub || '',
+          latestVendorsCount: data.metadata?.latestVendorsCount != null ? String(data.metadata.latestVendorsCount) : '12',
+          latestVendorsMode: data.metadata?.latestVendorsMode || 'latest',
+          latestVendorsCardStyle: data.metadata?.latestVendorsCardStyle || 'luxury',
+          latestVendorsSelected: Array.isArray(data.metadata?.latestVendorsSelected) ? data.metadata.latestVendorsSelected : [],
+        });
+        setPublished(!!data.published);
+      } else {
+        setForm({
+          heroTitle: '', heroSubtitle: '', heroImage: '', heroVideo: '', heroImages: [], ctaText: 'Explore Venues', ctaLink: '#',
+          featuredVenuesTitle: 'Signature Venues', featuredVendorsTitle: 'Top Wedding Planners', featuredVenueIds: [], featuredVendorIds: [],
+          editorialPara1: '', editorialPara2: '', editorialBlock1Icon: '🏰', editorialBlock1Text: '', editorialBlock2Icon: '🌿', editorialBlock2Text: '', editorialBlock3Icon: '🌅', editorialBlock3Text: '', editorialBlock4Icon: '✨', editorialBlock4Text: '',
+          editorialVenueMode: 'latest', showEditorialSplit: true, showLatestVenues: true, showLatestVendors: true, showPlanningGuide: true, showMotto: true,
+          motto: '', mottoSubline: '', mottoBgImage: '', mottoOverlay: '0.55', editorialEyebrow: '', editorialHeadingPrefix: '', editorialCtaText: '',
+          seoHeading: '', seoContent: '', seoFaqs: [],
+          latestVenuesHeading: '', latestVenuesSub: '', latestVenuesCount: '12', latestVenuesMode: 'latest', latestVenuesCardStyle: 'luxury', latestVenuesSelected: [],
+          latestVendorsHeading: '', latestVendorsSub: '', latestVendorsCount: '12', latestVendorsMode: 'latest', latestVendorsCardStyle: 'luxury', latestVendorsSelected: [],
+        });
+        setPublished(false);
       }
-      setLeads(result.data || []);
-    } catch (err) {
-      console.error('LeadsModule: failed to load:', err);
-      setError('Failed to load leads.');
-    } finally {
-      setLoading(false);
-    }
-  };
+      setDirty(false);
+    });
+  }, [locationKey]);
 
-  const handleStatusUpdate = async (newStatus) => {
-    if (!selectedLead) return;
-    if (newStatus === 'lost' && !lossReason && showLossInput) return;
-    if (newStatus === 'lost' && !showLossInput) {
-      setShowLossInput(true);
-      return;
-    }
-    setStatusUpdating(true);
-    setStatusSuccess(null);
+  // Load venues
+  useEffect(() => {
+    if (!countrySlug) { setVenueList([]); return; }
+    const filters = { status: 'active', country_slug: countrySlug, city_slug: citySlug };
+    fetchListings(filters).then(data => setVenueList(Array.isArray(data) ? data : [])).catch(() => setVenueList([]));
+  }, [countrySlug, citySlug]);
+
+  const handleSave = async (publishOverride) => {
+    if (!locationKey) return setSaveErr('Select a city first');
+    setSaving(true); setSaveErr(null);
+    const newPublished = publishOverride === 'published' ? true : publishOverride === 'draft' ? false : published;
     try {
-      const { adminUpdateLeadStatus } = await import('../services/adminLeadsService');
-      const result = await adminUpdateLeadStatus(selectedLead.id, newStatus, { lossReason: lossReason || undefined });
-      if (!result.error && result.data) {
-        const updated = result.data;
-        setSelectedLead(updated);
-        setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
-        setStatusSuccess(`Status updated to ${newStatus.replace(/_/g, ' ')}`);
-        setShowLossInput(false);
-        setLossReason('');
-        setTimeout(() => setStatusSuccess(null), 3000);
+      const result = await saveLocationContent({
+        locationKey, locationType, countrySlug, regionSlug, citySlug,
+        heroTitle: form.heroTitle || cityName,
+        heroSubtitle: form.heroSubtitle, heroImage: form.heroImage, heroVideo: form.heroVideo,
+        ctaText: form.ctaText, ctaLink: form.ctaLink,
+        featuredVenuesTitle: form.featuredVenuesTitle, featuredVendorsTitle: form.featuredVendorsTitle,
+        featuredVenueIds: form.featuredVenueIds, featuredVendorIds: form.featuredVendorIds,
+        metadata: {
+          heroImages: form.heroImages || [],
+          editorialPara1: form.editorialPara1 || '',
+          editorialPara2: form.editorialPara2 || '',
+          editorialBlocks: [
+            { icon: form.editorialBlock1Icon || '🏰', text: form.editorialBlock1Text || '' },
+            { icon: form.editorialBlock2Icon || '🌿', text: form.editorialBlock2Text || '' },
+            { icon: form.editorialBlock3Icon || '🌅', text: form.editorialBlock3Text || '' },
+            { icon: form.editorialBlock4Icon || '✨', text: form.editorialBlock4Text || '' },
+          ],
+          editorialVenueMode: form.editorialVenueMode || 'latest',
+          showEditorialSplit: form.showEditorialSplit !== false,
+          showLatestVenues: form.showLatestVenues !== false,
+          showLatestVendors: form.showLatestVendors !== false,
+          showPlanningGuide: form.showPlanningGuide !== false,
+          showMotto: form.showMotto !== false,
+          motto: form.motto || '',
+          mottoSubline: form.mottoSubline || '',
+          mottoBgImage: form.mottoBgImage || '',
+          mottoOverlay: form.mottoOverlay ?? '0.55',
+          editorialEyebrow: form.editorialEyebrow || '',
+          editorialHeadingPrefix: form.editorialHeadingPrefix || '',
+          editorialCtaText: form.editorialCtaText || '',
+          seoHeading: form.seoHeading || '',
+          seoContent: form.seoContent || '',
+          seoFaqs: (form.seoFaqs || []).filter(f => f.q || f.a),
+          latestVenuesHeading: form.latestVenuesHeading || '',
+          latestVenuesSub: form.latestVenuesSub || '',
+          latestVenuesCount: parseInt(form.latestVenuesCount) || 12,
+          latestVenuesMode: form.latestVenuesMode || 'latest',
+          latestVenuesCardStyle: form.latestVenuesCardStyle || 'luxury',
+          latestVenuesSelected: form.latestVenuesSelected || [],
+          latestVendorsHeading: form.latestVendorsHeading || '',
+          latestVendorsSub: form.latestVendorsSub || '',
+          latestVendorsCount: parseInt(form.latestVendorsCount) || 12,
+          latestVendorsMode: form.latestVendorsMode || 'latest',
+          latestVendorsCardStyle: form.latestVendorsCardStyle || 'luxury',
+          latestVendorsSelected: form.latestVendorsSelected || [],
+        },
+        published: newPublished,
+      });
+      if (result.error) {
+        setSaveErr(`Save failed: ${result.error.message || 'Database error'}`);
+        return;
       }
+      setPublished(newPublished);
+      setDirty(false);
+      setToast(newPublished ? 'City published ✓' : 'City saved ✓');
     } catch (err) {
-      console.error('Status update failed:', err);
+      setSaveErr(`Save failed: ${err.message || 'Unknown error'}`);
     } finally {
-      setStatusUpdating(false);
+      setSaving(false);
     }
   };
 
-  const loadNotes = async (leadId) => {
+  const toggleFeaturedVenue = (id) => {
+    const ids = form.featuredVenueIds || [];
+    const next = ids.includes(id) ? ids.filter(x => x !== id) : ids.length < 4 ? [...ids, id] : ids;
+    set('featuredVenueIds', next);
+  };
+
+  const uploadHeroImage = async (file) => {
+    if (!file || !locationKey) return;
+    const imgs = form.heroImages || [];
+    if (imgs.length >= 8) return;
+    setUploadingImage(true);
     try {
       const { supabase } = await import('../lib/supabaseClient');
-      const { data } = await supabase
-        .from('lead_messages')
-        .select('id, body, created_at')
-        .eq('lead_id', leadId)
-        .eq('message_type', 'internal_note')
-        .order('created_at', { ascending: true });
-      setNotes(data || []);
-    } catch (err) {
-      console.warn('loadNotes failed:', err);
+      const ext = file.name.split('.').pop();
+      const path = `locations/${locationKey.replace(/:/g, '/')}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from('listing-media').upload(path, file, { upsert: false, cacheControl: '31536000' });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from('listing-media').getPublicUrl(path);
+      const next = [...imgs, publicUrl];
+      setForm(prev => ({ ...prev, heroImages: next, heroImage: prev.heroImage || publicUrl }));
+      setDirty(true);
+    } catch (e) {
+      console.error('[City Studio] Image upload failed:', e);
+    } finally {
+      setUploadingImage(false);
     }
   };
 
-  const handleAddNote = async () => {
-    if (!noteText.trim() || !selectedLead) return;
-    setNoteSubmitting(true);
+  const uploadMottoImage = async (file) => {
+    if (!file || !locationKey) return;
+    setUploadingMottoImage(true);
+    try {
+      const mediaId = `motto-${locationKey.replace(/:/g, '-')}-${Date.now()}`;
+      const result = await uploadMediaFile(file, mediaId);
+      const publicUrl = typeof result === 'object' && result?.url ? result.url : result;
+      set('mottoBgImage', publicUrl);
+      setDirty(true);
+      setToast('✓ Motto image uploaded successfully');
+    } catch (e) {
+      console.error('[City Studio] Motto image upload failed:', e);
+      setToast('✗ Failed to upload image: ' + (e.message || 'Unknown error'));
+    } finally {
+      setUploadingMottoImage(false);
+    }
+  };
+
+  const handleFillWithAI = async () => {
+    if (!locationKey || aiGenerating) return;
+    setAiGenerating(true);
     try {
       const { supabase } = await import('../lib/supabaseClient');
-      const { data, error } = await supabase
-        .from('lead_messages')
-        .insert({ lead_id: selectedLead.id, message_type: 'internal_note', body: noteText.trim() })
-        .select('id, body, created_at')
-        .single();
-      if (!error && data) {
-        setNotes(prev => [...prev, data]);
-        setNoteText('');
+      const { data, error } = await supabase.functions.invoke('ai-generate', {
+        body: {
+          feature: 'location_content',
+          systemPrompt: `You are an editor for Luxury Wedding Directory. Write elegant, aspirational copy for city pages. Be concise and evocative.`,
+          userPrompt: `Generate editorial content for ${cityName}. Return ONLY a JSON object:
+{
+  "heroTitle": "short headline (3-6 words)",
+  "heroSubtitle": "one sentence (max 20 words)",
+  "featuredVenuesTitle": "2-4 word section heading"
+}
+No explanation. Only the JSON.`,
+        },
+      });
+      if (error) throw error;
+      const raw = (data?.text || '').trim();
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        setForm(prev => ({
+          ...prev,
+          heroTitle: parsed.heroTitle || prev.heroTitle,
+          heroSubtitle: parsed.heroSubtitle || prev.heroSubtitle,
+          featuredVenuesTitle: parsed.featuredVenuesTitle || prev.featuredVenuesTitle,
+        }));
+        setDirty(true);
       }
-    } catch (err) {
-      console.warn('addNote failed:', err);
+    } catch (e) {
+      console.error('[City Studio] AI generation failed:', e);
     } finally {
-      setNoteSubmitting(false);
+      setAiGenerating(false);
     }
   };
 
-  const filtered = leads.filter(l => {
-    if (typeFilter !== 'all' && l.lead_type !== typeFilter) return false;
-    if (statusFilter !== 'all' && l.status !== statusFilter) return false;
-    if (priorityFilter !== 'all' && l.priority !== priorityFilter) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      const name = (l.full_name || l.first_name || '').toLowerCase();
-      const email = (l.email || '').toLowerCase();
-      if (!name.includes(q) && !email.includes(q)) return false;
-    }
-    return true;
-  }).sort((a, b) => {
-    let av = a[sortKey] ?? '';
-    let bv = b[sortKey] ?? '';
-    if (sortKey === 'score') { av = Number(av); bv = Number(bv); }
-    if (av < bv) return sortDir === 'asc' ? -1 : 1;
-    if (av > bv) return sortDir === 'asc' ? 1 : -1;
-    return 0;
-  });
-
-  const handleSort = (key) => {
-    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortKey(key); setSortDir('desc'); }
+  const inp = (key, placeholder, multiline) => {
+    const base = { fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%', boxSizing: 'border-box', outline: 'none' };
+    if (multiline) return <textarea value={form[key] || ''} onChange={e => set(key, e.target.value)} placeholder={placeholder} rows={3} style={{ ...base, resize: 'vertical', minHeight: 72 }} />;
+    return <input value={form[key] || ''} onChange={e => set(key, e.target.value)} placeholder={placeholder} style={base} />;
   };
+  const lbl = (text) => <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: LS.muted, marginBottom: 6 }}>{text}</div>;
 
-  const sortIcon = (key) => sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+  const showEditor = viewMode === 'split' || viewMode === 'editor';
+  const showPreview = viewMode === 'split' || viewMode === 'preview';
+  const selStyle = { fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, width: '100%' };
 
-  const fmtDate = (iso) => {
-    if (!iso) return '-';
-    const d = new Date(iso);
-    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
-  };
-
-  const fmtType = (t) => TYPE_CHIP[t]?.label || t || '-';
-
-  const stats = useMemo(() => ({
-    total:     leads.length,
-    newCount:  leads.filter(l => l.status === 'new').length,
-    booked:    leads.filter(l => l.status === 'booked').length,
-    urgent:    leads.filter(l => l.priority === 'urgent').length,
-    qualified: leads.filter(l => l.status === 'qualified' || l.status === 'in_conversation').length,
-  }), [leads]);
-
-  // ── Shared sub-components ──────────────────────────────────────────────────
-
-  const Chip = ({ type, value }) => {
-    const map = type === 'status' ? STATUS_CHIP : type === 'priority' ? PRIORITY_CHIP : TYPE_CHIP;
-    const cfg = map[value] || { bg: 'rgba(0,0,0,0.06)', text: C.grey, border: C.border };
-    const label = type === 'type' ? cfg.label : value?.replace(/_/g, ' ') || '-';
-    return (
-      <span style={{
-        display: 'inline-block', padding: '2px 9px', borderRadius: 20,
-        background: cfg.bg, color: cfg.text, border: `1px solid ${cfg.border}`,
-        fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
-        textTransform: 'uppercase', whiteSpace: 'nowrap',
-      }}>{label}</span>
-    );
-  };
-
-  const ScoreRing = ({ score }) => {
-    const s = score || 0;
-    const colour = s >= 80 ? '#16a34a' : s >= 60 ? C.gold : s >= 30 ? '#3b82f6' : '#9ca3af';
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-        <div style={{ position: 'relative', width: 28, height: 28, flexShrink: 0 }}>
-          <svg width="28" height="28" viewBox="0 0 28 28">
-            <circle cx="14" cy="14" r="11" fill="none" stroke={C.border} strokeWidth="2.5" />
-            <circle cx="14" cy="14" r="11" fill="none" stroke={colour} strokeWidth="2.5"
-              strokeDasharray={`${2 * Math.PI * 11}`}
-              strokeDashoffset={`${2 * Math.PI * 11 * (1 - s / 100)}`}
-              strokeLinecap="round"
-              transform="rotate(-90 14 14)"
-            />
-          </svg>
-          <span style={{
-            position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
-            justifyContent: 'center', fontFamily: NU, fontSize: 8, fontWeight: 700, color: C.off,
-          }}>{s}</span>
-        </div>
-      </div>
-    );
-  };
-
-  const filterTab = (active) => ({
-    padding: '5px 13px', borderRadius: 2, cursor: 'pointer', transition: 'all 130ms',
-    fontFamily: NU, fontSize: 11, fontWeight: 600, letterSpacing: '0.04em',
-    background: active ? C.gold : 'transparent',
-    color: active ? '#fff' : C.grey,
-    border: `1px solid ${active ? C.gold : 'transparent'}`,
-  });
-
-  const statusTab = (active) => ({
-    padding: '4px 11px', borderRadius: 2, cursor: 'pointer', transition: 'all 130ms',
-    fontFamily: NU, fontSize: 10, fontWeight: 600, letterSpacing: '0.04em',
-    background: active ? C.goldDim : 'transparent',
-    color: active ? C.gold : C.grey2,
-    border: `1px solid ${active ? C.gold : 'transparent'}`,
-  });
-
-  // ── Detail Panel ────────────────────────────────────────────────────────────
-
-  if (selectedLead) {
-    const l = selectedLead;
-    const sc = STATUS_CHIP[l.status];
-    const pc = PRIORITY_CHIP[l.priority];
-
-    const DetailRow = ({ label, val }) => !val ? null : (
-      <div style={{ display: 'flex', gap: 16, padding: '9px 0', borderBottom: `1px solid ${C.border}` }}>
-        <span style={{
-          fontFamily: NU, fontSize: 10, color: C.grey2, fontWeight: 700,
-          textTransform: 'uppercase', letterSpacing: '0.07em', minWidth: 108, paddingTop: 1,
-        }}>{label}</span>
-        <span style={{ fontFamily: NU, fontSize: 13, color: C.off, lineHeight: 1.45 }}>{val}</span>
-      </div>
-    );
-
-    const SectionLabel = ({ children }) => (
-      <p style={{
-        fontFamily: NU, fontSize: 9, color: C.gold, fontWeight: 700, margin: '24px 0 4px',
-        textTransform: 'uppercase', letterSpacing: '0.12em',
-      }}>{children}</p>
-    );
-
-    const ActionButton = ({ label, status, variant = 'ghost' }) => {
-      const isActive = l.status === status;
-      const isPrimary = variant === 'primary';
-      return (
-        <button
-          disabled={statusUpdating || isActive}
-          onClick={() => handleStatusUpdate(status)}
-          style={{
-            padding: '7px 14px', borderRadius: 2, cursor: isActive ? 'default' : 'pointer',
-            fontFamily: NU, fontSize: 11, fontWeight: 600, letterSpacing: '0.04em',
-            transition: 'all 130ms', opacity: isActive ? 0.5 : 1,
-            background: isActive ? C.goldDim : isPrimary ? C.gold : 'transparent',
-            color: isActive ? C.gold : isPrimary ? '#fff' : C.grey,
-            border: `1px solid ${isActive ? C.gold : isPrimary ? C.gold : C.border}`,
-          }}
-        >{isActive ? `${label} (current)` : label}</button>
-      );
-    };
-
-    return (
-      <div>
-        {/* Top bar */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28,
-          paddingBottom: 20, borderBottom: `1px solid ${C.border}`,
-        }}>
-          <button onClick={() => { setSelectedLead(null); setShowLossInput(false); setLossReason(''); }} style={{
-            background: 'transparent', border: `1px solid ${C.border}`, color: C.grey2,
-            fontFamily: NU, fontSize: 11, fontWeight: 600, padding: '6px 13px',
-            borderRadius: 2, cursor: 'pointer', letterSpacing: '0.05em',
-          }}>
-            ← All Leads
-          </button>
-          <div style={{ flex: 1 }}>
-            <h2 style={{ fontFamily: GD, fontSize: 22, fontWeight: 400, color: C.off, margin: 0, lineHeight: 1.2 }}>
-              {l.full_name || l.first_name || 'Unknown Lead'}
-            </h2>
-            {l.email && <p style={{ fontFamily: NU, fontSize: 12, color: C.grey, margin: '3px 0 0' }}>{l.email}</p>}
-          </div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <Chip type="type" value={l.lead_type} />
-            <Chip type="priority" value={l.priority} />
-            <Chip type="status" value={l.status} />
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, alignItems: 'start' }}>
-
-          {/* Left - main content */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-            {/* Contact + Wedding */}
-            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '20px 24px' }}>
-              <SectionLabel>Contact</SectionLabel>
-              <DetailRow label="Name"       val={l.full_name || l.first_name} />
-              <DetailRow label="Email"      val={l.email} />
-              <DetailRow label="Phone"      val={l.phone} />
-              <DetailRow label="Prefers"    val={l.preferred_contact_method} />
-
-              <SectionLabel>Wedding</SectionLabel>
-              <DetailRow label="Date"       val={l.wedding_month ? `${l.wedding_month}${l.wedding_year ? ' ' + l.wedding_year : ''}` : null} />
-              <DetailRow label="Confirmed"  val={l.exact_date_known ? 'Yes' : null} />
-              <DetailRow label="Guests"     val={l.guest_count} />
-              <DetailRow label="Budget"     val={l.budget_range} />
-              <DetailRow label="Location"   val={l.location_preference} />
-            </div>
-
-            {/* Message */}
-            {l.message && (
-              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '20px 24px' }}>
-                <SectionLabel>Message</SectionLabel>
-                <p style={{
-                  fontFamily: NU, fontSize: 14, color: C.off, lineHeight: 1.7,
-                  margin: '12px 0 0', padding: '14px 16px',
-                  background: C.dark, borderRadius: 3, borderLeft: `3px solid ${C.gold}`,
-                }}>{l.message}</p>
-              </div>
-            )}
-
-            {/* Intent summary */}
-            {l.intent_summary && (
-              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '20px 24px' }}>
-                <SectionLabel>Aura Intent Summary</SectionLabel>
-                <p style={{
-                  fontFamily: NU, fontSize: 13, color: C.off, lineHeight: 1.7,
-                  margin: '12px 0 0', padding: '14px 16px',
-                  background: C.goldDim, borderRadius: 3, borderLeft: `3px solid ${C.gold}`,
-                }}>{l.intent_summary}</p>
-              </div>
-            )}
-          </div>
-
-          {/* Right - sidebar */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-            {/* Score card */}
-            <div style={{
-              background: C.card, border: `1px solid ${C.border}`, borderRadius: 4,
-              padding: '18px 20px', borderTop: `3px solid ${
-                (l.score || 0) >= 80 ? '#16a34a' : (l.score || 0) >= 60 ? C.gold : (l.score || 0) >= 30 ? '#3b82f6' : '#9ca3af'
-              }`,
-            }}>
-              <p style={{ fontFamily: NU, fontSize: 9, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', margin: '0 0 10px' }}>Lead Score</p>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 10 }}>
-                <span style={{ fontFamily: GD, fontSize: 42, color: C.off, fontWeight: 400, lineHeight: 1 }}>{l.score || 0}</span>
-                <span style={{ fontFamily: NU, fontSize: 13, color: C.grey2 }}>/100</span>
-              </div>
-              <div style={{ width: '100%', height: 5, borderRadius: 3, background: C.border, overflow: 'hidden', marginBottom: 12 }}>
-                <div style={{
-                  width: `${l.score || 0}%`, height: '100%', borderRadius: 3,
-                  background: (l.score || 0) >= 80 ? '#16a34a' : (l.score || 0) >= 60 ? C.gold : (l.score || 0) >= 30 ? '#3b82f6' : '#9ca3af',
-                  transition: 'width 700ms ease',
-                }} />
-              </div>
-              {l.lead_value_band && (
-                <span style={{
-                  fontFamily: NU, fontSize: 10, color: C.gold, fontWeight: 700,
-                  letterSpacing: '0.08em', textTransform: 'uppercase',
-                }}>{l.lead_value_band.replace(/_/g, ' ')}</span>
-              )}
-            </div>
-
-            {/* Source metadata */}
-            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '18px 20px' }}>
-              <p style={{ fontFamily: NU, fontSize: 9, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', margin: '0 0 10px' }}>Source</p>
-              {[
-                ['Type',     fmtType(l.lead_type)],
-                ['Channel',  l.lead_channel],
-                ['Source',   l.lead_source],
-                ['Listing',  l.listing_id || l.venue_id || l.vendor_id],
-                ['Received', fmtDate(l.created_at)],
-                ['Updated',  fmtDate(l.updated_at)],
-              ].filter(([, v]) => v && v !== '-').map(([k, v]) => (
-                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: `1px solid ${C.border}` }}>
-                  <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k}</span>
-                  <span style={{ fontFamily: NU, fontSize: 11, color: C.off, maxWidth: 140, textAlign: 'right', wordBreak: 'break-all' }}>{v}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Status update controls */}
-            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '18px 20px' }}>
-              <p style={{ fontFamily: NU, fontSize: 9, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', margin: '0 0 12px' }}>Update Status</p>
-
-              {statusSuccess && (
-                <div style={{
-                  background: 'rgba(22,163,74,0.10)', border: '1px solid rgba(22,163,74,0.25)',
-                  borderRadius: 3, padding: '7px 10px', marginBottom: 10,
-                  fontFamily: NU, fontSize: 11, color: '#16a34a', fontWeight: 600,
-                }}>
-                  {statusSuccess}
-                </div>
-              )}
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <ActionButton label="Mark Qualified"    status="qualified"       variant="ghost" />
-                <ActionButton label="Sent to Partner"   status="sent_to_partner" variant="ghost" />
-                <ActionButton label="Partner Replied"   status="partner_replied" variant="ghost" />
-                <ActionButton label="In Conversation"   status="in_conversation" variant="ghost" />
-                <ActionButton label="Proposal Sent"     status="proposal_sent"   variant="ghost" />
-                <ActionButton label="Mark Booked"       status="booked"          variant="primary" />
-
-                {showLossInput ? (
-                  <div style={{ marginTop: 4 }}>
-                    <textarea
-                      placeholder="Loss reason (required)"
-                      value={lossReason}
-                      onChange={e => setLossReason(e.target.value)}
-                      rows={2}
-                      style={{
-                        width: '100%', padding: '7px 10px', borderRadius: 2,
-                        border: `1px solid ${C.border}`, background: C.dark,
-                        fontFamily: NU, fontSize: 11, color: C.off, resize: 'vertical',
-                        outline: 'none', boxSizing: 'border-box', marginBottom: 6,
-                      }}
-                    />
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button
-                        disabled={!lossReason || statusUpdating}
-                        onClick={() => handleStatusUpdate('lost')}
-                        style={{
-                          flex: 1, padding: '6px 0', borderRadius: 2, cursor: lossReason ? 'pointer' : 'not-allowed',
-                          fontFamily: NU, fontSize: 11, fontWeight: 600, opacity: lossReason ? 1 : 0.5,
-                          background: 'rgba(239,68,68,0.10)', color: '#dc2626',
-                          border: '1px solid rgba(239,68,68,0.30)', transition: 'all 130ms',
-                        }}
-                      >Confirm Lost</button>
-                      <button
-                        onClick={() => { setShowLossInput(false); setLossReason(''); }}
-                        style={{
-                          padding: '6px 12px', borderRadius: 2, cursor: 'pointer',
-                          fontFamily: NU, fontSize: 11, fontWeight: 600,
-                          background: 'transparent', color: C.grey2, border: `1px solid ${C.border}`,
-                        }}
-                      >Cancel</button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    disabled={statusUpdating}
-                    onClick={() => setShowLossInput(true)}
-                    style={{
-                      padding: '7px 14px', borderRadius: 2, cursor: 'pointer',
-                      fontFamily: NU, fontSize: 11, fontWeight: 600, letterSpacing: '0.04em',
-                      background: 'transparent', color: '#dc2626',
-                      border: '1px solid rgba(239,68,68,0.30)', transition: 'all 130ms',
-                    }}
-                  >Mark Lost</button>
-                )}
-              </div>
-            </div>
-
-            {/* ── Notes / Comments ─────────────────────────────────────── */}
-            <div style={{
-              background: C.card, border: `1px solid ${C.border}`,
-              borderRadius: 2, padding: '18px 20px',
-            }}>
-              <div style={{
-                fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
-                textTransform: 'uppercase', color: C.grey2, marginBottom: 14,
-              }}>Notes</div>
-
-              {/* existing notes */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
-                {notes.length === 0 && (
-                  <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, fontStyle: 'italic' }}>
-                    No notes yet.
-                  </div>
-                )}
-                {notes.map(n => (
-                  <div key={n.id} style={{
-                    background: C.dark, borderRadius: 2, padding: '9px 12px',
-                    borderLeft: `2px solid ${C.gold}`,
-                  }}>
-                    <div style={{ fontFamily: NU, fontSize: 12, color: C.off, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
-                      {n.body}
-                    </div>
-                    <div style={{ fontFamily: NU, fontSize: 10, color: C.grey2, marginTop: 5 }}>
-                      {new Date(n.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* add note */}
-              <textarea
-                placeholder="Add a note..."
-                value={noteText}
-                onChange={e => setNoteText(e.target.value)}
-                rows={3}
-                onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleAddNote(); }}
-                style={{
-                  width: '100%', padding: '8px 10px', borderRadius: 2,
-                  border: `1px solid ${C.border}`, background: C.dark,
-                  fontFamily: NU, fontSize: 12, color: C.off, resize: 'vertical',
-                  outline: 'none', boxSizing: 'border-box', lineHeight: 1.5,
-                  transition: 'border 150ms',
-                }}
-                onFocus={e => e.target.style.borderColor = C.gold}
-                onBlur={e => e.target.style.borderColor = C.border}
-              />
-              <button
-                disabled={!noteText.trim() || noteSubmitting}
-                onClick={handleAddNote}
-                style={{
-                  marginTop: 8, width: '100%', padding: '8px 0', borderRadius: 2,
-                  fontFamily: NU, fontSize: 11, fontWeight: 600, letterSpacing: '0.06em',
-                  background: noteText.trim() ? C.gold : 'transparent',
-                  color: noteText.trim() ? '#fff' : C.grey2,
-                  border: `1px solid ${noteText.trim() ? C.gold : C.border}`,
-                  cursor: noteText.trim() ? 'pointer' : 'not-allowed',
-                  transition: 'all 150ms', opacity: noteSubmitting ? 0.6 : 1,
-                }}
-              >{noteSubmitting ? 'Saving...' : 'Add Note'}</button>
-            </div>
-
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── List View ───────────────────────────────────────────────────────────────
-
-  const thSt = (key) => ({
-    padding: '9px 14px', fontFamily: NU, fontSize: 9, fontWeight: 700,
-    color: sortKey === key ? C.gold : C.grey2, textTransform: 'uppercase',
-    letterSpacing: '0.08em', textAlign: 'left', cursor: 'pointer',
-    background: C.dark, borderBottom: `2px solid ${C.border}`, whiteSpace: 'nowrap',
-    userSelect: 'none',
-  });
-
-  const tdSt = {
-    padding: '10px 14px', fontFamily: NU, fontSize: 12, color: C.off,
-    borderBottom: `1px solid ${C.border}`, verticalAlign: 'middle',
+  // Build locationContent for preview
+  const previewContent = {
+    heroTitle: form.heroTitle || cityName,
+    heroSubtitle: form.heroSubtitle,
+    heroImage: form.heroImage,
+    heroVideo: form.heroVideo,
+    ctaText: form.ctaText,
+    ctaLink: form.ctaLink,
+    featuredVenuesTitle: form.featuredVenuesTitle,
+    featuredVendorsTitle: form.featuredVendorsTitle,
+    showEditorialSplit: form.showEditorialSplit !== false,
+    editorialVenueMode: form.editorialVenueMode || 'latest',
+    editorialEyebrow: form.editorialEyebrow || '',
+    editorialHeadingPrefix: form.editorialHeadingPrefix || '',
+    editorialCtaText: form.editorialCtaText || '',
+    editorialPara1: form.editorialPara1 || '',
+    editorialPara2: form.editorialPara2 || '',
+    editorialBlocks: [
+      { icon: form.editorialBlock1Icon || '🏰', text: form.editorialBlock1Text || '' },
+      { icon: form.editorialBlock2Icon || '🌿', text: form.editorialBlock2Text || '' },
+      { icon: form.editorialBlock3Icon || '🌅', text: form.editorialBlock3Text || '' },
+      { icon: form.editorialBlock4Icon || '✨', text: form.editorialBlock4Text || '' },
+    ],
+    showLatestVenues: form.showLatestVenues !== false,
+    latestVenuesHeading: form.latestVenuesHeading || '',
+    latestVenuesSub: form.latestVenuesSub || '',
+    latestVenuesCount: parseInt(form.latestVenuesCount) || 12,
+    latestVenuesMode: form.latestVenuesMode || 'latest',
+    latestVenuesCardStyle: form.latestVenuesCardStyle || 'luxury',
+    showLatestVendors: form.showLatestVendors !== false,
+    latestVendorsHeading: form.latestVendorsHeading || '',
+    latestVendorsSub: form.latestVendorsSub || '',
+    latestVendorsCount: parseInt(form.latestVendorsCount) || 12,
+    latestVendorsMode: form.latestVendorsMode || 'latest',
+    latestVendorsCardStyle: form.latestVendorsCardStyle || 'luxury',
+    showPlanningGuide: form.showPlanningGuide !== false,
+    seoHeading: form.seoHeading || '',
+    seoContent: form.seoContent || '',
+    seoFaqs: form.seoFaqs || [],
+    showMotto: form.showMotto !== false,
+    motto: form.motto || `${cityName}, where every moment becomes a memory worth keeping forever.`,
+    mottoSubline: form.mottoSubline || '',
+    mottoBgImage: form.mottoBgImage || '',
+    mottoOverlay: parseFloat(form.mottoOverlay) || 0.55,
   };
 
   return (
-    <div>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <h2 style={{ fontFamily: GD, fontSize: 26, fontWeight: 400, color: C.off, margin: '0 0 3px' }}>Lead Engine</h2>
-          <p style={{ fontFamily: NU, fontSize: 12, color: C.grey2, margin: 0, letterSpacing: '0.01em' }}>
-            All enquiries captured across venue, vendor and Aura channels
-          </p>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {/* ── TOP BAR ─────────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '10px 24px', borderBottom: `1px solid ${LS.border}`, background: LS.bg, flexShrink: 0, zIndex: 20, gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => { if (locationKey) setShowMagicPanel(p => !p); }} disabled={!locationKey} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: showMagicPanel ? LS.gold : LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: locationKey ? 'pointer' : 'not-allowed', opacity: locationKey ? 1 : 0.4 }}>✦ Magic AI</button>
+          <button onClick={handleFillWithAI} disabled={!locationKey || aiGenerating} style={{ fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px', background: 'transparent', color: !locationKey || aiGenerating ? LS.muted : LS.text, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: !locationKey || aiGenerating ? 'not-allowed' : 'pointer', opacity: !locationKey ? 0.4 : 1 }}>{aiGenerating ? '⟳ Generating…' : 'Fill with AI'}</button>
         </div>
-        <button onClick={loadLeads} style={{
-          background: 'transparent', border: `1px solid ${C.border}`, color: C.grey2,
-          fontFamily: NU, fontSize: 10, fontWeight: 700, padding: '6px 14px',
-          borderRadius: 2, cursor: 'pointer', letterSpacing: '0.07em', textTransform: 'uppercase',
-          transition: 'all 130ms',
-        }}>
-          Refresh
-        </button>
-      </div>
-
-      {/* Stat strip - borderless editorial style */}
-      <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 0,
-        marginBottom: 28, background: C.card, border: `1px solid ${C.border}`, borderRadius: 4,
-        overflow: 'hidden',
-      }}>
-        {[
-          { label: 'Total', value: stats.total, accent: C.gold },
-          { label: 'New',   value: stats.newCount, accent: '#3b82f6' },
-          { label: 'Active',value: stats.qualified, accent: '#06b6d4' },
-          { label: 'Booked',value: stats.booked, accent: '#16a34a' },
-          { label: 'Urgent',value: stats.urgent, accent: '#ef4444' },
-        ].map(({ label, value, accent }, i) => (
-          <div key={label} style={{
-            padding: '20px 22px',
-            borderLeft: i > 0 ? `1px solid ${C.border}` : 'none',
-            borderTop: `3px solid ${value > 0 ? accent : C.border}`,
-          }}>
-            <p style={{ fontFamily: NU, fontSize: 9, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', margin: '0 0 7px' }}>{label}</p>
-            <p style={{ fontFamily: GD, fontSize: 30, color: value > 0 ? C.off : C.grey2, fontWeight: 400, margin: 0, lineHeight: 1 }}>{value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Filter bar */}
-      <div style={{
-        background: C.card, border: `1px solid ${C.border}`, borderRadius: 4,
-        padding: '14px 18px', marginBottom: 12,
-      }}>
-        {/* Row 1: Type tabs + search */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-          <div style={{ display: 'flex', gap: 4, background: C.dark, borderRadius: 3, padding: 3 }}>
-            {LEAD_TYPES.map(({ key, label }) => (
-              <button key={key} style={filterTab(typeFilter === key)} onClick={() => setTypeFilter(key)}>{label}</button>
-            ))}
-          </div>
-          <div style={{ flex: 1 }} />
-          <div style={{ position: 'relative' }}>
-            <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: C.grey2, fontSize: 11 }}>&#9906;</span>
-            <input
-              placeholder="Search name or email..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{
-                background: C.dark, border: `1px solid ${C.border}`, borderRadius: 2,
-                padding: '6px 10px 6px 26px', fontFamily: NU, fontSize: 11, color: C.off,
-                outline: 'none', width: 200,
-              }}
-            />
-          </div>
-        </div>
-        {/* Row 2: Status + Priority */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: NU, fontSize: 9, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', marginRight: 4 }}>Status</span>
-            {STATUSES.map(({ key, label }) => (
-              <button key={key} style={statusTab(statusFilter === key)} onClick={() => setStatusFilter(key)}>{label}</button>
-            ))}
-          </div>
-          <div style={{ width: 1, height: 20, background: C.border }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ fontFamily: NU, fontSize: 9, color: C.grey2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', marginRight: 4 }}>Priority</span>
-            {PRIORITIES.map(({ key, label }) => (
-              <button key={key} style={statusTab(priorityFilter === key)} onClick={() => setPriorityFilter(key)}>{label}</button>
-            ))}
-          </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
+          {saveErr && <span style={{ fontFamily: NU, fontSize: 11, color: '#ef4444' }}>{saveErr}</span>}
+          <button onClick={() => setDirty(false)} style={{ fontFamily: NU, fontSize: 13, fontWeight: 500, padding: '7px 14px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer' }}>Discard</button>
+          <button onClick={() => handleSave('draft')} disabled={saving || !locationKey} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving || !locationKey ? 'not-allowed' : 'pointer', opacity: saving || !locationKey ? 0.35 : 1 }}>{saving ? 'Saving…' : 'Save Draft'}</button>
+          <button onClick={() => handleSave(null)} disabled={saving || !locationKey} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving || !locationKey ? 'not-allowed' : 'pointer', opacity: saving || !locationKey ? 0.35 : 1 }}>{saving ? 'Saving…' : 'Save'}</button>
+          <button onClick={() => handleSave('published')} disabled={saving} style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, padding: '7px 14px', background: published ? LS.gold : LS.btn, color: LS.btnTxt, border: 'none', borderRadius: 6, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>
+            {saving ? 'Publishing…' : published ? '✓ Published' : 'Publish'}
+          </button>
+          {locationKey && (
+            <a href={`/${countrySlug}/${regionSlug}/${citySlug}`} target="_blank" rel="noopener noreferrer" style={{ fontFamily: NU, fontSize: 12, fontWeight: 500, padding: '6px 12px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>↗ Live Page</a>
+          )}
+          <div style={{ width: 1, height: 16, background: LS.border, marginLeft: 4 }} />
+          {['split', 'editor', 'preview'].map(m => (
+            <span key={m} onClick={() => setViewMode(m)} style={{ fontFamily: NU, fontSize: 11, fontWeight: viewMode === m ? 700 : 500, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', color: viewMode === m ? LS.text : LS.muted, borderBottom: viewMode === m ? `1px solid ${LS.text}` : '1px solid transparent', paddingBottom: 1 }}>
+              {m === 'split' ? 'Split' : m === 'editor' ? 'Editor' : 'Preview'}
+            </span>
+          ))}
         </div>
       </div>
 
-      {/* Results count */}
-      {!loading && !error && (
-        <p style={{ fontFamily: NU, fontSize: 11, color: C.grey2, margin: '0 0 8px', letterSpacing: '0.02em' }}>
-          {filtered.length === leads.length
-            ? `${leads.length} lead${leads.length !== 1 ? 's' : ''}`
-            : `${filtered.length} of ${leads.length} leads`}
-        </p>
+      {/* ── MAGIC AI PANEL ──────────────────────────────────────────────────── */}
+      {showMagicPanel && (
+        <div style={{ background: darkMode ? 'rgba(201,168,76,0.07)' : '#F8F5EE', borderTop: `2px solid ${LS.gold}`, borderBottom: `1px solid ${LS.border}`, padding: '16px 24px', display: 'flex', gap: 12, alignItems: 'flex-start', flexShrink: 0 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.gold, marginBottom: 6 }}>✦ Magic AI — {cityName}</div>
+            <textarea value={magicContext} onChange={e => setMagicContext(e.target.value)} placeholder={`Optional context (e.g. "focus on historic churches and luxury gardens")`} rows={2} style={{ width: '100%', boxSizing: 'border-box', fontFamily: NU, fontSize: 13, padding: '8px 12px', border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.bg, color: LS.text, resize: 'none', outline: 'none' }} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 18 }}>
+            <button onClick={handleFillWithAI} disabled={aiGenerating} style={{ fontFamily: NU, fontSize: 12, fontWeight: 700, padding: '8px 18px', background: LS.gold, color: '#fff', border: 'none', borderRadius: 6, cursor: aiGenerating ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>{aiGenerating ? '⟳ Generating…' : 'Generate'}</button>
+            <button onClick={() => setShowMagicPanel(false)} style={{ fontFamily: NU, fontSize: 12, padding: '6px 12px', background: 'transparent', color: LS.muted, border: `1px solid ${LS.border}`, borderRadius: 6, cursor: 'pointer' }}>Close</button>
+          </div>
+        </div>
       )}
 
-      {/* Table */}
-      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, overflow: 'hidden' }}>
-        {loading ? (
-          <div style={{ padding: '64px 24px', textAlign: 'center' }}>
-            <p style={{ fontFamily: GD, fontSize: 18, color: C.grey2, fontWeight: 400, margin: '0 0 6px' }}>Loading leads</p>
-            <p style={{ fontFamily: NU, fontSize: 12, color: C.grey2, margin: 0 }}>Connecting to lead engine...</p>
-          </div>
-        ) : error ? (
-          <div style={{ padding: '64px 24px', textAlign: 'center' }}>
-            <p style={{ fontFamily: GD, fontSize: 18, color: '#dc2626', fontWeight: 400, margin: '0 0 8px' }}>Connection Error</p>
-            <p style={{ fontFamily: NU, fontSize: 12, color: C.grey2, margin: 0 }}>{error}</p>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div style={{ padding: '64px 24px', textAlign: 'center' }}>
-            <p style={{ fontFamily: GD, fontSize: 20, color: C.grey2, fontWeight: 400, margin: '0 0 6px' }}>
-              {leads.length === 0 ? 'No leads yet' : 'No matches'}
-            </p>
-            <p style={{ fontFamily: NU, fontSize: 12, color: C.grey2, margin: 0 }}>
-              {leads.length === 0
-                ? 'Submit a venue or vendor enquiry form to see leads appear here.'
-                : 'Try adjusting the filters or search term.'}
-            </p>
-          </div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th style={thSt('full_name')} onClick={() => handleSort('full_name')}>Name{sortIcon('full_name')}</th>
-                  <th style={thSt('lead_type')} onClick={() => handleSort('lead_type')}>Type{sortIcon('lead_type')}</th>
-                  <th style={thSt('status')} onClick={() => handleSort('status')}>Status{sortIcon('status')}</th>
-                  <th style={thSt('priority')} onClick={() => handleSort('priority')}>Priority{sortIcon('priority')}</th>
-                  <th style={thSt('score')} onClick={() => handleSort('score')}>Score{sortIcon('score')}</th>
-                  <th style={thSt('wedding_month')} onClick={() => handleSort('wedding_month')}>Event{sortIcon('wedding_month')}</th>
-                  <th style={thSt('created_at')} onClick={() => handleSort('created_at')}>Received{sortIcon('created_at')}</th>
-                  <th style={{ ...thSt('_'), cursor: 'default' }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((l, i) => {
-                  const dotColour = STATUS_DOT[l.status] || '#9ca3af';
-                  const tc = TYPE_CHIP[l.lead_type];
-                  return (
-                    <tr
-                      key={l.id || i}
-                      style={{ cursor: 'pointer', transition: 'background 100ms' }}
-                      onMouseEnter={e => e.currentTarget.style.background = C.goldDim}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                      onClick={() => { setSelectedLead(l); setNotes([]); loadNotes(l.id); }}
-                    >
-                      <td style={tdSt}>
-                        <span style={{ fontWeight: 600, color: C.off, fontSize: 13 }}>{l.full_name || l.first_name || '-'}</span>
-                        {l.email && <div style={{ fontSize: 10, color: C.grey2, marginTop: 2 }}>{l.email}</div>}
-                      </td>
-                      <td style={tdSt}>
-                        {tc ? (
-                          <span style={{
-                            display: 'inline-block', padding: '2px 8px', borderRadius: 20,
-                            background: tc.bg, color: tc.text, border: `1px solid ${tc.border}`,
-                            fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
-                          }}>{tc.label}</span>
-                        ) : <span style={{ color: C.grey2, fontSize: 11 }}>{fmtType(l.lead_type)}</span>}
-                      </td>
-                      <td style={tdSt}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: dotColour, flexShrink: 0, display: 'inline-block' }} />
-                          <span style={{ fontFamily: NU, fontSize: 11, color: C.off, textTransform: 'capitalize' }}>
-                            {l.status?.replace(/_/g, ' ') || 'new'}
-                          </span>
-                        </div>
-                      </td>
-                      <td style={tdSt}>
-                        <Chip type="priority" value={l.priority || 'normal'} />
-                      </td>
-                      <td style={tdSt}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                          <div style={{ width: 44, height: 3, borderRadius: 2, background: C.border, overflow: 'hidden' }}>
-                            <div style={{
-                              width: `${l.score || 0}%`, height: '100%', borderRadius: 2,
-                              background: (l.score||0) >= 80 ? '#16a34a' : (l.score||0) >= 60 ? C.gold : (l.score||0) >= 30 ? '#3b82f6' : '#9ca3af',
-                            }} />
-                          </div>
-                          <span style={{ fontFamily: NU, fontSize: 11, color: C.grey, fontWeight: 600, minWidth: 18 }}>{l.score || 0}</span>
-                        </div>
-                      </td>
-                      <td style={{ ...tdSt, color: C.grey, fontSize: 11 }}>
-                        {l.wedding_month ? `${l.wedding_month}${l.wedding_year ? ' ' + l.wedding_year : ''}` : '-'}
-                      </td>
-                      <td style={{ ...tdSt, color: C.grey2, fontSize: 10, whiteSpace: 'nowrap' }}>{fmtDate(l.created_at)}</td>
-                      <td style={{ ...tdSt, textAlign: 'right', paddingRight: 18 }}>
-                        <span style={{ color: C.gold, fontSize: 10, fontWeight: 700, fontFamily: NU, letterSpacing: '0.04em' }}>VIEW</span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      {/* ── PANELS ──────────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+        {/* LEFT — editor */}
+        {showEditor && (
+          <div style={{ flex: viewMode === 'editor' ? '1' : '0 0 50%', overflowY: 'auto', background: LS.bg, borderRight: showPreview ? `1px solid ${LS.border}` : 'none', padding: '28px 32px 80px' }}>
+
+            {/* h1 = city name + status */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+                <h1 style={{ fontSize: 26, fontWeight: 600, color: LS.text, margin: 0, lineHeight: 1.2, fontFamily: GD }}>
+                  {cityName || 'Select a city'}
+                </h1>
+                {locationKey && (
+                  <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '3px 8px', borderRadius: 4, background: published ? 'rgba(34,197,94,0.15)' : `${LS.border}`, color: published ? '#22c55e' : LS.muted }}>
+                    {published ? 'Live' : 'Draft'}
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 14, color: LS.muted, fontFamily: NU }}>
+                City{locationKey ? ` · ${locationKey}` : ''}
+              </div>
+            </div>
+
+            {/* Location Picker — Country → Region → City (2-column layout) */}
+            <div style={{ marginBottom: 24, padding: '16px 18px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8 }}>
+              <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.muted, marginBottom: 12 }}>Location</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {/* Country */}
+                <div>
+                  {lbl('Country')}
+                  <select value={countrySlug} onChange={e => { setCountrySlug(e.target.value); setRegionSlug(''); setCitySlug(''); }} style={selStyle}>
+                    <option value="">Select country</option>
+                    {DIRECTORY_COUNTRIES.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+                  </select>
+                </div>
+                {/* Region */}
+                <div>
+                  {lbl('Region')}
+                  <select value={regionSlug} onChange={e => { setRegionSlug(e.target.value); setCitySlug(''); }} style={countrySlug ? selStyle : { ...selStyle, opacity: 0.5, pointerEvents: 'none' }} disabled={!countrySlug}>
+                    <option value="">Select region</option>
+                    {countrySlug && DIRECTORY_CITIES.filter(c => c.countrySlug === countrySlug).map(c => c.regionSlug).filter((v, i, a) => a.indexOf(v) === i).map(regionSlug => {
+                      const region = DIRECTORY_REGIONS.find(r => r.slug === regionSlug && r.countrySlug === countrySlug);
+                      return <option key={regionSlug} value={regionSlug}>{region?.name || regionSlug}</option>;
+                    })}
+                  </select>
+                </div>
+                {/* City */}
+                <div style={{ gridColumn: countrySlug && regionSlug ? '1 / -1' : 'auto' }}>
+                  {lbl('City')}
+                  <select value={citySlug} onChange={e => setCitySlug(e.target.value)} style={countrySlug && regionSlug ? selStyle : { ...selStyle, opacity: 0.5, pointerEvents: 'none' }} disabled={!countrySlug || !regionSlug}>
+                    <option value="">Select city</option>
+                    {countrySlug && regionSlug && DIRECTORY_CITIES.filter(c => c.countrySlug === countrySlug && c.regionSlug === regionSlug).map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Hero */}
+            <div style={{ marginBottom: 24, padding: '16px 18px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8 }}>
+              <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.muted, marginBottom: 12 }}>Hero</div>
+              <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, marginBottom: 12 }}>Headline and background</div>
+              <div style={{ marginBottom: 12 }}>{lbl('Title')}{inp('heroTitle', cityName || 'e.g. Weddings in Rome')}</div>
+              <div style={{ marginBottom: 12 }}>{lbl('Subtitle')}{inp('heroSubtitle', 'A curated guide to luxury wedding venues…', true)}</div>
+
+              {/* Images */}
+              <div style={{ marginBottom: 12 }}>
+                {lbl(`Images (${(form.heroImages || []).length}/8)`)}
+                <input ref={heroUploadRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={async e => { for (const f of Array.from(e.target.files || [])) await uploadHeroImage(f); e.target.value = ''; }} />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 8 }}>
+                  {(form.heroImages || []).map((url, i) => {
+                    const active = form.heroImage === url;
+                    return (
+                      <div key={i} onClick={() => set('heroImage', url)} style={{ position: 'relative', aspectRatio: '16/9', borderRadius: 4, overflow: 'hidden', border: `2px solid ${active ? LS.gold : LS.border}`, cursor: 'pointer' }}>
+                        <img src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        {active && <div style={{ position: 'absolute', top: 3, left: 3, background: LS.gold, borderRadius: 2, padding: '1px 5px', fontSize: 8, fontFamily: NU, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active</div>}
+                        <button onClick={e => { e.stopPropagation(); const next = (form.heroImages || []).filter(u => u !== url); const newActive = form.heroImage === url ? (next[0] || '') : form.heroImage; setForm(prev => ({ ...prev, heroImages: next, heroImage: newActive })); setDirty(true); }} style={{ position: 'absolute', top: 3, right: 3, background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>✕</button>
+                      </div>
+                    );
+                  })}
+                  {(form.heroImages || []).length < 8 && (
+                    <button onClick={() => heroUploadRef.current?.click()} disabled={uploadingImage || !locationKey} style={{ aspectRatio: '16/9', border: `1px dashed ${LS.border}`, borderRadius: 4, background: 'transparent', color: LS.muted, fontFamily: NU, fontSize: 11, cursor: uploadingImage || !locationKey ? 'not-allowed' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
+                      <span style={{ fontSize: 16 }}>{uploadingImage ? '⟳' : '+'}</span>
+                      <span>{uploadingImage ? 'Uploading…' : 'Add Photo'}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 12 }}>
+                {lbl('CTA Text')}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>{inp('ctaText', 'Explore Venues')}</div>
+                  <div>{lbl('CTA Link')}{inp('ctaLink', '#search')}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Featured — max 4 for cities */}
+            <div style={{ marginBottom: 24, padding: '16px 18px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8 }}>
+              <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.muted, marginBottom: 12 }}>Featured</div>
+              <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, marginBottom: 12 }}>Pin up to 4 venues to the top</div>
+              <div style={{ marginBottom: 12 }}>{lbl('Section Title')}{inp('featuredVenuesTitle', 'Signature Venues')}</div>
+              {venueList.length > 0 ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+                  {venueList.slice(0, 20).map(v => {
+                    const checked = (form.featuredVenueIds || []).includes(v.id);
+                    return (
+                      <label key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: checked ? `${LS.gold}18` : LS.bg, border: `1px solid ${checked ? LS.gold : LS.border}`, borderRadius: 6, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={checked} onChange={() => toggleFeaturedVenue(v.id)} style={{ accentColor: LS.gold, flexShrink: 0 }} />
+                        <span style={{ fontFamily: NU, fontSize: 12, color: LS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, padding: '10px 0', marginBottom: 12 }}>
+                  No venues found for this city.
+                </div>
+              )}
+              {(form.featuredVenueIds || []).length > 0 && (
+                <div style={{ fontFamily: NU, fontSize: 11, color: LS.gold }}>{form.featuredVenueIds.length} / 4 selected</div>
+              )}
+            </div>
+
+            {/* Editorial Split */}
+            <div style={{ marginBottom: 24, padding: '16px 18px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8, opacity: form.showEditorialSplit !== false ? 1 : 0.6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.muted }}>Editorial Split</div>
+                  <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, marginTop: 4 }}>5-image grid + editorial copy</div>
+                </div>
+                <input type="checkbox" checked={form.showEditorialSplit !== false} onChange={() => set('showEditorialSplit', !form.showEditorialSplit)} style={{ accentColor: LS.gold, width: 18, height: 18, cursor: 'pointer' }} />
+              </div>
+              {form.showEditorialSplit && (
+                <>
+                  <div style={{ marginBottom: 12 }}>{lbl('Eyebrow')}{inp('editorialEyebrow', `Why ${cityName || 'here'}`)}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                    <div>{lbl('Heading Prefix')}{inp('editorialHeadingPrefix', 'The Art of the')}</div>
+                    <div>{lbl('CTA Text')}{inp('editorialCtaText', `Browse All ${cityName || 'Venues'} →`)}</div>
+                  </div>
+                  <div style={{ marginBottom: 12 }}>{lbl('Paragraph 1')}{inp('editorialPara1', '', true)}</div>
+                  <div style={{ marginBottom: 12 }}>{lbl('Paragraph 2')}{inp('editorialPara2', '', true)}</div>
+                </>
+              )}
+            </div>
+
+            {/* Latest Venues */}
+            <div style={{ marginBottom: 24, padding: '16px 18px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8, opacity: form.showLatestVenues !== false ? 1 : 0.6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.muted }}>Latest Venues Strip</div>
+                  <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, marginTop: 4 }}>Venue card slider</div>
+                </div>
+                <input type="checkbox" checked={form.showLatestVenues !== false} onChange={() => set('showLatestVenues', !form.showLatestVenues)} style={{ accentColor: LS.gold, width: 18, height: 18, cursor: 'pointer' }} />
+              </div>
+              {form.showLatestVenues && (
+                <>
+                  <div style={{ marginBottom: 12 }}>{lbl('Heading')}{inp('latestVenuesHeading', '')}</div>
+                  <div style={{ marginBottom: 12 }}>{lbl('Subtext')}{inp('latestVenuesSub', '')}</div>
+                  <div style={{ marginBottom: 12 }}>{lbl('Count')}{inp('latestVenuesCount', '12')}</div>
+                </>
+              )}
+            </div>
+
+            {/* Latest Vendors */}
+            <div style={{ marginBottom: 24, padding: '16px 18px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8, opacity: form.showLatestVendors !== false ? 1 : 0.6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.muted }}>Latest Vendors Strip</div>
+                  <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, marginTop: 4 }}>Vendor card slider</div>
+                </div>
+                <input type="checkbox" checked={form.showLatestVendors !== false} onChange={() => set('showLatestVendors', !form.showLatestVendors)} style={{ accentColor: LS.gold, width: 18, height: 18, cursor: 'pointer' }} />
+              </div>
+              {form.showLatestVendors && (
+                <>
+                  <div style={{ marginBottom: 12 }}>{lbl('Heading')}{inp('latestVendorsHeading', '')}</div>
+                  <div style={{ marginBottom: 12 }}>{lbl('Subtext')}{inp('latestVendorsSub', '')}</div>
+                  <div style={{ marginBottom: 12 }}>{lbl('Count')}{inp('latestVendorsCount', '12')}</div>
+                </>
+              )}
+            </div>
+
+            {/* Planning Guide / SEO */}
+            <div style={{ marginBottom: 24, padding: '16px 18px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8, opacity: form.showPlanningGuide !== false ? 1 : 0.6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.muted }}>Planning Guide</div>
+                  <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, marginTop: 4 }}>SEO content & FAQs</div>
+                </div>
+                <input type="checkbox" checked={form.showPlanningGuide !== false} onChange={() => set('showPlanningGuide', !form.showPlanningGuide)} style={{ accentColor: LS.gold, width: 18, height: 18, cursor: 'pointer' }} />
+              </div>
+              {form.showPlanningGuide && (
+                <>
+                  <div style={{ marginBottom: 12 }}>{lbl('Section Title')}{inp('seoHeading', `Planning Your ${cityName} Wedding`)}</div>
+                  <div style={{ marginBottom: 12 }}>
+                    {lbl('Body Text')}
+                    <div style={{ border: `1px solid ${LS.border}`, borderRadius: 6, overflow: 'hidden' }}>
+                      <RichTextEditor
+                        content={form.seoContent || ''}
+                        onChange={v => set('seoContent', v)}
+                        placeholder={`Write editorial body content for ${cityName || 'this city'}...`}
+                        C={C}
+                        darkMode={darkMode}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Motto Banner */}
+            <div style={{ marginBottom: 24, padding: '16px 18px', background: LS.card, border: `1px solid ${LS.border}`, borderRadius: 8, opacity: form.showMotto !== false ? 1 : 0.6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: LS.muted }}>Motto Banner</div>
+                  <div style={{ fontFamily: NU, fontSize: 12, color: LS.muted, marginTop: 4 }}>Full-width quote strip</div>
+                </div>
+                <input type="checkbox" checked={form.showMotto !== false} onChange={() => set('showMotto', !form.showMotto)} style={{ accentColor: LS.gold, width: 18, height: 18, cursor: 'pointer' }} />
+              </div>
+              {form.showMotto && (
+                <>
+                  <div style={{ marginBottom: 12 }}>{lbl('Quote')}{inp('motto', `${cityName}, where every moment becomes a memory worth keeping forever.`, true)}</div>
+                  <div style={{ marginBottom: 12 }}>{lbl('Sub-line (optional)')}{inp('mottoSubline', 'e.g. Luxury Wedding Directory · ' + cityName)}</div>
+                  <div style={{ marginBottom: 12 }}>
+                    {lbl('Background Image')}
+                    <input ref={mottoUploadRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => { const f = e.target.files?.[0]; if (f) await uploadMottoImage(f); e.target.value = ''; }} />
+                    <button onClick={() => mottoUploadRef.current?.click()} disabled={uploadingMottoImage || !locationKey} style={{ width: '100%', padding: '9px 12px', border: `1px dashed ${LS.border}`, borderRadius: 6, background: 'transparent', color: uploadingMottoImage ? LS.muted : LS.gold, fontFamily: NU, fontSize: 12, fontWeight: 600, cursor: uploadingMottoImage || !locationKey ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 15 }}>{uploadingMottoImage ? '⟳' : '↑'}</span>
+                      {uploadingMottoImage ? 'Uploading…' : 'Upload Image'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
           </div>
         )}
+
+        {/* RIGHT — preview */}
+        {showPreview && (
+          <div style={{ flex: viewMode === 'preview' ? '1' : '0 0 50%', overflowY: 'auto', background: LS.bg, padding: '0' }}>
+            {locationKey ? (
+              <LocationPage
+                key={`city-${citySlug}`}
+                locationType="city"
+                locationSlug={citySlug}
+                locationContent={previewContent}
+                hideNav={true}
+                noIndex={true}
+              />
+            ) : (
+              <div style={{ padding: '40px 20px', textAlign: 'center', color: LS.muted, minHeight: '100vh', background: LS.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 20, marginBottom: 12 }}>Live preview will appear here</div>
+                  <div style={{ fontSize: 14 }}>Start by selecting a city →</div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
     </div>
   );
@@ -9395,8 +10781,9 @@ export default function AdminDashboard({ onBack, onNavigate }) {
   const [activeTab, setActiveTabState] = useState(() => {
     const hash = getInitialTab();
     // Normalize listing-studio sub-routes to the base tab for sidebar highlight
-    if (hash.startsWith('listing-studio')) return 'listing-studio';
-    if (hash.startsWith('page-editor/'))   return 'page-editor';
+    if (hash.startsWith('listing-studio'))  return 'listing-studio';
+    if (hash.startsWith('showcase-studio')) return 'showcase-studio';
+    if (hash.startsWith('page-editor/'))    return 'page-editor';
     return hash;
   });
 
@@ -9435,7 +10822,17 @@ export default function AdminDashboard({ onBack, onNavigate }) {
   const [listingStudioListingId, setListingStudioListingId] = useState(initialLS.id);
   const [eventsBuilderActive, setEventsBuilderActive] = useState(false);
   const [locationStudioActive, setLocationStudioActive] = useState(false);
-  const [activeShowcaseId, setActiveShowcaseId] = useState(null);
+  const [cityStudioActive, setCityStudioActive] = useState(false);
+  const [categoryStudioActive, setCategoryStudioActive] = useState(false);
+  const [activeShowcaseId, setActiveShowcaseId] = useState(() => {
+    const h = window.location.hash.slice(1);
+    if (h.startsWith('showcase-studio/')) {
+      const id = h.split('/')[1];
+      return id || null;
+    }
+    return null;
+  });
+  const [showcaseListRefreshKey, setShowcaseListRefreshKey] = useState(0);
 
   useEffect(() => {
     let intent = null;
@@ -9448,8 +10845,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
     }
 
     if (intent.type === 'showcase' && intent.slug) {
-      fetchShowcases().then(all => {
-        const found = all.find(s => s.slug === intent.slug);
+      fetchShowcaseBySlugCard(intent.slug).then(found => {
         if (found) {
           setActiveShowcaseId(found.id);
           setActiveTab('showcase-studio');
@@ -9460,7 +10856,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
     } else if (intent.type === 'showcase-static') {
       setActiveTab('venue-profiles');
     } else if (intent.type === 'listing' && intent.slug) {
-      fetchListingBySlugAdmin(intent.slug).then(listing => {
+      fetchListingBySlug(intent.slug).then(listing => {
         if (listing?.id) {
           setListingStudioMode('edit');
           setListingStudioListingId(listing.id);
@@ -9487,6 +10883,9 @@ export default function AdminDashboard({ onBack, onNavigate }) {
     } else if (intent.type === 'cms-page' && intent.pageKey) {
       try { sessionStorage.setItem('lwd_cms_edit_pagekey', intent.pageKey); } catch {}
       setActiveTab('site-content');
+    } else if (intent.type === 'location' && intent.slug) {
+      try { sessionStorage.setItem('lwd_admin_open_country', intent.slug); } catch {}
+      setActiveTab('countries');
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -9718,7 +11117,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
             setListings([]);
             return;
           }
-          const data = await fetchListingsAdmin();
+          const data = await fetchListings();
           const rows = data && data.length > 0 ? data : [];
           setListings(rows);
 
@@ -9753,12 +11152,21 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       const listing = listings.find(l => l.id === id);
       if (listing) setDeleteModal(listing);
     };
-    const confirmDelete = () => {
-      const updated = listings.filter(l => l.id !== deleteModal.id);
-      setListings(updated);
-      setDeleteModal(null);
-      setActionFeedback({ action: "deleted", listing: deleteModal });
-      setTimeout(() => setActionFeedback(null), 3000);
+    const [deleting, setDeleting] = useState(false);
+    const confirmDelete = async () => {
+      if (!deleteModal) return;
+      setDeleting(true);
+      try {
+        await deleteListing(deleteModal.id);
+        setListings(prev => prev.filter(l => l.id !== deleteModal.id));
+        setActionFeedback({ action: "deleted", listing: deleteModal });
+        setTimeout(() => setActionFeedback(null), 3000);
+      } catch (e) {
+        alert('Delete failed: ' + (e.message || e));
+      } finally {
+        setDeleting(false);
+        setDeleteModal(null);
+      }
     };
     const filtered = listings.filter(l => {
       if (catFilter === "uncategorised" && l.category) return false;
@@ -9784,6 +11192,35 @@ export default function AdminDashboard({ onBack, onNavigate }) {
 
     return (
       <div>
+        {/* ── Delete Confirmation Modal ── */}
+        {deleteModal && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: '32px 36px', maxWidth: 420, width: '90%' }}>
+              <p style={{ fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#ef4444', margin: '0 0 12px' }}>Delete Listing</p>
+              <h3 style={{ fontFamily: GD, fontSize: 22, fontWeight: 400, color: C.off, margin: '0 0 10px' }}>{deleteModal.name || deleteModal.venueName || 'Untitled'}</h3>
+              <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, margin: '0 0 28px', lineHeight: 1.6 }}>
+                This will permanently delete this listing and all associated data. This action cannot be undone.
+              </p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  onClick={() => setDeleteModal(null)}
+                  disabled={deleting}
+                  style={{ flex: 1, background: 'none', border: `1px solid ${C.border2 || C.border}`, color: C.grey, fontFamily: NU, fontSize: 12, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '10px 0', borderRadius: 4, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={deleting}
+                  style={{ flex: 1, background: '#ef4444', border: 'none', color: '#fff', fontFamily: NU, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '10px 0', borderRadius: 4, cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.6 : 1 }}
+                >
+                  {deleting ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Header ── */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <div>
@@ -9903,15 +11340,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
                       ↗
                     </button>
                     <button
-                      onClick={async () => {
-                        if (!window.confirm(`Delete "${l.name || l.venueName}"? This cannot be undone.`)) return;
-                        try {
-                          await deleteListing(l.id);
-                          setListings(prev => prev.filter(x => x.id !== l.id));
-                        } catch(e) {
-                          alert('Delete failed: ' + (e.message || e));
-                        }
-                      }}
+                      onClick={() => setDeleteModal(l)}
                       title="Delete listing"
                       style={{ fontFamily: NU, fontSize: 11, padding: "7px 10px", background: "none", color: "#c0392b", border: `1px solid #c0392b44`, borderRadius: 3, cursor: "pointer" }}
                     >
@@ -9935,27 +11364,30 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "livechat":      return <LiveChatModule C={C} />;
       case "artistry":      return <ArtistryAdminModule C={C} />;
       case "listings":       return <ListingsModule C={C} />;
-      case "venue-profiles": return <VenueProfilesAdminModule C={C} onNavigate={(action, params) => {
+      case "venue-profiles": return <VenueProfilesAdminModule C={C} refreshKey={showcaseListRefreshKey} onNavigate={(action, params) => {
         if (action === 'listing-studio') { setActiveTab('listing-studio'); }
         if (action === 'edit-showcase') { setActiveShowcaseId(params?.showcaseId || null); setActiveTab('showcase-studio'); }
       }} />;
-      case "showcase-studio": return <ShowcaseStudioModule key="showcase-studio" C={C} showcaseId={activeShowcaseId} onBack={() => setActiveTab('venue-profiles')} />;
+      case "showcase-studio": return <ShowcaseStudioModule key="showcase-studio" C={C} showcaseId={activeShowcaseId} onBack={() => setActiveTab('venue-profiles')} onSaveComplete={(id) => { setActiveShowcaseId(id); window.location.hash = `showcase-studio/${id}`; }} onListRefresh={() => setShowcaseListRefreshKey(k => k + 1)} />;
       case "reviews": return <ReviewsModule />;
       case "listing-studio": return null; // Handled in main render logic
       case "venue-intake":   return <VenueIntakeStudio C={C} />;
       case "vendor-accounts": return <VendorAccountsPage C={C} />;
       case "categories":    return <CategoriesModule C={C} />;
+      case "category-grid": return <CategoryGridAdmin C={C} />;
+      case "category-studio": return <CategoriesStudioModule key="category-studio" C={C} darkMode={darkMode} onBuilderModeChange={setCategoryStudioActive} />;
       case "enquiries":     return <AdminAllLeads C={C} />;
       case "countries":     return <CountriesModule C={C} />;
       case "regions":       return <RegionsModule C={C} />;
       case "locations":     return <LocationsModule key="locations" C={C} darkMode={darkMode} onBuilderModeChange={setLocationStudioActive} />;
-      case "leads":         return <LeadsModule C={C} />;
+      case "cities":        return <CityStudio key="cities" C={C} darkMode={darkMode} onBuilderModeChange={setCityStudioActive} />;
       case "marketing":      return <EmailMarketingModule C={C} onNavigate={setActiveTab} />;
       case "email-marketing": return <EmailMarketingModule C={C} onNavigate={setActiveTab} />;
       case "newsletter":     return <EmailMarketingModule C={C} defaultTab="newsletter" onNavigate={setActiveTab} />;
       case "email-builder":      return <EmailBuilderModule C={C} onBack={() => setActiveTab('email-marketing')} />;
       case "newsletter-builder": return <EmailBuilderModule C={C} mode="newsletter" onBack={() => setActiveTab('newsletter')} />;
       case "seo":           return <SeoModule C={C} />;
+      case "ai-seo-studio": return <AiSeoStudioModule C={C} />;
       case "crm":               return <CRMModule C={C} />;
       case "events":            return <EventsModule key="events" C={C} darkMode={darkMode} onBuilderModeChange={setEventsBuilderActive} />;
       case "event-studio":      return <EventsModule key="event-studio" C={C} darkMode={darkMode} onBuilderModeChange={setEventsBuilderActive} startInBuilder />;
@@ -10012,7 +11444,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         @media (max-width: 768px) {
           .admin-sidebar { display: flex !important; position: fixed !important; z-index: 999; left: 0; top: 0; width: 220px !important; height: 100vh !important; transform: translateX(${sidebarOpen ? "0" : "-100%"}); transition: transform 0.3s ease !important; box-shadow: ${sidebarOpen ? "6px 0 32px rgba(0,0,0,0.7)" : "none"}; border-right: ${sidebarOpen ? "1px solid rgba(201,168,76,0.25)" : "none"} !important; }
           .admin-sidebar-overlay { display: ${sidebarOpen ? "block" : "none"}; position: fixed; inset: 0; z-index: 998; background: rgba(0,0,0,0.5); }
-          .admin-main { padding: ${activeTab === 'magazine-studio' || activeTab === 'page-editor' || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || listingStudioMode || eventsBuilderActive || locationStudioActive ? '0' : '56px 16px 20px'} !important; }
+          .admin-main { padding: ${activeTab === 'magazine-studio' || activeTab === 'page-editor' || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || listingStudioMode || eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive ? '0' : '56px 16px 20px'} !important; }
           .admin-hamburger { display: flex !important; }
           .admin-collapse-btn { display: none !important; }
           .admin-grid-2col { grid-template-columns: 1fr !important; }
@@ -10230,7 +11662,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         </aside>
 
         {/* ── Main content ── */}
-        <main className="admin-main" style={{ flex: 1, minHeight: 0, padding: listingStudioMode || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || eventsBuilderActive || locationStudioActive ? 0 : "40px 48px", overflow: activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'site-content' || activeTab === 'locations' || eventsBuilderActive || locationStudioActive || activeTab === 'event-studio' ? "hidden" : "auto", display: eventsBuilderActive || locationStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'showcase-studio' || activeTab === 'site-content' ? "flex" : undefined, flexDirection: eventsBuilderActive || locationStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'showcase-studio' || activeTab === 'site-content' ? "column" : undefined, transition: "background 0.3s" }}>
+        <main className="admin-main" style={{ flex: 1, minHeight: 0, padding: listingStudioMode || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive ? 0 : "40px 48px", overflow: activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' ? "hidden" : "auto", display: eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' ? "flex" : undefined, flexDirection: eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' ? "column" : undefined, transition: "background 0.3s" }}>
           {/* Magazine Studio, full-screen inside admin layout */}
           {activeTab === 'magazine-studio' ? (
             <MagazineStudio
@@ -10267,7 +11699,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
             </Suspense>
           ) : (
             <>
-              {!['page-editor', 'listing-studio', 'event-studio', 'magazine-studio', 'venue-intake', 'showcase-studio', 'locations'].includes(activeTab) && !listingStudioMode && !eventsBuilderActive && !locationStudioActive && (
+              {!['page-editor', 'listing-studio', 'event-studio', 'magazine-studio', 'venue-intake', 'showcase-studio', 'ai-seo-studio', 'locations', 'cities', 'category-studio'].includes(activeTab) && !listingStudioMode && !eventsBuilderActive && !locationStudioActive && !cityStudioActive && !categoryStudioActive && (
                 <div style={{ marginBottom: 36 }}>
                   <h1 style={{
                     fontFamily: GD, fontSize: 24, fontWeight: 400,

@@ -82,3 +82,49 @@ SELECT tablename, policyname, cmd, roles
 FROM pg_policies
 WHERE tablename IN ('listings','magazine_posts','locations','category_content','ai_settings','ai_usage_log')
 ORDER BY tablename, policyname;
+
+-- ── footer_config, footer_items, site_branding ───────────────────────────────
+-- Footer Builder and Menu Builder write to these tables.
+
+ALTER TABLE public.footer_config ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "footer_config_anon_select" ON public.footer_config;
+CREATE POLICY "footer_config_anon_select"
+  ON public.footer_config FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "footer_config_authenticated_all" ON public.footer_config;
+CREATE POLICY "footer_config_authenticated_all"
+  ON public.footer_config FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+ALTER TABLE public.footer_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "footer_items_anon_select" ON public.footer_items;
+CREATE POLICY "footer_items_anon_select"
+  ON public.footer_items FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "footer_items_authenticated_all" ON public.footer_items;
+CREATE POLICY "footer_items_authenticated_all"
+  ON public.footer_items FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+ALTER TABLE public.site_branding ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "site_branding_anon_select" ON public.site_branding;
+CREATE POLICY "site_branding_anon_select"
+  ON public.site_branding FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "site_branding_authenticated_all" ON public.site_branding;
+CREATE POLICY "site_branding_authenticated_all"
+  ON public.site_branding FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- ── nav_config, nav_items ────────────────────────────────────────────────────
+-- Menu Builder writes to these tables.
+
+ALTER TABLE public.nav_config ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "nav_config_anon_select" ON public.nav_config;
+CREATE POLICY "nav_config_anon_select"
+  ON public.nav_config FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "nav_config_authenticated_all" ON public.nav_config;
+CREATE POLICY "nav_config_authenticated_all"
+  ON public.nav_config FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+ALTER TABLE public.nav_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "nav_items_anon_select" ON public.nav_items;
+CREATE POLICY "nav_items_anon_select"
+  ON public.nav_items FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "nav_items_authenticated_all" ON public.nav_items;
+CREATE POLICY "nav_items_authenticated_all"
+  ON public.nav_items FOR ALL TO authenticated USING (true) WITH CHECK (true);

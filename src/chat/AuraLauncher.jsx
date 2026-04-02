@@ -1,27 +1,73 @@
 // ─── src/chat/AuraLauncher.jsx ────────────────────────────────────────────────
-// Collapsed icon at top of page → expands into full pill on scroll,
-// matching the Claude mobile FAB expansion pattern.
+// Desktop: full pill, expands after scroll
+// Mobile: compact icon button, tap to open as bottom sheet
 import { useState, useEffect } from "react";
 import { useChat } from "./ChatContext";
 
-const SCROLL_THRESHOLD = 180; // px before the label slides in
+const SCROLL_THRESHOLD = 180;
 
 export default function AuraLauncher() {
-  const { openMiniBar, messages } = useChat();
-  const [hov,      setHov]      = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const { openMiniBar } = useChat();
+  const [hov,            setHov]          = useState(false);
+  const [expanded,       setExpanded]     = useState(false);
+  const [compareBarUp,   setCompareBarUp] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
-  const auraCount = messages.filter((m) => m.from === "aura").length;
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
-  // Expand label once the user has scrolled past the hero
+  // Desktop: expand label on scroll
   useEffect(() => {
     const onScroll = () => setExpanded(window.scrollY > SCROLL_THRESHOLD);
     window.addEventListener("scroll", onScroll, { passive: true });
-    // Set initial state in case page is already scrolled
     onScroll();
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Compare bar lift
+  useEffect(() => {
+    const handler = (e) => setCompareBarUp(!!e.detail?.active);
+    window.addEventListener("lwd:compare-bar", handler);
+    return () => window.removeEventListener("lwd:compare-bar", handler);
+  }, []);
+
+  // Mobile: compact icon button (always visible, always small)
+  if (isMobile) {
+    return (
+      <button
+        onClick={openMiniBar}
+        aria-label="Open Aura chat assistant"
+        style={{
+          position:       "fixed",
+          bottom:         compareBarUp ? 100 : 24,
+          right:          16,
+          zIndex:         800,
+          width:          44,
+          height:         44,
+          borderRadius:   "50%",
+          background:     "#C9A84C",
+          border:         "none",
+          cursor:         "pointer",
+          display:        "flex",
+          alignItems:     "center",
+          justifyContent: "center",
+          fontSize:       20,
+          boxShadow:      "0 4px 16px rgba(201,168,76,0.35)",
+          transition:     "bottom 0.3s cubic-bezier(0.25,0.46,0.45,0.94), transform 0.2s ease",
+          transform:      "scale(1)",
+          opacity:        1,
+          pointerEvents:  "auto",
+        }}
+      >
+        ✦
+      </button>
+    );
+  }
+
+  // Desktop: full pill, hidden above fold
   return (
     <button
       onClick={openMiniBar}
@@ -30,45 +76,26 @@ export default function AuraLauncher() {
       aria-label="Open Aura chat assistant"
       style={{
         position:       "fixed",
-        bottom:         28,
+        bottom:         compareBarUp ? 120 : 30,
         right:          28,
         zIndex:         900,
+        transition:     "bottom 0.3s cubic-bezier(0.25,0.46,0.45,0.94), opacity 0.4s ease, background 0.2s ease, transform 0.2s ease, padding 0.5s cubic-bezier(0.25,0.46,0.45,0.94), gap 0.5s cubic-bezier(0.25,0.46,0.45,0.94), box-shadow 0.2s ease",
         display:        "flex",
         alignItems:     "center",
-        gap:            expanded ? 10 : 0,
-        // Collapsed: tight circle. Expanded: full pill.
-        padding:        expanded ? "12px 22px 12px 16px" : "12px 16px",
+        gap:            10,
+        padding:        "12px 22px",
         borderRadius:   100,
         background:     hov ? "#b8922a" : "#C9A84C",
         border:         "none",
         cursor:         "pointer",
         boxShadow:      "0 6px 28px rgba(201,168,76,0.4)",
-        // Smooth glide — no spring/bounce, just a gentle ease-out
-        transition:     "background 0.2s ease, transform 0.2s ease, padding 0.5s cubic-bezier(0.25,0.46,0.45,0.94), gap 0.5s cubic-bezier(0.25,0.46,0.45,0.94), box-shadow 0.2s ease",
+        opacity:        expanded ? 1 : 0,
+        pointerEvents:  expanded ? "auto" : "none",
         transform:      hov ? "translateY(-2px)" : "translateY(0)",
       }}
     >
-      {/* Avatar / icon */}
+      {/* Label */}
       <span
-        style={{
-          width:          30,
-          height:         30,
-          borderRadius:   "50%",
-          background:     "rgba(255,255,255,0.18)",
-          display:        "flex",
-          alignItems:     "center",
-          justifyContent: "center",
-          fontSize:       14,
-          flexShrink:     0,
-          color:          "#0f0d0a",
-        }}
-      >
-        ✦
-      </span>
-
-      {/* Label — slides in on scroll using max-width + opacity */}
-      <span
-        aria-hidden={!expanded}
         style={{
           fontFamily:    "var(--font-body)",
           fontWeight:    600,
@@ -76,32 +103,10 @@ export default function AuraLauncher() {
           color:         "#0f0d0a",
           letterSpacing: "0.4px",
           whiteSpace:    "nowrap",
-          overflow:      "hidden",
-          // Smooth glide in/out — label trails slightly behind the pill expanding
-          maxWidth:      expanded ? 160 : 0,
-          opacity:       expanded ? 1   : 0,
-          transition:    "max-width 0.5s cubic-bezier(0.25,0.46,0.45,0.94), opacity 0.35s ease",
         }}
       >
         Chat with Aura?
       </span>
-
-      {/* Notification dot */}
-      {auraCount > 0 && (
-        <span
-          aria-hidden="true"
-          style={{
-            position:     "absolute",
-            top:          -4,
-            right:        -4,
-            width:        14,
-            height:       14,
-            borderRadius: "50%",
-            background:   "#fff",
-            border:       "2px solid #C9A84C",
-          }}
-        />
-      )}
     </button>
   );
 }

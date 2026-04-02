@@ -590,7 +590,11 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
                   }}
                   aria-label={`Rating: ${item.rating} out of 5`}
                 >
-                  <span style={{ color: "#C9A84C", fontSize: 12 }}>★★★★★</span>
+                  <span style={{ display: "inline-flex", gap: 1 }}>
+                    {[1,2,3,4,5].map(s => (
+                      <span key={s} style={{ color: s <= Math.round(item.rating) ? "#C9A84C" : "rgba(201,168,76,0.22)", fontSize: 12 }}>★</span>
+                    ))}
+                  </span>
                   <span
                     style={{
                       fontFamily: "var(--font-body)",

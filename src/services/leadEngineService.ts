@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase, isSupabaseAvailable } from '../lib/supabaseClient'
+import { autoLinkLead } from './leadProspectBridgeService'
 import { scoreLead, getLeadPriority, getLeadValueBand } from './leadScoringService'
 import type { LeadPayload } from './leadScoringService'
 import { resolveLeadDestination } from './leadRoutingService'
@@ -57,6 +58,13 @@ export interface CreateLeadResult {
  * 6. Route and send notifications
  * 7. Return result
  */
+// Valid UUID v4 check — integer IDs from static data must not be sent to UUID columns
+const toUUID = (v: any): string | null => {
+  if (!v) return null
+  const s = String(v)
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s) ? s : null
+}
+
 export async function createLead(payload: LeadPayload): Promise<CreateLeadResult> {
   try {
     // 1. Score the lead
@@ -74,10 +82,10 @@ export async function createLead(payload: LeadPayload): Promise<CreateLeadResult
       priority,
       score,
 
-      listing_id: payload.listingId || null,
+      listing_id: toUUID(payload.listingId),
       listing_type: payload.listingType || null,
-      venue_id: payload.venueId || null,
-      vendor_id: payload.vendorId || null,
+      venue_id: toUUID(payload.venueId),
+      vendor_id: toUUID(payload.vendorId),
 
       user_id: payload.userId || null,
       aura_session_id: payload.auraSessionId || null,
@@ -110,10 +118,9 @@ export async function createLead(payload: LeadPayload): Promise<CreateLeadResult
       lead_value_band: valueBand,
     }
 
-    // 3. Insert lead
+    // 3. Insert lead (RLS disabled on leads table — anon inserts allowed)
     if (!isSupabaseAvailable()) {
       console.log('leadEngineService: Supabase unavailable, logging lead locally')
-      console.log('Lead payload:', leadRow)
       return { success: true, leadId: 'offline-' + Date.now(), score, priority, error: null }
     }
 
@@ -123,8 +130,16 @@ export async function createLead(payload: LeadPayload): Promise<CreateLeadResult
       .select('id')
       .single()
 
-    if (insertError) throw insertError
+    if (insertError) {
+      console.error('leadEngineService: leads INSERT failed —', insertError.code, insertError.message)
+      throw insertError
+    }
     const leadId = lead.id
+
+    // Auto-link to any existing B2B prospect with the same email (fire-and-forget)
+    if (payload.email) {
+      autoLinkLead(leadId, payload.email).catch(() => {})
+    }
 
     // 4. Record lead_created event
     await recordLeadEvent(leadId, 'lead_created', {

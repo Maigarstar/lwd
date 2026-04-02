@@ -18,7 +18,8 @@ const CreatePageModule = ({ C, NU, GD, onNavigate, onPageCreated }) => {
     slug: "",
     status: "draft",
     excerpt: "",
-    featuredImage: ""
+    featuredImage: "",
+    isLocked: false
   });
 
   const pages = loadPages(MOCK_PAGES);
@@ -93,6 +94,7 @@ const CreatePageModule = ({ C, NU, GD, onNavigate, onPageCreated }) => {
       },
       sections: templateSections,
       author: "Admin",
+      isLocked: formData.isLocked,
       updatedAt: new Date().toISOString(),
       publishedAt: formData.status === "published" ? new Date().toISOString() : null,
       scheduledAt: null
@@ -313,6 +315,36 @@ const CreatePageModule = ({ C, NU, GD, onNavigate, onPageCreated }) => {
                 style={{ ...inputStyle, minHeight: 80, resize: "vertical" }}
               />
             </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>Page Lock</label>
+              <div
+                onClick={() => setFormData({ ...formData, isLocked: !formData.isLocked })}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "10px 12px",
+                  border: `1px solid ${formData.isLocked ? C.gold + "55" : C.border}`,
+                  borderRadius: 3,
+                  backgroundColor: formData.isLocked ? C.gold + "0d" : C.dark,
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                }}
+              >
+                <span style={{ fontSize: 16, lineHeight: 1 }}>{formData.isLocked ? "🔒" : "🔓"}</span>
+                <div>
+                  <span style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, color: formData.isLocked ? C.gold : C.white, display: "block" }}>
+                    {formData.isLocked ? "Locked" : "Unlocked"}
+                  </span>
+                  <span style={{ fontFamily: NU, fontSize: 10, color: C.grey2, display: "block", marginTop: 1 }}>
+                    {formData.isLocked
+                      ? "Slug and delete are protected. Unlock in the editor to make changes."
+                      : "Click to lock this page after creation."}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -349,10 +381,16 @@ const CreatePageModule = ({ C, NU, GD, onNavigate, onPageCreated }) => {
                   {PAGE_TYPES[selectedType]?.label}
                 </p>
               </div>
-              <div>
+              <div style={{ marginBottom: 12 }}>
                 <p style={{ fontFamily: NU, fontSize: 9, color: C.grey2, margin: "0 0 4px 0" }}>TEMPLATE</p>
                 <p style={{ fontFamily: NU, fontSize: 12, color: C.white, margin: 0 }}>
                   {PAGE_TEMPLATES[selectedTemplate]?.label}
+                </p>
+              </div>
+              <div>
+                <p style={{ fontFamily: NU, fontSize: 9, color: C.grey2, margin: "0 0 4px 0" }}>LOCK</p>
+                <p style={{ fontFamily: NU, fontSize: 12, color: formData.isLocked ? C.gold : C.grey2, margin: 0 }}>
+                  {formData.isLocked ? "🔒 Locked after creation" : "🔓 Unlocked"}
                 </p>
               </div>
             </div>

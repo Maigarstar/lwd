@@ -2,12 +2,14 @@ import { supabase } from '../lib/supabaseClient';
 
 /**
  * Submit a new review for moderation
- * Includes duplicate prevention: same email + same entity + similar content within 24h
+ * Includes:
+ *   - Duplicate prevention (same email + entity + similar content within 24h)
+ *   - Auto-verification: email matched against confirmed vendor_enquiries → is_verified_booking
  */
 export async function submitReview(entityType, entityId, formData) {
-  const { reviewer_email, review_title, review_text } = formData;
+  const { reviewer_email, review_text } = formData;
 
-  // Duplicate prevention: check for similar recent submission from same email
+  // ── Duplicate prevention ────────────────────────────────────────────────────
   try {
     const { data: recent, error: checkError } = await supabase
       .from('reviews')
@@ -20,7 +22,6 @@ export async function submitReview(entityType, entityId, formData) {
 
     if (checkError) throw checkError;
 
-    // Check if text is too similar (first 100 chars match or text length is identical)
     if (recent && recent.length > 0) {
       const existingText = recent[0].review_text || '';
       const textSimilarity = existingText.slice(0, 100) === review_text.slice(0, 100);
@@ -36,33 +37,59 @@ export async function submitReview(entityType, entityId, formData) {
     if (error.message && error.message.includes('similar review')) {
       throw error;
     }
-    // Log but don't fail on check errors
     console.warn('Duplicate check warning:', error.message);
   }
 
-  // Insert as pending
+  // ── Enquiry verification check ──────────────────────────────────────────────
+  // If reviewer email matches a confirmed booking enquiry → auto-verify
+  let isVerifiedBooking = false;
+  let verificationSource = null;
+  try {
+    const { data: enquiry } = await supabase
+      .from('vendor_enquiries')
+      .select('id')
+      .eq('vendor_id', entityId)
+      .eq('couple_email', reviewer_email)
+      .in('status', ['booked', 'confirmed', 'completed'])
+      .limit(1);
+
+    if (enquiry && enquiry.length > 0) {
+      isVerifiedBooking = true;
+      verificationSource = 'enquiry';
+    }
+  } catch {
+    // Verification check failing should never block submission — silently skip
+  }
+
+  // ── Insert as pending ───────────────────────────────────────────────────────
   const { data, error } = await supabase
     .from('reviews')
     .insert({
-      entity_type: entityType,
-      entity_id: entityId,
-      reviewer_name: formData.reviewer_name,
-      reviewer_email: formData.reviewer_email,
-      reviewer_location: formData.reviewer_location || null,
-      event_type: formData.event_type || null,
-      event_date: formData.event_date || null,
-      overall_rating: formData.overall_rating,
-      sub_ratings: formData.sub_ratings || {},
-      review_title: formData.review_title,
-      review_text: formData.review_text,
-      moderation_status: 'pending',
-      is_verified: false,
+      entity_type:          entityType,
+      entity_id:            entityId,
+      reviewer_name:        formData.reviewer_name,
+      reviewer_email:       formData.reviewer_email,
+      reviewer_location:    formData.reviewer_location || null,
+      reviewer_role:        formData.reviewer_role || 'couple',
+      event_type:           formData.event_type || null,
+      event_date:           formData.event_date || null,
+      review_date:          formData.review_date || formData.event_date || null,
+      overall_rating:       formData.overall_rating,
+      sub_ratings:          formData.sub_ratings || {},
+      review_title:         formData.review_title,
+      review_text:          formData.review_text,
+      moderation_status:    'pending',
+      is_verified:          false,
+      is_verified_booking:  isVerifiedBooking,
+      verification_source:  verificationSource,
+      is_public:            true,
+      added_by_admin:       false,
     })
     .select()
     .single();
 
   if (error) throw error;
-  return data;
+  return { ...data, isVerifiedBooking };
 }
 
 /**
@@ -73,11 +100,21 @@ export async function fetchApprovedReviews(entityType, entityId) {
   try {
     const { data, error } = await supabase
       .from('reviews')
-      .select('*')
+      .select(`
+        id, reviewer_name, reviewer_location, reviewer_role,
+        event_type, event_date, guest_count,
+        overall_rating, sub_ratings,
+        review_title, review_text,
+        is_verified, is_verified_booking, verification_source,
+        is_featured, featured_quote,
+        review_date, published_at, reply_count,
+        messages:review_messages(sender_type, message_body, created_at, is_internal_note)
+      `)
       .eq('entity_type', entityType)
       .eq('entity_id', entityId)
       .eq('moderation_status', 'approved')
-      .order('published_at', { ascending: false });
+      .is('deleted_at', null)
+      .order('published_at', { ascending: false, nullsFirst: false });
 
     if (error) {
       console.error('Supabase error fetching approved reviews:', error);

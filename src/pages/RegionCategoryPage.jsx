@@ -20,6 +20,7 @@ import {
 import { VENUES } from "../data/italyVenues";
 import { VENDORS } from "../data/vendors.js";
 
+import SiteFooter from "../components/sections/SiteFooter";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import GCard           from "../components/cards/GCard";
 import MapSection      from "../components/sections/MapSection";
@@ -45,6 +46,8 @@ export default function RegionCategoryPage({
   regionSlug = null,
   categorySlug = null,
   footerNav = {},
+  // Studio content override — when provided, overrides all hardcoded strings
+  studioContent = null,
 }) {
   // ── State ──────────────────────────────────────────────────────────────────
   const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
@@ -72,13 +75,33 @@ export default function RegionCategoryPage({
 
   const regionName = region?.name || regionSlug || "Region";
   const countryName = country?.name || countrySlug || "Country";
-  const heroImg = region?.heroImg || DEFAULT_HERO;
+
+  // ── Studio content overrides (safe fallbacks to hardcoded strings) ─────────
+  const _sc = studioContent || {};
+  const heroImg          = _sc.heroImage || region?.heroImg || DEFAULT_HERO;
+  const _heroTitle       = _sc.heroTitle || null; // null = use auto-generated title
+  const _editorialLabel  = _sc.categoryEditorialLabel  || "Editorial";
+  const _editorialHeading = _sc.categoryEditorialHeading || null; // null = auto
+  const _whyHireLabel    = _sc.whyHireLabel    || null;
+  const _whyHeadline     = _sc.whyHireHeadline || null;
+  const _whyHeadlineItalic = _sc.whyHireHeadlineItalic || null;
+  const _whyPara1        = _sc.whyHirePara1 || null;
+  const _whyPara2        = _sc.whyHirePara2 || null;
+  const _whyBadges       = _sc.whyHireBadges || null;
+  const _showWhyHire     = _sc.showWhyHire     !== false;
+  const _showEditorial   = _sc.showCategoryEditorial !== false;
+  const _showRealWeddings = _sc.showRealWeddings !== false;
+  const _realWeddingsLabel   = _sc.realWeddingsLabel   || "The Latest Masterpieces";
+  const _realWeddingsHeading = _sc.realWeddingsHeading || null;
+  const _seoTitle        = _sc.seoTitle        || null;
+  const _seoDescription  = _sc.seoDescription  || null;
+
   const editorial = useMemo(
-    () => getRegionCategoryEditorial(regionSlug, categorySlug),
-    [regionSlug, categorySlug],
+    () => _sc.categoryEditorialBody || getRegionCategoryEditorial(regionSlug, categorySlug),
+    [regionSlug, categorySlug, _sc.categoryEditorialBody],
   );
 
-  // ── Listings, wedding-venues → VENUES, else → VENDORS ───────────────────
+  // ── Listings — wedding-venues → VENUES, else → VENDORS ───────────────────
   const listings = useMemo(() => {
     if (categorySlug === "wedding-venues") {
       return VENUES.filter(
@@ -147,7 +170,7 @@ export default function RegionCategoryPage({
     [],
   );
 
-  const searchLabel = countrySlug === "england" ? "England Search" : "Search";
+  const searchLabel = countrySlug === "uk" ? "UK Search" : "Search";
   const searchPlaceholder = `Search ${categoryLabel.toLowerCase()} in ${regionName}…`;
 
   // ── Canonical path for SEO panel ──────────────────────────────────────────
@@ -159,7 +182,7 @@ export default function RegionCategoryPage({
       <div style={{ background: C.black, minHeight: "100vh", color: C.white }}>
 
         {/* ════════════════════════════════════════════════════════════════════
-            1. NAV, breadcrumbs
+            1. NAV — breadcrumbs
         ════════════════════════════════════════════════════════════════════ */}
         <RegionCategoryNav
           onBack={onBack}
@@ -176,7 +199,7 @@ export default function RegionCategoryPage({
         />
 
         {/* ════════════════════════════════════════════════════════════════════
-            2. HERO, 50vh
+            2. HERO — 50vh
         ════════════════════════════════════════════════════════════════════ */}
         <section
           aria-label={`${categoryLabel} in ${regionName}`}
@@ -287,10 +310,7 @@ export default function RegionCategoryPage({
                   margin: 0,
                 }}
               >
-                {categoryLabel} in{" "}
-                <em style={{ fontStyle: "italic", color: "rgba(201,168,76,0.95)" }}>
-                  {regionName}
-                </em>
+                {_heroTitle || (<>{categoryLabel} in{" "}<em style={{ fontStyle: "italic", color: "rgba(201,168,76,0.95)" }}>{regionName}</em></>)}
               </h1>
               {listingCount > 0 && (
                 <span
@@ -312,7 +332,7 @@ export default function RegionCategoryPage({
               )}
             </div>
 
-            {/* Subtitle, first sentence of editorial */}
+            {/* Subtitle — first sentence of editorial */}
             <p
               style={{
                 fontSize: 16,
@@ -334,7 +354,7 @@ export default function RegionCategoryPage({
               aria-label="Key statistics"
             >
               {[
-                { val: listingCount > 0 ? listingCount : " - ", label: categorySlug === "wedding-venues" ? "Curated Venues" : "Curated Listings" },
+                { val: listingCount > 0 ? listingCount : "—", label: categorySlug === "wedding-venues" ? "Curated Venues" : "Curated Listings" },
                 { val: regionName, label: "Region", isText: true },
                 {
                   val: listingCount > 0 ? "100%" : "Coming Soon",
@@ -462,7 +482,7 @@ export default function RegionCategoryPage({
                   fontWeight: 600,
                 }}
               >
-                Editorial
+                {_editorialLabel}
               </span>
               <div style={{ width: 28, height: 1, background: C.gold }} />
             </div>
@@ -477,7 +497,7 @@ export default function RegionCategoryPage({
                 marginBottom: 24,
               }}
             >
-              {categoryLabel} in {regionName}
+              {_editorialHeading || `${categoryLabel} in ${regionName}`}
             </h2>
             <p
               style={{
@@ -616,7 +636,7 @@ export default function RegionCategoryPage({
                 }}
               >
                 Our editorial team is personally vetting {categoryLabel.toLowerCase()} in {regionName}.
-                Premium listings are arriving soon, every recommendation is editorially
+                Premium listings are arriving soon — every recommendation is editorially
                 verified, never pay-to-play.
               </p>
               <BrowseAllButton
@@ -630,7 +650,7 @@ export default function RegionCategoryPage({
 
 
         {/* ════════════════════════════════════════════════════════════════════
-            5b. MAP, only for wedding-venues with real listings
+            5b. MAP — only for wedding-venues with real listings
         ════════════════════════════════════════════════════════════════════ */}
         {categorySlug === "wedding-venues" && listingCount > 0 && (
           <MapSection
@@ -780,7 +800,7 @@ export default function RegionCategoryPage({
 
 
         {/* ════════════════════════════════════════════════════════════════════
-            9. SEO PANEL, collapsible
+            9. SEO PANEL — collapsible
         ════════════════════════════════════════════════════════════════════ */}
         <section
           className="lwd-rc-section"
@@ -879,7 +899,7 @@ export default function RegionCategoryPage({
                     Page Title
                   </h3>
                   <div style={{ fontSize: 13, color: C.grey, fontFamily: NU, lineHeight: 1.7 }}>
-                    {categoryLabel} in {regionName}, Luxury Wedding Directory
+                    {categoryLabel} in {regionName} — Luxury Wedding Directory
                   </div>
                 </div>
 
@@ -939,6 +959,8 @@ export default function RegionCategoryPage({
         {/* ════════════════════════════════════════════════════════════════════
             11. FOOTER
         ════════════════════════════════════════════════════════════════════ */}
+        <SiteFooter {...footerNav} />
+
         {/* ── Quick View modal (page-level) ── */}
         {qvItem && (
           <QuickViewModal
@@ -954,7 +976,7 @@ export default function RegionCategoryPage({
 
 
 // ═════════════════════════════════════════════════════════════════════════════
-// SUB-COMPONENTS, local to this file
+// SUB-COMPONENTS — local to this file
 // ═════════════════════════════════════════════════════════════════════════════
 
 
@@ -1140,7 +1162,7 @@ function RegionCategoryNav({ onBack, onBackHome, scrolled, darkMode, onToggleDar
 }
 
 
-// ── Listing Card, works for both venues and vendors ─────────────────────
+// ── Listing Card — works for both venues and vendors ─────────────────────
 function ListingCard({ item, C, isVenue, onView }) {
   const [hov, setHov] = useState(false);
 

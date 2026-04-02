@@ -15,7 +15,16 @@
 
 import { supabase } from '../lib/supabaseClient';
 import { getQualityTier, QUALITY_TIERS } from './listings';
-import { THEMES } from './reviewThemeService';
+
+// Route all listings reads through the admin edge function (service_role bypasses RLS)
+async function invokeAdminListings(action, params = {}) {
+  const { data, error } = await supabase.functions.invoke('admin-listings', {
+    body: { action, ...params },
+  });
+  if (error) throw error;
+  if (!data?.success) throw new Error(data?.error ?? `admin-listings/${action} failed`);
+  return data;
+}
 
 /**
  * Fetch complete knowledge layer for a venue
@@ -29,31 +38,19 @@ export async function fetchVenueKnowledgeLayer(venueId) {
   }
 
   try {
-    // Parallel fetch: listings and reviews
+    // Parallel fetch: listing (via admin edge fn — service_role) and reviews
     // Note: venue_content table not queried as all needed data is in listings table
     const [listingRes, reviewsRes] = await Promise.all([
-      supabase
-        .from('listings')
-        .select('*')
-        .eq('id', venueId)
-        .single(),
+      invokeAdminListings('getById', { id: venueId })
+        .then(r => ({ data: r.data, error: null }))
+        .catch(e => ({ data: null, error: e })),
       supabase
         .from('reviews')
-        .select('overall_rating, review_text, created_at, themes, aura_metadata, review_title, reviewer_name, reviewer_location, event_date, is_verified')
+        .select('overall_rating, review_text, created_at')
         .eq('entity_id', venueId)
         .eq('entity_type', 'listing')
         .order('created_at', { ascending: false })
     ]);
-
-    // TRACE: Log query results
-    console.log(`[fetchVenueKnowledgeLayer] Query results for ${venueId}:`, {
-      listingHasError: !!listingRes.error,
-      listingError: listingRes.error?.message,
-      listingData: !!listingRes.data,
-      listingDataKeys: listingRes.data ? Object.keys(listingRes.data).slice(0, 5) : null,
-      reviewsHasError: !!reviewsRes.error,
-      reviewsCount: reviewsRes.data?.length || 0
-    });
 
     // Check for query errors - log them but don't fail
     if (listingRes.error) {
@@ -65,13 +62,7 @@ export async function fetchVenueKnowledgeLayer(venueId) {
       // Continue with null data - will build empty knowledge object below
     }
 
-    if (!listingRes.data && !listingRes.error) {
-      console.warn(`[fetchVenueKnowledgeLayer] No listing found for ${venueId}`);
-      // Continue with null data - will build empty knowledge object below
-    }
-
     if (reviewsRes.error) {
-      console.warn(`fetchVenueKnowledgeLayer: Error fetching reviews for ${venueId}:`, reviewsRes.error);
       // Don't return null - reviews are optional, continue with empty reviews
     }
 
@@ -121,13 +112,6 @@ export async function fetchVenueKnowledgeLayer(venueId) {
           rating: r.overall_rating,
           content: r.review_text,
           createdAt: r.created_at,
-          themes: r.themes || [],
-          auraMetadata: r.aura_metadata || {},
-          title: r.review_title,
-          reviewer: r.reviewer_name,
-          location: r.reviewer_location,
-          verified: r.is_verified,
-          eventDate: r.event_date,
         })),
         averageRating: reviewsRes.data.length > 0
           ? (reviewsRes.data.reduce((sum, r) => sum + (r.overall_rating || 0), 0) / reviewsRes.data.length).toFixed(1)
@@ -166,14 +150,11 @@ export async function fetchVenueKnowledgeLayerBySlug(slug) {
   if (!slug) return null;
 
   try {
-    // First fetch listing by slug to get ID
-    const { data: listing, error: listingError } = await supabase
-      .from('listings')
-      .select('id')
-      .eq('slug', slug)
-      .single();
+    // First fetch listing by slug to get ID (via admin edge fn — service_role)
+    const slugResult = await invokeAdminListings('getBySlug', { slug });
+    const listing = slugResult.data;
 
-    if (listingError || !listing) {
+    if (!listing) {
       console.error('fetchVenueKnowledgeLayerBySlug: listing not found for slug', slug);
       return null;
     }
@@ -279,94 +260,64 @@ export function extractVenueHighlights(knowledge) {
 }
 
 /**
- * Aggregate stored themes from review items (reads pre-extracted themes array).
- * Returns object with canonical 11-theme counts, keyed by theme name.
+ * Extract themes from review content using simple keyword matching
+ * Returns object with theme counts
  */
 function extractReviewThemes(reviews) {
-  // Initialise all 11 canonical themes at zero
-  const counts = {};
-  for (const themeKey of Object.keys(THEMES)) {
-    counts[themeKey] = 0;
-  }
+  const themes = {
+    service: 0,
+    venue: 0,
+    food: 0,
+    location: 0,
+    team: 0,
+    garden: 0,
+    staff: 0,
+  };
 
-  for (const review of reviews) {
-    // Read stored themes array (populated by DB trigger / saveReviewThemes)
-    const storedThemes = review.themes || [];
-    for (const t of storedThemes) {
-      if (counts[t] !== undefined) {
-        counts[t]++;
-      }
-    }
-  }
+  const serviceKeywords = ['service', 'staff', 'team', 'helpful', 'professional', 'attentive', 'coordination'];
+  const venueKeywords = ['venue', 'beautiful', 'stunning', 'elegant', 'space', 'setting', 'landscape'];
+  const foodKeywords = ['food', 'cuisine', 'meal', 'dinner', 'catering', 'chef', 'taste'];
+  const locationKeywords = ['location', 'access', 'parking', 'drive', 'convenient', 'journey'];
+  const gardenKeywords = ['garden', 'park', 'landscape', 'grounds', 'nature', 'flowers'];
 
-  return counts;
+  reviews.forEach(review => {
+    const text = (review.content || '').toLowerCase();
+
+    if (serviceKeywords.some(k => text.includes(k))) themes.service++;
+    if (venueKeywords.some(k => text.includes(k))) themes.venue++;
+    if (foodKeywords.some(k => text.includes(k))) themes.food++;
+    if (locationKeywords.some(k => text.includes(k))) themes.location++;
+    if (gardenKeywords.some(k => text.includes(k))) themes.garden++;
+  });
+
+  return themes;
 }
 
 /**
- * Analyze reviews for common themes and sentiment.
- * Returns structured data for Aura AI analysis.
- * Covers all 11 canonical themes with counts and percentages.
+ * Analyze reviews for common themes and sentiment
+ * Returns structured data for Aura AI analysis
  */
 export function analyzeReviewThemes(knowledge) {
   if (!knowledge || !knowledge.reviews) return null;
 
   const { reviews } = knowledge;
-  const themeCounts = extractReviewThemes(reviews.items);
+  const themes = extractReviewThemes(reviews.items);
 
-  // All 11 themes with count + pct, sorted by frequency desc
-  const allThemes = Object.entries(themeCounts)
-    .map(([themeKey, count]) => ({
-      theme: themeKey,
-      label: THEMES[themeKey]?.label || themeKey,
-      mentions: count,
-      percentage: reviews.total > 0 ? Math.round((count / reviews.total) * 100) : 0,
-    }))
-    .sort((a, b) => b.mentions - a.mentions);
-
-  const topThemes = allThemes.filter(t => t.mentions > 0).slice(0, 5);
+  // Sort themes by frequency
+  const sortedThemes = Object.entries(themes)
+    .filter(([_, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
 
   return {
-    allThemes,
-    topThemes,
+    topThemes: sortedThemes.map(([theme, count]) => ({
+      theme,
+      mentions: count,
+      percentage: reviews.total > 0 ? Math.round((count / reviews.total) * 100) : 0,
+    })),
     sentimentOverview: getSentimentOverview(reviews),
     commonPraise: extractCommonPraise(reviews.items),
   };
-}
-
-/**
- * Get review intelligence block for Aura system prompt injection.
- * Returns a concise human-readable string summarising guest review data.
- *
- * @param {object} knowledge - Full knowledge layer from fetchVenueKnowledgeLayer
- * @returns {string}
- */
-export function getReviewIntelligence(knowledge) {
-  if (!knowledge || !knowledge.reviews) return '';
-  const { reviews } = knowledge;
-  if (reviews.total === 0) return 'Guest reviews: None yet.';
-
-  const themeAnalysis = analyzeReviewThemes(knowledge);
-  const topThemeStr = themeAnalysis?.topThemes
-    ?.slice(0, 3)
-    .map(t => `${t.label} (${t.mentions}/${reviews.total} reviews)`)
-    .join(', ') || 'none identified';
-
-  // Strongest review: first item (most recent), truncated at 120 chars
-  const strongest = reviews.items[0];
-  const strongestQuote = strongest?.content
-    ? (strongest.content.length > 120 ? strongest.content.slice(0, 120) + '…' : strongest.content)
-    : null;
-
-  const sentiment = getSentimentOverview(reviews);
-  const avg = reviews.averageRating || '—';
-
-  let result = `Guest reviews (${reviews.total} total, avg ${avg}★): Top themes: ${topThemeStr}.`;
-  if (strongestQuote) {
-    result += ` Strongest review: '${strongestQuote}'`;
-  }
-  result += ` Sentiment: ${sentiment}.`;
-
-  return result;
 }
 
 /**
@@ -545,13 +496,6 @@ export function calculateRecommendationScore(venue, knowledge) {
  * @returns {Array} Venues ranked for Aura discovery, with recommendation scores
  */
 export async function fetchRankedVenuesForDiscovery(options = {}) {
-  // Mark that service was called
-  if (typeof globalThis !== 'undefined') {
-    globalThis._serviceWasCalled = true;
-    globalThis._serviceCallTime = new Date().toISOString();
-  }
-  console.log('[SERVICE] fetchRankedVenuesForDiscovery called with:', options);
-
   const {
     limit = 12,
     minScore = 0,
@@ -560,57 +504,20 @@ export async function fetchRankedVenuesForDiscovery(options = {}) {
   } = options;
 
   try {
-    // Fetch all listings with basic columns (Phase 3 editorial columns added later)
-    if (typeof window !== 'undefined') {
-      window._auraLogs = window._auraLogs || [];
-      window._auraLogs.push('QUERY: Starting Supabase query for listings table');
-      window._auraLogs.push('QUERY_PARAMS: limit=' + (limit * 2) + ', columns=id,name,slug,city,region');
-    }
+    // Fetch via admin edge function (service_role — reads all statuses)
+    const result = await invokeAdminListings('list', { limit: limit * 2 });
+    const listings = result.data;
 
-    let query = supabase
-      .from('listings')
-      .select('*')
-      .limit(limit * 2); // Fetch extra to account for filtering
-
-    const { data: listings, error } = await query;
-
-    const stage1Result = {
-      listedCount: listings?.length || 0,
-      dataType: typeof listings,
-      isArray: Array.isArray(listings),
-      error: error ? {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
-      } : null,
-      venueNames: listings?.map(l => l.name) || [],
-      fullListingsData: listings
-    };
-    console.log('[AURA] STAGE 1 - Supabase query complete:', stage1Result);
-    if (typeof window !== 'undefined') {
-      window._auraLogs.push('STAGE 1: ' + JSON.stringify(stage1Result));
-      localStorage.setItem('_auraDebug', JSON.stringify(window._auraLogs));
-    }
-
-    if (error) {
-      console.error('[AURA] Query error at STAGE 1:', error);
-      if (typeof window !== 'undefined') {
-        window._auraLogs.push('ERROR_FULL: ' + JSON.stringify(error));
-        localStorage.setItem('_auraDebug', JSON.stringify(window._auraLogs));
-      }
+    if (!listings) {
+      console.error('[AURA] Query error: no data returned');
       return [];
     }
 
     if (!listings || listings.length === 0) {
-      console.log('[AURA] STAGE 1 - No listings found in database');
       return [];
     }
 
-    console.log(`[AURA] STAGE 2 - Starting knowledge layer enrichment for ${listings.length} venues`);
-
     // Enrich with knowledge layers and calculate recommendation scores
-    const enrichmentResults = [];
     const rankedVenues = await Promise.all(
       listings.map(async (venue) => {
         try {
@@ -656,14 +563,6 @@ export async function fetchRankedVenuesForDiscovery(options = {}) {
             approved: venue.editorial_approved || false,
           };
 
-          enrichmentResults.push({
-            venueId: venue.id,
-            name: venue.name,
-            success: !!knowledge,
-            hasKnowledge: !!knowledgeOrFallback,
-            usedFallback: !knowledge
-          });
-
           return enrichedVenue;
         } catch (err) {
           console.error(`[ENRICHMENT ERROR] venue ${venue.id}: ${err.message}`);
@@ -683,43 +582,13 @@ export async function fetchRankedVenuesForDiscovery(options = {}) {
             approved: false,
           };
 
-          enrichmentResults.push({
-            venueId: venue.id,
-            name: venue.name,
-            success: false,
-            hasKnowledge: true,
-            usedFallback: true,
-            error: err.message
-          });
-
           return fallbackVenue;
         }
       })
     );
 
-    const stage2Result = {
-      inputCount: listings.length,
-      outputCount: rankedVenues.length,
-      allEnriched: rankedVenues.length === listings.length,
-      venueNames: rankedVenues.map(v => v.name)
-    };
-    console.log('[AURA] STAGE 2 - After Promise.all enrichment:', stage2Result);
-    if (typeof window !== 'undefined') {
-      window._auraLogs.push('STAGE 2: ' + JSON.stringify(stage2Result));
-    }
-
     // Filter out null entries and invalid knowledge (minScore filtering disabled for testing)
     let filtered = rankedVenues.filter(v => v && v.knowledge);
-    const stage3Result = {
-      beforeFilterCount: rankedVenues.length,
-      afterFilterCount: filtered.length,
-      removedCount: rankedVenues.length - filtered.length,
-      remainingVenueNames: filtered.map(v => v.name)
-    };
-    console.log('[AURA] STAGE 3 - After filtering (nulls + knowledge):', stage3Result);
-    if (typeof window !== 'undefined') {
-      window._auraLogs.push('STAGE 3: ' + JSON.stringify(stage3Result));
-    }
 
     // Sort based on strategy
     if (sort === 'tier') {
@@ -759,28 +628,6 @@ export async function fetchRankedVenuesForDiscovery(options = {}) {
 
     // Sort and slice to limit
     const final = filtered.slice(0, limit);
-    const stage4Result = {
-      afterSortCount: filtered.length,
-      afterLimitCount: final.length,
-      requestedLimit: limit,
-      finalVenueNames: final.map(v => v.name)
-    };
-    console.log('[AURA] STAGE 4 - Final return from fetchRankedVenuesForDiscovery:', stage4Result);
-    if (typeof window !== 'undefined') {
-      window._auraLogs.push('STAGE 4: ' + JSON.stringify(stage4Result));
-    }
-
-    const journeyResult = {
-      stage1_listings: listings.length,
-      stage2_enriched: rankedVenues.length,
-      stage3_filtered: filtered.length,
-      stage4_final: final.length
-    };
-    console.log('[AURA] JOURNEY SUMMARY - listings → enrichment → filter → sort → final:', journeyResult);
-    if (typeof window !== 'undefined') {
-      window._auraLogs.push('JOURNEY: ' + JSON.stringify(journeyResult));
-      localStorage.setItem('_auraDebug', JSON.stringify(window._auraLogs));
-    }
     return final;
   } catch (err) {
     console.error('fetchRankedVenuesForDiscovery exception:', err);

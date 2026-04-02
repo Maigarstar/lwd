@@ -7,8 +7,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { fetchShowcaseBySlug }  from '../services/showcaseService';
 import { fetchListingBySlug }   from '../services/listings';
+import { useChat }              from '../chat/ChatContext';
 import HomeNav                  from '../components/nav/HomeNav';
 import { buildCardImgs }        from '../utils/mediaMappers';
+import ShowcaseRenderer         from './ShowcaseRenderer';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -253,13 +255,42 @@ function NotFound({ slug, onBack }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function ShowcasePage({ slug, onBack, onGoDestination, onNavigateStandard, onNavigateAbout }) {
+// Build venue context string from showcase sections for Aura
+function buildVenueInfo(sc, lst) {
+  const parts = [];
+  if (sc?.name || sc?.title)  parts.push(`Venue: ${sc.name || sc.title}`);
+  if (sc?.location)            parts.push(`Location: ${sc.location}`);
+  if (sc?.excerpt)             parts.push(`About: ${sc.excerpt}`);
+  const sections = sc?.published_sections || sc?.sections || [];
+  if (Array.isArray(sections)) {
+    for (const s of sections) {
+      const c = s?.content || {};
+      if (s.type === 'hero'    && c.tagline)    parts.push(`Tagline: ${c.tagline}`);
+      if (s.type === 'intro'   && c.body)       parts.push(`Description: ${c.body}`);
+      if (s.type === 'stats'   && c.items?.length) parts.push(`Key stats: ${c.items.map(i => `${i.value} ${i.label}`).join(', ')}`);
+      if (s.type === 'verified') {
+        if (c.ceremony_capacity) parts.push(`Ceremony capacity: ${c.ceremony_capacity}`);
+        if (c.bedrooms)          parts.push(`Bedrooms: ${c.bedrooms}`);
+        if (c.location_summary)  parts.push(`Location detail: ${c.location_summary}`);
+        if (c.style)             parts.push(`Style: ${c.style}`);
+        if (c.best_for)          parts.push(`Best for: ${c.best_for}`);
+      }
+      if (s.type === 'pricing' && c.price_from) parts.push(`Venue hire from: ${c.price_from}`);
+      if (s.type === 'weddings' && c.body)      parts.push(`Weddings: ${c.body.slice(0, 200)}`);
+    }
+  }
+  if (lst?.description) parts.push(`Full description: ${lst.description.slice(0, 300)}`);
+  return parts.join('\n');
+}
+
+export default function ShowcasePage({ slug, darkMode, onToggleDark, onBack, onGoDestination, onNavigateStandard, onNavigateAbout }) {
   const isMobile = useIsMobile();
   const [showcase, setShowcase]   = useState(null);
   const [listing, setListing]     = useState(null);
   const [loading, setLoading]     = useState(true);
   const [notFound, setNotFound]   = useState(false);
   const [enquireOpen, setEnquireOpen] = useState(false);
+  const { setChatContext } = useChat();
 
   useEffect(() => {
     if (!slug) { setNotFound(true); setLoading(false); return; }
@@ -275,14 +306,23 @@ export default function ShowcasePage({ slug, onBack, onGoDestination, onNavigate
 
         if (sc) {
           setShowcase(sc);
-          // 2. If linked listing, load it too
-          if (sc.listingId) {
-            const lst = await fetchListingBySlug(sc.listingId);
+          // 2. Optionally enrich with linked listing (non-fatal — listing may not exist)
+          const linkedSlug = sc.listing_id || sc.listingId || null;
+          let lst = null;
+          try {
+            lst = await fetchListingBySlug(linkedSlug || slug);
             if (!ignore && lst) setListing(lst);
-          } else {
-            // Try to load listing by same slug as fallback
-            const lst = await fetchListingBySlug(slug);
-            if (!ignore && lst) setListing(lst);
+          } catch (_) {
+            // No listing found — that's fine, showcase renders without it
+          }
+          // 3. Feed venue data into Aura so it can answer questions about this venue
+          if (!ignore) {
+            setChatContext({
+              page:      'showcase',
+              country:   sc.location?.split(',').pop()?.trim() || null,
+              region:    sc.location?.split(',')[0]?.trim()    || null,
+              venueInfo: buildVenueInfo(sc, lst),
+            });
           }
         } else {
           // No showcase record, try listing directly as fallback
@@ -322,22 +362,53 @@ export default function ShowcasePage({ slug, onBack, onGoDestination, onNavigate
   if (loading)  return <LoadingSkeleton />;
   if (notFound) return <NotFound slug={slug} onBack={onBack} />;
 
-  const sections = showcase?.sections || ['Hero', 'Gallery', 'Overview', 'Enquire'];
+  // ── Dynamic renderer: use published_sections if populated ──────────────────
+  const publishedSections = showcase?.published_sections;
+  if (Array.isArray(publishedSections) && publishedSections.length > 0) {
+    const listingFirstImage = listing?.imgs?.[0] || null;
+    return (
+      <ShowcaseRenderer
+        sections={publishedSections}
+        showcase={showcase}
+        listing={listing}
+        listingFirstImage={listingFirstImage}
+        isPreview={false}
+        darkMode={darkMode}
+        onToggleDark={onToggleDark}
+        onNavigateStandard={onNavigateStandard}
+        onGoDestination={onGoDestination}
+        onBack={onBack}
+      />
+    );
+  }
+
+  // ── Legacy fallback: card-shape sections list ───────────────────────────────
+  // Normalise raw DB row into legacy card shape for the fallback renderer
+  const showcaseLegacy = showcase?._legacy ? showcase : {
+    ...showcase,
+    name:      showcase?.title      || showcase?.name      || '',
+    heroImage: showcase?.hero_image_url || showcase?.heroImage || '',
+    stats:     showcase?.key_stats  || showcase?.stats      || [],
+    sections:  showcase?.sections   || ['Hero', 'Gallery', 'Overview', 'Enquire'],
+    _legacy:   true,
+  };
+
+  const sections = showcaseLegacy.sections || ['Hero', 'Gallery', 'Overview', 'Enquire'];
 
   const renderSection = (sec) => {
     switch (sec) {
       case 'Hero':
-        return <HeroSection key="hero" showcase={showcase} listing={listing} onEnquire={() => setEnquireOpen(true)} isMobile={isMobile} />;
+        return <HeroSection key="hero" showcase={showcaseLegacy} listing={listing} onEnquire={() => setEnquireOpen(true)} isMobile={isMobile} />;
       case 'Stats':
-        return <StatsSection key="stats" stats={showcase?.stats} isMobile={isMobile} />;
+        return <StatsSection key="stats" stats={showcaseLegacy?.stats} isMobile={isMobile} />;
       case 'Overview':
         return <OverviewSection key="overview" listing={listing} isMobile={isMobile} />;
       case 'Gallery':
         return listing ? <GallerySection key="gallery" listing={listing} isMobile={isMobile} /> : null;
       case 'Enquire':
-        return <EnquireSection key="enquire" showcase={showcase} listing={listing} onEnquire={() => setEnquireOpen(true)} isMobile={isMobile} />;
+        return <EnquireSection key="enquire" showcase={showcaseLegacy} listing={listing} onEnquire={() => setEnquireOpen(true)} isMobile={isMobile} />;
       default:
-        // Generic placeholder for sections not yet fully implemented (Spaces, Dining, etc.)
+        // Generic placeholder for sections not yet fully implemented
         return (
           <div key={sec} style={{ padding: isMobile ? '48px 24px' : '64px 64px', borderTop: `1px solid ${C.border}` }}>
             <SectionLabel label={sec} />
@@ -348,7 +419,7 @@ export default function ShowcasePage({ slug, onBack, onGoDestination, onNavigate
 
   // Always inject Stats after Hero if key_stats exist and Stats not in sections list
   const sectionsToRender = [...sections];
-  if (showcase?.stats?.length > 0 && !sectionsToRender.includes('Stats')) {
+  if (showcaseLegacy?.stats?.length > 0 && !sectionsToRender.includes('Stats')) {
     const heroIdx = sectionsToRender.indexOf('Hero');
     if (heroIdx >= 0) sectionsToRender.splice(heroIdx + 1, 0, 'Stats');
   }

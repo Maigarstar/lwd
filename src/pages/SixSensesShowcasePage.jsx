@@ -34,6 +34,18 @@ const C = {
   jungle: '#131c14',    // deep jungle green
 };
 
+const C_DARK = {
+  cream:  '#0a0a08',
+  dark:   '#f5f0e8',
+  text:   '#f5f0e8',
+  muted:  'rgba(245,240,232,0.52)',
+  border: 'rgba(255,255,255,0.1)',
+  gold:   GOLD,
+  ivory:  '#0f0e0c',
+  ocean:  '#0d1a1f',
+  jungle: '#131c14',
+};
+
 // ── Image helper, all images live in public/Six-Senses-Krabey-Island/
 const I = (filename) => `/Six-Senses-Krabey-Island/${filename}`;
 
@@ -191,10 +203,10 @@ const SSKRABEY_VENUE = {
 };
 
 // ── SectionHeader ──────────────────────────────────────────────────────────────
-function SectionHeader({ eyebrow, title, subtitle, light = false, center = false }) {
+function SectionHeader({ eyebrow, title, subtitle, light = false, center = false, P = C }) {
   const { isMobile } = useBreakpoint();
-  const textColor  = light ? '#f5f2ec' : C.text;
-  const mutedColor = light ? 'rgba(245,242,236,0.55)' : C.muted;
+  const textColor  = light ? '#f5f2ec' : P.text;
+  const mutedColor = light ? 'rgba(245,242,236,0.55)' : P.muted;
   return (
     <div style={{
       maxWidth: 840,
@@ -239,7 +251,7 @@ function SectionHeader({ eyebrow, title, subtitle, light = false, center = false
 }
 
 // ── Section wrapper ────────────────────────────────────────────────────────────
-function Section({ id, bg = C.cream, children, pad }) {
+function Section({ id, bg = '#faf9f6', children, pad }) {
   const { isMobile } = useBreakpoint();
   const defaultPad = isMobile ? '64px 24px' : '96px 64px';
   return (
@@ -252,7 +264,7 @@ function Section({ id, bg = C.cream, children, pad }) {
 }
 
 // ── BreadcrumbBar ──────────────────────────────────────────────────────────────
-function BreadcrumbBar({ venue, onBack, onGoDestination }) {
+function BreadcrumbBar({ venue, onBack, onGoDestination, P = C }) {
   const country     = venue?.location?.country || '';
   const countrySlug = country.toLowerCase().replace(/\s+/g, '-');
   const venueName   = venue?.name || '';
@@ -266,8 +278,8 @@ function BreadcrumbBar({ venue, onBack, onGoDestination }) {
 
   return (
     <div style={{
-      background: C.cream,
-      borderBottom: `1px solid ${C.border}`,
+      background: P.cream,
+      borderBottom: `1px solid ${P.border}`,
       padding: '0 32px',
       height: 40,
       display: 'flex',
@@ -279,23 +291,23 @@ function BreadcrumbBar({ venue, onBack, onGoDestination }) {
       {crumbs.map((crumb, i) => (
         <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {i > 0 && (
-            <span style={{ fontFamily: NU, fontSize: 10, color: C.muted, userSelect: 'none' }}>›</span>
+            <span style={{ fontFamily: NU, fontSize: 10, color: P.muted, userSelect: 'none' }}>›</span>
           )}
           {crumb.current ? (
-            <span style={{ fontFamily: NU, fontSize: 11, color: C.text, fontWeight: 600, letterSpacing: '0.02em' }}>
+            <span style={{ fontFamily: NU, fontSize: 11, color: P.text, fontWeight: 600, letterSpacing: '0.02em' }}>
               {crumb.label}
             </span>
           ) : (
             <button
               onClick={crumb.onClick}
               style={{
-                fontFamily: NU, fontSize: 11, color: C.muted,
+                fontFamily: NU, fontSize: 11, color: P.muted,
                 background: 'none', border: 'none', cursor: 'pointer',
                 padding: 0, fontWeight: 400, letterSpacing: '0.02em',
                 transition: 'color 0.2s',
               }}
-              onMouseEnter={e => (e.currentTarget.style.color = C.text)}
-              onMouseLeave={e => (e.currentTarget.style.color = C.muted)}
+              onMouseEnter={e => (e.currentTarget.style.color = P.text)}
+              onMouseLeave={e => (e.currentTarget.style.color = P.muted)}
             >
               {crumb.label}
             </button>
@@ -334,7 +346,7 @@ const SSKRABEY_NAV = [
   { id: 'weddings', label: 'Weddings'  },
 ];
 
-function StickyVenueNav({ venue, activeSection, onScrollTo, onVisibilityChange }) {
+function StickyVenueNav({ venue, activeSection, onScrollTo, onVisibilityChange, P = C }) {
   const { isMobile } = useBreakpoint();
   const [visible, setVisible] = useState(false);
 
@@ -351,9 +363,9 @@ function StickyVenueNav({ venue, activeSection, onScrollTo, onVisibilityChange }
   return (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, zIndex: 900,
-      background: 'rgba(250,249,246,0.97)',
+      background: P === C_DARK ? 'rgba(10,10,8,0.97)' : 'rgba(249,247,242,0.97)',
       backdropFilter: 'blur(12px)',
-      borderBottom: `1px solid ${C.border}`,
+      borderBottom: `1px solid ${P.border}`,
       boxShadow: '0 2px 20px rgba(0,0,0,0.06)',
       transform: visible ? 'translateY(0)' : 'translateY(-100%)',
       transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -363,11 +375,11 @@ function StickyVenueNav({ venue, activeSection, onScrollTo, onVisibilityChange }
     }}>
       {/* Name */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, marginRight: 'auto' }}>
-        <span style={{ fontFamily: GD, fontSize: 15, color: C.text, letterSpacing: '0.01em' }}>
+        <span style={{ fontFamily: GD, fontSize: 15, color: P.text, letterSpacing: '0.01em' }}>
           {venue.name}
         </span>
         {!isMobile && (
-          <span style={{ fontFamily: NU, fontSize: 11, color: C.muted, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+          <span style={{ fontFamily: NU, fontSize: 11, color: P.muted, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
             Six Senses Hotels & Resorts
           </span>
         )}
@@ -384,7 +396,7 @@ function StickyVenueNav({ venue, activeSection, onScrollTo, onVisibilityChange }
                 background: 'none', border: 'none',
                 fontFamily: NU, fontSize: 13,
                 fontWeight: activeSection === item.id ? 700 : 500,
-                color: activeSection === item.id ? C.text : C.muted,
+                color: activeSection === item.id ? P.text : P.muted,
                 cursor: 'pointer', padding: '6px 12px', borderRadius: 4,
                 transition: 'color 0.2s',
                 borderBottom: activeSection === item.id ? `2px solid ${GOLD}` : '2px solid transparent',
@@ -422,14 +434,14 @@ function StickyVenueNav({ venue, activeSection, onScrollTo, onVisibilityChange }
             marginLeft: 8,
             fontFamily: NU, fontSize: 11, fontWeight: 600,
             letterSpacing: '0.08em', textTransform: 'uppercase',
-            color: C.muted, textDecoration: 'none',
+            color: P.muted, textDecoration: 'none',
             padding: '9px 14px', borderRadius: 4,
-            border: `1px solid ${C.border}`,
+            border: `1px solid ${P.border}`,
             transition: 'color 0.2s, border-color 0.2s',
             whiteSpace: 'nowrap',
           }}
-          onMouseEnter={e => { e.currentTarget.style.color = C.text; e.currentTarget.style.borderColor = C.text; }}
-          onMouseLeave={e => { e.currentTarget.style.color = C.muted; e.currentTarget.style.borderColor = C.border; }}
+          onMouseEnter={e => { e.currentTarget.style.color = P.text; e.currentTarget.style.borderColor = P.text; }}
+          onMouseLeave={e => { e.currentTarget.style.color = P.muted; e.currentTarget.style.borderColor = P.border; }}
         >
           Listing ↗
         </a>
@@ -511,11 +523,12 @@ function HeroSection({ venue }) {
 }
 
 // ── Main page ──────────────────────────────────────────────────────────────────
-export default function SixSensesShowcasePage({ onBack, onGoDestination, onNavigateStandard, onNavigateAbout }) {
+export default function SixSensesShowcasePage({ onBack, onGoDestination, onNavigateStandard, onNavigateAbout, darkMode = false, onToggleDark }) {
   const { isMobile } = useBreakpoint();
   const [activeSection, setActiveSection] = useState('overview');
   const [stickyVisible, setStickyVisible] = useState(false);
   const venue = SSKRABEY_VENUE;
+  const P = darkMode ? C_DARK : C;
 
   // Section scroll spy
   useEffect(() => {
@@ -540,7 +553,7 @@ export default function SixSensesShowcasePage({ onBack, onGoDestination, onNavig
   };
 
   return (
-    <div style={{ background: C.cream, fontFamily: NU, paddingTop: 64 }}>
+    <div style={{ background: P.cream, color: P.text, fontFamily: NU, paddingTop: 64 }}>
 
       {/* ── Site nav, slides out when StickyVenueNav takes over ─────────── */}
       <div style={{
@@ -549,8 +562,8 @@ export default function SixSensesShowcasePage({ onBack, onGoDestination, onNavig
         transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
       }}>
         <HomeNav
-          darkMode={false}
-          onToggleDark={() => {}}
+          darkMode={darkMode}
+          onToggleDark={onToggleDark}
           onVendorLogin={null}
           onNavigateStandard={onNavigateStandard}
           onNavigateAbout={onNavigateAbout}
@@ -559,7 +572,7 @@ export default function SixSensesShowcasePage({ onBack, onGoDestination, onNavig
       </div>
 
       {/* ── Breadcrumb ────────────────────────────────────────────────────── */}
-      <BreadcrumbBar venue={venue} onBack={onBack} onGoDestination={onGoDestination} />
+      <BreadcrumbBar venue={venue} onBack={onBack} onGoDestination={onGoDestination} P={P} />
 
       {/* ── Sticky venue nav ─────────────────────────────────────────────── */}
       <StickyVenueNav
@@ -567,6 +580,7 @@ export default function SixSensesShowcasePage({ onBack, onGoDestination, onNavig
         activeSection={activeSection}
         onScrollTo={scrollTo}
         onVisibilityChange={setStickyVisible}
+        P={P}
       />
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
@@ -592,23 +606,24 @@ export default function SixSensesShowcasePage({ onBack, onGoDestination, onNavig
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 1, OVERVIEW
       ═══════════════════════════════════════════════════════════════════ */}
-      <Section id="overview" bg={C.cream}>
+      <Section id="overview" bg={P.cream}>
         <SectionHeader
           eyebrow={`${venue.location.region} · ${venue.location.country}`}
           title={venue.overview.headline}
           subtitle={venue.sectionIntros?.overview || venue.overview.intro}
+          P={P}
         />
         <VenueStatsCard data={{
           variant:  'strip',
           accentBg: '#ffffff',
-          theme:    'light',
+          theme:    darkMode ? 'dark' : 'light',
           stats:    venue.keyStats,
         }} />
         <div style={{ marginTop: 40 }}>
           <TwoColumnEditorialCard data={{
             variant:  'image-left',
-            accentBg: C.cream,
-            theme:    'light',
+            accentBg: P.cream,
+            theme:    darkMode ? 'dark' : 'light',
             image:    venue.overview.storyImage,
             eyebrow:  venue.overview.storyEyebrow,
             title:    venue.overview.storyHeadline,
@@ -621,11 +636,12 @@ export default function SixSensesShowcasePage({ onBack, onGoDestination, onNavig
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 2, VILLAS
       ═══════════════════════════════════════════════════════════════════ */}
-      <Section id="villas" bg="#ffffff">
+      <Section id="villas" bg={P.white || '#ffffff'}>
         <SectionHeader
           eyebrow="Accommodation"
           title="40 Villas. Ocean, Beach & Jungle."
           subtitle={venue.sectionIntros?.villas || "40 overwater and beachfront villas, each with private pool, open-air bathroom, and unobstructed views across the Gulf of Thailand, designed to blur the boundary between inside and ocean."}
+          P={P}
         />
 
         {/* Overwater villa feature */}
@@ -675,8 +691,8 @@ export default function SixSensesShowcasePage({ onBack, onGoDestination, onNavig
         {/* Villa features mosaic */}
         <div style={{ marginTop: 4 }}>
           <MosaicCard data={{
-            theme:    'light',
-            accentBg: C.ivory,
+            theme:    darkMode ? 'dark' : 'light',
+            accentBg: P.ivory,
             images:   [
               venue.villas.interior,
               venue.villas.pool,
@@ -712,6 +728,7 @@ export default function SixSensesShowcasePage({ onBack, onGoDestination, onNavig
           title="A Kitchen Rooted in Cambodia"
           subtitle={venue.sectionIntros?.dining || "Chef-driven, produce-led menus rooted in Cambodian flavour, from barefoot beach dinners to candlelit tables in the jungle, every meal is shaped by the island around it."}
           light
+          P={P}
         />
 
         <TwoColumnEditorialCard data={{
@@ -763,11 +780,12 @@ export default function SixSensesShowcasePage({ onBack, onGoDestination, onNavig
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 4, WELLNESS
       ═══════════════════════════════════════════════════════════════════ */}
-      <Section id="wellness" bg={C.cream}>
+      <Section id="wellness" bg={P.cream}>
         <SectionHeader
           eyebrow="Six Senses Spa · Longevity · Wellbeing"
           title="The World's Most Immersive Wellness Experience"
           subtitle={venue.sectionIntros?.wellness || "The Six Senses Spa Krabey Island is built on the philosophy of longevity, combining ancient Cambodian healing traditions with cutting-edge biohacking and personalised wellness programmes."}
+          P={P}
         />
 
         {/* Spa feature */}
@@ -797,8 +815,8 @@ export default function SixSensesShowcasePage({ onBack, onGoDestination, onNavig
         <div style={{ marginTop: 40 }}>
           <TwoColumnEditorialCard data={{
             variant:  'image-left',
-            accentBg: C.ivory,
-            theme:    'light',
+            accentBg: P.ivory,
+            theme:    darkMode ? 'dark' : 'light',
             image:    venue.wellness.yoga,
             eyebrow:  'Wellness Philosophy',
             title:    'Ancient Wisdom, Modern Science',
@@ -816,14 +834,14 @@ export default function SixSensesShowcasePage({ onBack, onGoDestination, onNavig
             <div key={i} style={{
               padding: '24px 28px',
               background: '#fff',
-              border: `1px solid ${C.border}`,
+              border: `1px solid ${P.border}`,
               borderTop: `2px solid ${GOLD}`,
               borderRadius: 4,
             }}>
-              <p style={{ fontFamily: NU, fontWeight: 700, fontSize: 13, color: C.text, letterSpacing: '0.04em', margin: '0 0 10px', textTransform: 'uppercase' }}>
+              <p style={{ fontFamily: NU, fontWeight: 700, fontSize: 13, color: P.text, letterSpacing: '0.04em', margin: '0 0 10px', textTransform: 'uppercase' }}>
                 {item.label}
               </p>
-              <p style={{ fontFamily: NU, fontSize: 14, color: C.muted, margin: 0, lineHeight: 1.7 }}>
+              <p style={{ fontFamily: NU, fontSize: 14, color: P.muted, margin: 0, lineHeight: 1.7 }}>
                 {item.desc}
               </p>
             </div>
@@ -840,6 +858,7 @@ export default function SixSensesShowcasePage({ onBack, onGoDestination, onNavig
           title="An Entire Island, Exclusively Yours"
           subtitle={venue.sectionIntros?.weddings || "Every wedding at Six Senses Krabey Island is an island to yourself, a completely private backdrop of ocean, jungle, and sky, shaped entirely by you."}
           light
+          P={P}
         />
 
         {/* Hero wedding image */}

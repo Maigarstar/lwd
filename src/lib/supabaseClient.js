@@ -45,7 +45,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
     removeSubscription: () => {},
   };
 } else {
-  supabase = createClient(supabaseUrl, supabaseAnonKey);
+  supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      // Bypass Web Lock API — prevents AbortError in dev (React double-mount)
+      lock: (_name, _timeout, fn) => fn(),
+    },
+  });
 }
 
 // Helper to check if Supabase is available

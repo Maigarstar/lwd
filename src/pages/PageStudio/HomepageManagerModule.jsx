@@ -206,10 +206,7 @@ const HomepageManagerModule = ({ C, NU, GD }) => {
     <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: "20px" }}>
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
-        <h2 style={{ fontFamily: GD, fontSize: 28, color: C.white, margin: "0 0 8px 0" }}>
-          Homepage Manager
-        </h2>
-        <p style={{ fontFamily: NU, fontSize: 11, color: C.grey2, margin: 0 }}>
+        <p style={{ fontFamily: NU, fontSize: 13, color: C.grey2, margin: 0 }}>
           Manage sections, reorder, toggle visibility, and schedule visibility windows
         </p>
       </div>

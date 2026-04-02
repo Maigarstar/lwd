@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useVendorAuth } from "../context/VendorAuthContext";
 import AuthSplitLayout from "../components/AuthSplitLayout";
+import { fetchManagedAccountByVendorId } from "../services/socialStudioService";
 
 const NU = "'Nunito Sans', -apple-system, BlinkMacSystemFont, sans-serif";
 const C = {
@@ -35,11 +36,16 @@ export default function VendorLogin({ onLoginSuccess }) {
     const { data, error: loginError } = await login(email, password);
 
     if (!loginError && data) {
+      // Check if this vendor has a managed account (client portal access)
+      const managedAccount = data?.id ? await fetchManagedAccountByVendorId(data.id) : null;
+      const dest = managedAccount ? 'portal' : 'vendor';
+
       if (onLoginSuccess) {
-        onLoginSuccess();
+        onLoginSuccess(dest);
       } else {
-        window.history.pushState(null, "", "/vendor/dashboard");
-        window.location.href = "/vendor/dashboard";
+        const path = dest === 'portal' ? '/portal' : '/vendor/dashboard';
+        window.history.pushState(null, "", path);
+        window.location.href = path;
       }
     }
 

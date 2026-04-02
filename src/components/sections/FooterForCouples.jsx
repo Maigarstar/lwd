@@ -333,7 +333,7 @@ export default function FooterForCouples({ onViewCategory = () => {} }) {
                 color: "rgba(255,255,255,0.45)",
               }}
             >
-              © 2026 LuxuryWeddingDirectory.com · All rights reserved
+              © {new Date().getFullYear()} Luxury Wedding Directory · Powered by Taigenic.ai
             </div>
             <div
               style={{
@@ -343,7 +343,7 @@ export default function FooterForCouples({ onViewCategory = () => {} }) {
                 marginTop: 4,
               }}
             >
-              Helping couples plan their dream weddings worldwide.
+              Part of 5 Star Weddings Ltd 2006–{new Date().getFullYear()}
             </div>
           </div>
 
@@ -351,16 +351,19 @@ export default function FooterForCouples({ onViewCategory = () => {} }) {
             className="footer-couples-legal-links"
             style={{ display: "flex", gap: 20 }}
           >
-            {["Privacy", "Terms", "Cookies", "Help"].map((l) => (
-              <span
-                key={l}
-                role="link"
-                tabIndex={0}
-                onClick={() => {
-                  if (l === "Cookies") window.dispatchEvent(new Event("lwd:show-cookies"));
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && l === "Cookies") window.dispatchEvent(new Event("lwd:show-cookies"));
+            {[
+              { label: "Privacy",  href: "/privacy" },
+              { label: "Terms",    href: "/terms" },
+              { label: "Cookies",  href: "/cookies" },
+              { label: "Support",  href: "/support" },
+            ].map(({ label, href }) => (
+              <a
+                key={label}
+                href={href}
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.history.pushState({}, '', href);
+                  window.dispatchEvent(new PopStateEvent('popstate'));
                 }}
                 style={{
                   fontFamily: NU,
@@ -368,14 +371,15 @@ export default function FooterForCouples({ onViewCategory = () => {} }) {
                   color: "rgba(255,255,255,0.2)",
                   cursor: "pointer",
                   transition: "color 0.2s",
+                  textDecoration: "none",
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = C.gold)}
                 onMouseLeave={(e) =>
                   (e.currentTarget.style.color = "rgba(255,255,255,0.2)")
                 }
               >
-                {l}
-              </span>
+                {label}
+              </a>
             ))}
           </div>
         </div>

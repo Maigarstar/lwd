@@ -6,7 +6,6 @@ import { useMemo, useState, useEffect } from "react";
 import ProfileTemplateBase from "../components/profile/ProfileTemplateBase";
 import { useIsMobile } from "../components/profile/ProfileDesignSystem";
 import CatNav from "../components/nav/CatNav";
-import SiteFooter from "../components/sections/SiteFooter";
 import VendorSidebar from "../components/vendor/VendorSidebar";
 import VendorMobileBar from "../components/vendor/VendorMobileBar";
 import { getLightPalette } from "../theme/tokens";
@@ -161,7 +160,6 @@ export default function PlannerProfilePage({
       mobileBar={
         <VendorMobileBar vendor={planner} C={C} />
       }
-      footer={<SiteFooter {...footerNav} />}
     />
   );
 }

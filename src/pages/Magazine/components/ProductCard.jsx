@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { formatPrice } from '../data/products';
+import { trackExternalClick } from '../../../services/outboundClickService';
 
 const FU = "'Nunito', 'Inter', 'Helvetica Neue', sans-serif";
 const FD = "'Gilda Display', 'Playfair Display', Georgia, serif";
@@ -96,7 +97,7 @@ export default function ProductCard({
               href={affiliateUrl || '#'}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={e => e.stopPropagation()}
+              onClick={e => { e.stopPropagation(); if (affiliateUrl) trackExternalClick({ entityType: 'magazine', entityId: null, venueId: null, linkType: 'brochure', url: affiliateUrl }); }}
               style={{
                 fontFamily: FU, fontSize: 9, fontWeight: 700,
                 letterSpacing: '0.14em', textTransform: 'uppercase',
@@ -235,7 +236,7 @@ export default function ProductCard({
             href={affiliateUrl || '#'}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); if (affiliateUrl) trackExternalClick({ entityType: 'magazine', entityId: null, venueId: null, linkType: 'brochure', url: affiliateUrl }); }}
             style={{
               fontFamily: FU, fontSize: 9, fontWeight: 700,
               letterSpacing: '0.16em', textTransform: 'uppercase',

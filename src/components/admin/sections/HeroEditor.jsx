@@ -13,7 +13,7 @@ export default function HeroEditor({ content, updateField }) {
         style={{
           fontSize: 18,
           fontWeight: 600,
-          color: C.text,
+          color: C.white,
           marginBottom: 24,
           margin: "0 0 24px 0",
         }}
@@ -28,7 +28,7 @@ export default function HeroEditor({ content, updateField }) {
             display: "block",
             fontSize: 12,
             fontWeight: 600,
-            color: C.textSecondary,
+            color: C.grey,
             marginBottom: 8,
             textTransform: "uppercase",
             letterSpacing: "0.5px",
@@ -47,7 +47,7 @@ export default function HeroEditor({ content, updateField }) {
             border: `1px solid ${C.border}`,
             borderRadius: 6,
             background: C.card,
-            color: C.text,
+            color: C.white,
             fontSize: 14,
             fontFamily: "inherit",
             boxSizing: "border-box",
@@ -56,7 +56,7 @@ export default function HeroEditor({ content, updateField }) {
         <p
           style={{
             fontSize: 12,
-            color: C.textSecondary,
+            color: C.grey,
             marginTop: 6,
             margin: "6px 0 0 0",
           }}
@@ -72,7 +72,7 @@ export default function HeroEditor({ content, updateField }) {
             display: "block",
             fontSize: 12,
             fontWeight: 600,
-            color: C.textSecondary,
+            color: C.grey,
             marginBottom: 8,
             textTransform: "uppercase",
             letterSpacing: "0.5px",
@@ -91,7 +91,7 @@ export default function HeroEditor({ content, updateField }) {
             border: `1px solid ${C.border}`,
             borderRadius: 6,
             background: C.card,
-            color: C.text,
+            color: C.white,
             fontSize: 14,
             fontFamily: "inherit",
             boxSizing: "border-box",
@@ -100,7 +100,7 @@ export default function HeroEditor({ content, updateField }) {
         <p
           style={{
             fontSize: 12,
-            color: C.textSecondary,
+            color: C.grey,
             marginTop: 6,
             margin: "6px 0 0 0",
           }}
@@ -116,7 +116,7 @@ export default function HeroEditor({ content, updateField }) {
             display: "block",
             fontSize: 12,
             fontWeight: 600,
-            color: C.textSecondary,
+            color: C.grey,
             marginBottom: 8,
             textTransform: "uppercase",
             letterSpacing: "0.5px",
@@ -134,7 +134,7 @@ export default function HeroEditor({ content, updateField }) {
             border: `1px solid ${C.border}`,
             borderRadius: 6,
             background: C.card,
-            color: C.text,
+            color: C.white,
             fontSize: 14,
             fontFamily: "inherit",
             minHeight: 80,
@@ -145,7 +145,7 @@ export default function HeroEditor({ content, updateField }) {
         <p
           style={{
             fontSize: 12,
-            color: C.textSecondary,
+            color: C.grey,
             marginTop: 6,
             margin: "6px 0 0 0",
           }}
@@ -161,7 +161,7 @@ export default function HeroEditor({ content, updateField }) {
             display: "block",
             fontSize: 12,
             fontWeight: 600,
-            color: C.textSecondary,
+            color: C.grey,
             marginBottom: 8,
             textTransform: "uppercase",
             letterSpacing: "0.5px",
@@ -180,7 +180,7 @@ export default function HeroEditor({ content, updateField }) {
             border: `1px solid ${C.border}`,
             borderRadius: 6,
             background: C.card,
-            color: C.text,
+            color: C.white,
             fontSize: 14,
             fontFamily: "inherit",
             boxSizing: "border-box",
@@ -189,7 +189,7 @@ export default function HeroEditor({ content, updateField }) {
         <p
           style={{
             fontSize: 12,
-            color: C.textSecondary,
+            color: C.grey,
             marginTop: 6,
             margin: "6px 0 0 0",
           }}
@@ -205,7 +205,7 @@ export default function HeroEditor({ content, updateField }) {
             display: "block",
             fontSize: 12,
             fontWeight: 600,
-            color: C.textSecondary,
+            color: C.grey,
             marginBottom: 8,
             textTransform: "uppercase",
             letterSpacing: "0.5px",
@@ -224,7 +224,7 @@ export default function HeroEditor({ content, updateField }) {
             border: `1px solid ${C.border}`,
             borderRadius: 6,
             background: C.card,
-            color: C.text,
+            color: C.white,
             fontSize: 14,
             fontFamily: "inherit",
             boxSizing: "border-box",
@@ -233,7 +233,7 @@ export default function HeroEditor({ content, updateField }) {
         <p
           style={{
             fontSize: 12,
-            color: C.textSecondary,
+            color: C.grey,
             marginTop: 6,
             margin: "6px 0 0 0",
           }}
@@ -249,7 +249,7 @@ export default function HeroEditor({ content, updateField }) {
             display: "block",
             fontSize: 12,
             fontWeight: 600,
-            color: C.textSecondary,
+            color: C.grey,
             marginBottom: 8,
             textTransform: "uppercase",
             letterSpacing: "0.5px",
@@ -268,7 +268,7 @@ export default function HeroEditor({ content, updateField }) {
             border: `1px solid ${C.border}`,
             borderRadius: 6,
             background: C.card,
-            color: C.text,
+            color: C.white,
             fontSize: 14,
             fontFamily: "inherit",
             boxSizing: "border-box",
@@ -277,7 +277,7 @@ export default function HeroEditor({ content, updateField }) {
         <p
           style={{
             fontSize: 12,
-            color: C.textSecondary,
+            color: C.grey,
             marginTop: 6,
             margin: "6px 0 0 0",
           }}
@@ -293,7 +293,7 @@ export default function HeroEditor({ content, updateField }) {
           border: `1px solid ${C.border}`,
           borderRadius: 6,
           fontSize: 12,
-          color: C.textSecondary,
+          color: C.grey,
         }}
       >
         💡 <strong>Tip:</strong> Hero backgrounds can be set to static image or

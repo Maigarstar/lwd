@@ -31,9 +31,10 @@ export default function TwoColumnEditorialCard({ data = {} }) {
   const { isMobile } = useBreakpoint();
 
   const bg        = accentBg || (theme === 'light' ? '#f9f6f0' : C.dark);
+  const _bgLc     = bg.toLowerCase();
   const isLightBg = !accentBg
     ? theme === 'light'
-    : (bg.startsWith('#f') || bg.startsWith('#e') || bg.startsWith('#d') || bg.startsWith('#c'));
+    : (_bgLc.startsWith('#f') || _bgLc.startsWith('#e') || _bgLc.startsWith('#d') || _bgLc.startsWith('#c'));
   const textColor = isLightBg ? '#1a1209' : '#f5f0e8';
   const muteColor = isLightBg ? 'rgba(26,18,9,0.55)' : 'rgba(245,240,232,0.55)';
 

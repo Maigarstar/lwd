@@ -10,7 +10,6 @@ import { getRegionPageConfig } from "../services/regionPageConfig";
 import { VENUES } from "../data/italyVenues";
 import { getRealWeddingsByLocation } from "../services/realWeddingService";
 
-import SiteFooter from "../components/sections/SiteFooter";
 import RegionHero from "../components/sections/RegionHero";
 import RegionFeatured from "../components/sections/RegionFeatured";
 import RegionRealWeddings from "../components/sections/RegionRealWeddings";
@@ -155,16 +154,6 @@ export default function PugliaPage({
           </p>
         </section>
       )}
-
-      {/* ── Footer ── */}
-      <SiteFooter
-        onViewCategory={onViewCategory}
-        onViewVenue={onViewVenue}
-        onViewRegion={onViewRegion}
-        onViewStandard={onViewStandard}
-        onViewAbout={onViewAbout}
-        footerNav={footerNav}
-      />
 
       {/* ── Theme toggle (hidden in production, shown for demo) ── */}
       {loaded && (

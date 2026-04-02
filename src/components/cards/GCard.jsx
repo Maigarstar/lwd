@@ -49,7 +49,7 @@ export default function GCard({ v, saved, onSave, onView, onQuickView }) {
           }}
         >
           <img
-            src={v.imgs[0]}
+            src={typeof v.imgs[0] === 'string' ? v.imgs[0] : v.imgs[0]?.src}
             alt={`${v.name} in ${v.region}`}
             loading="lazy"
             style={{

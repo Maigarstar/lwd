@@ -3,14 +3,9 @@
   "configurations": [
     {
       "name": "dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 5176,
-      "autoPort": false,
-      "cwd": "/Users/taiwoadedayo/LDW-01",
-      "env": {
-        "VITE_PORT": "5176"
-      }
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan && /Users/taiwoadedayo/LDW-01/node_modules/.bin/vite --port 5176 --host 0.0.0.0"],
+      "port": 5176
     }
   ]
 }

@@ -437,6 +437,29 @@ function VideoUploadField({ value, onChange, C, uploadPath }) {
   );
 }
 
+// ── Geocode query builder — strips address noise, extracts city/country ─────────
+function buildGeoQueries(title, location) {
+  // location may be "Adria Palace, Erzsébet tér 7–8 · Budapest · Hungary"
+  // We want to extract just "Budapest, Hungary" for geocoding
+  let cityCountry = (location || '').trim();
+  if (cityCountry) {
+    // Split on middle-dot separator (·) — last 2 segments are city + country
+    const dotParts = cityCountry.split('·').map(s => s.trim()).filter(Boolean);
+    if (dotParts.length >= 2) {
+      cityCountry = dotParts.slice(-2).join(', ');
+    } else {
+      // Fall back to comma split — last 2 segments
+      const commaParts = dotParts[0].split(',').map(s => s.trim()).filter(Boolean);
+      cityCountry = commaParts.slice(-Math.min(2, commaParts.length)).join(', ');
+    }
+  }
+  const queries = [];
+  if (title && cityCountry) queries.push(`${title}, ${cityCountry}`);
+  if (title)                 queries.push(title);
+  if (cityCountry)           queries.push(cityCountry);
+  return queries;
+}
+
 // ── NearbyMapField — fully automatic geocode from venue name + location ────────
 function NearbyMapField({ content, setContent, C, showcase }) {
   const [status, setStatus] = useState('idle'); // idle | loading | ok | error
@@ -445,21 +468,23 @@ function NearbyMapField({ content, setContent, C, showcase }) {
   const hasCoords = !!(content.lat && content.lng);
 
   async function geocode() {
-    const query = [showcase?.title, showcase?.location].filter(Boolean).join(', ');
-    if (!query) { setStatus('error'); setFound('No venue name or location set on this showcase'); return; }
+    const queries = buildGeoQueries(showcase?.title, showcase?.location);
+    if (!queries.length) { setStatus('error'); setFound('No venue name or location set on this showcase'); return; }
     setStatus('loading');
     try {
-      const res  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`, { headers: { 'Accept-Language': 'en' } });
-      const data = await res.json();
-      if (data?.[0]) {
-        setContent('lat', data[0].lat);
-        setContent('lng', data[0].lon);
-        const label = data[0].display_name;
-        setFound(label.slice(0, 72) + (label.length > 72 ? '…' : ''));
-        setStatus('ok');
-      } else {
-        setStatus('error'); setFound(`No result for "${query}"`);
+      for (const q of queries) {
+        const res  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`, { headers: { 'Accept-Language': 'en' } });
+        const data = await res.json();
+        if (data?.[0]) {
+          setContent('lat', data[0].lat);
+          setContent('lng', data[0].lon);
+          const label = data[0].display_name;
+          setFound(label.slice(0, 72) + (label.length > 72 ? '…' : ''));
+          setStatus('ok');
+          return;
+        }
       }
+      setStatus('error'); setFound(`Could not locate "${queries[0]}" — enter coordinates manually`);
     } catch { setStatus('error'); setFound('Network error — try again'); }
   }
 
@@ -958,7 +983,76 @@ function SectionEditor({ section, onChange, C, showcase, sections, onAiFill, aiL
           <Field label="Title" fieldKey="title" />
           <Field label="Eyebrow" fieldKey="eyebrow" placeholder="e.g. 150 Piccadilly · Mayfair · London" />
           <Field label="Tagline" fieldKey="tagline" type="textarea" rows={3} />
-          <ImgField label="Hero Image (fallback)" fieldKey="image" />
+
+          {/* ── Multi-image slideshow ── */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={lbl(C)}>Hero Images (crossfade slideshow)</label>
+            <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, marginBottom: 10, lineHeight: 1.6 }}>
+              Add multiple images — they will fade between each other automatically. First image is the primary fallback.
+            </div>
+            {(content.images || []).map((img, idx) => {
+              const url = typeof img === 'string' ? img : img?.url || '';
+              return (
+                <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8 }}>
+                  {/* Thumbnail */}
+                  {url && (
+                    <div style={{ width: 48, height: 32, borderRadius: 3, overflow: 'hidden', flexShrink: 0, border: `1px solid ${C.border}` }}>
+                      <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </div>
+                  )}
+                  <ImageUploadField
+                    label=""
+                    value={url}
+                    onChange={v => {
+                      const imgs = [...(content.images || [])];
+                      imgs[idx] = v;
+                      setContent('images', imgs);
+                    }}
+                    C={C}
+                    uploadPath="showcases/hero"
+                  />
+                  {/* Move up */}
+                  <button
+                    onClick={() => {
+                      if (idx === 0) return;
+                      const imgs = [...(content.images || [])];
+                      [imgs[idx-1], imgs[idx]] = [imgs[idx], imgs[idx-1]];
+                      setContent('images', imgs);
+                    }}
+                    style={{ background:'none', border:'none', color: idx===0 ? C.border : C.grey2, cursor: idx===0 ? 'default':'pointer', fontSize:12, padding:'0 2px', flexShrink:0, lineHeight:1 }}>▲</button>
+                  {/* Move down */}
+                  <button
+                    onClick={() => {
+                      const imgs = content.images || [];
+                      if (idx >= imgs.length-1) return;
+                      const n = [...imgs];
+                      [n[idx+1], n[idx]] = [n[idx], n[idx+1]];
+                      setContent('images', n);
+                    }}
+                    style={{ background:'none', border:'none', color: idx>=(content.images||[]).length-1 ? C.border : C.grey2, cursor: idx>=(content.images||[]).length-1 ? 'default':'pointer', fontSize:12, padding:'0 2px', flexShrink:0, lineHeight:1 }}>▼</button>
+                  {/* Remove */}
+                  <button
+                    onClick={() => setContent('images', (content.images||[]).filter((_,i)=>i!==idx))}
+                    style={{ background:'none', border:'none', color:'#f87171', cursor:'pointer', fontSize:14, padding:'0 2px', flexShrink:0 }}>✕</button>
+                </div>
+              );
+            })}
+            <button
+              onClick={() => setContent('images', [...(content.images||[]), ''])}
+              style={{ fontFamily:NU, fontSize:11, color:GOLD, background:'none', border:`1px dashed ${GOLD}`, borderRadius:4, padding:'6px 14px', cursor:'pointer', width:'100%', marginBottom:6 }}>
+              + Add Image
+            </button>
+            {/* Slide duration */}
+            {(content.images||[]).length > 1 && (
+              <div style={{ marginTop: 8 }}>
+                <label style={lbl(C)}>Slide Duration (seconds)</label>
+                <input type="number" min="2" max="15" value={content.slide_duration || 5}
+                  onChange={e => setContent('slide_duration', parseInt(e.target.value))}
+                  style={{ ...inp(C), width: 80 }} />
+              </div>
+            )}
+          </div>
+
           {/* Hero background video */}
           <HeroVideoField content={content} setContent={setContent} C={C} />
           <div style={{ marginBottom: 14 }}>
@@ -1337,12 +1431,94 @@ function SectionEditor({ section, onChange, C, showcase, sections, onAiFill, aiL
       {/* ── Map ── */}
       {section.type === 'map' && (
         <>
-          <Field label="Section Heading" fieldKey="headline" placeholder="Find Us" />
-          {/* Auto-geocode from venue name + location — no manual address needed */}
-          <NearbyMapField content={content} setContent={setContent} C={C} showcase={showcase} />
-          <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, lineHeight: 1.7, marginBottom: 12 }}>
-            Map position is set automatically from the venue name and location. Use the fields below only for fine-tuning.
+          <Field label="Section Heading" fieldKey="headline" placeholder="Location of your stay" />
+
+          {/* ── Address panel ── */}
+          <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD, marginBottom: 10, marginTop: 4 }}>Address Panel</div>
+          <Field label="Address Panel Heading" fieldKey="addressHeading" placeholder="Hotel Address" />
+          <Field label="Address Display" fieldKey="addressDisplay" type="textarea" rows={4}
+            placeholder={'Al Habtoor Palace Budapest\nErzsébet tér 7–8\nBudapest\n1051, Hungary'} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+            <div>
+              <label style={lbl(C)}>Check-in</label>
+              <input value={content.checkin || ''} onChange={e => setContent('checkin', e.target.value)} placeholder="15:00" style={inp(C)} />
+            </div>
+            <div>
+              <label style={lbl(C)}>Check-out</label>
+              <input value={content.checkout || ''} onChange={e => setContent('checkout', e.target.value)} placeholder="12:00" style={inp(C)} />
+            </div>
           </div>
+          <Field label="What3words" fieldKey="what3words" placeholder="///filled.count.soap" />
+
+          {/* ── Where is it? ── */}
+          <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD, marginBottom: 10, marginTop: 16 }}>Where Is It?</div>
+          <Field label="Section Heading" fieldKey="whereHeading" placeholder="Where is it?" />
+          <div style={{ marginBottom: 14 }}>
+            <label style={lbl(C)}>Distance Items</label>
+            {(content.whereItems || []).map((item, idx) => (
+              <div key={idx} style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+                <input
+                  value={item.text || ''}
+                  onChange={e => { const n=[...(content.whereItems||[])]; n[idx]={...n[idx],text:e.target.value}; setContent('whereItems',n); }}
+                  placeholder="5 mins to city centre"
+                  style={{ ...inp(C), flex: 1, fontSize: 11 }}
+                />
+                <button onClick={() => setContent('whereItems', (content.whereItems||[]).filter((_,i)=>i!==idx))}
+                  style={{ background:'none', border:'none', color:'#f87171', cursor:'pointer', fontSize:14, padding:'0 2px', flexShrink:0 }}>✕</button>
+              </div>
+            ))}
+            <button onClick={() => setContent('whereItems', [...(content.whereItems||[]), { text:'' }])}
+              style={{ fontFamily:NU, fontSize:11, color:GOLD, background:'none', border:`1px dashed ${GOLD}`, borderRadius:4, padding:'5px 12px', cursor:'pointer', width:'100%' }}>
+              + Add Distance Item
+            </button>
+          </div>
+
+          {/* ── Colours ── */}
+          <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD, marginBottom: 10, marginTop: 16 }}>Colours</div>
+          {/* Section background */}
+          <label style={lbl(C)}>Section Background</label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+            {['#ffffff','#faf9f6','#FDFBF7','#f5f0e8','#0f0e0c','#1a1209','#0a0a08'].map(col => (
+              <button key={col} onClick={() => setLayout('accentBg', col)}
+                style={{ width:26, height:26, borderRadius:3, background:col, border: layout.accentBg===col ? `2px solid ${GOLD}` : `1px solid ${C.border}`, cursor:'pointer', flexShrink:0 }} />
+            ))}
+            <button onClick={() => setLayout('accentBg','')} title="Reset" style={{ width:26, height:26, borderRadius:3, background:'transparent', border:`1px dashed ${C.border}`, cursor:'pointer', flexShrink:0, fontSize:12, color:C.grey2, display:'flex', alignItems:'center', justifyContent:'center' }}>↺</button>
+            <input type="text" value={layout.accentBg||''} onChange={e=>setLayout('accentBg',e.target.value)} placeholder="#ffffff" style={{ ...inp(C), width:90, fontSize:11, padding:'5px 8px' }} />
+          </div>
+          {/* Heading text colour */}
+          <label style={lbl(C)}>Heading Colour</label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+            {['#1a1a1a','#1a1209','#f5f0e8','#ffffff','#C9A84C'].map(col => (
+              <button key={col} onClick={() => setLayout('textColor', col)}
+                style={{ width:26, height:26, borderRadius:3, background:col, border: layout.textColor===col ? `2px solid ${GOLD}` : `1px solid ${C.border}`, cursor:'pointer', flexShrink:0 }} />
+            ))}
+            <button onClick={() => setLayout('textColor','')} title="Reset" style={{ width:26, height:26, borderRadius:3, background:'transparent', border:`1px dashed ${C.border}`, cursor:'pointer', flexShrink:0, fontSize:12, color:C.grey2, display:'flex', alignItems:'center', justifyContent:'center' }}>↺</button>
+            <input type="text" value={layout.textColor||''} onChange={e=>setLayout('textColor',e.target.value)} placeholder="#1a1a1a" style={{ ...inp(C), width:90, fontSize:11, padding:'5px 8px' }} />
+          </div>
+          {/* Panel background */}
+          <label style={lbl(C)}>Panel Background</label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+            {['#ffffff','#faf9f6','#f5f0e8','#141210','#1a1a1a','#0f0e0c'].map(col => (
+              <button key={col} onClick={() => setLayout('panelBg', col)}
+                style={{ width:26, height:26, borderRadius:3, background:col, border: layout.panelBg===col ? `2px solid ${GOLD}` : `1px solid ${C.border}`, cursor:'pointer', flexShrink:0 }} />
+            ))}
+            <button onClick={() => setLayout('panelBg','')} title="Reset" style={{ width:26, height:26, borderRadius:3, background:'transparent', border:`1px dashed ${C.border}`, cursor:'pointer', flexShrink:0, fontSize:12, color:C.grey2, display:'flex', alignItems:'center', justifyContent:'center' }}>↺</button>
+            <input type="text" value={layout.panelBg||''} onChange={e=>setLayout('panelBg',e.target.value)} placeholder="#ffffff" style={{ ...inp(C), width:90, fontSize:11, padding:'5px 8px' }} />
+          </div>
+          {/* Panel text colour */}
+          <label style={lbl(C)}>Panel Text Colour</label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
+            {['#1a1a1a','#1a1209','#555555','#f5f0e8','#ffffff','#C9A84C'].map(col => (
+              <button key={col} onClick={() => setLayout('panelText', col)}
+                style={{ width:26, height:26, borderRadius:3, background:col, border: layout.panelText===col ? `2px solid ${GOLD}` : `1px solid ${C.border}`, cursor:'pointer', flexShrink:0 }} />
+            ))}
+            <button onClick={() => setLayout('panelText','')} title="Reset" style={{ width:26, height:26, borderRadius:3, background:'transparent', border:`1px dashed ${C.border}`, cursor:'pointer', flexShrink:0, fontSize:12, color:C.grey2, display:'flex', alignItems:'center', justifyContent:'center' }}>↺</button>
+            <input type="text" value={layout.panelText||''} onChange={e=>setLayout('panelText',e.target.value)} placeholder="#1a1a1a" style={{ ...inp(C), width:90, fontSize:11, padding:'5px 8px' }} />
+          </div>
+
+          {/* ── Map pin position ── */}
+          <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD, marginBottom: 10, marginTop: 8 }}>Map Pin</div>
+          <NearbyMapField content={content} setContent={setContent} C={C} showcase={showcase} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px', gap: 8, marginBottom: 14 }}>
             <div>
               <label style={lbl(C)}>Latitude override</label>

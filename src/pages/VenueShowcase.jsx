@@ -10,7 +10,8 @@
 import { useState, useEffect, useRef } from "react";
 import { fetchListingBySlug } from "../services/listings";
 import { getDefaultMode } from "../theme/tokens";
-import SiteFooter from "../components/sections/SiteFooter";
+import ShowcaseRenderer from "./ShowcaseRenderer";
+import { fetchShowcaseBySlug } from "../services/showcaseService";
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const LIGHT = {
@@ -227,19 +228,28 @@ function MasonryGrid({ images, onOpen }) {
 export default function VenueShowcase({ slug, onBack }) {
   const isMobile = useIsMobile();
   const [listing, setListing] = useState(null);
+  const [showcaseData, setShowcaseData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [lightIdx, setLightIdx] = useState(null);
   const [headerVisible, setHeaderVisible] = useState(false);
   const heroRef = useRef(null);
 
-  // Fetch listing
+  // Fetch showcase — try dynamic showcase first, fall back to listing masonry
   useEffect(() => {
     let ignore = false;
     async function load() {
       if (!slug) { setNotFound(true); setLoading(false); return; }
       setLoading(true);
       try {
+        // First: try venue_showcases (published dynamic showcase)
+        const showcase = await fetchShowcaseBySlug(slug);
+        if (!ignore && showcase) {
+          setShowcaseData(showcase);
+          setLoading(false);
+          return;
+        }
+        // Fallback: try listing by slug (legacy masonry gallery)
         const data = await fetchListingBySlug(slug);
         if (ignore) return;
         if (!data) { setNotFound(true); return; }
@@ -278,6 +288,16 @@ export default function VenueShowcase({ slug, onBack }) {
         }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
+    );
+  }
+
+  // If we have a published dynamic showcase, render it
+  if (showcaseData) {
+    return (
+      <ShowcaseRenderer
+        sections={showcaseData.published_sections || []}
+        showcase={showcaseData}
+      />
     );
   }
 
@@ -586,7 +606,6 @@ export default function VenueShowcase({ slug, onBack }) {
         onNext={() => setLightIdx((i) => Math.min(images.length - 1, i + 1))}
       />
 
-      <SiteFooter footerNav={{}} />
     </div>
   );
 }
