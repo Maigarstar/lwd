@@ -451,8 +451,8 @@ function IntroSection({ content, layout, palette }) {
     const bg        = layout?.accentBg || P.bg2;
     const bgLc      = bg.toLowerCase();
     const isLight   = bgLc.startsWith('#f') || bgLc.startsWith('#e') || bgLc.startsWith('#d') || bgLc.startsWith('#fa') || bgLc.startsWith('#fd');
-    const textCol   = isLight ? '#1C1410' : '#f5f0e8';
-    const mutCol    = isLight ? 'rgba(28,20,16,0.6)' : 'rgba(245,240,232,0.65)';
+    const textCol   = layout?.textColor || (isLight ? '#1C1410' : '#f5f0e8');
+    const mutCol    = layout?.textColor ? `${layout.textColor}99` : (isLight ? 'rgba(28,20,16,0.6)' : 'rgba(245,240,232,0.65)');
     const goldCol   = P.accent;
     const alignVal  = layout?.align || 'left';
     const isCtr     = alignVal === 'center';
@@ -500,8 +500,8 @@ function IntroSection({ content, layout, palette }) {
   const bg      = layout?.accentBg || (P.mode === 'light' ? '#faf9f6' : P.bg2);
   const bgLc    = bg.toLowerCase();
   const isLight = bgLc.startsWith('#f') || bgLc.startsWith('#e') || bgLc.startsWith('#d') || bgLc.startsWith('#fa') || bgLc.startsWith('#fd');
-  const textCol = isLight ? '#1C1410' : '#f5f0e8';
-  const mutCol  = isLight ? 'rgba(28,20,16,0.6)' : 'rgba(245,240,232,0.65)';
+  const textCol = layout?.textColor || (isLight ? '#1C1410' : '#f5f0e8');
+  const mutCol  = layout?.textColor ? `${layout.textColor}99` : (isLight ? 'rgba(28,20,16,0.6)' : 'rgba(245,240,232,0.65)');
   const goldCol = P.accent;
   return (
     <div style={{ background: bg, padding: 'clamp(56px, 8vw, 104px) clamp(24px, 6vw, 80px)', display: 'flex', justifyContent: 'center' }}>
@@ -617,8 +617,8 @@ function HighlightBandSection({ content, layout, palette }) {
 
   const bgLc      = bg.toLowerCase();
   const bgIsLight = bgLc.startsWith('#f') || bgLc.startsWith('#e') || bgLc.startsWith('#d') || bgLc.startsWith('#fa') || bgLc.startsWith('#fd');
-  const textCol   = bgIsLight ? '#1C1410' : '#f5f0e8';
-  const mutCol    = bgIsLight ? 'rgba(28,20,16,0.58)' : 'rgba(245,240,232,0.62)';
+  const textCol   = layout?.textColor || (bgIsLight ? '#1C1410' : '#f5f0e8');
+  const mutCol    = layout?.textColor ? `${layout.textColor}99` : (bgIsLight ? 'rgba(28,20,16,0.58)' : 'rgba(245,240,232,0.62)');
   const goldCol   = P.accent;
   const textAlign = isCenter ? 'center' : isRight ? 'right' : 'left';
   const divMargin = isCenter ? '28px auto' : isRight ? '28px 0 28px auto' : '28px 0';
@@ -690,8 +690,8 @@ function StatsSection({ content, layout, palette }) {
     const bg        = layout?.accentBg || P.bg2;
     const bgLc      = bg.toLowerCase();
     const isLight   = bgLc.startsWith('#f') || bgLc.startsWith('#e') || bgLc.startsWith('#d');
-    const textCol   = isLight ? '#1C1410' : '#f5f0e8';
-    const mutCol    = isLight ? 'rgba(28,20,16,0.55)' : 'rgba(245,240,232,0.55)';
+    const textCol   = layout?.textColor || (isLight ? '#1C1410' : '#f5f0e8');
+    const mutCol    = layout?.textColor ? `${layout.textColor}99` : (isLight ? 'rgba(28,20,16,0.55)' : 'rgba(245,240,232,0.55)');
     const brdCol    = isLight ? 'rgba(28,20,16,0.1)' : 'rgba(245,240,232,0.1)';
     const goldCol   = P.accent;
     const alignVal  = layout?.align || 'left';
@@ -942,7 +942,7 @@ function GallerySection({ content, layout, palette }) {
 }
 
 // ── FilmsSection — inline YouTube/Vimeo player ───────────────────────────────
-function FilmsSection({ content, palette }) {
+function FilmsSection({ content, layout, palette }) {
   const { isMobile } = useBreakpoint();
   const P      = palette;
   const videos = content.videos || [];
@@ -957,9 +957,12 @@ function FilmsSection({ content, palette }) {
     ? `https://player.vimeo.com/video/${active.vimeoId}?title=0&byline=0&portrait=0`
     : null;
   const isDirect = !!(active.directUrl);
+  const bg      = layout?.accentBg || P.bg;
+  const bgIsLt  = bg.startsWith('#f') || bg.startsWith('#e') || bg.startsWith('#d') || bg === '#ffffff';
+  const textCol = layout?.textColor || (bgIsLt ? '#1a1209' : P.text);
 
   return (
-    <div style={{ background: P.bg, padding: isMobile ? '40px 0 56px' : '64px 0 80px' }}>
+    <div style={{ background: bg, padding: isMobile ? '40px 0 56px' : '64px 0 80px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '0 20px' : '0 clamp(24px, 5vw, 64px)' }}>
         {content.eyebrow && (
           <p style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: P.accent, margin: '0 0 28px' }}>
@@ -992,7 +995,7 @@ function FilmsSection({ content, palette }) {
         </div>
         {/* Title */}
         {active.title && (
-          <p style={{ fontFamily: GD, fontSize: isMobile ? 17 : 20, color: P.text, margin: '20px 0 4px', letterSpacing: '-0.01em' }}>
+          <p style={{ fontFamily: GD, fontSize: isMobile ? 17 : 20, color: textCol, margin: '20px 0 4px', letterSpacing: '-0.01em' }}>
             {active.title}
           </p>
         )}
@@ -2153,7 +2156,7 @@ function loadLeafletOnce() {
   return _leafletPromise;
 }
 
-function MapShowcaseSection({ content, palette }) {
+function MapShowcaseSection({ content, layout, palette, showcaseName, showcaseLocation }) {
   const P      = palette;
   const mapEl  = useRef(null);
   const mapRef = useRef(null);
@@ -2189,24 +2192,34 @@ function MapShowcaseSection({ content, palette }) {
       setReady(true);
     }
 
+    async function geocodeQuery(query) {
+      try {
+        const res  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`, { headers: { 'Accept-Language': 'en' } });
+        const data = await res.json();
+        if (!cancelled && data?.[0]) init(parseFloat(data[0].lat), parseFloat(data[0].lon));
+      } catch {}
+    }
+
     if (content.lat && content.lng) {
       init(parseFloat(content.lat), parseFloat(content.lng));
     } else if (address) {
-      fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address)}`, { headers: { 'Accept-Language': 'en' } })
-        .then(r => r.json())
-        .then(j => { if (!cancelled && j?.[0]) init(parseFloat(j[0].lat), parseFloat(j[0].lon)); })
-        .catch(() => {});
+      geocodeQuery(address);
+    } else {
+      // Auto-geocode from showcase name + location (no manual address required)
+      const autoQuery = [showcaseName, showcaseLocation].filter(Boolean).join(', ');
+      if (autoQuery) geocodeQuery(autoQuery);
     }
 
     return () => {
       cancelled = true;
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
     };
-  }, [content.address, content.lat, content.lng, content.zoom]);
+  }, [content.address, content.lat, content.lng, content.zoom, showcaseName, showcaseLocation]);
 
-  const bg = P.mode === 'light' ? '#faf9f6' : '#0a0908';
-  const textColor = P.mode === 'light' ? '#1a1a1a' : '#f2efe9';
-  const mutedColor = P.mode === 'light' ? '#666' : '#aaa';
+  const bg        = layout?.accentBg || (P.mode === 'light' ? '#faf9f6' : '#0a0908');
+  const bgIsLt    = bg === '#ffffff' || bg === '#faf9f6' || bg === '#FDFBF7' || bg.startsWith('#f') || bg.startsWith('#e') || bg.startsWith('#d');
+  const textColor = layout?.textColor || (bgIsLt ? '#1a1a1a' : '#f2efe9');
+  const mutedColor = layout?.textColor ? `${layout.textColor}99` : (bgIsLt ? '#666' : '#aaa');
 
   return (
     <section style={{ background: bg, padding: '64px 0' }}>
@@ -2512,7 +2525,7 @@ export default function ShowcaseRenderer({
         inner = <GallerySection content={content} layout={layout} palette={palette} />;
         break;
       case 'films':
-        inner = <FilmsSection content={content} palette={palette} />;
+        inner = <FilmsSection content={content} layout={layout} palette={palette} />;
         break;
       case 'dining':
       case 'spaces':
@@ -2533,13 +2546,13 @@ export default function ShowcaseRenderer({
         inner = <BentoGridSection content={content} layout={layout} palette={palette} />;
         break;
       case 'nearby':
-        inner = <NearbySection content={content} layout={layout} palette={palette} />;
+        inner = <NearbySection content={content} layout={layout} palette={palette} showcaseName={showcase?.title} showcaseLocation={showcase?.location} />;
         break;
       case 'rooms':
         inner = <RoomsSection content={content} layout={layout} palette={palette} />;
         break;
       case 'map':
-        inner = <MapShowcaseSection content={content} palette={palette} />;
+        inner = <MapShowcaseSection content={content} layout={layout} palette={palette} showcaseName={showcase?.title} showcaseLocation={showcase?.location} />;
         break;
       case 'image-full':
         inner = <FullImageSection content={content} />;

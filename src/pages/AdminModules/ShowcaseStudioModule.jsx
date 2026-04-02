@@ -437,86 +437,56 @@ function VideoUploadField({ value, onChange, C, uploadPath }) {
   );
 }
 
-// ── NearbyMapField — address input + Nominatim auto-geocode ──────────────────
+// ── NearbyMapField — fully automatic geocode from venue name + location ────────
 function NearbyMapField({ content, setContent, C, showcase }) {
-  const [geocoding, setGeocoding] = useState(false);
-  const [geoMsg,    setGeoMsg]    = useState('');
-  const [showCoords, setShowCoords] = useState(false);
+  const [status, setStatus] = useState('idle'); // idle | loading | ok | error
+  const [found,  setFound]  = useState('');
 
-  // Auto-suggest from showcase/venue name if address is blank
-  const venueName = showcase?.title || '';
-  const addrVal   = content.address || '';
+  const hasCoords = !!(content.lat && content.lng);
 
-  async function handleGeocode() {
-    const query = addrVal.trim() || venueName.trim();
-    if (!query) { setGeoMsg('Enter an address first'); return; }
-    setGeocoding(true); setGeoMsg('');
+  async function geocode() {
+    const query = [showcase?.title, showcase?.location].filter(Boolean).join(', ');
+    if (!query) { setStatus('error'); setFound('No venue name or location set on this showcase'); return; }
+    setStatus('loading');
     try {
       const res  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`, { headers: { 'Accept-Language': 'en' } });
       const data = await res.json();
       if (data?.[0]) {
-        const { lat, lon, display_name } = data[0];
-        setContent('lat',     lat);
-        setContent('lng',     lon);
-        if (!addrVal) setContent('address', display_name);
-        setGeoMsg(`✓ Found: ${display_name.slice(0, 60)}${display_name.length > 60 ? '…' : ''}`);
+        setContent('lat', data[0].lat);
+        setContent('lng', data[0].lon);
+        const label = data[0].display_name;
+        setFound(label.slice(0, 72) + (label.length > 72 ? '…' : ''));
+        setStatus('ok');
       } else {
-        setGeoMsg('Location not found — try a more specific address');
+        setStatus('error'); setFound(`No result for "${query}"`);
       }
-    } catch {
-      setGeoMsg('Geocoding failed — check your connection');
-    }
-    setGeocoding(false);
+    } catch { setStatus('error'); setFound('Network error — try again'); }
   }
 
+  // Auto-run on mount if coords are missing
+  useEffect(() => { if (!hasCoords) geocode(); }, []);
+
   return (
-    <div style={{ marginBottom: 12 }}>
-      <label style={lbl(C)}>Location / Address</label>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-        <input
-          value={addrVal}
-          onChange={e => { setContent('address', e.target.value); setGeoMsg(''); }}
-          placeholder={venueName ? `e.g. ${venueName}, full address…` : 'Full venue address…'}
-          style={{ ...inp(C), flex: 1 }}
-        />
-        <button
-          onClick={handleGeocode}
-          disabled={geocoding}
-          style={{
-            flexShrink: 0, fontFamily: NU, fontSize: 10, fontWeight: 700,
-            letterSpacing: '0.08em', textTransform: 'uppercase',
-            padding: '0 12px', height: 34,
-            background: geocoding ? `${GOLD}66` : GOLD,
-            color: '#0a0906', border: 'none', borderRadius: 3, cursor: geocoding ? 'default' : 'pointer',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {geocoding ? '…' : '⌖ Find on Map'}
+    <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.cardBg || `${C.border}18` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 16, lineHeight: 1 }}>⌖</span>
+        <div style={{ flex: 1, fontFamily: NU, fontSize: 11 }}>
+          {status === 'loading' && <span style={{ color: C.grey2 }}>Locating <strong>{showcase?.title}</strong>…</span>}
+          {status === 'ok'      && <span style={{ color: '#22c55e' }}>✓ {found}</span>}
+          {status === 'error'   && <span style={{ color: '#f87171' }}>{found}</span>}
+          {status === 'idle' && hasCoords && <span style={{ color: '#22c55e' }}>✓ Location set ({parseFloat(content.lat).toFixed(4)}, {parseFloat(content.lng).toFixed(4)})</span>}
+          {status === 'idle' && !hasCoords && <span style={{ color: C.grey2 }}>Waiting…</span>}
+        </div>
+        <button onClick={geocode} disabled={status === 'loading'}
+          style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '4px 10px', background: 'none', border: `1px solid ${C.border}`, borderRadius: 3, color: C.grey2, cursor: status === 'loading' ? 'default' : 'pointer', whiteSpace: 'nowrap' }}>
+          {status === 'loading' ? '…' : '↺ Retry'}
         </button>
       </div>
-
-      {/* Feedback message */}
-      {geoMsg && (
-        <div style={{ fontFamily: NU, fontSize: 10, color: geoMsg.startsWith('✓') ? '#22c55e' : '#f87171', marginBottom: 6, lineHeight: 1.5 }}>
-          {geoMsg}
-        </div>
-      )}
-
-      {/* Coords — collapsible */}
-      {(content.lat || content.lng) && (
-        <div>
-          <button onClick={() => setShowCoords(v => !v)}
-            style={{ background: 'none', border: 'none', fontFamily: NU, fontSize: 10, color: C.grey2, cursor: 'pointer', padding: 0, marginBottom: showCoords ? 6 : 0 }}>
-            {showCoords ? '▾' : '▸'} Coordinates {content.lat ? `${parseFloat(content.lat).toFixed(4)}, ${parseFloat(content.lng).toFixed(4)}` : ''}
-          </button>
-          {showCoords && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 6, alignItems: 'center' }}>
-              <input value={content.lat || ''} onChange={e => setContent('lat', e.target.value)} placeholder="Latitude" style={{ ...inp(C), fontSize: 11 }} />
-              <input value={content.lng || ''} onChange={e => setContent('lng', e.target.value)} placeholder="Longitude" style={{ ...inp(C), fontSize: 11 }} />
-              <button onClick={() => { setContent('lat', ''); setContent('lng', ''); setGeoMsg(''); }}
-                style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 12, padding: '0 4px' }}>✕</button>
-            </div>
-          )}
+      {hasCoords && (
+        <div style={{ fontFamily: NU, fontSize: 10, color: C.grey2, marginTop: 6 }}>
+          {parseFloat(content.lat).toFixed(5)}, {parseFloat(content.lng).toFixed(5)}
+          <button onClick={() => { setContent('lat', ''); setContent('lng', ''); setStatus('idle'); setFound(''); }}
+            style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 10, marginLeft: 8, padding: 0 }}>clear</button>
         </div>
       )}
     </div>
@@ -1368,18 +1338,19 @@ function SectionEditor({ section, onChange, C, showcase, sections, onAiFill, aiL
       {section.type === 'map' && (
         <>
           <Field label="Section Heading" fieldKey="headline" placeholder="Find Us" />
-          <Field label="Address" fieldKey="address" type="textarea" rows={3} placeholder={'Al Habtoor Palace Budapest\nErzsébet tér 7-8\nBudapest, Hungary'} />
+          {/* Auto-geocode from venue name + location — no manual address needed */}
+          <NearbyMapField content={content} setContent={setContent} C={C} showcase={showcase} />
           <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, lineHeight: 1.7, marginBottom: 12 }}>
-            The map geocodes your address automatically. For pinpoint accuracy, enter lat/lng below.
+            Map position is set automatically from the venue name and location. Use the fields below only for fine-tuning.
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px', gap: 8, marginBottom: 14 }}>
             <div>
-              <label style={lbl(C)}>Latitude</label>
-              <input type="text" value={content.lat || ''} onChange={e => setContent('lat', e.target.value)} placeholder="47.4979" style={inp(C)} />
+              <label style={lbl(C)}>Latitude override</label>
+              <input type="text" value={content.lat || ''} onChange={e => setContent('lat', e.target.value)} placeholder="auto" style={inp(C)} />
             </div>
             <div>
-              <label style={lbl(C)}>Longitude</label>
-              <input type="text" value={content.lng || ''} onChange={e => setContent('lng', e.target.value)} placeholder="19.0402" style={inp(C)} />
+              <label style={lbl(C)}>Longitude override</label>
+              <input type="text" value={content.lng || ''} onChange={e => setContent('lng', e.target.value)} placeholder="auto" style={inp(C)} />
             </div>
             <div>
               <label style={lbl(C)}>Zoom</label>
@@ -1566,12 +1537,13 @@ function SectionEditor({ section, onChange, C, showcase, sections, onAiFill, aiL
         </>
       )}
 
-      {/* ── Layout: accent background ── */}
-      {['intro','feature','quote','stats','highlight-band','dining','spaces','wellness','weddings','pricing','verified','bento-grid','nearby','rooms'].includes(section.type) && (
+      {/* ── Layout: accent background + text colour ── */}
+      {['intro','feature','quote','stats','highlight-band','dining','spaces','wellness','weddings','pricing','verified','bento-grid','nearby','rooms','films','map','mosaic','gallery'].includes(section.type) && (
         <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+          {/* Panel background */}
           <label style={lbl(C)}>Panel Background</label>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            {['#0f0e0c','#1a1209','#131c14','#0d1a1f','#1a1616','#faf9f6','#FDFBF7'].map(col => (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
+            {['#0f0e0c','#1a1209','#131c14','#0d1a1f','#1a1616','#faf9f6','#FDFBF7','#ffffff'].map(col => (
               <button
                 key={col}
                 onClick={() => setLayout('accentBg', col)}
@@ -1583,6 +1555,10 @@ function SectionEditor({ section, onChange, C, showcase, sections, onAiFill, aiL
                 }}
               />
             ))}
+            <button
+              onClick={() => setLayout('accentBg', '')}
+              title="Reset to theme default"
+              style={{ width: 26, height: 26, borderRadius: 3, background: 'transparent', border: `1px dashed ${C.border}`, cursor: 'pointer', flexShrink: 0, fontSize: 12, color: C.grey2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>↺</button>
             <input
               type="text"
               value={layout.accentBg || ''}
@@ -1590,6 +1566,24 @@ function SectionEditor({ section, onChange, C, showcase, sections, onAiFill, aiL
               placeholder="#1a1209"
               style={{ ...inp(C), width: 90, fontSize: 11, padding: '5px 8px' }}
             />
+          </div>
+          {/* Text colour */}
+          <label style={lbl(C)}>Text Colour</label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            {['#f5f0e8','#ffffff','#C9A84C','#1a1209','#1a1a1a','#555555'].map(col => (
+              <button key={col} onClick={() => setLayout('textColor', col)}
+                style={{ width: 26, height: 26, borderRadius: 3, background: col,
+                  border: layout.textColor === col ? `2px solid ${GOLD}` : `1px solid ${C.border}`,
+                  cursor: 'pointer', flexShrink: 0 }} />
+            ))}
+            <button
+              onClick={() => setLayout('textColor', '')}
+              title="Reset to theme default"
+              style={{ width: 26, height: 26, borderRadius: 3, background: 'transparent', border: `1px dashed ${C.border}`, cursor: 'pointer', flexShrink: 0, fontSize: 12, color: C.grey2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>↺</button>
+            <input type="text" value={layout.textColor || ''}
+              onChange={e => setLayout('textColor', e.target.value)}
+              placeholder="#f5f0e8"
+              style={{ ...inp(C), width: 90, fontSize: 11, padding: '5px 8px' }} />
           </div>
         </div>
       )}
