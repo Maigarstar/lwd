@@ -5,9 +5,6 @@
 // Hub for content delivery, campaigns, and activity per client.
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
-  fetchManagedAccounts,
-  createManagedAccount,
-  updateManagedAccount,
   fetchClientContentSummary,
   fetchAllContentSummaries,
   fetchPortalConfig,
@@ -15,6 +12,11 @@ import {
   buildDefaultPortalConfig,
   FALLBACK_ACCOUNTS,
 } from "../../services/socialStudioService";
+import {
+  readAccounts,
+  createAccount,
+  updateAccount,
+} from "../../services/managedAccountsService";
 
 const PLAN_OPTIONS = [
   { key: "signature",  label: "Signature",  color: "#c9a84c" },
@@ -116,9 +118,23 @@ function AccountModal({ C, account, onSave, onClose }) {
     contractStart: "", contractEnd: "", renewalDate: "",
     accountManager: "", internalNotes: "",
   });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
   const G = C?.gold || "#8f7420";
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const canSave = form.name?.trim();
+  const canSave = form.name?.trim() && !saving;
+
+  async function handleSaveClick() {
+    if (!canSave) return;
+    setSaving(true);
+    setSaveError(null);
+    const result = await onSave(form);
+    setSaving(false);
+    if (result?.ok === false) {
+      setSaveError(result.error || "Save failed. Please try again.");
+    }
+    // Modal closes inside onSave on success — do nothing here on ok: true
+  }
 
   const autoSlug = (v) => {
     set("name", v);
@@ -261,19 +277,30 @@ function AccountModal({ C, account, onSave, onClose }) {
           </div>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24, paddingTop: 20, borderTop: `1px solid ${C?.border || "#333"}` }}>
-          <button onClick={onClose} style={{
+        {saveError && (
+          <div style={{
+            marginTop: 16, padding: "10px 14px",
+            background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.35)",
+            borderRadius: 6, fontSize: 12, color: "#ef4444",
+          }}>
+            {saveError}
+          </div>
+        )}
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 16, paddingTop: 20, borderTop: `1px solid ${C?.border || "#333"}` }}>
+          <button onClick={onClose} disabled={saving} style={{
             background: "none", border: `1px solid ${C?.border || "#333"}`,
             borderRadius: 6, padding: "9px 20px", color: C?.grey || "#888",
-            fontSize: 13, cursor: "pointer",
+            fontSize: 13, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.5 : 1,
           }}>Cancel</button>
-          <button onClick={() => canSave && onSave(form)} disabled={!canSave} style={{
+          <button onClick={handleSaveClick} disabled={!canSave} style={{
             background: canSave ? G : C?.border || "#333",
             border: "none", borderRadius: 6, padding: "9px 24px",
             color: canSave ? "#fff" : C?.grey2 || "#555",
             fontSize: 13, fontWeight: 600, cursor: canSave ? "pointer" : "not-allowed",
+            minWidth: 120,
           }}>
-            {isEdit ? "Save Changes" : "Create Account"}
+            {saving ? (isEdit ? "Saving…" : "Creating…") : (isEdit ? "Save Changes" : "Create Account")}
           </button>
         </div>
       </div>
@@ -825,11 +852,16 @@ export default function ManagedAccountsModule({ C }) {
 
   const loadAccounts = useCallback(async () => {
     setLoading(true);
-    const [data, sums] = await Promise.all([
-      fetchManagedAccounts(),
+    const [result, sums] = await Promise.all([
+      readAccounts(),
       fetchAllContentSummaries(),
     ]);
-    setAccounts(data);
+    if (result.ok) {
+      setAccounts(result.data.length > 0 ? result.data : FALLBACK_ACCOUNTS);
+    } else {
+      console.warn('[ManagedAccountsModule] loadAccounts failed:', result.error, '— using fallback');
+      setAccounts(FALLBACK_ACCOUNTS);
+    }
     setSummaries(sums || {});
     setLoading(false);
   }, []);
@@ -853,25 +885,42 @@ export default function ManagedAccountsModule({ C }) {
     return list;
   }, [accounts, statusFilter, serviceFilter, planFilter, search]);
 
+  // handleSave: returns { ok, error } so AccountModal can stay open on failure.
   async function handleSave(form) {
-    setShowModal(false);
     if (form.id) {
-      setAccounts(prev => prev.map(a => a.id === form.id ? { ...a, ...form } : a));
-      await updateManagedAccount(form.id, form);
-      // Refresh selected panel if open
-      setSelected(prev => prev?.id === form.id ? { ...prev, ...form } : prev);
+      const result = await updateAccount(form.id, form);
+      if (!result.ok) return result; // modal stays open, shows error
+      // Immediate UI update with returned data (authoritative from DB)
+      const updated = result.data || { ...form };
+      setAccounts(prev => prev.map(a => a.id === form.id ? updated : a));
+      setSelected(prev => prev?.id === form.id ? updated : prev);
     } else {
-      const created = await createManagedAccount(form);
-      setAccounts(prev => [created || { ...form, id: `tmp_${Date.now()}` }, ...prev]);
+      const result = await createAccount(form);
+      if (!result.ok) return result; // modal stays open, shows error
+      const created = result.data;
+      setAccounts(prev => [created, ...prev]);
     }
+    // Success — close modal
+    setShowModal(false);
     setEditAccount(null);
+    return { ok: true };
   }
 
   async function handleStatusAction(accountId, newStatus) {
-    const updated = { status: newStatus };
-    setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, ...updated } : a));
-    setSelected(prev => prev?.id === accountId ? { ...prev, ...updated } : prev);
-    await updateManagedAccount(accountId, { ...accounts.find(a => a.id === accountId), status: newStatus });
+    const account = accounts.find(a => a.id === accountId);
+    if (!account) return;
+    // Optimistic UI update
+    const optimistic = { ...account, status: newStatus };
+    setAccounts(prev => prev.map(a => a.id === accountId ? optimistic : a));
+    setSelected(prev => prev?.id === accountId ? optimistic : prev);
+    // Persist via service
+    const result = await updateAccount(accountId, optimistic);
+    if (!result.ok) {
+      console.error('[ManagedAccountsModule] handleStatusAction failed:', result.error);
+      // Revert optimistic update on failure
+      setAccounts(prev => prev.map(a => a.id === accountId ? account : a));
+      setSelected(prev => prev?.id === accountId ? account : prev);
+    }
   }
 
   function openEdit(account) {
