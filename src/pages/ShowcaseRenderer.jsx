@@ -278,6 +278,9 @@ function HeroSection({ content, layout, showcaseHero, listingFirstImage, palette
   const op    = content.overlay_opacity ?? P.heroOverlayOpacity;
   const { isMobile } = useBreakpoint();
   const [videoFailed, setVideoFailed] = useState(false);
+  const [muted, setMuted]   = useState(true);
+  const iframeRef = useRef(null);
+  const directRef = useRef(null);
 
   // ── Multi-image slideshow ──────────────────────────────────────────────────
   // Build image array: content.images takes priority, falls back to single image
@@ -299,13 +302,30 @@ function HeroSection({ content, layout, showcaseHero, listingFirstImage, palette
   const vid = parseVideoUrl(content.videoUrl);
   const showVideo = vid && !videoFailed;
 
-  // YouTube embed: scale up iframe to fill, keep image behind as fallback
+  // YouTube embed — enablejsapi=1 allows postMessage mute control
   const ytEmbed = vid?.type === 'youtube'
-    ? `https://www.youtube.com/embed/${vid.id}?autoplay=1&mute=1&loop=1&playlist=${vid.id}&controls=0&rel=0&playsinline=1&enablejsapi=0`
+    ? `https://www.youtube.com/embed/${vid.id}?autoplay=1&mute=1&loop=1&playlist=${vid.id}&controls=0&rel=0&playsinline=1&enablejsapi=1`
     : null;
+  // Vimeo embed — controls=0 hides chrome, api=1 allows postMessage volume control
   const vmEmbed = vid?.type === 'vimeo'
-    ? `https://player.vimeo.com/video/${vid.id}?autoplay=1&muted=1&loop=1&background=1`
+    ? `https://player.vimeo.com/video/${vid.id}?autoplay=1&muted=1&loop=1&controls=0&title=0&byline=0&portrait=0&api=1`
     : null;
+
+  function toggleMute() {
+    const next = !muted;
+    setMuted(next);
+    if ((vid?.type === 'youtube') && iframeRef.current) {
+      iframeRef.current.contentWindow?.postMessage(
+        JSON.stringify({ event: 'command', func: next ? 'mute' : 'unMute', args: '' }), '*'
+      );
+    } else if (vid?.type === 'vimeo' && iframeRef.current) {
+      iframeRef.current.contentWindow?.postMessage(
+        JSON.stringify({ method: 'setVolume', value: next ? 0 : 1 }), 'https://player.vimeo.com'
+      );
+    } else if (vid?.type === 'direct' && directRef.current) {
+      directRef.current.muted = next;
+    }
+  }
 
   return (
     <div style={{
@@ -356,15 +376,15 @@ function HeroSection({ content, layout, showcaseHero, listingFirstImage, palette
       {/* Video layer */}
       {showVideo && (ytEmbed || vmEmbed) && (
         <iframe
+          ref={iframeRef}
           key={vid.id}
           src={ytEmbed || vmEmbed}
           allow="autoplay; fullscreen"
           style={{
             position: 'absolute',
-            // Scale iframe up to cover 16:9 into any aspect ratio
             top: '50%', left: '50%',
-            width: 'max(100%, 177.78vh)',  // 16/9 * 100vh
-            height: 'max(100%, 56.25vw)', // 9/16 * 100vw
+            width: 'max(100%, 177.78vh)',
+            height: 'max(100%, 56.25vw)',
             transform: 'translate(-50%, -50%)',
             border: 'none', pointerEvents: 'none',
           }}
@@ -373,12 +393,50 @@ function HeroSection({ content, layout, showcaseHero, listingFirstImage, palette
       )}
       {showVideo && vid?.type === 'direct' && (
         <video
+          ref={directRef}
           key={vid.url}
           src={vid.url}
           autoPlay muted loop playsInline
           onError={() => setVideoFailed(true)}
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
         />
+      )}
+      {/* Mute / unmute toggle — bottom-right, only shown when video is active */}
+      {showVideo && (
+        <button
+          onClick={toggleMute}
+          title={muted ? 'Unmute' : 'Mute'}
+          style={{
+            position: 'absolute',
+            bottom: isMobile ? 20 : 28,
+            right: isMobile ? 16 : 28,
+            zIndex: 20,
+            width: 40, height: 40,
+            borderRadius: '50%',
+            background: 'rgba(0,0,0,0.45)',
+            backdropFilter: 'blur(6px)',
+            border: '1px solid rgba(255,255,255,0.18)',
+            cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'background 0.2s ease',
+          }}
+        >
+          {muted ? (
+            /* Speaker with X — muted */
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <line x1="23" y1="9" x2="17" y2="15"/>
+              <line x1="17" y1="9" x2="23" y2="15"/>
+            </svg>
+          ) : (
+            /* Speaker with waves — unmuted */
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+            </svg>
+          )}
+        </button>
       )}
       <div style={{
         position: 'absolute', inset: 0,
