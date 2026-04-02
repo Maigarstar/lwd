@@ -72,10 +72,7 @@ const MagazineStudio         = lazy(() => import("./pages/MagazineStudio/index.j
 import EditorialShowcase    from "./pages/EditorialShowcase.jsx";
 import ShowcasePage         from "./pages/ShowcasePage.jsx";
 import VendorPublicPage     from "./pages/VendorPublicPage.jsx";
-import DdeShowcasePage          from "./pages/DdeShowcasePage.jsx";
-import SixSensesShowcasePage    from "./pages/SixSensesShowcasePage.jsx";
-import RitzLondonShowcasePage            from "./pages/RitzLondonShowcasePage.jsx";
-import InterContinentalParkLanePage      from "./pages/InterContinentalParkLanePage.jsx";
+// Legacy hardcoded showcase pages removed — all 5 venues now DB-driven via venue_showcases
 import VenueProfilePage         from "./pages/VenueProfilePage.jsx";
 import VenueReviewsPage         from "./pages/VenueReviewsPage.jsx";
 import EventDetailPage          from "./pages/EventDetailPage.jsx";
@@ -206,11 +203,6 @@ function stateToPath(pg, opts = {}) {
       if (cs && cat)       return `/${cs}/${cat}/${vs}`;
       return `/wedding-venues/${vs}`;
     }
-    case "dde-showcase":      return "/showcase/domaine-des-etangs";
-    case "ritz-showcase":     return "/showcase/the-ritz-london";
-    case "ic-park-lane-showcase": return "/showcase/intercontinental-london-park-lane";
-    case "gt-showcase":       return "/showcase/grand-tirolia-kitzbuehel";
-    case "sskrabey-showcase": return "/showcase/six-senses-krabey-island";
     case "showcase":         return `/showcase/${opts.showcaseSlug || ''}`;
     case "aura-discovery":   return "/discovery/aura";
     default:                 return "/";
@@ -266,15 +258,7 @@ function pathToState(pathname) {
   if (parts[0] === "italy" && parts[1] === "puglia" && parts.length === 2) return { page: "puglia" };
   // Magazine routes
   if (parts[0] === "editorial-showcase" && parts.length === 1) return { page: "editorial-showcase" };
-  // Venue showcase, static DDE page
-  if (parts[0] === "showcase" && parts[1] === "domaine-des-etangs")       return { page: "dde-showcase" };
-  if (parts[0] === "showcase" && parts[1] === "six-senses-krabey-island") return { page: "sskrabey-showcase" };
-  // Venue showcase, static Ritz London editorial page
-  if (parts[0] === "showcase" && parts[1] === "the-ritz-london")          return { page: "ritz-showcase" };
-  if (parts[0] === "showcase" && parts[1] === "intercontinental-london-park-lane") return { page: "ic-park-lane-showcase" };
-  // Venue showcase, static Grand Tirolia editorial page
-  if (parts[0] === "showcase" && parts[1] === "grand-tirolia-kitzbuehel") return { page: "gt-showcase" };
-  // Venue showcase: /showcase/{slug}
+  // Venue showcase: /showcase/{slug} — all venues now DB-driven via venue_showcases
   if (parts[0] === "showcase" && parts.length === 2) return { page: "showcase", showcaseSlug: parts[1] };
   // Venue listing profile: /venues/{slug}
   // Venue reviews page: /venues/{slug}/reviews
@@ -615,63 +599,6 @@ function App() {
         )}
         {page === "event-review" && (
           <EventReviewPage />
-        )}
-        {page === "dde-showcase" && (
-          <DdeShowcasePage
-            onBack={goHome}
-            onGoDestination={(countrySlug) => {
-              if (countrySlug) { setActiveCountrySlug(countrySlug); setPage("italy"); }
-              else { setPage("home"); }
-            }}
-            onNavigateStandard={goStandard}
-            onNavigateAbout={goAbout}
-            darkMode={darkMode}
-            onToggleDark={toggleDark}
-          />
-        )}
-        {page === "gt-showcase" && (
-          <VenueProfilePage
-            onBack={goHome}
-          />
-        )}
-        {page === "sskrabey-showcase" && (
-          <SixSensesShowcasePage
-            onBack={goHome}
-            onGoDestination={(countrySlug) => {
-              if (countrySlug) { setActiveCountrySlug(countrySlug); setPage("italy"); }
-              else { setPage("home"); }
-            }}
-            onNavigateStandard={goStandard}
-            onNavigateAbout={goAbout}
-            darkMode={darkMode}
-            onToggleDark={toggleDark}
-          />
-        )}
-        {page === "ritz-showcase" && (
-          <RitzLondonShowcasePage
-            onBack={goHome}
-            onGoDestination={(countrySlug) => {
-              if (countrySlug) { setActiveCountrySlug(countrySlug); setPage("italy"); }
-              else { setPage("home"); }
-            }}
-            onNavigateStandard={goStandard}
-            onNavigateAbout={goAbout}
-            darkMode={darkMode}
-            onToggleDark={toggleDark}
-          />
-        )}
-        {page === "ic-park-lane-showcase" && (
-          <InterContinentalParkLanePage
-            onBack={goHome}
-            onGoDestination={(countrySlug) => {
-              if (countrySlug) { setActiveCountrySlug(countrySlug); setPage("location"); }
-              else { setPage("home"); }
-            }}
-            onNavigateStandard={goStandard}
-            onNavigateAbout={goAbout}
-            darkMode={darkMode}
-            onToggleDark={toggleDark}
-          />
         )}
         {page === "showcase" && (
           <ShowcasePage
