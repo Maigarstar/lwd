@@ -408,7 +408,7 @@ function HeroSection({ content, layout, showcaseHero, listingFirstImage, palette
           title={muted ? 'Unmute' : 'Mute'}
           style={{
             position: 'absolute',
-            bottom: isMobile ? 20 : 28,
+            top: isMobile ? 72 : 80,
             right: isMobile ? 16 : 28,
             zIndex: 20,
             width: 40, height: 40,
