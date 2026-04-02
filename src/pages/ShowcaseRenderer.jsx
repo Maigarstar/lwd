@@ -2174,7 +2174,7 @@ function MapShowcaseSection({ content, layout, palette, showcaseName, showcaseLo
 
       const map = L.map(mapEl.current, { zoomControl: true, attributionControl: true, scrollWheelZoom: false });
       mapRef.current = map;
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://carto.com">CARTO</a> &copy; <a href="https://osm.org/copyright">OSM</a>',
         maxZoom: 19,
       }).addTo(map);
@@ -2237,36 +2237,124 @@ function MapShowcaseSection({ content, layout, palette, showcaseName, showcaseLo
     };
   }, [content.address, content.lat, content.lng, content.zoom, showcaseName, showcaseLocation]);
 
-  const bg        = layout?.accentBg || (P.mode === 'light' ? '#faf9f6' : '#0a0908');
-  const bgIsLt    = bg === '#ffffff' || bg === '#faf9f6' || bg === '#FDFBF7' || bg.startsWith('#f') || bg.startsWith('#e') || bg.startsWith('#d');
-  const textColor = layout?.textColor || (bgIsLt ? '#1a1a1a' : '#f2efe9');
-  const mutedColor = layout?.textColor ? `${layout.textColor}99` : (bgIsLt ? '#666' : '#aaa');
+  const { isMobile } = useBreakpoint();
+  const bg      = layout?.accentBg || (P.mode === 'light' ? '#ffffff' : '#0d0d0b');
+  const panelBg = P.mode === 'light' ? '#ffffff' : '#141210';
+  const textCol = layout?.textColor || (P.mode === 'light' ? '#1a1a1a' : '#f2efe9');
+  const mutCol  = P.mode === 'light' ? '#555555' : '#aaaaaa';
+  const brdCol  = P.mode === 'light' ? 'rgba(0,0,0,0.09)' : 'rgba(255,255,255,0.07)';
+
+  // Build display address from content or showcase data
+  const displayAddress = content.addressDisplay || showcaseLocation || '';
+
+  // "Where is it?" items
+  const whereItems = content.whereItems || [];
+
+  const hasPanel = !!(displayAddress || content.checkin || content.checkout || content.what3words || whereItems.length);
 
   return (
-    <section style={{ background: bg, padding: '64px 0' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 48px' }}>
+    <section style={{ background: bg, padding: isMobile ? '48px 0 60px' : '72px 0 88px' }}>
+      <div style={{ maxWidth: 1240, margin: '0 auto', padding: isMobile ? '0 20px' : '0 48px' }}>
+
+        {/* Section heading — centered, serif */}
         {content.headline && (
-          <div style={{ fontFamily: 'var(--font-heading-primary)', fontSize: 32, color: textColor, marginBottom: 32, fontWeight: 400 }}>
+          <h2 style={{
+            fontFamily: GD, fontSize: isMobile ? 28 : 38, fontWeight: 400,
+            color: textCol, textAlign: 'center', margin: '0 0 40px', letterSpacing: '-0.01em',
+          }}>
             {content.headline}
-          </div>
+          </h2>
         )}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 0, borderRadius: 6, overflow: 'hidden', border: `1px solid ${P.mode === 'light' ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.08)'}`, height: 420 }}>
-          {/* Map */}
-          <div style={{ position: 'relative', background: '#e8e0d4' }}>
-            <div ref={mapEl} style={{ width: '100%', height: '100%' }} />
+
+        {/* Two-column: map + info panel */}
+        <div style={{
+          display: isMobile ? 'flex' : 'grid',
+          flexDirection: isMobile ? 'column' : undefined,
+          gridTemplateColumns: hasPanel ? '1fr 360px' : '1fr',
+          gap: 0,
+          minHeight: isMobile ? 'auto' : 520,
+          border: `1px solid ${brdCol}`,
+          overflow: 'hidden',
+        }}>
+
+          {/* ── Map ── */}
+          <div style={{ position: 'relative', background: '#e8e0d4', height: isMobile ? 280 : 'auto', minHeight: isMobile ? 280 : 520 }}>
+            <div ref={mapEl} style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }} />
             {!ready && (
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: bg }}>
-                <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: mutedColor, letterSpacing: '2px', textTransform: 'uppercase' }}>Loading map…</span>
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#e8e0d4' }}>
+                <span style={{ fontFamily: NU, fontSize: 10, color: '#999', letterSpacing: '2px', textTransform: 'uppercase' }}>Loading map…</span>
               </div>
             )}
           </div>
-          {/* Address panel — only shown when address is filled */}
-          {content.address && (
-            <div style={{ background: P.mode === 'light' ? '#fff' : '#141210', padding: '32px 28px', display: 'flex', flexDirection: 'column', gap: 8, borderLeft: `1px solid ${P.mode === 'light' ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)'}` }}>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#C9A84C', marginBottom: 8 }}>Location</div>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: textColor, lineHeight: 1.7, whiteSpace: 'pre-line' }}>
-                {content.address}
-              </div>
+
+          {/* ── Info panel ── */}
+          {hasPanel && (
+            <div style={{
+              background: panelBg,
+              borderLeft: isMobile ? 'none' : `1px solid ${brdCol}`,
+              borderTop: isMobile ? `1px solid ${brdCol}` : 'none',
+              padding: isMobile ? '28px 24px' : '40px 36px',
+              display: 'flex', flexDirection: 'column', gap: 0,
+              overflowY: 'auto',
+            }}>
+
+              {/* Hotel Address block */}
+              {(displayAddress || content.checkin || content.checkout || content.what3words) && (
+                <div style={{ marginBottom: whereItems.length ? 32 : 0 }}>
+                  <h3 style={{ fontFamily: GD, fontSize: 24, fontWeight: 400, color: textCol, margin: '0 0 18px', letterSpacing: '-0.01em' }}>
+                    {content.addressHeading || 'Hotel Address'}
+                  </h3>
+
+                  {/* Address lines */}
+                  {displayAddress && (
+                    <p style={{ fontFamily: NU, fontSize: 14, color: mutCol, lineHeight: 1.8, margin: '0 0 20px', whiteSpace: 'pre-line' }}>
+                      {displayAddress}
+                    </p>
+                  )}
+
+                  {/* Check-in / Check-out */}
+                  {(content.checkin || content.checkout) && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+                      {content.checkin && (
+                        <div style={{ fontFamily: NU, fontSize: 14, color: mutCol }}>
+                          Check in: <strong style={{ color: textCol, marginLeft: 6 }}>{content.checkin}</strong>
+                        </div>
+                      )}
+                      {content.checkout && (
+                        <div style={{ fontFamily: NU, fontSize: 14, color: mutCol }}>
+                          Check out: <strong style={{ color: textCol, marginLeft: 6 }}>{content.checkout}</strong>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* What3words */}
+                  {content.what3words && (
+                    <div style={{ fontFamily: NU, fontSize: 14, color: mutCol }}>
+                      What3words location: <strong style={{ color: textCol, marginLeft: 4 }}>{content.what3words}</strong>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Where is it? block */}
+              {whereItems.length > 0 && (
+                <div>
+                  {(displayAddress || content.checkin || content.checkout || content.what3words) && (
+                    <div style={{ height: 1, background: brdCol, margin: '0 0 28px' }} />
+                  )}
+                  <h3 style={{ fontFamily: GD, fontSize: 24, fontWeight: 400, color: textCol, margin: '0 0 16px', letterSpacing: '-0.01em' }}>
+                    {content.whereHeading || 'Where is it?'}
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {whereItems.map((item, i) => (
+                      <p key={i} style={{ fontFamily: NU, fontSize: 14, color: mutCol, margin: 0, lineHeight: 1.6 }}>
+                        {item.text || item.label || ''}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

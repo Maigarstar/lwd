@@ -1362,12 +1362,51 @@ function SectionEditor({ section, onChange, C, showcase, sections, onAiFill, aiL
       {/* ── Map ── */}
       {section.type === 'map' && (
         <>
-          <Field label="Section Heading" fieldKey="headline" placeholder="Find Us" />
-          {/* Auto-geocode from venue name + location — no manual address needed */}
-          <NearbyMapField content={content} setContent={setContent} C={C} showcase={showcase} />
-          <div style={{ fontFamily: NU, fontSize: 11, color: C.grey2, lineHeight: 1.7, marginBottom: 12 }}>
-            Map position is set automatically from the venue name and location. Use the fields below only for fine-tuning.
+          <Field label="Section Heading" fieldKey="headline" placeholder="Location of your stay" />
+
+          {/* ── Address panel ── */}
+          <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD, marginBottom: 10, marginTop: 4 }}>Address Panel</div>
+          <Field label="Address Panel Heading" fieldKey="addressHeading" placeholder="Hotel Address" />
+          <Field label="Address Display" fieldKey="addressDisplay" type="textarea" rows={4}
+            placeholder={'Al Habtoor Palace Budapest\nErzsébet tér 7–8\nBudapest\n1051, Hungary'} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+            <div>
+              <label style={lbl(C)}>Check-in</label>
+              <input value={content.checkin || ''} onChange={e => setContent('checkin', e.target.value)} placeholder="15:00" style={inp(C)} />
+            </div>
+            <div>
+              <label style={lbl(C)}>Check-out</label>
+              <input value={content.checkout || ''} onChange={e => setContent('checkout', e.target.value)} placeholder="12:00" style={inp(C)} />
+            </div>
           </div>
+          <Field label="What3words" fieldKey="what3words" placeholder="///filled.count.soap" />
+
+          {/* ── Where is it? ── */}
+          <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD, marginBottom: 10, marginTop: 16 }}>Where Is It?</div>
+          <Field label="Section Heading" fieldKey="whereHeading" placeholder="Where is it?" />
+          <div style={{ marginBottom: 14 }}>
+            <label style={lbl(C)}>Distance Items</label>
+            {(content.whereItems || []).map((item, idx) => (
+              <div key={idx} style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+                <input
+                  value={item.text || ''}
+                  onChange={e => { const n=[...(content.whereItems||[])]; n[idx]={...n[idx],text:e.target.value}; setContent('whereItems',n); }}
+                  placeholder="5 mins to city centre"
+                  style={{ ...inp(C), flex: 1, fontSize: 11 }}
+                />
+                <button onClick={() => setContent('whereItems', (content.whereItems||[]).filter((_,i)=>i!==idx))}
+                  style={{ background:'none', border:'none', color:'#f87171', cursor:'pointer', fontSize:14, padding:'0 2px', flexShrink:0 }}>✕</button>
+              </div>
+            ))}
+            <button onClick={() => setContent('whereItems', [...(content.whereItems||[]), { text:'' }])}
+              style={{ fontFamily:NU, fontSize:11, color:GOLD, background:'none', border:`1px dashed ${GOLD}`, borderRadius:4, padding:'5px 12px', cursor:'pointer', width:'100%' }}>
+              + Add Distance Item
+            </button>
+          </div>
+
+          {/* ── Map pin position ── */}
+          <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD, marginBottom: 10, marginTop: 8 }}>Map Pin</div>
+          <NearbyMapField content={content} setContent={setContent} C={C} showcase={showcase} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px', gap: 8, marginBottom: 14 }}>
             <div>
               <label style={lbl(C)}>Latitude override</label>
