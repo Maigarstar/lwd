@@ -218,7 +218,7 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
           <SlimHero venues={FEATURED_VENUES} backgroundData={heroBackgroundData} onViewRegion={onViewRegion} onViewRegionCategory={onViewRegionCategory} onViewCategory={onViewCategory} />
 
           {/* Category Blocks - Find Your Perfect Match */}
-          <section style={{ background: "#f2f0ea", padding: "72px 48px", borderBottom: `1px solid ${C.border}` }}>
+          <section style={{ background: "#f2f0ea", padding: "72px 48px" }}>
             <div style={{ maxWidth: 1100, margin: "0 auto" }}>
               <div style={{ textAlign: "center", marginBottom: 48 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 16 }}>
