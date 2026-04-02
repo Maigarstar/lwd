@@ -2192,22 +2192,43 @@ function MapShowcaseSection({ content, layout, palette, showcaseName, showcaseLo
       setReady(true);
     }
 
-    async function geocodeQuery(query) {
-      try {
-        const res  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`, { headers: { 'Accept-Language': 'en' } });
-        const data = await res.json();
-        if (!cancelled && data?.[0]) init(parseFloat(data[0].lat), parseFloat(data[0].lon));
-      } catch {}
+    // Build progressive queries: strip address noise from location, keep city/country
+    function buildQueries(title, location) {
+      let cityCountry = (location || '').trim();
+      if (cityCountry) {
+        const dotParts = cityCountry.split('·').map(s => s.trim()).filter(Boolean);
+        if (dotParts.length >= 2) {
+          cityCountry = dotParts.slice(-2).join(', ');
+        } else {
+          const commaParts = dotParts[0].split(',').map(s => s.trim()).filter(Boolean);
+          cityCountry = commaParts.slice(-Math.min(2, commaParts.length)).join(', ');
+        }
+      }
+      const qs = [];
+      if (title && cityCountry) qs.push(`${title}, ${cityCountry}`);
+      if (title)                 qs.push(title);
+      if (cityCountry)           qs.push(cityCountry);
+      return qs;
+    }
+
+    async function tryGeocode(queries) {
+      for (const q of queries) {
+        try {
+          const res  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`, { headers: { 'Accept-Language': 'en' } });
+          const data = await res.json();
+          if (!cancelled && data?.[0]) { init(parseFloat(data[0].lat), parseFloat(data[0].lon)); return; }
+        } catch {}
+      }
     }
 
     if (content.lat && content.lng) {
       init(parseFloat(content.lat), parseFloat(content.lng));
     } else if (address) {
-      geocodeQuery(address);
+      tryGeocode([address]);
     } else {
-      // Auto-geocode from showcase name + location (no manual address required)
-      const autoQuery = [showcaseName, showcaseLocation].filter(Boolean).join(', ');
-      if (autoQuery) geocodeQuery(autoQuery);
+      // Auto-geocode from showcase name + location — try progressively simpler queries
+      const queries = buildQueries(showcaseName, showcaseLocation);
+      if (queries.length) tryGeocode(queries);
     }
 
     return () => {

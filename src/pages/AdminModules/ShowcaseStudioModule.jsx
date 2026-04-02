@@ -437,6 +437,29 @@ function VideoUploadField({ value, onChange, C, uploadPath }) {
   );
 }
 
+// ── Geocode query builder — strips address noise, extracts city/country ─────────
+function buildGeoQueries(title, location) {
+  // location may be "Adria Palace, Erzsébet tér 7–8 · Budapest · Hungary"
+  // We want to extract just "Budapest, Hungary" for geocoding
+  let cityCountry = (location || '').trim();
+  if (cityCountry) {
+    // Split on middle-dot separator (·) — last 2 segments are city + country
+    const dotParts = cityCountry.split('·').map(s => s.trim()).filter(Boolean);
+    if (dotParts.length >= 2) {
+      cityCountry = dotParts.slice(-2).join(', ');
+    } else {
+      // Fall back to comma split — last 2 segments
+      const commaParts = dotParts[0].split(',').map(s => s.trim()).filter(Boolean);
+      cityCountry = commaParts.slice(-Math.min(2, commaParts.length)).join(', ');
+    }
+  }
+  const queries = [];
+  if (title && cityCountry) queries.push(`${title}, ${cityCountry}`);
+  if (title)                 queries.push(title);
+  if (cityCountry)           queries.push(cityCountry);
+  return queries;
+}
+
 // ── NearbyMapField — fully automatic geocode from venue name + location ────────
 function NearbyMapField({ content, setContent, C, showcase }) {
   const [status, setStatus] = useState('idle'); // idle | loading | ok | error
@@ -445,21 +468,23 @@ function NearbyMapField({ content, setContent, C, showcase }) {
   const hasCoords = !!(content.lat && content.lng);
 
   async function geocode() {
-    const query = [showcase?.title, showcase?.location].filter(Boolean).join(', ');
-    if (!query) { setStatus('error'); setFound('No venue name or location set on this showcase'); return; }
+    const queries = buildGeoQueries(showcase?.title, showcase?.location);
+    if (!queries.length) { setStatus('error'); setFound('No venue name or location set on this showcase'); return; }
     setStatus('loading');
     try {
-      const res  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`, { headers: { 'Accept-Language': 'en' } });
-      const data = await res.json();
-      if (data?.[0]) {
-        setContent('lat', data[0].lat);
-        setContent('lng', data[0].lon);
-        const label = data[0].display_name;
-        setFound(label.slice(0, 72) + (label.length > 72 ? '…' : ''));
-        setStatus('ok');
-      } else {
-        setStatus('error'); setFound(`No result for "${query}"`);
+      for (const q of queries) {
+        const res  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`, { headers: { 'Accept-Language': 'en' } });
+        const data = await res.json();
+        if (data?.[0]) {
+          setContent('lat', data[0].lat);
+          setContent('lng', data[0].lon);
+          const label = data[0].display_name;
+          setFound(label.slice(0, 72) + (label.length > 72 ? '…' : ''));
+          setStatus('ok');
+          return;
+        }
       }
+      setStatus('error'); setFound(`Could not locate "${queries[0]}" — enter coordinates manually`);
     } catch { setStatus('error'); setFound('Network error — try again'); }
   }
 
