@@ -283,6 +283,22 @@ export default function RegionPage({
     return regionVenues.filter(v => v.featured);
   }, [regionVenues, dbContent]);
 
+  // Set of category slugs that have ≥1 live listing in this region.
+  // Used to show "Coming Soon" badge on empty category cards.
+  const activeCategorySlugs = useMemo(() => {
+    const s = new Set();
+    dbListings.forEach((l) => {
+      const cat = l.categorySlug || l.category_slug || "";
+      if (cat) s.add(cat);
+      // Venue listings may not have categorySlug — map by listingType
+      const lt = l.listingType || l.listing_type || "";
+      if (!cat && (lt === "venue" || !lt)) s.add("wedding-venues");
+    });
+    // If any venues exist (regionVenues) also mark wedding-venues active
+    if (regionVenues.length > 0) s.add("wedding-venues");
+    return s;
+  }, [dbListings, regionVenues]);
+
   const toggleSave = useCallback(
     (id) => setSavedIds((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]),
     [],
@@ -967,6 +983,7 @@ export default function RegionPage({
               categories={VENDOR_CATEGORIES}
               C={C}
               onSelect={(slug) => onViewRegionCategory(countrySlug, regionSlug, slug)}
+              activeCategorySlugs={activeCategorySlugs}
             />
           </div>
         </section>
@@ -1452,7 +1469,7 @@ const LUXURY_ICONS = {
 // ── Category Carousel — show 7 per page with next/prev arrows ───────────
 const CATS_PER_PAGE = 7;
 
-function CategoryCarousel({ categories, C, onSelect }) {
+function CategoryCarousel({ categories, C, onSelect, activeCategorySlugs = null }) {
   const [page, setPage] = useState(0);
   const totalPages = Math.ceil(categories.length / CATS_PER_PAGE);
   const start = page * CATS_PER_PAGE;
@@ -1506,6 +1523,7 @@ function CategoryCarousel({ categories, C, onSelect }) {
             vc={vc}
             C={C}
             onClick={() => onSelect(vc.slug)}
+            isEmpty={activeCategorySlugs !== null && !activeCategorySlugs.has(vc.slug)}
           />
         ))}
       </div>
@@ -1551,9 +1569,9 @@ function CategoryCarousel({ categories, C, onSelect }) {
   );
 }
 
-function CategoryShortcutCard({ vc, C, onClick }) {
+function CategoryShortcutCard({ vc, C, onClick, isEmpty = false }) {
   const [hov, setHov] = useState(false);
-  const iconColor = hov ? C.gold : (C.grey || "#888");
+  const iconColor = hov ? C.gold : (isEmpty ? (C.muted || "#999") : (C.grey || "#888"));
   const renderIcon = LUXURY_ICONS[vc.slug];
 
   return (
@@ -1573,8 +1591,31 @@ function CategoryShortcutCard({ vc, C, onClick }) {
         flexDirection: "column",
         alignItems: "center",
         gap: 12,
+        position: "relative",
+        opacity: isEmpty ? 0.65 : 1,
       }}
     >
+      {/* Coming Soon badge — only when no live listings for this category */}
+      {isEmpty && (
+        <span style={{
+          position: "absolute",
+          top: 8,
+          right: 8,
+          fontSize: 7,
+          fontFamily: NU,
+          fontWeight: 700,
+          letterSpacing: "1px",
+          textTransform: "uppercase",
+          color: C.gold || "#C9A84C",
+          background: "rgba(201,168,76,0.1)",
+          border: "1px solid rgba(201,168,76,0.25)",
+          borderRadius: 4,
+          padding: "2px 5px",
+          lineHeight: 1.4,
+        }}>
+          Soon
+        </span>
+      )}
       <span
         style={{
           display: "flex",
@@ -1589,7 +1630,7 @@ function CategoryShortcutCard({ vc, C, onClick }) {
         }}
         aria-hidden="true"
       >
-        {renderIcon ? renderIcon(iconColor) : <span style={{ fontSize: 22, opacity: 0.6 }}>{vc.icon}</span>}
+        {renderIcon ? renderIcon(iconColor) : <span style={{ fontSize: 22, opacity: isEmpty ? 0.4 : 0.6 }}>{vc.icon}</span>}
       </span>
       <span
         style={{
@@ -1598,7 +1639,7 @@ function CategoryShortcutCard({ vc, C, onClick }) {
           fontWeight: 600,
           letterSpacing: "1.5px",
           textTransform: "uppercase",
-          color: hov ? C.gold : C.off,
+          color: hov ? C.gold : (isEmpty ? (C.muted || "#999") : C.off),
           transition: "color 0.2s",
         }}
       >
