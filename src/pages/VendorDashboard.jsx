@@ -2431,7 +2431,9 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
                         lineHeight: 1,
                       }}
                     >
-                      {(vendor.lwdScore / 10).toFixed(1)}
+                      {(vendor.lwdScore != null && !isNaN(vendor.lwdScore))
+                        ? (vendor.lwdScore / 10).toFixed(1)
+                        : '—'}
                     </div>
                     <div
                       style={{
@@ -2441,7 +2443,9 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
                         marginTop: 4,
                       }}
                     >
-                      out of 10.0
+                      {(vendor.lwdScore != null && !isNaN(vendor.lwdScore))
+                        ? 'out of 10.0'
+                        : 'Not enough data'}
                     </div>
                   </div>
 
