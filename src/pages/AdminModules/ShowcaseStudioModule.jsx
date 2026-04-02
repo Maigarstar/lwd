@@ -1404,6 +1404,49 @@ function SectionEditor({ section, onChange, C, showcase, sections, onAiFill, aiL
             </button>
           </div>
 
+          {/* ── Colours ── */}
+          <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD, marginBottom: 10, marginTop: 16 }}>Colours</div>
+          {/* Section background */}
+          <label style={lbl(C)}>Section Background</label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+            {['#ffffff','#faf9f6','#FDFBF7','#f5f0e8','#0f0e0c','#1a1209','#0a0a08'].map(col => (
+              <button key={col} onClick={() => setLayout('accentBg', col)}
+                style={{ width:26, height:26, borderRadius:3, background:col, border: layout.accentBg===col ? `2px solid ${GOLD}` : `1px solid ${C.border}`, cursor:'pointer', flexShrink:0 }} />
+            ))}
+            <button onClick={() => setLayout('accentBg','')} title="Reset" style={{ width:26, height:26, borderRadius:3, background:'transparent', border:`1px dashed ${C.border}`, cursor:'pointer', flexShrink:0, fontSize:12, color:C.grey2, display:'flex', alignItems:'center', justifyContent:'center' }}>↺</button>
+            <input type="text" value={layout.accentBg||''} onChange={e=>setLayout('accentBg',e.target.value)} placeholder="#ffffff" style={{ ...inp(C), width:90, fontSize:11, padding:'5px 8px' }} />
+          </div>
+          {/* Heading text colour */}
+          <label style={lbl(C)}>Heading Colour</label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+            {['#1a1a1a','#1a1209','#f5f0e8','#ffffff','#C9A84C'].map(col => (
+              <button key={col} onClick={() => setLayout('textColor', col)}
+                style={{ width:26, height:26, borderRadius:3, background:col, border: layout.textColor===col ? `2px solid ${GOLD}` : `1px solid ${C.border}`, cursor:'pointer', flexShrink:0 }} />
+            ))}
+            <button onClick={() => setLayout('textColor','')} title="Reset" style={{ width:26, height:26, borderRadius:3, background:'transparent', border:`1px dashed ${C.border}`, cursor:'pointer', flexShrink:0, fontSize:12, color:C.grey2, display:'flex', alignItems:'center', justifyContent:'center' }}>↺</button>
+            <input type="text" value={layout.textColor||''} onChange={e=>setLayout('textColor',e.target.value)} placeholder="#1a1a1a" style={{ ...inp(C), width:90, fontSize:11, padding:'5px 8px' }} />
+          </div>
+          {/* Panel background */}
+          <label style={lbl(C)}>Panel Background</label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+            {['#ffffff','#faf9f6','#f5f0e8','#141210','#1a1a1a','#0f0e0c'].map(col => (
+              <button key={col} onClick={() => setLayout('panelBg', col)}
+                style={{ width:26, height:26, borderRadius:3, background:col, border: layout.panelBg===col ? `2px solid ${GOLD}` : `1px solid ${C.border}`, cursor:'pointer', flexShrink:0 }} />
+            ))}
+            <button onClick={() => setLayout('panelBg','')} title="Reset" style={{ width:26, height:26, borderRadius:3, background:'transparent', border:`1px dashed ${C.border}`, cursor:'pointer', flexShrink:0, fontSize:12, color:C.grey2, display:'flex', alignItems:'center', justifyContent:'center' }}>↺</button>
+            <input type="text" value={layout.panelBg||''} onChange={e=>setLayout('panelBg',e.target.value)} placeholder="#ffffff" style={{ ...inp(C), width:90, fontSize:11, padding:'5px 8px' }} />
+          </div>
+          {/* Panel text colour */}
+          <label style={lbl(C)}>Panel Text Colour</label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
+            {['#1a1a1a','#1a1209','#555555','#f5f0e8','#ffffff','#C9A84C'].map(col => (
+              <button key={col} onClick={() => setLayout('panelText', col)}
+                style={{ width:26, height:26, borderRadius:3, background:col, border: layout.panelText===col ? `2px solid ${GOLD}` : `1px solid ${C.border}`, cursor:'pointer', flexShrink:0 }} />
+            ))}
+            <button onClick={() => setLayout('panelText','')} title="Reset" style={{ width:26, height:26, borderRadius:3, background:'transparent', border:`1px dashed ${C.border}`, cursor:'pointer', flexShrink:0, fontSize:12, color:C.grey2, display:'flex', alignItems:'center', justifyContent:'center' }}>↺</button>
+            <input type="text" value={layout.panelText||''} onChange={e=>setLayout('panelText',e.target.value)} placeholder="#1a1a1a" style={{ ...inp(C), width:90, fontSize:11, padding:'5px 8px' }} />
+          </div>
+
           {/* ── Map pin position ── */}
           <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD, marginBottom: 10, marginTop: 8 }}>Map Pin</div>
           <NearbyMapField content={content} setContent={setContent} C={C} showcase={showcase} />

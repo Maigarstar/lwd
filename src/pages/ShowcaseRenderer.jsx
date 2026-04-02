@@ -2238,14 +2238,16 @@ function MapShowcaseSection({ content, layout, palette, showcaseName, showcaseLo
   }, [content.address, content.lat, content.lng, content.zoom, showcaseName, showcaseLocation]);
 
   const { isMobile } = useBreakpoint();
-  const bg      = layout?.accentBg || (P.mode === 'light' ? '#ffffff' : '#0d0d0b');
-  const panelBg = P.mode === 'light' ? '#ffffff' : '#141210';
-  const textCol = layout?.textColor || (P.mode === 'light' ? '#1a1a1a' : '#f2efe9');
-  const mutCol  = P.mode === 'light' ? '#555555' : '#aaaaaa';
-  const brdCol  = P.mode === 'light' ? 'rgba(0,0,0,0.09)' : 'rgba(255,255,255,0.07)';
+  const MAP_H        = 520; // fixed map height (px) — required for Leaflet to render
+  const bg           = layout?.accentBg || (P.mode === 'light' ? '#ffffff' : '#0d0d0b');
+  const panelBg      = layout?.panelBg  || (P.mode === 'light' ? '#ffffff' : '#141210');
+  const headingCol   = layout?.textColor  || (P.mode === 'light' ? '#1a1a1a' : '#f2efe9');
+  const panelTextCol = layout?.panelText  || (P.mode === 'light' ? '#1a1a1a' : '#f2efe9');
+  const mutCol       = layout?.panelText  ? `${layout.panelText}bb` : (P.mode === 'light' ? '#555555' : '#aaaaaa');
+  const brdCol       = P.mode === 'light' ? 'rgba(0,0,0,0.09)' : 'rgba(255,255,255,0.07)';
 
   // Build display address from content or showcase data
-  const displayAddress = content.addressDisplay || showcaseLocation || '';
+  const displayAddress = content.addressDisplay || '';
 
   // "Where is it?" items
   const whereItems = content.whereItems || [];
@@ -2260,26 +2262,26 @@ function MapShowcaseSection({ content, layout, palette, showcaseName, showcaseLo
         {content.headline && (
           <h2 style={{
             fontFamily: GD, fontSize: isMobile ? 28 : 38, fontWeight: 400,
-            color: textCol, textAlign: 'center', margin: '0 0 40px', letterSpacing: '-0.01em',
+            color: headingCol, textAlign: 'center', margin: '0 0 40px', letterSpacing: '-0.01em',
           }}>
             {content.headline}
           </h2>
         )}
 
-        {/* Two-column: map + info panel */}
+        {/* Two-column: map + info panel — explicit height so Leaflet renders */}
         <div style={{
           display: isMobile ? 'flex' : 'grid',
           flexDirection: isMobile ? 'column' : undefined,
           gridTemplateColumns: hasPanel ? '1fr 360px' : '1fr',
           gap: 0,
-          minHeight: isMobile ? 'auto' : 520,
+          height: isMobile ? 'auto' : MAP_H,
           border: `1px solid ${brdCol}`,
           overflow: 'hidden',
         }}>
 
           {/* ── Map ── */}
-          <div style={{ position: 'relative', background: '#e8e0d4', height: isMobile ? 280 : 'auto', minHeight: isMobile ? 280 : 520 }}>
-            <div ref={mapEl} style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }} />
+          <div style={{ position: 'relative', background: '#e8e0d4', height: isMobile ? 300 : MAP_H, flexShrink: 0 }}>
+            <div ref={mapEl} style={{ width: '100%', height: '100%' }} />
             {!ready && (
               <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#e8e0d4' }}>
                 <span style={{ fontFamily: NU, fontSize: 10, color: '#999', letterSpacing: '2px', textTransform: 'uppercase' }}>Loading map…</span>
@@ -2301,7 +2303,7 @@ function MapShowcaseSection({ content, layout, palette, showcaseName, showcaseLo
               {/* Hotel Address block */}
               {(displayAddress || content.checkin || content.checkout || content.what3words) && (
                 <div style={{ marginBottom: whereItems.length ? 32 : 0 }}>
-                  <h3 style={{ fontFamily: GD, fontSize: 24, fontWeight: 400, color: textCol, margin: '0 0 18px', letterSpacing: '-0.01em' }}>
+                  <h3 style={{ fontFamily: GD, fontSize: 24, fontWeight: 400, color: panelTextCol, margin: '0 0 18px', letterSpacing: '-0.01em' }}>
                     {content.addressHeading || 'Hotel Address'}
                   </h3>
 
@@ -2317,12 +2319,12 @@ function MapShowcaseSection({ content, layout, palette, showcaseName, showcaseLo
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
                       {content.checkin && (
                         <div style={{ fontFamily: NU, fontSize: 14, color: mutCol }}>
-                          Check in: <strong style={{ color: textCol, marginLeft: 6 }}>{content.checkin}</strong>
+                          Check in: <strong style={{ color: panelTextCol, marginLeft: 6 }}>{content.checkin}</strong>
                         </div>
                       )}
                       {content.checkout && (
                         <div style={{ fontFamily: NU, fontSize: 14, color: mutCol }}>
-                          Check out: <strong style={{ color: textCol, marginLeft: 6 }}>{content.checkout}</strong>
+                          Check out: <strong style={{ color: panelTextCol, marginLeft: 6 }}>{content.checkout}</strong>
                         </div>
                       )}
                     </div>
@@ -2331,7 +2333,7 @@ function MapShowcaseSection({ content, layout, palette, showcaseName, showcaseLo
                   {/* What3words */}
                   {content.what3words && (
                     <div style={{ fontFamily: NU, fontSize: 14, color: mutCol }}>
-                      What3words location: <strong style={{ color: textCol, marginLeft: 4 }}>{content.what3words}</strong>
+                      What3words location: <strong style={{ color: panelTextCol, marginLeft: 4 }}>{content.what3words}</strong>
                     </div>
                   )}
                 </div>
@@ -2343,7 +2345,7 @@ function MapShowcaseSection({ content, layout, palette, showcaseName, showcaseLo
                   {(displayAddress || content.checkin || content.checkout || content.what3words) && (
                     <div style={{ height: 1, background: brdCol, margin: '0 0 28px' }} />
                   )}
-                  <h3 style={{ fontFamily: GD, fontSize: 24, fontWeight: 400, color: textCol, margin: '0 0 16px', letterSpacing: '-0.01em' }}>
+                  <h3 style={{ fontFamily: GD, fontSize: 24, fontWeight: 400, color: panelTextCol, margin: '0 0 16px', letterSpacing: '-0.01em' }}>
                     {content.whereHeading || 'Where is it?'}
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
