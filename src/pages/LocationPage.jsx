@@ -385,6 +385,28 @@ export default function LocationPage({
   const _regions   = useMemo(() => (regions   && regions.length   > 0) ? regions   : REGIONS,   [regions]);
   const _cities    = useMemo(() => (cities    && cities.length    > 0) ? cities    : CITIES,     [cities]);
 
+  // ── Live regions: derive from fetched venues — only regions with published listings ──
+  // Used to filter the regions directory section at the bottom of country pages.
+  const _allVenues = useMemo(
+    () => (venues?.length > 0 ? venues : _fetchedVenues),
+    [venues, _fetchedVenues]
+  );
+  const liveRegions = useMemo(() => {
+    const seen = new Set();
+    const result = [];
+    _allVenues.forEach(v => {
+      const slug = v.regionSlug;
+      if (!slug || seen.has(slug)) return;
+      seen.add(slug);
+      // Look up name in the regions array; fall back to slug-to-title formatting
+      const regionData = _regions.find(r => r.slug === slug);
+      const name = regionData?.name
+        || slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      result.push({ slug, name, countrySlug: locationSlug });
+    });
+    return result;
+  }, [_allVenues, _regions, locationSlug]);
+
   // ── Resolve current location ────────────────────────────────────────────────
   // Supabase is the canonical source. Static geo.js is migration fallback only.
   const currentLocation = useMemo(() => {
@@ -1257,9 +1279,10 @@ export default function LocationPage({
           onViewRegion={onViewRegion}
           onViewCategory={onViewCategory}
           showInternational={false}
-          showUK={currentLocation?.slug !== "italy" && currentLocation?.slug !== "usa"}
+          showUK={currentLocation?.slug === "england"}
           showItaly={currentLocation?.slug === "italy"}
           showUSA={currentLocation?.slug === "usa"}
+          liveRegions={liveRegions}
           darkMode={darkMode}
         />
 

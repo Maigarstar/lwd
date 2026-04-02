@@ -106,7 +106,41 @@ export default function RegionPage({
 
   // ── Entity lookup ────────────────────────────────────────────────────────
   // If _cityData is provided, use it as the region (for city pages)
-  const region = useMemo(() => _cityData || getRegionBySlug(regionSlug), [regionSlug, _cityData]);
+  const region = useMemo(() => {
+    if (_cityData) return _cityData;
+    const found = getRegionBySlug(regionSlug);
+    // getRegionBySlug falls back to ALL_REGIONS_SENTINEL (slug:"all") when not found.
+    // For unknown regions (France/Hungary etc.) build a minimal synthetic region so the
+    // page renders with the correct name and listings rather than "All Regions".
+    if (found?.slug === "all" && regionSlug && regionSlug !== "all") {
+      const name = regionSlug
+        .split("-")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
+      return {
+        slug: regionSlug,
+        name,
+        countrySlug: countrySlug || null,
+        group: countrySlug || null,
+        priorityLevel: null,
+        listingCount: 0,
+        heroTitle: `Weddings in ${name}`,
+        heroSubtitle: null,
+        heroImg: null,
+        introEditorial: null,
+        cities: [],
+        seo: {
+          title: `Luxury Wedding Venues in ${name} | LWD`,
+          metaDescription: `Discover curated luxury wedding venues in ${name}.`,
+          canonicalPath: `/${countrySlug}/${regionSlug}`,
+        },
+        ai: { summary: "", focusKeywords: [] },
+        relatedRegionSlugs: [],
+        _synthetic: true, // flag: no rich editorial data
+      };
+    }
+    return found;
+  }, [regionSlug, _cityData, countrySlug]);
   // Use the region's actual country — prevents mismatches like /england/lake-como
   const actualCountrySlug = region?.countrySlug || countrySlug;
   const country = useMemo(() => getCountryBySlug(actualCountrySlug), [actualCountrySlug]);
@@ -545,7 +579,7 @@ export default function RegionPage({
               {[
                 { val: regionVenues.length || "—", label: "Curated Venues" },
                 { val: cities.length || "—", label: region.localTerm || "Cities" },
-                { val: region.listingCount > 0 ? "100%" : "Coming Soon", label: region.listingCount > 0 ? "Personally Verified" : "Listings", soft: region.listingCount === 0 },
+                { val: (region.listingCount > 0 || regionVenues.length > 0) ? "100%" : "Coming Soon", label: (region.listingCount > 0 || regionVenues.length > 0) ? "Personally Verified" : "Listings", soft: region.listingCount === 0 && regionVenues.length === 0 },
               ].map((s, i) => (
                 <div
                   key={i}
@@ -1110,7 +1144,7 @@ export default function RegionPage({
         {/* SEO & AI Panel — hidden per user request */}
 
         {/* ═══ BROWSE BY REGION ══════════════════════════════════════════ */}
-        <DirectoryBrands onViewRegion={onViewRegion} onViewCategory={onViewCategory} showInternational={false} showUK={actualCountrySlug !== "italy" && actualCountrySlug !== "usa"} showItaly={actualCountrySlug === "italy"} showUSA={actualCountrySlug === "usa"} darkMode={darkMode} />
+        <DirectoryBrands onViewRegion={onViewRegion} onViewCategory={onViewCategory} showInternational={false} showUK={actualCountrySlug === "england"} showItaly={actualCountrySlug === "italy"} showUSA={actualCountrySlug === "usa"} darkMode={darkMode} />
 
 
         {/* Quick-view modal */}

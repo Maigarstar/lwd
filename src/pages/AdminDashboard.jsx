@@ -7023,6 +7023,12 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
   const [magicContext, setMagicContext] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingMottoImage, setUploadingMottoImage] = useState(false);
+  const [imgSearchOpen, setImgSearchOpen] = useState(false);
+  const [imgSearchQuery, setImgSearchQuery] = useState('');
+  const [imgSearchResults, setImgSearchResults] = useState([]);
+  const [imgSearchLoading, setImgSearchLoading] = useState(false);
+  const [imgSearchSource, setImgSearchSource] = useState('unsplash');
+  const [imgPasteUrl, setImgPasteUrl] = useState('');
   const heroUploadRef = useRef(null);
   const mottoUploadRef = useRef(null);
 
@@ -7355,20 +7361,58 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
     if (imgs.length >= 8) return;
     setUploadingImage(true);
     try {
-      const { supabase } = await import('../lib/supabaseClient');
-      const ext = file.name.split('.').pop();
-      const path = `locations/${locationKey.replace(/:/g, '/')}/${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from('listing-media').upload(path, file, { upsert: false, cacheControl: '31536000' });
-      if (error) throw error;
-      const { data: { publicUrl } } = supabase.storage.from('listing-media').getPublicUrl(path);
+      const mediaId = `loc-hero-${locationKey.replace(/:/g, '-')}-${Date.now()}`;
+      const result = await uploadMediaFile(file, mediaId);
+      const publicUrl = typeof result === 'object' && result?.url ? result.url : result;
       const next = [...imgs, publicUrl];
       setForm(prev => ({ ...prev, heroImages: next, heroImage: prev.heroImage || publicUrl }));
       setDirty(true);
     } catch (e) {
       console.error('[Location Studio] Image upload failed:', e);
+      setToast('✗ Upload failed: ' + (e.message || 'Unknown error'));
     } finally {
       setUploadingImage(false);
     }
+  };
+
+  const UNSPLASH_KEY = import.meta.env.VITE_UNSPLASH_ACCESS_KEY || '';
+  const PEXELS_KEY   = import.meta.env.VITE_PEXELS_API_KEY || '';
+
+  const searchFreeImages = async (query, source) => {
+    if (!query.trim()) return;
+    setImgSearchLoading(true);
+    setImgSearchResults([]);
+    try {
+      let results = [];
+      if (source === 'unsplash' && UNSPLASH_KEY) {
+        const res = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=12&orientation=landscape&client_id=${UNSPLASH_KEY}`);
+        const data = await res.json();
+        results = (data.results || []).map(p => ({ url: p.urls.regular, thumb: p.urls.small, credit: p.user.name, link: p.links.html, source: 'Unsplash' }));
+      } else if (source === 'pexels' && PEXELS_KEY) {
+        const res = await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=12&orientation=landscape`, { headers: { Authorization: PEXELS_KEY } });
+        const data = await res.json();
+        results = (data.photos || []).map(p => ({ url: p.src.large2x || p.src.large, thumb: p.src.medium, credit: p.photographer, link: p.url, source: 'Pexels' }));
+      } else if (source === 'pixabay') {
+        const pbKey = import.meta.env.VITE_PIXABAY_API_KEY || '';
+        if (pbKey) {
+          const res = await fetch(`https://pixabay.com/api/?q=${encodeURIComponent(query)}&key=${pbKey}&image_type=photo&orientation=horizontal&per_page=12&safesearch=true`);
+          const data = await res.json();
+          results = (data.hits || []).map(p => ({ url: p.largeImageURL, thumb: p.webformatURL, credit: p.user, link: p.pageURL, source: 'Pixabay' }));
+        }
+      }
+      setImgSearchResults(results);
+    } catch (e) {
+      console.error('[Image Search] Failed:', e);
+    } finally {
+      setImgSearchLoading(false);
+    }
+  };
+
+  const addImageToHero = (imageUrl) => {
+    const imgs = form.heroImages || [];
+    if (imgs.length >= 8 || imgs.includes(imageUrl)) return;
+    setForm(prev => ({ ...prev, heroImages: [...(prev.heroImages || []), imageUrl], heroImage: prev.heroImage || imageUrl }));
+    setDirty(true);
   };
 
   const uploadMottoImage = async (file) => {
@@ -7757,6 +7801,71 @@ No explanation. Only the JSON.`,
                     </button>
                   )}
                 </div>
+              </div>
+
+              {/* Free Image Search */}
+              <div style={{ marginBottom: 12 }}>
+                <button onClick={() => setImgSearchOpen(o => !o)} style={{ fontFamily: NU, fontSize: 12, fontWeight: 600, color: LS.gold, background: 'transparent', border: `1px solid ${LS.gold}44`, borderRadius: 6, padding: '6px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, marginBottom: imgSearchOpen ? 10 : 0 }}>
+                  <span>🔍</span> {imgSearchOpen ? 'Close Image Search' : 'Search Free Images (Unsplash · Pexels · Paste URL)'}
+                </button>
+                {imgSearchOpen && (
+                  <div style={{ border: `1px solid ${LS.border}`, borderRadius: 8, padding: 12, background: LS.bg }}>
+                    {/* Source tabs */}
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+                      {[
+                        { id: 'unsplash', label: 'Unsplash', needsKey: 'VITE_UNSPLASH_ACCESS_KEY', hasKey: !!UNSPLASH_KEY },
+                        { id: 'pexels',   label: 'Pexels',   needsKey: 'VITE_PEXELS_API_KEY',   hasKey: !!PEXELS_KEY },
+                        { id: 'pixabay',  label: 'Pixabay',  needsKey: 'VITE_PIXABAY_API_KEY',  hasKey: !!import.meta.env.VITE_PIXABAY_API_KEY },
+                        { id: 'paste',    label: '⌘ Paste URL', hasKey: true },
+                      ].map(s => (
+                        <button key={s.id} onClick={() => setImgSearchSource(s.id)} style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 4, border: `1px solid ${imgSearchSource === s.id ? LS.gold : LS.border}`, background: imgSearchSource === s.id ? `${LS.gold}18` : 'transparent', color: imgSearchSource === s.id ? LS.gold : LS.muted, cursor: 'pointer', opacity: s.hasKey ? 1 : 0.5 }}>
+                          {s.label}{!s.hasKey && s.id !== 'paste' ? ' 🔑' : ''}
+                        </button>
+                      ))}
+                    </div>
+
+                    {imgSearchSource === 'paste' ? (
+                      /* Paste URL tab */
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <input value={imgPasteUrl} onChange={e => setImgPasteUrl(e.target.value)} placeholder="Paste any image URL from Unsplash, Pexels, Google Images…" onKeyDown={e => { if (e.key === 'Enter' && imgPasteUrl.trim()) { addImageToHero(imgPasteUrl.trim()); setImgPasteUrl(''); } }} style={{ flex: 1, padding: '7px 10px', fontFamily: NU, fontSize: 12, border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.card, color: LS.text }} />
+                        <button onClick={() => { if (imgPasteUrl.trim()) { addImageToHero(imgPasteUrl.trim()); setImgPasteUrl(''); }}} disabled={!imgPasteUrl.trim()} style={{ padding: '7px 14px', fontFamily: NU, fontSize: 12, fontWeight: 600, background: LS.gold, color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Add</button>
+                      </div>
+                    ) : (
+                      /* Search tab */
+                      <>
+                        {!{ unsplash: UNSPLASH_KEY, pexels: PEXELS_KEY, pixabay: import.meta.env.VITE_PIXABAY_API_KEY }[imgSearchSource] ? (
+                          <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, padding: '8px 0' }}>
+                            🔑 Add <code style={{ background: `${LS.gold}18`, padding: '1px 5px', borderRadius: 3, color: LS.gold }}>VITE_{imgSearchSource.toUpperCase()}_ACCESS_KEY</code> to your <code>.env.local</code> to enable {imgSearchSource.charAt(0).toUpperCase() + imgSearchSource.slice(1)} search.
+                            <br />Free tiers: <a href="https://unsplash.com/developers" target="_blank" rel="noreferrer" style={{ color: LS.gold }}>Unsplash</a> · <a href="https://www.pexels.com/api/" target="_blank" rel="noreferrer" style={{ color: LS.gold }}>Pexels</a> · <a href="https://pixabay.com/api/docs/" target="_blank" rel="noreferrer" style={{ color: LS.gold }}>Pixabay</a>
+                          </div>
+                        ) : (
+                          <>
+                            <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                              <input value={imgSearchQuery} onChange={e => setImgSearchQuery(e.target.value)} placeholder={`Search ${imgSearchSource} for wedding venues, landscapes…`} onKeyDown={e => e.key === 'Enter' && searchFreeImages(imgSearchQuery, imgSearchSource)} style={{ flex: 1, padding: '7px 10px', fontFamily: NU, fontSize: 12, border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.card, color: LS.text }} />
+                              <button onClick={() => searchFreeImages(imgSearchQuery, imgSearchSource)} disabled={imgSearchLoading || !imgSearchQuery.trim()} style={{ padding: '7px 14px', fontFamily: NU, fontSize: 12, fontWeight: 600, background: LS.gold, color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>{imgSearchLoading ? '⟳' : 'Search'}</button>
+                            </div>
+                            {imgSearchResults.length > 0 && (
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                                {imgSearchResults.map((img, i) => {
+                                  const already = (form.heroImages || []).includes(img.url);
+                                  const full = (form.heroImages || []).length >= 8;
+                                  return (
+                                    <div key={i} title={`Photo by ${img.credit} on ${img.source}`} onClick={() => !already && !full && addImageToHero(img.url)} style={{ position: 'relative', aspectRatio: '16/9', borderRadius: 4, overflow: 'hidden', border: `2px solid ${already ? LS.gold : LS.border}`, cursor: already || full ? 'default' : 'pointer', opacity: full && !already ? 0.5 : 1 }}>
+                                      <img src={img.thumb} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
+                                      {already && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ color: LS.gold, fontSize: 18 }}>✓</span></div>}
+                                      {!already && !full && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0)', transition: 'background 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseEnter={e => e.currentTarget.style.background='rgba(0,0,0,0.35)'} onMouseLeave={e => e.currentTarget.style.background='rgba(0,0,0,0)'}><span style={{ color: '#fff', fontSize: 18, opacity: 0 }} className="img-add-icon">+</span></div>}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                            {imgSearchResults.length === 0 && !imgSearchLoading && imgSearchQuery && <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, textAlign: 'center', padding: '12px 0' }}>No results — try a different keyword</div>}
+                          </>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Video URL */}
@@ -8947,6 +9056,12 @@ function CityStudio({ C, darkMode = true, onBuilderModeChange }) {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingMottoImage, setUploadingMottoImage] = useState(false);
+  const [imgSearchOpen, setImgSearchOpen] = useState(false);
+  const [imgSearchQuery, setImgSearchQuery] = useState('');
+  const [imgSearchResults, setImgSearchResults] = useState([]);
+  const [imgSearchLoading, setImgSearchLoading] = useState(false);
+  const [imgSearchSource, setImgSearchSource] = useState('unsplash');
+  const [imgPasteUrl, setImgPasteUrl] = useState('');
   const [venueList, setVenueList] = useState([]);
   const [venuePickerSearch, setVenuePickerSearch] = useState('');
 
@@ -9123,20 +9238,58 @@ function CityStudio({ C, darkMode = true, onBuilderModeChange }) {
     if (imgs.length >= 8) return;
     setUploadingImage(true);
     try {
-      const { supabase } = await import('../lib/supabaseClient');
-      const ext = file.name.split('.').pop();
-      const path = `locations/${locationKey.replace(/:/g, '/')}/${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from('listing-media').upload(path, file, { upsert: false, cacheControl: '31536000' });
-      if (error) throw error;
-      const { data: { publicUrl } } = supabase.storage.from('listing-media').getPublicUrl(path);
+      const mediaId = `loc-hero-${locationKey.replace(/:/g, '-')}-${Date.now()}`;
+      const result = await uploadMediaFile(file, mediaId);
+      const publicUrl = typeof result === 'object' && result?.url ? result.url : result;
       const next = [...imgs, publicUrl];
       setForm(prev => ({ ...prev, heroImages: next, heroImage: prev.heroImage || publicUrl }));
       setDirty(true);
     } catch (e) {
       console.error('[City Studio] Image upload failed:', e);
+      setToast('✗ Upload failed: ' + (e.message || 'Unknown error'));
     } finally {
       setUploadingImage(false);
     }
+  };
+
+  const UNSPLASH_KEY = import.meta.env.VITE_UNSPLASH_ACCESS_KEY || '';
+  const PEXELS_KEY   = import.meta.env.VITE_PEXELS_API_KEY || '';
+
+  const searchFreeImages = async (query, source) => {
+    if (!query.trim()) return;
+    setImgSearchLoading(true);
+    setImgSearchResults([]);
+    try {
+      let results = [];
+      if (source === 'unsplash' && UNSPLASH_KEY) {
+        const res = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=12&orientation=landscape&client_id=${UNSPLASH_KEY}`);
+        const data = await res.json();
+        results = (data.results || []).map(p => ({ url: p.urls.regular, thumb: p.urls.small, credit: p.user.name, link: p.links.html, source: 'Unsplash' }));
+      } else if (source === 'pexels' && PEXELS_KEY) {
+        const res = await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=12&orientation=landscape`, { headers: { Authorization: PEXELS_KEY } });
+        const data = await res.json();
+        results = (data.photos || []).map(p => ({ url: p.src.large2x || p.src.large, thumb: p.src.medium, credit: p.photographer, link: p.url, source: 'Pexels' }));
+      } else if (source === 'pixabay') {
+        const pbKey = import.meta.env.VITE_PIXABAY_API_KEY || '';
+        if (pbKey) {
+          const res = await fetch(`https://pixabay.com/api/?q=${encodeURIComponent(query)}&key=${pbKey}&image_type=photo&orientation=horizontal&per_page=12&safesearch=true`);
+          const data = await res.json();
+          results = (data.hits || []).map(p => ({ url: p.largeImageURL, thumb: p.webformatURL, credit: p.user, link: p.pageURL, source: 'Pixabay' }));
+        }
+      }
+      setImgSearchResults(results);
+    } catch (e) {
+      console.error('[Image Search] Failed:', e);
+    } finally {
+      setImgSearchLoading(false);
+    }
+  };
+
+  const addImageToHero = (imageUrl) => {
+    const imgs = form.heroImages || [];
+    if (imgs.length >= 8 || imgs.includes(imageUrl)) return;
+    setForm(prev => ({ ...prev, heroImages: [...(prev.heroImages || []), imageUrl], heroImage: prev.heroImage || imageUrl }));
+    setDirty(true);
   };
 
   const uploadMottoImage = async (file) => {
@@ -9381,6 +9534,64 @@ No explanation. Only the JSON.`,
                     </button>
                   )}
                 </div>
+              </div>
+
+              {/* Free Image Search */}
+              <div style={{ marginBottom: 12 }}>
+                <button onClick={() => setImgSearchOpen(o => !o)} style={{ fontFamily: NU, fontSize: 12, fontWeight: 600, color: LS.gold, background: 'transparent', border: `1px solid ${LS.gold}44`, borderRadius: 6, padding: '6px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, marginBottom: imgSearchOpen ? 10 : 0 }}>
+                  <span>🔍</span> {imgSearchOpen ? 'Close Image Search' : 'Search Free Images (Unsplash · Pexels · Paste URL)'}
+                </button>
+                {imgSearchOpen && (
+                  <div style={{ border: `1px solid ${LS.border}`, borderRadius: 8, padding: 12, background: LS.bg }}>
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+                      {[
+                        { id: 'unsplash', label: 'Unsplash', hasKey: !!UNSPLASH_KEY },
+                        { id: 'pexels',   label: 'Pexels',   hasKey: !!PEXELS_KEY },
+                        { id: 'pixabay',  label: 'Pixabay',  hasKey: !!import.meta.env.VITE_PIXABAY_API_KEY },
+                        { id: 'paste',    label: '⌘ Paste URL', hasKey: true },
+                      ].map(s => (
+                        <button key={s.id} onClick={() => setImgSearchSource(s.id)} style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 4, border: `1px solid ${imgSearchSource === s.id ? LS.gold : LS.border}`, background: imgSearchSource === s.id ? `${LS.gold}18` : 'transparent', color: imgSearchSource === s.id ? LS.gold : LS.muted, cursor: 'pointer', opacity: s.hasKey ? 1 : 0.5 }}>
+                          {s.label}{!s.hasKey && s.id !== 'paste' ? ' 🔑' : ''}
+                        </button>
+                      ))}
+                    </div>
+                    {imgSearchSource === 'paste' ? (
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <input value={imgPasteUrl} onChange={e => setImgPasteUrl(e.target.value)} placeholder="Paste any image URL…" onKeyDown={e => { if (e.key === 'Enter' && imgPasteUrl.trim()) { addImageToHero(imgPasteUrl.trim()); setImgPasteUrl(''); } }} style={{ flex: 1, padding: '7px 10px', fontFamily: NU, fontSize: 12, border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.card, color: LS.text }} />
+                        <button onClick={() => { if (imgPasteUrl.trim()) { addImageToHero(imgPasteUrl.trim()); setImgPasteUrl(''); }}} disabled={!imgPasteUrl.trim()} style={{ padding: '7px 14px', fontFamily: NU, fontSize: 12, fontWeight: 600, background: LS.gold, color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Add</button>
+                      </div>
+                    ) : (
+                      <>
+                        {!{ unsplash: UNSPLASH_KEY, pexels: PEXELS_KEY, pixabay: import.meta.env.VITE_PIXABAY_API_KEY }[imgSearchSource] ? (
+                          <div style={{ fontFamily: NU, fontSize: 11, color: LS.muted, padding: '8px 0' }}>
+                            🔑 Add <code style={{ background: `${LS.gold}18`, padding: '1px 5px', borderRadius: 3, color: LS.gold }}>VITE_{imgSearchSource.toUpperCase()}_ACCESS_KEY</code> to <code>.env.local</code> to enable {imgSearchSource} search. <a href="https://unsplash.com/developers" target="_blank" rel="noreferrer" style={{ color: LS.gold }}>Get free key →</a>
+                          </div>
+                        ) : (
+                          <>
+                            <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                              <input value={imgSearchQuery} onChange={e => setImgSearchQuery(e.target.value)} placeholder={`Search ${imgSearchSource}…`} onKeyDown={e => e.key === 'Enter' && searchFreeImages(imgSearchQuery, imgSearchSource)} style={{ flex: 1, padding: '7px 10px', fontFamily: NU, fontSize: 12, border: `1px solid ${LS.border}`, borderRadius: 6, background: LS.card, color: LS.text }} />
+                              <button onClick={() => searchFreeImages(imgSearchQuery, imgSearchSource)} disabled={imgSearchLoading || !imgSearchQuery.trim()} style={{ padding: '7px 14px', fontFamily: NU, fontSize: 12, fontWeight: 600, background: LS.gold, color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>{imgSearchLoading ? '⟳' : 'Search'}</button>
+                            </div>
+                            {imgSearchResults.length > 0 && (
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                                {imgSearchResults.map((img, i) => {
+                                  const already = (form.heroImages || []).includes(img.url);
+                                  const full = (form.heroImages || []).length >= 8;
+                                  return (
+                                    <div key={i} title={`Photo by ${img.credit} on ${img.source}`} onClick={() => !already && !full && addImageToHero(img.url)} style={{ position: 'relative', aspectRatio: '16/9', borderRadius: 4, overflow: 'hidden', border: `2px solid ${already ? LS.gold : LS.border}`, cursor: already || full ? 'default' : 'pointer', opacity: full && !already ? 0.5 : 1 }}>
+                                      <img src={img.thumb} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
+                                      {already && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ color: LS.gold, fontSize: 18 }}>✓</span></div>}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div style={{ marginBottom: 12 }}>

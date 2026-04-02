@@ -20,6 +20,7 @@ import {
 import { VENUES } from "../data/italyVenues";
 import { VENDORS } from "../data/vendors.js";
 import { getUserCountryFromIP, sortByCountryPriority } from "../services/geoLocationService";
+import { fetchListings } from "../services/listings";
 
 import { DEFAULT_FILTERS } from "../data/italyVenues";
 
@@ -52,6 +53,7 @@ export default function RegionCategoryPage({
   onViewCategory = () => {},
   onViewRegion = () => {},
   onViewRegionCategory = () => {},
+  onViewCountry = () => {},
   countrySlug = null,
   regionSlug = null,
   categorySlug = null,
@@ -79,6 +81,7 @@ export default function RegionCategoryPage({
   const [isMobile, setIsMobile] = useState(false);
   const [hoveredVenueId, setHoveredVenueId] = useState(null);
   const [activePinnedId, setActivePinnedId] = useState(null);
+  const [dbListings, setDbListings] = useState([]);
 
   const C = darkMode ? getDarkPalette() : getLightPalette();
 
@@ -89,6 +92,16 @@ export default function RegionCategoryPage({
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
   }, []);
+
+  // ── Fetch live Supabase listings for this region/country ──────────────────
+  useEffect(() => {
+    const filters = { status: "published" };
+    if (regionSlug) filters.region_slug = regionSlug;
+    else if (countrySlug) filters.country_slug = countrySlug;
+    fetchListings(filters)
+      .then((rows) => setDbListings(rows || []))
+      .catch(() => {});
+  }, [regionSlug, countrySlug]);
 
   // ── Register active context with global chat ──────────────────────────────
   const { setChatContext } = useChat();
@@ -107,13 +120,20 @@ export default function RegionCategoryPage({
   }, []);
 
   // ── Data lookups ───────────────────────────────────────────────────────────
-  const region = useMemo(() => getRegionBySlug(regionSlug), [regionSlug]);
+  const region = useMemo(() => {
+    const r = getRegionBySlug(regionSlug);
+    // If getRegionBySlug falls back to the ALL_REGIONS_SENTINEL (slug="all"),
+    // treat as unknown region so we still display a clean name from the slug.
+    if (!r || r.slug === "all") return null;
+    return r;
+  }, [regionSlug]);
   const country = useMemo(() => getCountryBySlug(countrySlug), [countrySlug]);
   const vcObj = useMemo(() => getVendorCategoryByGeoSlug(categorySlug), [categorySlug]);
   const categoryLabel = vcObj?.label || categorySlug || "Category";
   const categoryIcon = vcObj?.icon || "📋";
 
-  const regionName = region?.name || regionSlug || "Region";
+  const regionName = region?.name ||
+    (regionSlug ? regionSlug.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") : "Region");
   const countryName = country?.name || countrySlug || "Country";
   const heroImg = region?.heroImg || DEFAULT_HERO;
   const editorial = useMemo(
@@ -121,22 +141,65 @@ export default function RegionCategoryPage({
     [regionSlug, categorySlug],
   );
 
-  // ── Listings — wedding-venues → VENUES, else → VENDORS ───────────────────
+  // ── Listings — wedding-venues → VENUES (+ DB), else → VENDORS ───────────
   const listings = useMemo(() => {
     if (categorySlug === "wedding-venues") {
-      // If region specified, filter by that region
+      // Convert DB listings → venue shape (same transform as RegionPage)
+      const dbVenues = dbListings.map((l) => ({
+        id:          l.id,
+        name:        l.cardTitle || l.name || "",
+        region:      l.region    || "",
+        regionSlug:  l.regionSlug || l.region_slug || "",
+        countrySlug: l.countrySlug || l.country_slug || "",
+        city:        l.city || "",
+        citySlug:    l.citySlug || l.city_slug || "",
+        imgs:        Array.isArray(l.imgs)
+          ? l.imgs.map((img) => typeof img === "string" ? img : (img.src || img.url || "")).filter(Boolean)
+          : l.heroImage ? [l.heroImage] : [],
+        desc:        l.cardSummary || l.shortDescription || l.desc || "",
+        priceFrom:   (() => {
+          const p = l.priceFrom;
+          if (!p) return "";
+          if (typeof p === "string" && p.includes("£")) return p;
+          const num = parseInt(p, 10);
+          if (isNaN(num)) return p;
+          const sym = (l.priceCurrency || "GBP") === "EUR" ? "€" : (l.priceCurrency || "GBP") === "USD" ? "$" : "£";
+          return `${sym}${num.toLocaleString("en-GB")}`;
+        })(),
+        capacity:    l.capacityMax || l.capacityMin || l.capacity || null,
+        rating:      l.rating ?? null,
+        reviews:     l.reviewCount ?? l.reviews ?? null,
+        verified:    l.isVerified ?? l.verified ?? false,
+        featured:    l.isFeatured ?? l.featured ?? false,
+        lwdScore:    l.lwdScore ?? null,
+        tag:         l.cardBadge || l.tag || null,
+        styles:      Array.isArray(l.styles) ? l.styles : [],
+        includes:    Array.isArray(l.amenities) ? l.amenities : [],
+        slug:        l.slug || "",
+        showcaseUrl: l.showcaseEnabled && l.slug ? `/showcase/${l.slug}` : null,
+        lat:         l.lat ?? null,
+        lng:         l.lng ?? null,
+        online:      true,
+      }));
+
+      // Static venues matching this region/country
+      let staticVenues;
       if (regionSlug) {
-        return VENUES.filter(
+        staticVenues = VENUES.filter(
           (v) => v.region === regionName || (region && v.region === region.name),
         );
+      } else if (countrySlug) {
+        staticVenues = VENUES.filter((v) => v.countrySlug === countrySlug);
+      } else {
+        staticVenues = VENUES;
       }
-      // If country specified but no region (country page), filter by countrySlug
-      if (countrySlug) {
-        return VENUES.filter((v) => v.countrySlug === countrySlug);
-      }
-      // No country or region specified (global category page), return all venues
-      return VENUES;
+
+      // Merge: DB first, deduplicate by name against static
+      const dbNames = new Set(dbVenues.map((v) => v.name.toLowerCase()));
+      const uniqueStatic = staticVenues.filter((v) => !dbNames.has((v.name || "").toLowerCase()));
+      return [...dbVenues, ...uniqueStatic];
     }
+
     const vendorCats = geoSlugToVendorCategory(categorySlug);
     if (!vendorCats) return [];
 
@@ -144,7 +207,6 @@ export default function RegionCategoryPage({
     if (regionSlug) {
       return VENDORS.filter((v) => {
         const catMatch = vendorCats.includes(v.category);
-        // Match by regionSlug first, then fallback to countrySlug
         const regionMatch =
           v.regionSlug === regionSlug ||
           (v.legacyRegionName && region && v.legacyRegionName === region.name);
@@ -163,7 +225,7 @@ export default function RegionCategoryPage({
 
     // No country or region specified (global category page), return all vendors in category
     return VENDORS.filter((v) => vendorCats.includes(v.category));
-  }, [categorySlug, regionSlug, countrySlug, region]);
+  }, [categorySlug, regionSlug, countrySlug, region, regionName, dbListings]);
 
   // ── Extract available filter values (wedding-venues only) ────────────────────
   const availableFilters = useMemo(() => {
@@ -549,7 +611,21 @@ export default function RegionCategoryPage({
                 Home
               </button>
               <span style={{ opacity: 0.4 }}>›</span>
-              <span>{countryName}</span>
+              <button
+                onClick={() => onViewCountry(countrySlug)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 11,
+                  color: "rgba(255,255,255,0.45)",
+                  padding: 0,
+                  fontFamily: NU,
+                  letterSpacing: "0.5px",
+                }}
+              >
+                {countryName}
+              </button>
               <span style={{ opacity: 0.4 }}>›</span>
               <button
                 onClick={onBack}
@@ -1270,7 +1346,7 @@ export default function RegionCategoryPage({
         {/* ════════════════════════════════════════════════════════════════════
             10. BROWSE BY REGION
         ════════════════════════════════════════════════════════════════════ */}
-        <DirectoryBrands onViewRegion={onViewRegion} onViewCategory={onViewCategory} showInternational={false} showUK={countrySlug !== "italy" && countrySlug !== "usa"} showItaly={countrySlug === "italy"} showUSA={countrySlug === "usa"} darkMode={darkMode} />
+        <DirectoryBrands onViewRegion={onViewRegion} onViewCategory={onViewCategory} showInternational={false} showUK={countrySlug === "england"} showItaly={countrySlug === "italy"} showUSA={countrySlug === "usa"} liveRegions={regionSlug && countrySlug ? [{ slug: regionSlug, name: regionName, countrySlug }] : []} darkMode={darkMode} />
 
 
         {/* ── Quick View modal (page-level) ── */}

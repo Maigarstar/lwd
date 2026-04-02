@@ -106,6 +106,28 @@ export const COUNTRIES = [
     regions: [],
   },
   {
+    slug: "hungary",
+    name: "Hungary",
+    iso2: "HU",
+    listingCount: 2,
+    seo: {
+      title: "Luxury Wedding Venues in Hungary | LWD",
+      metaDescription:
+        "Discover curated luxury wedding venues in Hungary. Budapest thermal palaces and Hungarian wine country estates, editorially selected.",
+      canonicalPath: "/hungary",
+    },
+    ai: {
+      summary:
+        "Budapest's thermal bath palaces, Danube-spanning bridges and Art Nouveau grandeur make Hungary an increasingly sought-after European wedding destination with exceptional value.",
+      focusKeywords: [
+        "luxury wedding hungary",
+        "budapest wedding venue",
+        "hungarian castle wedding",
+      ],
+    },
+    regions: [],
+  },
+  {
     slug: "ireland",
     name: "Ireland",
     iso2: "IE",
@@ -570,6 +592,167 @@ const UK_IRELAND_SKELETON_REGIONS = [
   skeletonRegion("belfast", "Belfast", "england", "Northern Ireland", []),
 ];
 
+// --- France regions --------------------------------------------------------
+
+const FRANCE_REGIONS = [
+  {
+    slug: "provence",
+    name: "Provence",
+    countrySlug: "france",
+    group: "France",
+    priorityLevel: 1,
+    listingCount: 0,
+    heroTitle: "Weddings in Provence",
+    heroSubtitle: "Lavender fields, hilltop villages and sun-drenched châteaux in the south of France.",
+    heroImg: null,
+    introEditorial: "Provence is one of Europe's most romantic wedding destinations — a landscape of lavender, limestone and ancient light. From the hilltop perch of Gordes to the grand allées of the Luberon, the region offers an unmatched combination of natural beauty and refined venue stock. Weddings here are unhurried, sensory affairs: long tables beneath century-old planes, rosé poured at golden hour, the scent of wild herbs in evening air.",
+    categoryShortcuts: [],
+    cities: ["gordes", "luberon", "aix-en-provence", "avignon", "les-baux-de-provence", "saint-remy-de-provence"],
+    localTerm: "Areas",
+    seo: {
+      title: "Luxury Wedding Venues in Provence, France | LWD",
+      metaDescription: "Discover curated luxury wedding venues in Provence — from hilltop châteaux in the Luberon to elegant estates near Aix-en-Provence. Personally verified by the LWD editorial team.",
+      canonicalPath: "/france/provence",
+    },
+    ai: {
+      summary: "Provence — lavender fields, hilltop villages and sun-drenched châteaux in southern France.",
+      focusKeywords: ["luxury wedding provence", "provence wedding venue", "chateau wedding provence", "luberon wedding", "aix-en-provence wedding"],
+    },
+    relatedRegionSlugs: ["paris", "dordogne", "normandy"],
+  },
+  {
+    slug: "paris",
+    name: "Paris",
+    countrySlug: "france",
+    group: "France",
+    priorityLevel: 1,
+    listingCount: 0,
+    heroTitle: "Weddings in Paris",
+    heroSubtitle: "Iconic city weddings in the world's most romantic capital.",
+    heroImg: null,
+    introEditorial: "Paris remains the gold standard for romantic city weddings — from grand Haussmann ballrooms and private hôtels particuliers to intimate Left Bank venues overlooking the Seine.",
+    categoryShortcuts: [],
+    cities: ["marais", "saint-germain", "montmartre", "champs-elysees"],
+    localTerm: "Arrondissements",
+    seo: {
+      title: "Luxury Wedding Venues in Paris, France | LWD",
+      metaDescription: "Discover curated luxury wedding venues in Paris — from grand ballrooms and private hôtels particuliers to intimate Left Bank venues.",
+      canonicalPath: "/france/paris",
+    },
+    ai: {
+      summary: "Paris — iconic city weddings in grand ballrooms and private hôtels particuliers.",
+      focusKeywords: ["luxury wedding paris", "paris wedding venue", "chateau wedding paris", "wedding venue france"],
+    },
+    relatedRegionSlugs: ["provence", "normandy", "loire-valley"],
+  },
+  {
+    slug: "loire-valley",
+    name: "Loire Valley",
+    countrySlug: "france",
+    group: "France",
+    priorityLevel: 2,
+    listingCount: 0,
+    heroTitle: "Weddings in the Loire Valley",
+    heroSubtitle: "Fairy-tale châteaux along the royal river of France.",
+    heroImg: null,
+    introEditorial: "The Loire Valley, UNESCO-listed for its concentration of royal châteaux and Renaissance gardens, is France's premier castle-wedding destination.",
+    categoryShortcuts: [],
+    cities: ["tours", "amboise", "blois", "saumur"],
+    localTerm: "Towns",
+    seo: {
+      title: "Luxury Wedding Venues in Loire Valley, France | LWD",
+      metaDescription: "Discover curated luxury wedding venues in the Loire Valley — fairy-tale châteaux and royal gardens.",
+      canonicalPath: "/france/loire-valley",
+    },
+    ai: {
+      summary: "Loire Valley — fairy-tale châteaux and Renaissance gardens along the royal river.",
+      focusKeywords: ["chateau wedding loire valley", "luxury wedding loire", "france chateau wedding"],
+    },
+    relatedRegionSlugs: ["paris", "normandy"],
+  },
+  {
+    slug: "normandy",
+    name: "Normandy",
+    countrySlug: "france",
+    group: "France",
+    priorityLevel: 3,
+    listingCount: 0,
+    heroTitle: "Weddings in Normandy",
+    heroSubtitle: "Clifftop manors and apple orchards in north-west France.",
+    heroImg: null,
+    introEditorial: "Normandy's dramatic coastline, half-timbered manor houses and rolling bocage countryside make it an increasingly sought-after wedding destination for couples looking beyond Paris.",
+    categoryShortcuts: [],
+    cities: ["honfleur", "deauville", "etretat", "bayeux"],
+    localTerm: "Towns",
+    seo: {
+      title: "Luxury Wedding Venues in Normandy, France | LWD",
+      metaDescription: "Discover curated luxury wedding venues in Normandy — clifftop manors, apple orchards and coastal estates.",
+      canonicalPath: "/france/normandy",
+    },
+    ai: {
+      summary: "Normandy — clifftop manors and dramatic coastline in north-west France.",
+      focusKeywords: ["wedding normandy france", "chateau wedding normandy", "manor house wedding france"],
+    },
+    relatedRegionSlugs: ["paris", "loire-valley"],
+  },
+  {
+    slug: "dordogne",
+    name: "Dordogne",
+    countrySlug: "france",
+    group: "France",
+    priorityLevel: 3,
+    listingCount: 0,
+    heroTitle: "Weddings in the Dordogne",
+    heroSubtitle: "Medieval castles and golden stone villages in south-west France.",
+    heroImg: null,
+    introEditorial: "The Dordogne — La Périgord — is a pastoral idyll of golden limestone, walnut groves and medieval hilltop bastides. Its concentration of restored châteaux and farmhouse estates makes it a favourite for multi-day destination weddings.",
+    categoryShortcuts: [],
+    cities: ["sarlat", "bergerac", "perigueux"],
+    localTerm: "Towns",
+    seo: {
+      title: "Luxury Wedding Venues in Dordogne, France | LWD",
+      metaDescription: "Discover curated luxury wedding venues in the Dordogne — medieval castles and golden stone estates in south-west France.",
+      canonicalPath: "/france/dordogne",
+    },
+    ai: {
+      summary: "Dordogne — medieval castles and golden stone villages in south-west France.",
+      focusKeywords: ["wedding dordogne france", "chateau wedding dordogne", "perigord wedding"],
+    },
+    relatedRegionSlugs: ["provence", "loire-valley"],
+  },
+];
+
+// --- France cities ---------------------------------------------------------
+
+const FRANCE_CITIES = [
+  // Provence
+  { slug: "gordes", name: "Gordes", regionSlug: "provence", countrySlug: "france", listingCount: 0, introEditorial: "Gordes is Provence's most iconic hilltop village — a cluster of ochre stone perched above the Luberon, surrounded by lavender fields and dry-stone terraces." },
+  { slug: "luberon", name: "Luberon", regionSlug: "provence", countrySlug: "france", listingCount: 0, introEditorial: "The Luberon plateau offers some of Provence's most atmospheric estate venues, from restored bergeries to grand bastides overlooking vineyards and lavender." },
+  { slug: "aix-en-provence", name: "Aix-en-Provence", regionSlug: "provence", countrySlug: "france", listingCount: 0, introEditorial: "Aix-en-Provence combines elegant 17th-century hôtels particuliers with café-lined cours for sophisticated city celebrations." },
+  { slug: "avignon", name: "Avignon", regionSlug: "provence", countrySlug: "france", listingCount: 0, introEditorial: "Avignon's papal history lends grandeur to its wedding scene — with venues ranging from restored abbeys to private villas overlooking the Rhône." },
+  { slug: "les-baux-de-provence", name: "Les Baux-de-Provence", regionSlug: "provence", countrySlug: "france", listingCount: 0, introEditorial: "Les Baux-de-Provence is a dramatic citadel village with breathtaking views across the Alpilles — surrounded by estate venues of exceptional quality." },
+  { slug: "saint-remy-de-provence", name: "Saint-Rémy-de-Provence", regionSlug: "provence", countrySlug: "france", listingCount: 0, introEditorial: "Saint-Rémy is a chic market town at the foot of the Alpilles, ringed by mas and bastide estates ideal for intimate luxury celebrations." },
+  // Paris
+  { slug: "marais", name: "Le Marais", regionSlug: "paris", countrySlug: "france", listingCount: 0, introEditorial: "Le Marais blends medieval hôtels particuliers with contemporary gallery spaces for stylish Paris celebrations." },
+  { slug: "saint-germain", name: "Saint-Germain-des-Prés", regionSlug: "paris", countrySlug: "france", listingCount: 0, introEditorial: "Saint-Germain delivers Left Bank sophistication in intimate salons and restored 18th-century mansion houses." },
+  { slug: "montmartre", name: "Montmartre", regionSlug: "paris", countrySlug: "france", listingCount: 0, introEditorial: "Montmartre offers bohemian charm and sweeping city views from its hilltop perch above Paris." },
+  { slug: "champs-elysees", name: "Champs-Élysées", regionSlug: "paris", countrySlug: "france", listingCount: 0, introEditorial: "The Champs-Élysées quarter hosts some of Paris's grandest ballrooms and five-star hotel venues." },
+  // Loire Valley
+  { slug: "tours", name: "Tours", regionSlug: "loire-valley", countrySlug: "france", listingCount: 0, introEditorial: "Tours is the gateway to the Loire Valley's châteaux, with elegant townhouse venues and easy access to surrounding estates." },
+  { slug: "amboise", name: "Amboise", regionSlug: "loire-valley", countrySlug: "france", listingCount: 0, introEditorial: "Amboise sits beneath its royal château overlooking the Loire — a romantic setting for celebrations steeped in Renaissance history." },
+  { slug: "blois", name: "Blois", regionSlug: "loire-valley", countrySlug: "france", listingCount: 0, introEditorial: "Blois offers access to some of the Loire's finest château estates, including Chambord and Cheverny nearby." },
+  { slug: "saumur", name: "Saumur", regionSlug: "loire-valley", countrySlug: "france", listingCount: 0, introEditorial: "Saumur's troglodyte caves, clifftop château and sparkling wine heritage create a uniquely memorable wedding backdrop." },
+  // Normandy
+  { slug: "honfleur", name: "Honfleur", regionSlug: "normandy", countrySlug: "france", listingCount: 0, introEditorial: "Honfleur is Normandy's most painterly harbour town — a favourite for intimate celebrations in converted manors and half-timbered houses." },
+  { slug: "deauville", name: "Deauville", regionSlug: "normandy", countrySlug: "france", listingCount: 0, introEditorial: "Deauville brings Côte Fleurie glamour — grand Belle Époque hotels and private estate venues overlooking the English Channel." },
+  { slug: "etretat", name: "Étretat", regionSlug: "normandy", countrySlug: "france", listingCount: 0, introEditorial: "Étretat's iconic clifftop chalk arches provide a dramatic natural backdrop for coastal estate weddings." },
+  { slug: "bayeux", name: "Bayeux", regionSlug: "normandy", countrySlug: "france", listingCount: 0, introEditorial: "Bayeux's medieval cathedral quarter and surrounding bocage countryside offer intimate, history-laden venues." },
+  // Dordogne
+  { slug: "sarlat", name: "Sarlat-la-Canéda", regionSlug: "dordogne", countrySlug: "france", listingCount: 0, introEditorial: "Sarlat's perfectly preserved medieval centre and surrounding valley châteaux make it the Dordogne's premier wedding destination." },
+  { slug: "bergerac", name: "Bergerac", regionSlug: "dordogne", countrySlug: "france", listingCount: 0, introEditorial: "Bergerac's wine country estates and rolling vineyard landscapes make it ideal for relaxed multi-day celebrations." },
+  { slug: "perigueux", name: "Périgueux", regionSlug: "dordogne", countrySlug: "france", listingCount: 0, introEditorial: "Périgueux offers grand Périgord manor houses and restored abbey venues in the heart of the Dordogne." },
+];
+
 // --- Assemble final REGIONS array -----------------------------------------
 
 export const REGIONS = [
@@ -577,6 +760,7 @@ export const REGIONS = [
   ...ITALY_REGIONS_MAPPED,
   ...UK_IRELAND_FULL_REGIONS,
   ...UK_IRELAND_SKELETON_REGIONS,
+  ...FRANCE_REGIONS,
 ];
 
 // ---------------------------------------------------------------------------
@@ -779,6 +963,7 @@ const UK_IRELAND_CITIES = [
 export const CITIES = [
   ...ITALY_CITIES_MAPPED,
   ...UK_IRELAND_CITIES,
+  ...FRANCE_CITIES,
 ];
 
 // ---------------------------------------------------------------------------

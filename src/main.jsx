@@ -627,7 +627,10 @@ function App() {
           <EventReviewPage />
         )}
         {page === "dde-showcase" && (
-          <DdeShowcasePage
+          <ShowcasePage
+            slug="domaine-des-etangs"
+            darkMode={darkMode}
+            onToggleDark={toggleDark}
             onBack={goHome}
             onGoDestination={(countrySlug) => {
               if (countrySlug) { setActiveCountrySlug(countrySlug); setPage("italy"); }
@@ -635,17 +638,27 @@ function App() {
             }}
             onNavigateStandard={goStandard}
             onNavigateAbout={goAbout}
-            darkMode={darkMode}
-            onToggleDark={toggleDark}
           />
         )}
         {page === "gt-showcase" && (
-          <VenueProfilePage
+          <ShowcasePage
+            slug="grand-tirolia-kitzbuehel"
+            darkMode={darkMode}
+            onToggleDark={toggleDark}
             onBack={goHome}
+            onGoDestination={(countrySlug) => {
+              if (countrySlug) { setActiveCountrySlug(countrySlug); setPage("home"); }
+              else { setPage("home"); }
+            }}
+            onNavigateStandard={goStandard}
+            onNavigateAbout={goAbout}
           />
         )}
         {page === "sskrabey-showcase" && (
-          <SixSensesShowcasePage
+          <ShowcasePage
+            slug="six-senses-krabey-island"
+            darkMode={darkMode}
+            onToggleDark={toggleDark}
             onBack={goHome}
             onGoDestination={(countrySlug) => {
               if (countrySlug) { setActiveCountrySlug(countrySlug); setPage("italy"); }
@@ -653,12 +666,13 @@ function App() {
             }}
             onNavigateStandard={goStandard}
             onNavigateAbout={goAbout}
-            darkMode={darkMode}
-            onToggleDark={toggleDark}
           />
         )}
         {page === "ritz-showcase" && (
-          <RitzLondonShowcasePage
+          <ShowcasePage
+            slug="the-ritz-london"
+            darkMode={darkMode}
+            onToggleDark={toggleDark}
             onBack={goHome}
             onGoDestination={(countrySlug) => {
               if (countrySlug) { setActiveCountrySlug(countrySlug); setPage("italy"); }
@@ -666,12 +680,13 @@ function App() {
             }}
             onNavigateStandard={goStandard}
             onNavigateAbout={goAbout}
-            darkMode={darkMode}
-            onToggleDark={toggleDark}
           />
         )}
         {page === "ic-park-lane-showcase" && (
-          <InterContinentalParkLanePage
+          <ShowcasePage
+            slug="intercontinental-london-park-lane"
+            darkMode={darkMode}
+            onToggleDark={toggleDark}
             onBack={goHome}
             onGoDestination={(countrySlug) => {
               if (countrySlug) { setActiveCountrySlug(countrySlug); setPage("location"); }
@@ -679,8 +694,6 @@ function App() {
             }}
             onNavigateStandard={goStandard}
             onNavigateAbout={goAbout}
-            darkMode={darkMode}
-            onToggleDark={toggleDark}
           />
         )}
         {page === "showcase" && (
@@ -718,7 +731,7 @@ function App() {
           />
         )}
         {page === "region" && (
-          <RegionPage onBack={goHome} onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} countrySlug={activeCountrySlug} regionSlug={activeRegionSlug} footerNav={footerNav} />
+          <RegionPage onBack={goHome} onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} onViewCountry={goCountry} countrySlug={activeCountrySlug} regionSlug={activeRegionSlug} footerNav={footerNav} />
         )}
         {page === "region-category" && activeCategorySlug === "wedding-planners" && (
           <WeddingPlannersPage
@@ -824,6 +837,7 @@ function App() {
             onViewCategory={goCategory}
             onViewRegion={goRegion}
             onViewRegionCategory={goRegionCategory}
+            onViewCountry={goCountry}
             countrySlug={activeCountrySlug}
             regionSlug={activeRegionSlug}
             categorySlug={activeCategorySlug}
