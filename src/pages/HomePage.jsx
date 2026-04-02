@@ -91,22 +91,27 @@ function listingToCard(listing) {
 // ─── Category carousel components ─────────────────────────────────────────────
 const CATS_PER_PAGE = 7;
 
-function CategoryShortcutCard({ vc, C, onClick }) {
+function CategoryShortcutCard({ vc, C, onClick, isEmpty = false }) {
   const [hov, setHov] = useState(false);
-  const iconColor = hov ? C.gold : (C.grey || "#888");
+  const iconColor = hov ? C.gold : (isEmpty ? (C.muted || "#999") : (C.grey || "#888"));
   const renderIcon = LUXURY_ICONS[vc.slug];
   return (
     <button onClick={onClick} onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      style={{ background: hov ? C.card : C.dark, border: `1px solid ${hov ? C.gold : C.border2}`, borderRadius: "var(--lwd-radius-card)", padding: "28px 20px", textAlign: "center", cursor: "pointer", transition: "all 0.25s", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+      style={{ background: hov ? C.card : C.dark, border: `1px solid ${hov ? C.gold : C.border2}`, borderRadius: "var(--lwd-radius-card)", padding: "28px 20px", textAlign: "center", cursor: "pointer", transition: "all 0.25s", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, position: "relative", opacity: isEmpty ? 0.65 : 1 }}>
+      {isEmpty && (
+        <span style={{ position: "absolute", top: 8, right: 8, fontSize: 7, fontFamily: NU, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: C.gold || "#C9A84C", background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.25)", borderRadius: 4, padding: "2px 5px", lineHeight: 1.4 }}>
+          Soon
+        </span>
+      )}
       <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 48, height: 48, borderRadius: "50%", background: hov ? (C.goldDim || "rgba(201,168,76,0.08)") : "transparent", border: `1px solid ${hov ? C.gold : (C.border2 || "rgba(255,255,255,0.08)")}`, transition: "all 0.3s ease" }} aria-hidden="true">
-        {renderIcon ? renderIcon(iconColor) : <span style={{ fontSize: 22, opacity: 0.6 }}>{vc.icon}</span>}
+        {renderIcon ? renderIcon(iconColor) : <span style={{ fontSize: 22, opacity: isEmpty ? 0.4 : 0.6 }}>{vc.icon}</span>}
       </span>
-      <span style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", color: hov ? C.gold : C.off, transition: "color 0.2s" }}>{vc.label}</span>
+      <span style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", color: hov ? C.gold : (isEmpty ? (C.muted || "#999") : C.off), transition: "color 0.2s" }}>{vc.label}</span>
     </button>
   );
 }
 
-function CategoryCarousel({ categories, C, onSelect }) {
+function CategoryCarousel({ categories, C, onSelect, activeCategorySlugs = null }) {
   const [page, setPage] = useState(0);
   const totalPages = Math.ceil(categories.length / CATS_PER_PAGE);
   const start = page * CATS_PER_PAGE;
@@ -124,7 +129,7 @@ function CategoryCarousel({ categories, C, onSelect }) {
   return (
     <div>
       <div className="lwd-region-cat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 16 }}>
-        {visible.map((vc) => (<CategoryShortcutCard key={vc.slug} vc={vc} C={C} onClick={() => onSelect(vc.slug)} />))}
+        {visible.map((vc) => (<CategoryShortcutCard key={vc.slug} vc={vc} C={C} onClick={() => onSelect(vc.slug)} isEmpty={activeCategorySlugs !== null && !activeCategorySlugs.has(vc.slug)} />))}
       </div>
       {totalPages > 1 && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginTop: 28 }}>
@@ -187,6 +192,16 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
   // VendorPreview handles its own fallback to GLOBAL_VENDORS when dbVendors is empty/null
   const displayVendors = dbVendorCards.length > 0 ? dbVendorCards : null;
 
+  // Set of category slugs that have ≥1 live published listing globally.
+  // Drives the "Coming Soon" badge on empty category cards.
+  const activeCategorySlugs = (() => {
+    if (dbListings.length === 0) return null; // still loading — don't show badges yet
+    const s = new Set();
+    if (dbVenueCards.length > 0) s.add("wedding-venues");
+    dbVendorCards.forEach((c) => { if (c.cat) s.add(c.cat); });
+    return s;
+  })();
+
   return (
     <ThemeCtx.Provider value={C}>
       <div style={{ background: C.black, minHeight: "100vh" }}>
@@ -220,6 +235,7 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
                 categories={VENDOR_CATEGORIES}
                 C={C}
                 onSelect={(slug) => onViewCategory({ category: slug })}
+                activeCategorySlugs={activeCategorySlugs}
               />
             </div>
           </section>
