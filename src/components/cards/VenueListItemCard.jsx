@@ -258,7 +258,7 @@ export default function VenueListItemCard({ v, onView, isHighlighted, quickViewI
           {/* Name */}
           <h3 style={{
             fontFamily:    GD,
-            fontSize:      22,
+            fontSize:      18,
             fontStyle:     "italic",
             fontWeight:    500,
             color:         C.white,
