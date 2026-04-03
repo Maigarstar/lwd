@@ -37,6 +37,7 @@ import ImageUploadField from "../components/admin/ImageUploadField";
 import { getAllSubmissions, reviewSubmission, toggleFeatured } from "../services/artistryService";
 import ReviewsModule from "./AdminDashboard/ReviewsModule";
 import CRMModule from "./AdminModules/CRMModule";
+import ListingApplicationsModule from "./AdminModules/ListingApplicationsModule";
 import EmailMarketingModule from "./AdminModules/EmailMarketingModule";
 import EmailBuilderModule from "./AdminModules/EmailBuilderModule";
 import SalesPipelineModule from "./AdminModules/SalesPipelineModule";
@@ -301,11 +302,12 @@ const NAV_SECTIONS = [
   {
     group: "Sales",
     items: [
-      { key: "crm",               label: "CRM",               icon: "⊕" },
-      { key: "sales-pipeline",    label: "Sales Pipeline",    icon: "◆" },
-      { key: "pipeline-builder",  label: "Pipeline Builder",  icon: "⊞" },
-      { key: "partner-enquiries", label: "Partner Enquiries", icon: "⊛" },
-      { key: "advertise-leads",   label: "Advertise Leads",   icon: "⊡" },
+      { key: "crm",                    label: "CRM",                    icon: "⊕" },
+      { key: "listing-applications",   label: "Listing Applications",   icon: "⊞" },
+      { key: "sales-pipeline",         label: "Sales Pipeline",         icon: "◆" },
+      { key: "pipeline-builder",       label: "Pipeline Builder",       icon: "⊠" },
+      { key: "partner-enquiries",      label: "Partner Enquiries",      icon: "⊛" },
+      { key: "advertise-leads",        label: "Advertise Leads",        icon: "⊡" },
     ],
   },
   {
@@ -11603,6 +11605,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "events":            return <EventsModule key="events" C={C} darkMode={darkMode} onBuilderModeChange={setEventsBuilderActive} />;
       case "event-studio":      return <EventsModule key="event-studio" C={C} darkMode={darkMode} onBuilderModeChange={setEventsBuilderActive} startInBuilder />;
       case "managed-accounts":  return <ManagedAccountsModule C={C} />;
+      case "listing-applications": return <ListingApplicationsModule C={C} />;
       case "partner-enquiries": return <PartnerEnquiriesModule C={C} />;
       case "sales-pipeline":    return <SalesPipelineModule C={C} />;
       case "pipeline-builder":  return <PipelineBuilderModule C={C} />;
