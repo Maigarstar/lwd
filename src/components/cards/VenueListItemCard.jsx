@@ -113,7 +113,7 @@ export default function VenueListItemCard({ v, onView, isHighlighted, quickViewI
       <div style={{
         width:      357,
         minWidth:   357,
-        height:     244,
+        height:     264,
         position:   "relative",
         overflow:   "hidden",
         background: "#0a0806",
