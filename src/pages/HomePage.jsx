@@ -155,6 +155,7 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
   const [enquiryVendor, setEnquiryVendor] = useState(null);
   const [heroBackgroundData, setHeroBackgroundData] = useState(null);
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
+  const [hovCat, setHovCat] = useState(null);
   const [dbListings, setDbListings] = useState([]);
   const [immersiveOpen, setImmersiveOpen] = useState(false);
 
@@ -344,42 +345,38 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
 
                   {/* Category grid — uniform 3-col */}
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, flex: 1, alignContent: "flex-start" }}>
-                    {VENDOR_CATEGORIES.slice(0, 12).map((cat) => (
-                      <button
-                        key={cat.slug}
-                        onClick={() => onViewCategory({ category: cat.slug })}
-                        style={{
-                          background:   "none",
-                          border:       `1px solid ${darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"}`,
-                          borderRadius: 2,
-                          padding:      0,
-                          height:       isMobile ? 44 : 64,
-                          cursor:       "pointer",
-                          display:      "flex",
-                          alignItems:   "center",
-                          justifyContent: "center",
-                          fontFamily:   NU,
-                          fontSize:     11,
-                          letterSpacing: "0.04em",
-                          color:        darkMode ? "rgba(245,240,232,0.65)" : C.off,
-                          whiteSpace:   "nowrap",
-                          overflow:     "hidden",
-                          textOverflow: "ellipsis",
-                          padding:      "0 8px",
-                          transition:   "border-color 0.2s ease, color 0.2s ease",
-                        }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.borderColor = "rgba(201,168,76,0.5)";
-                          e.currentTarget.style.color = darkMode ? "#f5f0e8" : "#1a1714";
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.borderColor = darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)";
-                          e.currentTarget.style.color = darkMode ? "rgba(245,240,232,0.65)" : C.off;
-                        }}
-                      >
-                        {cat.label}
-                      </button>
-                    ))}
+                    {VENDOR_CATEGORIES.slice(0, 12).map((cat) => {
+                      const hov = hovCat === cat.slug;
+                      return (
+                        <button
+                          key={cat.slug}
+                          onClick={() => onViewCategory({ category: cat.slug })}
+                          onMouseEnter={() => setHovCat(cat.slug)}
+                          onMouseLeave={() => setHovCat(null)}
+                          style={{
+                            background:     hov ? (darkMode ? "rgba(201,168,76,0.08)" : "rgba(26,23,20,0.04)") : "none",
+                            border:         `1px solid ${hov ? "rgba(201,168,76,0.5)" : darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"}`,
+                            borderRadius:   2,
+                            padding:        "0 8px",
+                            height:         isMobile ? 44 : 64,
+                            cursor:         "pointer",
+                            display:        "flex",
+                            alignItems:     "center",
+                            justifyContent: "center",
+                            fontFamily:     NU,
+                            fontSize:       11,
+                            letterSpacing:  "0.04em",
+                            color:          hov ? (darkMode ? "#f5f0e8" : "#1a1714") : darkMode ? "rgba(245,240,232,0.65)" : C.off,
+                            whiteSpace:     "nowrap",
+                            overflow:       "hidden",
+                            textOverflow:   "ellipsis",
+                            transition:     "border-color 0.2s ease, color 0.2s ease, background 0.2s ease",
+                          }}
+                        >
+                          {cat.label}
+                        </button>
+                      );
+                    })}
                   </div>
 
                   {/* Footer hint */}
