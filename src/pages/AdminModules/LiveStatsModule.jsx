@@ -516,9 +516,19 @@ export default function LiveStatsModule({ C }) {
   const dotEmpty      = isLight ? "rgba(0,0,0,0.15)"  : "rgba(255,255,255,0.12)";
   const dotConnector  = isLight ? "rgba(0,0,0,0.12)"  : "rgba(255,255,255,0.08)";
   const dotActive     = isLight ? "rgba(0,0,0,0.25)"  : "rgba(255,255,255,0.25)";
-  const tagBg         = isLight ? "rgba(0,0,0,0.06)"  : "rgba(255,255,255,0.06)";
+  const tagBg         = isLight ? "rgba(0,0,0,0.07)"  : "rgba(255,255,255,0.06)";
   const drawerBg      = isLight ? C.dark               : "#0c0a08";
   const engageBarBg   = isLight ? C.dark               : "#0e0b09";
+  // Light mode row surfaces — clear visual separation without darkness
+  const rowEven       = isLight ? "#FFFFFF"     : "transparent";
+  const rowOdd        = isLight ? "#FAF9F6"     : "rgba(255,255,255,0.022)";
+  const rowOddLeave   = isLight ? "#FAF9F6"     : "rgba(255,255,255,0.018)";
+  const rowHover      = isLight ? "#FFF8E6"     : "rgba(201,168,76,0.05)";      // gold wash
+  const rowSelBg      = isLight ? "#FFF8E1"     : undefined;                     // warm gold wash
+  const rowBorder     = isLight ? C?.border || "#DED9CF" : border;
+  // Header row bg — anchors the table in light mode
+  const theadBg       = isLight ? C?.black || "#F5F4F1" : "rgba(14,11,9,0.98)";
+  const theadShadow   = isLight ? "0 2px 4px rgba(0,0,0,0.08)" : "none";
 
   // ── Data loading ──────────────────────────────────────────────────────────
 
@@ -1491,7 +1501,12 @@ export default function LiveStatsModule({ C }) {
           { label: "Top Page",          value: topPage ? shortPath(topPage) : "—", small: true },
           { label: "Top Country",       value: topCountry,          small: true },
         ].map(k => (
-          <div key={k.label} style={{ background: card, padding: "14px 16px", boxShadow: isLight ? "0 1px 3px rgba(0,0,0,0.06)" : "none" }}>
+          <div key={k.label} style={{
+            background: card, padding: "14px 16px",
+            boxShadow: isLight ? "0 1px 3px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)" : "none",
+            borderBottom: isLight ? `2px solid ${k.accentColor || "transparent"}` : "none",
+            transition: "box-shadow 0.15s",
+          }}>
             <div style={{
               ...S.kpiVal,
               fontSize: k.small ? 14 : 26,
@@ -1838,13 +1853,15 @@ export default function LiveStatsModule({ C }) {
                     padding: "10px 12px",
                     borderBottom: `1px solid ${border}`,
                     borderLeft: isSel
-                      ? `2px solid ${accentColor || GOLD}`
-                      : accentColor ? `2px solid ${accentColor}60` : "2px solid transparent",
+                      ? `3px solid ${accentColor || GOLD}`
+                      : accentColor ? `3px solid ${accentColor}60` : "3px solid transparent",
+                    borderBottom: `1px solid ${rowBorder}`,
                     background: isSel
-                      ? `${accentColor || GOLD}0a`
-                      : convStage === "submitted" ? "rgba(16,185,129,0.03)"
-                      : convStage === "started"   ? "rgba(6,182,212,0.03)"
-                      : tier ? `${tm.color}04` : "transparent",
+                      ? rowSelBg || `${accentColor || GOLD}0a`
+                      : convStage === "submitted" ? (isLight ? "rgba(5,150,105,0.05)" : "rgba(16,185,129,0.03)")
+                      : convStage === "started"   ? (isLight ? "rgba(6,182,212,0.05)" : "rgba(6,182,212,0.03)")
+                      : tier ? `${tm.color}06` : "transparent",
+                    boxShadow: isSel && isLight ? "inset 0 0 0 1px rgba(201,168,76,0.25)" : "none",
                     cursor: "pointer", transition: "all 0.15s",
                   }}
                 >
@@ -2164,7 +2181,7 @@ export default function LiveStatsModule({ C }) {
               {colOrder.map(key => <col key={key} style={{ width: colWidths[key] }} />)}
             </colgroup>
             <thead>
-              <tr style={{ background: isLight ? C?.black || "#F7F6F3" : "rgba(14,11,9,0.98)", borderBottom: `2px solid ${border}`, position: "sticky", top: 0, zIndex: 5, boxShadow: isLight ? "0 2px 6px rgba(0,0,0,0.06)" : "none" }}>
+              <tr style={{ background: theadBg, borderBottom: `2px solid ${C?.border2 || border}`, position: "sticky", top: 0, zIndex: 5, boxShadow: theadShadow }}>
                 {colOrder.map(colKey => {
                   const col          = COLS.find(c => c.key === colKey);
                   const isSortActive = col.sortCol && sortCol === col.sortCol;
@@ -2180,13 +2197,13 @@ export default function LiveStatsModule({ C }) {
                       onDragEnd={handleDragEnd}
                       onClick={() => col.sortCol && toggleSort(col.sortCol)}
                       style={{
-                        padding: "9px 12px 9px 10px",
+                        padding: isLight ? "10px 12px 10px 10px" : "9px 12px 9px 10px",
                         textAlign: "left", userSelect: "none",
-                        fontFamily: NU, fontSize: 9, fontWeight: 700,
-                        letterSpacing: "0.8px", textTransform: "uppercase",
-                        color: isSortActive ? GOLD : grey2,
+                        fontFamily: NU, fontSize: isLight ? 10 : 9, fontWeight: 800,
+                        letterSpacing: "0.7px", textTransform: "uppercase",
+                        color: isSortActive ? GOLD : isLight ? (C?.grey || "#444444") : grey2,
                         cursor: col.sortCol ? "pointer" : colKey !== "actions" ? "grab" : "default",
-                        borderRight: `1px solid ${border}`,
+                        borderRight: `1px solid ${C?.border2 || border}`,
                         borderLeft: isDragOver ? `2px solid ${GOLD}` : "none",
                         background: isDragOver ? "rgba(201,168,76,0.07)" : "transparent",
                         position: "relative", whiteSpace: "nowrap",
@@ -2267,23 +2284,24 @@ export default function LiveStatsModule({ C }) {
                       borderBottom: `1px solid ${border}`,
                       borderLeft: `3px solid ${leftClr}`,
                       background: isSel
-                        ? `${tm?.color || GOLD}12`
-                        : idx % 2 === 0 ? "transparent" : isLight ? "rgba(0,0,0,0.022)" : "rgba(255,255,255,0.022)",
+                        ? rowSelBg || `${tm?.color || GOLD}12`
+                        : idx % 2 === 0 ? rowEven : rowOdd,
                       boxShadow: isSel
                         ? isLight
-                          ? `inset 0 0 0 1px ${tm?.color || GOLD}40`
+                          ? `inset 0 0 0 2px ${tm?.color || GOLD}60`
                           : `inset 0 0 0 1px ${tm?.color || GOLD}25`
                         : "none",
+                      borderBottom: `1px solid ${rowBorder}`,
                       cursor: "pointer",
                       opacity: isSel ? 1 : rowOpacity,
                       transition: "background 0.12s, opacity 0.3s, box-shadow 0.12s",
                     }}
                     onMouseEnter={e => {
-                      if (!isSel) e.currentTarget.style.background = isLight ? "rgba(201,168,76,0.07)" : "rgba(201,168,76,0.05)";
+                      if (!isSel) e.currentTarget.style.background = rowHover;
                     }}
                     onMouseLeave={e => {
                       if (!isSel) e.currentTarget.style.background =
-                        idx % 2 === 0 ? "transparent" : isLight ? "rgba(0,0,0,0.018)" : "rgba(255,255,255,0.014)";
+                        idx % 2 === 0 ? rowEven : rowOddLeave;
                     }}
                   >
                     {colOrder.map(colKey => getCellContent(colKey, s, { isActive, isSel, tier, tm, src, loc, journeyStr, sessionBadge, idx, convStage, convMeta }))}
@@ -2596,9 +2614,9 @@ export default function LiveStatsModule({ C }) {
         return (
           <div style={{
             position: "fixed", bottom: 0, left: 0, right: 0,
-            background: engageBarBg, borderTop: `2px solid ${GOLD}50`,
+            background: engageBarBg, borderTop: `3px solid ${GOLD}`,
             zIndex: 300, padding: "18px 24px",
-            boxShadow: "0 -8px 40px rgba(0,0,0,0.6)",
+            boxShadow: isLight ? "0 -6px 24px rgba(0,0,0,0.12)" : "0 -8px 40px rgba(0,0,0,0.6)",
             animation: "lwd-engage-in 0.25s ease",
           }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 20, maxWidth: 1100 }}>
@@ -2644,10 +2662,15 @@ export default function LiveStatsModule({ C }) {
                 <button
                   onClick={handleEngage}
                   style={{
-                    fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: "0.5px",
-                    color: bg, background: `linear-gradient(135deg, ${GOLD}, #a07a28)`,
-                    border: "none", borderRadius: 5, padding: "9px 20px",
+                    fontFamily: NU, fontSize: 11, fontWeight: 800, letterSpacing: "0.5px",
+                    color: isLight ? "#FFFFFF" : bg,
+                    background: isLight
+                      ? "linear-gradient(135deg, #B8962A, #8E6E12)"
+                      : `linear-gradient(135deg, ${GOLD}, #a07a28)`,
+                    border: isLight ? "1px solid #8E6E12" : "none",
+                    borderRadius: 5, padding: "10px 22px",
                     cursor: "pointer", whiteSpace: "nowrap",
+                    boxShadow: isLight ? "0 2px 8px rgba(0,0,0,0.20)" : "none",
                   }}
                 >
                   ⚡ Open Aura with Context
@@ -2687,9 +2710,9 @@ export default function LiveStatsModule({ C }) {
         return (
           <div style={{
             position: "fixed", top: 0, right: 0, bottom: 0, width: 360,
-            background: drawerBg, borderLeft: `1px solid ${border}`,
+            background: drawerBg, borderLeft: `2px solid ${C?.border2 || border}`,
             zIndex: 200, display: "flex", flexDirection: "column",
-            boxShadow: "-8px 0 40px rgba(0,0,0,0.5)",
+            boxShadow: isLight ? "-4px 0 24px rgba(0,0,0,0.10)" : "-8px 0 40px rgba(0,0,0,0.5)",
           }}>
             <div style={{ padding: "16px 20px", borderBottom: `1px solid ${tm?.color || border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

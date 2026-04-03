@@ -101,26 +101,26 @@ import LocationPage from "./LocationPage";
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
 
-// Admin-only light palette — intentional "Apple dashboard meets Bloomberg light" theme.
-// Full contrast hierarchy, brand gold retained at full strength, tier colours pop on white.
+// Admin-only light palette — sharp financial dashboard with luxury styling.
+// Target: operator-grade contrast, not editorial softness.
 const DEFAULT_ADMIN_LIGHT_C = {
-  black:   "#F7F6F3",                   // page background — near-white, breath of warmth
-  dark:    "#FFFFFF",                   // panel / primary surface — clean white
-  card:    "#FFFFFF",                   // card background — pure white with elevation via shadow
-  border:  "#E8E3DC",                   // subtle warm border — visible but not heavy
-  border2: "#C9BFB3",                   // stronger border / hover dividers
-  gold:    "#C9A84C",                   // full brand gold — same as dark mode, no muting
-  gold2:   "#B8962A",                   // gold hover state
-  goldDim: "rgba(201,168,76,0.08)",     // gold tint on backgrounds
-  white:   "#111111",                   // primary text — near-black for max legibility
-  off:     "#1A1A1A",                   // display headings
-  grey:    "#555555",                   // secondary text — clear, readable
-  grey2:   "#999999",                   // muted / captions / timestamps
-  green:   "#059669",                   // success — slightly saturated for white backgrounds
+  black:   "#F5F4F1",                   // page background — slightly deeper than pure white
+  dark:    "#FFFFFF",                   // primary surface — pure white (cards, panels)
+  card:    "#FFFFFF",                   // card background
+  border:  "#DED9CF",                   // borders — present and decisive, not whisper-soft
+  border2: "#C0B9AE",                   // strong borders, header dividers, active edges
+  gold:    "#C9A84C",                   // full brand gold — unchanged
+  gold2:   "#B8962A",                   // gold hover / pressed
+  goldDim: "rgba(201,168,76,0.09)",     // gold tint on backgrounds
+  white:   "#111111",                   // primary text
+  off:     "#0A0A0A",                   // headings — maximum authority
+  grey:    "#444444",                   // secondary text — clear gap from primary
+  grey2:   "#888888",                   // muted — clear gap from secondary
+  green:   "#059669",                   // success
   blue:    "#2563EB",                   // info / links
   rose:    "#DC2626",                   // error / alerts
-  bg:      "#F7F6F3",                   // alias for black (page bg)
-  sidebar: "#F2EFE8",                   // sidebar — fractionally more tinted than page
+  bg:      "#F5F4F1",                   // alias for black
+  sidebar: "#EEECEA",                   // sidebar — noticeably set apart from page
 };
 
 const DEFAULT_DARK_C = { ...DARK_C, bg: DARK_C.dark, sidebar: DARK_C.dark };
