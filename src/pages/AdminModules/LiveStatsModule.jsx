@@ -2617,7 +2617,10 @@ export default function LiveStatsModule({ C }) {
             session: { city: et.city, country: et.country_name, tier, pages: et.page_count, currentPage: et.current_path },
           }));
           markEngaged(et.session_id);
-          window.open("/", "_blank");
+          // "noopener" is essential: prevents the new tab from inheriting
+          // sessionStorage from this admin window. Without it, lwd_admin_session
+          // copies across and the Aura engage guard in ChatContext silently skips.
+          window.open("/", "_blank", "noopener,noreferrer");
         };
 
         const handleCopy = () => {
