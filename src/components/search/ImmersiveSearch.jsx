@@ -417,7 +417,7 @@ export default function ImmersiveSearch({
       sessionStorage.removeItem("lwd:immersive-refinement");
     }
 
-    // ── Transition frame: hold for 3800ms then melt away (outer opacity fade = 0.45s)
+    // ── Transition frame: hold for 6000ms then melt away (outer opacity fade = 0.45s)
     setTransitioning(true);
     setTimeout(() => {
       setMounted(false); // triggers the 0.45s ease fade on the whole overlay
@@ -437,7 +437,7 @@ export default function ImmersiveSearch({
           onViewCategory?.();
         }
       }, 500); // wait for the 0.45s fade to finish
-    }, 950);
+    }, 6000);
   }, [pendingCat, location, refStyle, refGuests, refSetting, refBudget, onClose, onViewRegionCategory, onViewCategory]);
 
   // ── Don't mount at all when closed ───────────────────────────────────────
