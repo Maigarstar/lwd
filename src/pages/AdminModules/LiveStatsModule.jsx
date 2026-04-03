@@ -821,9 +821,9 @@ export default function LiveStatsModule({ C }) {
 
           {/* Panel header + controls */}
           <div style={{ padding: "10px 14px", borderBottom: `1px solid ${border}`, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 8, minWidth: 0 }}>
-              <span style={{ fontFamily: GD, fontSize: 15, fontWeight: 500, color: white, flexShrink: 0 }}>Sessions</span>
-              <span style={{ fontFamily: NU, fontSize: 10, color: grey2 }}>{last30.length} in 30m</span>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexShrink: 0 }}>
+              <span style={{ fontFamily: GD, fontSize: 15, fontWeight: 500, color: white }}>Sessions</span>
+              <span style={{ fontFamily: NU, fontSize: 10, color: grey2, whiteSpace: "nowrap" }}>{last30.length} in 30m</span>
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
