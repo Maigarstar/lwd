@@ -2742,7 +2742,8 @@ export default function LiveStatsModule({ C }) {
             {/* ── Chat area ──────────────────────────────────────────────── */}
             <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
 
-              {/* Messages */}
+              {/* Messages + input (column) */}
+              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
               <div
                 ref={engageChatScrollRef}
                 style={{ flex: 1, overflowY: "auto", padding: "12px 18px", display: "flex", flexDirection: "column", gap: 8 }}
@@ -2794,6 +2795,45 @@ export default function LiveStatsModule({ C }) {
                 )}
               </div>
 
+              {/* ── Input bar (aligned to messages column only) ──────────── */}
+              <div style={{
+                display: "flex", gap: 8, padding: "8px 18px 10px",
+                borderTop: `1px solid ${isLight ? "#DED9CF" : "rgba(255,255,255,0.08)"}`,
+                flexShrink: 0,
+              }}>
+                <input
+                  value={engageChatInput}
+                  onChange={e => setEngageChatInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendEngageMsg(engageChatInput); } }}
+                  placeholder="Ask Aura about this visitor…"
+                  disabled={engageChatTyping}
+                  style={{
+                    flex: 1, fontFamily: NU, fontSize: 12, color: white,
+                    background: isLight ? "#FFFFFF" : "rgba(255,255,255,0.07)",
+                    border: `1px solid ${isLight ? "#DED9CF" : "rgba(255,255,255,0.12)"}`,
+                    borderRadius: 6, padding: "7px 12px", outline: "none",
+                    opacity: engageChatTyping ? 0.5 : 1,
+                  }}
+                />
+                <button
+                  onClick={() => sendEngageMsg(engageChatInput)}
+                  disabled={!engageChatInput.trim() || engageChatTyping}
+                  style={{
+                    fontFamily: NU, fontSize: 11, fontWeight: 800,
+                    color: engageChatInput.trim() ? "#0a0a0a" : grey2,
+                    background: engageChatInput.trim()
+                      ? `linear-gradient(135deg, ${GOLD}, #a07a28)`
+                      : isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.06)",
+                    border: "none", borderRadius: 6, padding: "7px 16px",
+                    cursor: engageChatInput.trim() ? "pointer" : "default",
+                    transition: "all 0.15s", whiteSpace: "nowrap",
+                  }}
+                >
+                  Ask →
+                </button>
+              </div>
+              </div>{/* end messages column */}
+
               {/* Context sidebar (compact) */}
               <div style={{
                 width: 220, flexShrink: 0, padding: "12px 14px",
@@ -2818,43 +2858,6 @@ export default function LiveStatsModule({ C }) {
               </div>
             </div>
 
-            {/* ── Input bar ──────────────────────────────────────────────── */}
-            <div style={{
-              display: "flex", gap: 8, padding: "10px 18px",
-              borderTop: `1px solid ${isLight ? "#DED9CF" : "rgba(255,255,255,0.08)"}`,
-              flexShrink: 0, background: isLight ? "rgba(0,0,0,0.02)" : "rgba(0,0,0,0.2)",
-            }}>
-              <input
-                value={engageChatInput}
-                onChange={e => setEngageChatInput(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendEngageMsg(engageChatInput); } }}
-                placeholder="Ask Aura about this visitor…"
-                disabled={engageChatTyping}
-                style={{
-                  flex: 1, fontFamily: NU, fontSize: 12, color: white,
-                  background: isLight ? "#FFFFFF" : "rgba(255,255,255,0.07)",
-                  border: `1px solid ${isLight ? "#DED9CF" : "rgba(255,255,255,0.12)"}`,
-                  borderRadius: 6, padding: "8px 12px", outline: "none",
-                  opacity: engageChatTyping ? 0.5 : 1,
-                }}
-              />
-              <button
-                onClick={() => sendEngageMsg(engageChatInput)}
-                disabled={!engageChatInput.trim() || engageChatTyping}
-                style={{
-                  fontFamily: NU, fontSize: 11, fontWeight: 800,
-                  color: engageChatInput.trim() ? "#0a0a0a" : grey2,
-                  background: engageChatInput.trim()
-                    ? `linear-gradient(135deg, ${GOLD}, #a07a28)`
-                    : isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.06)",
-                  border: "none", borderRadius: 6, padding: "8px 18px",
-                  cursor: engageChatInput.trim() ? "pointer" : "default",
-                  transition: "all 0.15s", whiteSpace: "nowrap",
-                }}
-              >
-                Ask Aura →
-              </button>
-            </div>
           </div>
         );
       })()}
