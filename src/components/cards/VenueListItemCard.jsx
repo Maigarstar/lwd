@@ -111,8 +111,9 @@ export default function VenueListItemCard({ v, onView, isHighlighted, quickViewI
 
       {/* ── IMAGE ─────────────────────────────────────────────────────────── */}
       <div style={{
-        width:      "clamp(260px, 36%, 360px)",
-        minWidth:   "clamp(260px, 36%, 360px)",
+        width:      357,
+        minWidth:   357,
+        height:     244,
         position:   "relative",
         overflow:   "hidden",
         background: "#0a0806",
