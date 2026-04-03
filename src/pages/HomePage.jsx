@@ -340,8 +340,8 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
                     </h3>
                   </div>
 
-                  {/* Category grid */}
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, flex: 1, alignContent: "flex-start" }}>
+                  {/* Category grid — uniform 3-col */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, flex: 1, alignContent: "flex-start" }}>
                     {VENDOR_CATEGORIES.slice(0, 12).map((cat) => (
                       <button
                         key={cat.slug}
@@ -350,17 +350,20 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
                           background:    "none",
                           border:        `1px solid ${darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"}`,
                           borderRadius:  2,
-                          padding:       "9px 16px",
+                          padding:       "11px 8px",
                           color:         darkMode ? "rgba(245,240,232,0.65)" : C.off,
                           fontFamily:    NU,
-                          fontSize:      12,
+                          fontSize:      11,
                           letterSpacing: "0.03em",
                           cursor:        "pointer",
                           transition:    "all 0.2s ease",
+                          textAlign:     "center",
+                          overflow:      "hidden",
+                          textOverflow:  "ellipsis",
                           whiteSpace:    "nowrap",
                         }}
-                        onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.borderColor = darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"; e.currentTarget.style.color = darkMode ? "rgba(245,240,232,0.65)" : C.off; }}
+                        onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; e.currentTarget.style.background = "rgba(201,168,76,0.05)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.borderColor = darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"; e.currentTarget.style.color = darkMode ? "rgba(245,240,232,0.65)" : C.off; e.currentTarget.style.background = "none"; }}
                       >
                         {cat.label}
                       </button>
