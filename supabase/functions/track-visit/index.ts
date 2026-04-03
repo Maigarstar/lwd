@@ -47,6 +47,9 @@ function getGeo(req: Request, body: Record<string, unknown>) {
   const clientLat = body.geo_lat as number | null;
   const clientLng = body.geo_lng as number | null;
   if (clientLat && clientLng) {
+    // Strip ASN prefix from org field: "AS5089 Virgin Media Limited" → "Virgin Media Limited"
+    const rawIsp = (body.geo_isp as string) || null;
+    const isp = rawIsp ? rawIsp.replace(/^AS\d+\s+/i, "").trim() : null;
     return {
       country_code: (body.geo_country_code as string) || null,
       country_name: (body.geo_country_name as string) || null,
@@ -54,6 +57,7 @@ function getGeo(req: Request, body: Record<string, unknown>) {
       region:       (body.geo_region       as string) || null,
       latitude:     clientLat,
       longitude:    clientLng,
+      isp,
       geo_source:   "client",
     };
   }
@@ -172,6 +176,7 @@ Deno.serve(async (req: Request) => {
         region:         geo.region,
         latitude:       geo.latitude,
         longitude:      geo.longitude,
+        isp:            (geo as Record<string, unknown>).isp as string || null,
         device_type:    ua.device_type,
         browser:        ua.browser,
         os:             ua.os,
@@ -203,6 +208,7 @@ Deno.serve(async (req: Request) => {
         updates.region        = geo.region;
         updates.latitude      = geo.latitude;
         updates.longitude     = geo.longitude;
+        updates.isp           = (geo as Record<string, unknown>).isp || null;
       }
 
       await supabase.from("live_sessions").update(updates).eq("session_id", session_id);

@@ -104,3 +104,7 @@ create policy "Admins can read page events"
   on public.page_events
   for select
   using (auth.role() = 'authenticated');
+
+-- Add isp column (added when ISP tab feature shipped)
+alter table public.live_sessions
+  add column if not exists isp text;

@@ -290,7 +290,8 @@ export default function LiveStatsModule({ C }) {
   const audioCtxRef      = useRef(null);
   const knownSessionIds  = useRef(new Set());
   const flyReturnRef     = useRef(null); // timeout for return-to-world after fly-in
-  const [autoFollow, setAutoFollow] = useState(true); // fly to new visitors
+  const [autoFollow,     setAutoFollow]     = useState(true);
+  const [activeIntelTab, setActiveIntelTab] = useState("pages"); // pages|countries|isps|signals
 
   // ── Theme ──────────────────────────────────────────────────────────────────
   const NU     = "var(--font-body,'Nunito Sans',sans-serif)";
@@ -605,6 +606,13 @@ export default function LiveStatsModule({ C }) {
     if (s.country_code) ccCounts[s.country_code] = (ccCounts[s.country_code] || 0) + 1;
   });
   const topCountries = Object.entries(ccCounts).sort((a,b) => b[1]-a[1]).slice(0, 7);
+
+  // Top ISPs / carriers
+  const ispCounts = {};
+  last30.forEach(s => {
+    if (s.isp) ispCounts[s.isp] = (ispCounts[s.isp] || 0) + 1;
+  });
+  const topISPs = Object.entries(ispCounts).sort((a,b) => b[1]-a[1]).slice(0, 10);
 
   // Intent signals (last hour)
   const intentEvts = events.filter(e => INTENT_TYPES.includes(e.event_type));
@@ -984,55 +992,108 @@ export default function LiveStatsModule({ C }) {
         </div>
       </div>
 
-      {/* ── Bottom row ───────────────────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 1, background: border, borderTop: `1px solid ${border}`, flexShrink: 0 }}>
+      {/* ── Intelligence panel — tabbed ──────────────────────────────────── */}
+      <div style={{ borderTop: `1px solid ${border}`, flexShrink: 0, background: card }}>
 
-        {/* Top pages */}
-        <div style={{ background: card, padding: "14px 18px", maxHeight: 200, overflow: "hidden" }}>
-          <div style={S.sectionTitle}>Top Pages</div>
-          {topPages.length === 0
-            ? <div style={{ fontFamily: NU, fontSize: 11, color: grey2, lineHeight: 1.6 }}>Active pages will surface<br/>as visitors navigate the site</div>
-            : topPages.map(([path, count]) => (
-              <div key={path} style={S.row}>
-                <div style={S.rowLabel}>{shortPath(path)}</div>
-                <div style={S.rowVal}>{count}</div>
-              </div>
-            ))}
+        {/* Tab bar */}
+        <div style={{ display: "flex", borderBottom: `1px solid ${border}` }}>
+          {[
+            { key: "pages",     label: "Pages",     count: topPages.length },
+            { key: "countries", label: "Countries", count: topCountries.length },
+            { key: "isps",      label: "ISPs",      count: topISPs.length },
+            { key: "signals",   label: "Signals",   count: intentEvts.length },
+          ].map(tab => {
+            const isActive = activeIntelTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveIntelTab(tab.key)}
+                style={{
+                  flex: 1, padding: "9px 8px",
+                  fontFamily: NU, fontSize: 10, fontWeight: 700,
+                  letterSpacing: "0.6px", textTransform: "uppercase",
+                  cursor: "pointer", border: "none", transition: "all 0.15s",
+                  borderBottom: isActive ? `2px solid ${GOLD}` : "2px solid transparent",
+                  background: isActive ? "rgba(201,168,76,0.06)" : "transparent",
+                  color: isActive ? GOLD : grey2,
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                }}
+              >
+                {tab.label}
+                {tab.count > 0 && (
+                  <span style={{
+                    fontFamily: NU, fontSize: 9, fontWeight: 700,
+                    color: isActive ? GOLD : grey2,
+                    background: isActive ? "rgba(201,168,76,0.15)" : "rgba(255,255,255,0.06)",
+                    borderRadius: 8, padding: "0px 5px", lineHeight: "16px",
+                  }}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Top countries */}
-        <div style={{ background: card, padding: "14px 18px", maxHeight: 200, overflow: "hidden" }}>
-          <div style={S.sectionTitle}>Top Countries</div>
-          {topCountries.length === 0
-            ? <div style={{ fontFamily: NU, fontSize: 11, color: grey2, lineHeight: 1.6 }}>Visitor origin will appear<br/>as sessions arrive</div>
-            : topCountries.map(([cc, count]) => (
-              <div key={cc} style={S.row}>
-                <div style={{ display: "flex", alignItems: "center", gap: 7, flex: 1, marginRight: 8, overflow: "hidden" }}>
-                  <span style={{ fontSize: 15, flexShrink: 0 }}>{flag(cc)}</span>
-                  <span style={{ fontFamily: NU, fontSize: 11, color: grey, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cc}</span>
+        {/* Tab content */}
+        <div style={{ padding: "12px 18px", maxHeight: 190, overflowY: "auto" }}>
+
+          {/* Pages */}
+          {activeIntelTab === "pages" && (
+            topPages.length === 0
+              ? <div style={{ fontFamily: NU, fontSize: 11, color: grey2, lineHeight: 1.6 }}>Active pages will surface as visitors navigate the site</div>
+              : topPages.map(([path, count]) => (
+                <div key={path} style={S.row}>
+                  <div style={S.rowLabel}>{shortPath(path)}</div>
+                  <div style={S.rowVal}>{count}</div>
                 </div>
-                <div style={S.rowVal}>{count}</div>
-              </div>
-            ))}
-        </div>
+              ))
+          )}
 
-        {/* Intent signals */}
-        <div style={{ background: card, padding: "14px 18px", maxHeight: 200, overflow: "hidden" }}>
-          <div style={S.sectionTitle}>Intent Signals</div>
-          {intentEvts.length === 0
-            ? <div style={{ fontFamily: NU, fontSize: 11, color: grey2, lineHeight: 1.6 }}>Signals surface when visitors<br/>shortlist, compare, or enquire</div>
-            : intentEvts.slice(0, 7).map((e, i) => {
-              const meta = INTENT_META[e.event_type] || { label: e.event_type, color: grey };
-              return (
-                <div key={e.id || i} style={S.row}>
+          {/* Countries */}
+          {activeIntelTab === "countries" && (
+            topCountries.length === 0
+              ? <div style={{ fontFamily: NU, fontSize: 11, color: grey2, lineHeight: 1.6 }}>Visitor origin will appear as sessions arrive</div>
+              : topCountries.map(([cc, count]) => (
+                <div key={cc} style={S.row}>
                   <div style={{ display: "flex", alignItems: "center", gap: 7, flex: 1, marginRight: 8, overflow: "hidden" }}>
-                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: meta.color, flexShrink: 0 }} />
-                    <span style={{ fontFamily: NU, fontSize: 11, color: grey, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{meta.label}</span>
+                    <span style={{ fontSize: 15, flexShrink: 0 }}>{flag(cc)}</span>
+                    <span style={{ fontFamily: NU, fontSize: 11, color: grey, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cc}</span>
                   </div>
-                  <div style={{ fontFamily: NU, fontSize: 10, color: grey2, flexShrink: 0 }}>{timeAgo(e.created_at)}</div>
+                  <div style={S.rowVal}>{count}</div>
                 </div>
-              );
-            })}
+              ))
+          )}
+
+          {/* ISPs */}
+          {activeIntelTab === "isps" && (
+            topISPs.length === 0
+              ? <div style={{ fontFamily: NU, fontSize: 11, color: grey2, lineHeight: 1.6 }}>ISP and carrier data will appear once geo is resolved for sessions</div>
+              : topISPs.map(([isp, count]) => (
+                <div key={isp} style={S.row}>
+                  <div style={S.rowLabel}>{isp}</div>
+                  <div style={S.rowVal}>{count}</div>
+                </div>
+              ))
+          )}
+
+          {/* Signals */}
+          {activeIntelTab === "signals" && (
+            intentEvts.length === 0
+              ? <div style={{ fontFamily: NU, fontSize: 11, color: grey2, lineHeight: 1.6 }}>Signals surface when visitors shortlist, compare, or enquire</div>
+              : intentEvts.slice(0, 10).map((e, i) => {
+                const meta = INTENT_META[e.event_type] || { label: e.event_type, color: grey };
+                return (
+                  <div key={e.id || i} style={S.row}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, flex: 1, marginRight: 8, overflow: "hidden" }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: meta.color, flexShrink: 0 }} />
+                      <span style={{ fontFamily: NU, fontSize: 11, color: grey, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{meta.label}</span>
+                    </div>
+                    <div style={{ fontFamily: NU, fontSize: 10, color: grey2, flexShrink: 0 }}>{timeAgo(e.created_at)}</div>
+                  </div>
+                );
+              })
+          )}
         </div>
       </div>
 
@@ -1071,6 +1132,7 @@ export default function LiveStatsModule({ C }) {
               {[
                 ["Location",      [selected.city, selected.region, selected.country_code].filter(Boolean).join(", ") || "Unknown"],
                 ["Country",       selected.country_name || selected.country_code || "—"],
+              ["ISP / Carrier", selected.isp || "—"],
                 ["Current Page",  shortPath(selected.current_path)],
                 ["Entry Page",    selected.entry_path ? shortPath(selected.entry_path) : "—"],
                 ["Source",        selected.referrer || "Direct"],

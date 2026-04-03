@@ -63,6 +63,7 @@ function getGeo() {
         geo_country_name: d.country_name ?? null,
         geo_city:         d.city         ?? null,
         geo_region:       d.region       ?? null,
+        geo_isp:          d.org          ?? null,  // e.g. "AS5089 Virgin Media Limited"
       };
       sessionStorage.setItem("lwd_geo", JSON.stringify(geo));
       return geo;
