@@ -99,6 +99,33 @@ const REFRESH_MS  = 30_000;        // poll interval (supplements Realtime)
 const TICK_MS     = 10_000;        // re-render interval for live timers
 const ALERT_TTL   = 60_000;        // dismiss alert toast after 60s
 
+// ── Inline Aura AI (engage panel) ────────────────────────────────────────────
+const AURA_AI_URL  = 'https://qpkggfibwreznussudfh.supabase.co/functions/v1/ai-generate';
+const AURA_ANON_KEY = typeof window !== 'undefined'
+  ? (window.__VITE_SUPABASE_ANON_KEY__ || import.meta?.env?.VITE_SUPABASE_ANON_KEY || '')
+  : '';
+
+async function callEngageAI(userText, history, visitorContext) {
+  const systemPrompt = `You are Aura, a luxury wedding concierge AI helping an admin operator understand and engage with a live website visitor.
+The visitor has the following context: ${visitorContext}
+Help the admin craft personalised outreach, answer questions about this visitor's intent, or suggest talking points.
+Be concise, warm, and expert. Write in British English.`;
+
+  const historyStr = history.slice(-6).map(m => `${m.from === 'admin' ? 'Admin' : 'Aura'}: ${m.text}`).join('\n');
+  const userPrompt = historyStr ? `${historyStr}\nAdmin: ${userText}` : userText;
+
+  try {
+    const res = await fetch(AURA_AI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${AURA_ANON_KEY}` },
+      body: JSON.stringify({ feature: 'aura_chat', systemPrompt, userPrompt }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) return null;
+    return data.text || data.content || data.response || data.output || null;
+  } catch { return null; }
+}
+
 // ── Map style presets ─────────────────────────────────────────────────────────
 // All free, no API key required. CARTO tiles via CDN.
 // VITE_MAP_STYLE_URL env var overrides entirely (for MapTiler / Stadia premium).
@@ -478,8 +505,12 @@ export default function LiveStatsModule({ C }) {
   const [searchQuery,  setSearchQuery]  = useState("");
 
   // ── Engage panel ───────────────────────────────────────────────────────────
-  const [engageTarget, setEngageTarget] = useState(null);
-  const [engageCopied, setEngageCopied] = useState(false);
+  const [engageTarget,       setEngageTarget]       = useState(null);
+  const [engageCopied,       setEngageCopied]       = useState(false);
+  const [engageChatMessages, setEngageChatMessages] = useState([]);   // inline Aura thread
+  const [engageChatInput,    setEngageChatInput]    = useState("");
+  const [engageChatTyping,   setEngageChatTyping]   = useState(false);
+  const engageChatScrollRef = useRef(null);
 
   // ── Engaged session tracking (persisted in localStorage) ──────────────────
   const [engagedIds, setEngagedIds] = useState(() => {
@@ -2583,140 +2614,246 @@ export default function LiveStatsModule({ C }) {
         </div>
       </div>
 
-      {/* ── Engage panel ─────────────────────────────────────────────────── */}
+      {/* ── Engage panel — inline Aura chat ──────────────────────────────── */}
       {engageTarget && (() => {
-        const et     = engageTarget;
-        const tier   = getAlertTier(et, viewEvents);
-        const tm     = tier ? TIER_META[tier] : null;
-        const src    = classifySource(et.referrer, et.utm_source, et.utm_medium, et.utm_campaign);
-        const loc    = [et.city, et.region, et.country_name].filter(Boolean).join(", ") || et.country_code || "Unknown";
-        const pages  = viewEvents.filter(e => e.session_id === et.session_id && e.event_type === "page_view")
+        const et      = engageTarget;
+        const tier    = getAlertTier(et, viewEvents);
+        const tm      = tier ? TIER_META[tier] : null;
+        const src     = classifySource(et.referrer, et.utm_source, et.utm_medium, et.utm_campaign);
+        const etLoc   = resolveLocation(et);
+        const pages   = viewEvents.filter(e => e.session_id === et.session_id && e.event_type === "page_view")
           .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
           .map(e => shortPath(e.path));
-        const journeyLine = pages.length > 0 ? pages.slice(-4).join(" → ") : shortPath(et.current_path);
 
-        const etLoc     = resolveLocation(et);
-        const deviceStr = et.device_type ? et.device_type.toLowerCase() : "unknown device";
+        const deviceStr  = et.device_type ? et.device_type.toLowerCase() : "unknown device";
         const browserStr = (et.browser && et.browser !== "Other" && et.browser !== "Unknown") ? ` (${et.browser})` : "";
-        const pageStr   = shortPath(et.current_path);
-        const tierStr   = tier ? `${tm.label.toLowerCase()} intent` : "browsing";
-        const srcStr    = src.category !== "Direct" ? `Source: ${src.label} (${src.category}).` : "";
+        const pageStr    = shortPath(et.current_path);
+        const tierStr    = tier ? `${tm.label.toLowerCase()} intent` : "browsing";
+        const srcStr     = src.category !== "Direct" ? `Source: ${src.label} (${src.category}).` : "";
         const journeyFull = pages.length > 1 ? `Journey: ${pages.slice(-4).join(" → ")}.` : "";
 
-        const auraPrompt = [
+        const visitorContext = [
           `Visitor browsing from ${etLoc.full} on ${deviceStr}${browserStr}.`,
           `${et.page_count || 1} page${et.page_count !== 1 ? "s" : ""} viewed, currently on ${pageStr}.`,
-          journeyFull,
-          srcStr,
+          journeyFull, srcStr,
           `${tierStr.charAt(0).toUpperCase() + tierStr.slice(1)}.`,
         ].filter(Boolean).join(" ");
 
-        const handleEngage = () => {
-          localStorage.setItem("lwd_aura_engage", JSON.stringify({
-            ts: Date.now(), prompt: auraPrompt,
-            session: { city: et.city, country: et.country_name, tier, pages: et.page_count, currentPage: et.current_path },
-          }));
+        const sendEngageMsg = async (text) => {
+          const trimmed = text.trim();
+          if (!trimmed || engageChatTyping) return;
+          const userMsg = { from: "admin", text: trimmed, id: Date.now() };
+          setEngageChatMessages(prev => {
+            const updated = [...prev, userMsg];
+            // scroll on next tick
+            setTimeout(() => {
+              if (engageChatScrollRef.current) {
+                engageChatScrollRef.current.scrollTop = engageChatScrollRef.current.scrollHeight;
+              }
+            }, 30);
+            return updated;
+          });
+          setEngageChatInput("");
+          setEngageChatTyping(true);
+          const reply = await callEngageAI(trimmed, engageChatMessages, visitorContext);
+          setEngageChatTyping(false);
+          const auraMsg = { from: "aura", text: reply || "I'm sorry, I couldn't reach the AI. Please try again.", id: Date.now() + 1 };
+          setEngageChatMessages(prev => {
+            const updated = [...prev, auraMsg];
+            setTimeout(() => {
+              if (engageChatScrollRef.current) {
+                engageChatScrollRef.current.scrollTop = engageChatScrollRef.current.scrollHeight;
+              }
+            }, 30);
+            return updated;
+          });
           markEngaged(et.session_id);
-          // "noopener" is essential: prevents the new tab from inheriting
-          // sessionStorage from this admin window. Without it, lwd_admin_session
-          // copies across and the Aura engage guard in ChatContext silently skips.
-          window.open("/", "_blank", "noopener,noreferrer");
         };
 
         const handleCopy = () => {
-          navigator.clipboard.writeText(auraPrompt).then(() => {
+          navigator.clipboard.writeText(visitorContext).then(() => {
             setEngageCopied(true);
             setTimeout(() => setEngageCopied(false), 2000);
           });
         };
 
+        const dismiss = () => {
+          setEngageTarget(null);
+          setEngageChatMessages([]);
+          setEngageChatInput("");
+        };
+
+        // Inject opening Aura message if chat is empty
+        const displayMessages = engageChatMessages.length === 0
+          ? [{ from: "aura", text: `I have context on this visitor from ${etLoc.primary}. Ask me anything — intent signals, outreach ideas, or personalised talking points.`, id: 0 }]
+          : engageChatMessages;
+
         return (
           <div style={{
             position: "fixed", bottom: 0, left: 0, right: 0,
             background: engageBarBg, borderTop: `3px solid ${GOLD}`,
-            zIndex: 300, padding: "18px 24px",
-            boxShadow: isLight ? "0 -6px 24px rgba(0,0,0,0.12)" : "0 -8px 40px rgba(0,0,0,0.6)",
+            zIndex: 300,
+            boxShadow: isLight ? "0 -6px 24px rgba(0,0,0,0.14)" : "0 -8px 40px rgba(0,0,0,0.65)",
             animation: "lwd-engage-in 0.25s ease",
+            display: "flex", flexDirection: "column",
+            maxHeight: "42vh",
           }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 20, maxWidth: 1100 }}>
 
-              {/* Session summary */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                  <span style={{ fontFamily: GD, fontSize: 15, fontWeight: 500, color: white }}>
-                    {flag(et.country_code)} {etLoc.full}
+            {/* ── Header bar ─────────────────────────────────────────────── */}
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "10px 18px",
+              borderBottom: `1px solid ${isLight ? "#DED9CF" : "rgba(255,255,255,0.08)"}`,
+              flexShrink: 0,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 800, letterSpacing: "0.8px", textTransform: "uppercase", color: GOLD }}>⚡ Aura Engage</span>
+                <span style={{ width: 1, height: 12, background: isLight ? "#DED9CF" : "rgba(255,255,255,0.12)", display: "inline-block" }} />
+                <span style={{ fontFamily: GD, fontSize: 13, fontWeight: 500, color: white }}>
+                  {flag(et.country_code)} {etLoc.full}
+                </span>
+                {tm && (
+                  <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.6px", color: tm.color, background: `${tm.color}18`, border: `1px solid ${tm.color}40`, borderRadius: 4, padding: "1px 7px" }}>
+                    {tm.label}
                   </span>
-                  {tm && (
-                    <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.6px", color: tm.color, background: `${tm.color}20`, border: `1px solid ${tm.color}40`, borderRadius: 4, padding: "2px 7px" }}>
-                      {tm.label}
-                    </span>
-                  )}
-                  <span style={{ fontFamily: NU, fontSize: 10, color: grey2 }}>
-                    {et.page_count || 1} pages · {duration(et.first_seen_at)} · {et.device_type || "Unknown device"}
-                  </span>
-                </div>
-
-                {/* Aura prompt preview */}
-                <div style={{
-                  fontFamily: NU, fontSize: 11, color: grey,
-                  background: "rgba(201,168,76,0.05)",
-                  border: `1px solid ${GOLD}25`,
-                  borderRadius: 5, padding: "9px 14px",
-                  lineHeight: 1.6,
+                )}
+                <span style={{ fontFamily: NU, fontSize: 10, color: grey2 }}>
+                  {et.page_count || 1}pg · {duration(et.first_seen_at)} · {pageStr}
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <button onClick={handleCopy} style={{
+                  fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase",
+                  color: engageCopied ? "#10b981" : grey2,
+                  background: "transparent", border: `1px solid ${engageCopied ? "#10b981" : isLight ? "#DED9CF" : "rgba(255,255,255,0.12)"}`,
+                  borderRadius: 4, padding: "3px 10px", cursor: "pointer", transition: "all 0.2s",
                 }}>
-                  <span style={{ color: grey2, fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.6px", display: "block", marginBottom: 4 }}>Aura context</span>
-                  {auraPrompt}
-                </div>
+                  {engageCopied ? "✓ Copied" : "Copy Context"}
+                </button>
+                <button onClick={dismiss} style={{
+                  background: isLight ? "rgba(0,0,0,0.07)" : "rgba(255,255,255,0.08)",
+                  border: `1px solid ${isLight ? "rgba(0,0,0,0.10)" : "rgba(255,255,255,0.12)"}`,
+                  color: grey2, cursor: "pointer", width: 24, height: 24, borderRadius: 4,
+                  display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12,
+                }}>✕</button>
+              </div>
+            </div>
 
-                {/* Journey */}
-                {pages.length > 1 && (
-                  <div style={{ fontFamily: NU, fontSize: 10, color: grey2, marginTop: 7, letterSpacing: "0.2px" }}>
-                    Journey: {journeyLine}
+            {/* ── Chat area ──────────────────────────────────────────────── */}
+            <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
+
+              {/* Messages */}
+              <div
+                ref={engageChatScrollRef}
+                style={{ flex: 1, overflowY: "auto", padding: "12px 18px", display: "flex", flexDirection: "column", gap: 8 }}
+              >
+                {displayMessages.map((msg) => (
+                  <div key={msg.id} style={{
+                    display: "flex",
+                    justifyContent: msg.from === "admin" ? "flex-end" : "flex-start",
+                  }}>
+                    <div style={{
+                      maxWidth: "72%",
+                      fontFamily: NU, fontSize: 12, lineHeight: 1.55,
+                      padding: "8px 12px", borderRadius: msg.from === "admin" ? "10px 10px 2px 10px" : "10px 10px 10px 2px",
+                      background: msg.from === "admin"
+                        ? `linear-gradient(135deg, ${GOLD}CC, #a07a28CC)`
+                        : isLight ? "#FFFFFF" : "rgba(255,255,255,0.06)",
+                      color: msg.from === "admin"
+                        ? "#0a0a0a"
+                        : white,
+                      border: msg.from === "aura"
+                        ? `1px solid ${isLight ? "#E8E3DC" : "rgba(255,255,255,0.10)"}`
+                        : "none",
+                      boxShadow: msg.from === "aura" && isLight ? "0 1px 4px rgba(0,0,0,0.06)" : "none",
+                    }}>
+                      {msg.from === "aura" && (
+                        <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.6px", textTransform: "uppercase", color: GOLD, marginBottom: 3 }}>Aura</div>
+                      )}
+                      {msg.text}
+                    </div>
+                  </div>
+                ))}
+                {engageChatTyping && (
+                  <div style={{ display: "flex" }}>
+                    <div style={{
+                      padding: "8px 14px", borderRadius: "10px 10px 10px 2px",
+                      background: isLight ? "#FFFFFF" : "rgba(255,255,255,0.06)",
+                      border: `1px solid ${isLight ? "#E8E3DC" : "rgba(255,255,255,0.10)"}`,
+                      display: "flex", alignItems: "center", gap: 4,
+                    }}>
+                      {[0,1,2].map(i => (
+                        <span key={i} style={{
+                          width: 5, height: 5, borderRadius: "50%", background: GOLD,
+                          animation: "lwd-dot-pulse 1.2s infinite",
+                          animationDelay: `${i * 0.2}s`,
+                        }} />
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Actions */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
-                <button
-                  onClick={handleEngage}
-                  style={{
-                    fontFamily: NU, fontSize: 11, fontWeight: 800, letterSpacing: "0.5px",
-                    color: isLight ? "#FFFFFF" : bg,
-                    background: isLight
-                      ? "linear-gradient(135deg, #B8962A, #8E6E12)"
-                      : `linear-gradient(135deg, ${GOLD}, #a07a28)`,
-                    border: isLight ? "1px solid #8E6E12" : "none",
-                    borderRadius: 5, padding: "10px 22px",
-                    cursor: "pointer", whiteSpace: "nowrap",
-                    boxShadow: isLight ? "0 2px 8px rgba(0,0,0,0.20)" : "none",
-                  }}
-                >
-                  ⚡ Open Aura with Context
-                </button>
-                <button
-                  onClick={handleCopy}
-                  style={{
-                    fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: "0.5px",
-                    color: engageCopied ? "#10b981" : GOLD,
-                    background: engageCopied ? "rgba(16,185,129,0.10)" : "rgba(201,168,76,0.08)",
-                    border: `1px solid ${engageCopied ? "#10b981" : GOLD}40`,
-                    borderRadius: 5, padding: "9px 20px",
-                    cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.2s",
-                  }}
-                >
-                  {engageCopied ? "✓ Copied" : "Copy Context"}
-                </button>
-                <button
-                  onClick={() => setEngageTarget(null)}
-                  style={{
-                    fontFamily: NU, fontSize: 10, color: grey2, background: "none",
-                    border: "none", cursor: "pointer", padding: "4px 0", textAlign: "center",
-                  }}
-                >
-                  Dismiss
-                </button>
+              {/* Context sidebar (compact) */}
+              <div style={{
+                width: 220, flexShrink: 0, padding: "12px 14px",
+                borderLeft: `1px solid ${isLight ? "#E8E3DC" : "rgba(255,255,255,0.07)"}`,
+                overflowY: "auto",
+              }}>
+                <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.7px", textTransform: "uppercase", color: GOLD, marginBottom: 8 }}>Visitor Context</div>
+                {[
+                  ["Location", etLoc.full],
+                  ["On Page",  pageStr],
+                  ["Duration", duration(et.first_seen_at)],
+                  ["Pages",    et.page_count || 1],
+                  ["Source",   src.label],
+                  ["Device",   et.device_type || "—"],
+                  ...(pages.length > 1 ? [["Journey", pages.slice(-3).join(" → ")]] : []),
+                ].map(([label, val]) => (
+                  <div key={label} style={{ marginBottom: 7 }}>
+                    <div style={{ fontFamily: NU, fontSize: 9, color: grey2, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 1 }}>{label}</div>
+                    <div style={{ fontFamily: NU, fontSize: 11, color: white, wordBreak: "break-word" }}>{val}</div>
+                  </div>
+                ))}
               </div>
+            </div>
+
+            {/* ── Input bar ──────────────────────────────────────────────── */}
+            <div style={{
+              display: "flex", gap: 8, padding: "10px 18px",
+              borderTop: `1px solid ${isLight ? "#DED9CF" : "rgba(255,255,255,0.08)"}`,
+              flexShrink: 0, background: isLight ? "rgba(0,0,0,0.02)" : "rgba(0,0,0,0.2)",
+            }}>
+              <input
+                value={engageChatInput}
+                onChange={e => setEngageChatInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendEngageMsg(engageChatInput); } }}
+                placeholder="Ask Aura about this visitor…"
+                disabled={engageChatTyping}
+                style={{
+                  flex: 1, fontFamily: NU, fontSize: 12, color: white,
+                  background: isLight ? "#FFFFFF" : "rgba(255,255,255,0.07)",
+                  border: `1px solid ${isLight ? "#DED9CF" : "rgba(255,255,255,0.12)"}`,
+                  borderRadius: 6, padding: "8px 12px", outline: "none",
+                  opacity: engageChatTyping ? 0.5 : 1,
+                }}
+              />
+              <button
+                onClick={() => sendEngageMsg(engageChatInput)}
+                disabled={!engageChatInput.trim() || engageChatTyping}
+                style={{
+                  fontFamily: NU, fontSize: 11, fontWeight: 800,
+                  color: engageChatInput.trim() ? "#0a0a0a" : grey2,
+                  background: engageChatInput.trim()
+                    ? `linear-gradient(135deg, ${GOLD}, #a07a28)`
+                    : isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.06)",
+                  border: "none", borderRadius: 6, padding: "8px 18px",
+                  cursor: engageChatInput.trim() ? "pointer" : "default",
+                  transition: "all 0.15s", whiteSpace: "nowrap",
+                }}
+              >
+                Ask Aura →
+              </button>
             </div>
           </div>
         );
