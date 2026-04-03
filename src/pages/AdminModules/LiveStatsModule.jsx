@@ -517,8 +517,17 @@ export default function LiveStatsModule({ C }) {
   const dotConnector  = isLight ? "rgba(0,0,0,0.12)"  : "rgba(255,255,255,0.08)";
   const dotActive     = isLight ? "rgba(0,0,0,0.25)"  : "rgba(255,255,255,0.25)";
   const tagBg         = isLight ? "rgba(0,0,0,0.07)"  : "rgba(255,255,255,0.06)";
-  const drawerBg      = isLight ? C.dark               : "#0c0a08";
-  const engageBarBg   = isLight ? C.dark               : "#0e0b09";
+  // Drawer is ALWAYS pure white in light mode — never inherits warm surface
+  const drawerBg      = isLight ? "#FFFFFF"            : "#0c0a08";
+  // Panel card text — stronger than global grey/grey2 so dense card layouts stay legible
+  // Dark mode: global grey2 = 28% opacity which is unreadably faint at 10px in a panel card
+  const cardText      = isLight ? (C?.grey  || "#444444") : "rgba(245,241,235,0.72)";
+  const cardMeta      = isLight ? (C?.grey2 || "#888888") : "rgba(245,241,235,0.52)";
+  const drawerHeader  = isLight ? "#F5F4F1"            : "rgba(14,11,9,0.98)";
+  const drawerRow     = isLight ? "#DED9CF"            : border;  // row dividers
+  const drawerLabel   = isLight ? "#888888"            : grey2;
+  const drawerValue   = isLight ? "#111111"            : white;
+  const engageBarBg   = isLight ? "#FFFFFF"            : "#0e0b09";
   // Light mode row surfaces — clear visual separation without darkness
   const rowEven       = isLight ? "#FFFFFF"     : "transparent";
   const rowOdd        = isLight ? "#FAF9F6"     : "rgba(255,255,255,0.022)";
@@ -1765,10 +1774,10 @@ export default function LiveStatsModule({ C }) {
         </div>
 
         {/* ── Active sessions panel ──────────────────────────────────────── */}
-        <div style={{ borderLeft: `1px solid ${border}`, display: "flex", flexDirection: "column", overflow: "hidden", background: "rgba(12,10,8,0.6)" }}>
+        <div style={{ borderLeft: `2px solid ${isLight ? "#DED9CF" : "rgba(255,255,255,0.10)"}`, display: "flex", flexDirection: "column", overflow: "hidden", background: isLight ? "#F5F4F1" : "#0d0b09", boxShadow: isLight ? "-4px 0 16px rgba(0,0,0,0.06)" : "-4px 0 24px rgba(0,0,0,0.4)" }}>
 
           {/* Panel header — count · All/Hot · Follow/Audio */}
-          <div style={{ padding: "7px 10px", borderBottom: `1px solid ${border}`, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 5 }}>
+          <div style={{ padding: "8px 10px", borderBottom: `2px solid ${isLight ? "#DED9CF" : "rgba(255,255,255,0.10)"}`, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 5, background: isLight ? "#EFEDE8" : "rgba(255,255,255,0.02)" }}>
             <span style={{ fontFamily: NU, fontSize: 10, color: grey2, whiteSpace: "nowrap", flexShrink: 0 }}>{last30.length} in 30m</span>
 
             <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
@@ -1852,16 +1861,23 @@ export default function LiveStatsModule({ C }) {
                   style={{
                     padding: "10px 12px",
                     borderBottom: `1px solid ${border}`,
-                    borderLeft: isSel
-                      ? `3px solid ${accentColor || GOLD}`
-                      : accentColor ? `3px solid ${accentColor}60` : "3px solid transparent",
-                    borderBottom: `1px solid ${rowBorder}`,
+                    margin: "6px 8px",
+                    borderRadius: 6,
+                    border: isSel
+                      ? `1px solid ${accentColor || GOLD}80`
+                      : `1px solid ${isLight ? "#E2DED6" : "rgba(255,255,255,0.08)"}`,
+                    borderLeft: `3px solid ${isSel ? (accentColor || GOLD) : accentColor ? `${accentColor}70` : (isLight ? "#E2DED6" : "rgba(255,255,255,0.08)")}`,
                     background: isSel
-                      ? rowSelBg || `${accentColor || GOLD}0a`
-                      : convStage === "submitted" ? (isLight ? "rgba(5,150,105,0.05)" : "rgba(16,185,129,0.03)")
-                      : convStage === "started"   ? (isLight ? "rgba(6,182,212,0.05)" : "rgba(6,182,212,0.03)")
-                      : tier ? `${tm.color}06` : "transparent",
-                    boxShadow: isSel && isLight ? "inset 0 0 0 1px rgba(201,168,76,0.25)" : "none",
+                      ? isLight ? "#FFF8E1" : `${accentColor || GOLD}10`
+                      : convStage === "submitted" ? (isLight ? "rgba(5,150,105,0.05)" : "rgba(16,185,129,0.04)")
+                      : convStage === "started"   ? (isLight ? "rgba(6,182,212,0.05)" : "rgba(6,182,212,0.04)")
+                      : tier === "priority" ? (isLight ? `${RED}05` : `${RED}07`)
+                      : isLight ? "#FFFFFF" : "rgba(255,255,255,0.025)",
+                    boxShadow: isSel
+                      ? `0 2px 12px ${accentColor || GOLD}25`
+                      : isLight
+                        ? "0 1px 3px rgba(0,0,0,0.06)"
+                        : "0 1px 4px rgba(0,0,0,0.25)",
                     cursor: "pointer", transition: "all 0.15s",
                   }}
                 >
@@ -1869,17 +1885,18 @@ export default function LiveStatsModule({ C }) {
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}>
                       <span style={{ fontSize: 13, flexShrink: 0 }}>{flag(s.country_code)}</span>
-                      <span style={{ fontFamily: NU, fontSize: 12, fontWeight: 600, color: white, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <span style={{ fontFamily: NU, fontSize: 12, fontWeight: 700, color: white, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {resolveLocation(s).primary}
                       </span>
                       {s.region && s.city && (
-                        <span style={{ fontFamily: NU, fontSize: 9, color: grey2, flexShrink: 0 }}>{s.region}</span>
+                        <span style={{ fontFamily: NU, fontSize: 9, color: cardMeta, flexShrink: 0 }}>{s.region}</span>
                       )}
                     </div>
                     <span style={{
                       flexShrink: 0, fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.6px",
-                      color: isActive ? GOLD : grey2,
+                      color: isActive ? GOLD : cardMeta,
                       background: isActive ? "rgba(201,168,76,0.12)" : "transparent",
+                      border: isActive ? `1px solid ${GOLD}30` : "none",
                       borderRadius: 8, padding: "2px 7px", marginLeft: 6,
                     }}>
                       {isActive ? "● LIVE" : timeAgo(s.last_seen_at)}
@@ -1887,7 +1904,7 @@ export default function LiveStatsModule({ C }) {
                   </div>
 
                   {/* Row 2: Current page */}
-                  <div style={{ fontFamily: NU, fontSize: 10, color: grey, marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 500, color: cardText, marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {shortPath(s.current_path)}
                   </div>
 
@@ -1930,16 +1947,16 @@ export default function LiveStatsModule({ C }) {
 
                   {/* Row 4: Meta + Engage button */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
-                    <div style={{ display: "flex", gap: 5, fontFamily: NU, fontSize: 10, color: grey2, alignItems: "center", flexWrap: "wrap" }}>
-                      <span style={{ color: grey }}>
+                    <div style={{ display: "flex", gap: 5, fontFamily: NU, fontSize: 10, color: cardMeta, alignItems: "center", flexWrap: "wrap" }}>
+                      <span style={{ color: cardText, fontWeight: 500 }}>
                         {s.first_seen_at
                           ? new Date(s.first_seen_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
                           : "—"}
                       </span>
                       <span>·</span>
-                      <span style={{ color: grey }}>{duration(s.first_seen_at)}</span>
+                      <span style={{ color: cardText }}>{duration(s.first_seen_at)}</span>
                       <span>·</span>
-                      <span>{s.page_count || 1}pg</span>
+                      <span style={{ color: cardText }}>{s.page_count || 1}pg</span>
                       {s.device_type && <><span>·</span><span>{s.device_type}</span></>}
                     </div>
                     <button
@@ -2279,9 +2296,8 @@ export default function LiveStatsModule({ C }) {
                 return (
                   <tr
                     key={s.session_id}
-                    onClick={() => setSelected(isSel ? null : s)}
+                    onClick={() => setSelected(s)}
                     style={{
-                      borderBottom: `1px solid ${border}`,
                       borderLeft: `3px solid ${leftClr}`,
                       background: isSel
                         ? rowSelBg || `${tm?.color || GOLD}12`
@@ -2705,93 +2721,177 @@ export default function LiveStatsModule({ C }) {
 
       {/* ── Session detail drawer ────────────────────────────────────────── */}
       {selected && (() => {
-        const tier = getAlertTier(selected, events);
-        const tm   = tier ? TIER_META[tier] : null;
+        const tier  = getAlertTier(selected, events);
+        const tm    = tier ? TIER_META[tier] : null;
+        const stg   = getConversionStage(selected, viewEvents, engagedIds);
+        const cm    = stg ? CONVERSION_META[stg] : null;
+        const isLive = (now - new Date(selected.last_seen_at)) < ACTIVE_MS;
+        const accentClr = cm?.color || tm?.color || (isLive ? GOLD : (C?.border2 || border));
+
+        // ── field rows — only show non-empty values
+        const fields = [
+          { label: "Location",      value: [selected.city, selected.region, selected.country_code].filter(Boolean).join(", ") || null },
+          { label: "Country",       value: selected.country_name || selected.country_code || null },
+          { label: "ISP / Carrier", value: selected.isp || null },
+          { label: "Current Page",  value: shortPath(selected.current_path) },
+          { label: "Entry Page",    value: selected.entry_path ? shortPath(selected.entry_path) : null },
+          { label: "Source",        value: selected.referrer ? (() => { try { return new URL(selected.referrer).hostname.replace(/^www\./,""); } catch { return selected.referrer; }})() : "Direct" },
+          { label: "UTM Source",    value: selected.utm_source || null },
+          { label: "Device",        value: selected.device_type || null },
+          { label: "Browser",       value: selected.browser || null },
+          { label: "OS",            value: selected.os || null },
+          { label: "Pages Viewed",  value: String(selected.page_count || 0), highlight: (selected.page_count || 0) >= 6 },
+          { label: "Intent Events", value: String(selected.intent_count || 0), highlight: (selected.intent_count || 0) > 0 },
+          { label: "Duration",      value: duration(selected.first_seen_at) },
+          { label: "Last Seen",     value: timeAgo(selected.last_seen_at) },
+          { label: "Started",       value: new Date(selected.first_seen_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) },
+        ].filter(f => f.value !== null && f.value !== undefined);
+
         return (
-          <div style={{
-            position: "fixed", top: 0, right: 0, bottom: 0, width: 360,
-            background: drawerBg, borderLeft: `2px solid ${C?.border2 || border}`,
-            zIndex: 200, display: "flex", flexDirection: "column",
-            boxShadow: isLight ? "-4px 0 24px rgba(0,0,0,0.10)" : "-8px 0 40px rgba(0,0,0,0.5)",
-          }}>
-            <div style={{ padding: "16px 20px", borderBottom: `1px solid ${tm?.color || border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontFamily: GD, fontSize: 16, fontWeight: 500, color: white }}>Session Detail</span>
-                {(now - new Date(selected.last_seen_at)) < ACTIVE_MS && (
-                  <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: "0.8px", textTransform: "uppercase" }}>● Live</span>
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              position: "fixed", top: 0, right: 0, bottom: 0, width: 368,
+              background: drawerBg,
+              borderLeft: `3px solid ${accentClr}`,
+              zIndex: 200, display: "flex", flexDirection: "column",
+              boxShadow: isLight ? "-8px 0 32px rgba(0,0,0,0.13)" : "-8px 0 40px rgba(0,0,0,0.5)",
+            }}
+          >
+            {/* ── Header ──────────────────────────────────────────────────────── */}
+            <div style={{
+              padding: "14px 18px",
+              background: drawerHeader,
+              borderBottom: `2px solid ${accentClr}`,
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              flexShrink: 0,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", gap: 6 }}>
+                <span style={{ fontFamily: GD, fontSize: 17, fontWeight: 600, color: drawerValue, letterSpacing: "0.2px" }}>
+                  Session Detail
+                </span>
+                {isLive && (
+                  <span style={{
+                    fontFamily: NU, fontSize: 9, fontWeight: 800, letterSpacing: "0.8px",
+                    textTransform: "uppercase", color: GOLD,
+                    background: "rgba(201,168,76,0.12)", border: `1px solid ${GOLD}40`,
+                    borderRadius: 4, padding: "2px 7px",
+                  }}>● LIVE</span>
                 )}
                 {tm && (
                   <span style={{
-                    fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.7px",
-                    color: tm.color, background: `${tm.color}20`,
-                    border: `1px solid ${tm.color}50`,
-                    borderRadius: 4, padding: "2px 8px", textTransform: "uppercase",
-                  }}>
-                    {tm.label}
-                  </span>
+                    fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.6px",
+                    textTransform: "uppercase", color: tm.color,
+                    background: `${tm.color}18`, border: `1px solid ${tm.color}50`,
+                    borderRadius: 4, padding: "2px 8px",
+                  }}>{tm.label}</span>
+                )}
+                {cm && (
+                  <span style={{
+                    fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.6px",
+                    textTransform: "uppercase", color: cm.color,
+                    background: `${cm.color}18`, border: `1px solid ${cm.color}50`,
+                    borderRadius: 4, padding: "2px 8px",
+                  }}>{cm.icon} {cm.label}</span>
                 )}
               </div>
-              <button onClick={() => setSelected(null)} style={{ background: "none", border: "none", cursor: "pointer", color: grey, fontSize: 18, lineHeight: 1 }}>✕</button>
+              <button
+                onClick={() => setSelected(null)}
+                style={{
+                  background: isLight ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.08)",
+                  border: `1px solid ${isLight ? "rgba(0,0,0,0.10)" : "rgba(255,255,255,0.12)"}`,
+                  cursor: "pointer", color: drawerLabel,
+                  width: 26, height: 26, borderRadius: 4,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 13, lineHeight: 1, flexShrink: 0,
+                  transition: "all 0.12s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = isLight ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.14)"; e.currentTarget.style.color = drawerValue; }}
+                onMouseLeave={e => { e.currentTarget.style.background = isLight ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.08)"; e.currentTarget.style.color = drawerLabel; }}
+              >✕</button>
             </div>
 
-            <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
-              {[
-                ["Location",      [selected.city, selected.region, selected.country_code].filter(Boolean).join(", ") || "Unknown"],
-                ["Country",       selected.country_name || selected.country_code || "—"],
-              ["ISP / Carrier", selected.isp || "—"],
-                ["Current Page",  shortPath(selected.current_path)],
-                ["Entry Page",    selected.entry_path ? shortPath(selected.entry_path) : "—"],
-                ["Source",        selected.referrer || "Direct"],
-                ["UTM Source",    selected.utm_source || "—"],
-                ["Device",        selected.device_type || "—"],
-                ["Browser",       selected.browser || "—"],
-                ["OS",            selected.os || "—"],
-                ["Pages Viewed",  selected.page_count],
-                ["Intent Events", selected.intent_count || 0],
-                ["Duration",      duration(selected.first_seen_at)],
-                ["Last Seen",     timeAgo(selected.last_seen_at)],
-                ["Started",       new Date(selected.first_seen_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })],
-              ].map(([label, value]) => (value !== null && value !== undefined && value !== "—") ? (
-                <div key={label} style={{ marginBottom: 14 }}>
-                  <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase", color: grey2, marginBottom: 3 }}>{label}</div>
-                  <div style={{ fontFamily: NU, fontSize: 13, color: white }}>{value}</div>
-                </div>
-              ) : null)}
+            {/* ── Body ────────────────────────────────────────────────────────── */}
+            <div style={{ flex: 1, overflowY: "auto" }}>
 
-              {/* Session journey — recent events */}
-              <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${border}` }}>
-                <div style={{ ...S.sectionTitle, marginBottom: 12 }}>Journey</div>
-                {events
-                  .filter(e => e.session_id === selected.session_id)
-                  .slice(0, 12)
-                  .map((e, i) => {
-                    const meta = INTENT_META[e.event_type];
-                    const isIntent = !!meta;
+              {/* Fields — each row is a proper divided line */}
+              <div>
+                {fields.map(({ label, value, highlight }, i) => (
+                  <div key={label} style={{
+                    padding: "10px 18px",
+                    borderBottom: `1px solid ${drawerRow}`,
+                    display: "flex", alignItems: "baseline",
+                    justifyContent: "space-between", gap: 12,
+                    background: highlight ? (isLight ? "rgba(201,168,76,0.04)" : "rgba(201,168,76,0.03)") : "transparent",
+                  }}>
+                    <span style={{
+                      fontFamily: NU, fontSize: 10, fontWeight: 700,
+                      letterSpacing: "0.6px", textTransform: "uppercase",
+                      color: drawerLabel, flexShrink: 0,
+                    }}>{label}</span>
+                    <span style={{
+                      fontFamily: NU, fontSize: 13, fontWeight: highlight ? 700 : 400,
+                      color: highlight ? (cm?.color || GOLD) : drawerValue,
+                      textAlign: "right", wordBreak: "break-word",
+                    }}>{value}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Journey ─────────────────────────────────────────────────────── */}
+              <div style={{ padding: "16px 18px" }}>
+                <div style={{
+                  fontFamily: NU, fontSize: 10, fontWeight: 800, letterSpacing: "0.8px",
+                  textTransform: "uppercase", color: drawerLabel, marginBottom: 14,
+                  paddingBottom: 8, borderBottom: `1px solid ${drawerRow}`,
+                }}>Journey</div>
+
+                {(() => {
+                  const sessionEvts = events.filter(e => e.session_id === selected.session_id);
+                  if (sessionEvts.length === 0) {
                     return (
-                      <div key={e.id || i} style={{ display: "flex", gap: 10, marginBottom: 10, alignItems: "flex-start" }}>
-                        <span style={{
-                          width: isIntent ? 8 : 6, height: isIntent ? 8 : 6,
-                          borderRadius: "50%",
-                          background: meta?.color || border,
-                          marginTop: isIntent ? 3 : 4, flexShrink: 0,
-                          boxShadow: isIntent ? `0 0 6px ${meta.color}` : "none",
-                        }} />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontFamily: NU, fontSize: 11, color: isIntent ? white : grey }}>
+                      <div style={{ fontFamily: NU, fontSize: 11, color: drawerLabel, lineHeight: 1.7, fontStyle: "italic" }}>
+                        Journey events will appear as this session navigates
+                      </div>
+                    );
+                  }
+                  return sessionEvts.slice(0, 14).map((e, i) => {
+                    const meta     = INTENT_META[e.event_type];
+                    const isIntent = !!meta;
+                    const dotColor = isIntent ? meta.color : (isLight ? "#C4BAB0" : border);
+                    return (
+                      <div key={e.id || i} style={{
+                        display: "flex", gap: 10, alignItems: "flex-start",
+                        padding: "7px 0",
+                        borderBottom: i < sessionEvts.slice(0,14).length - 1 ? `1px solid ${isLight ? "#F0EDE8" : "rgba(255,255,255,0.04)"}` : "none",
+                      }}>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, paddingTop: 3 }}>
+                          <span style={{
+                            width: isIntent ? 9 : 7, height: isIntent ? 9 : 7,
+                            borderRadius: "50%",
+                            background: dotColor,
+                            border: isIntent ? "none" : `1px solid ${isLight ? "#C4BAB0" : "rgba(255,255,255,0.15)"}`,
+                            boxShadow: isIntent ? `0 0 6px ${meta.color}80` : "none",
+                            display: "inline-block",
+                          }} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{
+                            fontFamily: NU, fontSize: isIntent ? 12 : 11,
+                            fontWeight: isIntent ? 600 : 400,
+                            color: isIntent ? (isLight ? meta.color : meta.color) : drawerValue,
+                            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                          }}>
                             {meta?.label || shortPath(e.path)}
                           </div>
-                          <div style={{ fontFamily: NU, fontSize: 10, color: grey2 }}>
-                            {isIntent ? shortPath(e.path) + " · " : ""}{timeAgo(e.created_at)}
+                          <div style={{ fontFamily: NU, fontSize: 10, color: drawerLabel, marginTop: 1 }}>
+                            {isIntent ? `${shortPath(e.path)} · ` : ""}{timeAgo(e.created_at)}
                           </div>
                         </div>
                       </div>
                     );
-                  })}
-                {events.filter(e => e.session_id === selected.session_id).length === 0 && (
-                  <div style={{ fontFamily: NU, fontSize: 11, color: grey2, lineHeight: 1.6 }}>
-                    Journey events will appear<br/>as this session navigates
-                  </div>
-                )}
+                  });
+                })()}
               </div>
             </div>
           </div>
