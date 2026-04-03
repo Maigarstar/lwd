@@ -537,7 +537,7 @@ export default function ImmersiveSearch({
             textTransform: "uppercase",
             textAlign:     "center",
           }}>
-            Finding venues aligned with your vision
+            Finding {pendingCat?.label?.toLowerCase() || "results"} aligned with your vision
           </p>
         </div>
       )}
