@@ -250,7 +250,7 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
 
               {/* Section heading */}
               <h2 style={{ fontFamily: GD, fontSize: "clamp(24px, 2.8vw, 34px)", fontWeight: 400, color: C.off, lineHeight: 1.2, margin: "0 0 48px", textAlign: "center" }}>
-                How would you like to search?
+                Choose how you'd like to begin
               </h2>
 
               {/* Two-column fork */}
@@ -259,23 +259,32 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
                 {/* LEFT — Guided / Aura (primary) */}
                 <div
                   style={{
-                    background:   darkMode ? "#161210" : "#1a1714",
-                    padding:      isMobile ? "40px 28px" : "clamp(36px, 5vw, 60px) clamp(28px, 4vw, 52px)",
-                    display:      "flex",
+                    background:    darkMode ? "#161210" : "#1a1714",
+                    padding:       isMobile ? "40px 28px" : "clamp(40px, 5vw, 64px) clamp(32px, 4vw, 56px)",
+                    display:       "flex",
                     flexDirection: "column",
-                    justifyContent: "space-between",
-                    minHeight:    isMobile ? 280 : 340,
-                    position:     "relative",
-                    overflow:     "hidden",
-                    cursor:       "pointer",
-                    transition:   "background 0.3s ease",
+                    gap:           28,
+                    minHeight:     isMobile ? 280 : 360,
+                    position:      "relative",
+                    overflow:      "hidden",
+                    cursor:        "pointer",
+                    transition:    "background 0.35s ease, transform 0.35s cubic-bezier(0.16,1,0.3,1), box-shadow 0.35s ease",
                   }}
                   onClick={() => setImmersiveOpen(true)}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = darkMode ? "#1e1a16" : "#211e1a"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = darkMode ? "#161210" : "#1a1714"; }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background  = darkMode ? "#1e1a16" : "#211e1a";
+                    e.currentTarget.style.transform   = "translateY(-3px)";
+                    e.currentTarget.style.boxShadow   = "0 16px 48px rgba(201,168,76,0.13)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background  = darkMode ? "#161210" : "#1a1714";
+                    e.currentTarget.style.transform   = "translateY(0)";
+                    e.currentTarget.style.boxShadow   = "none";
+                  }}
                 >
-                  {/* Ambient glow */}
-                  <div style={{ position: "absolute", top: -60, right: -60, width: 240, height: 240, borderRadius: "50%", background: "radial-gradient(circle, rgba(201,168,76,0.07) 0%, transparent 70%)", pointerEvents: "none" }} />
+                  {/* Ambient glows — two points for depth */}
+                  <div style={{ position: "absolute", top: -70, right: -50, width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(201,168,76,0.09) 0%, transparent 68%)", pointerEvents: "none" }} />
+                  <div style={{ position: "absolute", bottom: -90, left: -50, width: 340, height: 340, borderRadius: "50%", background: "radial-gradient(circle, rgba(201,168,76,0.04) 0%, transparent 65%)", pointerEvents: "none" }} />
 
                   <div>
                     {/* Eyebrow */}
@@ -283,20 +292,20 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
                       ✦ Guided Search
                     </p>
 
-                    {/* Heading */}
-                    <h3 style={{ fontFamily: GD, fontSize: "clamp(28px, 3.5vw, 46px)", fontWeight: 400, color: "#f5f0e8", lineHeight: 1.1, margin: "0 0 20px", letterSpacing: "-0.02em" }}>
+                    {/* Heading — "Let Aura" slightly bolder for harmony */}
+                    <h3 style={{ fontFamily: GD, fontSize: "clamp(28px, 3.5vw, 46px)", fontWeight: 500, color: "#f5f0e8", lineHeight: 1.1, margin: "0 0 18px", letterSpacing: "-0.02em" }}>
                       Let Aura<br />
-                      <em style={{ fontStyle: "italic", color: "#C9A84C" }}>guide you</em>
+                      <em style={{ fontStyle: "italic", fontWeight: 400, color: "rgba(201,168,76,0.88)" }}>guide you</em>
                     </h3>
 
                     {/* Description */}
-                    <p style={{ fontFamily: NU, fontSize: 14, color: "rgba(245,240,232,0.5)", lineHeight: 1.7, margin: "0 0 36px", maxWidth: 320, fontWeight: 300 }}>
+                    <p style={{ fontFamily: NU, fontSize: 14, color: "rgba(245,240,232,0.62)", lineHeight: 1.7, margin: 0, maxWidth: 320, fontWeight: 300 }}>
                       Tell us what you're imagining — your style, your guests, your setting. We'll find your perfect match.
                     </p>
                   </div>
 
-                  {/* CTA */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  {/* CTA — tight cluster with text */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                     <button
                       onClick={(e) => { e.stopPropagation(); setImmersiveOpen(true); }}
                       style={{
@@ -319,7 +328,7 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
                     >
                       Start with Aura →
                     </button>
-                    <span style={{ fontFamily: NU, fontSize: 11, color: "rgba(245,240,232,0.22)", letterSpacing: "0.04em" }}>
+                    <span style={{ fontFamily: NU, fontSize: 11, color: "rgba(245,240,232,0.42)", letterSpacing: "0.04em" }}>
                       3-step guided experience
                     </span>
                   </div>
@@ -327,8 +336,8 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
 
                 {/* RIGHT — Browse by Category (secondary) */}
                 <div style={{
-                  background: darkMode ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.72)",
-                  padding:    isMobile ? "36px 28px" : "clamp(36px, 5vw, 60px) clamp(28px, 4vw, 52px)",
+                  background: darkMode ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.48)",
+                  padding:    isMobile ? "36px 28px" : "clamp(40px, 5vw, 64px) clamp(32px, 4vw, 56px)",
                   display:    "flex",
                   flexDirection: "column",
                 }}>
@@ -355,7 +364,7 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
                           onMouseLeave={() => setHovCat(null)}
                           style={{
                             background:     hov ? (darkMode ? "rgba(201,168,76,0.08)" : "rgba(26,23,20,0.04)") : "none",
-                            border:         `1px solid ${hov ? "rgba(201,168,76,0.5)" : darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"}`,
+                            border:         `1px solid ${hov ? "rgba(201,168,76,0.45)" : darkMode ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
                             borderRadius:   2,
                             padding:        "0 8px",
                             height:         isMobile ? 44 : 64,
