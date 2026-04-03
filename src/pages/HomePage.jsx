@@ -226,45 +226,146 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
             onOpenImmersive={() => setImmersiveOpen(true)}
           />
 
-          {/* Category Blocks - Find Your Perfect Match */}
-          <section style={{ background: "#f2f0ea", padding: "72px 48px" }}>
-            <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-              <div style={{ textAlign: "center", marginBottom: 48 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 16 }}>
-                  <div style={{ width: 28, height: 1, background: C.gold }} />
-                  <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: C.gold, fontWeight: 600 }}>Explore by Category</span>
-                  <div style={{ width: 28, height: 1, background: C.gold }} />
-                </div>
-                <h2 style={{ fontFamily: GD, fontSize: "clamp(26px, 3vw, 36px)", fontWeight: 400, color: C.off, lineHeight: 1.2, margin: "0 0 24px" }}>
-                  Find Your
-                  <span style={{ fontStyle: "italic", color: C.gold }}> Perfect Match</span>
-                </h2>
-                <button
-                  onClick={() => setImmersiveOpen(true)}
-                  style={{
-                    background:    "none",
-                    border:        `1px solid rgba(201,168,76,0.4)`,
-                    borderRadius:  2,
-                    padding:       "10px 24px",
-                    color:         C.gold,
-                    fontFamily:    NU,
-                    fontSize:      12,
-                    letterSpacing: "0.1em",
-                    cursor:        "pointer",
-                    transition:    "all 0.2s ease",
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.06)"; e.currentTarget.style.borderColor = C.gold; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.borderColor = "rgba(201,168,76,0.4)"; }}
-                >
-                  ✦ Explore by Experience ✦
-                </button>
+          {/* ── Two-Path Search Section ──────────────────────────────── */}
+          <section style={{ background: darkMode ? "#0f0e0b" : "#f2f0ea", padding: "80px clamp(20px, 5vw, 64px)" }}>
+            <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+
+              {/* Section label */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 20 }}>
+                <div style={{ width: 28, height: 1, background: C.gold }} />
+                <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: C.gold, fontWeight: 600 }}>Explore</span>
+                <div style={{ width: 28, height: 1, background: C.gold }} />
               </div>
-              <CategoryCarousel
-                categories={VENDOR_CATEGORIES}
-                C={C}
-                onSelect={(slug) => onViewCategory({ category: slug })}
-                activeCategorySlugs={activeCategorySlugs}
-              />
+
+              {/* Section heading */}
+              <h2 style={{ fontFamily: GD, fontSize: "clamp(24px, 2.8vw, 34px)", fontWeight: 400, color: C.off, lineHeight: 1.2, margin: "0 0 48px", textAlign: "center" }}>
+                How would you like to search?
+              </h2>
+
+              {/* Two-column fork */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, borderRadius: 4, overflow: "hidden", alignItems: "stretch" }}>
+
+                {/* LEFT — Guided / Aura (primary) */}
+                <div
+                  style={{
+                    background:   darkMode ? "#161210" : "#1a1714",
+                    padding:      "clamp(36px, 5vw, 60px) clamp(28px, 4vw, 52px)",
+                    display:      "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    minHeight:    340,
+                    position:     "relative",
+                    overflow:     "hidden",
+                    cursor:       "pointer",
+                    transition:   "background 0.3s ease",
+                  }}
+                  onClick={() => setImmersiveOpen(true)}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = darkMode ? "#1e1a16" : "#211e1a"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = darkMode ? "#161210" : "#1a1714"; }}
+                >
+                  {/* Ambient glow */}
+                  <div style={{ position: "absolute", top: -60, right: -60, width: 240, height: 240, borderRadius: "50%", background: "radial-gradient(circle, rgba(201,168,76,0.07) 0%, transparent 70%)", pointerEvents: "none" }} />
+
+                  <div>
+                    {/* Eyebrow */}
+                    <p style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.28em", color: "rgba(201,168,76,0.7)", textTransform: "uppercase", margin: "0 0 20px" }}>
+                      ✦ Guided Search
+                    </p>
+
+                    {/* Heading */}
+                    <h3 style={{ fontFamily: GD, fontSize: "clamp(28px, 3.5vw, 46px)", fontWeight: 400, color: "#f5f0e8", lineHeight: 1.1, margin: "0 0 20px", letterSpacing: "-0.02em" }}>
+                      Let Aura<br />
+                      <em style={{ fontStyle: "italic", color: "#C9A84C" }}>guide you</em>
+                    </h3>
+
+                    {/* Description */}
+                    <p style={{ fontFamily: NU, fontSize: 14, color: "rgba(245,240,232,0.5)", lineHeight: 1.7, margin: "0 0 36px", maxWidth: 320, fontWeight: 300 }}>
+                      Tell us what you're imagining — your style, your guests, your setting. We'll find your perfect match.
+                    </p>
+                  </div>
+
+                  {/* CTA */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setImmersiveOpen(true); }}
+                      style={{
+                        background:    "#C9A84C",
+                        border:        "none",
+                        borderRadius:  2,
+                        padding:       "13px 28px",
+                        color:         "#0f0e0b",
+                        fontFamily:    NU,
+                        fontSize:      11,
+                        fontWeight:    700,
+                        letterSpacing: "0.14em",
+                        textTransform: "uppercase",
+                        cursor:        "pointer",
+                        transition:    "opacity 0.2s ease",
+                        flexShrink:    0,
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
+                      onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+                    >
+                      Start with Aura →
+                    </button>
+                    <span style={{ fontFamily: NU, fontSize: 11, color: "rgba(245,240,232,0.22)", letterSpacing: "0.04em" }}>
+                      3-step guided experience
+                    </span>
+                  </div>
+                </div>
+
+                {/* RIGHT — Browse by Category (secondary) */}
+                <div style={{
+                  background: darkMode ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.72)",
+                  padding:    "clamp(36px, 5vw, 60px) clamp(28px, 4vw, 52px)",
+                  display:    "flex",
+                  flexDirection: "column",
+                }}>
+                  {/* Heading */}
+                  <div style={{ marginBottom: 28 }}>
+                    <p style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.28em", color: darkMode ? "rgba(201,168,76,0.5)" : "rgba(201,168,76,0.7)", textTransform: "uppercase", margin: "0 0 12px" }}>
+                      Direct Browse
+                    </p>
+                    <h3 style={{ fontFamily: GD, fontSize: "clamp(22px, 2.5vw, 32px)", fontWeight: 400, color: C.off, lineHeight: 1.15, margin: 0, letterSpacing: "-0.015em" }}>
+                      Browse by<br />
+                      <em style={{ fontStyle: "italic", color: C.gold }}>category</em>
+                    </h3>
+                  </div>
+
+                  {/* Category grid */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, flex: 1, alignContent: "flex-start" }}>
+                    {VENDOR_CATEGORIES.slice(0, 12).map((cat) => (
+                      <button
+                        key={cat.slug}
+                        onClick={() => onViewCategory({ category: cat.slug })}
+                        style={{
+                          background:    "none",
+                          border:        `1px solid ${darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"}`,
+                          borderRadius:  2,
+                          padding:       "9px 16px",
+                          color:         darkMode ? "rgba(245,240,232,0.65)" : C.off,
+                          fontFamily:    NU,
+                          fontSize:      12,
+                          letterSpacing: "0.03em",
+                          cursor:        "pointer",
+                          transition:    "all 0.2s ease",
+                          whiteSpace:    "nowrap",
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.borderColor = darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"; e.currentTarget.style.color = darkMode ? "rgba(245,240,232,0.65)" : C.off; }}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Footer hint */}
+                  <p style={{ fontFamily: NU, fontSize: 11, color: darkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.3)", margin: "24px 0 0", letterSpacing: "0.03em" }}>
+                    Browse all categories and filter by destination
+                  </p>
+                </div>
+
+              </div>
             </div>
           </section>
 
