@@ -55,6 +55,7 @@ import FooterModule from "./AdminModules/FooterModule";
 import CategoryGridAdmin from "./AdminModules/CategoryGridAdmin";
 import MenuBranding from "./AdminModules/menu/MenuBranding";
 import PlatformIntelligenceModule from "./AdminModules/PlatformIntelligenceModule";
+import LiveStatsModule from "./AdminModules/LiveStatsModule";
 import EventsModule from "./AdminModules/EventsModule";
 import SiteContentModule from "./AdminModules/SiteContentModule";
 import CategoryPagePreview from "../components/admin/CategoryPagePreview";
@@ -335,6 +336,7 @@ const NAV_SECTIONS = [
   {
     group: "Intelligence",
     items: [
+      { key: "live-stats",             label: "Live Stats",             icon: "◉" },
       { key: "aura",                   label: "Aura Analytics",         icon: "✧" },
       { key: "api",                    label: "API Management",         icon: "⟐" },
       { key: "ai-settings",           label: "AI Settings",            icon: "⚙" },
@@ -11653,6 +11655,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "api":           return <APIManagementModule C={C} />;
       case "ai-settings":     return <AISettingsPage C={C} />;
       case "connected-data":          return <ConnectedDataModule C={C} NU={NU} GD={GD} />;
+      case "live-stats":             return <LiveStatsModule C={C} />;
       case "platform-intelligence":  return <PlatformIntelligenceModule C={C} />;
       case "styles":        return <StyleEditorModule C={C} darkPalette={customDark} lightPalette={customLight} fonts={customFonts} customCss={customCss} siteSettings={siteSettings} auditLog={auditLog} onUpdatePalette={handleUpdatePalette} onUpdateFonts={handleUpdateFonts} onUpdateCss={handleUpdateCss} onUpdateSiteSettings={handleUpdateSiteSettings} onSave={handleSaveThemeLogged} onRevert={handleRevertTheme} onExport={handleExportTheme} onImport={handleImportTheme} onApplyPreset={handleApplyPreset} saveStatus={saveStatus} />;
       case "page-studio":   return <PageStudioHome C={C} NU={NU} GD={GD} onNavigate={(action, params) => {

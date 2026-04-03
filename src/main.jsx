@@ -24,6 +24,9 @@ applyThemeToDocument();
 import { initReturnDetection } from "./services/userEventService";
 initReturnDetection();
 
+// ── Visitor tracker (admin intelligence — fires silently) ─────────────────
+import { initTracker, trackPageView } from "./lib/tracker";
+
 import HomePage from "./pages/HomePage.jsx";
 import VenueProfile           from "./VenueProfile.jsx";
 // CountryTemplate removed, /category now renders ItalyPage with noIndex
@@ -406,6 +409,17 @@ function App() {
       document.body.scrollTop = 0;
     });
   }, [page, activeShowcaseSlug, activeCountrySlug, activeRegionSlug, activeCategorySlug, activePlannerSlug]);
+
+  // ── Tracker: init on mount, fire page_view on every navigation ───────────
+  const trackerInitRef = useRef(false);
+  useEffect(() => {
+    if (!trackerInitRef.current) {
+      trackerInitRef.current = true;
+      initTracker();   // fires first page_view + starts heartbeat
+    } else {
+      trackPageView(); // subsequent navigations
+    }
+  }, [page, activeCountrySlug, activeRegionSlug, activeCategorySlug, activePlannerSlug, activeWeddingSlug, activeMagazineCategoryId, activeMagazineSlug, activeVenueSlug, activeVendorSlug, activeShowcaseSlug, activeEventSlug, activeLocationType, activeLocationSlug]);
 
   // ── URL sync: push URL whenever state changes ─────────────────────────────
   useEffect(() => {
