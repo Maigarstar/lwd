@@ -26,6 +26,7 @@ import { DEFAULT_FILTERS } from "../data/italyVenues";
 
 import SiteFooter from "../components/sections/SiteFooter";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
+import ImmersiveSearch from "../components/search/ImmersiveSearch";
 import LuxuryVenueCard from "../components/cards/LuxuryVenueCard";
 import VenueListItemCard from "../components/cards/VenueListItemCard";
 import VenueMapPanel    from "../components/maps/VenueMapPanel";
@@ -63,6 +64,7 @@ export default function RegionCategoryPage({
   const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
   const [scrolled, setScrolled] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [immersiveOpen, setImmersiveOpen] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [seoExpanded, setSeoExpanded] = useState(false);
   const [savedIds, setSavedIds] = useState([]);
@@ -531,6 +533,34 @@ export default function RegionCategoryPage({
             >
               {editorial.split(". ")[0]}.
             </p>
+
+            {/* AI Search trigger */}
+            <button
+              onClick={() => setImmersiveOpen(true)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                background: "rgba(201,168,76,0.12)",
+                border: "1px solid rgba(201,168,76,0.38)",
+                borderRadius: 3,
+                color: "#C9A84C",
+                fontFamily: NU,
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                padding: "9px 20px",
+                cursor: "pointer",
+                marginBottom: 28,
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.2)"; e.currentTarget.style.borderColor = "#C9A84C"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.12)"; e.currentTarget.style.borderColor = "rgba(201,168,76,0.38)"; }}
+            >
+              <span style={{ fontSize: 13 }}>✦</span>
+              Explore with AI
+            </button>
 
             {/* Stats row */}
             <div
@@ -1361,6 +1391,13 @@ export default function RegionCategoryPage({
             onViewFull={(v) => { setQvItem(null); onViewVenue(v); }}
           />
         )}
+
+        <ImmersiveSearch
+          isOpen={immersiveOpen}
+          onClose={() => setImmersiveOpen(false)}
+          onViewCategory={onViewCategory}
+          onViewRegionCategory={onViewRegionCategory}
+        />
       </div>
     </ThemeCtx.Provider>
   );
