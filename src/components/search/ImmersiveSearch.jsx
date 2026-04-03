@@ -221,6 +221,7 @@ export default function ImmersiveSearch({
   const [refGuests,     setRefGuests]     = useState(null);
   const [refSetting,    setRefSetting]    = useState(null);
   const [refBudget,     setRefBudget]     = useState(null);
+  const [transitioning, setTransitioning] = useState(false);
   const auraInputRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -416,22 +417,27 @@ export default function ImmersiveSearch({
       sessionStorage.removeItem("lwd:immersive-refinement");
     }
 
-    setMounted(false);
+    // ── Transition frame: show "Aura is curating" for ~950ms before navigating
+    setTransitioning(true);
     setTimeout(() => {
-      onClose?.();
-      setStep(0);
-      setLocation(null);
-      setQuery("");
-      setPendingCat(null);
-      setRefStyle(null); setRefGuests(null); setRefSetting(null); setRefBudget(null);
-      if (countrySlug && regionSlug && catSlug) {
-        onViewRegionCategory?.(countrySlug, regionSlug, catSlug);
-      } else if (countrySlug && catSlug) {
-        onViewRegionCategory?.(countrySlug, null, catSlug);
-      } else {
-        onViewCategory?.();
-      }
-    }, 460);
+      setMounted(false);
+      setTimeout(() => {
+        setTransitioning(false);
+        onClose?.();
+        setStep(0);
+        setLocation(null);
+        setQuery("");
+        setPendingCat(null);
+        setRefStyle(null); setRefGuests(null); setRefSetting(null); setRefBudget(null);
+        if (countrySlug && regionSlug && catSlug) {
+          onViewRegionCategory?.(countrySlug, regionSlug, catSlug);
+        } else if (countrySlug && catSlug) {
+          onViewRegionCategory?.(countrySlug, null, catSlug);
+        } else {
+          onViewCategory?.();
+        }
+      }, 420);
+    }, 950);
   }, [pendingCat, location, refStyle, refGuests, refSetting, refBudget, onClose, onViewRegionCategory, onViewCategory]);
 
   // ── Don't mount at all when closed ───────────────────────────────────────
@@ -479,7 +485,62 @@ export default function ImmersiveSearch({
           66%  { transform: translate(1.5%,  -1%)   scale(1.12); }
           100% { transform: translate(0%,    0%)    scale(1.12); }
         }
+        @keyframes lwd-curating-in {
+          from { opacity: 0; transform: translateY(18px); }
+          to   { opacity: 1; transform: translateY(0);    }
+        }
+        @keyframes lwd-curating-pulse {
+          0%, 100% { opacity: 0.45; transform: scale(0.88); }
+          50%      { opacity: 1;    transform: scale(1.12); }
+        }
       `}</style>
+
+      {/* ── Aura transition frame ─────────────────────────────────────────── */}
+      {transitioning && (
+        <div style={{
+          position:       "absolute",
+          inset:          0,
+          zIndex:         20,
+          background:     BG,
+          display:        "flex",
+          flexDirection:  "column",
+          alignItems:     "center",
+          justifyContent: "center",
+          gap:            0,
+          animation:      "lwd-curating-in 0.35s cubic-bezier(0.16,1,0.3,1) both",
+        }}>
+          <span style={{
+            display:   "block",
+            color:     GOLD,
+            fontSize:  22,
+            animation: "lwd-curating-pulse 1.4s ease-in-out infinite",
+            marginBottom: 28,
+          }}>✦</span>
+          <h2 style={{
+            fontFamily:    GD,
+            fontWeight:    300,
+            fontSize:      "clamp(26px, 3.5vw, 44px)",
+            color:         WHITE,
+            margin:        0,
+            letterSpacing: "-0.02em",
+            textAlign:     "center",
+            lineHeight:    1.1,
+          }}>
+            Aura is curating your results
+          </h2>
+          <p style={{
+            fontFamily:    NU,
+            fontSize:      12,
+            color:         MUTED,
+            margin:        "16px 0 0",
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            textAlign:     "center",
+          }}>
+            Finding venues aligned with your vision
+          </p>
+        </div>
+      )}
       <div aria-hidden="true" style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 0 }}>
         <div style={{
           position:   "absolute",

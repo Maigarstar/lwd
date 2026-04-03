@@ -39,6 +39,28 @@ import HomeNav          from "../components/nav/HomeNav";
 import RegionRealWeddings from "../components/sections/RegionRealWeddings";
 import "../category.css";
 
+// ── Build a human-readable Aura summary from immersive refinement fields ─────
+function buildImmersiveSummary(ref, categoryLabel, regionName, countryName) {
+  const parts = [];
+  if (ref.style) parts.push(ref.style);
+  parts.push(categoryLabel.toLowerCase());
+  const loc = (regionName && regionName !== countryName) ? regionName : countryName;
+  if (loc) parts.push(`in ${loc}`);
+  const gMap = {
+    "Just us":  "for an intimate elopement",
+    "Up to 50": "for up to 50 guests",
+    "50–100":   "for 50–100 guests",
+    "100–200":  "for 100–200 guests",
+    "200+":     "for over 200 guests",
+  };
+  if (ref.guests && gMap[ref.guests]) parts.push(gMap[ref.guests]);
+  if (ref.setting && !["Both","Any Season","Standard","Flexible"].includes(ref.setting))
+    parts.push(`with an ${ref.setting.toLowerCase()} setting`);
+  if (parts.length <= 1) return null;
+  const s = parts.join(" ");
+  return s.charAt(0).toUpperCase() + s.slice(1) + ".";
+}
+
 // ── Font tokens ──────────────────────────────────────────────────────────────
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -85,6 +107,8 @@ export default function RegionCategoryPage({
   const [activePinnedId, setActivePinnedId] = useState(null);
   const [dbListings, setDbListings] = useState([]);
   const [listingsLoaded, setListingsLoaded] = useState(false);
+  const [auraSummary,       setAuraSummary]       = useState(null);
+  const [summaryDismissed,  setSummaryDismissed]  = useState(false);
 
   const C = darkMode ? getDarkPalette() : getLightPalette();
 
@@ -118,6 +142,9 @@ export default function RegionCategoryPage({
       if (ref.guests   && capacityMap[ref.guests]) next.capacity = capacityMap[ref.guests];
       if (ref.budget   && priceMap[ref.budget])    next.price    = priceMap[ref.budget];
       setVenueFilters(next);
+      // Build concierge summary banner text
+      const summary = buildImmersiveSummary(ref, categoryLabel, regionName, countryName);
+      if (summary) { setAuraSummary(summary); setSummaryDismissed(false); }
     } catch (_) { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -862,6 +889,73 @@ export default function RegionCategoryPage({
         ════════════════════════════════════════════════════════════════════ */}
         {listingCount > 0 ? (
           <>
+            {/* ═══ AURA CONCIERGE BANNER ═══ */}
+            {auraSummary && !summaryDismissed && (
+              <div style={{
+                background:   darkMode ? "rgba(201,168,76,0.06)" : "rgba(201,168,76,0.07)",
+                borderLeft:   "3px solid rgba(201,168,76,0.45)",
+                borderBottom: `1px solid ${darkMode ? "rgba(201,168,76,0.12)" : "rgba(201,168,76,0.18)"}`,
+              }}>
+                <div style={{
+                  maxWidth:      1280,
+                  margin:        "0 auto",
+                  padding:       isMobile ? "14px 20px" : "16px 48px",
+                  display:       "flex",
+                  alignItems:    "flex-start",
+                  justifyContent: "space-between",
+                  gap:           16,
+                }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                      <span style={{ color: "rgba(201,168,76,0.9)", fontSize: 9 }}>✦</span>
+                      <span style={{
+                        fontFamily:    NU,
+                        fontSize:      9,
+                        letterSpacing: "0.22em",
+                        textTransform: "uppercase",
+                        color:         "rgba(201,168,76,0.7)",
+                        fontWeight:    700,
+                      }}>
+                        Curated for you
+                      </span>
+                    </div>
+                    <p style={{
+                      fontFamily:    GD,
+                      fontSize:      isMobile ? 14 : 15,
+                      fontWeight:    300,
+                      fontStyle:     "italic",
+                      color:         C.off,
+                      margin:        0,
+                      letterSpacing: "0.01em",
+                      lineHeight:    1.45,
+                    }}>
+                      {auraSummary}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setSummaryDismissed(true)}
+                    aria-label="Dismiss"
+                    style={{
+                      background:  "none",
+                      border:      "none",
+                      cursor:      "pointer",
+                      color:       darkMode ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.25)",
+                      fontSize:    16,
+                      lineHeight:  1,
+                      padding:     "2px 4px",
+                      flexShrink:  0,
+                      marginTop:   2,
+                      transition:  "color 0.15s",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.color = darkMode ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.55)"}
+                    onMouseLeave={e => e.currentTarget.style.color = darkMode ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.25)"}
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* ═══ AI COMMAND BAR + FILTER BAR — same as RegionPage ═══ */}
             <AICommandBar
               countrySlug={countrySlug}
@@ -874,6 +968,8 @@ export default function RegionCategoryPage({
               filters={venueFilters}
               onFiltersChange={handleVenueFiltersChange}
               defaultFilters={DEFAULT_FILTERS}
+              onSummary={(s) => { setAuraSummary(s || null); setSummaryDismissed(false); }}
+              onClearSummary={() => setAuraSummary(null)}
             />
             <CountrySearchBar
               filters={venueFilters}

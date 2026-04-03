@@ -153,6 +153,8 @@ export default function AICommandBar({
   filters,
   onFiltersChange,
   defaultFilters,
+  onSummary,
+  onClearSummary,
 }) {
   const C = useTheme();
   const inputRef = useRef(null);
@@ -196,7 +198,8 @@ export default function AICommandBar({
     setAiAppliedFilters(parsed);
     setAiSummary(parsed.summary || null);
     setAiActive(true);
-  }, [defaultFilters, onFiltersChange]);
+    onSummary?.(parsed.summary || null);
+  }, [defaultFilters, onFiltersChange, onSummary]);
 
   // ── Submit ─────────────────────────────────────────────────────────────────
   const handleSubmit = useCallback(async (q) => {
@@ -243,8 +246,10 @@ export default function AICommandBar({
     setAiSummary(null);
     setError(null);
     onFiltersChange(defaultFilters);
+    onSummary?.(null);
+    onClearSummary?.();
     inputRef.current?.focus();
-  }, [defaultFilters, onFiltersChange]);
+  }, [defaultFilters, onFiltersChange, onSummary, onClearSummary]);
 
   // ── Remove single dimension ────────────────────────────────────────────────
   const removeDimension = useCallback((key) => {
@@ -446,6 +451,25 @@ export default function AICommandBar({
                 />
               ))}
             </div>
+
+            {/* AI summary line */}
+            {aiSummary && (
+              <div style={{
+                marginTop:     10,
+                display:       "flex",
+                alignItems:    "center",
+                gap:           8,
+                fontFamily:    GD,
+                fontSize:      13,
+                fontStyle:     "italic",
+                fontWeight:    300,
+                letterSpacing: "0.01em",
+                color:         a(0.45),
+              }}>
+                <span style={{ color: GOLD_DIM, fontSize: 9, flexShrink: 0 }}>✦</span>
+                {aiSummary}
+              </div>
+            )}
           </div>
         )}
 
