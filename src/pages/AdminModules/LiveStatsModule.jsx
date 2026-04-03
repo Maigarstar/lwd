@@ -820,13 +820,13 @@ export default function LiveStatsModule({ C }) {
         <div style={{ borderLeft: `1px solid ${border}`, display: "flex", flexDirection: "column", overflow: "hidden", background: "rgba(12,10,8,0.6)" }}>
 
           {/* Panel header + controls */}
-          <div style={{ padding: "10px 14px", borderBottom: `1px solid ${border}`, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <div style={{ padding: "8px 10px", borderBottom: `1px solid ${border}`, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexShrink: 0 }}>
               <span style={{ fontFamily: GD, fontSize: 15, fontWeight: 500, color: white }}>Sessions</span>
               <span style={{ fontFamily: NU, fontSize: 10, color: grey2, whiteSpace: "nowrap" }}>{last30.length} in 30m</span>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
               {/* Hot-only toggle */}
               <div style={{ display: "flex", borderRadius: 5, overflow: "hidden", border: `1px solid ${border}` }}>
                 {[
@@ -853,59 +853,41 @@ export default function LiveStatsModule({ C }) {
                 ))}
               </div>
 
-              {/* Auto-follow toggle */}
-              <button
-                onClick={() => setAutoFollow(v => !v)}
-                title={autoFollow ? "Auto-following new visitors — click to lock map" : "Map locked — click to follow visitors"}
-                style={{
-                  display: "flex", alignItems: "center", gap: 5,
-                  background: "transparent",
-                  border: `1px solid ${autoFollow ? "rgba(201,168,76,0.28)" : border}`,
-                  borderRadius: 5, padding: "3px 9px", cursor: "pointer",
-                  transition: "all 0.22s",
-                }}
-              >
-                <span style={{
-                  width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
-                  background: autoFollow ? GOLD : "rgba(255,255,255,0.18)",
-                  boxShadow: autoFollow ? `0 0 5px ${GOLD}` : "none",
-                  transition: "all 0.22s",
-                }} />
-                <span style={{
-                  fontFamily: NU, fontSize: 10, fontWeight: 600,
-                  letterSpacing: "0.8px", textTransform: "uppercase",
-                  color: autoFollow ? GOLD : grey2, transition: "color 0.22s",
-                }}>
-                  Follow
-                </span>
-              </button>
-
-              {/* Audio toggle */}
-              <button
-                onClick={toggleSound}
-                title={soundOn ? "Audio on — click to silence" : "Audio off — click to enable"}
-                style={{
-                  display: "flex", alignItems: "center", gap: 5,
-                  background: "transparent",
-                  border: `1px solid ${soundOn ? "rgba(201,168,76,0.28)" : border}`,
-                  borderRadius: 5, padding: "3px 9px", cursor: "pointer",
-                  transition: "all 0.22s",
-                }}
-              >
-                <span style={{
-                  width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
-                  background: soundOn ? GOLD : "rgba(255,255,255,0.18)",
-                  boxShadow: soundOn ? `0 0 5px ${GOLD}` : "none",
-                  transition: "all 0.22s",
-                }} />
-                <span style={{
-                  fontFamily: NU, fontSize: 10, fontWeight: 600,
-                  letterSpacing: "0.8px", textTransform: "uppercase",
-                  color: soundOn ? GOLD : grey2, transition: "color 0.22s",
-                }}>
-                  Audio
-                </span>
-              </button>
+              {/* Follow + Audio — compact icon pair */}
+              <div style={{ display: "flex", border: `1px solid ${border}`, borderRadius: 5, overflow: "hidden" }}>
+                {[
+                  { active: autoFollow,  onClick: () => setAutoFollow(v => !v), title: autoFollow ? "Following new visitors" : "Map locked",   label: "Follow" },
+                  { active: soundOn,     onClick: toggleSound,                  title: soundOn     ? "Audio on"              : "Audio off",    label: "Audio"  },
+                ].map((btn, i) => (
+                  <button
+                    key={btn.label}
+                    onClick={btn.onClick}
+                    title={btn.title}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 5,
+                      padding: "3px 9px", cursor: "pointer",
+                      background: btn.active ? "rgba(201,168,76,0.10)" : "transparent",
+                      border: "none",
+                      borderLeft: i > 0 ? `1px solid ${border}` : "none",
+                      transition: "all 0.18s",
+                    }}
+                  >
+                    <span style={{
+                      width: 5, height: 5, borderRadius: "50%",
+                      background: btn.active ? GOLD : "rgba(255,255,255,0.18)",
+                      boxShadow: btn.active ? `0 0 5px ${GOLD}` : "none",
+                      transition: "all 0.18s", flexShrink: 0,
+                    }} />
+                    <span style={{
+                      fontFamily: NU, fontSize: 10, fontWeight: 600,
+                      letterSpacing: "0.7px", textTransform: "uppercase",
+                      color: btn.active ? GOLD : grey2, transition: "color 0.18s",
+                    }}>
+                      {btn.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -1000,8 +982,14 @@ export default function LiveStatsModule({ C }) {
                       ) : null}
                     </div>
 
-                    {/* Row 4: Time active + pages + device */}
+                    {/* Row 4: Session start time · duration · pages · device */}
                     <div style={{ display: "flex", gap: 6, fontFamily: NU, fontSize: 10, color: grey2, alignItems: "center" }}>
+                      <span style={{ color: grey, flexShrink: 0 }}>
+                        {s.first_seen_at
+                          ? new Date(s.first_seen_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+                          : "—"}
+                      </span>
+                      <span>·</span>
                       <span style={{ color: grey }}>{duration(s.first_seen_at)}</span>
                       <span>·</span>
                       <span>{s.page_count} pg</span>
