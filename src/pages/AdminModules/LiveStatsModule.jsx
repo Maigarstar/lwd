@@ -10,6 +10,8 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { supabase } from "../../lib/supabaseClient";
 
 // ── Audio synthesis (Web Audio API — no file dependency) ─────────────────────
+// Luxury design principle: warm triangle/sine mix, low-mid frequencies,
+// long natural decay — resonant bowl register, not notification bells.
 
 function getAudioCtx(ref) {
   if (!ref.current) {
@@ -20,47 +22,67 @@ function getAudioCtx(ref) {
   return ref.current;
 }
 
-// Soft ping for new visitor arrival
+// Single warm resonant note — crystal bowl / cello register
+// Used for: visitor arrival + sound-on confirmation
 function playVisitorSound(ctxRef) {
   const ctx = getAudioCtx(ctxRef);
   if (!ctx) return;
   const t = ctx.currentTime;
+
+  // Primary tone — warm triangle wave, E4 register
   const osc  = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.connect(gain); gain.connect(ctx.destination);
-  osc.type = "sine";
-  osc.frequency.setValueAtTime(880, t);
-  osc.frequency.exponentialRampToValueAtTime(660, t + 0.12);
+  osc.type = "triangle";
+  osc.frequency.setValueAtTime(330, t);
   gain.gain.setValueAtTime(0, t);
-  gain.gain.linearRampToValueAtTime(0.06, t + 0.02);
-  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
-  osc.start(t); osc.stop(t + 0.4);
+  gain.gain.linearRampToValueAtTime(0.055, t + 0.008); // near-instant attack
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 1.4); // long natural decay
+  osc.start(t); osc.stop(t + 1.5);
+
+  // Octave harmonic — adds body without harshness
+  const osc2  = ctx.createOscillator();
+  const gain2 = ctx.createGain();
+  osc2.connect(gain2); gain2.connect(ctx.destination);
+  osc2.type = "sine";
+  osc2.frequency.setValueAtTime(660, t);
+  gain2.gain.setValueAtTime(0, t);
+  gain2.gain.linearRampToValueAtTime(0.018, t + 0.008);
+  gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
+  osc2.start(t); osc2.stop(t + 1.0);
 }
 
-// Alert tones — warm: soft ascending two-note / hot: three-note / priority: urgent triple
+// Alert tones — harmonically resolved, warm, no sharp attack
+// warm: gentle ascending two-note interval
+// hot: three-note ascending phrase, slightly more present
+// priority: two resonant notes with pause — unmistakable but still refined
 function playAlertSound(ctxRef, tier) {
   const ctx = getAudioCtx(ctxRef);
   if (!ctx) return;
   const t = ctx.currentTime;
 
-  const notes = tier === "priority"
-    ? [880, 1100, 880, 1100]   // urgent double alternating
-    : tier === "hot"
-    ? [660, 880, 1100]          // ascending three
-    : [660, 880];               // gentle two
+  const sequences = {
+    warm:     [{ f: 277, v: 0.04 }, { f: 330, v: 0.05 }],           // C#4 → E4
+    hot:      [{ f: 277, v: 0.05 }, { f: 330, v: 0.06 }, { f: 415, v: 0.07 }], // C#→E→G#4
+    priority: [{ f: 330, v: 0.08 }, { f: 415, v: 0.10 }, null, { f: 330, v: 0.07 }, { f: 415, v: 0.09 }],
+  };
 
-  notes.forEach((freq, i) => {
+  const seq = sequences[tier] || sequences.warm;
+  let offset = 0;
+
+  seq.forEach(note => {
+    if (!note) { offset += 0.18; return; } // brief silence for priority
+    const start = t + offset;
     const osc  = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain); gain.connect(ctx.destination);
-    osc.type = "sine";
-    const start = t + i * (tier === "priority" ? 0.12 : 0.14);
-    const vol   = tier === "priority" ? 0.12 : tier === "hot" ? 0.09 : 0.06;
-    osc.frequency.setValueAtTime(freq, start);
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(note.f, start);
     gain.gain.setValueAtTime(0, start);
-    gain.gain.linearRampToValueAtTime(vol, start + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.22);
-    osc.start(start); osc.stop(start + 0.25);
+    gain.gain.linearRampToValueAtTime(note.v, start + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.65);
+    osc.start(start); osc.stop(start + 0.7);
+    offset += 0.28;
   });
 }
 
@@ -686,24 +708,34 @@ export default function LiveStatsModule({ C }) {
             ))}
           </div>
 
-          {/* Sound toggle */}
+          {/* Sound toggle — minimal luxury */}
           <button
             onClick={toggleSound}
-            title={soundOn ? "Sound on — click to mute" : "Sound off — click to enable"}
+            title={soundOn ? "Audio on — click to silence" : "Audio off — click to enable"}
             style={{
               position: "absolute", bottom: 12, right: 12,
-              display: "flex", alignItems: "center", gap: 6,
-              background: "rgba(10,8,6,0.75)", backdropFilter: "blur(6px)",
-              border: `1px solid ${soundOn ? "rgba(201,168,76,0.35)" : border}`,
-              borderRadius: 4, padding: "4px 10px", cursor: "pointer",
-              fontFamily: NU, fontSize: 10, fontWeight: 700,
-              letterSpacing: "0.6px", textTransform: "uppercase",
-              color: soundOn ? GOLD : grey2,
-              transition: "all 0.2s",
+              display: "flex", alignItems: "center", gap: 7,
+              background: "rgba(10,8,6,0.80)", backdropFilter: "blur(8px)",
+              border: `1px solid ${soundOn ? "rgba(201,168,76,0.30)" : "rgba(255,255,255,0.06)"}`,
+              borderRadius: 4, padding: "5px 12px", cursor: "pointer",
+              transition: "all 0.25s",
             }}
           >
-            <span style={{ fontSize: 12 }}>{soundOn ? "🔔" : "🔕"}</span>
-            Sound
+            {/* Indicator dot */}
+            <span style={{
+              width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
+              background: soundOn ? GOLD : "rgba(255,255,255,0.18)",
+              boxShadow: soundOn ? `0 0 6px ${GOLD}` : "none",
+              transition: "all 0.25s",
+            }} />
+            <span style={{
+              fontFamily: NU, fontSize: 10, fontWeight: 600,
+              letterSpacing: "1px", textTransform: "uppercase",
+              color: soundOn ? GOLD : grey2,
+              transition: "color 0.25s",
+            }}>
+              Audio
+            </span>
           </button>
 
           {/* Updated timestamp */}
@@ -757,8 +789,19 @@ export default function LiveStatsModule({ C }) {
 
           <div style={{ flex: 1, overflowY: "auto" }}>
             {displaySessions.length === 0 ? (
-              <div style={{ padding: 32, textAlign: "center", color: grey2, fontSize: 12 }}>
-                {showHotOnly ? "No high-intent sessions yet" : "Waiting for visitors…"}
+              <div style={{ padding: "36px 20px", textAlign: "center" }}>
+                <div style={{ fontSize: 22, marginBottom: 10, opacity: 0.25 }}>
+                  {showHotOnly ? "◎" : "✦"}
+                </div>
+                <div style={{ fontFamily: GD, fontSize: 14, fontStyle: "italic", color: grey, marginBottom: 6 }}>
+                  {showHotOnly ? "No high-intent sessions yet" : "Waiting for live activity"}
+                </div>
+                <div style={{ fontFamily: NU, fontSize: 11, color: grey2, lineHeight: 1.6, maxWidth: 200, margin: "0 auto" }}>
+                  {showHotOnly
+                    ? "Sessions with 2 or more intent signals will appear here"
+                    : "New sessions will surface here the moment a visitor arrives"
+                  }
+                </div>
               </div>
             ) : displaySessions.map(s => {
               const isActive = (now - new Date(s.last_seen_at)) < ACTIVE_MS;
@@ -771,66 +814,78 @@ export default function LiveStatsModule({ C }) {
                   key={s.session_id}
                   onClick={() => setSelected(isSel ? null : s)}
                   style={{
-                    padding: "9px 14px",
+                    padding: "11px 14px",
                     borderBottom: `1px solid ${border}`,
                     borderLeft: isSel
                       ? `2px solid ${tm?.color || GOLD}`
-                      : tier ? `2px solid ${tm.color}50` : "2px solid transparent",
+                      : tier ? `2px solid ${tm.color}60` : "2px solid transparent",
                     background: isSel
-                      ? `${tm?.color || GOLD}08`
-                      : tier ? `${tm.color}04` : "transparent",
+                      ? `${tm?.color || GOLD}0a`
+                      : tier ? `${tm.color}05` : "transparent",
                     cursor: "pointer", transition: "all 0.15s",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
-                    <span style={{ fontSize: 13 }}>
-                      {flag(s.country_code)}{" "}
-                      <span style={{ fontFamily: NU, fontSize: 12, fontWeight: 600, color: white }}>
-                        {s.city || s.country_code || "Unknown"}
+                  {/* Row 1: Country + Live/time badge */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                      <span style={{ fontSize: 14, flexShrink: 0 }}>{flag(s.country_code)}</span>
+                      <span style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, color: white, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {s.city || s.country_name || s.country_code || "Unknown"}
                       </span>
+                      {s.region && s.city && (
+                        <span style={{ fontFamily: NU, fontSize: 10, color: grey2, flexShrink: 0 }}>{s.region}</span>
+                      )}
+                    </div>
+                    <span style={{
+                      flexShrink: 0, fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.6px",
+                      color: isActive ? GOLD : grey2,
+                      background: isActive ? "rgba(201,168,76,0.12)" : "transparent",
+                      borderRadius: 8, padding: "2px 8px", marginLeft: 8,
+                    }}>
+                      {isActive ? "● LIVE" : timeAgo(s.last_seen_at)}
                     </span>
-                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                      {/* Tier badge */}
-                      {tm && (
+                  </div>
+
+                  {/* Row 2: Current page */}
+                  <div style={{ fontFamily: NU, fontSize: 11, color: grey, marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {shortPath(s.current_path)}
+                  </div>
+
+                  {/* Row 3: Intent badge (if any) + meta */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      {/* Tier / intent badge — prominent if exists */}
+                      {tm ? (
                         <span style={{
-                          fontFamily: NU, fontSize: 8, fontWeight: 700, letterSpacing: "0.6px",
-                          color: tm.color, background: `${tm.color}20`,
-                          borderRadius: 4, padding: "1px 5px",
-                          border: `1px solid ${tm.color}40`,
+                          fontFamily: NU, fontSize: 8, fontWeight: 700, letterSpacing: "0.7px",
+                          color: tm.color, background: `${tm.color}22`,
+                          borderRadius: 4, padding: "2px 7px",
+                          border: `1px solid ${tm.color}45`,
                           textTransform: "uppercase",
                         }}>
                           {tm.label}
                         </span>
-                      )}
-                      {/* Live / time */}
-                      <span style={{
-                        fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.6px",
-                        color: isActive ? GOLD : grey2,
-                        background: isActive ? "rgba(201,168,76,0.1)" : "transparent",
-                        borderRadius: 8, padding: "2px 7px",
-                      }}>
-                        {isActive ? "● LIVE" : timeAgo(s.last_seen_at)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div style={{ fontFamily: NU, fontSize: 11, color: grey, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {shortPath(s.current_path)}
-                  </div>
-                  <div style={{ display: "flex", gap: 8, fontFamily: NU, fontSize: 10, color: grey2 }}>
-                    <span>{s.device_type || "—"}</span>
-                    <span>·</span>
-                    <span>{s.page_count} pg</span>
-                    {s.intent_count > 0 && (
-                      <>
-                        <span>·</span>
-                        <span style={{ color: s.intent_count >= 3 ? ORANGE : AMBER }}>
-                          {s.intent_count} intent
+                      ) : s.intent_count > 0 ? (
+                        <span style={{
+                          fontFamily: NU, fontSize: 8, fontWeight: 700, letterSpacing: "0.6px",
+                          color: AMBER, background: `${AMBER}15`,
+                          borderRadius: 4, padding: "2px 7px",
+                          border: `1px solid ${AMBER}30`,
+                          textTransform: "uppercase",
+                        }}>
+                          {s.intent_count} Signal{s.intent_count !== 1 ? "s" : ""}
                         </span>
-                      </>
-                    )}
-                    <span>·</span>
-                    <span>{duration(s.first_seen_at)}</span>
+                      ) : null}
+                    </div>
+
+                    {/* Row 4: Time active + pages + device */}
+                    <div style={{ display: "flex", gap: 6, fontFamily: NU, fontSize: 10, color: grey2, alignItems: "center" }}>
+                      <span style={{ color: grey }}>{duration(s.first_seen_at)}</span>
+                      <span>·</span>
+                      <span>{s.page_count} pg</span>
+                      <span>·</span>
+                      <span>{s.device_type || "—"}</span>
+                    </div>
                   </div>
                 </div>
               );
@@ -846,7 +901,7 @@ export default function LiveStatsModule({ C }) {
         <div style={{ background: card, padding: "14px 18px", maxHeight: 200, overflow: "hidden" }}>
           <div style={S.sectionTitle}>Top Pages</div>
           {topPages.length === 0
-            ? <div style={{ fontFamily: NU, fontSize: 11, color: grey2 }}>No data yet</div>
+            ? <div style={{ fontFamily: NU, fontSize: 11, color: grey2, lineHeight: 1.6 }}>Active pages will surface<br/>as visitors navigate the site</div>
             : topPages.map(([path, count]) => (
               <div key={path} style={S.row}>
                 <div style={S.rowLabel}>{shortPath(path)}</div>
@@ -859,7 +914,7 @@ export default function LiveStatsModule({ C }) {
         <div style={{ background: card, padding: "14px 18px", maxHeight: 200, overflow: "hidden" }}>
           <div style={S.sectionTitle}>Top Countries</div>
           {topCountries.length === 0
-            ? <div style={{ fontFamily: NU, fontSize: 11, color: grey2 }}>No data yet</div>
+            ? <div style={{ fontFamily: NU, fontSize: 11, color: grey2, lineHeight: 1.6 }}>Visitor origin will appear<br/>as sessions arrive</div>
             : topCountries.map(([cc, count]) => (
               <div key={cc} style={S.row}>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, flex: 1, marginRight: 8, overflow: "hidden" }}>
@@ -875,7 +930,7 @@ export default function LiveStatsModule({ C }) {
         <div style={{ background: card, padding: "14px 18px", maxHeight: 200, overflow: "hidden" }}>
           <div style={S.sectionTitle}>Intent Signals</div>
           {intentEvts.length === 0
-            ? <div style={{ fontFamily: NU, fontSize: 11, color: grey2 }}>No signals yet</div>
+            ? <div style={{ fontFamily: NU, fontSize: 11, color: grey2, lineHeight: 1.6 }}>Signals surface when visitors<br/>shortlist, compare, or enquire</div>
             : intentEvts.slice(0, 7).map((e, i) => {
               const meta = INTENT_META[e.event_type] || { label: e.event_type, color: grey };
               return (
@@ -975,7 +1030,9 @@ export default function LiveStatsModule({ C }) {
                     );
                   })}
                 {events.filter(e => e.session_id === selected.session_id).length === 0 && (
-                  <div style={{ fontFamily: NU, fontSize: 11, color: grey2 }}>No events recorded yet</div>
+                  <div style={{ fontFamily: NU, fontSize: 11, color: grey2, lineHeight: 1.6 }}>
+                    Journey events will appear<br/>as this session navigates
+                  </div>
                 )}
               </div>
             </div>
