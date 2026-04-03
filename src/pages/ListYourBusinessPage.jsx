@@ -1,12 +1,129 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// ListYourBusinessPage — v2
+// ListYourBusinessPage — v3
 // Luxury acquisition funnel for venues, planners & vendors
 // Route: /list-your-business
+// On submit: listing_applications insert + CRM lead + follow-up email
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { useState, useEffect } from "react";
 import HomeNav from "../components/nav/HomeNav";
 import { supabase } from "../lib/supabaseClient";
+
+// ── Follow-up email ──────────────────────────────────────────────────────────
+
+function buildApplicationEmail({ name, businessName, category }) {
+  const categoryLabel = { venue: "venue", planner: "planner", vendor: "vendor" }[category] || "business";
+  const firstName = name?.split(" ")[0] || name || "there";
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your LWD application</title>
+</head>
+<body style="margin:0;padding:0;background:#f9f7f2;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f9f7f2;padding:48px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background:#ffffff;border-radius:4px;overflow:hidden;border-top:3px solid #C9A84C;">
+
+          <!-- Header -->
+          <tr>
+            <td style="padding:44px 48px 32px;text-align:center;border-bottom:1px solid #f0ede6;">
+              <span style="font-family:Georgia,'Times New Roman',serif;font-size:13px;font-weight:400;letter-spacing:3px;text-transform:uppercase;color:#C9A84C;">
+                ✦ &nbsp; L W D &nbsp; ✦
+              </span>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:44px 48px 0;">
+              <p style="font-family:Georgia,'Times New Roman',serif;font-size:22px;font-style:italic;font-weight:400;color:#1a1714;line-height:1.4;margin:0 0 28px;">
+                Thank you, ${firstName}.
+              </p>
+              <p style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:15px;color:#4a4540;line-height:1.75;margin:0 0 20px;">
+                We've received your application to join the Luxury Wedding Directory
+                ${businessName ? `on behalf of <strong style="color:#1a1714;">${businessName}</strong>` : ""}.
+              </p>
+              <p style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:15px;color:#4a4540;line-height:1.75;margin:0 0 20px;">
+                Our editorial team reviews every submission personally, ensuring
+                each ${categoryLabel} aligns with the level of weddings we feature.
+              </p>
+              <p style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:15px;color:#4a4540;line-height:1.75;margin:0 0 36px;">
+                We'll be in touch within <strong style="color:#1a1714;">3 business days</strong> with next steps.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding:0 48px;">
+              <div style="height:1px;background:#f0ede6;"></div>
+            </td>
+          </tr>
+
+          <!-- CTA -->
+          <tr>
+            <td style="padding:32px 48px 0;">
+              <p style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;color:#8a8078;line-height:1.7;margin:0 0 16px;">
+                In the meantime, explore the collection:
+              </p>
+              <a href="https://luxuryweddingdirectory.com"
+                 style="display:inline-block;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#0f0d0a;background:linear-gradient(135deg,#C9A84C,#e8c97a);text-decoration:none;border-radius:3px;padding:13px 28px;">
+                Explore LWD →
+              </a>
+            </td>
+          </tr>
+
+          <!-- Sign-off -->
+          <tr>
+            <td style="padding:44px 48px 48px;">
+              <p style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;color:#4a4540;line-height:1.7;margin:0 0 4px;">
+                We look forward to learning more about your work.
+              </p>
+              <p style="font-family:Georgia,'Times New Roman',serif;font-size:15px;font-style:italic;color:#1a1714;margin:20px 0 0;">
+                The LWD Editorial Team
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background:#1a1714;padding:24px 48px;text-align:center;">
+              <p style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(245,241,235,0.35);margin:0;">
+                Luxury Wedding Directory &nbsp;·&nbsp; luxuryweddingdirectory.com
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  return {
+    to:      "",  // filled at call site
+    subject: "We've received your application — LWD",
+    html,
+  };
+}
+
+async function sendApplicationConfirmation({ name, email, businessName, category }) {
+  try {
+    const template = buildApplicationEmail({ name, businessName, category });
+    await supabase.functions.invoke("send-email", {
+      body: { ...template, to: email },
+    });
+  } catch (err) {
+    // Non-blocking — email failure should never surface to the user
+    console.warn("sendApplicationConfirmation:", err);
+  }
+}
 
 const GOLD     = "#C9A84C";
 const GOLD_DIM = "rgba(201,168,76,0.12)";
@@ -150,6 +267,14 @@ export default function ListYourBusinessPage({ onNavigateHome, onNavigateStandar
         message: form.message || null,
         source_page: "list-your-business", status: "new",
       }]);
+      // ── Phase 3: confirmation email (non-blocking) ───────────────────────
+      sendApplicationConfirmation({
+        name:         form.name,
+        email:        form.email,
+        businessName: form.businessName,
+        category:     form.category,
+      });
+
       const parts    = form.name.trim().split(" ");
       await supabase.from("leads").insert([{
         first_name: parts[0] || form.name,
