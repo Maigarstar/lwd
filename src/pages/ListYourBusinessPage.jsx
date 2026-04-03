@@ -131,13 +131,90 @@ const GOLD_BOR = "rgba(201,168,76,0.28)";
 const GD       = "var(--font-heading-primary, 'Cormorant Garamond', Georgia, serif)";
 const NU       = "var(--font-body, 'Nunito Sans', sans-serif)";
 
+// ── Luxury SVG icons (thin-line, 24×24) ──────────────────────────────────────
+const SVG = {
+  // Venues — architectural arch / doorway
+  venue: (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 21h18" />
+      <path d="M5 21V9" />
+      <path d="M19 21V9" />
+      <path d="M5 9a7 7 0 0 1 14 0" />
+      <path d="M9 21v-6a3 3 0 0 1 6 0v6" />
+    </svg>
+  ),
+  // Planners — pen on open notebook
+  planner: (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+      <path d="M3 5h6M3 9h6M3 13h4" />
+    </svg>
+  ),
+  // Vendors — camera
+  vendor: (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+      <circle cx="12" cy="13" r="4" />
+    </svg>
+  ),
+  // Curated Profile — portrait frame
+  profile: (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="2" width="18" height="20" rx="1.5" />
+      <circle cx="12" cy="9" r="3" />
+      <path d="M6 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" />
+    </svg>
+  ),
+  // Aura Discovery — compass
+  compass: (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+    </svg>
+  ),
+  // Enquiry Management — envelope
+  envelope: (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+      <polyline points="22,6 12,13 2,6" />
+    </svg>
+  ),
+  // Analytics & Visibility — eye
+  eye: (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  ),
+  // Editorial Opportunities — open book
+  book: (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </svg>
+  ),
+  // Premium Presentation — aperture / lens
+  aperture: (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="14.31" y1="8" x2="20.05" y2="17.94" />
+      <line x1="9.69" y1="8" x2="21.17" y2="8" />
+      <line x1="7.38" y1="12" x2="13.12" y2="2.06" />
+      <line x1="9.69" y1="16" x2="3.95" y2="6.06" />
+      <line x1="14.31" y1="16" x2="2.83" y2="16" />
+      <line x1="16.62" y1="12" x2="10.88" y2="21.94" />
+    </svg>
+  ),
+};
+
 // ── Data ────────────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
   {
     key: "venue",
     label: "Venues",
-    icon: "🏛",
+    icon: SVG.venue,
     tagline: "Castles, estates, villas & boutique hotels",
     description:
       "For exclusive wedding venues that deliver exceptional experiences. From intimate countryside estates to grand palazzo ballrooms.",
@@ -151,7 +228,7 @@ const CATEGORIES = [
   {
     key: "planner",
     label: "Planners",
-    icon: "✦",
+    icon: SVG.planner,
     tagline: "Luxury & destination wedding specialists",
     description:
       "For planners who orchestrate extraordinary weddings. Build visibility with couples who expect the exceptional.",
@@ -165,7 +242,7 @@ const CATEGORIES = [
   {
     key: "vendor",
     label: "Vendors",
-    icon: "◈",
+    icon: SVG.vendor,
     tagline: "Photographers, florists, stylists & more",
     description:
       "For specialists who elevate every wedding detail. Reach couples at the moment they're assembling their team.",
@@ -179,12 +256,12 @@ const CATEGORIES = [
 ];
 
 const FEATURES = [
-  { icon: "◈", title: "Curated Profile",       body: "A premium showcase of your work — gallery, description, pricing and style — presented to match your brand." },
-  { icon: "✦", title: "Aura Discovery",         body: "AI-powered search routes qualified couples to your listing based on style, setting, location and budget." },
-  { icon: "⊕", title: "Enquiry Management",     body: "Receive enquiries directly, track leads, and manage your pipeline from your vendor dashboard." },
-  { icon: "⊡", title: "Analytics & Visibility", body: "See profile views, enquiry rates and search impressions. Know exactly where your traffic comes from." },
-  { icon: "◆", title: "Editorial Opportunities",body: "Eligible listings are considered for LWD magazine, curated guides and seasonal editorial content." },
-  { icon: "⊞", title: "Premium Presentation",   body: "Photography-first design. Every listing is built to showcase imagery, not suppress it." },
+  { icon: SVG.profile,  title: "Curated Profile",        body: "A premium showcase of your work — gallery, description, pricing and style — presented to match your brand." },
+  { icon: SVG.compass,  title: "Aura Discovery",          body: "AI-powered search routes qualified couples to your listing based on style, setting, location and budget." },
+  { icon: SVG.envelope, title: "Enquiry Management",      body: "Receive enquiries directly, track leads, and manage your pipeline from your vendor dashboard." },
+  { icon: SVG.eye,      title: "Analytics & Visibility",  body: "See profile views, enquiry rates and search impressions. Know exactly where your traffic comes from." },
+  { icon: SVG.book,     title: "Editorial Opportunities", body: "Eligible listings are considered for LWD magazine, curated guides and seasonal editorial content." },
+  { icon: SVG.aperture, title: "Premium Presentation",    body: "Photography-first design. Every listing is built to showcase imagery, not suppress it." },
 ];
 
 const STATS = [
@@ -692,7 +769,7 @@ function CategoryCard({ cat, isSelected, onClick }) {
         transition:  "all 0.25s",
       }}
     >
-      <div style={{ fontSize: 28, marginBottom: 18, lineHeight: 1 }}>{cat.icon}</div>
+      <div style={{ marginBottom: 18, lineHeight: 1, color: "rgba(26,23,20,0.6)" }}>{cat.icon}</div>
       <h3 style={{ fontFamily: GD, fontSize: 30, fontWeight: 500, fontStyle: "italic", color: "#1a1714", margin: "0 0 5px", lineHeight: 1.1 }}>
         {cat.label}
       </h3>
@@ -758,7 +835,7 @@ function FeatureCell({ feature }) {
         transition:   "background 0.2s",
       }}
     >
-      <div style={{ fontFamily: NU, fontSize: 20, color: GOLD, marginBottom: 14, opacity: 0.8 }}>{feature.icon}</div>
+      <div style={{ color: GOLD, marginBottom: 14, opacity: 0.8 }}>{feature.icon}</div>
       <h4 style={{ fontFamily: GD, fontSize: 21, fontWeight: 500, fontStyle: "italic", color: "#f5f1eb", margin: "0 0 9px", lineHeight: 1.2 }}>
         {feature.title}
       </h4>
