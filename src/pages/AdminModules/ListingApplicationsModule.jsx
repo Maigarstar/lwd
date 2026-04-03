@@ -27,7 +27,10 @@ const CATEGORY_LABELS = {
 
 function fmt(ts) {
   if (!ts) return "—";
-  return new Date(ts).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const d = new Date(ts);
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+    + " · "
+    + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 }
 
 function StatusPill({ status }) {
