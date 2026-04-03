@@ -152,11 +152,19 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
   const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
   const [enquiryVendor, setEnquiryVendor] = useState(null);
   const [heroBackgroundData, setHeroBackgroundData] = useState(null);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
   const [dbListings, setDbListings] = useState([]);
   const [immersiveOpen, setImmersiveOpen] = useState(false);
 
   const C = darkMode ? getDarkPalette() : getLightPalette();
   const { setChatContext } = useChat();
+
+  // Mobile detection
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   // Set chat context on mount
   useEffect(() => {
@@ -243,17 +251,17 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
               </h2>
 
               {/* Two-column fork */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, borderRadius: 4, overflow: "hidden", alignItems: "stretch" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 2, borderRadius: 4, overflow: "hidden", alignItems: "stretch" }}>
 
                 {/* LEFT — Guided / Aura (primary) */}
                 <div
                   style={{
                     background:   darkMode ? "#161210" : "#1a1714",
-                    padding:      "clamp(36px, 5vw, 60px) clamp(28px, 4vw, 52px)",
+                    padding:      isMobile ? "40px 28px" : "clamp(36px, 5vw, 60px) clamp(28px, 4vw, 52px)",
                     display:      "flex",
                     flexDirection: "column",
                     justifyContent: "space-between",
-                    minHeight:    340,
+                    minHeight:    isMobile ? 280 : 340,
                     position:     "relative",
                     overflow:     "hidden",
                     cursor:       "pointer",
@@ -317,7 +325,7 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
                 {/* RIGHT — Browse by Category (secondary) */}
                 <div style={{
                   background: darkMode ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.72)",
-                  padding:    "clamp(36px, 5vw, 60px) clamp(28px, 4vw, 52px)",
+                  padding:    isMobile ? "36px 28px" : "clamp(36px, 5vw, 60px) clamp(28px, 4vw, 52px)",
                   display:    "flex",
                   flexDirection: "column",
                 }}>
