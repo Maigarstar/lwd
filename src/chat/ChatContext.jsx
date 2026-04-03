@@ -116,6 +116,36 @@ export function ChatProvider({ children }) {
   // Cleanup timer on unmount
   useEffect(() => () => clearTimeout(replyTimer.current), []);
 
+  // ── Admin engage bridge ──────────────────────────────────────────────────
+  // LiveStatsModule writes lwd_aura_engage to localStorage then opens "/"
+  // in a new tab. The NEW TAB reads this key on mount and opens Aura.
+  // Guard: never fire in an admin session (admin opens a new tab to trigger this,
+  // not the current window — so if admin session is present, skip entirely).
+  useEffect(() => {
+    try {
+      // If admin is authenticated in this window, this is the admin tab — skip.
+      const isAdminSession = !!sessionStorage.getItem("lwd_admin_session");
+      if (isAdminSession) return;
+
+      const raw = localStorage.getItem("lwd_aura_engage");
+      if (!raw) return;
+      const engage = JSON.parse(raw);
+      if (!engage?.ts || Date.now() - engage.ts > 30_000) {
+        localStorage.removeItem("lwd_aura_engage");
+        return;
+      }
+      localStorage.removeItem("lwd_aura_engage");
+      const prompt = engage.prompt;
+      if (!prompt) return;
+      // Open chat then fire the message
+      setTimeout(() => {
+        openMiniBar();
+        setTimeout(() => sendMessage(prompt), 450);
+      }, 350);
+    } catch { /* silent */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // mount only — intentionally no deps
+
   // ── Actions ──────────────────────────────────────────────────────────────
   const openMiniBar   = useCallback(() => setChatUiState("open"),      []);
   const openWorkspace = useCallback(() => setChatUiState("fullchat"),  []);

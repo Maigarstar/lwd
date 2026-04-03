@@ -12,6 +12,7 @@ import { CoupleAuthProvider } from "./context/CoupleAuthContext";
 import { AdminAuthProvider, useAdminAuth } from "./context/AdminAuthContext";
 import ProtectedCoupleRoute  from "./components/ProtectedCoupleRoute";
 import AuraChat              from "./chat/AuraChat";
+import { useChat }           from "./chat/ChatContext";
 import CookieBanner          from "./components/CookieBanner";
 import SiteFooter            from "./components/sections/SiteFooter.jsx";
 import GlobalAdminBar        from "./components/admin/GlobalAdminBar.jsx";
@@ -350,6 +351,18 @@ function pathToState(pathname) {
     return { page: "venue-reviews", countrySlug: parts[0], regionSlug: parts[1], categorySlug: parts[2], venueSlug: parts[3] };
   }
   return { page: "not-found" };
+}
+
+// ── Aura suppressor for admin/vendor pages ───────────────────────────────────
+// Forces chatUiState back to "closed" when navigating into any dashboard page.
+// Prevents Aura persisting open from a previous public page visit, and prevents
+// the lwd_aura_engage bridge from rendering the chat inside an admin window.
+function AuraSuppressor({ active }) {
+  const { closeChat } = useChat();
+  useEffect(() => {
+    if (active) closeChat();
+  }, [active, closeChat]);
+  return null;
 }
 
 // ── Admin Route Wrapper (properly calls hooks at top level) ──────────────────
@@ -1004,8 +1017,11 @@ function App() {
           <SiteFooter onNavigateAdmin={goAdmin} />
         )}
 
+        {/* ── Aura suppressor — keeps chat closed on all dashboard / auth pages ── */}
+        <AuraSuppressor active={["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","join"].includes(page)} />
+
         {/* ── Global chat system, hidden on dashboards and auth pages ── */}
-        {page !== "admin" && page !== "vendor" && page !== "vendor-login" && page !== "vendor-activate" && page !== "vendor-confirm-email" && page !== "vendor-forgot-password" && page !== "vendor-reset-password" && page !== "couple-signup" && page !== "couple-login" && page !== "couple-confirm-email" && page !== "couple-forgot-password" && page !== "couple-reset-password" && page !== "join" && (
+        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","join"].includes(page) && (
           <AuraChat onNavigateHome={goHome} />
         )}
 
