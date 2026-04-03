@@ -6617,6 +6617,7 @@ function PartnerEnquiriesModule({ C, filterType }) {
   const [notes, setNotes] = useState([]);
   const [noteText, setNoteText] = useState('');
   const [noteSubmitting, setNoteSubmitting] = useState(false);
+  const [lastFetched, setLastFetched] = useState(null);
 
   const statusColors = {
     new: '#3b82f6', qualified: '#8b5cf6', engaged: '#06b6d4',
@@ -6635,6 +6636,7 @@ function PartnerEnquiriesModule({ C, filterType }) {
         .order('created_at', { ascending: false });
       if (err) throw err;
       setLeads(data || []);
+      setLastFetched(new Date());
     } catch (err) {
       setError(`Failed to load ${moduleTitle.toLowerCase()}.`);
       console.warn('PartnerEnquiriesModule:', err);
@@ -6701,13 +6703,27 @@ function PartnerEnquiriesModule({ C, filterType }) {
       <div style={{ flex: '0 0 420px', borderRight: `1px solid ${C.border}`, overflowY: 'auto' }}>
         {/* Header */}
         <div style={{ padding: '24px 24px 16px', borderBottom: `1px solid ${C.border}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
             <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 20, fontWeight: 600, color: C.white, margin: 0 }}>
               {moduleTitle}
             </h2>
-            <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: C.grey, background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: '2px 10px' }}>
-              {leads.length} total
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
+              {lastFetched && (
+                <span style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: 'rgba(245,241,235,0.28)', letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>
+                  Updated {lastFetched.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                  {' · '}
+                  {lastFetched.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </span>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: C.grey, background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: '2px 10px' }}>
+                  {leads.length} total
+                </span>
+                <button onClick={loadLeads} style={{ fontFamily: 'var(--font-body)', fontSize: 10, fontWeight: 700, letterSpacing: '0.8px', textTransform: 'uppercase', color: C.gold, background: `${C.gold}12`, border: `1px solid ${C.gold}30`, borderRadius: 4, padding: '5px 12px', cursor: 'pointer' }}>
+                  Refresh
+                </button>
+              </div>
+            </div>
           </div>
           <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: C.grey, margin: 0 }}>
             {moduleSubtitle}
@@ -6755,6 +6771,8 @@ function PartnerEnquiriesModule({ C, filterType }) {
                 </div>
                 <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: C.grey, marginTop: 2 }}>
                   {new Date(lead.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {' · '}
+                  {new Date(lead.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                 </div>
               </div>
             );
@@ -6782,6 +6800,16 @@ function PartnerEnquiriesModule({ C, filterType }) {
             </div>
             <button onClick={() => setSelectedLead(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 18 }}>✕</button>
           </div>
+
+          {/* Received */}
+          {selectedLead.created_at && (
+            <div style={{ marginBottom: 20, fontFamily: 'var(--font-body)', fontSize: 12, color: C.grey }}>
+              <span style={{ fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', fontSize: 10, marginRight: 8 }}>Received</span>
+              {new Date(selectedLead.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+              {' · '}
+              {new Date(selectedLead.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          )}
 
           {/* Status */}
           <div style={{ marginBottom: 20 }}>
