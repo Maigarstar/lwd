@@ -417,10 +417,10 @@ export default function ImmersiveSearch({
       sessionStorage.removeItem("lwd:immersive-refinement");
     }
 
-    // ── Transition frame: show "Aura is curating" for ~950ms before navigating
+    // ── Transition frame: hold for 2200ms then melt away (outer opacity fade = 0.45s)
     setTransitioning(true);
     setTimeout(() => {
-      setMounted(false);
+      setMounted(false); // triggers the 0.45s ease fade on the whole overlay
       setTimeout(() => {
         setTransitioning(false);
         onClose?.();
@@ -436,7 +436,7 @@ export default function ImmersiveSearch({
         } else {
           onViewCategory?.();
         }
-      }, 420);
+      }, 500); // wait for the 0.45s fade to finish
     }, 950);
   }, [pendingCat, location, refStyle, refGuests, refSetting, refBudget, onClose, onViewRegionCategory, onViewCategory]);
 
