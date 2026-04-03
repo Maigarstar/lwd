@@ -4,6 +4,7 @@
 // Sends: page_view on route change, heartbeat every 30s, intent events on
 // key actions (shortlist, compare, enquire, outbound click, Aura query).
 // Session ID stored in sessionStorage — ephemeral, anonymous, no PII.
+// Geo: Cloudflare headers (production) with ipapi.co client-side fallback.
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { supabase } from "./supabaseClient";
@@ -33,10 +34,49 @@ function getUTM() {
   };
 }
 
+// ── Client-side geo (fallback when CF headers are absent) ────────────────────
+// Fetches once per session from ipapi.co (free, no key, 30k/month).
+// Result cached in sessionStorage — zero cost on subsequent pages.
+
+let _geoPromise = null;
+
+function getGeo() {
+  if (_geoPromise) return _geoPromise;
+
+  const cached = sessionStorage.getItem("lwd_geo");
+  if (cached) {
+    try {
+      _geoPromise = Promise.resolve(JSON.parse(cached));
+      return _geoPromise;
+    } catch { /* fall through to fetch */ }
+  }
+
+  _geoPromise = fetch("https://ipapi.co/json/", {
+    signal: AbortSignal.timeout(4000),
+  })
+    .then(r => r.json())
+    .then(d => {
+      const geo = {
+        geo_lat:          d.latitude     ?? null,
+        geo_lng:          d.longitude    ?? null,
+        geo_country_code: d.country_code ?? null,
+        geo_country_name: d.country_name ?? null,
+        geo_city:         d.city         ?? null,
+        geo_region:       d.region       ?? null,
+      };
+      sessionStorage.setItem("lwd_geo", JSON.stringify(geo));
+      return geo;
+    })
+    .catch(() => ({}));   // silent — geo failure must never break tracking
+
+  return _geoPromise;
+}
+
 // ── Core send ────────────────────────────────────────────────────────────────
 
 async function send(event_type, extras = {}) {
   try {
+    const geo = await getGeo();
     await supabase.functions.invoke("track-visit", {
       body: {
         session_id:  getSessionId(),
@@ -44,6 +84,7 @@ async function send(event_type, extras = {}) {
         path:        window.location.pathname,
         title:       document.title,
         user_agent:  navigator.userAgent,
+        ...geo,
         ...extras,
       },
     });
@@ -97,9 +138,9 @@ export function trackEvent(event_type, metadata = {}) {
  * Call once in App on mount.
  */
 export function initTracker() {
+  getGeo();          // kick off geo fetch immediately so it's ready for first send
   trackPageView();
   startHeartbeat();
-  // Stop heartbeat when tab closes
   window.addEventListener("beforeunload", stopHeartbeat, { once: true });
 }
 

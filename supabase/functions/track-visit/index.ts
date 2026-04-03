@@ -20,18 +20,50 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-// ── Geo from Cloudflare headers ─────────────────────────────────────────────
+// ── Geo resolution ───────────────────────────────────────────────────────────
+// Priority 1: Cloudflare headers (present when traffic routes through CF)
+// Priority 2: Client-provided geo from ipapi.co (tracker.js fallback)
+// This covers both Cloudflare and non-Cloudflare hosting environments.
 
-function getGeo(req: Request) {
-  const h = req.headers;
+function getGeo(req: Request, body: Record<string, unknown>) {
+  const h   = req.headers;
   const lat = h.get("cf-iplatitude");
   const lng = h.get("cf-iplongitude");
+
+  // CF headers present — use them (most accurate, zero latency)
+  if (lat && lng) {
+    return {
+      country_code: h.get("cf-ipcountry") || null,
+      country_name: null,  // resolved via COUNTRY_NAMES below
+      city:         h.get("cf-ipcity")    || null,
+      region:       h.get("cf-region")    || null,
+      latitude:     parseFloat(lat),
+      longitude:    parseFloat(lng),
+      geo_source:   "cf",
+    };
+  }
+
+  // Client-provided fallback (from ipapi.co, sent by tracker.js)
+  const clientLat = body.geo_lat as number | null;
+  const clientLng = body.geo_lng as number | null;
+  if (clientLat && clientLng) {
+    return {
+      country_code: (body.geo_country_code as string) || null,
+      country_name: (body.geo_country_name as string) || null,
+      city:         (body.geo_city         as string) || null,
+      region:       (body.geo_region       as string) || null,
+      latitude:     clientLat,
+      longitude:    clientLng,
+      geo_source:   "client",
+    };
+  }
+
+  // No geo available
   return {
-    country_code: h.get("cf-ipcountry") || null,
-    city:         h.get("cf-ipcity")    || null,
-    region:       h.get("cf-region")    || null,
-    latitude:     lat ? parseFloat(lat) : null,
-    longitude:    lng ? parseFloat(lng) : null,
+    country_code: null, country_name: null,
+    city: null, region: null,
+    latitude: null, longitude: null,
+    geo_source: null,
   };
 }
 
@@ -113,7 +145,7 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ ok: false, reason: "missing_fields" }), { status: 200, headers });
     }
 
-    const geo     = getGeo(req);
+    const geo     = getGeo(req, body);
     const ua      = parseUA(user_agent || "");
     const now     = new Date().toISOString();
 
