@@ -860,7 +860,7 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
           ].map(([icon, label, m]) => (
             <button
               key={m}
-              onClick={() => setSearchMode(m)}
+              onClick={() => { setSearchMode(m); if (m === "ai") onOpenImmersive?.(null); }}
               style={{
                 flex: 1,
                 padding: "5px 16px",

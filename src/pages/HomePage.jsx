@@ -235,10 +235,29 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
                   <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: C.gold, fontWeight: 600 }}>Explore by Category</span>
                   <div style={{ width: 28, height: 1, background: C.gold }} />
                 </div>
-                <h2 style={{ fontFamily: GD, fontSize: "clamp(26px, 3vw, 36px)", fontWeight: 400, color: C.off, lineHeight: 1.2, margin: 0 }}>
+                <h2 style={{ fontFamily: GD, fontSize: "clamp(26px, 3vw, 36px)", fontWeight: 400, color: C.off, lineHeight: 1.2, margin: "0 0 24px" }}>
                   Find Your
                   <span style={{ fontStyle: "italic", color: C.gold }}> Perfect Match</span>
                 </h2>
+                <button
+                  onClick={() => setImmersiveOpen(true)}
+                  style={{
+                    background:    "none",
+                    border:        `1px solid rgba(201,168,76,0.4)`,
+                    borderRadius:  2,
+                    padding:       "10px 24px",
+                    color:         C.gold,
+                    fontFamily:    NU,
+                    fontSize:      12,
+                    letterSpacing: "0.1em",
+                    cursor:        "pointer",
+                    transition:    "all 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.06)"; e.currentTarget.style.borderColor = C.gold; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.borderColor = "rgba(201,168,76,0.4)"; }}
+                >
+                  ✦ Explore by Experience ✦
+                </button>
               </div>
               <CategoryCarousel
                 categories={VENDOR_CATEGORIES}

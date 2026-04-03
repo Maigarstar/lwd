@@ -554,12 +554,14 @@ export default function RegionCategoryPage({
                 cursor: "pointer",
                 marginBottom: 28,
                 transition: "all 0.2s ease",
+                alignSelf: "flex-start",
               }}
               onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.2)"; e.currentTarget.style.borderColor = "#C9A84C"; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.12)"; e.currentTarget.style.borderColor = "rgba(201,168,76,0.38)"; }}
             >
               <span style={{ fontSize: 13 }}>✦</span>
-              Explore with AI
+              Explore with Aura
+              <span style={{ fontSize: 13 }}>✦</span>
             </button>
 
             {/* Stats row */}
@@ -657,22 +659,26 @@ export default function RegionCategoryPage({
               >
                 {countryName}
               </button>
-              <span style={{ opacity: 0.4 }}>›</span>
-              <button
-                onClick={onBack}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  fontSize: 11,
-                  color: "rgba(255,255,255,0.45)",
-                  padding: 0,
-                  fontFamily: NU,
-                  letterSpacing: "0.5px",
-                }}
-              >
-                {regionName}
-              </button>
+              {regionName && regionName !== countryName && (
+                <>
+                  <span style={{ opacity: 0.4 }}>›</span>
+                  <button
+                    onClick={onBack}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: 11,
+                      color: "rgba(255,255,255,0.45)",
+                      padding: 0,
+                      fontFamily: NU,
+                      letterSpacing: "0.5px",
+                    }}
+                  >
+                    {regionName}
+                  </button>
+                </>
+              )}
               <span style={{ opacity: 0.4 }}>›</span>
               <span style={{ color: "rgba(201,168,76,0.9)", fontWeight: 600 }}>
                 {categoryLabel}

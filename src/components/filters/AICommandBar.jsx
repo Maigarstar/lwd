@@ -228,7 +228,7 @@ export default function AICommandBar({
       setError(
         err.message === "not_configured"
           ? "AI search isn't configured — use the filters below."
-          : "Something went wrong. Please use the filters below."
+          : `Error: ${err.message}`
       );
     } finally {
       setLoading(false);

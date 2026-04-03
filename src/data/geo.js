@@ -1141,7 +1141,8 @@ export function getRegionCategoryEditorial(regionSlug, categorySlug) {
   // Template fallback, never implies listings exist when count is 0
   const region = REGIONS.find(r => r.slug === regionSlug);
   const vc = VENDOR_CATEGORIES.find(c => c.slug === categorySlug);
-  const regionName = region ? region.name : regionSlug;
+  const regionName = region ? region.name : regionSlug || null;
   const label = vc ? vc.label : categorySlug;
-  return `Discover the finest ${label} in ${regionName}. Our editorial team is personally vetting every recommendation, we never accept pay-to-play listings. Premium ${label.toLowerCase()} in ${regionName} are arriving soon.`;
+  const inRegion = regionName ? ` in ${regionName}` : "";
+  return `Discover the finest ${label}${inRegion}. Our editorial team is personally vetting every recommendation, we never accept pay-to-play listings. Premium ${label.toLowerCase()}${inRegion} are arriving soon.`;
 }
