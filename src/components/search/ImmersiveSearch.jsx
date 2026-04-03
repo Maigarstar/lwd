@@ -221,7 +221,8 @@ export default function ImmersiveSearch({
   const [refGuests,     setRefGuests]     = useState(null);
   const [refSetting,    setRefSetting]    = useState(null);
   const [refBudget,     setRefBudget]     = useState(null);
-  const [transitioning, setTransitioning] = useState(false);
+  const [transitioning,   setTransitioning]   = useState(false);
+  const [curatingLineIdx, setCuratingLineIdx] = useState(0);
   const auraInputRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -440,6 +441,13 @@ export default function ImmersiveSearch({
     }, 6000);
   }, [pendingCat, location, refStyle, refGuests, refSetting, refBudget, onClose, onViewRegionCategory, onViewCategory]);
 
+  // ── Cycle curating copy while transitioning ──────────────────────────────
+  useEffect(() => {
+    if (!transitioning) { setCuratingLineIdx(0); return; }
+    const t = setInterval(() => setCuratingLineIdx(i => (i + 1) % 4), 2200);
+    return () => clearInterval(t);
+  }, [transitioning]);
+
   // ── Don't mount at all when closed ───────────────────────────────────────
   if (!isOpen) return null;
 
@@ -489,33 +497,45 @@ export default function ImmersiveSearch({
           from { opacity: 0; transform: translateY(18px); }
           to   { opacity: 1; transform: translateY(0);    }
         }
-        @keyframes lwd-curating-pulse {
-          0%, 100% { opacity: 0.45; transform: scale(0.88); }
-          50%      { opacity: 1;    transform: scale(1.12); }
+        @keyframes lwd-curating-glow {
+          0%, 100% { opacity: 0.5;  transform: scale(0.9);  text-shadow: 0 0 12px rgba(201,168,76,0.3); }
+          50%      { opacity: 1;    transform: scale(1.15); text-shadow: 0 0 28px rgba(201,168,76,0.75), 0 0 52px rgba(201,168,76,0.3); }
+        }
+        @keyframes lwd-dot-step {
+          0%, 100% { opacity: 0.18; transform: scale(0.7); }
+          50%      { opacity: 0.85; transform: scale(1.1); }
+        }
+        @keyframes lwd-line-in {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0);   }
         }
       `}</style>
 
       {/* ── Aura transition frame ─────────────────────────────────────────── */}
       {transitioning && (
         <div style={{
-          position:       "absolute",
-          inset:          0,
-          zIndex:         20,
-          background:     BG,
-          display:        "flex",
-          flexDirection:  "column",
-          alignItems:     "center",
-          justifyContent: "center",
-          gap:            0,
-          animation:      "lwd-curating-in 0.35s cubic-bezier(0.16,1,0.3,1) both",
+          position:        "absolute",
+          inset:           0,
+          zIndex:          20,
+          background:      "rgba(10,9,6,0.96)",
+          backdropFilter:  "blur(2px)",
+          display:         "flex",
+          flexDirection:   "column",
+          alignItems:      "center",
+          justifyContent:  "center",
+          animation:       "lwd-curating-in 0.4s cubic-bezier(0.16,1,0.3,1) both",
         }}>
+
+          {/* Pulsing glow ✦ */}
           <span style={{
-            display:   "block",
-            color:     GOLD,
-            fontSize:  22,
-            animation: "lwd-curating-pulse 1.4s ease-in-out infinite",
-            marginBottom: 28,
+            display:    "block",
+            color:      GOLD,
+            fontSize:   24,
+            animation:  "lwd-curating-glow 2.2s ease-in-out infinite",
+            marginBottom: 32,
           }}>✦</span>
+
+          {/* Main heading — staggered fade in */}
           <h2 style={{
             fontFamily:    GD,
             fontWeight:    300,
@@ -525,20 +545,47 @@ export default function ImmersiveSearch({
             letterSpacing: "-0.02em",
             textAlign:     "center",
             lineHeight:    1.1,
+            animation:     "lwd-curating-in 0.5s cubic-bezier(0.16,1,0.3,1) 0.1s both",
           }}>
             Aura is curating your results
           </h2>
-          <p style={{
-            fontFamily:    NU,
-            fontSize:      12,
-            color:         MUTED,
-            margin:        "16px 0 0",
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-            textAlign:     "center",
-          }}>
-            Finding {pendingCat?.label?.toLowerCase() || "results"} aligned with your vision
+
+          {/* Rotating subtitle — re-animates on each line change via key */}
+          <p
+            key={curatingLineIdx}
+            style={{
+              fontFamily:    NU,
+              fontSize:      12,
+              color:         "rgba(245,240,232,0.72)",
+              margin:        "14px 0 0",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              textAlign:     "center",
+              animation:     "lwd-line-in 0.45s ease both",
+            }}
+          >
+            {[
+              (cat) => `Finding ${cat} aligned with your vision`,
+              (cat) => `Curating your perfect ${cat} selection`,
+              (cat) => `Refining your ${cat} shortlist`,
+              (cat) => `Matching ${cat} to your vision`,
+            ][curatingLineIdx](pendingCat?.label?.toLowerCase() || "results")}
           </p>
+
+          {/* Dot progression */}
+          <div style={{ display: "flex", gap: 7, marginTop: 36, animation: "lwd-curating-in 0.5s ease 0.3s both" }}>
+            {[0, 1, 2].map(i => (
+              <span key={i} style={{
+                display:          "block",
+                width:            4,
+                height:           4,
+                borderRadius:     "50%",
+                background:       GOLD,
+                animation:        `lwd-dot-step 1.6s ease-in-out ${i * 0.28}s infinite`,
+              }} />
+            ))}
+          </div>
+
         </div>
       )}
       <div aria-hidden="true" style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 0 }}>
