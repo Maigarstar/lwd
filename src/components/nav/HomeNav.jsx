@@ -38,8 +38,9 @@ function resolveHandler(item, handlers) {
   if (nav_action === "browse")         return () => { window.location.href = "/venue"; };
   if (nav_action === "real-weddings")  return () => { window.location.href = "/real-weddings"; };
   if (nav_action === "magazine")       return () => { window.location.href = "/magazine"; };
-  if (nav_action === "join")           return () => { window.location.href = "/join"; };
-  if (nav_action === "contact")        return () => { window.location.href = "/contact"; };
+  if (nav_action === "join")                return () => { window.location.href = "/join"; };
+  if (nav_action === "list-your-business") return () => { window.location.href = "/list-your-business"; };
+  if (nav_action === "contact")            return () => { window.location.href = "/contact"; };
   if (nav_action === "artistry-awards")return () => { window.location.href = "/artistry-awards"; };
   if (url) return () => { open_new_tab ? window.open(url, "_blank", "noreferrer") : window.location.href = url; };
   if (slug) return () => { window.location.href = `/${slug}`; };
@@ -53,7 +54,8 @@ const FALLBACK_LINKS = [
   { id: "f3", label: "Real Weddings",  nav_action: "real-weddings",  visible: true },
   { id: "f4", label: "Planning",       nav_action: "planning",       visible: true },
   { id: "f5", label: "About",          nav_action: "about",          visible: true },
-  { id: "f6", label: "Magazine",       nav_action: "magazine",       visible: true },
+  { id: "f6", label: "Magazine",          nav_action: "magazine",          visible: true },
+  { id: "f7", label: "List Your Business", nav_action: "list-your-business", visible: true, type: "cta", cta_style: "fill" },
 ];
 
 export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavigateStandard, onNavigateAbout, hasHero = true }) {
@@ -578,8 +580,36 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
               })}
             </div>
 
+            {/* List Your Business CTA — always visible in drawer */}
+            <div style={{ padding: "12px 24px 8px" }}>
+              <button
+                onClick={() => { setDrawerOpen(false); window.location.href = "/list-your-business"; }}
+                style={{
+                  display:       "block",
+                  width:         "100%",
+                  textAlign:     "center",
+                  fontFamily:    NU,
+                  fontSize:      11,
+                  fontWeight:    700,
+                  letterSpacing: "1.2px",
+                  textTransform: "uppercase",
+                  color:         "#0f0d0a",
+                  background:    "linear-gradient(135deg, #C9A84C, #e8c97a)",
+                  border:        "none",
+                  borderRadius:  4,
+                  padding:       "13px 20px",
+                  cursor:        "pointer",
+                  transition:    "opacity 0.2s",
+                }}
+                onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")}
+                onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+              >
+                List Your Business
+              </button>
+            </div>
+
             {/* Divider */}
-            <div style={{ height: 1, background: "rgba(201,168,76,0.12)", margin: "0 24px" }} />
+            <div style={{ height: 1, background: "rgba(201,168,76,0.12)", margin: "8px 24px" }} />
 
             {/* Dark mode toggle */}
             <div style={{ padding: "20px 24px" }}>
