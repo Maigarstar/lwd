@@ -6693,7 +6693,7 @@ function PartnerEnquiriesModule({ C }) {
         {/* Header */}
         <div style={{ padding: '24px 24px 16px', borderBottom: `1px solid ${C.border}` }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 20, fontWeight: 600, color: C.black, margin: 0 }}>
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 20, fontWeight: 600, color: C.white, margin: 0 }}>
               Partner Enquiries
             </h2>
             <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: C.grey, background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: '2px 10px' }}>
@@ -6726,7 +6726,7 @@ function PartnerEnquiriesModule({ C }) {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: C.black }}>
+                  <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: C.white }}>
                     {req.businessName || `${lead.first_name} ${lead.last_name}`.trim() || 'Unknown'}
                   </span>
                   <span style={{
@@ -6758,7 +6758,7 @@ function PartnerEnquiriesModule({ C }) {
         <div style={{ flex: 1, overflowY: 'auto', padding: '28px 32px' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
             <div>
-              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: 22, fontWeight: 600, color: C.black, margin: '0 0 4px' }}>
+              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: 22, fontWeight: 600, color: C.white, margin: '0 0 4px' }}>
                 {(selectedLead.requirements_json?.businessName) || `${selectedLead.first_name} ${selectedLead.last_name}`}
               </h3>
               <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: C.grey }}>
@@ -6820,7 +6820,7 @@ function PartnerEnquiriesModule({ C }) {
           {selectedLead.message && (
             <div style={{ marginBottom: 24, background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '14px 16px' }}>
               <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.grey, marginBottom: 8 }}>Message</div>
-              <pre style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: C.black, margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{selectedLead.message}</pre>
+              <pre style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: C.white, margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{selectedLead.message}</pre>
             </div>
           )}
 
@@ -6833,7 +6833,7 @@ function PartnerEnquiriesModule({ C }) {
               <div style={{ marginBottom: 12 }}>
                 {notes.map(n => (
                   <div key={n.id} style={{ borderLeft: `2px solid ${C.gold}`, paddingLeft: 12, marginBottom: 10 }}>
-                    <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: C.black, margin: '0 0 2px' }}>{n.body}</p>
+                    <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: C.white, margin: '0 0 2px' }}>{n.body}</p>
                     <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: C.grey }}>
                       {new Date(n.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </span>
@@ -6846,7 +6846,7 @@ function PartnerEnquiriesModule({ C }) {
               onChange={e => setNoteText(e.target.value)}
               placeholder="Add a note..."
               rows={3}
-              style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 13, color: C.black, background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, resize: 'vertical', boxSizing: 'border-box', outline: 'none' }}
+              style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 13, color: C.white, background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, resize: 'vertical', boxSizing: 'border-box', outline: 'none' }}
             />
             <button onClick={handleAddNote} disabled={!noteText.trim() || noteSubmitting}
               style={{ marginTop: 8, padding: '8px 20px', background: noteText.trim() ? C.gold : C.goldDim, color: '#fff', border: 'none', borderRadius: 3, fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, letterSpacing: '0.08em', cursor: noteText.trim() ? 'pointer' : 'not-allowed' }}>
