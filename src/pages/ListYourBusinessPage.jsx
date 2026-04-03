@@ -218,8 +218,8 @@ export default function ListYourBusinessPage({ onNavigateHome, onNavigateStandar
         </h1>
 
         <p style={{ fontFamily: NU, fontSize: 17, lineHeight: 1.75, color: "rgba(245,241,235,0.58)", maxWidth: 500, margin: "0 0 48px", fontWeight: 300 }}>
-          Join a curated collection of Europe's finest wedding professionals.
-          Built for discerning couples. Designed to elevate serious businesses.
+          Join a curated collection of Europe's most refined wedding venues and vendors,
+          trusted by couples planning exceptional celebrations.
         </p>
 
         <div style={{ display: "flex", gap: 14, flexWrap: "wrap", justifyContent: "center", marginBottom: 52 }}>
@@ -296,8 +296,29 @@ export default function ListYourBusinessPage({ onNavigateHome, onNavigateStandar
         </div>
       </section>
 
+      {/* ── NOT FOR EVERYONE strip ──────────────────────────────────────── */}
+      <div style={{
+        background:   "#1a1714",
+        padding:      "32px 24px",
+        textAlign:    "center",
+        borderTop:    "1px solid rgba(201,168,76,0.08)",
+      }}>
+        <p style={{
+          fontFamily:  NU,
+          fontSize:    12,
+          lineHeight:  1.7,
+          color:       "rgba(245,241,235,0.32)",
+          margin:      "0 auto",
+          maxWidth:    580,
+          letterSpacing: "0.2px",
+        }}>
+          We are not a volume marketplace. Each partner is selected based on quality,
+          presentation, and alignment with the couples we serve.
+        </p>
+      </div>
+
       {/* ── 5. WHAT YOU GET ────────────────────────────────────────────────── */}
-      <section style={{ background: "#1a1714", padding: "112px 24px" }}>
+      <section style={{ background: "#1a1714", padding: "80px 24px 112px" }}>
         <div style={{ maxWidth: 1160, margin: "0 auto" }}>
           <SectionEyebrow light>What You Get</SectionEyebrow>
           <SectionHeading light>
@@ -345,6 +366,21 @@ export default function ListYourBusinessPage({ onNavigateHome, onNavigateStandar
                 Tell us about your business. Our team reviews every application personally.
               </p>
             </div>
+
+            {/* Emotional close */}
+            <p style={{
+              fontFamily:  GD,
+              fontSize:    "clamp(19px, 2.5vw, 24px)",
+              fontStyle:   "italic",
+              fontWeight:  400,
+              color:       "rgba(26,23,20,0.55)",
+              lineHeight:  1.55,
+              textAlign:   "center",
+              margin:      "0 0 36px",
+            }}>
+              If your work aligns with the level of weddings we feature,
+              we would love to hear from you.
+            </p>
 
             {/* Exclusivity + scarcity signal */}
             <div style={{
@@ -470,9 +506,10 @@ function HeroBtn({ primary, onClick, children }) {
         borderRadius:  4,
         padding:       "16px 32px",
         cursor:        "pointer",
-        transform:     hov ? "translateY(-2px)" : "translateY(0)",
-        opacity:       primary && hov ? 0.9 : 1,
-        transition:    "all 0.2s",
+        transform:     hov ? "translateY(-3px)" : "translateY(0)",
+        boxShadow:     primary && hov ? "0 10px 36px rgba(201,168,76,0.32)" : "none",
+        opacity:       primary && hov ? 0.95 : 1,
+        transition:    "all 0.25s cubic-bezier(0.16,1,0.3,1)",
       }}
     >{children}</button>
   );
