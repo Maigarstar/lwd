@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // LiveStatsModule — Real-time visitor intelligence dashboard
 // Admin only. Dark mode standard. Uses MapLibre GL + Supabase Realtime.
+// Includes high-intent alert system: warm / hot / priority tiers.
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -10,16 +11,24 @@ import { supabase } from "../../lib/supabaseClient";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const GOLD        = "#C9A84C";
-const ACTIVE_MS   = 90_000;        // 90 seconds = "active now"
-const RECENT_MS   = 30 * 60_000;   // 30 minutes = shown on map + list
+const GOLD    = "#C9A84C";
+const AMBER   = "#f59e0b";
+const ORANGE  = "#f97316";
+const RED     = "#ef4444";
+
+const ACTIVE_MS   = 90_000;        // 90 seconds  = "active now"
+const RECENT_MS   = 30 * 60_000;   // 30 minutes  = shown on map + list
 const REFRESH_MS  = 30_000;        // poll interval (supplements Realtime)
 const TICK_MS     = 10_000;        // re-render interval for live timers
+const ALERT_TTL   = 60_000;        // dismiss alert toast after 60s
 
-// Map style — swap VITE_MAP_STYLE_URL for MapTiler/Stadia in production
+// Map style — CARTO Dark Matter (free, no API key)
+// Override with VITE_MAP_STYLE_URL for MapTiler / Stadia in production
 const MAP_STYLE =
   import.meta.env.VITE_MAP_STYLE_URL ||
-  "https://demotiles.maplibre.org/style.json";
+  "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+
+// ── Intent event metadata ────────────────────────────────────────────────────
 
 const INTENT_META = {
   shortlist_add:       { label: "Shortlisted venue",   color: "#f59e0b" },
@@ -31,6 +40,31 @@ const INTENT_META = {
 };
 
 const INTENT_TYPES = Object.keys(INTENT_META);
+
+// ── Alert tier metadata ──────────────────────────────────────────────────────
+
+const TIER_META = {
+  warm:     { label: "Warm Lead",     color: AMBER,  dot: AMBER,  rank: 1 },
+  hot:      { label: "Hot Lead",      color: ORANGE, dot: ORANGE, rank: 2 },
+  priority: { label: "Priority",      color: RED,    dot: RED,    rank: 3 },
+};
+
+// Thresholds for each tier (checked in descending priority order)
+//   priority  → enquiry submitted  OR  4+ intent events
+//   hot       → enquiry started    OR  3+ intent events
+//   warm      → 2+ intent events   OR  4+ pages
+function getAlertTier(s, evts) {
+  const intents     = s.intent_count || 0;
+  const pages       = s.page_count   || 0;
+  const sessionEvts = evts
+    .filter(e => e.session_id === s.session_id)
+    .map(e => e.event_type);
+
+  if (sessionEvts.includes("enquiry_submitted") || intents >= 4) return "priority";
+  if (sessionEvts.includes("enquiry_started")   || intents >= 3) return "hot";
+  if (intents >= 2 || pages >= 4)                                 return "warm";
+  return null;
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -63,37 +97,83 @@ function shortPath(path) {
 }
 
 // ── Pulsing marker element ────────────────────────────────────────────────────
+// tier: null | 'warm' | 'hot' | 'priority'
 
-function makePulseEl(active) {
+function makePulseEl(isActive, tier) {
+  const tierColor  = tier ? TIER_META[tier].color : null;
+  const baseColor  = tierColor || (isActive ? GOLD : "rgba(201,168,76,0.3)");
+  const borderClr  = tierColor
+    ? `${tierColor}99`
+    : isActive ? "rgba(201,168,76,0.7)" : "rgba(201,168,76,0.2)";
+  const size       = tier === "priority" ? 18 : tier === "hot" ? 16 : isActive ? 14 : 8;
+  const glowColor  = tierColor || "rgba(201,168,76,0.6)";
+  const speed      = tier === "priority" ? "1s" : "1.8s";
+  const animate    = tier || isActive;
+
   const el = document.createElement("div");
   el.style.cssText = [
-    `width:${active ? 14 : 8}px`,
-    `height:${active ? 14 : 8}px`,
+    `width:${size}px`,
+    `height:${size}px`,
     "border-radius:50%",
-    `background:${active ? GOLD : "rgba(201,168,76,0.3)"}`,
-    `border:2px solid ${active ? "rgba(201,168,76,0.7)" : "rgba(201,168,76,0.2)"}`,
-    `box-shadow:${active
-      ? "0 0 0 0 rgba(201,168,76,0.6),0 0 16px rgba(201,168,76,0.7)"
-      : "none"}`,
+    `background:${baseColor}`,
+    `border:2px solid ${borderClr}`,
+    animate
+      ? `box-shadow:0 0 0 0 ${glowColor}80,0 0 ${tier ? 24 : 16}px ${glowColor}90`
+      : "box-shadow:none",
     "cursor:pointer",
-    `animation:${active ? "lwd-pulse 2s infinite" : "none"}`,
+    animate ? `animation:lwd-pulse ${speed} infinite` : "animation:none",
+    "transition:all 0.3s",
+    "position:relative",
   ].join(";");
+
+  // Extra ring for priority
+  if (tier === "priority") {
+    const ring = document.createElement("div");
+    ring.style.cssText = [
+      "position:absolute", "inset:-4px", "border-radius:50%",
+      `border:1px solid ${RED}50`,
+      "animation:lwd-pulse 0.8s infinite",
+    ].join(";");
+    el.appendChild(ring);
+  }
+
   return el;
+}
+
+// ── Alert description ─────────────────────────────────────────────────────────
+
+function alertDescription(s, evts) {
+  const sessionEvts = evts.filter(e => e.session_id === s.session_id);
+  const where = s.city || s.country_name || s.country_code || "Unknown location";
+  const device = s.device_type || "—";
+  const pages  = s.page_count  || 0;
+  const intents = s.intent_count || 0;
+
+  const hasSubmitted = sessionEvts.some(e => e.event_type === "enquiry_submitted");
+  const hasStarted   = sessionEvts.some(e => e.event_type === "enquiry_started");
+
+  if (hasSubmitted) return `${where} · submitted an enquiry · ${pages} pages · ${device}`;
+  if (hasStarted)   return `${where} · opened enquiry form · ${intents} intent signals · ${device}`;
+  if (intents >= 3) return `${where} · ${intents} intent events in session · ${pages} pages`;
+  return `${where} · ${pages} pages viewed · ${intents} interactions · ${device}`;
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function LiveStatsModule({ C }) {
-  const [sessions,  setSessions]  = useState([]);
-  const [events,    setEvents]    = useState([]);
-  const [selected,  setSelected]  = useState(null);
-  const [tick,      setTick]      = useState(0);
-  const [mapReady,  setMapReady]  = useState(false);
-  const [lastFetch, setLastFetch] = useState(null);
+  const [sessions,   setSessions]   = useState([]);
+  const [events,     setEvents]     = useState([]);
+  const [selected,   setSelected]   = useState(null);
+  const [tick,       setTick]       = useState(0);
+  const [mapReady,   setMapReady]   = useState(false);
+  const [lastFetch,  setLastFetch]  = useState(null);
+  const [alerts,     setAlerts]     = useState([]);   // high-intent alert toasts
+  const [showHotOnly,setShowHotOnly]= useState(false); // filter toggle
 
   const mapContainerRef = useRef(null);
   const mapRef          = useRef(null);
   const markersRef      = useRef({});
+  const alertTiersRef   = useRef({});  // sessionId → last known tier
 
   // ── Theme ──────────────────────────────────────────────────────────────────
   const NU     = "var(--font-body,'Nunito Sans',sans-serif)";
@@ -170,6 +250,43 @@ export default function LiveStatsModule({ C }) {
     return () => clearInterval(id);
   }, []);
 
+  // ── Alert detection ───────────────────────────────────────────────────────
+  // Fires whenever sessions or events update. Promotes sessions through tiers.
+
+  useEffect(() => {
+    if (sessions.length === 0) return;
+    const newAlerts = [];
+
+    sessions.forEach(s => {
+      const tier = getAlertTier(s, events);
+      if (!tier) return;
+      const prevRank = TIER_META[alertTiersRef.current[s.session_id]]?.rank || 0;
+      const currRank = TIER_META[tier].rank;
+      if (currRank > prevRank) {
+        alertTiersRef.current[s.session_id] = tier;
+        newAlerts.push({
+          id:   `${s.session_id}--${tier}`,
+          session: s,
+          tier,
+          ts:   Date.now(),
+        });
+      }
+    });
+
+    if (newAlerts.length > 0) {
+      setAlerts(prev => [...newAlerts, ...prev].slice(0, 10));
+    }
+  }, [sessions, events]);
+
+  // ── Auto-dismiss alerts after TTL ─────────────────────────────────────────
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setAlerts(prev => prev.filter(a => Date.now() - a.ts < ALERT_TTL));
+    }, 5_000);
+    return () => clearInterval(id);
+  }, []);
+
   // ── MapLibre init ─────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -202,7 +319,7 @@ export default function LiveStatsModule({ C }) {
     };
   }, []);
 
-  // ── Map markers ──────────────────────────────────────────────────────────
+  // ── Map markers (tier-aware) ──────────────────────────────────────────────
 
   useEffect(() => {
     const map = mapRef.current;
@@ -221,36 +338,43 @@ export default function LiveStatsModule({ C }) {
 
     // Add / refresh
     sessions.forEach(s => {
-      if (!s.lat || !s.lng) return;
+      const lat = s.latitude;
+      const lng = s.longitude;
+      if (!lat || !lng) return;
+
       const isActive = (now - new Date(s.last_seen_at)) < ACTIVE_MS;
+      const tier     = getAlertTier(s, events);
 
       if (markersRef.current[s.session_id]) {
-        markersRef.current[s.session_id].setLngLat([s.lng, s.lat]);
+        // Marker exists — update position only (re-creating would reset animation)
+        markersRef.current[s.session_id].setLngLat([lng, lat]);
         return;
       }
 
-      const el = makePulseEl(isActive);
+      const el = makePulseEl(isActive, tier);
       el.addEventListener("click", (e) => {
         e.stopPropagation();
         setSelected(s);
       });
 
       markersRef.current[s.session_id] = new maplibregl.Marker({ element: el })
-        .setLngLat([s.lng, s.lat])
+        .setLngLat([lng, lat])
         .addTo(map);
     });
-  }, [sessions, mapReady, tick]);
+  }, [sessions, events, mapReady, tick]);
 
   // ── Computed stats ────────────────────────────────────────────────────────
 
-  const now        = Date.now();
-  const activeNow  = sessions.filter(s => (now - new Date(s.last_seen_at)) < ACTIVE_MS);
-  const last30     = sessions;   // already filtered to 30 min on load
+  const now       = Date.now();
+  const activeNow = sessions.filter(s => (now - new Date(s.last_seen_at)) < ACTIVE_MS);
+  const last30    = sessions;
+
+  const hotSessions = sessions.filter(s => !!getAlertTier(s, events));
+  const displaySessions = showHotOnly ? hotSessions : last30;
 
   const todayStart = new Date(); todayStart.setHours(0,0,0,0);
   const todayEvts  = events.filter(e => new Date(e.created_at) >= todayStart);
   const todaySess  = new Set(todayEvts.map(e => e.session_id)).size;
-
   const todayEnqs  = todayEvts.filter(e =>
     e.event_type === "enquiry_started" || e.event_type === "enquiry_submitted"
   ).length;
@@ -260,14 +384,14 @@ export default function LiveStatsModule({ C }) {
   last30.forEach(s => {
     if (s.current_path) pageCounts[s.current_path] = (pageCounts[s.current_path] || 0) + 1;
   });
-  const topPages = Object.entries(pageCounts).sort((a, b) => b[1] - a[1]).slice(0, 7);
+  const topPages = Object.entries(pageCounts).sort((a,b) => b[1]-a[1]).slice(0, 7);
 
   // Top countries
   const ccCounts = {};
   last30.forEach(s => {
     if (s.country_code) ccCounts[s.country_code] = (ccCounts[s.country_code] || 0) + 1;
   });
-  const topCountries = Object.entries(ccCounts).sort((a, b) => b[1] - a[1]).slice(0, 7);
+  const topCountries = Object.entries(ccCounts).sort((a,b) => b[1]-a[1]).slice(0, 7);
 
   // Intent signals (last hour)
   const intentEvts = events.filter(e => INTENT_TYPES.includes(e.event_type));
@@ -275,6 +399,10 @@ export default function LiveStatsModule({ C }) {
   // Top live page + country for KPI
   const topPage    = topPages[0]?.[0] || null;
   const topCountry = topCountries[0] ? `${flag(topCountries[0][0])} ${topCountries[0][0]}` : "—";
+
+  // Active alerts (undismissed)
+  const liveAlerts = alerts.filter(a => !a.dismissed);
+  const hotCount   = hotSessions.length;
 
   // ── Styles ────────────────────────────────────────────────────────────────
 
@@ -287,18 +415,30 @@ export default function LiveStatsModule({ C }) {
     rowVal: { fontFamily: NU, fontSize: 11, fontWeight: 700, color: GOLD, flexShrink: 0 },
   };
 
+  const dismissAlert = (id) =>
+    setAlerts(prev => prev.map(a => a.id === id ? { ...a, dismissed: true } : a));
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div style={{ fontFamily: NU, color: white, height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", background: bg }}>
 
-      {/* Pulse animation */}
+      {/* Pulse animation + tier animations */}
       <style>{`
         @keyframes lwd-pulse {
           0%   { box-shadow: 0 0 0 0 rgba(201,168,76,0.6), 0 0 16px rgba(201,168,76,0.7); }
           70%  { box-shadow: 0 0 0 10px rgba(201,168,76,0), 0 0 16px rgba(201,168,76,0.7); }
           100% { box-shadow: 0 0 0 0 rgba(201,168,76,0),   0 0 16px rgba(201,168,76,0.7); }
         }
+        @keyframes lwd-alert-in {
+          from { opacity: 0; transform: translateX(20px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes lwd-alert-bar {
+          from { transform: scaleX(1); }
+          to   { transform: scaleX(0); }
+        }
+        .lwd-alert-item { animation: lwd-alert-in 0.3s ease; }
         .maplibregl-ctrl-group { background: rgba(20,17,14,0.9) !important; border: 1px solid rgba(201,168,76,0.2) !important; }
         .maplibregl-ctrl-group button { background: transparent !important; }
         .maplibregl-ctrl-group button:hover { background: rgba(201,168,76,0.08) !important; }
@@ -308,21 +448,106 @@ export default function LiveStatsModule({ C }) {
       `}</style>
 
       {/* ── KPI strip ───────────────────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 1, background: border, borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 1, background: border, borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
         {[
-          { label: "Online Now",     value: activeNow.length,                       accent: true },
-          { label: "Last 30 Min",    value: last30.length },
-          { label: "Today Sessions", value: todaySess },
-          { label: "Today Enquiries",value: todayEnqs,                              accent: todayEnqs > 0 },
-          { label: "Top Page",       value: topPage ? shortPath(topPage) : "—",    small: true },
-          { label: "Top Country",    value: topCountry,                             small: true },
+          { label: "Online Now",      value: activeNow.length,                      accent: activeNow.length > 0 },
+          { label: "Last 30 Min",     value: last30.length },
+          { label: "Today Sessions",  value: todaySess },
+          { label: "Today Enquiries", value: todayEnqs,                             accent: todayEnqs > 0 },
+          { label: "High Intent",     value: hotCount, accent: hotCount > 0,
+            accentColor: hotCount > 0 ? (hotCount > 3 ? RED : ORANGE) : null },
+          { label: "Top Page",        value: topPage ? shortPath(topPage) : "—",   small: true },
+          { label: "Top Country",     value: topCountry,                            small: true },
         ].map(k => (
           <div key={k.label} style={{ background: card, padding: "16px 18px" }}>
-            <div style={{ ...S.kpiVal, fontSize: k.small ? 14 : 26, color: k.accent ? GOLD : white }}>{k.value}</div>
+            <div style={{
+              ...S.kpiVal,
+              fontSize: k.small ? 14 : 26,
+              color: k.accentColor || (k.accent ? GOLD : white),
+            }}>
+              {k.value}
+            </div>
             <div style={S.kpiLabel}>{k.label}</div>
           </div>
         ))}
       </div>
+
+      {/* ── Alert strip ─────────────────────────────────────────────────── */}
+      {liveAlerts.length > 0 && (
+        <div style={{
+          flexShrink: 0, borderBottom: `1px solid ${border}`,
+          background: "rgba(239,68,68,0.03)", maxHeight: 140, overflowY: "auto",
+        }}>
+          {liveAlerts.map(a => {
+            const tm = TIER_META[a.tier];
+            return (
+              <div
+                key={a.id}
+                className="lwd-alert-item"
+                style={{
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "8px 16px", borderBottom: `1px solid ${border}`,
+                  borderLeft: `3px solid ${tm.color}`,
+                  background: `${tm.color}08`,
+                  position: "relative", overflow: "hidden",
+                }}
+              >
+                {/* TTL progress bar */}
+                <div style={{
+                  position: "absolute", bottom: 0, left: 0, right: 0, height: 1,
+                  background: tm.color, opacity: 0.3,
+                  transformOrigin: "left",
+                  animation: `lwd-alert-bar ${ALERT_TTL / 1000}s linear forwards`,
+                }} />
+
+                {/* Tier pill */}
+                <span style={{
+                  flexShrink: 0, fontFamily: NU, fontSize: 9, fontWeight: 700,
+                  letterSpacing: "0.8px", textTransform: "uppercase",
+                  color: tm.color, background: `${tm.color}18`,
+                  borderRadius: 4, padding: "2px 7px", border: `1px solid ${tm.color}40`,
+                }}>
+                  {tm.label}
+                </span>
+
+                {/* Description */}
+                <span style={{
+                  flex: 1, fontFamily: NU, fontSize: 11, color: grey,
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                }}>
+                  {alertDescription(a.session, events)}
+                </span>
+
+                {/* Timestamp */}
+                <span style={{ flexShrink: 0, fontFamily: NU, fontSize: 10, color: grey2 }}>
+                  {timeAgo(a.ts)}
+                </span>
+
+                {/* View button */}
+                <button
+                  onClick={() => { setSelected(a.session); dismissAlert(a.id); }}
+                  style={{
+                    flexShrink: 0, fontFamily: NU, fontSize: 10, fontWeight: 700,
+                    color: tm.color, background: `${tm.color}15`, border: `1px solid ${tm.color}40`,
+                    borderRadius: 4, padding: "2px 9px", cursor: "pointer",
+                    letterSpacing: "0.5px",
+                  }}
+                >
+                  View
+                </button>
+
+                {/* Dismiss */}
+                <button
+                  onClick={() => dismissAlert(a.id)}
+                  style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", color: grey2, fontSize: 14, lineHeight: 1, padding: 0 }}
+                >
+                  ✕
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* ── Main: map + sessions ─────────────────────────────────────────── */}
       <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 320px", minHeight: 0, overflow: "hidden" }}>
@@ -345,6 +570,27 @@ export default function LiveStatsModule({ C }) {
             </span>
           </div>
 
+          {/* Map legend — tier colours */}
+          <div style={{
+            position: "absolute", top: 12, right: 60,
+            display: "flex", gap: 10, alignItems: "center",
+            background: "rgba(10,8,6,0.75)", backdropFilter: "blur(6px)",
+            border: `1px solid ${border}`, borderRadius: 4, padding: "5px 12px",
+            pointerEvents: "none",
+          }}>
+            {[
+              { label: "Active",   color: GOLD   },
+              { label: "Warm",     color: AMBER  },
+              { label: "Hot",      color: ORANGE },
+              { label: "Priority", color: RED    },
+            ].map(l => (
+              <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: l.color, boxShadow: `0 0 6px ${l.color}` }} />
+                <span style={{ fontFamily: NU, fontSize: 9, color: grey2, letterSpacing: "0.5px" }}>{l.label}</span>
+              </div>
+            ))}
+          </div>
+
           {/* Updated timestamp */}
           {lastFetch && (
             <div style={{
@@ -359,28 +605,65 @@ export default function LiveStatsModule({ C }) {
 
         {/* ── Active sessions panel ──────────────────────────────────────── */}
         <div style={{ borderLeft: `1px solid ${border}`, display: "flex", flexDirection: "column", overflow: "hidden", background: "rgba(12,10,8,0.6)" }}>
-          <div style={{ padding: "12px 16px 10px", borderBottom: `1px solid ${border}`, flexShrink: 0, display: "flex", alignItems: "baseline", gap: 8 }}>
-            <span style={{ fontFamily: GD, fontSize: 15, fontWeight: 500, color: white }}>Active Sessions</span>
-            <span style={{ fontFamily: NU, fontSize: 10, color: grey2 }}>{last30.length} in 30m</span>
+
+          {/* Panel header + filter toggle */}
+          <div style={{ padding: "10px 14px", borderBottom: `1px solid ${border}`, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              <span style={{ fontFamily: GD, fontSize: 15, fontWeight: 500, color: white }}>Sessions</span>
+              <span style={{ fontFamily: NU, fontSize: 10, color: grey2 }}>{last30.length} in 30m</span>
+            </div>
+
+            {/* Hot-only toggle */}
+            <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: `1px solid ${border}` }}>
+              {[
+                { key: false, label: "All" },
+                { key: true,  label: `Hot ${hotCount > 0 ? `(${hotCount})` : ""}` },
+              ].map(opt => (
+                <button
+                  key={String(opt.key)}
+                  onClick={() => setShowHotOnly(opt.key)}
+                  style={{
+                    fontFamily: NU, fontSize: 10, fontWeight: 700,
+                    letterSpacing: "0.5px", padding: "3px 10px", cursor: "pointer",
+                    border: "none", transition: "all 0.15s",
+                    background: showHotOnly === opt.key
+                      ? (opt.key ? `${ORANGE}25` : "rgba(201,168,76,0.12)")
+                      : "transparent",
+                    color: showHotOnly === opt.key
+                      ? (opt.key ? ORANGE : GOLD)
+                      : grey2,
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div style={{ flex: 1, overflowY: "auto" }}>
-            {last30.length === 0 ? (
+            {displaySessions.length === 0 ? (
               <div style={{ padding: 32, textAlign: "center", color: grey2, fontSize: 12 }}>
-                Waiting for visitors…
+                {showHotOnly ? "No high-intent sessions yet" : "Waiting for visitors…"}
               </div>
-            ) : last30.map(s => {
+            ) : displaySessions.map(s => {
               const isActive = (now - new Date(s.last_seen_at)) < ACTIVE_MS;
               const isSel    = selected?.session_id === s.session_id;
+              const tier     = getAlertTier(s, events);
+              const tm       = tier ? TIER_META[tier] : null;
+
               return (
                 <div
                   key={s.session_id}
                   onClick={() => setSelected(isSel ? null : s)}
                   style={{
-                    padding: "10px 16px",
+                    padding: "9px 14px",
                     borderBottom: `1px solid ${border}`,
-                    borderLeft: isSel ? `2px solid ${GOLD}` : "2px solid transparent",
-                    background: isSel ? "rgba(201,168,76,0.05)" : "transparent",
+                    borderLeft: isSel
+                      ? `2px solid ${tm?.color || GOLD}`
+                      : tier ? `2px solid ${tm.color}50` : "2px solid transparent",
+                    background: isSel
+                      ? `${tm?.color || GOLD}08`
+                      : tier ? `${tm.color}04` : "transparent",
                     cursor: "pointer", transition: "all 0.15s",
                   }}
                 >
@@ -391,15 +674,31 @@ export default function LiveStatsModule({ C }) {
                         {s.city || s.country_code || "Unknown"}
                       </span>
                     </span>
-                    <span style={{
-                      fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.6px",
-                      color: isActive ? GOLD : grey2,
-                      background: isActive ? "rgba(201,168,76,0.1)" : "transparent",
-                      borderRadius: 8, padding: "2px 7px",
-                    }}>
-                      {isActive ? "● LIVE" : timeAgo(s.last_seen_at)}
-                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                      {/* Tier badge */}
+                      {tm && (
+                        <span style={{
+                          fontFamily: NU, fontSize: 8, fontWeight: 700, letterSpacing: "0.6px",
+                          color: tm.color, background: `${tm.color}20`,
+                          borderRadius: 4, padding: "1px 5px",
+                          border: `1px solid ${tm.color}40`,
+                          textTransform: "uppercase",
+                        }}>
+                          {tm.label}
+                        </span>
+                      )}
+                      {/* Live / time */}
+                      <span style={{
+                        fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.6px",
+                        color: isActive ? GOLD : grey2,
+                        background: isActive ? "rgba(201,168,76,0.1)" : "transparent",
+                        borderRadius: 8, padding: "2px 7px",
+                      }}>
+                        {isActive ? "● LIVE" : timeAgo(s.last_seen_at)}
+                      </span>
+                    </div>
                   </div>
+
                   <div style={{ fontFamily: NU, fontSize: 11, color: grey, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {shortPath(s.current_path)}
                   </div>
@@ -407,8 +706,16 @@ export default function LiveStatsModule({ C }) {
                     <span>{s.device_type || "—"}</span>
                     <span>·</span>
                     <span>{s.page_count} pg</span>
+                    {s.intent_count > 0 && (
+                      <>
+                        <span>·</span>
+                        <span style={{ color: s.intent_count >= 3 ? ORANGE : AMBER }}>
+                          {s.intent_count} intent
+                        </span>
+                      </>
+                    )}
                     <span>·</span>
-                    <span>{duration(s.started_at)}</span>
+                    <span>{duration(s.first_seen_at)}</span>
                   </div>
                 </div>
               );
@@ -470,68 +777,96 @@ export default function LiveStatsModule({ C }) {
       </div>
 
       {/* ── Session detail drawer ────────────────────────────────────────── */}
-      {selected && (
-        <div style={{
-          position: "fixed", top: 0, right: 0, bottom: 0, width: 360,
-          background: "#0c0a08", borderLeft: `1px solid ${border}`,
-          zIndex: 200, display: "flex", flexDirection: "column",
-          boxShadow: "-8px 0 40px rgba(0,0,0,0.5)",
-        }}>
-          <div style={{ padding: "16px 20px", borderBottom: `1px solid ${border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-            <div>
-              <span style={{ fontFamily: GD, fontSize: 16, fontWeight: 500, color: white }}>Session Detail</span>
-              {(now - new Date(selected.last_seen_at)) < ACTIVE_MS && (
-                <span style={{ marginLeft: 10, fontFamily: NU, fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: "0.8px", textTransform: "uppercase" }}>● Live</span>
-              )}
-            </div>
-            <button onClick={() => setSelected(null)} style={{ background: "none", border: "none", cursor: "pointer", color: grey, fontSize: 18, lineHeight: 1 }}>✕</button>
-          </div>
-
-          <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
-            {[
-              ["Location",      [selected.city, selected.region, selected.country_code].filter(Boolean).join(", ") || "Unknown"],
-              ["Country",       selected.country || selected.country_code || "—"],
-              ["Current Page",  shortPath(selected.current_path)],
-              ["Previous Page", selected.previous_path ? shortPath(selected.previous_path) : "—"],
-              ["Entry Page",    selected.entry_path ? shortPath(selected.entry_path) : "—"],
-              ["Source",        selected.referrer || "Direct"],
-              ["UTM Source",    selected.utm_source || "—"],
-              ["Device",        selected.device_type || "—"],
-              ["Browser",       selected.browser || "—"],
-              ["OS",            selected.os || "—"],
-              ["Pages Viewed",  selected.page_count],
-              ["Events",        selected.event_count],
-              ["Duration",      duration(selected.started_at)],
-              ["Last Seen",     timeAgo(selected.last_seen_at)],
-              ["Started",       new Date(selected.started_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })],
-            ].map(([label, value]) => value && value !== "—" ? (
-              <div key={label} style={{ marginBottom: 14 }}>
-                <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase", color: grey2, marginBottom: 3 }}>{label}</div>
-                <div style={{ fontFamily: NU, fontSize: 13, color: white }}>{value}</div>
+      {selected && (() => {
+        const tier = getAlertTier(selected, events);
+        const tm   = tier ? TIER_META[tier] : null;
+        return (
+          <div style={{
+            position: "fixed", top: 0, right: 0, bottom: 0, width: 360,
+            background: "#0c0a08", borderLeft: `1px solid ${border}`,
+            zIndex: 200, display: "flex", flexDirection: "column",
+            boxShadow: "-8px 0 40px rgba(0,0,0,0.5)",
+          }}>
+            <div style={{ padding: "16px 20px", borderBottom: `1px solid ${tm?.color || border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontFamily: GD, fontSize: 16, fontWeight: 500, color: white }}>Session Detail</span>
+                {(now - new Date(selected.last_seen_at)) < ACTIVE_MS && (
+                  <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: "0.8px", textTransform: "uppercase" }}>● Live</span>
+                )}
+                {tm && (
+                  <span style={{
+                    fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.7px",
+                    color: tm.color, background: `${tm.color}20`,
+                    border: `1px solid ${tm.color}50`,
+                    borderRadius: 4, padding: "2px 8px", textTransform: "uppercase",
+                  }}>
+                    {tm.label}
+                  </span>
+                )}
               </div>
-            ) : null)}
+              <button onClick={() => setSelected(null)} style={{ background: "none", border: "none", cursor: "pointer", color: grey, fontSize: 18, lineHeight: 1 }}>✕</button>
+            </div>
 
-            {/* Session journey — recent events */}
-            <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${border}` }}>
-              <div style={{ ...S.sectionTitle, marginBottom: 12 }}>Journey</div>
-              {events
-                .filter(e => e.session_id === selected.session_id)
-                .slice(0, 10)
-                .map((e, i) => (
-                  <div key={e.id || i} style={{ display: "flex", gap: 10, marginBottom: 8, alignItems: "flex-start" }}>
-                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: INTENT_META[e.event_type]?.color || border, marginTop: 4, flexShrink: 0 }} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontFamily: NU, fontSize: 11, color: grey }}>{shortPath(e.path)}</div>
-                      <div style={{ fontFamily: NU, fontSize: 10, color: grey2 }}>
-                        {INTENT_META[e.event_type]?.label || e.event_type} · {timeAgo(e.created_at)}
+            <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
+              {[
+                ["Location",      [selected.city, selected.region, selected.country_code].filter(Boolean).join(", ") || "Unknown"],
+                ["Country",       selected.country_name || selected.country_code || "—"],
+                ["Current Page",  shortPath(selected.current_path)],
+                ["Entry Page",    selected.entry_path ? shortPath(selected.entry_path) : "—"],
+                ["Source",        selected.referrer || "Direct"],
+                ["UTM Source",    selected.utm_source || "—"],
+                ["Device",        selected.device_type || "—"],
+                ["Browser",       selected.browser || "—"],
+                ["OS",            selected.os || "—"],
+                ["Pages Viewed",  selected.page_count],
+                ["Intent Events", selected.intent_count || 0],
+                ["Duration",      duration(selected.first_seen_at)],
+                ["Last Seen",     timeAgo(selected.last_seen_at)],
+                ["Started",       new Date(selected.first_seen_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })],
+              ].map(([label, value]) => (value !== null && value !== undefined && value !== "—") ? (
+                <div key={label} style={{ marginBottom: 14 }}>
+                  <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase", color: grey2, marginBottom: 3 }}>{label}</div>
+                  <div style={{ fontFamily: NU, fontSize: 13, color: white }}>{value}</div>
+                </div>
+              ) : null)}
+
+              {/* Session journey — recent events */}
+              <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${border}` }}>
+                <div style={{ ...S.sectionTitle, marginBottom: 12 }}>Journey</div>
+                {events
+                  .filter(e => e.session_id === selected.session_id)
+                  .slice(0, 12)
+                  .map((e, i) => {
+                    const meta = INTENT_META[e.event_type];
+                    const isIntent = !!meta;
+                    return (
+                      <div key={e.id || i} style={{ display: "flex", gap: 10, marginBottom: 10, alignItems: "flex-start" }}>
+                        <span style={{
+                          width: isIntent ? 8 : 6, height: isIntent ? 8 : 6,
+                          borderRadius: "50%",
+                          background: meta?.color || border,
+                          marginTop: isIntent ? 3 : 4, flexShrink: 0,
+                          boxShadow: isIntent ? `0 0 6px ${meta.color}` : "none",
+                        }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontFamily: NU, fontSize: 11, color: isIntent ? white : grey }}>
+                            {meta?.label || shortPath(e.path)}
+                          </div>
+                          <div style={{ fontFamily: NU, fontSize: 10, color: grey2 }}>
+                            {isIntent ? shortPath(e.path) + " · " : ""}{timeAgo(e.created_at)}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  })}
+                {events.filter(e => e.session_id === selected.session_id).length === 0 && (
+                  <div style={{ fontFamily: NU, fontSize: 11, color: grey2 }}>No events recorded yet</div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
