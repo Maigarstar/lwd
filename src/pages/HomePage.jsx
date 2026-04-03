@@ -25,6 +25,22 @@ import "../category.css";
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
 
+// ── Category hover images ──────────────────────────────────────────────────────
+const CAT_IMAGES = {
+  "wedding-venues":   "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=600&q=80",
+  "wedding-planners": "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?auto=format&fit=crop&w=600&q=80",
+  "photographers":    "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=600&q=80",
+  "videographers":    "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=600&q=80",
+  "florists":         "https://images.unsplash.com/photo-1487530811015-780e12b74c63?auto=format&fit=crop&w=600&q=80",
+  "caterers":         "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=600&q=80",
+  "wedding-cakes":    "https://images.unsplash.com/photo-1535254973040-607b474cb50d?auto=format&fit=crop&w=600&q=80",
+  "hair-makeup":      "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=600&q=80",
+  "entertainment":    "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&w=600&q=80",
+  "stationery":       "https://images.unsplash.com/photo-1456735190827-d1262f71b8a3?auto=format&fit=crop&w=600&q=80",
+  "bridal-wear":      "https://images.unsplash.com/photo-1594552072238-b8a33785b6cd?auto=format&fit=crop&w=600&q=80",
+  "jewellers":        "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=600&q=80",
+};
+
 // ─── Luxury category icons ────────────────────────────────────────────────────
 const LUXURY_ICONS = {
   "wedding-venues": (color) => (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18" /><path d="M5 21V7l7-4 7 4v14" /><path d="M9 21v-6h6v6" /><path d="M10 10h.01M14 10h.01" /></svg>),
@@ -153,6 +169,7 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
   const [enquiryVendor, setEnquiryVendor] = useState(null);
   const [heroBackgroundData, setHeroBackgroundData] = useState(null);
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
+  const [hovCat, setHovCat] = useState(null);
   const [dbListings, setDbListings] = useState([]);
   const [immersiveOpen, setImmersiveOpen] = useState(false);
 
@@ -340,34 +357,72 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
                     </h3>
                   </div>
 
-                  {/* Category grid — uniform 3-col */}
+                  {/* Category grid — uniform 3-col with image hovers */}
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, flex: 1, alignContent: "flex-start" }}>
-                    {VENDOR_CATEGORIES.slice(0, 12).map((cat) => (
-                      <button
-                        key={cat.slug}
-                        onClick={() => onViewCategory({ category: cat.slug })}
-                        style={{
-                          background:    "none",
-                          border:        `1px solid ${darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"}`,
-                          borderRadius:  2,
-                          padding:       "11px 8px",
-                          color:         darkMode ? "rgba(245,240,232,0.65)" : C.off,
-                          fontFamily:    NU,
-                          fontSize:      11,
-                          letterSpacing: "0.03em",
-                          cursor:        "pointer",
-                          transition:    "all 0.2s ease",
-                          textAlign:     "center",
-                          overflow:      "hidden",
-                          textOverflow:  "ellipsis",
-                          whiteSpace:    "nowrap",
-                        }}
-                        onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; e.currentTarget.style.background = "rgba(201,168,76,0.05)"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.borderColor = darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"; e.currentTarget.style.color = darkMode ? "rgba(245,240,232,0.65)" : C.off; e.currentTarget.style.background = "none"; }}
-                      >
-                        {cat.label}
-                      </button>
-                    ))}
+                    {VENDOR_CATEGORIES.slice(0, 12).map((cat) => {
+                      const hov = hovCat === cat.slug;
+                      const img = CAT_IMAGES[cat.slug];
+                      return (
+                        <button
+                          key={cat.slug}
+                          onClick={() => onViewCategory({ category: cat.slug })}
+                          onMouseEnter={() => setHovCat(cat.slug)}
+                          onMouseLeave={() => setHovCat(null)}
+                          style={{
+                            position:     "relative",
+                            overflow:     "hidden",
+                            background:   hov ? "#1a1714" : "none",
+                            border:       `1px solid ${hov ? "rgba(201,168,76,0.5)" : darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"}`,
+                            borderRadius: 2,
+                            padding:      0,
+                            height:       72,
+                            cursor:       "pointer",
+                            transition:   "border-color 0.3s ease",
+                          }}
+                        >
+                          {/* Background image */}
+                          {img && (
+                            <div style={{
+                              position:           "absolute",
+                              inset:              0,
+                              backgroundImage:    `url(${img})`,
+                              backgroundSize:     "cover",
+                              backgroundPosition: "center",
+                              opacity:            hov ? 1 : 0,
+                              transform:          hov ? "scale(1)" : "scale(1.08)",
+                              transition:         "opacity 0.4s ease, transform 0.55s cubic-bezier(0.16,1,0.3,1)",
+                            }} />
+                          )}
+                          {/* Overlay */}
+                          <div style={{
+                            position:   "absolute",
+                            inset:      0,
+                            background: hov ? "rgba(10,9,6,0.5)" : "transparent",
+                            transition: "background 0.3s ease",
+                          }} />
+                          {/* Label */}
+                          <span style={{
+                            position:       "relative",
+                            zIndex:         1,
+                            display:        "flex",
+                            alignItems:     "center",
+                            justifyContent: "center",
+                            height:         "100%",
+                            padding:        "0 8px",
+                            fontFamily:     NU,
+                            fontSize:       11,
+                            letterSpacing:  "0.04em",
+                            color:          hov ? "#f5f0e8" : darkMode ? "rgba(245,240,232,0.65)" : C.off,
+                            transition:     "color 0.3s ease",
+                            whiteSpace:     "nowrap",
+                            overflow:       "hidden",
+                            textOverflow:   "ellipsis",
+                          }}>
+                            {cat.label}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
 
                   {/* Footer hint */}
