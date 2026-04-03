@@ -708,36 +708,6 @@ export default function LiveStatsModule({ C }) {
             ))}
           </div>
 
-          {/* Sound toggle — minimal luxury */}
-          <button
-            onClick={toggleSound}
-            title={soundOn ? "Audio on — click to silence" : "Audio off — click to enable"}
-            style={{
-              position: "absolute", bottom: 12, right: 12,
-              display: "flex", alignItems: "center", gap: 7,
-              background: "rgba(10,8,6,0.80)", backdropFilter: "blur(8px)",
-              border: `1px solid ${soundOn ? "rgba(201,168,76,0.30)" : "rgba(255,255,255,0.06)"}`,
-              borderRadius: 4, padding: "5px 12px", cursor: "pointer",
-              transition: "all 0.25s",
-            }}
-          >
-            {/* Indicator dot */}
-            <span style={{
-              width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
-              background: soundOn ? GOLD : "rgba(255,255,255,0.18)",
-              boxShadow: soundOn ? `0 0 6px ${GOLD}` : "none",
-              transition: "all 0.25s",
-            }} />
-            <span style={{
-              fontFamily: NU, fontSize: 10, fontWeight: 600,
-              letterSpacing: "1px", textTransform: "uppercase",
-              color: soundOn ? GOLD : grey2,
-              transition: "color 0.25s",
-            }}>
-              Audio
-            </span>
-          </button>
-
           {/* Updated timestamp */}
           {lastFetch && (
             <div style={{
@@ -753,37 +723,66 @@ export default function LiveStatsModule({ C }) {
         {/* ── Active sessions panel ──────────────────────────────────────── */}
         <div style={{ borderLeft: `1px solid ${border}`, display: "flex", flexDirection: "column", overflow: "hidden", background: "rgba(12,10,8,0.6)" }}>
 
-          {/* Panel header + filter toggle */}
-          <div style={{ padding: "10px 14px", borderBottom: `1px solid ${border}`, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-              <span style={{ fontFamily: GD, fontSize: 15, fontWeight: 500, color: white }}>Sessions</span>
+          {/* Panel header + controls */}
+          <div style={{ padding: "10px 14px", borderBottom: `1px solid ${border}`, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8, minWidth: 0 }}>
+              <span style={{ fontFamily: GD, fontSize: 15, fontWeight: 500, color: white, flexShrink: 0 }}>Sessions</span>
               <span style={{ fontFamily: NU, fontSize: 10, color: grey2 }}>{last30.length} in 30m</span>
             </div>
 
-            {/* Hot-only toggle */}
-            <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: `1px solid ${border}` }}>
-              {[
-                { key: false, label: "All" },
-                { key: true,  label: `Hot ${hotCount > 0 ? `(${hotCount})` : ""}` },
-              ].map(opt => (
-                <button
-                  key={String(opt.key)}
-                  onClick={() => setShowHotOnly(opt.key)}
-                  style={{
-                    fontFamily: NU, fontSize: 10, fontWeight: 700,
-                    letterSpacing: "0.5px", padding: "3px 10px", cursor: "pointer",
-                    border: "none", transition: "all 0.15s",
-                    background: showHotOnly === opt.key
-                      ? (opt.key ? `${ORANGE}25` : "rgba(201,168,76,0.12)")
-                      : "transparent",
-                    color: showHotOnly === opt.key
-                      ? (opt.key ? ORANGE : GOLD)
-                      : grey2,
-                  }}
-                >
-                  {opt.label}
-                </button>
-              ))}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+              {/* Hot-only toggle */}
+              <div style={{ display: "flex", borderRadius: 5, overflow: "hidden", border: `1px solid ${border}` }}>
+                {[
+                  { key: false, label: "All" },
+                  { key: true,  label: `Hot${hotCount > 0 ? ` (${hotCount})` : ""}` },
+                ].map(opt => (
+                  <button
+                    key={String(opt.key)}
+                    onClick={() => setShowHotOnly(opt.key)}
+                    style={{
+                      fontFamily: NU, fontSize: 10, fontWeight: 700,
+                      letterSpacing: "0.5px", padding: "3px 10px", cursor: "pointer",
+                      border: "none", transition: "all 0.15s",
+                      background: showHotOnly === opt.key
+                        ? (opt.key ? `${ORANGE}25` : "rgba(201,168,76,0.12)")
+                        : "transparent",
+                      color: showHotOnly === opt.key
+                        ? (opt.key ? ORANGE : GOLD)
+                        : grey2,
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Audio toggle */}
+              <button
+                onClick={toggleSound}
+                title={soundOn ? "Audio on — click to silence" : "Audio off — click to enable"}
+                style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  background: "transparent",
+                  border: `1px solid ${soundOn ? "rgba(201,168,76,0.28)" : border}`,
+                  borderRadius: 5, padding: "3px 9px", cursor: "pointer",
+                  transition: "all 0.22s",
+                }}
+              >
+                <span style={{
+                  width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
+                  background: soundOn ? GOLD : "rgba(255,255,255,0.18)",
+                  boxShadow: soundOn ? `0 0 5px ${GOLD}` : "none",
+                  transition: "all 0.22s",
+                }} />
+                <span style={{
+                  fontFamily: NU, fontSize: 10, fontWeight: 600,
+                  letterSpacing: "0.8px", textTransform: "uppercase",
+                  color: soundOn ? GOLD : grey2, transition: "color 0.22s",
+                }}>
+                  Audio
+                </span>
+              </button>
             </div>
           </div>
 
