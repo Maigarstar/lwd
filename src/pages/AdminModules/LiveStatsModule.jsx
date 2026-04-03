@@ -9,6 +9,61 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { supabase } from "../../lib/supabaseClient";
 
+// ── Audio synthesis (Web Audio API — no file dependency) ─────────────────────
+
+function getAudioCtx(ref) {
+  if (!ref.current) {
+    try { ref.current = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch { return null; }
+  }
+  if (ref.current.state === "suspended") ref.current.resume();
+  return ref.current;
+}
+
+// Soft ping for new visitor arrival
+function playVisitorSound(ctxRef) {
+  const ctx = getAudioCtx(ctxRef);
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  const osc  = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(880, t);
+  osc.frequency.exponentialRampToValueAtTime(660, t + 0.12);
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(0.06, t + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+  osc.start(t); osc.stop(t + 0.4);
+}
+
+// Alert tones — warm: soft ascending two-note / hot: three-note / priority: urgent triple
+function playAlertSound(ctxRef, tier) {
+  const ctx = getAudioCtx(ctxRef);
+  if (!ctx) return;
+  const t = ctx.currentTime;
+
+  const notes = tier === "priority"
+    ? [880, 1100, 880, 1100]   // urgent double alternating
+    : tier === "hot"
+    ? [660, 880, 1100]          // ascending three
+    : [660, 880];               // gentle two
+
+  notes.forEach((freq, i) => {
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = "sine";
+    const start = t + i * (tier === "priority" ? 0.12 : 0.14);
+    const vol   = tier === "priority" ? 0.12 : tier === "hot" ? 0.09 : 0.06;
+    osc.frequency.setValueAtTime(freq, start);
+    gain.gain.setValueAtTime(0, start);
+    gain.gain.linearRampToValueAtTime(vol, start + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.22);
+    osc.start(start); osc.stop(start + 0.25);
+  });
+}
+
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const GOLD    = "#C9A84C";
@@ -169,11 +224,14 @@ export default function LiveStatsModule({ C }) {
   const [lastFetch,  setLastFetch]  = useState(null);
   const [alerts,     setAlerts]     = useState([]);   // high-intent alert toasts
   const [showHotOnly,setShowHotOnly]= useState(false); // filter toggle
+  const [soundOn,    setSoundOn]    = useState(() => localStorage.getItem("lwd_live_sound") === "1");
 
   const mapContainerRef = useRef(null);
   const mapRef          = useRef(null);
   const markersRef      = useRef({});
   const alertTiersRef   = useRef({});  // sessionId → last known tier
+  const audioCtxRef     = useRef(null);
+  const knownSessionIds = useRef(new Set()); // for new-visitor detection
 
   // ── Theme ──────────────────────────────────────────────────────────────────
   const NU     = "var(--font-body,'Nunito Sans',sans-serif)";
@@ -277,6 +335,43 @@ export default function LiveStatsModule({ C }) {
       setAlerts(prev => [...newAlerts, ...prev].slice(0, 10));
     }
   }, [sessions, events]);
+
+  // ── New-visitor arrival sound ─────────────────────────────────────────────
+
+  useEffect(() => {
+    const isFirstLoad = knownSessionIds.current.size === 0;
+    sessions.forEach(s => {
+      if (!knownSessionIds.current.has(s.session_id)) {
+        knownSessionIds.current.add(s.session_id);
+        if (!isFirstLoad && soundOn) playVisitorSound(audioCtxRef);
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions]);
+
+  // ── Alert sound ───────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!soundOn || alerts.length === 0) return;
+    // Play the highest tier of the newest alert
+    const newest = alerts[0];
+    if (newest && Date.now() - newest.ts < 500) {
+      playAlertSound(audioCtxRef, newest.tier);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alerts]);
+
+  // ── Sound toggle persistence ──────────────────────────────────────────────
+
+  const toggleSound = () => {
+    const next = !soundOn;
+    setSoundOn(next);
+    localStorage.setItem("lwd_live_sound", next ? "1" : "0");
+    // Warm up AudioContext on first enable (satisfies browser autoplay policy)
+    if (next) getAudioCtx(audioCtxRef);
+    // Play confirmation ping
+    if (next) setTimeout(() => playVisitorSound(audioCtxRef), 50);
+  };
 
   // ── Auto-dismiss alerts after TTL ─────────────────────────────────────────
 
@@ -590,6 +685,26 @@ export default function LiveStatsModule({ C }) {
               </div>
             ))}
           </div>
+
+          {/* Sound toggle */}
+          <button
+            onClick={toggleSound}
+            title={soundOn ? "Sound on — click to mute" : "Sound off — click to enable"}
+            style={{
+              position: "absolute", bottom: 12, right: 12,
+              display: "flex", alignItems: "center", gap: 6,
+              background: "rgba(10,8,6,0.75)", backdropFilter: "blur(6px)",
+              border: `1px solid ${soundOn ? "rgba(201,168,76,0.35)" : border}`,
+              borderRadius: 4, padding: "4px 10px", cursor: "pointer",
+              fontFamily: NU, fontSize: 10, fontWeight: 700,
+              letterSpacing: "0.6px", textTransform: "uppercase",
+              color: soundOn ? GOLD : grey2,
+              transition: "all 0.2s",
+            }}
+          >
+            <span style={{ fontSize: 12 }}>{soundOn ? "🔔" : "🔕"}</span>
+            Sound
+          </button>
 
           {/* Updated timestamp */}
           {lastFetch && (
