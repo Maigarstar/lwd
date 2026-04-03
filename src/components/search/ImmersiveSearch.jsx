@@ -15,7 +15,7 @@ const BG   = "#0a0906";
 const CARD = "#0f0e0b";
 const CARD_H = "#161410";
 const WHITE  = "#f5f0e8";
-const MUTED  = "rgba(245,240,232,0.42)";
+const MUTED  = "rgba(245,240,232,0.60)";
 const GOLD   = "#C9A84C";
 const GOLD_D = "rgba(201,168,76,0.28)";
 
@@ -941,7 +941,7 @@ export default function ImmersiveSearch({
             <h1 style={{ fontFamily:GD, fontWeight:400, margin:0, color:WHITE, fontSize:"clamp(36px, 5.5vw, 72px)", lineHeight:1.05, letterSpacing:"-0.025em" }}>
               Your perfect<br /><em style={{ fontStyle:"italic", color: GOLD }}>{pendingCat?.label || "wedding"}</em>
             </h1>
-            <p style={{ fontFamily:NU, fontSize:15, color:"rgba(245,240,232,0.48)", margin:"16px 0 0", fontWeight:300, letterSpacing:"0.01em" }}>
+            <p style={{ fontFamily:NU, fontSize:15, color:"rgba(245,240,232,0.68)", margin:"16px 0 0", fontWeight:300, letterSpacing:"0.01em" }}>
               All optional — skip anything that doesn't apply.
             </p>
           </div>
@@ -955,7 +955,7 @@ export default function ImmersiveSearch({
               const set = setterMap[row.key];
               return (
               <div key={row.key} style={{ display:"flex", flexDirection:"column", gap:12 }}>
-                <span style={{ fontFamily:NU, fontSize:10, letterSpacing:"0.2em", color:"rgba(245,240,232,0.32)", textTransform:"uppercase" }}>
+                <span style={{ fontFamily:NU, fontSize:10, letterSpacing:"0.2em", color:"rgba(245,240,232,0.55)", textTransform:"uppercase" }}>
                   {row.label}
                 </span>
                 <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
@@ -967,10 +967,10 @@ export default function ImmersiveSearch({
                         onClick={() => set(active ? null : opt)}
                         style={{
                           background:    active ? GOLD : "transparent",
-                          border:        `1px solid ${active ? GOLD : "rgba(245,240,232,0.14)"}`,
+                          border:        `1px solid ${active ? GOLD : "rgba(245,240,232,0.25)"}`,
                           borderRadius:  2,
                           padding:       "9px 18px",
-                          color:         active ? "#0a0906" : "rgba(245,240,232,0.65)",
+                          color:         active ? "#0a0906" : "rgba(245,240,232,0.82)",
                           fontFamily:    NU,
                           fontSize:      13,
                           fontWeight:    active ? 600 : 400,
@@ -979,7 +979,7 @@ export default function ImmersiveSearch({
                           transition:    "all 0.2s ease",
                         }}
                         onMouseEnter={(e) => { if (!active) { e.currentTarget.style.borderColor = "rgba(201,168,76,0.5)"; e.currentTarget.style.color = WHITE; } }}
-                        onMouseLeave={(e) => { if (!active) { e.currentTarget.style.borderColor = "rgba(245,240,232,0.14)"; e.currentTarget.style.color = "rgba(245,240,232,0.65)"; } }}
+                        onMouseLeave={(e) => { if (!active) { e.currentTarget.style.borderColor = "rgba(245,240,232,0.25)"; e.currentTarget.style.color = "rgba(245,240,232,0.82)"; } }}
                       >
                         {opt}
                       </button>
@@ -1016,8 +1016,8 @@ export default function ImmersiveSearch({
             </button>
             <button
               onClick={handleStep2Navigate}
-              style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(245,240,232,0.3)", fontFamily:NU, fontSize:12, letterSpacing:"0.1em", transition:"color 0.2s ease" }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(245,240,232,0.65)")}
+              style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(245,240,232,0.52)", fontFamily:NU, fontSize:12, letterSpacing:"0.1em", transition:"color 0.2s ease" }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(245,240,232,0.85)")}
               onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(245,240,232,0.3)")}
             >
               Skip →

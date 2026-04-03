@@ -375,13 +375,13 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
                             border:       `1px solid ${hov ? "rgba(201,168,76,0.5)" : darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"}`,
                             borderRadius: 2,
                             padding:      0,
-                            height:       72,
+                            height:       isMobile ? 44 : 72,
                             cursor:       "pointer",
                             transition:   "border-color 0.3s ease",
                           }}
                         >
-                          {/* Background image */}
-                          {img && (
+                          {/* Background image — desktop only */}
+                          {img && !isMobile && (
                             <div style={{
                               position:           "absolute",
                               inset:              0,
