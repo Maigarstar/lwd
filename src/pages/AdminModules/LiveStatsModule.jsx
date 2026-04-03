@@ -685,49 +685,6 @@ export default function LiveStatsModule({ C }) {
         ))}
       </div>
 
-      {/* ── Control bar — Follow + Audio, sits above alert strip ────────── */}
-      <div style={{
-        flexShrink: 0, borderBottom: `1px solid ${border}`,
-        display: "flex", alignItems: "center", justifyContent: "flex-end",
-        padding: "5px 14px", gap: 6,
-        background: "rgba(255,255,255,0.01)",
-      }}>
-        {[
-          { active: autoFollow, onClick: () => setAutoFollow(v => !v), title: autoFollow ? "Following new visitors" : "Map locked", label: "Follow" },
-          { active: soundOn,    onClick: toggleSound,                   title: soundOn    ? "Audio on"              : "Audio off",  label: "Audio"  },
-        ].map((btn, i, arr) => (
-          <button
-            key={btn.label}
-            onClick={btn.onClick}
-            title={btn.title}
-            style={{
-              display: "flex", alignItems: "center", gap: 5,
-              padding: "3px 10px", cursor: "pointer",
-              background: btn.active ? "rgba(201,168,76,0.10)" : "transparent",
-              border: `1px solid ${btn.active ? "rgba(201,168,76,0.28)" : border}`,
-              borderRadius: 5,
-              transition: "all 0.18s",
-            }}
-          >
-            <span style={{
-              width: 5, height: 5, borderRadius: "50%",
-              background: btn.active ? GOLD : "rgba(255,255,255,0.18)",
-              boxShadow: btn.active ? `0 0 5px ${GOLD}` : "none",
-              transition: "all 0.18s", flexShrink: 0,
-            }} />
-            <span style={{
-              fontFamily: "var(--font-body,'Nunito Sans',sans-serif)",
-              fontSize: 10, fontWeight: 600,
-              letterSpacing: "0.7px", textTransform: "uppercase",
-              color: btn.active ? GOLD : "rgba(245,241,235,0.28)",
-              transition: "color 0.18s",
-            }}>
-              {btn.label}
-            </span>
-          </button>
-        ))}
-      </div>
-
       {/* ── Alert strip ─────────────────────────────────────────────────── */}
       {liveAlerts.length > 0 && (
         <div style={{
@@ -862,34 +819,55 @@ export default function LiveStatsModule({ C }) {
         {/* ── Active sessions panel ──────────────────────────────────────── */}
         <div style={{ borderLeft: `1px solid ${border}`, display: "flex", flexDirection: "column", overflow: "hidden", background: "rgba(12,10,8,0.6)" }}>
 
-          {/* Panel header — count + All/Hot filter */}
-          <div style={{ padding: "7px 12px", borderBottom: `1px solid ${border}`, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontFamily: NU, fontSize: 10, color: grey2, whiteSpace: "nowrap" }}>{last30.length} in 30m</span>
+          {/* Panel header — count · All/Hot · Follow/Audio */}
+          <div style={{ padding: "7px 10px", borderBottom: `1px solid ${border}`, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 5 }}>
+            <span style={{ fontFamily: NU, fontSize: 10, color: grey2, whiteSpace: "nowrap", flexShrink: 0 }}>{last30.length} in 30m</span>
 
-            {/* Hot-only toggle */}
-            <div style={{ display: "flex", borderRadius: 5, overflow: "hidden", border: `1px solid ${border}` }}>
-              {[
-                { key: false, label: "All" },
-                { key: true,  label: `Hot${hotCount > 0 ? ` (${hotCount})` : ""}` },
-              ].map(opt => (
-                <button
-                  key={String(opt.key)}
-                  onClick={() => setShowHotOnly(opt.key)}
-                  style={{
-                    fontFamily: NU, fontSize: 10, fontWeight: 700,
-                    letterSpacing: "0.5px", padding: "3px 10px", cursor: "pointer",
-                    border: "none", transition: "all 0.15s",
-                    background: showHotOnly === opt.key
-                      ? (opt.key ? `${ORANGE}25` : "rgba(201,168,76,0.12)")
-                      : "transparent",
-                    color: showHotOnly === opt.key
-                      ? (opt.key ? ORANGE : GOLD)
-                      : grey2,
-                  }}
-                >
-                  {opt.label}
-                </button>
-              ))}
+            <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+              {/* All / Hot */}
+              <div style={{ display: "flex", borderRadius: 5, overflow: "hidden", border: `1px solid ${border}` }}>
+                {[
+                  { key: false, label: "All" },
+                  { key: true,  label: `Hot${hotCount > 0 ? ` (${hotCount})` : ""}` },
+                ].map(opt => (
+                  <button key={String(opt.key)} onClick={() => setShowHotOnly(opt.key)} style={{
+                    fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "0.5px",
+                    padding: "3px 9px", cursor: "pointer", border: "none", transition: "all 0.15s",
+                    background: showHotOnly === opt.key ? (opt.key ? `${ORANGE}25` : "rgba(201,168,76,0.12)") : "transparent",
+                    color: showHotOnly === opt.key ? (opt.key ? ORANGE : GOLD) : grey2,
+                  }}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Follow / Audio */}
+              <div style={{ display: "flex", borderRadius: 5, overflow: "hidden", border: `1px solid ${border}` }}>
+                {[
+                  { active: autoFollow, onClick: () => setAutoFollow(v => !v), label: "Follow" },
+                  { active: soundOn,    onClick: toggleSound,                   label: "Audio"  },
+                ].map((btn, i) => (
+                  <button key={btn.label} onClick={btn.onClick} title={btn.label} style={{
+                    display: "flex", alignItems: "center", gap: 4,
+                    padding: "3px 9px", cursor: "pointer", border: "none",
+                    borderLeft: i > 0 ? `1px solid ${border}` : "none",
+                    background: btn.active ? "rgba(201,168,76,0.10)" : "transparent",
+                    transition: "all 0.18s",
+                  }}>
+                    <span style={{
+                      width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
+                      background: btn.active ? GOLD : "rgba(255,255,255,0.18)",
+                      boxShadow: btn.active ? `0 0 5px ${GOLD}` : "none",
+                      transition: "all 0.18s",
+                    }} />
+                    <span style={{
+                      fontFamily: NU, fontSize: 10, fontWeight: 600,
+                      letterSpacing: "0.6px", textTransform: "uppercase",
+                      color: btn.active ? GOLD : grey2, transition: "color 0.18s",
+                    }}>{btn.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
