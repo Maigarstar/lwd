@@ -387,7 +387,7 @@ export default function VenueListItemCard({ v, onView, isHighlighted, quickViewI
             onMouseEnter={e => { e.currentTarget.style.background = "rgba(201,168,76,0.14)"; e.currentTarget.style.borderColor = "rgba(201,168,76,0.45)"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "rgba(201,168,76,0.08)"; e.currentTarget.style.borderColor = "rgba(201,168,76,0.25)"; }}
           >
-            Quick View
+            QV
           </button>
 
           <button
@@ -418,7 +418,7 @@ export default function VenueListItemCard({ v, onView, isHighlighted, quickViewI
             onMouseEnter={e => { e.currentTarget.style.background = "rgba(201,168,76,0.14)"; e.currentTarget.style.borderColor = "rgba(201,168,76,0.45)"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "rgba(201,168,76,0.08)"; e.currentTarget.style.borderColor = "rgba(201,168,76,0.25)"; }}
           >
-            View Profile ›
+            Profile ›
           </button>
         </div>
       </div>
