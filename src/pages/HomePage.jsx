@@ -250,11 +250,11 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
 
               {/* Section heading */}
               <h2 style={{ fontFamily: GD, fontSize: "clamp(24px, 2.8vw, 34px)", fontWeight: 400, color: C.off, lineHeight: 1.2, margin: "0 0 48px", textAlign: "center" }}>
-                Choose how you'd like to begin
+                Begin your search
               </h2>
 
               {/* Two-column fork */}
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 2, borderRadius: 4, overflow: "hidden", alignItems: "stretch" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.15fr 0.85fr", gap: 2, borderRadius: 4, overflow: "hidden", alignItems: "stretch" }}>
 
                 {/* LEFT — Guided / Aura (primary) */}
                 <div
@@ -305,32 +305,37 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
                   </div>
 
                   {/* CTA — tight cluster with text */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setImmersiveOpen(true); }}
-                      style={{
-                        background:    "#C9A84C",
-                        border:        "none",
-                        borderRadius:  2,
-                        padding:       "13px 28px",
-                        color:         "#0f0e0b",
-                        fontFamily:    NU,
-                        fontSize:      11,
-                        fontWeight:    700,
-                        letterSpacing: "0.14em",
-                        textTransform: "uppercase",
-                        cursor:        "pointer",
-                        transition:    "opacity 0.2s ease",
-                        flexShrink:    0,
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
-                      onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-                    >
-                      Start with Aura →
-                    </button>
-                    <span style={{ fontFamily: NU, fontSize: 11, color: "rgba(245,240,232,0.42)", letterSpacing: "0.04em" }}>
-                      3-step guided experience
-                    </span>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setImmersiveOpen(true); }}
+                        style={{
+                          background:    "#C9A84C",
+                          border:        "none",
+                          borderRadius:  2,
+                          padding:       "13px 28px",
+                          color:         "#0f0e0b",
+                          fontFamily:    NU,
+                          fontSize:      11,
+                          fontWeight:    700,
+                          letterSpacing: "0.14em",
+                          textTransform: "uppercase",
+                          cursor:        "pointer",
+                          transition:    "opacity 0.2s ease",
+                          flexShrink:    0,
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
+                        onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+                      >
+                        Start with Aura →
+                      </button>
+                      <span style={{ fontFamily: NU, fontSize: 11, color: "rgba(245,240,232,0.42)", letterSpacing: "0.04em" }}>
+                        3-step guided experience
+                      </span>
+                    </div>
+                    <p style={{ fontFamily: NU, fontSize: 10, color: "rgba(245,240,232,0.22)", letterSpacing: "0.05em", margin: 0 }}>
+                      Helping couples plan luxury weddings across Europe, the UK, and beyond
+                    </p>
                   </div>
                 </div>
 
@@ -379,7 +384,9 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
                             whiteSpace:     "nowrap",
                             overflow:       "hidden",
                             textOverflow:   "ellipsis",
-                            transition:     "border-color 0.2s ease, color 0.2s ease, background 0.2s ease",
+                            transform:      hov ? "translateY(-2px)" : "translateY(0)",
+                            boxShadow:      hov ? "0 4px 14px rgba(201,168,76,0.1)" : "none",
+                            transition:     "border-color 0.2s ease, color 0.2s ease, background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease",
                           }}
                         >
                           {cat.label}
