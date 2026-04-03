@@ -416,6 +416,7 @@ function DetailDrawer({ app, notesDraft, setNotesDraft, onSaveNotes, onUpdateSta
             <DetailField label="Region"      value={app.region} />
             <DetailField label="Phone"       value={app.phone} />
             <DetailField label="Applied"     value={fmt(app.created_at)} />
+            <DetailField label="Device"      value={app.device_info ? `${app.device_info.device} · ${app.device_info.os}` : null} />
             <DetailField label="Source"      value={app.source_page} />
           </div>
 

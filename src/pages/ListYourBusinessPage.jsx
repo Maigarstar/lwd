@@ -308,6 +308,22 @@ function scrollTo(id) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+function getDeviceInfo() {
+  const ua = navigator.userAgent || "";
+  let os = "Unknown";
+  if      (/Windows NT 10/.test(ua))        os = "Windows 10/11";
+  else if (/Windows NT 6\.3/.test(ua))      os = "Windows 8.1";
+  else if (/Windows/.test(ua))              os = "Windows";
+  else if (/iPhone|iPad/.test(ua))          os = /OS ([\d_]+)/.test(ua) ? `iOS ${RegExp.$1.replace(/_/g,".")}` : "iOS";
+  else if (/Android/.test(ua))              os = /Android ([\d.]+)/.test(ua) ? `Android ${RegExp.$1}` : "Android";
+  else if (/Mac OS X ([\d_]+)/.test(ua))    os = `macOS ${RegExp.$1.replace(/_/g,".")}`;
+  else if (/Linux/.test(ua))                os = "Linux";
+  const isMobile  = /Mobi|Android|iPhone/.test(ua);
+  const isTablet  = !isMobile && /iPad|Tablet/.test(ua);
+  const device    = isMobile ? "Mobile" : isTablet ? "Tablet" : "Desktop";
+  return { device, os };
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ListYourBusinessPage({ onNavigateHome, onNavigateStandard, onNavigateAbout }) {
@@ -343,6 +359,7 @@ export default function ListYourBusinessPage({ onNavigateHome, onNavigateStandar
         website: form.website || null, instagram: form.instagram || null,
         message: form.message || null,
         source_page: "list-your-business", status: "new",
+        device_info: getDeviceInfo(),
       }]);
       // ── Phase 3: confirmation email (non-blocking) ───────────────────────
       sendApplicationConfirmation({

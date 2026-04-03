@@ -37,7 +37,10 @@ create table if not exists public.listing_applications (
 
   -- CRM / account links (populated later)
   crm_lead_id         uuid references public.leads(id) on delete set null,
-  converted_vendor_id uuid
+  converted_vendor_id uuid,
+
+  -- Submission context
+  device_info         jsonb
 );
 
 -- Index for common admin queries
@@ -66,3 +69,7 @@ create policy "Admins can update listing applications"
   on public.listing_applications
   for update
   using (auth.role() = 'authenticated');
+
+-- Add device_info if table already existed before this column was introduced
+alter table public.listing_applications
+  add column if not exists device_info jsonb;
