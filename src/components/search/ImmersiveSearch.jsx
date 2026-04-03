@@ -77,11 +77,83 @@ const CATEGORIES = [
     img: "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=900&q=80",
   },
   {
-    id: "honeymoon", label: "Honeymoon", slug: "wedding-venues",
-    tagline: "Where forever begins",
-    img: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=900&q=80",
+    id: "videographers", label: "Videographers", slug: "videographers",
+    tagline: "Motion, music, and emotion",
+    img: "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=900&q=80",
+  },
+  {
+    id: "florists", label: "Florists", slug: "florists",
+    tagline: "Bloom, colour, and scent",
+    img: "https://images.unsplash.com/photo-1487530811015-780e12b74c63?auto=format&fit=crop&w=900&q=80",
+  },
+  {
+    id: "caterers", label: "Caterers", slug: "caterers",
+    tagline: "Cuisine that becomes memory",
+    img: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=900&q=80",
+  },
+  {
+    id: "cakes", label: "Wedding Cakes", slug: "wedding-cakes",
+    tagline: "The centrepiece of sweetness",
+    img: "https://images.unsplash.com/photo-1535254973040-607b474cb50d?auto=format&fit=crop&w=900&q=80",
+  },
+  {
+    id: "hair-makeup", label: "Hair & Makeup", slug: "hair-makeup",
+    tagline: "Confidence for your moment",
+    img: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=900&q=80",
   },
 ];
+
+// ── Category-specific refinement options ──────────────────────────────────────
+const REFINEMENT_CONFIG = {
+  "venues": [
+    { label: "Style",   key: "style",   options: ["Romantic","Historic","Rustic Luxe","Coastal","Vineyard","Intimate","Modern"] },
+    { label: "Guests",  key: "guests",  options: ["Just us","Up to 50","50–100","100–200","200+"] },
+    { label: "Setting", key: "setting", options: ["Indoor","Outdoor","Both"] },
+    { label: "Budget",  key: "budget",  options: ["Flexible","Mid-range £££","Luxury ££££"] },
+  ],
+  "planners": [
+    { label: "Service",  key: "style",   options: ["Full Planning","Partial Planning","Day-of Coordination","Destination Wedding"] },
+    { label: "Style",    key: "setting", options: ["Luxury","Intimate","Modern","Cultural","Outdoor"] },
+    { label: "Guests",   key: "guests",  options: ["Up to 50","50–100","100–200","200+"] },
+    { label: "Budget",   key: "budget",  options: ["Flexible","Mid-range £££","Luxury ££££"] },
+  ],
+  "photographers": [
+    { label: "Style",    key: "style",   options: ["Documentary","Fine Art","Editorial","Romantic","Dark & Moody","Bright & Airy"] },
+    { label: "Coverage", key: "guests",  options: ["Ceremony Only","Half Day","Full Day","Multi-Day"] },
+    { label: "Format",   key: "setting", options: ["Photos Only","Film Only","Photos + Film"] },
+    { label: "Budget",   key: "budget",  options: ["Flexible","Mid-range £££","Luxury ££££"] },
+  ],
+  "videographers": [
+    { label: "Style",    key: "style",   options: ["Cinematic","Documentary","Short Film","Drone Focus","Editorial"] },
+    { label: "Coverage", key: "guests",  options: ["Ceremony Only","Half Day","Full Day","Multi-Day"] },
+    { label: "Delivery", key: "setting", options: ["Highlight Reel","Feature Film","Social Reels","All Formats"] },
+    { label: "Budget",   key: "budget",  options: ["Flexible","Mid-range £££","Luxury ££££"] },
+  ],
+  "florists": [
+    { label: "Style",  key: "style",   options: ["Garden & Wild","Opulent","Minimalist","Tropical","Classic White","Boho"] },
+    { label: "Scope",  key: "setting", options: ["Bridal Bouquet","Ceremony","Reception","Full Venue"] },
+    { label: "Season", key: "guests",  options: ["Spring","Summer","Autumn","Winter","Any Season"] },
+    { label: "Budget", key: "budget",  options: ["Flexible","Mid-range £££","Luxury ££££"] },
+  ],
+  "caterers": [
+    { label: "Style",    key: "style",   options: ["Plated","Buffet","Family Style","Cocktail","BBQ"] },
+    { label: "Dietary",  key: "setting", options: ["Standard","Vegetarian","Vegan","Mixed","Kosher / Halal"] },
+    { label: "Guests",   key: "guests",  options: ["Up to 50","50–100","100–200","200+"] },
+    { label: "Budget",   key: "budget",  options: ["Flexible","Mid-range £££","Luxury ££££"] },
+  ],
+  "wedding-cakes": [
+    { label: "Style",     key: "style",   options: ["Classic Tiered","Naked","Floral","Sculpted","Modern","Minimalist"] },
+    { label: "Flavour",   key: "setting", options: ["Traditional","Chocolate","Lemon","Floral","Fruit","Surprise Me"] },
+    { label: "Servings",  key: "guests",  options: ["Up to 50","50–100","100–200","200+"] },
+    { label: "Dietary",   key: "budget",  options: ["Standard","Gluten-Free","Vegan","Mixed"] },
+  ],
+  "hair-makeup": [
+    { label: "Look",     key: "style",   options: ["Natural","Glamorous","Editorial","Vintage","Dewy","Bold Lip"] },
+    { label: "Service",  key: "setting", options: ["Bride Only","Bridal Party","Both","Plus Trial"] },
+    { label: "On the Day", key: "guests", options: ["Morning Only","Full Day","Touch-ups Included"] },
+    { label: "Budget",   key: "budget",  options: ["Flexible","Mid-range £££","Luxury ££££"] },
+  ],
+};
 
 // ── Suggestion builder ────────────────────────────────────────────────────────
 function buildSuggestions(q, liveCountries) {
@@ -867,56 +939,32 @@ export default function ImmersiveSearch({
               Step 3 of 3
             </p>
             <h1 style={{ fontFamily:GD, fontWeight:400, margin:0, color:WHITE, fontSize:"clamp(36px, 5.5vw, 72px)", lineHeight:1.05, letterSpacing:"-0.025em" }}>
-              Refine your<br />vision
+              Your perfect<br /><em style={{ fontStyle:"italic", color: GOLD }}>{pendingCat?.label || "wedding"}</em>
             </h1>
             <p style={{ fontFamily:NU, fontSize:15, color:"rgba(245,240,232,0.48)", margin:"16px 0 0", fontWeight:300, letterSpacing:"0.01em" }}>
               All optional — skip anything that doesn't apply.
             </p>
           </div>
 
-          {/* Refinement rows */}
+          {/* Refinement rows — dynamic per category */}
           <div style={{ display:"flex", flexDirection:"column", gap:28, maxWidth:760 }}>
-            {[
-              {
-                label: "Style",
-                key: "style",
-                value: refStyle,
-                setter: setRefStyle,
-                options: ["Romantic","Historic","Rustic Luxe","Coastal","Vineyard","Intimate","Modern"],
-              },
-              {
-                label: "Guests",
-                key: "guests",
-                value: refGuests,
-                setter: setRefGuests,
-                options: ["Just us","Up to 50","50–100","100–200","200+"],
-              },
-              {
-                label: "Setting",
-                key: "setting",
-                value: refSetting,
-                setter: setRefSetting,
-                options: ["Indoor","Outdoor","Both"],
-              },
-              {
-                label: "Budget",
-                key: "budget",
-                value: refBudget,
-                setter: setRefBudget,
-                options: ["Flexible","Mid-range £££","Luxury ££££"],
-              },
-            ].map((row) => (
+            {(REFINEMENT_CONFIG[pendingCat?.id] || REFINEMENT_CONFIG["venues"]).map((row) => {
+              const stateMap = { style: refStyle, guests: refGuests, setting: refSetting, budget: refBudget };
+              const setterMap = { style: setRefStyle, guests: setRefGuests, setting: setRefSetting, budget: setRefBudget };
+              const val = stateMap[row.key];
+              const set = setterMap[row.key];
+              return (
               <div key={row.key} style={{ display:"flex", flexDirection:"column", gap:12 }}>
                 <span style={{ fontFamily:NU, fontSize:10, letterSpacing:"0.2em", color:"rgba(245,240,232,0.32)", textTransform:"uppercase" }}>
                   {row.label}
                 </span>
                 <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
                   {row.options.map((opt) => {
-                    const active = row.value === opt;
+                    const active = val === opt;
                     return (
                       <button
                         key={opt}
-                        onClick={() => row.setter(active ? null : opt)}
+                        onClick={() => set(active ? null : opt)}
                         style={{
                           background:    active ? GOLD : "transparent",
                           border:        `1px solid ${active ? GOLD : "rgba(245,240,232,0.14)"}`,
@@ -939,7 +987,8 @@ export default function ImmersiveSearch({
                   })}
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
 
           {/* CTA row */}
