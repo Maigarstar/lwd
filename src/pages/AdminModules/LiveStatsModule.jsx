@@ -217,6 +217,41 @@ function makePulseEl(isActive, tier) {
   return el;
 }
 
+// ── Cluster marker element ────────────────────────────────────────────────────
+// Shows a count badge for 2+ sessions at the same city.
+
+function makeClusterEl(count, anyActive, tier) {
+  const tierColor = tier ? TIER_META[tier].color : null;
+  const color     = tierColor || (anyActive ? GOLD : "rgba(201,168,76,0.45)");
+  const size      = count >= 5 ? 36 : count >= 3 ? 30 : 26;
+  const speed     = tier === "priority" ? "1s" : "2s";
+
+  const el = document.createElement("div");
+  el.style.cssText = [
+    `width:${size}px`, `height:${size}px`,
+    "border-radius:50%",
+    `background:${color}22`,
+    `border:2px solid ${color}`,
+    `box-shadow:0 0 0 0 ${color}60,0 0 18px ${color}60`,
+    "cursor:pointer",
+    `animation:lwd-pulse ${speed} infinite`,
+    "display:flex", "align-items:center", "justify-content:center",
+    "position:relative",
+  ].join(";");
+
+  const label = document.createElement("span");
+  label.textContent = count;
+  label.style.cssText = [
+    `color:${color}`,
+    "font-size:11px", "font-weight:700",
+    "font-family:'Nunito Sans',sans-serif",
+    "line-height:1", "pointer-events:none",
+  ].join(";");
+  el.appendChild(label);
+
+  return el;
+}
+
 // ── Alert description ─────────────────────────────────────────────────────────
 
 function alertDescription(s, evts) {
@@ -248,12 +283,14 @@ export default function LiveStatsModule({ C }) {
   const [showHotOnly,setShowHotOnly]= useState(false); // filter toggle
   const [soundOn,    setSoundOn]    = useState(() => localStorage.getItem("lwd_live_sound") === "1");
 
-  const mapContainerRef = useRef(null);
-  const mapRef          = useRef(null);
-  const markersRef      = useRef({});
-  const alertTiersRef   = useRef({});  // sessionId → last known tier
-  const audioCtxRef     = useRef(null);
-  const knownSessionIds = useRef(new Set()); // for new-visitor detection
+  const mapContainerRef  = useRef(null);
+  const mapRef           = useRef(null);
+  const markersRef       = useRef({});   // key: session_id or cluster key
+  const alertTiersRef    = useRef({});   // sessionId → last known tier
+  const audioCtxRef      = useRef(null);
+  const knownSessionIds  = useRef(new Set());
+  const flyReturnRef     = useRef(null); // timeout for return-to-world after fly-in
+  const [autoFollow, setAutoFollow] = useState(true); // fly to new visitors
 
   // ── Theme ──────────────────────────────────────────────────────────────────
   const NU     = "var(--font-body,'Nunito Sans',sans-serif)";
@@ -302,6 +339,36 @@ export default function LiveStatsModule({ C }) {
     return () => clearInterval(id);
   }, [loadSessions]);
 
+  // ── Fly to session ────────────────────────────────────────────────────────
+  // Smoothly flies to a visitor's location, holds, then returns to world view.
+
+  const flyToSession = useCallback((s) => {
+    const map = mapRef.current;
+    if (!map || !s?.latitude || !s?.longitude) return;
+    if (selected) return; // don't interrupt when drawer is open
+
+    // Clear any pending return
+    if (flyReturnRef.current) { clearTimeout(flyReturnRef.current); flyReturnRef.current = null; }
+
+    map.flyTo({
+      center:   [s.longitude, s.latitude],
+      zoom:     7,
+      duration: 2200,
+      essential: true,
+    });
+
+    // Drift back to world view after 5s
+    flyReturnRef.current = setTimeout(() => {
+      if (mapRef.current) {
+        mapRef.current.flyTo({
+          center:   [12, 30],
+          zoom:     1.6,
+          duration: 2800,
+        });
+      }
+    }, 5000);
+  }, [selected]);
+
   // ── Supabase Realtime ─────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -309,7 +376,13 @@ export default function LiveStatsModule({ C }) {
       .channel("live-tracking-admin")
       .on("postgres_changes",
         { event: "*", schema: "public", table: "live_sessions" },
-        () => loadSessions()
+        (payload) => {
+          loadSessions();
+          // Fly to new visitor if they have geo and autoFollow is on
+          if (autoFollow && payload.eventType === "INSERT" && payload.new?.latitude) {
+            flyToSession(payload.new);
+          }
+        }
       )
       .on("postgres_changes",
         { event: "INSERT", schema: "public", table: "page_events" },
@@ -321,7 +394,7 @@ export default function LiveStatsModule({ C }) {
       )
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [loadSessions]);
+  }, [loadSessions, autoFollow, flyToSession]);
 
   // ── Live timer tick ───────────────────────────────────────────────────────
 
@@ -436,45 +509,68 @@ export default function LiveStatsModule({ C }) {
     };
   }, []);
 
-  // ── Map markers (tier-aware) ──────────────────────────────────────────────
+  // ── Map markers — clustered, tier-aware ──────────────────────────────────
+  // Sessions within ~1km (2 decimal lat/lng) are grouped into a cluster marker.
+  // Cluster key: "lat2dp,lng2dp" — single sessions use their own key.
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
 
-    const now    = Date.now();
-    const active = new Set(sessions.map(s => s.session_id));
+    const nowMs = Date.now();
 
-    // Remove stale
-    Object.keys(markersRef.current).forEach(id => {
-      if (!active.has(id)) {
-        markersRef.current[id].remove();
-        delete markersRef.current[id];
+    // Build clusters: group sessions by rounded coordinate
+    const clusterMap = {}; // key → { sessions[], lat, lng }
+    sessions.forEach(s => {
+      if (!s.latitude || !s.longitude) return;
+      const key = `${s.latitude.toFixed(2)},${s.longitude.toFixed(2)}`;
+      if (!clusterMap[key]) clusterMap[key] = { sessions: [], lat: s.latitude, lng: s.longitude };
+      clusterMap[key].sessions.push(s);
+    });
+
+    const activeClusterKeys = new Set(Object.keys(clusterMap));
+
+    // Remove markers for clusters that no longer exist
+    Object.keys(markersRef.current).forEach(key => {
+      if (!activeClusterKeys.has(key)) {
+        markersRef.current[key].remove();
+        delete markersRef.current[key];
       }
     });
 
-    // Add / refresh
-    sessions.forEach(s => {
-      const lat = s.latitude;
-      const lng = s.longitude;
-      if (!lat || !lng) return;
+    // Add / update cluster markers
+    Object.entries(clusterMap).forEach(([key, cluster]) => {
+      const { sessions: cSessions, lat, lng } = cluster;
+      const count     = cSessions.length;
+      const anyActive = cSessions.some(s => (nowMs - new Date(s.last_seen_at)) < ACTIVE_MS);
+      // Highest tier in cluster
+      const topTier   = cSessions.reduce((best, s) => {
+        const t = getAlertTier(s, events);
+        if (!t) return best;
+        if (!best || TIER_META[t].rank > TIER_META[best].rank) return t;
+        return best;
+      }, null);
 
-      const isActive = (now - new Date(s.last_seen_at)) < ACTIVE_MS;
-      const tier     = getAlertTier(s, events);
-
-      if (markersRef.current[s.session_id]) {
-        // Marker exists — update position only (re-creating would reset animation)
-        markersRef.current[s.session_id].setLngLat([lng, lat]);
+      if (markersRef.current[key]) {
+        markersRef.current[key].setLngLat([lng, lat]);
         return;
       }
 
-      const el = makePulseEl(isActive, tier);
+      const el = count > 1
+        ? makeClusterEl(count, anyActive, topTier)
+        : makePulseEl(anyActive, topTier);
+
       el.addEventListener("click", (e) => {
         e.stopPropagation();
-        setSelected(s);
+        // Single session → open drawer; cluster → fly in to split them
+        if (count === 1) {
+          setSelected(cSessions[0]);
+        } else {
+          map.flyTo({ center: [lng, lat], zoom: Math.min(map.getZoom() + 3, 10), duration: 1200 });
+        }
       });
 
-      markersRef.current[s.session_id] = new maplibregl.Marker({ element: el })
+      markersRef.current[key] = new maplibregl.Marker({ element: el, anchor: "center" })
         .setLngLat([lng, lat])
         .addTo(map);
     });
@@ -756,6 +852,33 @@ export default function LiveStatsModule({ C }) {
                   </button>
                 ))}
               </div>
+
+              {/* Auto-follow toggle */}
+              <button
+                onClick={() => setAutoFollow(v => !v)}
+                title={autoFollow ? "Auto-following new visitors — click to lock map" : "Map locked — click to follow visitors"}
+                style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  background: "transparent",
+                  border: `1px solid ${autoFollow ? "rgba(201,168,76,0.28)" : border}`,
+                  borderRadius: 5, padding: "3px 9px", cursor: "pointer",
+                  transition: "all 0.22s",
+                }}
+              >
+                <span style={{
+                  width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
+                  background: autoFollow ? GOLD : "rgba(255,255,255,0.18)",
+                  boxShadow: autoFollow ? `0 0 5px ${GOLD}` : "none",
+                  transition: "all 0.22s",
+                }} />
+                <span style={{
+                  fontFamily: NU, fontSize: 10, fontWeight: 600,
+                  letterSpacing: "0.8px", textTransform: "uppercase",
+                  color: autoFollow ? GOLD : grey2, transition: "color 0.22s",
+                }}>
+                  Follow
+                </span>
+              </button>
 
               {/* Audio toggle */}
               <button
