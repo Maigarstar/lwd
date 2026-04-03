@@ -60,6 +60,7 @@ export default function ListingApplicationsModule({ C }) {
   const [notesDraft,   setNotesDraft]   = useState("");
   const [savingNote,   setSavingNote]   = useState(false);
   const [savingStatus, setSavingStatus] = useState(false);
+  const [lastFetched,  setLastFetched]  = useState(null);
 
   useEffect(() => { fetchApplications(); }, []);
 
@@ -81,6 +82,7 @@ export default function ListingApplicationsModule({ C }) {
         setApplications([]);
       } else {
         setApplications(data || []);
+        setLastFetched(new Date());
       }
     } catch (e) {
       setError(e.message);
@@ -153,16 +155,25 @@ export default function ListingApplicationsModule({ C }) {
             Applications from /list-your-business
           </p>
         </div>
-        <button
-          onClick={fetchApplications}
-          style={{
-            fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase",
-            color: GOLD, background: "rgba(201,168,76,0.08)", border: "1px solid rgba(201,168,76,0.2)",
-            borderRadius: 4, padding: "8px 16px", cursor: "pointer",
-          }}
-        >
-          Refresh
-        </button>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+          {lastFetched && (
+            <span style={{ fontFamily: NU, fontSize: 10, color: "rgba(245,241,235,0.28)", letterSpacing: "0.3px" }}>
+              Updated {lastFetched.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+              {" · "}
+              {lastFetched.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+            </span>
+          )}
+          <button
+            onClick={fetchApplications}
+            style={{
+              fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase",
+              color: GOLD, background: "rgba(201,168,76,0.08)", border: "1px solid rgba(201,168,76,0.2)",
+              borderRadius: 4, padding: "8px 16px", cursor: "pointer",
+            }}
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Stats strip */}

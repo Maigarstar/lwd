@@ -973,6 +973,7 @@ export default function SalesPipelineModule() {
   const [showUrlModal,  setShowUrlModal]  = useState(false);
   const [defaultStage,  setDefaultStage]  = useState(null);
   const [loading,       setLoading]       = useState(true);
+  const [lastFetched,   setLastFetched]   = useState(null);
   const [sortKey,       setSortKey]       = useState('company_name');
   const [sortDir,       setSortDir]       = useState('asc');
   const [fuRunning,         setFuRunning]         = useState(false);
@@ -1083,6 +1084,7 @@ export default function SalesPipelineModule() {
         }
         // Load campaigns in parallel
         fetchCampaigns().then(setCampaigns).catch(() => {});
+        setLastFetched(new Date());
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
     })();
@@ -1242,6 +1244,13 @@ export default function SalesPipelineModule() {
           <button style={S.viewBtn(view === 'dashboard')} onClick={() => setView('dashboard')}>Dashboard</button>
           <button style={S.viewBtn(view === 'campaigns')} onClick={() => setView('campaigns')}>Campaigns</button>
         </div>
+        {lastFetched && (
+          <span style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: 'rgba(245,241,235,0.28)', letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>
+            Updated {lastFetched.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+            {' · '}
+            {lastFetched.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </span>
+        )}
         <button style={{ ...S.outlineBtn, fontSize: 12, padding: '7px 14px' }} onClick={() => setShowDiscovery(true)}>&#9740; Discover</button>
         <button style={{ ...S.outlineBtn, fontSize: 12, padding: '7px 14px' }} onClick={() => exportProspectsCSV(filtered)}>&#8595; Export CSV</button>
         <button

@@ -1524,6 +1524,7 @@ export default function CRMModule({ C }) {
   const [tasks, setTasks]                   = useState([]);
   const [leadEvents, setLeadEvents]         = useState([]);
   const [loading, setLoading]               = useState(true);
+  const [lastFetched, setLastFetched]       = useState(null);
   const [selectedLead, setSelectedLead]     = useState(null);
   const [panelNotes, setPanelNotes]         = useState([]);
   const [noteText, setNoteText]             = useState('');
@@ -1556,6 +1557,7 @@ export default function CRMModule({ C }) {
         setNotes(msgs.filter(m => m.message_type === 'internal_note'));
         setTasks(msgs.filter(m => m.message_type === 'task').map(parseTask));
         setLeadEvents(eventsData || []);
+        if (!silent) setLastFetched(new Date());
       }
     } catch (err) { console.error('[CRM] loadData failed:', err); }
     finally { if (!silent) setLoading(false); }
@@ -1717,6 +1719,13 @@ export default function CRMModule({ C }) {
           </p>
         </div>
         <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+          {lastFetched && (
+            <span style={{ fontFamily:'var(--font-body)', fontSize:10, color:'rgba(245,241,235,0.28)', letterSpacing:'0.3px', whiteSpace:'nowrap' }}>
+              Updated {lastFetched.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })}
+              {' · '}
+              {lastFetched.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' })}
+            </span>
+          )}
           <button onClick={loadData} style={{ padding:'7px 14px', background:'transparent', border:`1px solid ${C.border}`, borderRadius:3, fontFamily:'var(--font-body)', fontSize:11, color:C.grey, cursor:'pointer' }}>
             Refresh
           </button>
