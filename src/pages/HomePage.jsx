@@ -333,7 +333,7 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
                         3-step guided experience
                       </span>
                     </div>
-                    <p style={{ fontFamily: NU, fontSize: 10, color: "rgba(245,240,232,0.22)", letterSpacing: "0.05em", margin: 0 }}>
+                    <p style={{ fontFamily: NU, fontSize: 10, color: "rgba(245,240,232,0.38)", letterSpacing: "0.05em", margin: 0 }}>
                       Helping couples plan luxury weddings across Europe, the UK, and beyond
                     </p>
                   </div>
