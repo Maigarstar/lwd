@@ -62,9 +62,37 @@ export default function AuraPellet() {
   const [typing, setTyping] = useState(false);
   const [pelletHov, setPelletHov] = useState(false);
   const [sendHov, setSendHov] = useState(false);
+  const [compareBarActive, setCompareBarActive] = useState(false);
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" && window.innerWidth < 768
+  );
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const typingTimerRef = useRef(null);
+
+  // Mobile detection
+  useEffect(() => {
+    const handle = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handle);
+    return () => window.removeEventListener("resize", handle);
+  }, []);
+
+  // Shift up when compare bar activates
+  useEffect(() => {
+    const handler = (e) => setCompareBarActive(!!e.detail?.active);
+    window.addEventListener("lwd:compare-bar", handler);
+    return () => window.removeEventListener("lwd:compare-bar", handler);
+  }, []);
+
+  // Lock body scroll when mobile sheet is open
+  useEffect(() => {
+    if (isMobile && open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [isMobile, open]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -107,15 +135,48 @@ export default function AuraPellet() {
     }
   };
 
+  // Bottom offset: shift up when compare bar is active
+  const launcherBottom = compareBarActive ? 112 : 28;
+
   return (
     <>
-      {/* ── Chat modal ── */}
+      {/* ── Mobile backdrop ── */}
+      {isMobile && open && (
+        <div
+          onClick={() => setOpen(false)}
+          style={{
+            position: "fixed", inset: 0,
+            background: "rgba(0,0,0,0.55)",
+            zIndex: 1099,
+            animation: "fadeIn 0.2s ease both",
+          }}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* ── Chat panel (desktop: corner float · mobile: bottom sheet) ── */}
       {open && (
         <div
           role="dialog"
           aria-label="Aura wedding assistant chat"
           aria-modal="true"
-          style={{
+          style={isMobile ? {
+            // ── Mobile bottom sheet ──
+            position: "fixed",
+            bottom: 0, left: 0, right: 0,
+            height: "88vh",
+            maxHeight: 640,
+            background: "#0f0f0f",
+            border: "1px solid rgba(201,168,76,0.2)",
+            borderRadius: "20px 20px 0 0",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+            zIndex: 1100,
+            boxShadow: "0 -12px 48px rgba(0,0,0,0.6)",
+            animation: "sheetSlideUp 0.32s cubic-bezier(0.32,0.72,0,1) both",
+          } : {
+            // ── Desktop corner panel ──
             position: "fixed",
             bottom: 92,
             right: 28,
@@ -132,6 +193,20 @@ export default function AuraPellet() {
             animation: "chatModalIn 0.28s ease both",
           }}
         >
+          {/* Mobile drag handle */}
+          {isMobile && (
+            <div style={{
+              display: "flex", justifyContent: "center",
+              padding: "12px 0 4px",
+              flexShrink: 0,
+            }}>
+              <div style={{
+                width: 36, height: 4,
+                background: "rgba(255,255,255,0.15)",
+                borderRadius: 2,
+              }} />
+            </div>
+          )}
           {/* Header */}
           <div
             style={{
@@ -360,20 +435,43 @@ export default function AuraPellet() {
         </div>
       )}
 
-      {/* ── Floating pellet button ── */}
+      {/* ── Launcher: mobile = circle icon · desktop = pill ── */}
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label={open ? "Close Aura assistant" : "Open Aura wedding assistant"}
         aria-expanded={open}
-        style={{
+        onMouseEnter={() => setPelletHov(true)}
+        onMouseLeave={() => setPelletHov(false)}
+        style={isMobile ? {
+          // ── Mobile: circle icon ──
           position: "fixed",
-          bottom: 28,
+          bottom: launcherBottom,
+          right: 20,
+          zIndex: 1100,
+          width: 52,
+          height: 52,
+          borderRadius: "50%",
+          background: pelletHov
+            ? "linear-gradient(135deg,#e8c97a,#C9A84C)"
+            : "linear-gradient(135deg,#C9A84C,#9b7a1a)",
+          border: "none",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "0 4px 20px rgba(201,168,76,0.4), 0 0 0 1px rgba(201,168,76,0.2)",
+          transition: "all 0.25s ease",
+          animation: open ? "none" : "barGlow 3s ease-in-out infinite",
+        } : {
+          // ── Desktop: pill ──
+          position: "fixed",
+          bottom: launcherBottom,
           right: 28,
           zIndex: 1100,
           display: "flex",
           alignItems: "center",
           gap: 10,
-          padding: open ? "0 18px 0 8px" : "0 18px 0 8px",
+          padding: "0 18px 0 8px",
           height: 52,
           background: pelletHov
             ? "linear-gradient(135deg,#e8c97a,#C9A84C)"
@@ -388,50 +486,36 @@ export default function AuraPellet() {
           borderRadius: 28,
           animation: open ? "none" : "barGlow 3s ease-in-out infinite",
         }}
-        onMouseEnter={() => setPelletHov(true)}
-        onMouseLeave={() => setPelletHov(false)}
       >
-        <div
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: "50%",
-            background: "rgba(15,13,10,0.2)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 15,
-            color: "#0f0d0a",
-            flexShrink: 0,
-          }}
-          aria-hidden="true"
-        >
-          {open ? "×" : "✦"}
-        </div>
-        <div style={{ textAlign: "left" }}>
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              color: "#0f0d0a",
-              letterSpacing: "0.5px",
-              lineHeight: 1.2,
-            }}
-          >
-            Aura
-          </div>
-          <div
-            style={{
-              fontSize: 9,
-              color: "rgba(15,13,10,0.65)",
-              letterSpacing: "1.5px",
-              textTransform: "uppercase",
-              lineHeight: 1,
-            }}
-          >
-            Wedding AI
-          </div>
-        </div>
+        {isMobile ? (
+          // Mobile: icon only
+          <span style={{ fontSize: 20, color: "#0f0d0a", lineHeight: 1 }} aria-hidden="true">
+            {open ? "×" : "✦"}
+          </span>
+        ) : (
+          // Desktop: icon + text pill
+          <>
+            <div
+              style={{
+                width: 34, height: 34, borderRadius: "50%",
+                background: "rgba(15,13,10,0.2)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 15, color: "#0f0d0a", flexShrink: 0,
+              }}
+              aria-hidden="true"
+            >
+              {open ? "×" : "✦"}
+            </div>
+            <div style={{ textAlign: "left" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#0f0d0a", letterSpacing: "0.5px", lineHeight: 1.2 }}>
+                Aura
+              </div>
+              <div style={{ fontSize: 9, color: "rgba(15,13,10,0.65)", letterSpacing: "1.5px", textTransform: "uppercase", lineHeight: 1 }}>
+                Wedding AI
+              </div>
+            </div>
+          </>
+        )}
       </button>
     </>
   );

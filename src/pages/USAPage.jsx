@@ -6,7 +6,6 @@ import { ThemeCtx } from "../theme/ThemeContext";
 import { getDarkPalette, getLightPalette, getDefaultMode } from "../theme/tokens";
 import { useChat } from "../chat/ChatContext";
 import { STYLES, CAPS, PRICES, DEFAULT_FILTERS } from "../data/italyVenues";
-import { fetchListings } from "../services/listings";
 
 import HomeNav from "../components/nav/HomeNav";
 import SiteFooter from "../components/sections/SiteFooter";
@@ -241,12 +240,10 @@ function toColumns(arr, n) {
 }
 function matchesCapacity(v, cap) {
   if (cap === CAPS[0]) return true;
-  // Support both static (capacity) and DB (capacityMax / capacity_max) fields
-  const cap_val = v.capacity || v.capacityMax || v.capacity_max || 0;
-  if (cap === CAPS[1]) return cap_val <= 50;
-  if (cap === CAPS[2]) return cap_val > 50 && cap_val <= 100;
-  if (cap === CAPS[3]) return cap_val > 100 && cap_val <= 200;
-  if (cap === CAPS[4]) return cap_val > 200;
+  if (cap === CAPS[1]) return (v.capacity || 0) <= 50;
+  if (cap === CAPS[2]) return (v.capacity || 0) > 50 && (v.capacity || 0) <= 100;
+  if (cap === CAPS[3]) return (v.capacity || 0) > 100 && (v.capacity || 0) <= 200;
+  if (cap === CAPS[4]) return (v.capacity || 0) > 200;
   return true;
 }
 
@@ -277,9 +274,6 @@ export default function USAPage({
   const C = darkMode ? getDarkPalette() : getLightPalette();
   const { setChatContext } = useChat();
 
-  // DB venues
-  const [dbVenues, setDbVenues] = useState([]);
-
   // Filters
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [viewMode, setViewMode] = useState("grid");
@@ -302,13 +296,6 @@ export default function USAPage({
   const [heroIdx, setHeroIdx] = useState(0);
 
   useEffect(() => { setChatContext?.({ page: "usa", country: "USA" }); }, [setChatContext]);
-
-  // ── Fetch venues from DB ───────────────────────────────────────────────────
-  useEffect(() => {
-    fetchListings({ listing_type: "venue", country_slug: "usa", status: "published" })
-      .then((d) => setDbVenues(Array.isArray(d) ? d : []))
-      .catch(() => {});
-  }, []);
 
   // ── Hero image auto-advance ─────────────────────────────────────────────────
   useEffect(() => {
@@ -354,34 +341,21 @@ export default function USAPage({
     return () => clearInterval(slideTimer.current);
   }, []);
 
-  // ── Merge DB + static venues (DB takes priority when available) ───────────
-  const allVenues = useMemo(
-    () => (dbVenues.length > 0 ? dbVenues : USA_VENUES),
-    [dbVenues]
-  );
-
-  // ── Stable map slice (avoids effect restarts on every render) ─────────────
-  const mapVenues = useMemo(() => allVenues.slice(0, 40), [allVenues]);
-
   // ── Filter + sort venues ───────────────────────────────────────────────────
   const filteredVenues = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    let result = allVenues.filter((v) => {
+    let result = USA_VENUES.filter((v) => {
       const rOk = filters.region === "all" || v.regionSlug === filters.region;
-      const vStyles = Array.isArray(v.styles) ? v.styles : [];
-      const sOk = filters.style === STYLES[0] || vStyles.includes(filters.style);
-      const vPrice = v.priceLabel || v.price_label || "";
-      const pOk = filters.price === PRICES[0] || vPrice === filters.price;
+      const sOk = filters.style === STYLES[0] || v.styles.includes(filters.style);
+      const pOk = filters.price === PRICES[0] || v.priceLabel === filters.price;
       const cOk = matchesCapacity(v, filters.capacity);
-      const vName = (v.name || v.venueName || "").toLowerCase();
-      const vDesc = (v.desc || v.description || v.summary || "").toLowerCase();
-      const qOk = !q || vName.includes(q) || vDesc.includes(q) || (v.city || "").toLowerCase().includes(q) || (v.region || "").toLowerCase().includes(q);
+      const qOk = !q || v.name.toLowerCase().includes(q) || (v.desc || "").toLowerCase().includes(q) || (v.city || "").toLowerCase().includes(q) || (v.region || "").toLowerCase().includes(q);
       return rOk && sOk && pOk && cOk && qOk;
     });
-    if (sortMode === "recommended") result = [...result].sort((a, b) => (b.lwdScore || b.lwd_score || 0) - (a.lwdScore || a.lwd_score || 0));
-    else if (sortMode === "rating") result = [...result].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    if (sortMode === "recommended") result = [...result].sort((a, b) => (b.lwdScore || 0) - (a.lwdScore || 0));
+    else if (sortMode === "rating") result = [...result].sort((a, b) => b.rating - a.rating);
     return result;
-  }, [allVenues, filters, sortMode, searchQuery]);
+  }, [filters, sortMode, searchQuery]);
 
   const toggleSave = useCallback((id) => setSavedIds((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]), []);
 
@@ -481,7 +455,7 @@ export default function USAPage({
           </section>
 
           {/* ═══ 2. INFO STRIP ════════════════════════════════════════════ */}
-          <section className="usa-section" style={{ background: C.dark, borderTop: `1px solid ${C.border}`, padding: "40px 48px" }}>
+          <section className="usa-section" style={{ background: C.dark, padding: "40px 48px" }}>
             <div className="usa-info-strip" style={{ maxWidth: 1280, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0 }}>
               {INFO_COLS.map((col, ci) => (
                 <div key={col.label} style={{ padding: "0 28px", borderLeft: ci > 0 ? `1px solid ${C.border}` : "none" }}>
@@ -515,7 +489,7 @@ export default function USAPage({
             countryFilter="USA"
             mapContent={
               <MapSection
-                venues={mapVenues}
+                venues={filteredVenues}
                 vendors={USA_VENDORS}
                 countryFilter="USA"
               />
@@ -651,25 +625,20 @@ export default function USAPage({
             </section>
           </div>
 
-          {/* ═══ 8. LATEST VENDORS ═══════════════════════════════════════ */}
+          {/* ═══ 8. LATEST VENDORS — coming soon ════════════════════════ */}
           <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "48px 48px 8px", marginTop: 40 }}>
             <p style={{ fontFamily: GD, fontSize: "clamp(22px,2.5vw,32px)", fontWeight: 300, fontStyle: "italic", color: C.grey, letterSpacing: "0.5px", margin: "0 0 6px" }}>Latest Vendors.</p>
             <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, opacity: 0.6, lineHeight: 1.6, maxWidth: 520, margin: 0 }}>
               Planners, photographers, florists, and culinary artists — the professionals behind America's finest celebrations.
             </p>
           </div>
-          <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 0" }}>
-            <SliderNav className="usa-vendor-slider" cardWidth={isMobile ? 300 : 340} gap={isMobile ? 12 : 16}>
-              {(isMobile ? USA_VENDORS.slice(0, 8) : USA_VENDORS.slice(0, 12)).map((v) => (
-                <div key={v.id} className="usa-vendor-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 340px", scrollSnapAlign: "start" }}>
-                  {isMobile ? (
-                    <GCardMobile v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} />
-                  ) : (
-                    <GCard v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} onQuickView={setQvItem} />
-                  )}
-                </div>
-              ))}
-            </SliderNav>
+          <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 56px" }}>
+            <div style={{ border: `1px solid rgba(201,168,76,0.2)`, borderRadius: "var(--lwd-radius-card)", padding: "48px 40px", textAlign: "center", background: "rgba(201,168,76,0.03)" }}>
+              <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: C.gold, opacity: 0.7, border: "1px solid rgba(201,168,76,0.25)", borderRadius: 3, padding: "3px 10px", display: "inline-block", marginBottom: 16 }}>Coming Soon</span>
+              <p style={{ fontFamily: GD, fontSize: "clamp(18px,2vw,24px)", fontWeight: 300, fontStyle: "italic", color: C.grey, opacity: 0.5, margin: 0 }}>
+                American wedding professionals — curated and coming soon.
+              </p>
+            </div>
           </div>
 
           {/* ═══ 9. EDITORIAL BANNER — cinematic with image ═══════════════ */}
@@ -696,7 +665,7 @@ export default function USAPage({
           </section>
 
           {/* ═══ 10. SEO / FAQ ════════════════════════════════════════════ */}
-          <section className="usa-section" style={{ background: darkMode ? C.dark : "#f2f0ea", borderTop: `1px solid ${C.border}`, padding: "80px 48px" }}>
+          <section className="usa-section" style={{ background: C.dark, padding: "80px 48px" }}>
             <div className="usa-seo-grid" style={{ maxWidth: 1280, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80 }}>
               <div>
                 <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: C.gold, fontWeight: 600, marginBottom: 12 }}>Planning Guide</div>
@@ -715,10 +684,7 @@ export default function USAPage({
                 <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", color: C.grey, marginBottom: 12, opacity: 0.7 }}>Explore by Destination</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {["New York","Napa Valley","Palm Beach","Aspen","Santa Barbara","Charleston","Hawaii","The Hamptons"].map((r) => (
-                    <button key={r} onClick={() => onViewRegion("usa", slugify(r))} style={{ fontFamily: NU, fontSize: 11, color: C.grey, border: `1px solid ${C.border}`, borderRadius: "var(--lwd-radius-input)", padding: "6px 14px", background: "none", cursor: "pointer", transition: "all 0.2s" }}
-                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.grey; }}
-                    >{r}</button>
+                    <span key={r} style={{ fontFamily: NU, fontSize: 11, color: C.grey, border: `1px solid ${C.border}`, borderRadius: "var(--lwd-radius-input)", padding: "6px 14px", opacity: 0.5, cursor: "default", display: "inline-block" }}>{r}</span>
                   ))}
                 </div>
               </div>
@@ -752,7 +718,7 @@ export default function USAPage({
           </section>
 
           {/* ═══ 11. CURATED DESTINATIONS ═════════════════════════════════ */}
-          <section style={{ background: darkMode ? C.dark : "#f2f0ea", borderTop: `1px solid ${C.border}`, padding: "80px 60px" }}>
+          <section style={{ background: C.dark, padding: "80px 60px" }}>
             <div style={{ maxWidth: 1200, margin: "0 auto" }}>
               <div style={{ textAlign: "center", marginBottom: 48 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 16 }}>
@@ -764,6 +730,9 @@ export default function USAPage({
                   Explore by <span style={{ fontStyle: "italic", color: C.gold }}>Region</span>
                 </h2>
               </div>
+              <div style={{ textAlign: "center", marginBottom: 28 }}>
+                <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.25em", textTransform: "uppercase", color: C.gold, opacity: 0.6, border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 3, padding: "3px 8px" }}>Destination pages coming soon</span>
+              </div>
               <div className="usa-curated-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 40 }}>
                 {CURATED.map((col) => (
                   <div key={col.title}>
@@ -771,9 +740,7 @@ export default function USAPage({
                     <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                       {col.items.map((dest) => (
                         <li key={dest}>
-                          <button onClick={() => onViewRegion("usa", slugify(dest))} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: NU, fontSize: 13, fontWeight: 400, color: C.grey, padding: "5px 0", display: "block", width: "100%", textAlign: "left", transition: "color 0.2s" }}
-                            onMouseEnter={(e) => (e.currentTarget.style.color = C.gold)} onMouseLeave={(e) => (e.currentTarget.style.color = C.grey)}
-                          >{dest}</button>
+                          <span style={{ fontFamily: NU, fontSize: 13, fontWeight: 400, color: C.grey, padding: "5px 0", display: "block", opacity: 0.45, cursor: "default" }}>{dest}</span>
                         </li>
                       ))}
                     </ul>
@@ -784,10 +751,10 @@ export default function USAPage({
           </section>
 
           {/* ═══ 12. ALL STATES ═══════════════════════════════════════════ */}
-          <div aria-hidden="true" style={{ background: darkMode ? C.dark : "#f2f0ea", padding: "0 60px" }}>
+          <div aria-hidden="true" style={{ background: C.dark, padding: "0 60px" }}>
             <div style={{ maxWidth: 1200, margin: "0 auto", height: 1, background: `linear-gradient(90deg, transparent, ${C.gold}, transparent 80%)` }} />
           </div>
-          <section style={{ background: darkMode ? C.dark : "#f2f0ea", padding: "80px 60px" }}>
+          <section style={{ background: C.dark, padding: "80px 60px" }}>
             <div style={{ maxWidth: 1200, margin: "0 auto" }}>
               <div style={{ textAlign: "center", marginBottom: 48 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 16 }}>
@@ -804,10 +771,7 @@ export default function USAPage({
                   <ul key={ci} style={{ listStyle: "none", padding: 0, margin: 0 }}>
                     {col.map((state) => (
                       <li key={state}>
-                        <button onClick={() => onViewRegion("usa", slugify(state))} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: NU, fontSize: 12, fontWeight: 400, color: C.grey, padding: "4px 0", display: "block", width: "100%", textAlign: "left", transition: "color 0.2s", opacity: 0.7 }}
-                          onMouseEnter={(e) => { e.currentTarget.style.color = C.gold; e.currentTarget.style.opacity = 1; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.color = C.grey; e.currentTarget.style.opacity = 0.7; }}
-                        >{state}</button>
+                        <span style={{ fontFamily: NU, fontSize: 12, fontWeight: 400, color: C.grey, padding: "4px 0", display: "block", opacity: 0.4, cursor: "default" }}>{state}</span>
                       </li>
                     ))}
                   </ul>

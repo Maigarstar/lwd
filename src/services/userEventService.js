@@ -83,19 +83,27 @@ function getSessionMeta() {
  * @param {string|null}   params.entityId    — UUID of the entity
  * @param {object}        params.metadata    — event-specific payload (merged with session meta)
  */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function trackEvent({ eventType, entityType = null, entityId = null, metadata = {} }) {
   if (!supabase) return;
   if (!eventType) return;
 
   const sessionMeta = getSessionMeta();
 
+  // entity_id column is UUID type — only pass it when the value is a valid UUID.
+  // Non-UUID IDs (integers, slugs) go into metadata only to avoid a silent type error.
+  const safeEntityId = entityId && UUID_RE.test(String(entityId)) ? entityId : null;
+
   const payload = {
     session_id:  getSessionId(),
     event_type:  eventType,
     entity_type: entityType  || null,
-    entity_id:   entityId    || null,
+    entity_id:   safeEntityId,
     metadata: {
       ...metadata,
+      // Preserve raw entity_id in metadata when it can't go in the UUID column
+      ...(entityId && !safeEntityId ? { raw_entity_id: String(entityId) } : {}),
       // Always attach session context
       referrer:     sessionMeta.referrer,
       utm_source:   sessionMeta.utm_source,
@@ -108,8 +116,16 @@ export function trackEvent({ eventType, entityType = null, entityId = null, meta
   supabase
     .from('user_events')
     .insert(payload)
-    .then(() => {})
-    .catch(() => {});
+    .then(({ error }) => {
+      if (error && import.meta.env.DEV) {
+        console.warn('[trackEvent] insert error:', error.message, { eventType, entityType, entityId });
+      }
+    })
+    .catch((err) => {
+      if (import.meta.env.DEV) {
+        console.warn('[trackEvent] network error:', err?.message, { eventType });
+      }
+    });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

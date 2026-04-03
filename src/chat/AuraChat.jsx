@@ -24,19 +24,29 @@ const KEYFRAMES = `
 `;
 
 export default function AuraChat({ onNavigateHome }) {
-  const { chatUiState, openMiniBar, sendMessage } = useChat();
+  const { chatUiState, openMiniBar, openWorkspace, sendMessage } = useChat();
 
-  // Connect hero search "Ask Aura" button to the new system
+  // Standard open → MiniBar
   useEffect(() => {
     const handler = (e) => {
       openMiniBar();
-      // If query was passed, send it after a brief delay so the UI opens first
       const q = e.detail?.query;
       if (q) setTimeout(() => sendMessage(q), 300);
     };
     window.addEventListener("lwd:openAura", handler);
     return () => window.removeEventListener("lwd:openAura", handler);
   }, [openMiniBar, sendMessage]);
+
+  // Full lights-out open → straight to AuraWorkspace
+  useEffect(() => {
+    const handler = (e) => {
+      openWorkspace();
+      const q = e.detail?.query;
+      if (q) setTimeout(() => sendMessage(q), 300);
+    };
+    window.addEventListener("lwd:openAuraFull", handler);
+    return () => window.removeEventListener("lwd:openAuraFull", handler);
+  }, [openWorkspace, sendMessage]);
 
   return (
     <>

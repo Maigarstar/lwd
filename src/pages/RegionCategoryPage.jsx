@@ -82,6 +82,7 @@ export default function RegionCategoryPage({
   const [hoveredVenueId, setHoveredVenueId] = useState(null);
   const [activePinnedId, setActivePinnedId] = useState(null);
   const [dbListings, setDbListings] = useState([]);
+  const [listingsLoaded, setListingsLoaded] = useState(false);
 
   const C = darkMode ? getDarkPalette() : getLightPalette();
 
@@ -99,8 +100,8 @@ export default function RegionCategoryPage({
     if (regionSlug) filters.region_slug = regionSlug;
     else if (countrySlug) filters.country_slug = countrySlug;
     fetchListings(filters)
-      .then((rows) => setDbListings(rows || []))
-      .catch(() => {});
+      .then((rows) => { setDbListings(rows || []); setListingsLoaded(true); })
+      .catch(() => setListingsLoaded(true));
   }, [regionSlug, countrySlug]);
 
   // ── Register active context with global chat ──────────────────────────────
@@ -132,9 +133,9 @@ export default function RegionCategoryPage({
   const categoryLabel = vcObj?.label || categorySlug || "Category";
   const categoryIcon = vcObj?.icon || "📋";
 
+  const countryName = country?.name || "";
   const regionName = region?.name ||
-    (regionSlug ? regionSlug.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") : "Region");
-  const countryName = country?.name || countrySlug || "Country";
+    (regionSlug ? regionSlug.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") : countryName);
   const heroImg = region?.heroImg || DEFAULT_HERO;
   const editorial = useMemo(
     () => getRegionCategoryEditorial(regionSlug, categorySlug),
@@ -376,7 +377,7 @@ export default function RegionCategoryPage({
   );
 
   const searchLabel = countrySlug === "uk" ? "UK Search" : "Search";
-  const searchPlaceholder = `Search ${categoryLabel.toLowerCase()} in ${regionName}…`;
+  const searchPlaceholder = `Search ${categoryLabel.toLowerCase()}${regionName ? ` in ${regionName}` : ""}…`;
 
   // ── Canonical path for SEO panel ──────────────────────────────────────────
   const canonicalPath = getRegionCategoryPath(countrySlug, regionSlug, categorySlug);
@@ -401,7 +402,7 @@ export default function RegionCategoryPage({
             2. HERO — 50vh
         ════════════════════════════════════════════════════════════════════ */}
         <section
-          aria-label={`${categoryLabel} in ${regionName}`}
+          aria-label={`${categoryLabel}${regionName ? ` in ${regionName}` : ""}`}
           style={{
             position: "relative",
             height: "50vh",
@@ -413,7 +414,7 @@ export default function RegionCategoryPage({
           {/* Background image */}
           <img
             src={heroImg}
-            alt={`${categoryLabel} in ${regionName}`}
+            alt={`${categoryLabel}${regionName ? ` in ${regionName}` : ""}`}
             style={{
               position: "absolute",
               inset: 0,
@@ -509,10 +510,10 @@ export default function RegionCategoryPage({
                   margin: 0,
                 }}
               >
-                {categoryLabel} in{" "}
-                <em style={{ fontStyle: "italic", color: "#d1a352" }}>
-                  {regionName}
-                </em>
+                {categoryLabel}
+                {regionName && (
+                  <>{" "}in{" "}<em style={{ fontStyle: "italic", color: "#d1a352" }}>{regionName}</em></>
+                )}
               </h1>
             </div>
 
@@ -539,7 +540,7 @@ export default function RegionCategoryPage({
             >
               {[
                 { val: listingCount > 0 ? listingCount : "—", label: categorySlug === "wedding-venues" ? "Curated Venues" : "Curated Listings" },
-                { val: regionName, label: "Region", isText: true },
+                ...(regionName ? [{ val: regionName, label: "Region", isText: true }] : []),
                 {
                   val: listingCount > 0 ? "100%" : "Coming Soon",
                   label: listingCount > 0 ? "Personally Verified" : "Listings",
@@ -698,7 +699,7 @@ export default function RegionCategoryPage({
                   margin: "0 0 20px",
                 }}
               >
-                {categoryLabel} in {regionName}
+                {categoryLabel}{regionName ? ` in ${regionName}` : ""}
               </h2>
               <p
                 style={{
@@ -827,8 +828,8 @@ export default function RegionCategoryPage({
                   <MapSection
                     venues={filteredListings}
                     vendors={[]}
-                    headerLabel={`${listingCount} ${categoryLabel} in ${regionName}`}
-                    mapTitle={`◎ ${regionName} ${categoryLabel}`}
+                    headerLabel={`${listingCount} ${categoryLabel}${regionName ? ` in ${regionName}` : ""}`}
+                    mapTitle={`◎ ${regionName ? `${regionName} ` : ""}${categoryLabel}`}
                     countryFilter={countryName || "England"}
                     onMarkerClick={(slug) => onViewVenue(slug)}
                     onClose={() => setVenueViewMode("grid")}
@@ -945,6 +946,8 @@ export default function RegionCategoryPage({
                               v={v}
                               onView={() => onViewVenue(v.id || v.slug)}
                               isHighlighted={hoveredVenueId === v.id || activePinnedId === v.id}
+                              quickViewItem={qvItem}
+                              setQuickViewItem={setQvItem}
                             />
                           </div>
                         ))}
@@ -1105,7 +1108,7 @@ export default function RegionCategoryPage({
                   marginBottom: 20,
                 }}
               >
-                {categoryLabel} in {regionName}
+                {categoryLabel}{regionName ? ` in ${regionName}` : ""}
               </h2>
               <p
                 style={{
@@ -1174,13 +1177,14 @@ export default function RegionCategoryPage({
                 margin: "0 0 32px",
               }}
             >
-              {regionName}{" "}
+              {regionName ? <>{regionName}{" "}</> : null}
               <span style={{ fontStyle: "italic", color: C.gold }}>Wedding Vendors</span>
             </h2>
             <VendorCategoryCarousel
               categories={VENDOR_CATEGORIES}
               C={C}
               onSelect={(slug) => onViewRegionCategory(countrySlug, regionSlug, slug)}
+              activeCategorySlugs={listingsLoaded ? new Set(dbListings.map(l => l.categorySlug || l.category_slug).filter(Boolean)) : null}
             />
           </div>
         </section>
@@ -1290,7 +1294,7 @@ export default function RegionCategoryPage({
                     Page Title
                   </h3>
                   <div style={{ fontSize: 13, color: C.grey, fontFamily: NU, lineHeight: 1.7 }}>
-                    {categoryLabel} in {regionName} — Luxury Wedding Directory
+                    {categoryLabel}{regionName ? ` in ${regionName}` : ""} — Luxury Wedding Directory
                   </div>
                 </div>
 
@@ -1309,7 +1313,7 @@ export default function RegionCategoryPage({
                     Meta Description
                   </h3>
                   <div style={{ fontSize: 13, color: C.grey, fontFamily: NU, lineHeight: 1.7 }}>
-                    Discover {listingCount > 0 ? listingCount : "the finest"} curated {categoryLabel.toLowerCase()} in {regionName}. Every recommendation editorially verified by the LWD team.
+                    Discover {listingCount > 0 ? listingCount : "the finest"} curated {categoryLabel.toLowerCase()}{regionName ? ` in ${regionName}` : ""}. Every recommendation editorially verified by the LWD team.
                   </div>
                 </div>
 
@@ -1790,7 +1794,7 @@ function SiblingCategoryCard({ vc, C, onClick }) {
 // ── Vendor Category Carousel (matches RegionPage) ───────────────────────
 const VENDOR_CATS_PER_PAGE = 6;
 
-function VendorCategoryCarousel({ categories, C, onSelect }) {
+function VendorCategoryCarousel({ categories, C, onSelect, activeCategorySlugs = null }) {
   const [page, setPage] = useState(0);
   const totalPages = Math.ceil(categories.length / VENDOR_CATS_PER_PAGE);
   const start = page * VENDOR_CATS_PER_PAGE;
@@ -1842,6 +1846,7 @@ function VendorCategoryCarousel({ categories, C, onSelect }) {
             vc={vc}
             C={C}
             onClick={() => onSelect(vc.slug)}
+            isEmpty={activeCategorySlugs !== null && !activeCategorySlugs.has(vc.slug)}
           />
         ))}
       </div>
@@ -1883,7 +1888,7 @@ function VendorCategoryCarousel({ categories, C, onSelect }) {
   );
 }
 
-function VendorCategoryCard({ vc, C, onClick }) {
+function VendorCategoryCard({ vc, C, onClick, isEmpty = false }) {
   const [hov, setHov] = useState(false);
   const iconColor = hov ? C.gold : (C.grey || "#888");
   const renderIcon = LUXURY_ICONS[vc.slug];
@@ -1894,8 +1899,10 @@ function VendorCategoryCard({ vc, C, onClick }) {
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
+        position: "relative",
         background: hov ? C.card : C.dark,
         border: `1px solid ${hov ? C.gold : C.border2}`,
+        opacity: isEmpty ? 0.65 : 1,
         borderRadius: "var(--lwd-radius-card)",
         padding: "28px 12px",
         textAlign: "center",
@@ -1941,6 +1948,15 @@ function VendorCategoryCard({ vc, C, onClick }) {
       >
         {vc.label}
       </span>
+      {isEmpty && (
+        <span style={{ position: "absolute", top: 8, right: 8, fontSize: 7, fontFamily: "var(--font-nu, sans-serif)",
+          fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase",
+          color: C.gold || "#C9A84C", background: "rgba(201,168,76,0.1)",
+          border: "1px solid rgba(201,168,76,0.25)", borderRadius: 4,
+          padding: "2px 5px", lineHeight: 1.4 }}>
+          Soon
+        </span>
+      )}
     </button>
   );
 }

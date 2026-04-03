@@ -445,7 +445,7 @@ function extractVimeoId(url) {
 }
 
 /* ── SlimHero ────────────────────────────────────────────────────────────── */
-export default function SlimHero({ venues = [], backgroundData = null, onViewRegion, onViewRegionCategory, onViewCategory }) {
+export default function SlimHero({ venues = [], backgroundData = null, onViewRegion, onViewRegionCategory, onViewCategory, onOpenImmersive }) {
   const C = useTheme();
   const [idx, setIdx] = useState(0);
   const [query, setQuery] = useState("");
@@ -487,15 +487,17 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
   }, []);
 
   const handleAuraSearch = () => {
-    if (!query.trim()) {
-      window.dispatchEvent(new CustomEvent("lwd:openAura"));
-      return;
-    }
     track("search_submit", { query, mode: "ai" });
-    window.dispatchEvent(
-      new CustomEvent("lwd:openAura", { detail: { query: query.trim() } })
-    );
-    setQuery("");
+    if (onOpenImmersive) {
+      onOpenImmersive(query.trim() || null);
+      setQuery("");
+    } else {
+      // Fallback to mini bar if no immersive handler wired
+      window.dispatchEvent(
+        new CustomEvent("lwd:openAura", { detail: { query: query.trim() } })
+      );
+      setQuery("");
+    }
   };
 
   const handleBrowseSearch = () => {
@@ -1084,8 +1086,8 @@ export default function SlimHero({ venues = [], backgroundData = null, onViewReg
           <span
             role="button"
             tabIndex={0}
-            onClick={() => window.dispatchEvent(new CustomEvent("lwd:openAura"))}
-            onKeyDown={(e) => e.key === "Enter" && window.dispatchEvent(new CustomEvent("lwd:openAura"))}
+            onClick={() => onOpenImmersive ? onOpenImmersive(null) : window.dispatchEvent(new CustomEvent("lwd:openAura"))}
+            onKeyDown={(e) => e.key === "Enter" && (onOpenImmersive ? onOpenImmersive(null) : window.dispatchEvent(new CustomEvent("lwd:openAura")))}
             style={{
               color: "#C9A84C",
               cursor: "pointer",

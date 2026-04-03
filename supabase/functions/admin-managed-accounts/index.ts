@@ -1,40 +1,21 @@
 // =============================================================================
 // Supabase Edge Function: admin-managed-accounts
 // =============================================================================
-// Purpose: Service-role proxy for all admin writes on managed_accounts,
-//          social_campaigns, and social_content tables.
+// Purpose: Service-role proxy for all admin CRUD on managed_accounts.
+//          Bypasses RLS using service_role key so admin writes always succeed.
 //
-// Why this exists: These tables have RLS enabled. The admin dashboard uses
-//   the anon key (no admin auth layer yet), so direct writes from the browser
-//   are blocked. This edge function holds the service_role key server-side
-//   and is never exposed to the frontend.
-//
-// Authentication: Requests must include Authorization: Bearer <anon_key>.
-//   The edge function validates the anon key to confirm the request comes
-//   from the app, then uses the service_role key internally.
+// Called by: src/services/managedAccountsService.js
 //
 // Request body: { action: string, ...params }
 //
-// managed_accounts actions:
-//   list              { status?: string }
-//   create            { payload: object }
-//   update            { id: string, payload: object }
-//   updatePortalConfig { id: string, config: object }
-//   delete            { id: string }
-//   convertFromLead   { lead: object }
+// Actions:
+//   list    {}                             → data: Account[]
+//   get     { id: string }                → data: Account
+//   create  { payload: object }           → data: Account
+//   update  { id: string, payload: object } → data: Account
+//   delete  { id: string }               → data: null
 //
-// social_campaigns actions:
-//   createCampaign    { payload: object }
-//   updateCampaign    { id: string, payload: object }
-//
-// social_content actions:
-//   createContent     { payload: object }
-//   createContentBatch { items: object[] }
-//   updateContent     { id: string, payload: object }
-//   updateContentStatus { id: string, status: string }
-//   deleteContent     { id: string }
-//
-// Response: { success: true, data? } | { success: false, error: string }
+// Response: { success: true, data } | { success: false, error: string }
 // =============================================================================
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
@@ -54,218 +35,101 @@ function ok(data: unknown, status = 200) {
   return new Response(JSON.stringify({ success: true, data }), { status, headers: CORS_HEADERS });
 }
 
-function err(message: string, status = 400) {
+function fail(message: string, status = 500) {
   return new Response(JSON.stringify({ success: false, error: message }), { status, headers: CORS_HEADERS });
-}
-
-function slugify(str: string): string {
-  return (str || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
-  if (req.method !== "POST")   return err("Method not allowed", 405);
+  if (req.method !== "POST")   return fail("Method not allowed", 405);
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
   try {
-    const body = await req.json();
-    const { action } = body;
+    const body   = await req.json();
+    const action = body.action as string;
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // MANAGED ACCOUNTS
-    // ═══════════════════════════════════════════════════════════════════════
-
-    // ── list ─────────────────────────────────────────────────────────────
+    // ── list ─────────────────────────────────────────────────────────────────
     if (action === "list") {
-      let q = supabase.from("managed_accounts").select("*").order("name");
-      if (body.status) q = q.eq("status", body.status);
-      const { data, error } = await q;
-      if (error) throw error;
+      const { data, error } = await supabase
+        .from("managed_accounts")
+        .select("*")
+        .order("name");
+      if (error) return fail(error.message);
       return ok(data ?? []);
     }
 
-    // ── create ────────────────────────────────────────────────────────────
+    // ── get ──────────────────────────────────────────────────────────────────
+    if (action === "get") {
+      const { id } = body as { id: string };
+      if (!id) return fail("id is required");
+      const { data, error } = await supabase
+        .from("managed_accounts")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (error) return fail(error.message);
+      if (!data) return fail("Account not found", 404);
+      return ok(data);
+    }
+
+    // ── create ───────────────────────────────────────────────────────────────
     if (action === "create") {
-      const { payload } = body;
-      if (!payload?.name) return err("Missing required field: name", 400);
-      // Auto-generate slug if not provided
-      if (!payload.slug) payload.slug = slugify(payload.name);
+      const { payload } = body as { payload: Record<string, unknown> };
+      if (!payload?.name) return fail("name is required");
+
+      // Auto-generate slug if missing
+      if (!payload.slug) {
+        payload.slug = String(payload.name)
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)/g, "");
+      }
+
       const { data, error } = await supabase
         .from("managed_accounts")
         .insert([payload])
         .select()
         .single();
-      if (error) throw error;
-      return ok(data, 201);
+      if (error) return fail(error.message);
+      return ok(data);
     }
 
-    // ── update ────────────────────────────────────────────────────────────
+    // ── update ───────────────────────────────────────────────────────────────
     if (action === "update") {
-      const { id, payload } = body;
-      if (!id || !payload) return err("Missing id or payload", 400);
+      const { id, payload } = body as { id: string; payload: Record<string, unknown> };
+      if (!id) return fail("id is required");
+      if (!payload) return fail("payload is required");
+
       const { data, error } = await supabase
         .from("managed_accounts")
-        .update({ ...payload, updated_at: new Date().toISOString() })
+        .update(payload)
         .eq("id", id)
         .select()
         .single();
-      if (error) throw error;
+      if (error) return fail(error.message);
       return ok(data);
     }
 
-    // ── updatePortalConfig ────────────────────────────────────────────────
-    if (action === "updatePortalConfig") {
-      const { id, config } = body;
-      if (!id || !config) return err("Missing id or config", 400);
-      const { error } = await supabase
-        .from("managed_accounts")
-        .update({ portal_config: config, updated_at: new Date().toISOString() })
-        .eq("id", id);
-      if (error) throw error;
-      return ok(null);
-    }
-
-    // ── delete ────────────────────────────────────────────────────────────
+    // ── delete ───────────────────────────────────────────────────────────────
     if (action === "delete") {
-      const { id } = body;
-      if (!id) return err("Missing id", 400);
-      const { error } = await supabase.from("managed_accounts").delete().eq("id", id);
-      if (error) throw error;
-      return ok(null);
-    }
-
-    // ── convertFromLead ───────────────────────────────────────────────────
-    if (action === "convertFromLead") {
-      const { lead } = body;
-      if (!lead) return err("Missing lead", 400);
-      const req2 = lead.requirements_json || {};
-      const name = req2.businessName ||
-        `${lead.first_name || ""} ${lead.last_name || ""}`.trim() || lead.email;
-      const payload = {
-        name,
-        slug:                  slugify(name),
-        primary_contact_name:  `${lead.first_name || ""} ${lead.last_name || ""}`.trim(),
-        primary_contact_email: lead.email  || "",
-        contact_phone:         lead.phone  || "",
-        plan:                  "",
-        service_status:        "onboarding",
-        status:                "active",
-        onboarding_status:     "pending",
-        crm_lead_id:           lead.id,
-        internal_notes: `Converted from CRM lead on ${new Date().toLocaleDateString("en-GB")}. Original source: ${lead.lead_source || "unknown"}.`,
-      };
-      const { data, error } = await supabase
-        .from("managed_accounts")
-        .insert([payload])
-        .select()
-        .single();
-      if (error) throw error;
-      return ok(data, 201);
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // SOCIAL CAMPAIGNS
-    // ═══════════════════════════════════════════════════════════════════════
-
-    // ── createCampaign ────────────────────────────────────────────────────
-    if (action === "createCampaign") {
-      const { payload } = body;
-      if (!payload?.name) return err("Missing required field: name", 400);
-      const { data, error } = await supabase
-        .from("social_campaigns")
-        .insert([payload])
-        .select()
-        .single();
-      if (error) throw error;
-      return ok(data, 201);
-    }
-
-    // ── updateCampaign ────────────────────────────────────────────────────
-    if (action === "updateCampaign") {
-      const { id, payload } = body;
-      if (!id || !payload) return err("Missing id or payload", 400);
-      const { data, error } = await supabase
-        .from("social_campaigns")
-        .update({ ...payload, updated_at: new Date().toISOString() })
-        .eq("id", id)
-        .select()
-        .single();
-      if (error) throw error;
-      return ok(data);
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // SOCIAL CONTENT
-    // ═══════════════════════════════════════════════════════════════════════
-
-    // ── createContent ─────────────────────────────────────────────────────
-    if (action === "createContent") {
-      const { payload } = body;
-      if (!payload) return err("Missing payload", 400);
-      const { data, error } = await supabase
-        .from("social_content")
-        .insert([payload])
-        .select()
-        .single();
-      if (error) throw error;
-      return ok(data, 201);
-    }
-
-    // ── createContentBatch ────────────────────────────────────────────────
-    if (action === "createContentBatch") {
-      const { items } = body;
-      if (!Array.isArray(items) || items.length === 0) return err("Missing or empty items array", 400);
-      const { data, error } = await supabase
-        .from("social_content")
-        .insert(items)
-        .select();
-      if (error) throw error;
-      return ok(data ?? []);
-    }
-
-    // ── updateContent ─────────────────────────────────────────────────────
-    if (action === "updateContent") {
-      const { id, payload } = body;
-      if (!id || !payload) return err("Missing id or payload", 400);
-      const { data, error } = await supabase
-        .from("social_content")
-        .update({ ...payload, updated_at: new Date().toISOString() })
-        .eq("id", id)
-        .select()
-        .single();
-      if (error) throw error;
-      return ok(data);
-    }
-
-    // ── updateContentStatus ───────────────────────────────────────────────
-    if (action === "updateContentStatus") {
-      const { id, status } = body;
-      if (!id || !status) return err("Missing id or status", 400);
+      const { id } = body as { id: string };
+      if (!id) return fail("id is required");
       const { error } = await supabase
-        .from("social_content")
-        .update({ status, updated_at: new Date().toISOString() })
+        .from("managed_accounts")
+        .delete()
         .eq("id", id);
-      if (error) throw error;
+      if (error) return fail(error.message);
       return ok(null);
     }
 
-    // ── deleteContent ─────────────────────────────────────────────────────
-    if (action === "deleteContent") {
-      const { id } = body;
-      if (!id) return err("Missing id", 400);
-      const { error } = await supabase.from("social_content").delete().eq("id", id);
-      if (error) throw error;
-      return ok(null);
-    }
+    return fail(`Unknown action: ${action}`, 400);
 
-    return err(`Unknown action: ${action}`, 400);
-
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : JSON.stringify(e);
-    console.error("[admin-managed-accounts]", msg);
-    return new Response(JSON.stringify({ success: false, error: msg }), { status: 500, headers: CORS_HEADERS });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[admin-managed-accounts] unhandled error:", msg);
+    return fail(msg, 500);
   }
 });

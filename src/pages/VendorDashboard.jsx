@@ -1645,14 +1645,15 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
     async function loadSeoAudit() {
       setVendorAuditLoading(true);
       try {
-        // 1. Fetch the vendor's listing via service-role edge function
-        //    (anon client can no longer read listings — RLS Phase 3B)
-        const { data: fnData, error: fnError } = await supabase.functions.invoke('admin-listings', {
-          body: { action: 'getByVendorAccountId', vendorAccountId: vendor.id },
-        });
-        if (fnError) throw fnError;
+        // 1. Fetch the vendor's listing
+        const { data: rows } = await supabase
+          .from('listings')
+          .select('id, name, website, city, region, country')
+          .eq('vendor_account_id', vendor.id)
+          .eq('status', 'live')
+          .limit(1);
 
-        const lst = fnData?.data ?? null;
+        const lst = rows?.[0] || null;
         setVendorListing(lst);
         if (!lst?.id) return;
 
@@ -2430,7 +2431,9 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
                         lineHeight: 1,
                       }}
                     >
-                      {(vendor.lwdScore / 10).toFixed(1)}
+                      {(vendor.lwdScore != null && !isNaN(vendor.lwdScore))
+                        ? (vendor.lwdScore / 10).toFixed(1)
+                        : '—'}
                     </div>
                     <div
                       style={{
@@ -2440,7 +2443,9 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
                         marginTop: 4,
                       }}
                     >
-                      out of 10.0
+                      {(vendor.lwdScore != null && !isNaN(vendor.lwdScore))
+                        ? 'out of 10.0'
+                        : 'Not enough data'}
                     </div>
                   </div>
 

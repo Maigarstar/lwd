@@ -37,11 +37,7 @@ export default function LatestVendorsStrip({
   const cardW = isMobile ? 300 : 320;
 
   return (
-    <div style={{ background: C.card }}>
-      {/* ── Divider ── */}
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 48px" }}>
-        <div style={{ height: 1, background: C.border }} />
-      </div>
+    <div style={{ background: C.black }}>
 
       {/* ── Editorial header ── */}
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "52px 48px 8px" }}>

@@ -15,6 +15,7 @@ import AuraChat              from "./chat/AuraChat";
 import CookieBanner          from "./components/CookieBanner";
 import SiteFooter            from "./components/sections/SiteFooter.jsx";
 import GlobalAdminBar        from "./components/admin/GlobalAdminBar.jsx";
+import GlobalCompare         from "./compare/GlobalCompare.jsx";
 
 // ── Apply saved theme CSS variables BEFORE React renders ─────────────────────
 applyThemeToDocument();
@@ -998,6 +999,9 @@ function App() {
           }}
           onOpenAdmin={goAdmin}
         />
+
+        {/* ── Global compare strip + modal — persists across all pages ── */}
+        <GlobalCompare />
 
         {/* ── GDPR cookie banner ── */}
         <CookieBanner />

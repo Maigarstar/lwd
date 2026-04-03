@@ -24,7 +24,6 @@ export default function DestinationGrid({ onDestinationClick }) {
         background: C.card,
         padding: "100px 60px",
         overflow: "hidden",
-        borderTop: `1px solid ${C.border}`,
       }}
     >
       {/* Header row */}

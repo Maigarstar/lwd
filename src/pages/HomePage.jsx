@@ -18,6 +18,7 @@ import DirectoryBrands from "../components/sections/DirectoryBrands";
 import NewsletterBand from "../components/sections/NewsletterBand";
 import MagazineEditorial from "../components/sections/MagazineEditorial";
 import EnquiryModal from "../components/modals/EnquiryModal";
+import ImmersiveSearch from "../components/search/ImmersiveSearch";
 import "../category.css";
 
 // ─── Font tokens ──────────────────────────────────────────────────────────────
@@ -152,6 +153,7 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
   const [enquiryVendor, setEnquiryVendor] = useState(null);
   const [heroBackgroundData, setHeroBackgroundData] = useState(null);
   const [dbListings, setDbListings] = useState([]);
+  const [immersiveOpen, setImmersiveOpen] = useState(false);
 
   const C = darkMode ? getDarkPalette() : getLightPalette();
   const { setChatContext } = useChat();
@@ -215,7 +217,14 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
 
         <main>
           {/* SlimHero + FeaturedSlider remain on curated static data, editorial content */}
-          <SlimHero venues={FEATURED_VENUES} backgroundData={heroBackgroundData} onViewRegion={onViewRegion} onViewRegionCategory={onViewRegionCategory} onViewCategory={onViewCategory} />
+          <SlimHero
+            venues={FEATURED_VENUES}
+            backgroundData={heroBackgroundData}
+            onViewRegion={onViewRegion}
+            onViewRegionCategory={onViewRegionCategory}
+            onViewCategory={onViewCategory}
+            onOpenImmersive={() => setImmersiveOpen(true)}
+          />
 
           {/* Category Blocks - Find Your Perfect Match */}
           <section style={{ background: "#f2f0ea", padding: "72px 48px" }}>
@@ -248,11 +257,12 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
             }}
           />
           {/* VenueGrid: live DB data, falls back to static if DB empty */}
-          <VenueGrid venues={displayVenues} onViewVenue={(v) => onViewVenue?.(v)} />
+          <VenueGrid venues={displayVenues} onViewVenue={(v) => onViewVenue?.(v)} onViewCategory={onViewCategory} />
           <FeaturedSlider venues={FEATURED_VENUES} />
           {/* VendorPreview: live DB vendors when available; internal fallback to GLOBAL_VENDORS */}
           <VendorPreview
             dbVendors={displayVendors}
+            onViewCategory={onViewCategory}
             onViewVendor={(v) => {
               if (v.cat === "venues") onViewVenue?.();
               else setEnquiryVendor(v);
@@ -270,6 +280,14 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
         <EnquiryModal
           vendor={enquiryVendor}
           onClose={() => setEnquiryVendor(null)}
+        />
+
+        {/* Immersive Search overlay */}
+        <ImmersiveSearch
+          isOpen={immersiveOpen}
+          onClose={() => setImmersiveOpen(false)}
+          onViewCategory={onViewCategory}
+          onViewRegionCategory={onViewRegionCategory}
         />
       </div>
     </ThemeCtx.Provider>

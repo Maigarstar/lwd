@@ -323,6 +323,22 @@ export default function LocationPage({
   const _venues  = useMemo(() => (venues  && venues.length  > 0) ? venues  : _fetchedVenues,  [venues,  _fetchedVenues]);
   const _vendors = useMemo(() => (vendors && vendors.length > 0) ? vendors : _fetchedVendors, [vendors, _fetchedVendors]);
 
+  // Set of category slugs with ≥1 live published listing for this location.
+  // Drives SOON badge on empty category cards.
+  const activeCategorySlugs = useMemo(() => {
+    const all = [...(_venues || []), ...(_vendors || [])];
+    if (all.length === 0) return null; // still loading — no badges yet
+    const s = new Set();
+    all.forEach((l) => {
+      const cat = l.categorySlug || l.category_slug || "";
+      if (cat) s.add(cat);
+      const lt = l.listingType || l.listing_type || "";
+      if (!cat && (lt === "venue" || !lt)) s.add("wedding-venues");
+    });
+    if ((_venues || []).length > 0) s.add("wedding-venues");
+    return s;
+  }, [_venues, _vendors]);
+
   // Merge locationContent: injected prop takes priority, then fetched, then empty
   const _locationContent = useMemo(() => {
     if (locationContent) return locationContent;
@@ -957,7 +973,7 @@ export default function LocationPage({
           <section
             aria-label={`About weddings in ${currentLocation?.name || "this location"}`}
             className="lwd-region-intro"
-            style={{ background: C.dark, borderBottom: `1px solid ${C.border}`, padding: "72px 48px" }}
+            style={{ background: C.dark, padding: "72px 48px" }}
           >
             <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 20 }}>
@@ -1015,7 +1031,7 @@ export default function LocationPage({
         <section
           aria-label="Browse by category"
           className="lwd-region-categories"
-          style={{ background: C.black, padding: "72px 48px", borderBottom: `1px solid ${C.border}` }}
+          style={{ background: C.black, padding: "72px 48px" }}
         >
           <div style={{ maxWidth: 1100, margin: "0 auto" }}>
             <div style={{ textAlign: "center", marginBottom: 48 }}>
@@ -1029,16 +1045,27 @@ export default function LocationPage({
                 <span style={{ fontStyle: "italic", color: C.gold }}>Wedding Vendors</span>
               </h2>
             </div>
-            <CategoryCarousel
-              categories={VENDOR_CATEGORIES}
-              C={C}
-              onSelect={(slug) => onViewCategory({ category: slug, countrySlug: currentLocation?.slug })}
-            />
+            {!resolving && locationVenues.length === 0 ? (
+              <div style={{ border: "1px solid rgba(201,168,76,0.2)", borderRadius: "var(--lwd-radius-card)", padding: "40px", textAlign: "center", background: "rgba(201,168,76,0.03)", maxWidth: 560, margin: "0 auto" }}>
+                <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: C.gold, opacity: 0.7, border: "1px solid rgba(201,168,76,0.25)", borderRadius: 3, padding: "3px 10px", display: "inline-block", marginBottom: 14 }}>Coming Soon</span>
+                <p style={{ fontFamily: GD, fontSize: "clamp(16px,1.8vw,22px)", fontWeight: 300, fontStyle: "italic", color: C.grey, opacity: 0.5, margin: 0 }}>
+                  {currentLocation?.name} wedding professionals — curated and coming soon.
+                </p>
+              </div>
+            ) : (
+              <CategoryCarousel
+                categories={VENDOR_CATEGORIES}
+                C={C}
+                onSelect={(slug) => onViewCategory({ category: slug, countrySlug: currentLocation?.slug })}
+                activeCategorySlugs={activeCategorySlugs}
+              />
+            )}
           </div>
         </section>
 
         {/* ═══ SIGNATURE VENUES — matching RegionPage card row pattern ═══════ */}
         {locationVenues.length > 0 && viewMode !== "map" && (
+          <div style={{ background: darkMode ? C.dark : "#ffffff" }}>
           <section
             aria-label={`Wedding professionals in ${currentLocation.name}`}
             className="lwd-region-section"
@@ -1113,6 +1140,7 @@ export default function LocationPage({
               )}
             </div>
           </section>
+          </div>
         )}
 
         {/* ═══ ALL VENUES — full grid/list below signature row ═════════════════ */}

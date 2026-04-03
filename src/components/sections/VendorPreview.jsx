@@ -34,7 +34,7 @@ function normalise(v) {
   };
 }
 
-export default function VendorPreview({ onViewVendor, dbVendors }) {
+export default function VendorPreview({ onViewVendor, dbVendors, onViewCategory }) {
   const C = useTheme();
   const { isShortlisted, toggleItem } = useShortlist();
   const [quickViewItem, setQuickViewItem] = useState(null);
@@ -217,6 +217,7 @@ export default function VendorPreview({ onViewVendor, dbVendors }) {
           {/* CTA */}
           <div style={{ textAlign: "center" }}>
             <button
+              onClick={() => onViewCategory?.({ category: "wedding-vendors" })}
               style={{
                 background: "transparent",
                 color: C.gold,

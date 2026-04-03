@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import CategoryAssignmentField from '../components/CategoryAssignmentField';
 import { getCountryOptions } from '../utils/countryOptions';
-import { fetchAccounts } from '../../../services/managedAccountsService';
+import { readAccounts } from '../../../services/managedAccountsService';
 
 // Level badge colours (Bronze / Silver / Gold)
 const LEVEL_COLORS = {
@@ -44,8 +44,8 @@ function PartnerAccountDropdown({ value, onChange }) {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const result = await fetchAccounts();
-      const rows = result.success ? (result.data || []) : [];
+      const result = await readAccounts();
+      const rows = result.ok ? (result.data || []) : [];
       setAccounts(rows);
       if (valueRef.current) {
         const match = rows.find(a => a.id === valueRef.current);

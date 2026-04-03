@@ -20,7 +20,7 @@ function useIsMobile(bp = 768) {
   return mobile;
 }
 
-export default function VenueGrid({ venues = [], onViewVenue }) {
+export default function VenueGrid({ venues = [], onViewVenue, onViewCategory }) {
   const C = useTheme();
   const isMobile = useIsMobile();
   const [quickViewItem, setQuickViewItem] = useState(null);
@@ -183,6 +183,7 @@ export default function VenueGrid({ venues = [], onViewVenue }) {
           {/* View all CTA */}
           <div style={{ textAlign: "center" }}>
             <button
+              onClick={() => onViewCategory?.({ category: "wedding-venues" })}
               style={{
                 background: "transparent",
                 color: C.gold,

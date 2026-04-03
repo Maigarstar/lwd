@@ -9,6 +9,12 @@ import Stars from "../ui/Stars";
 import { GoldBadge, VerifiedBadge } from "../ui/Badges";
 import LuxeEnquiryModal from "../enquiry/LuxeEnquiryModal";
 import ShortlistButton from "../buttons/ShortlistButton";
+import CompareCheckbox from "../buttons/CompareCheckbox";
+import { trackCompareAdd } from "../../services/userEventService";
+
+const COMPARE_KEY = "lwd_compare_list";
+function loadCL() { try { return JSON.parse(sessionStorage.getItem(COMPARE_KEY)) || []; } catch { return []; } }
+function saveCL(l) { try { sessionStorage.setItem(COMPARE_KEY, JSON.stringify(l)); } catch {} }
 import { track } from "../../utils/track";
 import { getQualityTier } from "../../services/listings";
 import TierBadge from "../editorial/TierBadge";
@@ -26,7 +32,15 @@ export default function LuxuryVendorCard({ v, onView, isMobile, onSave, saved, o
   const [slideIdx, setSlideIdx] = useState(0);
   const [muted, setMuted] = useState(true);
   const [showEnquiry, setShowEnquiry] = useState(false);
+  const [compareList, setCompareList] = useState(loadCL);
   const cardRef = useRef(null);
+
+  useEffect(() => {
+    const handler = () => setCompareList(loadCL());
+    window.addEventListener("lwd:compare-bar", handler);
+    return () => window.removeEventListener("lwd:compare-bar", handler);
+  }, []);
+  const isCompared = compareList.some((i) => i.id === v.id);
   const touchRef = useRef({ startX: 0, startY: 0, swiping: false });
   const videoRefs = useRef({});
 
@@ -357,6 +371,36 @@ export default function LuxuryVendorCard({ v, onView, isMobile, onSave, saved, o
           variant="icon"
           size="medium"
           strokeColor="#ffffff"
+        />
+      </div>
+
+      {/* Compare checkbox — top left */}
+      <div
+        style={{
+          position: "absolute", top: 38, left: 12, zIndex: 4,
+          opacity: isCompared ? 1 : hov ? 1 : 0,
+          transition: "opacity 200ms ease",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <CompareCheckbox
+          item={{ id: v.id, name: v.name }}
+          isCompared={isCompared}
+          onToggle={() => {
+            const current = loadCL();
+            const alreadyIn = current.some((i) => i.id === v.id);
+            let updated;
+            if (alreadyIn) {
+              updated = current.filter((i) => i.id !== v.id);
+            } else {
+              if (current.length >= 3) return;
+              updated = [...current, { id: v.id, name: v.name }];
+              trackCompareAdd({ venueId: v.id, venueName: v.name, compareList: current, sourceSurface: 'vendor_card' });
+            }
+            saveCL(updated);
+            setCompareList(updated);
+            window.dispatchEvent(new CustomEvent("lwd:compare-bar", { detail: { active: updated.length > 0 } }));
+          }}
         />
       </div>
 

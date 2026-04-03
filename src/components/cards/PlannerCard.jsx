@@ -1329,126 +1329,128 @@ function ListCard({ v, onView, listMode, isHighlighted }) {
       )}
 
       {/* Content */}
-      <div style={{ flex: 1, padding: "18px 22px", display: "flex", flexDirection: "column", justifyContent: "center", minWidth: 0, overflowY: listMode ? "auto" : undefined }}>
-        {/* Top row: name + verified */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
-          <div
+      <div style={{ flex: 1, padding: "16px 18px", display: "flex", flexDirection: "column", justifyContent: "space-between", minWidth: 0, overflowY: listMode ? "auto" : undefined }}>
+        {/* Top section: name, location, meta */}
+        <div>
+          {/* Top row: name + verified */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
+            <div
+              style={{
+                fontFamily: GD,
+                fontSize:   listMode ? 26 : 22,
+                fontWeight: 500,
+                fontStyle:  "italic",
+                color:      C.white,
+                lineHeight: 1.15,
+              }}
+            >
+              {v.name}
+            </div>
+            {v.verified && <VerifiedBadge />}
+          </div>
+
+          {/* Location */}
+          <div style={{ fontFamily: NU, fontSize: 12, color: C.grey, marginBottom: 6, letterSpacing: "0.2px" }}>
+            {v.city}, {v.region}
+          </div>
+
+          {/* Service tier + badges row (compact in listMode) */}
+          {listMode ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+              {v.serviceTier && (
+                <span
+                  style={{
+                    fontFamily:    NU,
+                    fontSize:      8.5,
+                    fontWeight:    700,
+                    letterSpacing: "0.9px",
+                    textTransform: "uppercase",
+                    color:         GOLD,
+                    background:    "rgba(201,168,76,0.1)",
+                    border:        "1px solid rgba(201,168,76,0.25)",
+                    borderRadius:  16,
+                    padding:       "2px 8px",
+                  }}
+                >
+                  {v.serviceTier}
+                </span>
+              )}
+              {v.rating && (
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <Stars r={v.rating} />
+                  <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 500, color: C.grey, letterSpacing: "0.1px" }}>
+                    {v.rating.toFixed(1)} ({v.reviews})
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
+              {v.serviceTier && (
+                <span
+                  style={{
+                    fontFamily:    NU,
+                    fontSize:      9,
+                    fontWeight:    700,
+                    letterSpacing: "1.2px",
+                    textTransform: "uppercase",
+                    color:         GOLD,
+                    background:    "rgba(201,168,76,0.08)",
+                    border:        "1px solid rgba(201,168,76,0.22)",
+                    borderRadius:  20,
+                    padding:       "4px 12px",
+                  }}
+                >
+                  {v.serviceTier}
+                </span>
+              )}
+              {v.lwdScore && <CuratedIndexBadge score={v.lwdScore} />}
+              {v.rating && (
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <Stars r={v.rating} />
+                  <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>
+                    {v.rating} ({v.reviews})
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Social media + phone + WhatsApp icons (hidden in list mode) */}
+          {!listMode && <SocialRow socials={v.socials} color={C.grey} phone={v.phone} whatsapp={v.whatsapp} email={v.email} darkMode />}
+
+          {/* Description */}
+          <p
             style={{
-              fontFamily: GD,
-              fontSize:   22,
-              fontWeight: 500,
-              fontStyle:  "italic",
-              color:      C.white,
-              lineHeight: 1.2,
+              fontFamily:      NU,
+              fontSize:        13,
+              color:           C.grey2,
+              lineHeight:      1.5,
+              margin:          listMode ? "8px 0 10px" : "0 0 12px",
+              display:         "-webkit-box",
+              WebkitLineClamp: listMode ? 2 : 2,
+              WebkitBoxOrient: "vertical",
+              overflow:        "hidden",
             }}
           >
-            {v.name}
-          </div>
-          {v.verified && <VerifiedBadge />}
+            {v.desc}
+          </p>
+
+          {/* Specialty pills */}
+          {v.specialties?.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 0 }}>
+              {v.specialties.slice(0, listMode ? 3 : 3).map((s) => (
+                <Pill key={s} text={s} />
+              ))}
+            </div>
+          )}
         </div>
-
-        {/* Location */}
-        <div style={{ fontFamily: NU, fontSize: 12, color: C.grey, marginBottom: 8 }}>
-          {v.city}, {v.region}
-        </div>
-
-        {/* Service tier + badges row (compact in listMode) */}
-        {listMode ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-            {v.serviceTier && (
-              <span
-                style={{
-                  fontFamily:    NU,
-                  fontSize:      9,
-                  fontWeight:    700,
-                  letterSpacing: "1.2px",
-                  textTransform: "uppercase",
-                  color:         GOLD,
-                  background:    "rgba(201,168,76,0.08)",
-                  border:        "1px solid rgba(201,168,76,0.22)",
-                  borderRadius:  20,
-                  padding:       "3px 10px",
-                }}
-              >
-                {v.serviceTier}
-              </span>
-            )}
-            {v.rating && (
-              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <Stars r={v.rating} />
-                <span style={{ fontFamily: NU, fontSize: 10, color: C.grey }}>
-                  {v.rating} ({v.reviews})
-                </span>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
-            {v.serviceTier && (
-              <span
-                style={{
-                  fontFamily:    NU,
-                  fontSize:      9,
-                  fontWeight:    700,
-                  letterSpacing: "1.2px",
-                  textTransform: "uppercase",
-                  color:         GOLD,
-                  background:    "rgba(201,168,76,0.08)",
-                  border:        "1px solid rgba(201,168,76,0.22)",
-                  borderRadius:  20,
-                  padding:       "4px 12px",
-                }}
-              >
-                {v.serviceTier}
-              </span>
-            )}
-            {v.lwdScore && <CuratedIndexBadge score={v.lwdScore} />}
-            {v.rating && (
-              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <Stars r={v.rating} />
-                <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>
-                  {v.rating} ({v.reviews})
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Social media + phone + WhatsApp icons */}
-        <SocialRow socials={v.socials} color={C.grey} phone={v.phone} whatsapp={v.whatsapp} email={v.email} darkMode />
-
-        {/* Description */}
-        <p
-          style={{
-            fontFamily:      NU,
-            fontSize:        13,
-            color:           C.grey2,
-            lineHeight:      1.55,
-            margin:          "0 0 12px",
-            display:         "-webkit-box",
-            WebkitLineClamp: listMode ? 3 : 2,
-            WebkitBoxOrient: "vertical",
-            overflow:        "hidden",
-          }}
-        >
-          {v.desc}
-        </p>
-
-        {/* Specialty pills */}
-        {v.specialties?.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 14 }}>
-            {v.specialties.slice(0, listMode ? 4 : 3).map((s) => (
-              <Pill key={s} text={s} />
-            ))}
-          </div>
-        )}
 
         {/* Footer: price + CTAs */}
         {listMode ? (
-          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px 12px", marginTop: "auto", borderTop: `1px solid ${C.border}`, paddingTop: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px 12px", marginTop: "12px", borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
             {v.priceFrom && (
-              <div style={{ fontFamily: GD, fontSize: 18, fontWeight: 600, color: C.gold }}>
-                <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 400, color: C.grey, marginRight: 4, letterSpacing: "0.3px" }}>From</span>
+              <div style={{ fontFamily: GD, fontSize: 17, fontWeight: 600, color: C.gold, letterSpacing: "-0.5px" }}>
                 {v.priceFrom}
               </div>
             )}

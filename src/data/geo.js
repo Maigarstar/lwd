@@ -148,6 +148,54 @@ export const COUNTRIES = [
     },
     regions: ["dublin"],
   },
+  {
+    slug: "spain",
+    name: "Spain",
+    iso2: "ES",
+    listingCount: 0,
+    seo: {
+      title: "Luxury Wedding Venues in Spain | LWD",
+      metaDescription: "Discover Spain's finest luxury wedding venues and vendors.",
+      canonicalPath: "/spain",
+    },
+    ai: {
+      summary: "Sun-drenched fincas, Andalusian palaces, and Balearic clifftops. Barcelona and Marbella lead the luxury market.",
+      focusKeywords: ["spain wedding venues", "luxury wedding spain", "ibiza wedding venue"],
+    },
+    regions: [],
+  },
+  {
+    slug: "greece",
+    name: "Greece",
+    iso2: "GR",
+    listingCount: 0,
+    seo: {
+      title: "Luxury Wedding Venues in Greece | LWD",
+      metaDescription: "Discover Greece's finest luxury wedding venues and vendors.",
+      canonicalPath: "/greece",
+    },
+    ai: {
+      summary: "Santorini and Mykonos dominate the aspirational market. Whitewashed clifftop ceremonies and Aegean light define the aesthetic.",
+      focusKeywords: ["greece wedding venues", "santorini wedding", "luxury wedding greece"],
+    },
+    regions: [],
+  },
+  {
+    slug: "usa",
+    name: "USA",
+    iso2: "US",
+    listingCount: 0,
+    seo: {
+      title: "Luxury Wedding Venues in the USA | LWD",
+      metaDescription: "Discover the USA's finest luxury wedding venues and vendors.",
+      canonicalPath: "/usa",
+    },
+    ai: {
+      summary: "Vast and diverse market. Napa Valley, The Hamptons, and New York City lead luxury intent. Ranch weddings and coastal estates strong.",
+      focusKeywords: ["usa wedding venues", "luxury wedding usa", "napa valley wedding"],
+    },
+    regions: [],
+  },
 ];
 
 // ---------------------------------------------------------------------------

@@ -7523,18 +7523,27 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
   const [saved, setSaved] = useState(false);
   const [lightIdx, setLightIdx] = useState(null);
   const [compareList, setCompareList] = useState(() => loadCompareList());
-  const [showCompareModal, setShowCompareModal] = useState(false);
   const { isAuthenticated: isAdmin } = useAdminAuth();
 
-  // Sync compareList to sessionStorage + notify global Aura button to shift up
+  // Sync compareList to sessionStorage + notify GlobalCompare to update
   useEffect(() => {
     saveCompareList(compareList);
     window.dispatchEvent(new CustomEvent('lwd:compare-bar', { detail: { active: compareList.length > 0 } }));
-    // Cleanup: broadcast inactive when this component unmounts
-    return () => {
-      window.dispatchEvent(new CustomEvent('lwd:compare-bar', { detail: { active: false } }));
-    };
   }, [compareList]);
+
+  // Re-sync if GlobalCompare removes/clears items from the bar
+  useEffect(() => {
+    const handler = () => {
+      const stored = loadCompareList();
+      setCompareList(prev => {
+        const prevIds = prev.map(v => String(v.id)).sort().join(',');
+        const newIds  = stored.map(v => String(v.id)).sort().join(',');
+        return prevIds === newIds ? prev : stored;
+      });
+    };
+    window.addEventListener('lwd:compare-bar', handler);
+    return () => window.removeEventListener('lwd:compare-bar', handler);
+  }, []);
   const [heroStyle, setHeroStyle] = useState("cinematic");
   const [enquiryOpen, setEnquiryOpen] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
@@ -7844,18 +7853,22 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
   };
 
   const addCompare = () => {
-    if (!compareList.find(v => v.id === VV.id)) {
-      setCompareList(l => {
-        const updated = [...l, { id: VV.id, name: VV.name }].slice(0, 3);
-        trackCompareAdd({
-          venueId:       VV.id,
-          venueName:     VV.name,
-          compareList:   l,           // peers already in bar before this add
-          sourceSurface: 'venue_profile',
-        });
-        return updated;
-      });
+    if (compareList.find(v => v.id === VV.id)) return; // already added
+    if (compareList.length >= 3) {
+      // At max — open the global compare modal
+      window.dispatchEvent(new CustomEvent('lwd:open-compare-modal'));
+      return;
     }
+    setCompareList(l => {
+      const updated = [...l, { id: VV.id, name: VV.name }];
+      trackCompareAdd({
+        venueId:       VV.id,
+        venueName:     VV.name,
+        compareList:   l,
+        sourceSurface: 'venue_profile',
+      });
+      return updated;
+    });
   };
 
   if (slug && loading) return (
@@ -8100,30 +8113,8 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
         </div>
 
         <MobileLeadBar venue={VV} />
-        <CompareBar
-          items={compareList}
-          onRemove={id => {
-            const removed = compareList.find(v => v.id === id);
-            setCompareList(l => l.filter(v => v.id !== id));
-            if (removed) {
-              trackCompareRemove({ venueId: id, venueName: removed.name, compareList, sourceSurface: 'compare_bar' });
-            }
-          }}
-          onClear={() => setCompareList([])}
-          onCompare={() => {
-            trackCompareView({ compareList, sourceSurface: 'compare_bar' });
-            trackComparePair({ compareList, sourceSurface: 'compare_bar' });
-            setShowCompareModal(true);
-          }}
-        />
         <Lightbox gallery={VV.gallery} idx={lightIdx} setLightIdx={setLightIdx} onClose={() => setLightIdx(null)} onPrev={() => setLightIdx(i => (i - 1 + (VV.gallery?.length || 1)) % (VV.gallery?.length || 1))} onNext={() => setLightIdx(i => (i + 1) % (VV.gallery?.length || 1))} engagement={VV.engagement?.photos} />
         {enquiryOpen && <LuxeEnquiryModal venue={VV} onClose={() => setEnquiryOpen(false)} entityType="venue" />}
-        {showCompareModal && compareList.length > 0 && (
-          <CompareModal
-            items={compareList}
-            onClose={() => setShowCompareModal(false)}
-          />
-        )}
         {showReviewForm && (
           <div
             style={{

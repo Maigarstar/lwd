@@ -971,20 +971,14 @@ export async function fetchListings(filters?: {
   }
 
   try {
-    let query = supabase!.from('listings').select()
+    // Route through edge function (service role) — bypasses RLS, works for all statuses
+    const result = await callListingsEdge({ action: 'list', filters: filters ?? {} })
 
-    if (filters?.status) query = query.eq('status', filters.status)
-    if (filters?.category_slug) query = query.eq('category_slug', filters.category_slug)
-    if (filters?.region_slug) query = query.eq('region_slug', filters.region_slug)
-    if (filters?.country_slug) query = query.eq('country_slug', filters.country_slug)
-    if (filters?.listing_type) query = query.eq('listing_type', filters.listing_type)
-
-    const { data: listings, error } = await query.order('created_at', { ascending: false })
-
-    if (error) throw error
+    // result is the raw array of snake_case rows from the edge function
+    const rows: any[] = Array.isArray(result) ? result : []
 
     // Convert snake_case database fields back to camelCase for frontend
-    const camelListings = listings?.map(listing => snakeToCamel(listing)) ?? []
+    const camelListings = rows.map(listing => snakeToCamel(listing))
 
     // Transform to match UI expectations (status formatting, display fields, etc.)
     const uiListings = camelListings.map(listing => transformSupabaseListingForUI(listing))

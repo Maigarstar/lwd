@@ -676,7 +676,7 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
                 }}
               />
 
-              {/* Map */}
+              {/* Map — hidden on mobile via .lwd-quickview-map CSS rule */}
               {mapUrl ? (
                 <div>
                   <div
@@ -691,7 +691,9 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
                   >
                     Location
                   </div>
+                  {/* Desktop map iframe */}
                   <div
+                    className="lwd-quickview-map"
                     style={{
                       borderRadius: "var(--lwd-radius-input)",
                       overflow:     "hidden",
@@ -712,6 +714,26 @@ export default function QuickViewModal({ item, onClose, onViewFull }) {
                       loading="lazy"
                     />
                   </div>
+                  {/* Mobile map link — shown only on mobile via CSS */}
+                  <a
+                    className="lwd-quickview-map-link"
+                    href={`https://maps.google.com/maps?q=${mapQuery}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display:        "none", // shown on mobile via CSS
+                      alignItems:     "center",
+                      gap:            6,
+                      fontFamily:     "var(--font-body)",
+                      fontSize:       11,
+                      color:          "#C9A84C",
+                      textDecoration: "none",
+                      padding:        "10px 0",
+                    }}
+                  >
+                    <span>◆</span>
+                    View on Google Maps →
+                  </a>
                 </div>
               ) : (
                 <div

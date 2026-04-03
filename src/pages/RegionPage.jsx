@@ -299,6 +299,7 @@ export default function RegionPage({
     return s;
   }, [dbListings, regionVenues]);
 
+
   const toggleSave = useCallback(
     (id) => setSavedIds((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]),
     [],
@@ -933,7 +934,6 @@ export default function RegionPage({
           style={{
             background: C.black,
             padding: "72px 48px",
-            borderBottom: `1px solid ${C.border}`,
           }}
         >
           <div style={{ maxWidth: 1100, margin: "0 auto" }}>
@@ -978,7 +978,7 @@ export default function RegionPage({
               </h2>
             </div>
 
-            {/* Paginated category carousel — 8 per page */}
+            {/* Paginated category carousel — SOON badge on categories with no live listings */}
             <CategoryCarousel
               categories={VENDOR_CATEGORIES}
               C={C}
@@ -1068,9 +1068,8 @@ export default function RegionPage({
             aria-label="Coming soon"
             className="lwd-region-section"
             style={{
-              background: C.dark,
+              background: C.black,
               padding: "96px 48px",
-              borderBottom: `1px solid ${C.border}`,
             }}
           >
             <div style={{ maxWidth: 640, margin: "0 auto", textAlign: "center" }}>
