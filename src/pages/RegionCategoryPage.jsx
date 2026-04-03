@@ -96,6 +96,32 @@ export default function RegionCategoryPage({
     return () => window.removeEventListener("resize", check);
   }, []);
 
+  // ── Apply immersive refinement filters on mount ───────────────────────────
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("lwd:immersive-refinement");
+      if (!raw) return;
+      sessionStorage.removeItem("lwd:immersive-refinement");
+      const ref = JSON.parse(raw);
+      // Map refinement → venueFilters shape
+      const styleMap = {
+        "Romantic": "Romantic", "Historic": "Historic", "Rustic Luxe": "Rustic Luxe",
+        "Coastal": "Coastal", "Vineyard": "Vineyard", "Intimate": "Intimate", "Modern": null,
+      };
+      const capacityMap = {
+        "Just us": "Up to 50", "Up to 50": "Up to 50",
+        "50–100": "51–100", "100–200": "101–200", "200+": "200+",
+      };
+      const priceMap = { "Mid-range £££": "£££", "Luxury ££££": "££££" };
+      const next = { ...DEFAULT_FILTERS, region: regionSlug || "all" };
+      if (ref.style    && styleMap[ref.style])    next.style    = styleMap[ref.style];
+      if (ref.guests   && capacityMap[ref.guests]) next.capacity = capacityMap[ref.guests];
+      if (ref.budget   && priceMap[ref.budget])    next.price    = priceMap[ref.budget];
+      setVenueFilters(next);
+    } catch (_) { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── Fetch live Supabase listings for this region/country ──────────────────
   useEffect(() => {
     const filters = { status: "published" };

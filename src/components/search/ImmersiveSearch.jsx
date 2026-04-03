@@ -142,6 +142,13 @@ export default function ImmersiveSearch({
   const [auraFocused,   setAuraFocused]   = useState(false);
   const [auraChatOpen,  setAuraChatOpen]  = useState(false);
   const [auraChatQuery, setAuraChatQuery] = useState("");
+
+  // Step 2 — refinement
+  const [pendingCat,    setPendingCat]    = useState(null); // category chosen in step 1
+  const [refStyle,      setRefStyle]      = useState(null);
+  const [refGuests,     setRefGuests]     = useState(null);
+  const [refSetting,    setRefSetting]    = useState(null);
+  const [refBudget,     setRefBudget]     = useState(null);
   const auraInputRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -160,6 +167,11 @@ export default function ImmersiveSearch({
       setSuggestions([]);
       setAuraMode(false);
       setAuraQuery("");
+      setPendingCat(null);
+      setRefStyle(null);
+      setRefGuests(null);
+      setRefSetting(null);
+      setRefBudget(null);
       const t = setTimeout(() => setMounted(true), 16);
       return () => clearTimeout(t);
     } else {
@@ -302,25 +314,44 @@ export default function ImmersiveSearch({
   }, [location, handleClose, onViewRegionCategory, onViewCategory]);
 
   const handleCategorySelect = useCallback((cat) => {
-    const catSlug     = cat.slug;
+    // Phase 1: card lifts + others fade
+    setExitingCat(cat.id);
+    // Phase 2: transition to step 2
+    setTimeout(() => {
+      setPendingCat(cat);
+      setExitingCat(null);
+      setStepIn(false);
+      setTimeout(() => { setStep(2); setStepIn(true); }, 320);
+    }, 420);
+  }, []);
+
+  const handleStep2Navigate = useCallback(() => {
+    if (!pendingCat) return;
+    const catSlug     = pendingCat.slug;
     const countrySlug = location?.countrySlug || null;
     const regionSlug  = location?.regionSlug  || null;
 
-    // Phase 1: card lifts + others fade (120ms)
-    setExitingCat(cat.id);
+    // Store refinements so the results page can pre-apply them
+    const refinement = {
+      style:   refStyle   || null,
+      guests:  refGuests  || null,
+      setting: refSetting || null,
+      budget:  refBudget  || null,
+    };
+    if (Object.values(refinement).some(Boolean)) {
+      sessionStorage.setItem("lwd:immersive-refinement", JSON.stringify(refinement));
+    } else {
+      sessionStorage.removeItem("lwd:immersive-refinement");
+    }
 
-    // Phase 2: overlay fades out (after 420ms)
-    setTimeout(() => {
-      setMounted(false);
-    }, 420);
-
-    // Phase 3: navigate + reset (after overlay fade completes)
+    setMounted(false);
     setTimeout(() => {
       onClose?.();
       setStep(0);
       setLocation(null);
       setQuery("");
-      setExitingCat(null);
+      setPendingCat(null);
+      setRefStyle(null); setRefGuests(null); setRefSetting(null); setRefBudget(null);
       if (countrySlug && regionSlug && catSlug) {
         onViewRegionCategory?.(countrySlug, regionSlug, catSlug);
       } else if (countrySlug && catSlug) {
@@ -328,8 +359,8 @@ export default function ImmersiveSearch({
       } else {
         onViewCategory?.();
       }
-    }, 880);
-  }, [location, onClose, onViewRegionCategory, onViewCategory]);
+    }, 460);
+  }, [pendingCat, location, refStyle, refGuests, refSetting, refBudget, onClose, onViewRegionCategory, onViewCategory]);
 
   // ── Don't mount at all when closed ───────────────────────────────────────
   if (!isOpen) return null;
@@ -455,7 +486,7 @@ export default function ImmersiveSearch({
           {/* Heading */}
           <div style={{ marginBottom: 52 }}>
             <p style={{ fontFamily: NU, fontSize: 10, letterSpacing: "0.22em", color: GOLD, textTransform: "uppercase", margin: "0 0 18px" }}>
-              Step 1 of 2
+              Step 1 of 3
             </p>
             <h1 style={{
               fontFamily: GD, fontWeight: 400, margin: 0, color: WHITE,
@@ -669,7 +700,7 @@ export default function ImmersiveSearch({
           {/* Heading */}
           <div style={{ marginBottom: 24 }}>
             <p style={{ fontFamily: NU, fontSize: 10, letterSpacing: "0.22em", color: GOLD, textTransform: "uppercase", margin: "0 0 18px" }}>
-              Step 2 of 2
+              Step 2 of 3
             </p>
             <h1 style={{
               fontFamily: GD, fontWeight: 400, margin: 0, color: WHITE,
@@ -811,6 +842,138 @@ export default function ImmersiveSearch({
           >
             Prefer to describe it? Ask Aura →
           </button>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          STEP 2 — REFINEMENT
+      ═══════════════════════════════════════════════════════════════════ */}
+      {step === 2 && !auraMode && (
+        <div style={stepTransition}>
+
+          {/* Back */}
+          <button
+            onClick={() => { setStepIn(false); setTimeout(() => { setStep(1); setStepIn(true); setPendingCat(null); }, 320); }}
+            style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(245,240,232,0.35)", fontFamily:NU, fontSize:11, letterSpacing:"0.14em", textTransform:"uppercase", display:"flex", alignItems:"center", gap:10, padding:"0 0 40px", transition:"color 0.25s ease" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = WHITE)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(245,240,232,0.35)")}
+          >
+            <span style={{ fontSize:13, opacity:0.7 }}>←</span> Back
+          </button>
+
+          {/* Heading */}
+          <div style={{ marginBottom: 44 }}>
+            <p style={{ fontFamily:NU, fontSize:10, letterSpacing:"0.22em", color:GOLD, textTransform:"uppercase", margin:"0 0 18px" }}>
+              Step 3 of 3
+            </p>
+            <h1 style={{ fontFamily:GD, fontWeight:400, margin:0, color:WHITE, fontSize:"clamp(36px, 5.5vw, 72px)", lineHeight:1.05, letterSpacing:"-0.025em" }}>
+              Refine your<br />vision
+            </h1>
+            <p style={{ fontFamily:NU, fontSize:15, color:"rgba(245,240,232,0.48)", margin:"16px 0 0", fontWeight:300, letterSpacing:"0.01em" }}>
+              All optional — skip anything that doesn't apply.
+            </p>
+          </div>
+
+          {/* Refinement rows */}
+          <div style={{ display:"flex", flexDirection:"column", gap:28, maxWidth:760 }}>
+            {[
+              {
+                label: "Style",
+                key: "style",
+                value: refStyle,
+                setter: setRefStyle,
+                options: ["Romantic","Historic","Rustic Luxe","Coastal","Vineyard","Intimate","Modern"],
+              },
+              {
+                label: "Guests",
+                key: "guests",
+                value: refGuests,
+                setter: setRefGuests,
+                options: ["Just us","Up to 50","50–100","100–200","200+"],
+              },
+              {
+                label: "Setting",
+                key: "setting",
+                value: refSetting,
+                setter: setRefSetting,
+                options: ["Indoor","Outdoor","Both"],
+              },
+              {
+                label: "Budget",
+                key: "budget",
+                value: refBudget,
+                setter: setRefBudget,
+                options: ["Flexible","Mid-range £££","Luxury ££££"],
+              },
+            ].map((row) => (
+              <div key={row.key} style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                <span style={{ fontFamily:NU, fontSize:10, letterSpacing:"0.2em", color:"rgba(245,240,232,0.32)", textTransform:"uppercase" }}>
+                  {row.label}
+                </span>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                  {row.options.map((opt) => {
+                    const active = row.value === opt;
+                    return (
+                      <button
+                        key={opt}
+                        onClick={() => row.setter(active ? null : opt)}
+                        style={{
+                          background:    active ? GOLD : "transparent",
+                          border:        `1px solid ${active ? GOLD : "rgba(245,240,232,0.14)"}`,
+                          borderRadius:  2,
+                          padding:       "9px 18px",
+                          color:         active ? "#0a0906" : "rgba(245,240,232,0.65)",
+                          fontFamily:    NU,
+                          fontSize:      13,
+                          fontWeight:    active ? 600 : 400,
+                          letterSpacing: "0.03em",
+                          cursor:        "pointer",
+                          transition:    "all 0.2s ease",
+                        }}
+                        onMouseEnter={(e) => { if (!active) { e.currentTarget.style.borderColor = "rgba(201,168,76,0.5)"; e.currentTarget.style.color = WHITE; } }}
+                        onMouseLeave={(e) => { if (!active) { e.currentTarget.style.borderColor = "rgba(245,240,232,0.14)"; e.currentTarget.style.color = "rgba(245,240,232,0.65)"; } }}
+                      >
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA row */}
+          <div style={{ display:"flex", alignItems:"center", gap:28, marginTop:48 }}>
+            <button
+              onClick={handleStep2Navigate}
+              style={{
+                background:    GOLD,
+                border:        "none",
+                borderRadius:  2,
+                padding:       "14px 36px",
+                color:         "#0a0906",
+                fontFamily:    NU,
+                fontSize:      12,
+                fontWeight:    700,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                cursor:        "pointer",
+                transition:    "opacity 0.2s ease",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+            >
+              Show Results →
+            </button>
+            <button
+              onClick={handleStep2Navigate}
+              style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(245,240,232,0.3)", fontFamily:NU, fontSize:12, letterSpacing:"0.1em", transition:"color 0.2s ease" }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(245,240,232,0.65)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(245,240,232,0.3)")}
+            >
+              Skip →
+            </button>
+          </div>
         </div>
       )}
 
