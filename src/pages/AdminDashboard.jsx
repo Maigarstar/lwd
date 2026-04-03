@@ -6599,7 +6599,16 @@ function VenueProfilesAdminModule({ C, onNavigate, refreshKey = 0 }) {
 // Shows leads with leadType = 'partner_enquiry' from the leads table
 // ═════════════════════════════════════════════════════════════════════════════
 
-function PartnerEnquiriesModule({ C }) {
+function PartnerEnquiriesModule({ C, filterType }) {
+  const isAdvertise = filterType === 'advertise';
+  const moduleTitle    = isAdvertise ? 'Advertise Leads'    : 'Partner Enquiries';
+  const moduleSubtitle = isAdvertise
+    ? 'Enquiries from businesses wanting to advertise on LWD'
+    : 'Venues and vendors wanting to list or advertise';
+  const leadTypes = isAdvertise
+    ? ['advertise_enquiry', 'advertise']
+    : ['partner_enquiry'];
+
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -6622,19 +6631,19 @@ function PartnerEnquiriesModule({ C }) {
       const { data, error: err } = await supabase
         .from('leads')
         .select('*')
-        .eq('lead_type', 'partner_enquiry')
+        .in('lead_type', leadTypes)
         .order('created_at', { ascending: false });
       if (err) throw err;
       setLeads(data || []);
     } catch (err) {
-      setError('Failed to load partner enquiries.');
+      setError(`Failed to load ${moduleTitle.toLowerCase()}.`);
       console.warn('PartnerEnquiriesModule:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { loadLeads(); }, []);
+  useEffect(() => { loadLeads(); }, [filterType]);
 
   const loadNotes = async (leadId) => {
     try {
@@ -6694,20 +6703,20 @@ function PartnerEnquiriesModule({ C }) {
         <div style={{ padding: '24px 24px 16px', borderBottom: `1px solid ${C.border}` }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
             <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 20, fontWeight: 600, color: C.white, margin: 0 }}>
-              Partner Enquiries
+              {moduleTitle}
             </h2>
             <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: C.grey, background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: '2px 10px' }}>
               {leads.length} total
             </span>
           </div>
           <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: C.grey, margin: 0 }}>
-            Venues and vendors wanting to list or advertise
+            {moduleSubtitle}
           </p>
         </div>
 
         {leads.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: C.grey, fontFamily: 'var(--font-body)', fontSize: 13 }}>
-            No partner enquiries yet.
+            No {moduleTitle.toLowerCase()} yet.
           </div>
         ) : (
           leads.map(lead => {
