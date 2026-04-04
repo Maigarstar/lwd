@@ -217,7 +217,7 @@ const FAQ_ITEMS = [
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export default function PricingPage({ onNavigateHome, onNavigateListYourBusiness, footerNav }) {
+export default function PricingPage({ onNavigateHome, onNavigateListYourBusiness, footerNav, onToggleDark, darkMode, onVendorLogin, onNavigateStandard, onNavigateAbout }) {
   const [billing, setBilling] = useState("annual"); // "monthly" | "annual"
   const [openFaq, setOpenFaq] = useState(null);
   const [showCompare, setShowCompare] = useState(false);
@@ -244,7 +244,13 @@ export default function PricingPage({ onNavigateHome, onNavigateListYourBusiness
 
   return (
     <div style={{ minHeight: "100vh", background: sectionBg, color: textPrimary, fontFamily: NU }}>
-      <HomeNav onNavigateHome={onNavigateHome} />
+      <HomeNav
+        onToggleDark={onToggleDark}
+        darkMode={darkMode}
+        onVendorLogin={onVendorLogin}
+        onNavigateStandard={onNavigateStandard}
+        onNavigateAbout={onNavigateAbout}
+      />
 
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
       <section style={{

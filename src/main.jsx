@@ -628,6 +628,7 @@ function App() {
     onNavigateArtistryAwards: goArtistryAwards,
     onNavigateMagazine: goMagazine,
     onNavigatePartnerEnquiry: goPartnerEnquiry,
+    onNavigatePricing: goPricing,
   };
 
   return (
@@ -1007,6 +1008,11 @@ function App() {
             onNavigateHome={goHome}
             onNavigateListYourBusiness={goListYourBusiness}
             footerNav={footerNav}
+            onToggleDark={toggleDark}
+            darkMode={darkMode}
+            onVendorLogin={goVendorLogin}
+            onNavigateStandard={goStandard}
+            onNavigateAbout={goAbout}
           />
         )}
         {page === "partner-enquiry" && (

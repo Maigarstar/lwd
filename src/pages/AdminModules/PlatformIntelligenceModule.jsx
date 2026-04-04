@@ -1823,7 +1823,7 @@ export default function PlatformIntelligenceModule({ C }) {
   const [selectedVendor, setSelectedVendor] = useState(null);
 
   return (
-    <div style={{ maxWidth: 1100 }}>
+    <div style={{ width: "100%" }}>
 
       {/* ── Page header ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>

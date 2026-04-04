@@ -22,9 +22,9 @@ create policy "vendor update own roi settings"
 
 -- RPC: save ROI settings (called from analytics panel)
 create or replace function public.save_vendor_roi_settings(
-  p_vendor_id       uuid,
-  p_booking_value   numeric,
-  p_close_rate      numeric
+  p_vendor_id          uuid,
+  p_avg_booking_value  numeric,
+  p_est_close_rate     numeric
 )
 returns void
 language sql
@@ -32,8 +32,8 @@ security definer
 as $$
   update public.vendors
   set
-    avg_booking_value   = p_booking_value,
-    est_close_rate      = p_close_rate,
+    avg_booking_value   = p_avg_booking_value,
+    est_close_rate      = p_est_close_rate,
     roi_settings_set_at = now()
   where id = p_vendor_id;
 $$;

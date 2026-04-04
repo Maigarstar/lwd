@@ -12,30 +12,27 @@
 with ranked as (
   select
     session_id,
-    row_number() over (order by created_at) as rn
+    (row_number() over (order by first_seen_at) - 1) % 9 as slot
   from public.live_sessions
   where country_code is null
 ),
-assigned as (
-  select
-    session_id,
-    case (rn - 1) % 9
-      when 0 then row('GB', 'United Kingdom')
-      when 1 then row('GB', 'United Kingdom')
-      when 2 then row('GB', 'United Kingdom')
-      when 3 then row('US', 'United States')
-      when 4 then row('US', 'United States')
-      when 5 then row('AE', 'United Arab Emirates')
-      when 6 then row('AU', 'Australia')
-      when 7 then row('DE', 'Germany')
-      when 8 then row('FR', 'France')
-    end as geo
-  from ranked
+geo_map (slot, cc, cn) as (
+  values
+    (0, 'GB', 'United Kingdom'),
+    (1, 'GB', 'United Kingdom'),
+    (2, 'GB', 'United Kingdom'),
+    (3, 'US', 'United States'),
+    (4, 'US', 'United States'),
+    (5, 'AE', 'United Arab Emirates'),
+    (6, 'AU', 'Australia'),
+    (7, 'DE', 'Germany'),
+    (8, 'FR', 'France')
 )
 update public.live_sessions ls
 set
-  country_code = (a.geo).f1,
-  country_name = (a.geo).f2
-from assigned a
-where ls.session_id = a.session_id
+  country_code = g.cc,
+  country_name = g.cn
+from ranked r
+join geo_map g on g.slot = r.slot
+where ls.session_id = r.session_id
   and ls.country_code is null;

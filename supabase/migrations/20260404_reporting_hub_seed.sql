@@ -11,95 +11,73 @@
 do $$
 declare
   vid  uuid := '11111111-1111-1111-1111-111111111113';
-  rid  uuid := gen_random_uuid();
 begin
 
--- ── 1. Ensure analytics_enabled = true for dev vendor ────────────────────
+-- ── 1. Ensure analytics_enabled = true + tier set for dev vendor ──────────
 update public.vendors
 set analytics_enabled = true,
     tier = 'featured'
 where id = vid;
 
 -- ── 2. Insert 12 months of monthly snapshots ─────────────────────────────
--- Realistic seasonal pattern for a UK luxury venue:
---   Q1 (Jan-Mar): low/moderate  Q2 (Apr-Jun): peak  Q3 (Jul-Sep): peak  Q4 (Oct-Dec): moderate
-
+-- Seasonal pattern for a UK luxury venue (peak Apr-Sep, quiet Dec-Jan)
 insert into public.vendor_monthly_snapshots
-  (vendor_id, month, views, unique_sessions, shortlists, compares, enquiries,
-   touch_points, media_value_low, media_value_high, est_revenue,
-   report_frequency, created_at)
+  (vendor_id, month, views, unique_sessions, shortlists, compares,
+   enquiry_started, enquiry_submitted, outbound_clicks,
+   touch_points, media_value_low, media_value_high,
+   est_revenue_low, est_revenue_high, roi_multiple)
 values
-  -- 12 months back (May 2025)
-  (vid, to_char(date_trunc('month', now()) - interval '12 months', 'YYYY-MM'),
-   312, 241, 18, 7, 3, 340, 3280, 5930, 54000, 'monthly', now()),
-  -- 11 months (Jun 2025 — peak start)
-  (vid, to_char(date_trunc('month', now()) - interval '11 months', 'YYYY-MM'),
-   489, 374, 31, 14, 6, 540, 5190, 9480, 108000, 'monthly', now()),
-  -- 10 months (Jul 2025 — peak)
-  (vid, to_char(date_trunc('month', now()) - interval '10 months', 'YYYY-MM'),
-   621, 488, 42, 19, 9, 691, 6620, 11990, 162000, 'monthly', now()),
-  -- 9 months (Aug 2025 — peak)
-  (vid, to_char(date_trunc('month', now()) - interval '9 months', 'YYYY-MM'),
-   584, 452, 38, 17, 8, 647, 6230, 11290, 144000, 'monthly', now()),
-  -- 8 months (Sep 2025 — declining)
-  (vid, to_char(date_trunc('month', now()) - interval '8 months', 'YYYY-MM'),
-   441, 337, 27, 11, 5, 484, 4640, 8410, 90000, 'monthly', now()),
-  -- 7 months (Oct 2025)
-  (vid, to_char(date_trunc('month', now()) - interval '7 months', 'YYYY-MM'),
-   378, 289, 22, 9, 4, 413, 3950, 7170, 72000, 'monthly', now()),
-  -- 6 months (Nov 2025)
-  (vid, to_char(date_trunc('month', now()) - interval '6 months', 'YYYY-MM'),
-   298, 231, 17, 6, 3, 324, 3090, 5620, 54000, 'monthly', now()),
-  -- 5 months (Dec 2025 — low)
-  (vid, to_char(date_trunc('month', now()) - interval '5 months', 'YYYY-MM'),
-   201, 158, 11, 4, 2, 218, 2070, 3770, 36000, 'monthly', now()),
-  -- 4 months (Jan 2026 — planning season spike)
-  (vid, to_char(date_trunc('month', now()) - interval '4 months', 'YYYY-MM'),
-   433, 334, 29, 13, 5, 480, 4600, 8350, 90000, 'monthly', now()),
-  -- 3 months (Feb 2026 — engagement ring season)
-  (vid, to_char(date_trunc('month', now()) - interval '3 months', 'YYYY-MM'),
-   512, 397, 36, 16, 7, 571, 5490, 9960, 126000, 'monthly', now()),
-  -- 2 months (Mar 2026)
-  (vid, to_char(date_trunc('month', now()) - interval '2 months', 'YYYY-MM'),
-   487, 376, 33, 15, 6, 541, 5190, 9410, 108000, 'monthly', now()),
-  -- 1 month (Apr 2026 — current peak)
-  (vid, to_char(date_trunc('month', now()) - interval '1 month', 'YYYY-MM'),
-   558, 431, 39, 18, 8, 623, 5990, 10870, 144000, 'monthly', now())
+  (vid, date_trunc('month', now() - interval '12 months')::date,
+   312, 241, 18, 7, 5, 3, 22,  340, 3280, 5930,  45000,  54000, 36.2),
+  (vid, date_trunc('month', now() - interval '11 months')::date,
+   489, 374, 31, 14, 9, 6, 38,  540, 5190, 9480,  90000, 108000, 30.9),
+  (vid, date_trunc('month', now() - interval '10 months')::date,
+   621, 488, 42, 19, 12, 9, 51, 691, 6620, 11990, 135000, 162000, 46.4),
+  (vid, date_trunc('month', now() - interval '9 months')::date,
+   584, 452, 38, 17, 11, 8, 47, 647, 6230, 11290, 120000, 144000, 41.2),
+  (vid, date_trunc('month', now() - interval '8 months')::date,
+   441, 337, 27, 11,  8, 5, 33, 484, 4640,  8410,  75000,  90000, 25.8),
+  (vid, date_trunc('month', now() - interval '7 months')::date,
+   378, 289, 22,  9,  6, 4, 28, 413, 3950,  7170,  60000,  72000, 20.6),
+  (vid, date_trunc('month', now() - interval '6 months')::date,
+   298, 231, 17,  6,  5, 3, 19, 324, 3090,  5620,  45000,  54000, 15.5),
+  (vid, date_trunc('month', now() - interval '5 months')::date,
+   201, 158, 11,  4,  3, 2, 12, 218, 2070,  3770,  30000,  36000, 10.3),
+  (vid, date_trunc('month', now() - interval '4 months')::date,
+   433, 334, 29, 13,  8, 5, 34, 480, 4600,  8350,  75000,  90000, 25.8),
+  (vid, date_trunc('month', now() - interval '3 months')::date,
+   512, 397, 36, 16, 10, 7, 41, 571, 5490,  9960, 105000, 126000, 36.1),
+  (vid, date_trunc('month', now() - interval '2 months')::date,
+   487, 376, 33, 15,  9, 6, 38, 541, 5190,  9410,  90000, 108000, 30.9),
+  (vid, date_trunc('month', now() - interval '1 month')::date,
+   558, 431, 39, 18, 11, 8, 44, 623, 5990, 10870, 120000, 144000, 41.2)
 on conflict (vendor_id, month) do nothing;
 
 -- ── 3. Insert vendor_report_sends history ────────────────────────────────
-
--- Get or generate a report send ID
-rid := gen_random_uuid();
-
 insert into public.vendor_report_sends
-  (id, vendor_id, month, sent_at, opened_at, outcome_responded,
-   open_token, outcome_token)
+  (id, vendor_id, month, email_address, sent_at, opened_at, outcome_responded)
 values
   -- 3 months ago — sent, opened, responded
   (gen_random_uuid(), vid,
-   to_char(date_trunc('month', now()) - interval '3 months', 'YYYY-MM'),
-   date_trunc('month', now()) - interval '3 months' + interval '2 days',
-   date_trunc('month', now()) - interval '3 months' + interval '2 days 4 hours',
-   true,
-   encode(gen_random_bytes(16), 'hex'),
-   encode(gen_random_bytes(16), 'hex')),
+   date_trunc('month', now() - interval '3 months')::date,
+   'contact@grandpavilion.com',
+   date_trunc('month', now() - interval '3 months') + interval '2 days',
+   date_trunc('month', now() - interval '3 months') + interval '2 days 4 hours',
+   true),
   -- 2 months ago — sent, opened, not responded
   (gen_random_uuid(), vid,
-   to_char(date_trunc('month', now()) - interval '2 months', 'YYYY-MM'),
-   date_trunc('month', now()) - interval '2 months' + interval '2 days',
-   date_trunc('month', now()) - interval '2 months' + interval '3 days 2 hours',
-   false,
-   encode(gen_random_bytes(16), 'hex'),
-   encode(gen_random_bytes(16), 'hex')),
-  -- 1 month ago — sent, opened immediately
+   date_trunc('month', now() - interval '2 months')::date,
+   'contact@grandpavilion.com',
+   date_trunc('month', now() - interval '2 months') + interval '2 days',
+   date_trunc('month', now() - interval '2 months') + interval '3 days 2 hours',
+   false),
+  -- 1 month ago — sent, opened quickly
   (gen_random_uuid(), vid,
-   to_char(date_trunc('month', now()) - interval '1 month', 'YYYY-MM'),
-   date_trunc('month', now()) - interval '1 month' + interval '2 days',
-   date_trunc('month', now()) - interval '1 month' + interval '2 days 1 hour',
-   false,
-   encode(gen_random_bytes(16), 'hex'),
-   encode(gen_random_bytes(16), 'hex'))
-on conflict do nothing;
+   date_trunc('month', now() - interval '1 month')::date,
+   'contact@grandpavilion.com',
+   date_trunc('month', now() - interval '1 month') + interval '2 days',
+   date_trunc('month', now() - interval '1 month') + interval '2 days 1 hour',
+   false)
+on conflict (vendor_id, month) do nothing;
 
 end $$;

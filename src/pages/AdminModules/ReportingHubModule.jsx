@@ -185,10 +185,10 @@ function OverviewTab({ C }) {
 
     try {
       const [sentRes, openedRes, respondedRes, convertedRes, recentRes] = await Promise.all([
-        supabase.from("vendor_report_sends").select("*", { count: "exact", head: true }).gte("sent_at", daysAgo(30)),
-        supabase.from("vendor_report_sends").select("*", { count: "exact", head: true }).not("opened_at", "is", null).gte("sent_at", daysAgo(30)),
-        supabase.from("vendor_report_sends").select("*", { count: "exact", head: true }).eq("outcome_responded", true).gte("sent_at", daysAgo(30)),
-        supabase.from("vendor_enquiry_outcomes").select("*", { count: "exact", head: true }).eq("converted", true).gte("responded_at", daysAgo(30)),
+        supabase.from("vendor_report_sends").select("*", { count: "exact", head: true }).gte("sent_at", daysAgo(90)),
+        supabase.from("vendor_report_sends").select("*", { count: "exact", head: true }).not("opened_at", "is", null).gte("sent_at", daysAgo(90)),
+        supabase.from("vendor_report_sends").select("*", { count: "exact", head: true }).eq("outcome_responded", true).gte("sent_at", daysAgo(90)),
+        supabase.from("vendor_enquiry_outcomes").select("*", { count: "exact", head: true }).eq("converted", true).gte("responded_at", daysAgo(90)),
         supabase.from("vendor_report_sends").select("*, vendors(name, email)").order("sent_at", { ascending: false }).limit(10),
       ]);
 
@@ -228,10 +228,10 @@ function OverviewTab({ C }) {
     <div>
       {/* KPI cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 28 }}>
-        <StatCard label="Reports Sent" value={loading ? "…" : fmt(sent)} sub="Last 30 days" accent={GOLD} C={C} />
+        <StatCard label="Reports Sent" value={loading ? "…" : fmt(sent)} sub="Last 90 days" accent={GOLD} C={C} />
         <StatCard label="Open Rate" value={loading ? "…" : `${openRate}%`} sub={`${opened} of ${sent} opened`} accent="#22c55e" C={C} />
         <StatCard label="Outcome Responses" value={loading ? "…" : `${responseRate}%`} sub={`${responded} vendors responded`} accent="#3b82f6" C={C} />
-        <StatCard label="Conversions Confirmed" value={loading ? "…" : fmt(converted)} sub="Yes responses last 30 days" accent="#a78bfa" C={C} />
+        <StatCard label="Conversions Confirmed" value={loading ? "…" : fmt(converted)} sub="Yes responses last 90 days" accent="#a78bfa" C={C} />
       </div>
 
       {/* Recent sends table */}

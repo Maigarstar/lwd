@@ -298,7 +298,7 @@ serve(async (req) => {
   // Get all analytics-enabled vendors
   const { data: vendors, error: vendorErr } = await supabase
     .from("vendors")
-    .select("id, name, email, entity_type, country_code, avg_booking_value, est_close_rate, analytics_enabled")
+    .select("id, name, email, analytics_enabled")
     .eq("analytics_enabled", true);
 
   if (vendorErr || !vendors?.length) {
@@ -342,7 +342,7 @@ serve(async (req) => {
       });
 
       // ROI estimate
-      const defaults = getDefaults(vendor.entity_type || "default", vendor.country_code || "");
+      const defaults = getDefaults("default", "");
       const bookingValue = vendor.avg_booking_value || defaults.value;
       const closeRate    = vendor.est_close_rate    || defaults.rate;
       const estBookings  = (stats.enquiry_submitted * closeRate) / 100;

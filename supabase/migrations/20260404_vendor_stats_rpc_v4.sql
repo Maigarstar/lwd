@@ -8,6 +8,10 @@
 -- Run in: Supabase SQL Editor
 -- ═══════════════════════════════════════════════════════════════════════════
 
+-- Drop old single-argument signatures that conflict with the new overload
+drop function if exists public.get_listing_daily_views(uuid);
+drop function if exists public.get_listing_daily_events(uuid, text);
+
 create or replace function public.get_listing_daily_views(
   p_listing_id uuid,
   p_from       timestamptz default now() - interval '30 days',

@@ -760,7 +760,7 @@ function AdminControlsTab({ vendorId, vendorName, vendorData, onVendorDataChange
         .from("vendor_report_sends")
         .delete()
         .eq("vendor_id", vendorId)
-        .eq("report_month", currentMonth);
+        .eq("month", currentMonth + "-01");
       if (error) throw error;
       showToast(true, "Send record cleared — report can be resent this month.");
     } catch (e) {

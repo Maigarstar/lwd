@@ -176,7 +176,7 @@ export default function HomeFooter({ onListBusiness, onNavigateStandard, onNavig
                   key={l}
                   role="link"
                   tabIndex={0}
-                  onClick={() => { if (l === "List Your Business") onListBusiness?.(); if (l === "Contact") onNavigateContact?.(); if (l === "Pricing Plans") onNavigatePartnership?.(); }}
+                  onClick={() => { if (l === "List Your Business") onListBusiness?.(); if (l === "Contact") onNavigateContact?.(); if (l === "Pricing Plans") onNavigatePricing?.(); }}
                   onKeyDown={(e) => { if (e.key === "Enter" && l === "List Your Business") onListBusiness?.(); }}
                   style={{
                     fontFamily: NU,

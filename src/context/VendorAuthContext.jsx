@@ -32,10 +32,12 @@ export function VendorAuthProvider({ children }) {
         setIsAuthenticated(true);
       } else if (import.meta.env.DEV) {
         // Dev mode: Use mock vendor for testing
+        // UUID matches seed data in 20260404_analytics_seed.sql
         setVendor({
-          id: "vdr-13",
+          id: "11111111-1111-1111-1111-111111111113",
           name: "The Grand Pavilion",
           email: "contact@grandpavilion.com",
+          analytics_enabled: true,
         });
         setIsAuthenticated(true);
       }
