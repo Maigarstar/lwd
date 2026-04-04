@@ -1231,6 +1231,12 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
   // ── Guard ──────────────────────────────────────────────────────────────────
   if (!analyticsEnabled) return <LockedState C={C} />;
 
+  // ── No-data detection ──────────────────────────────────────────────────────
+  // True when loading finished but all stats are zero (no events yet or RPCs
+  // haven't been created in Supabase yet)
+  const noDataYet = !loading && stats !== null && (stats.views || 0) === 0 &&
+    (stats.shortlists || 0) === 0 && (stats.enquirySubmitted || 0) === 0;
+
   // ── Computed values ────────────────────────────────────────────────────────
   const cs   = stats    || {};
   const prev = prevStats || {};
@@ -1306,6 +1312,30 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+
+      {/* ── No-data banner ────────────────────────────────────────────── */}
+      {noDataYet && (
+        <div style={{
+          background: "rgba(201,168,76,0.06)", border: "1px solid rgba(201,168,76,0.2)",
+          borderLeft: `3px solid ${GOLD}`, borderRadius: 8,
+          padding: "14px 18px", display: "flex", alignItems: "flex-start", gap: 12,
+        }}>
+          <span style={{ fontSize: 18, flexShrink: 0 }}>✦</span>
+          <div>
+            <div style={{ fontFamily: NU, fontSize: 13, color: GOLD, fontWeight: 600, marginBottom: 4 }}>
+              No tracking data for this period yet
+            </div>
+            <div style={{ fontFamily: NU, fontSize: 12, color: textMuted, lineHeight: 1.5 }}>
+              Events will appear here as couples view this profile. If you've just gone live, check back in 24–48 hours.
+              {vendor?.isAdminPreview && (
+                <span style={{ display: "block", marginTop: 6, color: "#f97316", fontWeight: 600 }}>
+                  Admin: run the analytics seed SQL in Supabase to populate demo data.
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", alignItems: isMobile ? "flex-start" : "center",
