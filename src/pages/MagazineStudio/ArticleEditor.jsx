@@ -3418,7 +3418,7 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
   );
 
   return (
-    <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', background: S.surface, borderRight: `1px solid ${S.border}`, overflowY: 'auto', height: '100%' }}>
+    <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', background: S.surface, borderLeft: `1px solid ${S.border}`, overflowY: 'auto', height: '100%' }}>
       {/* Header */}
       <div style={{ padding: '14px 16px 12px', borderBottom: `1px solid ${S.border}`, flexShrink: 0 }}>
         <div style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 5 }}>Document</div>
@@ -3587,13 +3587,13 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
           {intel.issues?.slice(0, 3).map((issue, i) => (
             <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
               <span style={{ color: S.error, fontSize: 9, flexShrink: 0, marginTop: 2 }}>●</span>
-              <span style={{ fontFamily: FU, fontSize: 11, color: S.muted, lineHeight: 1.4 }}>{issue}</span>
+              <span style={{ fontFamily: FU, fontSize: 11, color: S.muted, lineHeight: 1.4 }}>{typeof issue === 'string' ? issue : issue.msg}</span>
             </div>
           ))}
           {intel.passes?.slice(0, 2).map((pass, i) => (
             <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
               <span style={{ color: S.success, fontSize: 9, flexShrink: 0, marginTop: 2 }}>●</span>
-              <span style={{ fontFamily: FU, fontSize: 11, color: S.muted, lineHeight: 1.4 }}>{pass}</span>
+              <span style={{ fontFamily: FU, fontSize: 11, color: S.muted, lineHeight: 1.4 }}>{typeof pass === 'string' ? pass : pass.msg}</span>
             </div>
           ))}
           <button onClick={onOpenIntelligence}
@@ -4543,23 +4543,23 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
         }
       </div>
 
-      {/* 3-zone layout: sidebar | canvas | intel panel */}
+      {/* 3-zone layout: canvas | doc sidebar | intel panel */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
-        {/* Left: Document Sidebar */}
+        {/* Left (dominant): Editable Article Canvas */}
+        <EditableCanvas
+          formData={formData} onChange={updateForm}
+          activeBlockIdx={activeBlockIdx} setActiveBlockIdx={setActiveBlockIdx}
+          showTemplate={showTemplate} setShowTemplate={setShowTemplate}
+          S={SS}
+        />
+
+        {/* Right: Document Sidebar */}
         <DocSidebar
           formData={formData} onChange={updateForm}
           tone={tone} onToneChange={setTone}
           onPublish={publish} onUnpublish={unpublish} onSave={save} saving={saving}
           intel={contentIntel} focusKeyword={focusKeyword} onKeywordChange={setFocusKeyword}
           onOpenIntelligence={() => setShowIntelPanel(p => !p)}
-          S={SS}
-        />
-
-        {/* Right: Editable Article Canvas */}
-        <EditableCanvas
-          formData={formData} onChange={updateForm}
-          activeBlockIdx={activeBlockIdx} setActiveBlockIdx={setActiveBlockIdx}
-          showTemplate={showTemplate} setShowTemplate={setShowTemplate}
           S={SS}
         />
 

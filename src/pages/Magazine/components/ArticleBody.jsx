@@ -818,11 +818,194 @@ export default function ArticleBody({ content = [], isLight = true }) {
                       {v.url ? (
                         <button
                           onClick={() => handleVendorLink(v.url, v.name)}
-                          style={{ fontFamily: FS, fontSize: 15, color: TEXT, textDecoration: 'none', borderBottom: `1px solid ${DIVBG}`, background: 'none', border: 'none', borderBottom: `1px solid ${DIVBG}`, cursor: 'pointer', padding: 0 }}
+                          style={{ fontFamily: FS, fontSize: 15, color: TEXT, textDecoration: 'none', background: 'none', border: 'none', borderBottom: `1px solid ${DIVBG}`, cursor: 'pointer', padding: 0 }}
                         >{v.name}</button>
                       ) : (
                         <span style={{ fontFamily: FS, fontSize: 15, color: TEXT }}>{v.name}</span>
                       )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          }
+
+          // ── Display Section ──────────────────────────────────────────────
+          case 'display_section': {
+            const bg   = block.bg || '#1a1714';
+            const fg   = block.fg || '#f5f0e8';
+            const sz   = block.fontSize || 64;
+            const sticky = !!block.sticky;
+            return (
+              <div key={i} style={{ margin: '32px -48px', position: 'relative' }}>
+                <section style={{
+                  position: sticky ? 'sticky' : 'relative',
+                  top: sticky ? 0 : undefined,
+                  zIndex: sticky ? 2 : undefined,
+                  background: block.bgImage ? `url(${block.bgImage}) center/cover no-repeat` : bg,
+                  padding: 'clamp(48px,8vw,96px) clamp(32px,6vw,96px)',
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: block.align === 'center' ? 'center' : block.align === 'right' ? 'flex-end' : 'flex-start',
+                  textAlign: block.align || 'left',
+                  minHeight: block.minHeight || 320,
+                }}>
+                  {block.bgImage && <div style={{ position: 'absolute', inset: 0, background: `rgba(0,0,0,${block.overlay ?? 0.45})` }} />}
+                  <div style={{ position: 'relative', zIndex: 1, maxWidth: 900 }}>
+                    {block.eyebrow && <div style={{ fontFamily: FU, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: GOLD, marginBottom: 20, opacity: 0.8 }}>{block.eyebrow}</div>}
+                    <div style={{ fontFamily: FD, fontSize: `clamp(${Math.round(sz*0.55)}px, ${sz/16}vw, ${sz}px)`, fontWeight: 400, lineHeight: 1.1, color: fg }}
+                      dangerouslySetInnerHTML={{ __html: block.text || '' }} />
+                    {block.subtitle && <div style={{ fontFamily: FS, fontSize: 20, fontStyle: 'italic', color: fg, opacity: 0.7, marginTop: 24, lineHeight: 1.55 }}>{block.subtitle}</div>}
+                  </div>
+                </section>
+              </div>
+            );
+          }
+
+          // ── Sticky Scroll Section ─────────────────────────────────────────
+          case 'sticky_section': {
+            const stickyOn = block.stickyEnabled !== false;
+            return (
+              <div key={i} style={{ margin: '32px -48px', background: block.bg || '#f7f4ef' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+                  <div style={{
+                    padding: 'clamp(40px,6vw,60px) clamp(24px,4vw,48px) clamp(40px,6vw,60px) clamp(32px,5vw,96px)',
+                    position: stickyOn ? 'sticky' : 'relative',
+                    top: stickyOn ? 0 : undefined,
+                    alignSelf: 'start',
+                    height: stickyOn ? '100vh' : undefined,
+                    display: 'flex', flexDirection: 'column', justifyContent: 'center',
+                  }}>
+                    <div style={{ fontFamily: FD, fontSize: 'clamp(24px,2.5vw,36px)', fontWeight: 400, lineHeight: 1.2, color: block.color || TEXT }}
+                      dangerouslySetInnerHTML={{ __html: block.text || '' }} />
+                    {block.body && <div style={{ fontFamily: FS, fontSize: 17, lineHeight: 1.7, color: MUTED, marginTop: 20 }}>{block.body}</div>}
+                  </div>
+                  <div style={{ padding: 'clamp(40px,6vw,60px) clamp(32px,5vw,96px) clamp(40px,6vw,60px) clamp(24px,4vw,48px)', display: 'flex', flexDirection: 'column', gap: 32 }}>
+                    {(block.items || []).map((item, ii) => (
+                      <div key={ii} style={{ background: '#fff', padding: 24, borderRadius: 4, border: `1px solid ${DIVBG}`, fontFamily: FS, fontSize: 16, lineHeight: 1.7, color: TEXT }}>
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // ── Sidebar Layout ────────────────────────────────────────────────
+          case 'sidebar_layout': {
+            return (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: 32, margin: '24px 0' }}>
+                <div style={{ fontFamily: FS, fontSize: 18, lineHeight: 1.78, color: TEXT }}
+                  dangerouslySetInnerHTML={{ __html: block.text || '' }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {(block.sidebarItems || []).map((item, ii) => {
+                    const it = item.type || 'note';
+                    if (it === 'stat') return (
+                      <div key={ii} style={{ background: `${GOLD}0a`, border: `1px solid ${GOLD}28`, borderRadius: 4, padding: '14px 16px' }}>
+                        <div style={{ fontFamily: FD, fontSize: 32, fontWeight: 400, color: GOLD, lineHeight: 1 }}>{item.value}</div>
+                        <div style={{ fontFamily: FU, fontSize: 10, color: MUTED, marginTop: 5 }}>{item.label}</div>
+                      </div>
+                    );
+                    if (it === 'quote') return (
+                      <div key={ii} style={{ borderLeft: `3px solid ${GOLD}`, padding: '12px 14px' }}>
+                        <div style={{ fontFamily: FS, fontSize: 14, fontStyle: 'italic', lineHeight: 1.6, color: MUTED }}>{item.text}</div>
+                        {item.attr && <div style={{ fontFamily: FU, fontSize: 9, color: `${MUTED}80`, marginTop: 6 }}>— {item.attr}</div>}
+                      </div>
+                    );
+                    if (it === 'product') return (
+                      <div key={ii} style={{ border: `1px solid ${DIVBG}`, borderRadius: 4, overflow: 'hidden', background: '#fff' }}>
+                        {item.image && <div style={{ height: 100, background: `url(${item.image}) center/cover` }} />}
+                        <div style={{ padding: '10px 12px 14px' }}>
+                          {item.brand && <div style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 3 }}>{item.brand}</div>}
+                          <div style={{ fontFamily: FS, fontSize: 13, color: TEXT, lineHeight: 1.3, marginBottom: 4 }}>{item.name}</div>
+                          {item.price && <div style={{ fontFamily: FU, fontSize: 11, fontWeight: 600, color: TEXT }}>{item.price}</div>}
+                          {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 8, fontFamily: FU, fontSize: 8, padding: '3px 8px', background: `linear-gradient(135deg,${GOLD},#b8891e)`, color: '#fff', borderRadius: 2, textDecoration: 'none' }}>Shop →</a>}
+                        </div>
+                      </div>
+                    );
+                    // note
+                    return (
+                      <div key={ii} style={{ background: `${GOLD}06`, border: `1px solid ${GOLD}22`, borderRadius: 4, padding: '12px 14px' }}>
+                        <div style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 5, opacity: 0.6 }}>Editor's Note</div>
+                        <div style={{ fontFamily: FS, fontSize: 13, fontStyle: 'italic', lineHeight: 1.6, color: MUTED }}>{item.text}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          }
+
+          // ── Listing Embed ─────────────────────────────────────────────────
+          case 'listing_embed': {
+            if (!block.name) return null;
+            return (
+              <div key={i} style={{ margin: '28px 0', border: `1px solid ${GOLD}28`, borderRadius: 4, overflow: 'hidden', background: isLight ? '#fdfcf9' : '#1a1714' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', minHeight: 140 }}>
+                  <div style={{ background: block.image ? `url(${block.image}) center/cover` : (isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.04)') }} />
+                  <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.18em', textTransform: 'uppercase', opacity: 0.7 }}>{block.category || 'Venue'}</div>
+                    <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 400, color: TEXT, lineHeight: 1.2 }}>{block.name}</div>
+                    {block.location && <div style={{ fontFamily: FU, fontSize: 11, color: MUTED }}>{block.location}</div>}
+                    {block.desc && <div style={{ fontFamily: FS, fontSize: 13, color: MUTED, lineHeight: 1.55, flex: 1 }}>{block.desc}</div>}
+                    <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+                      {block.url && <a href={block.url} style={{ fontFamily: FU, fontSize: 9, padding: '4px 12px', border: `1px solid ${GOLD}50`, borderRadius: 2, color: GOLD, textDecoration: 'none' }}>View Profile →</a>}
+                      {block.showEnquire && block.url && <a href={`${block.url}?enquire=1`} style={{ fontFamily: FU, fontSize: 9, padding: '4px 12px', background: `linear-gradient(135deg,${GOLD},#b8891e)`, borderRadius: 2, color: '#fff', textDecoration: 'none' }}>Enquire</a>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // ── Showcase Embed ────────────────────────────────────────────────
+          case 'showcase_embed': {
+            const showcaseItems = block.items || [];
+            if (!showcaseItems.length && !block.title) return null;
+            return (
+              <div key={i} style={{ margin: '32px -48px', background: block.bg || '#1a1714', padding: 'clamp(40px,6vw,56px) clamp(32px,5vw,96px)' }}>
+                <div style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 6, opacity: 0.7 }}>✦ Featured</div>
+                {block.title && <div style={{ fontFamily: FD, fontSize: 'clamp(22px,2.5vw,32px)', fontWeight: 400, color: '#f5f0e8', lineHeight: 1.2, marginBottom: 28 }}>{block.title}</div>}
+                {showcaseItems.length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(showcaseItems.length, 4)}, 1fr)`, gap: 16 }}>
+                    {showcaseItems.map((item, ii) => (
+                      <div key={ii} style={{ background: '#fff', borderRadius: 3, overflow: 'hidden', cursor: item.url ? 'pointer' : 'default' }}
+                        onClick={() => item.url && (window.location.href = item.url)}>
+                        {item.image && <div style={{ height: 140, background: `url(${item.image}) center/cover` }} />}
+                        <div style={{ padding: '12px 14px' }}>
+                          <div style={{ fontFamily: FD, fontSize: 15, color: '#0f0e0b', lineHeight: 1.3 }}>{item.name}</div>
+                          {item.location && <div style={{ fontFamily: FU, fontSize: 9, color: '#aaa', marginTop: 4 }}>{item.location}</div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // ── Affiliate Product ─────────────────────────────────────────────
+          case 'affiliate_product':
+          case 'product_tile': {
+            const products = block.products || [];
+            if (!products.length) return null;
+            const cols = block.columns || Math.min(products.length, 3);
+            return (
+              <div key={i} style={{ margin: '28px 0' }}>
+                {block.sectionTitle && <div style={{ fontFamily: FU, fontSize: 9, color: GOLD, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 16, opacity: 0.75 }}>{block.sectionTitle}</div>}
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16 }}>
+                  {products.map((p, ii) => (
+                    <div key={ii} style={{ border: `1px solid ${DIVBG}`, borderRadius: 4, overflow: 'hidden', background: isLight ? '#fff' : '#1e1c19' }}>
+                      {p.image && <div style={{ height: 200, background: `url(${p.image}) center/cover` }} />}
+                      <div style={{ padding: '14px 16px 18px' }}>
+                        {p.brand && <div style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 4, opacity: 0.7 }}>{p.brand}</div>}
+                        <div style={{ fontFamily: FS, fontSize: 15, fontWeight: 500, color: TEXT, lineHeight: 1.3, marginBottom: p.desc ? 6 : 0 }}>{p.name}</div>
+                        {p.desc && <div style={{ fontFamily: FS, fontSize: 12, color: MUTED, lineHeight: 1.5, marginBottom: 8 }}>{p.desc}</div>}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                          {p.price && <span style={{ fontFamily: FU, fontSize: 13, fontWeight: 600, color: TEXT }}>{p.price}</span>}
+                          {p.url && <a href={p.url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: FU, fontSize: 9, padding: '5px 12px', background: `linear-gradient(135deg,${GOLD},#b8891e)`, color: '#fff', borderRadius: 2, textDecoration: 'none' }}>Shop →</a>}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
