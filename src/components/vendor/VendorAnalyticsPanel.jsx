@@ -26,6 +26,79 @@ const BENCH = {
   viewsPer7d:   25,    // typical views per 7-day window
 };
 
+// ── CSV export helpers ────────────────────────────────────────────────────────
+
+function csvCell(val) {
+  const s = String(val ?? "");
+  return (s.includes(",") || s.includes('"') || s.includes("\n"))
+    ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function csvRow(...cells) { return cells.map(csvCell).join(","); }
+
+function deltaStr(curr, prev) {
+  if (prev == null || prev === 0 || curr == null) return "—";
+  const pct = Math.round(((curr - prev) / prev) * 100);
+  return (pct >= 0 ? "+" : "") + pct + "%";
+}
+
+function buildCSV({ vendorName, rangeLabel, stats, prevStats, sources, compareList, dailyViews, interpretation }) {
+  const s  = stats    || {};
+  const p  = prevStats || {};
+  const d  = new Date().toLocaleDateString("en-GB", { day:"numeric", month:"long", year:"numeric" });
+
+  const lines = [
+    csvRow("LUXURY WEDDING DIRECTORY — PERFORMANCE REPORT"),
+    csvRow("Venue", vendorName || "—"),
+    csvRow("Period", rangeLabel),
+    csvRow("Generated", d),
+    "",
+    csvRow("EXECUTIVE SUMMARY"),
+    csvRow(interpretation?.headline || "—"),
+    csvRow(interpretation?.subline  || ""),
+    interpretation?.benchmark ? csvRow(interpretation.benchmark.text) : "",
+    "",
+    csvRow("PERFORMANCE METRICS"),
+    csvRow("Metric", "This Period", "Prior Period", "Change"),
+    csvRow("Profile Views",       s.views,            p.views,            deltaStr(s.views,            p.views)),
+    csvRow("Unique Visitors",     s.uniqueSessions,   p.uniqueSessions,   deltaStr(s.uniqueSessions,   p.uniqueSessions)),
+    csvRow("Shortlisted",         s.shortlists,       p.shortlists,       deltaStr(s.shortlists,       p.shortlists)),
+    csvRow("Enquiry Started",     s.enquiryStarted,   p.enquiryStarted,   deltaStr(s.enquiryStarted,   p.enquiryStarted)),
+    csvRow("Enquiry Submitted",   s.enquirySubmitted, p.enquirySubmitted, deltaStr(s.enquirySubmitted, p.enquirySubmitted)),
+    csvRow("Conversion Rate (%)", s.viewToEnquiry,    p.viewToEnquiry,    deltaStr(s.viewToEnquiry,    p.viewToEnquiry)),
+    csvRow("Compared",            s.compares,         p.compares,         deltaStr(s.compares,         p.compares)),
+    csvRow("Enquiry Completion (%)", s.enquiryCompletion, p.enquiryCompletion, deltaStr(s.enquiryCompletion, p.enquiryCompletion)),
+    csvRow("Website Clicks",      s.outbound,         p.outbound,         deltaStr(s.outbound,         p.outbound)),
+    "",
+    csvRow("TRAFFIC SOURCES"),
+    csvRow("Source", "Visits", "Share"),
+    ...sources.map(src => csvRow(src.label, src.count, src.pct + "%")),
+    "",
+    csvRow("COMPARE INTELLIGENCE (last 30 days)"),
+    csvRow("Listing", "Type", "Sessions"),
+    ...compareList.map(c => csvRow(
+      c.slug ? c.slug.replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase()) : "—",
+      c.type || "—",
+      c.count,
+    )),
+  ];
+
+  if (dailyViews?.length) {
+    lines.push("", csvRow("30-DAY TREND (daily profile views)"), csvRow("Date", "Views"));
+    dailyViews.forEach(d => lines.push(csvRow(fmtDay(d.label), d.count)));
+  }
+
+  return lines.join("\n");
+}
+
+function downloadCSV(content, filename) {
+  const blob = new Blob(["\ufeff" + content], { type: "text/csv;charset=utf-8;" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ── Formatting helpers ────────────────────────────────────────────────────────
 
 function fmtNum(n) {
@@ -228,6 +301,231 @@ function StatKPI({ label, value, prevValue, unit = "", color,
   );
 }
 
+// ── PrintReport — board-ready one-page PDF ────────────────────────────────────
+
+function PrintReport({ vendor, rangeLabel, stats, prevStats, sources, compareList, dailyViews, interpretation, liveCount }) {
+  const s = stats    || {};
+  const p = prevStats || {};
+  const generatedOn = new Date().toLocaleDateString("en-GB", {
+    day: "numeric", month: "long", year: "numeric",
+  });
+
+  const METRICS = [
+    { label: "Profile Views",         value: s.views,             prev: p.views            },
+    { label: "Unique Visitors",        value: s.uniqueSessions,    prev: p.uniqueSessions   },
+    { label: "Shortlisted",            value: s.shortlists,        prev: p.shortlists       },
+    { label: "Enquiry Started",        value: s.enquiryStarted,    prev: p.enquiryStarted   },
+    { label: "Enquiry Submitted",      value: s.enquirySubmitted,  prev: p.enquirySubmitted },
+    { label: "Conversion Rate",        value: s.viewToEnquiry,     prev: p.viewToEnquiry,   unit: "%" },
+    { label: "Compared",               value: s.compares,          prev: p.compares         },
+    { label: "Enquiry Completion",     value: s.enquiryCompletion, prev: p.enquiryCompletion, unit: "%" },
+    { label: "Website Clicks",         value: s.outbound,          prev: p.outbound         },
+  ];
+
+  const PR = {
+    page:    { fontFamily: "Georgia, serif", padding: "48px 56px 40px", background: "#fff",
+                color: "#1a1a1a", fontSize: 11, lineHeight: 1.5, maxWidth: 900, margin: "0 auto" },
+    rule:    { border: "none", borderTop: "2px solid #C9A84C", margin: "20px 0" },
+    thinRule:{ border: "none", borderTop: "1px solid #e0d8cc", margin: "12px 0" },
+    label:   { fontSize: 8, letterSpacing: "2px", textTransform: "uppercase", color: "#888", marginBottom: 4 },
+    heading: { fontSize: 20, fontWeight: "bold", marginBottom: 6, color: "#1a1a1a" },
+    muted:   { color: "#666", fontSize: 10 },
+    gold:    { color: "#B8902A" },
+    green:   { color: "#2e7d52" },
+    red:     { color: "#b03a2e" },
+    grid2:   { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginTop: 16 },
+  };
+
+  function DeltaBadge({ curr, prev: prv }) {
+    if (prv == null || prv === 0 || curr == null) return null;
+    const pct = Math.round(((curr - prv) / prv) * 100);
+    const col = pct > 0 ? PR.green : pct < 0 ? PR.red : PR.muted;
+    return <span style={{ ...col, fontWeight: "bold", marginLeft: 6, fontSize: 10 }}>
+      {pct >= 0 ? "↑" : "↓"} {Math.abs(pct)}%
+    </span>;
+  }
+
+  // Trend: show last 14 days max for readability in print
+  const trendSlice = (dailyViews || []).slice(-14);
+  const maxViews   = Math.max(...trendSlice.map(d => d.count), 1);
+
+  return (
+    <div style={PR.page}>
+
+      {/* ── Letterhead ────────────────────────────────────────────────── */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+        <div>
+          <div style={{ fontSize: 13, letterSpacing: "3px", textTransform: "uppercase",
+            color: "#B8902A", fontWeight: "bold", marginBottom: 4 }}>
+            ✦ LUXURY WEDDING DIRECTORY
+          </div>
+          <div style={{ fontSize: 22, fontWeight: "bold", color: "#1a1a1a" }}>
+            Performance Report
+          </div>
+        </div>
+        <div style={{ textAlign: "right", ...PR.muted }}>
+          <div style={{ fontWeight: "bold", fontSize: 12, color: "#1a1a1a", marginBottom: 2 }}>
+            {vendor?.name || "Venue Report"}
+          </div>
+          <div>{rangeLabel}</div>
+          <div>Generated {generatedOn}</div>
+          {liveCount > 0 && (
+            <div style={{ ...PR.green, marginTop: 4, fontWeight: "bold" }}>
+              ● {liveCount} viewing right now
+            </div>
+          )}
+        </div>
+      </div>
+      <hr style={PR.rule} />
+
+      {/* ── Executive summary ─────────────────────────────────────────── */}
+      {interpretation && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={PR.label}>Executive Summary</div>
+          <div style={{ fontSize: 15, fontWeight: "bold", marginBottom: 5 }}>
+            {interpretation.headline}
+          </div>
+          <div style={{ ...PR.muted, fontSize: 11, marginBottom: 8 }}>
+            {interpretation.subline}
+          </div>
+          {interpretation.benchmark && (
+            <div style={{
+              display: "inline-block",
+              padding: "3px 10px",
+              border: `1px solid ${interpretation.benchmark.positive === true ? "#2e7d52" : interpretation.benchmark.positive === false ? "#b03a2e" : "#B8902A"}`,
+              borderRadius: 12, fontSize: 9, letterSpacing: "0.5px",
+              color: interpretation.benchmark.positive === true ? "#2e7d52" : interpretation.benchmark.positive === false ? "#b03a2e" : "#B8902A",
+            }}>
+              {interpretation.benchmark.positive === true ? "▲ " : interpretation.benchmark.positive === false ? "▼ " : "◆ "}
+              {interpretation.benchmark.text}
+            </div>
+          )}
+        </div>
+      )}
+      <hr style={PR.thinRule} />
+
+      {/* ── Metrics table ─────────────────────────────────────────────── */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ ...PR.label, marginBottom: 10 }}>Performance Metrics</div>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+          <thead>
+            <tr style={{ borderBottom: "1px solid #e0d8cc" }}>
+              <th style={{ textAlign: "left", padding: "4px 0", ...PR.muted, fontWeight: "normal", width: "40%" }}>Metric</th>
+              <th style={{ textAlign: "right", padding: "4px 8px", ...PR.muted, fontWeight: "normal" }}>This Period</th>
+              <th style={{ textAlign: "right", padding: "4px 8px", ...PR.muted, fontWeight: "normal" }}>Prior Period</th>
+              <th style={{ textAlign: "right", padding: "4px 0", ...PR.muted, fontWeight: "normal" }}>Change</th>
+            </tr>
+          </thead>
+          <tbody>
+            {METRICS.map((m, i) => (
+              <tr key={m.label} style={{ borderBottom: "1px solid #f0ece4",
+                background: i % 2 === 0 ? "#fafaf8" : "#fff" }}>
+                <td style={{ padding: "5px 0", fontWeight: i < 3 ? "bold" : "normal" }}>{m.label}</td>
+                <td style={{ textAlign: "right", padding: "5px 8px", fontWeight: "bold" }}>
+                  {m.value ?? "—"}{m.unit || ""}
+                </td>
+                <td style={{ textAlign: "right", padding: "5px 8px", ...PR.muted }}>
+                  {m.prev ?? "—"}{m.unit || ""}
+                </td>
+                <td style={{ textAlign: "right", padding: "5px 0" }}>
+                  <DeltaBadge curr={m.value} prev={m.prev} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <hr style={PR.thinRule} />
+
+      {/* ── Sources + Compare (2-col) ──────────────────────────────────── */}
+      <div style={PR.grid2}>
+        {/* Traffic sources */}
+        <div>
+          <div style={PR.label}>Traffic Origins</div>
+          {sources.length > 0 ? (
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, marginTop: 8 }}>
+              <tbody>
+                {sources.map(src => (
+                  <tr key={src.label} style={{ borderBottom: "1px solid #f0ece4" }}>
+                    <td style={{ padding: "4px 0" }}>{src.label}</td>
+                    <td style={{ textAlign: "right", ...PR.muted }}>{src.count} visit{src.count === 1 ? "" : "s"}</td>
+                    <td style={{ textAlign: "right", fontWeight: "bold", paddingLeft: 8, width: 36 }}>{src.pct}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : <div style={PR.muted}>No source data for this period.</div>}
+        </div>
+
+        {/* Compare intelligence */}
+        <div>
+          <div style={PR.label}>Compare Intelligence · last 30 days</div>
+          <div style={{ ...PR.muted, fontSize: 9, marginBottom: 8 }}>
+            Venues couples compared you against
+          </div>
+          {compareList.length > 0 ? (
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+              <tbody>
+                {compareList.slice(0, 5).map((c, i) => (
+                  <tr key={c.slug || i} style={{ borderBottom: "1px solid #f0ece4" }}>
+                    <td style={{ padding: "4px 0", ...PR.muted, width: 20 }}>{i + 1}.</td>
+                    <td style={{ padding: "4px 4px", fontWeight: "bold" }}>
+                      {c.slug ? c.slug.replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase()) : "—"}
+                    </td>
+                    <td style={{ textAlign: "right", ...PR.muted, textTransform: "capitalize" }}>{c.type}</td>
+                    <td style={{ textAlign: "right", fontWeight: "bold", paddingLeft: 8, ...PR.gold }}>
+                      {c.count}×
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : <div style={PR.muted}>No comparison data yet.</div>}
+        </div>
+      </div>
+      <hr style={PR.thinRule} />
+
+      {/* ── 30-day trend (bar chart) ───────────────────────────────────── */}
+      {trendSlice.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ ...PR.label, marginBottom: 10 }}>
+            30-day trend — profile views (last {trendSlice.length} days shown)
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 48 }}>
+            {trendSlice.map((d, i) => (
+              <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column",
+                alignItems: "center", gap: 2 }}>
+                <div style={{
+                  width: "100%",
+                  height: Math.max(2, Math.round((d.count / maxViews) * 40)),
+                  background: "#C9A84C",
+                  borderRadius: "2px 2px 0 0",
+                }} />
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, ...PR.muted }}>
+            <span>{fmtDay(trendSlice[0]?.label)}</span>
+            <span>Today</span>
+          </div>
+        </div>
+      )}
+
+      {/* ── Footer ────────────────────────────────────────────────────── */}
+      <hr style={PR.rule} />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", ...PR.muted }}>
+        <div>
+          <span style={{ ...PR.gold, fontWeight: "bold", fontSize: 10, letterSpacing: "1px" }}>
+            ✦ LUXURY WEDDING DIRECTORY
+          </span>
+          <span style={{ marginLeft: 12 }}>luxuryweddingdirectory.com</span>
+        </div>
+        <div>Confidential · {generatedOn}</div>
+      </div>
+    </div>
+  );
+}
+
 // ── LockedState ────────────────────────────────────────────────────────────────
 
 function LockedState({ C }) {
@@ -298,6 +596,7 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
   const [lastRefreshed, setLastRefreshed] = useState(null);
   const [tick,          setTick]          = useState(0); // drives "Updated X ago" re-render
   const [notifications, setNotifications] = useState([]);
+  const [showExport,    setShowExport]    = useState(false);
 
   const notifIdRef  = useRef(0);
   const realtimeRef = useRef(null);
@@ -972,6 +1271,99 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
         )}
       </div>
 
+      {/* ── Export section ──────────────────────────────────────────────── */}
+      {!loading && stats && (
+        <div style={{
+          background: cardBg,
+          border: `1px solid ${border}`,
+          borderRadius: "var(--lwd-radius-card)",
+          padding: "20px 24px",
+          display: "flex",
+          alignItems: isMobile ? "flex-start" : "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 16,
+        }}>
+          <div>
+            <div style={{ fontFamily: NU, fontSize: 11, letterSpacing: "2px",
+              textTransform: "uppercase", color: textMuted, marginBottom: 4 }}>
+              Export this report
+            </div>
+            <div style={{ fontFamily: NU, fontSize: 12, color: textMuted, lineHeight: 1.5 }}>
+              For board presentations, owner updates, and quarterly reviews.
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {/* CSV */}
+            <button
+              onClick={() => {
+                const csv = buildCSV({
+                  vendorName: vendor?.name,
+                  rangeLabel,
+                  stats: cs,
+                  prevStats: prev,
+                  sources,
+                  compareList,
+                  dailyViews,
+                  interpretation,
+                });
+                const slug = (vendor?.name || "report")
+                  .toLowerCase().replace(/[^a-z0-9]+/g, "-");
+                downloadCSV(csv, `lwd-${slug}-${rangeLabel.toLowerCase().replace(/\s/g, "-")}.csv`);
+              }}
+              style={{
+                fontFamily: NU, fontSize: 12, fontWeight: 600,
+                padding: "8px 16px", borderRadius: "var(--lwd-radius-input)",
+                border: `1px solid ${border}`, background: "transparent",
+                color: textPrimary, cursor: "pointer", display: "flex",
+                alignItems: "center", gap: 6, transition: "all 0.15s",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = textPrimary; }}
+            >
+              <span style={{ fontSize: 13 }}>↓</span> Download CSV
+            </button>
+
+            {/* Print / PDF */}
+            <button
+              onClick={() => {
+                document.body.classList.add("lwd-printing");
+                setTimeout(() => {
+                  window.print();
+                  document.body.classList.remove("lwd-printing");
+                }, 80);
+              }}
+              style={{
+                fontFamily: NU, fontSize: 12, fontWeight: 600,
+                padding: "8px 16px", borderRadius: "var(--lwd-radius-input)",
+                border: `1px solid ${GOLD}`, background: GOLD_DIM,
+                color: GOLD, cursor: "pointer", display: "flex",
+                alignItems: "center", gap: 6, transition: "all 0.15s",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = `rgba(201,168,76,0.22)`; }}
+              onMouseLeave={e => { e.currentTarget.style.background = GOLD_DIM; }}
+            >
+              <span style={{ fontSize: 13 }}>⎙</span> Save as PDF
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Print report (hidden; appears only on print / Save as PDF) ────── */}
+      <div id="lwd-board-report" aria-hidden="true" style={{ display: "none" }}>
+        <PrintReport
+          vendor={vendor}
+          rangeLabel={rangeLabel}
+          stats={cs}
+          prevStats={prev}
+          sources={sources}
+          compareList={compareList}
+          dailyViews={dailyViews}
+          interpretation={interpretation}
+          liveCount={liveCount}
+        />
+      </div>
+
       {/* ── CSS ──────────────────────────────────────────────────────────── */}
       <style>{`
         @keyframes livePulse {
@@ -990,6 +1382,33 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(-6px); }
           to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Print / Save as PDF ── */
+        @media print {
+          body > * { visibility: hidden !important; }
+          #lwd-board-report,
+          #lwd-board-report * { visibility: visible !important; }
+          #lwd-board-report {
+            display: block !important;
+            position: fixed !important;
+            top: 0; left: 0; right: 0; bottom: 0;
+            width: 100%; height: 100%;
+            background: #fff !important;
+            z-index: 99999;
+            padding: 0; margin: 0;
+          }
+        }
+        body.lwd-printing > * { visibility: hidden !important; }
+        body.lwd-printing #lwd-board-report,
+        body.lwd-printing #lwd-board-report * { visibility: visible !important; }
+        body.lwd-printing #lwd-board-report {
+          display: block !important;
+          position: fixed !important;
+          top: 0; left: 0; right: 0; bottom: 0;
+          background: #fff !important;
+          z-index: 99999;
+          overflow: auto;
         }
       `}</style>
     </div>
