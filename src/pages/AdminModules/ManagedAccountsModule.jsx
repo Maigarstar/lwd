@@ -131,14 +131,16 @@ function AccountAnalyticsSnapshot({ C, account }) {
     let cancelled = false;
     setLoading(true);
 
+    const safe = (q) => Promise.resolve(q).then(r => r).catch(() => ({ data: null }));
+
     Promise.all([
-      supabase.rpc("get_listing_stats", {
+      safe(supabase.rpc("get_listing_stats", {
         p_listing_id: vendorId,
         p_from: new Date(Date.now() - 30 * 86400_000).toISOString(),
         p_to:   new Date().toISOString(),
-      }).catch(() => ({ data: null })),
-      supabase.from("vendor_report_sends").select("*").eq("vendor_id", vendorId).order("sent_at", { ascending: false }).limit(1).single().catch(() => ({ data: null })),
-      supabase.rpc("get_vendor_roi_settings", { p_vendor_id: vendorId }).catch(() => ({ data: null })),
+      })),
+      safe(supabase.from("vendor_report_sends").select("*").eq("vendor_id", vendorId).order("sent_at", { ascending: false }).limit(1).single()),
+      safe(supabase.rpc("get_vendor_roi_settings", { p_vendor_id: vendorId })),
     ]).then(([statsRes, sendRes, roiRes]) => {
       if (cancelled) return;
       setStats(statsRes?.data || null);
@@ -1058,27 +1060,27 @@ export default function ManagedAccountsModule({ C }) {
       const accountList = result.data.length > 0 ? result.data : FALLBACK_ACCOUNTS;
       const vendorIds = accountList.map(a => a.vendorId || a.id).filter(Boolean);
       if (vendorIds.length > 0) {
-        supabase
-          .from("vendor_monthly_snapshots")
-          .select("vendor_id, views, enquiry_submitted, touch_points, media_value_low, media_value_high")
-          .in("vendor_id", vendorIds.slice(0, 50))
-          .order("month", { ascending: false })
-          .then(({ data: snapData }) => {
-            const aMap = {};
-            (snapData || []).forEach(s => {
-              if (!aMap[s.vendor_id]) {
-                aMap[s.vendor_id] = {
-                  views:       s.views             || 0,
-                  enquiries:   s.enquiry_submitted || 0,
-                  touch_points: s.touch_points     || 0,
-                  media_value_low:  s.media_value_low,
-                  media_value_high: s.media_value_high,
-                };
-              }
-            });
-            setAnalyticsMap(aMap);
-          })
-          .catch(() => {});
+        Promise.resolve(
+          supabase
+            .from("vendor_monthly_snapshots")
+            .select("vendor_id, views, enquiry_submitted, touch_points, media_value_low, media_value_high")
+            .in("vendor_id", vendorIds.slice(0, 50))
+            .order("month", { ascending: false })
+        ).then(({ data: snapData }) => {
+          const aMap = {};
+          (snapData || []).forEach(s => {
+            if (!aMap[s.vendor_id]) {
+              aMap[s.vendor_id] = {
+                views:       s.views             || 0,
+                enquiries:   s.enquiry_submitted || 0,
+                touch_points: s.touch_points     || 0,
+                media_value_low:  s.media_value_low,
+                media_value_high: s.media_value_high,
+              };
+            }
+          });
+          setAnalyticsMap(aMap);
+        }).catch(() => {});
       }
     } else {
       console.warn('[ManagedAccountsModule] loadAccounts failed:', result.error, '— using fallback');
