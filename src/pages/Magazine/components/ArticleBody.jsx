@@ -6,6 +6,7 @@ import { StyleAdvice, MoodBoard, DesignerSpotlight } from './FashionModules';
 import { getMagTheme, FD, FU, GOLD_CONST as GOLD } from '../magazineTheme';
 import ExternalLinkModal from '../../../components/ExternalLinkModal';
 import { trackExternalClick, hasSeenModalThisSession, markModalSeen } from '../../../services/outboundClickService';
+import ImageInteractionBar from '../../../components/media/ImageInteractionBar';
 
 // ── Lazy-loaded editorial blocks ────────────────────────────────────────────
 const VideoEmbedBlock = lazy(() => import('./blocks/VideoEmbedBlock'));
@@ -86,6 +87,18 @@ function GalleryLightbox({ images, startIndex, onClose, isLight }) {
             {credit && <p style={{ fontFamily: FU, fontSize: 10, color: `${GOLD}80`, margin: '4px 0 0', letterSpacing: '0.08em' }}>© {credit}</p>}
           </div>
         )}
+        {/* Like · Rate · Share */}
+        <div style={{
+          borderTop: '1px solid rgba(255,255,255,0.08)',
+          paddingTop: 12,
+        }}>
+          <ImageInteractionBar
+            mediaId={typeof img === 'object' ? img.media_id || null : null}
+            listingId={typeof img === 'object' ? img.listing_id || null : null}
+            imageUrl={src}
+            listingName={typeof img === 'object' ? (img.listing_name || img.credit || null) : null}
+          />
+        </div>
       </div>
 
       {/* Next */}
@@ -378,6 +391,18 @@ export default function ArticleBody({ content = [], isLight = true }) {
                     {block.credit && <span style={{ color: `${GOLD}80` }}>© {block.credit}</span>}
                   </figcaption>
                 )}
+                <div style={{
+                  marginTop: 10, paddingTop: 10,
+                  borderTop: `1px solid ${DIVBG}`,
+                }}>
+                  <ImageInteractionBar
+                    mediaId={block.media_id || null}
+                    listingId={block.listing_id || null}
+                    imageUrl={imgSrc}
+                    listingName={block.listing_name || block.credit || null}
+                    compact
+                  />
+                </div>
               </figure>
             );
           }
@@ -608,6 +633,15 @@ export default function ArticleBody({ content = [], isLight = true }) {
                     {block.credit && <span style={{ color: `${GOLD}80` }}>© {block.credit}</span>}
                   </figcaption>
                 )}
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${DIVBG}`, padding: '10px 60px 0' }}>
+                  <ImageInteractionBar
+                    mediaId={block.media_id || null}
+                    listingId={block.listing_id || null}
+                    imageUrl={block.src}
+                    listingName={block.listing_name || block.credit || null}
+                    compact
+                  />
+                </div>
               </figure>
             );
           }
@@ -624,6 +658,15 @@ export default function ArticleBody({ content = [], isLight = true }) {
                     {block.credit && <span style={{ color: `${GOLD}80` }}>© {block.credit}</span>}
                   </figcaption>
                 )}
+                <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${DIVBG}` }}>
+                  <ImageInteractionBar
+                    mediaId={block.media_id || null}
+                    listingId={block.listing_id || null}
+                    imageUrl={block.src}
+                    listingName={block.listing_name || block.credit || null}
+                    compact
+                  />
+                </div>
               </figure>
             ) : null;
             const textStoryEl = block.text ? (
