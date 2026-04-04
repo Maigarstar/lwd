@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import VendorRecommendationCard from "./VendorRecommendationCard";
 
 const GOLD        = "#C9A84C";
 const GOLD_DIM    = "rgba(201,168,76,0.10)";
@@ -415,23 +416,9 @@ export default function MediaScorecardSection({ listingId, vendorName, rangeFrom
             </div>
           )}
 
-          {/* ── Improvement tip ───────────────────────────────────────────── */}
-          {tip && (
-            <div style={{
-              padding: "14px 16px",
-              background: isLight ? "rgba(0,0,0,0.02)" : "rgba(201,168,76,0.04)",
-              border: `1px solid rgba(201,168,76,0.15)`,
-              borderRadius: "var(--lwd-radius-input)",
-              borderLeft: `3px solid ${GOLD}`,
-            }}>
-              <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: "1.5px",
-                textTransform: "uppercase", color: GOLD, marginBottom: 6 }}>
-                How to improve your score
-              </div>
-              <div style={{ fontFamily: NU, fontSize: 12, color: textPrimary, lineHeight: 1.65 }}>
-                {tip}
-              </div>
-            </div>
+          {/* ── Personalised recommendation (replaces static tip) ─────────── */}
+          {listingId && (
+            <VendorRecommendationCard listingId={listingId} C={C} />
           )}
 
         </div>
