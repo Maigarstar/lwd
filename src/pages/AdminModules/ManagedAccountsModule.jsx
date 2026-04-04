@@ -18,6 +18,7 @@ import {
   updateAccount,
 } from "../../services/managedAccountsService";
 import { supabase } from "../../lib/supabaseClient";
+import AdminVendorIntelligenceView from "./AdminVendorIntelligenceView";
 
 const PLAN_OPTIONS = [
   { key: "signature",  label: "Signature",  color: "#c9a84c" },
@@ -131,7 +132,11 @@ function AccountAnalyticsSnapshot({ C, account }) {
     setLoading(true);
 
     Promise.all([
-      supabase.rpc("get_listing_stats", { p_vendor_id: vendorId, p_days: 30 }).catch(() => ({ data: null })),
+      supabase.rpc("get_listing_stats", {
+        p_listing_id: vendorId,
+        p_from: new Date(Date.now() - 30 * 86400_000).toISOString(),
+        p_to:   new Date().toISOString(),
+      }).catch(() => ({ data: null })),
       supabase.from("vendor_report_sends").select("*").eq("vendor_id", vendorId).order("sent_at", { ascending: false }).limit(1).single().catch(() => ({ data: null })),
       supabase.rpc("get_vendor_roi_settings", { p_vendor_id: vendorId }).catch(() => ({ data: null })),
     ]).then(([statsRes, sendRes, roiRes]) => {
@@ -246,14 +251,12 @@ function AccountAnalyticsSnapshot({ C, account }) {
         </div>
       )}
 
-      {/* View full analytics button */}
+      {/* View full analytics button — fires event to open AdminVendorIntelligenceView */}
       <button
         onClick={() => {
-          sessionStorage.setItem("lwd_admin_preview", JSON.stringify({
-            type: "vendor", id: vendorId,
-            name: account.name, analytics_enabled: true,
+          window.dispatchEvent(new CustomEvent("lwd-admin-vendor-intelligence", {
+            detail: { id: vendorId, name: account.name },
           }));
-          window.open("/vendor/dashboard", "_blank");
         }}
         style={{
           background: "none", border: `1px solid ${C?.border || "#333"}`,
@@ -1019,17 +1022,29 @@ function AccountCard({ C, account, summary, analyticsData, onClick }) {
 export default function ManagedAccountsModule({ C }) {
   const G = C?.gold || "#8f7420";
 
-  const [accounts,        setAccounts]        = useState([]);
-  const [summaries,       setSummaries]       = useState({});
-  const [analyticsMap,    setAnalyticsMap]    = useState({});
-  const [loading,         setLoading]         = useState(true);
-  const [selected,        setSelected]        = useState(null);
-  const [showModal,       setShowModal]        = useState(false);
-  const [editAccount,     setEditAccount]      = useState(null);
-  const [statusFilter,    setStatusFilter]     = useState("active");
-  const [serviceFilter,   setServiceFilter]    = useState("all");
-  const [planFilter,      setPlanFilter]       = useState("all");
-  const [search,          setSearch]           = useState("");
+  const [accounts,           setAccounts]           = useState([]);
+  const [summaries,          setSummaries]          = useState({});
+  const [analyticsMap,       setAnalyticsMap]       = useState({});
+  const [loading,            setLoading]            = useState(true);
+  const [selected,           setSelected]           = useState(null);
+  const [showModal,          setShowModal]           = useState(false);
+  const [editAccount,        setEditAccount]         = useState(null);
+  const [statusFilter,       setStatusFilter]        = useState("active");
+  const [serviceFilter,      setServiceFilter]       = useState("all");
+  const [planFilter,         setPlanFilter]          = useState("all");
+  const [search,             setSearch]              = useState("");
+  const [intelligenceVendor, setIntelligenceVendor] = useState(null);
+
+  // Listen for vendor intelligence requests from AccountAnalyticsSnapshot
+  useEffect(() => {
+    function handleIntelligenceEvent(e) {
+      if (e.detail?.id) {
+        setIntelligenceVendor({ id: e.detail.id, name: e.detail.name || "Vendor" });
+      }
+    }
+    window.addEventListener("lwd-admin-vendor-intelligence", handleIntelligenceEvent);
+    return () => window.removeEventListener("lwd-admin-vendor-intelligence", handleIntelligenceEvent);
+  }, []);
 
   const loadAccounts = useCallback(async () => {
     setLoading(true);
@@ -1045,14 +1060,20 @@ export default function ManagedAccountsModule({ C }) {
       if (vendorIds.length > 0) {
         supabase
           .from("vendor_monthly_snapshots")
-          .select("vendor_id, views, enquiries")
+          .select("vendor_id, views, enquiry_submitted, touch_points, media_value_low, media_value_high")
           .in("vendor_id", vendorIds.slice(0, 50))
           .order("month", { ascending: false })
           .then(({ data: snapData }) => {
             const aMap = {};
             (snapData || []).forEach(s => {
               if (!aMap[s.vendor_id]) {
-                aMap[s.vendor_id] = { views: s.views || 0, enquiries: s.enquiries || 0 };
+                aMap[s.vendor_id] = {
+                  views:       s.views             || 0,
+                  enquiries:   s.enquiry_submitted || 0,
+                  touch_points: s.touch_points     || 0,
+                  media_value_low:  s.media_value_low,
+                  media_value_high: s.media_value_high,
+                };
               }
             });
             setAnalyticsMap(aMap);
@@ -1304,6 +1325,16 @@ export default function ManagedAccountsModule({ C }) {
           account={editAccount}
           onSave={handleSave}
           onClose={() => { setShowModal(false); setEditAccount(null); }}
+        />
+      )}
+
+      {/* Admin vendor intelligence overlay */}
+      {intelligenceVendor && (
+        <AdminVendorIntelligenceView
+          vendorId={intelligenceVendor.id}
+          vendorName={intelligenceVendor.name}
+          onClose={() => setIntelligenceVendor(null)}
+          C={C}
         />
       )}
     </div>

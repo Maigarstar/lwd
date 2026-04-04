@@ -10,6 +10,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import AdminVendorIntelligenceView from "./AdminVendorIntelligenceView";
+import VendorSearchPicker from "./VendorSearchPicker";
 
 const GD   = "var(--font-heading-primary)";
 const NU   = "var(--font-body)";
@@ -297,7 +299,7 @@ function OverviewTab({ C }) {
 
 // ── Tab 2: Vendor Reports ─────────────────────────────────────────────────────
 
-function VendorReportsTab({ C }) {
+function VendorReportsTab({ C, onVendorSelect }) {
   const [vendors, setVendors] = useState([]);
   const [sends, setSends] = useState({});
   const [loading, setLoading] = useState(true);
@@ -378,18 +380,23 @@ function VendorReportsTab({ C }) {
 
   return (
     <div>
-      {/* Search */}
-      <div style={{ marginBottom: 20 }}>
+      {/* Search — native filter + VendorSearchPicker for any-vendor access */}
+      <div style={{ marginBottom: 20, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Search vendors..."
+          placeholder="Filter loaded vendors..."
           style={{
             background: C.dark, border: `1px solid ${C.border}`,
             borderRadius: 6, padding: "9px 14px",
             color: C.white, fontSize: 13, outline: "none",
-            width: 280, fontFamily: NU,
+            width: 240, fontFamily: NU,
           }}
+        />
+        <VendorSearchPicker
+          C={C}
+          placeholder="Pull up any vendor →"
+          onSelect={v => onVendorSelect?.(v.id, v.name)}
         />
       </div>
 
@@ -446,7 +453,7 @@ function VendorReportsTab({ C }) {
                     : <span style={{ fontFamily: NU, fontSize: 11, color: C.grey2 }}>Pending</span>}
                 </div>
                 <div><HealthBadge label={health.label} color={health.color} /></div>
-                <div onClick={e => e.stopPropagation()}>
+                <div onClick={e => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                   <button
                     onClick={() => triggerReport(vendor.id)}
                     disabled={triggering === vendor.id}
@@ -460,6 +467,17 @@ function VendorReportsTab({ C }) {
                     }}
                   >
                     {triggering === vendor.id ? "Sending…" : "Send now"}
+                  </button>
+                  <button
+                    onClick={() => onVendorSelect?.(vendor.id, vendor.name)}
+                    style={{
+                      background: "transparent", border: `1px solid ${C.border}`,
+                      borderRadius: 4, padding: "4px 8px",
+                      color: C.grey, fontSize: 9, fontWeight: 700,
+                      cursor: "pointer", fontFamily: NU, letterSpacing: "0.04em",
+                    }}
+                  >
+                    Intelligence
                   </button>
                 </div>
               </div>
@@ -747,7 +765,7 @@ function IndustryTrendsTab({ C }) {
 
 // ── Tab 4: Health Scores ──────────────────────────────────────────────────────
 
-function HealthScoresTab({ C }) {
+function HealthScoresTab({ C, onVendorSelect }) {
   const [vendors, setVendors] = useState([]);
   const [scores, setScores] = useState({});
   const [loading, setLoading] = useState(true);
@@ -934,12 +952,7 @@ function HealthScoresTab({ C }) {
                   {triggering === vendor.id ? "…" : "Send"}
                 </button>
                 <button
-                  onClick={() => {
-                    sessionStorage.setItem("lwd_admin_preview", JSON.stringify({
-                      type: "vendor", id: vendor.id, name: vendor.name, analytics_enabled: true,
-                    }));
-                    window.open("/vendor/dashboard", "_blank");
-                  }}
+                  onClick={() => onVendorSelect?.(vendor.id, vendor.name)}
                   style={{
                     background: "transparent", border: `1px solid ${C.border}`,
                     borderRadius: 4, padding: "4px 8px",
@@ -947,7 +960,7 @@ function HealthScoresTab({ C }) {
                     cursor: "pointer", fontFamily: NU, letterSpacing: "0.04em",
                   }}
                 >
-                  View
+                  Intelligence
                 </button>
                 {data.score < 40 && (
                   <button
@@ -984,7 +997,8 @@ const TABS = [
 ];
 
 export default function ReportingHubModule({ C }) {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab]         = useState("overview");
+  const [selectedVendor, setSelectedVendor] = useState(null); // { id, name }
 
   return (
     <div style={{ maxWidth: 1100 }}>
@@ -1001,9 +1015,29 @@ export default function ReportingHubModule({ C }) {
       <TabBar tabs={TABS} active={activeTab} onChange={setActiveTab} C={C} />
 
       {activeTab === "overview" && <OverviewTab C={C} />}
-      {activeTab === "vendors"  && <VendorReportsTab C={C} />}
+      {activeTab === "vendors"  && (
+        <VendorReportsTab
+          C={C}
+          onVendorSelect={(id, name) => setSelectedVendor({ id, name })}
+        />
+      )}
       {activeTab === "trends"   && <IndustryTrendsTab C={C} />}
-      {activeTab === "health"   && <HealthScoresTab C={C} />}
+      {activeTab === "health"   && (
+        <HealthScoresTab
+          C={C}
+          onVendorSelect={(id, name) => setSelectedVendor({ id, name })}
+        />
+      )}
+
+      {/* Intelligence overlay */}
+      {selectedVendor && (
+        <AdminVendorIntelligenceView
+          vendorId={selectedVendor.id}
+          vendorName={selectedVendor.name}
+          onClose={() => setSelectedVendor(null)}
+          C={C}
+        />
+      )}
     </div>
   );
 }

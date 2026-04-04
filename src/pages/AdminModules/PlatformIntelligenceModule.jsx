@@ -25,6 +25,7 @@ import {
 } from '../../services/adminUserEventsService';
 import { fetchEventIntel, adminListEvents, dbToEvent } from '../../services/adminEventsService';
 import { supabase } from '../../lib/supabaseClient';
+import AdminVendorIntelligenceView from './AdminVendorIntelligenceView';
 
 const GD = 'var(--font-heading-primary)';
 const NU = 'var(--font-body)';
@@ -1230,11 +1231,12 @@ const BOOKING_WINDOW_PI = {
 
 // ── Vendor Performance tab ────────────────────────────────────────────────────
 
-function VendorPerformanceTab({ days, C }) {
-  const [rows, setRows] = useState([]);
+function VendorPerformanceTab({ days, C, onVendorSelect }) {
+  const [rows, setRows]     = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState('views');
-  const [sends, setSends] = useState({});
+  const [sends, setSends]   = useState({});
+  const [vendorNames, setVendorNames] = useState({});
 
   useEffect(() => {
     let cancelled = false;
@@ -1243,9 +1245,9 @@ function VendorPerformanceTab({ days, C }) {
     Promise.all([
       supabase
         .from('vendor_monthly_snapshots')
-        .select('*, vendors(name, entity_type, country_code)')
+        .select('vendor_id, month, views, shortlists, enquiry_submitted, touch_points, media_value_low, media_value_high, roi_multiple')
         .order('month', { ascending: false })
-        .limit(200),
+        .limit(300),
       supabase
         .from('vendor_report_sends')
         .select('vendor_id, sent_at, opened_at')
@@ -1260,6 +1262,21 @@ function VendorPerformanceTab({ days, C }) {
         seen.add(row.vendor_id);
         return true;
       });
+
+      // Load vendor names separately
+      const vendorIds = [...new Set(deduped.map(r => r.vendor_id))];
+      if (vendorIds.length > 0) {
+        supabase
+          .from('vendors')
+          .select('id, name, entity_type, country_code')
+          .in('id', vendorIds)
+          .then(({ data: vData }) => {
+            if (cancelled) return;
+            const map = {};
+            (vData || []).forEach(v => { map[v.id] = v; });
+            setVendorNames(map);
+          });
+      }
 
       // Build sends map
       const sendsMap = {};
@@ -1337,17 +1354,22 @@ function VendorPerformanceTab({ days, C }) {
         )}
 
         {!loading && sorted.map(row => {
-          const vendor = row.vendors || {};
+          const vendor = vendorNames[row.vendor_id] || {};
           const health = getHealth(row.vendor_id);
           const send = sends[row.vendor_id];
+          const enquiries = row.enquiry_submitted ?? row.enquiries;
 
           return (
             <div
               key={row.vendor_id}
+              onClick={() => onVendorSelect?.(row.vendor_id, vendor.name || row.vendor_id)}
               style={{
                 display: 'grid', gridTemplateColumns: '1fr 60px 70px 70px 70px 90px 70px 110px 80px',
                 gap: 10, padding: '12px 20px', borderBottom: `1px solid ${C.border}`, alignItems: 'center',
+                cursor: 'pointer', transition: 'background 0.12s',
               }}
+              onMouseEnter={e => { e.currentTarget.style.background = `${C.gold}08`; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
             >
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontFamily: NU, fontSize: 12, color: C.off, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -1362,7 +1384,7 @@ function VendorPerformanceTab({ days, C }) {
               </div>
               <span style={{ fontFamily: GD, fontSize: 16, color: C.off }}>{fmt(row.views)}</span>
               <span style={{ fontFamily: GD, fontSize: 16, color: C.off }}>{fmt(row.shortlists)}</span>
-              <span style={{ fontFamily: GD, fontSize: 16, color: row.enquiries > 0 ? '#22c55e' : C.grey }}>{fmt(row.enquiries)}</span>
+              <span style={{ fontFamily: GD, fontSize: 16, color: enquiries > 0 ? '#22c55e' : C.grey }}>{fmt(enquiries)}</span>
               <span style={{ fontFamily: GD, fontSize: 16, color: C.off }}>{fmt(row.touch_points)}</span>
               <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>
                 {row.media_value_low ? `£${row.media_value_low}–${row.media_value_high}` : '—'}
@@ -1724,9 +1746,81 @@ function OutboundTab({ days, C }) {
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
+// ── Platform-wide stats bar ───────────────────────────────────────────────────
+
+function PlatformStatsBar({ C }) {
+  const [totals, setTotals]   = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    supabase
+      .from('vendor_monthly_snapshots')
+      .select('views, unique_sessions, shortlists, enquiry_submitted, touch_points, media_value_low, media_value_high')
+      .gte('month', startOfMonth.toISOString().slice(0, 7))
+      .then(({ data }) => {
+        const rows = data || [];
+        const agg = {
+          views:        rows.reduce((s, r) => s + (r.views || 0), 0),
+          shortlists:   rows.reduce((s, r) => s + (r.shortlists || 0), 0),
+          enquiries:    rows.reduce((s, r) => s + (r.enquiry_submitted || 0), 0),
+          touchPoints:  rows.reduce((s, r) => s + (r.touch_points || 0), 0),
+          mediaLow:     rows.reduce((s, r) => s + (r.media_value_low  || 0), 0),
+          mediaHigh:    rows.reduce((s, r) => s + (r.media_value_high || 0), 0),
+          count:        rows.length,
+        };
+        setTotals(agg);
+        setLoading(false);
+      });
+  }, []);
+
+  function fmtK(n) {
+    if (!n) return '—';
+    if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+    return String(n);
+  }
+
+  const stats = totals ? [
+    { label: 'Total Views',        value: fmtK(totals.views) },
+    { label: 'Total Shortlists',   value: fmtK(totals.shortlists) },
+    { label: 'Total Enquiries',    value: fmtK(totals.enquiries) },
+    { label: 'Total Touch Points', value: fmtK(totals.touchPoints) },
+    { label: 'Total Media Value',  value: totals.mediaLow ? `£${fmtK(totals.mediaLow)}–£${fmtK(totals.mediaHigh)}` : '—' },
+    { label: 'Vendors Tracked',    value: String(totals.count) },
+  ] : [];
+
+  return (
+    <div style={{
+      display: 'flex', gap: 0, flexWrap: 'wrap',
+      background: C.card, border: `1px solid ${C.gold}44`,
+      borderLeft: `4px solid ${C.gold}`,
+      borderRadius: 8, overflow: 'hidden', marginBottom: 20,
+    }}>
+      <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 6, borderRight: `1px solid ${C.border}` }}>
+        <span style={{ fontFamily: 'var(--font-body)', fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: C.gold, fontWeight: 700, whiteSpace: 'nowrap' }}>
+          Platform This Month
+        </span>
+      </div>
+      {loading && (
+        <div style={{ padding: '10px 16px', fontFamily: 'var(--font-body)', fontSize: 11, color: C.grey }}>Loading…</div>
+      )}
+      {!loading && stats.map(s => (
+        <div key={s.label} style={{ padding: '10px 20px', borderRight: `1px solid ${C.border}` }}>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.grey2, marginBottom: 3 }}>{s.label}</div>
+          <div style={{ fontFamily: 'var(--font-heading-primary)', fontSize: 18, color: C.off, fontWeight: 400 }}>{s.value}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function PlatformIntelligenceModule({ C }) {
-  const [days, setDays] = useState(30);
+  const [days, setDays]           = useState(30);
   const [activeTab, setActiveTab] = useState('outbound');
+  const [selectedVendor, setSelectedVendor] = useState(null);
 
   return (
     <div style={{ maxWidth: 1100 }}>
@@ -1744,6 +1838,9 @@ export default function PlatformIntelligenceModule({ C }) {
         <DaysPicker days={days} onChange={setDays} C={C} />
       </div>
 
+      {/* ── Platform-wide stats bar (always visible) ── */}
+      <PlatformStatsBar C={C} />
+
       {/* ── Cross-tab event summary bar ── */}
       <EventSummaryBar days={days} C={C} />
 
@@ -1757,8 +1854,24 @@ export default function PlatformIntelligenceModule({ C }) {
       {activeTab === 'shortlist'   && <ShortlistPanel days={days} C={C} />}
       {activeTab === 'compare'     && <CompareIntelPanel days={days} C={C} />}
       {activeTab === 'events'      && <EventIntelPanel days={days} C={C} />}
-      {activeTab === 'vendor-perf' && <VendorPerformanceTab days={days} C={C} />}
+      {activeTab === 'vendor-perf' && (
+        <VendorPerformanceTab
+          days={days}
+          C={C}
+          onVendorSelect={(id, name) => setSelectedVendor({ id, name })}
+        />
+      )}
       {activeTab === 'market'      && <MarketTrendsTab days={days} C={C} />}
+
+      {/* ── Vendor intelligence overlay ── */}
+      {selectedVendor && (
+        <AdminVendorIntelligenceView
+          vendorId={selectedVendor.id}
+          vendorName={selectedVendor.name}
+          onClose={() => setSelectedVendor(null)}
+          C={C}
+        />
+      )}
 
     </div>
   );
