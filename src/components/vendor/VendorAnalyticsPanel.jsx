@@ -949,6 +949,14 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
   const [countries,     setCountries]     = useState([]);
   const [trafficView,   setTrafficView]   = useState("sources"); // "sources" | "countries"
 
+  // Confirmed bookings
+  const [confirmedBookings, setConfirmedBookings] = useState(0);
+  const [confirmedRevenue,  setConfirmedRevenue]  = useState(0);
+  const [showBookingModal,  setShowBookingModal]  = useState(false);
+  const [bookingInput,      setBookingInput]      = useState("");
+  const [bookingDateInput,  setBookingDateInput]  = useState(() => new Date().toISOString().split("T")[0]);
+  const [savingBooking,     setSavingBooking]     = useState(false);
+
   // ROI settings
   const [avgBookingValue, setAvgBookingValue] = useState(null);
   const [estCloseRate,    setEstCloseRate]    = useState(null);
@@ -1157,6 +1165,39 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
     setSavingROI(false);
   }
 
+  async function loadBookingTotals() {
+    try {
+      const { from, to } = getRangeISO();
+      const { data } = await supabase.rpc("get_vendor_booking_totals", {
+        p_vendor_id: vendor.id,
+        p_from: from,
+        p_to:   to,
+      });
+      if (data?.[0]) {
+        setConfirmedBookings(Number(data[0].total_bookings) || 0);
+        setConfirmedRevenue(Number(data[0].total_revenue)   || 0);
+      }
+    } catch { /* silent */ }
+  }
+
+  async function saveBooking() {
+    const val = parseFloat(bookingInput);
+    if (!val || val <= 0) return;
+    setSavingBooking(true);
+    try {
+      await supabase.from("vendor_bookings").insert({
+        vendor_id:     vendor.id,
+        booking_value: val,
+        booking_date:  bookingDateInput || new Date().toISOString().split("T")[0],
+        source:        "lwd",
+      });
+      setShowBookingModal(false);
+      setBookingInput("");
+      await loadBookingTotals();
+    } catch { /* silent */ }
+    setSavingBooking(false);
+  }
+
   // ── loadAll — clears state immediately, then fetches ───────────────────────
   const loadAll = useCallback(async () => {
     if (!vendor?.id || !analyticsEnabled) { setLoading(false); return; }
@@ -1223,9 +1264,12 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  // Load ROI settings once on mount (independent of range changes)
+  // Load ROI settings + booking totals once on mount (independent of range changes)
   useEffect(() => {
-    if (vendor?.id && analyticsEnabled) loadROISettings();
+    if (vendor?.id && analyticsEnabled) {
+      loadROISettings();
+      loadBookingTotals();
+    }
   }, [vendor?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Guard ──────────────────────────────────────────────────────────────────
@@ -1452,12 +1496,21 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
         transition: "all 0.5s ease",
       }}>
         {/* Pulse dot */}
-        <div style={{ flexShrink: 0 }}>
+        <div style={{ flexShrink: 0, position: "relative", width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {liveCount === 0 && (
+            <div style={{
+              position: "absolute",
+              width: 16, height: 16,
+              borderRadius: "50%",
+              border: `1px solid rgba(201,168,76,0.25)`,
+              animation: "breathe 3s ease infinite",
+            }} />
+          )}
           <div style={{
-            width: liveCount > 0 ? 12 : 8,
-            height: liveCount > 0 ? 12 : 8,
+            width: liveCount > 0 ? 12 : 7,
+            height: liveCount > 0 ? 12 : 7,
             borderRadius: "50%",
-            background: liveCount > 0 ? "#4ade80" : "rgba(128,128,128,0.3)",
+            background: liveCount > 0 ? "#4ade80" : "rgba(201,168,76,0.35)",
             animation: liveCount > 0 ? "livePulse 1.6s ease infinite" : "breathe 3s ease infinite",
             transition: "all 0.4s ease",
           }} />
@@ -1479,11 +1532,11 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
           ) : (
             <>
               <div style={{ fontFamily: GD, fontSize: isMobile ? 17 : 20,
-                fontStyle: "italic", color: textMuted, lineHeight: 1.3 }}>
-                Waiting for the next couple to discover your venue…
+                fontStyle: "italic", color: textPrimary, lineHeight: 1.3, opacity: 0.72 }}>
+                Monitoring live interest — next visitor will appear here
               </div>
-              <div style={{ fontFamily: NU, fontSize: 11, color: textMuted, opacity: 0.6, marginTop: 4 }}>
-                Updated every 30 seconds · last 5 minutes of activity
+              <div style={{ fontFamily: NU, fontSize: 11, color: textMuted, opacity: 0.55, marginTop: 5 }}>
+                System is watching · updates every 30 seconds
               </div>
             </>
           )}
@@ -2031,11 +2084,21 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
             })}
           </div>
         ) : (
-          <div style={{ padding: "20px 0", textAlign: "center" }}>
-            <span style={{ fontFamily: NU, fontSize: 13, color: textMuted }}>
-              No comparison data yet. Once couples start comparing listings,
-              you'll see who they measure you against.
-            </span>
+          <div style={{
+            padding: "20px 18px",
+            background: GOLD_DIM,
+            border: `1px solid ${GOLD_BORDER}`,
+            borderRadius: "var(--lwd-radius-input)",
+          }}>
+            <div style={{ fontFamily: NU, fontSize: 13, color: textPrimary, lineHeight: 1.65 }}>
+              <span style={{ color: GOLD }}>✦</span>{" "}
+              <strong>Early advantage.</strong>{" "}
+              Couples haven't compared you yet — listings with strong imagery and complete profiles
+              are the first to appear in comparison sessions.
+            </div>
+            <div style={{ fontFamily: NU, fontSize: 11, color: textMuted, marginTop: 8, lineHeight: 1.5 }}>
+              Once comparisons begin, you'll see exactly which venues couples are weighing you against — intelligence no other directory surfaces.
+            </div>
           </div>
         )}
       </div>
@@ -2226,20 +2289,28 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
                   value: estRevenueHigh > 0 ? `up to ${Math.round(estRevenueHigh / listingCost)}×` : "—",
                   sub: `vs £${listingCost.toLocaleString()}/yr listing cost`,
                   color: estRevenueHigh > 0 ? GOLD : textMuted,
+                  highlight: estRevenueHigh > 0,
                 },
               ].map(item => (
                 <div key={item.label} style={{
                   padding: "14px 16px",
-                  background: isLight ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.02)",
-                  border: `1px solid ${border}`,
+                  background: item.highlight
+                    ? `rgba(201,168,76,0.07)`
+                    : isLight ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.02)",
+                  border: `1px solid ${item.highlight ? GOLD_BORDER : border}`,
                   borderRadius: "var(--lwd-radius-input)",
+                  boxShadow: item.highlight ? `0 0 20px rgba(201,168,76,0.08), inset 0 1px 0 rgba(201,168,76,0.12)` : "none",
+                  transition: "all 0.2s ease",
                 }}>
                   <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: "1.5px",
-                    textTransform: "uppercase", color: textMuted, marginBottom: 6 }}>
+                    textTransform: "uppercase", color: item.highlight ? GOLD + "aa" : textMuted, marginBottom: 6 }}>
                     {item.label}
                   </div>
-                  <div style={{ fontFamily: GD, fontSize: isMobile ? 18 : 22,
-                    fontWeight: 700, color: item.color, lineHeight: 1, marginBottom: 4 }}>
+                  <div style={{
+                    fontFamily: GD, fontSize: isMobile ? 18 : 22,
+                    fontWeight: 700, color: item.color, lineHeight: 1, marginBottom: 4,
+                    ...(item.highlight ? { filter: "drop-shadow(0 0 8px rgba(201,168,76,0.4))" } : {}),
+                  }}>
                     {item.value}
                   </div>
                   <div style={{ fontFamily: NU, fontSize: 10, color: textMuted }}>
@@ -2289,6 +2360,159 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
               <strong style={{ color: textPrimary }}>{bookingTarget}</strong>.
               {" "}Current activity = future revenue.
             </div>
+
+            {/* ── Confirmed bookings strip ─────────────────────────────── */}
+            <div style={{
+              marginTop: 16,
+              borderTop: `1px solid ${border}`,
+              paddingTop: 16,
+              display: "flex", alignItems: "center",
+              justifyContent: "space-between", flexWrap: "wrap", gap: 12,
+            }}>
+              <div>
+                {confirmedBookings > 0 ? (
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 16 }}>
+                    <div>
+                      <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: "1.5px",
+                        textTransform: "uppercase", color: "#4ade80", marginBottom: 3 }}>
+                        Confirmed this period
+                      </div>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                        <span style={{ fontFamily: GD, fontSize: isMobile ? 22 : 28,
+                          fontWeight: 700, color: "#4ade80", lineHeight: 1 }}>
+                          {confirmedBookings} {confirmedBookings === 1 ? "booking" : "bookings"}
+                        </span>
+                        {confirmedRevenue > 0 && (
+                          <span style={{ fontFamily: GD, fontSize: isMobile ? 16 : 20,
+                            color: GOLD, fontWeight: 600 }}>
+                            · {fmtGBP(confirmedRevenue)}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontFamily: NU, fontSize: 10, color: textMuted, marginTop: 2 }}>
+                        {confirmedRevenue > 0
+                          ? `${Math.round((confirmedRevenue / listingCost) * 10) / 10}× ROI · confirmed`
+                          : "marked from LWD enquiries"}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontFamily: NU, fontSize: 12, color: textMuted }}>
+                    Got a booking from an LWD enquiry? Mark it here — turns projection into proof.
+                  </div>
+                )}
+              </div>
+
+              {/* Mark as booked button */}
+              {!showBookingModal && (
+                <button
+                  onClick={() => setShowBookingModal(true)}
+                  style={{
+                    fontFamily: NU, fontSize: 12, fontWeight: 700,
+                    padding: "9px 18px",
+                    background: confirmedBookings > 0 ? GOLD_DIM : GOLD,
+                    color: confirmedBookings > 0 ? GOLD : "#000",
+                    border: `1px solid ${GOLD}`,
+                    borderRadius: "var(--lwd-radius-input)",
+                    cursor: "pointer", whiteSpace: "nowrap",
+                    transition: "all 0.15s",
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = GOLD;
+                    e.currentTarget.style.color = "#000";
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = confirmedBookings > 0 ? GOLD_DIM : GOLD;
+                    e.currentTarget.style.color = confirmedBookings > 0 ? GOLD : "#000";
+                  }}
+                >
+                  {confirmedBookings > 0 ? "✓ Add another" : "✓ Mark a Booking"}
+                </button>
+              )}
+            </div>
+
+            {/* Booking input form */}
+            {showBookingModal && (
+              <div style={{
+                marginTop: 12,
+                padding: "16px 18px",
+                background: isLight ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.03)",
+                border: `1px solid ${GOLD_BORDER}`,
+                borderRadius: "var(--lwd-radius-input)",
+                display: "flex", flexDirection: "column", gap: 14,
+              }}>
+                <div style={{ fontFamily: NU, fontSize: 12, color: textMuted, lineHeight: 1.5 }}>
+                  Record a confirmed booking from an LWD enquiry — this updates your verified ROI.
+                </div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <label style={{ fontFamily: NU, fontSize: 9, color: textMuted,
+                      letterSpacing: "1.5px", textTransform: "uppercase" }}>
+                      Booking value (£)
+                    </label>
+                    <input
+                      type="number"
+                      value={bookingInput}
+                      onChange={e => setBookingInput(e.target.value)}
+                      placeholder={`e.g. ${effectiveBookingValue}`}
+                      autoFocus
+                      style={{
+                        fontFamily: NU, fontSize: 14, fontWeight: 600,
+                        padding: "8px 12px", width: 140,
+                        border: `1px solid ${border}`,
+                        borderRadius: "var(--lwd-radius-input)",
+                        background: cardBg, color: textPrimary, outline: "none",
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <label style={{ fontFamily: NU, fontSize: 9, color: textMuted,
+                      letterSpacing: "1.5px", textTransform: "uppercase" }}>
+                      Booking date
+                    </label>
+                    <input
+                      type="date"
+                      value={bookingDateInput}
+                      onChange={e => setBookingDateInput(e.target.value)}
+                      style={{
+                        fontFamily: NU, fontSize: 13,
+                        padding: "8px 12px", width: 150,
+                        border: `1px solid ${border}`,
+                        borderRadius: "var(--lwd-radius-input)",
+                        background: cardBg, color: textPrimary, outline: "none",
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      onClick={saveBooking}
+                      disabled={savingBooking || !bookingInput}
+                      style={{
+                        fontFamily: NU, fontSize: 12, fontWeight: 700,
+                        padding: "9px 20px",
+                        background: GOLD, color: "#000", border: "none",
+                        borderRadius: "var(--lwd-radius-input)",
+                        cursor: savingBooking || !bookingInput ? "default" : "pointer",
+                        opacity: savingBooking || !bookingInput ? 0.5 : 1,
+                      }}
+                    >
+                      {savingBooking ? "Saving…" : "Save"}
+                    </button>
+                    <button
+                      onClick={() => { setShowBookingModal(false); setBookingInput(""); }}
+                      style={{
+                        fontFamily: NU, fontSize: 12, padding: "9px 14px",
+                        background: "transparent", color: textMuted,
+                        border: `1px solid ${border}`,
+                        borderRadius: "var(--lwd-radius-input)", cursor: "pointer",
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
