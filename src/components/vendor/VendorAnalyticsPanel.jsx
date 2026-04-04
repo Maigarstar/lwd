@@ -19,6 +19,9 @@ const GOLD = "#C9A84C";
 const GOLD_DIM    = "rgba(201,168,76,0.12)";
 const GOLD_BORDER = "rgba(201,168,76,0.3)";
 
+// ── Tier annual costs (used for ROI multiple calculation) ────────────────────
+const TIER_ANNUAL_COSTS = { standard: 1490, featured: 3490, showcase: 6990 };
+
 // Luxury wedding category benchmarks (used for interpretation layer)
 const BENCH = {
   conversionPct: 4.0,  // view → enquiry %
@@ -919,6 +922,7 @@ function LockedState({ C }) {
 
 export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
   const analyticsEnabled = vendor?.analytics_enabled === true;
+  const listingCost = TIER_ANNUAL_COSTS[vendor?.tier] ?? 1490;
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [range,       setRange]       = useState("30d");
@@ -2097,6 +2101,11 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
           )}
         </div>
 
+        {/* Tier + listing cost label */}
+        <div style={{ fontSize: 11, color: GOLD + "99", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12, fontFamily: NU }}>
+          {vendor?.tier ? `${vendor.tier.charAt(0).toUpperCase() + vendor.tier.slice(1)} Plan — £${listingCost.toLocaleString()}/yr` : "Standard Plan — £1,490/yr"}
+        </div>
+
         {editingROI ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={{ fontFamily: NU, fontSize: 12, color: textMuted, lineHeight: 1.6 }}>
@@ -2184,8 +2193,8 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
                 },
                 {
                   label: "ROI Multiple",
-                  value: estRevenueHigh > 0 ? `up to ${Math.round(estRevenueHigh / 199)}×` : "—",
-                  sub: "vs typical listing cost",
+                  value: estRevenueHigh > 0 ? `up to ${Math.round(estRevenueHigh / listingCost)}×` : "—",
+                  sub: `vs £${listingCost.toLocaleString()}/yr listing cost`,
                   color: estRevenueHigh > 0 ? GOLD : textMuted,
                 },
               ].map(item => (

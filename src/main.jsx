@@ -68,6 +68,7 @@ const GettingMarriedDashboard = lazy(() => import("./pages/GettingMarriedDashboa
 import JoinPage from "./pages/JoinPage.jsx";
 import PartnerEnquiryPage from "./pages/PartnerEnquiryPage.jsx";
 import ListYourBusinessPage from "./pages/ListYourBusinessPage.jsx";
+import PricingPage from "./pages/PricingPage.jsx";
 import ArtistryPage from "./pages/Artistry/ArtistryPage.jsx";
 import MagazineHomePage     from "./pages/Magazine/MagazineHomePage.jsx";
 import CategoryPage          from "./pages/Magazine/CategoryPage.jsx";
@@ -179,6 +180,7 @@ function stateToPath(pg, opts = {}) {
     case "couple-reset-password":  return "/getting-married/reset-password";
     case "join":                  return "/join";
     case "list-your-business":    return "/list-your-business";
+    case "pricing":               return "/pricing";
     case "partner-enquiry":       return "/partner-enquiry";
     case "getting-married":  return "/getting-married";
     case "shortlist":        return "/shortlist";
@@ -224,7 +226,7 @@ function pathToState(pathname) {
     category: "category", "the-lwd-standard": "standard",
     about: "about", contact: "contact", partnership: "partnership",
     privacy: "privacy", terms: "terms", cookies: "cookies", "reviews-policy": "reviews-policy", support: "support",
-    admin: "admin", vendor: "vendor", couple: "couple", "real-weddings": "real-weddings", shortlist: "shortlist", "getting-married": "getting-married", join: "join", "artistry-awards": "artistry-awards", "partner-enquiry": "partner-enquiry", taigenic: "taigenic", "list-your-business": "list-your-business",
+    admin: "admin", vendor: "vendor", couple: "couple", "real-weddings": "real-weddings", shortlist: "shortlist", "getting-married": "getting-married", join: "join", "artistry-awards": "artistry-awards", "partner-enquiry": "partner-enquiry", taigenic: "taigenic", "list-your-business": "list-your-business", pricing: "pricing",
   };
   const parts = clean.split("/");
   // Unsubscribe landing page
@@ -606,6 +608,7 @@ function App() {
   const goArtistryAwards = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("artistry-awards"); };
   const goJoin = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("join"); };
   const goListYourBusiness = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("list-your-business"); };
+  const goPricing = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("pricing"); };
   const goMagazine = () => { setActiveMagazineCategoryId(null); setActiveMagazineSlug(null); setPage("magazine"); };
   const goMagazineCategory = (categoryId) => { setActiveMagazineCategoryId(categoryId); setActiveMagazineSlug(null); setPage("magazine-category"); };
   const goMagazineArticle = (slug) => { setActiveMagazineSlug(slug); setActiveMagazineCategoryId(null); setPage("magazine-article"); };
@@ -997,6 +1000,13 @@ function App() {
             onNavigateHome={goHome}
             onNavigateStandard={goStandard}
             onNavigateAbout={goAbout}
+          />
+        )}
+        {page === "pricing" && (
+          <PricingPage
+            onNavigateHome={goHome}
+            onNavigateListYourBusiness={goListYourBusiness}
+            footerNav={footerNav}
           />
         )}
         {page === "partner-enquiry" && (
