@@ -134,8 +134,8 @@ select
        + coalesce(c.sessions,0)::numeric * 2
        + coalesce(c.shortlists,0)::numeric * 5
        + coalesce(c.enquiries,0)::numeric * 10
-      ) / greatest(log(coalesce(s.listing_count,1) + 2) * 20, 1),
-    100),
+      ) / greatest(log(coalesce(s.listing_count,1) + 2)::numeric * 20, 1::numeric),
+    100::numeric)::numeric,
   1),
   coalesce(p.prev_views, 0),
   -- Momentum %
@@ -153,7 +153,7 @@ order by
    + coalesce(c.sessions,0)::numeric * 2
    + coalesce(c.shortlists,0)::numeric * 5
    + coalesce(c.enquiries,0)::numeric * 10
-  ) / greatest(log(coalesce(s.listing_count,1) + 2) * 20, 1) desc
+  ) / greatest(log(coalesce(s.listing_count,1) + 2)::numeric * 20, 1) desc
 limit p_limit;
 $$;
 
