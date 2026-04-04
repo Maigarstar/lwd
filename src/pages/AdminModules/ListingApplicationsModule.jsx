@@ -282,6 +282,11 @@ export default function ListingApplicationsModule({ C }) {
           grey={grey}
           card={card}
           border={border}
+          C={C}
+          onApproved={(updated) => {
+            setSelected(updated);
+            setApplications(prev => prev.map(a => a.id === updated.id ? updated : a));
+          }}
         />
       )}
     </div>
@@ -331,7 +336,28 @@ function ApplicationRow({ app, isLast, border, white, grey, card, onClick }) {
         </span>
       </div>
       <div style={{ fontFamily: NU, fontSize: 12, color: grey }}>{app.country || "—"}</div>
-      <div><StatusPill status={app.status} /></div>
+      <div>
+        <StatusPill status={app.status} />
+        {app.status === "approved" && app.vendor_id && (
+          <div style={{ marginTop: 4 }}>
+            <span
+              onClick={e => { e.stopPropagation(); window.open(`/admin/vendors/${app.vendor_id}`, "_blank"); }}
+              style={{
+                fontFamily:   NU,
+                fontSize:     9,
+                fontWeight:   700,
+                letterSpacing: "0.5px",
+                color:        GOLD,
+                cursor:       "pointer",
+                opacity:      0.75,
+                textDecoration: "underline",
+              }}
+            >
+              → View Vendor
+            </span>
+          </div>
+        )}
+      </div>
       <div style={{ fontFamily: NU, fontSize: 11, color: grey }}>{fmt(app.created_at)}</div>
     </div>
   );
@@ -426,9 +452,203 @@ function AnalyticsToggle({ email, border, white, grey }) {
   );
 }
 
-function DetailDrawer({ app, notesDraft, setNotesDraft, onSaveNotes, onUpdateStatus, onClose, savingNote, savingStatus, white, grey, card, border }) {
+// ── ApproveButton ──────────────────────────────────────────────────────────
+
+function ApproveButton({ C, application, onApproved }) {
+  const [loading, setLoading] = useState(false);
+  const [result,  setResult]  = useState(null); // null | "success" | "error"
+  const [tierSel, setTierSel] = useState("standard");
+
+  const border = C?.border || "rgba(255,255,255,0.1)";
+  const grey   = C?.grey   || "#888";
+
+  if (application.status === "approved") {
+    return (
+      <div style={{
+        display: "flex", alignItems: "center", gap: 10,
+        padding: "12px 16px",
+        background: "rgba(34,197,94,0.08)",
+        border: "1px solid rgba(34,197,94,0.3)",
+        borderRadius: 6,
+      }}>
+        <span style={{ color: "#22c55e", fontSize: 16 }}>✓</span>
+        <div>
+          <div style={{ fontFamily: NU, fontSize: 12, fontWeight: 700, color: "#22c55e" }}>
+            Approved
+          </div>
+          {application.approved_at && (
+            <div style={{ fontFamily: NU, fontSize: 10, color: grey }}>
+              {new Date(application.approved_at).toLocaleDateString("en-GB", {
+                day: "numeric", month: "short", year: "numeric",
+                hour: "2-digit", minute: "2-digit",
+              })}
+              {application.approved_by ? ` · by ${application.approved_by}` : ""}
+            </div>
+          )}
+          {application.vendor_id && (
+            <div style={{ fontFamily: NU, fontSize: 10, color: grey, marginTop: 2 }}>
+              Vendor ID: {application.vendor_id}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (application.status === "declined") return null;
+
+  async function handleApprove() {
+    setLoading(true);
+    setResult(null);
+    try {
+      const { supabase: sb } = await import("../../lib/supabaseClient");
+      const { data: { session } } = await sb.auth.getSession();
+      const token = session?.access_token;
+
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/approve-vendor-application`,
+        {
+          method:  "POST",
+          headers: {
+            "Content-Type":  "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            application_id: application.id,
+            tier:           tierSel,
+            approved_by:    "Admin",
+          }),
+        }
+      );
+      const data = await res.json();
+      if (data.success) {
+        setResult("success");
+        onApproved?.({
+          ...application,
+          status:      "approved",
+          vendor_id:   data.vendor_id,
+          approved_at: new Date().toISOString(),
+          approved_by: "Admin",
+        });
+      } else {
+        console.error("Approval error:", data);
+        setResult("error");
+      }
+    } catch (e) {
+      console.error("Approval exception:", e);
+      setResult("error");
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {/* Tier selector */}
+      <div>
+        <div style={{
+          fontFamily: NU, fontSize: 10, letterSpacing: "1.5px",
+          textTransform: "uppercase", color: grey, marginBottom: 8,
+        }}>
+          Starting tier
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          {[
+            { key: "standard",  label: "Standard",  color: "#6b7280" },
+            { key: "featured",  label: "Featured",  color: "#C9A84C" },
+            { key: "showcase",  label: "Showcase",  color: "#8b5cf6" },
+          ].map(t => (
+            <button
+              key={t.key}
+              onClick={() => setTierSel(t.key)}
+              style={{
+                fontFamily:  NU,
+                fontSize:    11,
+                fontWeight:  600,
+                padding:     "5px 12px",
+                borderRadius: 4,
+                border:      `1px solid ${tierSel === t.key ? t.color : border}`,
+                background:  tierSel === t.key ? t.color + "22" : "transparent",
+                color:       tierSel === t.key ? t.color : grey,
+                cursor:      "pointer",
+                transition:  "all 0.15s",
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Approve button */}
+      <button
+        onClick={handleApprove}
+        disabled={loading}
+        style={{
+          fontFamily:      NU,
+          fontSize:        13,
+          fontWeight:      700,
+          letterSpacing:   "0.5px",
+          padding:         "12px 24px",
+          background:      loading ? "rgba(201,168,76,0.5)" : GOLD,
+          color:           "#000",
+          border:          "none",
+          borderRadius:    4,
+          cursor:          loading ? "default" : "pointer",
+          display:         "flex",
+          alignItems:      "center",
+          justifyContent:  "center",
+          gap:             8,
+          transition:      "all 0.15s",
+        }}
+      >
+        {loading ? (
+          <>
+            <span style={{ fontSize: 14, display: "inline-block", animation: "lwd-spin 1s linear infinite" }}>⟳</span>
+            Creating vendor account…
+          </>
+        ) : (
+          <>✓ Approve &amp; Send Invite</>
+        )}
+      </button>
+
+      {result === "success" && (
+        <div style={{
+          padding:     "10px 14px",
+          background:  "rgba(34,197,94,0.08)",
+          border:      "1px solid rgba(34,197,94,0.3)",
+          borderRadius: 4,
+          fontFamily:  NU,
+          fontSize:    12,
+          color:       "#22c55e",
+        }}>
+          ✓ Vendor account created and welcome email sent.
+        </div>
+      )}
+      {result === "error" && (
+        <div style={{
+          padding:     "10px 14px",
+          background:  "rgba(239,68,68,0.08)",
+          border:      "1px solid rgba(239,68,68,0.3)",
+          borderRadius: 4,
+          fontFamily:  NU,
+          fontSize:    12,
+          color:       "#ef4444",
+        }}>
+          ✗ Something went wrong. Check console and try again.
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── DetailDrawer ───────────────────────────────────────────────────────────
+
+function DetailDrawer({ app, notesDraft, setNotesDraft, onSaveNotes, onUpdateStatus, onClose, savingNote, savingStatus, white, grey, card, border, C, onApproved }) {
   return (
     <>
+      {/* Spin keyframe for approve button loading state */}
+      <style>{`@keyframes lwd-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+
       {/* Backdrop */}
       <div
         onClick={onClose}
@@ -493,6 +713,18 @@ function DetailDrawer({ app, notesDraft, setNotesDraft, onSaveNotes, onUpdateSta
                   {s.label}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* ── Approval ─────────────────────────────────────────────────── */}
+          <div>
+            <SectionLabel>Approval</SectionLabel>
+            <div style={{ marginTop: 12 }}>
+              <ApproveButton
+                C={{ ...{ border, grey, white }, ...(C || {}) }}
+                application={app}
+                onApproved={onApproved}
+              />
             </div>
           </div>
 
