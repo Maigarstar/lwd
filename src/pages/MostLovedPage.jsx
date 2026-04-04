@@ -4,9 +4,8 @@
 // Three time lenses: This Month (30d) · Trending (7d) · Evergreen (90d)
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import HomeNav from "../components/navigation/HomeNav";
+import HomeNav from "../components/nav/HomeNav";
 import ImageInteractionBar from "../components/media/ImageInteractionBar";
 
 const GOLD        = "#C9A84C";
@@ -206,8 +205,7 @@ function ImageCard({ img, rank, onListingClick }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export default function MostLovedPage() {
-  const navigate = useNavigate();
+export default function MostLovedPage({ onViewVenue }) {
   const [lens,    setLens]    = useState("30d");
   const [images,  setImages]  = useState([]);
   const [loading, setLoading] = useState(true);
@@ -265,7 +263,7 @@ export default function MostLovedPage() {
 
   function handleListingClick(img) {
     if (!img.listing_id) return;
-    navigate(`/listing/${img.listing_id}`);
+    if (onViewVenue) onViewVenue(img.listing_id);
   }
 
   return (
