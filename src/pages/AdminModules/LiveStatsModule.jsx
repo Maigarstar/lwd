@@ -1628,7 +1628,7 @@ export default function LiveStatsModule({ C }) {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ fontFamily: NU, color: white, height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", background: bg }}>
+    <div onClick={() => { if (selected) setSelected(null); }} style={{ fontFamily: NU, color: white, height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", background: bg }}>
 
       {/* Pulse animation + tier animations */}
       <style>{`
