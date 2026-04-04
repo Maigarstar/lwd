@@ -73,6 +73,34 @@ function getGeo() {
   return _geoPromise;
 }
 
+// ── Listing context ───────────────────────────────────────────────────────────
+// Set by listing pages (VenueProfile, PlannerProfile, Showcase, etc.) on mount.
+// Cleared on unmount. Attached to every event payload while set.
+// This is the primary source for listing_id — never rely solely on URL parsing.
+
+let _listingCtx = { listing_id: null, listing_slug: null, entity_type: null };
+
+/**
+ * Call on listing page mount once the entity id is known.
+ * @param {string|null} listingId   — UUID of the venue/planner/vendor
+ * @param {string|null} listingSlug — URL slug (for debugging + backfill)
+ * @param {string|null} entityType  — 'venue' | 'planner' | 'vendor'
+ */
+export function setListingContext(listingId, listingSlug, entityType) {
+  _listingCtx = {
+    listing_id:   listingId   || null,
+    listing_slug: listingSlug || null,
+    entity_type:  entityType  || null,
+  };
+}
+
+/**
+ * Call on listing page unmount to clear the context.
+ */
+export function clearListingContext() {
+  _listingCtx = { listing_id: null, listing_slug: null, entity_type: null };
+}
+
 // ── Core send ────────────────────────────────────────────────────────────────
 
 async function send(event_type, extras = {}) {
@@ -85,6 +113,8 @@ async function send(event_type, extras = {}) {
         path:        window.location.pathname,
         title:       document.title,
         user_agent:  navigator.userAgent,
+        // Listing context — present when on a listing page, null everywhere else
+        ..._listingCtx,
         ...geo,
         ...extras,
       },

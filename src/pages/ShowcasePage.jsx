@@ -11,6 +11,7 @@ import { useChat }              from '../chat/ChatContext';
 import HomeNav                  from '../components/nav/HomeNav';
 import { buildCardImgs }        from '../utils/mediaMappers';
 import ShowcaseRenderer         from './ShowcaseRenderer';
+import { setListingContext, clearListingContext } from '../lib/tracker';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -358,6 +359,13 @@ export default function ShowcasePage({ slug, darkMode, onToggleDark, onBack, onG
     load();
     return () => { ignore = true; };
   }, [slug]);
+
+  // Tag tracker events with listing context once data is loaded
+  useEffect(() => {
+    if (!listing) return;
+    setListingContext(listing.id || null, slug, 'venue');
+    return () => clearListingContext();
+  }, [listing, slug]);
 
   if (loading)  return <LoadingSkeleton />;
   if (notFound) return <NotFound slug={slug} onBack={onBack} />;

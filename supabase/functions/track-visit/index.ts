@@ -143,6 +143,8 @@ Deno.serve(async (req: Request) => {
       session_id, event_type, path, title,
       user_agent, referrer, utm_source, utm_medium, utm_campaign,
       metadata,
+      // Listing intelligence — set by listing pages, null everywhere else
+      listing_id, listing_slug, entity_type,
     } = body;
 
     if (!session_id || !event_type) {
@@ -188,15 +190,22 @@ Deno.serve(async (req: Request) => {
         utm_source:     utm_source || null,
         utm_medium:     utm_medium || null,
         utm_campaign:   utm_campaign || null,
-        page_count:     1,
-        intent_count:   isIntentEvent ? 1 : 0,
+        page_count:              1,
+        intent_count:            isIntentEvent ? 1 : 0,
+        current_listing_id:      listing_id   || null,
+        current_listing_slug:    listing_slug || null,
+        current_entity_type:     entity_type  || null,
       });
     } else {
       // Update existing session
       const updates: Record<string, unknown> = {
-        last_seen_at:  now,
-        current_path:  path || null,
-        current_title: title || null,
+        last_seen_at:         now,
+        current_path:         path || null,
+        current_title:        title || null,
+        // Always update current listing context — null when leaving a listing page
+        current_listing_id:   listing_id   ?? null,
+        current_listing_slug: listing_slug ?? null,
+        current_entity_type:  entity_type  ?? null,
       };
       if (isPageView)    updates.page_count    = (existing.page_count || 0) + 1;
       if (isIntentEvent) updates.intent_count  = (existing.intent_count || 0) + 1;
@@ -219,9 +228,12 @@ Deno.serve(async (req: Request) => {
       await supabase.from("page_events").insert({
         session_id,
         event_type,
-        path:     path || null,
-        title:    title || null,
-        metadata: metadata || null,
+        path:         path || null,
+        title:        title || null,
+        metadata:     metadata || null,
+        listing_id:   listing_id   || null,
+        listing_slug: listing_slug || null,
+        entity_type:  entity_type  || null,
       });
     }
 

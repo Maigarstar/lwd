@@ -18,6 +18,7 @@ import { createLead } from "./services/leadEngineService";
 import ExternalLinkModal from "./components/ExternalLinkModal";
 import { trackExternalClick, hasSeenModalThisSession, markModalSeen } from "./services/outboundClickService";
 import { trackProfileView, trackCompareAdd, trackCompareRemove, trackCompareView, trackComparePair, trackEvent } from "./services/userEventService";
+import { setListingContext, clearListingContext } from "./lib/tracker";
 import { fetchUpcomingEventsForVenue, formatEventDate, formatEventTime } from './services/eventService';
 import ReviewsSection from './components/reviews/ReviewsSection';
 import EventDrawer from './components/EventDrawer';
@@ -7572,7 +7573,11 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
         slug,
         sourceSurface: 'venue_profile',
       });
+      // Tag all subsequent tracker events with this listing context
+      setListingContext(dbVenue.id || null, slug, 'venue');
     }
+    // Clear listing context when component unmounts or slug changes
+    return () => clearListingContext();
   }, [slug, dbVenue]);
 
   // Fetch venue intelligence — single source of truth for capacity + pricing

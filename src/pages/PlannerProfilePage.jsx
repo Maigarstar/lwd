@@ -9,6 +9,7 @@ import CatNav from "../components/nav/CatNav";
 import VendorSidebar from "../components/vendor/VendorSidebar";
 import VendorMobileBar from "../components/vendor/VendorMobileBar";
 import { getLightPalette } from "../theme/tokens";
+import { setListingContext, clearListingContext } from "../lib/tracker";
 
 const DEFAULT_STEPS = [
   { title: "Discovery", description: "A calm, focused call to define the feeling, the guest journey, and the priorities." },
@@ -128,6 +129,13 @@ export default function PlannerProfilePage({
       },
     };
   }, [getPlannerByIdOrSlug, plannerId, plannerSlug]);
+
+  // Tag all tracker events with this listing while on the page
+  useEffect(() => {
+    if (!planner) return;
+    setListingContext(planner.id || null, plannerSlug || planner.slug || null, 'planner');
+    return () => clearListingContext();
+  }, [planner, plannerSlug]);
 
   if (!planner) {
     return <div style={{ padding: "40px", textAlign: "center" }}>Planner not found</div>;
