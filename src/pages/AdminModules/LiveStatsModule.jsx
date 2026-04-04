@@ -552,6 +552,9 @@ export default function LiveStatsModule({ C }) {
   const [filterDevice, setFilterDevice] = useState("all");
   const [searchQuery,  setSearchQuery]  = useState("");
 
+  // ── Cluster list modal ─────────────────────────────────────────────────────
+  const [clusterList, setClusterList] = useState(null); // array of sessions | null
+
   // ── Engage panel ───────────────────────────────────────────────────────────
   const [engageTarget,       setEngageTarget]       = useState(null);
   const [engageCopied,       setEngageCopied]       = useState(false);
@@ -559,6 +562,7 @@ export default function LiveStatsModule({ C }) {
   const [engageChatInput,    setEngageChatInput]    = useState("");
   const [engageChatTyping,   setEngageChatTyping]   = useState(false);
   const engageChatScrollRef = useRef(null);
+  const searchInputRef      = useRef(null);
 
   // ── Engaged session tracking (persisted in localStorage) ──────────────────
   const [engagedIds, setEngagedIds] = useState(() => {
@@ -813,6 +817,39 @@ export default function LiveStatsModule({ C }) {
     return () => clearInterval(id);
   }, []);
 
+  // ── Keyboard shortcuts ────────────────────────────────────────────────────
+  // E → engage selected session   / → focus search   M → map view   Esc → close
+
+  useEffect(() => {
+    const handler = (e) => {
+      // Ignore when typing in an input/textarea
+      const tag = document.activeElement?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      if (e.key === "Escape") {
+        if (engageTarget)       { setEngageTarget(null); setEngageChatMessages([]); setEngageChatInput(""); return; }
+        if (selected)           { setSelected(null); return; }
+        if (clusterList)        { setClusterList(null); return; }
+      }
+      if (e.key === "/" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+      if (e.key === "m" || e.key === "M") {
+        setViewMode(v => v === "map" ? "table" : "map");
+        return;
+      }
+      if (e.key === "e" || e.key === "E") {
+        if (selected) { setEngageTarget(selected); return; }
+        return;
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engageTarget, selected, clusterList]);
+
   // ── MapLibre init ─────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -939,7 +976,9 @@ export default function LiveStatsModule({ C }) {
         if (count === 1) {
           setSelected(cSessions[0]);
         } else {
-          map.flyTo({ center: [lng, lat], zoom: Math.min(map.getZoom() + 3, 10), duration: 1200 });
+          // Zoom in AND show cluster list
+          map.flyTo({ center: [lng, lat], zoom: Math.min(map.getZoom() + 3, 10), duration: 900 });
+          setClusterList(cSessions);
         }
       });
 
@@ -1714,7 +1753,14 @@ export default function LiveStatsModule({ C }) {
 
                 {/* View button */}
                 <button
-                  onClick={() => { setSelected(a.session); dismissAlert(a.id); }}
+                  onClick={() => {
+                    setSelected(a.session);
+                    dismissAlert(a.id);
+                    if (a.session?.latitude) {
+                      setViewMode("map");
+                      setTimeout(() => flyToSession(a.session), 100);
+                    }
+                  }}
                   style={{
                     flexShrink: 0, fontFamily: NU, fontSize: 10, fontWeight: 700,
                     color: tm.color, background: `${tm.color}15`, border: `1px solid ${tm.color}40`,
@@ -1722,7 +1768,7 @@ export default function LiveStatsModule({ C }) {
                     letterSpacing: "0.5px",
                   }}
                 >
-                  View
+                  View on Map
                 </button>
 
                 {/* Dismiss */}
@@ -2287,9 +2333,10 @@ export default function LiveStatsModule({ C }) {
 
             {/* Search */}
             <input
+              ref={searchInputRef}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search location, ISP, page…"
+              placeholder="Search  (/ to focus)"
               style={{
                 flex: "1 1 160px", minWidth: 120, maxWidth: 220,
                 background: surfaceMid, border: `1px solid ${border}`,
@@ -2382,6 +2429,16 @@ export default function LiveStatsModule({ C }) {
                 ↓ Export CSV
               </button>
             </div>
+          </div>
+
+          {/* Keyboard shortcut hint */}
+          <div style={{ flexShrink: 0, padding: "3px 14px", background: isLight ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.01)", borderBottom: `1px solid ${border}`, display: "flex", gap: 16, alignItems: "center" }}>
+            {[["E","Engage selected"],["M","Toggle map"],["/ ","Search"],["Esc","Close"]].map(([k,l]) => (
+              <span key={k} style={{ display: "flex", alignItems: "center", gap: 4, fontFamily: NU, fontSize: 9, color: grey2 }}>
+                <kbd style={{ fontFamily: "monospace", fontSize: 9, fontWeight: 700, color: isLight ? "#555" : "rgba(255,255,255,0.5)", background: isLight ? "rgba(0,0,0,0.07)" : "rgba(255,255,255,0.08)", border: `1px solid ${isLight ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.12)"}`, borderRadius: 3, padding: "1px 5px" }}>{k}</kbd>
+                {l}
+              </span>
+            ))}
           </div>
 
           <div style={{ flex: 1, overflowY: "auto" }}>
@@ -2766,9 +2823,69 @@ export default function LiveStatsModule({ C }) {
                       background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)",
                       borderRadius: 5, fontFamily: NU, fontSize: 11, color: "#10b981", lineHeight: 1.5,
                     }}>
-                      ✓ {funnelSubmitted} enquir{funnelSubmitted === 1 ? "y" : "ies"} submitted today — {funnelTotal > 0 ? Math.round(funnelSubmitted / funnelTotal * 100) : 0}% session conversion rate
+                      ✓ {funnelSubmitted} enquir{funnelSubmitted === 1 ? "y" : "ies"} submitted — {funnelTotal > 0 ? Math.round(funnelSubmitted / funnelTotal * 100) : 0}% session-to-enquiry rate
                     </div>
                   )}
+
+                  {/* ── Source breakdown for converting sessions ───────── */}
+                  {(() => {
+                    const convSessions = last30.filter(s => getConversionStage(s, viewEvents, engagedIds) !== null);
+                    if (convSessions.length === 0) return null;
+
+                    // Group by source category
+                    const srcMap = {};
+                    convSessions.forEach(s => {
+                      const src = classifySource(s.referrer, s.utm_source, s.utm_medium, s.utm_campaign);
+                      const cat = src.category;
+                      if (!srcMap[cat]) srcMap[cat] = { color: src.color, total: 0, submitted: 0 };
+                      srcMap[cat].total++;
+                      const stg = getConversionStage(s, viewEvents, engagedIds);
+                      if (stg === "submitted") srcMap[cat].submitted++;
+                    });
+
+                    const srcRows = Object.entries(srcMap).sort((a, b) => b[1].total - a[1].total);
+
+                    return (
+                      <div style={{ marginTop: 16 }}>
+                        <div style={{
+                          fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.8px",
+                          textTransform: "uppercase", color: grey2, marginBottom: 9,
+                          paddingTop: 10, borderTop: `1px solid ${border}`,
+                        }}>
+                          Source → Conversion
+                        </div>
+                        {srcRows.map(([cat, data]) => {
+                          const rate = Math.round(data.total / funnelTotal * 100);
+                          return (
+                            <div key={cat} style={{ marginBottom: 8 }}>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: data.color, flexShrink: 0 }} />
+                                  <span style={{ fontFamily: NU, fontSize: 11, color: grey }}>{cat}</span>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                  <span style={{ fontFamily: NU, fontSize: 10, color: grey2 }}>{data.total} session{data.total !== 1 ? "s" : ""}</span>
+                                  {data.submitted > 0 && (
+                                    <span style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, color: "#10b981" }}>
+                                      {data.submitted} enquir{data.submitted !== 1 ? "ies" : "y"}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div style={{ height: 3, borderRadius: 2, background: surfaceLine, overflow: "hidden" }}>
+                                <div style={{
+                                  height: "100%", borderRadius: 2,
+                                  width: `${rate}%`,
+                                  background: data.color,
+                                  transition: "width 0.4s ease",
+                                }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
           })()}
@@ -3024,6 +3141,107 @@ export default function LiveStatsModule({ C }) {
           </div>
         );
       })()}
+
+      {/* ── Cluster list overlay ────────────────────────────────────────── */}
+      {clusterList && (
+        <div
+          onClick={() => setClusterList(null)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 180,
+            background: "rgba(0,0,0,0.35)", backdropFilter: "blur(2px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: isLight ? "#FFFFFF" : "#14110e",
+              border: `1px solid ${GOLD}40`,
+              borderTop: `3px solid ${GOLD}`,
+              borderRadius: 8, padding: "18px 20px",
+              minWidth: 320, maxWidth: 460,
+              maxHeight: "70vh", overflowY: "auto",
+              boxShadow: isLight ? "0 16px 48px rgba(0,0,0,0.18)" : "0 16px 64px rgba(0,0,0,0.7)",
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <div>
+                <span style={{ fontFamily: GD, fontSize: 16, fontWeight: 600, color: white }}>
+                  {clusterList.length} visitors nearby
+                </span>
+                <div style={{ fontFamily: NU, fontSize: 10, color: grey2, marginTop: 2 }}>
+                  {resolveLocation(clusterList[0]).primary} area · click a session to inspect
+                </div>
+              </div>
+              <button
+                onClick={() => setClusterList(null)}
+                style={{
+                  background: isLight ? "rgba(0,0,0,0.07)" : "rgba(255,255,255,0.08)",
+                  border: `1px solid ${isLight ? "rgba(0,0,0,0.10)" : "rgba(255,255,255,0.12)"}`,
+                  color: grey2, cursor: "pointer", width: 26, height: 26, borderRadius: 4,
+                  display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12,
+                }}
+              >✕</button>
+            </div>
+
+            {/* Session rows */}
+            {clusterList.map((s, i) => {
+              const isActive  = (Date.now() - new Date(s.last_seen_at)) < ACTIVE_MS;
+              const tier      = getAlertTier(s, viewEvents);
+              const tm        = tier ? TIER_META[tier] : null;
+              const convStage = getConversionStage(s, viewEvents, engagedIds);
+              const convMeta  = convStage ? CONVERSION_META[convStage] : null;
+              const accentClr = convMeta?.color || tm?.color;
+              return (
+                <div
+                  key={s.session_id}
+                  onClick={() => { setSelected(s); setClusterList(null); }}
+                  style={{
+                    padding: "10px 12px",
+                    marginBottom: i < clusterList.length - 1 ? 6 : 0,
+                    border: `1px solid ${accentClr ? `${accentClr}45` : (isLight ? "#E2DED6" : "rgba(255,255,255,0.08)")}`,
+                    borderLeft: `3px solid ${accentClr || (isLight ? "#DED9CF" : "rgba(255,255,255,0.12)")}`,
+                    borderRadius: 6,
+                    background: isLight ? "#FAF9F6" : "rgba(255,255,255,0.03)",
+                    cursor: "pointer", transition: "all 0.12s",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = isLight ? "#FFF8E6" : "rgba(201,168,76,0.07)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = isLight ? "#FAF9F6" : "rgba(255,255,255,0.03)"; }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 13 }}>{flag(s.country_code)}</span>
+                      <span style={{ fontFamily: NU, fontSize: 12, fontWeight: 700, color: white }}>{resolveLocation(s).primary}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                      {convMeta && (
+                        <span style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", color: convMeta.color, background: `${convMeta.color}18`, border: `1px solid ${convMeta.color}40`, borderRadius: 3, padding: "1px 6px" }}>
+                          {convMeta.icon} {convMeta.label}
+                        </span>
+                      )}
+                      {tm && !convMeta && (
+                        <span style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", color: tm.color, background: `${tm.color}18`, border: `1px solid ${tm.color}40`, borderRadius: 3, padding: "1px 6px" }}>
+                          {tm.label}
+                        </span>
+                      )}
+                      {isActive && <span style={{ width: 5, height: 5, borderRadius: "50%", background: GOLD, boxShadow: `0 0 5px ${GOLD}` }} />}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, fontFamily: NU, fontSize: 10, color: grey2, flexWrap: "wrap" }}>
+                    <span>{shortPath(s.current_path)}</span>
+                    <span>·</span>
+                    <span>{duration(s.first_seen_at)}</span>
+                    <span>·</span>
+                    <span>{s.page_count || 1}pg</span>
+                    {s.device_type && <><span>·</span><span>{s.device_type}</span></>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── Session detail drawer ────────────────────────────────────────── */}
       {selected && (() => {
