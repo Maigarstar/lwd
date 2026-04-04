@@ -1,6 +1,7 @@
 // ─── src/chat/ChatWidget.jsx ──────────────────────────────────────────────────
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useChat } from "./ChatContext";
+import AuraChatImageStrip from "./AuraChatImageStrip";
 
 // ── Design tokens (widget is always dark regardless of page theme) ─────────────
 const G = {
@@ -208,9 +209,9 @@ export default function ChatWidget() {
         position:   "fixed",
         top:        "50%",
         left:       "50%",
-        width:      440,
+        width:      480,
         maxWidth:   "calc(100vw - 48px)",
-        height:     580,
+        height:     600,
         borderRadius: "var(--lwd-radius-card)",
         transform:  visible
           ? "translate(-50%,-50%) scale(1)"
@@ -373,14 +374,16 @@ export default function ChatWidget() {
               <div
                 key={m.id}
                 style={{
-                  marginBottom:  12,
-                  display:       "flex",
-                  justifyContent: m.from === "user" ? "flex-end" : "flex-start",
+                  marginBottom:   14,
+                  display:        "flex",
+                  flexDirection:  "column",
+                  alignItems:     m.from === "user" ? "flex-end" : "flex-start",
                 }}
               >
+                {/* Message bubble */}
                 <div
                   style={{
-                    maxWidth:     "82%",
+                    maxWidth:     "86%",
                     padding:      "10px 14px",
                     fontSize:     13,
                     lineHeight:   1.68,
@@ -402,6 +405,13 @@ export default function ChatWidget() {
                 >
                   {m.text}
                 </div>
+
+                {/* Inline image strip — only on Aura messages with images */}
+                {m.from === "aura" && m.images?.length > 0 && (
+                  <div style={{ maxWidth: "92%", width: "100%", marginTop: 6 }}>
+                    <AuraChatImageStrip images={m.images} />
+                  </div>
+                )}
               </div>
             ))}
 

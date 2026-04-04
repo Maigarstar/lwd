@@ -3,6 +3,62 @@ import {
   createContext, useContext, useState, useCallback, useRef, useEffect,
 } from "react";
 import { getRecommendations } from "./recommendationEngine";
+import { supabase } from "../lib/supabaseClient";
+
+// ── Image fetch for Aura visual responses ────────────────────────────────────
+// Detects visual intent in the user's message and fetches relevant images
+// from media_ai_index to attach to Aura's reply.
+
+const VISUAL_TRIGGERS = [
+  /\b(show|see|look|image|photo|picture|gallery|visual|beautiful|style|what.*look|how.*look|appear|interior|exterior|space|room|garden|ceremony)\b/i,
+];
+
+const STYLE_KEYWORDS = [
+  "romantic", "modern", "rustic", "classic", "minimal", "editorial",
+  "garden", "barn", "castle", "chateau", "villa", "vineyard", "beach",
+  "ballroom", "intimate", "grand", "outdoor", "indoor",
+];
+
+function extractStyleKeywords(text) {
+  const lower = text.toLowerCase();
+  return STYLE_KEYWORDS.filter(kw => lower.includes(kw));
+}
+
+function hasVisualIntent(text) {
+  return VISUAL_TRIGGERS.some(rx => rx.test(text));
+}
+
+async function fetchAuraImages({ listingId, region, country, keywords, limit = 6 }) {
+  try {
+    // Build query — prioritise listing context, then region, then platform-wide featured
+    let query = supabase.from("media_ai_index")
+      .select("media_id, url, title, alt_text, listing_name, listing_id, category, region, country, is_featured")
+      .not("url", "is", null)
+      .limit(limit);
+
+    if (listingId) {
+      // On a specific venue/listing page — show that listing's images
+      query = query.eq("listing_id", listingId);
+    } else if (keywords?.length) {
+      // Style-keyword filter using OR across tags (style_tags is a text[] column in media_metadata_enrichment)
+      // For now do a text search on title/alt_text; enrichment join can be added later
+      query = query.or(
+        keywords.map(kw => `title.ilike.%${kw}%,alt_text.ilike.%${kw}%`).join(",")
+      );
+      if (region) query = query.ilike("region", `%${region}%`);
+    } else if (region) {
+      query = query.ilike("region", `%${region}%`);
+    }
+
+    query = query.order("is_featured", { ascending: false })
+                 .order("created_at",  { ascending: false });
+
+    const { data } = await Promise.resolve(query);
+    return (data || []).filter(r => r.url);
+  } catch {
+    return [];
+  }
+}
 
 // ── AI backend ────────────────────────────────────────────────────────────────
 const AI_URL  = 'https://qpkggfibwreznussudfh.supabase.co/functions/v1/ai-generate';
@@ -97,7 +153,7 @@ export function ChatProvider({ children }) {
   const [chatDark,        setChatDark]        = useState(true);
   const [messages,        setMessages]        = useState(() => loadMessages() ?? [INIT_MESSAGE]);
   const [isTyping,        setIsTyping]        = useState(false);
-  const [activeContext,   setActiveContext]   = useState({ country: null, region: null, page: null, venueInfo: null });
+  const [activeContext,   setActiveContext]   = useState({ country: null, region: null, page: null, venueInfo: null, listingId: null });
   const [recommendations, setRecommendations] = useState({ items: [], summary: "", intent: {} });
 
   // Persist messages
@@ -112,6 +168,26 @@ export function ChatProvider({ children }) {
       setRecommendations({ items: [], summary: "", intent: {} });
     }
   }, [messages, activeContext]);
+
+  // When chat opens on a listing page, attach images to the opening message
+  // so the couple immediately sees what the venue looks like.
+  useEffect(() => {
+    if (!activeContext.listingId) return;
+    // Only enrich the INIT_MESSAGE (id=0) if it hasn't been enriched yet
+    setMessages(prev => {
+      const initMsg = prev.find(m => m.id === 0);
+      if (!initMsg || initMsg.images) return prev; // already enriched or gone
+      // Fire async — update when resolved
+      fetchAuraImages({ listingId: activeContext.listingId, limit: 6 }).then(imgs => {
+        if (!imgs?.length) return;
+        setMessages(ms => ms.map(m =>
+          m.id === 0 ? { ...m, images: imgs } : m
+        ));
+      });
+      return prev; // no synchronous change
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeContext.listingId]);
 
   // Cleanup timer on unmount
   useEffect(() => () => clearTimeout(replyTimer.current), []);
@@ -158,9 +234,10 @@ export function ChatProvider({ children }) {
       prev.country   === ctx.country   &&
       prev.region    === ctx.region    &&
       prev.page      === ctx.page      &&
-      prev.venueInfo === ctx.venueInfo
+      prev.venueInfo === ctx.venueInfo &&
+      prev.listingId === ctx.listingId
         ? prev
-        : { country: null, region: null, page: null, venueInfo: null, ...ctx }
+        : { country: null, region: null, page: null, venueInfo: null, listingId: null, ...ctx }
     );
   }, []);
 
@@ -168,22 +245,49 @@ export function ChatProvider({ children }) {
     const trimmed = text.trim();
     if (!trimmed) return;
     const userMsg = { id: Date.now(), from: "user", text: trimmed };
+
+    // Detect if we should attach images to the reply
+    const wantsImages  = hasVisualIntent(trimmed);
+    const styleKws     = extractStyleKeywords(trimmed);
+    const ctx          = activeContext; // capture for closure
+
     setMessages((prev) => {
-      // capture snapshot for AI call
       const snapshot = [...prev, userMsg];
       setIsTyping(true);
       clearTimeout(replyTimer.current);
-      // Try real AI; fall back to stub on failure/timeout
-      const aiCall = callAuraAi(trimmed, snapshot, activeContext);
-      const timeout = new Promise(res => { replyTimer.current = setTimeout(() => res(null), 12000); });
-      Promise.race([aiCall, timeout]).then(aiText => {
+
+      const aiCall   = callAuraAi(trimmed, snapshot, ctx);
+      const timeout  = new Promise(res => { replyTimer.current = setTimeout(() => res(null), 12000); });
+
+      // Fire image fetch in parallel with AI — only when visually relevant
+      const imagesFetch = (wantsImages || ctx.listingId)
+        ? fetchAuraImages({
+            listingId: ctx.listingId || null,
+            region:    ctx.region    || null,
+            country:   ctx.country   || null,
+            keywords:  styleKws.length ? styleKws : null,
+            limit:     6,
+          })
+        : Promise.resolve([]);
+
+      Promise.all([
+        Promise.race([aiCall, timeout]),
+        imagesFetch,
+      ]).then(([aiText, imgs]) => {
         setIsTyping(false);
-        const reply = aiText?.trim() || nextStub();
-        setMessages(m => [...m, { id: Date.now() + 1, from: 'aura', text: reply }]);
+        const reply  = aiText?.trim() || nextStub();
+        const images = imgs?.length ? imgs : undefined;
+        setMessages(m => [...m, {
+          id:     Date.now() + 1,
+          from:   "aura",
+          text:   reply,
+          images, // undefined when no images → strip not rendered
+        }]);
       }).catch(() => {
         setIsTyping(false);
-        setMessages(m => [...m, { id: Date.now() + 1, from: 'aura', text: nextStub() }]);
+        setMessages(m => [...m, { id: Date.now() + 1, from: "aura", text: nextStub() }]);
       });
+
       return snapshot;
     });
   }, [activeContext]);

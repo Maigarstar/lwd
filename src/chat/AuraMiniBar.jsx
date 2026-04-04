@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useChat } from "./ChatContext";
 import Icon from "./Icons";
+import AuraChatImageStrip from "./AuraChatImageStrip";
 
 const KEYFRAMES = `
   @keyframes aura-float-in {
@@ -259,13 +260,15 @@ export default function AuraMiniBar() {
             <div
               key={m.id}
               style={{
-                display:        "flex",
-                justifyContent: m.from === "user" ? "flex-end" : "flex-start",
+                display:       "flex",
+                flexDirection: "column",
+                alignItems:    m.from === "user" ? "flex-end" : "flex-start",
+                gap:           4,
               }}
             >
               <div
                 style={{
-                  maxWidth:     "80%",
+                  maxWidth:     "82%",
                   padding:      "7px 12px",
                   borderRadius: m.from === "user" ? "10px 10px 2px 10px" : "10px 10px 10px 2px",
                   background:   m.from === "user" ? "#C9A84C" : "#F0ECE4",
@@ -277,6 +280,12 @@ export default function AuraMiniBar() {
               >
                 {m.text}
               </div>
+              {/* Inline images on Aura messages — MiniBar uses light theme strip */}
+              {m.from === "aura" && m.images?.length > 0 && (
+                <div style={{ maxWidth: "90%", width: "100%" }}>
+                  <AuraChatImageStrip images={m.images} />
+                </div>
+              )}
             </div>
           ))}
 
