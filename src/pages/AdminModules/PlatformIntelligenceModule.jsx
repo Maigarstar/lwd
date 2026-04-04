@@ -24,6 +24,7 @@ import {
   fetchCompareTop,
 } from '../../services/adminUserEventsService';
 import { fetchEventIntel, adminListEvents, dbToEvent } from '../../services/adminEventsService';
+import { supabase } from '../../lib/supabaseClient';
 
 const GD = 'var(--font-heading-primary)';
 const NU = 'var(--font-body)';
@@ -1191,15 +1192,425 @@ function EventSummaryBar({ days, C }) {
   );
 }
 
+// ── Seasonality data ──────────────────────────────────────────────────────────
+
+const WEDDING_SEASONALITY_PI = {
+  GB: {
+    1:  { phase: "Quiet",  color: "#6b7280" }, 2:  { phase: "Rising", color: "#3b82f6" },
+    3:  { phase: "Rising", color: "#3b82f6" }, 4:  { phase: "Peak",   color: "#22c55e" },
+    5:  { phase: "Peak",   color: "#22c55e" }, 6:  { phase: "Peak",   color: "#22c55e" },
+    7:  { phase: "Busy",   color: "#C9A84C" }, 8:  { phase: "Busy",   color: "#C9A84C" },
+    9:  { phase: "Rising", color: "#3b82f6" }, 10: { phase: "Rising", color: "#3b82f6" },
+    11: { phase: "Quiet",  color: "#6b7280" }, 12: { phase: "Rising", color: "#3b82f6" },
+  },
+  IT: {
+    1:  { phase: "Quiet",  color: "#6b7280" }, 2:  { phase: "Rising", color: "#3b82f6" },
+    3:  { phase: "Rising", color: "#3b82f6" }, 4:  { phase: "Peak",   color: "#22c55e" },
+    5:  { phase: "Peak",   color: "#22c55e" }, 6:  { phase: "Peak",   color: "#22c55e" },
+    7:  { phase: "Busy",   color: "#C9A84C" }, 8:  { phase: "Busy",   color: "#C9A84C" },
+    9:  { phase: "Peak",   color: "#22c55e" }, 10: { phase: "Rising", color: "#3b82f6" },
+    11: { phase: "Quiet",  color: "#6b7280" }, 12: { phase: "Quiet",  color: "#6b7280" },
+  },
+  AE: {
+    1:  { phase: "Peak",   color: "#22c55e" }, 2:  { phase: "Peak",   color: "#22c55e" },
+    3:  { phase: "Rising", color: "#3b82f6" }, 4:  { phase: "Quiet",  color: "#6b7280" },
+    5:  { phase: "Quiet",  color: "#6b7280" }, 6:  { phase: "Quiet",  color: "#6b7280" },
+    7:  { phase: "Quiet",  color: "#6b7280" }, 8:  { phase: "Quiet",  color: "#6b7280" },
+    9:  { phase: "Rising", color: "#3b82f6" }, 10: { phase: "Rising", color: "#3b82f6" },
+    11: { phase: "Peak",   color: "#22c55e" }, 12: { phase: "Peak",   color: "#22c55e" },
+  },
+};
+
+const BOOKING_WINDOW_PI = {
+  venue:        { label: "12–24 months in advance" },
+  photographer: { label: "6–18 months in advance"  },
+  planner:      { label: "12–18 months in advance" },
+  florist:      { label: "3–12 months in advance"  },
+};
+
+// ── Vendor Performance tab ────────────────────────────────────────────────────
+
+function VendorPerformanceTab({ days, C }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [sortKey, setSortKey] = useState('views');
+  const [sends, setSends] = useState({});
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+
+    Promise.all([
+      supabase
+        .from('vendor_monthly_snapshots')
+        .select('*, vendors(name, entity_type, country_code)')
+        .order('month', { ascending: false })
+        .limit(200),
+      supabase
+        .from('vendor_report_sends')
+        .select('vendor_id, sent_at, opened_at')
+        .order('sent_at', { ascending: false }),
+    ]).then(([snapshotRes, sendsRes]) => {
+      if (cancelled) return;
+
+      // Dedupe to latest snapshot per vendor
+      const seen = new Set();
+      const deduped = (snapshotRes.data || []).filter(row => {
+        if (seen.has(row.vendor_id)) return false;
+        seen.add(row.vendor_id);
+        return true;
+      });
+
+      // Build sends map
+      const sendsMap = {};
+      (sendsRes.data || []).forEach(s => {
+        if (!sendsMap[s.vendor_id]) sendsMap[s.vendor_id] = s;
+      });
+
+      setRows(deduped);
+      setSends(sendsMap);
+      setLoading(false);
+    }).catch(e => {
+      console.warn('[PlatformIntelligence] VendorPerf load error:', e);
+      if (!cancelled) setLoading(false);
+    });
+
+    return () => { cancelled = true; };
+  }, [days]);
+
+  function getHealth(vendorId) {
+    const send = sends[vendorId];
+    if (!send) return { label: 'No reports', color: '#6b7280' };
+    if (send.opened_at) return { label: 'Healthy', color: '#22c55e' };
+    return { label: 'At Risk', color: '#f97316' };
+  }
+
+  const SORT_OPTIONS = [
+    { key: 'views',        label: 'Views ↓' },
+    { key: 'enquiries',    label: 'Enquiries ↓' },
+    { key: 'touch_points', label: 'Touch Points ↓' },
+    { key: 'media_value_high', label: 'Media Value ↓' },
+    { key: 'roi_multiple', label: 'ROI ↓' },
+  ];
+
+  const sorted = [...rows].sort((a, b) => (b[sortKey] || 0) - (a[sortKey] || 0));
+  const maxViews = sorted[0]?.views || 1;
+
+  return (
+    <div>
+      {/* Sort picker */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 20, alignItems: 'center' }}>
+        <span style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginRight: 4 }}>Sort by:</span>
+        {SORT_OPTIONS.map(opt => (
+          <button
+            key={opt.key}
+            onClick={() => setSortKey(opt.key)}
+            style={{
+              fontFamily: NU, fontSize: 10, fontWeight: 700,
+              letterSpacing: '0.06em', padding: '4px 10px',
+              borderRadius: 3, cursor: 'pointer',
+              border: `1px solid ${sortKey === opt.key ? C.gold : C.border}`,
+              background: sortKey === opt.key ? `${C.gold}18` : 'transparent',
+              color: sortKey === opt.key ? C.gold : C.grey,
+            }}
+          >{opt.label}</button>
+        ))}
+      </div>
+
+      {/* Table */}
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 70px 70px 70px 90px 70px 110px 80px', gap: 10, padding: '8px 20px', borderBottom: `1px solid ${C.border}` }}>
+          {['Vendor', 'Views', 'SLists', 'Enq.', 'Touch', 'Media Val', 'ROI', 'Last Report', 'Health'].map(h => (
+            <span key={h} style={{ fontFamily: NU, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.grey2, fontWeight: 600 }}>{h}</span>
+          ))}
+        </div>
+
+        {loading && (
+          <div style={{ padding: '32px', textAlign: 'center', fontFamily: NU, fontSize: 12, color: C.grey }}>Loading vendor performance…</div>
+        )}
+
+        {!loading && sorted.length === 0 && (
+          <div style={{ padding: '40px', textAlign: 'center' }}>
+            <div style={{ fontFamily: GD, fontSize: 16, color: C.off, marginBottom: 8 }}>No snapshot data yet</div>
+            <div style={{ fontFamily: NU, fontSize: 12, color: C.grey }}>Run the monthly reports job to populate vendor_monthly_snapshots.</div>
+          </div>
+        )}
+
+        {!loading && sorted.map(row => {
+          const vendor = row.vendors || {};
+          const health = getHealth(row.vendor_id);
+          const send = sends[row.vendor_id];
+
+          return (
+            <div
+              key={row.vendor_id}
+              style={{
+                display: 'grid', gridTemplateColumns: '1fr 60px 70px 70px 70px 90px 70px 110px 80px',
+                gap: 10, padding: '12px 20px', borderBottom: `1px solid ${C.border}`, alignItems: 'center',
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontFamily: NU, fontSize: 12, color: C.off, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {vendor.name || row.vendor_id?.slice(0, 14) + '…'}
+                </div>
+                <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, textTransform: 'capitalize', marginTop: 1 }}>
+                  {vendor.entity_type || '—'} · {vendor.country_code || '—'}
+                </div>
+                <div style={{ height: 3, background: C.border, borderRadius: 2, overflow: 'hidden', marginTop: 4 }}>
+                  <div style={{ height: '100%', width: `${((row.views || 0) / maxViews) * 100}%`, background: C.gold, borderRadius: 2 }} />
+                </div>
+              </div>
+              <span style={{ fontFamily: GD, fontSize: 16, color: C.off }}>{fmt(row.views)}</span>
+              <span style={{ fontFamily: GD, fontSize: 16, color: C.off }}>{fmt(row.shortlists)}</span>
+              <span style={{ fontFamily: GD, fontSize: 16, color: row.enquiries > 0 ? '#22c55e' : C.grey }}>{fmt(row.enquiries)}</span>
+              <span style={{ fontFamily: GD, fontSize: 16, color: C.off }}>{fmt(row.touch_points)}</span>
+              <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>
+                {row.media_value_low ? `£${row.media_value_low}–${row.media_value_high}` : '—'}
+              </span>
+              <span style={{ fontFamily: NU, fontSize: 12, fontWeight: 700, color: row.roi_multiple > 10 ? '#22c55e' : C.gold }}>
+                {row.roi_multiple ? `${row.roi_multiple}×` : '—'}
+              </span>
+              <span style={{ fontFamily: NU, fontSize: 11, color: send?.opened_at ? '#22c55e' : (send ? C.grey2 : C.grey) }}>
+                {send ? new Date(send.sent_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Never'}
+                {send?.opened_at ? ' ✓' : ''}
+              </span>
+              <span style={{
+                fontSize: 9, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase',
+                color: health.color, background: health.color + '22',
+                padding: '2px 8px', borderRadius: 100,
+              }}>
+                {health.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Market Trends tab ─────────────────────────────────────────────────────────
+
+function MarketTrendsTab({ days, C }) {
+  const [loading, setLoading] = useState(true);
+  const [funnel, setFunnel] = useState({});
+  const [categoryData, setCategoryData] = useState([]);
+  const [countryData, setCountryData] = useState([]);
+  const [platformTotals, setPlatformTotals] = useState(null);
+  const currentMonth = new Date().getMonth() + 1;
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+
+    const since = new Date(Date.now() - days * 86400000).toISOString();
+
+    Promise.all([
+      supabase.from('page_events').select('event_type').gte('created_at', since)
+        .in('event_type', ['page_view', 'shortlist_add', 'compare_add', 'enquiry_started', 'enquiry_submitted']),
+      supabase.from('page_events').select('entity_type').eq('event_type', 'shortlist_add').gte('created_at', since),
+      supabase.from('page_events').select('country_code').not('country_code', 'is', null).gte('created_at', since),
+      supabase.from('vendor_monthly_snapshots').select('touch_points, media_value_low, media_value_high').gte('month', new Date(Date.now() - 35 * 86400000).toISOString().slice(0, 7)),
+    ]).then(([funnelRes, catRes, countryRes, totalsRes]) => {
+      if (cancelled) return;
+
+      const counts = {};
+      (funnelRes.data || []).forEach(e => { counts[e.event_type] = (counts[e.event_type] || 0) + 1; });
+      setFunnel(counts);
+
+      const catCounts = {};
+      (catRes.data || []).forEach(e => { if (e.entity_type) catCounts[e.entity_type] = (catCounts[e.entity_type] || 0) + 1; });
+      setCategoryData(Object.entries(catCounts).map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count).slice(0, 5));
+
+      const cCounts = {};
+      (countryRes.data || []).forEach(e => { if (e.country_code) cCounts[e.country_code] = (cCounts[e.country_code] || 0) + 1; });
+      setCountryData(Object.entries(cCounts).map(([code, count]) => ({ code, count })).sort((a, b) => b.count - a.count).slice(0, 8));
+
+      // Platform totals from snapshots
+      const snaps = totalsRes.data || [];
+      const totalTouchPoints = snaps.reduce((s, r) => s + (r.touch_points || 0), 0);
+      const totalMediaLow    = snaps.reduce((s, r) => s + (r.media_value_low  || 0), 0);
+      const totalMediaHigh   = snaps.reduce((s, r) => s + (r.media_value_high || 0), 0);
+      setPlatformTotals({ touchPoints: totalTouchPoints, mediaLow: totalMediaLow, mediaHigh: totalMediaHigh });
+
+      setLoading(false);
+    }).catch(e => {
+      console.warn('[PlatformIntelligence] MarketTrends load error:', e);
+      if (!cancelled) setLoading(false);
+    });
+
+    return () => { cancelled = true; };
+  }, [days]);
+
+  const funnelSteps = [
+    { key: 'page_view',         label: 'Views',     color: '#60a5fa' },
+    { key: 'shortlist_add',     label: 'Shortlists',color: C.gold },
+    { key: 'compare_add',       label: 'Compares',  color: '#a78bfa' },
+    { key: 'enquiry_started',   label: 'Enq. Start',color: '#f59e0b' },
+    { key: 'enquiry_submitted', label: 'Submitted', color: '#22c55e' },
+  ];
+  const maxFunnel = funnelSteps.reduce((m, s) => Math.max(m, funnel[s.key] || 0), 1);
+  const maxCat = categoryData[0]?.count || 1;
+  const maxCountry = countryData[0]?.count || 1;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+      {/* Platform totals insight */}
+      {platformTotals && (
+        <div style={{ background: `${C.gold}10`, border: `1px solid ${C.gold}30`, borderRadius: 8, padding: '16px 20px' }}>
+          <div style={{ fontFamily: GD, fontSize: 14, color: C.off }}>
+            Platform generated{' '}
+            <span style={{ color: C.gold }}>{fmt(platformTotals.touchPoints)} touch points</span>
+            {(platformTotals.mediaLow > 0 || platformTotals.mediaHigh > 0) && (
+              <> and{' '}
+                <span style={{ color: C.gold }}>
+                  £{fmt(platformTotals.mediaLow)}–£{fmt(platformTotals.mediaHigh)} equivalent media value
+                </span>
+              </>
+            )}
+            {' '}for vendors this month
+          </div>
+        </div>
+      )}
+
+      {/* Platform funnel */}
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '20px 24px' }}>
+        <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.gold, fontWeight: 600, marginBottom: 18 }}>
+          Platform Funnel Overview · Last {days} Days
+        </div>
+        {loading ? (
+          <div style={{ fontFamily: NU, fontSize: 12, color: C.grey }}>Loading…</div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 0 }}>
+            {funnelSteps.map((step, i) => {
+              const val = funnel[step.key] || 0;
+              const prev = i > 0 ? (funnel[funnelSteps[i - 1].key] || 0) : val;
+              const dropRate = i > 0 && prev > 0 ? Math.round(((prev - val) / prev) * 100) : null;
+              const barH = maxFunnel > 0 ? Math.max(8, Math.round((val / maxFunnel) * 80)) : 8;
+              return (
+                <div key={step.key} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  {i > 0 && dropRate !== null && dropRate > 0 && (
+                    <div style={{ fontFamily: NU, fontSize: 9, color: '#ef4444', marginBottom: 2 }}>−{dropRate}%</div>
+                  )}
+                  {(i === 0 || !dropRate || dropRate === 0) && <div style={{ height: 15, marginBottom: 2 }} />}
+                  <div style={{ fontFamily: GD, fontSize: 20, color: step.color, marginBottom: 6 }}>{fmt(val)}</div>
+                  <div style={{ width: '80%', height: `${barH}px`, background: step.color + '30', borderRadius: 3, overflow: 'hidden', marginBottom: 6 }}>
+                    <div style={{ width: '100%', height: '100%', background: step.color, borderRadius: 3 }} />
+                  </div>
+                  <div style={{ fontFamily: NU, fontSize: 9, color: C.grey, textAlign: 'center' }}>{step.label}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        {/* Top 5 performing categories */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden' }}>
+          <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.gold, fontWeight: 600 }}>
+              Top 5 Performing Categories
+            </div>
+          </div>
+          {loading ? (
+            <div style={{ padding: '24px', fontFamily: NU, fontSize: 12, color: C.grey }}>Loading…</div>
+          ) : categoryData.length === 0 ? (
+            <div style={{ padding: '24px', fontFamily: NU, fontSize: 12, color: C.grey2, fontStyle: 'italic' }}>No shortlist data yet.</div>
+          ) : categoryData.map(cat => (
+            <div key={cat.type} style={{ padding: '12px 20px', borderBottom: `1px solid ${C.border}` }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontFamily: NU, fontSize: 12, color: C.off, textTransform: 'capitalize' }}>{cat.type || 'unknown'}</span>
+                <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>{cat.count}</span>
+              </div>
+              <div style={{ height: 4, background: C.border, borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${(cat.count / maxCat) * 100}%`, background: C.gold, borderRadius: 2, transition: 'width 0.6s' }} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Top 8 source countries */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden' }}>
+          <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#60a5fa', fontWeight: 600 }}>
+              Top 8 Source Countries
+            </div>
+          </div>
+          {loading ? (
+            <div style={{ padding: '24px', fontFamily: NU, fontSize: 12, color: C.grey }}>Loading…</div>
+          ) : countryData.length === 0 ? (
+            <div style={{ padding: '24px', fontFamily: NU, fontSize: 12, color: C.grey2, fontStyle: 'italic' }}>No country data yet.</div>
+          ) : countryData.map(country => (
+            <div key={country.code} style={{ padding: '12px 20px', borderBottom: `1px solid ${C.border}` }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontFamily: NU, fontSize: 12, color: C.off }}>{country.code}</span>
+                <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>{country.count}</span>
+              </div>
+              <div style={{ height: 4, background: C.border, borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${(country.count / maxCountry) * 100}%`, background: '#60a5fa', borderRadius: 2, transition: 'width 0.6s' }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Seasonality context */}
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: '20px 24px' }}>
+        <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.gold, fontWeight: 600, marginBottom: 18 }}>
+          Seasonality Context — Current Month
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+          {['GB', 'IT', 'AE'].map(country => {
+            const info = WEDDING_SEASONALITY_PI[country]?.[currentMonth];
+            return (
+              <div key={country} style={{
+                background: info?.color ? info.color + '15' : C.border,
+                border: `1px solid ${info?.color || C.border}`,
+                borderRadius: 6, padding: '14px 16px',
+              }}>
+                <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, marginBottom: 6, letterSpacing: '0.08em', fontWeight: 700 }}>
+                  {country === 'GB' ? 'United Kingdom' : country === 'IT' ? 'Italy' : 'UAE'}
+                </div>
+                <div style={{ fontFamily: GD, fontSize: 18, color: info?.color || C.off, marginBottom: 2 }}>
+                  {info?.phase || 'Unknown'}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Booking window */}
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+          <div style={{ fontFamily: NU, fontSize: 11, color: C.grey, marginBottom: 10 }}>
+            Booking windows by category:
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+            {Object.entries(BOOKING_WINDOW_PI).map(([type, window]) => (
+              <div key={type} style={{ background: C.dark, border: `1px solid ${C.border}`, borderRadius: 4, padding: '8px 12px' }}>
+                <div style={{ fontFamily: NU, fontSize: 9, color: C.grey, textTransform: 'capitalize', marginBottom: 2 }}>{type}</div>
+                <div style={{ fontFamily: NU, fontSize: 10, color: C.off, fontWeight: 600 }}>{window.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Tab system ────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { key: 'outbound',  label: 'Outbound Clicks' },
-  { key: 'search',    label: 'Search Intelligence' },
-  { key: 'enquiry',   label: 'Enquiry Funnel' },
-  { key: 'shortlist', label: 'Shortlist Signals' },
-  { key: 'compare',   label: 'Compare Intelligence' },
-  { key: 'events',    label: 'Event Analytics' },
+  { key: 'outbound',     label: 'Outbound Clicks' },
+  { key: 'search',       label: 'Search Intelligence' },
+  { key: 'enquiry',      label: 'Enquiry Funnel' },
+  { key: 'shortlist',    label: 'Shortlist Signals' },
+  { key: 'compare',      label: 'Compare Intelligence' },
+  { key: 'events',       label: 'Event Analytics' },
+  { key: 'vendor-perf',  label: 'Vendor Performance' },
+  { key: 'market',       label: 'Market Trends' },
 ];
 
 function TabBar({ active, onChange, C }) {
@@ -1340,12 +1751,14 @@ export default function PlatformIntelligenceModule({ C }) {
       <TabBar active={activeTab} onChange={setActiveTab} C={C} />
 
       {/* ── Tab content ── */}
-      {activeTab === 'outbound'  && <OutboundTab days={days} C={C} />}
-      {activeTab === 'search'    && <SearchIntelligencePanel days={days} C={C} />}
-      {activeTab === 'enquiry'   && <EnquiryFunnelPanel days={days} C={C} />}
-      {activeTab === 'shortlist' && <ShortlistPanel days={days} C={C} />}
-      {activeTab === 'compare'   && <CompareIntelPanel days={days} C={C} />}
-      {activeTab === 'events'    && <EventIntelPanel days={days} C={C} />}
+      {activeTab === 'outbound'    && <OutboundTab days={days} C={C} />}
+      {activeTab === 'search'      && <SearchIntelligencePanel days={days} C={C} />}
+      {activeTab === 'enquiry'     && <EnquiryFunnelPanel days={days} C={C} />}
+      {activeTab === 'shortlist'   && <ShortlistPanel days={days} C={C} />}
+      {activeTab === 'compare'     && <CompareIntelPanel days={days} C={C} />}
+      {activeTab === 'events'      && <EventIntelPanel days={days} C={C} />}
+      {activeTab === 'vendor-perf' && <VendorPerformanceTab days={days} C={C} />}
+      {activeTab === 'market'      && <MarketTrendsTab days={days} C={C} />}
 
     </div>
   );

@@ -56,6 +56,7 @@ import CategoryGridAdmin from "./AdminModules/CategoryGridAdmin";
 import MenuBranding from "./AdminModules/menu/MenuBranding";
 import PlatformIntelligenceModule from "./AdminModules/PlatformIntelligenceModule";
 import LiveStatsModule from "./AdminModules/LiveStatsModule";
+import ReportingHubModule from "./AdminModules/ReportingHubModule";
 import EventsModule from "./AdminModules/EventsModule";
 import SiteContentModule from "./AdminModules/SiteContentModule";
 import CategoryPagePreview from "../components/admin/CategoryPagePreview";
@@ -343,6 +344,7 @@ const NAV_SECTIONS = [
       { key: "ai-settings",           label: "AI Settings",            icon: "⚙" },
       { key: "connected-data",         label: "Connected Data",        icon: "◉" },
       { key: "platform-intelligence",  label: "Platform Intelligence", icon: "⬡" },
+      { key: "reporting-hub",          label: "Reporting Hub",         icon: "◈" },
     ],
   },
   {
@@ -11658,6 +11660,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "connected-data":          return <ConnectedDataModule C={C} NU={NU} GD={GD} />;
       case "live-stats":             return <LiveStatsModule C={C} />;
       case "platform-intelligence":  return <PlatformIntelligenceModule C={C} />;
+      case "reporting-hub":          return <ReportingHubModule C={C} />;
       case "styles":        return <StyleEditorModule C={C} darkPalette={customDark} lightPalette={customLight} fonts={customFonts} customCss={customCss} siteSettings={siteSettings} auditLog={auditLog} onUpdatePalette={handleUpdatePalette} onUpdateFonts={handleUpdateFonts} onUpdateCss={handleUpdateCss} onUpdateSiteSettings={handleUpdateSiteSettings} onSave={handleSaveThemeLogged} onRevert={handleRevertTheme} onExport={handleExportTheme} onImport={handleImportTheme} onApplyPreset={handleApplyPreset} saveStatus={saveStatus} />;
       case "page-studio":   return <PageStudioHome C={C} NU={NU} GD={GD} onNavigate={(action, params) => {
         if (action === "page-editor" && params?.pageId) {
@@ -11893,7 +11896,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <button
-                    onClick={() => { sessionStorage.setItem("lwd_admin_preview", JSON.stringify({ type: "vendor", id: "vdr-13" })); window.location.href = "/vendor"; }}
+                    onClick={() => { sessionStorage.setItem("lwd_admin_preview", JSON.stringify({ type: "vendor", id: "11111111-1111-1111-1111-111111111113", analytics_enabled: true })); window.location.href = "/vendor"; }}
                     style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 3, cursor: 'pointer', padding: '6px 10px', fontFamily: NU, fontSize: 10, color: 'rgba(255,255,255,0.45)', textAlign: 'left', transition: 'all 0.15s', letterSpacing: '0.04em' }}
                     onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#c9a84c'; e.currentTarget.style.color = '#c9a84c'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; }}

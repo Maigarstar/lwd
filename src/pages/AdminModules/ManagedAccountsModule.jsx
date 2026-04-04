@@ -17,6 +17,7 @@ import {
   createAccount,
   updateAccount,
 } from "../../services/managedAccountsService";
+import { supabase } from "../../lib/supabaseClient";
 
 const PLAN_OPTIONS = [
   { key: "signature",  label: "Signature",  color: "#c9a84c" },
@@ -77,9 +78,9 @@ function daysUntil(dateStr) {
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
-// Compute health signals for an account + its content summary.
+// Compute health signals for an account + its content summary + optional analytics data.
 // Returns array of { label, color, bg } signal objects.
-function getHealthSignals(account, summary) {
+function getHealthSignals(account, summary, analyticsData) {
   const signals = [];
   if (account.serviceStatus === "at-risk") {
     signals.push({ label: "At Risk", color: "#f97316", bg: "rgba(249,115,22,0.12)" });
@@ -95,6 +96,13 @@ function getHealthSignals(account, summary) {
   if (contractDays !== null && contractDays <= 14 && contractDays >= 0) {
     signals.push({ label: `Contract ends ${contractDays}d`, color: "#ef4444", bg: "rgba(239,68,68,0.12)" });
   }
+  // Analytics: flag if last report not opened in 60+ days
+  if (analyticsData?.lastReportSentAt && !analyticsData?.lastReportOpenedAt) {
+    const daysSinceSent = Math.floor((Date.now() - new Date(analyticsData.lastReportSentAt)) / 86400000);
+    if (daysSinceSent >= 60) {
+      signals.push({ label: "Report Unread", color: "#f97316", bg: "rgba(249,115,22,0.12)" });
+    }
+  }
   if (summary && account.serviceStatus === "active" && account.status === "active") {
     if (summary.scheduled === 0 && summary.draft === 0 && summary.totalItems === 0) {
       signals.push({ label: "No content", color: "#6b7280", bg: "rgba(107,114,128,0.12)" });
@@ -103,6 +111,162 @@ function getHealthSignals(account, summary) {
     }
   }
   return signals;
+}
+
+// ── AccountAnalyticsSnapshot ──────────────────────────────────────────────────
+// Compact analytics + report intelligence panel for the account drawer.
+
+function AccountAnalyticsSnapshot({ C, account }) {
+  const G = C?.gold || "#C9A84C";
+  const [stats, setStats] = useState(null);
+  const [reportSend, setReportSend] = useState(null);
+  const [roiSettings, setRoiSettings] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const vendorId = account?.vendorId || account?.id;
+
+  useEffect(() => {
+    if (!vendorId) { setLoading(false); return; }
+    let cancelled = false;
+    setLoading(true);
+
+    Promise.all([
+      supabase.rpc("get_listing_stats", { p_vendor_id: vendorId, p_days: 30 }).catch(() => ({ data: null })),
+      supabase.from("vendor_report_sends").select("*").eq("vendor_id", vendorId).order("sent_at", { ascending: false }).limit(1).single().catch(() => ({ data: null })),
+      supabase.rpc("get_vendor_roi_settings", { p_vendor_id: vendorId }).catch(() => ({ data: null })),
+    ]).then(([statsRes, sendRes, roiRes]) => {
+      if (cancelled) return;
+      setStats(statsRes?.data || null);
+      setReportSend(sendRes?.data || null);
+      setRoiSettings(roiRes?.data || null);
+      setLoading(false);
+    });
+
+    return () => { cancelled = true; };
+  }, [vendorId]);
+
+  function fmtD(d) {
+    if (!d) return null;
+    try { return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }); } catch { return null; }
+  }
+
+  if (loading) {
+    return <div style={{ fontSize: 12, color: C?.grey, padding: "8px 0" }}>Loading analytics…</div>;
+  }
+
+  if (!vendorId) {
+    return (
+      <div style={{ fontSize: 11, color: C?.grey2, fontStyle: "italic", padding: "8px 0" }}>
+        No vendor ID linked — connect a vendor account to see analytics.
+      </div>
+    );
+  }
+
+  const statItems = [
+    { label: "Views",       value: stats?.views        ?? "—" },
+    { label: "Shortlists",  value: stats?.shortlists   ?? "—" },
+    { label: "Enquiries",   value: stats?.enquiries    ?? "—" },
+    { label: "Touch Pts",   value: stats?.touch_points ?? "—" },
+  ];
+
+  const hasRoi = roiSettings && Object.keys(roiSettings || {}).length > 0;
+  const mediaLow  = stats?.media_value_low;
+  const mediaHigh = stats?.media_value_high;
+  const estRoi    = stats?.roi_multiple;
+
+  // Health flags
+  const flags = [];
+  if (reportSend && !reportSend.opened_at) {
+    const daysSince = Math.floor((Date.now() - new Date(reportSend.sent_at)) / 86400000);
+    if (daysSince >= 60) flags.push({ label: `Report unopened (${Math.round(daysSince / 30)} months)`, color: "#f97316" });
+  }
+  if (!stats?.enquiries || stats.enquiries === 0) {
+    flags.push({ label: "No enquiries (60+ days)", color: "#f97316" });
+  }
+  if (!hasRoi) {
+    flags.push({ label: "ROI settings not set", color: C?.grey2 });
+  }
+
+  return (
+    <div>
+      {/* Stats grid */}
+      <div style={{ display: "flex", gap: 1, borderRadius: 6, overflow: "hidden", marginBottom: 10 }}>
+        {statItems.map(s => (
+          <div key={s.label} style={{ flex: 1, background: C?.dark || "#111", padding: "10px 12px" }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: C?.off || "#fff", lineHeight: 1, marginBottom: 3 }}>{s.value}</div>
+            <div style={{ fontSize: 8, color: C?.grey2, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase" }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Media value + ROI */}
+      {(mediaLow || mediaHigh || estRoi) && (
+        <div style={{ display: "flex", gap: 12, marginBottom: 10, flexWrap: "wrap" }}>
+          {(mediaLow || mediaHigh) && (
+            <div style={{ fontSize: 11, color: C?.grey }}>
+              <span style={{ color: G, fontWeight: 600 }}>Media Value: </span>
+              £{mediaLow || "—"}–£{mediaHigh || "—"}
+            </div>
+          )}
+          {estRoi && (
+            <div style={{ fontSize: 11, color: C?.grey }}>
+              <span style={{ color: G, fontWeight: 600 }}>Est ROI: </span>
+              up to {estRoi}×
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Last report strip */}
+      <div style={{ fontSize: 11, color: C?.grey, marginBottom: 10, padding: "8px 12px", background: (C?.dark || "#111") + "88", borderRadius: 4 }}>
+        <span style={{ fontWeight: 600 }}>Last report: </span>
+        {fmtD(reportSend?.sent_at) || "Never sent"}
+        {reportSend?.opened_at && (
+          <span style={{ color: "#22c55e" }}> · Opened: {fmtD(reportSend.opened_at)}</span>
+        )}
+        {reportSend && !reportSend.opened_at && (
+          <span style={{ color: C?.grey2 }}> · Not opened</span>
+        )}
+        {reportSend && (
+          <span style={{ color: reportSend.outcome_responded ? "#22c55e" : C?.grey2 }}>
+            {" · "}Outcome: {reportSend.outcome_responded ? "Responded" : "Pending"}
+          </span>
+        )}
+      </div>
+
+      {/* Health flags */}
+      {flags.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
+          {flags.map((f, i) => (
+            <div key={i} style={{ fontSize: 10, color: f.color, display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ fontSize: 9 }}>⚠</span>
+              {f.label}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* View full analytics button */}
+      <button
+        onClick={() => {
+          sessionStorage.setItem("lwd_admin_preview", JSON.stringify({
+            type: "vendor", id: vendorId,
+            name: account.name, analytics_enabled: true,
+          }));
+          window.open("/vendor/dashboard", "_blank");
+        }}
+        style={{
+          background: "none", border: `1px solid ${C?.border || "#333"}`,
+          borderRadius: 6, padding: "8px 14px",
+          color: G, fontSize: 11, cursor: "pointer",
+          fontFamily: "var(--font-body)", fontWeight: 600,
+          display: "flex", alignItems: "center", gap: 6,
+        }}
+      >
+        <span>◈</span> View full analytics →
+      </button>
+    </div>
+  );
 }
 
 // Account Modal (Add / Edit)
@@ -722,6 +886,11 @@ function DetailPanel({ C, account, onEdit, onClose, onStatusAction }) {
           </button>
         </div>
 
+        {/* ── Analytics & ROI snapshot ─────────────────────────────────────── */}
+        {section("Analytics & Intelligence",
+          <AccountAnalyticsSnapshot C={C} account={account} />
+        )}
+
         {/* Portal config */}
         {section("Client Portal Menu",
           <PortalConfigEditor C={C} account={account} />
@@ -733,14 +902,15 @@ function DetailPanel({ C, account, onEdit, onClose, onStatusAction }) {
 
 // Account Card
 
-function AccountCard({ C, account, summary, onClick }) {
+function AccountCard({ C, account, summary, analyticsData, onClick }) {
   const G = C?.gold || "#8f7420";
   const plan    = planFor(account.plan);
   const sst     = serviceStatusFor(account.serviceStatus);
-  const signals = getHealthSignals(account, summary);
+  const signals = getHealthSignals(account, summary, analyticsData);
   const [hov, setHov] = useState(false);
 
   const hasPipelineData = summary && (summary.scheduled > 0 || summary.draft > 0 || summary.liveThisMonth > 0);
+  const hasAnalyticsData = analyticsData && (analyticsData.views > 0 || analyticsData.enquiries > 0);
 
   return (
     <div
@@ -813,6 +983,16 @@ function AccountCard({ C, account, summary, onClick }) {
         </div>
       ) : null}
 
+      {/* Mini analytics strip */}
+      {hasAnalyticsData && (
+        <div style={{ display: "flex", gap: 8, marginBottom: 10, padding: "6px 10px", background: (G + "11"), borderRadius: 4, border: `1px solid ${G + "22"}` }}>
+          <span style={{ fontSize: 9, color: C?.grey2 || "#555", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700, alignSelf: "center" }}>Analytics:</span>
+          <span style={{ fontSize: 10, color: C?.off || "#fff", fontWeight: 600 }}>{analyticsData.views} views</span>
+          <span style={{ fontSize: 10, color: C?.grey2 || "#555" }}>·</span>
+          <span style={{ fontSize: 10, color: analyticsData.enquiries > 0 ? "#22c55e" : (C?.off || "#fff"), fontWeight: 600 }}>{analyticsData.enquiries} enquiries</span>
+        </div>
+      )}
+
       {/* Footer: contact + manager */}
       <div style={{ borderTop: `1px solid ${(C?.border || "#333") + "55"}`, paddingTop: 8, marginTop: 2 }}>
         {account.primaryContactName && (
@@ -841,6 +1021,7 @@ export default function ManagedAccountsModule({ C }) {
 
   const [accounts,        setAccounts]        = useState([]);
   const [summaries,       setSummaries]       = useState({});
+  const [analyticsMap,    setAnalyticsMap]    = useState({});
   const [loading,         setLoading]         = useState(true);
   const [selected,        setSelected]        = useState(null);
   const [showModal,       setShowModal]        = useState(false);
@@ -858,6 +1039,26 @@ export default function ManagedAccountsModule({ C }) {
     ]);
     if (result.ok) {
       setAccounts(result.data.length > 0 ? result.data : FALLBACK_ACCOUNTS);
+      // Load mini analytics data for cards (non-blocking, best-effort)
+      const accountList = result.data.length > 0 ? result.data : FALLBACK_ACCOUNTS;
+      const vendorIds = accountList.map(a => a.vendorId || a.id).filter(Boolean);
+      if (vendorIds.length > 0) {
+        supabase
+          .from("vendor_monthly_snapshots")
+          .select("vendor_id, views, enquiries")
+          .in("vendor_id", vendorIds.slice(0, 50))
+          .order("month", { ascending: false })
+          .then(({ data: snapData }) => {
+            const aMap = {};
+            (snapData || []).forEach(s => {
+              if (!aMap[s.vendor_id]) {
+                aMap[s.vendor_id] = { views: s.views || 0, enquiries: s.enquiries || 0 };
+              }
+            });
+            setAnalyticsMap(aMap);
+          })
+          .catch(() => {});
+      }
     } else {
       console.warn('[ManagedAccountsModule] loadAccounts failed:', result.error, '— using fallback');
       setAccounts(FALLBACK_ACCOUNTS);
@@ -1075,7 +1276,12 @@ export default function ManagedAccountsModule({ C }) {
           gap: 16,
         }}>
           {filtered.map(account => (
-            <AccountCard key={account.id} C={C} account={account} summary={summaries[account.id] || null} onClick={setSelected} />
+            <AccountCard
+              key={account.id} C={C} account={account}
+              summary={summaries[account.id] || null}
+              analyticsData={analyticsMap[account.vendorId || account.id] || null}
+              onClick={setSelected}
+            />
           ))}
         </div>
       )}
