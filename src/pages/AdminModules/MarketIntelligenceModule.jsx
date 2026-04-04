@@ -105,7 +105,7 @@ function SignalBadge({ level }) {
   const map = {
     strong:  { color: GREEN,  dot: "●", label: "Strong signal"  },
     medium:  { color: AMBER,  dot: "●", label: "Directional"    },
-    low:     { color: "rgba(255,255,255,0.25)", dot: "◌", label: "Low volume" },
+    low:     { color: "var(--mi-faint)", dot: "◌", label: "Low volume" },
   };
   const s = map[level] || map.low;
   return (
@@ -120,7 +120,7 @@ function SignalBadge({ level }) {
 
 function DeltaBadge({ current, prev }) {
   const d = delta(current, prev);
-  if (!d) return <span style={{ color: "rgba(255,255,255,0.20)", fontSize: 10 }}>—</span>;
+  if (!d) return <span style={{ color: "var(--mi-whisper)", fontSize: 10 }}>—</span>;
   const isUp = d.dir === "up";
   if (d.label) return (
     <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700,
@@ -145,7 +145,7 @@ function BarMeter({ value, max, color = GOLD, height = 4 }) {
   const pct = max > 0 ? Math.min((Number(value) / Number(max)) * 100, 100) : 0;
   return (
     <div style={{ width: "100%", height, borderRadius: 2,
-      background: "rgba(255,255,255,0.06)" }}>
+      background: "var(--mi-surface2)" }}>
       <div style={{ height: "100%", width: `${pct}%`, borderRadius: 2,
         background: color, transition: "width 0.4s ease" }} />
     </div>
@@ -156,7 +156,7 @@ function OpportunityBadge({ tier }) {
   const map = {
     High:      { bg: "rgba(74,222,128,0.12)",  border: "rgba(74,222,128,0.28)",  color: GREEN },
     Medium:    { bg: "rgba(251,191,36,0.10)",  border: "rgba(251,191,36,0.28)",  color: AMBER },
-    Low:       { bg: "rgba(255,255,255,0.04)", border: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.35)" },
+    Low:       { bg: "var(--mi-surface2)", border: "var(--mi-border-mid)", color: "var(--mi-faint)" },
     Saturated: { bg: "rgba(129,140,248,0.10)", border: "rgba(129,140,248,0.25)", color: INDIGO },
   };
   const s = map[tier] || map.Low;
@@ -180,8 +180,8 @@ function SectionLabel({ children, action, onAction }) {
       </div>
       {action && (
         <button onClick={onAction} style={{
-          fontFamily: NU, fontSize: 10, color: "rgba(255,255,255,0.40)",
-          background: "none", border: "1px solid rgba(255,255,255,0.08)",
+          fontFamily: NU, fontSize: 10, color: "var(--mi-muted)",
+          background: "none", border: "1px solid var(--mi-border)",
           borderRadius: 20, padding: "3px 10px", cursor: "pointer",
         }}>
           {action}
@@ -207,7 +207,7 @@ function InterpretationBlock({ sentences, confidence = "medium" }) {
       </div>
       {sentences.map((s, i) => (
         <p key={i} style={{
-          fontFamily: NU, fontSize: 13, color: "#F5F0E8",
+          fontFamily: NU, fontSize: 13, color: "var(--mi-text)",
           lineHeight: 1.7, margin: i < sentences.length - 1 ? "0 0 10px" : 0,
         }}>
           {s}
@@ -236,7 +236,7 @@ function ActionPanel({ items }) {
           <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
             <span style={{ color: GREEN, fontSize: 14, lineHeight: 1.4, flexShrink: 0 }}>→</span>
             <span style={{ fontFamily: NU, fontSize: 12,
-              color: "#F5F0E8", lineHeight: 1.6 }}>
+              color: "var(--mi-text)", lineHeight: 1.6 }}>
               {item}
             </span>
           </div>
@@ -263,7 +263,7 @@ function DataGapWarning({ gaps }) {
           color: AMBER, marginBottom: 3 }}>Data quality notes</div>
         {gaps.map((g, i) => (
           <div key={i} style={{ fontFamily: NU, fontSize: 11,
-            color: "rgba(255,255,255,0.40)", lineHeight: 1.6 }}>
+            color: "var(--mi-muted)", lineHeight: 1.6 }}>
             {g}
           </div>
         ))}
@@ -275,12 +275,12 @@ function DataGapWarning({ gaps }) {
 function KPICard({ label, value, sub, delta: d, signal, color = GOLD, wide }) {
   return (
     <div style={{
-      background: "#1a1714", border: "1px solid rgba(255,255,255,0.08)",
+      background: "var(--mi-surface)", border: "1px solid var(--mi-border)",
       borderRadius: 10, padding: "16px 18px",
       gridColumn: wide ? "span 2" : undefined,
     }}>
       <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: "1.2px",
-        textTransform: "uppercase", color: "rgba(255,255,255,0.40)",
+        textTransform: "uppercase", color: "var(--mi-muted)",
         marginBottom: 8, display: "flex", alignItems: "center", gap: 4 }}>
         {label}{signal && <SignalBadge level={signal} />}
       </div>
@@ -290,7 +290,7 @@ function KPICard({ label, value, sub, delta: d, signal, color = GOLD, wide }) {
       </div>
       {sub && (
         <div style={{ fontFamily: NU, fontSize: 10,
-          color: "rgba(255,255,255,0.40)", lineHeight: 1.4 }}>
+          color: "var(--mi-muted)", lineHeight: 1.4 }}>
           {sub}
         </div>
       )}
@@ -307,7 +307,7 @@ function EmptyState({ message = "No data for this period" }) {
   return (
     <div style={{ padding: "56px 24px", textAlign: "center",
       fontFamily: GD, fontSize: 16, fontStyle: "italic",
-      color: "rgba(255,255,255,0.25)" }}>
+      color: "var(--mi-faint)" }}>
       {message}
     </div>
   );
@@ -321,7 +321,7 @@ function LoadingShimmer({ rows = 8, cols = 6 }) {
           {Array.from({ length: cols }).map((_, j) => (
             <td key={j} style={{ padding: "10px 12px" }}>
               <div style={{ height: 11, width: j === 0 ? 120 : 56,
-                background: "rgba(255,255,255,0.05)", borderRadius: 3,
+                background: "var(--mi-surface2)", borderRadius: 3,
                 animation: "shimmer 1.4s ease infinite" }} />
             </td>
           ))}
@@ -335,11 +335,11 @@ function TH({ children, right, center }) {
   return (
     <th style={{ fontFamily: NU, fontSize: 9, fontWeight: 700,
       letterSpacing: "1.2px", textTransform: "uppercase",
-      color: "rgba(255,255,255,0.40)", padding: "8px 12px",
+      color: "var(--mi-muted)", padding: "8px 12px",
       textAlign: right ? "right" : center ? "center" : "left",
       whiteSpace: "nowrap",
-      borderBottom: "1px solid rgba(255,255,255,0.08)",
-      background: "rgba(0,0,0,0.15)" }}>
+      borderBottom: "1px solid var(--mi-border)",
+      background: "var(--mi-tbl-bg)" }}>
       {children}
     </th>
   );
@@ -351,10 +351,10 @@ function TD({ children, right, center, bold, gold, muted, small, danger, success
       fontSize: small ? 10 : 12,
       fontWeight: bold ? 700 : 400,
       color: gold ? GOLD : danger ? RED : success ? GREEN : muted
-        ? "rgba(255,255,255,0.25)" : "#F5F0E8",
+        ? "var(--mi-faint)" : "var(--mi-text)",
       padding: "10px 12px",
       textAlign: right ? "right" : center ? "center" : "left",
-      borderBottom: "1px solid rgba(255,255,255,0.04)",
+      borderBottom: "1px solid var(--mi-border-faint)",
       whiteSpace: "nowrap" }}>
       {children}
     </td>
@@ -542,10 +542,10 @@ function OverviewTab({ from, to, rangeLabel }) {
     <div>
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontFamily: GD, fontSize: 18, fontStyle: "italic",
-          color: "#F5F0E8", marginBottom: 6 }}>
+          color: "var(--mi-text)", marginBottom: 6 }}>
           Intelligence Summary — {rangeLabel}
         </div>
-        <p style={{ fontFamily: NU, fontSize: 12, color: "rgba(255,255,255,0.40)",
+        <p style={{ fontFamily: NU, fontSize: 12, color: "var(--mi-muted)",
           margin: 0, lineHeight: 1.6 }}>
           Platform-wide market signals across demand, audience, supply, and lead pipeline.
           Read in 60 seconds.
@@ -592,8 +592,8 @@ function OverviewTab({ from, to, rangeLabel }) {
 
       {/* Narrative summary */}
       {!loading && s && (
-        <div style={{ background: "#1a1714",
-          border: "1px solid rgba(255,255,255,0.08)",
+        <div style={{ background: "var(--mi-surface)",
+          border: "1px solid var(--mi-border)",
           borderRadius: 10, padding: "22px 24px", marginBottom: 24 }}>
           <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: "2px",
             textTransform: "uppercase", color: GOLD, marginBottom: 14 }}>
@@ -608,7 +608,7 @@ function OverviewTab({ from, to, rangeLabel }) {
               s.platform_intent_rate > 0 && `Platform intent rate stands at ${fmtPct(s.platform_intent_rate, 2)} — ${Number(s.platform_intent_rate) >= 3 ? "above the 3% benchmark, suggesting strong audience quality." : "room to improve through better listing quality, pricing signals, and gallery depth."}`,
             ].filter(Boolean).map((text, i) => (
               <p key={i} style={{ fontFamily: NU, fontSize: 13,
-                color: "rgba(245,240,232,0.78)", lineHeight: 1.7, margin: 0 }}>
+                color: "var(--mi-text2)", lineHeight: 1.7, margin: 0 }}>
                 {text}
               </p>
             ))}
@@ -704,7 +704,7 @@ function DestinationsTab({ from, to }) {
             )}
             {!load && rows.map((r, i) => (
               <tr key={r.country + i} style={{
-                background: i % 2 === 0 ? "rgba(255,255,255,0.012)" : "transparent",
+                background: i % 2 === 0 ? "var(--mi-row-alt)" : "transparent",
               }}>
                 <TD muted small>{i + 1}</TD>
                 <TD bold>
@@ -765,7 +765,7 @@ function DestinationsTab({ from, to }) {
                   const dominant = cats.reduce((a, b) => a.v > b.v ? a : b);
                   return (
                     <tr key={r.country} style={{
-                      background: i % 2 === 0 ? "rgba(255,255,255,0.012)" : "transparent",
+                      background: i % 2 === 0 ? "var(--mi-row-alt)" : "transparent",
                     }}>
                       <TD bold>
                         <span style={{ marginRight: 7 }}>{flag(r.country?.slice(0,2))}</span>
@@ -866,7 +866,7 @@ function AudienceTab({ from, to }) {
             )}
             {!load && origins.map((r, i) => (
               <tr key={r.country_code + i} style={{
-                background: i % 2 === 0 ? "rgba(255,255,255,0.012)" : "transparent",
+                background: i % 2 === 0 ? "var(--mi-row-alt)" : "transparent",
               }}>
                 <TD muted small>{i + 1}</TD>
                 <TD bold>
@@ -906,7 +906,7 @@ function AudienceTab({ from, to }) {
             ])}>
             Cross-Border Demand Flows<SignalBadge level="medium" />
           </SectionLabel>
-          <p style={{ fontFamily: NU, fontSize: 12, color: "rgba(255,255,255,0.40)",
+          <p style={{ fontFamily: NU, fontSize: 12, color: "var(--mi-muted)",
             marginBottom: 16, marginTop: -8 }}>
             Couples from one country actively browsing listings in another — your international demand signal.
           </p>
@@ -925,7 +925,7 @@ function AudienceTab({ from, to }) {
               <tbody>
                 {crossBorderOnly.map((r, i) => (
                   <tr key={i} style={{
-                    background: i % 2 === 0 ? "rgba(255,255,255,0.012)" : "transparent",
+                    background: i % 2 === 0 ? "var(--mi-row-alt)" : "transparent",
                   }}>
                     <TD bold>
                       <span style={{ marginRight: 6, fontSize: 14 }}>{flag(r.visitor_country)}</span>
@@ -981,7 +981,7 @@ function AudienceTab({ from, to }) {
               </thead>
               <tbody>
                 {sources.map((r, i) => (
-                  <tr key={i} style={{ background: i % 2 === 0 ? "rgba(255,255,255,0.012)" : "transparent" }}>
+                  <tr key={i} style={{ background: i % 2 === 0 ? "var(--mi-row-alt)" : "transparent" }}>
                     <TD bold>{r.source}</TD>
                     <TD muted small>{r.medium}</TD>
                     <TD right>{fmtNum(r.sessions)}</TD>
@@ -1041,21 +1041,21 @@ function GapsTab({ from, to }) {
         {[
           { tier: "High",      color: GREEN,  note: "Recruit now" },
           { tier: "Medium",    color: AMBER,  note: "Monitor closely" },
-          { tier: "Low",       color: "rgba(255,255,255,0.35)", note: "Stable" },
+          { tier: "Low",       color: "var(--mi-faint)", note: "Stable" },
           { tier: "Saturated", color: INDIGO, note: "Quality focus" },
         ].map(({ tier, color, note }) => (
-          <div key={tier} style={{ background: "#1a1714",
-            border: "1px solid rgba(255,255,255,0.07)",
+          <div key={tier} style={{ background: "var(--mi-surface)",
+            border: "1px solid var(--mi-border-mid)",
             borderRadius: 10, padding: "14px 16px" }}>
             <div style={{ fontFamily: NU, fontSize: 22, fontWeight: 700, color }}>
               {tierCounts[tier]}
             </div>
             <div style={{ fontFamily: NU, fontSize: 10,
-              color: "rgba(255,255,255,0.40)", marginTop: 3 }}>
+              color: "var(--mi-muted)", marginTop: 3 }}>
               {tier} opportunity
             </div>
             <div style={{ fontFamily: NU, fontSize: 9,
-              color: "rgba(255,255,255,0.22)", marginTop: 2 }}>
+              color: "var(--mi-whisper)", marginTop: 2 }}>
               {note}
             </div>
           </div>
@@ -1067,7 +1067,7 @@ function GapsTab({ from, to }) {
         onAction={() => exportCSV("supply-demand-gaps.csv", gaps, COLS)}>
         Supply vs Demand by Destination<SignalBadge level="strong" />
       </SectionLabel>
-      <p style={{ fontFamily: NU, fontSize: 12, color: "rgba(255,255,255,0.40)",
+      <p style={{ fontFamily: NU, fontSize: 12, color: "var(--mi-muted)",
         marginBottom: 16, marginTop: -8 }}>
         Gap score = demand engagement per listing. High = demand outpacing supply. Low = market is served.
       </p>
@@ -1093,7 +1093,7 @@ function GapsTab({ from, to }) {
             )}
             {!load && gaps.map((r, i) => (
               <tr key={r.country + i} style={{
-                background: i % 2 === 0 ? "rgba(255,255,255,0.012)" : "transparent",
+                background: i % 2 === 0 ? "var(--mi-row-alt)" : "transparent",
               }}>
                 <TD bold>
                   <span style={{ marginRight: 7 }}>{flag(r.country?.slice(0,2))}</span>
@@ -1228,7 +1228,7 @@ function LeadsTab({ from, to }) {
             )}
             {!load && geoLeads.map((r, i) => (
               <tr key={r.location + i} style={{
-                background: i % 2 === 0 ? "rgba(255,255,255,0.012)" : "transparent",
+                background: i % 2 === 0 ? "var(--mi-row-alt)" : "transparent",
               }}>
                 <TD bold>{r.location}</TD>
                 <TD right>
@@ -1253,7 +1253,7 @@ function LeadsTab({ from, to }) {
       {pipeline.length > 0 && (
         <div style={{ marginBottom: 36 }}>
           <SectionLabel>Wedding Date Pipeline — Heatmap<SignalBadge level="strong" /></SectionLabel>
-          <p style={{ fontFamily: NU, fontSize: 12, color: "rgba(255,255,255,0.40)",
+          <p style={{ fontFamily: NU, fontSize: 12, color: "var(--mi-muted)",
             marginBottom: 16, marginTop: -8 }}>
             Gold intensity = lead concentration. Reading tip: current enquiries typically reflect weddings 12–18 months ahead.
           </p>
@@ -1263,13 +1263,13 @@ function LeadsTab({ from, to }) {
                 <tr>
                   <th style={{ fontFamily: NU, fontSize: 9, fontWeight: 700,
                     letterSpacing: "1px", textTransform: "uppercase",
-                    color: "rgba(255,255,255,0.30)", padding: "6px 12px",
-                    borderBottom: "1px solid rgba(255,255,255,0.07)", textAlign: "left" }}>Month</th>
+                    color: "var(--mi-faint)", padding: "6px 12px",
+                    borderBottom: "1px solid var(--mi-border-mid)", textAlign: "left" }}>Month</th>
                   {years.map(y => (
                     <th key={y} style={{ fontFamily: GD, fontSize: 13, fontWeight: 500,
                       fontStyle: "italic", color: GOLD,
                       padding: "6px 18px", textAlign: "center",
-                      borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                      borderBottom: "1px solid var(--mi-border-mid)" }}>
                       {y}
                     </th>
                   ))}
@@ -1279,9 +1279,9 @@ function LeadsTab({ from, to }) {
                 {MONTHS.map(month => (
                   <tr key={month}>
                     <td style={{ fontFamily: NU, fontSize: 11,
-                      color: "rgba(255,255,255,0.50)",
+                      color: "var(--mi-text2)",
                       padding: "4px 12px", whiteSpace: "nowrap",
-                      borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+                      borderBottom: "1px solid var(--mi-border-faint)" }}>
                       {month}
                     </td>
                     {years.map(year => {
@@ -1294,11 +1294,11 @@ function LeadsTab({ from, to }) {
                             width: 44, height: 30, borderRadius: 5, margin: "0 auto",
                             background: cnt > 0
                               ? `rgba(201,168,76,${0.12 + intensity * 0.80})`
-                              : "rgba(255,255,255,0.03)",
+                              : "var(--mi-row-alt)",
                             display: "flex", alignItems: "center", justifyContent: "center",
                             fontFamily: NU, fontSize: 10,
                             fontWeight: cnt > 0 ? 700 : 400,
-                            color: cnt > 0 ? (intensity > 0.55 ? "#1a1714" : GOLD) : "rgba(255,255,255,0.12)",
+                            color: cnt > 0 ? (intensity > 0.55 ? "var(--mi-surface)" : GOLD) : "rgba(255,255,255,0.12)",
                           }}>
                             {cnt > 0 ? cnt : ""}
                           </div>
@@ -1321,7 +1321,7 @@ function LeadsTab({ from, to }) {
             {budgetEntries.slice(0, 8).map(([band, count]) => (
               <div key={band} style={{ display:"flex", alignItems:"center", gap:12 }}>
                 <div style={{ fontFamily:NU, fontSize:11,
-                  color:"rgba(255,255,255,0.65)", width:160, flexShrink:0 }}>
+                  color:"var(--mi-text2)", width:160, flexShrink:0 }}>
                   {band}
                 </div>
                 <div style={{ flex:1 }}>
@@ -1331,7 +1331,7 @@ function LeadsTab({ from, to }) {
                   color:GOLD, width:48, textAlign:"right" }}>
                   {fmtPct(count / total * 100, 0)}
                 </div>
-                <div style={{ fontFamily:NU, fontSize:10, color:"rgba(255,255,255,0.30)",
+                <div style={{ fontFamily:NU, fontSize:10, color:"var(--mi-faint)",
                   width:32, textAlign:"right" }}>
                   {count}
                 </div>
@@ -1402,11 +1402,11 @@ function TrendsTab({ from, to }) {
 
       {/* Monthly trend sparkbars */}
       <SectionLabel>12-Month Destination Demand Trend<SignalBadge level="medium" /></SectionLabel>
-      <p style={{ fontFamily: NU, fontSize: 12, color: "rgba(255,255,255,0.40)",
+      <p style={{ fontFamily: NU, fontSize: 12, color: "var(--mi-muted)",
         marginBottom: 20, marginTop: -8 }}>
         Top 8 destinations by total traffic. Bar height = relative monthly pageviews within each row.
       </p>
-      {load && <div style={{ height: 200, background: "rgba(255,255,255,0.03)",
+      {load && <div style={{ height: 200, background: "var(--mi-row-alt)",
         borderRadius: 10, animation: "shimmer 1.4s ease infinite" }} />}
       {!load && trendCountries.length === 0 && (
         <EmptyState message="Trend data builds over time as couples browse — check back in 30 days" />
@@ -1418,23 +1418,23 @@ function TrendsTab({ from, to }) {
               <tr>
                 <th style={{ fontFamily: NU, fontSize: 9, fontWeight: 700,
                   letterSpacing: "1px", textTransform: "uppercase",
-                  color: "rgba(255,255,255,0.30)", padding: "6px 12px",
-                  borderBottom: "1px solid rgba(255,255,255,0.07)", textAlign: "left",
+                  color: "var(--mi-faint)", padding: "6px 12px",
+                  borderBottom: "1px solid var(--mi-border-mid)", textAlign: "left",
                   width: 140 }}>
                   Destination
                 </th>
                 {trendMonths.map(m => (
                   <th key={m} style={{ fontFamily: NU, fontSize: 9, fontWeight: 600,
-                    color: "rgba(255,255,255,0.28)", padding: "6px 4px",
+                    color: "var(--mi-faint)", padding: "6px 4px",
                     textAlign: "center", whiteSpace: "nowrap",
-                    borderBottom: "1px solid rgba(255,255,255,0.07)", minWidth: 36 }}>
+                    borderBottom: "1px solid var(--mi-border-mid)", minWidth: 36 }}>
                     {fmtMon(m)}
                   </th>
                 ))}
                 <th style={{ fontFamily: NU, fontSize: 9, fontWeight: 700,
                   letterSpacing: "1px", textTransform: "uppercase",
-                  color: "rgba(255,255,255,0.30)", padding: "6px 12px",
-                  borderBottom: "1px solid rgba(255,255,255,0.07)",
+                  color: "var(--mi-faint)", padding: "6px 12px",
+                  borderBottom: "1px solid var(--mi-border-mid)",
                   textAlign: "right", whiteSpace: "nowrap" }}>
                   12m Total
                 </th>
@@ -1447,10 +1447,10 @@ function TrendsTab({ from, to }) {
                 const max   = countryMax[country];
                 return (
                   <tr key={country} style={{
-                    background: ci % 2 === 0 ? "rgba(255,255,255,0.012)" : "transparent",
+                    background: ci % 2 === 0 ? "var(--mi-row-alt)" : "transparent",
                   }}>
                     <td style={{ fontFamily: NU, fontSize: 12, fontWeight: 600,
-                      color: "#F5F0E8", padding: "8px 12px", whiteSpace: "nowrap" }}>
+                      color: "var(--mi-text)", padding: "8px 12px", whiteSpace: "nowrap" }}>
                       <span style={{ marginRight: 8 }}>{flag(country?.slice(0,2))}</span>
                       {country}
                     </td>
@@ -1470,7 +1470,7 @@ function TrendsTab({ from, to }) {
                               }} />
                             ) : (
                               <div style={{ width: 22, height: 2,
-                                background: "rgba(255,255,255,0.06)", borderRadius: 1 }} />
+                                background: "var(--mi-surface2)", borderRadius: 1 }} />
                             )}
                           </div>
                         </td>
@@ -1507,7 +1507,7 @@ function TrendsTab({ from, to }) {
             ])}>
             Vendor Application Pipeline<SignalBadge level="strong" />
           </SectionLabel>
-          <p style={{ fontFamily: NU, fontSize: 12, color: "rgba(255,255,255,0.40)",
+          <p style={{ fontFamily: NU, fontSize: 12, color: "var(--mi-muted)",
             marginBottom: 16, marginTop: -8 }}>
             Supply pipeline intelligence — where businesses are applying to join the platform.
           </p>
@@ -1531,7 +1531,7 @@ function TrendsTab({ from, to }) {
                     .map(([c, n]) => `${n} ${c}`).join(" · ");
                   return (
                     <tr key={country} style={{
-                      background: i % 2 === 0 ? "rgba(255,255,255,0.012)" : "transparent",
+                      background: i % 2 === 0 ? "var(--mi-row-alt)" : "transparent",
                     }}>
                       <TD bold>
                         <span style={{ marginRight: 8 }}>{flag(country?.slice(0,2))}</span>
@@ -1561,12 +1561,7 @@ function TrendsTab({ from, to }) {
 
 
 // ── Main Module ───────────────────────────────────────────────────────────────
-// This module is always dark — it is a data intelligence tool, not a themed UI panel.
-const MI_BG     = "#100e0c";
-const MI_BORDER = "rgba(255,255,255,0.08)";
-const MI_TEXT   = "#F5F0E8";
-
-export default function MarketIntelligenceModule({ C }) {
+export default function MarketIntelligenceModule({ C, darkMode = true }) {
   const [tab,    setTab]    = useState("overview");
   const [range,  setRange]  = useState("30d");
   const [stamp,  setStamp]  = useState(Date.now());
@@ -1578,11 +1573,42 @@ export default function MarketIntelligenceModule({ C }) {
 
   const tabKey = `${tab}__${range}__${stamp}`;
 
+  // CSS custom properties — all sub-components inherit via var()
+  const cssVars = darkMode ? {
+    "--mi-bg":           "#100e0c",
+    "--mi-surface":      "#1a1714",
+    "--mi-surface2":     "rgba(255,255,255,0.05)",
+    "--mi-border":       "rgba(255,255,255,0.08)",
+    "--mi-border-faint": "rgba(255,255,255,0.04)",
+    "--mi-border-mid":   "rgba(255,255,255,0.07)",
+    "--mi-text":         "#F5F0E8",
+    "--mi-text2":        "rgba(255,255,255,0.65)",
+    "--mi-muted":        "rgba(255,255,255,0.40)",
+    "--mi-faint":        "rgba(255,255,255,0.28)",
+    "--mi-whisper":      "rgba(255,255,255,0.20)",
+    "--mi-tbl-bg":       "rgba(0,0,0,0.15)",
+    "--mi-row-alt":      "rgba(255,255,255,0.012)",
+  } : {
+    "--mi-bg":           C?.black  || "#F5F4F1",
+    "--mi-surface":      C?.card   || "#FFFFFF",
+    "--mi-surface2":     "rgba(0,0,0,0.03)",
+    "--mi-border":       C?.border || "#DED9CF",
+    "--mi-border-faint": "rgba(0,0,0,0.05)",
+    "--mi-border-mid":   "rgba(0,0,0,0.09)",
+    "--mi-text":         C?.white  || "#111111",
+    "--mi-text2":        C?.grey   || "#444444",
+    "--mi-muted":        C?.grey   || "#555555",
+    "--mi-faint":        C?.grey2  || "#888888",
+    "--mi-whisper":      "#BBBBBB",
+    "--mi-tbl-bg":       "rgba(0,0,0,0.03)",
+    "--mi-row-alt":      "rgba(0,0,0,0.025)",
+  };
+
   return (
-    <div style={{ minHeight: "100%", background: MI_BG, color: MI_TEXT, fontFamily: NU }}>
+    <div style={{ minHeight: "100%", background: "var(--mi-bg)", color: "var(--mi-text)", fontFamily: NU, ...cssVars }}>
 
       {/* Header */}
-      <div style={{ borderBottom: `1px solid ${MI_BORDER}`,
+      <div style={{ borderBottom: "1px solid var(--mi-border)",
         padding: "24px 28px 20px",
         display: "flex", alignItems: "flex-start",
         justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
@@ -1592,11 +1618,11 @@ export default function MarketIntelligenceModule({ C }) {
             ✦ Intelligence Centre
           </div>
           <h2 style={{ fontFamily: GD, fontSize: 22, fontWeight: 600,
-            fontStyle: "italic", color: MI_TEXT, margin: "0 0 4px" }}>
+            fontStyle: "italic", color: "var(--mi-text)", margin: "0 0 4px" }}>
             Market Intelligence
           </h2>
           <p style={{ fontFamily: NU, fontSize: 12,
-            color: "rgba(255,255,255,0.35)", margin: 0 }}>
+            color: "var(--mi-faint)", margin: 0 }}>
             Destination demand · audience origins · supply gaps · lead intelligence · trend analysis
           </p>
         </div>
@@ -1605,9 +1631,9 @@ export default function MarketIntelligenceModule({ C }) {
             <button key={r.key} onClick={() => setRange(r.key)} style={{
               fontFamily: NU, fontSize: 11, fontWeight: 600,
               padding: "5px 13px",
-              border: `1px solid ${range === r.key ? GOLD : MI_BORDER}`,
+              border: `1px solid ${range === r.key ? GOLD : "var(--mi-border)"}`,
               background: range === r.key ? GOLD_DIM : "transparent",
-              color: range === r.key ? GOLD : "rgba(255,255,255,0.40)",
+              color: range === r.key ? GOLD : "var(--mi-muted)",
               borderRadius: 30, cursor: "pointer", transition: "all 0.15s",
             }}>
               {r.label}
@@ -1616,8 +1642,8 @@ export default function MarketIntelligenceModule({ C }) {
           <button onClick={() => setStamp(Date.now())} style={{
             fontFamily: NU, fontSize: 11,
             padding: "5px 14px",
-            border: `1px solid ${MI_BORDER}`, background: "transparent",
-            color: "rgba(255,255,255,0.40)", borderRadius: 30, cursor: "pointer",
+            border: "1px solid var(--mi-border)", background: "transparent",
+            color: "var(--mi-muted)", borderRadius: 30, cursor: "pointer",
           }}>
             ↻ Refresh
           </button>
@@ -1625,7 +1651,7 @@ export default function MarketIntelligenceModule({ C }) {
       </div>
 
       {/* Tabs */}
-      <div style={{ display:"flex", gap:0, borderBottom:`1px solid ${MI_BORDER}`,
+      <div style={{ display:"flex", gap:0, borderBottom:"1px solid var(--mi-border)",
         overflowX:"auto", scrollbarWidth:"none" }}>
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} style={{
@@ -1634,7 +1660,7 @@ export default function MarketIntelligenceModule({ C }) {
             border: "none",
             borderBottom: `2px solid ${tab === t.key ? GOLD : "transparent"}`,
             background: "transparent",
-            color: tab === t.key ? GOLD : "rgba(255,255,255,0.40)",
+            color: tab === t.key ? GOLD : "var(--mi-muted)",
             cursor: "pointer", transition: "all 0.15s",
             whiteSpace: "nowrap",
             display: "flex", alignItems: "center", gap: 6,
