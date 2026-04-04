@@ -299,13 +299,33 @@ export function ChatProvider({ children }) {
     setRecommendations({ items: [], summary: "Curated for you" });
   }, []);
 
+  // ── Discovery nudge — fires after couple views 2+ images in lightbox ──────
+  // Builds a contextual "show similar venues?" prompt based on the image they
+  // were most engaged with (category + region).
+  const nudgeDiscovery = useCallback((img) => {
+    if (!img) return;
+    const venue  = img.listing_name || "this venue";
+    const region = img.region || activeContext.region || null;
+    const cat    = img.category || "wedding venue";
+
+    const nudge = region
+      ? `These spaces are beautiful. Would you like me to show you similar ${cat}s in ${region}?`
+      : `These images are striking. Would you like me to show you similar ${cat}s with this aesthetic?`;
+
+    setMessages(m => [...m, {
+      id:   Date.now(),
+      from: "aura",
+      text: nudge,
+    }]);
+  }, [activeContext.region]);
+
   return (
     <ChatCtx.Provider
       value={{
         chatUiState, chatDark, messages, isTyping,
         activeContext, recommendations, sessionId: sessionId.current,
         openMiniBar, openWorkspace, closeChat, closeFull,
-        toggleTheme, setChatContext, sendMessage, clearHistory,
+        toggleTheme, setChatContext, sendMessage, clearHistory, nudgeDiscovery,
       }}
     >
       {children}

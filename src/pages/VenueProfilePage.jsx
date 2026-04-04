@@ -9,6 +9,7 @@
 // Route:  /venues/grand-tirolia  (add more slugs in main.jsx + pathToState)
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useEffect, useRef } from 'react';
+import { useChat } from '../chat/ChatContext';
 import { fetchVenueContent } from '../services/venueContentService';
 import { fetchUpcomingEventsForVenue, fetchPastEventsForVenue, formatEventDate, formatEventTime } from '../services/eventService';
 
@@ -391,6 +392,7 @@ function Section({ id, bg = C.cream, children, pad }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function VenueProfilePage({ venue: venueProp, onBack }) {
   const { isMobile } = useBreakpoint();
+  const { setChatContext } = useChat();
   const [activeSection, setActiveSection] = useState('overview');
   const [venueContent, setVenueContent] = useState(null);
   const [venueEvents, setVenueEvents]     = useState([]);
@@ -409,6 +411,20 @@ export default function VenueProfilePage({ venue: venueProp, onBack }) {
         lastReviewedAt: venueContent.lastReviewedAt,
       }
     : basevenue;
+
+  // Feed Aura with this venue's context + listingId (enables image fetching)
+  useEffect(() => {
+    const id = basevenue.listingId || basevenue.id;
+    if (!id) return;
+    setChatContext({
+      page:      'venue-profile',
+      listingId: id,
+      country:   basevenue.country  || null,
+      region:    basevenue.region   || null,
+      venueInfo: [basevenue.name, basevenue.heroSummary || basevenue.shortDesc]
+                   .filter(Boolean).join(' — '),
+    });
+  }, [basevenue.id, basevenue.listingId]);
 
   // Fetch venue content from database on mount
   useEffect(() => {

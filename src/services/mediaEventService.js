@@ -262,3 +262,74 @@ export function checkSearchReferral({ heroMediaId, listingId }) {
     trackMediaEvent({ eventType: 'media_search_click', mediaId: heroMediaId, listingId, isHero: true });
   } catch {}
 }
+
+// ── Aura-surface tracking ─────────────────────────────────────────────────────
+// Track images shown and interacted with inside Aura's chat thread.
+// Uses existing event types with metadata.source = 'aura' to separate
+// Aura impressions / taps from organic gallery interactions.
+
+const AURA_IMPRESSED_KEY = 'lwd_aura_impressed'; // dedup: don't re-fire impression on re-render
+
+/**
+ * Call when Aura image strip mounts with images (impression).
+ * Fires media_view with source:aura for each image NOT already impressed this session.
+ */
+export function trackAuraImpressions(images = []) {
+  try {
+    const raw = sessionStorage.getItem(AURA_IMPRESSED_KEY);
+    const done = raw ? new Set(JSON.parse(raw)) : new Set();
+
+    images.forEach(img => {
+      const id = img.media_id;
+      if (!id || done.has(id)) return;
+      done.add(id);
+      // Fire as media_view so it feeds the engagement score system
+      Promise.resolve(
+        supabase.from('media_events').insert({
+          session_id: getSessionId(),
+          event_type: 'media_view',
+          media_id:   String(id),
+          listing_id: img.listing_id || null,
+          metadata:   { source: 'aura', surface: 'chat_strip' },
+        })
+      ).catch(() => {});
+    });
+
+    sessionStorage.setItem(AURA_IMPRESSED_KEY, JSON.stringify([...done]));
+  } catch {}
+}
+
+/**
+ * Call when a thumbnail in Aura's image strip is tapped.
+ * Fires media_click with source:aura.
+ */
+export function trackAuraTap(mediaId, listingId) {
+  if (!mediaId) return;
+  Promise.resolve(
+    supabase.from('media_events').insert({
+      session_id: getSessionId(),
+      event_type: 'media_click',
+      media_id:   String(mediaId),
+      listing_id: listingId || null,
+      metadata:   { source: 'aura', surface: 'chat_strip' },
+    })
+  ).catch(() => {});
+}
+
+/**
+ * Call when a lightbox image is navigated (swipe/arrow) within Aura.
+ * Fires media_view with source:aura_lightbox.
+ * Not deduped — each navigation is intentional engagement.
+ */
+export function trackAuraLightboxView(mediaId, listingId) {
+  if (!mediaId) return;
+  Promise.resolve(
+    supabase.from('media_events').insert({
+      session_id: getSessionId(),
+      event_type: 'media_view',
+      media_id:   String(mediaId),
+      listing_id: listingId || null,
+      metadata:   { source: 'aura', surface: 'chat_lightbox' },
+    })
+  ).catch(() => {});
+}

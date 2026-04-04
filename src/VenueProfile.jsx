@@ -7525,6 +7525,7 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
   const [lightIdx, setLightIdx] = useState(null);
   const [compareList, setCompareList] = useState(() => loadCompareList());
   const { isAuthenticated: isAdmin } = useAdminAuth();
+  const { setChatContext } = useChat();
 
   // Sync compareList to sessionStorage + notify GlobalCompare to update
   useEffect(() => {
@@ -7575,6 +7576,14 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
       });
       // Tag all subsequent tracker events with this listing context
       setListingContext(dbVenue.id || null, slug, 'venue');
+      // Feed Aura with venue context + listingId so it can show this venue's images
+      setChatContext({
+        page:      'venue-profile',
+        listingId: dbVenue.id   || null,
+        country:   dbVenue.country   || countrySlug || null,
+        region:    dbVenue.destination || dbVenue.region || regionSlug || null,
+        venueInfo: [dbVenue.name, dbVenue.shortDescription || dbVenue.desc].filter(Boolean).join(' — '),
+      });
     }
     // Clear listing context when component unmounts or slug changes
     return () => clearListingContext();

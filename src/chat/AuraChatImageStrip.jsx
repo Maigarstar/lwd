@@ -1,26 +1,68 @@
 // ─── src/chat/AuraChatImageStrip.jsx ─────────────────────────────────────────
 // Horizontal scrollable image strip that attaches to Aura's chat messages.
 // Shown when Aura responds with visual context (venue images, style references).
-// Tap any thumbnail → full-screen lightbox.
+// Tap any thumbnail → full-screen lightbox with prev/next navigation.
+// Tracks: impressions on mount, taps on thumbnail, nav in lightbox.
+// After 2+ lightbox views, fires onDiscovery() → Aura asks "show similar venues?"
 // ─────────────────────────────────────────────────────────────────────────────
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import {
+  trackAuraImpressions,
+  trackAuraTap,
+  trackAuraLightboxView,
+} from "../services/mediaEventService";
+import ImageInteractionBar from "../components/media/ImageInteractionBar";
 
 const GOLD      = "#C9A84C";
 const GOLD_DIM  = "rgba(201,168,76,0.12)";
 
 // ── Lightbox ──────────────────────────────────────────────────────────────────
-function Lightbox({ images, startIndex, onClose }) {
-  const [idx, setIdx] = useState(startIndex ?? 0);
+function Lightbox({ images, startIndex, onClose, onDiscovery }) {
+  const [idx, setIdx]           = useState(startIndex ?? 0);
+  const navCount                = useRef(0); // nav events (separate from open)
+  const discoveryFired          = useRef(false);
   const img = images[idx];
 
-  const prev = () => setIdx(i => Math.max(0, i - 1));
-  const next = () => setIdx(i => Math.min(images.length - 1, i + 1));
+  // Track lightbox nav (skip re-firing the open image — already tracked on tap)
+  const prev = () => {
+    const next = Math.max(0, idx - 1);
+    if (next !== idx) {
+      setIdx(next);
+      trackAuraLightboxView(images[next]?.media_id, images[next]?.listing_id);
+      navCount.current++;
+      if (navCount.current >= 2 && !discoveryFired.current && onDiscovery) {
+        discoveryFired.current = true;
+        // Small delay — let them finish looking first
+        setTimeout(() => onDiscovery(images[idx]), 1800);
+      }
+    }
+  };
+  const next = () => {
+    const ni = Math.min(images.length - 1, idx + 1);
+    if (ni !== idx) {
+      setIdx(ni);
+      trackAuraLightboxView(images[ni]?.media_id, images[ni]?.listing_id);
+      navCount.current++;
+      if (navCount.current >= 2 && !discoveryFired.current && onDiscovery) {
+        discoveryFired.current = true;
+        setTimeout(() => onDiscovery(images[ni]), 1800);
+      }
+    }
+  };
 
-  // Keyboard nav
+  // Keyboard nav (uses same prev/next so tracking fires)
   const handleKey = (e) => {
     if (e.key === "ArrowLeft")  { e.stopPropagation(); prev(); }
     if (e.key === "ArrowRight") { e.stopPropagation(); next(); }
     if (e.key === "Escape")     onClose();
+  };
+
+  // Dot navigation also tracks
+  const goTo = (i) => {
+    if (i !== idx) {
+      setIdx(i);
+      trackAuraLightboxView(images[i]?.media_id, images[i]?.listing_id);
+    }
   };
 
   return (
@@ -143,7 +185,7 @@ function Lightbox({ images, startIndex, onClose }) {
             {images.map((_, i) => (
               <button
                 key={i}
-                onClick={() => setIdx(i)}
+                onClick={() => goTo(i)}
                 aria-label={`Go to image ${i + 1}`}
                 style={{
                   width: i === idx ? 18 : 6,
@@ -158,6 +200,19 @@ function Lightbox({ images, startIndex, onClose }) {
             ))}
           </div>
         )}
+
+        {/* Like · Rate · Share bar */}
+        <div style={{
+          padding: "10px 18px 14px",
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+        }}>
+          <ImageInteractionBar
+            mediaId={img.media_id}
+            listingId={img.listing_id}
+            imageUrl={img.url}
+            listingName={img.listing_name}
+          />
+        </div>
 
         {/* Close */}
         <button onClick={onClose} aria-label="Close lightbox"
@@ -177,10 +232,16 @@ function Lightbox({ images, startIndex, onClose }) {
 }
 
 // ── Strip ─────────────────────────────────────────────────────────────────────
-export default function AuraChatImageStrip({ images }) {
+export default function AuraChatImageStrip({ images, onDiscovery }) {
   const [lightboxIdx, setLightboxIdx] = useState(null);
   const scrollRef = useRef(null);
   const [canScrollRight, setCanScrollRight] = useState(false);
+
+  // Track impressions once on mount
+  useEffect(() => {
+    if (images?.length) trackAuraImpressions(images);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // mount only
 
   if (!images?.length) return null;
 
@@ -215,7 +276,10 @@ export default function AuraChatImageStrip({ images }) {
           {images.map((img, i) => (
             <button
               key={img.media_id || img.url || i}
-              onClick={() => setLightboxIdx(i)}
+              onClick={() => {
+                trackAuraTap(img.media_id, img.listing_id);
+                setLightboxIdx(i);
+              }}
               aria-label={`View image: ${img.title || img.listing_name || "image"}`}
               style={{
                 flexShrink: 0,
@@ -283,16 +347,16 @@ export default function AuraChatImageStrip({ images }) {
         )}
       </div>
 
-      {/* Image count hint */}
-      {images.length > 1 && (
-        <div style={{
-          fontFamily: "var(--font-body)", fontSize: 9,
-          color: "rgba(255,255,255,0.28)",
-          letterSpacing: "0.5px", marginTop: 4,
-        }}>
-          {images.length} images · tap to view
-        </div>
-      )}
+      {/* "Tap to view" hint */}
+      <div style={{
+        fontFamily: "var(--font-body)", fontSize: 9,
+        color: "rgba(255,255,255,0.30)",
+        letterSpacing: "0.5px", marginTop: 5,
+      }}>
+        {images.length > 1
+          ? `Tap any image to view full gallery · ${images.length} images`
+          : "Tap to view full image"}
+      </div>
 
       {/* Lightbox */}
       {lightboxIdx !== null && (
@@ -300,6 +364,7 @@ export default function AuraChatImageStrip({ images }) {
           images={images}
           startIndex={lightboxIdx}
           onClose={() => setLightboxIdx(null)}
+          onDiscovery={onDiscovery}
         />
       )}
     </>

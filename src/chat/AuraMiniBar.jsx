@@ -33,7 +33,7 @@ const KEYFRAMES = `
 `;
 
 export default function AuraMiniBar() {
-  const { messages, isTyping, sendMessage, openWorkspace, closeChat } = useChat();
+  const { messages, isTyping, sendMessage, openWorkspace, closeChat, nudgeDiscovery } = useChat();
   const [input, setInput]         = useState("");
   const [listening, setListening] = useState(false);
   const threadRef  = useRef(null);
@@ -283,7 +283,7 @@ export default function AuraMiniBar() {
               {/* Inline images on Aura messages — MiniBar uses light theme strip */}
               {m.from === "aura" && m.images?.length > 0 && (
                 <div style={{ maxWidth: "90%", width: "100%" }}>
-                  <AuraChatImageStrip images={m.images} />
+                  <AuraChatImageStrip images={m.images} onDiscovery={nudgeDiscovery} />
                 </div>
               )}
             </div>

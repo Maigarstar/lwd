@@ -80,7 +80,7 @@ function TypingDots() {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function ChatWidget() {
-  const { messages, isOpen, isTyping, sendMessage, closeChat, toggleChat } =
+  const { messages, isOpen, isTyping, sendMessage, closeChat, toggleChat, nudgeDiscovery } =
     useChat();
 
   const [input,    setInput]    = useState("");
@@ -409,7 +409,7 @@ export default function ChatWidget() {
                 {/* Inline image strip — only on Aura messages with images */}
                 {m.from === "aura" && m.images?.length > 0 && (
                   <div style={{ maxWidth: "92%", width: "100%", marginTop: 6 }}>
-                    <AuraChatImageStrip images={m.images} />
+                    <AuraChatImageStrip images={m.images} onDiscovery={nudgeDiscovery} />
                   </div>
                 )}
               </div>

@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import HomeNav from "../components/navigation/HomeNav";
+import ImageInteractionBar from "../components/media/ImageInteractionBar";
 
 const GOLD        = "#C9A84C";
 const GOLD_DIM    = "rgba(201,168,76,0.08)";
@@ -183,6 +184,20 @@ function ImageCard({ img, rank, onListingClick }) {
               </span>{" "}{s.l}
             </span>
           ))}
+        </div>
+
+        {/* Like · Rate · Share */}
+        <div style={{
+          marginTop: 10, paddingTop: 10,
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+        }}>
+          <ImageInteractionBar
+            mediaId={img.media_id}
+            listingId={img.listing_id}
+            imageUrl={img.image_url}
+            listingName={img.listing_name}
+            compact
+          />
         </div>
       </div>
     </div>

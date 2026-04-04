@@ -104,12 +104,15 @@ export default function VendorProfileTemplate({
   useEffect(() => {
     if (!vendor) return;
     setChatContext({
-      page: "vendor-profile",
-      country: vendor.country || countrySlug || null,
-      region: vendor.region || regionSlug || null,
-      category: vendorType === "planner" ? "wedding-planners" : vendorType + "s",
-      entityId: vendor.id,
+      page:      "vendor-profile",
+      listingId: vendor.id || vendor.listing_id || null,
+      country:   vendor.country || countrySlug || null,
+      region:    vendor.region  || regionSlug  || null,
+      category:  vendorType === "planner" ? "wedding-planners" : vendorType + "s",
+      entityId:  vendor.id,
       entityName: vendor.name,
+      venueInfo:  [vendor.name, vendor.description || vendor.desc || vendor.short_description]
+                    .filter(Boolean).join(' — '),
     });
   }, [setChatContext, vendor, vendorType, countrySlug, regionSlug]);
 

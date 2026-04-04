@@ -316,10 +316,11 @@ export default function ShowcasePage({ slug, darkMode, onToggleDark, onBack, onG
           } catch (_) {
             // No listing found — that's fine, showcase renders without it
           }
-          // 3. Feed venue data into Aura so it can answer questions about this venue
+          // 3. Feed venue data into Aura — listingId enables image fetching
           if (!ignore) {
             setChatContext({
               page:      'showcase',
+              listingId: lst?.id || sc.listing_id || sc.listingId || null,
               country:   sc.location?.split(',').pop()?.trim() || null,
               region:    sc.location?.split(',')[0]?.trim()    || null,
               venueInfo: buildVenueInfo(sc, lst),
