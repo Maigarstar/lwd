@@ -43,7 +43,7 @@ function deltaStr(curr, prev) {
 }
 
 function buildCSV({ vendorName, rangeLabel, stats, prevStats, sources, countries, compareList, dailyViews, interpretation,
-  touchPointsTotal, touchPointsPerEnquiry, estBookingsHigh, estRevenueHigh, mediaValueLow, mediaValueHigh, effectiveBookingValue, effectiveCloseRate }) {
+  touchPointsTotal, touchPointsPerEnquiry, estBookingsHigh, estRevenueHigh, mediaValueLow, mediaValueHigh, effectiveBookingValue, effectiveCloseRate, season, bookingTarget }) {
   const s  = stats    || {};
   const p  = prevStats || {};
   const d  = new Date().toLocaleDateString("en-GB", { day:"numeric", month:"long", year:"numeric" });
@@ -91,6 +91,11 @@ function buildCSV({ vendorName, rangeLabel, stats, prevStats, sources, countries
     csvRow("MEDIA VALUE"),
     csvRow("Equivalent ad spend (low)", `£${mediaValueLow || 0}`),
     csvRow("Equivalent ad spend (high)", `£${mediaValueHigh || 0}`),
+    "",
+    csvRow("SEASONAL CONTEXT"),
+    csvRow("Current phase", season?.phase || "—"),
+    csvRow("Context", season?.context || "—"),
+    csvRow("Booking target", bookingTarget || "—"),
     "",
     csvRow("COMPARE INTELLIGENCE (last 30 days)"),
     csvRow("Listing", "Type", "Sessions"),
@@ -211,6 +216,122 @@ const CATEGORY_DEFAULTS = {
 function getROIDefaults(entityType, countryCode) {
   const cat = CATEGORY_DEFAULTS[entityType] || CATEGORY_DEFAULTS.default;
   return cat[countryCode] || cat.default || { value: 15000, rate: 20 };
+}
+
+// ── Wedding seasonality — region-aware phase map ──────────────────────────────
+
+const WEDDING_SEASONALITY = {
+  GB: {
+    1:  { phase: "Quiet",  colour: "#6b7280", label: "Post-Christmas quiet period.",       context: "Typical for January — demand starts rising from March.",          deal: "Now is the time to refresh your listing ahead of spring." },
+    2:  { phase: "Rising", colour: "#3b82f6", label: "Engagement season underway.",        context: "Valentine's engagements drive early venue research.",             deal: "Couples shortlisting now will enquire in March–April." },
+    3:  { phase: "Rising", colour: "#3b82f6", label: "Discovery season in full swing.",    context: "Shortlist and compare activity rising sharply.",                  deal: "Peak booking season begins next month — high intent traffic." },
+    4:  { phase: "Peak",   colour: "#22c55e", label: "Peak booking season.",               context: "Enquiry volume is at its highest — couples are deciding now.",    deal: "This is when venues fill their calendar." },
+    5:  { phase: "Peak",   colour: "#22c55e", label: "Peak booking season.",               context: "Contracts being signed. High conversion expected.",               deal: "Strong conversion period — follow up enquiries quickly." },
+    6:  { phase: "Peak",   colour: "#22c55e", label: "Summer weddings + autumn bookings.", context: "Weddings executing while next year's bookings open.",             deal: "Dual season — current weddings and forward bookings." },
+    7:  { phase: "Busy",   colour: "#C9A84C", label: "High execution season.",             context: "Vendors focused on live weddings. Autumn bookings opening.",      deal: "Enquiries now are typically booking 12–18 months ahead." },
+    8:  { phase: "Busy",   colour: "#C9A84C", label: "Summer peak executing.",             context: "Early interest for next year beginning to build.",                deal: "Couples enquiring now are planning Summer next year." },
+    9:  { phase: "Rising", colour: "#3b82f6", label: "Post-summer planning season.",       context: "Vendors reviewing performance. Second engagement spike ahead.",   deal: "Strong window for upgrades and renewals." },
+    10: { phase: "Rising", colour: "#3b82f6", label: "Autumn planning season.",            context: "Second engagement wave building toward Christmas.",               deal: "Position yourself now ahead of the Christmas engagement rush." },
+    11: { phase: "Quiet",  colour: "#6b7280", label: "Pre-Christmas quiet period.",        context: "Budget planning season. Engagement wave imminent.",              deal: "Prepare your listing for the January surge." },
+    12: { phase: "Rising", colour: "#3b82f6", label: "Christmas engagement season.",       context: "Highest engagement rate of the year — proposals imminent.",      deal: "January will be your busiest discovery month." },
+  },
+  IT: {
+    1:  { phase: "Quiet",  colour: "#6b7280", label: "Off-season.",                        context: "Northern European couples researching destinations.",             deal: "Early enquiries for peak summer slots already arriving." },
+    2:  { phase: "Rising", colour: "#3b82f6", label: "Early enquiry season.",              context: "Serious couples beginning venue research.",                      deal: "Summer slots book out fast — early visibility matters." },
+    3:  { phase: "Rising", colour: "#3b82f6", label: "Discovery season begins.",           context: "Shortlist and compare activity rising.",                         deal: "April–September slots filling — peak demand in 4 weeks." },
+    4:  { phase: "Peak",   colour: "#22c55e", label: "Peak booking season.",               context: "Highest enquiry volume of the year.",                           deal: "Summer slots filling fast — conversion is critical now." },
+    5:  { phase: "Peak",   colour: "#22c55e", label: "Peak booking season.",               context: "Demand across all Italian regions at maximum.",                  deal: "Strong conversion window — respond to enquiries same day." },
+    6:  { phase: "Peak",   colour: "#22c55e", label: "Peak execution + forward bookings.", context: "Weddings executing and next year's diary opening.",              deal: "Dual momentum — present season and next year bookings." },
+    7:  { phase: "Busy",   colour: "#C9A84C", label: "High execution.",                    context: "Peak summer weddings. Next year enquiries starting.",            deal: "Forward bookings for 2027 already building." },
+    8:  { phase: "Busy",   colour: "#C9A84C", label: "August weddings.",                   context: "Post-summer bookings beginning.",                                deal: "September–October is a strong second season." },
+    9:  { phase: "Peak",   colour: "#22c55e", label: "Autumn wedding season.",             context: "Second peak — ideal climate, strong demand.",                   deal: "Autumn slots highly sought after — position now." },
+    10: { phase: "Rising", colour: "#3b82f6", label: "Late autumn season.",                context: "Autumn weddings and early next-year bookings.",                  deal: "Early 2026 enquiries starting to arrive." },
+    11: { phase: "Quiet",  colour: "#6b7280", label: "Off-season begins.",                 context: "Season closing. Plan marketing for spring.",                     deal: "Refresh your listing content in preparation for January." },
+    12: { phase: "Quiet",  colour: "#6b7280", label: "Off-season.",                        context: "Research activity from international couples continues.",        deal: "Engaged couples from Christmas will research in January." },
+  },
+  AE: {
+    1:  { phase: "Peak",   colour: "#22c55e", label: "Peak wedding season.",               context: "Ideal climate. Highest venue demand of the year.",               deal: "Top conversion window — couples deciding quickly." },
+    2:  { phase: "Peak",   colour: "#22c55e", label: "Peak wedding season.",               context: "High demand across all UAE venues.",                             deal: "Strong enquiry volume — respond fast." },
+    3:  { phase: "Rising", colour: "#3b82f6", label: "Late peak season.",                  context: "Season closing as temperatures rise.",                           deal: "Last high-conversion window before off-season." },
+    4:  { phase: "Quiet",  colour: "#6b7280", label: "Heat season begins.",                context: "Reduced wedding activity due to climate.",                       deal: "Forward bookings for autumn/winter now being made." },
+    5:  { phase: "Quiet",  colour: "#6b7280", label: "Off-season.",                        context: "Low domestic activity. International research continues.",       deal: "Ideal time to refresh listing content." },
+    6:  { phase: "Quiet",  colour: "#6b7280", label: "Off-season.",                        context: "Peak heat. Minimal local activity.",                             deal: "Target international couples planning UAE destination weddings." },
+    7:  { phase: "Quiet",  colour: "#6b7280", label: "Off-season. Peak heat.",             context: "Lowest activity period of the year.",                            deal: "Prepare listing and imagery for autumn relaunch." },
+    8:  { phase: "Quiet",  colour: "#6b7280", label: "Off-season.",                        context: "Season preparation underway.",                                   deal: "October season approach — forward bookings opening." },
+    9:  { phase: "Rising", colour: "#3b82f6", label: "Season approaching.",                context: "Forward bookings for winter season arriving.",                   deal: "High intent couples planning November–February weddings." },
+    10: { phase: "Rising", colour: "#3b82f6", label: "Season beginning.",                  context: "Enquiry volume rising strongly.",                                deal: "Peak season 6 weeks away — strong discovery period." },
+    11: { phase: "Peak",   colour: "#22c55e", label: "Peak season starting.",              context: "Climate ideal. Demand at near-peak levels.",                     deal: "Top conversion window — couples ready to commit." },
+    12: { phase: "Peak",   colour: "#22c55e", label: "Peak wedding season.",               context: "Highest demand of the year.",                                    deal: "Maximum conversion opportunity." },
+  },
+  AU: {
+    1:  { phase: "Peak",   colour: "#22c55e", label: "Summer wedding season.",             context: "Peak Australian wedding season — outdoor venues in high demand.", deal: "Strong conversion — couples booking summer dates." },
+    2:  { phase: "Peak",   colour: "#22c55e", label: "Peak summer season.",                context: "Autumn weddings being planned alongside current summer dates.",   deal: "High dual-season activity." },
+    3:  { phase: "Rising", colour: "#3b82f6", label: "Autumn season begins.",              context: "Autumn weddings — mild climate, rising demand.",                 deal: "Forward bookings for next summer starting." },
+    4:  { phase: "Busy",   colour: "#C9A84C", label: "Autumn wedding season.",             context: "Popular season for outdoor and garden venues.",                  deal: "Strong conversion window." },
+    5:  { phase: "Quiet",  colour: "#6b7280", label: "Winter season begins.",              context: "Lower activity in southern states.",                             deal: "Queensland and WA maintain stronger demand." },
+    6:  { phase: "Quiet",  colour: "#6b7280", label: "Winter off-season.",                 context: "Engagement research building for spring.",                       deal: "Spring venues shortlisted now." },
+    7:  { phase: "Rising", colour: "#3b82f6", label: "Spring planning season.",            context: "Couples planning spring and summer weddings.",                   deal: "Spring slots filling fast — strong discovery period." },
+    8:  { phase: "Rising", colour: "#3b82f6", label: "Spring enquiry season.",             context: "High discovery and shortlist activity.",                         deal: "Spring and summer slots in high demand." },
+    9:  { phase: "Peak",   colour: "#22c55e", label: "Spring wedding season.",             context: "Peak spring demand. Strong conversion.",                         deal: "Top conversion window." },
+    10: { phase: "Peak",   colour: "#22c55e", label: "Spring peak.",                       context: "Highest enquiry volume building toward summer.",                 deal: "Spring and summer slots almost full." },
+    11: { phase: "Busy",   colour: "#C9A84C", label: "Early summer season.",               context: "Summer bookings executing and forward planning.",               deal: "Next year's prime dates being reserved." },
+    12: { phase: "Busy",   colour: "#C9A84C", label: "Summer season.",                     context: "Peak execution. New year engagements imminent.",                 deal: "January engagement spike — prepare for discovery surge." },
+  },
+  FR: {
+    1:  { phase: "Quiet",  colour: "#6b7280", label: "Off-season.",                        context: "Research phase for spring and summer dates.",                    deal: "Early enquiries for June–September slots arriving." },
+    2:  { phase: "Rising", colour: "#3b82f6", label: "Early discovery season.",            context: "Valentine's engagements driving early research.",                deal: "Spring and summer slots booking now." },
+    3:  { phase: "Rising", colour: "#3b82f6", label: "Discovery season.",                  context: "Couples actively comparing French venues.",                      deal: "April peak 4 weeks away." },
+    4:  { phase: "Peak",   colour: "#22c55e", label: "Peak booking season.",               context: "Highest enquiry and conversion rates of the year.",              deal: "Top conversion window — act on all enquiries." },
+    5:  { phase: "Peak",   colour: "#22c55e", label: "Peak booking season.",               context: "Summer slots filling rapidly.",                                  deal: "June–September dates almost fully booked by now." },
+    6:  { phase: "Peak",   colour: "#22c55e", label: "Summer season peak.",                context: "Weddings executing and autumn bookings opening.",                 deal: "Autumn availability attracting attention." },
+    7:  { phase: "Busy",   colour: "#C9A84C", label: "High summer season.",                context: "Peak execution. Forward bookings for next year opening.",        deal: "2027 prime dates being reserved." },
+    8:  { phase: "Quiet",  colour: "#6b7280", label: "August slowdown.",                   context: "French holiday season — reduced business activity.",             deal: "Prepare for strong September bounce." },
+    9:  { phase: "Rising", colour: "#3b82f6", label: "Autumn planning season.",            context: "Post-summer reflection and next year planning.",                 deal: "Strong second window for upgrades and visibility." },
+    10: { phase: "Rising", colour: "#3b82f6", label: "Autumn planning.",                   context: "Next year bookings building.",                                   deal: "Early 2027 slots being considered." },
+    11: { phase: "Quiet",  colour: "#6b7280", label: "Pre-Christmas quiet.",               context: "Budget planning and list preparation.",                          deal: "Position for Christmas engagement surge." },
+    12: { phase: "Rising", colour: "#3b82f6", label: "Christmas engagement season.",       context: "Highest proposal rate of the year.",                             deal: "January discovery surge incoming — refresh your listing now." },
+  },
+  US: {
+    1:  { phase: "Rising", colour: "#3b82f6", label: "Engagement season.",                 context: "Post-New Year engagements driving venue research.",              deal: "Spring and summer slots filling fast." },
+    2:  { phase: "Rising", colour: "#3b82f6", label: "Valentine's engagement peak.",       context: "Highest engagement rate of the year.",                          deal: "Couples enquiring now are booking for next autumn." },
+    3:  { phase: "Peak",   colour: "#22c55e", label: "Spring booking season.",             context: "Peak enquiry volume for spring and summer dates.",               deal: "Top conversion window — respond same day." },
+    4:  { phase: "Peak",   colour: "#22c55e", label: "Peak booking season.",               context: "Summer dates almost fully booked.",                              deal: "Urgency is high — couples know slots are limited." },
+    5:  { phase: "Busy",   colour: "#C9A84C", label: "Pre-summer season.",                 context: "Weddings executing. Late summer bookings closing.",              deal: "Autumn dates still available — promote now." },
+    6:  { phase: "Peak",   colour: "#22c55e", label: "Peak summer wedding season.",        context: "Highest wedding volume of the year.",                           deal: "Strong forward bookings for next year." },
+    7:  { phase: "Busy",   colour: "#C9A84C", label: "Summer season.",                     context: "High execution. Next year early bookings.",                     deal: "Next June/July filling up — advertise availability." },
+    8:  { phase: "Busy",   colour: "#C9A84C", label: "Late summer season.",                context: "Autumn weddings the next priority.",                             deal: "Autumn conversion window strong." },
+    9:  { phase: "Peak",   colour: "#22c55e", label: "Fall wedding season.",               context: "Second peak — foliage season highly sought after.",             deal: "Top conversion window for autumn dates." },
+    10: { phase: "Peak",   colour: "#22c55e", label: "Fall peak.",                         context: "Highest demand for autumn dates.",                               deal: "Strong conversion — act quickly on all enquiries." },
+    11: { phase: "Rising", colour: "#3b82f6", label: "Holiday engagement season.",         context: "Thanksgiving and Christmas proposals ahead.",                    deal: "January will be your busiest discovery month." },
+    12: { phase: "Rising", colour: "#3b82f6", label: "Christmas engagement peak.",         context: "Highest engagement rate of the year.",                          deal: "Prepare your listing for the January surge." },
+  },
+};
+
+// Booking window by category (months ahead)
+const BOOKING_WINDOW = {
+  venue:        { min: 12, max: 24 },
+  photographer: { min: 6,  max: 18 },
+  planner:      { min: 12, max: 18 },
+  florist:      { min: 3,  max: 12 },
+  caterer:      { min: 6,  max: 12 },
+  default:      { min: 9,  max: 18 },
+};
+
+function getSeasonality(countryCode, month) {
+  const map = WEDDING_SEASONALITY[countryCode] || WEDDING_SEASONALITY.GB;
+  return map[month] || map[1];
+}
+
+function getBookingTargetYear(entityType) {
+  const window = BOOKING_WINDOW[entityType] || BOOKING_WINDOW.default;
+  const now = new Date();
+  const midMonthsAhead = Math.round((window.min + window.max) / 2);
+  const targetDate = new Date(now.getFullYear(), now.getMonth() + midMonthsAhead, 1);
+  const season =
+    targetDate.getMonth() >= 2 && targetDate.getMonth() <= 4 ? "Spring" :
+    targetDate.getMonth() >= 5 && targetDate.getMonth() <= 7 ? "Summer" :
+    targetDate.getMonth() >= 8 && targetDate.getMonth() <= 10 ? "Autumn" : "Winter";
+  return `${season} ${targetDate.getFullYear()}`;
 }
 
 // ── Chart bucketing — scales with date range ──────────────────────────────────
@@ -344,7 +465,7 @@ function buildInterpretation(stats, prevStats) {
     benchmark = { text: "Below average conversion — small improvements could make a significant difference", positive: false };
   }
 
-  return { headline, subline, sentiment, benchmark };
+  return { headline, subline, sentiment, benchmark, seasonal: null };
 }
 
 // ── Compare peer URL helper ───────────────────────────────────────────────────
@@ -432,7 +553,8 @@ function StatKPI({ label, value, prevValue, unit = "", color,
 // ── PrintReport — board-ready one-page PDF ────────────────────────────────────
 
 function PrintReport({ vendor, rangeLabel, stats, prevStats, sources, countries, compareList, dailyViews, interpretation, liveCount,
-  touchPointsTotal, touchPointsPerEnquiry, mediaValueLow, mediaValueHigh, estBookingsHigh, estRevenueHigh, effectiveBookingValue, effectiveCloseRate }) {
+  touchPointsTotal, touchPointsPerEnquiry, mediaValueLow, mediaValueHigh, estBookingsHigh, estRevenueHigh, effectiveBookingValue, effectiveCloseRate,
+  season, bookingTarget }) {
   const s = stats    || {};
   const p = prevStats || {};
   const generatedOn = new Date().toLocaleDateString("en-GB", {
@@ -676,6 +798,37 @@ function PrintReport({ vendor, rangeLabel, stats, prevStats, sources, countries,
           </div>
         </div>
       </div>
+
+      {/* ── Seasonal context ──────────────────────────────────────────────── */}
+      {season && (
+        <>
+          <hr style={PR.thinRule} />
+          <div style={{ marginBottom: 16 }}>
+            <div style={PR.label}>Seasonal Context</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, marginBottom: 6 }}>
+              <span style={{
+                display: "inline-block", padding: "2px 8px", borderRadius: 10,
+                fontSize: 9, fontWeight: "bold", letterSpacing: "1px",
+                textTransform: "uppercase",
+                color: season.colour, background: season.colour + "18",
+                border: `1px solid ${season.colour}44`,
+              }}>
+                {season.phase} Season
+              </span>
+              <span style={{ ...PR.muted, fontSize: 10 }}>
+                {new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: "#1a1a1a", marginBottom: 4 }}>{season.label}</div>
+            <div style={{ ...PR.muted }}>{season.context}</div>
+            {bookingTarget && (
+              <div style={{ marginTop: 8, ...PR.gold, fontSize: 10, fontStyle: "italic" }}>
+                ✦ Couples enquiring now are typically booking for {bookingTarget}.
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {/* ── 30-day trend (bar chart) ───────────────────────────────────── */}
       {trendSlice.length > 0 && (
@@ -1137,6 +1290,12 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
 
   const refreshLabel = fmtRefreshed(lastRefreshed);
 
+  // ── Seasonality ─────────────────────────────────────────────────────────────
+  const currentMonth  = new Date().getMonth() + 1; // 1–12
+  const countryCode   = vendor?.country_code || "GB";
+  const season        = getSeasonality(countryCode, currentMonth);
+  const bookingTarget = getBookingTargetYear(vendor?.entity_type);
+
   // Shared props for StatKPI
   const kpi = { loading, isMobile, cardBg, border, textPrimary, textMuted };
 
@@ -1161,6 +1320,18 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
             {refreshLabel && (
               <span style={{ fontFamily: NU, fontSize: 11, color: textMuted, opacity: 0.6 }}>
                 · {refreshLabel}
+              </span>
+            )}
+            {!loading && season && (
+              <span style={{
+                fontFamily: NU, fontSize: 10, fontWeight: 700,
+                letterSpacing: "1px", textTransform: "uppercase",
+                color: season.colour,
+                background: season.colour + "18",
+                border: `1px solid ${season.colour}44`,
+                borderRadius: 20, padding: "2px 10px",
+              }}>
+                {season.phase} Season
               </span>
             )}
           </div>
@@ -1338,6 +1509,48 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
               </span>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Seasonal context ─────────────────────────────────────────────── */}
+      {!loading && season && (
+        <div style={{
+          display: "flex", alignItems: "flex-start", gap: 14,
+          padding: "14px 18px",
+          background: isLight ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.02)",
+          border: `1px solid ${season.colour}33`,
+          borderRadius: "var(--lwd-radius-card)",
+        }}>
+          {/* Phase dot */}
+          <div style={{
+            width: 8, height: 8, borderRadius: "50%",
+            background: season.colour, flexShrink: 0, marginTop: 5,
+          }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+              <span style={{
+                fontFamily: NU, fontSize: 9, fontWeight: 700,
+                letterSpacing: "1.5px", textTransform: "uppercase",
+                color: season.colour,
+              }}>
+                {season.phase} · {new Date().toLocaleDateString("en-US", { month: "long" })}
+              </span>
+            </div>
+            <div style={{ fontFamily: NU, fontSize: 12, color: textPrimary, marginBottom: 3, lineHeight: 1.5 }}>
+              {season.label}
+            </div>
+            <div style={{ fontFamily: NU, fontSize: 11, color: textMuted, lineHeight: 1.5 }}>
+              {season.context}
+            </div>
+            {season.deal && (
+              <div style={{
+                fontFamily: NU, fontSize: 11, color: season.colour,
+                marginTop: 6, fontStyle: "italic",
+              }}>
+                ✦ {season.deal}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1519,6 +1732,29 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
               background: "rgba(128,128,128,0.08)", animation: "shimmer 1.4s ease infinite" }} />
           ) : trendData.length > 0 && trendData.some(d => d.count > 0) ? (
             <>
+              {/* Peak season label */}
+              {season.phase === "Peak" && (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  marginBottom: 8,
+                }}>
+                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e" }} />
+                  <span style={{ fontFamily: NU, fontSize: 10, color: "#22c55e", letterSpacing: "0.5px" }}>
+                    Peak season — higher enquiry volume expected
+                  </span>
+                </div>
+              )}
+              {season.phase === "Quiet" && (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  marginBottom: 8,
+                }}>
+                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#6b7280" }} />
+                  <span style={{ fontFamily: NU, fontSize: 10, color: "#6b7280", letterSpacing: "0.5px" }}>
+                    Quiet period — typical seasonal pattern
+                  </span>
+                </div>
+              )}
               <Sparkline data={trendData.map(d => d.count)} color={GOLD} height={64} />
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
                 <span style={{ fontFamily: NU, fontSize: 10, color: textMuted }}>
@@ -2002,6 +2238,18 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
                 listing investment many times over — and your listing is already generating interest.
               </span>
             </div>
+
+            {/* Booking window insight */}
+            <div style={{
+              marginTop: 10,
+              fontFamily: NU, fontSize: 11, color: textMuted,
+              lineHeight: 1.6,
+            }}>
+              <span style={{ color: GOLD }}>✦</span>{" "}
+              Couples enquiring <strong>right now</strong> are typically booking for{" "}
+              <strong style={{ color: textPrimary }}>{bookingTarget}</strong>.
+              {" "}Current activity = future revenue.
+            </div>
           </>
         )}
       </div>
@@ -2050,6 +2298,8 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
                   mediaValueHigh,
                   effectiveBookingValue,
                   effectiveCloseRate,
+                  season,
+                  bookingTarget,
                 });
                 const slug = (vendor?.name || "report")
                   .toLowerCase().replace(/[^a-z0-9]+/g, "-");
@@ -2114,6 +2364,8 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
           estRevenueHigh={estRevenueHigh}
           effectiveBookingValue={effectiveBookingValue}
           effectiveCloseRate={effectiveCloseRate}
+          season={season}
+          bookingTarget={bookingTarget}
         />
       </div>
 
