@@ -1220,9 +1220,12 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
     try { return JSON.parse(sessionStorage.getItem("lwd_admin_preview") || "null"); } catch { return null; }
   })();
   const isAdminPreview = _adminPreviewData?.type === "vendor";
+  // UUID validation — old sessionStorage entries may have non-UUID ids like "vdr-13"
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const _previewId = UUID_RE.test(_adminPreviewData?.id || "") ? _adminPreviewData.id : "11111111-1111-1111-1111-111111111113";
   // If in preview mode, use a mock vendor object; otherwise use the real context vendor.
   const vendor = isAdminPreview
-    ? { id: _adminPreviewData.id || "vdr-13", name: _adminPreviewData.name || "The Grand Pavilion", email: _adminPreviewData.email || "contact@grandpavilion.com", isAdminPreview: true }
+    ? { id: _previewId, name: _adminPreviewData.name || "The Grand Pavilion", email: _adminPreviewData.email || "contact@grandpavilion.com", analytics_enabled: _adminPreviewData.analytics_enabled ?? true, isAdminPreview: true }
     : _contextVendor;
   // ─────────────────────────────────────────────────────────────────────────
   const [currentTheme, setCurrentTheme] = useState(

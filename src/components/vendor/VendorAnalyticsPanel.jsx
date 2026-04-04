@@ -197,6 +197,12 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
   // Guard — analytics_enabled must be explicitly true (admin-toggled)
   const analyticsEnabled = vendor?.analytics_enabled === true;
 
+  // ── DEV DEBUG — remove before production ─────────────────────────────────
+  useEffect(() => {
+    console.log("[VendorAnalytics] vendor:", vendor);
+    console.log("[VendorAnalytics] analyticsEnabled:", analyticsEnabled);
+  }, [vendor, analyticsEnabled]);
+
   // ── State ────────────────────────────────────────────────────────────────────
   const [range, setRange]           = useState("7d"); // "7d" | "30d" | "custom"
   const [customFrom, setCustomFrom] = useState("");
@@ -235,7 +241,12 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
 
   // ── Load all data ────────────────────────────────────────────────────────────
   const loadAll = useCallback(async () => {
-    if (!vendor?.id || !analyticsEnabled) return;
+    console.log("[VendorAnalytics] loadAll — vendor.id:", vendor?.id, "enabled:", analyticsEnabled);
+    if (!vendor?.id || !analyticsEnabled) {
+      console.warn("[VendorAnalytics] loadAll BLOCKED — missing id or not enabled");
+      setLoading(false);
+      return;
+    }
     setLoading(true);
 
     const { from, to }         = getRangeISO();
@@ -253,91 +264,72 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
     setLoading(false);
   }, [vendor?.id, analyticsEnabled, getRangeISO, getPrevRangeISO]);
 
-  // ── 1 + 2: Stats + previous period ──────────────────────────────────────────
+  // ── 1 + 2: Stats via RPC (bypasses RLS) ─────────────────────────────────────
   async function loadStats(from, to) {
     try {
-      const { data } = await supabase
-        .from("page_events")
-        .select("event_type, session_id")
-        .eq("listing_id", vendor.id)
-        .gte("created_at", from)
-        .lte("created_at", to);
-
-      if (!data) return;
-      setStats(aggregateEvents(data));
-    } catch { /* silent */ }
+      console.log("[VendorAnalytics] calling get_listing_stats with id:", vendor.id, "from:", from, "to:", to);
+      const { data, error } = await supabase.rpc("get_listing_stats", {
+        p_listing_id: vendor.id, p_from: from, p_to: to,
+      });
+      console.log("[VendorAnalytics] get_listing_stats result:", data, "error:", error);
+      if (error) { console.error("[analytics] loadStats:", error); return; }
+      const d = data || {};
+      setStats({
+        views:              d.views              || 0,
+        uniqueSessions:     d.unique_sessions    || 0,
+        shortlists:         d.shortlists         || 0,
+        compares:           d.compares           || 0,
+        enquiryStarted:     d.enquiry_started    || 0,
+        enquirySubmitted:   d.enquiry_submitted  || 0,
+        outbound:           d.outbound           || 0,
+        viewToEnquiry:      parseFloat(d.view_to_enquiry    || 0),
+        enquiryCompletion:  parseFloat(d.enquiry_completion || 0),
+      });
+    } catch (e) { console.error("[analytics] loadStats exception:", e); }
   }
 
   async function loadPrevStats(from, to) {
     try {
-      const { data } = await supabase
-        .from("page_events")
-        .select("event_type, session_id")
-        .eq("listing_id", vendor.id)
-        .gte("created_at", from)
-        .lte("created_at", to);
-
-      if (!data) return;
-      setPrevStats(aggregateEvents(data));
+      const { data, error } = await supabase.rpc("get_listing_stats", {
+        p_listing_id: vendor.id, p_from: from, p_to: to,
+      });
+      if (error) return;
+      const d = data || {};
+      setPrevStats({
+        views:              d.views              || 0,
+        uniqueSessions:     d.unique_sessions    || 0,
+        shortlists:         d.shortlists         || 0,
+        compares:           d.compares           || 0,
+        enquiryStarted:     d.enquiry_started    || 0,
+        enquirySubmitted:   d.enquiry_submitted  || 0,
+        outbound:           d.outbound           || 0,
+        viewToEnquiry:      parseFloat(d.view_to_enquiry    || 0),
+        enquiryCompletion:  parseFloat(d.enquiry_completion || 0),
+      });
     } catch { /* silent */ }
   }
 
-  function aggregateEvents(rows) {
-    const sessions = new Set();
-    let views = 0, shortlists = 0, compares = 0, enquiryStarted = 0, enquirySubmitted = 0, outbound = 0;
-    for (const r of rows) {
-      if (r.session_id) sessions.add(r.session_id);
-      if (r.event_type === "page_view")          views++;
-      if (r.event_type === "shortlist_add")      shortlists++;
-      if (r.event_type === "compare_add")        compares++;
-      if (r.event_type === "enquiry_started")    enquiryStarted++;
-      if (r.event_type === "enquiry_submitted")  enquirySubmitted++;
-      if (r.event_type === "outbound_click")     outbound++;
-    }
-    const viewToEnquiry = views > 0 ? (enquirySubmitted / views) * 100 : 0;
-    const enquiryCompletion = enquiryStarted > 0 ? (enquirySubmitted / enquiryStarted) * 100 : 0;
-    return {
-      views,
-      uniqueSessions: sessions.size,
-      shortlists,
-      compares,
-      enquiryStarted,
-      enquirySubmitted,
-      outbound,
-      viewToEnquiry: parseFloat(viewToEnquiry.toFixed(1)),
-      enquiryCompletion: parseFloat(enquiryCompletion.toFixed(1)),
-    };
-  }
-
-  // ── 3: Live interest ─────────────────────────────────────────────────────────
+  // ── 3: Live interest via RPC ─────────────────────────────────────────────────
   async function loadLiveCount() {
     try {
-      const cutoff = new Date(Date.now() - 5 * 60_000).toISOString();
-      const { count } = await supabase
-        .from("live_sessions")
-        .select("session_id", { count: "exact", head: true })
-        .eq("current_listing_id", vendor.id)
-        .gte("last_seen_at", cutoff);
-      setLiveCount(count || 0);
+      const { data, error } = await supabase.rpc("get_listing_live_count", {
+        p_listing_id: vendor.id,
+      });
+      if (!error) setLiveCount(Number(data) || 0);
     } catch { /* silent */ }
   }
 
-  // ── 4: Source breakdown ──────────────────────────────────────────────────────
+  // ── 4: Source breakdown via RPC ──────────────────────────────────────────────
   async function loadSources(from, to) {
     try {
-      const { data } = await supabase
-        .from("page_events")
-        .select("utm_source, referrer")
-        .eq("listing_id", vendor.id)
-        .eq("event_type", "page_view")
-        .gte("created_at", from)
-        .lte("created_at", to);
-
-      if (!data?.length) { setSources([]); return; }
+      const { data, error } = await supabase.rpc("get_listing_sources", {
+        p_listing_id: vendor.id, p_from: from, p_to: to,
+      });
+      if (error || !data?.length) { setSources([]); return; }
 
       const counts = {};
       for (const row of data) {
-        const src = classifySource(row);
+        const src = classifySource({ utm_source: row.utm_source, referrer: row.referrer });
         counts[src] = (counts[src] || 0) + 1;
       }
       const total = data.length;
@@ -349,67 +341,38 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
     } catch { /* silent */ }
   }
 
-  // ── 5: Compare intelligence ──────────────────────────────────────────────────
+  // ── 5: Compare intelligence via RPC ──────────────────────────────────────────
   async function loadCompareList() {
     try {
-      // Step 1: sessions where this listing was compared
-      const { data: mySess } = await supabase
-        .from("page_events")
-        .select("session_id")
-        .eq("listing_id", vendor.id)
-        .eq("event_type", "compare_add")
-        .gte("created_at", new Date(Date.now() - 30 * 86400_000).toISOString());
-
-      if (!mySess?.length) { setCompareList([]); return; }
-
-      const sessionIds = [...new Set(mySess.map(s => s.session_id))].slice(0, 100);
-
-      // Step 2: other listings compared in those same sessions
-      const { data: others } = await supabase
-        .from("page_events")
-        .select("listing_id, listing_slug, entity_type")
-        .in("session_id", sessionIds)
-        .eq("event_type", "compare_add")
-        .neq("listing_id", vendor.id);
-
-      if (!others?.length) { setCompareList([]); return; }
-
-      const tally = {};
-      for (const r of others) {
-        const key = r.listing_slug || r.listing_id;
-        if (!key) continue;
-        tally[key] = tally[key]
-          ? { ...tally[key], count: tally[key].count + 1 }
-          : { slug: r.listing_slug, id: r.listing_id, type: r.entity_type, count: 1 };
-      }
-      const sorted = Object.values(tally).sort((a, b) => b.count - a.count).slice(0, 8);
-      setCompareList(sorted);
+      const { data, error } = await supabase.rpc("get_listing_compare_peers", {
+        p_listing_id: vendor.id,
+      });
+      if (error || !data?.length) { setCompareList([]); return; }
+      setCompareList(data.map(r => ({
+        slug:  r.listing_slug,
+        type:  r.entity_type,
+        count: Number(r.sessions),
+      })));
     } catch { /* silent */ }
   }
 
-  // ── 8: Historical daily views ─────────────────────────────────────────────
+  // ── 8: Historical daily views via RPC ────────────────────────────────────────
   async function loadDailyViews() {
     try {
-      const from = new Date(Date.now() - 30 * 86400_000).toISOString();
-      const { data } = await supabase
-        .from("page_events")
-        .select("created_at")
-        .eq("listing_id", vendor.id)
-        .eq("event_type", "page_view")
-        .gte("created_at", from);
+      const { data, error } = await supabase.rpc("get_listing_daily_views", {
+        p_listing_id: vendor.id,
+      });
+      if (error || !data?.length) { setDailyViews([]); return; }
 
-      if (!data?.length) { setDailyViews([]); return; }
-
-      // Build last-30-day bucket map
+      // Fill any missing days with 0 so the sparkline is complete
       const map = {};
       for (let i = 29; i >= 0; i--) {
-        const d = new Date(Date.now() - i * 86400_000);
-        const key = d.toISOString().slice(0, 10);
+        const key = new Date(Date.now() - i * 86400_000).toISOString().slice(0, 10);
         map[key] = 0;
       }
       for (const r of data) {
-        const key = r.created_at.slice(0, 10);
-        if (key in map) map[key]++;
+        const key = (r.day || "").slice(0, 10);
+        if (key in map) map[key] = Number(r.views) || 0;
       }
       setDailyViews(Object.entries(map).map(([label, count]) => ({ label, count })));
     } catch { /* silent */ }
